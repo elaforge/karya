@@ -90,14 +90,14 @@ handle_msgs chan win db = do
     displayed <- liftIO $ process_query chan win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
         Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.read_msg win
-        let qualified = InstTypes.parse_qualified (txt text)
+        let qualified = InstTypes.parse_qualified text
         case typ of
             BrowserC.Select -> liftIO $ show_info chan win db qualified
             BrowserC.Choose -> liftIO $ choose_instrument qualified
             BrowserC.Query -> do
                 state <- State.get
                 displayed <- liftIO $
-                    process_query chan win db (state_displayed state) (txt text)
+                    process_query chan win db (state_displayed state) text
                 State.put (state { state_displayed = displayed })
             BrowserC.Unknown c -> liftIO $
                 putStrLn $ "unknown msg type: " ++ show c

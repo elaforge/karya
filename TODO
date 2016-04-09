@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  + LogView could use Text instead of String
+  * LogView could use Text instead of String
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:
     +RTS -A128m -n2m -RTS

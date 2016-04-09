@@ -24,7 +24,6 @@ import qualified Control.Monad.Trans.Writer as Writer
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Builder as Builder
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Foldable as Foldable
 import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
@@ -59,7 +58,7 @@ data State = State {
     , state_last_displayed :: Maybe (Log.Msg, Int)
     } deriving (Show)
 
-initial_state :: String -> State
+initial_state :: Text -> State
 initial_state filt = State
     { state_filter = compile_filter filt
     , state_catch_patterns = []
@@ -123,7 +122,8 @@ process_msg state msg = run $ do -- suppress_last msg $ do
     let styled = format_msg msg
     -- I match the filter on the styled output so that the filter is on
     -- the msg as actually displayed.
-    return $ if eval_filter filt msg (UTF8.toString (style_text styled))
+    return $ if eval_filter filt msg $
+            Text.Encoding.decodeUtf8 (style_text styled)
         then Just styled else Nothing
     where
     run = flip State.runState state
@@ -192,22 +192,22 @@ match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
 -- ** filter
 
 -- | Filter language, created by 'compile_filter'.
-data Filter = Filter String (Log.Msg -> String -> Bool)
+data Filter = Filter Text (Log.Msg -> Text -> Bool)
 instance Show Filter where
-    show (Filter src _) = "compile_filter " ++ show src
+    show (Filter src _) = "Process.compile_filter " ++ show src
 
 -- | Compile a simple filter language.  A log msg matches if all of the words
 -- in the filter occur within its 'Log.msg_text', and none of the words
 -- prefixed by @-@ occur.
-compile_filter :: String -> Filter
-compile_filter s = Filter s f
+compile_filter :: Text -> Filter
+compile_filter s = Filter s pred
     where
-    (not_has_, has) = List.partition ("-" `List.isPrefixOf`) (words s)
-    not_has = map (drop 1) not_has_
-    f _msg text = all (`List.isInfixOf` text) has
-        && not (any (`List.isInfixOf` text) not_has)
+    (not_has_, has) = List.partition ("-" `Text.isPrefixOf`) (Text.words s)
+    not_has = map (Text.drop 1) not_has_
+    pred _msg text = all (`Text.isInfixOf` text) has
+        && not (any (`Text.isInfixOf` text) not_has)
 
-eval_filter :: Filter -> Log.Msg -> String -> Bool
+eval_filter :: Filter -> Log.Msg -> Text -> Bool
 eval_filter (Filter _ pred) msg text = pred msg text
 
 

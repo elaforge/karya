@@ -5,6 +5,7 @@
 module LogView.LogViewC where
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.Text as Text
 
 import Util.ForeignC
 import qualified Util.Fltk as Fltk
@@ -41,8 +42,8 @@ set_status view status style = Fltk.action $
 foreign import ccall "set_status"
     c_set_status :: Ptr Window -> CString -> CString -> IO ()
 
-set_filter :: Window -> String -> Fltk.Fltk ()
-set_filter view filt = Fltk.action $ withCString filt $ \filtp ->
+set_filter :: Window -> Text.Text -> Fltk.Fltk ()
+set_filter view filt = Fltk.action $ withCString (Text.unpack filt) $ \filtp ->
     c_set_filter (Fltk.win_ptr view) filtp
 foreign import ccall "set_filter"
     c_set_filter :: Ptr Window -> CString -> IO ()

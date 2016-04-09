@@ -63,7 +63,7 @@ pid_file :: FilePath
 pid_file = "log/logview.pid"
 
 -- | Initial contents of the filter field.
-initial_filter :: String
+initial_filter :: Text
 initial_filter = "**"
 
 initial_size :: (Int, Int)
@@ -89,7 +89,7 @@ default_history = 1000
 default_max_bytes :: Int
 default_max_bytes = default_history * 100
 
-data Flag = Help | Seek (Maybe Integer) | Print | History Int | File String
+data Flag = Help | Seek (Maybe Integer) | Print | History Int | File FilePath
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
@@ -188,7 +188,7 @@ print_logs log_chan = forever $
     Text.IO.putStrLn . Log.format_msg
         =<< STM.atomically (TChan.readTChan log_chan)
 
-data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
+data Msg = NewLog Log.Msg | ClickedWord Text | FilterChanged Text
     deriving (Show)
 
 handle_msgs :: Fltk.Channel -> Process.State -> Int -> LogChan
@@ -225,18 +225,18 @@ handle_new_msg chan win msg = do
         send_action chan $ LogViewC.set_status win status style
         State.modify $ \st -> st { Process.state_status = new_status }
 
-handle_clicked_word :: String -> IO ()
+handle_clicked_word :: Text -> IO ()
 handle_clicked_word word
-    | "{" `List.isPrefixOf` word && "}" `List.isSuffixOf` word =
-        send_to_app (drop 1 (Seq.rdrop 1 word))
+    | "{" `Text.isPrefixOf` word && "}" `Text.isSuffixOf` word =
+        send_to_app (Text.drop 1 (Text.dropEnd 1 word))
     | otherwise = putStrLn $ "unknown clicked word: " ++ show word
 
 send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
 send_action chan = liftIO . Fltk.send_action chan
 
-send_to_app :: String -> IO ()
+send_to_app :: Text -> IO ()
 send_to_app cmd = do
-    response <- (ReplUtil.format_response <$> SendCmd.send (Text.pack cmd))
+    response <- (ReplUtil.format_response <$> SendCmd.send cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->
             return ("error: " <> showt exc)
     unless (Text.null response) $

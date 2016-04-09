@@ -62,7 +62,7 @@ main = SendCmd.initialize $ do
         where
         go hdl = do
             (msg, hdl) <- Tail.tail hdl
-            whenJust (save_dir_of (Log.msg_string msg)) $ \dir -> do
+            whenJust (save_dir_of (Log.msg_text msg)) $ \dir -> do
                 changed <- MVar.modifyMVar current_history $ \current ->
                     return (Just dir, current /= Just dir)
                 when changed $
@@ -119,9 +119,9 @@ get_input maybe_fname =
 
 data Status = Continue | Quit | Load deriving (Show)
 
-save_dir_of :: String -> Maybe FilePath
+save_dir_of :: Text -> Maybe FilePath
 save_dir_of msg =
-    flip FilePath.replaceExtension "repl" <$> Map.lookup "save" status
+    flip FilePath.replaceExtension "repl" . untxt <$> Map.lookup "save" status
     where status = Process.match_pattern Process.global_status_pattern msg
 
 -- | Colorize the prompt to make it stand out.
