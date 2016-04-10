@@ -48,7 +48,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_box(0, 0, 1, 1),
             sb_box(0, 0, 1, 1),
             time_sb(0, 0, 1, 1),
-            ruler_track(NULL), // filled in later by insert_track
+            ruler_track(nullptr), // filled in later by insert_track
         track_group(0, 0, 1, 1),
             track_sb(0, 0, 1, 1),
             track_scroll(0, 0, 1, 1),
@@ -265,7 +265,7 @@ set_block_box(Fl_Box &box, const BlockBox &b)
 {
         box.color(b.color.fl());
         if (b.c == ' ')
-            box.copy_label(NULL);
+            box.copy_label(nullptr);
         else
             box.copy_label(utf8::encode(b.c));
         box.redraw();
@@ -398,7 +398,7 @@ void
 BlockView::set_title(const char *s)
 {
     title.set_text(s);
-    title_cb(NULL, this);
+    title_cb(nullptr, this);
 }
 
 
@@ -511,7 +511,7 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
 TrackView *
 BlockView::replace_ruler_track(TrackView *track, int width)
 {
-    TrackView *removed = NULL;
+    TrackView *removed = nullptr;
     // The only time ruler_track is NULL is when replace_ruler_track is called
     // from the constructor on no_ruler.
     if (this->ruler_track) {

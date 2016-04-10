@@ -297,7 +297,7 @@ main(int argc, char **argv)
     handle_argv(argc, argv);
     BlockModelConfig config = block_model_config();
 
-    BlockViewWindow::initialize(NULL);
+    BlockViewWindow::initialize(nullptr);
     t1_set();
     ScoreTime m44_last_pos;
     Marklist *m44_marks = m44_set(&m44_last_pos);
@@ -455,7 +455,7 @@ main(int argc, char **argv)
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
 
-    // t->load("ding", "M", NULL, 10, IPoint(0, 0), IPoint(0, 0));
+    // t->load("ding", "M", nullptr, 10, IPoint(0, 0), IPoint(0, 0));
     // t->load("ding", "i", "Bali-Simbar-B", 28, IPoint(12, 18), IPoint(12, 10));
     // t->load("ding", "i", "Bali-Simbar-B", 10, IPoint(0, 0), IPoint(0, 0));
     // t->load("dong", "o", "Bali-Simbar-B", 26, IPoint(0, 8), IPoint(0, 10));

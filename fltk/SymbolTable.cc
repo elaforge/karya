@@ -45,7 +45,7 @@ SymbolTable::fonts() const
     for (; font != font_map.end(); ++font) {
         *cur++ = strdup(font->first.c_str());
     }
-    *cur = NULL;
+    *cur = nullptr;
     return fonts;
 }
 
@@ -435,7 +435,7 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
     // Due to boundary issues, drawing text that touches the bottom of a box
     // means drawing one above the bottom.  I don't totally understand this.
     draw_glyphs(IPoint(size, size*2 - 1), sym, size, 0);
-    unsigned char *buf = fl_read_image(NULL, 0, 0, w, h);
+    unsigned char *buf = fl_read_image(nullptr, 0, 0, w, h);
     fl_end_offscreen();
     IRect box = find_box(buf, w, h);
     delete[] buf;

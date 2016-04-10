@@ -46,7 +46,7 @@ Marklist::decref()
         }
         free((void *) marks);
         // Make sure if someone uses it they get a segfault right away.
-        marks = NULL;
+        marks = nullptr;
     }
 }
 

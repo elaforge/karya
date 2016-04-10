@@ -232,7 +232,7 @@ public:
 
 private:
     void push_update(UiMsg::MsgType type, const UiMsg::Context &c,
-        const char *text = NULL);
+        const char *text = nullptr);
     void push(UiMsg &m);
     std::vector<UiMsg> msgs;
 

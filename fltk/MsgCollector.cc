@@ -308,7 +308,7 @@ MsgCollector::event(int evt, bool track_drag)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
-    set_event_context(m.context, NULL, track_drag);
+    set_event_context(m.context, nullptr, track_drag);
     set_event(m.event, evt);
     this->push(m);
 }
@@ -326,7 +326,7 @@ MsgCollector::focus(BlockViewWindow *focus)
 void
 MsgCollector::update(UiMsg::MsgType type)
 {
-    push_update(type, context(NULL));
+    push_update(type, context(nullptr));
 }
 
 
@@ -336,7 +336,7 @@ window(Fl_Widget *w)
     if (w)
         return static_cast<BlockViewWindow *>(w->window());
     else
-        return NULL;
+        return nullptr;
 }
 
 

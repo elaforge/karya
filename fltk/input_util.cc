@@ -129,7 +129,7 @@ backspace_token(Fl_Input *w)
 {
     const char *text = w->value();
     const char *p = backward_token(text, text + w->position());
-    w->replace(p - text, w->position(), NULL);
+    w->replace(p - text, w->position(), nullptr);
 }
 
 bool
@@ -231,7 +231,7 @@ strip_value(Fl_Input *w)
     while (end > start && isspace(s[end-1]))
         end--;
     if (end - start <= 0)
-        w->value(NULL);
+        w->value(nullptr);
     else
         w->value(s + start, end - start);
     return true;

@@ -189,10 +189,10 @@ static char *
 find_space(char *s, char *end)
 {
     char *space = strchr(s, ' ');
-    if (space == NULL)
+    if (space == nullptr)
         space = end;
     char *nl = strchr(s, '\n');
-    if (nl == NULL)
+    if (nl == nullptr)
         nl = end;
     return std::min(space, nl);
 }
@@ -207,7 +207,7 @@ WrappedInput::wrap_text()
     bool changed = false;
 
     char *start_of_line = text;
-    char *prev_space = NULL;
+    char *prev_space = nullptr;
     int max_width = this->w() - horizontal_padding;
 
     // DEBUG("wrap '" << text << "' " << (end - text) << " w " << max_width);
@@ -255,7 +255,7 @@ WrappedInput::wrap_text()
                 changed = true;
             }
             start_of_line = prev_space + 1;
-            prev_space = NULL;
+            prev_space = nullptr;
         } else {
             if (prev_space && *prev_space == '\n') {
                 // DEBUG("nl to space: " << prev_space - text);
