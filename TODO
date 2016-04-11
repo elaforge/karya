@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * fltk: a playback selection will erase a floating edit input.  It should
+    know to redraw edit input.
+    . A scroll will also overwrite the edit input.
+  - A playback mode that scrolled automatically would actually be useful.
   * LogView could use Text instead of String
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:

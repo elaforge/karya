@@ -15,11 +15,11 @@
 #include "MsgCollector.h"
 
 
-TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
+TrackTile::TrackTile(int x, int y, int w, int h, Color bg_color,
         int title_height) :
-    MoveTile(X, Y, W, H),
+    MoveTile(x, y, w, h),
     title_height(title_height),
-    track_pad(X, Y, W, H),
+    track_pad(x, y, w, h),
     floating_input(nullptr)
 {
     ASSERT(title_height >= 0);
@@ -302,6 +302,17 @@ TrackTile::get_dragged_track() const
         return -1;
     else
         return this->dragged_child / 2; // see track_at()
+}
+
+
+void
+TrackTile::draw()
+{
+    MoveTile::draw();
+    // Always draw the floating_input last, since it's on top.
+    if (floating_input != nullptr) {
+        draw_child(*floating_input);
+    }
 }
 
 

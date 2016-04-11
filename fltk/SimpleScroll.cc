@@ -27,8 +27,9 @@ SimpleScroll::set_offset(IPoint offset)
     // When scrolling back, shrink it.  The assumption is that the child is
     // prepared to grow on the right and bottom edges.
     Fl_Widget *c = child(0);
-    c->resize(c->x() + shift.x, c->y() + shift.y,
-            c->w() - shift.x, c->h() - shift.y);
+    c->resize(
+        c->x() + shift.x, c->y() + shift.y,
+        c->w() - shift.x, c->h() - shift.y);
     this->damage(FL_DAMAGE_SCROLL);
     // DEBUG("offset: " << show_damage(damage()));
 }

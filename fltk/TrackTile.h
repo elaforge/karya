@@ -34,7 +34,7 @@
 
 class TrackTile : public MoveTile {
 public:
-    TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
+    TrackTile(int x, int y, int w, int h, Color bg_color, int title_height);
     int handle(int evt) override;
 
     void set_bg_color(Color c) {
@@ -88,6 +88,9 @@ public:
 
     // Return the track currently being dragged right now, or -1.
     int get_dragged_track() const;
+
+protected:
+    void draw() override;
 
 private:
     int title_height;
