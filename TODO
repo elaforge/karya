@@ -3,10 +3,18 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The focus bug is still here.  Even clicking on the "unfocused" block
+    doesn't fix it.  Don't all msgs contain focus?  What can I log after the
+    fact to figure out what's going on?
+    * The UiMsgs for one.  Make it a dynamic switch?
+  - invalid ky file to LState.set_ky Nothing, doesn't notice the change
+    . Also if I have a broken performance due to no ky file but no save file,
+      and then add a save file, it doesn't notice.
   * fltk: a playback selection will erase a floating edit input.  It should
     know to redraw edit input.
     . A scroll will also overwrite the edit input.
   - A playback mode that scrolled automatically would actually be useful.
+    . But usually annoying, so it would have to be off by default.
   * LogView could use Text instead of String
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:
@@ -350,6 +358,8 @@ documentation:
       that have someone listening to them in a certain scope.
 
 Synth: Im:
+  csound backend:
+    . Use csound-expression?
   - The start time should be in fractions of a second instead of sample
     frames, so I'm not dependent on sample rate.  Also, will I need to emit
     negative time?
@@ -361,6 +371,8 @@ Synth: Im:
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
     by the PlayCache vst.
+  - I think I want either zero code shared between synth and seq, or at least
+    a well-defined restricted amount, like say a single module.
   more efficient Perform.Im.Convert
     - Zero-copy conversion for the signals.
       . But first I have to decide how I want to handle interpolation.

@@ -37,8 +37,10 @@ import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix.IO as Posix.IO
 
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
+
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
@@ -205,7 +207,8 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
     msg <- msg_reader
-    -- Debug.putp "msg" msg
+    when (Cmd.state_debug_ui_msgs (state_cmd rstate)) $
+        Debug.putp "msg" msg
     result <- Exception.try $ respond rstate msg
     case result of
         Left (exc :: Exception.SomeException) -> do

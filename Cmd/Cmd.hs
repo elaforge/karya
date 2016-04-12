@@ -364,6 +364,7 @@ data State = State {
     -- can't do that because they commonly use the return value to return
     -- an interesting String back to the REPL.
     , state_repl_status :: !Status
+    , state_debug_ui_msgs :: !Bool
     } deriving (Show)
 
 data SaveFile = SaveState !FilePath | SaveRepo !GitTypes.Repo
@@ -408,6 +409,7 @@ initial_state config = State
     , state_rdev_state = InputNote.empty_rdev_state
     , state_edit = initial_edit_state
     , state_repl_status = Continue
+    , state_debug_ui_msgs = False
     }
 
 -- | Reset the parts of the State which are specific to a \"session\".  This
