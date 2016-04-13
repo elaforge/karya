@@ -16,8 +16,10 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -37,21 +39,23 @@ patches = map add_doc $
     CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
     : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
     : concat
-    [ gangsa (range_of Legong.jegog) "jegog"
-    , gangsa (range_of Legong.calung) "calung"
-    , gangsa (range_of Legong.penyacah) "penyacah"
-    , gangsa Legong.ugal_range "ugal"
-    , gangsa (range_of Legong.pemade) "pemade"
-    , gangsa (range_of Legong.kantilan) "kantilan"
+    [ gangsa True (range_of Legong.jegog) "jegog"
+    , gangsa True (range_of Legong.calung) "calung"
+    , gangsa True (range_of Legong.penyacah) "penyacah"
+    , gangsa False Legong.ugal_range "ugal"
+    , gangsa True (range_of Legong.pemade) "pemade"
+    , gangsa True (range_of Legong.kantilan) "kantilan"
     ] ++
     [ reyong_ks $ ranged_patch Legong.reyong_range "reyong"
     , ranged_patch Legong.trompong_range "trompong"
     ]
     where
-    gangsa range name =
-        [ MidiInst.code #= Bali.pasang_code $
-            ranged_patch range (name <> "-pasang")
-        , gangsa_ks $ ranged_patch range name
+    gangsa with_pasang range name = concat
+        [ [MidiInst.code #= zero_dur_mute $ gangsa_ks $ ranged_patch range name]
+        , [ MidiInst.code #= Bali.pasang_code $
+              ranged_patch range (name <> "-pasang")
+          | with_pasang
+          ]
         ]
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
@@ -88,6 +92,13 @@ patches = map add_doc $
         ]
         where n = Drums.note
     open = Attrs.open
+
+zero_dur_mute :: MidiInst.Code
+zero_dur_mute = MidiInst.note_calls $ MidiInst.null_call $
+    DUtil.zero_duration_transform
+        "This a normal note with non-zero duration, but when the duration is\
+        \ zero, it adds the `+mute` attribute."
+        (\_args -> Call.add_attributes Attrs.mute)
 
 gong = Attrs.attr "gong"
 kemong = Attrs.attr "kemong"
