@@ -3,13 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The focus bug is still here.  Even clicking on the "unfocused" block
-    doesn't fix it.  Don't all msgs contain focus?  What can I log after the
-    fact to figure out what's going on?
-    * The UiMsgs for one.  Make it a dynamic switch?
-    . Actually this makes me think it's actually in MsgCollector.
-      In that case it would be Fl::focus() which is wrong.  Is there a way to
-      just ask the OS what window has focus?
   * invalid ky file to LState.set_ky Nothing, doesn't notice the change
     * Also if I have a broken performance due to no ky file but no save file,
       and then add a save file, it doesn't notice.
@@ -886,6 +879,13 @@ fltk:
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
   - bug: There's a focus bug, but I'm not sure how to reproduce it.
+    . The focus bug is still here.  Even clicking on the "unfocused" block
+      doesn't fix it.  Don't all msgs contain focus?  What can I log after the
+      fact to figure out what's going on?
+    * The UiMsgs for one.  Make it a dynamic switch?
+    . Actually this makes me think it's actually in MsgCollector.
+      In that case it would be Fl::focus() which is wrong.  Is there a way to
+      just ask the OS what window has focus?
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.

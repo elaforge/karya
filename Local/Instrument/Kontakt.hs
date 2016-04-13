@@ -7,18 +7,13 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
-import qualified Data.List as List
-
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
-import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
@@ -26,7 +21,6 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Articulation as Articulation
@@ -37,9 +31,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -47,13 +38,13 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 
-import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
 import qualified Local.Instrument.Kontakt.Reyong as Reyong
+import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
 import qualified Local.Instrument.Kontakt.Wayang as Wayang
 import qualified Local.Instrument.Reaktor as Reaktor
 
@@ -72,7 +63,9 @@ patches =
     [ misc_patches
     , hang_patches
     , KendangBali.patches, KendangSunda.patches
-    , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Wayang.patches
+    , Mridangam.patches, Pakhawaj.patches, Reyong.patches
+    , ScGamelan.patches
+    , Wayang.patches
     ]
 
 patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
@@ -87,8 +80,7 @@ pb_range = (-24, 24)
 
 misc_patches :: [MidiInst.Patch]
 misc_patches = concat
-    [ library, mcgill, balalaika, anthology_wind, sonic_couture, sc_bali, misc
-    ]
+    [library, mcgill, balalaika, anthology_wind, sonic_couture, misc]
 
 library :: [MidiInst.Patch]
 library =
@@ -211,141 +203,6 @@ c_highlight_strings = Note.transformed_note
         Highlight.out_of_range $
             Highlight.open_strings start Highlight.warn_non_open deriver
 
-sc_bali :: [MidiInst.Patch]
-sc_bali = map add_doc $
-    CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
-    : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
-    : concat
-    [ gangsa (range_of Legong.jegog) "jegog"
-    , gangsa (range_of Legong.calung) "calung"
-    , gangsa (range_of Legong.penyacah) "penyacah"
-    , gangsa Legong.ugal_range "ugal"
-    , gangsa (range_of Legong.pemade) "pemade"
-    , gangsa (range_of Legong.kantilan) "kantilan"
-    ] ++
-    [ reyong_ks $ ranged_patch Legong.reyong_range "reyong"
-    , ranged_patch Legong.trompong_range "trompong"
-    ]
-    where
-    gangsa range name =
-        [ MidiInst.code #= Bali.pasang_code $
-            ranged_patch range (name <> "-pasang")
-        , gangsa_ks $ ranged_patch range name
-        ]
-    range_of = BaliScales.scale_range
-    ranged_patch range = MidiInst.range range . sc_patch
-    sc_patch name =
-        MidiInst.patch %= Patch.set_flag Patch.ConstantPitch $
-        MidiInst.named_patch (-2, 2) ("sc-" <> name) []
-    add_doc = MidiInst.doc
-        %= ("Sonic Couture's Balinese gamelan sample set. " <>)
-    gangsa_ks = MidiInst.attribute_map #= Patch.single_keyswitches
-        [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
-    reyong_ks = MidiInst.attribute_map #= Patch.single_keyswitches
-        [(Attrs.attr "cek", Key2.cs1), (mempty, Key2.c1)]
-    gong_notes =
-        [ (n 'z' "O" (gong <> wadon),   Key2.b1)
-        , (n 'x' "o" (gong <> lanang),  Key2.c2)
-        , (n 'q' "p" kempur,            Key2.a2)
-        , (n 'w' "m" kemong,            Key2.a3)
-        ]
-        where n = Drums.note
-    kempli_kajar_notes =
-        [ (n 'z' "+"    kempli,                 Key2.d3)
-        , (n 'a' "`O+`" (kempli <> open),       Key2.ds3)
-        , (n 'x' "+1"   (kempli <> Attrs.v1),   Key2.f3)
-        , (n 'c' "+2"   (kempli <> Attrs.v2),   Key2.g3)
-        , (n 'v' "+3"   (kempli <> Attrs.v3),   Key2.a3)
-        , (n 'b' "b"    bebende,                Key2.d4)
-        , (n 'g' "B"    (bebende <> open),      Key2.ds4)
-        -- TODO make sure these names are the same as the corresponding kendang
-        , (n 'q' "o"    kajar,                  Key2.f4)
-        , (n 'w' "T"    (kajar <> Attrs.rim <> open), Key2.fs4)
-        -- The Sonic Couture kajar doesn't have this.
-        , (n 'e' "P"    (kajar <> Attrs.rim),   Key2.g4)
-        -- Soniccouture also has a low kajar variant.
-        ]
-        where n = Drums.note
-    open = Attrs.open
-
-gong = Attrs.attr "gong"
-kemong = Attrs.attr "kemong"
-kempur = Attrs.attr "kempur"
-bebende = Attrs.attr "bebende"
-wadon = Attrs.attr "wadon"
-lanang = Attrs.attr "lanang"
-kempli = Attrs.attr "kempli"
-kajar = Attrs.attr "kajar"
-
-misc :: [MidiInst.Patch]
-misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
-
-kebyar_allocations :: Text -> StateConfig.Allocations
-kebyar_allocations dev_ = make_config $ concat
-    [ pasang "jegog"
-    , pasang "calung"
-    , pasang "penyacah"
-    , pasang "pemade"
-    , pasang "kantilan"
-    , [ umbang_patch "ugal" "ugal"
-      , isep_patch "reyong" "reyong"
-      , umbang_patch "trompong" "trompong"
-      , patch "gong"
-      , patch "kempli"
-      ]
-    ]
-    where
-    -- (inst, qualified, gets_chan, environ, scale)
-    make_config :: [(Text, Text, Bool,
-            [(BaseTypes.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
-        -> StateConfig.Allocations
-    make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
-        where
-        allocate chan (inst, qualified, gets_chan, environ, scale) =
-            ( next_chan
-            , (inst, qualified, set_config, backend)
-            )
-            where
-            next_chan = if gets_chan then chan+1 else chan
-            backend
-                | gets_chan = StateConfig.Midi $
-                    Patch.cscale #= scale $ Patch.config1 dev chan
-                -- Pasang instruments don't get an allocation.  Otherwise they
-                -- don't have the right tuning.
-                | otherwise = StateConfig.Dummy
-            set_config = Common.cenviron #= RestrictedEnviron.make environ
-    dev = Midi.write_device dev_
-
-    -- Actually pemade and kantilan have an umbang isep pair for both polos and
-    -- sangsih, but since I don't have that many sample sets I have
-    -- a mini-ensemble with only one pair of each gangsa.
-    pasang name =
-        [ (name, sc_qualified name <> "-pasang", False, polos_sangsih name,
-            Nothing)
-        , umbang_patch (name <> "-p") name
-        , isep_patch (name <> "-s") name
-        ]
-    sc_qualified name = synth_name <> "/sc-" <> name
-    polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ make_inst $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ make_inst $ name <> "-s")
-        ]
-    to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
-    to_val = RestrictedEnviron.to_val
-    make_inst = Score.instrument
-    umbang_patch name patch =
-        ( name, sc_qualified patch, True
-        , tuning BaliScales.Umbang
-        , Just $ Legong.complete_instrument_scale BaliScales.Umbang
-        )
-    isep_patch name patch =
-        ( name, sc_qualified patch, True
-        , tuning BaliScales.Isep
-        , Just $ Legong.complete_instrument_scale BaliScales.Isep
-        )
-    tuning val = [(EnvKey.tuning, to_val val)]
-    patch name = (name, sc_qualified name, True, [], Nothing)
-
 -- * hang
 
 hang_patches :: [MidiInst.Patch]
@@ -382,3 +239,9 @@ hang_strokes =
 
 hang_ks :: [(Attrs.Attributes, Midi.Key)]
 hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
+
+
+-- * misc
+
+misc :: [MidiInst.Patch]
+misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
