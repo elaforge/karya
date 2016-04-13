@@ -7,9 +7,19 @@ UNSORTED
     doesn't fix it.  Don't all msgs contain focus?  What can I log after the
     fact to figure out what's going on?
     * The UiMsgs for one.  Make it a dynamic switch?
-  - invalid ky file to LState.set_ky Nothing, doesn't notice the change
-    . Also if I have a broken performance due to no ky file but no save file,
+    . Actually this makes me think it's actually in MsgCollector.
+      In that case it would be Fl::focus() which is wrong.  Is there a way to
+      just ask the OS what window has focus?
+  * invalid ky file to LState.set_ky Nothing, doesn't notice the change
+    * Also if I have a broken performance due to no ky file but no save file,
       and then add a save file, it doesn't notice.
+    . Diff should notice the change and invalidate everything, which should
+      kick out the broken performance.
+  / Responder: move run_sync_status to post_cmd
+    . The problem is it wants ResponderM
+    . What is the difference between RState and State?  RState has a State
+      but they both have UI and cmd states?
+      . RState is transient for each respond cycle.
   * fltk: a playback selection will erase a floating edit input.  It should
     know to redraw edit input.
     . A scroll will also overwrite the edit input.

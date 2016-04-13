@@ -147,7 +147,7 @@ setup_state state = state
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Cmd.CmdIO -> State -> IO State
-run_setup_cmd cmd state = fmap snd $ run_responder False state $ do
+run_setup_cmd cmd state = fmap snd $ run_responder state $ do
     result <- run_continue "initial setup" $ Right $ do
         cmd
         Cmd.modify $ \st -> st
@@ -264,28 +264,25 @@ save_updates updates = Monad.State.modify $ \st ->
     TODO I feel like this generates a lot of garbage per msg.  It mostly
     doesn't matter except for MIDI input.  Profile?
 -}
-run_responder :: Bool -- ^ If False, don't start background derivation.  This
-    -- is so 'run_setup_cmd' doesn't run a redundant derive, which is
-    -- ultimately because it needs to wait for 'load_ky'.  But 'load_ky' has to
-    -- run after 'run_setup_cmd' because the filename to load is in
-    -- 'State.State'.
-    -> State -> ResponderM Result -> IO (Bool, State)
-run_responder run_derive state m = do
+run_responder :: State -> ResponderM Result -> IO (Bool, State)
+run_responder state action = do
     (val, RState _ ui_from ui_to cmd_from cmd_to cmd_updates)
-        <- Monad.State.runStateT m (make_rstate state)
+        <- Monad.State.runStateT action (make_rstate state)
     case val of
         Left err -> do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
-        Right status -> post_cmd run_derive state ui_from ui_to cmd_to
-            cmd_updates status
+        Right status -> post_cmd state ui_from ui_to cmd_to cmd_updates status
 
 -- | Do all the miscellaneous things that need to be done after a command
--- completes.
-post_cmd :: Bool -> State -> State.State -> State.State -> Cmd.State
+-- completes.  This doesn't happen if the cmd threw an exception.
+post_cmd :: State -> State.State -> State.State -> Cmd.State
     -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
-post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
+post_cmd state ui_from ui_to cmd_to cmd_updates status = do
+    -- Load external definitions and cache them in Cmd.State, so cmds don't
+    -- have a dependency on IO.
+    cmd_to <- Ky.update_cache ui_to cmd_to
     cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
     cmd_to <- return $ fix_cmd_state ui_to cmd_to
@@ -293,7 +290,7 @@ post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
         ui_from ui_to cmd_to cmd_updates
         (Transport.info_state (state_transport_info state))
 
-    cmd_to <- if not run_derive then return cmd_to else do
+    cmd_to <- do
         -- Kick off the background derivation threads.
         let damage = Diff.derive_diff (state_ui state) ui_to updates
         cmd_state <- Performance.update_performance
@@ -339,9 +336,8 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
         _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
-respond state msg = run_responder True state $ do
+respond state msg = run_responder state $ do
     record_keys msg
-    load_ky
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Except.runExceptT $ do
         record_ui_updates msg
@@ -363,15 +359,6 @@ record_keys msg = do
         Internal.cmd_record_keys msg
     whenJust result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
-
--- | Load external definitions and cache them in Cmd.State, so cmds don't
--- have a dependency on IO.
-load_ky :: ResponderM ()
-load_ky = do
-    rstate <- Monad.State.get
-    cmd_state <- liftIO $ Ky.update_cache
-        (rstate_ui_to rstate) (rstate_cmd_to rstate)
-    Monad.State.put $ rstate { rstate_cmd_to = cmd_state }
 
 -- | Record 'UiMsg.UiUpdate's from the UI.  Like normal cmds it can abort
 -- processing by returning not-Continue, but it commits its changes to ui_from
@@ -395,6 +382,9 @@ record_ui_updates msg = do
 
 -- | This runs after normal cmd processing to update various status displays.
 -- It doesn't run after an exception, but *should* run after a Done.
+--
+-- TODO this could go in 'post_cmd', but then post_cmd would have to be in
+-- ResponderM.
 run_sync_status :: ResponderM ()
 run_sync_status = do
     rstate <- Monad.State.get

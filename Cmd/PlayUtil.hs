@@ -78,8 +78,8 @@ uncached_derive :: Cmd.M m => BlockId -> m Derive.Result
 uncached_derive = derive_block mempty mempty
 
 -- | Derive the contents of the given block to score events.
-derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
-    -> BlockId -> m Derive.Result
+derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
+    -> m Derive.Result
 derive_block cache damage block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
     fmap Derive.extract_result $ run cache damage $ do
@@ -91,8 +91,8 @@ derive_block cache damage block_id = do
 is_score_damage_log :: Log.Msg -> Bool
 is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text
 
-run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
-    -> Derive.Deriver a -> m (Derive.RunResult a)
+run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
+    -> m (Derive.RunResult a)
 run cache damage deriver = do
     constant <- get_constant cache damage
     return $ Derive.derive constant initial_dynamic deriver
