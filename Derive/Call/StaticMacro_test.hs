@@ -40,7 +40,7 @@ test_generator = do
 
 c_gen :: Derive.Generator Derive.Note
 c_gen = fst $ Make.transform_notes Module.prelude "gen" mempty
-    "doc" (Sig.required "attr" "set attr") $ \attrs -> Call.add_attrs attrs
+    "doc" (Sig.required "attr" "set attr") $ \attrs -> Call.add_attributes attrs
 
 test_transformer = do
     let run trans call = DeriveTest.extract DeriveTest.e_attributes $

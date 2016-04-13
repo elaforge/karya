@@ -69,7 +69,7 @@ note_call = Note.transformed_note
     where
     attrs_doc = Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
-        attrs <- Call.get_attrs
+        attrs <- Call.get_attributes
         inst <- Call.lookup_instrument
         let string = Seq.head
                 [ string

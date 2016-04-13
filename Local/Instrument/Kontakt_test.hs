@@ -14,8 +14,8 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Pitch as Pitch
-import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
+import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
 
 
 test_pasang_thru = do
@@ -40,7 +40,7 @@ run_pasang input =
         CmdTest.set_point_sel 1 0
         Bali.pasang_thru (Msg.InputNote input)
     where
-    setup = KontaktTest.with_synth $ Kontakt.kebyar_allocations "loop1"
+    setup = KontaktTest.with_synth $ ScGamelan.kebyar_allocations "loop1"
     cmd_state = DeriveTest.setup_cmd setup CmdTest.default_cmd_state
     ui_state = DeriveTest.setup_ui setup $
         snd $ UiTest.run_mkview [(">pemade | scale=legong", [])]

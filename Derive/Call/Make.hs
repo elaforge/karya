@@ -37,7 +37,8 @@ call_maps calls = Derive.call_maps gs ts
 attributed_note :: Module.Module -> Attrs.Attributes -> Calls Derive.Note
 attributed_note module_ attrs = transform_notes module_
     ("note with " <> ShowVal.show_val attrs) Tags.attr
-    "Add attributes to the notes." Sig.no_args (\() -> Call.add_attrs attrs)
+    "Add attributes to the notes." Sig.no_args
+    (\() -> Call.add_attributes attrs)
 
 -- | This is a specialization of 'transform_notes' that sets an environ value.
 environ_note :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>

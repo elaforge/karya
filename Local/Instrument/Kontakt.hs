@@ -174,7 +174,7 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
     MidiInst.attribute_map #= Patch.single_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
-    code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
+    code = MidiInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
         <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
     standard_strings = DUtil.transformer0 "standard-strings"

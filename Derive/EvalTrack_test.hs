@@ -230,7 +230,7 @@ test_inst_call = do
     equal (run ">with-call") (["+snare"], [])
     where
     synth = DeriveTest.make_synth "s" patches
-    code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
+    code = MidiInst.note_generators [("sn", DUtil.attributes_note Attrs.snare)]
     patches =
         [ MidiInst.code #= code $ MidiInst.make_patch $
             Patch.attribute_map #= Patch.unpitched_keymap [(Attrs.snare, 42)] $

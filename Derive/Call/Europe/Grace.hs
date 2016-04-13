@@ -249,10 +249,10 @@ c_attr_grace supported =
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args start pitches) $ case attr of
-            Just attr -> Call.add_attrs attr $
+            Just attr -> Call.add_attributes attr $
                 basic_grace_dyn dyn args pitches grace_dur place
             Nothing -> do
-                maybe_attrs <- grace_attrs start supported pitches base
+                maybe_attrs <- grace_attributes start supported pitches base
                 case maybe_attrs of
                     Just attrs -> attr_grace start args grace_dur
                         (length pitches) attrs
@@ -266,17 +266,17 @@ c_attr_grace supported =
         let before = fromIntegral notes * grace_dur
         pitch <- Call.get_pitch real_start
         Derive.place (start - before) (dur + before) $
-            Call.add_attrs attrs $ Call.with_dynamic dyn $
+            Call.add_attributes attrs $ Call.with_dynamic dyn $
             Call.pitched_note pitch
 
-grace_attrs :: RealTime -> Map.Map Int Attrs.Attributes -> [PSignal.Pitch]
+grace_attributes :: RealTime -> Map.Map Int Attrs.Attributes -> [PSignal.Pitch]
     -> PSignal.Pitch -> Derive.Deriver (Maybe Attrs.Attributes)
-grace_attrs pos supported [grace] base = do
+grace_attributes pos supported [grace] base = do
     base <- Derive.resolve_pitch pos base
     grace <- Derive.resolve_pitch pos grace
     diff <- (-) <$> Pitches.pitch_nn base <*> Pitches.pitch_nn grace
     return $ Map.lookup (round diff) supported
-grace_attrs _ _ _ _ = return Nothing
+grace_attributes _ _ _ _ = return Nothing
 
 c_roll :: Derive.Generator Derive.Note
 c_roll = Derive.generator Module.europe "roll" Tags.ornament

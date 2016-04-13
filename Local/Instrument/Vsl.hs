@@ -75,7 +75,7 @@ synth = MidiInst.synth "vsl" "Vienna Symphonic Library" $
 find_attrs :: InstTypes.Name -> String -> [Text]
 find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Attrs.contain` search)
-        (patch_attrs (MidiInst.patch_patch patch))
+        (patch_attributes (MidiInst.patch_patch patch))
     where
     search = either (error . untxt) id (Parse.parse_attrs with_attrs)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
@@ -149,7 +149,7 @@ note_calls :: Maybe HarmonicMap -> Patch.Patch
 note_calls maybe_hmap patch =
     with_attr Attrs.trill [g "tr" Trill.c_attr_trill]
     <> with_attr Attrs.trem [MidiInst.both "trem" Trill.c_attr_tremolo]
-    <> with_attr VslInst.grace [g "g" (grace_call (patch_attrs patch))]
+    <> with_attr VslInst.grace [g "g" (grace_call (patch_attributes patch))]
     <> with_attr VslInst.legato [g "(" Articulation.c_attr_legato]
     <> MidiInst.null_call (note_call patch)
     <> [MidiInst.both "sec" c_infer_seconds]
@@ -164,11 +164,11 @@ note_calls maybe_hmap patch =
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
-patch_attrs :: Patch.Patch -> [Attrs.Attributes]
-patch_attrs = Common.mapped_attributes . Patch.patch_attribute_map
+patch_attributes :: Patch.Patch -> [Attrs.Attributes]
+patch_attributes = Common.mapped_attributes . Patch.patch_attribute_map
 
 has_attr :: Attrs.Attributes -> Patch.Patch -> Bool
-has_attr attr = any (`Attrs.contain` attr) . patch_attrs
+has_attr attr = any (`Attrs.contain` attr) . patch_attributes
 
 grace_call :: [Attrs.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
@@ -185,7 +185,7 @@ grace_intervals = Map.fromList $
 -- reapplying the default note call.
 harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
 harmonic config hmap args = do
-    attrs <- Call.get_attrs
+    attrs <- Call.get_attributes
     let has = Attrs.contain attrs
     with_pitch <- if
         | has (Attrs.harm <> VslInst.nat) ->
@@ -418,7 +418,7 @@ c_infer_seconds = Make.transform_notes Module.instrument "infer-seconds"
     ) $ \(attrs, round) deriver -> do
         (_, inst) <- Derive.get_instrument =<< Call.get_instrument
         Post.emap1_ (infer_seconds round (Derive.inst_attributes inst)) <$>
-            Call.add_attrs attrs deriver
+            Call.add_attributes attrs deriver
 
 infer_seconds :: Maybe Call.UpDown -> [Attrs.Attributes] -> Score.Event
     -> Score.Event

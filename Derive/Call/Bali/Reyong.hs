@@ -171,7 +171,7 @@ realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
             Transpose steps -> return $ Pitches.transpose_d steps event_pitch
             Prev -> Derive.require "no prev pitch" prev_pitch
         Derive.place start (end-start) $ Call.multiply_dynamic dyn $
-            Call.add_attrs attrs $ Call.pitched_note pitch
+            Call.add_attributes attrs $ Call.pitched_note pitch
 
 parse_tumpuk :: [Char] -> Either Text [TumpukNote]
 parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
@@ -423,7 +423,7 @@ type Voice = Int
 realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
 realize_note show_pitch voice start (pitch, attrs) =
-    Call.add_attrs attrs $ Derive.with_val EnvKey.voice voice $ do
+    Call.add_attributes attrs $ Derive.with_val EnvKey.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
         Call.pitched_note =<< Call.eval_pitch start note

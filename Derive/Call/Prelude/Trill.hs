@@ -126,7 +126,7 @@ c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
             _ -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
                 <> ShowVal.show_val neighbor
-        Call.add_attrs (Attrs.trill <> width_attr) (Call.placed_note args)
+        Call.add_attributes (Attrs.trill <> width_attr) (Call.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly

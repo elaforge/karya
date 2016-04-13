@@ -170,7 +170,7 @@ c_attr_legato = Derive.generator Module.instrument "legato"
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
     ) $ \(detach, dyn) ->
-        Call.add_attrs Attrs.legato . note_legato 0.02 detach dyn
+        Call.add_attributes Attrs.legato . note_legato 0.02 detach dyn
             <=< Sub.sub_events
 
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
@@ -221,7 +221,7 @@ c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
     "Accent the note by multiplying its dynamic."
     (defaulted "dyn" 1.5 "Multiply dynamic.") $ \dyn ->
         -- Adding Attrs.accent makes lilypond attach a '>'.
-        Call.add_attrs Attrs.accent . Call.multiply_dynamic dyn
+        Call.add_attributes Attrs.accent . Call.multiply_dynamic dyn
 
 c_weak :: Make.Calls Derive.Note
 c_weak = Make.transform_notes Module.prelude "weaken" mempty

@@ -57,11 +57,11 @@ transformer0 name doc call =
     Derive.transformer Module.instrument name mempty doc (Sig.call0t call)
 
 -- | Make a call that simply calls the default note call with the given attrs.
-attrs_note :: Attrs.Attributes -> Derive.Generator Derive.Note
-attrs_note attrs =
-    generator0 ("attrs_note " <> ShowVal.show_val attrs)
+attributes_note :: Attrs.Attributes -> Derive.Generator Derive.Note
+attributes_note attrs =
+    generator0 ("attributes_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $ \args ->
-    Call.add_attrs attrs (Call.note_here args)
+    Call.add_attributes attrs (Call.note_here args)
 
 zero_duration_transform :: Text
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
@@ -71,6 +71,8 @@ zero_duration_transform doc transform = Note.transformed_note
     mempty $ \args deriver ->
         ifM (is_zero_duration args) (transform args deriver) deriver
 
+-- | Create a generator that has a different implementation for zero and
+-- non-zero duration.
 zero_duration :: Text -> Text -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> Derive.Generator Derive.Note
 zero_duration name doc zero non_zero = generator0 name doc $ \args ->

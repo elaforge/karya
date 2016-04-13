@@ -450,7 +450,7 @@ realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
         -- TODO the kind of muting should be configurable.  Or, rather I should
         -- dispatch to a zero dur note call, which will pick up whatever form
         -- of mute is configured.
-        (if muted then Call.add_attrs Attrs.mute else id) $
+        (if muted then Call.add_attributes Attrs.mute else id) $
         Call.pitched_note (Pitches.transpose_d steps pitch)
     -- TODO It should no longer be necessary to strip flags from
     -- 'Call.pitched_note', because "" only puts flags on if the event is

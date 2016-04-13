@@ -133,7 +133,7 @@ note_track ctx inst attrs deriver = do
     let transform = maybe id (call_transformer ctx) maybe_call
         with_inst = if inst == Score.empty_instrument then id
             else Derive.with_instrument inst
-    with_inst $ Call.add_attrs (mconcat attrs) $ transform deriver
+    with_inst $ Call.add_attributes (mconcat attrs) $ transform deriver
 
 call_transformer :: Derive.Context d -> Derive.Transformer d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
@@ -170,7 +170,10 @@ data Config = Config {
     } deriving (Show)
 
 use_attributes :: Config
-use_attributes = Config True True
+use_attributes = Config
+    { config_staccato = True
+    , config_sustain = True
+    }
 
 -- | Don't observe any of the duration affecting attributes.
 no_duration_attributes :: Config
@@ -345,7 +348,7 @@ trim_pitch = PSignal.drop_before
 transform_note :: [Either Score.Instrument Attrs.Attributes]
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 transform_note vals deriver =
-    with_inst (Call.add_attrs (mconcat attrs) deriver)
+    with_inst (Call.add_attributes (mconcat attrs) deriver)
     where
     (insts, attrs) = Either.partitionEithers vals
     with_inst = maybe id Derive.with_instrument $

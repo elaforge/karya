@@ -269,8 +269,8 @@ get_instrument = Derive.get_val EnvKey.instrument
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val EnvKey.instrument
 
-get_attrs :: Derive.Deriver Attrs.Attributes
-get_attrs = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
+get_attributes :: Derive.Deriver Attrs.Attributes
+get_attributes = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
 
 -- | Get symbolic pitch manipulating functions for the current scale.  This
 -- is for calls that want to work with symbolic pitches.
@@ -318,8 +318,8 @@ pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
 pitched_note pitch = with_pitch pitch note
 
 -- | Add an attribute and generate a single note.
-attr_note :: Attrs.Attributes -> Derive.NoteDeriver
-attr_note attrs = add_attrs attrs note
+attribute_note :: Attrs.Attributes -> Derive.NoteDeriver
+attribute_note attrs = add_attributes attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
@@ -334,16 +334,16 @@ placed_note args = place args note
 -- * transformer notes
 
 -- | Derive with transformed Attributes.
-with_attrs :: (Attrs.Attributes -> Attrs.Attributes) -> Derive.Deriver d
+with_attributes :: (Attrs.Attributes -> Attrs.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
-with_attrs f deriver = do
-    attrs <- get_attrs
+with_attributes f deriver = do
+    attrs <- get_attributes
     Derive.with_val EnvKey.attributes (f attrs) deriver
 
-add_attrs :: Attrs.Attributes -> Derive.Deriver d -> Derive.Deriver d
-add_attrs attrs
+add_attributes :: Attrs.Attributes -> Derive.Deriver d -> Derive.Deriver d
+add_attributes attrs
     | attrs == mempty = id
-    | otherwise = with_attrs (<> attrs)
+    | otherwise = with_attributes (<> attrs)
 
 add_flags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_flags flags
