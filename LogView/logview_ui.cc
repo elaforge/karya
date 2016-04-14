@@ -17,16 +17,16 @@ enum {
     command_height = 20
 };
 
-static Fl_Text_Display::Style_Table_Entry style_table[] = {
-    { FL_BLACK, FL_HELVETICA, default_font_size }, // A - plain
-    { FL_RED, FL_HELVETICA, default_font_size }, // B - warn msgs
-    { FL_BLUE, FL_HELVETICA, default_font_size }, // C - clickable text
-    { fl_rgb_color(0, 76, 0), FL_HELVETICA_BOLD,
-            default_font_size }, // D - emphasis
-    { FL_RED, FL_HELVETICA_BOLD, default_font_size }, // E - divider
-    { fl_rgb_color(0, 76, 0), FL_HELVETICA, default_font_size }, //F - func name
-    { FL_BLACK, FL_HELVETICA_ITALIC, default_font_size } // G - filename
-};
+static Fl_Text_Display::Style_Table_Entry style_table[] =
+    { { FL_BLACK, FL_HELVETICA, default_font_size } // A - plain
+    , { FL_RED, FL_HELVETICA, default_font_size } // B - warn msgs
+    , { FL_BLUE, FL_HELVETICA, default_font_size } // C - clickable text
+    , { fl_rgb_color(0, 76, 0), FL_HELVETICA_BOLD, default_font_size } //D-emph
+    , { FL_RED, FL_HELVETICA_BOLD, default_font_size } // E - divider
+    , { fl_rgb_color(0, 76, 0), FL_HELVETICA, default_font_size } // F-func name
+    , { FL_BLACK, FL_HELVETICA_ITALIC, default_font_size } // G - filename
+    , { FL_BLACK, FL_COURIER, default_font_size } // H - fixed width
+    };
 
 
 static void

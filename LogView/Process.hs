@@ -216,8 +216,9 @@ eval_filter (Filter _ pred) msg text = pred msg text
 -- | Format and colorize a single Log.Msg.
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
-    with_plain (prio_stars (Log.msg_priority msg))
-    with_plain "\t"
+    let width = fromEnum (maxBound :: Log.Prio)
+    with_style style_fixed $ Text.justifyLeft width ' ' $
+        prio_stars (Log.msg_priority msg)
     let style = if Log.msg_priority msg < Log.Warn
             then style_plain else style_warn
     case Log.msg_caller msg of
@@ -255,12 +256,11 @@ emit_stack stack = do
             "[" <> Text.intercalate " / " (map pretty (Stack.outermost stack))
             <> "]"
         else with_style style_clickable $
-            Text.intercalate "/" (map fmt ui_stack)
+            Text.intercalate " / " (map Stack.log_ui_frame ui_stack)
     whenJust (last_call stack) $ \call ->
-        with_plain $ " " <> call <> ": "
+        with_plain $ " " <> call <> ":"
     where
     ui_stack = Stack.to_ui stack
-    fmt frame = "{s " <> showt (Stack.unparse_ui_frame frame) <> "}"
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
 msg_text_regexes :: [(Regex.Regex, Style)]
@@ -316,6 +316,7 @@ style_divider = word 'E'
 -- stacks.
 -- style_func_name = word 'F'
 style_filename = word 'F'
+style_fixed = word 'H'
 
 word :: Char -> Word.Word8
 word = toEnum . fromEnum

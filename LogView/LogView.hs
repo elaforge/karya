@@ -229,7 +229,7 @@ handle_clicked_word :: Text -> IO ()
 handle_clicked_word word
     | "{" `Text.isPrefixOf` word && "}" `Text.isSuffixOf` word =
         send_to_app (Text.drop 1 (Text.dropEnd 1 word))
-    | otherwise = putStrLn $ "unknown clicked word: " ++ show word
+    | otherwise = putStrLn $ "logview: unknown clicked word: " ++ show word
 
 send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
 send_action chan = liftIO . Fltk.send_action chan

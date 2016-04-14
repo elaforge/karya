@@ -3,6 +3,23 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The error selection is still hard to see on a busy block, I usually have
+    to zoom in and do it again.
+  - ky file doesn't like you to comment out a section
+  - bali.ky sets instrument aliases like '>r1 = >r1', but these fail if there
+    is no >r defined.
+  - nonsensical stack trace:
+      {s "untitled/awak untitled/b5.t1 0-9"}
+      {s "untitled/intro untitled/b2.t1 25-41"}
+      {s "untitled/a2 untitled/b2.t14 *"} equal: Error:
+    . The problem is that 'intro' shouldn't be in the stack at all, and its
+      range is outside the block's range.
+    . Make a simpler repro.
+    . Note that localm doesn't reset the state.  So when the title throws an
+      exception, the old state stays.  But shouldn't the event evaluation
+      catch that and restore the old state?
+      . top: b1 -> calls b1
+
   * invalid ky file to LState.set_ky Nothing, doesn't notice the change
     * Also if I have a broken performance due to no ky file but no save file,
       and then add a save file, it doesn't notice.
@@ -36,9 +53,6 @@ UNSORTED
     . 'z' '!0' to add 0 dur event to control track, then '.' should do it.
   * %t-oct=1 in the block title seems to mess up pitch track signal
     . in save/transcribe/evvari, signal renders for gamakam tracks are flat.
-  - Pipe should be an exception to "first call is any non-space", so I can
-    write a|b.  Or... is that so great after all?  With proportional fonts,
-    the spaces are small and I don't want multiple ways to do it.
   macros
     * 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
       to randomize note starts.  Maybe I should have an alias for it?
@@ -74,16 +88,6 @@ UNSORTED
       But that could use a defaulted arg: '%a = b add' or even
       'merge=add | %a=b'.
   * Equal.c_default_merge should use the same merge arg as c_equal.
-  - A problem with environ defaulted args is that if I do e.g.
-    'merge=add | a=b | block', then all of 'block' will have merge=add.
-    There's no way to set it just for 'a=b'.  So they're not necessarily
-    a great substitute for keyword args.  Also keyword args should complain if
-    you give one it doesn't understand.
-    . I think a=b syntax is available, but do I want to make a Val out of it?
-      It would be resolved by Derive.Sig, and not actually make it to calls,
-      but Quoted is like that too.
-    . And realistically it seems really invasive to support a=b if it's not
-      a Val.  But I wind up with weird things like a=b=c.
   / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
       a binary can select a subset from it.  Ideally I could chase packages
@@ -1139,6 +1143,20 @@ Derive:
       on in a slightly random spot, but stays on after that.
       . Is there a simpler way to get this effect?
   tracklang: TrackLang:
+    - Keyword args.
+      . A problem with environ defaulted args is that if I do e.g.
+        'merge=add | a=b | block', then all of 'block' will have merge=add.
+        There's no way to set it just for 'a=b'.  So they're not necessarily
+        a great substitute for keyword args.  Also keyword args should
+        complain if you give one it doesn't understand.
+      . I think a=b syntax is available, but do I want to make a Val out of it?
+        It would be resolved by Derive.Sig, and not actually make it to calls,
+        but Quoted is like that too.
+      . And realistically it seems really invasive to support a=b if it's not
+        a Val.  But I wind up with weird things like a=b=c.
+    / Pipe could be an exception to "first call is any non-space", so I can
+      write a|b.  Or... is that so great after all?  With proportional fonts,
+      the spaces are small and I don't want multiple ways to do it.
     generalize sub-event calls
       - Generalize sub-event calls so that they can also take block names.  This
         is just another way to write sub-tracks, perhaps more convenient if
