@@ -70,9 +70,13 @@ empty = Stack []
 length :: Stack -> Int
 length (Stack f) = Prelude.length f
 
+-- | Construct a Stack from frames starting with the outermost and ending with
+-- the innermost.
 from_outermost :: [Frame] -> Stack
 from_outermost = Stack . reverse
 
+-- | Construct a Stack from frames starting with the innermost and ending with
+-- the outermost.
 from_innermost :: [Frame] -> Stack
 from_innermost = Stack
 
@@ -91,9 +95,12 @@ add frame (Stack stack) = Stack (frame:stack)
 member :: Frame -> Stack -> Bool
 member frame (Stack s) = frame `elem` s
 
+-- | The stack, starting with the outermost call and ending with the innermost.
+-- All display should use this order.
 outermost :: Stack -> [Frame]
 outermost (Stack s) = reverse s
 
+-- | The stack, starting with the innermost call and ending with the outermost.
 innermost :: Stack -> [Frame]
 innermost (Stack s) = s
 
@@ -234,11 +241,12 @@ format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.textList . map unparse_ui_frame . to_ui
 
 pretty_ui :: Stack -> Text
-pretty_ui = Text.intercalate ": " . map unparse_ui_frame . to_ui
+pretty_ui = Text.intercalate " / " . map unparse_ui_frame . to_ui
 
 pretty_ui_ :: Stack -> Text
-pretty_ui_ = Text.intercalate ": " . map unparse_ui_frame_ . to_ui
+pretty_ui_ = Text.intercalate " / " . map unparse_ui_frame_ . to_ui
 
+-- | Loggable msg with the last position of the stack.
 pretty_ui_inner :: Stack -> Maybe Text
 pretty_ui_inner = fmap log_ui_frame . Seq.head . to_ui_innermost
 

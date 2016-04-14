@@ -208,7 +208,7 @@ data Prio =
     | Warn
     -- | Code error in the app, which may quit after printing this.
     | Error
-    deriving (Show, Enum, Eq, Ord, Read, Generics.Generic)
+    deriving (Bounded, Enum, Show, Read, Eq, Ord, Generics.Generic)
 
 -- | Add this to the context of a function to make that function's caller
 -- show up in 'msg_caller'.

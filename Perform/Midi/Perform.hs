@@ -52,9 +52,10 @@ default_velocity :: Signal.Y
 default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
--- apply to.
+-- apply to.  Some synthesizers (kontakt at least) will occasionally not notice
+-- a keyswitch that comes too close to its note.
 keyswitch_lead_time :: RealTime
-keyswitch_lead_time = RealTime.milliseconds 4
+keyswitch_lead_time = RealTime.milliseconds 6
 
 -- | Most synths don't respond to control change and pitch bend instantly, but
 -- smooth it out, so if you set pitch bend immediately before playing the note
@@ -84,6 +85,14 @@ min_control_lead_time = RealTime.milliseconds 4
 adjacent_note_gap :: RealTime
 adjacent_note_gap = RealTime.milliseconds 10
 
+-- | Each note will have at least this duration.  The reason is that some
+-- synthesizers (kontakt at least) will sometimes not notice a note which is
+-- too short.  Usually these notes are percussion and come in with zero
+-- duration.
+--
+-- Honestly nothing really surprises me about Kontakt anymore.
+min_note_duration :: RealTime
+min_note_duration = RealTime.milliseconds 20
 
 -- * perform
 
@@ -518,14 +527,11 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     new_ks = T.patch_keyswitch new_inst
     is_hold = T.patch_hold_keyswitch new_inst
     ks_start = start - keyswitch_lead_time
-    -- It seems if the duration is too short, Kontakt won't recognize it.
-    -- Honestly nothing really surprises me about Kontakt anymore.
-    ks_dur = RealTime.milliseconds 16
 
     new_ks_on
         | is_hold = map (ks_on ks_start) new_ks
         | otherwise = map (ks_on ks_start) new_ks
-            ++ concatMap (ks_off (ks_start+ks_dur)) new_ks
+            ++ concatMap (ks_off (ks_start+min_note_duration)) new_ks
     ks_on ts ks = mkmsg ts $ case ks of
         Patch.Keyswitch key -> Midi.NoteOn key 64
         Patch.ControlSwitch cc val -> Midi.ControlChange cc val
@@ -567,9 +573,9 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
             Control.val_to_cc (T.event_end_velocity event)
         ]
     note_on = T.event_start event
-    -- Subtract the adjacent_note_gap, but leave a little bit of duration for
-    -- 0-dur notes.
-    note_off = max (note_on + adjacent_note_gap)
+    -- Subtract the adjacent_note_gap, but still have at least
+    -- min_note_duration.
+    note_off = max (note_on + min_note_duration)
         (T.event_end event - adjacent_note_gap)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 

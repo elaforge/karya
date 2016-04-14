@@ -9,6 +9,7 @@
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
     -- * tests
+    , Stack
     -- ** pure assertions
     , check, equal, right_equal, not_equal, equalf, strings_like
     , left_like , match
@@ -23,6 +24,7 @@ module Util.Testing (
 
     -- * extracting
     , expect_right
+    , error_stack
 
     -- * profiling
     , timer, print_timer
@@ -314,10 +316,12 @@ pause msg = do
     putStr "\n"
 
 expect_right :: (Stack, Show a) => String -> Either a b -> b
-expect_right msg (Left v) =
-    error $ show_stack msg ?stack ++ " - " ++ msg ++ ": " ++ show v
+expect_right msg (Left v) = error_stack $ msg ++ ": " ++ show v
 expect_right _ (Right v) = v
 
+-- | Like 'error', but with the caller's position.
+error_stack :: Stack => String -> a
+error_stack msg = error $ show_stack "" ?stack ++ ": " ++ msg
 
 -- * profiling
 
@@ -393,7 +397,7 @@ show_stack test_name =
     where
     show_frame (_, srcloc) =
         SrcLoc.srcLocFile srcloc ++ ":" ++ show (SrcLoc.srcLocStartLine srcloc)
-        ++ " [" ++ test_name ++ "]"
+        ++ if null test_name then "" else " [" ++ test_name ++ "]"
 
 -- | Highlight the line unless the text already has highlighting in it.
 highlight :: ColorCode -> String -> String

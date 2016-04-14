@@ -5,6 +5,6 @@
 -- | Exports from "Util.Testing".  This is meant to be imported unqualified.
 module Util.Test (module Util.Testing) where
 import Util.Testing
-       (check, equal, right_equal, not_equal, equalf, strings_like, left_like,
-        match, throws, io_equal, io_human, pause, success, failure,
-        expect_right, prettyp, pprint)
+       (Stack, check, equal, right_equal, not_equal, equalf, strings_like,
+        left_like, match, throws, io_equal, io_human, pause, success, failure,
+        expect_right, error_stack, prettyp, pprint)

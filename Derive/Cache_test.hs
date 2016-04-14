@@ -367,7 +367,7 @@ test_collect = do
             start end Score.id_warp (UiTest.bid bid) Nothing
     equal (e_warp_maps collect)
         [ ("top * *", tw 0 2 "top")
-        , ("top top.t1 0-1: sub * *", tw 0 1 "sub")
+        , ("top top.t1 0-1 / sub * *", tw 0 1 "sub")
         ]
 
     -- TrackSignals are only collected for the topmost block.

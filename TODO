@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The EvalTrack.DeriveEmpty stuff is really obtuse, can I simplify?
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
   * ky file doesn't like you to comment out a section
@@ -238,7 +239,8 @@ UNSORTED
       solution is to apply via Pitches.transpose, but I shouldn't have to make
       complicated decisions like that.
 
-  - kotekan calls leave keys down in kontakt
+  * kotekan calls leave keys down in kontakt
+    . Seems to have been fixed by increasing minimum note duration.
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two

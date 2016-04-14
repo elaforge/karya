@@ -81,8 +81,8 @@ test_drum_instrument = do
     let e_midi = Seq.map_maybe_snd Midi.channel_message
             . filter (Midi.is_note . snd) . DeriveTest.extract_midi
     equal (e_midi midi)
-        [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
-        , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
+        [ (0, NoteOn Key.c2 127), (20, NoteOff Key.c2 127)
+        , (1000, NoteOn Key.d2 127), (1020, NoteOff Key.d2 127)
         ]
 
     -- Ensure the generated calls invert.

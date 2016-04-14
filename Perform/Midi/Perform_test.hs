@@ -292,12 +292,12 @@ test_control_lead_time = do
          ], [])
 
 test_pedal = do
-    let run = extract . perform inst_addrs1 . mkevents
+    let f = extract . perform inst_addrs1 . mkevents
         extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
     let pedal sig = (Controls.pedal, Signal.signal sig)
     -- The pedal extends note duration, so I get the pedal-off even though it's
     -- a long ways past the supposed end of the note.
-    equal (run [(patch1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
+    equal (f [(patch1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
     -- TODO actually this works because I don't clip controls unless there's
     -- a next note, which works well enough for pedal in simple cases.  There
     -- are probably still some cases where this isn't enough, but I'll deal
@@ -368,6 +368,15 @@ test_no_pitch = do
 
 -- * perform_note
 
+test_min_duration = do
+    let f = extract . expect_no_logs . perform_notes . map make
+        extract = mapMaybe $ \wmsg ->
+            (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
+        make (pitch, start, dur) =
+            (mkevent (patch1, pitch, start, dur, []), (dev1, 0))
+        min_dur = Perform.min_note_duration
+    equal (f [("a", 1, 0)]) [(1, (True, Key.c4)), (1+min_dur, (False, Key.c4))]
+
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
@@ -411,7 +420,7 @@ test_keyswitch = do
         ks1 = [Patch.Keyswitch Key.c1]
         ks2 = [Patch.Keyswitch Key.d1]
     let ks_lead = Perform.keyswitch_lead_time
-        ks_dur = RealTime.milliseconds 16
+        min_dur = Perform.min_note_duration
     let f extract = extract . expect_no_logs . perform_notes . map with_addr
 
     -- Redundant ks not emitted.
@@ -438,19 +447,21 @@ test_keyswitch = do
     equal result
         [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
         , (0, (True, Key.c4))
-        , (-ks_lead+ks_dur, (False, Key.c1)), (-ks_lead+ks_dur, (False, Key.d1))
+        , (-ks_lead+min_dur, (False, Key.c1))
+        , (-ks_lead+min_dur, (False, Key.d1))
         , (1 - gap, (False, Key.c4))
         ]
     -- Multiple keyswitches on multiple notes.
     equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
         [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
         , (0, (True, Key.c4))
-        , (-ks_lead+ks_dur, (False, Key.c1)), (-ks_lead+ks_dur, (False, Key.d1))
+        , (-ks_lead+min_dur, (False, Key.c1))
+        , (-ks_lead+min_dur, (False, Key.d1))
         , (1 - gap, (False, Key.c4))
 
         , (1-ks_lead, (True, Key.c1))
         , (1, (True, Key.cs4))
-        , (1-ks_lead+ks_dur, (False, Key.c1))
+        , (1-ks_lead+min_dur, (False, Key.c1))
         , (2 - gap, (False, Key.cs4))
         ]
 
@@ -557,9 +568,10 @@ perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [String])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
-expect_no_logs :: (a, [String]) -> a
+expect_no_logs :: Stack => (a, [String]) -> a
 expect_no_logs (val, []) = val
-expect_no_logs (_, logs) = error $ "expected no logs: " ++ Seq.join "\n" logs
+expect_no_logs (_, logs) =
+    error_stack $ "expected no logs: " ++ Seq.join "\n" logs
 
 -- * post process
 
