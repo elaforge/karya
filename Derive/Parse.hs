@@ -183,6 +183,11 @@ p_unparsed_expr = do
     let arg = BaseTypes.Symbol $ Text.strip $ strip_comment text
     return $ BaseTypes.Call unparsed_call
         [BaseTypes.Literal $ BaseTypes.VSymbol arg]
+    where
+    -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
+    -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
+    -- but I still want to allow comments, for consistency.
+    strip_comment = fst . Text.breakOn "--"
 
 -- | This is a magic call name that surpresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
@@ -190,12 +195,6 @@ p_unparsed_expr = do
 -- a sub expression.
 unparsed_call :: BaseTypes.Symbol
 unparsed_call = "!"
-
--- | Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
--- tokenization is suppressed for 'unparsed_call' so that doesn't happen, but
--- I still want to allow comments, for consistency.
-strip_comment :: Text -> Text
-strip_comment = fst . Text.breakOn "--"
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
@@ -528,7 +527,7 @@ type LineNumber = Int
 -}
 parse_ky :: FilePath -> Text -> Either Text ([FilePath], Definitions)
 parse_ky filename text = do
-    let (imports, sections) = split_sections text
+    let (imports, sections) = split_sections $ strip_comments $ Text.lines text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList valid_headers
     unless (null extra) $
@@ -564,6 +563,7 @@ parse_ky filename text = do
     parse_section ((lineno, line0) : lines) =
         ParseText.parse_lines lineno p_section $
             Text.unlines (line0 : map snd lines)
+    strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
 
 -- | The alias section allows only @>inst = >inst@ definitions.
 parse_alias :: (BaseTypes.CallId, Expr)
@@ -586,10 +586,10 @@ parse_instrument side sym = do
         then Left $ prefix <> " has invalid chars: " <> showt sym
         else Right (Score.instrument sym)
 
-split_sections :: Text -> (Text, Map.Map Text [(LineNumber, Text)])
+split_sections :: [Text] -> (Text, Map.Map Text [(LineNumber, Text)])
 split_sections =
     second (Map.fromListWith (flip (++)) . concatMap split_header)
-        . split_imports . Seq.split_with is_header . zip [1..] . Text.lines
+        . split_imports . Seq.split_with is_header . zip [1..]
     where
     is_header = (":" `Text.isSuffixOf`) . snd
     split_imports [] = ("", [])

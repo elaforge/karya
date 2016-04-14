@@ -5,6 +5,8 @@
 module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
@@ -275,6 +277,9 @@ test_parse_ky = do
         Right [("a", ("b", ["c"])), ("d", ("e", []))]
     left_like (note "a = b\nc\n") ""
     equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
+    equal (f e_note "-- hi") (Right [])
+    equal (f e_note "-- note_generator:") (Right [])
+
     -- imports
     equal (f fst "import 'x' -- blah\nimport 'y'\n") $
         Right ["x", "y"]
@@ -290,7 +295,7 @@ test_parse_ky = do
         (Right [(Score.Instrument "a", Score.Instrument "b")])
 
 test_split_sections = do
-    let f = second Map.toList . Parse.split_sections
+    let f = second Map.toList . Parse.split_sections . Text.lines
     equal (f "a:\n1\nb:\n2\na:\n3\n") $
         ("", [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])])
     equal (f "import a\nimport b\na:\n2\n")
