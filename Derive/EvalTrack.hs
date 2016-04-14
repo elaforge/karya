@@ -293,13 +293,17 @@ stash_prev_val track prev_val threaded = fromMaybe threaded $ do
             (Derive.state_prev_val threaded)
         }
 
+-- | Run a derivation.  If the deriver throws an exception, it will be caught
+-- and turned into a log msg, and any state changes rolled back.
+-- 'Internal.local' relies on this, since it doesn't revert the state after an
+-- exception.
 run_derive :: Derive.State -> Derive.Deriver (Stream.Stream d)
     -> (Stream.Stream d, Derive.State)
-run_derive state deriver = (stream, out_state)
+run_derive state deriver = case result of
+    Right stream -> (Stream.merge_logs logs stream, out_state)
+    Left err -> (Stream.merge_logs logs (error_to_stream err), state)
     where
-    stream = Stream.merge_logs logs $ case result of
-        Right s -> s
-        Left err -> Stream.from_logs [Derive.error_to_warn err]
+    error_to_stream = Stream.from_logs . (:[]) . Derive.error_to_warn
     (result, out_state, logs) = Derive.run state deriver
 
 derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)

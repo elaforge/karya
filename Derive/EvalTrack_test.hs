@@ -537,3 +537,9 @@ test_parse_error = do
     equal (map (fmap Stack.to_ui . Log.msg_stack) logs)
         [Just [(Just (UiTest.bid "b1"), Just (UiTest.tid "b1.t1"),
             Just (1, 3))]]
+
+test_exception_reverts_state = do
+    let run = DeriveTest.extract (DeriveTest.e_environ "a")
+            . DeriveTest.derive_tracks ""
+    equal (run [(">", [(0, 1, "a=b | err"), (1, 1, "")])])
+        ([Nothing], ["Error: note generator not found: err"])

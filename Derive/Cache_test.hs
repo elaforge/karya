@@ -286,7 +286,7 @@ test_failed_sub_track = do
         [ "top * sub-block damage"
         , "top.t1 * sub-block damage"
         , "sub.t1 * get_scale: unknown"
-        , "sub.t1 5-6: * get_scale: unknown"
+        , "top top.t1 5-6: sub sub.t1 * get_scale: unknown"
         ]
 
 test_has_score_damage = do

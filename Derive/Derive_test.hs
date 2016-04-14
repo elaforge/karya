@@ -156,6 +156,25 @@ test_stack = do
         , b0 1 2 ++ sub 1 2
         ]
 
+test_stack_after_exception = do
+    -- The stack is properly rewound after an exception.  This actually tests
+    -- that the state is rolled back if event evaluation produces an exception,
+    -- which is more directly tested in "Derive.EvalTrack_test".  Amazingly,
+    -- it didn't for a very long time, and the bug was only revealed in this
+    -- way.
+    let result = DeriveTest.derive_blocks
+            [ ("top -- >>i1 = \"(%dyn = set .8)",
+                [(">", [(0, 4, "b1"), (4, 4, "b2")])])
+            , ("b1", [(">i1", [])])
+            , ("b2", [(">i1", [])])
+            ]
+    let extract = fmap Stack.pretty_ui_ . Log.msg_stack
+    equal (mapMaybe extract $ DeriveTest.r_logs result)
+        [ "top top.t1 0-4 / b1 b1.t1 *"
+        , "top top.t1 4-8 / b2 b2.t1 *"
+        ]
+
+
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks

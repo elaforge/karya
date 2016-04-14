@@ -9,7 +9,7 @@ UNSORTED
   * ky file doesn't like you to comment out a section
   - bali.ky sets instrument aliases like '>r1 = >r1', but these fail if there
     is no >r defined.
-  - nonsensical stack trace:
+  * nonsensical stack trace:
       {s "untitled/awak untitled/b5.t1 0-9"}
       {s "untitled/intro untitled/b2.t1 25-41"}
       {s "untitled/a2 untitled/b2.t14 *"} equal: Error:
@@ -19,8 +19,7 @@ UNSORTED
     . Note that localm doesn't reset the state.  So when the title throws an
       exception, the old state stays.  But shouldn't the event evaluation
       catch that and restore the old state?
-      . top: b1 -> calls b1
-
+    . WTF, EvalTrack.run_derive doesn't revert the state?
   * invalid ky file to LState.set_ky Nothing, doesn't notice the change
     * Also if I have a broken performance due to no ky file but no save file,
       and then add a save file, it doesn't notice.
