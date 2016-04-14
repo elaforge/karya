@@ -17,7 +17,7 @@ test_process_msg = do
     let f = fmap (UTF8.toString . Process.style_text) . fst
             . Process.process_msg (Process.initial_state "")
     equal (f (Log.msg Log.Debug Nothing "hi"))
-        (Just "*\tLogView/Process_test.hs:19 hi\n")
+        (Just "*   LogView/Process_test.hs:19 hi\n")
 
 test_render_status = do
     let status = Map.fromList [("a", "one {click} 1"), ("b", "two")]
