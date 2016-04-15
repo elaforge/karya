@@ -3,7 +3,9 @@
 - If you pulled from darcs and didn't use --set-scripts-executable, run
 `chmod 755 fix-perms && ./fix-perms`.
 
-- Install dependencies, documented below.
+- Install dependencies, documented below in `INSTALLED SEPARATELY`.
+
+- Update `Shake/Config.hs` to point to where those dependencies are installed.
 
 - Build shakefile: `bin/mkmk`
 
@@ -18,11 +20,13 @@ not iphone-ly.
 
 ## HASKELL DEPENDENCIES
 
-For whatever reason cabal won't install happy automaticaly, so first run
+For whatever reason cabal won't install happy automatically, so first run
 
     cabal install happy
 
-To install the needed haskell dependencies, type:
+The reason for happy is some dumb thing like needing haskell-src to do pretty
+printing, or something like that.  To install the needed haskell dependencies,
+type:
 
     cabal sandbox init  # if you're afraid to screw up your haskell installation
     cabal install --only-dependencies
@@ -45,8 +49,8 @@ that in a separate sandbox.
 ## INSTALLED SEPARATELY
 
 - fltk-1.3, from <http://fltk.org/>.  Install the latest version from SVN
-for bugfixes and better rendering on retina macs.  The shakefile expects to
-use the uninstalled library via `/usr/local/src/fltk-1.3/fltk-config`.
+for bugfixes and better rendering on retina macs.  `Shake/Config.hs` needs
+the path to the `fltk-config` script.
 
 - libpcre library from <http://www.pcre.org>.
 
@@ -57,7 +61,7 @@ you need flags:
         % cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
 
-- lilypond for the lilypond backend.
+- lilypond for the lilypond backend.  This is optional.
 
 - The bravura font for music symbols: <http://www.smufl.org/fonts/>
 
@@ -65,10 +69,11 @@ you need flags:
 
     Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
 
-    Use `fc-list` to see installed fonts and their names.  For some reason, the
-fonts on linux sometimes have backslashes in their names, and sometimes not.
-If there is a complaint at startup about the font not being found you might
-have to edit App/Config.hsc.  Or not, I hardly use the music symbols.
+    On linux, use `fc-list` to see installed fonts and their names.  For some
+reason, the fonts on linux sometimes have backslashes in their names, and
+sometimes not.  If there is a complaint at startup about the font not being
+found you might have to edit App/Config.hsc.  Or not, I hardly use the music
+symbols.
 
 ## LINUX
 
