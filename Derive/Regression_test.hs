@@ -19,22 +19,26 @@ import qualified Derive.DeriveSaved as DeriveSaved
 import Global
 
 
+bloom = "data/bloom"
+pnovla = "data/pnovla"
+viola_sonata = "data/viola-sonata"
+
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
 -- TODO nowadays I save the performance in the score itself, but this predates
 -- that.  I should update this to act the same as verify_performance.
-save_performance :: FilePath -> FilePath -> IO ()
-save_performance output input = do
+regenerate_performance :: FilePath -> IO ()
+regenerate_performance score = do
     cmd_config <- DeriveSaved.load_cmd_config
-    msgs <- DeriveSaved.perform_file cmd_config input
-    DiffPerformance.save_midi output (Vector.fromList msgs)
+    msgs <- DeriveSaved.perform_file cmd_config score
+    DiffPerformance.save_midi (score <> "-perf") (Vector.fromList msgs)
 
-large_test_bloom = check =<< compare_performance
-    "data/bloom-perf" "data/bloom"
-large_test_pnovla = check =<< compare_performance
-    "data/pnovla-perf" "data/pnovla"
-large_test_viola_sonata = check =<< compare_performance
-    "data/viola-sonata-perf" "data/viola-sonata"
+run :: FilePath -> IO Bool
+run score = check =<< compare_performance (score <> "-perf") score
+
+large_test_bloom = run bloom
+large_test_pnovla = run pnovla
+large_test_viola_sonata = run viola_sonata
 
 -- * implementation
 
