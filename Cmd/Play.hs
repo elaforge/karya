@@ -227,10 +227,16 @@ top_of_block = do
 
 root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
 root_from block_id track_id pos = do
-    root_id <- State.get_root_id
-    perf <- get_performance root_id
-    maybe (local_from block_id track_id pos) (from_realtime root_id Nothing)
-        =<< Perf.lookup_realtime perf block_id (Just track_id) pos
+    play_root <- maybe_root_from block_id track_id pos
+    maybe (local_from block_id track_id pos) return play_root
+
+maybe_root_from :: Cmd.M m => BlockId -> TrackId -> ScoreTime
+    -> m (Maybe Cmd.PlayMidiArgs)
+maybe_root_from block_id track_id pos =
+    justm State.lookup_root_id $ \root_id -> do
+        perf <- get_performance root_id
+        justm (Perf.lookup_realtime perf block_id (Just track_id) pos) $
+            \start -> Just <$> from_realtime root_id Nothing start
 
 from_score :: Cmd.M m => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
