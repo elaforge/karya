@@ -201,9 +201,16 @@ c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
 dyn_call_map :: Map.Map Char DynCall
 dyn_call_map = Map.fromList $
     [ ('=', dc_flat)
-    , ('<', dc_move True)
-    , ('>', dc_move False)
-    ] ++ [(head (show n), dc_move_to (n/9)) | n <- [0..9]]
+    , ('<', dc_attack)
+    , ('a', dc_attack_from)
+    , ('>', dc_decay 0.8 0)
+    , ('d', dc_decay 0 0.8)
+    ] ++ [(head (show n), dc_move_to n) | n <- [0..9]]
+
+-- | This is super hacky, just hard-code which dyn calls have an arg for the
+-- parser.  But there are so few dyn calls who cares.
+dyn_has_argument :: Char -> Bool
+dyn_has_argument c = c == '<' || c == 'a'
 
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
@@ -248,9 +255,6 @@ p_dyn_call = do
     return $ Call c arg
     where
     p_dyn_arg = A.option "" (Text.singleton <$> A.digit)
-
-dyn_has_argument :: Char -> Bool
-dyn_has_argument c = Char.isUpper c || c == '<' || c == '>'
 
 resolve_dyn_calls :: [Call Char] -> Either Text [Call (DynCall, Char)]
 resolve_dyn_calls = mapM $ \(Call name arg) ->
@@ -403,46 +407,46 @@ dc_flat = DynCall "No movement." Sig.no_args $ \() ctx -> do
     start <- lift $ Derive.real (ctx_start ctx)
     return $ Signal.signal [(start, prev)]
 
--- < is from 0, to 1 or the arg
--- > is from prev value, to 0 or the arg
-dc_move :: Bool -> DynCall
-dc_move crescendo = DynCall doc sig1 $ \maybe_move args -> do
-    (start, end) <- ctx_range args
-    from <- if crescendo then return 0 else State.gets state_from_dyn
-    let to = if crescendo
-            then maybe 1 (from+) maybe_move
-            else maybe 0 (from-) maybe_move
-    dyn_curve start from end to
+dc_attack :: DynCall
+dc_attack = DynCall doc dyn_arg $ \maybe_to ctx ->
+    make_dyn_curve (dyn_curve 0 0.8) 0 (fromMaybe 1 maybe_to) ctx
+    where doc = "Attack from 0."
+
+dc_attack_from :: DynCall
+dc_attack_from = DynCall doc dyn_arg $ \maybe_to ctx -> do
+    from <- State.gets state_from_dyn
+    make_dyn_curve (dyn_curve 0 0.8) from (fromMaybe 1 maybe_to) ctx
+    where doc = "Attack from previous value."
+
+dyn_arg :: Sig.Parser (Maybe Double)
+dyn_arg = fmap normalize <$> Sig.defaulted "move" Nothing "Move to n/9."
     where
-    sig1 :: Sig.Parser (Maybe Double)
-    sig1 = fmap normalize <$> Sig.defaulted "move" Nothing "Relative movement."
     normalize :: Int -> Double
     normalize = (/9) . fromIntegral
-    doc = mconcat
-        [ "Hi, doc"
-        , " < -> from prev, to 1, align to start"
-        , " > -> from prev, to 0, align to end"
-        , " = -> from prev, to arg, align to middle"
-        ]
+
+dc_decay :: Double -> Double -> DynCall
+dc_decay w1 w2 = DynCall doc Sig.no_args $ \() ctx -> do
+    from <- State.gets state_from_dyn
+    make_dyn_curve (dyn_curve w1 w2) from 0 ctx
+    where doc = "Decay to 0, with curve weights: " <> pretty (w1, w2)
 
 dc_move_to :: Double -> DynCall
-dc_move_to to = DynCall doc Sig.no_args $ \() args -> do
-    (start, end) <- ctx_range args
+dc_move_to arg = DynCall doc Sig.no_args $ \() ctx -> do
     from <- State.gets state_from_dyn
-    dyn_curve start from end to
+    make_dyn_curve (dyn_curve 0.5 0.5) from to ctx
     where
-    doc = "doc doc"
+    to = arg / 9
+    doc = "Move to " <> pretty to <> "."
 
-dyn_curve :: RealTime -> Signal.Y -> RealTime -> Signal.Y
+make_dyn_curve :: ControlUtil.Curve -> Signal.Y -> Signal.Y -> Context
     -> M DynState Signal.Control
-dyn_curve start from end to = do
+make_dyn_curve curve from to ctx = do
+    (start, end) <- ctx_range ctx
     State.modify $ \state -> state { state_from_dyn = to }
     lift $ ControlUtil.make_segment curve start from end to
-    where
-    crescendo = to >= from
-    weight = if crescendo then 0.9 else 0
-    curve = snd ControlUtil.sigmoid_curve $
-        if crescendo then (0, weight) else (weight, 0)
+
+dyn_curve :: Double -> Double -> ControlUtil.Curve
+dyn_curve w1 w2 = snd ControlUtil.sigmoid_curve (w1, w2)
 
 -- * PitchCall
 

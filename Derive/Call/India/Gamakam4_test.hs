@@ -48,7 +48,7 @@ test_sequence_multiple = do
     -- Same for dyn.
     equal (run DeriveTest.e_dyn_rounded $
             note ++ [("dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
-        ([[(0, 0), (1, 0.39), (2, 0.44), (3, 0.22), (4, 0)]], [])
+        ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
 test_parse_sequence = do
     let f = first untxt . Gamakam.parse_sequence
@@ -98,25 +98,25 @@ test_prev_pitch = do
         ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
 
     -- TODO
-    equal (run $ note_pitch_gamakam
-            [(0, 3, ""), (3, 2, "")]
-            [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
-                (3, 0, "4c"), (4, 0, "4d")]
-            [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
-        ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
-            [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
+    -- equal (run $ note_pitch_gamakam
+    --         [(0, 3, ""), (3, 2, "")]
+    --         [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
+    --             (3, 0, "4c"), (4, 0, "4d")]
+    --         [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
+    --     ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
+    --         [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
 
     -- TODO
-    let (result, logs) = run $ note_pitch_gamakam
-            [(0, 3, ""), (3, 1, "")]
-            [(0, 0, "2d"), (1, 0, "4c"), (2, 0, "4d"), (4, 0, "4c")]
-            [(0, 0, "!^20"), (1, 0, "!0="), (4, 0, "!=")]
-    -- Last note should get 4d, but instead gets 4c.
-    equal logs []
-    equal result
-        [ [(0, NN.d2), (1, NN.c4), (2, NN.d4)]
-        , [(3, 60)]
-        ]
+    -- let (result, logs) = run $ note_pitch_gamakam
+    --         [(0, 3, ""), (3, 1, "")]
+    --         [(0, 0, "2d"), (1, 0, "4c"), (2, 0, "4d"), (4, 0, "4c")]
+    --         [(0, 0, "!^20"), (1, 0, "!0="), (4, 0, "!=")]
+    -- -- Last note should get 4d, but instead gets 4c.
+    -- equal logs []
+    -- equal result
+    --     [ [(0, NN.d2), (1, NN.c4), (2, NN.d4)]
+    --     , [(3, 60)]
+    --     ]
 
 
 test_resolve_pitch_calls = do
@@ -142,7 +142,7 @@ test_note_end = do
     let round_vals = map $ second $ map $ second $ Num.roundDigits 2
     equal (round_vals (DeriveTest.e_tsigs result))
         [((UiTest.default_block_id, UiTest.mk_tid 4),
-            [(0, 0), (1, 0.64), (2, 0.87), (3, 0.97), (4, 1)])]
+            [(0, 0), (1, 0.58), (2, 0.84), (3, 0.96), (4, 1)])]
 
 test_sequence_interleave = do
     let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
@@ -170,12 +170,12 @@ test_dyn_sequence = do
     equal (run ".5" "!=") ([[(0, 0.5)], [(4, 0.5)], [(4, 0.5)]], [])
     equal (run ".5" "!=>")
         ([ [(0, 0.5)]
-         , [(4, 0.5), (6, 0.5), (7, 0.25)]
+         , [(4, 0.5), (6, 0.5), (7, 0.42)]
          , [(8, 0)]
          ], [])
     equal (run ".5" "!<=")
         ([ [(0, 0.5)]
-         , [(4, 0), (5, 0.87), (6, 1)]
+         , [(4, 0), (5, 0.84), (6, 1)]
          , [(6, 1)]
          ], [])
 

@@ -1499,11 +1499,16 @@ Derive:
           two neighboring notes at a time.
   india: gamakam:
     dyn:
-      - dyn > seems to be linear?
-      - I think I do want a linear or slow attack for <, otherwise all attacks
-        are sharp.
-      - < should start from prev dyn, not 0.
-      - Do I still want transition speed?
+      * dyn > seems to be linear?
+      * < should start from prev dyn, not 0.
+        . 'a' now does this
+      / Do I still want transition speed?
+      . The thing is, a lot of dyn stuff I can do with existing control calls.
+      - Add 'T' call, which sets from val.
+      - Add argument for 'd'.
+      - Add support for '_' and, why not, '.'.
+    - Make pitch and dyn call implementations consistent wrt arg parsing,
+      where the name is stored, etc.
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
     - Could I get rid of the special parsing of [] by just having '[' be
       a call to set duration (/2) and ']' is (*2)?  Then they don't have to be
