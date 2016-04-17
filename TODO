@@ -7,8 +7,10 @@ UNSORTED
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
   * ky file doesn't like you to comment out a section
-  - bali.ky sets instrument aliases like '>r1 = >r1', but these fail if there
+  * bali.ky sets instrument aliases like '>r1 = >r1', but these fail if there
     is no >r defined.
+    . The easy solution would be to remove the check in '='.  Maybe it's not
+      really necessary, since if I make a typo it should be quickly obvious.
   * nonsensical stack trace:
       {s "untitled/awak untitled/b5.t1 0-9"}
       {s "untitled/intro untitled/b2.t1 25-41"}

@@ -426,19 +426,21 @@ with_instrument_alias alias inst =
 
 with_instrument_aliases :: Map.Map Score.Instrument Score.Instrument
     -> Deriver a -> Deriver a
-with_instrument_aliases aliases deriver = do
-    forM_ (Map.elems aliases) $ \inst ->
-        lookup_instrument inst >>= \(_, result) -> case result of
-            Nothing -> throw $ "instrument alias destination doesn't exist: "
-                <> pretty inst
-            Just _ -> return ()
-    if null aliases then deriver else Internal.local with deriver
+with_instrument_aliases aliases deriver
+    | Map.null aliases = deriver
+    -- I used to verify that the rhs insts exist, but verification can be
+    -- annoying if there is a library ky that creates some general purpose
+    -- aliases, e.g. >r{1..4} = >r.
+    | otherwise = Internal.local with deriver
     where
     with state = state
         { state_instrument_aliases = (resolve <$> aliases) <> old_aliases }
         where
         old_aliases = state_instrument_aliases state
         resolve inst = Map.findWithDefault inst inst old_aliases
+
+instrument_exists :: Score.Instrument -> Deriver Bool
+instrument_exists = (Maybe.isJust . snd <$>) . lookup_instrument
 
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument score_inst = do

@@ -43,14 +43,12 @@ test_equal_modify = do
         ["merge is only supported when"]
     equal (run [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
 
-test_equal_inst = do
+test_equal_inst_alias = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
             DeriveTest.derive_tracks_setup with_ui title
                 [(track, [(0, 1, "")])]
     strings_like (snd $ run mempty ">new = hi" ">new")
         ["expected an instrument"]
-    strings_like (snd $ run mempty ">new = >nonexistent" ">new")
-        ["instrument alias destination doesn't exist"]
     equal (run mempty ">new = >i1" ">new") (["i1"], [])
     equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
 
