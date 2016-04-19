@@ -1521,14 +1521,14 @@ Derive:
       . I don't mind PCall being separate because that's the existentially
         quantified part.
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
-    - Could I get rid of the special parsing of [] by just having '[' be
+    / Could I get rid of the special parsing of [] by just having '[' be
       a call to set duration (/2) and ']' is (*2)?  Then they don't have to be
       balanced.
       . No, because duration must be set before calls are called.  But I can
         do a magic token like '_'.  This makes '_' redundant, but perhaps it's
         easier to read because it only applies to a single call, e.g. '10.1' vs
         '1]0[1'.
-    - expose the pitch call map and dyn call map to documentation
+    * expose the pitch call map and dyn call map to documentation
     - There still seems to be a case where prev pitch is wrong, it has to
       do with a '--' event.
     - And another prev pitch bug:

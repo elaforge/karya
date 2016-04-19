@@ -52,7 +52,7 @@ module_ = "india" <> "gamakam4"
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map
-    [ (Parse.unparsed_call, c_sequence)
+    [ (Parse.unparsed_call, c_pitch_sequence)
     ]
 
 control_calls :: Derive.CallMaps Derive.Control
@@ -64,10 +64,10 @@ note_calls = Derive.transformer_call_map [("sahitya", c_sahitya)]
 
 -- * sequence
 
-c_sequence :: Derive.Generator Derive.Pitch
-c_sequence = Derive.generator1 module_
-    "sequence" mempty sequence_doc
-    $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
+c_pitch_sequence :: Derive.Generator Derive.Pitch
+c_pitch_sequence = Derive.generator1 module_
+    "sequence" mempty pitch_sequence_doc
+    $ Sig.call ((,) <$> Sig.required "sequence" "Pitch calls." <*> config_env)
     $ \(text, transition) args -> do
         (start, end) <- Args.range_or_note_end args
         maybe_state <- initial_pitch_state transition args
@@ -119,8 +119,8 @@ initial_pitch_state transition args =
     where
     get_pitch = Derive.pitch_at <=< Derive.real
 
-sequence_doc :: Text
-sequence_doc = mconcat
+pitch_sequence_doc :: Text
+pitch_sequence_doc = mconcat
     [ "This is a mini-language, where each one or two characters is a call."
     , " An upper-case call will take a single character argument. A special"
     , " parsing rule means that `-` and its following character is considered"
@@ -133,14 +133,12 @@ sequence_doc = mconcat
 
 pitch_call_doc :: (Char, [PitchCall]) -> Text
 pitch_call_doc (name, pcalls) =
-    Text.singleton name <> " - " <> Text.intercalate "; " (map doc_of pcalls)
+    "`" <> Text.singleton name <> "` - "
+        <> Text.intercalate "; " (map doc_of pcalls)
     where
     doc_of pcall = pcall_doc pcall
         <> if pcall_duration pcall /= 1
             then " (dur " <> pretty (pcall_duration pcall) <> ")" else ""
-
-sequence_arg_doc :: Text
-sequence_arg_doc = "A string of pitch movements."
 
 pitch_call_map :: Map.Map Char [PitchCall]
 pitch_call_map = resolve $ Map.unique $ concat
@@ -188,15 +186,24 @@ pitch_call_map = resolve $ Map.unique $ concat
 
 c_dyn_sequence :: Derive.Generator Derive.Control
 c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
-    $ Sig.call (Sig.required "sequence" arg_doc)
+    $ Sig.call (Sig.required "sequence" "Dyn calls.")
     $ \text args -> do
         (start, end) <- Args.range_or_note_end args
         let state = DynState
                 { state_from_dyn = maybe 0 snd (Args.prev_control args) }
         Derive.at start $ dyn_sequence (end - start) state text
     where
-    doc = "doc doc"
-    arg_doc = "blah blah"
+    doc = mconcat
+        [ "This is a mini-language, where each one or two characters is a call."
+        , " Each character can take an argument, which can only be a single"
+        , " digit. Typically this represents a dyn level / 9, so 0 is 0 and"
+        , " 9 is 1.  Calls:\n"
+        , Text.unlines (map dyn_call_doc (Map.toAscList dyn_call_map))
+        ]
+
+dyn_call_doc :: (Char, DynCall) -> Text
+dyn_call_doc (name, dcall) = "`" <> Text.singleton name <> "` - "
+    <> dcall_doc dcall
 
 dyn_call_map :: Map.Map Char DynCall
 dyn_call_map = Map.fromList $
@@ -330,7 +337,6 @@ data Call call = Call !call !Text
 call_durations :: [Call (PitchCall, a)] -> [Double]
 call_durations = map $ pcall_duration . (\(Call (pcall, _) _) -> pcall)
 
--- TODO surely I can do it in a simpler way?
 zip_calls :: [a] -> [Call b] -> [Call (a, b)]
 zip_calls xs calls = [Call (x, c) arg | (x, Call c arg) <- zip xs calls]
 
@@ -389,7 +395,7 @@ modify_duration modify = fmap $ first $ \call ->
 -- * DynCall
 
 data DynCall = forall a. DynCall {
-    _dcall_doc :: Text
+    dcall_doc :: Text
     , _dcall_signature :: Sig.Parser a
     , _dcall_func :: a -> Context -> M DynState Signal.Control
     }
