@@ -332,12 +332,7 @@ call_durations = map $ pcall_duration . (\(Call (pcall, _) _) -> pcall)
 
 -- TODO surely I can do it in a simpler way?
 zip_calls :: [a] -> [Call b] -> [Call (a, b)]
-zip_calls xs calls = fst $ State.runState (traverse go calls) xs
-    where
-    go (Call call arg) = do
-        x : xs <- State.get
-        State.put xs
-        return $ Call (x, call) arg
+zip_calls xs calls = [Call (x, c) arg | (x, Call c arg) <- zip xs calls]
 
 parse_pitch_sequence :: Text -> Either Text [ParsedPitch]
 parse_pitch_sequence = ParseText.parse p_exprs
