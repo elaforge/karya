@@ -206,12 +206,8 @@ dyn_call_map = Map.fromList $
     , ('>', dc_decay 0.8 0)
     , ('d', dc_decay 0 0.8)
     , ('T', dc_set_dyn)
-    ] ++ [(head (show n), dc_move_to n) | n <- [0..9]]
-
--- | This is super hacky, just hard-code which dyn calls have an arg for the
--- parser.  But there are so few dyn calls who cares.
-dyn_has_argument :: Char -> Bool
-dyn_has_argument c = c == '<' || c == 'a' || c == 'T' || c == 'd'
+    , ('.', dc_move_to)
+    ]
 
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
@@ -252,10 +248,8 @@ p_dyn_calls = A.skipSpace *> A.many1 (p_dyn_call <* A.skipSpace)
 p_dyn_call :: Parser (Call Char)
 p_dyn_call = do
     c <- A.anyChar
-    arg <- if dyn_has_argument c then p_dyn_arg else return ""
+    arg <- A.option "" (Text.singleton <$> A.digit)
     return $ Call c arg
-    where
-    p_dyn_arg = A.option "" (Text.singleton <$> A.digit)
 
 resolve_dyn_calls :: [Call Char] -> Either Text [Call (DynCall, Char)]
 resolve_dyn_calls = mapM $ \(Call name arg) ->
@@ -419,22 +413,16 @@ dc_attack_from = DynCall doc dyn_arg $ \maybe_to ctx -> do
     make_dyn_curve (dyn_curve 0 0.8) from (fromMaybe 1 maybe_to) ctx
     where doc = "Attack from previous value."
 
-dyn_arg :: Sig.Parser (Maybe Double)
-dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" Nothing "Move to n/9."
-
 dc_decay :: Double -> Double -> DynCall
 dc_decay w1 w2 = DynCall doc dyn_arg $ \maybe_to ctx -> do
     from <- State.gets state_from_dyn
     make_dyn_curve (dyn_curve w1 w2) from (fromMaybe 0 maybe_to) ctx
     where doc = "Decay to 0, with curve weights: " <> pretty (w1, w2)
 
-dc_move_to :: Int -> DynCall
-dc_move_to arg = DynCall doc Sig.no_args $ \() ctx -> do
+dc_move_to :: DynCall
+dc_move_to = DynCall "Move to dyn." required_dyn_arg $ \to ctx -> do
     from <- State.gets state_from_dyn
     make_dyn_curve (dyn_curve 0.5 0.5) from to ctx
-    where
-    to = arg_to_dyn arg
-    doc = "Move to " <> pretty to <> "."
 
 make_dyn_curve :: ControlUtil.Curve -> Signal.Y -> Signal.Y -> Context
     -> M DynState Signal.Control
@@ -447,10 +435,15 @@ dyn_curve :: Double -> Double -> ControlUtil.Curve
 dyn_curve w1 w2 = snd ControlUtil.sigmoid_curve (w1, w2)
 
 dc_set_dyn :: DynCall
-dc_set_dyn = DynCall "Set from dyn." (Sig.required "to" "Move to n/9.") $
-    \to _ctx -> do
-        State.modify $ \state -> state { state_from_dyn = arg_to_dyn to }
-        return mempty
+dc_set_dyn = DynCall "Set from dyn." required_dyn_arg $ \to _ctx -> do
+    State.modify $ \state -> state { state_from_dyn = to }
+    return mempty
+
+dyn_arg :: Sig.Parser (Maybe Signal.Y)
+dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" Nothing "Move to n/9."
+
+required_dyn_arg :: Sig.Parser Signal.Y
+required_dyn_arg = arg_to_dyn <$> Sig.required "move" "Move to n/9."
 
 arg_to_dyn :: Int -> Signal.Y
 arg_to_dyn = (/9) . fromIntegral
