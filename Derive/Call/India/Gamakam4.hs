@@ -163,12 +163,9 @@ pitch_call_map = resolve $ Map.unique $ concat
 
     , [ pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
       -- set config
-      , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
-      , config '^' "Set from pitch to current." (pc_set_pitch Current)
-      , config 'P' "Set from pitch to relative steps."
-        (pc_set_pitch_relative False)
-      , config 'T' "Set from pitch relative to swaram."
-        (pc_set_pitch_relative True)
+      , config '<' "Set from pitch to previous." (pc_set_pitch_from Previous)
+      , config '^' "Set from pitch to current." (pc_set_pitch_from Current)
+      , config 'T' "Set from pitch relative to swaram." pc_set_pitch
       , config 'F' "Fast transition time." (pc_set_transition_time Fast)
       , config 'M' "Medium transition time." (pc_set_transition_time Medium)
       , config 'S' "Slow transition time." (pc_set_transition_time Slow)
@@ -208,6 +205,7 @@ dyn_call_map = Map.fromList $
     , ('a', dc_attack_from)
     , ('>', dc_decay 0.8 0)
     , ('d', dc_decay 0 0.8)
+    , ('T', dc_set_dyn)
     ] ++ [(head (show n), dc_move_to n) | n <- [0..9]]
 
 -- | This is super hacky, just hard-code which dyn calls have an arg for the
@@ -422,10 +420,7 @@ dc_attack_from = DynCall doc dyn_arg $ \maybe_to ctx -> do
     where doc = "Attack from previous value."
 
 dyn_arg :: Sig.Parser (Maybe Double)
-dyn_arg = fmap normalize <$> Sig.defaulted "move" Nothing "Move to n/9."
-    where
-    normalize :: Int -> Double
-    normalize = (/9) . fromIntegral
+dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" Nothing "Move to n/9."
 
 dc_decay :: Double -> Double -> DynCall
 dc_decay w1 w2 = DynCall doc Sig.no_args $ \() ctx -> do
@@ -433,12 +428,12 @@ dc_decay w1 w2 = DynCall doc Sig.no_args $ \() ctx -> do
     make_dyn_curve (dyn_curve w1 w2) from 0 ctx
     where doc = "Decay to 0, with curve weights: " <> pretty (w1, w2)
 
-dc_move_to :: Double -> DynCall
+dc_move_to :: Int -> DynCall
 dc_move_to arg = DynCall doc Sig.no_args $ \() ctx -> do
     from <- State.gets state_from_dyn
     make_dyn_curve (dyn_curve 0.5 0.5) from to ctx
     where
-    to = arg / 9
+    to = arg_to_dyn arg
     doc = "Move to " <> pretty to <> "."
 
 make_dyn_curve :: ControlUtil.Curve -> Signal.Y -> Signal.Y -> Context
@@ -450,6 +445,15 @@ make_dyn_curve curve from to ctx = do
 
 dyn_curve :: Double -> Double -> ControlUtil.Curve
 dyn_curve w1 w2 = snd ControlUtil.sigmoid_curve (w1, w2)
+
+dc_set_dyn :: DynCall
+dc_set_dyn = DynCall "Set from dyn." (Sig.required "to" "Move to n/9.") $
+    \to _ctx -> do
+        State.modify $ \state -> state { state_from_dyn = arg_to_dyn to }
+        return mempty
+
+arg_to_dyn :: Int -> Signal.Y
+arg_to_dyn = (/9) . fromIntegral
 
 -- * PitchCall
 
@@ -566,18 +570,17 @@ pc_move_direction :: PitchDirection -> PCall
 pc_move_direction dir = PCall Sig.no_args $ \() ctx ->
     move_to ctx =<< get_direction_pitch dir
 
-pc_set_pitch :: PitchDirection -> PCall
-pc_set_pitch dir = PCall Sig.no_args $ \() _ctx -> do
+pc_set_pitch_from :: PitchDirection -> PCall
+pc_set_pitch_from dir = PCall Sig.no_args $ \() _ctx -> do
     set_pitch =<< get_direction_pitch dir
     return mempty
 
-pc_set_pitch_relative :: Bool -> PCall
-pc_set_pitch_relative from_current = PCall (Sig.required "to" "To pitch.") $
+pc_set_pitch :: PCall
+pc_set_pitch = PCall (Sig.required "to" "To pitch.") $
     \arg _ctx -> do
         transpose <- lift $ parse_transpose arg
         set_pitch . Pitches.transpose transpose
-            =<< if from_current then State.gets state_current_pitch
-                else get_from
+            =<< State.gets state_current_pitch
         return mempty
 
 parse_transpose :: Either Pitch.Transpose BaseTypes.Symbol

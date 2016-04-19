@@ -1506,7 +1506,7 @@ Derive:
         . 'a' now does this
       / Do I still want transition speed?
       . The thing is, a lot of dyn stuff I can do with existing control calls.
-      - Add 'T' call, which sets from val.
+      * Add 'T' call, which sets from val.
       - Add argument for 'd'.
       - Add support for '_' and, why not, '.'.
     - Make pitch and dyn call implementations consistent wrt arg parsing,
