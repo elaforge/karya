@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The EvalTrack.DeriveEmpty stuff is really obtuse, can I simplify?
+  * The EvalTrack.DeriveEmpty stuff is really obtuse, can I simplify?
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
   * ky file doesn't like you to comment out a section

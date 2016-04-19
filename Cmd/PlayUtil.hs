@@ -111,6 +111,8 @@ run_with_dynamic dynamic deriver = do
             }
     return $ Derive.run state deriver
 
+-- | Create deriver configuration.  This is the main place where Cmd level
+-- configuration is adapted to the deriver.
 get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
 get_constant cache damage = do

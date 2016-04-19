@@ -140,27 +140,24 @@ instance Pretty.Pretty (TrackInfo d) where
         ]
 
 type GetLastVal d = [d] -> Maybe d
-
 type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
-
--- | This function derives the orphans in an empty section of track.  It's
--- split out because only note tracks derive orphans, but I wanted to use the
--- same 'derive_track' for control tracks too.  Details are in
--- 'derive_note_track'.
-type DeriveEmpty d = TrackInfo d -> Maybe Event.Event -> Maybe Event.Event
-    -> Maybe (Derive.Deriver (Stream.Stream d))
-    -> Maybe (Derive.Deriver (Stream.Stream d))
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
 derive_control_track :: Derive.Callable d => Derive.State -> TrackInfo d
     -> DeriveResult d
-derive_control_track = derive_track derive_empty
-    where derive_empty _ _ _ deriver = deriver
+derive_control_track state tinfo =
+    post_track track $ use_save_val $
+    List.mapAccumL (derive_control_track_stream tinfo) initial_state
+        (event_prev_nexts tinfo)
+    where
+    initial_state = (record_track_dynamic track state, val, val)
+        where val = lookup_prev_val track state
+    track = tinfo_track tinfo
+    use_save_val ((state, _, save_val), result) = ((state, save_val), result)
 
-{- | Derive a note track.  This is different from 'derive_control_track' in
-    two ways: it doesn't keep track of the previous sample, and it evaluates
-    orphans.
+{- | This is the note track version of 'derive_control_track'.  The main
+    difference is that it evaluates orphans.
 
     Orphans are uncovered events in note tracks in the sub-tracks.  They are
     extracted with 'Slice.checked_slice_notes' and evaluated as-is.  The effect
@@ -174,19 +171,31 @@ derive_control_track = derive_track derive_empty
 derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event -> DeriveResult Score.Event
 derive_note_track derive_tracks state tinfo
-    | TrackTree.track_inverted track = derive_inverted state tinfo $
+    | TrackTree.track_inverted (tinfo_track tinfo) =
+        derive_inverted state tinfo $
         Derive.state_inversion (Derive.state_dynamic state)
-    | otherwise = derive_track derive_empty state tinfo
+    | otherwise = derive_note_track_ derive_tracks state tinfo
+
+-- Split out from 'derive_note_track' to emphasize the shared structure with
+-- 'derive_control_track'.
+derive_note_track_ :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+    -> Derive.State -> TrackInfo Score.Event
+    -> ([Stream.Stream Score.Event], Derive.Threaded, Derive.Collect)
+derive_note_track_ derive_tracks state tinfo =
+    post_track track $
+    List.mapAccumL (derive_note_track_stream derive_tracks tinfo) initial_state
+        (event_prev_nexts tinfo)
     where
+    initial_state = (record_track_dynamic track state, val)
+        where val = lookup_prev_val track state
     track = tinfo_track tinfo
-    derive_empty :: DeriveEmpty Score.Event
-    derive_empty tinfo prev next deriver =
-        case Maybe.catMaybes [orphans, deriver] of
-            [] -> Nothing
-            ds -> Just (mconcat ds)
-        where
-        orphans = derive_orphans derive_tracks prev end (tinfo_sub_tracks tinfo)
-        end = maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start next
+
+-- I used to use the same function to derive note and control tracks.  However,
+-- over time control and note tracks gradually gained separate features, and
+-- the function became more complicated to accomodate the differences.
+-- Eventually I just split them all into separate functions.  The result is
+-- simpler, but there is a certain amount of duplicated code between them.
+-- So if you modify one, make sure you also modify the other if applicable.
 
 derive_inverted :: Derive.State -> TrackInfo Score.Event
     -> Derive.Inversion -> DeriveResult Score.Event
@@ -221,49 +230,76 @@ with_inverted tinfo = Internal.local $ \state ->
     shifted = TrackTree.track_shifted (tinfo_track tinfo)
     maybe_event = Events.head $ TrackTree.track_events $ tinfo_track tinfo
 
-derive_track :: forall d. Derive.Callable d =>
-    DeriveEmpty d -> Derive.State -> TrackInfo d -> DeriveResult d
-derive_track derive_empty initial_state tinfo = track_end $
-    List.mapAccumL (derive_event_stream derive_empty tinfo) accum_state $
-        Seq.zipper [] $ Events.ascending $ TrackTree.track_events track
-    where
-    accum_state = (record_track_dynamic track initial_state, val, val)
-        where val = lookup_prev_val track initial_state
-    track = tinfo_track tinfo
-    track_end ((state, _, save_val), result) =
-        (result, stash_prev_val track save_val $ Derive.state_threaded state,
-            Derive.state_collect state)
+-- | Extract the final state at the end of a track derivation.
+post_track :: Derive.Taggable d => TrackTree.Track
+    -> ((Derive.State, Maybe d), a) -> (a, Derive.Threaded, Derive.Collect)
+post_track track ((state, save_val), result) =
+    ( result
+    , stash_prev_val track save_val $ Derive.state_threaded state
+    , Derive.state_collect state
+    )
 
--- | Derive one event in a stream of track events.  This handles all the messy
--- details of deriving orphan events and carrying previous values forward.
-derive_event_stream :: Derive.Callable d => DeriveEmpty d -> TrackInfo d
-    -> (Derive.State, Maybe d, Maybe d) -> ([Event.Event], [Event.Event])
+-- | Get all event prefixes and suffixes.
+event_prev_nexts :: TrackInfo d -> [([Event.Event], [Event.Event])]
+event_prev_nexts =
+    Seq.zipper [] . Events.ascending . TrackTree.track_events . tinfo_track
+
+-- | Derive one event on a control track.  Carrying previous values forward
+-- on a control track is a bit more complicated, because there is a separate
+-- next_val and save_val.  The next_val should be the next event's prev_val,
+-- and the save_val should be saved as the final next_val at the end of the
+-- track.  The reason is that I only save a prev val if the event won't be
+-- derived again, e.g.  there's a future event <= the start of the next slice.
+-- Otherwise, a sliced event will see its own output as its previous val.
+derive_control_track_stream :: Derive.Callable d => TrackInfo d
+    -> (Derive.State, Maybe d, Maybe d)
+    -> ([Event.Event], [Event.Event])
     -> ((Derive.State, Maybe d, Maybe d), Stream.Stream d)
-derive_event_stream derive_empty tinfo
-        (prev_state, prev_val, prev_save_val) (prev_events, cur_events) =
+derive_control_track_stream tinfo (prev_state, prev_val, prev_save_val)
+        (prev_events, cur_events) =
     ((state, next_val, save_val), stream)
     where
-    track = tinfo_track tinfo
-    -- Derive the empty space after the previous event and before this one.
-    (stream, state) = maybe (Stream.empty, prev_state)
-        (run_derive (reset_event_serial prev_state)) maybe_derive
-    maybe_derive = case cur_events of
+    (stream, state) = case derivers of
+        Just deriver -> run_derive (reset_event_serial prev_state) deriver
+        Nothing -> (Stream.empty, prev_state)
+    derivers = case cur_events of
         event : next_events ->
-            derive_empty tinfo (Seq.head prev_events) (Just event)
-                (Just (derive_event tinfo prev_val prev_events event
-                    next_events))
-        [] -> derive_empty tinfo (Seq.head prev_events) Nothing Nothing
-    save_val = if should_save_val then next_val else prev_save_val
+            Just $ derive_event tinfo prev_val prev_events event next_events
+        [] -> Nothing
     next_val = tinfo_prev_val tinfo prev_val stream
-    -- Only save a prev val if the event won't be derived again, e.g.
-    -- there's a future event <= the start of the next slice.  But this
-    -- only applies to control tracks!
-    --
-    -- Otherwise, an event sees its own output as its previous val.
-    should_save_val = is_note || case cur_events of
-        _ : next : _ -> Event.start next <= TrackTree.track_end track
+    save_val = if should_save_val then next_val else prev_save_val
+    should_save_val = case cur_events of
+        _ : next : _ ->
+            Event.start next <= TrackTree.track_end (tinfo_track tinfo)
         _ -> False
-    is_note = ParseTitle.is_note_track $ TrackTree.track_title track
+
+-- | Derive one event on a note track.  This also derives orphan events
+-- before the event, or after the last event.
+derive_note_track_stream :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+    -> TrackInfo Score.Event
+    -> (Derive.State, Maybe Score.Event)
+    -> ([Event.Event], [Event.Event])
+    -> ((Derive.State, Maybe Score.Event), Stream.Stream Score.Event)
+derive_note_track_stream derive_tracks tinfo (prev_state, prev_val)
+        (prev_events, cur_events) =
+    ((state, next_val), stream)
+    where
+    (stream, state)
+        | null derivers = (Stream.empty, prev_state)
+        | otherwise = run_derive (reset_event_serial prev_state)
+            (mconcat derivers)
+    derivers = Maybe.catMaybes $ case cur_events of
+        event : next_events ->
+            [ derive_empty (Seq.head prev_events) (Just event)
+            , Just $ derive_event tinfo prev_val prev_events event next_events
+            ]
+        [] -> [derive_empty (Seq.head prev_events) Nothing]
+    next_val = tinfo_prev_val tinfo prev_val stream
+    -- Look for orphans in the gap between events.
+    derive_empty prev next =
+        derive_orphans derive_tracks prev end (tinfo_sub_tracks tinfo)
+        where
+        end = maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start next
 
 -- | See 'Derive.state_event_serial' for what this is doing.
 reset_event_serial :: Derive.State -> Derive.State
