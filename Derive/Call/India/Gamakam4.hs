@@ -181,8 +181,8 @@ pitch_call_map = resolve $ Map.unique $ concat
         | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
     alias name duration to = (name, Left (duration, to))
-    pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
-    config name doc c = (name, Right $ PitchCall name doc 0 False c)
+    pcall name doc c = (name, Right $ PitchCall doc 1 False c)
+    config name doc c = (name, Right $ PitchCall doc 0 False c)
 
 -- * dyn-sequence
 
@@ -299,7 +299,7 @@ instance Monoid Result where
 pitch_sequence :: ScoreTime -> PitchState -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     calls <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_postfix =<< resolve_pitch_calls =<< parse_sequence arg
+        resolve_postfix =<< resolve_pitch_calls =<< parse_pitch_sequence arg
     let starts = slice_time dur (call_durations calls)
         ranges = zip starts (drop 1 starts)
     (results, _) <- State.runStateT (mapM eval_pitch (zip_calls ranges calls))
@@ -310,24 +310,25 @@ slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices = scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
     where one = dur / ScoreTime.double (sum slices)
 
-eval_pitch :: Call ((ScoreTime, ScoreTime), PitchCall) -> M PitchState Result
-eval_pitch (Call ((start, end), pcall) arg_) = case pcall_call pcall of
+eval_pitch :: Call ((ScoreTime, ScoreTime), (PitchCall, Char))
+    -> M PitchState Result
+eval_pitch (Call ((start, end), (pcall, name)) arg_) = case pcall_call pcall of
     PCall signature func -> do
-        parsed_arg <- parse_args (ctx_call_name ctx) (pcall_arg pcall arg_)
+        parsed_arg <- parse_args (ctx_call_name ctx) (pcall_arg pcall name arg_)
             signature
         (Result . DList.singleton) <$> func parsed_arg ctx
     where
     ctx = Context
         { ctx_start = start
         , ctx_end = end
-        , ctx_call_name = Text.cons (pcall_name pcall) arg_
+        , ctx_call_name = Text.cons name arg_
         }
 
 data Call call = Call !call !Text
     deriving (Eq, Show, Functor)
 
-call_durations :: [Call PitchCall] -> [Double]
-call_durations = map pcall_duration . map (\(Call call _) -> call)
+call_durations :: [Call (PitchCall, a)] -> [Double]
+call_durations = map $ pcall_duration . (\(Call (pcall, _) _) -> pcall)
 
 -- TODO surely I can do it in a simpler way?
 zip_calls :: [a] -> [Call b] -> [Call (a, b)]
@@ -338,42 +339,43 @@ zip_calls xs calls = fst $ State.runState (traverse go calls) xs
         State.put xs
         return $ Call (x, call) arg
 
-parse_sequence :: Text -> Either Text [ParsedPitch]
-parse_sequence = ParseText.parse p_exprs
+parse_pitch_sequence :: Text -> Either Text [ParsedPitch]
+parse_pitch_sequence = ParseText.parse p_exprs
 
-resolve_pitch_calls :: [ParsedPitch] -> Either Text [Call PitchCall]
+resolve_pitch_calls :: [ParsedPitch] -> Either Text [Call (PitchCall, Char)]
 resolve_pitch_calls = concatMapM resolve
     where
-    resolve (PitchGroup exprs) =
-        map (modify_duration (* (1 / fromIntegral (length exprs)))) <$>
-            concatMapM resolve exprs
-    resolve (CallArg c arg) = case Map.lookup c pitch_call_map of
-        Nothing -> Left $ "pitch call not found: " <> showt c
+    resolve (PitchGroup calls) =
+        map (modify_duration (* (1 / fromIntegral (length calls)))) <$>
+            concatMapM resolve calls
+    resolve (CallArg name arg) = case Map.lookup name pitch_call_map of
+        Nothing -> Left $ "pitch call not found: " <> showt name
         -- Apply the same argument to all of them.  But I should only get
         -- multiple PitchExprs for aliases, which expect no argument.
-        Just calls -> Right [Call c arg | c <- calls]
+        Just calls -> Right [Call (c, name) arg | c <- calls]
 
-resolve_postfix :: [Call PitchCall] -> Either Text [Call PitchCall]
-resolve_postfix = resolve <=< check_no_args
+resolve_postfix :: [Call (PitchCall, Char)]
+    -> Either Text [Call (PitchCall, Char)]
+resolve_postfix = resolve <=< ensure_no_args
     where
     resolve [] = Right []
-    resolve (expr : exprs)
-        | Maybe.isJust (is_postfix expr) =
+    resolve (call : calls)
+        | Maybe.isJust (is_postfix call) =
             Left "postfix call with no preceding call"
-        | otherwise = (modify_duration modify expr :) <$> resolve post
+        | otherwise = (modify_duration modify call :) <$> resolve post
         where
-        (pre, post) = Seq.span_while is_postfix exprs
+        (pre, post) = Seq.span_while is_postfix calls
         modify dur = List.foldl' (flip ($)) dur pre
     -- The parser shouldn't look for args, but let's check anyway.
-    check_no_args exprs
-        | null errs = Right exprs
+    ensure_no_args calls
+        | null errs = Right calls
         | otherwise = Left $
             "postfix calls can't have args: " <> Text.intercalate ", " errs
-        where errs = concatMap has_arg exprs
-    has_arg expr@(Call _ arg)
-        | Maybe.isJust (is_postfix expr) && arg /= mempty = [arg]
+        where errs = concatMap has_arg calls
+    has_arg call@(Call _ arg)
+        | Maybe.isJust (is_postfix call) && arg /= mempty = [arg]
         | otherwise = []
-    is_postfix (Call call _) = Map.lookup (pcall_name call) postfix_calls
+    is_postfix (Call (_, name) _) = Map.lookup name postfix_calls
 
 postfix_calls :: Map.Map Char (Double -> Double)
 postfix_calls = Map.fromList [('_', (+1)), ('.', (/2))]
@@ -382,8 +384,9 @@ postfix_doc :: Text
 postfix_doc = "Postfix call that modifies the duration of the previous call."
     <> " `_` adds 1 to it, `.` divides by 2."
 
-modify_duration :: (Double -> Double) -> Call PitchCall -> Call PitchCall
-modify_duration modify = fmap $ \call ->
+modify_duration :: (Double -> Double) -> Call (PitchCall, a)
+    -> Call (PitchCall, a)
+modify_duration modify = fmap $ first $ \call ->
     if pcall_duration call > 0
         then call { pcall_duration = modify (pcall_duration call) }
         else call
@@ -451,25 +454,21 @@ arg_to_dyn = (/9) . fromIntegral
 -- * PitchCall
 
 data PitchCall = PitchCall {
-    -- TODO take this out, as with DynCall
-    -- then I can merge PCall into this, as with DynCall
-    pcall_name :: !Char
-    , pcall_doc :: !Text
+    pcall_doc :: !Text
     , pcall_duration :: !Double
-    -- | If True, cons 'pcall_name' on to the arg before parsing it.
+    -- | If True, cons the call's name on to the arg before parsing it.
     , pcall_parse_call_name :: !Bool
     , pcall_call :: !PCall
     }
 
-pcall_arg :: PitchCall -> Text -> Text
-pcall_arg pcall arg
-    | pcall_parse_call_name pcall = Text.cons (pcall_name pcall) arg
-    | otherwise = arg
+-- | Argument parser and call function.
+data PCall = forall a. PCall (Sig.Parser a)
+    (a -> Context -> M PitchState PSignal.PSignal)
 
-data PCall = forall a. PCall {
-    _pcall_signature :: Sig.Parser a
-    , _pcall_func :: a -> Context -> M PitchState PSignal.PSignal
-    }
+pcall_arg :: PitchCall -> Char -> Text -> Text
+pcall_arg pcall name arg
+    | pcall_parse_call_name pcall = Text.cons name arg
+    | otherwise = arg
 
 resolve_aliases :: Map.Map Char (Either (Double, [Text]) PitchCall)
     -> Either Text (Map.Map Char [PitchCall])
@@ -484,13 +483,13 @@ resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
         call <- maybe (Left $ "not found: " <> showt c) Right $
             Map.lookup c call_map
         call <- first (("alias to alias: "<>) . showt) call
-        Right $ apply_arg call arg
+        Right $ apply_arg call c arg
 
-apply_arg :: PitchCall -> Text -> PitchCall
-apply_arg call arg = call
+apply_arg :: PitchCall -> Char -> Text -> PitchCall
+apply_arg call name arg = call
     { pcall_call = case pcall_call call of
         PCall signature func -> PCall ignore $ \_ ctx -> do
-            parsed <- parse_args (ctx_call_name ctx) (pcall_arg call arg)
+            parsed <- parse_args (ctx_call_name ctx) (pcall_arg call name arg)
                 signature
             func parsed ctx
     }

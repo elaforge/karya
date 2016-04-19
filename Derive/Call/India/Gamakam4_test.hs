@@ -50,8 +50,8 @@ test_sequence_multiple = do
             note ++ [("dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
         ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
-test_parse_sequence = do
-    let f = first untxt . Gamakam.parse_sequence
+test_parse_pitch_sequence = do
+    let f = first untxt . Gamakam.parse_pitch_sequence
     equal (f "P10") $ Right [CallArg 'P' "1", CallArg '0' ""]
     equal (f "p1") $ Right [CallArg 'p' "", CallArg '1' ""]
     -- '-' will include the next character so I can pass a negative digit.
@@ -69,10 +69,11 @@ test_postfix = do
 
 test_resolve_postfix = do
     let f = fmap (map extract) . Gamakam.resolve_postfix . map make
-        make name = Gamakam.Call (Gamakam.PitchCall name "doc" 1 False empty) ""
+        make name = Gamakam.Call
+            (Gamakam.PitchCall "doc" 1 False empty, name) ""
         empty = Gamakam.PCall Sig.no_args $ \() _ctx -> return mempty
-        extract (Gamakam.Call pcall _) =
-            (Gamakam.pcall_name pcall, Gamakam.pcall_duration pcall)
+        extract (Gamakam.Call (pcall, name) _) =
+            (name, Gamakam.pcall_duration pcall)
     equal (f "x_") (Right [('x', 2)])
     equal (f "x.") (Right [('x', 0.5)])
     equal (f "x__") (Right [('x', 3)])
@@ -121,8 +122,8 @@ test_prev_pitch = do
 
 test_resolve_pitch_calls = do
     let f = fmap (map (fmap extract)) . Gamakam.resolve_pitch_calls
-            <=< Gamakam.parse_sequence
-        extract call = (Gamakam.pcall_name call, Gamakam.pcall_duration call)
+            <=< Gamakam.parse_pitch_sequence
+        extract (call, name) = (name, Gamakam.pcall_duration call)
     equal (f "10") $ Right [Call ('1', 1) "", Call ('0', 1) ""]
     equal (f "[10]") $ Right [Call ('1', 0.5) "", Call ('0', 0.5) ""]
 

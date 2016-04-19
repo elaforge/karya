@@ -388,6 +388,10 @@ Synth: Im:
       . But first I have to decide how I want to handle interpolation.
       . This doesn't matter as long as the synth doesn't support signals.
     - Trim signals.
+  Is it possible to do physical modelling on GPU?
+    . http://futhark-lang.org/index.html
+    . http://halide-lang.org/
+    . hackage accelerate
 
 shakefile: build:
   - use new system calls and logging levels
@@ -1509,8 +1513,13 @@ Derive:
       * Add 'T' call, which sets from val.
       * Add argument for 'd'.
       - Add support for '_' and, why not, '.'.
-    - Make pitch and dyn call implementations consistent wrt arg parsing,
+    * Make pitch and dyn call implementations consistent wrt arg parsing,
       where the name is stored, etc.
+      . DynCall: doc, Sig.Parser a, a -> Context -> R
+      . PitchCall: name, doc, duration, parse_call_name, PCall
+        PCall: Sig.Parser a, a -> Context -> R
+      . I don't mind PCall being separate because that's the existentially
+        quantified part.
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
     - Could I get rid of the special parsing of [] by just having '[' be
       a call to set duration (/2) and ']' is (*2)?  Then they don't have to be
