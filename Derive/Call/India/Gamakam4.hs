@@ -152,9 +152,12 @@ pitch_call_map = resolve $ Map.unique $ concat
     , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
 
     -- TODO do I need a swaram_relative=True version?
-    , [pcall 'e' "Pitch up by a little." (pc_relative_move False (Pitch.Nn 1))]
-    , [pcall 'f' "Pitch down by a little."
+    , [pcall 'e' "Pitch up by 1nn." (pc_relative_move False (Pitch.Nn 1))]
+    , [pcall 'f' "Pitch down by 1nn."
         (pc_relative_move False (Pitch.Nn (-1)))]
+    , [pcall 'g' "Pitch up by .5nn." (pc_relative_move False (Pitch.Nn 0.5))]
+    , [pcall 'h' "Pitch down by .5nn."
+        (pc_relative_move False (Pitch.Nn (-0.5)))]
     , [alias 'n' 0.5 ["e", "f"]]
     , [alias 'u' 0.5 ["f", "e"]]
 
@@ -210,7 +213,7 @@ dyn_call_map = Map.fromList $
 -- | This is super hacky, just hard-code which dyn calls have an arg for the
 -- parser.  But there are so few dyn calls who cares.
 dyn_has_argument :: Char -> Bool
-dyn_has_argument c = c == '<' || c == 'a'
+dyn_has_argument c = c == '<' || c == 'a' || c == 'T'
 
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
