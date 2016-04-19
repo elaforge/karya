@@ -211,7 +211,7 @@ dyn_call_map = Map.fromList $
 -- | This is super hacky, just hard-code which dyn calls have an arg for the
 -- parser.  But there are so few dyn calls who cares.
 dyn_has_argument :: Char -> Bool
-dyn_has_argument c = c == '<' || c == 'a' || c == 'T'
+dyn_has_argument c = c == '<' || c == 'a' || c == 'T' || c == 'd'
 
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
@@ -423,9 +423,9 @@ dyn_arg :: Sig.Parser (Maybe Double)
 dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" Nothing "Move to n/9."
 
 dc_decay :: Double -> Double -> DynCall
-dc_decay w1 w2 = DynCall doc Sig.no_args $ \() ctx -> do
+dc_decay w1 w2 = DynCall doc dyn_arg $ \maybe_to ctx -> do
     from <- State.gets state_from_dyn
-    make_dyn_curve (dyn_curve w1 w2) from 0 ctx
+    make_dyn_curve (dyn_curve w1 w2) from (fromMaybe 0 maybe_to) ctx
     where doc = "Decay to 0, with curve weights: " <> pretty (w1, w2)
 
 dc_move_to :: Int -> DynCall
