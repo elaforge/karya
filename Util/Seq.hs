@@ -722,8 +722,8 @@ replace1 from to = concatMap (\v -> if v == from then to else [v])
 
 -- * search
 
-count :: Eq a => a -> [a] -> Int
-count x = List.foldl' (\n c -> if c == x then n + 1 else n) 0
+count :: Foldable t => (a -> Bool) -> t a -> Int
+count f = List.foldl' (\n c -> if f c then n + 1 else n) 0
 
 
 -- * monadic

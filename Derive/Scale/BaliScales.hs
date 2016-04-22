@@ -182,7 +182,7 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
         (pc, acc) <- p_degree
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
-        let oct = Seq.count '^' octs - Seq.count '.' octs
+        let oct = Seq.count (=='^') octs - Seq.count (=='.') octs
         return $ TheoryFormat.RelativePitch (center + oct) pc acc
 
 -- * keys

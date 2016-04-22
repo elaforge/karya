@@ -43,7 +43,10 @@ list = do
     block_ids <- State.all_block_ids
     view_blocks <- State.gets $
         map Block.view_block . Map.elems . State.state_views
-    return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
+    return
+        [ (block_id, Seq.count (==block_id) view_blocks)
+        | block_id <- block_ids
+        ]
 
 -- | Find BlockIds that match the string.
 find_id :: State.M m => Text -> m [BlockId]
@@ -66,7 +69,7 @@ pretty block_id = do
         where
         track t = Pretty.pretty (Block.tracklike_id t)
             <> " (" <> showt (track_events t) <> " events)"
-        views = Seq.count block_id view_blocks
+        views = Seq.count (==block_id) view_blocks
         get = flip Map.lookup tracks <=< Block.track_id
         track_events = maybe 0 (Events.length . Track.track_events) . get
 
