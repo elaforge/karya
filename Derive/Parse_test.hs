@@ -27,7 +27,7 @@ import Global
 
 
 test_parse_expr = do
-    let f = first untxt . fmap NonEmpty.toList . Parse.parse_expr
+    let f = fmap NonEmpty.toList . Parse.parse_expr
         vnum = VNum . Score.untyped
     equal (f "a | b") $ Right
         [Call (Symbol "a") [], Call (Symbol "b") []]
@@ -172,7 +172,7 @@ test_parse_control_title = do
     equal (f "*a") $ Right ([VSymbol (Symbol "*a")], [])
 
 test_parse_num = do
-    let f = first untxt . Parse.parse_num
+    let f = Parse.parse_num
     equal (f "`0x`00") (Right 0)
     equal (f "`0x`ff") (Right 1)
     equal (f "-`0x`ff") (Right (-1))
@@ -181,7 +181,7 @@ test_parse_num = do
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal a, b])
         num = Literal . VNum . Score.untyped
-    let f = first untxt . ParseText.parse Parse.p_equal
+    let f = ParseText.parse Parse.p_equal
     equal (f "a = b") (eq (VSymbol "a") (Literal (VSymbol "b")))
     equal (f "a=b") (eq (VSymbol "a") (Literal (VSymbol "b")))
     equal (f "a = 10") (eq (VSymbol "a") (num 10))
@@ -214,7 +214,7 @@ val_call :: Symbol -> [Term] -> Term
 val_call sym args = ValCall (Call sym args)
 
 test_expand_macros = do
-    let f = first untxt . Parse.expand_macros (\s -> "(" <> s <> ")")
+    let f = Parse.expand_macros (\s -> "(" <> s <> ")")
     equal (f "") (Right "")
     equal (f "hi") (Right "hi")
     left_like (f "hi @") "parse error"

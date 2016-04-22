@@ -11,8 +11,6 @@ import Derive.Call.India.Pakhawaj (Bol(..), Stroke(..), Note(..))
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import Global
-
 
 test_c_bols = do
     let run dur bols = DeriveTest.extract extract $
@@ -25,7 +23,7 @@ test_c_bols = do
             (5, "+di"), (6, "+ge"), (7, "+ne")], [])
 
 test_realize_bols = do
-    let f = first untxt . Pakhawaj.realize_bols 1.5
+    let f = Pakhawaj.realize_bols 1.5
     left_like (f [(0, "dha"), (1, "blah")]) "unknown bol"
     equal (f [(0, "dha"), (1, "ta")]) $
         Right [(0, Together Ge Ta), (1, One Ta)]

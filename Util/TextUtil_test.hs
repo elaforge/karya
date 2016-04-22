@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Util.TextUtil as TextUtil
-import Global
 
 
 test_replaceMany = do
@@ -24,8 +23,7 @@ test_extractDelimited = do
     equal (f "a\\``x`\\`") [("a`", Just "x"), ("`", Nothing)]
 
 test_interpolate = do
-    let f = first untxt
-            . TextUtil.interpolate "hi ${var1} there ${var2}: ${var1}"
+    let f = TextUtil.interpolate "hi ${var1} there ${var2}: ${var1}"
             . Map.fromList
     left_like (f []) "not in variables: var1, var2"
     equal (f [("var1", "a"), ("var2", "b")]) (Right "hi a there b: a")

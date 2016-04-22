@@ -31,7 +31,7 @@ test_relative = do
     equal (run "!Ta=") (output [(4, 60)])
 
 test_parse_sequence2 = do
-    let f = first untxt . Gamakam.parse_sequence2
+    let f = Gamakam.parse_sequence2
     equal (f "P10") $ Right [PitchExpr 'P' "1", PitchExpr '0' ""]
     equal (f "p1") $ Right [PitchExpr 'p' "", PitchExpr '1' ""]
     -- '-' will include the next character so I can pass a negative digit.
@@ -82,7 +82,7 @@ test_resolve_exprs = do
 -- * pitch
 
 test_parse_sequence = do
-    let f = first untxt . Gamakam.parse_sequence
+    let f = Gamakam.parse_sequence
     equal (f " [-]> ") $ Right [DynExpr ">" "" "" [PitchExpr '-' ""]]
     equal (f "!012 -4") $ Right
         [ PitchExpr '0' "", PitchExpr '1' "", PitchExpr '2' ""

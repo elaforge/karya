@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Basic testing utilities.
@@ -45,6 +45,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified GHC.SrcLoc as SrcLoc
@@ -228,45 +229,58 @@ equalf eta a b
 
 -- * other assertions
 
+class Show a => TextLike a where
+    to_text :: a -> Text
+    to_string :: a -> String -- TODO convert everything to Text and remove this
+instance TextLike String where
+    to_text = Text.pack
+    to_string = id
+instance TextLike Text where
+    to_text = id
+    to_string = Text.unpack
+
 -- | Strings in the first list match regexes in the second list.
-strings_like :: Stack => [String] -> [String] -> IO Bool
+strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [String]
+    -> IO Bool
 strings_like gotten expected
     | null gotten && null expected = success "[] =~ []"
     | otherwise = and <$>
         mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
     where
-    string_like :: Stack => (Int, Seq.Paired String String) -> IO Bool
-    string_like (n, Seq.Second reg) = failure $
-        show n ++ ": gotten list too short: expected " ++ show reg
+    string_like :: Stack => (Int, Seq.Paired txt String) -> IO Bool
+    string_like (n, Seq.Second pattern) = failure $
+        show n ++ ": gotten list too short: expected " ++ show pattern
     string_like (n, Seq.First gotten) = failure $
         show n ++ ": expected list too short: got " ++ show gotten
-    string_like (n, Seq.Both gotten reg)
-        | pattern_matches reg gotten = success $
-            show n ++ ": " ++ gotten ++ " =~ " ++ reg
-        | otherwise = failure $ show n ++ ": " ++ gotten ++ " !~ " ++ reg
+    string_like (n, Seq.Both gotten pattern)
+        | pattern_matches pattern gotten = success $
+            show n ++ ": " ++ to_string gotten ++ " =~ " ++ pattern
+        | otherwise =
+            failure $ show n ++ ": " ++ to_string gotten ++ " !~ " ++ pattern
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (Stack, Show a) => Either String a -> String -> IO Bool
+left_like :: (Stack, Show a, TextLike txt) => Either txt a -> String -> IO Bool
 left_like gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success $
-            "Left " ++ msg ++ " =~ Left " ++ expected
-        | otherwise -> failure $ "Left " ++ msg ++ " !~ Left " ++ expected
+            "Left " ++ to_string msg ++ " =~ Left " ++ expected
+        | otherwise ->
+            failure $ "Left " ++ to_string msg ++ " !~ Left " ++ expected
     Right a -> failure $ "Right (" ++ show a ++ ") !~ Left " ++ expected
 
-match :: Stack => String -> String -> IO Bool
+match :: (Stack, TextLike txt) => txt -> String -> IO Bool
 match gotten pattern
     | pattern_matches pattern gotten = success $
-        gotten ++ "\n\t=~\n" ++ pattern
-    | otherwise = failure $ gotten ++ "\n\t!~\n" ++ pattern
+        to_string gotten ++ "\n\t=~\n" ++ pattern
+    | otherwise = failure $ to_string gotten ++ "\n\t!~\n" ++ pattern
 
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
-pattern_matches :: String -> String -> Bool
-pattern_matches pattern =
-    not . null . Regex.groups (pattern_to_regex pattern) . Text.pack
+pattern_matches :: TextLike txt => String -> txt -> Bool
+pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
+    . to_text
 
 pattern_to_regex :: String -> Regex.Regex
 pattern_to_regex =

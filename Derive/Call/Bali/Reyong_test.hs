@@ -154,7 +154,7 @@ test_select_pattern = do
         (all_ok (map ((<= desired 16) . dur_of <$>) (permutations 16)))
     -- If there is not much time, patterns are either <=1 or Left.
     -- TODO test that
-    left_like (first untxt $ f 0.1 0 0) "no patterns fit"
+    left_like (f 0.1 0 0) "no patterns fit"
 
 -- * c_byong
 

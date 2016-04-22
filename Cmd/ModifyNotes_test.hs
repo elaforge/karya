@@ -21,7 +21,7 @@ import Types
 
 
 test_notes_from_range = do
-    let run state tracknums start end = first untxt $ UiTest.eval state $ do
+    let run state tracknums start end = UiTest.eval state $ do
             note_trees <- ModifyNotes.extract_note_trees
                 UiTest.default_block_id (map UiTest.mk_tid tracknums)
             ModifyNotes.notes_from_range note_trees start end

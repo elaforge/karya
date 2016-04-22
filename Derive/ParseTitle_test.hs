@@ -5,11 +5,10 @@
 module Derive.ParseTitle_test where
 import Util.Test
 import qualified Derive.ParseTitle as ParseTitle
-import Global
 
 
 test_parse_unparse_control = do
-    let f = first untxt . fmap ParseTitle.unparse_control
+    let f = fmap ParseTitle.unparse_control
             . ParseTitle.parse_control
         round_trip text = (f text, Right text)
     uncurry equal (round_trip "*")

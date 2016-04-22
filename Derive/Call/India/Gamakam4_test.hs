@@ -51,7 +51,7 @@ test_sequence_multiple = do
         ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
 test_parse_pitch_sequence = do
-    let f = first untxt . Gamakam.parse_pitch_sequence
+    let f = Gamakam.parse_pitch_sequence
     equal (f "P10") $ Right [CallArg 'P' "1", CallArg '0' ""]
     equal (f "p1") $ Right [CallArg 'p' "", CallArg '1' ""]
     -- '-' will include the next character so I can pass a negative digit.
