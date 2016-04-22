@@ -1308,6 +1308,12 @@ Derive:
         velocity it's like the same dynamic for all strokes.
         . Or I could make + be 0.5, and * be full volume.
       - perhaps only pitched notes should change with the tuning?
+      - built-in sarvalaghu patterns
+        - adjust to the talam
+        - subdivide at slower speeds
+      solkattu:
+        - 'korvai' should verify Patterns and MridangamMap
+        - way to attach a mridangam Stroke to a Sollu.
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
