@@ -881,6 +881,7 @@ wantsHaddock midi hs = not $ or
 
 cabalRule :: Shake.Rules ()
 cabalRule = (>> Shake.want [fn]) $ fn %> \_ -> do
+    Shake.alwaysRerun
     template <- Shake.readFile' "doc/karya.cabal.template"
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
