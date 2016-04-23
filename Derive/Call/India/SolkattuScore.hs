@@ -56,8 +56,8 @@ chatusram1_mridangam =
 
 -- * kanda nadai
 
-kandam1_variations :: [Korvai]
-kandam1_variations = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
+kandam1_var :: [Korvai]
+kandam1_var = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
     where gaps = [thom - __ - ta - __, thom - __2, thom - __, thom, mempty]
 
 kandam1 :: Sequence -> Sequence -> Korvai
@@ -72,7 +72,8 @@ kandam1 pt gap = check $ Solkattu.korvai (adi 5) mridangam $
         _ -> p765
     where
     mridangam =
-        [ (ta - di - ki - ta, [k, t, k, n])
+        [ (ta, [k])
+        , (ta - di - ki - ta, [k, t, k, n])
         , (ta - ka - di - ki - ta, [k, p, t, k, n])
         , (ta - din, [k, od])
         ]

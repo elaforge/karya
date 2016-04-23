@@ -176,6 +176,22 @@ verify_durations tala notes =
                     <> showt until <> " matras, but has " <> showt dur
             | otherwise = Right (until - dur, notes)
 
+-- * transform
+
+-- | Drop a number of matras from the Sequence.  Patterns will be shortened.
+dropM :: Matras -> Sequence -> Sequence
+dropM matras ns = case ns of
+    [] -> []
+    (n:ns)
+        | matras <= 0 -> (n:ns)
+        | otherwise -> case n of
+            Sollu {} -> dropM (matras-1) ns
+            Rest {} -> dropM (matras-1) ns
+            Pattern dur karvai
+                | dur > matras -> Pattern (dur - matras) karvai : ns
+                | otherwise -> dropM (matras - dur) ns
+            Alignment {} -> dropM matras ns
+
 
 -- * realize
 
@@ -322,22 +338,19 @@ show_strokes chunk_size =
     where
     stroke = Text.justifyLeft 2 ' ' . maybe "-" pretty
 
--- * transform
-
--- | Drop a number of matras from the Sequence.  Patterns will be shortened.
-dropM :: Matras -> Sequence -> Sequence
-dropM matras ns = case ns of
-    [] -> []
-    (n:ns)
-        | matras <= 0 -> (n:ns)
-        | otherwise -> case n of
-            Sollu {} -> dropM (matras-1) ns
-            Rest {} -> dropM (matras-1) ns
-            Pattern dur karvai
-                | dur > matras -> Pattern (dur - matras) karvai : ns
-                | otherwise -> dropM (matras - dur) ns
-            Alignment {} -> dropM matras ns
-
+-- | Pretty reproduces the SolkattuScore syntax, which has to be haskell
+-- syntax, so it can't use +, and I have to put thoppi first to avoid the
+-- keyword @do@.  It would be nice if I could make the tracklang syntax
+-- consistent, but maybe not a huge deal at the moment.
+stroke_to_call :: Stroke -> Text
+stroke_to_call s = case s of
+    Thoppi t -> thoppi t
+    Valantalai v -> pretty v
+    Both t v -> pretty v <> thoppi t
+    where
+    thoppi t = case t of
+        MThom -> "o"
+        MTha -> "+"
 
 -- * misc
 

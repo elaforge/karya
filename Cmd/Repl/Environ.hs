@@ -67,6 +67,7 @@ import qualified Cmd.Repl.LNote as LNote
 import qualified Cmd.Repl.LPerf as LPerf
 import qualified Cmd.Repl.LPitch as LPitch
 import qualified Cmd.Repl.LRuler as LRuler
+import qualified Cmd.Repl.LSol as LSol
 import qualified Cmd.Repl.LState as LState
 import qualified Cmd.Repl.LSymbol as LSymbol
 import qualified Cmd.Repl.LTala as LTala

@@ -1329,6 +1329,12 @@ Derive:
       solkattu:
         * 'korvai' should verify Patterns and MridangamMap
         * way to attach a mridangam Stroke to a Sollu.
+        * a way to turn solkattu dsl into a block
+        - optionally propagate Patterns through to Stroke, so I can emit it as
+          a 'p#' event.
+        - Should I change mridangam notes to be consistent with SolkattuDsl?
+          I have to put thoppi on the left, for 'od' instead of the keyword
+          'do'.  And I have to change tha to p instead of +.
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
