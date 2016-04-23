@@ -373,9 +373,10 @@ Synth: Im:
   - The start time should be in fractions of a second instead of sample
     frames, so I'm not dependent on sample rate.  Also, will I need to emit
     negative time?
-  - The extra build dependencies are annoying when compiling a new karya.
+  * The extra build dependencies are annoying when compiling a new karya.
     . To avoid this I need to make separate .cabal files.
     . Then I need to pass different -packages.
+    . Worked around it with a config switch.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -383,6 +384,20 @@ Synth: Im:
     by the PlayCache vst.
   - I think I want either zero code shared between synth and seq, or at least
     a well-defined restricted amount, like say a single module.
+    . Call it Synth.Shared.
+    . Note and serialize / unserialize: Synth.Sampler.Note
+      . imports Types but doesn't need Audio
+    . Synth.Sampler.Config, no imports
+    . Local.Instrument - imports Sampler.PatchDb.  Maybe have to protect with
+      a #define.
+    . Perform.Im.Convert:
+      . Synth.Sampler.Control for standard names
+      . Synth.Sampler.Note for Note type and serialization
+      . Synth.Sampler.Signal
+    - So Shared gets the Note type, serialization, and a re-export of the
+      PatchDb.
+    - How can I prevent dependencies from creeping in later?  E.g. seq can
+      only import Synth.Share, and Synth.* modules can't import from seq.
   more efficient Perform.Im.Convert
     - Zero-copy conversion for the signals.
       . But first I have to decide how I want to handle interpolation.

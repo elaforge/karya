@@ -47,15 +47,6 @@ import qualified Shake.Util as Util
 
 -- * config
 
--- | If true, link in the EKG library for realtime monitoring.
-useEkg :: Bool
-useEkg = True
-
--- | Link with the -eventlog RTS, for threadscope.  Presumably it hurts
--- performance, so it's off by default.
-useEventLog :: Bool
-useEventLog = False
-
 -- ** packages
 
 -- | Package, with or without version e.g. containers-0.5.5.1
@@ -66,8 +57,8 @@ allPackages :: [Package]
 allPackages = map fst globalPackages
 
 -- | This is used to create karya.cabal and supply -package arguments to ghc.
-globalPackages :: [(Package, String)]
-globalPackages = concat
+basicPackages :: [(Package, String)]
+basicPackages = concat
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
     , w "directory filepath process bytestring time unix array ghc-prim"
@@ -97,14 +88,25 @@ globalPackages = concat
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
     , w "QuickCheck" -- Derive.DeriveQuickCheck
-    , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , w "aeson" -- serialize and unserialize log msgs
-    -- Synth
-    , w "conduit conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
+    ]
+    where w = map (\p -> (p, "")) . words
+
+-- | Packages needed only for targets in Synth.
+synthPackages :: [(Package, String)]
+synthPackages = concat
+    [ w "conduit conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
     , w "hsndfile resourcet"
     ]
     where w = map (\p -> (p, "")) . words
+
+globalPackages :: [(Package, String)]
+globalPackages = concat
+    [ basicPackages
+    , if Config.enableSynth then synthPackages else []
+    , if Config.enableEkg then [("ekg", "")] else []
+    ]
 
 -- | This is a hack so I can add packages that aren't in 'globalPackages'.
 -- This is for packages with tons of dependencies that I usually don't need.
@@ -248,9 +250,9 @@ hsBinaries =
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , plain "verify_performance" "App/VerifyPerformance.hs"
-
-    , plain "sampler" "Synth/Sampler/Main.hs"
     ]
+    ++ if not Config.enableSynth then [] else
+        [ plain "sampler" "Synth/Sampler/Main.hs" ]
     where
     plain name path = HsBinary name path [] NoGui
     binary = HsBinary
@@ -351,7 +353,9 @@ ccBinaries =
         [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
         , "fltk/f_util.cc.o"
         ]
-    , CcBinary
+    ]
+    ++ if not Config.enableSynth then [] else
+    [ CcBinary
         { ccName = "play_cache"
         , ccRelativeDeps =
             map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
@@ -491,10 +495,10 @@ configure midi = do
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
-            ++ ["-eventlog" | useEventLog && mode == Opt]
+            ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
-            ++ ["-with-rtsopts=-T" | useEkg]
+            ++ ["-with-rtsopts=-T" | Config.enableEkg]
         -- Make sure ghci gets link flags, otherwise it wants to load
         -- everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
@@ -688,7 +692,7 @@ configHeaderRule fn = do
         , "#define __HSCONFIG_H"
         , define useRepl "INTERPRETER_GHC"
         , define (not (null midiDriver)) midiDriver
-        , define useEkg "USE_EKG"
+        , define Config.enableEkg "USE_EKG"
         , "#endif"
         ]
     where
