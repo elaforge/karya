@@ -9,7 +9,8 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Call.India.Solkattu as Solkattu
-import Derive.Call.India.Solkattu (Sollu(..), Alignment(..), RealizedNote(..))
+import Derive.Call.India.Solkattu
+       (Sollu(..), Alignment(..), RealizedNote(..), Stroke(..), Valantalai(..))
 import qualified Derive.Call.India.SolkattuDsl as SolkattuDsl
 import Derive.Call.India.SolkattuDsl (ta, di, ki, kar)
 
@@ -71,6 +72,16 @@ test_realize_mridangam = do
         (Right "k t k n o - k od")
     equal (f [RSollu Ta, RSollu Ta]) (Right "t t")
     left_like (f [RSollu Din, RSollu Din]) "sequence not found"
+
+test_check_mridangam_map = do
+    let f = fmap Map.toList . Solkattu.check_mridangam_map
+        (k, t) = (SolkattuDsl.k, SolkattuDsl.t)
+    equal (f []) (Right [])
+    equal (f [(ta <> di, [k, t])])
+        (Right [([Ta, Di], [Valantalai MKi, Valantalai MTa])])
+    left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate mridangam keys"
+    left_like (f [(ta <> di, [k])]) "have differing lengths"
+    left_like (f [(ta <> SolkattuDsl.din_, [k])]) "only have plain sollus"
 
 -- * utils
 

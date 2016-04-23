@@ -224,28 +224,39 @@ instance Pretty.Pretty Korvai where
 -- | Check for errors and construct a 'Korvai'.
 korvai :: Tala -> [(Sequence, [Maybe Stroke])] -> Sequence -> Either Text Korvai
 korvai tala mridangam sequence = do
-    let (keys, vals) = unzip mridangam
-    keys <- mapM check_sollus keys
-    vals <- return $ map Maybe.catMaybes vals -- TODO verify no Nothings
-    let (mridangam_map, dups) = Util.Map.unique2 (zip keys vals)
-    unless (null dups) $
-        Left $ "duplicate mridangam keys: " <> pretty dups
+    mmap <- check_mridangam_map mridangam
     return $ Korvai
         { korvai_sequence = sequence
-        , korvai_mridangam = mridangam_map <> standard_mridangam_map
+        , korvai_mridangam = mmap <> standard_mridangam_map
         , korvai_tala = tala
         }
+
+check_mridangam_map :: [(Sequence, [Maybe Stroke])] -> Either Text MridangamMap
+check_mridangam_map = unique <=< mapM check
     where
-    check_sollus = mapM $ \n -> case n of
-        Sollu s _ -> Right s
-        _ -> Left $
-            "korvai: mridangam map should only have sollus: " <> pretty n
+    check (sollus, strokes) = do
+        let throw = Left
+                . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
+        sollus <- forM sollus $ \s -> case s of
+            Sollu s NoKarvai _ -> Right s
+            _ -> throw $ "should only have plain sollus: " <> pretty s
+        strokes <- forM strokes $ \s -> case s of
+            Just s -> Right s
+            Nothing -> throw "should have plain strokes, no rests"
+        unless (length sollus == length strokes) $
+            throw "sollus and strokes have differing lengths"
+        return (sollus, strokes)
+    unique pairs
+        | null dups = Right mmap
+        | otherwise = Left $ "duplicate mridangam keys: " <> pretty dups
+        where (mmap, dups) = Util.Map.unique2 pairs
 
 standard_mridangam_map :: MridangamMap
 standard_mridangam_map = Map.fromList
     [ ([Thom], [Thoppi MThom])
     ]
 
+-- | Realize a Korvai in mridangam strokes.
 realize_korvai :: Patterns -> Korvai -> Either [Text] [Maybe Stroke]
 realize_korvai patterns korvai = do
     rnotes <- realize_tala (korvai_tala korvai) (korvai_sequence korvai)

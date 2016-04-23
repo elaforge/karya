@@ -1327,7 +1327,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - 'korvai' should verify Patterns and MridangamMap
+        * 'korvai' should verify Patterns and MridangamMap
         - way to attach a mridangam Stroke to a Sollu.
       kanakku:
         . I could come up with a notation for various transformations, but it
