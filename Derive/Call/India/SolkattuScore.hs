@@ -33,17 +33,15 @@ chatusram1_3 = check $ Solkattu.korvai (adi 4) chatusram1_mridangam $
 
 chatusram1_4 :: Korvai
 chatusram1_4 = check $ Solkattu.korvai (adi 4) mridangam $
-      theme 0 - pat7 - dheem - __3
-    - dropM 4 (theme 1) - repeat 2 pat8 - dheem - __3
-    - dropM 8 (theme 2) - sep (dheem - __3) [tri pat9, tri pat8, tri pat7]
+      theme 0 - pat7 - st u dheem - __3
+    - dropM 4 (theme 1) - repeat 2 pat8 - st u dheem - __3
+    - dropM 8 (theme 2) - sep (st i dheem - __3) [tri pat9, tri pat8, tri pat7]
     where
     theme gap = ta - __3 - dit - __3 - ta - ka - din - na - din
         - tri (ta - __n gap - din - __3)
     pat7 = ta - ka - p5
     pat8 = ta - ka - __ - p5
     pat9 = ta - __ - ka - __ - p5
-    -- TODO first dheems are u, later dheems are i
-    -- So I need a way to attach a stroke to a specific sollu.
     mridangam = chatusram1_mridangam ++
         [ (ta - ka, [k, p])
         ]
@@ -66,8 +64,6 @@ kandam1 :: Sequence -> Sequence -> Korvai
 kandam1 pt gap = check $ Solkattu.korvai (adi 5) mridangam $
       at0 - ta - __ - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
     - atX - ta - ka - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
-    -- The problem with this is that there are two sets of karvai, but with no
-    -- set alignment.
     - at0 - ta - __ - di - __ - ki - ta - __ - gap
     -       ta - ka - di - __ - ki - ta - __ - gap
     - case duration pt of

@@ -21,7 +21,7 @@ import Global
 
 type Sequence = [Note]
 
-data Note = Sollu Sollu Karvai | Rest
+data Note = Sollu Sollu Karvai (Maybe Stroke) | Rest
     -- | Set pattern with the given duration.
     | Pattern Matras Karvai
     | Alignment Alignment
@@ -32,7 +32,9 @@ data Alignment = Sam | Arudi
 
 instance Pretty.Pretty Note where
     pretty n = case n of
-        Sollu s karvai -> pretty s <> k karvai
+        Sollu s karvai stroke ->
+            maybe sollu (\s -> ("st " <> pretty s <> " " <> sollu)) stroke
+            where sollu = pretty s <> k karvai
         Rest -> "__"
         Pattern d karvai -> "p" <> showt d <> k karvai
         Alignment Sam -> "at0"
@@ -44,13 +46,15 @@ instance Pretty.Pretty Note where
 data Karvai = Karvai | NoKarvai
     deriving (Eq, Show)
 
-data RealizedNote = RRest !Matras | RSollu !Sollu | RPattern !Matras
+data RealizedNote =
+    RRest !Matras | RSollu !Sollu !(Maybe Stroke) | RPattern !Matras
     deriving (Show)
 
 instance Pretty.Pretty RealizedNote where
     pretty n = case n of
         RRest dur -> "__" <> if dur == 1 then "" else showt dur
-        RSollu s -> pretty s
+        RSollu s stroke ->
+            pretty s <> maybe "" ((" ("<> ) . (<>")") . pretty) stroke
         RPattern dur -> "p" <> showt dur
 
 data Sollu = Ta | Di | Ki | Thom -- ta di ki ta thom
@@ -110,7 +114,7 @@ realized_notes ns =
     (if not (null rests) then (RRest (length rests) :) else id) $
         case non_rests of
             [] -> []
-            Sollu s _ : ns -> RSollu s : realized_notes ns
+            Sollu s _ stroke : ns -> RSollu s stroke : realized_notes ns
             Pattern d _ : ns -> RPattern d : realized_notes ns
             _ : ns -> realized_notes ns
     where (rests, non_rests) = span (==Rest) ns
@@ -132,12 +136,12 @@ realize_karvai extra notes
     karvais = Seq.count has_karvai notes
     (per_karvai, remainder) = extra `divMod` karvais
     padding = replicate per_karvai Rest
-    replace (Sollu x Karvai) = Sollu x NoKarvai : padding
+    replace (Sollu x Karvai stroke) = Sollu x NoKarvai stroke : padding
     replace (Pattern x Karvai) = Pattern x NoKarvai : padding
     replace x = [x]
 
 has_karvai :: Note -> Bool
-has_karvai (Sollu _ Karvai) = True
+has_karvai (Sollu _ Karvai _) = True
 has_karvai (Pattern _ Karvai) = True
 has_karvai _ = False
 
@@ -272,7 +276,8 @@ realize_mridangam patterns mmap = go
             Nothing -> Left $ "no pattern with duration " <> showt dur
             Just mseq -> (mseq<>) <$> go ns
         RRest dur -> (replicate dur Nothing <>) <$> go ns
-        RSollu sollu -> do
+        RSollu _ (Just stroke) -> (Just stroke :) <$> go ns
+        RSollu sollu Nothing -> do
             (strokes, rest) <- add_context (n:ns) $
                 find_mridangam_sequence mmap sollu ns
             (strokes<>) <$> go rest
@@ -285,11 +290,12 @@ find_mridangam_sequence :: MridangamMap -> Sollu -> [RealizedNote]
 find_mridangam_sequence mmap sollu notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
-        Just strokes -> Right $ insert_rests strokes (RSollu sollu : notes)
+        Just strokes ->
+            Right $ insert_rests strokes (RSollu sollu Nothing : notes)
     where
     -- Collect only sollus and rests, and strip the rests.
     sollus = fst $ first Maybe.catMaybes $ Seq.span_while is_sollu notes
-    is_sollu (RSollu s) = Just (Just s)
+    is_sollu (RSollu s Nothing) = Just (Just s)
     is_sollu (RRest {}) = Just Nothing
     is_sollu _ = Nothing
     longest_match = Seq.head . mapMaybe (flip Map.lookup mmap) . reverse
@@ -310,11 +316,11 @@ insert_rests (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the MridangamMap should be
     -- the same length as the RealizedNotes used to find them.
 
-show_strokes :: [Maybe Stroke] -> Text
-show_strokes = Text.unwords . map stroke
+show_strokes :: Int -> [Maybe Stroke] -> Text
+show_strokes chunk_size =
+    Text.unlines . map Text.unwords . Seq.chunked chunk_size . map stroke
     where
-    stroke Nothing = "-"
-    stroke (Just s) = pretty s
+    stroke = Text.justifyLeft 2 ' ' . maybe "-" pretty
 
 -- * transform
 

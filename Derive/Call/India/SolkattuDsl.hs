@@ -15,7 +15,7 @@ module Derive.Call.India.SolkattuDsl (
     , na, ka, ti, ku, ri
     , din, din_, gin
     , dit, dheem
-    , kar
+    , kar, st
     , at0, atX
     -- ** patterns
     , pat, pat_, p5, p6, p7, p666, p567, p765
@@ -36,11 +36,13 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
+import qualified Util.Log as Log
 import Util.Pretty (pprint)
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
        (Sequence, Korvai, Matras, Note(..), Karvai(..), Sollu(..), Stroke(..),
         check, duration, dropM)
+import Global
 
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
@@ -61,7 +63,7 @@ sq :: Note -> Sequence
 sq = (:[])
 
 sollu :: Sollu -> Sequence
-sollu s = [Sollu s NoKarvai]
+sollu s = [Sollu s NoKarvai Nothing]
 
 __ :: Sequence
 __ = sq Rest
@@ -96,13 +98,20 @@ dit = sollu Dit
 dheem = sollu Dheem
 
 -- | Put karvai after the sollus.
-kar :: Sequence -> Sequence
+kar :: Log.Stack => Sequence -> Sequence
 kar notes = case reverse notes of
-    [] -> []
+    [] -> Solkattu.error_stack "kar: empty sequence"
     n : ns -> reverse $ case n of
-        Sollu s _ -> Sollu s Karvai : ns
+        Sollu s _ stroke -> Sollu s Karvai stroke : ns
         Pattern d _ -> Pattern d Karvai : ns
-        _ -> n : ns -- TODO find the last note or error?
+        _ -> Solkattu.error_stack "kar: last not can't have karvai"
+
+st :: Maybe Stroke -> Sequence -> Sequence
+st _ [] = Solkattu.error_stack $ "st: empty sequence"
+st Nothing _ = Solkattu.error_stack $ "st: stroke was a rest"
+st (Just stroke) (n:ns) = case n of
+    Sollu s karvai _ -> Sollu s karvai (Just stroke) : ns
+    _ -> Solkattu.error_stack $ "st: can't add stroke to " <> pretty n
 
 at0, atX :: Sequence
 at0 = sq $ Alignment Solkattu.Sam

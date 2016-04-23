@@ -1328,7 +1328,7 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         * 'korvai' should verify Patterns and MridangamMap
-        - way to attach a mridangam Stroke to a Sollu.
+        * way to attach a mridangam Stroke to a Sollu.
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
