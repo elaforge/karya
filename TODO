@@ -3,106 +3,17 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * The EvalTrack.DeriveEmpty stuff is really obtuse, can I simplify?
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
-  * ky file doesn't like you to comment out a section
-  * bali.ky sets instrument aliases like '>r1 = >r1', but these fail if there
-    is no >r defined.
-    . The easy solution would be to remove the check in '='.  Maybe it's not
-      really necessary, since if I make a typo it should be quickly obvious.
-  * nonsensical stack trace:
-      {s "untitled/awak untitled/b5.t1 0-9"}
-      {s "untitled/intro untitled/b2.t1 25-41"}
-      {s "untitled/a2 untitled/b2.t14 *"} equal: Error:
-    . The problem is that 'intro' shouldn't be in the stack at all, and its
-      range is outside the block's range.
-    . Make a simpler repro.
-    . Note that localm doesn't reset the state.  So when the title throws an
-      exception, the old state stays.  But shouldn't the event evaluation
-      catch that and restore the old state?
-    . WTF, EvalTrack.run_derive doesn't revert the state?
-  * invalid ky file to LState.set_ky Nothing, doesn't notice the change
-    * Also if I have a broken performance due to no ky file but no save file,
-      and then add a save file, it doesn't notice.
-    . Diff should notice the change and invalidate everything, which should
-      kick out the broken performance.
-  / Responder: move run_sync_status to post_cmd
-    . The problem is it wants ResponderM
-    . What is the difference between RState and State?  RState has a State
-      but they both have UI and cmd states?
-      . RState is transient for each respond cycle.
-  * fltk: a playback selection will erase a floating edit input.  It should
-    know to redraw edit input.
-    . A scroll will also overwrite the edit input.
   - A playback mode that scrolled automatically would actually be useful.
     . But usually annoying, so it would have to be off by default.
-  * LogView could use Text instead of String
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:
     +RTS -A128m -n2m -RTS
-  * Perhaps change the various realize-* calls to static macros.
-  / The merge operator in Cmd.Control should also use the same parse_merge
-    function as Equal.  Also update haddock.
-    . Actually it's not really appropriate, since "" is default.
-  * A log msg with a stack but no Block is likely from the global transform.
-    Logview should make that clear.
-  * Util.Test should have a version intended for unqualified import.
-    Otherwise functions like 'modify_config' get in the way.
-  * If I create a 0 dur note with floating edit, then make another with '.',
-    the second one has a duration.
-    . Apparently reproducing is not so simple.
-    . 'z' '!0' to add 0 dur event to control track, then '.' should do it.
-  * %t-oct=1 in the block title seems to mess up pitch track signal
-    . in save/transcribe/evvari, signal renders for gamakam tracks are flat.
-  macros
-    * 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
-      to randomize note starts.  Maybe I should have an alias for it?
-    . I wind up with more and more of these aliases.  I should have an easier
-      way to put these together.  They inherit the exposed parameters of the
-      callees, and have docs generated automatically.
-    . Name the argument and extract its doc.
-    . Then I can use it to add arguments to ky definitions.
-    . It would be nice to have a typed way to name the arguments, but ky at
-      least will need to parse a string.
-    . So make a parsed form: [Call CallId [Either Arg Term]]
-      Then extract the Args, and return Either Error Call.
-    . It needs to resolve the calls to propagate the arg docs, but if it does
-      that then it needs a Derive.Library, which means that unless I do
-      something clever with laziness, a macro can't use another macro.  Also
-      I'd have to have a unevaluated call and then have a separate step to
-      evaluate it.  Both of these problems go away if I just re-evaluate
-      textually, but so does the argument docs.
-    . Also, since it's pre-resolved, it won't notice if a call has been
-      overridden.
-    . Of course ky defined macros might not care about that.
-    * Basic implementation of dynamically bound macro.
-    * Support nested Vars, e.g. 'a (b $c)'.
-    * Extend ky file parser to understand $vars.
-    * I can also have a "statically bound" variant which can extract the
-      ArgDocs.  To avoid a complicated resolution phase, it takes the calls
-      directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
-    . Both macro and static macros seem pretty awkward to use.  But it's not
-      like doing it by hand would be any less awkward, right?
-    * One cause of awkwardness: c_equal uses ArgsParsedSpecially.  I could
-      support that in macros, but I could probably also have it use normal
-      args even if they're Vals... except the merge operator: '%a = add b'.
-      But that could use a defaulted arg: '%a = b add' or even
-      'merge=add | %a=b'.
-  * Equal.c_default_merge should use the same merge arg as c_equal.
-  / shakefile: support for per-target package sets, so I can integrate Synth
   - LNote.sort_on_pitch is still not right.
     . With multiple chords I get stacked up extra tracks.
     . Turns out this seems really complicated.  Do I really care that much?
   - Also, ModifyNotes doesn't seem to understand about parent note tracks.
-  naming
-    * use either 'attrs' or 'attributes' consistently
-      . Derive.ScoreTypes uses attrs, as does Derive.Attrs.
-      . But the type itself is Attributes, and tons of places use
-        'attributes': Patch.attribute_map, etc.
-      . In fact, the split is almost 50/50: 334 attrs, 353 attributes
-      . If I put the type and basic functions into Derive.Attrs then I can
-        remove 'attr' from the names.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?
@@ -212,8 +123,6 @@ UNSORTED
       solution is to apply via Pitches.transpose, but I shouldn't have to make
       complicated decisions like that.
 
-  * kotekan calls leave keys down in kontakt
-    . Seems to have been fixed by increasing minimum note duration.
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
@@ -345,37 +254,11 @@ Synth: Im:
   - The start time should be in fractions of a second instead of sample
     frames, so I'm not dependent on sample rate.  Also, will I need to emit
     negative time?
-  * The extra build dependencies are annoying when compiling a new karya.
-    . To avoid this I need to make separate .cabal files.
-    . Then I need to pass different -packages.
-    . Worked around it with a config switch.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
     by the PlayCache vst.
-  * I think I want either zero code shared between synth and seq, or at least
-    a well-defined restricted amount, like say a single module.
-    . Call it Synth.Shared.
-    . Note and serialize / unserialize: Synth.Sampler.Note
-      . Time
-      . Signal
-      . Patch.Name, Patch.Attributes
-    . Synth.Sampler.Config, no imports
-    / Local.Instrument - imports Sampler.PatchDb.  Maybe have to protect with
-      a #define.
-      . Actually, why bother?  I can compile PatchDb without the synth deps,
-        and it doesn't really hurt anything to be in the instrument list.
-    * Perform.Im.Convert:
-      . Synth.Sampler.Control for standard names
-      . Synth.Sampler.Note for Note type and serialization
-      . Synth.Sampler.Signal
-    . So I'm back to the reason these all got mixed in the first place:
-      if Sampler is to have a patch db, it needs the seq types.  The way
-      around that is to just have a name, and put the instrument on the seq
-      side.
-    . seq should import synth, since it has to anyway to get the patch db.
-      But it can't because the patches themselves need environ and whatnot.
   more efficient Perform.Im.Convert
     - Zero-copy conversion for the signals.
       . But first I have to decide how I want to handle interpolation.
@@ -886,7 +769,6 @@ fltk:
     . The focus bug is still here.  Even clicking on the "unfocused" block
       doesn't fix it.  Don't all msgs contain focus?  What can I log after the
       fact to figure out what's going on?
-    * The UiMsgs for one.  Make it a dynamic switch?
     . Actually this makes me think it's actually in MsgCollector.
       In that case it would be Fl::focus() which is wrong.  Is there a way to
       just ask the OS what window has focus?
@@ -1117,10 +999,6 @@ Cmd:
     - Visual display of undo history, because stepping back one-by-one is
       a bit of a hassle.
 
-local definitions .ky:
-  * define functions with arguments in .ky?
-    sd x y = from=$x | drop $y
-
 Derive:
   sekaran
     How to apply sekaran?
@@ -1305,9 +1183,6 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        * 'korvai' should verify Patterns and MridangamMap
-        * way to attach a mridangam Stroke to a Sollu.
-        * a way to turn solkattu dsl into a block
         - optionally propagate Patterns through to Stroke, so I can emit it as
           a 'p#' event.
         - Should I change mridangam notes to be consistent with SolkattuDsl?
@@ -1510,30 +1385,8 @@ Derive:
           two neighboring notes at a time.
   india: gamakam:
     dyn:
-      * dyn > seems to be linear?
-      * < should start from prev dyn, not 0.
-        . 'a' now does this
-      / Do I still want transition speed?
-      . The thing is, a lot of dyn stuff I can do with existing control calls.
-      * Add 'T' call, which sets from val.
-      * Add argument for 'd'.
       - Add support for '_' and, why not, '.'.
-    * Make pitch and dyn call implementations consistent wrt arg parsing,
-      where the name is stored, etc.
-      . DynCall: doc, Sig.Parser a, a -> Context -> R
-      . PitchCall: name, doc, duration, parse_call_name, PCall
-        PCall: Sig.Parser a, a -> Context -> R
-      . I don't mind PCall being separate because that's the existentially
-        quantified part.
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
-    / Could I get rid of the special parsing of [] by just having '[' be
-      a call to set duration (/2) and ']' is (*2)?  Then they don't have to be
-      balanced.
-      . No, because duration must be set before calls are called.  But I can
-        do a magic token like '_'.  This makes '_' redundant, but perhaps it's
-        easier to read because it only applies to a single call, e.g. '10.1' vs
-        '1]0[1'.
-    * expose the pitch call map and dyn call map to documentation
     - There still seems to be a case where prev pitch is wrong, it has to
       do with a '--' event.
     - And another prev pitch bug:
