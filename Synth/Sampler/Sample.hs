@@ -6,6 +6,7 @@
 -- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Aeson as Aeson
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.SampleRate as SampleRate
@@ -17,10 +18,11 @@ import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
-import Global
 import qualified Synth.Sampler.Config as Config
-import qualified Synth.Sampler.Signal as Signal
-import Synth.Sampler.Types
+import qualified Synth.Shared.Signal as Signal
+import qualified Synth.Shared.Types as Types
+
+import Global
 
 
 -- | Path to a sample, relative to the instrument db root.
@@ -29,11 +31,11 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Sample = Sample {
-    start :: !Time
+    start :: !Types.Time
     -- | Relative to 'Config.instrumentDbDir'.
     , filename :: !SamplePath
     -- | Sample start offset.
-    , offset :: !Time
+    , offset :: !Types.Time
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal
@@ -69,7 +71,7 @@ resample ratio audio
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-applyEnvelope :: Time -> Signal.Signal -> Audio -> Audio
+applyEnvelope :: Types.Time -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
     | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val
@@ -84,3 +86,6 @@ empty = Audio.silent (Audio.Frames 0) 44100 2
     -- emit silence while there are no Audios in scope
     -- otherwise, keep track of frame for each Audio and emit a chunk with it
     -- mixed.
+
+
+type Audio = Audio.AudioSource (Resource.ResourceT IO) Float

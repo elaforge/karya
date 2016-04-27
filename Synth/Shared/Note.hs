@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | The 'Note' type and support.
-module Synth.Sampler.Note where
+module Synth.Shared.Note where
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified GHC.Generics as Generics
@@ -15,21 +15,20 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Sampler.Control as Control
-import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Signal as Signal
-import Synth.Sampler.Types
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Signal as Signal
+import qualified Synth.Shared.Types as Types
 
 
 -- | High level representation of one note.  This will be converted into
 -- one or more 'Sample.Sample's.
 data Note = Note {
-    instrument :: !Patch.Name
-    , start :: !Time
-    , duration :: !Time
+    instrument :: !Types.PatchName
+    , start :: !Types.Time
+    , duration :: !Types.Time
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map.Map Control.Control Signal.Signal)
-    , attributes :: !Patch.Attributes
+    , attributes :: !Types.Attributes
     } deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Note
@@ -48,7 +47,7 @@ instance Pretty.Pretty Note where
         , ("attributes", Pretty.format attrs)
         ]
 
-note :: Patch.Name -> Time -> Time -> Note
+note :: Types.PatchName -> Types.Time -> Types.Time -> Note
 note inst start duration = Note
     { instrument = inst
     , start = start

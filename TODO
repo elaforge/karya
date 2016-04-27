@@ -91,34 +91,6 @@ UNSORTED
       'merge=add | %a=b'.
   * Equal.c_default_merge should use the same merge arg as c_equal.
   / shakefile: support for per-target package sets, so I can integrate Synth
-    . There should be one master set of packages and versions, and then
-      a binary can select a subset from it.  Ideally I could chase packages
-      along with modules... and I suppose I could if I have a mapping from
-      module to package, but I'd need to cache in a file.  Of course that's
-      not too hard...
-    . How do I know when to rebuild?  It's when the packages list changes.
-      So I need to remember what the package list was, and only rebuild when
-      it changes.  I could do it automatically by saving the packages with the
-      cache and only rebuild if it's changed.  The cabal file is updated when
-      it changes, so I could use that, but I need a global list and I want to
-      make cabal files non-global now.
-      . So on every run, write packages to a file, if they changed.  Then
-        cabal files and the package db cache need that file.
-      . Then I can use this to create the cabal files, but I definitely don't
-        want a cabal file for each binary.  So load the package db and use it
-        with transitive deps to create a cabal file for specific targets.
-    . I think maybe I don't want to do this after all.  While I think it would
-      work, I still have to make things like tests non-global, or tests wind
-      up with all packages.  At that point I wonder what exactly the giant
-      benefit is that makes this all worth it.  It would just be to be able to
-      build synth and karya separately... but do I really need that so much?
-    . globalPackages - makeHaddock
-    . buildHs - for the link.  Needs union of all hsORule packages.
-      This just takes the binary packages list.
-    . hsORule - for compile.  So it needs packages that the hs imports.
-    . But if I accumulate more synths, e.g. csound-expression, then maybe all
-      these deps get a bit excessive?  The chance is greater that someone
-      doesn't want a certain synth.
   - LNote.sort_on_pitch is still not right.
     . With multiple chords I get stacked up extra tracks.
     . Turns out this seems really complicated.  Do I really care that much?
@@ -382,22 +354,28 @@ Synth: Im:
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
     by the PlayCache vst.
-  - I think I want either zero code shared between synth and seq, or at least
+  * I think I want either zero code shared between synth and seq, or at least
     a well-defined restricted amount, like say a single module.
     . Call it Synth.Shared.
     . Note and serialize / unserialize: Synth.Sampler.Note
-      . imports Types but doesn't need Audio
+      . Time
+      . Signal
+      . Patch.Name, Patch.Attributes
     . Synth.Sampler.Config, no imports
-    . Local.Instrument - imports Sampler.PatchDb.  Maybe have to protect with
+    / Local.Instrument - imports Sampler.PatchDb.  Maybe have to protect with
       a #define.
-    . Perform.Im.Convert:
+      . Actually, why bother?  I can compile PatchDb without the synth deps,
+        and it doesn't really hurt anything to be in the instrument list.
+    * Perform.Im.Convert:
       . Synth.Sampler.Control for standard names
       . Synth.Sampler.Note for Note type and serialization
       . Synth.Sampler.Signal
-    - So Shared gets the Note type, serialization, and a re-export of the
-      PatchDb.
-    - How can I prevent dependencies from creeping in later?  E.g. seq can
-      only import Synth.Share, and Synth.* modules can't import from seq.
+    . So I'm back to the reason these all got mixed in the first place:
+      if Sampler is to have a patch db, it needs the seq types.  The way
+      around that is to just have a name, and put the instrument on the seq
+      side.
+    . seq should import synth, since it has to anyway to get the patch db.
+      But it can't because the patches themselves need environ and whatnot.
   more efficient Perform.Im.Convert
     - Zero-copy conversion for the signals.
       . But first I have to decide how I want to handle interpolation.

@@ -11,6 +11,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.LEvent as LEvent
@@ -27,9 +28,10 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
-import qualified Synth.Sampler.Control as Control
-import qualified Synth.Sampler.Note as Note
-import qualified Synth.Sampler.Signal as Signal
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
+import qualified Synth.Shared.Types as Shared.Types
 
 import Global
 
@@ -54,7 +56,7 @@ convert_event event patch name = run $ do
     let supported = Patch.patch_controls patch
         -- TODO trim controls
         controls = Score.event_transformed_controls event
-    pitch <- if Map.member (to_control Control.pitch) supported
+    pitch <- if Map.member (convert_control Control.pitch) supported
         then Just . convert_signal <$>
             convert_pitch (Score.event_environ event) controls
                 (Score.event_transformed_pitch event)
@@ -67,7 +69,7 @@ convert_event event patch name = run $ do
             let converted = convert_controls controls
             in maybe converted (\p -> Map.insert Control.pitch p converted)
                 pitch
-        , attributes = fromMaybe mempty $
+        , attributes = maybe mempty convert_attributes $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
         }
@@ -76,9 +78,12 @@ run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
 run = merge . Identity.runIdentity . Log.run
     where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
 
+convert_attributes :: Attrs.Attributes -> Shared.Types.Attributes
+convert_attributes = Shared.Types.Attributes . Attrs.to_set
+
 -- | TODO use the same type
-to_control :: Control.Control -> Score.Control
-to_control (Control.Control a) = ScoreTypes.Control a
+convert_control :: Control.Control -> Score.Control
+convert_control (Control.Control a) = ScoreTypes.Control a
 
 -- | TODO use the same type... but won't I need different interpolation
 -- behaviour?  Also I kind of like the simpler monomorphic version?

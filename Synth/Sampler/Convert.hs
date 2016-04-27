@@ -11,12 +11,13 @@ import System.FilePath ((</>))
 
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Sampler.Control as Control
-import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Sampler.Signal as Signal
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Types as Types
+import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import Global
 
@@ -45,7 +46,7 @@ noteToSample note@(Note.Note instName start _dur controls attrs) = do
 
 -- | Find the sample with the closest pitch, or if there is no pitch, the first
 -- unpitched sample.
-lookupSample :: Patch.Patch -> Patch.Attributes
+lookupSample :: Patch.Patch -> Types.Attributes
     -> Maybe Pitch.NoteNumber -> Maybe (FilePath, Patch.Sample)
 lookupSample inst attrs maybePitch = case maybePitch of
     Nothing -> List.find ((==Nothing) . Patch.pitch . snd) samples

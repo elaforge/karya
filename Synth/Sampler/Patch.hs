@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch (
-    module Synth.Sampler.Patch, Attributes, attr
+    module Synth.Sampler.Patch
 ) where
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -12,14 +12,14 @@ import qualified Data.Set as Set
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreTypes as ScoreTypes
-import Derive.Attrs (Attributes, attr)
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Synth.Sampler.Control as Control
-import Global
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Types as Types
 
 
 data Patch = Patch {
@@ -49,14 +49,11 @@ instance Pretty.Pretty Patch where
         , ("samples", Pretty.format samples)
         ]
 
--- | Unique identifier for an instrument.
-type Name = Text
-
 -- | Sample in an Patch.
 data Sample = Sample {
     pitch :: !(Maybe Pitch.NoteNumber)
     -- | Select Samples whose attribute match the Note's attribute.
-    , attributes :: !Attributes
+    , attributes :: !Types.Attributes
     } deriving (Show)
 
 sample :: Sample
@@ -69,9 +66,12 @@ instance Pretty.Pretty Sample where
     format (Sample pitch attrs) = Pretty.constructor "Sample"
         [Pretty.format pitch, Pretty.format attrs]
 
+
+-- * makeInst
+
 makeInst :: Patch -> Inst.Inst Cmd.InstrumentCode
 makeInst patch = Inst.Inst
-    { inst_backend = Inst.Im (inferPatch (Map.elems (samples patch)))
+    { inst_backend = Inst.Im $ inferPatch (Map.elems (samples patch))
     , inst_common = karyaCommon patch
     }
 
@@ -83,9 +83,12 @@ inferPatch samples = Patch.Patch
         [ [(c Control.pitch, "Pitch signal.")
             | any (Maybe.isJust . pitch) samples]
         ]
-    , patch_attribute_map =
-        Patch.attribute_map $ Seq.unique $ map attributes samples
+    , patch_attribute_map = Patch.attribute_map $ map convertAttributes $
+        Seq.unique $ map attributes samples
     , patch_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
     }
     where c (Control.Control a) = ScoreTypes.Control a
+
+convertAttributes :: Types.Attributes -> Attrs.Attributes
+convertAttributes (Types.Attributes attrs) = Attrs.from_set attrs

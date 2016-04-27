@@ -8,10 +8,11 @@ import qualified Data.Map as Map
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
-import Synth.Sampler.Patch (attr)
+import qualified Synth.Shared.Types as Types
+import Synth.Shared.Types (attribute)
 
 
-type Db = Map.Map Patch.Name Patch.Patch
+type Db = Map.Map Types.PatchName Patch.Patch
 
 db :: Db
 db = Map.fromList
@@ -21,11 +22,11 @@ db = Map.fromList
         ]
     ]
 
-cek, open :: Patch.Attributes
-cek = attr "cek"
-open = attr "open"
+cek, open :: Types.Attributes
+cek = attribute "cek"
+open = attribute "open"
 
-attrs :: Patch.Attributes -> Patch.Sample -> Patch.Sample
+attrs :: Types.Attributes -> Patch.Sample -> Patch.Sample
 attrs attrs sample = sample { Patch.attributes = attrs }
 
 -- | Declaration for "Local.Instrument".

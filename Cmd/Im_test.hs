@@ -18,9 +18,9 @@ import qualified Perform.NN as NN
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument
-import qualified Synth.Sampler.Control as Control
-import qualified Synth.Sampler.Note as Note
-import qualified Synth.Sampler.Signal as Signal
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import Global
 

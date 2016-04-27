@@ -20,9 +20,8 @@ import System.FilePath ((</>))
 import qualified Util.Log as Log
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Sampler.Convert as Convert
-import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Sample as Sample
-import Synth.Sampler.Types
+import qualified Synth.Shared.Note as Note
 
 import Global
 
@@ -62,6 +61,8 @@ realizeSamples outputDir samples = do
             <> showt (outputDir </> "out.wav") <> ": " <> err
         Right () -> return ()
     putStrLn "done"
+
+type Audio = Audio.AudioSource (Resource.ResourceT IO) Float
 
 realizeSample :: Sample.Sample -> IO (Maybe Audio)
 realizeSample sample = Sample.catchSndfile (Sample.realize sample) >>= \case

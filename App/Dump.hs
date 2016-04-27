@@ -23,7 +23,7 @@ import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize
 
-import qualified Synth.Sampler.Note as Sampler.Note
+import qualified Synth.Shared.Note
 import Global
 
 
@@ -52,7 +52,7 @@ dump fname =
     try fname Cmd.Serialize.allocations_magic ((:[]) . Pretty.formatted) $
     try fname Cmd.Serialize.views_magic ((:[]) . Pretty.formatted) $
     try fname DiffPerformance.midi_magic dump_midi $
-    try fname Sampler.Note.notes_magic (map Pretty.formatted) $
+    try fname Synth.Shared.Note.notes_magic (map Pretty.formatted) $
     return $ Just "no magic codes match"
 
 -- | Try to unserialize the file, and try the passed continuation if it failed
