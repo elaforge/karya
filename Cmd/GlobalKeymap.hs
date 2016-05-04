@@ -69,6 +69,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
+import qualified Cmd.Views as Views
 
 import qualified Derive.Scale as Scale
 import qualified App.Config as Config
@@ -297,10 +298,10 @@ view_config_bindings = concat
     , plain_char '\\' "zoom to ruler or selection"
         ViewConfig.zoom_to_ruler_or_selection
     , command_char 'R' "resize to fit"
-        (ViewConfig.resize_to_fit False =<< Cmd.get_focused_view)
+        (Views.resize_to_fit False =<< Cmd.get_focused_view)
     , command_char 'L' "horizontal tile" ViewConfig.horizontal_tile
     , command_char '\\' "maximize and zoom"
-        (ViewConfig.maximize_and_zoom =<< Cmd.get_focused_view)
+        (Views.maximize_and_zoom =<< Cmd.get_focused_view)
 
     -- Unfortunately cmd-` is taken by an edit state bind, and they all live
     -- there so it would create an inconsistency to move just one.

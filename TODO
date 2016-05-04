@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
-  - A playback mode that scrolled automatically would actually be useful.
+  * A playback mode that scrolled automatically would actually be useful.
     . But usually annoying, so it would have to be off by default.
     . Or how about open multiple views at the current zoom, to cover the
       range.

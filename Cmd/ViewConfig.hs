@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Lens as Lens
-import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -20,10 +19,10 @@ import qualified Ui.State as State
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Internal as Internal
+import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Views as Views
 
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -40,7 +39,7 @@ cmd_zoom_around view_id pos f = do
     -- Zoom by the given factor, but try to keep pos in the same place on the
     -- screen.
     zoom <- State.get_zoom view_id
-    set_zoom view_id (zoom_around zoom pos f)
+    Views.set_zoom view_id (zoom_around zoom pos f)
 
 zoom_around :: Types.Zoom -> ScoreTime -> (Double -> Double) -> Types.Zoom
 zoom_around (Types.Zoom offset factor) pos f =
@@ -51,15 +50,11 @@ zoom_around (Types.Zoom offset factor) pos f =
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
-set_zoom :: Cmd.M m => ViewId -> Types.Zoom -> m ()
-set_zoom view_id zoom = do
-    State.modify_zoom view_id (const zoom)
-    Internal.sync_zoom_status view_id
-
 modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do
     zoom <- State.get_zoom view_id
-    set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
+    Views.set_zoom view_id $
+        zoom { Types.zoom_factor = f (Types.zoom_factor zoom) }
 
 -- | Zoom to the ruler duration if the selection is a point, or zoom to the
 -- selection if it's not.
@@ -67,88 +62,32 @@ zoom_to_ruler_or_selection :: Cmd.M m => m ()
 zoom_to_ruler_or_selection = do
     (view_id, sel) <- Selection.get
     if Sel.is_point sel
-        then zoom_to_ruler view_id
+        then Views.zoom_to_ruler view_id
         else uncurry (zoom_to view_id) (Sel.range sel)
 
 zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
 zoom_to view_id start end =
-    set_zoom view_id . Types.Zoom start =<< zoom_factor view_id (end - start)
-
--- | Set zoom on the given view to make the entire block visible.
-zoom_to_ruler :: Cmd.M m => ViewId -> m ()
-zoom_to_ruler view_id = do
-    view <- State.get_view view_id
-    block_end <- State.block_end (Block.view_block view)
-    factor <- zoom_factor view_id block_end
-    set_zoom view_id $ Types.Zoom 0 factor
-
--- | Figure out the zoom factor to display the given amount of TrackTime.
-zoom_factor :: State.M m => ViewId -> TrackTime -> m Double
-zoom_factor view_id dur
-    | dur == 0 = return 1
-    | otherwise = do
-        view <- State.get_view view_id
-        let pixels = Block.view_visible_time view
-        return $ fromIntegral pixels / ScoreTime.to_double dur
-
-maximize_and_zoom :: Cmd.M m => ViewId -> m ()
-maximize_and_zoom view_id = do
-    resize_to_fit True view_id
-    zoom_to_ruler view_id
+    Views.set_zoom view_id . Types.Zoom start
+        =<< Views.zoom_factor view_id (end - start)
 
 -- * scroll
 
+-- | Scroll by the number of pages, where a page is a fraction of the score
+-- visible at the current zoom.
 scroll_pages :: Cmd.M m => TrackTime -> m ()
 scroll_pages pages = do
     view_id <- Cmd.get_focused_view
     view <- State.get_view view_id
     let visible = Block.visible_time view
         offset = Types.zoom_offset $ Block.view_zoom view
-    end <- State.block_end $ Block.view_block view
-    State.modify_zoom view_id $ \zoom -> zoom
-        { Types.zoom_offset =
-            Num.clamp 0 (end - visible) $ offset + pages * visible
-        }
+    Views.set_time_offset view_id (offset + pages * visible)
 
 -- * resize
 
-resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically
-    -> ViewId -> m ()
-resize_to_fit maximize view_id = do
-    view <- State.get_view view_id
-    screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
-    rect <- contents_rect view
-    State.set_view_rect view_id $ Rect.intersection screen $
-        scootch screen $ Block.set_visible_rect view $
-        if maximize then max_height view screen rect else rect
-    where
-    -- Move the rect over so it fits on the screen.
-    scootch screen r = Rect.place
-        (Num.clamp (Rect.rx screen) (Rect.rr screen - Rect.rw r) (Rect.rx r))
-        (Num.clamp (Rect.ry screen) (Rect.rb screen - Rect.rh r) (Rect.ry r))
-        r
-    max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
-        (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
-            - Config.window_decoration_h)
-
 resize_all :: Cmd.M m => m ()
-resize_all = mapM_ (resize_to_fit False) =<< State.all_view_ids
-
--- | Get the View's Rect, resized to fit its contents.  Its position is
--- unchanged.
-contents_rect :: State.M m => Block.View -> m Rect.Rect
-contents_rect view = do
-    block_end <- State.block_end (Block.view_block view)
-    block <- State.get_block (Block.view_block view)
-    let (x, y) = Rect.upper_left (Block.view_rect view)
-        w = sum $ map Block.display_track_width (Block.block_tracks block)
-        h = Types.zoom_to_pixels (Block.view_zoom view) block_end
-    return $ Rect.xywh x y (max w 40) (max h 40)
+resize_all = mapM_ (Views.resize_to_fit False) =<< State.all_view_ids
 
 -- * window management
-
--- | Infer a tiling layout based on current window position, and move and
--- resize them to fit.
 
 -- If a window significantly overlaps its left neighbor, and is a certain
 -- distance below it, then shorten the neighbor and line up to the neigbor's
@@ -165,6 +104,8 @@ contents_rect view = do
 -- Use cases: put a window halfway down another one and expect them to tile
 -- vertically.
 
+-- -- | Infer a tiling layout based on current window position, and move and
+-- -- resize them to fit.
 -- auto_tile :: Cmd.M m => m ()
 -- auto_tile = do
 
@@ -280,6 +221,31 @@ move_focus dir = do
             South -> Seq.head $ get_rects (>) Rect.ry
             North -> Seq.last $ get_rects (<) Rect.ry
     whenJust next $ Cmd.focus . fst
+
+-- * create views
+
+-- | For the current window, open enough views at the current zoom to see the
+-- score from the current time until the end of the block.
+views_covering :: Cmd.M m => ViewId -> m [ViewId]
+views_covering view_id = do
+    view <- State.get_view view_id
+    block_dur <- State.block_end $ Block.view_block view
+    forM (views_covering_starts block_dur view) $ \start -> do
+        view_id <- Create.view (Block.view_block view)
+        Views.modify_zoom view_id $ const $ Types.Zoom
+            { zoom_factor = Types.zoom_factor (Block.view_zoom view)
+            , zoom_offset = start
+            }
+        return view_id
+
+views_covering_starts :: TrackTime -> Block.View -> [TrackTime]
+views_covering_starts block_dur view =
+    -- drop 1 to exclude the given view.
+    drop 1 $ take needed $ Seq.range_ offset (block_dur / fromIntegral needed)
+    where
+    offset = Types.zoom_offset (Block.view_zoom view)
+    visible = Block.visible_time view - offset
+    needed = ceiling (block_dur / visible)
 
 -- * saved views
 

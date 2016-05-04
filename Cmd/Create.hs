@@ -43,7 +43,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
-import qualified Cmd.ViewConfig as ViewConfig
+import qualified Cmd.Views as Views
 
 import qualified App.Config as Config
 import Global
@@ -245,8 +245,7 @@ sized_view block_id rect = do
 view :: Cmd.M m => BlockId -> m ViewId
 view block_id = do
     view_id <- unfitted_view block_id
-    ViewConfig.maximize_and_zoom view_id
-
+    Views.maximize_and_zoom view_id
     screen <- maybe (Cmd.get_screen (0, 0)) view_screen
         =<< Cmd.lookup_focused_view
     rect <- Block.view_rect <$> State.get_view view_id
@@ -445,7 +444,7 @@ focused_track block_id tracknum = do
 embiggen :: State.M m => ViewId -> m ()
 embiggen view_id = do
     view <- State.get_view view_id
-    embiggened <- ViewConfig.contents_rect view
+    embiggened <- Views.contents_rect view
     let rect = Block.view_visible_rect view
     when (Rect.rw embiggened > Rect.rw rect) $
         State.set_view_rect view_id $ Block.set_visible_rect view $

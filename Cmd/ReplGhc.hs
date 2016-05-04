@@ -80,7 +80,7 @@ interpreter (Session chan) = do
         parse_flags args
         -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Repl.Environ to context: not interpreted
-        GHC.setTargets [make_target False toplevel]
+        GHC.setTargets [make_target False toplevel_module]
         ((result, logs, warns), time) <-
             Log.format_time <$> Log.time_eval reload
         logs <- return $ filter
@@ -114,11 +114,11 @@ interpreter (Session chan) = do
                             ReplUtil.raw $ "Exception: " <> showt exc
             liftIO $ MVar.putMVar return_mvar result
     where
-    toplevel = "Cmd.Repl.Environ"
+    toplevel_module = "Cmd.Repl.Environ"
 
     normal_cmd :: String -> Ghc Cmd
     normal_cmd expr = do
-        set_context [toplevel]
+        set_context [toplevel_module]
         make_response <$> compile expr
 
     colon_cmd :: String -> Ghc Cmd
