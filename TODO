@@ -7,23 +7,11 @@ UNSORTED
     to zoom in and do it again.
   - A playback mode that scrolled automatically would actually be useful.
     . But usually annoying, so it would have to be off by default.
+    . Or how about open multiple views at the current zoom, to cover the
+      range.
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:
     +RTS -A128m -n2m -RTS
-  - LNote.sort_on_pitch is still not right.
-    . With multiple chords I get stacked up extra tracks.
-    . Turns out this seems really complicated.  Do I really care that much?
-  - Also, ModifyNotes doesn't seem to understand about parent note tracks.
-  - Interpret a midi file with keyswitches back to the attrs.
-    . This is so I can load VSL examples and learn from them.
-    . Should it be a score transformation, or start from the parsed MIDI?
-    . MIDI seems easier because it's already in a linear format, while for
-      the score I'd have to interpret it into one.
-    . But then I need to pass the instrument mapping to Midi.load.
-    . Maybe not really worth it?  For learning I can load in reaper and just
-      watch the VSL UI.
-    . But still worth keeping existing work, because I'll need something like
-      that for MIDI record.
   vsl:
     - figure out how to do tuning
       . I think it needs to be pitch bend, since it doesn't seem to respond to
@@ -45,26 +33,6 @@ UNSORTED
     attribute groups:
       . bass clarinet has nv without vib
     - rename +sec# to +s#?
-  UI awkwardness:
-    - Paste between blocks with different track layout is awkward.  Can I have
-      a note-oriented paste that reuses or creates the track structure?
-  Format:
-    HsPretty:
-      problems:
-        . Missing close paren after wrapped constructors.
-        . If I add an indent after each constructor then I get tons of indents.
-          What I really want is a way to collapse multiple constructor calls
-          with a single argument.
-        . For some reason it's not wrapping tuples properly, they become
-            (a, B
-              c
-            )
-          instead of
-            ( a
-            , B c
-            )
-    - Util.Pretty still broken: pprint Vsl.violin_harmonics
-    - move format related modules to Util.Format.*
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
@@ -88,12 +56,10 @@ UNSORTED
       terribly compelling.  I think the reason is that it turns out most
       functions can throw.  It doesn't replace get_ vs. lookup_ because they
       are likely to call something else which can throw.
-  / No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - A block with logical range called at time 0 gets messed up.
-
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
   - pitch transpose
@@ -542,9 +508,6 @@ cleanup:
       Of course I could just add one, maybe not a big deal.
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
-  Util.Format:
-    - don't use 'reverse' in 'flatten'
-    - lazy implementation?
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
@@ -922,6 +885,23 @@ REPL: repl:
     without having to quote it
 
 Cmd:
+  Repl:
+    - LNote.sort_on_pitch is still not right.
+      . With multiple chords I get stacked up extra tracks.
+      . Turns out this seems really complicated.  Do I really care that much?
+  - Paste between blocks with different track layout is awkward.  Can I have
+    a note-oriented paste that reuses or creates the track structure?
+  - ModifyNotes doesn't seem to understand about parent note tracks.
+  - Interpret a midi file with keyswitches back to the attrs.
+    . This is so I can load VSL examples and learn from them.
+    . Should it be a score transformation, or start from the parsed MIDI?
+    . MIDI seems easier because it's already in a linear format, while for
+      the score I'd have to interpret it into one.
+    . But then I need to pass the instrument mapping to Midi.load.
+    . Maybe not really worth it?  For learning I can load in reaper and just
+      watch the VSL UI.
+    . But still worth keeping existing work, because I'll need something like
+      that for MIDI record.
   - Figure out exactly what bad things could happen because of the
     Ui.fltk_event_loop race.  Also figure out what kind of cancelling I'd need
     to fix them.
@@ -1685,6 +1665,26 @@ Perform:
     switch on the next NoteOn
   Instrument
     - some basic midi instrument defs for generic midi (dev, patch)
+
+Util.Format:
+  HsPretty:
+    problems:
+      . Missing close paren after wrapped constructors.
+      . If I add an indent after each constructor then I get tons of indents.
+        What I really want is a way to collapse multiple constructor calls
+        with a single argument.
+      . For some reason it's not wrapping tuples properly, they become
+          (a, B
+            c
+          )
+        instead of
+          ( a
+          , B c
+          )
+  - Util.Pretty still broken: pprint Vsl.violin_harmonics
+  - move format related modules to Util.Format.*
+  - don't use 'reverse' in 'flatten'
+  - lazy implementation?
 
 Instrument DB / browser:
   - Fl_Help_View supports limited HTML, use it to display formatted help
