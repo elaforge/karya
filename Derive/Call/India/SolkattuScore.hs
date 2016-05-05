@@ -58,6 +58,20 @@ chatusram1_mridangam =
 
 -- * kanda nadai
 
+kandam1_2 :: Korvai
+kandam1_2 = check $ Solkattu.korvai (adi 5) kandam1_mridangam $
+      at0 - ta - __ - di - __ - ki - ta - __ - thom - __ - ta_din - p7
+    - atX - ta - ka - di - __ - ki - ta - __ - thom - __ - ta_din - p7
+    - at0 - ta - __ - di - __ - ki - ta - __ - thom - __
+          - ta - ka - di - __ - ki - ta - __ - thom - __
+          - ta_din - tri p7
+          - ta_din - tri (tadin - p7)
+          - ta_din - tri (tadin - tadin - p7)
+    where
+    p7 = ta - ka - p5
+    ta_din = ta - __ - din - __
+    tadin = ta - din - __
+
 kandam1_vars :: [Korvai]
 kandam1_vars = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
     where gaps = [thom - __ - ta - __, thom - __2, thom - __, thom, mempty]
@@ -84,7 +98,6 @@ kandam1_mridangam =
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
-
 
 -- * realize
 
