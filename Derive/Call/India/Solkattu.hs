@@ -47,12 +47,14 @@ data Karvai = Karvai | NoKarvai
     deriving (Eq, Show)
 
 data RealizedNote =
-    RRest !Matras | RSollu !Sollu !(Maybe Stroke) | RPattern !Matras
+    RRest !Matras | RKarvai !Matras | RSollu !Sollu !(Maybe Stroke)
+    | RPattern !Matras
     deriving (Show)
 
 instance Pretty.Pretty RealizedNote where
     pretty n = case n of
         RRest dur -> "__" <> if dur == 1 then "" else showt dur
+        RKarvai dur -> "__k" <> if dur == 1 then "" else showt dur
         RSollu s stroke ->
             pretty s <> maybe "" ((" ("<> ) . (<>")") . pretty) stroke
         RPattern dur -> "p" <> showt dur
@@ -111,22 +113,23 @@ realize_tala tala =
         | any Either.isLeft groups = Left $ map (either id pretty) groups
         | otherwise = Right $ concatMap (either (const []) id) groups
 
-realized_notes :: [Note] -> [RealizedNote]
+realized_notes :: [Either Matras Note] -> [RealizedNote]
 realized_notes ns =
     (if not (null rests) then (RRest (length rests) :) else id) $
         case non_rests of
             [] -> []
-            Sollu s _ stroke : ns -> RSollu s stroke : realized_notes ns
-            Pattern d _ : ns -> RPattern d : realized_notes ns
+            Left karvai : ns -> RKarvai karvai : realized_notes ns
+            Right (Sollu s _ stroke) : ns -> RSollu s stroke : realized_notes ns
+            Right (Pattern d _) : ns -> RPattern d : realized_notes ns
             _ : ns -> realized_notes ns
-    where (rests, non_rests) = span (==Rest) ns
+    where (rests, non_rests) = span (== Right Rest) ns
 
 -- | Divide available time among notes with karvai.  Error if there are no
 -- karvai, or if the time doesn't divide evenly.  Otherwise, replace karvai
--- with Rests.
-realize_karvai :: Matras -> [Note] -> Either Text [Note]
+-- with Lefts.
+realize_karvai :: Matras -> [Note] -> Either Text [Either Matras Note]
 realize_karvai extra notes
-    | extra == 0 = Right notes
+    | extra == 0 = Right (map Right notes)
     | karvais <= 0 =
         Left $ "no karvai but there's unfilled space: " <> showt extra
             <> ": " <> pretty notes
@@ -137,10 +140,10 @@ realize_karvai extra notes
     where
     karvais = Seq.count has_karvai notes
     (per_karvai, remainder) = extra `divMod` karvais
-    padding = replicate per_karvai Rest
-    replace (Sollu x Karvai stroke) = Sollu x NoKarvai stroke : padding
-    replace (Pattern x Karvai) = Pattern x NoKarvai : padding
-    replace x = [x]
+    replace (Sollu x Karvai stroke) =
+        [Right $ Sollu x NoKarvai stroke, Left per_karvai]
+    replace (Pattern x Karvai) = [Right $ Pattern x NoKarvai, Left per_karvai]
+    replace x = [Right x]
 
 has_karvai :: Note -> Bool
 has_karvai (Sollu _ Karvai _) = True
@@ -285,14 +288,14 @@ standard_mridangam_map = Map.fromList
     ]
 
 -- | Realize a Korvai in mridangam strokes.
-realize_korvai :: Patterns -> Korvai -> Either [Text] [MNote]
-realize_korvai patterns korvai = do
+realize_korvai :: Patterns -> Patterns -> Korvai -> Either [Text] [MNote]
+realize_korvai patterns karvai_patterns korvai = do
     rnotes <- realize_tala (korvai_tala korvai) (korvai_sequence korvai)
-    realize_mridangam patterns (korvai_mridangam korvai) rnotes
+    realize_mridangam patterns karvai_patterns (korvai_mridangam korvai) rnotes
 
-realize_mridangam :: Patterns -> MridangamMap -> [RealizedNote]
+realize_mridangam :: Patterns -> Patterns -> MridangamMap -> [RealizedNote]
     -> Either [Text] [MNote]
-realize_mridangam patterns mmap = format_error . go
+realize_mridangam patterns karvai_patterns mmap = format_error . go
     where
     go :: [RealizedNote] -> ([[MNote]], Maybe (Text, [RealizedNote]))
     go [] = ([], Nothing)
@@ -300,6 +303,9 @@ realize_mridangam patterns mmap = format_error . go
         RPattern dur -> case Map.lookup dur patterns of
             Nothing ->
                 ([], Just ("no pattern with duration " <> showt dur, n:ns))
+            Just mseq -> first (mseq:) (go ns)
+        RKarvai dur -> case Map.lookup dur karvai_patterns of
+            Nothing -> first (replicate dur MRest :) (go ns)
             Just mseq -> first (mseq:) (go ns)
         RRest dur -> first (replicate dur MRest :) (go ns)
         RSollu _ (Just stroke) -> first ([MNote stroke] :) (go ns)
@@ -342,6 +348,7 @@ insert_rests (stroke : strokes) (n : ns) = case n of
     -- These shouldn't happen because the strokes are from the result of
     -- Seq.span_while is_sollu.
     RPattern {} -> insert_rests (stroke : strokes) ns
+    RKarvai {} -> insert_rests (stroke : strokes) ns
 insert_rests (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the MridangamMap should be
     -- the same length as the RealizedNotes used to find them.

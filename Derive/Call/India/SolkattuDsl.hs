@@ -27,7 +27,7 @@ module Derive.Call.India.SolkattuDsl (
     -- * mridangam
     , k, t, n, d, u, i, o, p
     , od
-    , simple_patterns
+    , default_patterns, default_karvai
     -- * misc
     , check, pprint
 ) where
@@ -166,9 +166,14 @@ od = MNote (Both Solkattu.MThom Solkattu.MDin)
 ___ :: MNote
 ___ = MRest
 
-simple_patterns :: Solkattu.Patterns
-simple_patterns = Map.fromList
+default_patterns :: Solkattu.Patterns
+default_patterns = Map.fromList
     [ (5, [k, t, k, n, o])
     , (6, [k, t, ___, k, n, o])
     , (7, [k, ___, t, ___, k, n, o])
+    ]
+
+default_karvai :: Solkattu.Patterns
+default_karvai = Map.fromList
+    [ (4, [i, ___, ___, ___])
     ]
