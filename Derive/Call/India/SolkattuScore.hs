@@ -5,6 +5,8 @@
 -- | Korvais expressed in SolkattuDsl.
 module Derive.Call.India.SolkattuScore where
 import Prelude hiding ((-), repeat)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.SolkattuDsl
@@ -46,7 +48,7 @@ chatusram1_4 = check $ Solkattu.korvai (adi 4) mridangam $
         [ (ta - ka, [k, p])
         ]
 
-chatusram1_mridangam :: [(Sequence, [Maybe Stroke])]
+chatusram1_mridangam :: [(Sequence, [MNote])]
 chatusram1_mridangam =
     [ (ta - dit, [k, t])
     , (dit, [k])
@@ -56,12 +58,12 @@ chatusram1_mridangam =
 
 -- * kanda nadai
 
-kandam1_var :: [Korvai]
-kandam1_var = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
+kandam1_vars :: [Korvai]
+kandam1_vars = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
     where gaps = [thom - __ - ta - __, thom - __2, thom - __, thom, mempty]
 
 kandam1 :: Sequence -> Sequence -> Korvai
-kandam1 pt gap = check $ Solkattu.korvai (adi 5) mridangam $
+kandam1 pt gap = check $ Solkattu.korvai (adi 5) kandam1_mridangam $
       at0 - ta - __ - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
     - atX - ta - ka - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
     - at0 - ta - __ - di - __ - ki - ta - __ - gap
@@ -70,13 +72,26 @@ kandam1 pt gap = check $ Solkattu.korvai (adi 5) mridangam $
         5 -> p567
         6 -> p666
         _ -> p765
-    where
-    mridangam =
-        [ (ta, [k])
-        , (ta - di - ki - ta, [k, t, k, n])
-        , (ta - ka - di - ki - ta, [k, p, t, k, n])
-        , (ta - din, [k, od])
-        ]
+
+kandam1_mridangam :: [(Sequence, [MNote])]
+kandam1_mridangam =
+    [ (ta, [k])
+    , (ta - ka, [k, p])
+    , (ta - di - ki - ta, [k, t, k, n])
+    , (ta - ka - di - ki - ta, [k, p, t, k, n])
+    , (ta - din, [k, od])
+    ]
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
+
+
+-- * realize
+
+realize :: Solkattu.Korvai -> IO ()
+realize korvai = Text.IO.putStrLn $ case result of
+    Left errs -> Text.unlines $ "ERROR:" : errs
+    Right notes -> Solkattu.pretty_strokes_tala tala notes
+    where
+    result = Solkattu.realize_korvai default_patterns default_karvai korvai
+    tala = Solkattu.korvai_tala korvai

@@ -209,7 +209,10 @@ type MridangamMap = Map.Map [Sollu] [Stroke]
 
 -- | length Strokes should equal Matras.
 -- TODO enforce it in constructor
-type Patterns = Map.Map Matras [Maybe Stroke]
+type Patterns = Map.Map Matras [MNote]
+
+data MNote = MNote Stroke | MRest
+    deriving (Show)
 
 data Stroke = Thoppi !Thoppi | Valantalai Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Show)
@@ -222,6 +225,9 @@ instance Pretty.Pretty Stroke where
     pretty (Thoppi t) = pretty t
     pretty (Valantalai v) = pretty v
     pretty (Both t v) = pretty t <> pretty v
+instance Pretty.Pretty MNote where
+    pretty MRest = "-"
+    pretty (MNote s) = pretty s
 
 instance Pretty.Pretty Thoppi where
     pretty n = case n of
@@ -244,7 +250,7 @@ instance Pretty.Pretty Korvai where
         ]
 
 -- | Check for errors and construct a 'Korvai'.
-korvai :: Tala -> [(Sequence, [Maybe Stroke])] -> Sequence -> Either Text Korvai
+korvai :: Tala -> [(Sequence, [MNote])] -> Sequence -> Either Text Korvai
 korvai tala mridangam sequence = do
     mmap <- check_mridangam_map mridangam
     return $ Korvai
@@ -253,7 +259,7 @@ korvai tala mridangam sequence = do
         , korvai_tala = tala
         }
 
-check_mridangam_map :: [(Sequence, [Maybe Stroke])] -> Either Text MridangamMap
+check_mridangam_map :: [(Sequence, [MNote])] -> Either Text MridangamMap
 check_mridangam_map = unique <=< mapM check
     where
     check (sollus, strokes) = do
@@ -263,8 +269,8 @@ check_mridangam_map = unique <=< mapM check
             Sollu s NoKarvai _ -> Right s
             _ -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \s -> case s of
-            Just s -> Right s
-            Nothing -> throw "should have plain strokes, no rests"
+            MNote s -> Right s
+            MRest -> throw "should have plain strokes, no rests"
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths"
         return (sollus, strokes)
@@ -279,32 +285,38 @@ standard_mridangam_map = Map.fromList
     ]
 
 -- | Realize a Korvai in mridangam strokes.
-realize_korvai :: Patterns -> Korvai -> Either [Text] [Maybe Stroke]
+realize_korvai :: Patterns -> Korvai -> Either [Text] [MNote]
 realize_korvai patterns korvai = do
     rnotes <- realize_tala (korvai_tala korvai) (korvai_sequence korvai)
-    first (:[]) $ realize_mridangam patterns (korvai_mridangam korvai) rnotes
+    realize_mridangam patterns (korvai_mridangam korvai) rnotes
 
 realize_mridangam :: Patterns -> MridangamMap -> [RealizedNote]
-    -> Either Text [Maybe Stroke]
-realize_mridangam patterns mmap = go
+    -> Either [Text] [MNote]
+realize_mridangam patterns mmap = format_error . go
     where
-    go [] = Right []
+    go :: [RealizedNote] -> ([[MNote]], Maybe (Text, [RealizedNote]))
+    go [] = ([], Nothing)
     go (n : ns) = case n of
         RPattern dur -> case Map.lookup dur patterns of
-            Nothing -> Left $ "no pattern with duration " <> showt dur
-            Just mseq -> (mseq<>) <$> go ns
-        RRest dur -> (replicate dur Nothing <>) <$> go ns
-        RSollu _ (Just stroke) -> (Just stroke :) <$> go ns
-        RSollu sollu Nothing -> do
-            (strokes, rest) <- add_context (n:ns) $
-                find_mridangam_sequence mmap sollu ns
-            (strokes<>) <$> go rest
-    add_context notes = first (("at " <> pretty (take 16 notes) <> ": ") <>)
+            Nothing ->
+                ([], Just ("no pattern with duration " <> showt dur, n:ns))
+            Just mseq -> first (mseq:) (go ns)
+        RRest dur -> first (replicate dur MRest :) (go ns)
+        RSollu _ (Just stroke) -> first ([MNote stroke] :) (go ns)
+        RSollu sollu Nothing -> case find_mridangam_sequence mmap sollu ns of
+            Right (strokes, rest) -> first (strokes:) (go rest)
+            Left err -> ([], Just (err, n:ns))
+    format_error (result, Nothing) = Right (concat result)
+    format_error (pre, Just (err, post)) = Left $
+        [ Text.intercalate " / " $ map pretty_strokes pre
+        , "*** " <> err
+        , Text.unwords (map pretty post)
+        ]
 
 -- | Find the longest matching sequence until the sollus are consumed or
 -- a sequence isn't found.
 find_mridangam_sequence :: MridangamMap -> Sollu -> [RealizedNote]
-    -> Either Text ([Maybe Stroke], [RealizedNote])
+    -> Either Text ([MNote], [RealizedNote])
 find_mridangam_sequence mmap sollu notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
@@ -321,24 +333,37 @@ find_mridangam_sequence mmap sollu notes =
 
 -- | Match each stroke to its RealizedNote, and insert rests where the
 -- RealizedNotes has them.
-insert_rests :: [Stroke] -> [RealizedNote] -> ([Maybe Stroke], [RealizedNote])
+insert_rests :: [Stroke] -> [RealizedNote] -> ([MNote], [RealizedNote])
 insert_rests [] ns = ([], ns)
 insert_rests (stroke : strokes) (n : ns) = case n of
     RRest dur ->
-        first (replicate dur Nothing ++) $ insert_rests (stroke : strokes) ns
-    -- This shouldn't happen because the strokes are from the result of
-    -- span_sollus.
+        first (replicate dur MRest ++) $ insert_rests (stroke : strokes) ns
+    RSollu {} -> first (MNote stroke :) $ insert_rests strokes ns
+    -- These shouldn't happen because the strokes are from the result of
+    -- Seq.span_while is_sollu.
     RPattern {} -> insert_rests (stroke : strokes) ns
-    RSollu {} -> first (Just stroke :) $ insert_rests strokes ns
 insert_rests (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the MridangamMap should be
     -- the same length as the RealizedNotes used to find them.
 
-show_strokes :: Int -> [Maybe Stroke] -> Text
-show_strokes chunk_size =
-    Text.unlines . map Text.unwords . Seq.chunked chunk_size . map stroke
+-- | Format the notes according to the tala.
+pretty_strokes_tala :: Tala -> [MNote] -> Text
+pretty_strokes_tala tala =
+    Text.stripEnd . Text.unlines . map pretty_avartanam
+        . Seq.chunked (tala_matras tala) . zip [0..]
     where
-    stroke = Text.justifyLeft 2 ' ' . maybe "-" pretty
+    pretty_avartanam = Text.unlines . map (Text.unwords . map stroke1) . split
+        where
+        split xs = [pre, post]
+            where (pre, post) = splitAt (tala_arudi tala * tala_nadai tala) xs
+    stroke1 (i, stroke) =
+        (if beat then emphasize else id) $
+            Text.justifyLeft 2 ' ' (pretty stroke)
+        where beat = i `mod` tala_nadai tala == 0
+    emphasize txt = "\ESC[1m" <> txt <> "\ESC[0m"
+
+pretty_strokes :: [MNote] -> Text
+pretty_strokes = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 
 -- | Pretty reproduces the SolkattuScore syntax, which has to be haskell
 -- syntax, so it can't use +, and I have to put thoppi first to avoid the

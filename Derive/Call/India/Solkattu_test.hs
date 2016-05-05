@@ -60,12 +60,15 @@ test_realize_karvai = do
     equal (f 2 (ta <> kar di)) (Right "ta di __ __")
 
 test_realize_mridangam = do
-    let f = second show_strokes
+    let f = (Text.unlines *** show_strokes)
             . Solkattu.realize_mridangam SolkattuDsl.simple_patterns mmap
-        mmap = Maybe.catMaybes <$> Map.fromList
-            [ ([Ta, Din], [SolkattuDsl.k, SolkattuDsl.od])
-            , ([Ta], [SolkattuDsl.t])
+        mmap = Map.fromList
+            [ ([Ta, Din], [k, od])
+            , ([Ta], [t])
             ]
+        k = Solkattu.Valantalai Solkattu.MKi
+        t = Solkattu.Valantalai Solkattu.MTa
+        od = Both Solkattu.MThom Solkattu.MDin
     equal (f [RRest 1, RSollu Ta Nothing, RRest 2, RSollu Din Nothing])
         (Right "- k - - od")
     equal (f [RPattern 5, RRest 1, RSollu Ta Nothing, RSollu Din Nothing])
@@ -73,8 +76,8 @@ test_realize_mridangam = do
     equal (f [RSollu Ta Nothing, RSollu Ta Nothing]) (Right "t t")
     left_like (f [RSollu Din Nothing, RSollu Din Nothing]) "sequence not found"
 
-show_strokes :: [Maybe Stroke] -> Text
-show_strokes = Text.unwords . map (maybe "-" pretty)
+show_strokes :: [Solkattu.MNote] -> Text
+show_strokes = Text.unwords . map pretty
 
 test_check_mridangam_map = do
     let f = fmap Map.toList . Solkattu.check_mridangam_map

@@ -7,7 +7,7 @@
 -- This module is meant to be imported unqualified.
 module Derive.Call.India.SolkattuDsl (
     -- * solkattu
-    Sequence, Korvai, Matras, Stroke
+    Sequence, Korvai, Matras, Stroke, MNote
     -- ** sollus
     , (-)
     , __, __2, __3, __n
@@ -41,7 +41,7 @@ import Util.Pretty (pprint)
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
        (Sequence, Korvai, Matras, Note(..), Karvai(..), Sollu(..), Stroke(..),
-        check, duration, dropM)
+        MNote(..), check, duration, dropM)
 import Global
 
 
@@ -106,10 +106,10 @@ kar notes = case reverse notes of
         Pattern d _ -> Pattern d Karvai : ns
         _ -> Solkattu.error_stack "kar: last not can't have karvai"
 
-st :: Maybe Stroke -> Sequence -> Sequence
+st :: MNote -> Sequence -> Sequence
 st _ [] = Solkattu.error_stack $ "st: empty sequence"
-st Nothing _ = Solkattu.error_stack $ "st: stroke was a rest"
-st (Just stroke) (n:ns) = case n of
+st MRest _ = Solkattu.error_stack $ "st: stroke was a rest"
+st (MNote stroke) (n:ns) = case n of
     Sollu s karvai _ -> Sollu s karvai (Just stroke) : ns
     _ -> Solkattu.error_stack $ "st: can't add stroke to " <> pretty n
 
@@ -145,26 +145,26 @@ sep with = List.intercalate with
 
 -- * mridangam
 
-k, t, n, d, u, i, o, p :: Maybe Stroke
-k = Just (Solkattu.Valantalai Solkattu.MKi)
-t = Just (Solkattu.Valantalai Solkattu.MTa)
-n = Just (Solkattu.Valantalai Solkattu.MNam)
-d = Just (Solkattu.Valantalai Solkattu.MDin)
-u = Just (Solkattu.Valantalai Solkattu.MChapu)
-i = Just (Solkattu.Valantalai Solkattu.MDheem)
+k, t, n, d, u, i, o, p :: MNote
+k = MNote (Solkattu.Valantalai Solkattu.MKi)
+t = MNote (Solkattu.Valantalai Solkattu.MTa)
+n = MNote (Solkattu.Valantalai Solkattu.MNam)
+d = MNote (Solkattu.Valantalai Solkattu.MDin)
+u = MNote (Solkattu.Valantalai Solkattu.MChapu)
+i = MNote (Solkattu.Valantalai Solkattu.MDheem)
 
-p = Just (Solkattu.Thoppi Solkattu.MTha)
-o = Just (Solkattu.Thoppi Solkattu.MThom)
+p = MNote (Solkattu.Thoppi Solkattu.MTha)
+o = MNote (Solkattu.Thoppi Solkattu.MThom)
 
 -- | do would match score notation, but do is a keyword.
 -- Ultimately that's because score uses + for tha, and +o is an attr, while o+
 -- is a bareword.  But perhaps I should change + to p in the score, and then
 -- the left hand can go on the left side?
-od :: Maybe Stroke
-od = Just (Both Solkattu.MThom Solkattu.MDin)
+od :: MNote
+od = MNote (Both Solkattu.MThom Solkattu.MDin)
 
-___ :: Maybe Stroke
-___ = Nothing
+___ :: MNote
+___ = MRest
 
 simple_patterns :: Solkattu.Patterns
 simple_patterns = Map.fromList
