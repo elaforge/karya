@@ -85,6 +85,9 @@ data Tala = Tala {
     , tala_nadai :: !Matras
     } deriving (Show)
 
+tala_matras :: Tala -> Matras
+tala_matras tala = tala_aksharas tala * tala_nadai tala
+
 instance Pretty.Pretty Tala where
     format (Tala aksharas arudi nadai) = Pretty.record "Tala"
         [ ("aksharas", Pretty.format aksharas)
@@ -104,7 +107,6 @@ realize_tala tala =
     is_alignment (Alignment align) = Just align
     is_alignment _ = Nothing
     apply_karvai = either Left (uncurry realize_karvai)
-    -- apply_patterns = either ((:[]) . Left) (realize_patterns patterns)
     check_errors groups
         | any Either.isLeft groups = Left $ map (either id pretty) groups
         | otherwise = Right $ concatMap (either (const []) id) groups
@@ -157,7 +159,7 @@ verify_durations :: Tala -> [(Alignment, [Note])]
 verify_durations tala notes =
     map (verify . second (maybe Sam fst)) $ Seq.zip_next $ drop_initial notes
     where
-    -- If the sequenced started with Sam, I'll get an extra here.
+    -- If the sequence started with Sam, I'll get an extra here.
     drop_initial ((Sam, []) : ns@((Sam, _) : _)) = ns
     drop_initial ns = ns
     verify ((align, notes), next) = case (align, next) of
@@ -167,7 +169,7 @@ verify_durations tala notes =
         (Sam, Arudi) -> transition "Sam->Arudi"
             (tala_nadai tala * tala_arudi tala)
         (Sam, Sam) -> Right (until - dur, notes)
-            where until = round_up dur (tala_aksharas tala)
+            where until = round_up dur (tala_matras tala)
         where
         dur = duration notes
         transition name until

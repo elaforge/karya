@@ -4,7 +4,6 @@
 
 module Derive.Call.India.Solkattu_test where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import Util.Test
@@ -20,7 +19,7 @@ import Global
 test_realize_tala = do
     let f = (Text.intercalate "; " *** map pretty)
             . Solkattu.realize_tala (Solkattu.adi_tala 2)
-    pprint (f (ta <> di <> ki <> ta))
+    left_like (f (ta <> di <> ki <> ta)) "no karvai but there's unfilled space"
     equal (f (kar ta <> di <> ki <> ta))
         (Right ["ta", "__4", "di", "ki", "ta"])
     equal (f (kar ta <> di <> kar ki <> ta))
@@ -49,9 +48,9 @@ test_verify_durations = do
         [ Left "Sam->Arudi transition should have <= 8 matras, but has 9"
         , Left "Arudi->Sam transition should have <= 8 matras, but has 10"
         ]
-    equal (f [(Sam, take 4 tdkt)]) [Right (4, "[ta, di, ki, ta]")]
+    equal (f [(Sam, take 4 tdkt)]) [Right (12, "[ta, di, ki, ta]")]
     equal (f [(Sam, take 8 tdkt)])
-        [Right (0, "[ta, di, ki, ta, ta, di, ki, ta]")]
+        [Right (8, "[ta, di, ki, ta, ta, di, ki, ta]")]
     equal (f [(Sam, take 9 tdkt)])
         [Right (7, "[ta, di, ki, ta, ta, di, ki, ta, ta]")]
 
