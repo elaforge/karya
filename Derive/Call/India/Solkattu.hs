@@ -9,6 +9,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -202,17 +203,50 @@ dropM matras ns = case ns of
 
 data Korvai = Korvai {
     korvai_sequence :: Sequence
-    , korvai_mridangam :: MridangamMap
+    , korvai_mridangam :: StrokeMap
     , korvai_tala :: Tala
     } deriving (Show)
 
--- | [Sollu] and Strokes should be the same length.
--- TODO enforce it in constructor
-type MridangamMap = Map.Map [Sollu] [Stroke]
+-- | [Sollu] and Strokes should be the same length.  This is enforced in the
+-- constructor 'stroke_map'.
+newtype StrokeMap = StrokeMap (Map.Map [Sollu] [Stroke])
+    deriving (Show, Pretty.Pretty, Monoid.Monoid)
 
--- | length Strokes should equal Matras.
--- TODO enforce it in constructor
-type Patterns = Map.Map Matras [MNote]
+stroke_map :: [(Sequence, [MNote])] -> Either Text StrokeMap
+stroke_map = unique <=< mapM check
+    where
+    check (sollus, strokes) = do
+        let throw = Left
+                . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
+        sollus <- forM sollus $ \s -> case s of
+            Sollu s NoKarvai _ -> Right s
+            _ -> throw $ "should only have plain sollus: " <> pretty s
+        strokes <- forM strokes $ \s -> case s of
+            MNote s -> Right s
+            MRest -> throw "should have plain strokes, no rests"
+        unless (length sollus == length strokes) $
+            throw "sollus and strokes have differing lengths"
+        return (sollus, strokes)
+    unique pairs
+        | null dups = Right (StrokeMap smap)
+        | otherwise = Left $ "duplicate mridangam keys: " <> pretty dups
+        where (smap, dups) = Util.Map.unique2 pairs
+
+-- | Matras should equal length [MNote].  This is enforced in the constructor
+-- 'patterns'.
+newtype Patterns = Patterns (Map.Map Matras [MNote])
+    deriving (Show)
+
+patterns :: [(Matras, [MNote])] -> Either Text Patterns
+patterns pairs
+    | null wrong = Right $ Patterns $ Map.fromList pairs
+    | otherwise = Left $ Text.intercalate "; " wrong
+    where
+    wrong =
+        [ "matras should match notes: " <> showt matras <> " /= " <> pretty ns
+        | (matras, ns) <- pairs
+        , matras /= length ns
+        ]
 
 data MNote = MNote Stroke | MRest
     deriving (Show)
@@ -255,47 +289,28 @@ instance Pretty.Pretty Korvai where
 -- | Check for errors and construct a 'Korvai'.
 korvai :: Tala -> [(Sequence, [MNote])] -> Sequence -> Either Text Korvai
 korvai tala mridangam sequence = do
-    mmap <- check_mridangam_map mridangam
+    smap <- stroke_map mridangam
     return $ Korvai
         { korvai_sequence = sequence
-        , korvai_mridangam = mmap <> standard_mridangam_map
+        , korvai_mridangam = smap <> standard_stroke_map
         , korvai_tala = tala
         }
 
-check_mridangam_map :: [(Sequence, [MNote])] -> Either Text MridangamMap
-check_mridangam_map = unique <=< mapM check
-    where
-    check (sollus, strokes) = do
-        let throw = Left
-                . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
-        sollus <- forM sollus $ \s -> case s of
-            Sollu s NoKarvai _ -> Right s
-            _ -> throw $ "should only have plain sollus: " <> pretty s
-        strokes <- forM strokes $ \s -> case s of
-            MNote s -> Right s
-            MRest -> throw "should have plain strokes, no rests"
-        unless (length sollus == length strokes) $
-            throw "sollus and strokes have differing lengths"
-        return (sollus, strokes)
-    unique pairs
-        | null dups = Right mmap
-        | otherwise = Left $ "duplicate mridangam keys: " <> pretty dups
-        where (mmap, dups) = Util.Map.unique2 pairs
-
-standard_mridangam_map :: MridangamMap
-standard_mridangam_map = Map.fromList
+standard_stroke_map :: StrokeMap
+standard_stroke_map = StrokeMap $ Map.fromList
     [ ([Thom], [Thoppi MThom])
     ]
 
 -- | Realize a Korvai in mridangam strokes.
-realize_korvai :: Patterns -> Patterns -> Korvai -> Either [Text] [MNote]
-realize_korvai patterns karvai_patterns korvai = do
+realize_korvai :: Patterns -> Patterns -> Korvai -> Either Text [MNote]
+realize_korvai patterns karvai_patterns korvai = first Text.unlines $ do
     rnotes <- realize_tala (korvai_tala korvai) (korvai_sequence korvai)
     realize_mridangam patterns karvai_patterns (korvai_mridangam korvai) rnotes
 
-realize_mridangam :: Patterns -> Patterns -> MridangamMap -> [RealizedNote]
+realize_mridangam :: Patterns -> Patterns -> StrokeMap -> [RealizedNote]
     -> Either [Text] [MNote]
-realize_mridangam patterns karvai_patterns mmap = format_error . go
+realize_mridangam (Patterns patterns) (Patterns karvai_patterns) smap =
+    format_error . go
     where
     go :: [RealizedNote] -> ([[MNote]], Maybe (Text, [RealizedNote]))
     go [] = ([], Nothing)
@@ -309,7 +324,7 @@ realize_mridangam patterns karvai_patterns mmap = format_error . go
             Just mseq -> first (mseq:) (go ns)
         RRest dur -> first (replicate dur MRest :) (go ns)
         RSollu _ (Just stroke) -> first ([MNote stroke] :) (go ns)
-        RSollu sollu Nothing -> case find_mridangam_sequence mmap sollu ns of
+        RSollu sollu Nothing -> case find_mridangam_sequence smap sollu ns of
             Right (strokes, rest) -> first (strokes:) (go rest)
             Left err -> ([], Just (err, n:ns))
     format_error (result, Nothing) = Right (concat result)
@@ -321,9 +336,9 @@ realize_mridangam patterns karvai_patterns mmap = format_error . go
 
 -- | Find the longest matching sequence until the sollus are consumed or
 -- a sequence isn't found.
-find_mridangam_sequence :: MridangamMap -> Sollu -> [RealizedNote]
+find_mridangam_sequence :: StrokeMap -> Sollu -> [RealizedNote]
     -> Either Text ([MNote], [RealizedNote])
-find_mridangam_sequence mmap sollu notes =
+find_mridangam_sequence (StrokeMap smap) sollu notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes ->
@@ -334,7 +349,7 @@ find_mridangam_sequence mmap sollu notes =
     is_sollu (RSollu s Nothing) = Just (Just s)
     is_sollu (RRest {}) = Just Nothing
     is_sollu _ = Nothing
-    longest_match = Seq.head . mapMaybe (flip Map.lookup mmap) . reverse
+    longest_match = Seq.head . mapMaybe (flip Map.lookup smap) . reverse
         . drop 1 . List.inits
 
 -- | Match each stroke to its RealizedNote, and insert rests where the
@@ -350,7 +365,7 @@ insert_rests (stroke : strokes) (n : ns) = case n of
     RPattern {} -> insert_rests (stroke : strokes) ns
     RKarvai {} -> insert_rests (stroke : strokes) ns
 insert_rests (_:_) [] = ([], [])
-    -- This shouldn't happen because strokes from the MridangamMap should be
+    -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
 
 -- | Format the notes according to the tala.

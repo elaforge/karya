@@ -5,11 +5,11 @@
 -- | Korvais expressed in SolkattuDsl.
 module Derive.Call.India.SolkattuScore where
 import Prelude hiding ((-), repeat)
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.SolkattuDsl
+import Global
 
 
 -- * chatusra nadai
@@ -103,7 +103,7 @@ adi = Solkattu.adi_tala
 
 realize :: Solkattu.Korvai -> IO ()
 realize korvai = Text.IO.putStrLn $ case result of
-    Left errs -> Text.unlines $ "ERROR:" : errs
+    Left err -> "ERROR:\n" <> err
     Right notes -> Solkattu.pretty_strokes_tala tala notes
     where
     result = Solkattu.realize_korvai default_patterns default_karvai korvai

@@ -21,10 +21,10 @@ test_realize_tala = do
             . Solkattu.realize_tala (Solkattu.adi_tala 2)
     left_like (f (ta <> di <> ki <> ta)) "no karvai but there's unfilled space"
     equal (f (kar ta <> di <> ki <> ta))
-        (Right ["ta", "__4", "di", "ki", "ta"])
+        (Right ["ta", "__k12", "di", "ki", "ta"])
     equal (f (kar ta <> di <> kar ki <> ta))
-        (Right ["ta", "__2", "di", "ki", "__2", "ta"])
-    left_like (f (kar ta <> kar di <> kar ki <> ta)) "uneven division"
+        (Right ["ta", "__k6", "di", "ki", "__k6", "ta"])
+    left_like (f (kar ta <> kar di <> kar ki <> ta <> ta)) "uneven division"
 
 realize_tala :: Solkattu.Korvai -> Either [Text] [Solkattu.RealizedNote]
 realize_tala korvai =
@@ -55,14 +55,15 @@ test_verify_durations = do
         [Right (7, "[ta, di, ki, ta, ta, di, ki, ta, ta]")]
 
 test_realize_karvai = do
-    let f dur = second (Text.unwords . map pretty) . Solkattu.realize_karvai dur
+    let f dur = fmap (map (fmap pretty)) . Solkattu.realize_karvai dur
     left_like (f 2 (ta <> di)) "no karvai but there's unfilled space"
-    equal (f 2 (ta <> kar di)) (Right "ta di __ __")
+    equal (f 2 (ta <> kar di)) $ Right [Right "ta", Right "di", Left 2]
 
 test_realize_mridangam = do
     let f = (Text.unlines *** show_strokes)
-            . Solkattu.realize_mridangam SolkattuDsl.simple_patterns mmap
-        mmap = Map.fromList
+            . Solkattu.realize_mridangam SolkattuDsl.default_patterns
+                SolkattuDsl.default_karvai smap
+        smap = Solkattu.StrokeMap $ Map.fromList
             [ ([Ta, Din], [k, od])
             , ([Ta], [t])
             ]
@@ -79,8 +80,9 @@ test_realize_mridangam = do
 show_strokes :: [Solkattu.MNote] -> Text
 show_strokes = Text.unwords . map pretty
 
-test_check_mridangam_map = do
-    let f = fmap Map.toList . Solkattu.check_mridangam_map
+test_stroke_map = do
+    let f = fmap (\(Solkattu.StrokeMap smap) -> Map.toList smap)
+            . Solkattu.stroke_map
         (k, t) = (SolkattuDsl.k, SolkattuDsl.t)
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])])

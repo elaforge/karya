@@ -1164,7 +1164,7 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         * karvai can have various realizations in the same way patterns can
-        - verify Patterns, key and pattern durations should be the same
+        * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as
           a 'p#' event.
         - Should I change mridangam notes to be consistent with SolkattuDsl?

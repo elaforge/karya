@@ -9,8 +9,6 @@ module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Derive.Call.India.SolkattuScore
 ) where
-import qualified Data.Text as Text
-
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -36,9 +34,11 @@ replace akshara_dur korvai = do
 
 realize_korvai :: State.M m => TrackTime -> Solkattu.Korvai -> m Events.Events
 realize_korvai stroke_dur korvai = do
-    strokes <- State.require_right Text.unlines $
-        Solkattu.realize_korvai SolkattuDsl.simple_patterns korvai
+    strokes <- State.require_right id $
+        Solkattu.realize_korvai SolkattuDsl.default_patterns
+            SolkattuDsl.default_karvai korvai
     return $ Events.from_list
         [ Event.event start 0 (Solkattu.stroke_to_call stroke)
-        | (start, Just stroke) <- zip (Seq.range_ 0 stroke_dur) strokes
+        | (start, Solkattu.MNote stroke)
+            <- zip (Seq.range_ 0 stroke_dur) strokes
         ]

@@ -33,7 +33,6 @@ module Derive.Call.India.SolkattuDsl (
 ) where
 import Prelude hiding ((-), repeat)
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
 import qualified Util.Log as Log
@@ -167,13 +166,13 @@ ___ :: MNote
 ___ = MRest
 
 default_patterns :: Solkattu.Patterns
-default_patterns = Map.fromList
+default_patterns = check $ Solkattu.patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, ___, k, n, o])
     , (7, [k, ___, t, ___, k, n, o])
     ]
 
 default_karvai :: Solkattu.Patterns
-default_karvai = Map.fromList
+default_karvai = check $ Solkattu.patterns
     [ (4, [i, ___, ___, ___])
     ]
