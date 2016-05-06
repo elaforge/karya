@@ -23,7 +23,9 @@
 // Turn this off to see the samples more clearly.
 static const bool smooth_linear = true;
 
-// The color of events at a non-zero rank is scaled by this.
+// The color of events at a non-zero rank is scaled by this.  This should be
+// high enough to make them easily distinguishable, but not so high they are
+// too low-contrast to read.
 static const double rank_brightness = 1.35;
 // The color of events with a negative duration is scaled by this.
 static const double negative_duration_brightness = .85;
@@ -610,9 +612,10 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 
 // Draw the stuff that goes on top of the event boxes: trigger line and text.
 std::pair<IRect, IRect>
-EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
-        int prev_offset, int next_offset,
-        const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
+EventTrackView::draw_upper_layer(
+    int offset, const Event &event, int rank,
+    int prev_offset, int next_offset,
+    const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
 {
     // So the overlap stuff is actually pretty tricky.  I want to hide
     // overlapping text so it doesn't get into an unreadable jumble.  It's also

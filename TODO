@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
+    disabling a track with 'D' is laggy.
+  * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
   * A playback mode that scrolled automatically would actually be useful.

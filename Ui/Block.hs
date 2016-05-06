@@ -307,9 +307,9 @@ display_track_width = dtrack_width . display_track
 flags_to_status :: Set.Set TrackFlag -> (Status, Double)
 flags_to_status flags
     | Disable `Set.member` flags =
-        (Just (chars Disable, Config.mute_color), 0.5)
+        (Just (chars Disable, Config.mute_color), 0.7)
     | Solo `Set.member` flags = (Just (chars Solo, Config.solo_color), 1)
-    | Mute `Set.member` flags = (Just (chars Mute, Config.mute_color), 0.75)
+    | Mute `Set.member` flags = (Just (chars Mute, Config.mute_color), 0.85)
     | otherwise = (Nothing, 1)
     where
     chars flag = filter (/=' ') $ flag_char flag
