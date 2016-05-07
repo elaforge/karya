@@ -22,6 +22,7 @@ import qualified Foreign
 import Foreign.C
 
 import qualified Util.Num as Num
+import Global
 
 
 -- | Throw if 'n' isn't between the half open range lo--hi.
@@ -30,8 +31,8 @@ in_range :: (Show a, Integral a, Num b) => String -> a -> a -> a -> b
 in_range desc lo hi n
     | lo <= n && n < hi = fromIntegral n
         -- TODO: throw a specific error?
-    | otherwise = error $ desc ++ ": number " ++ show n ++ " out of range ("
-        ++ show lo ++ "--" ++ show hi ++ ")"
+    | otherwise = errorStack $ desc ++ ": number " ++ show n
+        ++ " out of range (" ++ show lo ++ "--" ++ show hi ++ ")"
 
 c_int :: Int -> CInt
 c_int = fromIntegral -- c ints should be at least as big as hs ones

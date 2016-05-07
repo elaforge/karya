@@ -439,7 +439,7 @@ dyn_call_map = Map.fromList $ (("-", dc_flat) :) $
         ]
     validate_names = map $ first $ \name ->
         if Text.all valid_dcall_char name then name
-            else error $ "invalid name: " <> show name
+            else errorStack $ "invalid name: " <> show name
     speed_permutations calls =
         [ (name <> suffix, call speed)
         | (name, call) <- calls, (speed, suffix) <- speeds
@@ -562,8 +562,10 @@ pitch_call_map = resolve $ Map.unique $ concat
     ]
     where
     resolve (calls, duplicates)
-        | null duplicates = either (error . untxt) id (resolve_aliases calls)
-        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
+        | null duplicates =
+            either (errorStack . untxt) id (resolve_aliases calls)
+        | otherwise =
+            errorStack $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
     alias name to = (name, Left to)
     pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
@@ -608,8 +610,10 @@ pitch_call_map2 = resolve $ Map.unique $ concat
     ]
     where
     resolve (calls, duplicates)
-        | null duplicates = either (error . untxt) id (resolve_aliases calls)
-        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
+        | null duplicates =
+            either (errorStack . untxt) id (resolve_aliases calls)
+        | otherwise =
+            errorStack $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
     alias name to = (name, Left to)
     pcall name doc c = (name, Right $ PitchCall name doc 1 False c)

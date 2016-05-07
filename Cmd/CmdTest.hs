@@ -121,8 +121,8 @@ run_ui_io ustate = run_io ustate default_cmd_state
 -- | Run a Cmd and return just the value.
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
-    Left err -> error $ "eval got StateError: " ++ show err
-    Right Nothing -> error "eval: cmd aborted"
+    Left err -> errorStack $ "eval got StateError: " ++ show err
+    Right Nothing -> errorStack "eval: cmd aborted"
     Right (Just val) -> val
 
 -- | Like 'run', but with a selection on the given track at 0 and note
@@ -153,7 +153,7 @@ extract_derive ex = DeriveTest.extract ex . extract_derive_result
 extract_derive_result :: Result a -> Derive.Result
 extract_derive_result res =
     maybe (eval (result_ui_state res) (result_cmd_state res) mkres)
-        (error . (msg++)) (result_failed res)
+        (errorStack . (msg++)) (result_failed res)
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
@@ -162,7 +162,7 @@ extract_derive_result res =
         let stream = Stream.merge_logs logs $
                 Stream.from_sorted_events (Vector.toList events)
         return $ Derive.Result stream cache warps tsigs track_dyn integrated
-            (error "can't fake a Derive.State for an extracted Result")
+            (errorStack "can't fake a Derive.State for an extracted Result")
 
 -- | Update the performances based on the UI state change and updates.  This
 -- manually runs that part of the responder, and is needed for tests that rely

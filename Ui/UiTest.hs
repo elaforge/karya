@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -131,20 +132,20 @@ default_ruler_id = rid "r0"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
-run :: State.State -> State.StateId a -> (a, State.State)
+run :: Util.Control.Stack => State.State -> State.StateId a -> (a, State.State)
 run state m = case result of
-        Left err -> error $ "state error: " ++ show err
+        Left err -> errorStack $ "state error: " ++ show err
         Right (val, state', _) -> (val, state')
     where result = Identity.runIdentity (State.run state m)
 
-exec :: State.State -> State.StateId a -> State.State
+exec :: Util.Control.Stack => State.State -> State.StateId a -> State.State
 exec state m = case State.exec state m of
-    Left err -> error $ "state error: " ++ show err
+    Left err -> errorStack $ "state error: " ++ show err
     Right state' -> state'
 
-eval :: State.State -> State.StateId a -> a
+eval :: Util.Control.Stack => State.State -> State.StateId a -> a
 eval state m = case State.eval state m of
-    Left err -> error $ "state error: " ++ show err
+    Left err -> errorStack $ "state error: " ++ show err
     Right val -> val
 
 run_mkblock :: [TrackSpec] -> ([TrackId], State.State)
@@ -250,9 +251,10 @@ mk_vid_name = mk_vid . bid
 mk_tid :: TrackNum -> TrackId
 mk_tid = mk_tid_block default_block_id
 
-mk_tid_block :: BlockId -> TrackNum -> TrackId
+mk_tid_block :: Util.Control.Stack => BlockId -> TrackNum -> TrackId
 mk_tid_block block_id i
-    | i < 1 = error $ "mk_tid_block: event tracknums start at 1: " ++ show i
+    | i < 1 = errorStack $
+        "mk_tid_block: event tracknums start at 1: " ++ show i
     | otherwise = Id.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 

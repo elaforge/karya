@@ -99,18 +99,18 @@ dheem = sollu Dheem
 -- | Put karvai after the sollus.
 kar :: Log.Stack => Sequence -> Sequence
 kar notes = case reverse notes of
-    [] -> Solkattu.error_stack "kar: empty sequence"
+    [] -> errorStack "kar: empty sequence"
     n : ns -> reverse $ case n of
         Sollu s _ stroke -> Sollu s Karvai stroke : ns
         Pattern d _ -> Pattern d Karvai : ns
-        _ -> Solkattu.error_stack "kar: last not can't have karvai"
+        _ -> errorStack "kar: last not can't have karvai"
 
 st :: MNote -> Sequence -> Sequence
-st _ [] = Solkattu.error_stack $ "st: empty sequence"
-st MRest _ = Solkattu.error_stack $ "st: stroke was a rest"
+st _ [] = errorStack $ "st: empty sequence"
+st MRest _ = errorStack $ "st: stroke was a rest"
 st (MNote stroke) (n:ns) = case n of
     Sollu s karvai _ -> Sollu s karvai (Just stroke) : ns
-    _ -> Solkattu.error_stack $ "st: can't add stroke to " <> pretty n
+    _ -> errorStack $ "st: can't add stroke to " <> prettys n
 
 at0, atX :: Sequence
 at0 = sq $ Alignment Solkattu.Sam

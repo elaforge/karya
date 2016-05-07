@@ -59,7 +59,7 @@ run_control_dur events = extract $
         (Signal.unsignal . Score.typed_val . get
             . Score.event_transformed_controls)
     get fm = case Map.lookup "cont" fm of
-        Nothing -> error "expected a 'cont' control"
+        Nothing -> errorStack "expected a 'cont' control"
         Just c -> c
 
 -- * call map
@@ -143,7 +143,8 @@ module_ :: Module.Module
 module_ = "test-module"
 
 expr :: Text -> BaseTypes.Expr
-expr = either (error . ("CallTest.expr: " ++) . untxt) id . Parse.parse_expr
+expr =
+    either (errorStack . ("CallTest.expr: " ++) . untxt) id . Parse.parse_expr
 
 val :: Text -> BaseTypes.Val
-val = either (error . ("CallTest.val: " ++) . untxt) id . Parse.parse_val
+val = either (errorStack . ("CallTest.val: " ++) . untxt) id . Parse.parse_val

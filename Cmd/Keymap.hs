@@ -29,6 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -360,7 +361,7 @@ show_bindable show_repeatable b = case b of
 -- conceptually a compile time error.
 --
 -- TODO isn't there some way I can get this at compile time?  template haskell?
-physical_key :: Char -> Char
+physical_key :: Util.Control.Stack => Char -> Char
 physical_key c =
-    fromMaybe (error $ "Keymap.physical_key " ++ show c ++ " not found") $
+    fromMaybe (errorStack $ "Keymap.physical_key " ++ show c ++ " not found") $
     KeyLayouts.from_qwerty Local.KeyLayout.layout c

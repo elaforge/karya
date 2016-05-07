@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 import System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
+import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
@@ -240,11 +241,11 @@ derive ui_state deriver = Derive.extract_result $
 
 -- | CmdTest also has this, but I can't import it because it imports
 -- DeriveTest.
-run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a -> a
+run_cmd :: Util.Control.Stack => State.State -> Cmd.State -> Cmd.CmdId a -> a
 run_cmd ui_state cmd_state cmd = case result of
     Right (Just result, _, _) -> result
-    Right (Nothing, _, _) -> error "DeriveTest.run_cmd: Cmd aborted"
-    Left err -> error $ "DeriveTest.run_cmd: Cmd error: " ++ show err
+    Right (Nothing, _, _) -> errorStack "DeriveTest.run_cmd: Cmd aborted"
+    Left err -> errorStack $ "DeriveTest.run_cmd: Cmd error: " ++ show err
     where
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state cmd
 
@@ -578,9 +579,9 @@ e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = map (second (Num.roundDigits 2)) . e_dyn
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
-e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns :: Util.Control.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
-    | not (null errs) = error $
+    | not (null errs) = errorStack $
         "DeriveTest.e_nns: errors flattening signal: " ++ show errs
     | otherwise = sig
     where (sig, errs) = e_nns_errors e
@@ -762,9 +763,9 @@ mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 mkpitch12 :: String -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
 
-mkpitch :: Scale.Scale -> String -> PSignal.Pitch
+mkpitch :: Util.Control.Stack => Scale.Scale -> String -> PSignal.Pitch
 mkpitch scale p = case eval State.empty deriver of
-    Left err -> error $ "mkpitch " ++ show p ++ ": " ++ err
+    Left err -> errorStack $ "mkpitch " ++ show p ++ ": " ++ err
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $

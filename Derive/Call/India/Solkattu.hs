@@ -404,10 +404,7 @@ stroke_to_call s = case s of
 -- * misc
 
 check :: Log.Stack => Either Text a -> a
-check = either error_stack id
-
-error_stack :: Log.Stack => Text -> a
-error_stack msg = error $ untxt $ Log.show_stack ?stack <> ": " <> msg
+check = either (errorStack . untxt) id
 
 -- * util
 

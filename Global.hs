@@ -16,7 +16,7 @@ module Global (
 
     , justm, rightm
     , firstJust, firstJusts
-    , errorIO
+    , errorStack, errorIO
     -- * pretty
     , pretty, prettys
 

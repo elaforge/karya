@@ -6,8 +6,10 @@ module Perform.Lilypond.LilypondTest where
 import qualified Data.List as List
 import qualified Data.Text.Lazy as Text.Lazy
 
+import qualified Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
@@ -244,15 +246,16 @@ derive_blocks_setup setup blocks =
     state = DeriveTest.setup_ui setup state_
     (bid:_, state_) = UiTest.run_mkblocks blocks
 
-derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result
+derive_lilypond :: Util.Control.Stack => State.State -> Derive.NoteDeriver
+    -> Derive.Result
 derive_lilypond state deriver =
     extract $ CmdTest.result_val $
         CmdTest.run state CmdTest.default_cmd_state $
         Cmd.Lilypond.derive deriver
     where
     extract (Right (Just val)) = val
-    extract (Right Nothing) = error "derive_lilypond: abort"
-    extract (Left err) = error $ "derive_lilypond: " ++ err
+    extract (Right Nothing) = errorStack "derive_lilypond: abort"
+    extract (Left err) = errorStack $ "derive_lilypond: " ++ err
 
 make_ly :: Types.Config -> [Types.Event] -> String
 make_ly config events = Text.Lazy.unpack $

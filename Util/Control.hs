@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Control flow and monadic utilities.
 module Util.Control (module Util.Control, module Control.Monad.Extra) where
 import qualified Control.Exception as Exception
@@ -12,6 +13,10 @@ import Control.Monad.Extra
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Monoid as Monoid
+import Data.Monoid ((<>))
+
+import qualified GHC.SrcLoc as SrcLoc
+import qualified GHC.Stack as Stack
 
 
 -- | This is like the hackage bifunctor package, but with no extra
@@ -84,5 +89,19 @@ firstJust action alternative = maybe alternative (return . Just) =<< action
 firstJusts :: Monad m => [m (Maybe a)] -> m (Maybe a)
 firstJusts = foldr firstJust (return Nothing)
 
-errorIO :: Trans.MonadIO m => String -> m a
+type Stack = (?stack :: Stack.CallStack)
+
+-- | Just like 'error', except show the caller's location.
+errorStack :: Stack => String -> a
+errorStack msg = error $ showStack ?stack <> ": " <> msg
+
+-- | Like 'errorStack', except run in IO.
+errorIO :: Stack => Trans.MonadIO m => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
+    . ((showStack ?stack <> ": ") <>)
+
+showStack :: Stack.CallStack -> String
+showStack stack = case reverse $ Stack.getCallStack stack of
+    (_, srcloc) : _ ->
+        SrcLoc.srcLocFile srcloc <> ":" <> show (SrcLoc.srcLocStartLine srcloc)
+    [] -> "<no-stack>"

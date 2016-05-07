@@ -18,7 +18,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
-import qualified Util.Log as Log
+import qualified Util.Control
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -52,9 +52,8 @@ literal = Given . Literal . Typecheck.to_val
 -- | Check the output of 'generator', 'transformer', or 'val' and crash if
 -- it had a statically-detectable error.  Of course I'd much rather this
 -- were a type error, but it's not worth breaking out TH for it.
-check :: Log.Stack => String -> Either Text a -> a
-check call_name (Left err) = error $ untxt (Log.show_stack ?stack) <> " - "
-    <> call_name <> ": " <> untxt err
+check :: Util.Control.Stack => String -> Either Text a -> a
+check call_name (Left err) = errorStack $ call_name <> ": " <> untxt err
 check _ (Right val) = val
 
 generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text

@@ -878,6 +878,7 @@ wantsHaddock midi hs = not $ or
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO sorta hacky
     , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
+    -- Temporary scratch files.
     , Char.isLower $ head hs
     ]
 

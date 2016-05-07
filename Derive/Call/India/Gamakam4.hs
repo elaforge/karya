@@ -175,8 +175,10 @@ pitch_call_map = resolve $ Map.unique $ concat
     ]
     where
     resolve (calls, duplicates)
-        | null duplicates = either (error . untxt) id (resolve_aliases calls)
-        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
+        | null duplicates =
+            either (errorStack . untxt) id (resolve_aliases calls)
+        | otherwise =
+            errorStack $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
     alias name duration to = (name, Left (duration, to))
     pcall name doc c = (name, Right $ PitchCall doc 1 False c)
