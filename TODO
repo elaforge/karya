@@ -5,6 +5,7 @@ LEGEND
 UNSORTED
   - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
     disabling a track with 'D' is laggy.
+    . But not always.  Maybe only after editing for a while?
   * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
@@ -319,15 +320,10 @@ lilypond:
     . On the other hand, I think I want to encourage nestedness and it should
       be easy to split.  The only reason viola-sonata has huge blocks is that
       it's a midi import.
-  / Derive.Call.Lily needs a naming refactor since there are too many vaguely
-    named flavours.
-  / I need some way to hide rests.
-    Add magic bit of code that turns its rest r4 into s4.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
-  / use Util.Format in ly output
   jianpu
     . Research jianpu conventions, but basically:
       . Hide staff lines, stems, beams.
@@ -433,29 +429,6 @@ local: plugins:
     module.  Shakefile can link in the local modules under the right name.
     . If it gets to be too much overhead to link on every single build, then
       I can load dynamically at runtime.
-  / Either dynamically load local inst definitions and local StaticConfig, or
-    auto-generate the link file Local/Instrument.hs.
-  / come up with plan for reloading inst config and static config
-    Really what I want to be able to do is recompile the static config
-    incrementally, relink it with the main binary *quickly*, and restart the
-    app with exactly the same state.  This should be a lightweight operation,
-    so it's feasible to edit some code, press play, edit code, and play
-    again.  That means a full-on serialize restart is out, because the cache
-    could be quite large.
-
-    Of course, you want this stuff in a library so it can be reused across
-    projects, so you can put it all in Local/.  Then the song state would
-    have a (hopefully minimal) linkage from hs namespaces to the tracklang
-    namespaces.
-
-    So with hs-plugins: The static config is considered a plugin.  You edit
-    Local/Config.hs, or edit other files in Local/.  It detects the change,
-    regenerates Local/Config.hs, recompiles and reloads it.  Then the
-    responder is called again with the new static config.
-
-    So I need to be able to re-initialize the responder with a new static
-    config.  Actually, the bits I care about are the call map and the cmd
-    map.
 
 cleanup:
   - BaseTypes.CallId should have a name more reminiscent of Symbol.
@@ -843,9 +816,6 @@ test:
       below the note tracks, results should be the same
     - stack: generate nested events, check that stack is as expected
   - count number of tests in addition to checks within each test
-  / use generics or Foldable or something to write a generic StructEqual
-    Doesn't seem that appealing, since I'd have to deriving Generic on
-    everything, and the diff oriented one seems to be ok.
 
 midi record:
   - implement
@@ -857,22 +827,8 @@ midi record:
 REPL: repl:
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
-  / If there are ambiguous packages exposed, e.g. both
-    regex-pcre-builtin (wrong) and regex-pcre (right), then the repl will
-    show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'
-    Presumably it gets confused because I don't put the -package-id and
-    -package flags into ghci-flags
-    . Presumably using a sandbox would fix this.
-  / Even though the shakefile tries to support multiple versions of packages
-    via 'cabal configure', I think they can still cause problems with ghci
-    loading.  This manifests as a long hang starting up while the repl
-    bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags needs
-    the full -package-id treatment.
-    . Obsolete if I use a sandbox, I think.
   - only write history when the cmd succeeded
   - command to open the haddock for a module
-  - haskeline sucks for long lines, add multiple line editing?
-    really I'd prefer plan9 style esc then edit
   - is Cmd.Lang.Fast now obsolete?
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
@@ -883,9 +839,6 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
-  - functions to load string serialized tracks for event cut and paste
-  - an aux data input for the lang socket might be useful, to paste in data
-    without having to quote it
 
 Cmd:
   Repl:
@@ -1173,39 +1126,10 @@ Derive:
         - Should I change mridangam notes to be consistent with SolkattuDsl?
           I have to put thoppi on the left, for 'od' instead of the keyword
           'do'.  And I have to change tha to p instead of +.
-      kanakku:
-        . I could come up with a notation for various transformations, but it
-          would have to be its own little language, due to the time aspect.  Or
-          just write haskell.  Furthermore, they're only useful so far as they
-          allow me to easily experiment, otherwise I might as well write them
-          out by hand.
-        . There should also be performance rules for variations, e.g. tk can be
-          played kk.  These can also apply to pitch instruments to make a pitch
-          contour more natural.
-        . If I realize a pattern in score, it should retain the structure, e.g.
-          [p5 p5 p5] 2 [p5 p5 p5] 2 [p5 p5 p5] can emit each p5 as a sub-block.
-          If it uses a standard name, it can reuse an existing one.
+        . Performance rules for variations, e.g. tk can be played kk.
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
-        . reduction / augmentation: repeat a pattern, clipping either a constant
-          time or one note from the beginning or end.
-          . It could be a transformer, but it seems like conceptually it seems
-            like it wants to be a score level transform that takes 'p' to 'p'
-            'Clip p' etc.
-        . multiplication: internal section repeats
-        . shell game: take time from one place and add to another
-      . I can write them down in a specialized language in the source, and then
-        they become a module with call names.  If I want to edit them, I can run
-        a cmd to materialize as a block.
-      Higher level notation that uses durations.
-        . Then a layer maps them to patterns in a specific instrument.  This way
-          I can also map to different instruments.
-        . This seems too vague to be useful.  Just duration is not enough to
-          capture much interesting about the pattern, but solkattu doesn't have
-          a predictable mapping.
-        . On the other hand, I could give duration, and then the actual
-          pattern is random.  But I'd still want a way to restrict to the same
-          pattern, e.g. use a variable, so all 'a's get the same pattern.
+        - Try an alternate realization for kendang bali.
     pakhawaj bols
       . Score integrate to convert bols to low level calls
         . Actually score integrate doesn't work like that, it just copies the
@@ -1551,7 +1475,7 @@ Derive:
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
   control functions:
-    - Could use rank to modify dyn and emphasize or deemphasize notes on
+    - Could use rank to modify dyn and emphasize or de-emphasize notes on
       important beats.
     . With 'real' and 'score' and the signal conversion functions, I gradually
       rewrite more and more functions from Deriver to functions with a
@@ -1565,13 +1489,13 @@ Derive:
       level version.  In fact I already have, everything Deriver uses
       TrackLang for can come from BaseTypes, except Typecheck.  Monad.val_call
       must move to Lib.
-    . Environ, Pitch, and Val all move into Derive.  And Score.Event.
-      This is getting to be pretty much everything.
-    . Another option is to make Derivers polymorphic.  I can put the
-      fields in TrackLang.Dynamic in a typeclass.
-    + Abstract 'state' and 'err' to a DeriveM, and implement
-      type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
-      . I can't reuse Deriver, but at least I get logging and errors.
+      . Environ, Pitch, and Val all move into Derive.  And Score.Event.
+        This is getting to be pretty much everything.
+      . Another option is to make Derivers polymorphic.  I can put the
+        fields in TrackLang.Dynamic in a typeclass.
+      + Abstract 'state' and 'err' to a DeriveM, and implement
+        type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
+        . I can't reuse Deriver, but at least I get logging and errors.
 
 pitch: scales: scale:
   scales / Derive.Scale:
