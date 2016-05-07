@@ -779,8 +779,8 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-derive_instrument :: Score.ControlValMap -> Inst -> Derive.Instrument
-derive_instrument controls inst = Derive.Instrument
+make_derive_instrument :: Score.ControlValMap -> Inst -> Derive.Instrument
+make_derive_instrument controls inst = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code common
     , inst_environ = Common.get_environ common
     , inst_controls = controls

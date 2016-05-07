@@ -62,10 +62,13 @@ data Result val = Result {
     }
 
 result_failed :: Result a -> Maybe String
-result_failed res = case result_val res of
-    Right (Just _) -> Nothing
-    Right Nothing -> Just "aborted"
-    Left err -> Just err
+result_failed = either Just (const Nothing) . result_ok
+
+result_ok :: Result a -> Either String a
+result_ok res = case result_val res of
+    Right (Just val) -> Right val
+    Right Nothing -> Left "aborted"
+    Left err -> Left err
 
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a

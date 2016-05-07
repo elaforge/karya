@@ -15,6 +15,7 @@ import qualified Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -40,9 +41,11 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
-import Types
 import Global
+import Types
 
 
 -- Test functions do things I don't want to include in non-testing code, such
@@ -315,6 +318,9 @@ note_spec (inst, pitches, controls) =
 note_track :: [EventSpec] -> [TrackSpec]
 note_track pitches = note_spec ("", pitches, [])
 
+inst_note_track :: (String, [EventSpec]) -> [TrackSpec]
+inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
+
 -- | Like 'note_track', but all notes have a duration of 1.
 note_track1 :: [String] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
@@ -475,6 +481,10 @@ r_4 = Meter.r_4
 
 -- * allocations
 
+midi_allocation :: Text -> Patch.Config -> StateConfig.Allocation
+midi_allocation qualified config = StateConfig.allocation
+    (InstTypes.parse_qualified qualified) (StateConfig.Midi config)
+
 -- | Make Simple.Allocations from just (inst, qualified).
 allocations :: [(Text, Text)] -> StateConfig.Allocations
 allocations allocs = Simple.allocations
@@ -493,12 +503,15 @@ default_allocations = Simple.allocations
     , ("i2", ("s/2", dev [3]))
     , ("i3", ("s/3", dev [4]))
     ]
-    where dev = map ("wdev",)
+    where dev = map ("wdev",) -- TODO use 'wdev'
 
 i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"
 i2 = Score.Instrument "i2"
 i3 = Score.Instrument "i3"
+
+wdev :: Midi.WriteDevice
+wdev = Midi.write_device "wdev"
 
 -- * misc
 

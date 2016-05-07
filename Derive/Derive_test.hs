@@ -174,7 +174,6 @@ test_stack_after_exception = do
         , "top top.t1 4-8 / b2 b2.t1 *"
         ]
 
-
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks

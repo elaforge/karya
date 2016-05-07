@@ -127,11 +127,11 @@ get_constant cache damage = do
     where
     adapt allocs lookup_inst = \inst -> case lookup_inst inst of
         Just (patch, _qualified) -> Just $
-            Cmd.derive_instrument (lookup_controls inst allocs) patch
+            Cmd.make_derive_instrument (lookup_controls inst allocs) patch
         Nothing -> Nothing
-    lookup_controls inst allocs = case Map.lookup inst allocs of
-        Just alloc -> Common.config_controls (StateConfig.alloc_config alloc)
-        _ -> mempty
+    lookup_controls inst allocs =
+        maybe mempty (Common.config_controls . StateConfig.alloc_config)
+            (Map.lookup inst allocs)
 
 -- | Get Library from the cache.
 get_library :: Cmd.M m => m Derive.Library
@@ -291,8 +291,11 @@ get_convert_lookup = do
     allocs <- State.config#State.allocations_map <#> State.get
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
-        , lookup_control_defaults = \inst -> case Map.lookup inst allocs of
-            Just alloc -> Score.untyped . Signal.constant <$>
-                Common.config_controls (StateConfig.alloc_config alloc)
+        , lookup_control_defaults = \inst -> case lookup_config inst allocs of
+            Just config -> Score.untyped . Signal.constant <$>
+                Patch.config_control_defaults config
             _ -> mempty
         }
+    where
+    lookup_config inst allocs =
+        midi_config . StateConfig.alloc_backend =<< Map.lookup inst allocs

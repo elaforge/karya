@@ -650,6 +650,11 @@ show_stack (Just stack)
 show_log :: Log.Msg -> String
 show_log = Log.msg_string
 
+show_interesting_log :: Log.Msg -> Maybe Text
+show_interesting_log msg
+    | interesting_log msg = Just (Log.msg_text msg)
+    | otherwise = Nothing
+
 -- ** extract midi msgs
 
 note_on_vel :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]

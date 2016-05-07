@@ -51,8 +51,8 @@ data Config = Config {
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.  This is different from
-    -- 'config_controls' in that these are meant to provide a default for
-    -- synthesizer state, so these are only applied during conversion, and
+    -- 'Common.config_controls' in that these are meant to provide a default
+    -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
     } deriving (Eq, Read, Show)
