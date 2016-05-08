@@ -11,6 +11,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.TextUtil as TextUtil
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
@@ -54,42 +55,48 @@ list = list_like ""
 list_like :: State.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- State.config#State.allocations_map <#> State.get
-    return $ Text.intercalate "\n" $
-        map show_alloc $ filter (matches . fst) $
+    return $ Text.unlines $
+        TextUtil.formatColumns 1 $ map show_alloc $ filter (matches . fst) $
         Map.toAscList alloc_map
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
-    show_alloc (inst, alloc) = Text.unwords
+    show_alloc (inst, alloc) =
         [ ShowVal.show_val inst
-        , "-"
         , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
-        , show_common_config (StateConfig.alloc_config alloc)
         , case StateConfig.alloc_backend alloc of
-            StateConfig.Midi config -> show_midi_config config
-            StateConfig.Im -> "音"
-            StateConfig.Dummy -> "(dummy instrument)"
+            StateConfig.Midi config ->
+                Info.show_addrs (map fst (Patch.config_addrs config))
+            _ -> ""
+        , join
+            [ show_common_config (StateConfig.alloc_config alloc)
+            , case StateConfig.alloc_backend alloc of
+                StateConfig.Midi config -> show_midi_config config
+                StateConfig.Im -> "音"
+                StateConfig.Dummy -> "(dummy instrument)"
+            ]
         ]
-    show_common_config config = mconcat
+    show_common_config config = join
         [ show_environ (Common.config_environ config)
         , show_controls "" (Common.config_controls config)
         , show_flags config
         ]
-    show_controls msg controls
-        | Map.null controls = ""
-        | otherwise = " " <> msg <> pretty controls
     show_environ environ
         | environ == mempty = ""
         | otherwise = " " <> pretty environ
     show_flags config
         | null flags = ""
-        | otherwise = " {" <> Text.intercalate ", " flags <> "}"
+        | otherwise = "{" <> Text.intercalate ", " flags <> "}"
         where
         flags = ["mute" | Common.config_mute config]
             ++ ["solo" | Common.config_solo config]
-    show_midi_config config = mconcat
-        [ Info.show_addrs (map fst (Patch.config_addrs config))
-        , show_controls "defaults:" (Patch.config_control_defaults config)
+    show_midi_config config = join
+        [ show_controls "defaults:" (Patch.config_control_defaults config)
+        , maybe "" (("("<>) . (<>")") . pretty) (Patch.config_scale config)
         ]
+    show_controls msg controls
+        | Map.null controls = ""
+        | otherwise = msg <> pretty controls
+    join = Text.unwords . filter (not . Text.null)
 
 -- | Instrument allocations.
 allocations :: State.M m => m StateConfig.Allocations

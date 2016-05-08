@@ -154,8 +154,8 @@ get_default_instrument block_id track_id inst
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Patch.Addr] -> Text
 show_addrs addrs = semicolon_list
-    [ pretty wdev <> " "
-        <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
+    [ pretty wdev
+        <> " [" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
     | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
     ]
 
