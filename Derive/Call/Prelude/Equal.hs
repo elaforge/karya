@@ -7,12 +7,16 @@
 -- The equal call is heavily overloaded because I want to reuse the nice infix
 -- syntax.  Unfortunately it results in lots of cryptic prefixes.  Is it worth
 -- it?
-module Derive.Call.Prelude.Equal (note_calls, control_calls, pitch_calls, c_equal) where
+module Derive.Call.Prelude.Equal (
+    note_calls, control_calls, pitch_calls, c_equal
+    , transform_expr
+) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -25,7 +29,6 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
@@ -51,6 +54,37 @@ pitch_calls = Derive.transformer_call_map
 
 default_merge :: BaseTypes.CallId
 default_merge = "default-merge"
+
+-- * util
+
+-- | Parse an expression containing only equal calls and turn it into a
+-- transformer.  'Eval.eval_transform_expr' is more general, but only
+-- transforms Streams, because most transforms work with a stream.  So by
+-- having a more restrictive input, this can have a more general output:
+-- contravariance I guess?
+transform_expr :: Text -> Derive.Deriver a -> Derive.Deriver a
+transform_expr expr deriver = do
+    parsed <- Derive.require_right id $ Parse.parse_expr expr
+    transforms <- if is_empty_expr parsed
+        then return []
+        else mapM apply $ NonEmpty.toList parsed
+    foldr ($) deriver transforms
+    where
+    apply expr = do
+        (lhs, rhs) <- Derive.require
+            ("expected an assignment: " <> ShowVal.show_val expr)
+            (equal_expr expr)
+        Derive.require_right id $ parse_equal Set lhs rhs
+
+is_empty_expr :: BaseTypes.Expr -> Bool
+is_empty_expr (BaseTypes.Call "" [] :| []) = True
+is_empty_expr _ = False
+
+equal_expr :: BaseTypes.Call -> Maybe (BaseTypes.Symbol, BaseTypes.Val)
+equal_expr (BaseTypes.Call (BaseTypes.Symbol "=")
+        [BaseTypes.Literal (BaseTypes.VSymbol sym), BaseTypes.Literal val]) =
+    Just (sym, val)
+equal_expr _ = Nothing
 
 -- * implementation
 

@@ -121,8 +121,10 @@ multiply_note_id multiplier input = case input of
 -- applies to.  Since MIDI's NoteId is the key number, I have no choice but to
 -- use that.
 newtype NoteId = NoteId Int deriving (Eq, Ord, Show)
+
 key_to_id :: Midi.Key -> NoteId
 key_to_id = NoteId . Midi.from_key
+
 id_to_key :: NoteId -> Midi.Key
 id_to_key (NoteId key) = Midi.to_key key
 

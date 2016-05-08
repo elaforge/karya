@@ -72,6 +72,7 @@ import qualified Cmd.Repl.LState as LState
 import qualified Cmd.Repl.LSymbol as LSymbol
 import qualified Cmd.Repl.LTala as LTala
 import qualified Cmd.Repl.LTrack as LTrack
+import qualified Cmd.Repl.LTuning as LTuning
 import qualified Cmd.Repl.LView as LView
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Save as Save

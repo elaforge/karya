@@ -203,9 +203,14 @@ get_scale track = do
 
 lookup_scale :: Cmd.M m => Track -> Pitch.ScaleId -> m (Maybe Scale.Scale)
 lookup_scale track scale_id = do
+    env <- get_environ track
+    lookup_scale_env env scale_id
+
+lookup_scale_env :: Cmd.M m => Env.Environ -> Pitch.ScaleId
+    -> m (Maybe Scale.Scale)
+lookup_scale_env env scale_id = do
     Derive.LookupScale lookup <- Cmd.gets $
         Cmd.config_lookup_scale . Cmd.state_config
-    env <- get_environ track
     case lookup env (Derive.LookupScale lookup) scale_id of
         Nothing -> return Nothing
         Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "

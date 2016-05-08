@@ -11,7 +11,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
@@ -25,15 +24,14 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Env as Env
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import Global
@@ -201,6 +199,11 @@ set_controls inst controls = modify_common_config_ inst $
 set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
 set_scale inst scale = modify_midi_config inst $ Patch.cscale #= Just scale
 
+set_tuning_scale :: State.M m => Instrument -> Text -> Patch.Scale -> m ()
+set_tuning_scale inst tuning scale = do
+    set_scale inst scale
+    add_environ inst EnvKey.tuning tuning
+
 set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
     -> m ()
 set_control_defaults inst controls = modify_midi_config inst $
@@ -315,19 +318,6 @@ device_of inst = do
             =<< Cmd.lookup_qualified inst
     return $ Midi.write_device synth
 
-
--- * tuning
-
--- | Set the instrument's Scale to the given scale and send a MIDI tuning
--- message to retune the synth.  Very few synths support this.
-retune :: Cmd.M m => Instrument -> Patch.Scale -> m ()
-retune inst scale = do
-    set_scale inst scale
-    (_, _, config) <- get_midi_config (Util.instrument inst)
-    let devs = map (fst . fst) (Patch.config_addrs config)
-    let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
-            Patch.scale_keys scale
-    mapM_ (flip Cmd.midi msg) (Seq.unique devs)
 
 -- * midi interface
 

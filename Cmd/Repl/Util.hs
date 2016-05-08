@@ -11,9 +11,11 @@ import qualified Derive.Score as Score
 import Global
 
 
+type Instrument = Text
+
 -- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often
 -- accidentally include one.
-instrument :: Text.Text -> Score.Instrument
+instrument :: Instrument -> Score.Instrument
 instrument = Score.Instrument . Text.dropWhile (=='>')
 
 match_map :: Id.Ident id => Text -> Map.Map id a -> Map.Map id a
