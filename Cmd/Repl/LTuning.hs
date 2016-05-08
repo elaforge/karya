@@ -14,8 +14,12 @@ module Cmd.Repl.LTuning where
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Vector.Unboxed as Unboxed
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -37,7 +41,17 @@ import qualified Local.Instrument.Kontakt.Util as Kontakt.Util
 import Global
 
 
--- * tuning
+-- * Patch.Scale
+
+-- | Format a Patch.Scale as a table.
+table :: Patch.Scale -> Text
+table (Patch.Scale _ nns) =
+    Text.unlines $ TextUtil.formatColumns 1 $
+        ["", "c", "", "d", "", "e", "f", "", "g", "", "a", "", "b"]
+        : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
+    where
+    octaves = map (("c"<>) . showt) [-1..]
+    groups = Seq.chunked 12 $ Unboxed.toList nns
 
 scale :: Cmd.M m => Bool
     -- ^ False to check for warnings and errors, True to ignore them.
@@ -78,6 +92,9 @@ derive deriver = do
 all_inputs :: [(Midi.Key, Pitch.Input)]
 all_inputs = [(key, InputNote.nn_to_input (key_to_nn key)) | key <- [0..127]]
     where key_to_nn = Midi.from_key
+
+
+-- * retune
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
 -- message to retune the synth.  Very few synths support this, I only know of
