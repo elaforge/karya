@@ -62,14 +62,18 @@ pitch_to_midi :: PbRange -> Pitch.NoteNumber
 pitch_to_midi pb_range nn
     -- Signals default to 0 so 0 probably means the pitch signal was empty.
     | nn <= 0 || nn > 127 = Nothing
+    -- Due to floating point imprecision, I can end up with nns that are
+    -- supposed be integral, but are sightly off.  So if the difference is
+    -- below the level of perception, just round to 0.
+    | abs (fromIntegral (round nn) - nn) < 0.005 =
+        Just (Midi.to_key (round nn), 0)
     | otherwise = Just (key, pb_from_nn pb_range key nn)
     where key = Midi.to_key (floor nn)
 
 pb_from_nn :: PbRange -> Midi.Key -> Pitch.NoteNumber -> Midi.PitchBendValue
 pb_from_nn pb_range key (Pitch.NoteNumber nn)
-    | bend == 0 = 0
-    | bend > 0 = Num.d2f $ bend / high
-    | otherwise = Num.d2f $ bend / (-low)
+    | bend > 0 = if high > 0 then Num.d2f $ bend / high else 0
+    | otherwise = if low < 0 then Num.d2f $ bend / (-low) else 0
     where
     (low, high) = (fromIntegral *** fromIntegral) pb_range
     bend = Num.clamp low high (nn - Midi.from_key key)
