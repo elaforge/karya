@@ -1,15 +1,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Functions to deal with tuning instruments.
---
--- E.g.:
---
--- > LTuning.realtime "pno" =<< LTuning.scale True "raga" "key=charukesi"
--- > LTuning.write_ksp "charu.ksp" =<< LTuning.scale True "raga" "key=charukesi"
---
--- Don't forget to set the score to the same scale or things will sound
--- confusing.
+{- | Functions to deal with tuning instruments.
+
+    E.g.:
+
+    > LTuning.realtime "pno" =<< LTuning.selection True
+    > LTuning.write_ksp "charu.ksp" =<<LTuning.scale True "raga" "key=charukesi"
+
+    Don't forget to set the score to the same scale or things will sound
+    confusing.  Also, reaper won't receive sysex on a track unless you set it
+    to receive all channels.
+-}
 module Cmd.Repl.LTuning where
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -27,7 +29,9 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.Util as Util
+import qualified Cmd.Selection as Selection
 
+import qualified Derive.Call as Call
 import qualified Derive.Call.Prelude.Equal as Equal
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
@@ -39,6 +43,7 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Local.Instrument.Kontakt.Util as Kontakt.Util
 import Global
+import Types
 
 
 -- * Patch.Scale
@@ -53,10 +58,35 @@ table (Patch.Scale _ nns) =
     octaves = map (("c"<>) . showt) [-1..]
     groups = Seq.chunked 12 $ Unboxed.toList nns
 
-scale :: Cmd.M m => Bool
+-- | Get a patch scale for the scale at the selection.
+selection :: Cmd.M m => Bool -> m Patch.Scale
+selection ignore_errors = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    (scale, errs) <- scale_at block_id track_id
+    unless (ignore_errors || null errs) $
+        Cmd.throw $ Text.unlines errs
+    return scale
+
+scale_at :: Cmd.M m => BlockId -> TrackId -> m (Patch.Scale, [Text])
+scale_at block_id track_id = do
+    scale <- Perf.get_derive_at block_id track_id Call.get_scale
+    (key_nns, errs) <- fmap unzip $ forM all_inputs $ \(key, input) -> do
+        let at_time = 0
+        (val, logs) <- Perf.derive_at block_id track_id $
+            Scale.scale_input_to_nn scale at_time input
+        let prefix = (("key " <> pretty key <> ": ") <>)
+        return $ second (map prefix . (++ map pretty logs)) $ case val of
+            Left err -> (Nothing, [err])
+            Right (Left err) -> (Nothing, [pretty err])
+            Right (Right nn) -> (Just (key, nn), [])
+    let name = pretty (Scale.scale_id scale)
+    return (Patch.make_scale name (Maybe.catMaybes key_nns), concat errs)
+
+-- | Create a Patch.Scale for the named scale.
+named :: Cmd.M m => Bool
     -- ^ False to check for warnings and errors, True to ignore them.
     -> Text -> Text -> m Patch.Scale
-scale ignore_errors name transform = do
+named ignore_errors name transform = do
     scale <- get_scale name
     (scale, errs) <- make_patch_scale scale transform
     unless (ignore_errors || null errs) $

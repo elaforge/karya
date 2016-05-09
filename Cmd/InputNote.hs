@@ -257,16 +257,15 @@ pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 to_midi :: Control.PbRange -> Midi.PitchBendValue
     -> Map.Map NoteId Midi.Key -> InputNn
     -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
-to_midi pb_range prev_pb id_to_key input = case input of
-        NoteOn note_id nn vel -> note_on note_id nn vel
-        NoteOff note_id vel -> with_key note_id $ \key ->
-            ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
-        PitchChange note_id nn -> with_key note_id $ \key ->
-            (cons_pb (Control.pb_from_nn pb_range key nn) [],
-                id_to_key)
-        Control _ control val -> case control_to_cc control of
-            Nothing -> ([], id_to_key)
-            Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
+to_midi pb_range prev_pb id_to_key input_nn = case input_nn of
+    NoteOn note_id nn vel -> note_on note_id nn vel
+    NoteOff note_id vel -> with_key note_id $ \key ->
+        ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
+    PitchChange note_id nn -> with_key note_id $ \key ->
+        (cons_pb (Control.pb_from_nn pb_range key nn) [], id_to_key)
+    Control _ control val -> case control_to_cc control of
+        Nothing -> ([], id_to_key)
+        Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
     where
     with_key note_id f = case Map.lookup note_id id_to_key of
         Nothing -> ([], id_to_key)

@@ -181,13 +181,13 @@ map_instrument_scale (Just scale) = Patch.convert_scale scale
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn
     -> ([(Midi.WriteDevice, Midi.Message)], Maybe Cmd.WriteDeviceState)
-input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
+input_to_midi pb_range wdev_state addrs input_nn = case alloc addrs input_nn of
     (Nothing, _) -> ([], Nothing)
     (Just addr, new_state) -> (map (with_addr addr) msgs, Just state)
         where
         last_pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
         (msgs, note_key) = InputNote.to_midi pb_range last_pb
-            (Cmd.wdev_note_key wdev_state) input
+            (Cmd.wdev_note_key wdev_state) input_nn
         state = merge_state new_state addr (pb_of last_pb msgs)
             (wdev_state { Cmd.wdev_note_key = note_key })
     where
