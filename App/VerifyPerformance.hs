@@ -195,8 +195,8 @@ verify_midi :: FilePath -> FilePath -> Cmd.State -> State.State -> BlockId
 verify_midi out_dir fname cmd_state state block_id performance = do
     msgs <- perform_block fname cmd_state state block_id
     (maybe_diff, wrote_files) <- liftIO $
-        DiffPerformance.diff_midi_performance (basename fname) out_dir
-            performance msgs
+        DiffPerformance.diff_midi_performance (basename fname ++ ".midi")
+            out_dir performance msgs
     return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
 
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
