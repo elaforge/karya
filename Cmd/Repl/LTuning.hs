@@ -1,3 +1,4 @@
+-- Copyright 2016 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -59,7 +60,9 @@ table (Patch.Scale _ nns) =
     groups = Seq.chunked 12 $ Unboxed.toList nns
 
 -- | Get a patch scale for the scale at the selection.
-selection :: Cmd.M m => Bool -> m Patch.Scale
+selection :: Cmd.M m => Bool
+    -- ^ False to check for warnings and errors, True to ignore them.
+    -> m Patch.Scale
 selection ignore_errors = do
     (block_id, _, track_id, _) <- Selection.get_insert
     (scale, errs) <- scale_at block_id track_id

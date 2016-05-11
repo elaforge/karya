@@ -3,12 +3,17 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
+    'default' explicitly.
   - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
     disabling a track with 'D' is laggy.
     . But not always.  Maybe only after editing for a while?
   * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
+    . I think to be more visible it would have to blink or somehow be larger.
+      Ideally I could have some kind of glow
+      Or maybe red is just overused, if it were green or blue?
   * A playback mode that scrolled automatically would actually be useful.
     . But usually annoying, so it would have to be off by default.
     . Or how about open multiple views at the current zoom, to cover the
@@ -63,7 +68,6 @@ UNSORTED
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
-  - A block with logical range called at time 0 gets messed up.
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
   - pitch transpose
@@ -711,6 +715,8 @@ fltk:
     . Actually this makes me think it's actually in MsgCollector.
       In that case it would be Fl::focus() which is wrong.  Is there a way to
       just ask the OS what window has focus?
+    . Cmd.state_debug_ui_msgs doesn't help because I have to take off focus to
+      turn it on.  I would need a key stroke that does that.
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -936,6 +942,7 @@ Cmd:
       a bit of a hassle.
 
 Derive:
+  - A block with logical range called at time 0 gets messed up.
   sekaran
     How to apply sekaran?
       . >hang -> sekar abab -> notes

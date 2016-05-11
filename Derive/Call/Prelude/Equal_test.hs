@@ -37,11 +37,17 @@ test_equal = do
         ([(0, "i"), (1, "")], [])
 
 test_equal_modify = do
-    let run evts = DeriveTest.extract (DeriveTest.e_control "c") $
+    let run control evts = DeriveTest.extract (DeriveTest.e_control control) $
             DeriveTest.derive_tracks "" [(">", evts)]
-    strings_like (snd $ run [(0, 1, "c = .5 add |")])
+    strings_like (snd $ run "c" [(0, 1, "c = .5 add |")])
         ["merge is only supported when"]
-    equal (run [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
+    -- Default is multiply.
+    equal (run "c" [(0, 1, "%c = .5 | %c = .25 default |")])
+        ([[(0, 0.5 * 0.25)]], [])
+    -- Transposers default to add.
+    equal (run "t-dia" [(0, 1, "%t-dia = 1 | %t-dia = 1 default |")])
+        ([[(0, 2)]], [])
 
 test_equal_inst_alias = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
@@ -115,7 +121,7 @@ test_default_merge = do
     equal (run "default-merge set c") ([[(0, 0.5)]], [])
     equal (run "default-merge add c") ([[(0, 1)]], [])
     -- 'mul' is the default for most controls.
-    equal (run "default-merge _ c") ([[(0, 0.25)]], [])
+    equal (run "default-merge default c") ([[(0, 0.25)]], [])
 
 e_instrument :: Score.Event -> (RealTime, Text)
 e_instrument e = (Score.event_start e, DeriveTest.e_instrument e)

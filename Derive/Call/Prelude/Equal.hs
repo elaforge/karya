@@ -109,10 +109,10 @@ equal_args = (,,)
         \ infix parsing for `=`. Symbolic prefixes determine what is\
         \ assigned, and the valid types for the rhs."
     <*> Sig.required "rhs" "Source of the assignment."
-    <*> (parse_merge <$> Sig.defaulted "merge" (Left "set") merge_doc)
+    <*> (parse_merge <$> Sig.defaulted "merge" "set" merge_doc)
 
 merge_doc :: Text
-merge_doc = "Merge operator. This can be `_` to use the default for the\
+merge_doc = "Merge operator. This can be `default` to use the default for the\
     \ control, `set` to replace the old signal, or one of the operators from\
     \ 'Derive.Deriver.Monad.mergers': "
     <> Text.intercalate ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
@@ -120,15 +120,15 @@ merge_doc = "Merge operator. This can be `_` to use the default for the\
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 
 instance ShowVal.ShowVal Merge where
-    show_val Default = ShowVal.show_val Typecheck.NotGiven
+    show_val Default = "default"
     show_val Set = "set"
     show_val (Merge sym) = ShowVal.show_val sym
 
-parse_merge :: Either BaseTypes.CallId Typecheck.NotGiven -> Merge
-parse_merge (Left name)
+parse_merge :: BaseTypes.CallId -> Merge
+parse_merge name
     | name == "set" = Set
+    | name == "default" = Default
     | otherwise = Merge name
-parse_merge (Right Typecheck.NotGiven) = Default
 
 equal_doc :: Text
 equal_doc =
