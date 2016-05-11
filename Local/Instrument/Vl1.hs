@@ -36,7 +36,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 
-import Local.Instrument.Vl1Spec
+import qualified Local.Instrument.Vl1Spec as Vl1Spec
 import Global
 
 
@@ -135,10 +135,10 @@ combine fn doc syx =
         Patch.InitializeMidi [Midi.Encode.decode syx])
 
 decode_sysex :: ByteString -> Either String Sysex.RMap
-decode_sysex bytes = fst <$> decode patch_spec bytes
+decode_sysex bytes = fst <$> Vl1Spec.decode Vl1Spec.patch_spec bytes
 
 encode_sysex :: Sysex.RMap -> Either String ByteString
-encode_sysex = fmap append_suffix . encode patch_spec
+encode_sysex = fmap append_suffix . Vl1Spec.encode Vl1Spec.patch_spec
 
 file_to_syx :: FilePath -> IO [ByteString]
 file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
@@ -157,8 +157,7 @@ file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
         . filter (not . B.null) . B.split Midi.Encode.eox_byte
 
 split_1bk :: Maybe Word8 -> ByteString -> [ByteString]
-split_1bk memory =
-    zipWith (\n -> bytes_to_syx ((+n) <$> memory)) [0..] . split
+split_1bk memory = zipWith (\n -> bytes_to_syx ((+n) <$> memory)) [0..] . split
     where
     split bytes = takeWhile (not . B.all (==0) . B.take 20) $
         map (flip B.drop bytes) offsets
@@ -174,18 +173,10 @@ add_extra_zero bytes
     long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
     short = B.pack [0xf0, Midi.yamaha_code, 0x7a]
 
-drop_extra_zero :: ByteString -> ByteString
-drop_extra_zero bytes
-    | B.isPrefixOf long bytes = short <> B.drop (B.length long) bytes
-    | otherwise = bytes
-    where
-    long = B.pack [0xf0, Midi.yamaha_code, 0, 0x7a]
-    short = B.pack [0xf0, Midi.yamaha_code, 0x7a]
-
 -- | Wrap sysex codes around the raw bytes.
 bytes_to_syx :: Maybe Word8 -> ByteString -> ByteString
 bytes_to_syx memory bytes = append_suffix $
-    vl1_header (2 + 14 + size)
+    Vl1Spec.vl1_header (2 + 14 + size)
         -- memory type, memory number
         <> B.pack (maybe [0x7f, 0] (\n -> [0, n]) memory)
         <> B.replicate 14 0 -- padding
