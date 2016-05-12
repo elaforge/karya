@@ -105,6 +105,7 @@ test_convert_dynamic = do
         clookup = DeriveTest.make_convert_lookup UiTest.default_allocations $
             DeriveTest.make_db [("s", [p "1", Patch.pressure $ p "2"])]
         p = DeriveTest.make_patch
+    -- >i1 is non-Pressure, >i2 is Pressure.
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
         ([Left (1, [])], [])
     equal (run ">i1" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
@@ -112,6 +113,9 @@ test_convert_dynamic = do
     -- For pressure, dyn goes to breath.
     equal (run ">i2" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
         ([Left (0.5, [(1, 0.5), (2, 1)])], [])
+    -- %attack-vel overrides the velocity.
+    equal (run ">i2 | %attack-vel=.75" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
+        ([Left (0.75, [(1, 0.5), (2, 1)])], [])
 
 test_release_velocity = do
     let run = first (convert DeriveTest.default_convert_lookup extract)

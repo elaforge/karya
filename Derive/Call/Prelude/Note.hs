@@ -244,10 +244,7 @@ make_event_control_vals control_vals args dyn start dur flags = do
         , Score.event_highlight = Color.NoHighlight
         , Score.event_instrument = fromMaybe Score.empty_instrument $
             Env.maybe_val EnvKey.instrument environ
-        , Score.event_environ =
-            stash_convert_values (Map.lookup Controls.dynamic control_vals)
-                (Map.lookup Controls.release_velocity control_vals)
-                offset environ
+        , Score.event_environ = stash_convert_values control_vals offset environ
         , Score.event_flags = flags
         , Score.event_delayed_args = mempty
         }
@@ -257,17 +254,19 @@ make_event_control_vals control_vals args dyn start dur flags = do
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: Maybe Signal.Y -> Maybe Signal.Y -> RealTime
+stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
     -> Env.Environ
-    -> Env.Environ
-stash_convert_values dyn_val release_val offset =
-    stash_start_offset . stash_release . stash_dyn
-    where
-    stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
-    stash_dyn = maybe id (Env.insert_val EnvKey.dynamic_val) dyn_val
+stash_convert_values vals offset =
+    stash_start_offset
+    . insert_if Controls.dynamic EnvKey.dynamic_val
+    . insert_if Controls.attack_velocity EnvKey.attack_val
     -- Perhaps this should be sampled at the event end, but I don't want to
     -- get a whole new ControlValMap just for that.
-    stash_release = maybe id (Env.insert_val EnvKey.release_val) release_val
+    . insert_if Controls.release_velocity EnvKey.release_val
+    where
+    stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
+    insert_if control key = maybe id (Env.insert_val key) $
+        Map.lookup control vals
 
 -- ** adjust start and duration
 

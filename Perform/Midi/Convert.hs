@@ -66,10 +66,12 @@ convert_event lookup event patch = run $ do
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup inst)
         pressure = Patch.has_flag patch Patch.Pressure
-        velocity = fromMaybe Perform.default_velocity
-            (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
-        release_velocity = fromMaybe velocity
-            (Env.maybe_val EnvKey.release_val (Score.event_environ event))
+        velocity = fromMaybe Perform.default_velocity $
+            Env.maybe_val EnvKey.attack_val env
+            <|> Env.maybe_val EnvKey.dynamic_val env
+        release_velocity = fromMaybe velocity $
+            Env.maybe_val EnvKey.release_val env
+        env = Score.event_environ event
     return $ Types.Event
         { event_start = Score.event_start event
         , event_duration = Score.event_duration event

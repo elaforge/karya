@@ -102,16 +102,23 @@ suppress_until = "suppress-until"
 
 -- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
 -- "Perform.Midi.Convert".  The default note deriver stashes the control
--- function output here, so if it turns out to not be a Pressure instrument
--- it can use this value.
+-- function output here so it can use it for note on velocity.  Otherwise I
+-- couldn't use ControlFunctions (e.g. randomization) for note on velocity
+-- because control functions don't exist after MIDI conversion.
 --
 -- Details in NOTE [EnvKey.dynamic_val].
 dynamic_val :: Key
 dynamic_val = "dyn-val"
 
--- | Like 'dynamic_val', but for the release velocity.
+-- | Like 'dynamic_val', but for the release velocity.  Set from
+-- 'Derive.Controls.release_velocity'.
 release_val :: Key
 release_val = "release-val"
+
+-- | VNum: Set from 'Derive.Controls.attack_velocity' in the same way as
+-- 'release_val'.
+attack_val :: Key
+attack_val = "attack-val"
 
 -- | RealTime: This stores the RealTime sum of 'Derive.Controls.start_s' and
 -- 'Derive.Controls.start_t', and is later applied by the @apply-start-offset@
@@ -182,7 +189,7 @@ sangsih = "sangsih"
 {- NOTE [EnvKey.dynamic_val]
     I originally intended to handle 'Instrument.Pressure' with a note call
     override.  But it turns out that Pressure is also used by Cmd, so I still
-    need it.  But to get vel from control functions I have to include the
+    need it.  But to get velocity from control functions I have to include the
     ControlValMap in Score.Event.
 
     I waffled for a long time about whether it was better to handle in the note

@@ -84,7 +84,14 @@ aftertouch = "at"
 mod :: Control
 mod = "mod"
 
--- | Normal the NoteOff velocity is the same as 'dynamic', but if set, this
+-- | Force MIDI note on velocity to this value.  Normally a Pressure instrument
+-- will get both breath controller and note on velocity from the 'dynamic'
+-- control, but sometimes I need separate control.  This can be used to
+-- override the note on velocity.
+attack_velocity :: Control
+attack_velocity = "attack-vel"
+
+-- | Normally the NoteOff velocity is the same as 'dynamic', but if set, this
 -- force it to a particular value.
 release_velocity :: Control
 release_velocity = "release-vel"
