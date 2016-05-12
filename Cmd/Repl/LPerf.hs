@@ -11,6 +11,7 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
@@ -39,6 +40,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
@@ -133,7 +135,7 @@ type ControlVals =
 -- initialized consistently.
 inst_controls :: BlockId -> Cmd.CmdL (Map.Map Score.Instrument ControlVals)
 inst_controls block_id =
-    List.foldl' merge mempty <$> block_perform_events block_id
+    List.foldl' merge mempty . LEvent.events_of <$> block_midi_events block_id
     where
     merge insts event =
         Map.insertWith (Map.unionWith merge1) (event_inst event)
@@ -205,15 +207,16 @@ normalize_events events = do
             . lookup
     return $ map (fmap (Score.normalize lookup_env)) events
 
-block_perform_events :: BlockId -> Cmd.CmdL [Types.Event]
-block_perform_events block_id = (LEvent.events_of <$>) $
+-- | Get 'block_events' from the cache and convert to MIDI performer events.
+block_midi_events :: BlockId -> Cmd.CmdL [LEvent.LEvent Types.Event]
+block_midi_events block_id =
     convert . LEvent.events_of =<< block_events_unnormalized block_id
 
--- | Derive all the way to MIDI.
+-- | Derive all the way to MIDI.  This uses the cache.
 block_midi :: BlockId -> Cmd.CmdL Perform.MidiEvents
 block_midi block_id = do
     perf <- Performance.performance <$> PlayUtil.cached_derive block_id
-    PlayUtil.perform_from 0 perf
+    PlayUtil.perform_events $ Cmd.perf_events perf
 
 -- * selection
 
@@ -222,15 +225,15 @@ block_midi block_id = do
 sel_events :: Cmd.CmdL [Score.Event]
 sel_events = get_sel_events False block_events
 
-sel_pevents :: Cmd.CmdL (Events Types.Event)
-sel_pevents = convert =<< get_sel_events False block_events_unnormalized
+sel_midi_events :: Cmd.CmdL (Events Types.Event)
+sel_midi_events = convert =<< get_sel_events False block_events_unnormalized
 
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.CmdL [Score.Event]
 root_sel_events = get_sel_events True block_events
 
-root_sel_pevents :: Cmd.CmdL (Events Types.Event)
-root_sel_pevents = convert =<< get_sel_events True block_events_unnormalized
+root_sel_midi_events :: Cmd.CmdL (Events Types.Event)
+root_sel_midi_events = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
@@ -344,7 +347,7 @@ in_range start_of start end =
         | start == 0 = False
         | otherwise = ts < start
 
--- * perform_events
+-- * Midi.Types.Event
 
 convert :: [Score.Event] -> Cmd.CmdL (Events Types.Event)
 convert events = do
@@ -352,13 +355,21 @@ convert events = do
     lookup_inst <- Cmd.get_lookup_instrument
     return $ Midi.Convert.convert lookup lookup_inst events
 
-perf_event_inst :: Types.Event -> Text
-perf_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch
+-- | Filter on events with a certain instrument.
+midi_event_inst :: Types.Event -> Text
+midi_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch
 
 -- * midi
 
-perform_events :: Cmd.Events -> Cmd.CmdL Perform.MidiEvents
-perform_events = PlayUtil.perform_events
+perform_events :: [LEvent.LEvent Score.Event] -> Cmd.CmdL Perform.MidiEvents
+perform_events = PlayUtil.perform_events . Vector.fromList . LEvent.events_of
+
+perform_midi_events :: State.M m => [LEvent.LEvent Types.Event]
+    -> m Perform.MidiEvents
+perform_midi_events events = do
+    allocs <- State.gets $ State.config_allocations . State.state_config
+    let inst_addrs = Patch.config_addrs <$> PlayUtil.midi_configs allocs
+    return $ fst $ Perform.perform Perform.initial_state inst_addrs events
 
 -- | This is the local block's performance, and the events are filtered to the
 -- selection range, and the filtering is done post-derivation, so they reflect

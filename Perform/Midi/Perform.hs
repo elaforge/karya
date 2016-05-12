@@ -23,6 +23,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -110,6 +111,13 @@ data State = State {
     , state_allot :: !AllotState
     , state_perform :: !PerformState
     } deriving (Eq, Show)
+
+instance Pretty.Pretty State where
+    format (State channelize allot perform) = Pretty.record "State"
+        [ ("channelize", Pretty.format channelize)
+        , ("allot", Pretty.format allot)
+        , ("perform", Pretty.format perform)
+        ]
 
 initial_state :: State
 initial_state = State [] empty_allot_state empty_perform_state
@@ -305,6 +313,12 @@ data AllotState = AllotState {
     , ast_allotted :: !(Map.Map AllotKey Allotted)
     } deriving (Eq, Show)
 
+instance Pretty.Pretty AllotState where
+    format (AllotState available allotted) = Pretty.record "AllotState"
+        [ ("available", Pretty.format available)
+        , ("allotted", Pretty.format allotted)
+        ]
+
 empty_allot_state :: AllotState
 empty_allot_state = AllotState Map.empty Map.empty
 
@@ -319,6 +333,13 @@ data Allotted = Allotted {
     -- | Maximum length for allotted_voices.
     , _allotted_voice_count :: !Patch.Voices
     } deriving (Eq, Show)
+
+instance Pretty.Pretty Allotted where
+    format (Allotted addr voices voice_count) = Pretty.record "Allotted"
+        [ ("addr", Pretty.format addr)
+        , ("voices", Pretty.format voices)
+        , ("voice_count", Pretty.format voice_count)
+        ]
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
 -- a log msg.
