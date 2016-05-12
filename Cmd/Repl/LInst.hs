@@ -72,7 +72,7 @@ list_like pattern = do
             , case StateConfig.alloc_backend alloc of
                 StateConfig.Midi config -> show_midi_config config
                 StateConfig.Im -> "音"
-                StateConfig.Dummy -> "(dummy instrument)"
+                StateConfig.Dummy -> "(dummy)"
             ]
         ]
     show_common_config config = join
@@ -82,7 +82,7 @@ list_like pattern = do
         ]
     show_environ environ
         | environ == mempty = ""
-        | otherwise = " " <> pretty environ
+        | otherwise = pretty environ
     show_flags config
         | null flags = ""
         | otherwise = "{" <> Text.intercalate ", " flags <> "}"
