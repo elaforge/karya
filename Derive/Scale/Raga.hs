@@ -122,7 +122,7 @@ aliases = Map.fromList $ map assert_valid_name
     ]
 
 -- | Arohana \/ avarohana structure.  Sa is implicit, so it's omitted.
-data Arohana =
+data ArohanaAvarohana =
     -- | The arohana is given, the avarohana is the same but reversed.
     Same [Swaram]
     -- | Arohana ascending from low sa, avarohana descending from high sa.
@@ -134,7 +134,7 @@ data Swaram = S | R | G | M | P | D | N
 
 -- | So far this is unused, but I should be able to put it some place where
 -- calls can get at it.
-janya :: [(Text, [(Text, Arohana)])]
+janya :: [(Text, [(Text, ArohanaAvarohana)])]
 janya = map assert_valid_name
     [ ("kharaharapriya",
         [ ("abheri", Different [G, M, P, N] [N, D, P, M, G, R])
@@ -142,6 +142,9 @@ janya = map assert_valid_name
         ])
     , ("harikambhoji",
         [ ("mohanam", Same [R, G, P, D])
+        , ("natakuranji",
+            Different [M, G, M, N, D, N, P, D, N] [N, D, M, G])
+                -- Or [N, D, M, G, M, P, G, R]
         ])
     ]
 
