@@ -30,7 +30,6 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Patch as Patch
-import qualified Perform.NN as NN
 import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
@@ -54,7 +53,7 @@ tunggal_notes :: CUtil.PitchedNotes
     CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
 
 tunggal_keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
-tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 NN.fs3
+tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
     [ [de <> Attrs.staccato, plak]
     , [de <> Attrs.thumb, dag <> Attrs.staccato]
     , [de, dag]

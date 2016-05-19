@@ -91,12 +91,16 @@ list_like pattern = do
             ++ ["solo" | Common.config_solo config]
     show_midi_config config = join
         [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , maybe "" (("("<>) . (<>")") . pretty) (Patch.config_scale config)
+        , maybe "" (("("<>) . (<>")") . show_scale) (Patch.config_scale config)
         ]
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
     join = Text.unwords . filter (not . Text.null)
+
+show_scale :: Patch.Scale -> Text
+show_scale scale = "scale " <> Patch.scale_name scale <> " "
+    <> showt (length (Patch.scale_nns Nothing scale)) <> " keys"
 
 -- | Instrument allocations.
 allocations :: State.M m => m StateConfig.Allocations

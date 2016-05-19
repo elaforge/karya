@@ -106,42 +106,56 @@ convert_midi_pitch :: Log.LogMonad m => Types.Patch -> Maybe Patch.Scale
     -> m (Types.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> (,) patch <$> psignal
-        Just (keyswitches, maybe_keymap) ->
-            (,) (set_keyswitches keyswitches patch)
-                <$> maybe psignal set_keymap maybe_keymap
+        Nothing -> do
+            sig <- apply_patch_scale scale =<< get_signal
+            return (patch, round_sig sig)
+        Just (keyswitches, maybe_keymap) -> do
+            sig <- maybe (apply_patch_scale scale =<< get_signal) set_keymap
+                maybe_keymap
+            return (set_keyswitches keyswitches patch, round_sig sig)
     where
     set_keyswitches [] patch = patch
     set_keyswitches keyswitches patch =
         patch { Types.patch_keyswitch = keyswitches }
+
+    -- A PitchedKeymap is mapped through the Patch.Scale.
+    set_keymap (Patch.PitchedKeymap low high low_nn) = do
+        sig <- get_signal
+        apply_patch_scale scale $
+            convert_pitched_keymap (Midi.from_key low) (Midi.from_key high)
+                low_nn sig
+    -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
-    set_keymap (Patch.PitchedKeymap low high low_nn) =
-        convert_keymap (Midi.from_key low) (Midi.from_key high) low_nn
-            <$> psignal
-    convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
-        -> Signal.NoteNumber -> Signal.NoteNumber
-    convert_keymap low high low_pitch sig = clipped
-        where
-        -- TODO warn about out_of_range
-        (clipped, out_of_range) = Signal.clip_bounds low high $
-            Signal.scalar_add (low - un_nn low_pitch) sig
-    un_nn (Pitch.NoteNumber nn) = nn
 
-    psignal
-        | constant_pitch = convert cvals psig
-        | otherwise = convert trimmed (Score.event_transformed_pitch event)
-        where
-        cvals = Score.untyped . Signal.constant <$>
-            Score.event_controls_at (Score.event_start event) event
-        psig = maybe mempty PSignal.constant $
-            Score.pitch_at (Score.event_start event) event
-        convert = convert_pitch scale (Score.event_environ event)
-        -- Trim controls to avoid applying out of range transpositions.
-        -- TODO should I also trim the pitch signal to avoid doing extra work?
-        trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
-        note_end = Score.event_end event
-            + fromMaybe Types.default_decay (Types.patch_decay patch)
+    get_signal = convert_event_pitch patch constant_pitch controls event
+    round_sig = Signal.map_y round_pitch
+
+convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
+    -> Signal.NoteNumber -> Signal.NoteNumber
+convert_pitched_keymap low high low_pitch sig = clipped
+    where
+    -- TODO warn about out_of_range
+    (clipped, out_of_range) = Signal.clip_bounds low high $
+        Signal.scalar_add (low - Midi.from_key low_pitch) sig
+
+-- | Get the flattened Signal.NoteNumber from an event.
+convert_event_pitch :: Log.LogMonad m => Types.Patch -> Bool -> Score.ControlMap
+    -> Score.Event -> m Signal.NoteNumber
+convert_event_pitch patch constant_pitch controls event
+    | constant_pitch = convert constant_vals $ maybe mempty PSignal.constant $
+        Score.pitch_at (Score.event_start event) event
+    | otherwise = convert trimmed_vals $ Score.event_transformed_pitch event
+    where
+    convert = convert_pitch (Score.event_environ event)
+    -- An optimization to avoid fiddling with controls unnecessarily.
+    constant_vals = Score.untyped . Signal.constant <$>
+        Score.event_controls_at (Score.event_start event) event
+    -- Trim controls to avoid applying out of range transpositions.
+    -- TODO should I also trim the pitch signal to avoid doing extra work?
+    trimmed_vals = fmap (fmap (Signal.drop_at_after note_end)) controls
+    note_end = Score.event_end event
+        + fromMaybe Types.default_decay (Types.patch_decay patch)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
@@ -161,17 +175,22 @@ convert_dynamic pressure controls
         (Map.lookup Controls.dynamic controls)
     | otherwise = controls
 
-convert_pitch :: Log.LogMonad m => Maybe Patch.Scale -> Env.Environ
+convert_pitch :: Log.LogMonad m => Env.Environ
     -> Score.ControlMap -> PSignal.PSignal -> m Signal.NoteNumber
-convert_pitch scale env controls psig = do
+convert_pitch env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
             PSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
+    return sig
+
+apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> Signal.NoteNumber
+    -> m Signal.NoteNumber
+apply_patch_scale scale sig = do
     let (nn_sig, scale_errs) = convert_scale scale sig
     unless (null scale_errs) $ Log.warn $
         "out of range for patch scale: " <> pretty scale_errs
-    return $ Signal.map_y round_pitch nn_sig
+    return nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind

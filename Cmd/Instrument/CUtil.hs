@@ -209,8 +209,7 @@ drum_patch note_keys = (MidiInst.patch %=) $ Patch.triggered
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
-type KeyswitchRange =
-    ([Patch.Keyswitch], Midi.Key, Midi.Key, Pitch.NoteNumber)
+type KeyswitchRange = ([Patch.Keyswitch], Midi.Key, Midi.Key, Midi.Key)
 type PitchedNotes = [(Drums.Note, KeyswitchRange)]
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
@@ -219,7 +218,7 @@ make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
     -- this patch doesn't use keyswitches.
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
-    -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
+    -> Midi.Key -- ^ the pitch of the bottom note of each range
     -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
 make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
@@ -230,11 +229,11 @@ make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
 -- | This is like 'make_keymap', except with the arguments rearranged to more
 -- closely match the sample utils I use.
 make_keymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
-    -> Pitch.NoteNumber -> [[Attrs.Attributes]]
+    -> Midi.Key -> [[Attrs.Attributes]]
     -> Map.Map Attrs.Attributes KeyswitchRange
 make_keymap2 base_keyswitch base_key natural_key range natural_nn =
     make_keymap base_keyswitch base_key range
-        (natural_nn - Pitch.nn (Midi.from_key natural_key))
+        (natural_nn - Midi.from_key natural_key)
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
 -- a 'Patch.ControlSwitch'.  CCs start at 102, and only groups of size >1
@@ -243,7 +242,7 @@ make_keymap2 base_keyswitch base_key natural_key range natural_nn =
 -- be played simultaneously, which is not true for keyswitches.
 make_cc_keymap :: Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
-    -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
+    -> Midi.Key -- ^ the pitch of the bottom note of each range
     -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
 make_cc_keymap base_key range root_pitch =
     Map.fromList . go base_cc . zip [base_key, base_key + range ..]

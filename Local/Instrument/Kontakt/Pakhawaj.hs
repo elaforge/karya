@@ -14,7 +14,6 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Stroke(..))
 
-import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
@@ -29,7 +28,7 @@ patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
 
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
-    CUtil.make_cc_keymap Key2.c_1 12 NN.fs3
+    CUtil.make_cc_keymap Key2.c_1 12 Key2.fs2
         [ [attr Ka]
         , [attr Ge]
         , [attr Tet]

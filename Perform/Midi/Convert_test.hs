@@ -35,6 +35,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import Global
 import Types
 
@@ -92,6 +93,53 @@ test_convert_pitch = do
     let insert = Score.modify_environ $
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
     equal (run [insert event]) [Left (0, [(0, 60.982)])]
+
+test_patch_scale = do
+    let run config patch pitch =
+            first (convert (make_lookup config patch) e_pitch) $
+            DeriveTest.extract id $ DeriveTest.derive_tracks "" $
+                UiTest.note_spec ("i1", [(0, 1, pitch)], [])
+        make_lookup config patch = DeriveTest.make_convert_lookup_for UiTest.i1
+            (make_config config) patch
+        make_config scale = Patch.cscale #= scale $ Patch.config1 UiTest.wdev 0
+        make_patch scale = Patch.scale #= scale $ Patch.patch (-1, 1) "1"
+
+    equal (run Nothing (make_patch Nothing) "4c") ([Left (0, [(0, NN.c4)])], [])
+    let scale_g = Patch.make_scale "scale" [(Key.c4, NN.g4)]
+        scale_e = Patch.make_scale "scale" [(Key.c4, NN.e4)]
+    equal (run (Just scale_g) (make_patch Nothing) "4g")
+        ([Left (0, [(0, NN.c4)])], [])
+    equal (run Nothing (make_patch (Just scale_e)) "4e")
+        ([Left (0, [(0, NN.c4)])], [])
+    -- Patch config wins.
+    equal (run (Just scale_e) (make_patch (Just scale_g)) "4e")
+        ([Left (0, [(0, NN.c4)])], [])
+
+    let scale1 = Patch.make_scale "scale"
+            [(k, Midi.from_key k + 1) | k <- [0..127]]
+    equal (run Nothing (make_patch (Just scale1)) "4c")
+        ([Left (0, [(0, NN.b3)])], [])
+    -- Keyswitches go through the Patch.Scale.
+    let attr_patch attr_map =
+            Patch.attribute_map #= attr_map $ make_patch (Just scale1)
+    let ks_map = Common.attribute_map
+            [ (Attrs.mute, ([Patch.Keyswitch 0], Nothing))
+            , (mempty, ([Patch.Keyswitch 1], Nothing))
+            ]
+    equal (run Nothing (attr_patch ks_map) "4c") ([Left (0, [(0, NN.b3)])], [])
+    -- PitchKeymap also goes through the Patch.Scale.
+    let pitched_map = Common.attribute_map
+            [ (Attrs.mute, ([Patch.Keyswitch 0],
+                Just (Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)))
+            , (mempty, ([Patch.Keyswitch 1],
+                Just (Patch.PitchedKeymap Key.c4 Key.c5 Key.c4)))
+            ]
+        pitched_patch =
+            Patch.attribute_map #= pitched_map $ make_patch (Just scale1)
+    equal (run Nothing pitched_patch "4c")
+        ([Left (0, [(0, NN.b3)])], [])
+    equal (run Nothing pitched_patch "+mute -- 4c")
+        ([Left (0, [(0, NN.b1)])], [])
 
 test_convert_dynamic = do
     let run inst = first (convert clookup extract)
@@ -164,7 +212,7 @@ test_instrument_scale = do
 
 test_pitched_keymap = do
     let patch = set_keymap [bd] $ DeriveTest.make_patch "1"
-        bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 NN.c4)
+        bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)
         set_keymap kmap = Patch.attribute_map
             #= Patch.keymap (map (first Attrs.attr) kmap)
         mktracks ps =

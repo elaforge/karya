@@ -10,6 +10,8 @@ import qualified Data.Text as Text
 
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
+
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -18,7 +20,6 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Instrument.DUtil as DUtil
 
-import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
@@ -148,12 +149,12 @@ all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
 
 notes_d, notes_g :: CUtil.PitchedNotes
-(notes_d, _unmapped_notes_d) = make_notes NN.gs3
-(notes_g, _unmapped_notes_g) = make_notes NN.d4
+(notes_d, _unmapped_notes_d) = make_notes Key.gs3
+(notes_g, _unmapped_notes_g) = make_notes Key.d4
     -- The given pitch is the natural pitch of the instrument.  The root note is
     -- the bottom of the pitch range.
 
-make_notes :: Pitch.NoteNumber
+make_notes :: Midi.Key
     -> (CUtil.PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
 make_notes root_nn = CUtil.drum_pitched_notes all_notes $
     CUtil.make_cc_keymap Key2.c_1 12 root_nn
@@ -194,7 +195,7 @@ pitched_notes_old :: CUtil.PitchedNotes
     , (arai, (Key.g8, Key.e9))
     , (muru, (Key.g9, Key.g9))
     ]
-    where make (attrs, (low, high)) = (attrs, ([], low, high, NN.e4))
+    where make (attrs, (low, high)) = (attrs, ([], low, high, Key.e4))
 
 -- * attrs
 

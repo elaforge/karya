@@ -2,16 +2,46 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 -}
 module Perform.Midi.Patch (
-    module Perform.Midi.Patch, Control.PbRange
+    -- * Config
+    Config(..), addrs, cscale, control_defaults
+    , config, config1, voice_config
+    , Addr, Voices
+    -- Re-exported so instrument definitions don't have to have
+    -- Midi.Control.PbRange.
+    , Control.PbRange
+    -- * Patch
+    , Patch(..), name, control_map, pitch_bend_range, decay, scale, flags
+    , initialize, attribute_map, call_map
+    , patch
+    , default_name
+    , CallMap
+    -- ** Scale
+    , Scale(..) -- should just be Scale(scale_name), but Cmd.Serialize
+    , make_scale
+    , convert_scale, nn_at
+    , scale_nns, scale_offsets, scale_tuning
+    -- ** Flag
+    , Flag(..)
+    , set_flag, unset_flag, has_flag, triggered, pressure
+    -- ** InitializePatch
+    , InitializePatch(..)
+    -- ** AttributeMap
+    , AttributeMap, Keymap(..), Keyswitch(..)
+    , keyswitches, single_keyswitches, cc_keyswitches, keymap, unpitched_keymap
+#ifdef TESTING
+    , module Perform.Midi.Patch
+#endif
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
@@ -32,7 +62,7 @@ import Global
 import Types
 
 
--- * config
+-- * Config
 
 -- | Configuration for one instrument on a score.
 data Config = Config {
@@ -64,12 +94,12 @@ cscale = Lens.lens config_scale
 control_defaults = Lens.lens config_control_defaults
     (\f r -> r { config_control_defaults = f (config_control_defaults r) })
 
-config1 :: Midi.WriteDevice -> Midi.Channel -> Config
-config1 dev chan = config [(dev, chan)]
-
 -- | Make a simple config.
 config :: [Addr] -> Config
 config = voice_config . map (, Nothing)
+
+config1 :: Midi.WriteDevice -> Midi.Channel -> Config
+config1 dev chan = config [(dev, chan)]
 
 voice_config :: [(Addr, Maybe Voices)] -> Config
 voice_config addrs = Config
@@ -169,18 +199,33 @@ default_name = ""
 -- is used by the integrator to turn score events into UI events.
 type CallMap = Map.Map Attrs.Attributes BaseTypes.CallId
 
--- | If a patch is tuned to something other than 12TET, this vector maps MIDI
--- key numbers to their NNs, or 0 if the patch doesn't support that key.
-data Scale = Scale !Text (Vector.Vector Double)
-    deriving (Eq, Show, Read)
+-- ** Scale
+
+{- | Describe the tuning of a MIDI patch.
+
+    This is used both to describe a patch tuned to something other than 12TET,
+    and to retune a 12TET patch.
+
+    The Scale is used during performance to warp played pitches to the patch's
+    tuning.  The idea is that they will warp to integral 'Midi.Key's that won't
+    need any tuning and can thus all go on a single MIDI channel.
+-}
+data Scale = Scale {
+    scale_name :: !Text
+    -- | If a patch is tuned to something other than 12TET, this vector maps
+    -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
+    -- support that key.
+    , scale_key_to_nn :: !(Unboxed.Vector Double)
+    } deriving (Eq, Read, Show)
 
 instance Pretty.Pretty Scale where
-    pretty (Scale name v) = name <> " ("
-        <> showt (Util.Vector.count (/=0) v) <> " pitches)"
+    format (Scale name key_to_nn) = Pretty.record "Patch.Scale"
+        [ ("name", Pretty.format name)
+        , ("key_to_nn", Pretty.format key_to_nn)
+        ]
 
-scale_keys :: Scale -> [(Midi.Key, Pitch.NoteNumber)]
-scale_keys (Scale _ nns) =
-    map (second Pitch.nn) $ filter ((/=0) . snd) $ zip [0..] $ Vector.toList nns
+no_pitch :: Double
+no_pitch = -1
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
 -- NoteNumbers.  This is because a 0 between two notes will prevent pitch
@@ -188,41 +233,75 @@ scale_keys (Scale _ nns) =
 -- instruments that don't support certain key numbers.  That could be added
 -- but it's simpler to just not have patches like that.
 make_scale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> Scale
-make_scale name keys =
-    Scale name (empty Vector.// map convert (interpolate keys))
+make_scale name keys = Scale
+    { scale_name = name
+    , scale_key_to_nn = empty Unboxed.// map convert (interpolate_gaps keys)
+    }
     where
     convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
-    interpolate ((k1, nn1) : rest@((k2, nn2) : _))
-        | k1 + 1 == k2 = (k1, nn1) : interpolate rest
-        | otherwise = (k1, nn1) : map mk (Seq.range' (k1+1) k2 1)
-            ++ interpolate rest
-        where
-        mk k = (k, nn)
-            where
-            nn = Num.scale nn1 nn2 $ Num.normalize
-                (Midi.from_key k1) (Midi.from_key k2) (Midi.from_key k)
-    interpolate xs = xs
-    empty = Vector.fromList $ replicate 128 0
+    empty = Unboxed.fromList $ replicate 128 no_pitch
 
-convert_scale :: Scale -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
+interpolate_gaps :: [(Midi.Key, Pitch.NoteNumber)]
+    -> [(Midi.Key, Pitch.NoteNumber)]
+interpolate_gaps ((k1, nn1) : rest@((k2, nn2) : _))
+    | k1 + 1 == k2 = (k1, nn1) : interpolate_gaps rest
+    | otherwise = (k1, nn1) : map mk (Seq.range' (k1+1) k2 1)
+        ++ interpolate_gaps rest
+    where
+    mk k = (k, nn)
+        where
+        nn = Num.scale nn1 nn2 $ Num.normalize
+            (Midi.from_key k1) (Midi.from_key k2) (Midi.from_key k)
+interpolate_gaps xs = xs
+
+convert_scale :: Scale -> Pitch.NoteNumber -- ^ if you want this pitch
+    -> Maybe Pitch.NoteNumber -- ^ play this key
 convert_scale (Scale _ scale) (Pitch.NoteNumber nn) =
-    case Util.Vector.bracketing scale nn of
-        Just (i, low, high) | low /= 0 -> Just $ Pitch.NoteNumber $
-            fromIntegral i + Num.normalize low high nn
+    case Util.Vector.bracket scale nn of
+        Just (i, low, high) | low /= no_pitch ->
+            Just $ Pitch.NoteNumber $ fromIntegral i + Num.normalize low high nn
         _ -> Nothing
 
-set_flag :: Flag -> Patch -> Patch
-set_flag flag = flags %= Set.insert flag
+-- *** tuning
 
-unset_flag :: Flag -> Patch -> Patch
-unset_flag flag = flags %= Set.delete flag
+-- | Absolute NoteNumber for each 'Midi.Key' to tune 12TET to this scale.
+scale_nns :: Maybe AttributeMap -> Scale -> [(Midi.Key, Pitch.NoteNumber)]
+scale_nns attr_map scale =
+    [(key, nn) | (key, Just (_, nn)) <- zip [0..] (scale_tuning attr_map scale)]
 
-triggered, pressure :: Patch -> Patch
-triggered = set_flag Triggered
-pressure = set_flag Pressure
+-- | Relative NoteNumber offset for each 'Midi.Key' to tune 12TET to this scale.
+scale_offsets :: Maybe AttributeMap -> Scale -> [Maybe Pitch.NoteNumber]
+scale_offsets attr_map = map (fmap to_offset) . scale_tuning attr_map
+    where to_offset (base, nn) = nn - Midi.from_key base
 
-has_flag :: Patch -> Flag -> Bool
-has_flag inst flag = Set.member flag (patch_flags inst)
+-- | Map the mapped keys through the scale.
+scale_tuning :: Maybe AttributeMap -> Scale
+    -> [Maybe (Midi.Key, Pitch.NoteNumber)]
+scale_tuning attr_map scale = map tuning [0..127]
+    where
+    tuning key
+        | null ranges = (key,) <$> nn_at scale key
+        | otherwise = case List.find (in_range key) ranges of
+            Nothing -> Nothing
+            Just (low, _, base_nn) -> (abs_key,) <$> nn_at scale abs_key
+                where abs_key = base_nn + (key - low)
+    in_range key (low, high, _) = low <= key && key <= high
+    ranges =
+        [ (low, high, nn)
+        | (_, Just (PitchedKeymap low high nn))
+            <- maybe [] Common.attribute_vals attr_map
+        ]
+
+nn_at :: Scale -> Midi.Key -> Maybe Pitch.NoteNumber
+nn_at scale key
+    | key >= 0 && k < Unboxed.length (scale_key_to_nn scale) =
+        if nn == no_pitch then Nothing else Just (Pitch.nn nn)
+    | otherwise = Nothing
+    where
+    k = Midi.from_key key
+    nn = scale_key_to_nn scale Unboxed.! k
+
+-- ** Flag
 
 -- | Various instrument flags.
 data Flag =
@@ -252,6 +331,21 @@ data Flag =
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Flag where pretty = showt
+
+set_flag :: Flag -> Patch -> Patch
+set_flag flag = flags %= Set.insert flag
+
+unset_flag :: Flag -> Patch -> Patch
+unset_flag flag = flags %= Set.delete flag
+
+has_flag :: Patch -> Flag -> Bool
+has_flag inst flag = Set.member flag (patch_flags inst)
+
+triggered, pressure :: Patch -> Patch
+triggered = set_flag Triggered
+pressure = set_flag Pressure
+
+-- ** InitializePatch
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
@@ -288,7 +382,7 @@ data Keymap =
     -- high, where the pitch of the low end of the range is given by the
     -- NoteNumber.  So this transposes the event's pitch and clips it to the
     -- given range.
-    | PitchedKeymap !Midi.Key !Midi.Key !Pitch.NoteNumber
+    | PitchedKeymap !Midi.Key !Midi.Key !Midi.Key
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Keymap where

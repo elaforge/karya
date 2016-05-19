@@ -466,6 +466,16 @@ make_synth name patches = MidiInst.synth name "Test Synth" patches
 type Lookup =
     (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified), Convert.Lookup)
 
+-- | Make a Lookp for a single patch.
+make_convert_lookup_for :: Score.Instrument -> Patch.Config -> Patch.Patch
+    -> Lookup
+make_convert_lookup_for inst patch_config patch =
+    make_convert_lookup allocs inst_db
+    where
+    allocs = StateConfig.midi_allocations
+        [(inst, (InstTypes.Qualified "s" "1", patch_config))]
+    inst_db = make_db [("s", [patch { Patch.patch_name = "1" }])]
+
 make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state) $

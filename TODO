@@ -3,6 +3,52 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  / PitchedKeymap should use IntNoteNumber for low pitch?
+    . Midi.Key requires less conversions and accurately expresses that it's a
+      Midi.Key, but then I wind up with Key -> Key -> Key in signatures.
+  - I think there is an IntNN in Theory that can use Pitch.IntNoteNumber?
+  - Midi.Key as Word8 seems dangerous since I do math with it.  Switch to Int?
+  * I'd like to use retune_ksp for >kontakt/wayang, but it uses a PitchKeymap
+    since mutes are in their own range.
+    . One way would be to switch to just one pitch range like reyong, and use
+      poly at to switch articulations.  Downsides:
+      . Obnoxious custom KSP, though I can copy from reyong.
+      . Can't be played outside of karya, but I'm unlikely to want to do that.
+    . To support PitchedKeymap:
+      . For each pitch range, I have a (Midi.Key, Midi.Key), so I need to
+        create a Patch.Scale with subranges.
+      . The timbre is mapped over the inclusive MIDI key range from low to
+        high, where the pitch of the low end of the range is given by the
+        NoteNumber.  So this transposes the event's pitch and clips it to the
+        given range. (low, high, pitch)
+    . Convert asks: I have NN n at a PitchedKeymap offset, which Key k should
+      I play?
+    . Retune asks: given a scale as (Key, NN), how to map that to the
+      PitchedKeymap regions?  This needs [PitchedKeymap] and the Patch.Scale.
+    . make_disjoint_scale is very confusing because it combines PitchedKeymap
+      details with scale tuning details.  I'll never have one with different
+      scales in each region.
+      But even a 12tet PitchedKeymap needs to map through Scale to subtract
+      the PitchedKeymap base note.  Currently that's handled via the same
+      mechanism as UnpitchedKeymap, but for a pitched region I would need the
+      same subtract a constant thing.  And in that case, why can't I just use
+      a scale without the ranges baked in?
+    . So, pull ranges out of Scale.  Instead retune needs
+      AttributeMap -> Scale -> [(Maybe (Pitch.IntNoteNumber, Pitch.NoteNumber))]
+
+    * Update Kontakt.Util.tuning_ksp
+    * Update LTuning.realtime
+    * Perform.Midi.Convert
+  - Cmd.MidiThru should support PitchedKeymaps
+    . This means it has to duplicate some of Midi.Convert.convert_midi_pitch
+  - Cmd.MidiThru should also support attrs in general.
+    . For that I'll need some way to set it, like some kind of Cmd.State level
+      attrs set for each instrument.
+
+  - get rid of type aliases: Cmd.Events
+  - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
+    make sure it has the right specializations.
+    . Or at least use mine in Util.Vector.
   * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
     'default' explicitly.
   - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even

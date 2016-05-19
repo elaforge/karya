@@ -431,11 +431,11 @@ x_at x0 y0 x1 y1 y
     | otherwise = Just $
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
--- | Find the the index at the lowest index of the given X, or where it would
--- be if it were present.  So the next value is guaranteed to be >= the given
--- X.
+-- | Binary search for the lowest index of the given X, or where it would be if
+-- it were present.  So the next value is guaranteed to be >= the given X.
 {-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE lowest_index :: X -> Boxed y -> Int #-}
+{-# INLINEABLE lowest_index #-}
 lowest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 lowest_index x vec = go 0 (V.length vec)
     where
@@ -445,12 +445,13 @@ lowest_index x vec = go 0 (V.length vec)
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
--- | Return the highest index of the given X.  So the next value is
+-- | Binary search for the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
 -- the first element.  'RealTime.eta' is added to @x@, so a sample that's
 -- almost the same will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE highest_index :: X -> Boxed y -> Int #-}
+{-# INLINEABLE highest_index #-}
 highest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
@@ -460,6 +461,7 @@ highest_index x vec
 -- | This gets the index of the value *after* @x@.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE bsearch_above :: X -> Boxed y -> Int #-}
+{-# INLINEABLE bsearch_above #-}
 bsearch_above :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 bsearch_above x vec = go 0 (V.length vec)
     where

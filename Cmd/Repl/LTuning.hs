@@ -7,7 +7,8 @@
     E.g.:
 
     > LTuning.realtime "pno" =<< LTuning.selection True
-    > LTuning.write_ksp "charu.ksp" =<<LTuning.scale True "raga" "key=charukesi"
+    > LTuning.write_ksp (Just "wayang") "charu.ksp"
+    >       =<< LTuning.scale True "raga" "key=charukesi"
 
     Don't forget to set the score to the same scale or things will sound
     confusing.  Also, reaper won't receive sysex on a track unless you set it
@@ -42,6 +43,7 @@ import qualified Derive.Scale.Wayang as Wayang
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
+import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt.Util as Kontakt.Util
 import Global
 import Types
@@ -51,13 +53,13 @@ import Types
 
 -- | Format a Patch.Scale as a table.
 table :: Patch.Scale -> Text
-table (Patch.Scale _ nns) =
+table scale =
     Text.unlines $ TextUtil.formatColumns 1 $
         ["", "c", "", "d", "", "e", "f", "", "g", "", "a", "", "b"]
         : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
     where
     octaves = map (("c"<>) . showt) [-1..]
-    groups = Seq.chunked 12 $ Unboxed.toList nns
+    groups = Seq.chunked 12 $ Unboxed.toList $ Patch.scale_key_to_nn scale
 
 -- | Get a patch scale for the scale at the selection.
 selection :: Cmd.M m => Bool
@@ -123,11 +125,22 @@ derive deriver = do
         Right val -> (Just val, map pretty logs)
 
 all_inputs :: [(Midi.Key, Pitch.Input)]
-all_inputs = [(key, InputNote.nn_to_input (key_to_nn key)) | key <- [0..127]]
-    where key_to_nn = Midi.from_key
-
+all_inputs =
+    [(key, InputNote.nn_to_input (Midi.from_key key)) | key <- [0..127]]
 
 -- * retune
+
+-- | Show tuning map for debugging.
+get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
+get_tuning inst scale = do
+    attr_map@(Common.AttributeMap amap) <- Patch.patch_attribute_map <$>
+        Cmd.get_midi_patch (Util.instrument inst)
+    let tuning = Patch.scale_tuning (Just attr_map) scale
+    return $ Text.unlines $ concat
+        [ map pretty amap
+        , [""]
+        , map (Text.unwords . map pretty) (Seq.chunked 6 tuning)
+        ]
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
 -- message to retune the synth.  Very few synths support this, I only know of
@@ -136,21 +149,27 @@ realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
     LInst.set_scale inst scale
     (_, _, config) <- LInst.get_midi_config (Util.instrument inst)
+    attr_map <- Patch.patch_attribute_map <$> Cmd.get_midi_patch
+        (Util.instrument inst)
     let devs = map (fst . fst) (Patch.config_addrs config)
     let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
-            Patch.scale_keys scale
+            Patch.scale_nns (Just attr_map) scale
     mapM_ (flip Cmd.midi msg) (Seq.unique devs)
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
 -- to configure the instrument.
-write_ksp :: FilePath -> Patch.Scale -> Cmd.CmdT IO ()
-write_ksp filename scale = do
-    ksp <- Cmd.require_right id $ Kontakt.Util.tuning_ksp scale
+write_ksp :: Maybe Util.Instrument -> FilePath -> Patch.Scale -> Cmd.CmdT IO ()
+write_ksp maybe_inst filename scale = do
+    attr_map <- case maybe_inst of
+        Nothing -> return Nothing
+        Just inst -> Just . Patch.patch_attribute_map <$> Cmd.get_midi_patch
+            (Util.instrument inst)
+    ksp <- Cmd.require_right id $ Kontakt.Util.tuning_ksp attr_map scale
     liftIO $ Text.IO.writeFile filename ksp
     return ()
 
 write_bali_scales_ksp :: Cmd.CmdT IO ()
-write_bali_scales_ksp = mapM_ (uncurry write_ksp)
+write_bali_scales_ksp = mapM_ (uncurry (write_ksp Nothing))
     [ ("wayang-umbang.ksp",
         Wayang.instrument_scale True BaliScales.Umbang)
     , ("wayang-isep.ksp",

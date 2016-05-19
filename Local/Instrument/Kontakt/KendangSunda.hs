@@ -9,6 +9,7 @@ module Local.Instrument.Kontakt.KendangSunda (
 ) where
 import qualified Data.Map as Map
 
+import qualified Midi.Key as Key
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -24,7 +25,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -161,7 +161,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     kulanter_leutik_open = "kulanter-leutik-open"
 
 keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
-keymap = CUtil.make_keymap2 Nothing 8 6 12 NN.c4
+keymap = CUtil.make_keymap2 Nothing 8 6 12 Key.c4
     -- indung, left
     [ [dong, det, det <> Attrs.low, det <> Attrs.middle, det <> Attrs.high]
     , [ting]

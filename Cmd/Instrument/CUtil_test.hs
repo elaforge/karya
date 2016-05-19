@@ -25,7 +25,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Patch as Patch
-import qualified Perform.NN as NN
 import Global
 import Types
 
@@ -93,14 +92,14 @@ test_drum_instrument = do
 test_make_cc_keymap = do
     let f = CUtil.make_cc_keymap
         cw = Patch.ControlSwitch
-    equal (f 0 12 NN.c4
+    equal (f 0 12 Key.c4
         [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]]) $
         Map.fromList
-            [ (Attrs.left, ([cw 102 0], Key.c_1, Key.b_1, NN.c4))
-            , (Attrs.right, ([cw 102 1], Key.c_1, Key.b_1, NN.c4))
-            , (Attrs.open, ([], Key.c0, Key.b0, NN.c4))
-            , (Attrs.low, ([cw 103 0], Key.c1, Key.b1, NN.c4))
-            , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, NN.c4))
+            [ (Attrs.left, ([cw 102 0], Key.c_1, Key.b_1, Key.c4))
+            , (Attrs.right, ([cw 102 1], Key.c_1, Key.b_1, Key.c4))
+            , (Attrs.open, ([], Key.c0, Key.b0, Key.c4))
+            , (Attrs.low, ([cw 103 0], Key.c1, Key.b1, Key.c4))
+            , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, Key.c4))
             ]
 
 drum_synth :: MidiInst.Synth

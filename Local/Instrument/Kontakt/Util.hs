@@ -30,18 +30,16 @@ write fname = either (errorIO . untxt) $ \t -> do
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Patch.Scale -> Either Text Text
-tuning_ksp (Patch.Scale name scale) = interpolate values tuning_template
+tuning_ksp :: Maybe Patch.AttributeMap -> Patch.Scale -> Either Text Text
+tuning_ksp attr_map scale = interpolate values tuning_template
     where
     values = Map.fromList
-        [ ("TITLE", showt name)
-        , ("PITCHES", ksp_array pitches)
+        [ ("TITLE", showt (Patch.scale_name scale))
+        , ("PITCHES", ksp_array 6 pitches)
         ]
-    pitches = zipWith from_nn [0..] (Vector.toList scale)
-    from_nn key nn
-        | nn == 0 = 0
-        | otherwise = round ((nn - fromIntegral key) * millicent)
-    millicent :: Double
+    -- -1 marks unmapped pitches, since it's visually distinct from 0.
+    pitches = map (maybe (-1) (round . (*millicent)))
+        (Patch.scale_offsets attr_map scale)
     millicent = 1000 * 100 -- silly scent willy sent
 
 tuning_template :: Text
@@ -75,9 +73,9 @@ drum_mute_ksp instrument notes stop_groups = do
             [ ("INSTRUMENT", instrument)
             , ("MAX_GROUPS", showt (length groups))
             , ("MAX_KEYSWITCHES", showt max_keyswitches)
-            , ("PITCH_TO_GROUP", ksp_array pitch_to_group)
-            , ("PITCH_TO_KEYSWITCH", ksp_array pitch_to_keyswitch)
-            , ("STOP_GROUPS", ksp_array stop_group_ids)
+            , ("PITCH_TO_GROUP", ksp_array 8 pitch_to_group)
+            , ("PITCH_TO_KEYSWITCH", ksp_array 8 pitch_to_keyswitch)
+            , ("STOP_GROUPS", ksp_array 8 stop_group_ids)
             ]
     interpolate values drum_mute_template
     where
@@ -229,8 +227,8 @@ interpolate values =
     TextUtil.mapDelimitedM False '*' $ \v ->
         maybe (Left $ "no value for " <> showt v) Right $ Map.lookup v values
 
-ksp_array :: [Int] -> Text
-ksp_array =
+ksp_array :: Int -> [Int] -> Text
+ksp_array chunk_size =
     ("( ...\n"<>) . (<>")") . Text.intercalate ", ...\n" . map ((indent<>)
-        . Text.intercalate ", ") . Seq.chunked 8 . map showt
+        . Text.intercalate ", ") . Seq.chunked chunk_size . map showt
     where indent = Text.replicate 8 " "

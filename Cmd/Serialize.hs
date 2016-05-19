@@ -426,7 +426,7 @@ instance Serialize Track.RenderSource where
             return $ Track.Pitch (fromMaybe Score.default_pitch control)
         _ -> bad_tag "Track.RenderSource" tag
 
--- ** Midi.Instrument
+-- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
     put (Patch.Config a b c) = Serialize.put_version 7

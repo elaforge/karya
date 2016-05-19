@@ -93,6 +93,9 @@ attribute_map = sort_attribute_map . AttributeMap
 mapped_attributes :: AttributeMap a -> [Attrs.Attributes]
 mapped_attributes (AttributeMap table) = map fst table
 
+attribute_vals :: AttributeMap a -> [a]
+attribute_vals (AttributeMap table) = map snd table
+
 -- | Look up the value as described in 'AttributeMap'.
 lookup_attributes :: Attrs.Attributes -> AttributeMap a -> Maybe a
 lookup_attributes attrs (AttributeMap table) =
