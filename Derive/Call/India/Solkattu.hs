@@ -198,6 +198,16 @@ dropM matras ns = case ns of
                 | otherwise -> dropM (matras - dur) ns
             Alignment {} -> dropM matras ns
 
+takeM :: Matras -> Sequence -> Sequence
+takeM _ [] = []
+takeM matras _ | matras <= 0 = []
+takeM matras (n:ns) = case n of
+    Sollu {} -> n : takeM (matras-1) ns
+    Rest {} -> n : takeM (matras-1) ns
+    Pattern dur karvai
+        | dur > matras -> n : takeM (matras-dur) ns
+        | otherwise -> [Pattern (dur - matras) karvai]
+    Alignment {} -> takeM matras ns
 
 -- * realize
 

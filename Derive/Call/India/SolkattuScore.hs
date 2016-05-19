@@ -58,28 +58,13 @@ chatusram1_mridangam =
 
 -- * kanda nadai
 
-kandam1_2 :: Korvai
-kandam1_2 = check $ Solkattu.korvai (adi 5) kandam1_mridangam $
-      at0 - ta - __ - di - __ - ki - ta - __ - thom - __ - ta_din - p7
-    - atX - ta - ka - di - __ - ki - ta - __ - thom - __ - ta_din - p7
-    - at0 - ta - __ - di - __ - ki - ta - __ - thom - __
-          - ta - ka - di - __ - ki - ta - __ - thom - __
-          - ta_din - tri p7
-          - ta_din - tri (tadin - p7)
-          - ta_din - tri (tadin - tadin - p7)
-    where
-    p7 = ta - ka - p5
-    ta_din = ta - __ - din - __
-    tadin = ta - din - __
+make_k1 :: Sequence -> Either Text Korvai
+make_k1 = Solkattu.korvai (adi 5) k1_mridangam
 
-kandam1_vars :: [Korvai]
-kandam1_vars = [kandam1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
-    where gaps = [thom - __ - ta - __, thom - __2, thom - __, thom, mempty]
-
-kandam1 :: Sequence -> Sequence -> Korvai
-kandam1 pt gap = check $ Solkattu.korvai (adi 5) kandam1_mridangam $
-      at0 - ta - __ - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
-    - atX - ta - ka - di - __ - ki - ta - __ - thom - __ - ta - din_ - pt
+make_k1_1 :: Sequence -> Sequence -> Korvai
+make_k1_1 pt gap = check $ make_k1 $
+      at0 - k1_a  - __ - ta - din_ - pt
+    - atX - k1_a' - __ - ta - din_ - pt
     - at0 - ta - __ - di - __ - ki - ta - __ - gap
     -       ta - ka - di - __ - ki - ta - __ - gap
     - case duration pt of
@@ -87,13 +72,46 @@ kandam1 pt gap = check $ Solkattu.korvai (adi 5) kandam1_mridangam $
         6 -> p666
         _ -> p765
 
-kandam1_mridangam :: [(Sequence, [MNote])]
-kandam1_mridangam =
+k1_1_vars :: [Korvai]
+k1_1_vars = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
+    where gaps = [thom - __ - ta - __, thom - __2, thom - __, thom, mempty]
+
+k1_2 :: Korvai
+k1_2 = check $ make_k1 $
+      at0 - k1_a  - __ - ta_din_ - p7
+    - atX - k1_a' - __ - ta_din_ - p7
+    - at0 - k1_a - __ - k1_a' - __
+          - ta_din_ - tri p7
+          - ta_din_ - tri (tadin - p7)
+          - ta_din_ - tri (tadin - tadin - p7)
+    where
+    p7 = ta - ka - p5
+    ta_din_ = ta - __ - din - __
+    tadin = ta - din - __
+
+k1_3 :: Korvai
+k1_3 = check $ make_k1 $
+      k1_a  - __ - tata_dindin_ - p6 - __
+    - k1_a' - __ - tata_dindin_ - ta-ka-p6 - __
+    - k1_a - __ - k1_a' - __ - tata_dindin_
+    - tri_n (ta-ka-ti-ku-p6) __
+    - tri_n (ta-ka-p6) __
+    - tri_n p6 __
+    where
+    tata_dindin_ = ta - __ - ta - __2 - din - __ - din - __2
+
+k1_a, k1_a' :: Sequence
+k1_a  = ta - __ - di - __ - ki - ta - __ - thom
+k1_a' = ta - ka - di - __ - ki - ta - __ - thom
+
+k1_mridangam :: [(Sequence, [MNote])]
+k1_mridangam =
     [ (ta, [k])
-    , (ta - ka, [k, p])
-    , (ta - di - ki - ta, [k, t, k, n])
-    , (ta - ka - di - ki - ta, [k, p, t, k, n])
-    , (ta - din, [k, od])
+    , (ta-ka, [k, p])
+    , (ta-ka-ti-ku, [k, p, n, p])
+    , (ta-di-ki- ta, [k, t, k, n])
+    , (ta-ka-di-ki-ta, [k, p, t, k, n])
+    , (din, [od])
     ]
 
 adi :: Matras -> Solkattu.Tala

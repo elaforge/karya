@@ -20,10 +20,10 @@ module Derive.Call.India.SolkattuDsl (
     -- ** patterns
     , pat, pat_, p5, p6, p7, p666, p567, p765
     -- ** combinators
-    , tri, tri_
+    , tri, tri_n, tri_
     , duration, repeat, sep
     -- * transform
-    , dropM
+    , dropM, takeM
     -- * mridangam
     , k, t, n, d, u, i, o, p
     , od
@@ -40,7 +40,7 @@ import Util.Pretty (pprint)
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
        (Sequence, Korvai, Matras, Note(..), Karvai(..), Sollu(..), Stroke(..),
-        MNote(..), check, duration, dropM)
+        MNote(..), check, duration, dropM, takeM)
 import Global
 
 
@@ -119,10 +119,15 @@ atX = sq $ Alignment Solkattu.Arudi
 pat d = sq $ Pattern d NoKarvai
 pat_ d = sq $ Pattern d Karvai
 
--- | Repeat three times, with karvai between the middle two.
+-- | Repeat thrice, with no karvai.
 tri :: Sequence -> Sequence
 tri = repeat 3
 
+-- | Repeat thrice, with the given separator.
+tri_n :: Sequence -> Sequence -> Sequence
+tri_n seq n = sep n [seq, seq, seq]
+
+-- | Repeat thrice, with karvai between the middle two.
 tri_ :: Sequence -> Sequence
 tri_ p = kar p - kar p - p
 

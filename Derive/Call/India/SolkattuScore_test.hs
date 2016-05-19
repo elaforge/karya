@@ -12,7 +12,9 @@ import Global
 
 
 test_kandam = do
-    equal [err | Left err <- map realize SolkattuScore.kandam1_vars] []
+    let korvais = SolkattuScore.k1_1_vars
+            ++ [SolkattuScore.k1_2, SolkattuScore.k1_3]
+    equal [err | Left err <- map realize korvais] []
 
 realize :: Solkattu.Korvai -> Either Text [Solkattu.MNote]
 realize korvai =
