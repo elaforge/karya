@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The patch name should go only in the Instrument.Inst.Synth Map, and not
+    in Midi.Patch.patch_name.
   / PitchedKeymap should use IntNoteNumber for low pitch?
     . Midi.Key requires less conversions and accurately expresses that it's a
       Midi.Key, but then I wind up with Key -> Key -> Key in signatures.
