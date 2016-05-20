@@ -106,6 +106,6 @@ attribute_map :: Patch.AttributeMap
 attribute_map = Common.attribute_map
     [ (Attrs.mute <> Attrs.loose, ([Patch.Keyswitch Key2.a_2], keymap))
     , (Attrs.mute,                ([Patch.Keyswitch Key2.b_2], keymap))
-    , (mempty, ([], Just $ Patch.PitchedKeymap Key2.c3 Key2.f5 Key2.c3))
+    , (mempty, ([], Just $ Patch.PitchedKeymap Key2.c3 Key2.c7 Key2.c3))
     ]
-    where keymap = Just $ Patch.PitchedKeymap Key2.c_1 Key2.e1 Key2.c3
+    where keymap = Just $ Patch.PitchedKeymap Key2.c_1 Key2.b2 Key2.c3
