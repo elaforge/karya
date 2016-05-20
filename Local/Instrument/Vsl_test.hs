@@ -54,7 +54,7 @@ test_natural_harmonic = do
         with = DeriveTest.with_synths
             (UiTest.allocations [("v", "vsl/violin")]) [Vsl.synth]
     equal (run "+harm+nat" "4c")
-        ([], ["Error: c4 unplayable on [+g, +d, +a, +e]"])
+        ([], ["Error: c4(60) unplayable on [+g, +d, +a, +e]"])
     equal (run "+harm+nat" "3g") ([Key.c3], [])
     equal (run "+harm+nat" "4g") ([Key.d3], [])
     equal (run "+harm+nat" "6d") ([Key.gs3], [])

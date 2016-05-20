@@ -265,7 +265,7 @@ type Manufacturer = Word8
 newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Show, Read)
 
 instance Pretty.Pretty Key where
-    pretty (Key key) = note <> showt (oct - 1)
+    pretty (Key key) = note <> showt (oct - 1) <> "(" <> showt key <> ")"
         where
         (oct, k) = (fromIntegral key :: Int) `divMod` 12
         note = case k of
