@@ -510,6 +510,9 @@ i1 = Score.Instrument "i1"
 i2 = Score.Instrument "i2"
 i3 = Score.Instrument "i3"
 
+i1_qualified :: InstTypes.Qualified
+i1_qualified = InstTypes.Qualified "s" "1"
+
 wdev :: Midi.WriteDevice
 wdev = Midi.write_device "wdev"
 

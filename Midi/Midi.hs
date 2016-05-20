@@ -22,6 +22,7 @@ module Midi.Midi (
 
     -- * predicates
     , valid_msg, valid_chan_msg, is_cc, is_sysex, is_note, is_note_on, is_state
+    , is_pitched
     , channel_message, message_channel
 
     -- * types
@@ -222,6 +223,12 @@ is_state (ChannelMessage _ msg) = case msg of
     NoteOff {} -> False
     _ -> True
 is_state _ = False
+
+-- | True for messages that set pitch: NoteOn and PitchBend.
+is_pitched :: Message -> Bool
+is_pitched msg = is_note_on msg || case msg of
+    ChannelMessage _ (PitchBend _) -> True
+    _ -> False
 
 -- * projections
 

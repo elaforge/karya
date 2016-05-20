@@ -8,8 +8,7 @@ UNSORTED
   / PitchedKeymap should use IntNoteNumber for low pitch?
     . Midi.Key requires less conversions and accurately expresses that it's a
       Midi.Key, but then I wind up with Key -> Key -> Key in signatures.
-  - I think there is an IntNN in Theory that can use Pitch.IntNoteNumber?
-  - Midi.Key as Word8 seems dangerous since I do math with it.  Switch to Int?
+  * Midi.Key as Word8 seems dangerous since I do math with it.  Switch to Int?
   * I'd like to use retune_ksp for >kontakt/wayang, but it uses a PitchKeymap
     since mutes are in their own range.
     . One way would be to switch to just one pitch range like reyong, and use
@@ -41,21 +40,18 @@ UNSORTED
     * Update Kontakt.Util.tuning_ksp
     * Update LTuning.realtime
     * Perform.Midi.Convert
-  - Cmd.MidiThru should support PitchedKeymaps
+  * Cmd.MidiThru should support PitchedKeymaps
     . This means it has to duplicate some of Midi.Convert.convert_midi_pitch
   - Cmd.MidiThru should also support attrs in general.
     . For that I'll need some way to set it, like some kind of Cmd.State level
       attrs set for each instrument.
-
   - get rid of type aliases: Cmd.Events
-  - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
-    make sure it has the right specializations.
-    . Or at least use mine in Util.Vector.
   * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
     'default' explicitly.
   - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
     disabling a track with 'D' is laggy.
     . But not always.  Maybe only after editing for a while?
+    . Can I use custom events to see lags in threadscope?
   * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
@@ -483,6 +479,9 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
+    make sure it has the right specializations.
+    . Or at least use mine in Util.Vector.
   - BaseTypes.CallId should have a name more reminiscent of Symbol.
     CallSymbol?
   - Modification of State is still kind of messy since I have lens and

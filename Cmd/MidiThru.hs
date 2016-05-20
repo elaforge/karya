@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Implement midi thru by mapping InputNotes to MIDI messages.
 
     This is effectively a recreation of the deriver and MIDI performer, but
@@ -57,7 +58,14 @@
     - Instrument is looked up on every msg just for pb_range, so cache that.
     Effectively, the short-circuit thread is another way to cache this.
 -}
-module Cmd.MidiThru where
+module Cmd.MidiThru (
+    cmd_midi_thru, midi_thru_instrument
+    -- * util
+    , channel_messages
+#ifdef TESTING
+    , module Cmd.MidiThru
+#endif
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -75,6 +83,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -87,6 +96,7 @@ import Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import Global
 
@@ -121,7 +131,7 @@ midi_thru_instrument score_inst input = do
             Inst.inst_midi inst
         input_nn <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< input_to_nn score_inst (Patch.patch_scale patch) scale input
+            =<< input_to_nn score_inst patch scale input
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
                 input_to_midi pb_range wdev_state addrs input_nn
@@ -130,14 +140,14 @@ midi_thru_instrument score_inst input = do
         mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-input_to_nn :: Cmd.M m => Score.Instrument -> Maybe Patch.Scale -> Scale.Scale
+input_to_nn :: Cmd.M m => Score.Instrument -> Patch.Patch -> Scale.Scale
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
-input_to_nn inst patch_scale scale input = case input of
+input_to_nn inst patch scale input = case input of
     InputNote.NoteOn note_id input vel -> do
-        maybe_nn <- convert input
+        (maybe_nn, ks) <- convert input
         return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
     InputNote.PitchChange note_id input -> do
-        maybe_nn <- convert input
+        (maybe_nn, ks) <- convert input
         return $ fmap (InputNote.PitchChange note_id) maybe_nn
     InputNote.NoteOff note_id vel ->
         return $ Just $ InputNote.NoteOff note_id vel
@@ -157,7 +167,7 @@ input_to_nn inst patch_scale scale input = case input of
             -- no need to shout about it.
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
-            Right (Right nn) -> return $ map_instrument_scale patch_scale nn
+            Right (Right nn) -> return $ convert_pitch patch mempty nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
@@ -173,10 +183,22 @@ allow_only_octave_transpose scale = Derive.with_controls transposers
             (Set.toList (Scale.scale_transposers scale)))
         (repeat (Score.untyped Signal.empty))
 
-map_instrument_scale :: Maybe Patch.Scale -> Pitch.NoteNumber
-    -> Maybe Pitch.NoteNumber
-map_instrument_scale Nothing = Just
-map_instrument_scale (Just scale) = Patch.convert_scale scale
+-- | This is a mini version of 'Perform.Midi.Convert.convert_midi_pitch'.
+-- It's different because it works with a scalar NoteNumber instead of
+-- a Score.Event with a pitch signal, which makes it hard to share code.
+convert_pitch :: Patch.Patch -> Attrs.Attributes -> Pitch.NoteNumber
+    -> (Maybe Pitch.NoteNumber, [Patch.Keyswitch])
+convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
+    Nothing -> (maybe_pitch, [])
+    Just (keyswitches, maybe_keymap) ->
+        (maybe maybe_pitch set_keymap maybe_keymap, keyswitches)
+    where
+    maybe_pitch = apply_patch_scale nn
+    apply_patch_scale = maybe Just Patch.convert_scale (Patch.patch_scale patch)
+    attr_map = Patch.patch_attribute_map patch
+    set_keymap (Patch.UnpitchedKeymap key) = Just $ Midi.from_key key
+    set_keymap (Patch.PitchedKeymap low _ low_pitch) =
+        (+ Midi.from_key (low - low_pitch)) <$> maybe_pitch
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn
