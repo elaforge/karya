@@ -92,7 +92,8 @@ import Types
 -- * Event
 
 data Event = Event {
-    -- | These are the core attributes that define an event.
+    -- | 'event_start', 'event_duration', and 'event_text' are the core
+    -- attributes that define an event.
     event_start :: !RealTime
     , event_duration :: !RealTime
     , event_text :: !Text

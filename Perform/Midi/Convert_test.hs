@@ -129,17 +129,16 @@ test_patch_scale = do
     equal (run Nothing (attr_patch ks_map) "4c") ([Left (0, [(0, NN.b3)])], [])
     -- PitchKeymap also goes through the Patch.Scale.
     let pitched_map = Common.attribute_map
-            [ (Attrs.mute, ([Patch.Keyswitch 0],
-                Just (Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)))
-            , (mempty, ([Patch.Keyswitch 1],
-                Just (Patch.PitchedKeymap Key.c4 Key.c5 Key.c4)))
+            [ (Attrs.mute,
+                ([], Just (Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)))
+            , (mempty, ([], Just (Patch.PitchedKeymap Key.c4 Key.c5 Key.c4)))
             ]
         pitched_patch =
             Patch.attribute_map #= pitched_map $ make_patch (Just scale1)
-    equal (run Nothing pitched_patch "4c")
-        ([Left (0, [(0, NN.b3)])], [])
-    equal (run Nothing pitched_patch "+mute -- 4c")
-        ([Left (0, [(0, NN.b1)])], [])
+    equal (run Nothing pitched_patch "5c")
+        ([Left (0, [(0, NN.b4)])], [])
+    equal (run Nothing pitched_patch "+mute -- 5c")
+        ([Left (0, [(0, NN.b2)])], [])
 
 test_convert_dynamic = do
     let run inst = first (convert clookup extract)

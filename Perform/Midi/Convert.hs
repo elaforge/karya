@@ -106,12 +106,9 @@ convert_midi_pitch :: Log.LogMonad m => Types.Patch -> Maybe Patch.Scale
     -> m (Types.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> do
-            sig <- apply_patch_scale scale =<< get_signal
-            return (patch, round_sig sig)
+        Nothing -> (patch,) . round_sig <$> get_signal
         Just (keyswitches, maybe_keymap) -> do
-            sig <- maybe (apply_patch_scale scale =<< get_signal) set_keymap
-                maybe_keymap
+            sig <- maybe get_signal set_keymap maybe_keymap
             return (set_keyswitches keyswitches patch, round_sig sig)
     where
     set_keyswitches [] patch = patch
@@ -119,16 +116,15 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
         patch { Types.patch_keyswitch = keyswitches }
 
     -- A PitchedKeymap is mapped through the Patch.Scale.
-    set_keymap (Patch.PitchedKeymap low high low_nn) = do
-        sig <- get_signal
-        apply_patch_scale scale $
-            convert_pitched_keymap (Midi.from_key low) (Midi.from_key high)
-                low_nn sig
+    set_keymap (Patch.PitchedKeymap low high low_pitch) =
+        convert_pitched_keymap (Midi.from_key low) (Midi.from_key high)
+            low_pitch <$> get_signal
     -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
 
-    get_signal = convert_event_pitch patch constant_pitch controls event
+    get_signal = apply_patch_scale scale
+        =<< convert_event_pitch patch constant_pitch controls event
     round_sig = Signal.map_y round_pitch
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
