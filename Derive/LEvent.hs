@@ -26,6 +26,9 @@ data LEvent a = Event !a | Log !Log.Msg
 instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
     format = either Pretty.format format_log
 
+instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where
+    rnf = either DeepSeq.rnf DeepSeq.rnf
+
 -- | A variation on 'Log.format_msg', except this can format the stack nicely.
 format_log :: Log.Msg -> Pretty.Doc
 format_log msg =
@@ -57,6 +60,10 @@ log_or f = either f (const True)
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event
 either _ f2 (Log log) = f2 log
+
+map_log :: (Log.Msg -> Log.Msg) -> LEvent a -> LEvent a
+map_log f (Log log) = Log (f log)
+map_log _ event = event
 
 find_event :: (a -> Bool) -> [LEvent a] -> Maybe a
 find_event _ [] = Nothing
@@ -91,9 +98,6 @@ partition = Either.partitionEithers . map to_either
     where
     to_either (Event d) = Left d
     to_either (Log msg) = Right msg
-
-instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where
-    rnf = either DeepSeq.rnf DeepSeq.rnf
 
 -- | This is similar to 'List.mapAccumL', but lifted into LEvents.  It also
 -- passes future events to the function.

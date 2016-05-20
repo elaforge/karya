@@ -35,9 +35,11 @@ convert process lookup_inst = go Nothing Set.empty
             | otherwise -> warn ("instrument not found: " <> pretty inst)
                 : go (Just event) (Set.insert inst warned) events
         Just (Inst.Inst backend common, InstTypes.Qualified _ name) ->
-            process (Cmd.inst_postproc (Common.common_code common) event)
+            converted ++ go (Just event) warned events
+            where
+            converted = map (LEvent.map_log (add_stack event)) $ process
+                (Cmd.inst_postproc (Common.common_code common) event)
                 backend name
-            ++ go (Just event) warned events
         where
         inst = Score.event_instrument event
         -- Sorted is a postcondition of the deriver, verify that.
@@ -48,4 +50,7 @@ convert process lookup_inst = go Nothing Set.empty
                     <> " less than previous " <> Score.log_event prev)
                 : events
             | otherwise = events
-    warn = LEvent.Log . Log.msg Log.Warn Nothing
+        warn = LEvent.Log . Log.msg Log.Warn (Just (Score.event_stack event))
+
+add_stack :: Score.Event -> Log.Msg -> Log.Msg
+add_stack event msg = msg { Log.msg_stack = Just (Score.event_stack event) }
