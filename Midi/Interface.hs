@@ -149,16 +149,16 @@ note_tracker write = do
 -- if dev in state:
 --      state[dev][chan][key] = False
 note_off :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_off dev chan (Midi.Key key) = when (Num.inRange 0 128 key) $ do
+note_off dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     whenJust (Map.lookup dev state) $ \chans -> liftIO $
-        Mutable.write (chans ! fromIntegral chan) (fromIntegral key) False
+        Mutable.write (chans ! fromIntegral chan) (Midi.from_key key) False
 
 -- if dev not in state:
 --      state[dev] = [[0]*128] * 16
 -- state[dev][chan][key] = True
 note_on :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_on dev chan (Midi.Key key) = when (Num.inRange 0 128 key) $ do
+note_on dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     case Map.lookup dev state of
         Nothing -> do
@@ -169,7 +169,7 @@ note_on dev chan (Midi.Key key) = when (Num.inRange 0 128 key) $ do
         Just chans -> set chans
     where
     set chans = liftIO $
-        Mutable.write (chans ! fromIntegral chan) (fromIntegral key) True
+        Mutable.write (chans ! fromIntegral chan) (Midi.from_key key) True
 
 -- | Send the given messages on all devices.
 send_devices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]

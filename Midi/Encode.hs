@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Midi.Encode (decode, encode, sox_byte, eox_byte) where
-import Data.Monoid ((<>))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as Unsafe
+import Data.Monoid ((<>))
 import Data.Word (Word8)
 
 import Midi.Midi
@@ -32,11 +32,11 @@ decode3 status d1 d2 bytes
     where
     (st, chan) = split4 status
     channel_msg = case st of
-        0x8 -> NoteOff (Key d1) d2
+        0x8 -> NoteOff (to_key d1) d2
             -- Hide this bit of midi irregularity from clients.
-        0x9 | d2 == 0 -> NoteOff (Key d1) d2
-            | otherwise -> NoteOn (Key d1) d2
-        0xa -> Aftertouch (Key d1) d2
+        0x9 | d2 == 0 -> NoteOff (to_key d1) d2
+            | otherwise -> NoteOn (to_key d1) d2
+        0xa -> Aftertouch (to_key d1) d2
         0xb -> ControlChange d1 d2
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
@@ -71,9 +71,9 @@ decode3 status d1 d2 bytes
 
 encode :: Message -> B.ByteString
 encode (ChannelMessage chan msg) = B.pack $ join1 $ case msg of
-        NoteOff (Key n) v -> [0x8, n, v]
-        NoteOn (Key n) v -> [0x9, n, v]
-        Aftertouch (Key n) v -> [0xa, n, v]
+        NoteOff key v -> [0x8, encode_key key, v]
+        NoteOn key v -> [0x9, encode_key key, v]
+        Aftertouch key v -> [0xa, encode_key key, v]
         ControlChange c v -> [0xb, c, v]
         ProgramChange v -> [0xc, v]
         ChannelPressure v -> [0xd, v]
@@ -140,3 +140,6 @@ decode_pb d1 d2
 encode_pb :: PitchBendValue -> (Word8, Word8)
 encode_pb v = split14 (floor (v*m + 0x2000))
     where m = if v < 0 then 0x2000 else 0x2000 - 1
+
+encode_key :: Key -> Word8
+encode_key = from_key . min 127 . max 0

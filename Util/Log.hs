@@ -11,7 +11,6 @@
     reports.  They are collected in a central place that writes them to a file
     in a machine-readable serialized format.
 -}
-
 module Util.Log (
     configure
     -- * msgs

@@ -101,11 +101,11 @@ extract_message :: (RealTime, Z.MidiEvent) -> [Midi]
 extract_message (time, msg) = case msg of
     Z.VoiceEvent _ midi -> (:[]) . (,) time $ case midi of
         Z.NoteOff chan key vel ->
-            Midi.ChannelMessage chan (Midi.NoteOff (Midi.Key key) vel)
+            Midi.ChannelMessage chan (Midi.NoteOff (Midi.to_key key) vel)
         Z.NoteOn chan key vel ->
-            Midi.ChannelMessage chan (Midi.NoteOn (Midi.Key key) vel)
+            Midi.ChannelMessage chan (Midi.NoteOn (Midi.to_key key) vel)
         Z.NoteAftertouch chan key val ->
-            Midi.ChannelMessage chan (Midi.Aftertouch (Midi.Key key) val)
+            Midi.ChannelMessage chan (Midi.Aftertouch (Midi.to_key key) val)
         Z.Controller chan cc val ->
             Midi.ChannelMessage chan (Midi.ControlChange cc val)
         Z.ProgramChange chan program ->

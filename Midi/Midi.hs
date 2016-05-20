@@ -262,12 +262,20 @@ type ControlValue = Word8
 type PitchBendValue = Float
 type Manufacturer = Word8
 
-newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Show, Read)
+newtype Key = Key Int deriving (Eq, Ord, Num, Enum, Show, Read)
+    -- This was initially a Word8 to match MIDI's range, but unlike the other
+    -- types, I sometimes do math on these, and Word8's tiny range is kind of
+    -- scary for that.
+
+instance Serialize.Serialize Key where
+    -- The old encoding used Word8, so keep that for compatibility.
+    put key = Serialize.put (from_key key :: Word8)
+    get = (to_key :: Word8 -> Key) <$> Serialize.get
 
 instance Pretty.Pretty Key where
     pretty (Key key) = note <> showt (oct - 1) <> "(" <> showt key <> ")"
         where
-        (oct, k) = (fromIntegral key :: Int) `divMod` 12
+        (oct, k) = key `divMod` 12
         note = case k of
             0 -> "c"; 1 -> "cs"
             2 -> "d"; 3 -> "ds"

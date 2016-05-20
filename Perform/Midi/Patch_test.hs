@@ -4,8 +4,6 @@
 
 module Perform.Midi.Patch_test where
 import Util.Test
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
