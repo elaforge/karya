@@ -58,10 +58,7 @@ convert_event :: Lookup -> Score.Event -> Patch.Patch
 convert_event lookup event patch = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_transformed_controls event
-    (perf_patch, pitch) <- convert_midi_pitch (Types.patch inst patch)
-        (Patch.patch_scale patch) (Patch.patch_attribute_map patch)
-        (Patch.has_flag patch Patch.ConstantPitch)
-        event_controls event
+    (perf_patch, pitch) <- convert_midi_pitch inst patch event_controls event
     let controls = convert_controls (Types.patch_control_map perf_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup inst)
@@ -101,19 +98,18 @@ run = merge . Identity.runIdentity . Log.run
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Log.LogMonad m => Types.Patch -> Maybe Patch.Scale
-    -> Patch.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
-    -> m (Types.Patch, Signal.NoteNumber)
-convert_midi_pitch patch scale attr_map constant_pitch controls event =
+convert_midi_pitch :: Log.LogMonad m => Score.Instrument -> Patch.Patch
+    -> Score.ControlMap -> Score.Event -> m (Types.Patch, Signal.NoteNumber)
+convert_midi_pitch inst patch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> (patch,) . round_sig <$> get_signal
+        Nothing -> (perf_patch,) . round_sig <$> get_signal
         Just (keyswitches, maybe_keymap) -> do
             sig <- maybe get_signal set_keymap maybe_keymap
-            return (set_keyswitches keyswitches patch, round_sig sig)
+            return (set_keyswitches keyswitches, round_sig sig)
     where
-    set_keyswitches [] patch = patch
-    set_keyswitches keyswitches patch =
-        patch { Types.patch_keyswitch = keyswitches }
+    set_keyswitches [] = perf_patch
+    set_keyswitches keyswitches =
+        perf_patch { Types.patch_keyswitch = keyswitches }
 
     -- A PitchedKeymap is mapped through the Patch.Scale.
     set_keymap (Patch.PitchedKeymap low high low_pitch) =
@@ -122,10 +118,13 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
     -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
-
-    get_signal = apply_patch_scale scale
-        =<< convert_event_pitch patch constant_pitch controls event
+    get_signal = apply_patch_scale (Patch.patch_scale patch)
+        =<< convert_event_pitch perf_patch constant_pitch controls event
     round_sig = Signal.map_y round_pitch
+
+    perf_patch = Types.patch inst patch
+    attr_map = Patch.patch_attribute_map patch
+    constant_pitch = Patch.has_flag patch Patch.ConstantPitch
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> Signal.NoteNumber -> Signal.NoteNumber
