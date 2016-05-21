@@ -14,7 +14,7 @@ have a large standard library, but also be able to define notation specific to
 your score.  The editor is graphical but also uses a haskell REPL for
 configuration, automation, and extension.  If you're familiar with Amiga-style
 trackers, it looks somewhat similar, but fundamentally it's much closer to a
-programming language.
+programming language and aims at a higher level of expression.
 
 The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
@@ -27,6 +27,8 @@ haven't done much testing there.
 
 As far as I know, there are no other sequencers with similar goals and
 features, but if there are, I'd be interested in hearing about them.
+
+All calligraphy is by 黃世昌 / Samson Huang.
 
 ## Music, screenshots, examples
 
@@ -98,8 +100,8 @@ section, edited to sound better.
 - [REPL](repl.md.html).  All non-GUI interaction is through a command-line
 interface, so you can do complicated transformations by writing a function.
 The language is Haskell, which the rest of the program is written in, and it
-has direct access to all internal funtionality.  If you frequently use a
-particular transformation you can compile it into the program.
+has direct access to all internal funtionality.  You can write your own
+commands in a file and make them available at the REPL.
 
 - Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
 keyswitches as named attributes, and automatically multiplex MIDI channels to
@@ -144,15 +146,14 @@ bugs.
 
 - Greedy.  What with the various caches, an internal focus on simplicity over
 efficiency, and plenty of unoptimized bits, it demands quite a lot of memory
-and CPU for a program that doesn't actually handle audio.  In addition, if you
-are writing your own calls you will likely need to recompile a fair amount
-and that's no lightweight operation either.
+and CPU for a program that doesn't actually handle audio.
 
 - Non-realtime.  While you should be able to play back a score soon after
 making changes, it's still very much oriented around non-realtime
 score-writing.  You cannot change a playback in progress.  Support for
-recording MIDI is not a focus, since it's hard to integrate a low-level
-recorded performance with a high-level handwritten score.
+recording MIDI is not a focus, partially because it's hard to integrate a
+low-level recorded performance with a high-level handwritten score, but
+mostly because I don't work that way.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
@@ -174,7 +175,8 @@ resolution output, and no tradition of music that relies on it.  As far as I
 can tell, VST's "automation parameters" are basically higher resolution MIDI
 controls, so some of this could probably be ameliorated by extending a VST host
 to turn high resolution OSC into VST automation.  As far as I know there is no
-program that does this.
+program that does this.  Probably the fundamental problem is that no one cares
+much about this issue.
 
 - The score format tries to be simple and general, but the price is that it's
 not as efficient as more specialized notation.  For example, staff notation
@@ -213,7 +215,7 @@ good at it.
 - Ui - The UI level has the data structures that hold the score, all collected
 in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
 GUI.  This is what gets saved when you save a score.  If you study the UI state
-and follow some of the links, you can get an idea for what a score actually is.
+and follow some of the links, you can get an idea of what a score actually is.
 
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
 all user interaction.  'Cmd.Cmd.State' is the non-score app state.  If you
@@ -238,10 +240,10 @@ The karya GUI doesn't have a place for global information, so logview serves
 this purpose too.  When log messages display stack traces, you can double click
 them to highlight their positions in the score.
 
-- browser - 'Instrument.Browser' is a simple browser for
-the instrument database.  To the UI and Derive layers, an instrument is just a
-text string, but they have quite a bit of extra information associated with
-them which is important to the performer.
+- browser - 'Instrument.Browser' is a simple browser for the instrument
+database.  To the UI and Derive layers, an instrument is just a text string,
+but they have quite a bit of extra information associated with them which is
+important to the performer.
 
 - make_db - If the instruments involve expensive operations like parsing
 directories full of sysex messages, they can serialize the parsed instruments

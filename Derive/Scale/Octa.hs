@@ -13,6 +13,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 scales :: [Scale.Make]
@@ -61,7 +62,8 @@ make_scale scale_id layout keys fmt = Scales.set_direct_input_to_nn $
     Just default_theory_key = Map.lookup default_key keys
     doc = "Octatonic scales as true 8 note scales, using notes from a-h.\
         \ There are two variants: octa21 starts with a whole step, while\
-        \ octa12 starts with a half-step."
+        \ octa12 starts with a half-step.\n"
+        <> ChromaticScales.twelve_doc
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "a"

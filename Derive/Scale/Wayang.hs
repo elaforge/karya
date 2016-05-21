@@ -32,9 +32,8 @@ import Global
 
 
 scales :: [Scale.Make]
-scales = map Scale.Simple
-    [ Scales.add_doc "Saih gender wayang." $
-        BaliScales.make_scale scale_id complete_scale
+scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
+    [ BaliScales.make_scale scale_id complete_scale
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $

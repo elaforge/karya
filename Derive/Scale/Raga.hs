@@ -26,13 +26,11 @@ scales = map Scale.Simple
 doc :: Text
 doc = "Carnatic ragas, from the melakarta system.\
     \\nThe \"key\" is actually the raga, e.g.\
-    \ `key=shankarabharanam`. I can't represent arohana and avarohana since I\
-    \ can't always know in the notation whether the previous note was higher or\
-    \ lower, so these are represented as \"enharmonics\". Also, these scales\
-    \ deal only with pitches, and don't\
-    \ differentiate between gamakam, or order, and I don't bother omitting\
-    \ notes if there are less than seven, so many janya ragas can be aliased to\
-    \ their janaka raga.\
+    \ `key=shankarabharanam`. Arohana and avarohana are not represented in the\
+    \ scale, so janya ragams look the same as their parent. The information\
+    \ is present, though, so it can be interpreted by various gamakam ornaments\
+    \ (not yet implemented though).  TODO There is also currently no way to\
+    \ represent pitches which differ in arohana and avarohana.\
     \\nSince latin orthography is inconsistent, they might be spelled slightly\
     \ differently from how you expect."
 

@@ -189,12 +189,11 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
 
 call_doc :: Set.Set Score.Control -> ScaleMap -> Text -> Derive.DocumentedCall
 call_doc transposers smap doc =
-    Scales.annotate_call_doc transposers extra_doc fields $
+    Scales.annotate_call_doc transposers doc fields $
         Derive.extract_val_doc call
     where
     call = ScaleDegree.scale_degree PSignal.no_scale err err
         where err _ = Left $ PSignal.PitchError "it was just an example!"
-    extra_doc = doc <> "\n" <> twelve_doc
     -- Not efficient, but shouldn't matter for docs.
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))

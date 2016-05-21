@@ -33,10 +33,10 @@ scale_id = "bp"
 
 absolute_scale :: Scale.Scale
 absolute_scale =
-    (ChromaticScales.make_scale scale_id scale_map
-        "Bohlen-Pierce is for when you want a scale which is systematically\
-        \ different in every way from all those other scales, but with its\
-        \ own peculiar internal consistency.\n")
+    (ChromaticScales.make_scale scale_id scale_map $
+        "Bohlen-Pierce is derived from 3 instead of 2, and thus has a\
+        \ \"tritave\" instead of an octave.\n"
+        <> ChromaticScales.twelve_doc)
     { Scale.scale_note_to_call = note_to_call scale_map
     , Scale.scale_input_to_nn = Scales.computed_input_to_nn
         (ChromaticScales.input_to_note scale_map) (note_to_call scale_map)

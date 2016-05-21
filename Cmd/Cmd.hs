@@ -295,7 +295,7 @@ require_right fmt_err = either (throw . fmt_err) return
 
 -- * State
 
-{- | | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
+{- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
     This is normally modified inside a 'CmdT', which is also a 'State.StateT',
     so it can also use the UI state functions.  If an exception is thrown, both
     this state and the UI state will be rolled back.
@@ -429,7 +429,7 @@ reinit_state present cstate = cstate
 -- ** Config
 
 -- | Config type variables that change never or rarely.  These mostly come from
--- the static config.
+-- the "App.StaticConfig".
 data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
     config_app_dir :: !FilePath
@@ -437,9 +437,8 @@ data Config = Config {
     -- | Search path for local definition files, from 'Config.definition_path'.
     , config_ky_paths :: ![FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
-    -- 'App.StaticConfig.read_device_map' and
-    -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
-    -- at runtime.
+    -- 'App.StaticConfig.rdev_map' and 'App.StaticConfig.wdev_map' and probably
+    -- shouldn't be changed at runtime.
     , config_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
     -- | WriteDevices can be score-specific, though, so another map is kept in
     -- 'State.State', which may override the one here.

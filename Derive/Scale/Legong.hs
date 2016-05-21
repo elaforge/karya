@@ -49,10 +49,13 @@ import Global
 
 
 scales :: [Scale.Make]
-scales = map Scale.Simple
-    [ Scales.add_doc "Saih pelegongan, from my instruments." $
-        BaliScales.make_scale scale_id complete_scale
-    , BaliScales.make_scale "legong-c" cipher_scale
+scales =
+    map (Scale.Simple . Scales.add_doc "Saih pelegongan, from my instruments.")
+    [ BaliScales.make_scale scale_id complete_scale
+    , Scales.add_doc "Use Javanese-style cipher notation. This can be more\
+        \ convenient for saih pitu." $
+        -- TODO use 4 and 7 instead of 3# and 6#.
+        BaliScales.make_scale "legong-c" cipher_scale
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
