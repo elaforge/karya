@@ -33,6 +33,7 @@ module Perform.Midi.Patch (
     -- ** AttributeMap
     , AttributeMap, Keymap(..), Keyswitch(..)
     , keyswitches, single_keyswitches, cc_keyswitches, keymap, unpitched_keymap
+    , keyswitch_on, keyswitch_off
 #ifdef TESTING
     , module Perform.Midi.Patch
 #endif
@@ -435,3 +436,16 @@ keymap table =
 -- | An AttributeMap with just unpitched keymaps.
 unpitched_keymap :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
 unpitched_keymap = keymap . map (second UnpitchedKeymap)
+
+-- | The MIDI message to activate the given Keyswitch.
+keyswitch_on :: Midi.Key -> Keyswitch -> Midi.ChannelMessage
+keyswitch_on midi_key ks = case ks of
+    Keyswitch key -> Midi.NoteOn key 64
+    ControlSwitch cc val -> Midi.ControlChange cc val
+    Aftertouch val -> Midi.Aftertouch midi_key val
+
+keyswitch_off :: Keyswitch -> Maybe Midi.ChannelMessage
+keyswitch_off ks = case ks of
+    Keyswitch key -> Just $ Midi.NoteOff key 64
+    ControlSwitch {} -> Nothing
+    Aftertouch {} -> Nothing

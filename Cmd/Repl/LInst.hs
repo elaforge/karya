@@ -26,10 +26,12 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
@@ -269,6 +271,17 @@ merge allocations@(StateConfig.Allocations allocs) = do
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
     State.modify_config $ State.allocations %= (allocations<>)
+
+-- * Cmd.EditState
+
+set_attrs :: Cmd.M m => Instrument -> Text -> m ()
+set_attrs inst_ attrs = do
+    let inst = Util.instrument inst_
+    Cmd.get_instrument inst -- ensure that it exists
+    val <- Cmd.require_right ("parsing attrs: " <>) $
+        Parse.parse_val ("+" <> attrs)
+    attrs <- Cmd.require_right id $ Typecheck.typecheck_simple val
+    Cmd.set_instrument_attributes inst attrs
 
 
 -- * change_instrument

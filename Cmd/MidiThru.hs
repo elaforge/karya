@@ -108,11 +108,13 @@ cmd_midi_thru msg = do
         Msg.InputNote input -> return input
         _ -> Cmd.abort
     score_inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
-    midi_thru_instrument score_inst input
+    attrs <- Cmd.get_instrument_attributes score_inst
+    midi_thru_instrument score_inst attrs input
     return Cmd.Continue
 
-midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
-midi_thru_instrument score_inst input = do
+midi_thru_instrument :: Cmd.M m => Score.Instrument -> Attrs.Attributes
+    -> InputNote.Input -> m ()
+midi_thru_instrument score_inst attrs input = do
     alloc <- Cmd.require ("no alloc for " <> pretty score_inst)
         =<< (State.allocation score_inst <#> State.get)
     midi_config <- case StateConfig.alloc_backend alloc of
@@ -129,30 +131,47 @@ midi_thru_instrument score_inst input = do
             =<< Cmd.lookup_instrument score_inst
         patch <- Cmd.require ("no midi patch for " <> pretty score_inst) $
             Inst.inst_midi inst
-        input_nn <- Cmd.require
+        (input_nn, ks) <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< input_to_nn score_inst patch scale input
+            =<< input_to_nn score_inst patch scale attrs input
         wdev_state <- Cmd.get_wdev_state
-        let (thru_msgs, maybe_wdev_state) =
-                input_to_midi pb_range wdev_state addrs input_nn
-            pb_range = Patch.patch_pitch_bend_range patch
-        whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
-        mapM_ (uncurry Cmd.midi) thru_msgs
+        let result = input_to_midi (Patch.patch_pitch_bend_range patch)
+                wdev_state addrs input_nn
+        whenJust result $ \(thru_msgs, wdev_state) -> do
+            Cmd.modify_wdev_state (const wdev_state)
+            let ks_msgs = concatMap (keyswitch_to_midi thru_msgs) ks
+            mapM_ (uncurry Cmd.midi) (ks_msgs ++ thru_msgs)
+
+keyswitch_to_midi :: [(Midi.WriteDevice, Midi.Message)] -> Patch.Keyswitch
+    -> [(Midi.WriteDevice, Midi.Message)]
+keyswitch_to_midi msgs ks = case msum (map msg_addr msgs) of
+    Nothing -> []
+    Just addr -> map (with_addr addr) $
+        Patch.keyswitch_on note_on_key ks
+            : maybe [] (:[]) (Patch.keyswitch_off ks)
+    where
+    msg_addr (dev, msg) = (dev,) <$> Midi.message_channel msg
+    -- This is needed only for the Patch.Aftertouch keyswitch, and is only
+    -- applicable before a NoteOn.
+    note_on_key = fromMaybe 0 $ msum $ map (key_of . snd) msgs
+    key_of (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just key
+    key_of _ = Nothing
 
 -- | Realize the Input as a pitch in the given scale.
 input_to_nn :: Cmd.M m => Score.Instrument -> Patch.Patch -> Scale.Scale
-    -> InputNote.Input -> m (Maybe InputNote.InputNn)
-input_to_nn inst patch scale input = case input of
-    InputNote.NoteOn note_id input vel -> do
-        (maybe_nn, ks) <- convert input
-        return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
-    InputNote.PitchChange note_id input -> do
-        (maybe_nn, ks) <- convert input
-        return $ fmap (InputNote.PitchChange note_id) maybe_nn
+    -> Attrs.Attributes -> InputNote.Input
+    -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
+input_to_nn inst patch scale attrs input = case input of
+    InputNote.NoteOn note_id input vel ->
+        justm (convert input) $ \(nn, ks) ->
+            return $ Just (InputNote.NoteOn note_id nn vel, ks)
+    InputNote.PitchChange note_id input ->
+        justm (convert input) $ \(nn, _) ->
+            return $ Just (InputNote.PitchChange note_id nn, [])
     InputNote.NoteOff note_id vel ->
-        return $ Just $ InputNote.NoteOff note_id vel
+        return $ Just (InputNote.NoteOff note_id vel, [])
     InputNote.Control note_id control val ->
-        return $ Just $ InputNote.Control note_id control val
+        return $ Just (InputNote.Control note_id control val, [])
     where
     convert input = do
         (block_id, _, track_id, pos) <- Selection.get_insert
@@ -167,7 +186,7 @@ input_to_nn inst patch scale input = case input of
             -- no need to shout about it.
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
-            Right (Right nn) -> return $ convert_pitch patch mempty nn
+            Right (Right nn) -> return $ convert_pitch patch attrs nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
@@ -187,11 +206,11 @@ allow_only_octave_transpose scale = Derive.with_controls transposers
 -- It's different because it works with a scalar NoteNumber instead of
 -- a Score.Event with a pitch signal, which makes it hard to share code.
 convert_pitch :: Patch.Patch -> Attrs.Attributes -> Pitch.NoteNumber
-    -> (Maybe Pitch.NoteNumber, [Patch.Keyswitch])
+    -> Maybe (Pitch.NoteNumber, [Patch.Keyswitch])
 convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
-    Nothing -> (maybe_pitch, [])
+    Nothing -> (, []) <$> maybe_pitch
     Just (keyswitches, maybe_keymap) ->
-        (maybe maybe_pitch set_keymap maybe_keymap, keyswitches)
+        (, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap
     where
     maybe_pitch = apply_patch_scale nn
     apply_patch_scale = maybe Just Patch.convert_scale (Patch.patch_scale patch)
@@ -202,10 +221,10 @@ convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn
-    -> ([(Midi.WriteDevice, Midi.Message)], Maybe Cmd.WriteDeviceState)
+    -> Maybe ([(Midi.WriteDevice, Midi.Message)], Cmd.WriteDeviceState)
 input_to_midi pb_range wdev_state addrs input_nn = case alloc addrs input_nn of
-    (Nothing, _) -> ([], Nothing)
-    (Just addr, new_state) -> (map (with_addr addr) msgs, Just state)
+    (Nothing, _) -> Nothing
+    (Just addr, new_state) -> Just (map (with_addr addr) msgs, state)
         where
         last_pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
         (msgs, note_key) = InputNote.to_midi pb_range last_pb

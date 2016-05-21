@@ -40,8 +40,10 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.RealTime as RealTime
@@ -308,6 +310,7 @@ update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
             && Diff.score_changed ui_from ui_to updates ->
         cmd_state { Cmd.state_saved = Just False }
     Just _ -> cmd_state
+    -- TODO
     -- This involves yet another state diff, and I already have a ton of those.
     -- What I don't like is that this takes time linear in the size of the whole
     -- score, in the common case when there has been no change.  Fortunately I
@@ -372,6 +375,7 @@ sync_edit_state save_status st = do
     sync_step_status st
     sync_octave_status st
     sync_recorded_actions (Cmd.state_recorded_actions st)
+    sync_instrument_attributes (Cmd.state_instrument_attributes st)
 
 -- | The two upper boxes reflect the edit state.  The lower box is red for
 -- 'Cmd.ValEdit' or dark red for 'Cmd.MethodEdit'.  The upper box is green
@@ -438,6 +442,14 @@ sync_recorded_actions :: Cmd.M m => Cmd.RecordedActions -> m ()
 sync_recorded_actions actions = Cmd.set_global_status "rec" $
     Text.intercalate ", " [Text.singleton i <> "-" <> pretty act |
         (i, act) <- Map.toAscList actions]
+
+sync_instrument_attributes :: Cmd.M m =>
+    Map.Map Score.Instrument Attrs.Attributes -> m ()
+sync_instrument_attributes inst_attrs =
+    Cmd.set_global_status "attrs" $ Text.unwords
+        [ ShowVal.show_val inst <> ":" <> ShowVal.show_val attrs
+        | (inst, attrs) <- Map.toAscList inst_attrs
+        ]
 
 sync_play_state :: Cmd.M m => Cmd.PlayState -> m ()
 sync_play_state st = do

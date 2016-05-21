@@ -274,8 +274,9 @@ to_midi pb_range prev_pb id_to_key input_nn = case input_nn of
     note_on note_id nn vel = case Control.pitch_to_midi pb_range nn of
         Nothing -> ([], id_to_key)
         Just (key, pb) ->
-            (cons_pb pb [Midi.NoteOn key (from_val vel)],
-                Map.insert note_id key id_to_key)
+            ( cons_pb pb [Midi.NoteOn key (from_val vel)]
+            , Map.insert note_id key id_to_key
+            )
     cons_pb pb
         | prev_pb /= pb = (Midi.PitchBend pb:)
         | otherwise = id

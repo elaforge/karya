@@ -36,9 +36,11 @@ pasang_thru msg = do
         track <- Selection.track
         polos <- Perf.lookup_val track Gangsa.inst_polos
         sangsih <- Perf.lookup_val track Gangsa.inst_sangsih
-        whenJust polos $ \inst ->
-            MidiThru.midi_thru_instrument inst input
-        whenJust sangsih $ \inst ->
-            MidiThru.midi_thru_instrument inst $
+        whenJust polos $ \inst -> do
+            attrs <- Cmd.get_instrument_attributes inst
+            MidiThru.midi_thru_instrument inst attrs input
+        whenJust sangsih $ \inst -> do
+            attrs <- Cmd.get_instrument_attributes inst
+            MidiThru.midi_thru_instrument inst attrs $
                 InputNote.multiply_note_id 1 input
         return Cmd.Continue

@@ -542,7 +542,7 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
         -- I apply the adjacent_note_gap to the ks note off too.  It's probably
         -- unnecessary, but this way the note and the ks go off at the same
         -- time.
-        return $ concatMap (ks_off (start-adjacent_note_gap))
+        return $ mapMaybe (ks_off (start-adjacent_note_gap))
             (T.patch_keyswitch old)
 
     new_ks = T.patch_keyswitch new_inst
@@ -552,15 +552,9 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     new_ks_on
         | is_hold = map (ks_on ks_start) new_ks
         | otherwise = map (ks_on ks_start) new_ks
-            ++ concatMap (ks_off (ks_start+min_note_duration)) new_ks
-    ks_on ts ks = mkmsg ts $ case ks of
-        Patch.Keyswitch key -> Midi.NoteOn key 64
-        Patch.ControlSwitch cc val -> Midi.ControlChange cc val
-        Patch.Aftertouch val -> Midi.Aftertouch midi_key val
-    ks_off ts ks = map (mkmsg ts) $ case ks of
-        Patch.Keyswitch key -> [Midi.NoteOff key 64]
-        Patch.ControlSwitch {} -> []
-        Patch.Aftertouch {} -> []
+            ++ mapMaybe (ks_off (ks_start+min_note_duration)) new_ks
+    ks_on ts = mkmsg ts . Patch.keyswitch_on midi_key
+    ks_off ts = fmap (mkmsg ts) . Patch.keyswitch_off
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
 
 -- ** perform note

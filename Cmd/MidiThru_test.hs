@@ -26,9 +26,7 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Patch as Patch
-import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-
 import qualified Instrument.Common as Common
 import Global
 
@@ -37,6 +35,7 @@ test_midi_thru_instrument = do
     -- Use *just instead of *twelve, because *twelve has a special thru that
     let run extract title = fmap (first extract)
             . run_thru (" | scale=just" <> title) (return ())
+            . (mempty,)
         e_note_on = mapMaybe Midi.channel_message . filter Midi.is_note_on
         middle_c = CmdTest.note_on 1 Pitch.middle_c
 
@@ -66,14 +65,17 @@ test_patch_scale = do
             set_midi_config inst_db (make_config scale)
     let legong = Legong.complete_instrument_scale BaliScales.Umbang
         c4 = CmdTest.note_on 1 (Pitch.pitch 4 0)
-    io_equal (run DeriveTest.default_db Nothing c4)
+    -- No Patch.Scale means it assumes the patch is in 12TET and needs a tweak.
+    io_equal (run DeriveTest.default_db Nothing (mempty, c4))
         ([Midi.PitchBend 0.365, Midi.NoteOn Key.c4 127], [])
-    io_equal (run DeriveTest.default_db (Just legong) c4)
+    io_equal (run DeriveTest.default_db (Just legong) (mempty, c4))
         ([Midi.NoteOn Key.c4 127], [])
     -- PitchKeymap also goes through the Patch.Scale.
     let inst_db = DeriveTest.make_db [("s", [pitched_keymap_patch legong])]
-    io_equal (run inst_db (Just legong) c4)
-        ([Midi.NoteOn Key.c3 127], [])
+    io_equal (run inst_db (Just legong) (mempty, c4))
+        ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
+    io_equal (run inst_db (Just legong) (Attrs.mute, c4))
+        ([Midi.NoteOn 0 64, Midi.NoteOn Key.c1 127], [])
 
 pitched_keymap_patch :: Patch.Scale -> Patch.Patch
 pitched_keymap_patch scale =
@@ -101,13 +103,13 @@ set_midi_config inst_db config = do
     alloc = StateConfig.Allocation UiTest.i1_qualified Common.empty_config
         (StateConfig.Midi config)
 
-run_thru :: String -> Cmd.CmdT IO () -> InputNote.Input
+run_thru :: String -> Cmd.CmdT IO () -> (Attrs.Attributes, InputNote.Input)
     -> IO ([Midi.Message], [String])
-run_thru title setup input =
+run_thru title setup (attrs, input) =
     fmap extract $ CmdTest.run_perf_tracks [(">i1" <> title, [])] $ do
         CmdTest.set_point_sel 1 0
         setup
-        MidiThru.midi_thru_instrument (Score.Instrument "i1") input
+        MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
     where extract result = (CmdTest.e_midi result, CmdTest.e_logs result)
 
 test_input_to_midi = do
@@ -157,7 +159,6 @@ test_input_to_midi = do
             ])
         [(2, Midi.NoteOn 64 127), (3, Midi.NoteOn 64 127)]
 
-
 extract_msg :: Midi.Message -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
 extract_msg msg = error $ "bad msg: " ++ show msg
@@ -168,13 +169,10 @@ thread_input_to_midi :: Cmd.WriteDeviceState
     -> ([(Midi.WriteDevice, Midi.Message)], Cmd.WriteDeviceState)
 thread_input_to_midi initial_state = foldl go ([], initial_state)
     where
-    go (prev_msgs, state) (addrs, input) = case next_state of
-            Nothing -> (next_msgs, state)
-            Just next_state -> (next_msgs, next_state)
+    go (prev_msgs, state) (addrs, input) = (prev_msgs ++ msgs, next_state)
         where
-        (msgs, next_state) = MidiThru.input_to_midi (-2, 2) state addrs
-            (convert_input input)
-        next_msgs = prev_msgs ++ msgs
+        (msgs, next_state) = fromMaybe ([], state) $
+            MidiThru.input_to_midi (-2, 2) state addrs (convert_input input)
 
 convert_input :: InputNote.Input -> InputNote.InputNn
 convert_input input = case input of

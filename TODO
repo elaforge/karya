@@ -42,9 +42,11 @@ UNSORTED
     * Perform.Midi.Convert
   * Cmd.MidiThru should support PitchedKeymaps
     . This means it has to duplicate some of Midi.Convert.convert_midi_pitch
-  - Cmd.MidiThru should also support attrs in general.
-    . For that I'll need some way to set it, like some kind of Cmd.State level
+  * Cmd.MidiThru should also support attrs in general.
+    * For that I'll need some way to set it, like some kind of Cmd.State level
       attrs set for each instrument.
+    - I'm probably going to want an easier way to set attrs, e.g. a key to set
+      from current selection.
   - get rid of type aliases: Cmd.Events
   * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
     'default' explicitly.
@@ -1195,6 +1197,10 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - add additional legong and wayang tunings.  Probably 'tuning' would be
+        the most appropriate, but it's already using for umbang/isep.  Maybe
+        saih=umbang/isep?  Or keep tuning the same and use laras?  Kelamin
+        would be cheeky but only appropriate to kendang and not even Balinese.
       legong scale:
         - add isep to *legong
         - pick better nns for pemero notes 4 and 7
@@ -1281,15 +1287,15 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        - Reyong thru notes frquently have the wrong articulation or are
+        * Reyong thru notes frquently have the wrong articulation or are
           entirely silent.  Maybe need to be sure to send all the keyswitches
           each time?
           . The difference with reyong is that it uses aftertouch keyswitches.
           . I think thru doesn't send keyswitches because it assumes I want
             to keep using the last articulation, and otherwise can't know
             which one I mean.
-          - First reproduce and see what MIDI is actually being sent.
-        - Force a certain keyswitch for midi thru.
+          . First reproduce and see what MIDI is actually being sent.
+        * Force a certain keyswitch for midi thru.
           . Config is 'Map Score.Instrument Attributes', and I can set it
             from the selection or manually.
           . Should it be in Cmd.State or UI state?  Let's put it in UI state

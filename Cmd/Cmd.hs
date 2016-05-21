@@ -78,6 +78,7 @@ import Cmd.Msg (Performance(..), Events) -- avoid a circular import
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -640,6 +641,8 @@ data EditState = EditState {
     -- of notes per octave.
     , state_kbd_entry_octave :: !Pitch.Octave
     , state_recorded_actions :: !RecordedActions
+    , state_instrument_attributes ::
+        !(Map.Map Score.Instrument Attrs.Attributes)
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
     } deriving (Eq, Show)
@@ -660,6 +663,7 @@ initial_edit_state = EditState {
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 3
     , state_recorded_actions = mempty
+    , state_instrument_attributes = mempty
     , state_edit_box = (box, box)
     } where box = uncurry Block.Box Config.bconfig_box
 
@@ -1067,6 +1071,10 @@ get_midi_patch inst =
 lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
 lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
 
+get_instrument :: M m => Score.Instrument -> m Inst
+get_instrument inst = require ("instrument not found: " <> pretty inst)
+    =<< lookup_instrument inst
+
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
 lookup_qualified inst = fmap StateConfig.alloc_qualified <$>
@@ -1161,6 +1169,16 @@ set_note_text text = do
     modify_edit_state $ \st -> st { state_note_text = text }
     set_status Config.status_note_text $
         if Text.null text then Nothing else Just text
+
+get_instrument_attributes :: M m => Score.Instrument -> m Attrs.Attributes
+get_instrument_attributes inst = fromMaybe mempty <$>
+    gets (Map.lookup inst . state_instrument_attributes . state_edit)
+
+set_instrument_attributes :: M m => Score.Instrument -> Attrs.Attributes -> m ()
+set_instrument_attributes inst attrs = modify_edit_state $ \st -> st
+    { state_instrument_attributes =
+        Map.insert inst attrs (state_instrument_attributes st)
+    }
 
 
 -- * util
