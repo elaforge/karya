@@ -70,8 +70,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Ui.StateConfig as StateConfig
@@ -186,7 +188,13 @@ input_to_nn inst patch scale attrs input = case input of
             -- no need to shout about it.
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
-            Right (Right nn) -> return $ convert_pitch patch attrs nn
+            Right (Right nn) -> do
+                let (result, not_found) = convert_pitch patch attrs nn
+                unless not_found $
+                    Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
+                        <> pretty attrs <> ", understood attrs are: "
+                        <> pretty (Patch.patch_attribute_map patch)
+                return result
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
@@ -206,11 +214,12 @@ allow_only_octave_transpose scale = Derive.with_controls transposers
 -- It's different because it works with a scalar NoteNumber instead of
 -- a Score.Event with a pitch signal, which makes it hard to share code.
 convert_pitch :: Patch.Patch -> Attrs.Attributes -> Pitch.NoteNumber
-    -> Maybe (Pitch.NoteNumber, [Patch.Keyswitch])
+    -> (Maybe (Pitch.NoteNumber, [Patch.Keyswitch]), Bool)
+    -- ^ The Bool is True if the attrs were non-empty but not found.
 convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
-    Nothing -> (, []) <$> maybe_pitch
+    Nothing -> ((, []) <$> maybe_pitch, attrs == mempty)
     Just (keyswitches, maybe_keymap) ->
-        (, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap
+        ((, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap, True)
     where
     maybe_pitch = apply_patch_scale nn
     apply_patch_scale = maybe Just Patch.convert_scale (Patch.patch_scale patch)
