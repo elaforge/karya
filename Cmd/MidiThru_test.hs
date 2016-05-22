@@ -33,49 +33,70 @@ import Global
 
 test_midi_thru_instrument = do
     -- Use *just instead of *twelve, because *twelve has a special thru that
-    let run extract title = fmap (first extract)
-            . run_thru (" | scale=just" <> title) (return ())
+    let run cmd_state title =
+            run_thru cmd_state (" | scale=just" <> title) (return ())
             . (mempty,)
-        e_note_on = mapMaybe Midi.channel_message . filter Midi.is_note_on
+        e_note =
+            first (mapMaybe Midi.channel_message . filter Midi.is_note)
+            . e_midi
         middle_c = CmdTest.note_on 1 Pitch.middle_c
+        cstate = CmdTest.default_cmd_state
 
     -- Input out of range is not an error.
-    io_equal (run e_note_on "" (CmdTest.note_on 1 (Pitch.pitch 99 0))) ([], [])
-    -- ignores non-octave transposition.
-    io_equal (run e_note_on "" middle_c) ([Midi.NoteOn Key.c4 127], [])
-    io_equal (run e_note_on " | %t-oct=1" middle_c)
+    io_equal (e_note <$> run cstate "" (CmdTest.note_on 1 (Pitch.pitch 99 0)))
+        ([], [])
+    io_equal (e_note <$> run cstate " | %t-oct=1" middle_c)
         ([Midi.NoteOn Key.c5 127], [])
     -- Only octave transposition is applied.
-    io_equal (run e_note_on " | %t-dia=1" middle_c)
+    io_equal (e_note <$> run cstate " | %t-dia=1" middle_c)
         ([Midi.NoteOn Key.c4 127], [])
 
+    -- io_equal (run e_note "" middle_c) ([Midi.NoteOn Key.c4 127], [])
+    result <- run cstate "" middle_c
+    equal (e_note result) ([Midi.NoteOn Key.c4 127], [])
+    result <- run (CmdTest.result_cmd_state result) "" (CmdTest.note_off 1)
+    equal (e_note result) ([Midi.NoteOff Key.c4 127], [])
+
     -- With *wayang, I should get different pitches based on tuning.
-    umbang <- run id " | scale=wayang | tuning=umbang"
+    umbang <- e_midi <$> run cstate " | scale=wayang | tuning=umbang"
         (CmdTest.note_on 1 Pitch.middle_c)
-    isep <- run id " | scale=wayang | tuning=isep"
+    isep <- e_midi <$> run cstate " | scale=wayang | tuning=isep"
         (CmdTest.note_on 1 Pitch.middle_c)
     not_equal umbang isep
 
 test_patch_scale = do
-    let run inst_db scale = fmap (first e_pitches)
-            . run_thru " | scale=legong" (set_config inst_db scale)
-        e_pitches = mapMaybe Midi.channel_message . filter Midi.is_pitched
+    let run cmd_state inst_db scale =
+            run_thru cmd_state " | scale=legong" (set_config inst_db scale)
+        e_pitches =
+            first (mapMaybe Midi.channel_message . filter Midi.is_pitched)
+            . e_midi
         make_config scale = Patch.cscale #= scale $ Patch.config1 UiTest.wdev 0
         set_config inst_db scale = do
             set_midi_config inst_db (make_config scale)
     let legong = Legong.complete_instrument_scale BaliScales.Umbang
         c4 = CmdTest.note_on 1 (Pitch.pitch 4 0)
+        cstate = CmdTest.default_cmd_state
     -- No Patch.Scale means it assumes the patch is in 12TET and needs a tweak.
-    io_equal (run DeriveTest.default_db Nothing (mempty, c4))
+    let db = DeriveTest.default_db
+    io_equal (e_pitches <$> run cstate db Nothing (mempty, c4))
         ([Midi.PitchBend 0.365, Midi.NoteOn Key.c4 127], [])
-    io_equal (run DeriveTest.default_db (Just legong) (mempty, c4))
+    io_equal (e_pitches <$> run cstate db (Just legong) (mempty, c4))
         ([Midi.NoteOn Key.c4 127], [])
+
     -- PitchKeymap also goes through the Patch.Scale.
     let inst_db = DeriveTest.make_db [("s", [pitched_keymap_patch legong])]
-    io_equal (run inst_db (Just legong) (mempty, c4))
+    io_equal (e_pitches <$> run cstate inst_db (Just legong) (mempty, c4))
         ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
-    io_equal (run inst_db (Just legong) (Attrs.mute, c4))
+    io_equal (e_pitches <$> run cstate inst_db (Just legong) (Attrs.mute, c4))
         ([Midi.NoteOn 0 64, Midi.NoteOn Key.c1 127], [])
+
+    result <- run cstate inst_db (Just legong) (mempty, c4)
+    equal (e_pitches result)
+        ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
+    result <- run (CmdTest.result_cmd_state result) inst_db (Just legong)
+        (mempty, CmdTest.note_off 1)
+    equal (e_pitches result)
+        ([Midi.NoteOff 1 64, Midi.NoteOff Key.c3 127], [])
 
 pitched_keymap_patch :: Patch.Scale -> Patch.Patch
 pitched_keymap_patch scale =
@@ -103,14 +124,17 @@ set_midi_config inst_db config = do
     alloc = StateConfig.Allocation UiTest.i1_qualified Common.empty_config
         (StateConfig.Midi config)
 
-run_thru :: String -> Cmd.CmdT IO () -> (Attrs.Attributes, InputNote.Input)
-    -> IO ([Midi.Message], [String])
-run_thru title setup (attrs, input) =
-    fmap extract $ CmdTest.run_perf_tracks [(">i1" <> title, [])] $ do
+run_thru :: Cmd.State -> String -> Cmd.CmdT IO ()
+    -> (Attrs.Attributes, InputNote.Input) -> IO (CmdTest.Result ())
+run_thru cmd_state title setup (attrs, input) =
+    CmdTest.run_perf (CmdTest.make_tracks tracks) cmd_state $ do
         CmdTest.set_point_sel 1 0
         setup
         MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
-    where extract result = (CmdTest.e_midi result, CmdTest.e_logs result)
+    where tracks = [(">i1" <> title, [])]
+
+e_midi :: CmdTest.Result a -> ([Midi.Message], [String])
+e_midi result = (CmdTest.e_midi result, CmdTest.e_logs result)
 
 test_input_to_midi = do
     let wdev = UiTest.wdev

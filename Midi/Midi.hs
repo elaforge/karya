@@ -224,9 +224,9 @@ is_state (ChannelMessage _ msg) = case msg of
     _ -> True
 is_state _ = False
 
--- | True for messages that set pitch: NoteOn and PitchBend.
+-- | True for messages with a pitch: NoteOn, NoteOff and PitchBend.
 is_pitched :: Message -> Bool
-is_pitched msg = is_note_on msg || case msg of
+is_pitched msg = is_note msg || case msg of
     ChannelMessage _ (PitchBend _) -> True
     _ -> False
 

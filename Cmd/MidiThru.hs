@@ -144,26 +144,29 @@ midi_thru_instrument score_inst attrs input = do
             let ks_msgs = concatMap (keyswitch_to_midi thru_msgs) ks
             mapM_ (uncurry Cmd.midi) (ks_msgs ++ thru_msgs)
 
+-- | The keyswitch winds up being simultaneous with the note on.  Especially
+-- stupid VSTs like kontakt will sometimes miss a keyswitch if it doesn't have
+-- enough lead time.  There's not much I can do about that, but to avoid making
+-- the keyswitch too short I hold it down along with the note.
 keyswitch_to_midi :: [(Midi.WriteDevice, Midi.Message)] -> Patch.Keyswitch
     -> [(Midi.WriteDevice, Midi.Message)]
-keyswitch_to_midi msgs ks = case msum (map msg_addr msgs) of
+keyswitch_to_midi msgs ks = case msum (map note_msg msgs) of
     Nothing -> []
-    Just addr -> map (with_addr addr) $
-        Patch.keyswitch_on note_on_key ks
-            : maybe [] (:[]) (Patch.keyswitch_off ks)
+    Just (addr, key, is_note_on) -> map (with_addr addr) $
+        if is_note_on then [Patch.keyswitch_on key ks]
+            else maybe [] (:[]) (Patch.keyswitch_off ks)
     where
-    msg_addr (dev, msg) = (dev,) <$> Midi.message_channel msg
-    -- This is needed only for the Patch.Aftertouch keyswitch, and is only
-    -- applicable before a NoteOn.
-    note_on_key = fromMaybe 0 $ msum $ map (key_of . snd) msgs
-    key_of (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just key
-    key_of _ = Nothing
+    note_msg (dev, Midi.ChannelMessage chan msg) = case msg of
+        Midi.NoteOn key _ -> Just ((dev, chan), key, True)
+        Midi.NoteOff key _ -> Just ((dev, chan), key, False)
+        _ -> Nothing
+    note_msg _ = Nothing
 
 -- | Realize the Input as a pitch in the given scale.
 input_to_nn :: Cmd.M m => Score.Instrument -> Patch.Patch -> Scale.Scale
     -> Attrs.Attributes -> InputNote.Input
     -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
-input_to_nn inst patch scale attrs input = case input of
+input_to_nn inst patch scale attrs input_note = case input_note of
     InputNote.NoteOn note_id input vel ->
         justm (convert input) $ \(nn, ks) ->
             return $ Just (InputNote.NoteOn note_id nn vel, ks)
@@ -171,7 +174,10 @@ input_to_nn inst patch scale attrs input = case input of
         justm (convert input) $ \(nn, _) ->
             return $ Just (InputNote.PitchChange note_id nn, [])
     InputNote.NoteOff note_id vel ->
-        return $ Just (InputNote.NoteOff note_id vel, [])
+        return $ Just (InputNote.NoteOff note_id vel, ks)
+        where
+        ks = maybe [] fst $ Common.lookup_attributes attrs
+            (Patch.patch_attribute_map patch)
     InputNote.Control note_id control val ->
         return $ Just (InputNote.Control note_id control val, [])
     where
