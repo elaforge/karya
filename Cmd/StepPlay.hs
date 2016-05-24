@@ -137,12 +137,13 @@ real_to_score block_id inv = map $ \t ->
         Just (_, (_, score) : _) -> Just score
         _ -> Nothing
 
-filter_tracks :: Set.Set TrackId -> Cmd.Events -> Cmd.Events
+filter_tracks :: Set.Set TrackId -> Vector.Vector Score.Event
+    -> Vector.Vector Score.Event
 filter_tracks track_ids
     | Set.null track_ids = id
     | otherwise = Vector.filter (from_track track_ids)
 
-group_edges :: RealTime -> Cmd.Events -> [RealTime]
+group_edges :: RealTime -> Vector.Vector Score.Event -> [RealTime]
 group_edges eta = group . edges . Vector.toList
     where
     edges events = Seq.merge (map Score.event_start events)

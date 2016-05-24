@@ -447,6 +447,8 @@ modify_config f = unsafe_modify $ \st ->
 get_config :: M m => (Config -> a) -> m a
 get_config f = gets (f . state_config)
 
+-- | TODO use this for read only.  If used for write it bypasses
+-- 'StateConfig.allocate'.
 allocation :: ScoreTypes.Instrument -> Lens State (Maybe Allocation)
 allocation inst = config # allocations_map # Lens.map inst
 

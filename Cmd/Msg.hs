@@ -77,7 +77,8 @@ instance Pretty.Pretty DeriveStatus where pretty = showt
 -- future.
 data Performance = Performance {
     perf_derive_cache :: Derive.Cache
-    , perf_events :: Events
+    -- | This is the forced result of a derivation.
+    , perf_events :: Vector.Vector Score.Event
     -- | Logs from the derivation are written separately.
     , perf_logs :: [Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
@@ -101,9 +102,6 @@ force_performance :: Performance -> ()
 force_performance perf = perf_logs perf `DeepSeq.deepseq` perf_events perf
     `DeepSeq.deepseq` perf_warps perf `DeepSeq.deepseq` perf_track_dynamic
     `DeepSeq.deepseq` ()
-
--- | This is the forced result of a derivation.
-type Events = Vector.Vector Score.Event
 
 instance Show Performance where
     show perf = "((Performance " <> show (Vector.length (perf_events perf))

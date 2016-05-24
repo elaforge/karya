@@ -136,7 +136,8 @@ rendering_tracks block_id = do
 -- ** highlights
 
 -- | Get highlights from the events, clear old highlights, and set the new ones.
-update_highlights :: Ui.Channel -> BlockId -> Msg.Events -> Cmd.CmdT IO ()
+update_highlights :: Ui.Channel -> BlockId -> Vector.Vector Score.Event
+    -> Cmd.CmdT IO ()
 update_highlights ui_chan block_id events = do
     sels <- get_event_highlights block_id events
     view_ids <- Map.keysSet <$> State.views_of block_id
@@ -149,7 +150,7 @@ update_highlights ui_chan block_id events = do
 -- | Get highlight selections from the events.
 get_event_highlights :: Cmd.M m => BlockId
     -- ^ only get highlights for events on this block
-    -> Cmd.Events
+    -> Vector.Vector Score.Event
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
 get_event_highlights block_id events = do
     colors <- Cmd.gets $ Cmd.config_highlight_colors . Cmd.state_config
@@ -164,7 +165,8 @@ resolve_tracks = concatMapM resolve
         view_ids <- Map.keys <$> State.views_of block_id
         return [((view_id, tracknum), val) | view_id <- view_ids]
 
-event_highlights :: BlockId -> Map.Map Color.Highlight Color.Color -> Cmd.Events
+event_highlights :: BlockId -> Map.Map Color.Highlight Color.Color
+    -> Vector.Vector Score.Event
     -> [((BlockId, TrackId), (Range, Color.Color))]
 event_highlights derived_block_id colors
     | Map.null colors = const []

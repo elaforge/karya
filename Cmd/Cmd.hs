@@ -29,7 +29,7 @@
     consistency I'll keep using @M@.
 -}
 module Cmd.Cmd (
-    module Cmd.Cmd, Performance(..), Events
+    module Cmd.Cmd, Performance(..)
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
@@ -74,7 +74,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
-import Cmd.Msg (Performance(..), Events) -- avoid a circular import
+import Cmd.Msg (Performance(..)) -- avoid a circular import
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.TimeStep as TimeStep
 

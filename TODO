@@ -47,7 +47,7 @@ UNSORTED
       attrs set for each instrument.
     - I'm probably going to want an easier way to set attrs, e.g. a key to set
       from current selection.
-  - get rid of type aliases: Cmd.Events
+  * get rid of type aliases: Cmd.Events
   * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
     'default' explicitly.
   - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even

@@ -196,7 +196,7 @@ annotate_controls modify block_id note_track_ids = do
 -- event in the performance.  TODO matching by stack seems like it could be
 -- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
 -- from the performance?
-find_controls :: [(Note, TrackId)] -> Cmd.Events
+find_controls :: [(Note, TrackId)] -> Vector.Vector Score.Event
     -> [(Note, (Maybe PSignal.Transposed, Score.ControlValMap))]
 find_controls note_track_ids events =
     zip (map fst note_track_ids) $
@@ -207,7 +207,7 @@ find_controls note_track_ids events =
     extract (Just event) = (Score.initial_pitch event,
         Score.event_controls_at (Score.event_start event) event)
 
-find_event :: TrackId -> Note -> Cmd.Events -> Maybe Score.Event
+find_event :: TrackId -> Note -> Vector.Vector Score.Event -> Maybe Score.Event
 find_event track_id note = Vector.find $ \event ->
     stack_matches track_id (note_start note) (note_end note) $
         Score.event_stack event

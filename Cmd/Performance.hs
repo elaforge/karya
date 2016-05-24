@@ -248,7 +248,9 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 -- them.
 evaluate_im :: Maybe Cmd.ImConfig
     -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
-    -> Cmd.Events -> (Cmd.Events -> Maybe Process.ProcessHandle -> IO a) -> IO a
+    -> Vector.Vector Score.Event
+    -> (Vector.Vector Score.Event -> Maybe Process.ProcessHandle -> IO a)
+    -> IO a
 evaluate_im maybe_im_config lookup_inst events action
     | Just im_config <- maybe_im_config, not (null im_events) = do
         Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events

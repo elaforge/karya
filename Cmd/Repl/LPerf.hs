@@ -280,7 +280,7 @@ strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 
 -- * play from
 
-events_from :: Cmd.CmdL Cmd.Events
+events_from :: Cmd.CmdL (Vector.Vector Score.Event)
 events_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id

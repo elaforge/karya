@@ -23,7 +23,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Tree as Tree
-import qualified Util.Vector as Vector
+import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -163,18 +163,19 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
-events_from :: RealTime -> Cmd.Events -> Cmd.Events
+events_from :: RealTime -> Vector.Vector Score.Event
+    -> Vector.Vector Score.Event
 events_from start events
     | start <= 0 = events
     | otherwise = Vector.drop i events
     where
-    i = Vector.lowest_index Score.event_start (start - RealTime.eta) events
+    i = Util.Vector.lowest_index Score.event_start (start - RealTime.eta) events
 
 -- | How to know how far back to go?  Impossible to know!  Well, I could look
 -- up overlapping ui events, then map the earliest time to RealTime, and start
 -- searching there.  But for now scanning from the beginning should be fast
 -- enough.
-overlapping_events :: RealTime -> Cmd.Events -> [Score.Event]
+overlapping_events :: RealTime -> Vector.Vector Score.Event -> [Score.Event]
 overlapping_events pos = Vector.foldl' collect []
     where
     collect overlap event
@@ -259,7 +260,7 @@ filter_instrument_muted (StateConfig.Allocations allocs)
     soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
     muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
 
-perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
+perform_events :: Cmd.M m => Vector.Vector Score.Event -> m Perform.MidiEvents
 perform_events events = do
     allocs <- State.gets $ State.config_allocations . State.state_config
     lookup <- get_convert_lookup

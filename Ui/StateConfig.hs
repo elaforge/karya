@@ -151,9 +151,13 @@ verify_allocation lookup_inst instrument alloc =
 newtype Allocations = Allocations (Map.Map Score.Instrument Allocation)
     deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
 
+-- | Make Allocations with no verification.  This should probably only be used
+-- for tests, allocations from user input should use 'allocate'.
 make_allocations :: [(Score.Instrument, Allocation)] -> Allocations
 make_allocations = Allocations . Map.fromList
 
+-- | This is 'make_allocations' specialized for MIDI instruments.  Like
+-- 'make_allocations', it also does no verification.
 midi_allocations :: [(Score.Instrument, (InstTypes.Qualified, Patch.Config))]
     -> Allocations
 midi_allocations allocs = Allocations $ Map.fromList

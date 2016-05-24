@@ -30,6 +30,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Local.Config
@@ -56,8 +57,8 @@ add_library :: Derive.Library -> Cmd.State -> Cmd.State
 add_library lib state = state
     { Cmd.state_ky_cache = Just $ Cmd.KyCache (Right lib) mempty }
 
-timed_perform :: Cmd.State -> FilePath -> State.State -> Cmd.Events
-    -> IO ([Midi.WriteMessage], [Log.Msg])
+timed_perform :: Cmd.State -> FilePath -> State.State
+    -> Vector.Vector Score.Event -> IO ([Midi.WriteMessage], [Log.Msg])
 timed_perform cmd_state msg state events =
     Testing.print_timer msg (timer_msg (length . fst)) $ do
         let (msgs, logs) = perform cmd_state state events
@@ -65,7 +66,7 @@ timed_perform cmd_state msg state events =
         return (msgs, logs)
 
 timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
-    -> IO (Cmd.Events, [Log.Msg])
+    -> IO (Vector.Vector Score.Event, [Log.Msg])
 timed_derive name ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
     Testing.print_timer name (timer_msg Vector.length) $ do
@@ -78,7 +79,7 @@ timed_derive name ui_state cmd_state block_id = do
 -- rather than calling Performance.derive.  This can be more convenient to
 -- look at derivation results.
 timed_derive2 :: FilePath -> State.State -> Cmd.State -> BlockId
-    -> IO (Cmd.Events, [Log.Msg])
+    -> IO (Vector.Vector Score.Event, [Log.Msg])
 timed_derive2 name ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
         Left err -> return (mempty, [Log.msg Log.Warn Nothing err])
@@ -132,7 +133,7 @@ run_cmd ui_state cmd_state cmd = case result of
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
-perform :: Cmd.State -> State.State -> Cmd.Events
+perform :: Cmd.State -> State.State -> Vector.Vector Score.Event
     -> ([Midi.WriteMessage], [Log.Msg])
 perform cmd_state ui_state events =
     extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
