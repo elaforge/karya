@@ -127,12 +127,14 @@ type Voices = Int
 -- | A Patch has information about one specific instrument.  The performance
 -- 'Instrument' and MIDI config are derived from it, via its 'Synth'.
 data Patch = Patch {
-    -- | This should uniquely identify the patch on its synth, and is used as
-    -- the Name component of a 'InstTypes.Qualified' to look up a Patch.
+    -- | This is the name of the instrument on the synthesizer, and likely has
+    -- all sorts of wacky characters in it, and may not be unique, even on
+    -- a single synth.  This is just for documentation, and is not actually
+    -- used by anyone.
     --
-    -- TODO the name should go in the 'Inst.Synth' map only, and then this can
-    -- go back to being the display name.
-    patch_name :: !InstTypes.Name
+    -- The patch's unique name, as used by 'InstTypes.Qualified' to look up
+    -- the patch, is in 'Instrument.Inst.synth_insts'.
+    patch_name :: !Text
     , patch_control_map :: !Control.ControlMap
     , patch_pitch_bend_range :: !Control.PbRange
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to

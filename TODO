@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The patch name should go only in the Instrument.Inst.Synth Map, and not
+  / The patch name should go only in the Instrument.Inst.Synth Map, and not
     in Midi.Patch.patch_name.
+    . Turns out this is already the case.
   / PitchedKeymap should use IntNoteNumber for low pitch?
     . Midi.Key requires less conversions and accurately expresses that it's a
       Midi.Key, but then I wind up with Key -> Key -> Key in signatures.
@@ -50,10 +51,6 @@ UNSORTED
   * get rid of type aliases: Cmd.Events
   * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
     'default' explicitly.
-  - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
-    disabling a track with 'D' is laggy.
-    . But not always.  Maybe only after editing for a while?
-    . Can I use custom events to see lags in threadscope?
   * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
@@ -64,9 +61,6 @@ UNSORTED
     . But usually annoying, so it would have to be off by default.
     . Or how about open multiple views at the current zoom, to cover the
       range.
-  - Try compiling with a larger generation 0: +RTS -A128m -RTS
-  - Profile seq with larger gen 0 and separate arenas for different cores:
-    +RTS -A128m -n2m -RTS
   vsl:
     - figure out how to do tuning
       . I think it needs to be pitch bend, since it doesn't seem to respond to
@@ -112,8 +106,6 @@ UNSORTED
       functions can throw.  It doesn't replace get_ vs. lookup_ because they
       are likely to call something else which can throw.
   - Perf.lookup_instrument on a pitch track could look at its note track.
-  - Criterion testing: why is cmd_derive faster than derive?  It should be
-    doing more work!
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
   - pitch transpose
@@ -554,7 +546,20 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
+    disabling a track with 'D' is laggy.
+    . But not always.  Maybe only after editing for a while?
+    . Can I use custom events to see lags in threadscope?
+      . Yes, but UI seems crummy and I can't see the event titles.  Maybe
+        I can use ghc-eventlog to bracket each response?
+    - GHC's +RTS -v flag is documented but doesn't exist.
+      It only exists when -debug, but this isn't documented.
+  - Criterion testing: why is cmd_derive faster than derive?  It should be
+    doing more work!
   - experiment with GC flags, e.g. -H.
+    . Try compiling with a larger generation 0: +RTS -A128m -RTS
+    . Profile seq with larger gen 0 and separate arenas for different cores:
+      +RTS -A128m -n2m -RTS
   - find space leaks with nmitchell's stack limit technique:
     . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
         p/cerucuk-punyah.state
@@ -739,10 +744,6 @@ fltk:
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.
-  / if I add a track and then undo, I get
-    assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
-    tracknum && tracknum < tracks()'>
-    . can't reproduce this now, but I have a stack trace now
   - It would be nicer if WrappedText could take an always_wrap=true flag to
     make it wrap even when there's no space, for edit input.  However, this
     would complicate the wrapping algorithm and would mean I have to store
