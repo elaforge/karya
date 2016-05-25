@@ -178,12 +178,6 @@ make_cmd cmd_map msg = do
 -- probably use these higher level modifiers.  That way left and right shifts
 -- work the same, and cmds can use Command as customary on the Mac and Control
 -- as customary on linux.
---
--- Things you have to inspect the Msg directly for:
---
--- - differentiate ShiftL and ShiftR
---
--- - use option on the Mac
 data SimpleMod =
     Shift
     -- | Primary command key: command on Mac, control on Linux and Windows.
@@ -214,8 +208,7 @@ simple_mod_map = case Config.platform of
     Config.Mac ->
         [ (Shift, [Key.Shift])
         , (PrimaryCommand, [Key.Meta])
-        -- Alt is the Mac's option key.
-        , (SecondaryCommand, [Key.Control, Key.Alt])
+        , (SecondaryCommand, [Key.Control])
         ]
     Config.Linux ->
         [ (Shift, [Key.Shift])
