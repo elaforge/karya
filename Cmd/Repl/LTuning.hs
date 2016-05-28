@@ -16,6 +16,7 @@
 -}
 module Cmd.Repl.LTuning where
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Unboxed
@@ -143,18 +144,13 @@ get_tuning inst scale = do
         ]
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
--- message to retune the synth.  Very few synths support this, I only know of
--- pianoteq.
+-- message with 'LInst.initialize_tuning'.
 realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
     LInst.set_scale inst scale
-    (_, _, config) <- LInst.get_midi_config (Util.instrument inst)
-    attr_map <- Patch.patch_attribute_map <$> Cmd.get_midi_patch
-        (Util.instrument inst)
-    let devs = map (fst . fst) (Patch.config_addrs config)
-    let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
-            Patch.scale_nns (Just attr_map) scale
-    mapM_ (flip Cmd.midi msg) (Seq.unique devs)
+    LInst.modify_midi_config inst $
+        Patch.initialization %= Set.insert Patch.Tuning
+    LInst.initialize_tuning (Util.instrument inst)
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
 -- to configure the instrument.

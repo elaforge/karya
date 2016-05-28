@@ -173,7 +173,7 @@ _decodef word = Unsafe.unsafePerformIO $ Foreign.alloca $ \buf -> do
     Foreign.poke (Foreign.castPtr buf) word
     Foreign.peek buf
 
--- *util
+-- * util
 
 get_tag :: Get Word.Word8
 get_tag = getWord8
@@ -183,6 +183,20 @@ put_tag = putWord8
 
 bad_tag :: String -> Word.Word8 -> Get a
 bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
+
+put_enum :: Enum a => a -> Serialize.Put
+put_enum = put . fromEnum
+
+get_enum :: (Bounded a, Enum a) => Serialize.Get a
+get_enum = get >>= \n ->
+    maybe (fail $ "enum value out of range: " ++ show n) return (to_enum n)
+
+-- | A safe version of 'toEnum'.
+to_enum :: forall a. (Enum a, Bounded a) => Int -> Maybe a
+to_enum n
+    | fromEnum (minBound :: a) <= n && n <= fromEnum (maxBound :: a) =
+        Just (toEnum n)
+    | otherwise = Nothing
 
 -- * basic types
 

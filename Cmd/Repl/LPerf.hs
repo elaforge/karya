@@ -368,8 +368,8 @@ perform_midi_events :: State.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
 perform_midi_events events = do
     allocs <- State.gets $ State.config_allocations . State.state_config
-    let inst_addrs = Patch.config_addrs <$> PlayUtil.midi_configs allocs
-    return $ fst $ Perform.perform Perform.initial_state inst_addrs events
+    let midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocs
+    return $ fst $ Perform.perform Perform.initial_state midi_allocs events
 
 -- | This is the local block's performance, and the events are filtered to the
 -- selection range, and the filtering is done post-derivation, so they reflect

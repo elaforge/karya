@@ -403,7 +403,7 @@ lookup_play_cache_addr = do
             StateConfig.Midi config -> case Patch.config_addrs config of
                 [] -> State.throw $
                     pretty Im.Play.qualified <> " allocation with no addrs"
-                (addr, _) : _ -> return $ Just addr
+                addr : _ -> return $ Just addr
             _ -> State.throw $
                     pretty Im.Play.qualified <> " with non-MIDI allocation"
 

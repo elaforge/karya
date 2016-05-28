@@ -126,7 +126,7 @@ midi_thru_instrument score_inst attrs input = do
         -- and this one will abort and be effectively disabled.
         StateConfig.Dummy -> Cmd.abort
         _ -> Cmd.abort -- Ignore non-MIDI instruments.
-    let addrs = map fst $ Patch.config_addrs midi_config
+    let addrs = Patch.config_addrs midi_config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
         inst <- Cmd.require ("no instrument: " <> pretty score_inst)
@@ -324,5 +324,5 @@ get_addrs maybe_inst = do
         return maybe_inst
     alloc <- State.allocation inst <#> State.get
     return $ case StateConfig.alloc_backend <$> alloc of
-        Just (StateConfig.Midi config) -> map fst $ Patch.config_addrs config
+        Just (StateConfig.Midi config) -> Patch.config_addrs config
         _ -> []

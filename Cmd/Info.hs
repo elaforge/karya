@@ -205,7 +205,7 @@ get_track_status block_id tracknum = do
                 _ -> []
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
-            note_tracknum (untxt (show_addrs (map fst addrs)))
+            note_tracknum (untxt (show_addrs addrs))
             (Seq.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there

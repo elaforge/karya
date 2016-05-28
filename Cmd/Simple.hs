@@ -199,8 +199,10 @@ dump_allocations (StateConfig.Allocations allocs) = do
     let qualified = InstTypes.show_qualified $ StateConfig.alloc_qualified alloc
     return (Score.instrument_name inst, (qualified, addrs))
     where
-    addrs_of config = [(Midi.write_device_text dev, chan)
-        | ((dev, chan), _) <- Patch.config_addrs config]
+    addrs_of config =
+        [ (Midi.write_device_text dev, chan)
+        | (dev, chan) <- Patch.config_addrs config
+        ]
 
 allocations :: Allocations -> StateConfig.Allocations
 allocations allocs = StateConfig.Allocations $ Map.fromList $ do

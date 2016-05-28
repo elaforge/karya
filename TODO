@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Pianoteq doesn't save tuning, so I have to send tuning again each time.
+    Maybe I need an initialize step that runs when I load a score.
+    . If inst alloc has an initialize flag, then an initialize cmd could find
+      those and do whatever is necessary, for both MIDI and tuning.
   / The patch name should go only in the Instrument.Inst.Synth Map, and not
     in Midi.Patch.patch_name.
     . Turns out this is already the case.
@@ -546,12 +550,20 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
-  - Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
-    disabling a track with 'D' is laggy.
+  - input lag, debug with Trace.traceEventIO
+    . http://www.yesodweb.com/blog/2012/10/future-work-warp
+    . Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
+      disabling a track with 'D' is laggy.
     . But not always.  Maybe only after editing for a while?
     . Can I use custom events to see lags in threadscope?
-      . Yes, but UI seems crummy and I can't see the event titles.  Maybe
-        I can use ghc-eventlog to bracket each response?
+      . Yes, but hard to visualize with everything there.
+        I can get labels with View -> Event labels, but often they are jammed
+        together, and draw inconsistently.
+      . What do the numbers in threadscope's green bars mean?  ThreadId?
+      . What I want is for each respond cycle to see where pauses were, and
+        why.  I'd want to bracket the respond cycle outside of waiting for the
+        next msg, get the total duration of each one.  Possibly I can do that
+        by using ghc-events to process the eventlog.
     - GHC's +RTS -v flag is documented but doesn't exist.
       It only exists when -debug, but this isn't documented.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
@@ -560,6 +572,9 @@ performance:
     . Try compiling with a larger generation 0: +RTS -A128m -RTS
     . Profile seq with larger gen 0 and separate arenas for different cores:
       +RTS -A128m -n2m -RTS
+    . What about -I0 to turn of idle GC?  Or maybe -I1?  I want to avoid it
+      running in the tiny gaps between entering notes, but do want it to run
+      if I make a longer pause.
   - find space leaks with nmitchell's stack limit technique:
     . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
         p/cerucuk-punyah.state
@@ -686,8 +701,6 @@ performance:
       shows up low on the profile, so maybe it's not a big deal.
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
-  - look into Debug.Trace.traceEventIO to see how long various things take as
-    in http://www.yesodweb.com/blog/2012/10/future-work-warp
   - Store signal chunks in the Ui.Track so they can be directly emitted.
     This is only useful for large chunks of 'set' calls, probably recorded
     from MIDI.  So it's probably not pressing until that feature exists.
@@ -1176,6 +1189,18 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        speed
+          . I can't represent double speed without changing the talam, which
+            then makes me write everything with spaces between.
+          . I also can't represent a shift from kandam to chatusram.
+          - It seems I could solve both by allowing the talam to change in the
+            middle of a Sequence.  But I still wonder if changing nadai from
+            e.g. 5 to 10 would throw off the talam calculation?  Of course I
+            don't actually have a talam calculation beyond where is arudi.
+          . But then when does this actually get realized?  If the main use
+            now is to display as text, then it needs to go all the way
+            through to [MNote], because otherwise I can't display a different
+            gati in ascii.
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as

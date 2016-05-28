@@ -1085,8 +1085,8 @@ get_lookup_instrument :: M m =>
 get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
--- the environ and other local configuration is applied, so anyone looking up
--- a Patch should go through this.
+-- the environ and other local configuration is merged into the 'Patch.Patch',
+-- so anyone looking up a Patch should go through this.
 state_lookup_instrument :: State.State -> State -> Score.Instrument
     -> Maybe (Inst, InstTypes.Qualified)
 state_lookup_instrument ui_state cmd_state = \inst_name -> do

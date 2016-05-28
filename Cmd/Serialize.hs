@@ -429,8 +429,8 @@ instance Serialize Track.RenderSource where
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
-    put (Patch.Config a b c) = Serialize.put_version 7
-        >> put a >> put b >> put c
+    put (Patch.Config a b c d) = Serialize.put_version 8
+        >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
@@ -438,12 +438,27 @@ instance Serialize Patch.Config where
                 addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 scale :: Maybe Patch.Scale <- get
                 control_defaults :: Score.ControlValMap <- get
+                return $ Patch.Config addrs scale control_defaults mempty
+            8 -> do
+                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+                scale :: Maybe Patch.Scale <- get
+                control_defaults :: Score.ControlValMap <- get
+                initialization :: Set.Set Patch.Initialization <- get
                 return $ Patch.Config addrs scale control_defaults
+                    initialization
             _ -> Serialize.bad_version "Patch.Config" v
 
 instance Serialize Patch.Scale where
     put (Patch.Scale a b) = put a >> put b
     get = Patch.Scale <$> get <*> get
+
+instance Serialize Patch.Initialization where
+    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> Serialize.get_enum
+            _ -> Serialize.bad_version "Patch.Initialization" v
 
 -- ** lilypond
 
@@ -477,5 +492,5 @@ instance Serialize Lilypond.StaffConfig where
             _ -> Serialize.bad_version "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where
-    put = put . fromEnum
-    get = toEnum <$> get
+    put a = Serialize.put_enum a
+    get = Serialize.get_enum

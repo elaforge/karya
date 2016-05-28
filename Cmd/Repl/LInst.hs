@@ -8,10 +8,13 @@ module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
@@ -34,7 +37,9 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import Global
@@ -67,7 +72,7 @@ list_like pattern = do
         , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
         , case StateConfig.alloc_backend alloc of
             StateConfig.Midi config ->
-                Info.show_addrs (map fst (Patch.config_addrs config))
+                Info.show_addrs (Patch.config_addrs config)
             _ -> ""
         , join
             [ show_common_config (StateConfig.alloc_config alloc)
@@ -209,6 +214,9 @@ set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
     Common.controls #= Map.fromList controls
 
+get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
+get_scale inst = Patch.patch_scale <$> Cmd.get_midi_patch inst
+
 set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
 set_scale inst scale = modify_midi_config inst $ Patch.cscale #= Just scale
 
@@ -303,30 +311,11 @@ change_instrument new_qualified = do
     deallocate old_inst
     allocate new_inst $ StateConfig.Allocation new_qualified common_config
         (StateConfig.Midi midi_config)
-    (wdev, chan) <- case Patch.config_addrs midi_config of
-        (addr, _) : _ -> return addr
-        _ -> Cmd.throw $ "inst has no addr allocation: " <> pretty old_inst
+    addr <- Cmd.require ("inst has no addr allocation: " <> pretty old_inst) $
+        Seq.head $ Patch.config_addrs midi_config
     State.set_track_title track_id (ParseTitle.instrument_to_title new_inst)
-    initialize new_inst wdev chan
+    initialize_midi new_inst addr
     return ()
-
-initialize :: Score.Instrument -> Midi.WriteDevice -> Midi.Channel
-    -> Cmd.CmdL ()
-initialize inst wdev chan = do
-    patch <- Cmd.get_midi_patch inst
-    send_initialize (Patch.patch_initialize patch) inst wdev chan
-
-send_initialize :: Patch.InitializePatch -> Score.Instrument
-    -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
-send_initialize init inst dev chan = case init of
-    Patch.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " <> pretty msgs
-        mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
-    Patch.InitializeMessage msg ->
-        -- Warn doesn't seem quite right for this, but the whole point is to
-        -- show this message, so it should be emphasized.
-        Log.warn $ "initialize instrument " <> showt inst <> ": " <> msg
-    Patch.NoInitialization -> return ()
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
@@ -384,3 +373,50 @@ parse_qualified text
     | "/" `Text.isInfixOf` text = return $ InstTypes.parse_qualified text
     | otherwise =
         Cmd.throw $ "qualified inst name lacks a /: " <> showt text
+
+
+-- * initialize
+
+-- | Initialize all instruments that need it.
+initialize_all :: Cmd.M m => m ()
+initialize_all = do
+    insts <- State.get_config $ Map.keys . (StateConfig.allocations_map #$)
+    mapM_ initialize_inst insts
+
+-- | Initialize an instrument according to its 'Patch.config_initialization'.
+initialize_inst :: Cmd.M m => Score.Instrument -> m ()
+initialize_inst inst = do
+    (_, _, config) <- get_midi_config inst
+    let inits = Patch.config_initialization config
+    when (Set.member Patch.Tuning inits) $
+        initialize_tuning inst
+    when (Set.member Patch.Midi inits) $
+        forM_ (Patch.config_addrs config) $ initialize_midi inst
+
+-- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
+-- few synths support this, I only know of pianoteq.
+initialize_tuning :: Cmd.M m => Score.Instrument -> m ()
+initialize_tuning inst = whenJustM (get_scale inst) $ \scale -> do
+    (_, _, config) <- get_midi_config inst
+    attr_map <- Patch.patch_attribute_map <$> Cmd.get_midi_patch inst
+    let devs = map fst (Patch.config_addrs config)
+    let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
+            Patch.scale_nns (Just attr_map) scale
+    mapM_ (flip Cmd.midi msg) (Seq.unique devs)
+
+initialize_midi :: Cmd.M m => Score.Instrument -> Patch.Addr -> m ()
+initialize_midi inst addr = do
+    patch <- Cmd.get_midi_patch inst
+    send_initialize (Patch.patch_initialize patch) inst addr
+
+send_initialize :: Cmd.M m => Patch.InitializePatch -> Score.Instrument
+    -> Patch.Addr -> m ()
+send_initialize init inst (dev, chan) = case init of
+    Patch.InitializeMidi msgs -> do
+        Log.notice $ "sending midi init: " <> pretty msgs
+        mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
+    Patch.InitializeMessage msg ->
+        -- Warn doesn't seem quite right for this, but the whole point is to
+        -- show this message, so it should be emphasized.
+        Log.warn $ "initialize instrument " <> pretty inst <> ": " <> msg
+    Patch.NoInitialization -> return ()

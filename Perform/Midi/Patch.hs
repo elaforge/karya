@@ -8,9 +8,10 @@
 -}
 module Perform.Midi.Patch (
     -- * Config
-    Config(..), addrs, cscale, control_defaults
+    Config(..), config_addrs
+    , allocation, cscale, control_defaults, initialization
     , config, config1, voice_config
-    , Addr, Voices
+    , Initialization(..), Addr, Voices
     -- Re-exported so instrument definitions don't have to have
     -- Midi.Control.PbRange.
     , Control.PbRange
@@ -76,7 +77,7 @@ data Config = Config {
     --
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
-    config_addrs :: ![(Addr, Maybe Voices)]
+    config_allocation :: ![(Addr, Maybe Voices)]
     -- | A local version of 'patch_scale'.
     , config_scale :: !(Maybe Scale)
     -- | Default controls for this instrument, will always be set unless
@@ -86,14 +87,20 @@ data Config = Config {
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
+    , config_initialization :: !(Set.Set Initialization)
     } deriving (Eq, Read, Show)
 
-addrs = Lens.lens config_addrs
-    (\f r -> r { config_addrs = f (config_addrs r) })
+allocation = Lens.lens config_allocation
+    (\f r -> r { config_allocation = f (config_allocation r) })
 cscale = Lens.lens config_scale
     (\f r -> r { config_scale = f (config_scale r) })
 control_defaults = Lens.lens config_control_defaults
     (\f r -> r { config_control_defaults = f (config_control_defaults r) })
+initialization = Lens.lens config_initialization
+    (\f r -> r { config_initialization = f (config_initialization r) })
+
+config_addrs :: Config -> [Addr]
+config_addrs = map fst . config_allocation
 
 -- | Make a simple config.
 config :: [Addr] -> Config
@@ -103,18 +110,27 @@ config1 :: Midi.WriteDevice -> Midi.Channel -> Config
 config1 dev chan = config [(dev, chan)]
 
 voice_config :: [(Addr, Maybe Voices)] -> Config
-voice_config addrs = Config
-    { config_addrs = addrs
+voice_config alloc = Config
+    { config_allocation = alloc
     , config_scale = Nothing
     , config_control_defaults = mempty
+    , config_initialization = mempty
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs scale control_defaults) = Pretty.record "Config"
-        [ ("addrs", Pretty.format addrs)
-        , ("scale", Pretty.format scale)
-        , ("control_defaults", Pretty.format control_defaults)
-        ]
+    format (Config alloc scale control_defaults initialization) =
+        Pretty.record "Config"
+            [ ("allocation", Pretty.format alloc)
+            , ("scale", Pretty.format scale)
+            , ("control_defaults", Pretty.format control_defaults)
+            , ("initialization", Pretty.format initialization)
+            ]
+
+-- | Document what kinds of initialization this instrument needs.  Each
+-- instrument is initialized once when the score is loaded.
+data Initialization = Tuning | Midi
+    deriving (Read, Show, Eq, Ord, Bounded, Enum)
+instance Pretty.Pretty Initialization where pretty = showt
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.

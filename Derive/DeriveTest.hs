@@ -152,8 +152,8 @@ perform_stream :: Lookup -> StateConfig.Allocations
 perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     where
     perf_events = Convert.convert lookup lookup_inst (Stream.events_of stream)
-    (midi, _) = Perform.perform Perform.initial_state inst_addrs perf_events
-    inst_addrs = Patch.config_addrs <$> PlayUtil.midi_configs allocations
+    (midi, _) = Perform.perform Perform.initial_state midi_allocs perf_events
+    midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocations
 
 -- | Perform events with the given instrument db.
 perform_synths :: StateConfig.Allocations -> [MidiInst.Synth]
