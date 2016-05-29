@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ImplicitParams, LambdaCase #-}
 -- | Notate Carnatic solkattu and realize to mridangam fingering.
 module Derive.Call.India.Solkattu where
 import qualified Data.Either as Either
@@ -22,7 +22,8 @@ import Global
 
 type Sequence = [Note]
 
-data Note = Sollu Sollu Karvai (Maybe Stroke) | Rest
+data Note = Sollu Sollu Karvai (Maybe Stroke)
+    | Rest
     -- | Set pattern with the given duration.
     | Pattern Matras Karvai
     | Alignment Alignment
@@ -47,6 +48,8 @@ instance Pretty.Pretty Note where
 data Karvai = Karvai | NoKarvai
     deriving (Eq, Show)
 
+-- | Mid-level representation, lower level than 'Note', but higher than
+-- 'MNote'.
 data RealizedNote =
     RRest !Matras | RKarvai !Matras | RSollu !Sollu !(Maybe Stroke)
     | RPattern !Matras
@@ -64,16 +67,20 @@ data Sollu = Ta | Di | Ki | Thom -- ta di ki ta thom
     | Na | Ka | Ti | Ku | Ri -- nakatikutari
     | Din | Gin -- ta din gin na tom
     | Dit | Dheem
+    | Tam | Tang | Lang -- generally means chapu
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Sollu where
     pretty = Text.toLower . showt
 
+-- | An akshara is one count of the talam.
 type Aksharas = Int
+
+-- | A matra is an akshara divided by the nadai.
 type Matras = Int
 
-duration :: Sequence -> Matras
-duration = sum . map note_duration
+duration_of :: Sequence -> Matras
+duration_of = sum . map note_duration
 
 note_duration :: Note -> Matras
 note_duration n = case n of
@@ -104,8 +111,8 @@ adi_tala = Tala 8 4
 -- | Realize karvai and verify alignment.
 realize_tala :: Tala -> Sequence -> Either [Text] [RealizedNote]
 realize_tala tala =
-    fmap realized_notes . check_errors . map apply_karvai
-        . verify_durations tala . split_just is_alignment Sam
+    fmap realize_notes . check_errors . map apply_karvai
+        . verify_alignment tala . split_just is_alignment Sam
     where
     is_alignment (Alignment align) = Just align
     is_alignment _ = Nothing
@@ -114,15 +121,16 @@ realize_tala tala =
         | any Either.isLeft groups = Left $ map (either id pretty) groups
         | otherwise = Right $ concatMap (either (const []) id) groups
 
-realized_notes :: [Either Matras Note] -> [RealizedNote]
-realized_notes ns =
+realize_notes :: [Either Matras Note] -- ^ Either a karvai gap or a Note.
+    -> [RealizedNote]
+realize_notes ns =
     (if not (null rests) then (RRest (length rests) :) else id) $
         case non_rests of
             [] -> []
-            Left karvai : ns -> RKarvai karvai : realized_notes ns
-            Right (Sollu s _ stroke) : ns -> RSollu s stroke : realized_notes ns
-            Right (Pattern d _) : ns -> RPattern d : realized_notes ns
-            _ : ns -> realized_notes ns
+            Left karvai : ns -> RKarvai karvai : realize_notes ns
+            Right (Sollu s _ stroke) : ns -> RSollu s stroke : realize_notes ns
+            Right (Pattern d _) : ns -> RPattern d : realize_notes ns
+            _ : ns -> realize_notes ns
     where (rests, non_rests) = span (== Right Rest) ns
 
 -- | Divide available time among notes with karvai.  Error if there are no
@@ -157,11 +165,12 @@ has_karvai _ = False
 --
 -- Arudi must be followed by Sam.  If Sam is followed by Sam, it can insert
 -- enough integral avartanams to make the duration long enough.
-verify_durations :: Tala -> [(Alignment, [Note])]
+verify_alignment :: Tala -> [(Alignment, [Note])]
     -- ^ Notes divided into alignment groups.
     -> [Either Text (Matras, [Note])] -- ^ (extra_matras, notes)
-verify_durations tala notes =
-    map (verify . second (maybe Sam fst)) $ Seq.zip_next $ drop_initial notes
+verify_alignment tala notes =
+    map (verify . second (maybe Sam fst)) $
+        Seq.zip_next $ drop_initial notes
     where
     -- If the sequence started with Sam, I'll get an extra here.
     drop_initial ((Sam, []) : ns@((Sam, _) : _)) = ns
@@ -175,7 +184,7 @@ verify_durations tala notes =
         (Sam, Sam) -> Right (until - dur, notes)
             where until = round_up dur (tala_matras tala)
         where
-        dur = duration notes
+        dur = duration_of notes
         transition name until
             | dur > until =
                 Left $ name <> " transition should have <= "
@@ -191,12 +200,10 @@ dropM matras ns = case ns of
     (n:ns)
         | matras <= 0 -> (n:ns)
         | otherwise -> case n of
-            Sollu {} -> dropM (matras-1) ns
-            Rest {} -> dropM (matras-1) ns
             Pattern dur karvai
                 | dur > matras -> Pattern (dur - matras) karvai : ns
                 | otherwise -> dropM (matras - dur) ns
-            Alignment {} -> dropM matras ns
+            _ -> dropM (matras - note_duration n) ns
 
 takeM :: Matras -> Sequence -> Sequence
 takeM _ [] = []
@@ -228,12 +235,12 @@ stroke_map = unique <=< mapM check
     check (sollus, strokes) = do
         let throw = Left
                 . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
-        sollus <- forM sollus $ \s -> case s of
+        sollus <- forM sollus $ \case
             Sollu s NoKarvai _ -> Right s
-            _ -> throw $ "should only have plain sollus: " <> pretty s
-        strokes <- forM strokes $ \s -> case s of
+            s -> throw $ "should only have plain sollus: " <> pretty s
+        strokes <- forM strokes $ \case
             MNote s -> Right s
-            MRest -> throw "should have plain strokes, no rests"
+            s -> throw $ "should have plain strokes: " <> showt s
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths"
         return (sollus, strokes)
@@ -309,6 +316,9 @@ korvai tala mridangam sequence = do
 standard_stroke_map :: StrokeMap
 standard_stroke_map = StrokeMap $ Map.fromList
     [ ([Thom], [Thoppi MThom])
+    , ([Tam], [Valantalai MChapu])
+    , ([Tang], [Valantalai MChapu])
+    , ([Lang], [Valantalai MChapu])
     ]
 
 -- | Realize a Korvai in mridangam strokes.
@@ -372,8 +382,10 @@ insert_rests (stroke : strokes) (n : ns) = case n of
     RSollu {} -> first (MNote stroke :) $ insert_rests strokes ns
     -- These shouldn't happen because the strokes are from the result of
     -- Seq.span_while is_sollu.
-    RPattern {} -> insert_rests (stroke : strokes) ns
-    RKarvai {} -> insert_rests (stroke : strokes) ns
+    RPattern {} -> skip
+    RKarvai {} -> skip
+    where
+    skip = insert_rests (stroke : strokes) ns
 insert_rests (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.

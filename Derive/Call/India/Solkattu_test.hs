@@ -31,9 +31,9 @@ realize_tala korvai =
     Solkattu.realize_tala (Solkattu.korvai_tala korvai)
         (Solkattu.korvai_sequence korvai)
 
-test_verify_durations = do
+test_verify_alignment = do
     let f = map (fmap (second pretty))
-            . Solkattu.verify_durations (Solkattu.adi_tala 2)
+            . Solkattu.verify_alignment (Solkattu.adi_tala 2)
         tdkt = cycle $ ta <> di <> ki <> ta
     -- sam->arudi, arudi->sam
     equal (f [(Sam, take 8 tdkt), (Arudi, take 8 tdkt)])

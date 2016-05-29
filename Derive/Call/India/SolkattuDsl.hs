@@ -10,10 +10,11 @@ module Derive.Call.India.SolkattuDsl (
     Sequence, Korvai, Matras, Stroke, MNote
     -- ** sollus
     , (-)
-    , __, __2, __3, __n
+    , __, __2, __3, __4, __n
     , ta, di, ki, thom, thom_
     , na, ka, ti, ku, ri
     , din, din_, gin
+    , tam, tang, lang
     , dit, dheem
     , kar, st
     , at0, atX
@@ -21,12 +22,12 @@ module Derive.Call.India.SolkattuDsl (
     , pat, pat_, p5, p6, p7, p666, p567, p765
     -- ** combinators
     , tri, tri_n, tri_
-    , duration, repeat, sep
+    , duration_of, repeat, sep
     -- * transform
     , dropM, takeM
     -- * mridangam
     , k, t, n, d, u, i, o, p
-    , od
+    , od, pk
     , default_patterns, default_karvai
     -- * misc
     , check, pprint
@@ -40,7 +41,7 @@ import Util.Pretty (pprint)
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
        (Sequence, Korvai, Matras, Note(..), Karvai(..), Sollu(..), Stroke(..),
-        MNote(..), check, duration, dropM, takeM)
+        MNote(..), check, duration_of, dropM, takeM)
 import Global
 
 
@@ -67,8 +68,9 @@ sollu s = [Sollu s NoKarvai Nothing]
 __ :: Sequence
 __ = sq Rest
 __2, __3 :: Sequence
-__2 = __ - __
-__3 = __ - __ - __
+__2 = __n 2
+__3 = __n 3
+__4 = __n 4
 
 __n :: Int -> Sequence
 __n n = repeat n __
@@ -92,6 +94,11 @@ din = sollu Din
 din_ = kar din
 gin = sollu Gin
 
+tam, tang, lang :: Sequence
+tam = sollu Tam
+tang = sollu Tang - __
+lang = sollu Lang - __
+
 dit, dheem :: Sequence
 dit = sollu Dit
 dheem = sollu Dheem
@@ -105,12 +112,13 @@ kar notes = case reverse notes of
         Pattern d _ -> Pattern d Karvai : ns
         _ -> errorStack "kar: last not can't have karvai"
 
+-- | Add a specific stroke instruction to a sollu.
 st :: MNote -> Sequence -> Sequence
 st _ [] = errorStack $ "st: empty sequence"
-st MRest _ = errorStack $ "st: stroke was a rest"
 st (MNote stroke) (n:ns) = case n of
     Sollu s karvai _ -> Sollu s karvai (Just stroke) : ns
     _ -> errorStack $ "st: can't add stroke to " <> prettys n
+st s _ = errorStack $ "st: require a sollu: " <> prettys s
 
 at0, atX :: Sequence
 at0 = sq $ Alignment Solkattu.Sam
@@ -166,6 +174,9 @@ o = MNote (Solkattu.Thoppi Solkattu.MThom)
 -- the left hand can go on the left side?
 od :: MNote
 od = MNote (Both Solkattu.MThom Solkattu.MDin)
+
+pk :: MNote
+pk = MNote (Both Solkattu.MTha Solkattu.MKi)
 
 ___ :: MNote
 ___ = MRest

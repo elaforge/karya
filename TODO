@@ -1193,7 +1193,7 @@ Derive:
           . I can't represent double speed without changing the talam, which
             then makes me write everything with spaces between.
           . I also can't represent a shift from kandam to chatusram.
-          - It seems I could solve both by allowing the talam to change in the
+          . It seems I could solve both by allowing the talam to change in the
             middle of a Sequence.  But I still wonder if changing nadai from
             e.g. 5 to 10 would throw off the talam calculation?  Of course I
             don't actually have a talam calculation beyond where is arudi.
@@ -1201,6 +1201,20 @@ Derive:
             now is to display as text, then it needs to go all the way
             through to [MNote], because otherwise I can't display a different
             gati in ascii.
+          . Changing nadai is easy to display, just change emphasis groups.
+            For speed 2, I think I would want to double the letter density.
+            So they are different.
+          . At Speed > S1 I can have fractional Matras.  But then I can't make
+            RRests for each one, unless rests all have a duration.
+          . But it's just the duration that's fractional, Matras themselves
+            have variable duration.  I could say that at S2 I just fit *2
+            matras in.
+          . I think I can get rid of the variable karvai concept, it
+            complicates alignment and doesn't seem to be that useful.
+            verify_alignment should just be step through notes and complain if
+            the count isn't right when I hit any alignment marker.
+          . I can get rid of RealizedNotes entirely, and just have
+            verify_duration.
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as
