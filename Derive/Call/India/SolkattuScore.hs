@@ -35,10 +35,10 @@ chatusram1_3 = check $ Solkattu.korvai (adi 4) chatusram1_mridangam $
 
 chatusram1_4 :: Korvai
 chatusram1_4 = check $ Solkattu.korvai (adi 4) mridangam $
-      theme 0 - pat7 - st u dheem - __3
-    - dropM 4 (theme 1) - repeat 2 pat8 - st u dheem - __3
+      theme 0 - pat7 - dheem!u - __3
+    - dropM 4 (theme 1) - repeat 2 pat8 - dheem!u - __3
     - dropM 8 (theme 2)
-        - trin (st i dheem - __3) (tri pat9) (tri pat8) (tri pat7)
+        - trin (dheem!i - __3) (tri pat9) (tri pat8) (tri pat7)
     where
     theme gap = ta - __3 - dit - __3 - ta - ka - din - na - din
         - tri (ta - __n gap - din - __3)

@@ -16,7 +16,7 @@ module Derive.Call.India.SolkattuDsl (
     , din, gin
     , tam, tang, lang
     , dit, dheem
-    , st
+    , (!)
     , at0, atX
     -- ** patterns
     , pat, p5, p6, p7, p666, p567, p765
@@ -101,12 +101,15 @@ dit = sollu Dit
 dheem = sollu Dheem
 
 -- | Add a specific stroke instruction to a sollu.
-st :: MNote -> Sequence -> Sequence
-st _ [] = errorStack $ "st: empty sequence"
-st (MNote stroke) (n:ns) = case n of
+stroke :: MNote -> Sequence -> Sequence
+stroke _ [] = errorStack $ "stroke: empty sequence"
+stroke (MNote stroke) (n:ns) = case n of
     Sollu s _ -> Sollu s (Just stroke) : ns
-    _ -> errorStack $ "st: can't add stroke to " <> prettys n
-st s _ = errorStack $ "st: require a sollu: " <> prettys s
+    _ -> errorStack $ "stroke: can't add stroke to " <> prettys n
+stroke s _ = errorStack $ "st: require a sollu: " <> prettys s
+
+(!) :: Sequence -> MNote -> Sequence
+(!) = flip stroke
 
 at0, atX :: Sequence
 at0 = sq $ Alignment Solkattu.Sam
