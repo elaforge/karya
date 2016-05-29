@@ -18,5 +18,4 @@ test_kandam = do
 
 realize :: Solkattu.Korvai -> Either Text [Solkattu.MNote]
 realize korvai =
-    Solkattu.realize_korvai SolkattuDsl.default_patterns
-        SolkattuDsl.default_karvai korvai
+    Solkattu.realize_korvai SolkattuDsl.default_patterns korvai

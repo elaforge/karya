@@ -9,60 +9,29 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
-       (Sollu(..), Alignment(..), RealizedNote(..), Stroke(..), Valantalai(..))
+       (Note(..), Sollu(..), Stroke(..), Valantalai(..))
 import qualified Derive.Call.India.SolkattuDsl as SolkattuDsl
-import Derive.Call.India.SolkattuDsl (ta, di, ki, kar)
+import Derive.Call.India.SolkattuDsl (ta, di, ki, __)
 
 import Global
 
 
-test_realize_tala = do
-    let f = (Text.intercalate "; " *** map pretty)
-            . Solkattu.realize_tala (Solkattu.adi_tala 2)
-    left_like (f (ta <> di <> ki <> ta)) "no karvai but there's unfilled space"
-    equal (f (kar ta <> di <> ki <> ta))
-        (Right ["ta", "__k12", "di", "ki", "ta"])
-    equal (f (kar ta <> di <> kar ki <> ta))
-        (Right ["ta", "__k6", "di", "ki", "__k6", "ta"])
-    left_like (f (kar ta <> kar di <> kar ki <> ta <> ta)) "uneven division"
-
-realize_tala :: Solkattu.Korvai -> Either [Text] [Solkattu.RealizedNote]
-realize_tala korvai =
-    Solkattu.realize_tala (Solkattu.korvai_tala korvai)
-        (Solkattu.korvai_sequence korvai)
-
 test_verify_alignment = do
-    let f = map (fmap (second pretty))
-            . Solkattu.verify_alignment (Solkattu.adi_tala 2)
+    let f = first (Text.intercalate "; ")
+            . Solkattu.verify_alignment (Solkattu.Tala 4 2 2)
         tdkt = cycle $ ta <> di <> ki <> ta
-    -- sam->arudi, arudi->sam
-    equal (f [(Sam, take 8 tdkt), (Arudi, take 8 tdkt)])
-        [ Right (0, "[ta, di, ki, ta, ta, di, ki, ta]")
-        , Right (0, "[ta, di, ki, ta, ta, di, ki, ta]")
-        ]
-    equal (f [(Sam, take 6 tdkt), (Arudi, take 6 tdkt)])
-        [ Right (2, "[ta, di, ki, ta, ta, di]")
-        , Right (2, "[ta, di, ki, ta, ta, di]")
-        ]
-    equal (f [(Sam, take 9 tdkt), (Arudi, take 10 tdkt)])
-        [ Left "Sam->Arudi transition should have <= 8 matras, but has 9"
-        , Left "Arudi->Sam transition should have <= 8 matras, but has 10"
-        ]
-    equal (f [(Sam, take 4 tdkt)]) [Right (12, "[ta, di, ki, ta]")]
-    equal (f [(Sam, take 8 tdkt)])
-        [Right (8, "[ta, di, ki, ta, ta, di, ki, ta]")]
-    equal (f [(Sam, take 9 tdkt)])
-        [Right (7, "[ta, di, ki, ta, ta, di, ki, ta, ta]")]
-
-test_realize_karvai = do
-    let f dur = fmap (map (fmap pretty)) . Solkattu.realize_karvai dur
-    left_like (f 2 (ta <> di)) "no karvai but there's unfilled space"
-    equal (f 2 (ta <> kar di)) $ Right [Right "ta", Right "di", Left 2]
+    equal (f []) (Right [])
+    left_like (f ta) "expected Sam"
+    left_like (f (take 4 tdkt)) "expected Sam"
+    equal (f (take 8 tdkt)) (Right (take 8 tdkt))
+    equal (f (take 4 tdkt <> SolkattuDsl.atX <> take 4 tdkt))
+        (Right (take 8 tdkt))
+    left_like (f (take 3 tdkt <> SolkattuDsl.atX <> take 4 tdkt))
+        "expected Arudi"
 
 test_realize_mridangam = do
     let f = (Text.unlines *** show_strokes)
-            . Solkattu.realize_mridangam SolkattuDsl.default_patterns
-                SolkattuDsl.default_karvai smap
+            . Solkattu.realize_mridangam SolkattuDsl.default_patterns smap
         smap = Solkattu.StrokeMap $ Map.fromList
             [ ([Ta, Din], [k, od])
             , ([Ta], [t])
@@ -70,12 +39,12 @@ test_realize_mridangam = do
         k = Solkattu.Valantalai Solkattu.MKi
         t = Solkattu.Valantalai Solkattu.MTa
         od = Both Solkattu.MThom Solkattu.MDin
-    equal (f [RRest 1, RSollu Ta Nothing, RRest 2, RSollu Din Nothing])
+    equal (f [Rest, Sollu Ta Nothing, Rest, Rest, Sollu Din Nothing])
         (Right "- k - - od")
-    equal (f [RPattern 5, RRest 1, RSollu Ta Nothing, RSollu Din Nothing])
+    equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
         (Right "k t k n o - k od")
-    equal (f [RSollu Ta Nothing, RSollu Ta Nothing]) (Right "t t")
-    left_like (f [RSollu Din Nothing, RSollu Din Nothing]) "sequence not found"
+    equal (f [Sollu Ta Nothing, Sollu Ta Nothing]) (Right "t t")
+    left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
 
 show_strokes :: [Solkattu.MNote] -> Text
 show_strokes = Text.unwords . map pretty
@@ -89,7 +58,7 @@ test_stroke_map = do
         (Right [([Ta, Di], [Valantalai MKi, Valantalai MTa])])
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate mridangam keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(ta <> SolkattuDsl.din_, [k])]) "only have plain sollus"
+    left_like (f [(ta <> __, [k])]) "only have plain sollus"
 
 -- * utils
 

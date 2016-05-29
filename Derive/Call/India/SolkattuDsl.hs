@@ -11,24 +11,24 @@ module Derive.Call.India.SolkattuDsl (
     -- ** sollus
     , (-)
     , __, __2, __3, __4, __n
-    , ta, di, ki, thom, thom_
+    , ta, di, ki, thom
     , na, ka, ti, ku, ri
-    , din, din_, gin
+    , din, gin
     , tam, tang, lang
     , dit, dheem
-    , kar, st
+    , st
     , at0, atX
     -- ** patterns
-    , pat, pat_, p5, p6, p7, p666, p567, p765
+    , pat, p5, p6, p7, p666, p567, p765
     -- ** combinators
-    , tri, tri_n, tri_
-    , duration_of, repeat, sep
+    , tri, tri_, trin
+    , duration_of, repeat, join
     -- * transform
     , dropM, takeM
     -- * mridangam
     , k, t, n, d, u, i, o, p
     , od, pk
-    , default_patterns, default_karvai
+    , default_patterns
     -- * misc
     , check, pprint
 ) where
@@ -36,11 +36,10 @@ import Prelude hiding ((-), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
-import qualified Util.Log as Log
 import Util.Pretty (pprint)
 import qualified Derive.Call.India.Solkattu as Solkattu
 import Derive.Call.India.Solkattu
-       (Sequence, Korvai, Matras, Note(..), Karvai(..), Sollu(..), Stroke(..),
+       (Sequence, Korvai, Matras, Note(..), Sollu(..), Stroke(..),
         MNote(..), check, duration_of, dropM, takeM)
 import Global
 
@@ -63,7 +62,7 @@ sq :: Note -> Sequence
 sq = (:[])
 
 sollu :: Sollu -> Sequence
-sollu s = [Sollu s NoKarvai Nothing]
+sollu s = [Sollu s Nothing]
 
 __ :: Sequence
 __ = sq Rest
@@ -75,12 +74,11 @@ __4 = __n 4
 __n :: Int -> Sequence
 __n n = repeat n __
 
-ta, di, ki, thom, thom_ :: Sequence
+ta, di, ki, thom :: Sequence
 ta = sollu Ta
 di = sollu Di
 ki = sollu Ki
 thom = sollu Thom
-thom_ = kar thom
 
 na, ka, ti, ku, ri :: Sequence
 na = sollu Na
@@ -89,9 +87,8 @@ ti = sollu Ta
 ku = sollu Ka
 ri = sollu Ri
 
-din, din_, gin :: Sequence
+din, gin :: Sequence
 din = sollu Din
-din_ = kar din
 gin = sollu Gin
 
 tam, tang, lang :: Sequence
@@ -103,20 +100,11 @@ dit, dheem :: Sequence
 dit = sollu Dit
 dheem = sollu Dheem
 
--- | Put karvai after the sollus.
-kar :: Log.Stack => Sequence -> Sequence
-kar notes = case reverse notes of
-    [] -> errorStack "kar: empty sequence"
-    n : ns -> reverse $ case n of
-        Sollu s _ stroke -> Sollu s Karvai stroke : ns
-        Pattern d _ -> Pattern d Karvai : ns
-        _ -> errorStack "kar: last not can't have karvai"
-
 -- | Add a specific stroke instruction to a sollu.
 st :: MNote -> Sequence -> Sequence
 st _ [] = errorStack $ "st: empty sequence"
 st (MNote stroke) (n:ns) = case n of
-    Sollu s karvai _ -> Sollu s karvai (Just stroke) : ns
+    Sollu s _ -> Sollu s (Just stroke) : ns
     _ -> errorStack $ "st: can't add stroke to " <> prettys n
 st s _ = errorStack $ "st: require a sollu: " <> prettys s
 
@@ -124,36 +112,36 @@ at0, atX :: Sequence
 at0 = sq $ Alignment Solkattu.Sam
 atX = sq $ Alignment Solkattu.Arudi
 
-pat d = sq $ Pattern d NoKarvai
-pat_ d = sq $ Pattern d Karvai
+pat :: Matras -> Sequence
+pat d = sq $ Pattern d
 
 -- | Repeat thrice, with no karvai.
 tri :: Sequence -> Sequence
-tri = repeat 3
+tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
-tri_n :: Sequence -> Sequence -> Sequence
-tri_n seq n = sep n [seq, seq, seq]
+tri_ :: Sequence -> Sequence -> Sequence
+tri_ sep seq = join sep [seq, seq, seq]
 
--- | Repeat thrice, with karvai between the middle two.
-tri_ :: Sequence -> Sequence
-tri_ p = kar p - kar p - p
+-- | Three different patterns with the same separator.
+trin :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
+trin s a b c = join s [a, b, c]
 
 p5, p6, p7 :: Sequence
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
 
-p666, p567, p765 :: Sequence
-p666  = tri_ (pat 6)
-p567 = pat_ 5 - pat_ 6 - pat 7
-p765 = pat_ 7 - pat_ 6 - pat 5
+p666, p567, p765 :: Sequence -> Sequence
+p666 sep = trin sep (pat 6) (pat 6) (pat 6)
+p567 sep = trin sep (pat 5) (pat 6) (pat 7)
+p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
-sep :: Sequence -> [Sequence] -> Sequence
-sep with = List.intercalate with
+join :: Sequence -> [Sequence] -> Sequence
+join with = List.intercalate with
 
 -- * mridangam
 
@@ -186,9 +174,4 @@ default_patterns = check $ Solkattu.patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, ___, k, n, o])
     , (7, [k, ___, t, ___, k, n, o])
-    ]
-
-default_karvai :: Solkattu.Patterns
-default_karvai = check $ Solkattu.patterns
-    [ (4, [i, ___, ___, ___])
     ]
