@@ -1224,7 +1224,6 @@ Derive:
         * align at any akshara
         / align mid pattern, e.g.  p6 X@2
         * Actually (-) is useful... go back to (.)?
-
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as
@@ -1236,6 +1235,7 @@ Derive:
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
         - Try an alternate realization for kendang bali.
+        - Alternate realizations for pitches.
     pakhawaj bols
       . Score integrate to convert bols to low level calls
         . Actually score integrate doesn't work like that, it just copies the

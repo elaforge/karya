@@ -4,7 +4,7 @@
 
 {-# LANGUAGE ImplicitParams, LambdaCase #-}
 -- | Notate Carnatic solkattu and realize to mridangam fingering.
-module Derive.Call.India.Solkattu where
+module Derive.Solkattu.Solkattu where
 import qualified Data.Either as Either
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List

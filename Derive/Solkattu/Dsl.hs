@@ -5,7 +5,7 @@
 {-# LANGUAGE ImplicitParams #-}
 -- | Provide short names and operators for writing korvais in haskell.
 -- This module is meant to be imported unqualified.
-module Derive.Call.India.SolkattuDsl (
+module Derive.Solkattu.Dsl (
     -- * solkattu
     Sequence, Korvai, Matras, Stroke, MNote
     -- ** sollus
@@ -40,8 +40,8 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
 import Util.Pretty (pprint)
-import qualified Derive.Call.India.Solkattu as Solkattu
-import Derive.Call.India.Solkattu
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import Derive.Solkattu.Solkattu
        (Sequence, Korvai, Matras, Note(..), Sollu(..), Stroke(..),
         MNote(..), check, duration_of, dropM, takeM)
 import Global

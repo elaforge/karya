@@ -3,12 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Korvais expressed in SolkattuDsl.
-module Derive.Call.India.SolkattuScore where
+module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.Text.IO as Text.IO
 
-import qualified Derive.Call.India.Solkattu as Solkattu
-import Derive.Call.India.SolkattuDsl
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import Derive.Solkattu.Dsl
 import Global
 
 
@@ -142,7 +142,7 @@ k3 = check $ Solkattu.korvai (adi 5) mridangam $
     . ta^6.ka.dit.tat.din.__
     . ta.ki.ta.tha.ki^0.ta
 
-    . p6.__.p6.p6.__.p6.p6.p6
+    . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
     where
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka

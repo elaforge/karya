@@ -2,16 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.India.Solkattu_test where
+module Derive.Solkattu.Solkattu_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
-import qualified Derive.Call.India.Solkattu as Solkattu
-import Derive.Call.India.Solkattu
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import Derive.Solkattu.Solkattu
        (Note(..), Sollu(..), Stroke(..), Valantalai(..))
-import qualified Derive.Call.India.SolkattuDsl as SolkattuDsl
-import Derive.Call.India.SolkattuDsl (ta, di, ki, __)
+import qualified Derive.Solkattu.Dsl as Dsl
+import Derive.Solkattu.Dsl (ta, di, ki, __)
 
 import Global
 
@@ -24,14 +24,14 @@ test_verify_alignment = do
     left_like (f ta) "expected Akshara 0"
     left_like (f (take 4 tdkt)) "expected Akshara 0"
     equal (f (take 8 tdkt)) (Right (take 8 tdkt))
-    equal (f (take 4 tdkt <> SolkattuDsl.atX <> take 4 tdkt))
+    equal (f (take 4 tdkt <> Dsl.atX <> take 4 tdkt))
         (Right (take 8 tdkt))
-    left_like (f (take 3 tdkt <> SolkattuDsl.atX <> take 4 tdkt))
+    left_like (f (take 3 tdkt <> Dsl.atX <> take 4 tdkt))
         "expected Arudi"
 
 test_realize_mridangam = do
     let f = (Text.unlines *** show_strokes)
-            . Solkattu.realize_mridangam SolkattuDsl.default_patterns smap
+            . Solkattu.realize_mridangam Dsl.default_patterns smap
         smap = Solkattu.StrokeMap $ Map.fromList
             [ ([Ta, Din], [k, od])
             , ([Ta], [t])
@@ -52,7 +52,7 @@ show_strokes = Text.unwords . map pretty
 test_stroke_map = do
     let f = fmap (\(Solkattu.StrokeMap smap) -> Map.toList smap)
             . Solkattu.stroke_map
-        (k, t) = (SolkattuDsl.k, SolkattuDsl.t)
+        (k, t) = (Dsl.k, Dsl.t)
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])])
         (Right [([Ta, Di], [Valantalai MKi, Valantalai MTa])])
