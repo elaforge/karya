@@ -1215,6 +1215,16 @@ Derive:
             the count isn't right when I hit any alignment marker.
           . I can get rid of RealizedNotes entirely, and just have
             verify_duration.
+          . This means karvai is just another kind of pattern, but I want to
+            retain the distunction... or why even do that?
+          . Often (always?) you count the stroke along with its duration, so
+            d__ is a 3.
+        * nadai change
+        * speed change
+        - align at any akshara
+        - align mid pattern, e.g.  p6 X@2
+        - Actually (-) is useful... go back to (.)?
+
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as

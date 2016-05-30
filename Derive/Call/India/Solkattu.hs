@@ -6,6 +6,7 @@
 -- | Notate Carnatic solkattu and realize to mridangam fingering.
 module Derive.Call.India.Solkattu where
 import qualified Data.Either as Either
+import qualified Data.Fixed as Fixed
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -22,15 +23,31 @@ import Global
 
 type Sequence = [Note]
 
-data Note = Sollu Sollu (Maybe Stroke)
+data Note =
+    Sollu Sollu (Maybe Stroke)
     | Rest
     -- | Set pattern with the given duration.
     | Pattern Matras
     | Alignment Alignment
+    | TimeChange TimeChange
     deriving (Eq, Show)
 
 data Alignment = Sam | Arudi
     deriving (Eq, Show)
+
+data TimeChange = Speed Speed | Nadai Matras
+    deriving (Eq, Show)
+
+-- | Each speed increase doubles the number of 'Matras' per akshara.  As
+-- documented in 'Matras', this is a nonstandard use of the term.
+data Speed = S1 | S2 | S3 | S4 deriving (Eq, Ord, Show, Bounded, Enum)
+
+speed_factor :: Speed -> Double
+speed_factor s = case s of
+    S1 -> 1
+    S2 -> 2
+    S3 -> 4
+    S4 -> 8
 
 instance Pretty.Pretty Note where
     pretty n = case n of
@@ -40,6 +57,11 @@ instance Pretty.Pretty Note where
         Pattern d -> "p" <> showt d
         Alignment Sam -> "at0"
         Alignment Arudi -> "atX"
+        TimeChange change -> pretty change
+
+instance Pretty.Pretty TimeChange where
+    pretty (Speed s) = "speed " <> showt s
+    pretty (Nadai s) = "nadai " <> showt s
 
 data Sollu = Ta | Di | Ki | Thom -- ta di ki ta thom
     | Na | Ka | Ti | Ku | Ri -- nakatikutari
@@ -54,7 +76,12 @@ instance Pretty.Pretty Sollu where
 -- | An akshara is one count of the talam.
 type Aksharas = Int
 
--- | A matra is an akshara divided by the nadai.
+-- | A matra is an akshara divided by the nadai divided by the 'speed_factor'.
+-- It corresponds to a single sollu.
+--
+-- This is nonstandard usage since an actual matra doesn't depend on speed, so
+-- it can be fractional when >S1, but it's more convenient for me to have
+-- a variable time unit corresponding to a single sollu.
 type Matras = Int
 
 duration_of :: Sequence -> Matras
@@ -66,15 +93,13 @@ note_duration n = case n of
     Rest -> 1
     Pattern dur -> dur
     Alignment {} -> 0
+    TimeChange {} -> 0
 
 data Tala = Tala {
     tala_aksharas :: !Aksharas
     , tala_arudi :: !Aksharas
     , tala_nadai :: !Matras
     } deriving (Show)
-
-tala_matras :: Tala -> Matras
-tala_matras tala = tala_aksharas tala * tala_nadai tala
 
 instance Pretty.Pretty Tala where
     format (Tala aksharas arudi nadai) = Pretty.record "Tala"
@@ -86,40 +111,68 @@ instance Pretty.Pretty Tala where
 adi_tala :: Matras -> Tala
 adi_tala = Tala 8 4
 
--- | If the notes have a duration that's longer than the the time from the
--- previous alignment, then error.
---
--- Arudi must be followed by Sam.  If Sam is followed by Sam, it can insert
--- enough integral avartanams to make the duration long enough.
--- verify_alignment :: Tala -> [Note] -> Either [Text] [Note]
--- verify_alignment _tala = Right -- TODO
+-- | Keep track of timing and tala position.
+data State = State {
+    state_avartanam :: !Int
+    , state_akshara :: !Aksharas
+    -- | This is not 'Matras' because it's actual fraction matras, rather than
+    -- sollu-durations.
+    , state_matra :: !Double
+    , state_speed :: !Speed
+    , state_nadai :: !Int
+    } deriving (Show)
+
+initial_state :: Tala -> State
+initial_state tala = State 0 0 0 S1 (tala_nadai tala)
 
 -- | Verify that the notes start and end at Sam, and the given Alignments
 -- fall where expected.
 verify_alignment :: Tala -> [Note] -> Either [Text] [Note]
 verify_alignment tala =
-    check . filter (/= Left "") . snd . List.mapAccumL verify 0
+    check . filter (/= Left "")
+        . snd . List.mapAccumL verify (initial_state tala)
         . (Alignment Sam :) . (++[Alignment Sam])
     where
-    verify pos note = case note of
-        Sollu {} -> (pos + 1, Right note)
-        Rest -> (pos + 1, Right note)
-        Pattern dur -> (pos + dur, Right note)
-        Alignment align -> (pos, verify_align pos align)
+    verify state note = case note of
+        Sollu {} -> (advance 1, Right note)
+        Rest -> (advance 1, Right note)
+        Pattern matras -> (advance (fromIntegral matras), Right note)
+        Alignment align -> (state, verify_align state align)
+        TimeChange change -> (time_change change state, Right note)
+        where advance n = advance_state tala n state
     check vals
         | null errs = Right ok
-        | otherwise = Left $ map (either id pretty) vals
+        | otherwise = Left $
+            map (either id (Text.unwords . map pretty)) (group_rights vals)
         where (errs, ok) = Either.partitionEithers vals
-    verify_align pos align
-        | remainder == expected = Left ""
+    verify_align state align
+        | state_akshara state == expected && state_matra state == 0 = Left ""
         | otherwise = Left $ "expected " <> showt align
-            <> ", but at avartanam " <> showt (avartanams+1)
-            <> " matra " <> showt remainder
+            <> ", but at avartanam " <> showt (state_avartanam state + 1)
+            <> ", akshara " <> showt (state_akshara state + 1)
+            <> " matra " <> showt (state_matra state + 1)
         where
-        (avartanams, remainder) = pos `divMod` tala_matras tala
         expected = case align of
             Sam -> 0
-            Arudi -> tala_arudi tala * tala_nadai tala
+            Arudi -> tala_arudi tala
+
+time_change :: TimeChange -> State -> State
+time_change change state = case change of
+    Speed s -> state { state_speed = s }
+    Nadai s -> state { state_nadai = s }
+
+advance_state :: Tala -> Double -> State -> State
+advance_state tala matras state = state
+    { state_avartanam = state_avartanam state + akshara_carry
+    , state_akshara = akshara
+    , state_matra = matra
+    }
+    where
+    (akshara_carry, akshara) =
+        (state_akshara state + matra_carry) `divMod` tala_aksharas tala
+    (matra_carry, matra) = (state_matra state + matras * factor)
+        `fDivMod` fromIntegral (state_nadai state)
+    factor = 1 / speed_factor (state_speed state)
 
 -- * transform
 
@@ -145,6 +198,7 @@ takeM matras (n:ns) = case n of
         | dur > matras -> n : takeM (matras-dur) ns
         | otherwise -> [Pattern (dur - matras)]
     Alignment {} -> takeM matras ns
+    TimeChange {} -> takeM matras ns
 
 -- * realize
 
@@ -195,7 +249,7 @@ patterns pairs
         , matras /= length ns
         ]
 
-data MNote = MNote Stroke | MRest
+data MNote = MNote Stroke | MRest | MTimeChange TimeChange
     deriving (Show)
 
 data Stroke = Thoppi !Thoppi | Valantalai Valantalai | Both !Thoppi !Valantalai
@@ -208,10 +262,19 @@ data Valantalai = MKi | MTa | MNam | MDin | MChapu | MDheem
 instance Pretty.Pretty Stroke where
     pretty (Thoppi t) = pretty t
     pretty (Valantalai v) = pretty v
-    pretty (Both t v) = pretty t <> pretty v
+    pretty (Both t v) = case t of
+        MTha -> case v of
+            MKi -> "P"
+            MTa -> "X"
+            MNam -> "A"
+            MDin -> "O"
+            MChapu -> "pu" -- These are pretty rare.
+            MDheem -> "pi"
+        MThom -> Text.toUpper (pretty v)
 instance Pretty.Pretty MNote where
     pretty MRest = "-"
     pretty (MNote s) = pretty s
+    pretty (MTimeChange change) = pretty change
 
 instance Pretty.Pretty Thoppi where
     pretty n = case n of
@@ -274,6 +337,7 @@ realize_mridangam (Patterns patterns) smap =
             Right (strokes, rest) -> first (strokes:) (go rest)
             Left err -> ([], Just (err, n:ns))
         Alignment {} -> go ns
+        TimeChange change -> first ([MTimeChange change] :) (go ns)
     format_error (result, Nothing) = Right (concat result)
     format_error (pre, Just (err, post)) = Left $
         [ Text.intercalate " / " $ map pretty_strokes pre
@@ -310,6 +374,7 @@ insert_rests (stroke : strokes) (n : ns) = case n of
     -- Seq.span_while is_sollu.
     Pattern {} -> skip
     Alignment {} -> skip
+    TimeChange {} -> skip
     where
     skip = insert_rests (stroke : strokes) ns
 insert_rests (_:_) [] = ([], [])
@@ -319,17 +384,27 @@ insert_rests (_:_) [] = ([], [])
 -- | Format the notes according to the tala.
 pretty_strokes_tala :: Tala -> [MNote] -> Text
 pretty_strokes_tala tala =
-    Text.stripEnd . Text.unlines . map pretty_avartanam
-        . Seq.chunked (tala_matras tala) . zip [0..]
+    Text.stripStart . mconcat . Maybe.catMaybes . snd
+        . List.mapAccumL format (initial_state tala)
     where
-    pretty_avartanam = Text.unlines . map (Text.unwords . map stroke1) . split
+    format state note = second (fmap decorate) $ case note of
+        MRest -> (advance, Just "-")
+        MNote n -> (advance, Just (pretty n))
+        MTimeChange change -> (time_change change state, Nothing)
         where
-        split xs = [pre, post]
-            where (pre, post) = splitAt (tala_arudi tala * tala_nadai tala) xs
-    stroke1 (i, stroke) =
-        (if beat then emphasize else id) $
-            Text.justifyLeft 2 ' ' (pretty stroke)
-        where beat = i `mod` tala_nadai tala == 0
+        decorate = (newline<>) . add_emphasis . pad
+        add_emphasis s
+            | not (Text.null s) && matra == 0 = emphasize s
+            | otherwise = s
+        newline
+            | matra == 0 && state_akshara state == 0 = "\n\n"
+            | matra == 0 && state_akshara state == tala_arudi tala = "\n"
+            | otherwise = ""
+        -- TODO look for the highest speed, and normalize to that
+        pad = Text.justifyLeft (if state_speed state == S1 then 2 else 0) ' '
+
+        matra = state_matra state
+        advance = advance_state tala 1 state
     emphasize txt = "\ESC[1m" <> txt <> "\ESC[0m"
 
 pretty_strokes :: [MNote] -> Text
@@ -373,6 +448,7 @@ split_just f initial xs = go [] initial (zip (map f xs) xs)
         Just b -> (key, reverse accum) : go [a] b rest
     go accum key [] = [(key, reverse accum)]
 
+-- | Group consecutive Rights.
 group_rights :: [Either a b] -> [Either a [b]]
 group_rights xs = case rest of
     [] -> cons []
@@ -381,3 +457,6 @@ group_rights xs = case rest of
     where
     (rights, rest) = Seq.span_while (either (const Nothing) Just) xs
     cons = if null rights then id else (Right rights :)
+
+fDivMod :: Double -> Double -> (Int, Double)
+fDivMod a b = (floor (a / b), Fixed.mod' a b)

@@ -62,7 +62,7 @@ both_calls = make_both left_notes right_notes special_names
     ]
     where
     special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
-        ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDAUVI"]
+        ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDUVI"]
     sym = BaseTypes.Symbol . Text.singleton
 
 -- | Create calls for all simultaneous left and right hand combinations, and

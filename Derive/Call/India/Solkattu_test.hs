@@ -40,9 +40,9 @@ test_realize_mridangam = do
         t = Solkattu.Valantalai Solkattu.MTa
         od = Both Solkattu.MThom Solkattu.MDin
     equal (f [Rest, Sollu Ta Nothing, Rest, Rest, Sollu Din Nothing])
-        (Right "- k - - od")
+        (Right "- k - - D")
     equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
-        (Right "k t k n o - k od")
+        (Right "k t k n o - k D")
     equal (f [Sollu Ta Nothing, Sollu Ta Nothing]) (Right "t t")
     left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
 

@@ -118,6 +118,52 @@ k1_mridangam =
     , (din, [od])
     ]
 
+
+k2 :: Bool -> Korvai
+k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
+      din_3 - p5 - tam_4 - p6 - ta - __
+    - din_3 - p5 - tam_4 - p6 - ta - __ - ta - __
+    - din_3 - p5
+    - if chatusram_transition
+        then nadai 4 - tri (ta - ta - __ - p5)
+        else tam_4 - tri_ __4 p6
+    where
+    din_3 = din - __2
+    tam_4 = tam - __3
+    -- p6 can also be k-t---ktkto-
+    -- development is din_3 - p5 - ta - __ - din
+
+k3 :: Korvai
+k3 = check $ Solkattu.korvai (adi 5) mridangam $ --                 at2
+      dit - __  - s2 (tang - kitataka - tarikitataka) - dit - tat - din - __
+      --                                                atX
+    - dit - tat - s2 (tang - kitataka - tarikitataka) - dit - tat - din - __
+    - ta - __ - dit - tat - din - __
+
+    -- atX
+    - ta - ka - dit - tat - din - __
+    --                    at0
+    - ta - ki - ta - ta - ki - ta
+
+    --          -at2
+    - p6 - __ - p6 - p6 - __ - p6 - p6 - p6
+    where
+    tat = ta
+    kitataka = ki - ta - ta - ka -- TODO tha
+    tarikitataka = ta - ri - kitataka
+    mridangam =
+        [ (dit, [pk])
+        , (ta-ki-ta, [p, k, od])
+        , (ta-ka, [p, k])
+        , (dit-tat, [p, k])
+        , (kitataka, [p, k, n, p])
+        , (tarikitataka, [u, p, k, t, p, k])
+        , (din, [od])
+        , (ta, [k])
+        ]
+
+-- * realize
+
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 

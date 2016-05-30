@@ -16,6 +16,9 @@ module Derive.Call.India.SolkattuDsl (
     , din, gin
     , tam, tang, lang
     , dit, dheem
+    -- ** directives
+    , nadai
+    , speed, s2
     , (!)
     , at0, atX
     -- ** patterns
@@ -64,6 +67,8 @@ sq = (:[])
 sollu :: Sollu -> Sequence
 sollu s = [Sollu s Nothing]
 
+-- ** sollus
+
 __ :: Sequence
 __ = sq Rest
 __2, __3 :: Sequence
@@ -99,6 +104,17 @@ lang = sollu Lang - __
 dit, dheem :: Sequence
 dit = sollu Dit
 dheem = sollu Dheem
+
+-- ** directives
+
+nadai :: Matras -> Sequence
+nadai n = [Solkattu.TimeChange (Solkattu.Nadai n)]
+
+speed :: Solkattu.Speed -> Sequence
+speed s = [Solkattu.TimeChange (Solkattu.Speed s)]
+
+s2 :: Sequence -> Sequence
+s2 seq = speed Solkattu.S2 <> seq <> speed Solkattu.S1
 
 -- | Add a specific stroke instruction to a sollu.
 stroke :: MNote -> Sequence -> Sequence
