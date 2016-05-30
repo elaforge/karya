@@ -11,7 +11,7 @@ module Derive.Call.India.SolkattuDsl (
     -- ** sollus
     , (.)
     , __, __2, __3, __4, __n
-    , ta, di, ki, thom
+    , ta, tha, tat, di, ki, thom
     , na, ka, ti, ku, ri
     , din, gin
     , tam, tang, lang
@@ -70,8 +70,10 @@ __4 = __n 4
 __n :: Int -> Sequence
 __n n = repeat n __
 
-ta, di, ki, thom :: Sequence
+ta, tha, di, ki, thom :: Sequence
 ta = sollu Ta
+tha = sollu Tha
+tat = sollu Tat
 di = sollu Di
 ki = sollu Ki
 thom = sollu Thom

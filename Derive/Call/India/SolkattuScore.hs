@@ -78,7 +78,7 @@ make_k1_1 pt gap = check $ make_k1 $
 
 k1_1_vars :: [Korvai]
 k1_1_vars = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
-    where gaps = [thom . __ . ta . __, thom . __2, thom . __, thom, mempty]
+    where gaps = [thom.__.ta.__, thom.__2, thom.__, thom, mempty]
 
 k1_2 :: Korvai
 k1_2 = check $ make_k1 $
@@ -86,12 +86,12 @@ k1_2 = check $ make_k1 $
     . atX . k1_a' . __ . ta_din_ . p7
     . at0 . k1_a . __ . k1_a' . __
           . ta_din_ . tri p7
-          . ta_din_ . tri (tadin . p7)
-          . ta_din_ . tri (tadin . tadin . p7)
+          . ta_din_ . tri (tadin_ . p7)
+          . ta_din_ . tri (tadin_ . tadin_ . p7)
     where
     p7 = ta.ka.p5
     ta_din_ = ta.__.din.__
-    tadin = ta.din.__
+    tadin_ = ta.din.__
 
 k1_3 :: Korvai
 k1_3 = check $ make_k1 $
@@ -140,12 +140,11 @@ k3 = check $ Solkattu.korvai (adi 5) mridangam $
     . ta . __ . dit . tat . din . __
 
     . ta^6.ka.dit.tat.din.__
-    . ta.ki.ta.ta.ki^0.ta -- TODO tha
+    . ta.ki.ta.tha.ki^0.ta
 
     . p6.__.p6.p6.__.p6.p6.p6
     where
-    tat = ta
-    kitataka = ki.ta.ta.ka -- TODO tha
+    kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam =
         [ (dit, [pk])

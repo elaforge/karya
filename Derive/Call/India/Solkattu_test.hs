@@ -21,8 +21,8 @@ test_verify_alignment = do
             . Solkattu.verify_alignment (Solkattu.Tala 4 2 2)
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right [])
-    left_like (f ta) "expected Sam"
-    left_like (f (take 4 tdkt)) "expected Sam"
+    left_like (f ta) "expected Akshara 0"
+    left_like (f (take 4 tdkt)) "expected Akshara 0"
     equal (f (take 8 tdkt)) (Right (take 8 tdkt))
     equal (f (take 4 tdkt <> SolkattuDsl.atX <> take 4 tdkt))
         (Right (take 8 tdkt))

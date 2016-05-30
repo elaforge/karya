@@ -64,6 +64,8 @@ instance Pretty.Pretty TimeChange where
     pretty (Nadai s) = "nadai " <> showt s
 
 data Sollu = Ta | Di | Ki | Thom -- ta di ki ta thom
+    | Tha -- dental tha, when contrasted with retroflex ta
+    | Tat
     | Na | Ka | Ti | Ku | Ri -- nakatikutari
     | Din | Gin -- ta din gin na tom
     | Dit | Dheem
