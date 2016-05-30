@@ -4,7 +4,7 @@
 
 -- | Korvais expressed in SolkattuDsl.
 module Derive.Call.India.SolkattuScore where
-import Prelude hiding ((-), repeat)
+import Prelude hiding ((-), (^), repeat)
 import qualified Data.Text.IO as Text.IO
 
 import qualified Derive.Call.India.Solkattu as Solkattu
@@ -134,18 +134,14 @@ k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
     -- development is din_3 - p5 - ta - __ - din
 
 k3 :: Korvai
-k3 = check $ Solkattu.korvai (adi 5) mridangam $ --                 at2
-      dit - __  - s2 (tang - kitataka - tarikitataka) - dit - tat - din - __
-      --                                                atX
-    - dit - tat - s2 (tang - kitataka - tarikitataka) - dit - tat - din - __
+k3 = check $ Solkattu.korvai (adi 5) mridangam $
+      dit - __  - s2 (tang - kitataka - tarikitataka) - dit   - tat - din^2 - __
+    - dit - tat - s2 (tang - kitataka - tarikitataka) - dit^4 - tat - din - __
     - ta - __ - dit - tat - din - __
 
-    -- atX
-    - ta - ka - dit - tat - din - __
-    --                    at0
-    - ta - ki - ta - ta - ki - ta
+    - ta^6 - ka - dit - tat - din - __
+    - ta - ki - ta - ta - ki^0 - ta
 
-    --          -at2
     - p6 - __ - p6 - p6 - __ - p6 - p6 - p6
     where
     tat = ta

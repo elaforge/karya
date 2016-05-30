@@ -32,7 +32,7 @@ data Note =
     | TimeChange TimeChange
     deriving (Eq, Show)
 
-data Alignment = Sam | Arudi
+data Alignment = Akshara Aksharas | Arudi
     deriving (Eq, Show)
 
 data TimeChange = Speed Speed | Nadai Matras
@@ -55,8 +55,8 @@ instance Pretty.Pretty Note where
             (\stroke -> ("st " <> pretty stroke <> " " <> pretty s)) stroke
         Rest -> "__"
         Pattern d -> "p" <> showt d
-        Alignment Sam -> "at0"
-        Alignment Arudi -> "atX"
+        Alignment (Akshara n) -> "@" <> showt n
+        Alignment Arudi -> "@X"
         TimeChange change -> pretty change
 
 instance Pretty.Pretty TimeChange where
@@ -131,7 +131,7 @@ verify_alignment :: Tala -> [Note] -> Either [Text] [Note]
 verify_alignment tala =
     check . filter (/= Left "")
         . snd . List.mapAccumL verify (initial_state tala)
-        . (Alignment Sam :) . (++[Alignment Sam])
+        . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
     where
     verify state note = case note of
         Sollu {} -> (advance 1, Right note)
@@ -149,11 +149,11 @@ verify_alignment tala =
         | state_akshara state == expected && state_matra state == 0 = Left ""
         | otherwise = Left $ "expected " <> showt align
             <> ", but at avartanam " <> showt (state_avartanam state + 1)
-            <> ", akshara " <> showt (state_akshara state + 1)
-            <> " matra " <> showt (state_matra state + 1)
+            <> ", akshara " <> showt (state_akshara state)
+            <> ", matra " <> showt (state_matra state)
         where
         expected = case align of
-            Sam -> 0
+            Akshara n -> n
             Arudi -> tala_arudi tala
 
 time_change :: TimeChange -> State -> State

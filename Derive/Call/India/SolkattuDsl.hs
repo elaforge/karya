@@ -20,7 +20,7 @@ module Derive.Call.India.SolkattuDsl (
     , nadai
     , speed, s2
     , (!)
-    , at0, atX
+    , at0, atX, (^)
     -- ** patterns
     , pat, p5, p6, p7, p666, p567, p765
     -- ** combinators
@@ -35,7 +35,7 @@ module Derive.Call.India.SolkattuDsl (
     -- * misc
     , check, pprint
 ) where
-import Prelude hiding ((-), repeat)
+import Prelude hiding ((-), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -60,6 +60,7 @@ import Global
 -- > ta - __ - di - __ - ki - __
 (-) :: Monoid a => a -> a -> a
 (-) = (Monoid.<>)
+infixr 6 -
 
 sq :: Note -> Sequence
 sq = (:[])
@@ -127,9 +128,15 @@ stroke s _ = errorStack $ "st: require a sollu: " <> prettys s
 (!) :: Sequence -> MNote -> Sequence
 (!) = flip stroke
 
+-- | Align at sam or the arudi.
 at0, atX :: Sequence
-at0 = sq $ Alignment Solkattu.Sam
+at0 = sq $ Alignment (Solkattu.Akshara 0)
 atX = sq $ Alignment Solkattu.Arudi
+
+-- | Align at the given akshara.
+(^) :: Sequence -> Solkattu.Aksharas -> Sequence
+seq ^ n = sq (Alignment (Solkattu.Akshara n)) <> seq
+infix 9 ^
 
 pat :: Matras -> Sequence
 pat d = sq $ Pattern d
