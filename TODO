@@ -1223,7 +1223,7 @@ Derive:
         * speed change
         * align at any akshara
         / align mid pattern, e.g.  p6 X@2
-        - Actually (-) is useful... go back to (.)?
+        * Actually (-) is useful... go back to (.)?
 
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same

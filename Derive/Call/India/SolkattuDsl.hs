@@ -9,7 +9,7 @@ module Derive.Call.India.SolkattuDsl (
     -- * solkattu
     Sequence, Korvai, Matras, Stroke, MNote
     -- ** sollus
-    , (-)
+    , (.)
     , __, __2, __3, __4, __n
     , ta, di, ki, thom
     , na, ka, ti, ku, ri
@@ -35,7 +35,7 @@ module Derive.Call.India.SolkattuDsl (
     -- * misc
     , check, pprint
 ) where
-import Prelude hiding ((-), (^), repeat)
+import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -48,19 +48,9 @@ import Global
 
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
---
--- I don't really like hijacking a common operator, but it should be visually
--- simpler lower-key than the sollus, and unfortunately the other other
--- operator that seems to fit that is (.), and I have a bad experience from
--- reusing that, since it's so common when building combinators.
---
--- > ta / __ / di / __ / ki / __
--- > ta . __ . di . __ . ki . __
--- > ta. __. di. __. ki. __
--- > ta - __ - di - __ - ki - __
-(-) :: Monoid a => a -> a -> a
-(-) = (Monoid.<>)
-infixr 6 -
+(.) :: Monoid a => a -> a -> a
+(.) = (Monoid.<>)
+infixr 6 . -- same as <>
 
 sq :: Note -> Sequence
 sq = (:[])
@@ -99,8 +89,8 @@ gin = sollu Gin
 
 tam, tang, lang :: Sequence
 tam = sollu Tam
-tang = sollu Tang - __
-lang = sollu Lang - __
+tang = sollu Tang <> __
+lang = sollu Lang <> __
 
 dit, dheem :: Sequence
 dit = sollu Dit
