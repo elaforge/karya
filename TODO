@@ -507,6 +507,8 @@ cleanup:
   See about removing type prefix from record fields.
     . However, if there are lenses, then I need those names for the lenses.
       But perhaps the plain version can have a leading _?
+    . Another bonus of the leading _ is I don't have to worry about unused
+      function warnings.
     - Cmd.State
     - Derive.Deriver.Monad
     - Ui.State
@@ -941,7 +943,7 @@ Cmd:
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
-  - Can I give Cmds their own state without putting it in Cmd.State every time?
+  / Can I give Cmds their own state without putting it in Cmd.State every time?
     At worst I can have 'Map.Map String Dynamic'.
 
     Use existentials:
