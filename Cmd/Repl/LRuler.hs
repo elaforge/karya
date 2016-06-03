@@ -58,14 +58,14 @@
 
     - Slow and fast rupaka, chatusra nadai:
 
-        > LRuler.local $ LRuler.ruler $ Tala.simple Tala.rupaka_tala 4 4
-        > LRuler.local $ LRuler.ruler $ Tala.simple Tala.rupaka_fast 4 4
+        > LRuler.local $ LRuler.ruler $ Tala.simple Tala.rupaka_tala 4 8
+        > LRuler.local $ LRuler.ruler $ Tala.simple Tala.rupaka_fast 4 8
 
-    - Set a block to 4 sections of 4 avartanams of adi talam, then select
-    tracks and set them to chatusram-tisram:
+    - Set a block to 8 avartanams of adi talam, then select tracks and set them
+    to chatusram-tisram:
 
-        > LRuler.modify $ LRuler.ruler $ Tala.adi 4
-        > LRuler.local $ LRuler.tracks $ LRuler.ruler $ LTala.chatis 4 4 4
+        > LRuler.modify $ LRuler.ruler $ Tala.adi 8
+        > LRuler.local $ LRuler.tracks $ LRuler.ruler $ LTala.chatis 8 4
 -}
 module Cmd.Repl.LRuler where
 import Prelude hiding (concat)

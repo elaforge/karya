@@ -145,12 +145,6 @@ UNSORTED
       problems:
       . It's too hard to see that the skeleton is wrong.
       . Note track children should have dynamics too.
-  - Local.Instrument modules include configuration functions, how to call them?
-    . Kontakt.configure_wayang, configure_legong, Spicy.configure
-    . import into a Local.Repl module
-      - hmm, looks like I'm not importing Local.Repl any more
-    . make the repl support :m
-    . bundle them into the instrument db
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as
@@ -896,6 +890,12 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  * Local.Instrument modules include configuration functions, how to call them?
+    . Kontakt.configure_wayang, configure_legong, Spicy.configure
+    . import into a Local.Repl module
+      * hmm, looks like I'm not importing Local.Repl any more
+    . make the repl support :m
+    . bundle them into the instrument db
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
   - only write history when the cmd succeeded

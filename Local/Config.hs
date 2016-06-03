@@ -33,7 +33,6 @@ load_static_config = do
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig
         { instrument_db = instrument_db
-        , local_repl_dirs = [Config.make_path app_dir Config.repl_dir]
         , global_cmds = global_cmds
         , library = Call.All.library
         , setup_cmd = parse_args

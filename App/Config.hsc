@@ -78,10 +78,6 @@ instrument_dir = "inst_db"
 instrument_cache_dir :: RelativePath
 instrument_cache_dir = "db"
 
--- | Local CmdL code goes here.
-repl_dir :: RelativePath
-repl_dir = local_dir </> "Repl"
-
 log_dir :: RelativePath
 log_dir = "log"
 

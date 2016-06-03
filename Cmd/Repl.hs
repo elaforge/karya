@@ -23,12 +23,7 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString.Char8 as ByteString.Char8
 
 import qualified System.IO as IO
-import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
-
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
 import qualified Ui.Id as Id
@@ -60,19 +55,18 @@ make_session = ReplImpl.make_session
 interpreter :: Session -> IO ()
 interpreter = ReplImpl.interpreter
 
-repl :: Session -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
-repl session repl_dirs msg = do
+repl :: Session -> Msg.Msg -> Cmd.CmdIO
+repl session msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     ns <- State.get_namespace
     text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
     Log.debug $ "repl input: " <> showt text
-    local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
     cmd <- case Fast.fast_interpret (untxt text) of
         Just cmd -> return cmd
-        Nothing -> liftIO $ ReplImpl.interpret session local_modules text
+        Nothing -> liftIO $ ReplImpl.interpret session text
     (response, status) <- run_cmdio $ Cmd.name ("repl: " <> text) cmd
     liftIO $ catch_io_errors $ do
         ByteString.Char8.hPutStrLn response_hdl $
@@ -120,18 +114,3 @@ run_cmdio cmd = do
                 State.unsafe_put ui_state
                 mapM_ State.update updates
                 return (val, Cmd.state_repl_status cmd_state)
-
-get_local_modules :: FilePath -> Cmd.CmdT IO [String]
-get_local_modules repl_dir = do
-    fns <- liftIO $ Directory.getDirectoryContents repl_dir
-        `Exception.catch` \(exc :: IOError) -> do
-            Log.warn $ "error reading local repl dir: " <> showt exc
-            return []
-    let mod_fns = map (repl_dir </>) (filter is_hs fns)
-    mod_fns <- liftIO $ filterM Directory.doesFileExist mod_fns
-    -- Turn /s into dots to get a module name.  It's kind of a hack.
-    return $ map (Seq.replace (FilePath.pathSeparator:"") "."
-        . FilePath.dropExtension . FilePath.normalise) mod_fns
-
-is_hs :: FilePath -> Bool
-is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"

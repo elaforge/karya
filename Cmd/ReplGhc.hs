@@ -32,6 +32,8 @@ import System.FilePath ((</>))
 
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplUtil as ReplUtil
 import Global hiding (liftIO)
@@ -58,8 +60,8 @@ type Ghc a = GHC.GhcT IO a
 make_session :: IO Session
 make_session = Session <$> Chan.newChan
 
-interpret :: Session -> [String] -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
-interpret (Session chan) _local_modules expr = do
+interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
+interpret (Session chan) expr = do
     mvar <- MVar.newEmptyMVar
     Chan.writeChan chan (expr, mvar)
     MVar.takeMVar mvar
@@ -80,11 +82,13 @@ interpreter (Session chan) = do
         parse_flags args
         -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Repl.Environ to context: not interpreted
-        GHC.setTargets [make_target False toplevel_module]
+        GHC.setTargets $ map (make_target False) toplevel_modules
         ((result, logs, warns), time) <-
             Log.format_time <$> Log.time_eval reload
+        let expected = map ((++ ".hs, interpreted") . Seq.replace1 '.' "/")
+                toplevel_modules
         logs <- return $ filter
-            (not . ("Cmd/Repl/Environ.hs, interpreted" `List.isInfixOf`)) logs
+            (\log -> not $ (any (`List.isInfixOf` log) expected)) logs
         liftIO $ do
             unless (null logs) $ do
                 Log.warn $ "unexpected logs from reload: "
@@ -114,11 +118,11 @@ interpreter (Session chan) = do
                             ReplUtil.raw $ "Exception: " <> showt exc
             liftIO $ MVar.putMVar return_mvar result
     where
-    toplevel_module = "Cmd.Repl.Environ"
+    toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
 
     normal_cmd :: String -> Ghc Cmd
     normal_cmd expr = do
-        set_context [toplevel_module]
+        set_context toplevel_modules
         make_response <$> compile expr
 
     colon_cmd :: String -> Ghc Cmd

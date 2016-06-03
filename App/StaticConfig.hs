@@ -22,10 +22,6 @@ import Global
 
 data StaticConfig = StaticConfig {
     instrument_db :: Cmd.InstrumentDb
-    -- | Path to directories containing Local.Repl modules.  They will be
-    -- included in the repl namespace.
-    , local_repl_dirs :: [FilePath]
-
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
     , global_cmds :: [Msg.Msg -> Cmd.CmdIO]
@@ -45,7 +41,6 @@ data StaticConfig = StaticConfig {
 empty :: StaticConfig
 empty = StaticConfig {
     instrument_db = Inst.empty
-    , local_repl_dirs = []
     , global_cmds = []
     , library = mempty
     , setup_cmd = const (return Cmd.Done)

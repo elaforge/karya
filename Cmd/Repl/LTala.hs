@@ -29,6 +29,6 @@ chatusram_to_tisram = do
 
 -- | Create adi tala in chatusram-tisram.  Assuming 1t per aksharam, there
 -- is 3/4 per c-t aksharam.  So 8 of them fits in 6t, so each one is 6/8t.
-chatis :: Tala.Sections -> Tala.Avartanams -> Tala.Nadai -> Ruler.Ruler
-chatis sections avartanams nadai = Tala.ruler $ Tala.make_meter
-    [Tala.Ruler Tala.adi_tala sections avartanams nadai (6/8)]
+chatis :: Tala.Avartanams -> Tala.Nadai -> Ruler.Ruler
+chatis avartanams nadai = Tala.ruler $ Tala.make_meter
+    [Tala.Ruler Tala.adi_tala 1 avartanams nadai (6/8)]

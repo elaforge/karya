@@ -23,6 +23,6 @@ make_session = return ()
 interpreter :: Session -> IO ()
 interpreter () = forever $ Thread.delay 10
 
-interpret :: Session -> [String] -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
-interpret () _ text = return $ return
-    (ReplUtil.Raw $ "repl not linked in: " <> showt text, [])
+interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
+interpret () text =
+    return $ return (ReplUtil.Raw $ "repl not linked in: " <> showt text, [])

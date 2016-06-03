@@ -404,12 +404,10 @@ run_core_cmds msg = do
     -- entry can override io bound commands.
     let pure_cmds = hardcoded_cmds ++ GlobalKeymap.pure_cmds
     mapM_ (run_throw . Left . ($msg)) pure_cmds
-
-    let config = state_static_config state
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds (state_ui_channel state)
-            (state_session state) (StaticConfig.local_repl_dirs config)
+            (state_session state)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | These cmds always get the first shot at the Msg.
@@ -418,10 +416,9 @@ hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
 -- | These are the only commands that run in IO.
-hardcoded_io_cmds :: Ui.Channel -> Repl.Session -> [FilePath]
-    -> [Msg.Msg -> Cmd.CmdIO]
-hardcoded_io_cmds ui_chan repl_session repl_dirs =
-    [ Repl.repl repl_session repl_dirs
+hardcoded_io_cmds :: Ui.Channel -> Repl.Session -> [Msg.Msg -> Cmd.CmdIO]
+hardcoded_io_cmds ui_chan repl_session =
+    [ Repl.repl repl_session
     , Integrate.cmd_integrate
     , PlayC.cmd_play_msg ui_chan
     ] ++ GlobalKeymap.io_cmds
