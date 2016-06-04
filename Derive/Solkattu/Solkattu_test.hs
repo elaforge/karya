@@ -11,7 +11,7 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu
        (Note(..), Sollu(..), Stroke(..), Valantalai(..))
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, ki, __)
+import Derive.Solkattu.Dsl (ta, di, ki)
 
 import Global
 
@@ -33,8 +33,9 @@ test_realize_mridangam = do
     let f = (Text.unlines *** show_strokes)
             . Solkattu.realize_mridangam Dsl.default_patterns smap
         smap = Solkattu.StrokeMap $ Map.fromList
-            [ ([Ta, Din], [k, od])
-            , ([Ta], [t])
+            [ ([Ta, Din], map Just [k, od])
+            , ([Ta], map Just [t])
+            , ([Din, Ga], [Just od, Nothing])
             ]
         k = Solkattu.Valantalai Solkattu.MKi
         t = Solkattu.Valantalai Solkattu.MTa
@@ -44,6 +45,8 @@ test_realize_mridangam = do
     equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
         (Right "k t k n o - k D")
     equal (f [Sollu Ta Nothing, Sollu Ta Nothing]) (Right "t t")
+    equal (f [Sollu Din Nothing, Sollu Ga Nothing]) (Right "D -")
+    equal (f [Sollu Din Nothing, Rest, Sollu Ga Nothing]) (Right "D - -")
     left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
 
 show_strokes :: [Solkattu.MNote] -> Text
@@ -55,10 +58,10 @@ test_stroke_map = do
         (k, t) = (Dsl.k, Dsl.t)
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])])
-        (Right [([Ta, Di], [Valantalai MKi, Valantalai MTa])])
+        (Right [([Ta, Di], [Just $ Valantalai MKi, Just $ Valantalai MTa])])
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate mridangam keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(ta <> __, [k])]) "only have plain sollus"
+    left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"
 
 -- * utils
 

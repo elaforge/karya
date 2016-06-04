@@ -171,20 +171,6 @@ UNSORTED
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  calls:
-    / 'u' and 'd' have a problem with long notes because pitches can only be
-      transposed so far.
-      . If I knew how far a pitch could be transposed, I could clip the end
-        time to the bottom pitch.  But I don't.  Maybe pitches should be
-        transposable infinitely far, but emit a -1 NN signal when they cross
-        the boundary?  Or would this hurt error reporting?
-      . Or I could verify the transpose, and if it fails, transpose half as
-        much, etc.
-      . Or do the transpose in Pitch.Pitch, and then I can ask the scale for
-        the bottom Pitch.
-      . Or I could just call it a feature, after all you shouldn't ask for
-        a pitch to go below its range and you can explicitly mark the stop
-        time if you want.
 
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
@@ -436,14 +422,12 @@ external
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
     - Need to add <||> to attoparsec.
-  - problem with pianoteq: if the same note occurs on two channels, one
+  * problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
     . Could also work around this with realtime midi tuning
+    . Reported, but I don't think they'll do anything about it.
   + send a patch to improve Random.Shuffle?
-  / patch for hsc2hs for #alignment
-    Just doing alignment manually now.
-    . ghc 8 finally has this
 
 local: plugins:
   I also want local code in haskell.
@@ -1191,6 +1175,11 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        * I have dinga as (din.__.ga, [od, __, __])
+          But from patterns don't have rests.
+          . I could make them have rests, but then tdgnt would have to be
+            repeated for every pattern that uses it.
+          . Or I could allow rests only in the MNotes.
         speed
           . I can't represent double speed without changing the talam, which
             then makes me write everything with spaces between.
@@ -1424,169 +1413,14 @@ Derive:
       , ("*", [(0, 0, "!^20"), (1, 0, "!0="), (4, 0, "!=")])
       ]
       . Last note should get 3r, but instead gets 3s.
-    . It seems like way too much work to try to implement these things in the
-      constraints of the existing system.  Perhaps it would be better to do
-      something very specialized, and see if it works nicely, and if so, only
-      then try to integrate it with the rest of the system.  Then again, the
-      future pitch problem has come up in all sorts of places and I need
-      a better answer for it.
-    Gamakam3:
-      - < is incorrect: in @b5 4.3.4 change to '!!<c' and it comes from
-        m instead of r.
-      notation:
-        - Is it weird to have dyn as a postfix operator?  Should I put it in
-          front, e.g. <[-]?
-          . Well, one thing is that it's easier to parse as postfix because
-            I see a '[' character.  Given '<[-]', the '<' will look like the
-            pitch call '<'.
-        - It should be easier come from current + n than '!Pn !...'.
-        - Maybe aliases for '!<-c-' and '!-d-'?
-        - Snapping to the next pitch at the start of a note is unnatural.
-          Perhaps I can have some easy way to come quickly from the previous
-          real pitch.
-        - It's annoying how a DynCall will break a compact notation, e.g.
-          '![-]< !---' would be nicer as !![-]<--- or even !!-<---
-          Since dynamic calls have a limited character set, maybe I could do
-          this just by making allowed characters non-overlapping.
-          . I could do the same thing with P, for e.g. !!P4---
-          . Maybe I should give separate dynamics a try before thinking about
-            this too much.
-        - !!<c should work for move from previous pitch.
-        - In a janya raga certain notes may be missing, and I should be able
-          to skip them.
-        - Also ragams with narrow intervals, e.g. mayamalavagoula sr
-      . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
-        I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
-        and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
-        is a good approach.
+    . For the violin, I want to experiment with other controls, e.g. pitch
+      slides also do less bow-force, or dyn can reduce bow-force and
+      bow-speed.
 
-      ? I could make gamakam into a postproc.  This means I could get next
-        pitch even across block boundaries.  But ScoreTime is not available.
-        I would need some way to make a control track modify the environ
-        instead of emitting signal, so the note call can then pick that up.
-        Presumably it would emit something like [(start, dur, text)] and then
-        those values have to be merged into a special "Val signal" in Dynamic,
-        which the note can pick up.
-        . pros:
-          . Get next logical pitch even across block boundaries.
-        . cons:
-          . Need special machinery to have a control track emit structured
-            values.  In full generality this is approaching the idea about
-            unifying environ with signals.
-          . No track signal, have to rely on the note track signal.
-      - Currently 0 and - have the same meaning.  Decide which one I want and
-        remove the other.
-        . Currently - is winning... but if I use separate worcds then 0 -1
-          seems a lot easier to read than - -1.
-      - Write docs.
-      - The only reason '* interleave' works is that I trust gamakam calls to
-        always produce a sample at the same time as the parent track's sample,
-        and thus replace it.  This seems like a sketchy thing to rely on.  Can
-        I come up with something more robust?
-
-      . This approach means I can't do variable stretchiness, where I set
-        the oscillation speed to a constant and fit as many as I can, or do
-        a set number but stretch the beginning, middle, or end enough to
-        make up the time.  And it would be a real pain to get a consistent
-        speed.
-      . So it seems like I still want I way to do set duration, and variable
-        duration.  Effectively the even duration division is just a kind of
-        stretchy where everyone wants to stretch equally.  I could incorporate
-        infinite stretchy and nonstretchy with special duration values.  Then
-        duration becomes a weight.  If everyone is 1 then everyone divides
-        evenly as before.
-      . Also since each ornament happens at the same speed it seems like
-        it would sound mechanical.  Of course this is also true if I use
-        a constant kam speed, but at least with that I could have a global
-        speed with a bit of randomization.  I could warp the division times
-        randomly, but really it's not random.
-
-      . For the violin, I want to experiment with other controls, e.g. pitch
-        slides also do less bow-force, or dyn can reduce bow-force and
-        bow-speed.
-
-    / Gamakam2:
-      - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
-        "pitch generator not found: 'k'".  Should mention that it's an end
-        call.
-      begin
-        - j needs to stretch when the notes are fast, but expand to a maximum
-          otherwise.
-          . Doesn't it already do that?  I want it to still leave a bit of
-            pitch.  If that's universal, I can add that as the default middle
-            or end call.  Or just manually add an unstretchy end to notes that
-            should have a minimum of swaram pitch.
-          . > as a special hack for a 0 length fade-out seems awkward, maybe
-            I should have a special symbol, e.g. <' and >'?  But since it's
-            only ever going to be fade in and fade out I can just reserve <>
-            for it.
-          . Would it better to treat all calls as stretchy, but they
-            themselves decide how much to stretch?
-        - janta
-      middle
-        - kam: accelerate near end
-        - test hold and lilt for kam and nkam, adjust for nkam
-        - maybe 'flat' should transition to the pitch instead of snapping
-      end
-      - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
-      - select precomposed calls based on scale degree, previous pitch,
-        and tempo
-      - Currently, if there isn't enough time, the begin call will compress the
-        middle and end down to nothing.  Perhaps begin and end should compress
-        evenly?
-      - When this is usable, I can get rid of all the old gamakam calls.
-      How to get the next pitch?
-        . 'approach' does it by evaluating the next
-          event on the pitch track.  I could do the same, but I'd have to go
-          find the pitch track, and it would be wrong if anything fancy was
-          happening.
-        . What I really want is to run once with the basic pitches, and then add
-          the gamakam later.  That means a postproc, but then I'm doing awkward
-          postproc evaluation.
-        . If I know a note track has a set of basic pitches, then I can evaluate
-          once, ignoring '!'.  Then evaluate again, and stash the events where
-          I can get them.
-        . I could do it with a special track evaluation.  This seems like a lot
-          of work for something I'm not sure is even right.  I'm not even sure
-          gamakam will need the next pitch.  On the other hand, getting next
-          values, or this kind of staged evaluation in general, is a problem
-          that comes up in different contexts.
-    . The split between >, *, t-diatonic, and t-nn is pretty awkward,
-      especially how I duplicate all the pitch calls as control calls.
-      I think I'm going to want a higher level layer, and only work with
-      those calls when I need more precise control.
-      . Could I make everything t-diatonic by using fractions?  On the pitch
-        track I can just use number types, which is so much more appealing.
-      . The nice thing about transpose tracks is that I don't have to repeat
-        the pitch all the time.  And it seems cleaner to put gamakam on its
-        own track.
-      . Maybe I can have a generic transpose track, that expects its calls to
-        return typed values.  Then when it mconcats the signals, it first has
-        to partition into different types, and apply separately.
-      . If I extend this for pitch tracks too, then I can get rid of the
-        ControlMod stuff, but I need basically the same mechanism to say
-        where the signals go, and how they are combined.  It does seem cleaner
-        to return them in LEvents instead of through Collect.  But it means
-        that the control track title becomes a default, since actually it
-        can create any type of control signal.
-        . It would look like: ("transpose", [..])
-      . What about split control tracks?  I think it's too low level and
-        awkward to use, since it requires a separate %t-whatever event
-        squeezed in there somehow.
-      ! However, I could use a pitch track, and then get rid of the extra
-        argument by expecting a separate pitch track above it.
-    . Low level ornaments are control or pitch curves, as I have now.  They
-      are used directly with pitch or control.
-    . Medium level ornaments are for generic pitch, and go on a generic
-      transpose track, they use arg types for diatonic vs. nn.  They can also
-      emit dyn control.  They are specific motions, e.g. (-1 1)
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
     . instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization:
       . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
-
-  pitch calls:
-    - 'smooth' pitch transformer
 
   control calls:
     - signal transformations: +, *, max, min
@@ -1595,6 +1429,25 @@ Derive:
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
   control functions:
+    I'm unhappy with control functions in general
+      . More details in BaseTypes NOTE [control-function]
+      . They duplicate Deriver but can't use it
+      . they add another layer on top of controls that you have to take into
+        account manually.
+      . Also, depending on the pos means the signal is no longer a continuous
+        function, and can't be displayed as a line.
+      . Making calls all take Call.Function was my attempt to abstract that
+        away, but I wound up giving up on that because then the default of an
+        optional arg would have to be a Function which is then unshowable.
+        To solve this I would have to make a total 'coerce' for Typecheck.
+      uses:
+        . Randomization, with various ranges and distributions.
+        . Some CFs like cf-swing could just be another signal, I only do it as
+          a function for efficiency, which is due to my choice to make signals
+          fully sampled.
+        . A way to pass an interpolation function.  This is a disjoint use
+          since it doesn't need any of the BaseTypes.Dynamic state and isn't
+          useful as a normal CF.
     - Could use rank to modify dyn and emphasize or de-emphasize notes on
       important beats.
     . With 'real' and 'score' and the signal conversion functions, I gradually
@@ -1613,9 +1466,6 @@ Derive:
         This is getting to be pretty much everything.
       . Another option is to make Derivers polymorphic.  I can put the
         fields in TrackLang.Dynamic in a typeclass.
-      + Abstract 'state' and 'err' to a DeriveM, and implement
-        type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
-        . I can't reuse Deriver, but at least I get logging and errors.
 
 pitch: scales: scale:
   scales / Derive.Scale:

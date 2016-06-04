@@ -11,11 +11,12 @@ module Derive.Solkattu.Dsl (
     -- ** sollus
     , (.)
     , __, __2, __3, __4, __n
-    , ta, tha, tat, di, ki, thom
-    , na, ka, ti, ku, ri
-    , din, gin
-    , tam, tang, lang
-    , dit, dheem
+
+    , dheem, dhom, di, din, dit, ga, gin, ka, ki
+    , ku, mi, na, ri, ta, tam, tat, tha, thom, ti
+    , tang, lang
+    , dinga
+
     -- ** directives
     , nadai
     , speed, s2
@@ -29,6 +30,7 @@ module Derive.Solkattu.Dsl (
     -- * transform
     , dropM, takeM
     -- * mridangam
+    , ___
     , k, t, n, d, u, i, o, p
     , od, pk
     , default_patterns
@@ -62,6 +64,7 @@ sollu s = [Sollu s Nothing]
 
 __ :: Sequence
 __ = sq Rest
+
 __2, __3 :: Sequence
 __2 = __n 2
 __3 = __n 3
@@ -70,33 +73,32 @@ __4 = __n 4
 __n :: Int -> Sequence
 __n n = repeat n __
 
-ta, tha, di, ki, thom :: Sequence
-ta = sollu Ta
-tha = sollu Tha
-tat = sollu Tat
+dheem = sollu Dheem
+dhom = sollu Dhom
 di = sollu Di
-ki = sollu Ki
-thom = sollu Thom
-
-na, ka, ti, ku, ri :: Sequence
-na = sollu Na
-ka = sollu Ka
-ti = sollu Ta
-ku = sollu Ka
-ri = sollu Ri
-
-din, gin :: Sequence
 din = sollu Din
+dit = sollu Dit
+ga = sollu Ga
 gin = sollu Gin
-
-tam, tang, lang :: Sequence
+ka = sollu Ka
+ki = sollu Ki
+ku = sollu Ku
+mi = sollu Mi
+na = sollu Na
+ri = sollu Ri
+ta = sollu Ta
 tam = sollu Tam
+tat = sollu Tat
+tha = sollu Tha
+thom = sollu Thom
+ti = sollu Ti
+
+tang, lang :: Sequence
 tang = sollu Tang <> __
 lang = sollu Lang <> __
 
-dit, dheem :: Sequence
-dit = sollu Dit
-dheem = sollu Dheem
+dinga :: Sequence
+dinga = din <> __ <> ga
 
 -- ** directives
 
@@ -163,6 +165,9 @@ join with = List.intercalate with
 
 -- * mridangam
 
+___ :: MNote
+___ = MRest
+
 k, t, n, d, u, i, o, p :: MNote
 k = MNote (Solkattu.Valantalai Solkattu.MKi)
 t = MNote (Solkattu.Valantalai Solkattu.MTa)
@@ -183,9 +188,6 @@ od = MNote (Both Solkattu.MThom Solkattu.MDin)
 
 pk :: MNote
 pk = MNote (Both Solkattu.MTha Solkattu.MKi)
-
-___ :: MNote
-___ = MRest
 
 default_patterns :: Solkattu.Patterns
 default_patterns = check $ Solkattu.patterns

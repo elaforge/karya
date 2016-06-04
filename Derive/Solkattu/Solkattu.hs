@@ -63,13 +63,11 @@ instance Pretty.Pretty TimeChange where
     pretty (Speed s) = "speed " <> showt s
     pretty (Nadai s) = "nadai " <> showt s
 
-data Sollu = Ta | Di | Ki | Thom -- ta di ki ta thom
-    | Tha -- dental tha, when contrasted with retroflex ta
-    | Tat
-    | Na | Ka | Ti | Ku | Ri -- nakatikutari
-    | Din | Gin -- ta din gin na tom
-    | Dit | Dheem
-    | Tam | Tang | Lang -- generally means chapu
+data Sollu =
+    Dheem | Dhom | Di | Din | Dit
+    | Ga | Gin | Ka | Ki | Ku | Lang
+    | Mi | Na | Ri | Ta | Tam | Tang
+    | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Sollu where
@@ -210,9 +208,10 @@ data Korvai = Korvai {
     , korvai_tala :: Tala
     } deriving (Show)
 
--- | [Sollu] and Strokes should be the same length.  This is enforced in the
--- constructor 'stroke_map'.
-newtype StrokeMap = StrokeMap (Map.Map [Sollu] [Stroke])
+-- | Sollus and Strokes should be the same length.  This is enforced in the
+-- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
+-- sequences like dinga.
+newtype StrokeMap = StrokeMap (Map.Map [Sollu] [Maybe Stroke])
     deriving (Show, Pretty.Pretty, Monoid.Monoid)
 
 stroke_map :: [(Sequence, [MNote])] -> Either Text StrokeMap
@@ -221,11 +220,13 @@ stroke_map = unique <=< mapM check
     check (sollus, strokes) = do
         let throw = Left
                 . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
-        sollus <- forM sollus $ \case
-            Sollu s _ -> Right s
+        sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
+            Sollu s _ -> Right (Just s)
+            Rest -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
-            MNote s -> Right s
+            MNote s -> Right (Just s)
+            MRest -> Right Nothing
             s -> throw $ "should have plain strokes: " <> showt s
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths"
@@ -310,10 +311,10 @@ korvai tala mridangam sequence = do
 
 standard_stroke_map :: StrokeMap
 standard_stroke_map = StrokeMap $ Map.fromList
-    [ ([Thom], [Thoppi MThom])
-    , ([Tam], [Valantalai MChapu])
-    , ([Tang], [Valantalai MChapu])
-    , ([Lang], [Valantalai MChapu])
+    [ ([Thom], [Just $ Thoppi MThom])
+    , ([Tam], [Just $ Valantalai MChapu])
+    , ([Tang], [Just $ Valantalai MChapu])
+    , ([Lang], [Just $ Valantalai MChapu])
     ]
 
 -- | Realize a Korvai in mridangam strokes.
@@ -367,11 +368,11 @@ find_mridangam_sequence (StrokeMap smap) sollu notes =
 
 -- | Match each stroke to its Note, and insert rests where the
 -- RealizedNotes has them.
-insert_rests :: [Stroke] -> [Note] -> ([MNote], [Note])
+insert_rests :: [Maybe Stroke] -> [Note] -> ([MNote], [Note])
 insert_rests [] ns = ([], ns)
 insert_rests (stroke : strokes) (n : ns) = case n of
     Rest -> first (MRest :) $ insert_rests (stroke : strokes) ns
-    Sollu {} -> first (MNote stroke :) $ insert_rests strokes ns
+    Sollu {} -> first (maybe MRest MNote stroke :) $ insert_rests strokes ns
     -- These shouldn't happen because the strokes are from the result of
     -- Seq.span_while is_sollu.
     Pattern {} -> skip

@@ -157,6 +157,46 @@ k3 = check $ Solkattu.korvai (adi 5) mridangam $
         , (ta, [k])
         ]
 
+-- * tisra nadai
+
+t_sarva1 :: (Sequence, Sequence)
+t_sarva1 =
+    ( dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
+      . na.mi.na.na.di.mi . na.mi.na.na.di.mi
+    , ta  .__.ta.ta.ta.__ . ta.__.ta.ta.ta.__
+    . ta  .__.__.__.__.__ . __.__.ta.ta.ta.__
+    )
+    -- dhom is either [o] or [o, t]
+    -- TODO I need a better way to write sarva laghu.  The problem is the thoms
+    -- are implicit.
+
+t1 :: Korvai
+t1 = check $ Solkattu.korvai (adi 3) mridangam $
+    -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
+    --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
+    --              .ta.ka.din.na.__.ka.din.na.dinga
+    -- . tri p5 . dinga . tri_ __ p5 . dinga . tri_ __2 p5
+
+              base . dinga
+    . dropM 2 base . dinga
+    . dropM 4 base . dinga
+    . tri p5 . dinga . tri_ __ p5 . dinga . tri_ __2 p5
+
+    .tat.__.dit.__.ta.ka.din.na.__.dinga
+           .dit.__.ta.ka.din.na.__.dinga
+                  .ta.ka.din.na.__.dinga
+    . tri p6 . dinga . tri_ __ p6 . dinga . tri_ __2 p6
+    where
+    base = tat.__.dit.__.ta.ka.din.na.__.ka.din.na
+    mridangam =
+        [ (tat.dit, [k, t])
+        , (dit, [k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ka.din.na, [o, o, k])
+        , (din, [od])
+        , (dinga, [od, ___])
+        ]
+
 -- * realize
 
 adi :: Matras -> Solkattu.Tala
