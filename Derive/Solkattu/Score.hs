@@ -171,23 +171,19 @@ t_sarva1 =
     -- are implicit.
 
 t1 :: Korvai
-t1 = check $ Solkattu.korvai (adi 3) mridangam $
+t1 = check $ Solkattu.korvai (adi 6) mridangam $
     -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
     --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
     --              .ta.ka.din.na.__.ka.din.na.dinga
-    -- . tri p5 . dinga . tri_ __ p5 . dinga . tri_ __2 p5
-
-              base . dinga
-    . dropM 2 base . dinga
-    . dropM 4 base . dinga
+    reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
     . tri p5 . dinga . tri_ __ p5 . dinga . tri_ __2 p5
 
-    .tat.__.dit.__.ta.ka.din.na.__.dinga
-           .dit.__.ta.ka.din.na.__.dinga
-                  .ta.ka.din.na.__.dinga
+    -- .tat.__.dit.__.ta.ka.din.na.__.dinga
+    --        .dit.__.ta.ka.din.na.__.dinga
+    --               .ta.ka.din.na.__.dinga
+    . reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
     . tri p6 . dinga . tri_ __ p6 . dinga . tri_ __2 p6
     where
-    base = tat.__.dit.__.ta.ka.din.na.__.ka.din.na
     mridangam =
         [ (tat.dit, [k, t])
         , (dit, [k])

@@ -27,6 +27,7 @@ module Derive.Solkattu.Dsl (
     -- ** combinators
     , tri, tri_, trin
     , duration_of, repeat, join
+    , reduce, reduce3
     -- * transform
     , dropM, takeM
     -- * mridangam
@@ -65,7 +66,7 @@ sollu s = [Sollu s Nothing]
 __ :: Sequence
 __ = sq Rest
 
-__2, __3 :: Sequence
+__2, __3, __4 :: Sequence
 __2 = __n 2
 __3 = __n 3
 __4 = __n 4
@@ -145,7 +146,7 @@ tri_ sep seq = join sep [seq, seq, seq]
 
 -- | Three different patterns with the same separator.
 trin :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
-trin s a b c = join s [a, b, c]
+trin sep a b c = join sep [a, b, c]
 
 p5, p6, p7 :: Sequence
 p5 = pat 5
@@ -162,6 +163,12 @@ repeat n p = mconcat (replicate n p)
 
 join :: Sequence -> [Sequence] -> Sequence
 join with = List.intercalate with
+
+reduce :: Matras -> Sequence -> [Sequence]
+reduce n = iterate (dropM n)
+
+reduce3 :: Matras -> Sequence -> Sequence -> Sequence
+reduce3 n sep seq = join sep $ take 3 $ reduce n seq
 
 -- * mridangam
 
