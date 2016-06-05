@@ -217,6 +217,7 @@ data HsBinary = HsBinary {
     , hsMain :: FilePath -- ^ main module
     , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
     , hsGui :: GuiType
+    , hsRtsFlags :: [Flag]
     } deriving (Show)
 
 -- | GUI apps require some postprocessing.
@@ -228,8 +229,7 @@ data GuiType =
 
 hsBinaries :: [HsBinary]
 hsBinaries =
-    [ binary "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
-        HasIcon
+    [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
     , plain "dump" "App/Dump.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the
@@ -239,11 +239,13 @@ hsBinaries =
     , plain "generate_run_tests" "Util/GenerateRunTests.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
-    , binary "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] HasIcon
+    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
-    , binary "seq" "App/Main.hs" ["fltk/fltk.a"] HasIcon
+    , (gui "seq" "App/Main.hs" ["fltk/fltk.a"])
+        -- Disable or reduce the idle GC?
+        -- { hsRtsFlags = ["-N", "-I0"] }
     , plain "send" "App/Send.hs"
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "show_timers" "LogView/ShowTimers.hs"
@@ -254,8 +256,20 @@ hsBinaries =
     ++ if not Config.enableSynth then [] else
         [ plain "sampler" "Synth/Sampler/Main.hs" ]
     where
-    plain name path = HsBinary name path [] NoGui
-    binary = HsBinary
+    plain name main = HsBinary
+        { hsName = name
+        , hsMain = main
+        , hsDeps = []
+        , hsGui = NoGui
+        , hsRtsFlags = ["-N"]
+        }
+    gui name main deps = HsBinary
+        { hsName = name
+        , hsMain = main
+        , hsDeps = deps
+        , hsGui = HasIcon
+        , hsRtsFlags = ["-N"]
+        }
 
 runProfile :: FilePath
 runProfile = modeToDir Profile </> "RunProfile"
@@ -372,7 +386,7 @@ ccBinaries =
     where
     fltk name deps =
         CcBinary name deps (fltkCc . configFlags) (fltkLd . configFlags)
-            (makeBundle False False)
+            (makeBundle Nothing False)
     makeVst fn = do
         let vst = fn ++ ".vst"
         Util.system "rm" ["-rf", vst]
@@ -608,8 +622,8 @@ main = withLockedDatabase $ do
             buildHs config (map (oDir config </>) (hsDeps binary)) [] hs fn
             case hsGui binary of
                 NoGui -> return ()
-                MakeBundle -> makeBundle True False fn
-                HasIcon -> makeBundle True True fn
+                MakeBundle -> makeBundle (Just (hsRtsFlags binary)) False fn
+                HasIcon -> makeBundle (Just (hsRtsFlags binary)) True fn
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let src = "doc/icon" </> replaceExt fn "iconset"
@@ -912,15 +926,15 @@ buildHs config libs extraPackages hs fn = do
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config fn (extraPackages ++ allPackages) objs
 
-makeBundle :: Bool -> Bool -> FilePath -> Shake.Action ()
-makeBundle isHaskell hasIcon binary
+makeBundle :: Maybe [Flag] -> Bool -> FilePath -> Shake.Action ()
+makeBundle ghcRtsFlags hasIcon binary
     | System.Info.os == "darwin" = do
         let icon = build </> replaceExt binary "icns"
         when hasIcon $ need [icon]
         Util.system "tools/make_bundle"
             [ binary
             , if hasIcon then icon else ""
-            , if isHaskell then "+RTS -N -RTS" else ""
+            , maybe "" (unwords . ("+RTS":) . (++["-RTS"])) ghcRtsFlags
             ]
     | otherwise = return ()
 
