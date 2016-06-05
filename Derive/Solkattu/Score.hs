@@ -176,13 +176,12 @@ t1 = check $ Solkattu.korvai (adi 6) mridangam $
     --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
     --              .ta.ka.din.na.__.ka.din.na.dinga
     reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
-    . tri p5 . dinga . tri_ __ p5 . dinga . tri_ __2 p5
-
+    . tri p5 . dinga!u . tri_ __ p5 . dinga!u . tri_ __2 p5
     -- .tat.__.dit.__.ta.ka.din.na.__.dinga
     --        .dit.__.ta.ka.din.na.__.dinga
     --               .ta.ka.din.na.__.dinga
     . reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
-    . tri p6 . dinga . tri_ __ p6 . dinga . tri_ __2 p6
+    . tri p6 . dinga!u . tri_ __ p6 . dinga!u . tri_ __2 p6
     where
     mridangam =
         [ (tat.dit, [k, t])

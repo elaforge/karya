@@ -34,12 +34,14 @@ test_realize_mridangam = do
             . Solkattu.realize_mridangam Dsl.default_patterns smap
         smap = Solkattu.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])
+            , ([Na, Din], map Just [n, od])
             , ([Ta], map Just [t])
             , ([Din, Ga], [Just od, Nothing])
             ]
         k = Solkattu.Valantalai Solkattu.MKi
         t = Solkattu.Valantalai Solkattu.MTa
         od = Both Solkattu.MThom Solkattu.MDin
+        n = Solkattu.Valantalai Solkattu.MNam
     equal (f [Rest, Sollu Ta Nothing, Rest, Rest, Sollu Din Nothing])
         (Right "- k - - D")
     equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
@@ -48,6 +50,10 @@ test_realize_mridangam = do
     equal (f [Sollu Din Nothing, Sollu Ga Nothing]) (Right "D -")
     equal (f [Sollu Din Nothing, Rest, Sollu Ga Nothing]) (Right "D - -")
     left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
+
+    -- An explicit stroke will replace just that stroke.
+    equal (f [Sollu Na Nothing, Sollu Din (Just (Valantalai MChapu))])
+        (Right "n u")
 
 show_strokes :: [Solkattu.MNote] -> Text
 show_strokes = Text.unwords . map pretty

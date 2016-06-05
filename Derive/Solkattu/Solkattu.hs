@@ -52,7 +52,7 @@ speed_factor s = case s of
 instance Pretty.Pretty Note where
     pretty n = case n of
         Sollu s stroke -> maybe (pretty s)
-            (\stroke -> ("st " <> pretty stroke <> " " <> pretty s)) stroke
+            (\stroke -> (pretty s <> "!" <> pretty stroke)) stroke
         Rest -> "__"
         Pattern d -> "p" <> showt d
         Alignment (Akshara n) -> "@" <> showt n
@@ -324,8 +324,7 @@ realize_korvai patterns korvai = first Text.unlines $ do
     realize_mridangam patterns (korvai_mridangam korvai) rnotes
 
 realize_mridangam :: Patterns -> StrokeMap -> [Note] -> Either [Text] [MNote]
-realize_mridangam (Patterns patterns) smap =
-    format_error . go
+realize_mridangam (Patterns patterns) smap = format_error . go
     where
     go :: [Note] -> ([[MNote]], Maybe (Text, [Note]))
     go [] = ([], Nothing)
@@ -335,10 +334,10 @@ realize_mridangam (Patterns patterns) smap =
                 ([], Just ("no pattern with duration " <> showt dur, n:ns))
             Just mseq -> first (mseq:) (go ns)
         Rest -> first ([MRest] :) (go ns)
-        Sollu _ (Just stroke) -> first ([MNote stroke] :) (go ns)
-        Sollu sollu Nothing -> case find_mridangam_sequence smap sollu ns of
-            Right (strokes, rest) -> first (strokes:) (go rest)
-            Left err -> ([], Just (err, n:ns))
+        Sollu sollu stroke ->
+            case find_mridangam_sequence smap sollu stroke ns of
+                Right (strokes, rest) -> first (strokes:) (go rest)
+                Left err -> ([], Just (err, n:ns))
         Alignment {} -> go ns
         TimeChange change -> first ([MTimeChange change] :) (go ns)
     format_error (result, Nothing) = Right (concat result)
@@ -350,17 +349,17 @@ realize_mridangam (Patterns patterns) smap =
 
 -- | Find the longest matching sequence until the sollus are consumed or
 -- a sequence isn't found.
-find_mridangam_sequence :: StrokeMap -> Sollu -> [Note]
+find_mridangam_sequence :: StrokeMap -> Sollu -> Maybe Stroke -> [Note]
     -> Either Text ([MNote], [Note])
-find_mridangam_sequence (StrokeMap smap) sollu notes =
+find_mridangam_sequence (StrokeMap smap) sollu stroke notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes ->
-            Right $ insert_rests strokes (Sollu sollu Nothing : notes)
+            Right $ replace_strokes strokes (Sollu sollu stroke : notes)
     where
     -- Collect only sollus and rests, and strip the rests.
-    sollus = fst $ first Maybe.catMaybes $ Seq.span_while is_sollu notes
-    is_sollu (Sollu s Nothing) = Just (Just s)
+    sollus = Maybe.catMaybes $ fst $ Seq.span_while is_sollu notes
+    is_sollu (Sollu s _) = Just (Just s)
     is_sollu (Rest {}) = Just Nothing
     is_sollu _ = Nothing
     longest_match = Seq.head . mapMaybe (flip Map.lookup smap) . reverse
@@ -368,19 +367,21 @@ find_mridangam_sequence (StrokeMap smap) sollu notes =
 
 -- | Match each stroke to its Note, and insert rests where the
 -- RealizedNotes has them.
-insert_rests :: [Maybe Stroke] -> [Note] -> ([MNote], [Note])
-insert_rests [] ns = ([], ns)
-insert_rests (stroke : strokes) (n : ns) = case n of
-    Rest -> first (MRest :) $ insert_rests (stroke : strokes) ns
-    Sollu {} -> first (maybe MRest MNote stroke :) $ insert_rests strokes ns
+replace_strokes :: [Maybe Stroke] -> [Note] -> ([MNote], [Note])
+replace_strokes [] ns = ([], ns)
+replace_strokes (stroke : strokes) (n : ns) = case n of
+    Rest -> first (MRest :) skip
+    Sollu _ explicit_stroke ->
+        first (maybe (maybe MRest MNote stroke) MNote explicit_stroke :) $
+            replace_strokes strokes ns
     -- These shouldn't happen because the strokes are from the result of
     -- Seq.span_while is_sollu.
     Pattern {} -> skip
     Alignment {} -> skip
     TimeChange {} -> skip
     where
-    skip = insert_rests (stroke : strokes) ns
-insert_rests (_:_) [] = ([], [])
+    skip = replace_strokes (stroke : strokes) ns
+replace_strokes (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
 
