@@ -25,10 +25,15 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
-    [ ("p1", c_pattern_once)
+    [ ("p1", c_pattern_once pattern_arg)
     , ("pn", c_pattern_times)
     , ("pr", c_pattern_repeat False)
     , ("Pr", c_pattern_repeat True)
+
+    -- standard patterns
+    , ("tari", c_pattern_once (pure faran_base))
+    , ("tk", c_pattern_once (pure "k+"))
+    , ("tknk", c_pattern_once (pure "k+n+"))
     ]
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
@@ -39,8 +44,8 @@ val_calls = Derive.call_map
 module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
-c_pattern_once :: Derive.Generator Derive.Note
-c_pattern_once = Derive.generator module_ "pattern" Tags.inst
+c_pattern_once :: Sig.Parser Text -> Derive.Generator Derive.Note
+c_pattern_once pattern_arg = Derive.generator module_ "pattern" Tags.inst
     "Emit a pattern, fitted into the note duration."
     $ Sig.call pattern_arg $ \pattern -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
@@ -101,7 +106,7 @@ realize_pattern ctx = map realize . Text.unpack
             call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
             Eval.apply_generator ctx call []
 
--- * patterns
+-- * infer-pattern
 
 c_infer_pattern :: Derive.ValCall
 c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
