@@ -239,7 +239,7 @@ update_view track_signals set_style view_id Update.CreateView = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
-    let dtracks = map Block.display_track (Block.block_tracks block)
+    let dtracks = Block.block_display_tracks block
         btracks = Block.block_tracks block
         tlike_ids = map Block.tracklike_id btracks
     -- It's important to get the tracklikes from the dtracks, not the

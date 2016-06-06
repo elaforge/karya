@@ -392,7 +392,7 @@ render_of track = case TrackTree.block_track_id track of
     Just (block_id, track_id) -> ifM not_root (return Nothing) $ do
         (btrack, track) <- get_block_track block_id track_id
         let flags = Block.track_flags btrack
-        return $ if Block.wants_track_signal flags track
+        return $ if Block.track_wants_signal flags track
             then Just (block_id, track_id,
                 extract (Track.render_style (Track.track_render track)))
             else Nothing

@@ -227,8 +227,8 @@ diff_block block_id block1 block2 = do
     when (unequal Block.block_config) $
         emit $ Update.BlockConfig (Block.block_config block2)
 
-    let dtracks1 = map Block.display_track (Block.block_tracks block1)
-        dtracks2 = map Block.display_track (Block.block_tracks block2)
+    let dtracks1 = Block.block_display_tracks block1
+        dtracks2 = Block.block_display_tracks block2
     let int_skel1 = Block.integrate_skeleton block1
         int_skel2 = Block.integrate_skeleton block2
     when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do

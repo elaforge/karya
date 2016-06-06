@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I should collapse adjacent Collapsed tracks so they don't turn into
+    a giant blue block.
+    . If I do it at the fltk draw level, then I don't have to worry about diff
+      complications or tweaking indices, but I still have to model as fewer
+      widgets so the index tweaking just happens lower down.
+    . If I do it at the haskell level, hopefully I can reuse the existing
+      Track / DisplayTrack distinction used for collapsed tracks in the first
+      place.
   * Pianoteq doesn't save tuning, so I have to send tuning again each time.
     Maybe I need an initialize step that runs when I load a score.
     . If inst alloc has an initialize flag, then an initialize cmd could find

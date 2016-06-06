@@ -2,7 +2,41 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Ui.Block where
+module Ui.Block (
+    -- * Block
+    Block(..)
+    , Meta, TrackDestinations(..), ScoreDestinations, DeriveDestination(..)
+    , EventIndex
+    , integrate_skeleton
+    , block_tracklike_ids, block_track_ids, block_ruler_ids
+    , block
+    , Config(..), default_config
+    , Box(..)
+    -- * Track
+    , Track(..), track_id, track
+    , modify_id
+    , divider
+    , track_selectable, track_wants_signal
+    -- ** DisplayTrack
+    , DisplayTrack(..), Status, TrackFlag(..)
+    , block_display_tracks
+    , display_track_width
+    , flags_to_status, flag_char
+    -- ** TracklikeId
+    , TracklikeId(..)
+    , track_id_of, track_ids_of, ruler_id_of, ruler_ids_of
+    , set_ruler_id
+    , Tracklike(..)
+    , track_of, tracks_of, ruler_of, rulers_of
+    , Divider(..)
+    -- * View
+    , View(..)
+    , view
+    , status_color, show_status
+    , visible_track, visible_time
+    , view_visible_rect, set_visible_rect
+    , view_visible_track, view_visible_time
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
 import qualified Data.Map as Map
@@ -26,7 +60,7 @@ import Global
 import Types
 
 
--- * block model
+-- * block
 
 -- | This is the data behind a single block.
 data Block = Block {
@@ -222,6 +256,9 @@ track tracklike_id width = Track
     , track_merged = mempty
     }
 
+modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
+modify_id f track = track { tracklike_id = f (tracklike_id track) }
+
 colored_divider :: Color.Color -> Track
 colored_divider color = track (DId (Divider color)) 3
 
@@ -286,6 +323,8 @@ instance Pretty.Pretty TrackFlag where pretty = showt
 block_display_tracks :: Block -> [DisplayTrack]
 block_display_tracks = map display_track . block_tracks
 
+-- | This is not exported so callers are forced to go through
+-- 'block_display_tracks'.
 display_track :: Track -> DisplayTrack
 display_track track = DisplayTrack
     { dtracklike_id = tracklike
@@ -321,15 +360,6 @@ flag_char status = case status of
     Solo -> 'S'
     Mute -> 'M'
     Collapse -> ' '
-
--- | True if this track wants to render a 'Track.TrackSignal'.
-wants_track_signal :: Set.Set TrackFlag -> Track.Track -> Bool
-wants_track_signal flags track =
-    Track.render_style (Track.track_render track) /= Track.NoRender
-    && Collapse `Set.notMember` flags
-
-modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
-modify_id f track = track { tracklike_id = f (tracklike_id track) }
 
 data TracklikeId =
     -- | Tracks may have a Ruler overlay
