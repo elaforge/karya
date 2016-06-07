@@ -32,7 +32,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 
-import Text.Printf (printf)
+import qualified Text.Printf as Printf
 
 import qualified Util.Fltk as Fltk
 import qualified Util.Format as Format
@@ -65,7 +65,7 @@ main :: IO ()
 main = SendCmd.initialize $ do
     db <- Local.Instrument.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
-    win <- Fltk.run_action $ BrowserC.create 50 50 500 300
+    win <- Fltk.run_action $ BrowserC.create 50 50 550 600
     let index_db = Db db (Search.make_index db)
     chan <- Fltk.new_channel
     Concurrent.forkFinally (handle_msgs chan win index_db) $ \result -> do
@@ -208,7 +208,7 @@ show_attribute_map (Common.AttributeMap table) =
     low_key (_, Nothing) = Nothing
     fmt (attrs, (keyswitches, maybe_keymap)) =
         -- Still not quite right for lining up columns.
-        txt (printf "%-*s\t" longest (prettys attrs))
+        txt (Printf.printf "%-*s\t" longest (prettys attrs))
             <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap
 
 show_control_map :: Control.ControlMap -> Text

@@ -9,7 +9,7 @@
 #include "browser_ui.h"
 
 
-const static int browser_width = 125;
+const static int browser_width = 140;
 const static int sb_width = 12;
 
 enum { default_font_size = 12 };
