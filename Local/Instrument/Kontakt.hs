@@ -39,6 +39,7 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 
 import qualified Instrument.InstTypes as InstTypes
+import qualified Local.Instrument.Kontakt.Gong as Gong
 import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
@@ -63,7 +64,7 @@ patches =
     [ misc_patches
     , hang_patches
     , KendangBali.patches, KendangSunda.patches
-    , Mridangam.patches, Pakhawaj.patches, Reyong.patches
+    , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Gong.patches
     , ScGamelan.patches
     , Wayang.patches
     ]

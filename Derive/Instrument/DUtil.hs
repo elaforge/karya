@@ -32,6 +32,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -126,20 +127,30 @@ multiple_call name calls = generator0 name
     "Dispatch to multiple calls." $ \args ->
         mconcatMap (Eval.reapply_generator args) calls
 
-double_calls :: [(BaseTypes.CallId, BaseTypes.CallId)]
-    -- ^ (call_name, repeated_call)
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
-double_calls = map (second double_call)
+-- | The grace note falls either before or after the beat.
+data Placement = Before | After deriving (Show, Eq)
 
-double_call :: BaseTypes.CallId -> Derive.Generator Derive.Note
-double_call repeated = generator "double"
-    "Doubled call. This is a specialization of `roll`."
+doubled_call :: BaseTypes.CallId -> Text -> Placement -> RealTime
+    -> Signal.Y -> Derive.Generator Derive.Note
+doubled_call callee name place default_time default_dyn_scale = generator name
+    ("Doubled call. The grace note falls "
+        <> (if place == Before then "before" else "after") <> " the beat.")
     $ Sig.call ((,)
-    <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
-    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
-    ) $ \(Typecheck.DefaultReal time, dyn) args ->
-        Grace.repeat_notes (Eval.reapply_generator_normalized args repeated)
-            1 time dyn args
+    <$> Sig.defaulted "time" (Typecheck.real default_time)
+        "Time between the strokes."
+    <*> Sig.defaulted "dyn" default_dyn_scale "Dyn scale for the grace note."
+    ) $ \(Typecheck.DefaultReal time, dyn_scale) args -> do
+        dyn <- Call.dynamic =<< Args.real_start args
+        let with_dyn = Call.with_dynamic (dyn * dyn_scale)
+        let note = Eval.reapply_generator_normalized args callee
+        notes <- Grace.repeat_notes note 2 time
+            (if place == Before then 0 else 1) args
+        case notes of
+            [first, second]
+                | place == Before -> Sub.derive [with_dyn <$> first, second]
+                | otherwise -> Sub.derive [first, with_dyn <$> second]
+            -- Shouldn't happen, because I passed 2 to repeat_notes.
+            _ -> Derive.throw "expected 2 notes"
 
 -- * composite
 

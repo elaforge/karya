@@ -10,14 +10,14 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
+import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
 import Global
 
 
 test_kendang = do
-    let run extract inst notes = DeriveTest.extract extract $ derive
-            [(">" <> inst <> inst_title, mknotes notes)]
+    let run extract inst notes = DeriveTest.extract extract $
+            derive [(">" <> inst <> inst_title, mknotes notes)]
         e_instrument e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e)
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
     equal (run e_instrument "k" ["PL", "P", "o"])
@@ -43,8 +43,7 @@ test_resolve = do
     equal KendangBali.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup
-    (DeriveTest.with_synths allocs [Kontakt.synth]) ""
+derive = KontaktTest.derive allocs ""
     where
     allocs = UiTest.allocations
         [ ("k", "kontakt/kendang-bali")

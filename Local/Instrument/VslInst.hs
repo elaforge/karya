@@ -1847,8 +1847,6 @@ lyric = attr "lyric"
 
 rs = attr "rs" -- release samples
 
-damp = attr "damp"
-
 li = attr "li" -- light
 med = attr "med" -- medium
 str = attr "str" -- strong

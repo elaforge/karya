@@ -118,7 +118,6 @@ k1_mridangam =
     , (din, [od])
     ]
 
-
 k2 :: Bool -> Korvai
 k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
       din_3.p5.tam_4.p6.ta.__

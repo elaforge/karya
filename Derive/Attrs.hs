@@ -155,6 +155,7 @@ edge = attr "edge"
 slap = attr "slap"
 knuckle = attr "knuckle"
 rim = attr "rim"
+damp = attr "damp"
 
 open = attr "open"
 closed = attr "closed"

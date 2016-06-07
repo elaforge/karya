@@ -213,9 +213,11 @@ next_end args = maybe (next args) Event.end (Seq.head (next_events args))
 next_start :: PassedArgs a -> Maybe ScoreTime
 next_start = fmap Event.start . Seq.head . next_events
 
+-- | Start time of the previous event.
 prev_start :: PassedArgs a -> Maybe ScoreTime
 prev_start = fmap Event.start . Seq.head . prev_events
 
+-- | End time of the previous event.
 prev_end :: PassedArgs a -> Maybe ScoreTime
 prev_end = fmap Event.end . Seq.head . prev_events
 
@@ -257,9 +259,11 @@ real_range_or_next :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
 real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range_or_next args
 
--- | If the event has a duration, then return that.  Otherwise, if there is
--- a 'EnvKey.note_end', return that.  Otherwise, return 'next'.  However,
--- if there's an 'EnvKey.note_start' and it's past the event start, then this
+-- | The current event's start and end times.
+--
+-- If the event has a duration, then use that.  Otherwise, if there is
+-- a 'EnvKey.note_end', return that.  Otherwise, return 'next'.  However, if
+-- there's an 'EnvKey.note_start' and it's past the event start, then this
 -- event isn't contained within the range of its parent note, which means that
 -- its expected note end has also passed.  In that case, it returns
 -- (note_start, note_start), which should cause the call to just emit its final

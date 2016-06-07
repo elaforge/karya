@@ -203,23 +203,23 @@ basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
-    make_grace_notes (Args.prev_start args) (Args.extent args) notes
+    make_grace_notes (Args.prev_start args) (Args.range_or_next args) notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
-make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
+make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -- ^ (start, end)
     -> [Derive.NoteDeriver] -> BaseTypes.Duration -> BaseTypes.ControlRef
+    -- ^ grace placement, 'grace_place_doc'
     -> Derive.Deriver [Sub.Event]
-make_grace_notes prev (start, dur) notes grace_dur place = do
+make_grace_notes prev (start, end) notes grace_dur place = do
     real_start <- Derive.real start
     place <- Num.clamp 0 1 <$> Call.control_at place real_start
     case grace_dur of
         BaseTypes.ScoreDuration grace_dur -> do
             let extents = fit_grace_durs (ScoreTime.double place)
-                    prev start (start + dur) (length notes) grace_dur
-            return [Sub.Event start dur note
-                | ((start, dur), note) <- zip extents notes]
+                    prev start end (length notes) grace_dur
+            return [Sub.Event s d n | ((s, d), n) <- zip extents notes]
         BaseTypes.RealDuration grace_dur -> do
-            real_end <- Derive.real (start + dur)
+            real_end <- Derive.real end
             real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
             let extents = fit_grace_durs (RealTime.seconds place)
                     real_prev real_start real_end (length notes) grace_dur
@@ -280,29 +280,35 @@ grace_attributes _ _ _ _ = return Nothing
 
 c_roll :: Derive.Generator Derive.Note
 c_roll = Derive.generator Module.europe "roll" Tags.ornament
-    "These are like grace notes, but they all have the same pitch."
+    "These are like grace notes, but they all have the same pitch.\
+    \ The extra notes always fall before the main one, because `trem` covers\
+    \ the afterwards case."
     $ Sig.call ((,,)
     <$> Sig.defaulted "times" 1 "Number of grace notes."
     <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
     ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
-    Sub.inverting $ roll times time dyn_scale
+    Sub.inverting $ roll (times+1) time dyn_scale
 
 roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
     pitch <- Call.get_pitch start
-    repeat_notes (Call.with_pitch pitch Call.note) times time dyn_scale args
+    dyn <- Call.dynamic start
+    notes <- repeat_notes (Call.with_pitch pitch Call.note) times time 0 args
+    Sub.derive $ case Seq.viewr notes of
+        Just (graces, main) ->
+            map (fmap (Call.with_dynamic (dyn*dyn_scale))) graces ++ [main]
+        Nothing -> []
 
-repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration -> Signal.Y
-    -> Derive.PassedArgs a -> Derive.NoteDeriver
-repeat_notes note times time dyn_scale args = do
-    start <- Args.real_start args
-    dyn <- (*dyn_scale) <$> Call.dynamic start
-    let notes = replicate times (Call.with_dynamic dyn note) ++ [note]
-    Sub.derive =<< make_grace_notes (Args.prev_start args)
-        (Args.extent args) notes time (BaseTypes.constant_control 0)
+repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration
+    -> Signal.Y -- ^ placement, 'grace_place_doc'
+    -> Derive.PassedArgs a -> Derive.Deriver [Sub.Event]
+repeat_notes note times time place args =
+    make_grace_notes (Args.prev_start args)
+        (Args.range_or_next args) (replicate times note) time
+        (BaseTypes.constant_control place)
 
 -- * pitch calls
 
@@ -387,8 +393,9 @@ fit_grace_durs place prev start end notes dur =
     add_dur (x, Nothing) = (x, end - x)
     add_dur (x, Just next) = (x, next - x)
 
-fit_grace :: (Show a, Fractional a, Ord a) => a -> Maybe a -> a -> a -> Int
-    -> a -> [a]
+fit_grace :: (Show a, Fractional a, Ord a) => a
+    -- ^ placement, 'grace_place_doc'
+    -> Maybe a -> a -> a -> Int -> a -> [a]
 fit_grace place maybe_prev start end notes dur
     | place <= 0 = before
     | place >= 1 = after

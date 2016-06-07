@@ -1254,6 +1254,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - kajar: automatic hand muting as with reyong.
       - add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
         saih=umbang/isep?  Or keep tuning the same and use laras?  Kelamin
