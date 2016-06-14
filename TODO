@@ -11,6 +11,8 @@ UNSORTED
     . If I do it at the haskell level, hopefully I can reuse the existing
       Track / DisplayTrack distinction used for collapsed tracks in the first
       place.
+    - I have to also collapse the skeleton, which means I need
+      a Block.display_skeleton and Block.display_integrate_skeleton.
   * Pianoteq doesn't save tuning, so I have to send tuning again each time.
     Maybe I need an initialize step that runs when I load a score.
     . If inst alloc has an initialize flag, then an initialize cmd could find
@@ -888,7 +890,7 @@ REPL: repl:
       * hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
-  - bug: repl: SaveFileChanged
+  * bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
   - only write history when the cmd succeeded
   - command to open the haddock for a module
