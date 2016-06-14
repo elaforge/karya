@@ -78,12 +78,12 @@ instance Exception.Exception SaveFileChanged
 
 
 repl :: Haskeline.Settings IO -> IO ()
-repl = loop
+repl settings = Exception.mask (loop settings)
     where
-    loop settings = do
-        status <- Haskeline.runInputT settings
+    loop settings restore = do
+        status <- restore (Haskeline.runInputT settings
             (Haskeline.withInterrupt
-                (read_eval_print (Haskeline.historyFile settings)))
+                (read_eval_print (Haskeline.historyFile settings))))
             `Exception.catches`
              [ Exception.Handler $ \(SaveFileChanged save_fname) -> do
                 putStrLn $ "save file changed: " ++ save_fname
@@ -93,9 +93,10 @@ repl = loop
                 return $ Continue Nothing
              ]
         case status of
-            Continue Nothing -> loop settings
-            Continue (Just save_fname) -> loop $
-                settings { Haskeline.historyFile = Just save_fname }
+            Continue Nothing -> loop settings restore
+            Continue (Just save_fname) -> loop
+                (settings { Haskeline.historyFile = Just save_fname })
+                restore
             Quit -> return ()
 
     read_eval_print maybe_save = get_input maybe_save >>= \case
