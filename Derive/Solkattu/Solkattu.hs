@@ -433,6 +433,9 @@ stroke_to_call s = case s of
 check :: Log.Stack => Either Text a -> a
 check = either (errorStack . untxt) id
 
+check_msg :: Log.Stack => String -> Either Text a -> a
+check_msg msg = either (errorStack . ((msg <> ": ") <>) . untxt) id
+
 -- * util
 
 splits :: [a] -> [([a], [a])]

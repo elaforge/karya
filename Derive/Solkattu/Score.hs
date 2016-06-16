@@ -5,10 +5,12 @@
 -- | Korvais expressed in SolkattuDsl.
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
+import qualified Data.List as List
 import qualified Data.Text.IO as Text.IO
 
-import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Util.Log as Log
 import Derive.Solkattu.Dsl
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
@@ -132,17 +134,25 @@ k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
     -- p6 can also be k-t---ktkto-
     -- development is din_3.p5.ta.__.din
 
-k3 :: Korvai
-k3 = check $ Solkattu.korvai (adi 5) mridangam $
-      dit . __  . s2 (tang . kitataka . tarikitataka) . dit   . tat . din^2 . __
-    . dit . tat . s2 (tang . kitataka . tarikitataka) . dit^4 . tat . din . __
-    . ta . __ . dit . tat . din . __
+k3s :: [Korvai]
+k3s = korvais (adi 5) mridangam
+    [   dit . __  . tangkita . dit   . tat . din^2 . __
+      . dit . tat . tangkita . dit^4 . tat . din . __
+      . ta . __ . dit . tat . din . __
+      . ta^6.ka.dit.tat.din.__
+      . ta.ki.ta.ta.ki^0.ta
+      . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
 
-    . ta^6.ka.dit.tat.din.__
-    . ta.ki.ta.tha.ki^0.ta
-
-    . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
+    ,   dit . __  . tangkita . din . __3
+      . dit . tat . tangkita . din . __3
+      . dit . __  . tangkita . din . __
+      . dit . tat . tangkita . din . __
+      . dit . __  . tangkita
+      . dit . tat . tangkita
+      . tri_ __ p6
+    ]
     where
+    tangkita = s2 (tang . kitataka . tarikitataka)
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam =
@@ -169,18 +179,19 @@ t_sarva1 =
     -- TODO I need a better way to write sarva laghu.  The problem is the thoms
     -- are implicit.
 
-t1 :: Korvai
-t1 = check $ Solkattu.korvai (adi 6) mridangam $
-    -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
-    --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
-    --              .ta.ka.din.na.__.ka.din.na.dinga
-    reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
-    . tri p5 . dinga!u . tri_ __ p5 . dinga!u . tri_ __2 p5
-    -- .tat.__.dit.__.ta.ka.din.na.__.dinga
-    --        .dit.__.ta.ka.din.na.__.dinga
-    --               .ta.ka.din.na.__.dinga
-    . reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
-    . tri p6 . dinga!u . tri_ __ p6 . dinga!u . tri_ __2 p6
+t1s :: [Korvai]
+t1s = korvais (adi 6) mridangam
+    [ -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
+      --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
+      --              .ta.ka.din.na.__.ka.din.na.dinga
+      reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
+      . tri p5 . dinga!u . tri_ __ p5 . dinga!u . tri_ __2 p5
+    , -- .tat.__.dit.__.ta.ka.din.na.__.dinga
+      --        .dit.__.ta.ka.din.na.__.dinga
+      --               .ta.ka.din.na.__.dinga
+      reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
+      . tri p6 . dinga!u . tri_ __ p6 . dinga!u . tri_ __2 p6
+    ]
     where
     mridangam =
         [ (tat.dit, [k, t])
@@ -193,8 +204,17 @@ t1 = check $ Solkattu.korvai (adi 6) mridangam $
 
 -- * realize
 
+korvais :: Log.Stack => Solkattu.Tala -> [(Sequence, [MNote])] -> [Sequence]
+    -> [Korvai]
+korvais tala mridangam sollus = zipWith realize [0..] sollus
+    where
+    realize i s = Solkattu.check_msg (show i) $ Solkattu.korvai tala mridangam s
+
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
+
+realizes :: [Solkattu.Korvai] -> IO ()
+realizes ks = sequence_ $ List.intersperse (putStrLn "----") (map realize ks)
 
 realize :: Solkattu.Korvai -> IO ()
 realize korvai = Text.IO.putStrLn $ case result of
