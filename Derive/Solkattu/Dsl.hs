@@ -10,7 +10,7 @@ module Derive.Solkattu.Dsl (
     Sequence, Korvai, Matras, Stroke, MNote
     -- ** sollus
     , (.)
-    , __, __2, __3, __4, __n
+    , __, __3, __4, __5, __n
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
     , ku, mi, na, ri, ta, tam, tat, tha, thom, ti
@@ -66,13 +66,16 @@ sollu s = [Sollu s Nothing]
 __ :: Sequence
 __ = sq Rest
 
-__2, __3, __4 :: Sequence
-__2 = __n 2
+-- | These are meant to suffix a sollu.  Since the sollu is considered part of
+-- the duration, the number is one higher than the number of rests.  E.g.
+-- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
+__3, __4, __5 :: Sequence
 __3 = __n 3
 __4 = __n 4
+__5 = __n 5
 
 __n :: Int -> Sequence
-__n n = repeat n __
+__n n = repeat (n-1) __
 
 dheem = sollu Dheem
 dhom = sollu Dhom

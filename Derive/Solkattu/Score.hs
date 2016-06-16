@@ -16,47 +16,52 @@ import Global
 
 -- * chatusra nadai
 
-chatusram1_2 :: Korvai
-chatusram1_2 = check $ Solkattu.korvai (adi 4) chatusram1_mridangam $
+c1_2 :: Korvai
+c1_2 = check $ Solkattu.korvai (adi 4) c1_mridangam $
       theme 0 . p5
     . dropM 2 (theme 1) . p6 . p6
     . dropM 4 (theme 2) . tri p7 . tri p6 . tri p5
     where
     theme gap = ta.__.dit.__.ta.ka.din.na.din
-        . tri (ta . __n gap . din . __)
+        . tri (ta . __n (gap+1) . din . __)
 
-chatusram1_3 :: Korvai
-chatusram1_3 = check $ Solkattu.korvai (adi 4) chatusram1_mridangam $
+c1_3 :: Korvai
+c1_3 = check $ Solkattu.korvai (adi 4) c1_mridangam $
       theme 0 . p5 . tadin
     . dropM 3 (theme 1) . p6 . p6 . tadin
     . dropM 6 (theme 2) . trin tadin (tri p7) (tri p6) (tri p5)
     where
-    theme gap = ta.__2.dit.__2.ta.ka.din.na.din
-        . tri (ta . __n gap . din . __2)
+    theme gap = ta.__3.dit.__3.ta.ka.din.na.din
+        . tri (ta . __n (gap+1) . din . __3)
     tadin = ta.__.din.__.__
 
-chatusram1_4 :: Korvai
-chatusram1_4 = check $ Solkattu.korvai (adi 4) mridangam $
-      theme 0 . pat7 . dheem!u . __3
-    . dropM 4 (theme 1) . repeat 2 pat8 . dheem!u . __3
+c1_4 :: Korvai
+c1_4 = check $ Solkattu.korvai (adi 4) mridangam $
+      theme 0 . pat7 . dheem!u . __4
+    . dropM 4 (theme 1) . repeat 2 pat8 . dheem!u . __4
     . dropM 8 (theme 2)
-        . trin (dheem!i . __3) (tri pat9) (tri pat8) (tri pat7)
+        . trin (dheem!i . __4) (tri pat9) (tri pat8) (tri pat7)
     where
-    theme gap = ta.__3.dit.__3.ta.ka.din.na.din
-        . tri (ta . __n gap . din . __3)
+    theme gap = ta.__4.dit.__4.ta.ka.din.na.din
+        . tri (ta . __n (gap+1) . din . __4)
     pat7 = ta.ka.p5
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
-    mridangam = chatusram1_mridangam ++
+    mridangam = c1_mridangam ++
         [ (ta.ka, [k, p])
         ]
 
-chatusram1_mridangam :: [(Sequence, [MNote])]
-chatusram1_mridangam =
+c1_mridangam :: [(Sequence, [MNote])]
+c1_mridangam =
     [ (ta.dit, [k, t])
     , (dit, [k])
     , (ta.ka.din.na.din, [k, o, o, k, o])
     , (ta.din, [k, od])
+    ]
+
+chatusrams :: [Korvai]
+chatusrams =
+    [ c1_2, c1_3, c1_4
     ]
 
 -- * kanda nadai
@@ -66,8 +71,8 @@ make_k1 = Solkattu.korvai (adi 5) k1_mridangam
 
 make_k1_1 :: Sequence -> Sequence -> Korvai
 make_k1_1 pt gap = check $ make_k1 $
-      at0 . k1_a  . __ . ta . din . __n (9 - pdur) . pt
-    . atX . k1_a' . __ . ta . din . __n (9 - pdur) . pt
+      at0 . k1_a  . __ . ta . din . __n (10 - pdur) . pt
+    . atX . k1_a' . __ . ta . din . __n (10 - pdur) . pt
     . at0 . ta . __ . di . __ . ki . ta . __ . gap
     .       ta . ka . di . __ . ki . ta . __ . gap
     . case pdur of
@@ -76,11 +81,11 @@ make_k1_1 pt gap = check $ make_k1 $
         _ -> p765 end_gap
     where
     pdur = duration_of pt
-    end_gap = __n (4 - duration_of gap)
+    end_gap = __n (5 - duration_of gap)
 
-k1_1_vars :: [Korvai]
-k1_1_vars = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
-    where gaps = [thom.__.ta.__, thom.__2, thom.__, thom, mempty]
+k1_1s :: [Korvai]
+k1_1s = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
+    where gaps = [thom.__.ta.__, thom.__3, thom.__, thom, mempty]
 
 k1_2 :: Korvai
 k1_2 = check $ make_k1 $
@@ -104,7 +109,7 @@ k1_3 = check $ make_k1 $
     . tri_ __ (ta.ka.p6)
     . tri_ __ p6
     where
-    tata_dindin_ = ta.__.ta.__2.din.__.din.__2
+    tata_dindin_ = ta.__.ta.__3.din.__.din.__3
 
 k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
@@ -122,15 +127,12 @@ k1_mridangam =
 
 k2 :: Bool -> Korvai
 k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
-      din_3.p5.tam_4.p6.ta.__
-    . din_3.p5.tam_4.p6.ta.__.ta.__
-    . din_3.p5
+      din.__3 . p5.tam.__4.p6.ta.__
+    . din.__3 . p5.tam.__4.p6.ta.__.ta.__
+    . din.__3 . p5
     . if chatusram_transition
         then nadai 4 . tri (ta.ta.__.p5)
-        else tam_4 . tri_ __4 p6
-    where
-    din_3 = din.__2
-    tam_4 = tam.__3
+        else tam.__4 . tri_ __5 p6
     -- p6 can also be k-t---ktkto-
     -- development is din_3.p5.ta.__.din
 
@@ -143,8 +145,8 @@ k3s = korvais (adi 5) mridangam
       . ta.ki.ta.ta.ki^0.ta
       . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
 
-    ,   dit . __  . tangkita . din . __3
-      . dit . tat . tangkita . din . __3
+    ,   dit . __  . tangkita . din . __4
+      . dit . tat . tangkita . din . __4
       . dit . __  . tangkita . din . __
       . dit . tat . tangkita . din . __
       . dit . __  . tangkita
@@ -165,6 +167,14 @@ k3s = korvais (adi 5) mridangam
         , (din, [od])
         , (ta, [k])
         ]
+
+kandams :: [Korvai]
+kandams = concat
+    [ k1_1s
+    , [k1_2, k1_3]
+    , [k2 False, k2 True]
+    , k3s
+    ]
 
 -- * tisra nadai
 
@@ -202,19 +212,24 @@ t1s = korvais (adi 6) mridangam
         , (dinga, [od, ___])
         ]
 
+tisrams :: [Korvai]
+tisrams = concat
+    [ -- t1s, t2s, t3s
+    ]
+
 -- * realize
 
 korvais :: Log.Stack => Solkattu.Tala -> [(Sequence, [MNote])] -> [Sequence]
     -> [Korvai]
-korvais tala mridangam sollus = zipWith realize [0..] sollus
+korvais tala mridangam sollus = zipWith korvai1 [0..] sollus
     where
-    realize i s = Solkattu.check_msg (show i) $ Solkattu.korvai tala mridangam s
+    korvai1 i s = Solkattu.check_msg (show i) $ Solkattu.korvai tala mridangam s
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 
 realizes :: [Solkattu.Korvai] -> IO ()
-realizes ks = sequence_ $ List.intersperse (putStrLn "----") (map realize ks)
+realizes ks = sequence_ $ List.intersperse (putStrLn "\n----") (map realize ks)
 
 realize :: Solkattu.Korvai -> IO ()
 realize korvai = Text.IO.putStrLn $ case result of

@@ -11,9 +11,14 @@ import qualified Derive.Solkattu.Score as Score
 import Global
 
 
-test_kandam = do
-    let korvais = Score.k1_1_vars ++ [Score.k1_2, Score.k1_3]
-    equal [err | Left err <- map realize korvais] []
+test_tisrams = do
+    equal [err | Left err <- map realize Score.tisrams] []
+
+test_chatusrams = do
+    equal [err | Left err <- map realize Score.chatusrams] []
+
+test_kandams = do
+    equal [err | Left err <- map realize Score.kandams] []
 
 realize :: Solkattu.Korvai -> Either Text [Solkattu.MNote]
 realize korvai =
