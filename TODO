@@ -1185,6 +1185,9 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Longer patterns tend to have a korvai-specific realization.
+          I should keep the PatternMap in Korvai, and pass that in with
+          the StrokeMap.
         * I have dinga as (din.__.ga, [od, __, __])
           But from patterns don't have rests.
           . I could make them have rests, but then tdgnt would have to be

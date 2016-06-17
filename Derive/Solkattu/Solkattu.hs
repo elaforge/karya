@@ -315,6 +315,7 @@ standard_stroke_map = StrokeMap $ Map.fromList
     , ([Tam], [Just $ Valantalai MChapu])
     , ([Tang], [Just $ Valantalai MChapu])
     , ([Lang], [Just $ Valantalai MChapu])
+    , ([Dheem], [Just $ Valantalai MDheem])
     ]
 
 -- | Realize a Korvai in mridangam strokes.

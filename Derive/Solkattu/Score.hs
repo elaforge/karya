@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Korvais expressed in SolkattuDsl.
+-- | Korvais expressed in "Derive.Solkattu.Dsl".
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
@@ -16,40 +16,37 @@ import Global
 
 -- * chatusra nadai
 
-c1_2 :: Korvai
-c1_2 = check $ Solkattu.korvai (adi 4) c1_mridangam $
-      theme 0 . p5
-    . dropM 2 (theme 1) . p6 . p6
-    . dropM 4 (theme 2) . tri p7 . tri p6 . tri p5
-    where
-    theme gap = ta.__.dit.__.ta.ka.din.na.din
-        . tri (ta . __n (gap+1) . din . __)
+c1s :: [Korvai]
+c1s = korvais (adi 4) mridangam
+    [            theme 2 0 . p5
+      . dropM 2 (theme 2 1) . p6 . p6
+      . dropM 4 (theme 2 2) . tri p7 . tri p6 . tri p5
 
-c1_3 :: Korvai
-c1_3 = check $ Solkattu.korvai (adi 4) c1_mridangam $
-      theme 0 . p5 . tadin
-    . dropM 3 (theme 1) . p6 . p6 . tadin
-    . dropM 6 (theme 2) . trin tadin (tri p7) (tri p6) (tri p5)
-    where
-    theme gap = ta.__3.dit.__3.ta.ka.din.na.din
-        . tri (ta . __n (gap+1) . din . __3)
-    tadin = ta.__.din.__.__
+    , let tadin = ta.__.din.__.__ in
+                 theme 3 0 . p5 . tadin
+      . dropM 3 (theme 3 1) . p6 . p6 . tadin
+      . dropM 6 (theme 3 2) . trin tadin (tri p7) (tri p6) (tri p5)
 
-c1_4 :: Korvai
-c1_4 = check $ Solkattu.korvai (adi 4) mridangam $
-      theme 0 . pat7 . dheem!u . __4
-    . dropM 4 (theme 1) . repeat 2 pat8 . dheem!u . __4
-    . dropM 8 (theme 2)
-        . trin (dheem!i . __4) (tri pat9) (tri pat8) (tri pat7)
+    ,            theme 4 0 . pat7 . dheem!u . __4
+      . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem!u . __4
+      . dropM 8 (theme 4 2)
+        . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
+
+    ]
     where
-    theme gap = ta.__4.dit.__4.ta.ka.din.na.din
-        . tri (ta . __n (gap+1) . din . __4)
+    theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . ta.ka.din.na.din
+        . tri (ta . __n (gap2+1) . din . __n gap1)
+    mridangam =
+        [ (ta.dit, [k, t])
+        , (dit, [k])
+        , (ta.ka.din.na.din, [k, o, o, k, o])
+        , (ta.din, [k, od])
+        -- for pat7 -- pat9
+        , (ta.ka, [k, p])
+        ]
     pat7 = ta.ka.p5
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
-    mridangam = c1_mridangam ++
-        [ (ta.ka, [k, p])
-        ]
 
 c1_mridangam :: [(Sequence, [MNote])]
 c1_mridangam =
@@ -191,18 +188,57 @@ t_sarva1 =
 
 t1s :: [Korvai]
 t1s = korvais (adi 6) mridangam
+    [
+    ]
+    where
+    mridangam = []
+    -- reduce3 2 __ (tat.__.dit.__.ta.ka.din.na.din.__.ta.__.dheem)
+
+t2s :: [Korvai]
+t2s = korvais (adi 6) mridangam
+    [ reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__5)   . tri p5
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)   . tri p6
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__3)   . tri p7
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__)    . tri pat8
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.tha)         . tri pat9
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na)             . tri pat10
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din)                . tri pat11
+    ]
+    where
+    pat8 = ta.din.__.p5
+    pat9 = ta.__.din.__.p5
+    pat10 = ta.ka.ta.din.__.p5
+    pat11 = ta.ka.__.ta.din.__.p5
+    mridangam =
+        [ (tat.dit, [k, t])
+        , (dit, [k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ta.ka.din, [k, o, o])
+        , (tha, [p])
+        , (ta.ka, [k, p])
+        , (dheem, [od])
+        -- pat8 -- pat11
+        , (ta.din, [k, od])
+        ]
+
+t3s :: [Korvai]
+t3s = korvais (adi 6) mridangam
     [ -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --              .ta.ka.din.na.__.ka.din.na.dinga
       reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
-      . tri p5 . dinga!u . tri_ __ p5 . dinga!u . tri_ __2 p5
+      . utarangam p5
     , -- .tat.__.dit.__.ta.ka.din.na.__.dinga
       --        .dit.__.ta.ka.din.na.__.dinga
       --               .ta.ka.din.na.__.dinga
       reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
-      . tri p6 . dinga!u . tri_ __ p6 . dinga!u . tri_ __2 p6
+      . utarangam p6
+
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__)
+      . utarangam p7
     ]
     where
+    utarangam p = tri p . dinga!u . tri_ __ p . dinga!u . tri_ __3 p
     mridangam =
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -214,7 +250,7 @@ t1s = korvais (adi 6) mridangam
 
 tisrams :: [Korvai]
 tisrams = concat
-    [ -- t1s, t2s, t3s
+    [ t1s, t2s, t3s
     ]
 
 -- * realize
