@@ -57,8 +57,8 @@ c1_mridangam =
     ]
 
 chatusrams :: [Korvai]
-chatusrams =
-    [ c1_2, c1_3, c1_4
+chatusrams = concat
+    [ c1s
     ]
 
 -- * kanda nadai
@@ -188,11 +188,20 @@ t_sarva1 =
 
 t1s :: [Korvai]
 t1s = korvais (adi 6) mridangam
-    [
+    [ reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din.__.__)
+        . tri_ (dheem!u . __3) p5
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din.__)
+        . tri_ (dheem!u . __3) p6
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din!p)
+        . tri_ (dheem!u . __3) p7
     ]
     where
-    mridangam = []
-    -- reduce3 2 __ (tat.__.dit.__.ta.ka.din.na.din.__.ta.__.dheem)
+    mridangam =
+        [ (tat.dit, [k, t])
+        , (dit, [k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (din, [od])
+        ]
 
 t2s :: [Korvai]
 t2s = korvais (adi 6) mridangam
@@ -200,7 +209,7 @@ t2s = korvais (adi 6) mridangam
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)   . tri p6
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__3)   . tri p7
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__)    . tri pat8
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.tha)         . tri pat9
+    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din!p)       . tri pat9
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na)             . tri pat10
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din)                . tri pat11
     ]
@@ -217,6 +226,7 @@ t2s = korvais (adi 6) mridangam
         , (tha, [p])
         , (ta.ka, [k, p])
         , (dheem, [od])
+        , (din, [od])
         -- pat8 -- pat11
         , (ta.din, [k, od])
         ]
