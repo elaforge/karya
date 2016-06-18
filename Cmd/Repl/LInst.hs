@@ -51,7 +51,11 @@ lookup = Cmd.lookup_instrument . Util.instrument
 
 -- * config
 
--- | Print out instrument configs all purty-like.
+-- | List all allocated instruments.
+allocated :: State.M m => m [Score.Instrument]
+allocated = State.get_config $ Map.keys . (StateConfig.allocations_map #$)
+
+-- | List all allocated instrument configs all purty-like.
 list :: State.M m => m Text
 list = list_like ""
 
@@ -379,9 +383,17 @@ parse_qualified text
 
 -- | Initialize all instruments that need it.
 initialize_all :: Cmd.M m => m ()
-initialize_all = do
-    insts <- State.get_config $ Map.keys . (StateConfig.allocations_map #$)
-    mapM_ initialize_inst insts
+initialize_all = mapM_ initialize_inst =<< allocated
+
+-- | List allocated instruments that need initialization.
+need_initialization :: State.M m => m Text
+need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
+    where
+    show1 inst = do
+        (_, _, config) <- get_midi_config inst
+        let inits = Patch.config_initialization config
+        return $ if null inits then Nothing
+            else Just $ pretty inst <> ": " <> pretty inits
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
 initialize_inst :: Cmd.M m => Score.Instrument -> m ()

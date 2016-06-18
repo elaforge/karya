@@ -61,7 +61,8 @@ synth_name = "kontakt"
 patches :: [MidiInst.Patch]
 patches =
     MidiInst.default_patch pb_range [] : concat
-    [ misc_patches
+    [ mine_patches
+    , misc_patches
     , hang_patches
     , KendangBali.patches, KendangSunda.patches
     , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Gong.patches
@@ -76,6 +77,13 @@ patch = MidiInst.named_patch pb_range
 -- +-24.
 pb_range :: Patch.PbRange
 pb_range = (-24, 24)
+
+-- * mine
+
+mine_patches :: [MidiInst.Patch]
+mine_patches =
+    [ patch "tambura" []
+    ]
 
 -- * misc
 
