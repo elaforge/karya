@@ -274,7 +274,7 @@ c_pitches pitches = Derive.generator module_ "pitches" Tags.inst
         let realize pitch = do
                 note <- Derive.require ("unshowable pitch: " <> pretty pitch)
                     (show_pitch pitch)
-                Call.pitched_note =<< Call.eval_pitch (Args.start args) note
+                Call.pitched_note =<< Call.eval_note (Args.start args) note
         mconcatMap (Call.place args . realize) pitches
 
 -- * cancel
@@ -426,7 +426,7 @@ realize_note show_pitch voice start (pitch, attrs) =
     Call.add_attributes attrs $ Derive.with_val EnvKey.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
-        Call.pitched_note =<< Call.eval_pitch start note
+        Call.pitched_note =<< Call.eval_note start note
 
 
 -- * kotekan

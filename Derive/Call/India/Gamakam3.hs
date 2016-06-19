@@ -738,7 +738,7 @@ find_closest_pc start pc pitch = do
     let to_pitch = if distance unwrapped <= distance wrapped
             then unwrapped else wrapped
         distance p = abs (Pitch.subtract_pitch per_octave pitch p)
-    Call.eval_pitch start =<< Derive.require "to_note" (to_note to_pitch)
+    Call.eval_note start =<< Derive.require "to_note" (to_note to_pitch)
 
 pc_janta :: PCall
 pc_janta = PCall Sig.no_args $ \() _ctx -> lift $ Derive.throw "TODO janta"

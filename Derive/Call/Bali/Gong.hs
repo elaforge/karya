@@ -84,8 +84,7 @@ realize_note start instruments note =
     Call.add_flags Flags.infer_duration $
         mconcatMap (\inst -> Derive.with_instrument inst realize1) instruments
     where
-    realize1 = Derive.at start $
-        Call.pitched_note =<< Call.eval_pitch start note
+    realize1 = Derive.at start $ Call.pitched_note =<< Call.eval_note start note
 
 range_env :: Sig.Parser Scale.Range
 range_env = Scale.Range

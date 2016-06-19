@@ -44,7 +44,9 @@ make_code notes both =
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     where
     transformers =
-        [ ("set-sa", DUtil.c_set_default_pitch (Pitch.pitch 0 0)) ]
+        [ ("set-sa", DUtil.c_set_default_pitch (Pitch.pitch 0 0))
+        , ("set-pitch", DUtil.c_set_pitch_sargam)
+        ]
     generators = concat
         [ CUtil.drum_calls Nothing notes
         , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]

@@ -299,8 +299,17 @@ parse_pitch parse pitch = do
 
 -- * note
 
-eval_pitch :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
-eval_pitch pos note = Eval.eval_pitch pos $
+-- | Evaluate a 'Pitch.Pitch'.
+eval_pitch :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Pitch
+eval_pitch start pitch = do
+    (_, to_note, _) <- get_pitch_functions
+    note <- Derive.require ("scale doesn't have pitch: " <> pretty pitch)
+        (to_note pitch)
+    eval_note start note
+
+-- | Evaluate a symbolic pitch.
+eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
+eval_note pos note = Eval.eval_pitch pos $
     BaseTypes.call (BaseTypes.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.

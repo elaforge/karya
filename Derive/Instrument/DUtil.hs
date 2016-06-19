@@ -7,10 +7,12 @@
 --
 -- I need a better name than \"Util\" for everything.
 module Derive.Instrument.DUtil where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -250,9 +252,37 @@ composite_call args composites = mconcatMap (split args) composites
 
 -- * default pitch
 
+c_set_pitch_sargam :: Derive.Taggable d => Derive.Transformer d
+c_set_pitch_sargam = transformer "set-pitch-sargam"
+    "Set the pitch to a constant. Understands sargam style pitches like `2s`\
+    \ or 4m`."
+    $ Sig.callt (
+        Sig.defaulted "pitch" (Right (Left (Pitch.pitch 0 0))) "Pitch."
+    ) $ \pitch args deriver -> do
+        pitch <- sargam_pitch (Args.start args) pitch
+        Derive.with_constant_pitch pitch deriver
+
+sargam_pitch :: ScoreTime -> Either Text (Either Pitch.Pitch PSignal.Pitch)
+    -> Derive.Deriver PSignal.Pitch
+sargam_pitch start p = case p of
+    Left sargam -> do
+        pitch <- Derive.require ("can't parse sargam: " <> sargam) $
+            parse_sargam sargam
+        Call.eval_pitch start pitch
+    Right (Left pitch) -> Call.eval_pitch start pitch
+    Right (Right pitch) -> return pitch
+
+-- | TODO: write and use Parse.p_int for negative octave
+parse_sargam :: Text -> Maybe Pitch.Pitch
+parse_sargam t = do
+    [oct_c, swaram_c] <- return $ Text.unpack t
+    oct <- Num.readDigit oct_c
+    swaram <- List.findIndex (==swaram_c) "srgmpdn"
+    return $ Pitch.pitch oct swaram
+
 c_set_default_pitch :: Derive.Taggable d => Pitch.Pitch -> Derive.Transformer d
 c_set_default_pitch pitch = transformer "set-default-pitch"
-    "Set the pitch to a constant if if there is no pitch in scope."
+    "Set the pitch to a constant if there is no pitch in scope."
     $ Sig.callt (Sig.defaulted "pitch" (Left pitch) "Pitch.")
     $ \pitch args deriver -> with_default_pitch (Args.start args) pitch deriver
 
@@ -265,10 +295,6 @@ with_default_pitch start default_pitch deriver = do
         Just _ -> deriver
         Nothing -> case default_pitch of
             Left pitch -> do
-                (_, to_note, _) <- Call.get_pitch_functions
-                note <- Derive.require
-                    ("scale has no for default: " <> pretty pitch)
-                    (to_note pitch)
-                pitch <- Call.eval_pitch start note
+                pitch <- Call.eval_pitch start pitch
                 Derive.with_constant_pitch pitch deriver
             Right pitch -> Derive.with_constant_pitch pitch deriver
