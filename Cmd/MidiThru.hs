@@ -186,7 +186,7 @@ input_to_nn inst patch scale attrs input_note = case input_note of
         -- I ignore _logs, any interesting errors should be in 'result'.
         (result, _logs) <- Perf.derive_at block_id track_id $
             Derive.with_instrument inst $
-            allow_only_octave_transpose scale $
+            filter_transposers scale $
             Scale.scale_input_to_nn scale pos input
         case result of
             Left err -> throw $ "derive_at: " <> err
@@ -205,14 +205,14 @@ input_to_nn inst patch scale attrs input_note = case input_note of
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
 -- entered pitch and it's very confusing.  However, I retain 'Controls.octave'
--- so I can use 'Patch.config_controls' to fix the octave on instruments
--- that have it wrong.
-allow_only_octave_transpose :: Scale.Scale -> Derive.Deriver a
+-- and 'Controls.hz' because those are used to configure a scale, e.g. via
+-- 'Patch.config_controls', and the pitch is nominally the same.
+filter_transposers :: Scale.Scale -> Derive.Deriver a
     -> Derive.Deriver a
-allow_only_octave_transpose scale = Derive.with_controls transposers
+filter_transposers scale = Derive.with_controls transposers
     where
-    transposers =
-        zip (filter (/=Controls.octave)
+    transposers = zip
+        (filter (`notElem` [Controls.octave, Controls.hz])
             (Set.toList (Scale.scale_transposers scale)))
         (repeat (Score.untyped Signal.empty))
 

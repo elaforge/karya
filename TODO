@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - thru on carukesi >wy-s is getting pitch bend, but derive is correct
+  * thru on charukesi >wy-s is getting pitch bend, but derive is correct
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
   - nruktuk for kajar
   - Use kotekan for >wy with sargam scale.
