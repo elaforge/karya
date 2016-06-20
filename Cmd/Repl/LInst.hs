@@ -237,9 +237,7 @@ set_control_defaults inst controls = modify_midi_config inst $
 get_midi_config :: State.M m => Score.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
 get_midi_config inst = do
-    StateConfig.Allocation qualified config backend <-
-        State.require ("no config for " <> pretty inst)
-            =<< State.allocation inst <#> State.get
+    StateConfig.Allocation qualified config backend <- get_allocation inst
     case backend of
         StateConfig.Midi midi_config -> return (qualified, config, midi_config)
         _ -> State.throw $ "not a midi instrument: " <> pretty inst <> ": "
@@ -257,20 +255,30 @@ modify_config inst_ modify = do
     State.modify_config $ State.allocations_map %= Map.insert inst new
     return result
 
-modify_common_config :: State.M m => Instrument
-    -> (Common.Config -> (Common.Config, a)) -> m a
-modify_common_config inst modify = modify_config inst $ \common midi ->
-    let (new, result) = modify common in ((new, midi), result)
-
-modify_common_config_ :: State.M m => Instrument
-    -> (Common.Config -> Common.Config) -> m ()
-modify_common_config_ inst modify = modify_config inst $ \common midi ->
-    ((modify common, midi), ())
+get_allocation :: State.M m => Score.Instrument -> m StateConfig.Allocation
+get_allocation inst =
+    State.require ("no config for " <> pretty inst)
+        =<< State.allocation inst <#> State.get
 
 modify_midi_config :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
     -> m ()
 modify_midi_config inst modify = modify_config inst $ \common midi ->
     ((common, modify midi), ())
+
+modify_common_config :: State.M m => Instrument
+    -> (Common.Config -> (Common.Config, a)) -> m a
+modify_common_config inst_ modify = do
+    let inst = Util.instrument inst_
+    alloc <- get_allocation inst
+    let (config, result) = modify (StateConfig.alloc_config alloc)
+        new = alloc { StateConfig.alloc_config = config }
+    State.modify_config $ State.allocations_map %= Map.insert inst new
+    return result
+
+modify_common_config_ :: State.M m => Instrument
+    -> (Common.Config -> Common.Config) -> m ()
+modify_common_config_ inst modify =
+    modify_common_config inst $ \config -> (modify config, ())
 
 -- | Merge the given configs into the existing one.
 merge :: Cmd.M m => StateConfig.Allocations -> m ()
