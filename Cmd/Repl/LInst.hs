@@ -67,25 +67,28 @@ list_like :: State.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- State.config#State.allocations_map <#> State.get
     return $ Text.unlines $
-        TextUtil.formatColumns 1 $ map show_alloc $ filter (matches . fst) $
-        Map.toAscList alloc_map
+        TextUtil.formatColumns 1 $ map (uncurry pretty_alloc) $
+        filter (matches . fst) $ Map.toAscList alloc_map
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
-    show_alloc (inst, alloc) =
-        [ ShowVal.show_val inst
-        , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
+
+pretty_alloc :: Score.Instrument -> StateConfig.Allocation -> [Text]
+pretty_alloc inst alloc =
+    [ ShowVal.show_val inst
+    , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
+    , case StateConfig.alloc_backend alloc of
+        StateConfig.Midi config ->
+            Info.show_addrs (Patch.config_addrs config)
+        StateConfig.Im -> "音"
+        StateConfig.Dummy -> "(dummy)"
+    , join
+        [ show_common_config (StateConfig.alloc_config alloc)
         , case StateConfig.alloc_backend alloc of
-            StateConfig.Midi config ->
-                Info.show_addrs (Patch.config_addrs config)
+            StateConfig.Midi config -> show_midi_config config
             _ -> ""
-        , join
-            [ show_common_config (StateConfig.alloc_config alloc)
-            , case StateConfig.alloc_backend alloc of
-                StateConfig.Midi config -> show_midi_config config
-                StateConfig.Im -> "音"
-                StateConfig.Dummy -> "(dummy)"
-            ]
         ]
+    ]
+    where
     show_common_config config = join
         [ show_environ (Common.config_environ config)
         , show_controls "" (Common.config_controls config)
