@@ -196,10 +196,11 @@ input_to_nn inst patch scale attrs input_note = case input_note of
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> do
                 let (result, not_found) = convert_pitch patch attrs nn
-                unless not_found $
+                when not_found $
                     Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
                         <> pretty attrs <> ", understood attrs are: "
-                        <> pretty (Patch.patch_attribute_map patch)
+                        <> pretty (Common.mapped_attributes
+                            (Patch.patch_attribute_map patch))
                 return result
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
@@ -216,16 +217,16 @@ filter_transposers scale = Derive.with_controls transposers
             (Set.toList (Scale.scale_transposers scale)))
         (repeat (Score.untyped Signal.empty))
 
--- | This is a mini version of 'Perform.Midi.Convert.convert_midi_pitch'.
+-- | This is a midi thru version of 'Perform.Midi.Convert.convert_midi_pitch'.
 -- It's different because it works with a scalar NoteNumber instead of
 -- a Score.Event with a pitch signal, which makes it hard to share code.
 convert_pitch :: Patch.Patch -> Attrs.Attributes -> Pitch.NoteNumber
     -> (Maybe (Pitch.NoteNumber, [Patch.Keyswitch]), Bool)
     -- ^ The Bool is True if the attrs were non-empty but not found.
 convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
-    Nothing -> ((, []) <$> maybe_pitch, attrs == mempty)
+    Nothing -> ((, []) <$> maybe_pitch, attrs /= mempty)
     Just (keyswitches, maybe_keymap) ->
-        ((, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap, True)
+        ((, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap, False)
     where
     maybe_pitch = apply_patch_scale nn
     apply_patch_scale = maybe Just Patch.convert_scale (Patch.patch_scale patch)
