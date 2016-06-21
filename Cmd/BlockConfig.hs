@@ -32,13 +32,14 @@ import Types
 
 -- * block
 
+-- | Toggle an edge from the selected parent to the clicked child.
 cmd_toggle_edge :: Cmd.M m => Msg.Msg -> m ()
 cmd_toggle_edge msg = do
     (block_id, sel_tracknum, _, _) <- Selection.get_insert
     clicked_tracknum <- Cmd.abort_unless $ clicked_track msg
-    -- The click order goes in the arrow direction, caller-to-callee.
+    -- The click order goes in the arrow direction, parent to child.
     let edge = (sel_tracknum, clicked_tracknum)
-    success <- State.toggle_skeleton_edge block_id edge
+    success <- State.toggle_skeleton_edge False block_id edge
     unless success $
         Log.warn $ "refused to add cycle-creating edge: " <> showt edge
     -- The shift below is incorrect.  Anyway, a common case is to splice

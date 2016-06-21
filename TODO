@@ -7,11 +7,15 @@ UNSORTED
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
   - nruktuk for kajar
   - Use kotekan for >wy with sargam scale.
-  - There should be a way to reparent a track, so I don't have manually make
+  * There should be a way to reparent a track, so I don't have manually make
     sure it doesn't have two parents.  Or since I kind of never want two
     parents I could make that happen automatically.
   - Special play support for tambura-like instruments, where it will start
     playing a note from the middle.
+    . Instrument gets a ResumePlay flag.
+    . This needs support at PlayUtil.perform_from.  events_from needs to
+      scan back for the last NoteOn of the ResumePlay instruments.
+    . If I want to get controls right, it would have to collect controls.
   - I should collapse adjacent Collapsed tracks so they don't turn into
     a giant blue block.
     . If I do it at the fltk draw level, then I don't have to worry about diff

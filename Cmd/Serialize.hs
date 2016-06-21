@@ -232,10 +232,6 @@ instance Serialize Block.DeriveDestination where
         controls :: (Map.Map Text (TrackId, Block.EventIndex)) <- get
         return $ Block.DeriveDestination note controls
 
-instance Serialize Skeleton.Skeleton where
-    put (Skeleton.Skeleton a) = put a
-    get = get >>= \a -> return (Skeleton.Skeleton a)
-
 instance Serialize Block.Track where
     put (Block.Track a b c d) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d

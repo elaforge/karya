@@ -54,9 +54,9 @@ splice_above :: Vertex -> Vertex -> Graph -> Graph
 splice_above new to graph =
     -- If I don't filter p/=new, a duplicate splice will cause a vertex to
     -- loop back to itself.
-    add_edges ((new, to) : [(p, new) | p <- parents, p /= new]) $
-        remove_edges [(p, to) | p <- parents] graph
-    where parents = [p | (p, cs) <- IArray.assocs graph, to `elem` cs]
+    add_edges ((new, to) : [(p, new) | p <- ps, p /= new]) $
+        remove_edges [(p, to) | p <- ps] graph
+    where ps = parents graph to
 
 -- | Splice @new@ into the graph below @to@.  The children of @to@ are
 -- detached and re-attached to @new@.  Then @to@ is attached above @new@.
@@ -67,6 +67,10 @@ splice_below new to graph =
     add_edges ((to, new) : [(new, c) | c <- children, c /= new]) $
         remove_edges (map ((,) to) children) graph
     where children = if Array.in_bounds to graph then graph!to else []
+
+-- | Get the parents of a Vertex.
+parents :: Graph -> Vertex -> [Vertex]
+parents graph v = [p | (p, cs) <- IArray.assocs graph, v `elem` cs]
 
 would_make_cycle :: Edge -> Graph -> Bool
 would_make_cycle (from, to) graph = from == to
@@ -96,9 +100,11 @@ add_edges edges graph =
     add cs c = if c `elem` cs then cs else c:cs
 
 remove_edges :: [Edge] -> Graph -> Graph
-remove_edges edges graph =
-    graph // [(from, filter (`notElem` map snd groups) (graph!from))
-        | (from, groups) <- grouped]
+remove_edges edges graph
+    | null edges = graph
+    | otherwise =
+        graph // [(from, filter (`notElem` map snd groups) (graph!from))
+            | (from, groups) <- grouped]
     where
     in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
     grouped = Seq.keyed_group_sort fst in_bounds

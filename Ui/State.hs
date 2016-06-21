@@ -721,11 +721,20 @@ modify_skeleton block_id f = do
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
 -- created, refuse to add the edge and return False.  The edge is in (parent,
 -- child) order.
-toggle_skeleton_edge :: M m => BlockId -> Skeleton.Edge -> m Bool
-toggle_skeleton_edge block_id edge = do
+toggle_skeleton_edge :: M m => Bool
+    -- ^ If not true, the child's existing parents will be unlinked.
+    -- While a track with multiple parents is possible, and is a way to
+    -- express the same score derived under different conditions, in practice
+    -- I never do that.
+    -> BlockId -> Skeleton.Edge -> m Bool
+toggle_skeleton_edge allow_multiple_parents block_id edge@(_, child) = do
     block <- get_block block_id
     whenJust (edges_in_range block edge) (throw . ("toggle: "<>))
-    let skel = Block.block_skeleton block
+    let parents = map (, child) $
+            Skeleton.parents (Block.block_skeleton block) child
+    let skel = (if allow_multiple_parents then id
+                else Skeleton.remove_edges parents)
+            (Block.block_skeleton block)
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
         Just new_skel -> do

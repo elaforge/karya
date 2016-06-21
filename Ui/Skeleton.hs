@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Operations on 'Skeleton's.
 --
 -- A skeleton is a tree, but it's stored as a "Data.Graph" and converted to
@@ -11,7 +12,18 @@
 -- Data.Graph was probably more of a pain, so maybe someday if I have a lot of
 -- extra time and feel like some aggravation I'll see about redoing Skeleton as
 -- a Tree.  I could also maybe clean up "Ui.TrackTree".
-module Ui.Skeleton where
+module Ui.Skeleton (
+    Skeleton, Edge
+    , empty, make, draw
+    , add_edges, remove_edges
+    , lonely_vertex, flatten, to_forest, parents
+    , insert, remove, toggle_edge
+    , splice_above, splice_below
+    , move
+#ifdef TESTING
+    , module Ui.Skeleton
+#endif
+) where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Graph as Graph
 import qualified Data.List as List
@@ -20,6 +32,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Graph as Graph
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 
 import Global
 import Types
@@ -29,7 +42,8 @@ import Types
 -- used at the UI level only to display the hierarchy visually, but the
 -- deriver level will presumably use it for derivation.  A given track may
 -- appear multiple times or not at all.
-newtype Skeleton = Skeleton Graph.Graph deriving (Read, Show)
+newtype Skeleton = Skeleton Graph.Graph
+    deriving (Read, Show, Serialize.Serialize)
 
 instance Pretty.Pretty Skeleton where
     pretty = pretty . flatten
@@ -51,14 +65,14 @@ empty = Skeleton (Graph.buildG (0, -1) [])
 make :: [Edge] -> Skeleton
 make edges = Skeleton (Graph.build edges)
 
+draw :: Skeleton -> String
+draw (Skeleton graph) = Graph.draw graph
+
 add_edges :: [Edge] -> Skeleton -> Maybe Skeleton
 add_edges edges = acyclic . map_skel (Graph.add_edges edges)
 
 remove_edges :: [Edge] -> Skeleton -> Skeleton
 remove_edges edges = map_skel (Graph.remove_edges edges)
-
-draw :: Skeleton -> String
-draw (Skeleton graph) = Graph.draw graph
 
 lonely_vertex :: Skeleton -> TrackNum -> Bool
 lonely_vertex (Skeleton graph) = Graph.lonely_vertex graph
@@ -76,10 +90,13 @@ to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
      -- that want to deal with tracks left-to-right.
 to_forest ntracks (Skeleton graph) = sort_tree $ Graph.to_forest graph ++ rest
     where -- from 1 past array end to last track index (ntracks-1)
-    rest =
-        [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
-    sort_tree = Seq.sort_on Tree.rootLabel . map (\(Tree.Node val subs) ->
-        Tree.Node val (sort_tree subs))
+    rest = [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
+    sort_tree = Seq.sort_on Tree.rootLabel
+        . map (\(Tree.Node val subs) -> Tree.Node val (sort_tree subs))
+
+-- | Get the parents of a TrackNum.
+parents :: Skeleton -> TrackNum -> [TrackNum]
+parents (Skeleton graph) tracknum = Graph.parents graph tracknum
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert :: TrackNum -> Skeleton -> Skeleton
