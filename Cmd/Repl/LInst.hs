@@ -239,12 +239,17 @@ set_control_defaults inst controls = modify_midi_config inst $
 
 get_midi_config :: State.M m => Score.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
-get_midi_config inst = do
+get_midi_config inst =
+    State.require ("not a midi instrument: " <> pretty inst) =<<
+        lookup_midi_config inst
+
+lookup_midi_config :: State.M m => Score.Instrument
+    -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
+lookup_midi_config inst = do
     StateConfig.Allocation qualified config backend <- get_allocation inst
-    case backend of
-        StateConfig.Midi midi_config -> return (qualified, config, midi_config)
-        _ -> State.throw $ "not a midi instrument: " <> pretty inst <> ": "
-            <> pretty backend
+    return $ case backend of
+        StateConfig.Midi midi_config -> Just (qualified, config, midi_config)
+        _ -> Nothing
 
 modify_config :: State.M m => Instrument
     -> (Common.Config -> Patch.Config -> ((Common.Config, Patch.Config), a))
@@ -400,21 +405,20 @@ initialize_all = mapM_ initialize_inst =<< allocated
 need_initialization :: State.M m => m Text
 need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
     where
-    show1 inst = do
-        (_, _, config) <- get_midi_config inst
+    show1 inst = justm (lookup_midi_config inst) $ \(_, _, config) -> do
         let inits = Patch.config_initialization config
         return $ if null inits then Nothing
             else Just $ pretty inst <> ": " <> pretty inits
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
 initialize_inst :: Cmd.M m => Score.Instrument -> m ()
-initialize_inst inst = do
-    (_, _, config) <- get_midi_config inst
-    let inits = Patch.config_initialization config
-    when (Set.member Patch.Tuning inits) $
-        initialize_tuning inst
-    when (Set.member Patch.Midi inits) $
-        forM_ (Patch.config_addrs config) $ initialize_midi inst
+initialize_inst inst =
+    whenJustM (lookup_midi_config inst) $ \(_, _, config) -> do
+        let inits = Patch.config_initialization config
+        when (Set.member Patch.Tuning inits) $
+            initialize_tuning inst
+        when (Set.member Patch.Midi inits) $
+            forM_ (Patch.config_addrs config) $ initialize_midi inst
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
