@@ -16,6 +16,11 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call.Bali.Gong as Gong
+import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Sub as Sub
+import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 
@@ -40,15 +45,11 @@ kajar_patch =
         <> MidiInst.note_generators generators
     generators = concat
         [ CUtil.drum_calls (Just tuning_control) notes
-        , [ (call,
-            DUtil.doubled_call callee (BaseTypes.unsym call) DUtil.After
-                (RealTime.seconds 0.09) 0.75)
-          | (_, call, callee) <- kajar_doubled
-          ]
+        , [(sym, call) | (_, sym, call) <- kajar_special]
         ]
     char_to_call = Map.fromList $ concat
         [ [(Drums.note_char n, Drums.note_name n) | n <- notes]
-        , [(char, call) | (char, call, _) <- kajar_doubled]
+        , [(char, sym) | (char, sym, _) <- kajar_special]
         ]
     notes = map fst kajar_pitched_notes
 
@@ -59,8 +60,18 @@ kajar_pitched_notes :: CUtil.PitchedNotes
 (kajar_pitched_notes, kajar_resolve_errors) =
     CUtil.resolve_strokes 0.35 keymap kajar_strokes
 
-kajar_doubled :: [(Char, BaseTypes.CallId, BaseTypes.CallId)]
-kajar_doubled = [('c', "oo", "o")]
+kajar_special :: [(Char, BaseTypes.CallId, Derive.Generator Derive.Note)]
+kajar_special =
+    [ ('c', "oo", DUtil.doubled_call "o" "oo" DUtil.After
+        (RealTime.seconds 0.09) 0.75)
+    , ('f', "o..", c_nruk)
+    ]
+
+c_nruk :: Derive.Generator Derive.Note
+c_nruk = Gong.nruk_generator Module.instrument "nruk" "Nruktuk on `o`." $
+    Sub.inverting $ \args -> do
+        gen <- Eval.get_generator "o"
+        Eval.apply_generator (Derive.passed_ctx args) gen []
 
 kajar_strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
 kajar_stops :: [(Drums.Group, [Drums.Group])]

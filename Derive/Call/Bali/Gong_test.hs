@@ -6,6 +6,7 @@ module Derive.Call.Bali.Gong_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
 import Global
 
 
@@ -25,3 +26,10 @@ test_jegog = do
          , (1, 1, "4e", "")
          , (2, 1, "4u", ""), (2, 1, "3u", jegog)
          ], [])
+
+test_nruk = do
+    let run = DeriveTest.extract Score.event_start
+            . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track
+    equal (run [(0, 2, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
+    -- It only emits full duration notes.
+    equal (run [(0, 2.15, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])

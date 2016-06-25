@@ -5,8 +5,12 @@
 -- | Calls to deal with an entire ensemble, or miscellaneous instruments.
 module Derive.Call.Bali.Gong where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Prelude.Trill as Trill
+import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -18,6 +22,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -30,6 +35,7 @@ note_calls = Derive.transformer_call_map
     [ ("pokok", c_pokok)
     , ("J", c_jegog)
     , ("C", c_calung)
+    , ("nruk", c_nruk)
     ]
 
 c_pokok :: Derive.Transformer Derive.Note
@@ -112,3 +118,57 @@ c_jegog = make_pokok "jegog" (BaliScales.scale_range Legong.jegog)
 c_calung :: Derive.Transformer Derive.Note
 c_calung = make_pokok "calung" (BaliScales.scale_range Legong.calung)
     [Score.Instrument "calung-p", Score.Instrument "calung-s"]
+
+c_nruk :: Derive.Transformer Derive.Note
+c_nruk = Derive.transformer module_ "nruk" Tags.inst
+    "Nruktuk, for kajar or gangsa."
+    $ Sig.callt nruk_args nruk
+
+nruk_generator :: Module.Module -> Text -> Text
+    -> (Derive.NoteArgs -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+nruk_generator mod name doc deriver = Derive.generator mod name Tags.inst doc $
+    Sig.call nruk_args $ \params args -> nruk params args (deriver args)
+
+nruk_args :: Sig.Parser (Speed.Speed, Speed.Speed, Signal.Y, BaseTypes.Duration)
+nruk_args = (,,,)
+    <$> Sig.defaulted "start" (Speed.Real 4) "Start speed."
+    <*> Sig.defaulted "end" (Speed.Real 19) "End speed."
+    <*> Sig.defaulted "end-dyn" 0.15
+        "Dyn multiplier when the stroke duration reaches 0."
+    <*> Trill.hold_env
+
+nruk :: (Speed.Speed, Speed.Speed, Signal.Y, BaseTypes.Duration)
+    -> Derive.PassedArgs a -> Derive.NoteDeriver -> Derive.NoteDeriver
+nruk (start_speed, end_speed, end_dyn, hold) args deriver = do
+    starts <- Trill.tremolo_starts_curve curve hold start_speed end_speed
+        (Args.range_or_next args)
+    dyns <- dyn_from_duration end_dyn <$> mapM Derive.real starts
+    realize_nruk (Args.normalized args deriver) (zip starts dyns)
+    where
+    -- TODO it seems like it should start slower, but
+    -- ControlUtil.expon 2 spends too little time fast.
+    curve = id
+
+realize_nruk :: Derive.NoteDeriver -> [(ScoreTime, Signal.Y)]
+    -> Derive.NoteDeriver
+realize_nruk deriver notes = Sub.derive
+    [ Sub.Event start 0 (Call.multiply_dynamic dyn deriver)
+    | (start, dyn) <- notes
+    ]
+
+-- | Decrease dyn as note duration decreases.  Over a threshold, dyn is 1.
+-- Under that it approaches @low_dyn@ as the dur approaches 0.
+dyn_from_duration :: Signal.Y -> [RealTime] -> [Signal.Y]
+dyn_from_duration low_dyn = map dyn_at . durations
+    where
+    dyn_at dur
+        | dur > threshold = 1
+        | otherwise = f dur
+        where f = ControlUtil.make_function id threshold 1 0 low_dyn
+    -- Dyn is 1 above this.
+    threshold = 0.18
+
+durations :: Num a => [a] -> [a]
+durations starts = zipWith (-) (drop 1 starts) starts
+    -- This loses the last one, but it's ok because that's the end time.

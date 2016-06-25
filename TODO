@@ -3,9 +3,27 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - it looks like special kajar calls like 'oo' mess up track signal.
+    . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
+      work for 'o..'.
+    . DUtil.multiple_call doesn't need inverting because it dispatches to
+      call that do invert, right?
+  - track signal display for 'test' messed up in save/test/kajar
+  - do nruk with a static macro
+    alias 'o..' 'nruk | o'
+    . I could modify c_nruk to have a generator version that takes a deriver,
+      but then I have to copy paste it.
+    . How can I inherit args?  StaticMacro is no good because I want the
+      generator to be late bound.  But 'nruk' should be static bound because
+      it's in another module and I want to inherit its args.
+    . What I really want is to inherit args and docs from the transformer, and
+      apply to the generator dynamically.  So something like a static macro
+      where I give all args to one transformer, and the generator is dynamic.
+      I think I can do the former with a special arg, and the latter with an
+      eval "static call".
   * thru on charukesi >wy-s is getting pitch bend, but derive is correct
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
-  - nruktuk for kajar
+  * nruktuk for kajar
   - Use kotekan for >wy with sargam scale.
   * There should be a way to reparent a track, so I don't have manually make
     sure it doesn't have two parents.  Or since I kind of never want two
@@ -1198,6 +1216,12 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - dinga can be realized with a light tha, so maybe I need a "light"
+          modification?
+        - Can I vary 567, 666, 765 automatically?  And 579, etc.
+          . Patterns come in families, and a pattern will use ones from the
+            same family.  But an independent set of patterns would use
+            a different family.
         - Longer patterns tend to have a korvai-specific realization.
           I should keep the PatternMap in Korvai, and pass that in with
           the StrokeMap.

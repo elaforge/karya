@@ -65,6 +65,7 @@ note_calls = Derive.call_maps
 c_note :: Derive.Generator Derive.Note
 c_note = note_call "note" "" mempty (default_note use_attributes)
 
+-- | Create a standard note call with a transformer applied.
 transformed_note :: Text -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note

@@ -23,6 +23,13 @@ test_doubled = do
     equal (run [(1, 0, "oo-time=.5 | oo-dyn=.75 | oo")])
         ([(1, 1, "+center+closed"), (1.5, 0.75, "+center+closed")], [])
 
+test_nruk = do
+    let run notes = DeriveTest.extract extract $ derive "" [(">k", notes)]
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        o = "+center+closed"
+    equal (run [(4, 0, "o.. 2 2"), (6, 0, "+")])
+        ([(4, o), (4.5, o), (5, o), (5.5, o), (6, "+open+rim")], [])
+
 derive :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive = KontaktTest.derive allocs
     where allocs = UiTest.allocations [("k", "kontakt/kajar")]

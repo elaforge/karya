@@ -153,10 +153,11 @@ c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
 
 tremolo_starts :: BaseTypes.Duration -> BaseTypes.ControlRef
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [ScoreTime]
+    -- ^ start time for each note, and one for the end of the last one
 tremolo_starts hold speed (start, end) = do
     hold <- Call.score_duration start hold
     (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
-    add_hold hold <$> case time_type of
+    add_hold (start, end) hold <$> case time_type of
         Typecheck.Real -> do
             start <- Derive.real (start + hold)
             end <- Derive.real end
@@ -165,11 +166,29 @@ tremolo_starts hold speed (start, end) = do
         Typecheck.Score -> do
             starts <- Speed.score_starts speed_sig (start + hold) end
             return $ full_notes end starts
-    where
-    add_hold hold starts
-        | hold >= end - start = [start, end]
-        | hold > 0 = start : starts
-        | otherwise = starts
+
+-- | This is like 'tremolo_starts', but takes a start and end speed instead
+-- of a speed signal.  In exchange, it can have start and end be different
+-- time types, which a signal can't express.  Of course I could make the
+-- signal into duration and then do the reciprocal in the score as a val call,
+-- but that seems too complicated for tracklang.
+tremolo_starts_curve :: ControlUtil.Curve -> BaseTypes.Duration
+    -> Speed.Speed -> Speed.Speed -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [ScoreTime]
+    -- ^ start time for each note, and one for the end of the last one
+tremolo_starts_curve curve hold start_speed end_speed (start, end) = do
+    hold <- Call.score_duration start hold
+    real_range <- (,) <$> Derive.real start <*> Derive.real end
+    (add_hold (start, end) hold . full_notes end <$>) $ mapM Derive.score
+        =<< Speed.starts_curve curve start_speed end_speed real_range True
+        -- include_end=True because the end time is also included.
+
+-- | Add the hold time to the first tremolo note.
+add_hold :: (ScoreTime, ScoreTime) -> ScoreTime -> [ScoreTime] -> [ScoreTime]
+add_hold (start, end) hold starts
+    | hold >= end - start = [start, end]
+    | hold > 0 = start : starts
+    | otherwise = starts
 
 -- | Alternate each note with the other notes within its range, in order from
 -- the lowest track to the highest.
@@ -211,9 +230,10 @@ simple_tremolo starts notes = Sub.derive
 c_attr_tremolo :: Make.Calls Derive.Note
 c_attr_tremolo = Make.attributed_note Module.prelude Attrs.trem
 
--- | This is the tremolo analog to 'full_cycles'.  Unlike a trill, it emits
--- both the starts and ends, and therefore the last sample will be at the end
--- time, rather than before it.  It should always emit an even number of
+-- | Given start times, return only ones whose full duration fits before the
+-- end time.  This is the tremolo analog to 'full_cycles'.  Unlike a trill, it
+-- emits both the starts and ends, and therefore the last sample will be at the
+-- end time, rather than before it.  It should always emit an even number of
 -- elements.
 full_notes :: Ord a => a -> [a] -> [a]
 full_notes end [t]

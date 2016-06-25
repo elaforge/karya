@@ -56,6 +56,7 @@ check :: Util.Control.Stack => String -> Either Text a -> a
 check call_name (Left err) = errorStack $ call_name <> ": " <> untxt err
 check _ (Right val) = val
 
+-- | Create a generator macro from a list of transformers and a generator.
 generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
     -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)

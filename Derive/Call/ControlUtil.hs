@@ -213,9 +213,14 @@ segment srate include_initial include_end curve x1 y1 x2 y2 =
     go [] = Nothing
     go (x:xs)
         | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
-        | otherwise = Just ((x, y_of x), xs)
-    y_of = Num.scale y1 y2 . curve . Num.normalize (secs x1) (secs x2) . secs
-    secs = RealTime.to_seconds
+        | otherwise = Just ((x, y_at x), xs)
+    y_at = make_function curve x1 y1 x2 y2
+
+make_function :: Curve -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> (RealTime -> Signal.Y)
+make_function curve x1 y1 x2 y2 =
+    Num.scale y1 y2 . curve . Num.normalize (secs x1) (secs x2) . secs
+    where secs = RealTime.to_seconds
 
 -- * exponential
 
