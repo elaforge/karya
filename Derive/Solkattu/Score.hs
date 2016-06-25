@@ -236,12 +236,12 @@ t3s = korvais (adi 6) mridangam
     [ -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --              .ta.ka.din.na.__.ka.din.na.dinga
-      reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__.ka.din.na) . dinga
+      reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga)
       . utarangam p5
     , -- .tat.__.dit.__.ta.ka.din.na.__.dinga
       --        .dit.__.ta.ka.din.na.__.dinga
       --               .ta.ka.din.na.__.dinga
-      reduce3 2 dinga (tat.__.dit.__.ta.ka.din.na.__) . dinga
+      reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__.dinga)
       . utarangam p6
 
     , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__)
@@ -255,7 +255,7 @@ t3s = korvais (adi 6) mridangam
         , (ta.ka.din.na, [k, o, o, k])
         , (ka.din.na, [o, o, k])
         , (din, [od])
-        , (dinga, [od, ___])
+        , (dinga, [od, __])
         ]
 
 tisrams :: [Korvai]

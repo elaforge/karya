@@ -23,7 +23,7 @@ module Derive.Solkattu.Dsl (
     , (!)
     , at0, atX, (^)
     -- ** patterns
-    , pat, p5, p6, p7, p666, p567, p765
+    , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- ** combinators
     , tri, tri_, trin
     , duration_of, repeat, join
@@ -31,7 +31,6 @@ module Derive.Solkattu.Dsl (
     -- * transform
     , dropM, takeM
     -- * mridangam
-    , ___
     , k, t, n, d, u, i, o, p
     , od, pk
     , default_patterns
@@ -63,8 +62,9 @@ sollu s = [Sollu s Nothing]
 
 -- ** sollus
 
-__ :: Sequence
-__ = sq Rest
+class Rest a where __ :: a
+instance Rest Sequence where __ = sq Rest
+instance Rest MNote where __ = MRest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
@@ -74,6 +74,7 @@ __3 = __n 3
 __4 = __n 4
 __5 = __n 5
 
+-- | MNote is not a monoid like Sequence, so this can't emit a Rest.
 __n :: Int -> Sequence
 __n n = repeat (n-1) __
 
@@ -151,10 +152,12 @@ tri_ sep seq = join sep [seq, seq, seq]
 trin :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
 trin sep a b c = join sep [a, b, c]
 
-p5, p6, p7 :: Sequence
+p5, p6, p7, p8, p9 :: Sequence
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
+p8 = pat 8
+p9 = pat 9
 
 p666, p567, p765 :: Sequence -> Sequence
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
@@ -175,9 +178,6 @@ reduce3 n sep seq = join sep $ take 3 $ reduce n seq
 
 -- * mridangam
 
-___ :: MNote
-___ = MRest
-
 k, t, n, d, u, i, o, p :: MNote
 k = MNote (Solkattu.Valantalai Solkattu.MKi)
 t = MNote (Solkattu.Valantalai Solkattu.MTa)
@@ -189,7 +189,7 @@ i = MNote (Solkattu.Valantalai Solkattu.MDheem)
 p = MNote (Solkattu.Thoppi Solkattu.MTha)
 o = MNote (Solkattu.Thoppi Solkattu.MThom)
 
--- | do would match score notation, but do is a keyword.
+-- | @do@ would match score notation, but @do@ is a keyword.
 -- Ultimately that's because score uses + for tha, and +o is an attr, while o+
 -- is a bareword.  But perhaps I should change + to p in the score, and then
 -- the left hand can go on the left side?
@@ -202,6 +202,14 @@ pk = MNote (Both Solkattu.MTha Solkattu.MKi)
 default_patterns :: Solkattu.Patterns
 default_patterns = check $ Solkattu.patterns
     [ (5, [k, t, k, n, o])
-    , (6, [k, t, ___, k, n, o])
-    , (7, [k, ___, t, ___, k, n, o])
+    , (6, [k, t, __, k, n, o])
+    , (7, [k, __, t, __, k, n, o])
+    , (9, [k, __, t, __, k, __, n, __, o])
+    ]
+
+patterns2 :: Solkattu.Patterns
+patterns2 = check $ Solkattu.patterns
+    [ (5, [k, n, k, n, o])
+    , (7, [k, t, __, k, n, __, o])
+    , (9, [k, t, __, __, k, n, __, __, o])
     ]
