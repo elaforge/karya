@@ -97,10 +97,10 @@ interpolator_variations_ make c name get_arg =
     ]
     where
     sym = BaseTypes.Symbol
-    next_time_arg = Typecheck.default_real <$>
+    next_time_arg = Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."
-    prev_time_arg = invert . Typecheck.default_real <$>
+    prev_time_arg = invert . Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination, starting before the event."
     invert (BaseTypes.RealDuration t) = BaseTypes.RealDuration (-t)

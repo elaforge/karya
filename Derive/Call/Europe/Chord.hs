@@ -36,7 +36,7 @@ note_calls = Derive.generator_call_map
 data Direction = Unison | Up | Down deriving (Show)
 
 time_env :: Sig.Parser BaseTypes.Duration
-time_env = Typecheck.default_real <$>
+time_env = Typecheck._real <$>
     Sig.environ "time" Sig.Prefixed (Typecheck.real 0.08)
     "Time between notes, if they aren't unison."
 

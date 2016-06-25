@@ -116,7 +116,7 @@ c_porta = generator1 "porta" mempty
     \ represent an idiomatic portamento."
     $ Sig.call ((,,,,)
     <$> Sig.required "to" "Destination value."
-    <*> (Typecheck.default_real <$> Sig.defaulted "time"
+    <*> (Typecheck._real <$> Sig.defaulted "time"
         ControlUtil.default_interpolation_time "Time to reach destination.")
     <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
         "Placement, from before to after the call."

@@ -465,7 +465,7 @@ trill_env start_dir end_dir =
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser BaseTypes.Duration
-hold_env = Typecheck.default_real <$>
+hold_env = Typecheck._real <$>
     Sig.environ (BaseTypes.unsym EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first pitch."
 

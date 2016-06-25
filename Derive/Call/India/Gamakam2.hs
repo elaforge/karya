@@ -500,7 +500,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         -- the duration into intervals-1 parts.
         let len = NonEmpty.length intervals - 1
         end <- get_end start
-            (BaseTypes.multiply_duration time_ len) args
+            (BaseTypes.multiply_duration time_ (fromIntegral len)) args
         let time = (end - start) / fromIntegral len
         pitch <- Call.get_pitch start
         srate <- Call.get_srate

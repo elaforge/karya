@@ -67,7 +67,7 @@ grace_envs :: Sig.Parser (BaseTypes.Duration, Double, BaseTypes.ControlRef)
 grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_place_env
 
 grace_dur_env :: Sig.Parser BaseTypes.Duration
-grace_dur_env = Typecheck.default_real <$>
+grace_dur_env = Typecheck._real <$>
     Sig.environ "dur" Sig.Both default_grace_dur "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double

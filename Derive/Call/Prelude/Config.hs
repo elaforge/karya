@@ -48,7 +48,7 @@ c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
 c_hold :: Derive.Taggable d => Derive.Transformer d
 c_hold = Make.with_environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
     (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
-    Typecheck.default_real
+    Typecheck._real
 
 c_infer_dur :: Derive.Transformer Derive.Note
 c_infer_dur = Derive.transformer Module.prelude "infer-dur" Tags.postproc

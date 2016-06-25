@@ -39,21 +39,23 @@ type Function = RealTime -> Signal.Y
 -- * type wrappers
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
-newtype DefaultReal = DefaultReal { default_real :: BaseTypes.Duration }
+-- This has a short accessor to make unwrapping more concise.
+newtype DefaultReal = DefaultReal { _real :: BaseTypes.Duration }
     deriving (Eq, Show, ShowVal.ShowVal)
 instance Internal.Time DefaultReal where
-    real = Internal.real . default_real
-    score = Internal.score . default_real
-    to_duration = default_real
+    real = Internal.real . _real
+    score = Internal.score . _real
+    to_duration = _real
 
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
-newtype DefaultScore = DefaultScore { default_score :: BaseTypes.Duration }
+-- This has a short accessor to make unwrapping more concise.
+newtype DefaultScore = DefaultScore { _score :: BaseTypes.Duration }
     deriving (Eq, Show, ShowVal.ShowVal)
 
 instance Internal.Time DefaultScore where
-    real = Internal.real . default_score
-    score = Internal.score . default_score
-    to_duration = default_score
+    real = Internal.real . _score
+    score = Internal.score . _score
+    to_duration = _score
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
 -- for default values.  It would be nice to use literals and let type
