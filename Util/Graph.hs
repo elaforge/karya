@@ -42,7 +42,7 @@ draw = Tree.drawForest . map (fmap show) . to_forest
 -- Return Nothing if adding an edge would create a cycle.
 toggle_edge :: Edge -> Graph -> Maybe Graph
 toggle_edge edge graph
-    | has_edge edge graph = Just (remove_edges [edge] graph)
+    | has_edge graph edge = Just (remove_edges [edge] graph)
     | would_make_cycle edge graph = Nothing
     | otherwise = Just $ add_edges [edge] graph
 
@@ -81,8 +81,8 @@ has_cycle :: Graph -> Bool
 has_cycle graph = any (not . null . Tree.subForest) (scc graph)
     || any (uncurry (==)) (edges graph)
 
-has_edge :: Edge -> Graph -> Bool
-has_edge (from, to) graph = Array.in_bounds from graph && to `elem` graph!from
+has_edge :: Graph -> Edge -> Bool
+has_edge graph (from, to) = Array.in_bounds from graph && to `elem` graph!from
 
 -- | A lonely vertex has no edges.
 lonely_vertex :: Graph -> Vertex -> Bool

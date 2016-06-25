@@ -15,7 +15,7 @@
 module Ui.Skeleton (
     Skeleton, Edge
     , empty, make, draw
-    , add_edges, remove_edges
+    , has_edge, add_edges, remove_edges
     , lonely_vertex, flatten, to_forest, parents
     , insert, remove, toggle_edge
     , splice_above, splice_below
@@ -67,6 +67,9 @@ make edges = Skeleton (Graph.build edges)
 
 draw :: Skeleton -> String
 draw (Skeleton graph) = Graph.draw graph
+
+has_edge :: Skeleton -> Edge -> Bool
+has_edge (Skeleton skel) edge = Graph.has_edge skel edge
 
 add_edges :: [Edge] -> Skeleton -> Maybe Skeleton
 add_edges edges = acyclic . map_skel (Graph.add_edges edges)

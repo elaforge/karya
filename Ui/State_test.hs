@@ -24,6 +24,8 @@ test_toggle_skeleton_edge = do
             Skeleton.flatten <$> State.get_skeleton bid
     equal (run True (1, 3)) (Right [(1, 2), (1, 3), (2, 3)])
     equal (run False (1, 3)) (Right [(1, 2), (1, 3)])
+    equal (run True (2, 3)) (Right [(1, 2)])
+    equal (run False (2, 3)) (Right [(1, 2)])
 
 test_skeleton_cycles = do
     let bid = UiTest.default_block_id

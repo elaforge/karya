@@ -730,16 +730,17 @@ toggle_skeleton_edge :: M m => Bool
 toggle_skeleton_edge allow_multiple_parents block_id edge@(_, child) = do
     block <- get_block block_id
     whenJust (edges_in_range block edge) (throw . ("toggle: "<>))
-    let parents = map (, child) $
-            Skeleton.parents (Block.block_skeleton block) child
-    let skel = (if allow_multiple_parents then id
-                else Skeleton.remove_edges parents)
-            (Block.block_skeleton block)
+    let skel = drop_parents (Block.block_skeleton block)
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
         Just new_skel -> do
             set_block block_id $ block { Block.block_skeleton = new_skel }
             return True
+    where
+    drop_parents skel
+        | allow_multiple_parents || Skeleton.has_edge skel edge = skel
+        | otherwise = Skeleton.remove_edges parents skel
+        where parents = map (, child) (Skeleton.parents skel child)
 
 -- | Add the edges to the skeleton.  Throw if they would produce a cycle.
 add_edges :: M m => BlockId -> [Skeleton.Edge] -> m ()
