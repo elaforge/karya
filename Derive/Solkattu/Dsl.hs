@@ -28,8 +28,9 @@ module Derive.Solkattu.Dsl (
     , tri, tri_, trin
     , duration_of, repeat, join
     , reduce, reduce3
+    , reduceR, reduceR3
     -- * transform
-    , dropM, takeM
+    , dropM, takeM, rdropM
     -- * mridangam
     , k, t, n, d, u, i, o, p
     , od, pk
@@ -45,7 +46,7 @@ import Util.Pretty (pprint)
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu
        (Sequence, Korvai, Matras, Note(..), Sollu(..), Stroke(..),
-        MNote(..), check, duration_of, dropM, takeM)
+        MNote(..), check, duration_of, dropM, takeM, rdropM)
 import Global
 
 
@@ -175,6 +176,12 @@ reduce n = iterate (dropM n)
 
 reduce3 :: Matras -> Sequence -> Sequence -> Sequence
 reduce3 n sep seq = join sep $ take 3 $ reduce n seq
+
+reduceR :: Matras -> Sequence -> [Sequence]
+reduceR n = iterate (rdropM n)
+
+reduceR3 :: Matras -> Sequence -> Sequence -> Sequence
+reduceR3 n sep seq = join sep $ take 3 $ reduceR n seq
 
 -- * mridangam
 

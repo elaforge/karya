@@ -200,6 +200,9 @@ takeM matras (n:ns) = case n of
     Alignment {} -> takeM matras ns
     TimeChange {} -> takeM matras ns
 
+rdropM :: Matras -> Sequence -> Sequence
+rdropM matras = reverse . dropM matras . reverse
+
 -- * realize
 
 data Korvai = Korvai {
