@@ -1224,10 +1224,10 @@ Derive:
           reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
-        - The error msg is confusing:
-          . mridangam map ([tang, __, ga], [u, -, -]): sollus and strokes have
+        * The error msg is confusing:
+          . mridangam map ([tang, __, ga], [u, __, __]): sollus and strokes have
             differing lengths
-          . It should make clear that it's [tang__, ga], so needs [u, -]
+          . It should make clear that it's [tang__, ga], so needs [u, __]
         - Can I vary 567, 666, 765 automatically?  And 579, etc.
           . Any 666 can be 567, 666, 765.  Any 777 can be 678 or 579.
           . I think it should be a Sequence -> [Sequence].

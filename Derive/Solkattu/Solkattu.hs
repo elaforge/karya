@@ -131,7 +131,7 @@ initial_state tala = State 0 0 0 S1 (tala_nadai tala)
 -- fall where expected.
 verify_alignment :: Tala -> [Note] -> Either [Text] [Note]
 verify_alignment tala =
-    check . filter (/= Left "")
+    verify_result . filter (/= Left "")
         . snd . List.mapAccumL verify (initial_state tala)
         . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
     where
@@ -142,7 +142,7 @@ verify_alignment tala =
         Alignment align -> (state, verify_align state align)
         TimeChange change -> (time_change change state, Right note)
         where advance n = advance_state tala n state
-    check vals
+    verify_result vals
         | null errs = Right ok
         | otherwise = Left $
             map (either id (Text.unwords . map pretty)) (group_rights vals)
@@ -220,9 +220,9 @@ newtype StrokeMap = StrokeMap (Map.Map [Sollu] [Maybe Stroke])
     deriving (Show, Pretty.Pretty, Monoid.Monoid)
 
 stroke_map :: [(Sequence, [MNote])] -> Either Text StrokeMap
-stroke_map = unique <=< mapM check
+stroke_map = unique <=< mapM verify
     where
-    check (sollus, strokes) = do
+    verify (sollus, strokes) = do
         let throw = Left
                 . (("mridangam map " <> pretty (sollus, strokes) <> ": ") <>)
         sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
@@ -234,7 +234,8 @@ stroke_map = unique <=< mapM check
             MRest -> Right Nothing
             s -> throw $ "should have plain strokes: " <> showt s
         unless (length sollus == length strokes) $
-            throw "sollus and strokes have differing lengths"
+            throw "sollus and strokes have differing lengths after removing\
+                \ sollu rests"
         return (sollus, strokes)
     unique pairs
         | null dups = Right (StrokeMap smap)
