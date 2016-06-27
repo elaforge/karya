@@ -10,7 +10,6 @@ import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix as Posix
 
-import qualified App.Config as Config
 import qualified App.ReplUtil as ReplUtil
 
 
@@ -23,9 +22,9 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | I don't expect any newlines in the sent message.
-send :: Text -> IO (Text, [Text]) -- ^ (response, logs)
-send msg = do
-    hdl <- Network.connectTo "localhost" Config.repl_port
+send :: FilePath -> Text -> IO (Text, [Text]) -- ^ (response, logs)
+send socket msg = do
+    hdl <- Network.connectTo "localhost" (Network.UnixSocket socket)
     ByteString.Char8.hPutStr hdl $ ReplUtil.encode_request $
         Text.replace "\n" " " $ Text.strip msg
     IO.hFlush hdl

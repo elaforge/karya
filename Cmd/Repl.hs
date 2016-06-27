@@ -4,6 +4,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {- | Process a textual language, which may look familiar, to perform UI state
     changes.
 
@@ -16,13 +17,17 @@
     source files are newer?
 -}
 module Cmd.Repl (
-    Session, make_session, interpreter, repl
+    with_socket
+    , Session, make_session, interpreter, repl
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.ByteString.Char8 as ByteString.Char8
+import qualified Network
 
+import qualified System.Directory as Directory
 import qualified System.IO as IO
+import qualified Util.File as File
 import qualified Util.Log as Log
 
 import qualified Ui.State as State
@@ -39,9 +44,31 @@ import qualified Cmd.ReplStub as ReplImpl
 #endif
 
 import qualified Derive.Parse as Parse
+import qualified App.Config as Config
 import qualified App.ReplUtil as ReplUtil
 import Global
 
+
+-- | Acquire a new unix socket, and delete when done.
+--
+-- This tries to find an unused socket name.  It might seem like overkill, but
+-- the previous strategy of unconditionally deleting and recreating the single
+-- socket meant that accidentally starting the app twice in the same directory
+-- would make the first one unreachable.
+with_socket :: (Network.Socket -> IO a) -> IO a
+with_socket app = do
+    (fname, socket) <- try_socket
+        (Config.repl_port : [Config.repl_port <> "." <> show n | n <- [1..4]])
+    app socket `Exception.finally`
+        File.ignoreEnoent (Directory.removeFile fname)
+    where
+    -- Let the exception through on the last try.
+    try_socket [fname] = (fname,) <$> listen fname
+    try_socket (fname : fnames) = File.ignoreIOError (listen fname) >>= \case
+        Nothing -> try_socket fnames
+        Just socket -> return (fname, socket)
+    try_socket []= errorIO "no socket files?"
+    listen = Network.listenOn . Network.UnixSocket
 
 -- | This is the persistent interpreter session which is stored in the global
 -- state.

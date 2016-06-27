@@ -14,6 +14,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Console.Haskeline as Haskeline
+import qualified System.Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
@@ -22,8 +23,10 @@ import qualified Util.Thread as Thread
 
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
+import qualified App.Config as Config
 import qualified App.ReplUtil as ReplUtil
 import qualified App.SendCmd as SendCmd
+
 import Global
 
 
@@ -46,13 +49,18 @@ type CurrentHistory = MVar.MVar (Maybe FilePath)
 
 main :: IO ()
 main = SendCmd.initialize $ do
+    args <- System.Environment.getArgs
+    socket <- case args of
+        [] -> return Config.repl_port
+        [fn] -> return fn
+        _ -> errorIO $ "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
     liftIO $ putStrLn "^D to quit"
     log_fname <- Tail.log_filename
     done <- MVar.newEmptyMVar
     repl_thread <- Thread.start_logged "repl" $ do
-        repl initial_settings
+        repl socket initial_settings
         MVar.putMVar done ()
     Thread.start_logged "watch_log" $
         watch_log repl_thread Nothing =<< Tail.open log_fname (Just 0)
@@ -77,8 +85,8 @@ data SaveFileChanged = SaveFileChanged FilePath deriving (Show)
 instance Exception.Exception SaveFileChanged
 
 
-repl :: Haskeline.Settings IO -> IO ()
-repl settings = Exception.mask (loop settings)
+repl :: FilePath -> Haskeline.Settings IO -> IO ()
+repl socket settings = Exception.mask (loop settings)
     where
     loop settings restore = do
         status <- restore (Haskeline.runInputT settings
@@ -105,7 +113,8 @@ repl settings = Exception.mask (loop settings)
             | null input -> return $ Continue Nothing
             | otherwise -> do
                 response <- liftIO $ Exception.handle catch_all $
-                    ReplUtil.format_response <$> SendCmd.send (Text.pack input)
+                    ReplUtil.format_response <$>
+                        SendCmd.send socket (Text.pack input)
                 unless (Text.null response) $
                     liftIO $ Text.IO.putStrLn response
                 return $ Continue Nothing

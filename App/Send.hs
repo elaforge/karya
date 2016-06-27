@@ -19,6 +19,7 @@ import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
+import qualified App.Config as Config
 import qualified App.SendCmd as SendCmd
 import Global
 
@@ -43,11 +44,13 @@ main = SendCmd.initialize $ do
     forM_ msgs $ \msg -> do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
-            ((response, logs), time) <- timed $ SendCmd.send (Text.pack msg)
+            ((response, logs), time) <- timed $
+                SendCmd.send Config.repl_port (Text.pack msg)
             printLogs logs
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            (response, logs) <- SendCmd.send (Text.pack msg <> "\n")
+            (response, logs) <-
+                SendCmd.send Config.repl_port (Text.pack msg <> "\n")
             printLogs logs
             unless (Text.null response) $
                 Text.IO.putStrLn response

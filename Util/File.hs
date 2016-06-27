@@ -90,8 +90,8 @@ ignoreEnoent = ignoreError IO.Error.isDoesNotExistError
 -- | Ignore all IO errors.  This is useful when you want to see if a file
 -- exists, because some-file/x will not give ENOENT, but ENOTDIR, which is
 -- probably isIllegalOperation.
-ignoreIO :: IO a -> IO (Maybe a)
-ignoreIO = ignoreError (\(_ :: IO.Error.IOError) -> True)
+ignoreIOError :: IO a -> IO (Maybe a)
+ignoreIOError = ignoreError (\(_ :: IO.Error.IOError) -> True)
 
 ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
 ignoreError ignore action = Exception.handleJust (guard . ignore)

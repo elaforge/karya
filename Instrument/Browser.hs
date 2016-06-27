@@ -248,9 +248,9 @@ quote s
 -- @change_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: InstTypes.Qualified -> IO ()
 choose_instrument qualified = do
-    let cmd = "change_instrument " ++ show (InstTypes.show_qualified qualified)
-    putStrLn $ "send: " ++ cmd
-    (response, logs) <- SendCmd.send (txt cmd)
+    let cmd = "change_instrument " <> showt (InstTypes.show_qualified qualified)
+    Text.IO.putStrLn $ "send: " <> cmd
+    (response, logs) <- SendCmd.send Config.repl_port cmd
         `Exception.catch` \(exc :: Exception.SomeException) ->
             return ("error: " <> showt exc, [])
     mapM_ Text.IO.putStrLn logs

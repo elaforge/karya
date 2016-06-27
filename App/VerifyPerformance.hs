@@ -114,7 +114,8 @@ verify_me_txt = "verify-me.txt"
 -- contents.
 expand_verify_me :: FilePath -> IO [FilePath]
 expand_verify_me fname = do
-    m_contents <- File.ignoreIO $ Text.IO.readFile (fname </> verify_me_txt)
+    m_contents <- File.ignoreIOError $
+        Text.IO.readFile (fname </> verify_me_txt)
     return $ case m_contents of
         Nothing -> [fname]
         Just contents -> map ((fname</>) . untxt) $ Text.lines contents

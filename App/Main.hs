@@ -72,7 +72,7 @@ max_log_size :: Int
 max_log_size = 4 * mb
     where mb = 1024^2
 
-initialize :: (Network.Socket -> Interface.Interface -> IO ()) -> IO ()
+initialize :: (Interface.Interface -> Network.Socket -> IO ()) -> IO ()
 initialize app = do
     log_fn <- Tail.log_filename
     log_hdl <- Tail.rotate_logs 4 max_log_size log_fn
@@ -80,16 +80,14 @@ initialize app = do
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> errorStack $ "initializing midi: " ++ err
         Right midi_interface -> Network.withSocketsDo $ do
-            Config.initialize_repl_port
-            socket <- Network.listenOn Config.repl_port
             midi_interface <- Interface.track_interface midi_interface
-            Git.initialize $ app socket midi_interface
+            Git.initialize $ Repl.with_socket $ app midi_interface
     where
     want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
     want_message _ = True
 
 main :: IO ()
-main = initialize $ \repl_socket midi_interface -> do
+main = initialize $ \midi_interface repl_socket -> do
 #ifdef USE_EKG
     System.Remote.Monitoring.forkServer "localhost" 8080
 #endif

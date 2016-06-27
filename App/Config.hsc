@@ -8,13 +8,10 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
 import qualified Data.String as String
-import qualified Network
-import qualified System.Directory as Directory
 import qualified System.Info
 import qualified System.FilePath as FilePath
 
 import qualified Util.Array as Array
-import qualified Util.File as File
 import qualified Util.Thread as Thread
 
 import qualified Ui.Color as Color
@@ -152,12 +149,8 @@ status_integrate_source = (8, "src")
 -- * repl
 
 -- | Port to listen on for repl requests.
-repl_port :: Network.PortID
-repl_port = Network.UnixSocket "seq-repl"
-
-initialize_repl_port :: IO ()
-initialize_repl_port =
-    void $ File.ignoreEnoent $ Directory.removeFile "seq-repl"
+repl_port :: FilePath
+repl_port = "seq-repl"
 
 -- * input
 
