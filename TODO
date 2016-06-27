@@ -8,7 +8,11 @@ UNSORTED
       work for 'o..'.
     . DUtil.multiple_call doesn't need inverting because it dispatches to
       call that do invert, right?
-  - track signal display for 'test' messed up in save/test/kajar
+    . Actually it's pretty pernicious, because without inverting, doubled_call
+      will still appear to work because the underlying call inverts.  But
+      TrackSignal gets messed up, and if it did anything based on controls
+      then they would not take child controls into account.
+    . Why is TrackSignal messed up though?
   - do nruk with a static macro
     alias 'o..' 'nruk | o'
     . I could modify c_nruk to have a generator version that takes a deriver,
@@ -1216,15 +1220,28 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - put sep argument second, so e.g. 'tri p6 (tang.ga)', this way it
+          reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
+        - The error msg is confusing:
+          . mridangam map ([tang, __, ga], [u, -, -]): sollus and strokes have
+            differing lengths
+          . It should make clear that it's [tang__, ga], so needs [u, -]
         - Can I vary 567, 666, 765 automatically?  And 579, etc.
-          . Patterns come in families, and a pattern will use ones from the
-            same family.  But an independent set of patterns would use
-            a different family.
+          . Any 666 can be 567, 666, 765.  Any 777 can be 678 or 579.
+          . I think it should be a Sequence -> [Sequence].
+          . Since the 'tri' is not preserved, it would have to infer from
+            3 patterns.  Initially I can just infer, maybe later I'll have to
+            mark them explicitly as a 'family'.
+        . Patterns come in families, and a pattern will use ones from the
+          same family.  But an independent set of patterns would use
+          a different family.
         - Longer patterns tend to have a korvai-specific realization.
           I should keep the PatternMap in Korvai, and pass that in with
           the StrokeMap.
+          . If I'm going to do that, why have patterns as a separate concept
+            at all?  Maybe I should have a more general concept of alternates.
         * I have dinga as (din.__.ga, [od, __, __])
           But from patterns don't have rests.
           . I could make them have rests, but then tdgnt would have to be

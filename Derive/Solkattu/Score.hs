@@ -188,36 +188,48 @@ t_sarva1 =
 
 t1s :: [Korvai]
 t1s = korvais (adi 6) mridangam
-    [ reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din.__.__)
-        . tri_ (dheem!u . __3) p5
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din.__)
-        . tri_ (dheem!u . __3) p6
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din!p)
-        . tri_ (dheem!u . __3) p7
+    [ reduce (tat.__.dit.__.ta.ka.din.na.din.__.__)   . utarangam p5
+    , reduce (tat.__.dit.__.ta.ka.din.na.din.__)      . utarangam p6
+        -- 567, 765
+    , reduce (tat.__.dit.__.ta.ka.din.na.din!p)       . utarangam p7
+        -- 579, 975
+    , reduce (tat.__.dit.__.ta.ka.din.na)             . utarangam p8
+    , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
     ]
     where
+    utarangam p = tri_ (tang.ga) p
+    reduce = reduce3 2 mempty
     mridangam =
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka.din.na, [k, o, o, k])
+        , (ta.ka.din, [k, o, o])
         , (din, [od])
+        , (tang.ga, [u, __])
         ]
 
 t2s :: [Korvai]
 t2s = korvais (adi 6) mridangam
-    [ reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__5)   . tri p5
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)   . tri p6
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__3)   . tri p7
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__)    . tri pat8
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.din!p)       . tri pat9
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na)             . tri pat10
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din)                . tri pat11
+    [ reduce (tat.__.dit.__.ta.ka.din.na.dheem.__5) . tri p5
+    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__4) . tri p6
+    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__3) . tri p7
+    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__)  . tri (ta.din.__.p5)
+    , reduce (tat.__.dit.__.ta.ka.din.na.din!p)     . tri (ta.__.din.__.p5)
+    , reduce (tat.__.dit.__.ta.ka.din.na)           . tri (ta.ka.ta.din.__.p5)
+    , reduce (tat.__.dit.__.ta.ka.din)             . tri (ta.ka.__.ta.din.__.p5)
+
+    , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.dinga.p7)
+        -- any 'tri (--.p7)' can become 'tri (--.p{5,7,9})'
+    , reduce (tat.__.dit.__.ta.ka.din)
+        . trin mempty (ta.dinga.p5) (ta.dinga.p7) (ta.dinga.p9)
+    , let tadin n = repeat n (ta.din.__) in
+      reduce (tat.__.dit.__.ta.ka.din)
+        . tadin 1 . p5 . tadin 2 . p5 . tadin 3 . p5
+
+    , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.din.__.p8)
     ]
     where
-    pat8 = ta.din.__.p5
-    pat9 = ta.__.din.__.p5
-    pat10 = ta.ka.ta.din.__.p5
-    pat11 = ta.ka.__.ta.din.__.p5
+    reduce = reduce3 2 mempty
     mridangam =
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -227,7 +239,7 @@ t2s = korvais (adi 6) mridangam
         , (ta.ka, [k, p])
         , (dheem, [od])
         , (din, [od])
-        -- pat8 -- pat11
+        , (ta.din.ga, [k, od, __])
         , (ta.din, [k, od])
         ]
 
@@ -236,19 +248,17 @@ t3s = korvais (adi 6) mridangam
     [ -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
       --              .ta.ka.din.na.__.ka.din.na.dinga
-      reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga)
-      . utarangam p5
+      reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
     , -- .tat.__.dit.__.ta.ka.din.na.__.dinga
       --        .dit.__.ta.ka.din.na.__.dinga
       --               .ta.ka.din.na.__.dinga
-      reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__.dinga)
-      . utarangam p6
+      reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
 
-    , reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.__)
-      . utarangam p7
+    , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
     ]
     where
     utarangam p = tri p . dinga!u . tri_ __ p . dinga!u . tri_ __3 p
+    reduce = reduce3 2 mempty
     mridangam =
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -275,7 +285,12 @@ adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 
 realizes :: [Solkattu.Korvai] -> IO ()
-realizes ks = sequence_ $ List.intersperse (putStrLn "\n----") (map realize ks)
+realizes ks =
+    sequence_ $ List.intersperse (putChar '\n') $ map realize1 (zip [0..] ks)
+    where
+    realize1 (i, korvai) = do
+        putStrLn $ "---- " ++ show i
+        realize korvai
 
 realize :: Solkattu.Korvai -> IO ()
 realize korvai = Text.IO.putStrLn $ case result of

@@ -42,6 +42,8 @@ data TimeChange = Speed Speed | Nadai Matras
 -- documented in 'Matras', this is a nonstandard use of the term.
 data Speed = S1 | S2 | S3 | S4 deriving (Eq, Ord, Show, Bounded, Enum)
 
+instance Pretty.Pretty Speed where pretty = showt
+
 speed_factor :: Speed -> Double
 speed_factor s = case s of
     S1 -> 1
@@ -278,7 +280,7 @@ instance Pretty.Pretty Stroke where
             MDheem -> "pi"
         MThom -> Text.toUpper (pretty v)
 instance Pretty.Pretty MNote where
-    pretty MRest = "-"
+    pretty MRest = "__"
     pretty (MNote s) = pretty s
     pretty (MTimeChange change) = pretty change
 
