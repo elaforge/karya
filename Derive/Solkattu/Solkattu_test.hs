@@ -7,11 +7,12 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
+import qualified Derive.Solkattu.Dsl as Dsl
+import Derive.Solkattu.Dsl (ta, di, ki, __)
+import qualified Derive.Solkattu.Patterns as Patterns
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu
        (Note(..), Sollu(..), Stroke(..), Valantalai(..))
-import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, ki, __)
 
 import Global
 
@@ -31,7 +32,8 @@ test_verify_alignment = do
 
 test_realize_mridangam = do
     let f = (Text.unlines *** show_strokes)
-            . Solkattu.realize_mridangam Dsl.default_patterns smap
+            . Solkattu.realize_mridangam mridangam
+        mridangam = Solkattu.Mridangam smap Patterns.defaults
         smap = Solkattu.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])

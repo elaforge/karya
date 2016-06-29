@@ -4,10 +4,8 @@
 
 module Derive.Solkattu.Score_test where
 import Util.Test
-import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Solkattu.Dsl as Dsl
 import qualified Derive.Solkattu.Score as Score
-
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
@@ -21,5 +19,4 @@ test_kandams = do
     equal [err | Left err <- map realize Score.kandams] []
 
 realize :: Solkattu.Korvai -> Either Text [Solkattu.MNote]
-realize korvai =
-    Solkattu.realize_korvai Dsl.default_patterns korvai
+realize = Solkattu.realize_korvai

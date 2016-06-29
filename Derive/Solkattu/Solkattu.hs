@@ -209,7 +209,7 @@ rdropM matras = reverse . dropM matras . reverse
 
 data Korvai = Korvai {
     korvai_sequence :: Sequence
-    , korvai_mridangam :: StrokeMap
+    , korvai_mridangam :: Mridangam
     , korvai_tala :: Tala
     } deriving (Show)
 
@@ -245,7 +245,7 @@ stroke_map = unique <=< mapM verify
 -- | Matras should equal length [MNote].  This is enforced in the constructor
 -- 'patterns'.
 newtype Patterns = Patterns (Map.Map Matras [MNote])
-    deriving (Show)
+    deriving (Show, Pretty.Pretty, Monoid.Monoid)
 
 patterns :: [(Matras, [MNote])] -> Either Text Patterns
 patterns pairs
@@ -305,15 +305,37 @@ instance Pretty.Pretty Korvai where
         , ("tala", Pretty.format tala)
         ]
 
--- | Check for errors and construct a 'Korvai'.
-korvai :: Tala -> [(Sequence, [MNote])] -> Sequence -> Either Text Korvai
-korvai tala mridangam sequence = do
-    smap <- stroke_map mridangam
-    return $ Korvai
-        { korvai_sequence = sequence
-        , korvai_mridangam = smap <> standard_stroke_map
-        , korvai_tala = tala
+-- | Sollu to mridangam stroke mapping.
+data Mridangam = Mridangam {
+    mridangam_stroke_map :: StrokeMap
+    , mridangam_patterns :: Patterns
+    } deriving (Show)
+
+instance Monoid.Monoid Mridangam where
+    mempty = Mridangam mempty mempty
+    mappend (Mridangam a1 b1) (Mridangam a2 b2) = Mridangam (a1<>a2) (b1<>b2)
+
+instance Pretty.Pretty Mridangam where
+    format (Mridangam stroke_map patterns) = Pretty.record "Mridangam"
+        [ ("stroke_map", Pretty.format stroke_map)
+        , ("patterns", Pretty.format patterns)
+        ]
+
+mridangam :: [(Sequence, [MNote])] -> Patterns -> Either Text Mridangam
+mridangam strokes patterns = do
+    smap <- stroke_map strokes
+    return $ Mridangam
+        { mridangam_stroke_map = smap <> standard_stroke_map
+        , mridangam_patterns = patterns
         }
+
+-- | Check for errors and construct a 'Korvai'.
+korvai :: Tala -> Mridangam -> Sequence -> Korvai
+korvai tala mridangam sequence = Korvai
+    { korvai_sequence = sequence
+    , korvai_mridangam = mridangam
+    , korvai_tala = tala
+    }
 
 standard_stroke_map :: StrokeMap
 standard_stroke_map = StrokeMap $ Map.fromList
@@ -325,13 +347,13 @@ standard_stroke_map = StrokeMap $ Map.fromList
     ]
 
 -- | Realize a Korvai in mridangam strokes.
-realize_korvai :: Patterns -> Korvai -> Either Text [MNote]
-realize_korvai patterns korvai = first Text.unlines $ do
+realize_korvai :: Korvai -> Either Text [MNote]
+realize_korvai korvai = first Text.unlines $ do
     rnotes <- verify_alignment (korvai_tala korvai) (korvai_sequence korvai)
-    realize_mridangam patterns (korvai_mridangam korvai) rnotes
+    realize_mridangam (korvai_mridangam korvai) rnotes
 
-realize_mridangam :: Patterns -> StrokeMap -> [Note] -> Either [Text] [MNote]
-realize_mridangam (Patterns patterns) smap = format_error . go
+realize_mridangam :: Mridangam -> [Note] -> Either [Text] [MNote]
+realize_mridangam (Mridangam smap (Patterns patterns)) = format_error . go
     where
     go :: [Note] -> ([[MNote]], Maybe (Text, [Note]))
     go [] = ([], Nothing)

@@ -1237,7 +1237,7 @@ Derive:
         . Patterns come in families, and a pattern will use ones from the
           same family.  But an independent set of patterns would use
           a different family.
-        - Longer patterns tend to have a korvai-specific realization.
+        * Longer patterns tend to have a korvai-specific realization.
           I should keep the PatternMap in Korvai, and pass that in with
           the StrokeMap.
           . If I'm going to do that, why have patterns as a separate concept

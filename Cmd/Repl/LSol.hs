@@ -2,9 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for "Derive.Call.India.Solkattu".  This re-exports
--- "Derive.Solkattu.Score" so I can write korvais there and directly
--- insert them into the score from here.
+-- | Utilities for solkattu.  This re-exports "Derive.Solkattu.Score" so I can
+-- write korvais there and directly insert them into the score from here.
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Derive.Solkattu.Score
@@ -16,9 +15,8 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
-import qualified Derive.Solkattu.Dsl as Dsl
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Score
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Types
 
 
@@ -33,8 +31,7 @@ replace akshara_dur korvai = do
 
 realize_korvai :: State.M m => TrackTime -> Solkattu.Korvai -> m Events.Events
 realize_korvai stroke_dur korvai = do
-    strokes <- State.require_right id $
-        Solkattu.realize_korvai Dsl.default_patterns korvai
+    strokes <- State.require_right id $ Solkattu.realize_korvai korvai
     return $ Events.from_list
         [ Event.event start 0 (Solkattu.stroke_to_call stroke)
         | (start, Solkattu.MNote stroke)

@@ -10,7 +10,9 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Log as Log
 import Derive.Solkattu.Dsl
+import qualified Derive.Solkattu.Patterns as Patterns
 import qualified Derive.Solkattu.Solkattu as Solkattu
+
 import Global
 
 
@@ -36,7 +38,7 @@ c1s = korvais (adi 4) mridangam
     where
     theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . ta.ka.din.na.din
         . tri (ta . __n (gap2+1) . din . __n gap1)
-    mridangam =
+    mridangam = make_mridangam
         [ (ta.dit, [k, t])
         , (dit, [k])
         , (ta.ka.din.na.din, [k, o, o, k, o])
@@ -48,14 +50,6 @@ c1s = korvais (adi 4) mridangam
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
 
-c1_mridangam :: [(Sequence, [MNote])]
-c1_mridangam =
-    [ (ta.dit, [k, t])
-    , (dit, [k])
-    , (ta.ka.din.na.din, [k, o, o, k, o])
-    , (ta.din, [k, od])
-    ]
-
 chatusrams :: [Korvai]
 chatusrams = concat
     [ c1s
@@ -63,11 +57,11 @@ chatusrams = concat
 
 -- * kanda nadai
 
-make_k1 :: Sequence -> Either Text Korvai
-make_k1 = Solkattu.korvai (adi 5) k1_mridangam
+make_k1 :: Sequence -> Korvai
+make_k1 = korvai (adi 5) k1_mridangam
 
 make_k1_1 :: Sequence -> Sequence -> Korvai
-make_k1_1 pt gap = check $ make_k1 $
+make_k1_1 pt gap = make_k1 $
       at0 . k1_a  . __ . ta . din . __n (10 - pdur) . pt
     . atX . k1_a' . __ . ta . din . __n (10 - pdur) . pt
     . at0 . ta . __ . di . __ . ki . ta . __ . gap
@@ -85,7 +79,7 @@ k1_1s = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
     where gaps = [thom.__.ta.__, thom.__3, thom.__, thom, mempty]
 
 k1_2 :: Korvai
-k1_2 = check $ make_k1 $
+k1_2 = make_k1 $
       at0 . k1_a  . __ . ta_din_ . p7
     . atX . k1_a' . __ . ta_din_ . p7
     . at0 . k1_a . __ . k1_a' . __
@@ -98,7 +92,7 @@ k1_2 = check $ make_k1 $
     tadin_ = ta.din.__
 
 k1_3 :: Korvai
-k1_3 = check $ make_k1 $
+k1_3 = make_k1 $
       k1_a  . __ . tata_dindin_ . p6 . __
     . k1_a' . __ . tata_dindin_ . ta.ka.p6 . __
     . k1_a . __ . k1_a' . __ . tata_dindin_
@@ -112,8 +106,8 @@ k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
-k1_mridangam :: [(Sequence, [MNote])]
-k1_mridangam =
+k1_mridangam :: Mridangam
+k1_mridangam = make_mridangam
     [ (ta, [k])
     , (ta.ka, [k, p])
     , (ta.ka.ti.ku, [k, p, n, p])
@@ -123,7 +117,7 @@ k1_mridangam =
     ]
 
 k2 :: Bool -> Korvai
-k2 chatusram_transition = check $ Solkattu.korvai (adi 5) k1_mridangam $
+k2 chatusram_transition = korvai (adi 5) k1_mridangam $
       din.__3 . p5.tam.__4.p6.ta.__
     . din.__3 . p5.tam.__4.p6.ta.__.ta.__
     . din.__3 . p5
@@ -154,7 +148,7 @@ k3s = korvais (adi 5) mridangam
     tangkita = s2 (tang . kitataka . tarikitataka)
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
-    mridangam =
+    mridangam = make_mridangam
         [ (dit, [pk])
         , (ta.ki.ta, [p, k, od])
         , (ta.ka, [p, k])
@@ -199,7 +193,7 @@ t1s = korvais (adi 6) mridangam
     where
     utarangam p = tri_ (tang.ga) p
     reduce = reduce3 2 mempty
-    mridangam =
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka.din.na, [k, o, o, k])
@@ -230,7 +224,7 @@ t2s = korvais (adi 6) mridangam
     ]
     where
     reduce = reduce3 2 mempty
-    mridangam =
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka.din.na, [k, o, o, k])
@@ -259,7 +253,7 @@ t3s = korvais (adi 6) mridangam
     where
     utarangam p = tri p . dinga!u . tri_ __ p . dinga!u . tri_ __3 p
     reduce = reduce3 2 mempty
-    mridangam =
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka.din.na, [k, o, o, k])
@@ -275,11 +269,15 @@ tisrams = concat
 
 -- * realize
 
-korvais :: Log.Stack => Solkattu.Tala -> [(Sequence, [MNote])] -> [Sequence]
+make_mridangam :: Log.Stack => [(Sequence, [MNote])] -> Mridangam
+make_mridangam strokes = check $ Solkattu.mridangam strokes Patterns.defaults
+
+korvais :: Log.Stack => Solkattu.Tala -> Mridangam -> [Sequence]
     -> [Korvai]
-korvais tala mridangam sollus = zipWith korvai1 [0..] sollus
-    where
-    korvai1 i s = Solkattu.check_msg (show i) $ Solkattu.korvai tala mridangam s
+korvais tala mridangam = map (korvai tala mridangam)
+
+korvai :: Solkattu.Tala -> Mridangam -> Sequence -> Solkattu.Korvai
+korvai = Solkattu.korvai
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
@@ -297,5 +295,5 @@ realize korvai = Text.IO.putStrLn $ case result of
     Left err -> "ERROR:\n" <> err
     Right notes -> Solkattu.pretty_strokes_tala tala notes
     where
-    result = Solkattu.realize_korvai default_patterns korvai
+    result = Solkattu.realize_korvai korvai
     tala = Solkattu.korvai_tala korvai
