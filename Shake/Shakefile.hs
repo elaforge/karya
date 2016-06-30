@@ -736,7 +736,7 @@ dispatch modeConfig targets = do
     allBinaries = map hsName hsBinaries ++ map ccName ccBinaries
     hardcoded target = case target of
         -- I should probably run this in staunch mode, -k.
-        "checkin" -> action $ do
+        "validate" -> action $ do
             -- Unfortunately, verify_performance is the only binary in
             -- opt, which most of the opt tree to build.  I could build
             -- a debug one, but debug deriving is really slow.
@@ -746,7 +746,7 @@ dispatch modeConfig targets = do
             Util.system "mkdir" ["-p", build </> "verify"]
             Util.shell $ opt "verify_performance --out=build/verify"
                 <> " save/complete/*"
-        -- Compile everything, like checkin but when I don't want to test.
+        -- Compile everything, like validate but when I don't want to test.
         "typecheck" -> action $ needEverything []
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>) allBinaries
