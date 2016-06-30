@@ -4,6 +4,7 @@
 
 -- | Carnatic ragas.
 module Derive.Scale.Raga where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
@@ -75,6 +76,12 @@ melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
     infixr 3 |-
     x |- y = not x || y
 
+-- | Find a raga's name from its swarams.
+find :: [Ratio] -> Maybe Text
+find swarams = fst <$> List.find ((==ratios) . snd) melakarta_ratios
+    where
+    ratios = Vector.fromList swarams
+
 type Ratio = Ratio.Ratio Int
 
 {- I don't think there is any official definition, so I use a 7-limit scale:
@@ -128,14 +135,16 @@ data ArohanaAvarohana =
     deriving (Show)
 
 data Swaram = S | R | G | M | P | D | N
-    deriving (Show)
+    deriving (Enum, Show)
 
 -- | So far this is unused, but I should be able to put it some place where
 -- calls can get at it.
 janya :: [(Text, [(Text, ArohanaAvarohana)])]
 janya = map assert_valid_name
     [ ("kharaharapriya",
-        [ ("abheri", Different [G, M, P, N] [N, D, P, M, G, R])
+        [ ("abheri", Different [G, M, P, N] down)
+        -- hindustani, similar to abheri
+        , ("dhanasri", Different [G, M, P, N] down)
         , ("abhogi", Same [R, G, M, D])
         ])
     , ("harikambhoji",
@@ -145,6 +154,9 @@ janya = map assert_valid_name
                 -- Or [N, D, M, G, M, P, G, R]
         ])
     ]
+    where
+    -- up = [R .. N]
+    down = [N, D .. R]
 
 assert_valid_name :: (Text, a) -> (Text, a)
 assert_valid_name val@(name, _)

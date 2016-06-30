@@ -52,6 +52,7 @@ import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Factor as Factor
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
        (plain_key, plain_char, shift_char, bind_key, bind_key_status,
@@ -61,7 +62,6 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
-import qualified Cmd.Refactor as Refactor
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
@@ -473,7 +473,7 @@ create_bindings = concat
         (Create.view =<< Create.block =<< State.block_ruler
             =<< Cmd.get_focused_block)
     , command_char 'B' "create block from template or selection"
-        Refactor.block_from_template
+        Factor.block_from_template
     ]
 
 clip_bindings :: Cmd.M m => [Keymap.Binding m]

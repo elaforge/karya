@@ -46,6 +46,7 @@ import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Factor as Factor
 import qualified Cmd.Info as Info
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
@@ -54,7 +55,6 @@ import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
-import qualified Cmd.Refactor as Refactor
 import qualified Cmd.Repl.LBlock as LBlock
 import qualified Cmd.Repl.LCmd as LCmd
 import qualified Cmd.Repl.LControl as LControl

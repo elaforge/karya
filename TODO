@@ -1474,6 +1474,7 @@ Derive:
   india: gamakam:
     dyn:
       - Add support for '_' and, why not, '.'.
+    - '.' call on the note messes up gamakam
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
     - There still seems to be a case where prev pitch is wrong, it has to
       do with a '--' event.

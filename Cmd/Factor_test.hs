@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Refactor_test where
+module Cmd.Factor_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -10,13 +10,13 @@ import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Refactor as Refactor
+import qualified Cmd.Factor as Factor
 
 
 test_selection_alts = do
     let run relative = CmdTest.run_tracks tracks $ do
             CmdTest.set_sel 1 1 1 3
-            Refactor.selection_alts relative 3 (UiTest.mkid "sub")
+            Factor.selection_alts relative 3 (UiTest.mkid "sub")
         tracks = UiTest.regular_notes 4
     let result = run True
     equal (CmdTest.result_val result)
@@ -38,7 +38,7 @@ test_selection_at = do
     let run tracks subs start end = UiTest.extract_all_tracks $
             UiTest.exec State.empty $ do
                 UiTest.mkblocks (("b", [(">", tracks)]) : subs)
-                Refactor.selection_at False (UiTest.mkid "sub") parent
+                Factor.selection_at False (UiTest.mkid "sub") parent
                     [1] [UiTest.mk_tid_block parent 1] start end
         parent = UiTest.bid "b"
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)

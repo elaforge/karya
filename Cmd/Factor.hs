@@ -4,7 +4,7 @@
 
 -- | Cmds to do with \"refactoring\".  This basically means fancy
 -- copy-paste-like operations.
-module Cmd.Refactor where
+module Cmd.Factor where
 import qualified Data.Text as Text
 
 import qualified Util.Num as Num
