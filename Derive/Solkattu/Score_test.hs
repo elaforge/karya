@@ -4,8 +4,10 @@
 
 module Derive.Solkattu.Score_test where
 import Util.Test
+import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Score as Score
-import qualified Derive.Solkattu.Solkattu as Solkattu
+
 import Global
 
 
@@ -18,5 +20,5 @@ test_chatusrams = do
 test_kandams = do
     equal [err | Left err <- map realize Score.kandams] []
 
-realize :: Solkattu.Korvai -> Either Text [Solkattu.MNote]
-realize = Solkattu.realize_korvai
+realize :: Korvai.Korvai -> Either Text [Mridangam.Note]
+realize = Korvai.realize

@@ -10,6 +10,8 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Log as Log
 import Derive.Solkattu.Dsl
+import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Patterns as Patterns
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
@@ -269,20 +271,20 @@ tisrams = concat
 
 -- * realize
 
-make_mridangam :: Log.Stack => [(Sequence, [MNote])] -> Mridangam
-make_mridangam strokes = check $ Solkattu.mridangam strokes Patterns.defaults
+make_mridangam :: Log.Stack => [(Sequence, [Mridangam.Note])] -> Mridangam
+make_mridangam strokes = check $ Mridangam.mridangam strokes Patterns.defaults
 
 korvais :: Log.Stack => Solkattu.Tala -> Mridangam -> [Sequence]
     -> [Korvai]
 korvais tala mridangam = map (korvai tala mridangam)
 
-korvai :: Solkattu.Tala -> Mridangam -> Sequence -> Solkattu.Korvai
-korvai = Solkattu.korvai
+korvai :: Solkattu.Tala -> Mridangam -> Sequence -> Korvai.Korvai
+korvai = Korvai.korvai
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 
-realizes :: [Solkattu.Korvai] -> IO ()
+realizes :: [Korvai.Korvai] -> IO ()
 realizes ks =
     sequence_ $ List.intersperse (putChar '\n') $ map realize1 (zip [0..] ks)
     where
@@ -290,10 +292,10 @@ realizes ks =
         putStrLn $ "---- " ++ show i
         realize korvai
 
-realize :: Solkattu.Korvai -> IO ()
+realize :: Korvai.Korvai -> IO ()
 realize korvai = Text.IO.putStrLn $ case result of
     Left err -> "ERROR:\n" <> err
-    Right notes -> Solkattu.pretty_strokes_tala tala notes
+    Right notes -> Mridangam.pretty_strokes_tala tala notes
     where
-    result = Solkattu.realize_korvai korvai
-    tala = Solkattu.korvai_tala korvai
+    result = Korvai.realize korvai
+    tala = Korvai.korvai_tala korvai

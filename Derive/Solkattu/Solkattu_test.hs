@@ -2,75 +2,28 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Solkattu.Solkattu_test where
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, ki, __)
-import qualified Derive.Solkattu.Patterns as Patterns
+import Derive.Solkattu.Dsl (ta, di, ki)
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import Derive.Solkattu.Solkattu
-       (Note(..), Sollu(..), Stroke(..), Valantalai(..))
 
 import Global
 
 
 test_verify_alignment = do
-    let f = first (Text.intercalate "; ")
-            . Solkattu.verify_alignment (Solkattu.Tala 4 2 2)
+    let f (notes :: [Solkattu.Note ()]) = first (Text.intercalate "; ") $
+            Solkattu.verify_alignment (Solkattu.Tala 4 2 2) notes
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right [])
     left_like (f ta) "expected Akshara 0"
     left_like (f (take 4 tdkt)) "expected Akshara 0"
     equal (f (take 8 tdkt)) (Right (take 8 tdkt))
-    equal (f (take 4 tdkt <> Dsl.atX <> take 4 tdkt))
-        (Right (take 8 tdkt))
-    left_like (f (take 3 tdkt <> Dsl.atX <> take 4 tdkt))
-        "expected Arudi"
-
-test_realize_mridangam = do
-    let f = (Text.unlines *** show_strokes)
-            . Solkattu.realize_mridangam mridangam
-        mridangam = Solkattu.Mridangam smap Patterns.defaults
-        smap = Solkattu.StrokeMap $ Map.fromList
-            [ ([Ta, Din], map Just [k, od])
-            , ([Na, Din], map Just [n, od])
-            , ([Ta], map Just [t])
-            , ([Din, Ga], [Just od, Nothing])
-            ]
-        k = Solkattu.Valantalai Solkattu.MKi
-        t = Solkattu.Valantalai Solkattu.MTa
-        od = Both Solkattu.MThom Solkattu.MDin
-        n = Solkattu.Valantalai Solkattu.MNam
-    equal (f [Rest, Sollu Ta Nothing, Rest, Rest, Sollu Din Nothing])
-        (Right "__ k __ __ D")
-    equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
-        (Right "k t k n o __ k D")
-    equal (f [Sollu Ta Nothing, Sollu Ta Nothing]) (Right "t t")
-    equal (f [Sollu Din Nothing, Sollu Ga Nothing]) (Right "D __")
-    equal (f [Sollu Din Nothing, Rest, Sollu Ga Nothing]) (Right "D __ __")
-    left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
-
-    -- An explicit stroke will replace just that stroke.
-    equal (f [Sollu Na Nothing, Sollu Din (Just (Valantalai MChapu))])
-        (Right "n u")
-
-show_strokes :: [Solkattu.MNote] -> Text
-show_strokes = Text.unwords . map pretty
-
-test_stroke_map = do
-    let f = fmap (\(Solkattu.StrokeMap smap) -> Map.toList smap)
-            . Solkattu.stroke_map
-        (k, t) = (Dsl.k, Dsl.t)
-    equal (f []) (Right [])
-    equal (f [(ta <> di, [k, t])])
-        (Right [([Ta, Di], [Just $ Valantalai MKi, Just $ Valantalai MTa])])
-    left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate mridangam keys"
-    left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(Dsl.tang <> Dsl.ga, [Dsl.u, __, __])]) "differing lengths"
-    left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"
+    equal (f (take 4 tdkt <> Dsl.atX <> take 4 tdkt)) (Right (take 8 tdkt))
+    left_like (f (take 3 tdkt <> Dsl.atX <> take 4 tdkt)) "expected Arudi"
 
 -- * utils
 

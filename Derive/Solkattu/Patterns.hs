@@ -4,13 +4,15 @@
 
 -- | Library of mridangam patterns for realizing solkattu.
 module Derive.Solkattu.Patterns where
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Dsl
+import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Solkattu as Solkattu
+
 import Global
 
 
-defaults :: Solkattu.Patterns
-defaults = check $ Solkattu.patterns
+defaults :: Mridangam.Patterns
+defaults = check $ Mridangam.patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -18,14 +20,14 @@ defaults = check $ Solkattu.patterns
     , (9, [k, __, t, __, k, __, n, __, o])
     ]
 
-patterns2 :: Solkattu.Patterns
-patterns2 = check $ Solkattu.patterns
+patterns2 :: Mridangam.Patterns
+patterns2 = check $ Mridangam.patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
     ]
 
-families567 :: [[(Int, (Solkattu.Speed, [MNote]))]]
+families567 :: [[(Int, (Solkattu.Speed, [Mridangam.Note]))]]
 families567 = map (\xs -> zip [5..] (map (Solkattu.S2,) xs))
     [ [ [k, __, t, __, k, __, k, t, o, __]
       , [k, __, t, __, __, __, k, __, k, t, o, __]

@@ -7,7 +7,7 @@
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
     -- * solkattu
-    Sequence, Korvai, Matras, Mridangam, Stroke, MNote
+    Sequence, Korvai, Matras, Mridangam
     -- ** sollus
     , (.)
     , __, __3, __4, __5, __n
@@ -42,124 +42,131 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
 import Util.Pretty (pprint)
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu
-       (Sequence, Korvai, Matras, Note(..), Sollu(..), Mridangam, Stroke(..),
-        MNote(..), check, duration_of, dropM, takeM, rdropM)
+       (Matras, check, duration_of, dropM, takeM, rdropM)
+import qualified Derive.Solkattu.Solkattu as S
+import qualified Derive.Solkattu.Mridangam as M
+import Derive.Solkattu.Mridangam (Mridangam)
+import Derive.Solkattu.Korvai (Korvai)
 import Global
 
+
+-- TODO: later M.Stroke can become a union of different stroke types
+type Sequence = S.Sequence M.Stroke
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
 (.) = (Monoid.<>)
 infixr 6 . -- same as <>
 
-sq :: Note -> Sequence
+sq :: S.Note stroke -> S.Sequence stroke
 sq = (:[])
 
-sollu :: Sollu -> Sequence
-sollu s = [Sollu s Nothing]
+sollu :: S.Sollu -> S.Sequence stroke
+sollu s = [S.Sollu s Nothing]
 
 -- ** sollus
 
 class Rest a where __ :: a
-instance Rest Sequence where __ = sq Rest
-instance Rest MNote where __ = MRest
+instance Rest (S.Sequence stroke) where __ = sq S.Rest
+instance Rest M.Note where __ = M.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__3, __4, __5 :: Sequence
+__3, __4, __5 :: S.Sequence stroke
 __3 = __n 3
 __4 = __n 4
 __5 = __n 5
 
--- | MNote is not a monoid like Sequence, so this can't emit a Rest.
-__n :: Int -> Sequence
+-- | 'M.Note' is not a monoid like 'S.Sequence', so this can't emit a Rest.
+__n :: Int -> S.Sequence stroke
 __n n = repeat (n-1) __
 
-dheem = sollu Dheem
-dhom = sollu Dhom
-di = sollu Di
-din = sollu Din
-dit = sollu Dit
-ga = sollu Ga
-gin = sollu Gin
-ka = sollu Ka
-ki = sollu Ki
-ku = sollu Ku
-mi = sollu Mi
-na = sollu Na
-ri = sollu Ri
-ta = sollu Ta
-tam = sollu Tam
-tat = sollu Tat
-tha = sollu Tha
-thom = sollu Thom
-ti = sollu Ti
+dheem = sollu S.Dheem
+dhom = sollu S.Dhom
+di = sollu S.Di
+din = sollu S.Din
+dit = sollu S.Dit
+ga = sollu S.Ga
+gin = sollu S.Gin
+ka = sollu S.Ka
+ki = sollu S.Ki
+ku = sollu S.Ku
+mi = sollu S.Mi
+na = sollu S.Na
+ri = sollu S.Ri
+ta = sollu S.Ta
+tam = sollu S.Tam
+tat = sollu S.Tat
+tha = sollu S.Tha
+thom = sollu S.Thom
+ti = sollu S.Ti
 
-tang, lang :: Sequence
-tang = sollu Tang <> __
-lang = sollu Lang <> __
+tang, lang :: S.Sequence stroke
+tang = sollu S.Tang <> __
+lang = sollu S.Lang <> __
 
-dinga :: Sequence
+dinga :: S.Sequence stroke
 dinga = din <> __ <> ga
 
 -- ** directives
 
-nadai :: Matras -> Sequence
-nadai n = [Solkattu.TimeChange (Solkattu.Nadai n)]
+nadai :: Matras -> S.Sequence stroke
+nadai n = [S.TimeChange (S.Nadai n)]
 
-speed :: Solkattu.Speed -> Sequence
-speed s = [Solkattu.TimeChange (Solkattu.Speed s)]
+speed :: S.Speed -> S.Sequence stroke
+speed s = [S.TimeChange (S.Speed s)]
 
-s2 :: Sequence -> Sequence
-s2 seq = speed Solkattu.S2 <> seq <> speed Solkattu.S1
+s2 :: S.Sequence stroke -> S.Sequence stroke
+s2 seq = speed S.S2 <> seq <> speed S.S1
 
--- | Add a specific stroke instruction to a sollu.
-stroke :: MNote -> Sequence -> Sequence
+-- | Add a specific stroke annotation to a sollu.
+stroke :: M.Note -> Sequence -> Sequence
 stroke _ [] = errorStack $ "stroke: empty sequence"
-stroke (MNote stroke) (n:ns) = case n of
-    Sollu s _ -> Sollu s (Just stroke) : ns
+stroke (M.Note stroke) (n:ns) = case n of
+    S.Sollu s _ -> S.Sollu s (Just stroke) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> prettys n
 stroke s _ = errorStack $ "st: require a sollu: " <> prettys s
 
-(!) :: Sequence -> MNote -> Sequence
+-- | Add a specific stroke annotation to a sollu.
+(!) :: Sequence -> M.Note -> Sequence
 (!) = flip stroke
 
 -- | Align at sam or the arudi.
-at0, atX :: Sequence
-at0 = sq $ Alignment (Solkattu.Akshara 0)
-atX = sq $ Alignment Solkattu.Arudi
+at0, atX :: S.Sequence stroke
+at0 = sq $ S.Alignment (S.Akshara 0)
+atX = sq $ S.Alignment S.Arudi
 
 -- | Align at the given akshara.
-(^) :: Sequence -> Solkattu.Aksharas -> Sequence
-seq ^ n = sq (Alignment (Solkattu.Akshara n)) <> seq
+(^) :: S.Sequence stroke -> S.Aksharas -> S.Sequence stroke
+seq ^ n = sq (S.Alignment (S.Akshara n)) <> seq
 infix 9 ^
 
-pat :: Matras -> Sequence
-pat d = sq $ Pattern d
+pat :: Matras -> S.Sequence stroke
+pat d = sq $ S.Pattern d
 
 -- | Repeat thrice, with no karvai.
-tri :: Sequence -> Sequence
+tri :: S.Sequence stroke -> S.Sequence stroke
 tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
-tri_ :: Sequence -> Sequence -> Sequence
+tri_ :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
 tri_ sep seq = join sep [seq, seq, seq]
 
 -- | Three different patterns with the same separator.
-trin :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
+trin :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
+    -> S.Sequence stroke -> S.Sequence stroke
 trin sep a b c = join sep [a, b, c]
 
-p5, p6, p7, p8, p9 :: Sequence
+p5, p6, p7, p8, p9 :: S.Sequence stroke
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
 p8 = pat 8
 p9 = pat 9
 
-p666, p567, p765 :: Sequence -> Sequence
+p666, p567, p765 :: S.Sequence stroke -> S.Sequence stroke
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
@@ -167,40 +174,41 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
-join :: Sequence -> [Sequence] -> Sequence
+join :: S.Sequence stroke -> [S.Sequence stroke] -> S.Sequence stroke
 join with = List.intercalate with
 
-reduce :: Matras -> Sequence -> [Sequence]
+reduce :: Matras -> S.Sequence stroke -> [S.Sequence stroke]
 reduce n = iterate (dropM n)
 
-reduce3 :: Matras -> Sequence -> Sequence -> Sequence
+reduce3 :: Matras -> S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
 reduce3 n sep seq = join sep $ take 3 $ reduce n seq
 
-reduceR :: Matras -> Sequence -> [Sequence]
+reduceR :: Matras -> S.Sequence stroke -> [S.Sequence stroke]
 reduceR n = iterate (rdropM n)
 
-reduceR3 :: Matras -> Sequence -> Sequence -> Sequence
+reduceR3 :: Matras -> S.Sequence stroke -> S.Sequence stroke
+    -> S.Sequence stroke
 reduceR3 n sep seq = join sep $ take 3 $ reduceR n seq
 
 -- * mridangam
 
-k, t, n, d, u, i, o, p :: MNote
-k = MNote (Solkattu.Valantalai Solkattu.MKi)
-t = MNote (Solkattu.Valantalai Solkattu.MTa)
-n = MNote (Solkattu.Valantalai Solkattu.MNam)
-d = MNote (Solkattu.Valantalai Solkattu.MDin)
-u = MNote (Solkattu.Valantalai Solkattu.MChapu)
-i = MNote (Solkattu.Valantalai Solkattu.MDheem)
+k, t, n, d, u, i, o, p :: M.Note
+k = M.Note (M.Valantalai M.Ki)
+t = M.Note (M.Valantalai M.Ta)
+n = M.Note (M.Valantalai M.Nam)
+d = M.Note (M.Valantalai M.Din)
+u = M.Note (M.Valantalai M.Chapu)
+i = M.Note (M.Valantalai M.Dheem)
 
-p = MNote (Solkattu.Thoppi Solkattu.MTha)
-o = MNote (Solkattu.Thoppi Solkattu.MThom)
+p = M.Note (M.Thoppi M.Tha)
+o = M.Note (M.Thoppi M.Thom)
 
 -- | @do@ would match score notation, but @do@ is a keyword.
 -- Ultimately that's because score uses + for tha, and +o is an attr, while o+
 -- is a bareword.  But perhaps I should change + to p in the score, and then
 -- the left hand can go on the left side?
-od :: MNote
-od = MNote (Both Solkattu.MThom Solkattu.MDin)
+od :: M.Note
+od = M.Note (M.Both M.Thom M.Din)
 
-pk :: MNote
-pk = MNote (Both Solkattu.MTha Solkattu.MKi)
+pk :: M.Note
+pk = M.Note (M.Both M.Tha M.Ki)

@@ -1286,22 +1286,16 @@ Derive:
         * verify Patterns, key and pattern durations should be the same
         - optionally propagate Patterns through to Stroke, so I can emit it as
           a 'p#' event.
-        - Should I change mridangam notes to be consistent with SolkattuDsl?
+        - Should I change mridangam notes to be consistent with Solkattu.Dsl?
           I have to put thoppi on the left, for 'od' instead of the keyword
           'do'.  And I have to change tha to p instead of +.
         . Performance rules for variations, e.g. tk can be played kk.
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
         alternate realization
-          - Try an alternate realization for kendang bali.
-          - Alternate realizations for pitches, e.g. marimba or gangsa.
-          . I would have to either abstract out the stroke arg for Note, or
-            make it somehow have multiple variants.
-          . Similarly, I'd need to generalize StrokeMap.
-          . Actually Korvai doesn't need to have a StrokeMap, it's just
-            bundled in there for convenience.
-          . But since I don't really use this to generate score yet, maybe
-            I should experiment with some manual mappings first.
+          - kendang tunggal and pasangan
+          - reyong
+          - gangsa / marimba
     pakhawaj bols
       . Score integrate to convert bols to low level calls
         . Actually score integrate doesn't work like that, it just copies the

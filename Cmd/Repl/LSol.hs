@@ -15,25 +15,28 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
+import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Mridangam as Mridangam
 import Derive.Solkattu.Score
 import qualified Derive.Solkattu.Solkattu as Solkattu
+
 import Types
 
 
 -- | Replace the contents of the selected track.
-replace :: Cmd.M m => TrackTime -> Solkattu.Korvai -> m ()
+replace :: Cmd.M m => TrackTime -> Korvai.Korvai -> m ()
 replace akshara_dur korvai = do
     let stroke_dur = akshara_dur
-            / fromIntegral (Solkattu.tala_nadai (Solkattu.korvai_tala korvai))
+            / fromIntegral (Solkattu.tala_nadai (Korvai.korvai_tala korvai))
     events <- realize_korvai stroke_dur korvai
     (_, _, track_id, _) <- Selection.get_insert
     State.modify_events track_id $ const $ events
 
-realize_korvai :: State.M m => TrackTime -> Solkattu.Korvai -> m Events.Events
+realize_korvai :: State.M m => TrackTime -> Korvai.Korvai -> m Events.Events
 realize_korvai stroke_dur korvai = do
-    strokes <- State.require_right id $ Solkattu.realize_korvai korvai
+    strokes <- State.require_right id $ Korvai.realize korvai
     return $ Events.from_list
-        [ Event.event start 0 (Solkattu.stroke_to_call stroke)
-        | (start, Solkattu.MNote stroke)
+        [ Event.event start 0 (Mridangam.stroke_to_call stroke)
+        | (start, Mridangam.Note stroke)
             <- zip (Seq.range_ 0 stroke_dur) strokes
         ]
