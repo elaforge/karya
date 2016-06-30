@@ -13,8 +13,10 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
+type Sequence = Solkattu.Sequence Mridangam.Stroke
+
 data Korvai = Korvai {
-    korvai_sequence :: Solkattu.Sequence Mridangam.Stroke
+    korvai_sequence :: Sequence
     , korvai_mridangam :: Mridangam.Mridangam
     , korvai_tala :: Solkattu.Tala
     } deriving (Show)
@@ -40,3 +42,7 @@ realize korvai = first Text.unlines $ do
     rnotes <- Solkattu.verify_alignment (korvai_tala korvai)
         (korvai_sequence korvai)
     Mridangam.realize (korvai_mridangam korvai) rnotes
+
+vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
+vary modify korvai =
+    [korvai { korvai_sequence = new } | new <- modify (korvai_sequence korvai)]

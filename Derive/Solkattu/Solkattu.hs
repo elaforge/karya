@@ -22,6 +22,7 @@ import Global
 
 
 type Sequence stroke = [Note stroke]
+type Error = Text
 
 data Note stroke =
     -- | A Sollu can carry an explicit stroke, for exceptions to the usual
@@ -211,12 +212,74 @@ takeM matras (n:ns) = case n of
 rdropM :: Matras -> Sequence stroke -> Sequence stroke
 rdropM matras = reverse . dropM matras . reverse
 
+-- ** vary
+
+data PatternFamily = A | B | C | D | E | F | G deriving (Eq, Ord, Show)
+type Variations = [(Matras, Matras, Matras)]
+
+-- | Variation means replacing a triad of patterns of the same duration with a
+-- an increasing or decreasing sequence.  For instance, 666 can become 567,
+-- 765, or 777 can become 678 or 579 or their inverses.
+--
+-- TODO Variation on a higher order is also possible, so for instance 777, 777,
+-- 777 may become 666, 777, 888
+--
+-- TODO Also we have 5, 55, 555 -> 55, 55, 55 -> 555, 55, 5.  This actually
+-- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
+-- orthogonal and could get a different function.
+vary :: (Matras -> Variations) -- ^ variations allowed for this duration
+    -> Sequence stroke -> [Sequence stroke]
+vary allowed_variations notes
+    | null modification_groups = [notes]
+    | otherwise = map apply modification_groups
+    where
+    -- List of sets of permutations.
+    modification_groups = permute_fst allowed_variations (find_triads notes)
+    -- Apply a set of permutations to the original input.
+    apply mods = apply_modifications (\_ matras -> Pattern matras)
+        (concatMap extract mods) notes
+    extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
+
+variations :: [(Matras, Matras, Matras) -> Bool] -> (Matras -> Variations)
+variations filters = filter (\v -> all ($v) filters) . all_variations
+
+ascending, descending, standard :: (Matras, Matras, Matras) -> Bool
+ascending (m1, m2, m3) = m1 < m2 && m2 < m3
+descending (m1, m2, m3) = m1 > m2 && m2 > m3
+standard (m1, m2, m3) =
+    m1 == m2 && m2 == m3
+    || List.sort [m1, m2, m3] `elem` [[5, 6, 7], [6, 7, 8], [5, 7, 9]]
+
+all_variations :: Matras -> Variations
+all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
+    where
+    vars d
+        | d == 0 = [(matras, matras, matras)]
+        | otherwise =
+            [ (matras - d, matras, matras + d)
+            , (matras + d, matras, matras - d)
+            ]
+    min_duration = 3
+
+-- | Find triples of Patterns with the same length and return their indices.
+-- The indices are in ascending order.
+find_triads :: [Note stroke] -> [(Matras, (Int, Int, Int))]
+find_triads notes =
+    [ (matras, triad)
+    | (matras, indices) <- Seq.group_fst
+        [(matras, i) | (i, Pattern matras) <- zip [0..] notes]
+    , triad <- triads indices
+    ]
+    where
+    triads (x1:x2:x3:xs) = (x1, x2, x3) : triads xs
+    triads _ = []
+
 -- * misc
 
-check :: Log.Stack => Either Text a -> a
+check :: Log.Stack => Either Error a -> a
 check = either (errorStack . untxt) id
 
-check_msg :: Log.Stack => String -> Either Text a -> a
+check_msg :: Log.Stack => String -> Either Error a -> a
 check_msg msg = either (errorStack . ((msg <> ": ") <>) . untxt) id
 
 -- * util
@@ -247,3 +310,23 @@ group_rights xs = case rest of
     where
     (rights, rest) = Seq.span_while (either (const Nothing) Just) xs
     cons = if null rights then id else (Right rights :)
+
+apply_modifications :: (a -> mod -> a) -> [(Int, mod)]
+    -- ^ modifications along with their indices, in ascending order
+    -> [a] -> [a]
+apply_modifications apply mods = go mods . zip [0..]
+    where
+    go [] xs = map snd xs
+    go _ [] = []
+    go ((i1, mod) : mods) ((i2, x) : xs)
+        | i1 < i2 = go mods ((i2, x) : xs)
+        | i1 == i2 = apply x mod : go mods xs
+        | otherwise = x : go ((i1, mod) : mods) xs
+
+permute_fst :: (a -> [b]) -> [(a, x)] -> [[(b, x)]]
+permute_fst _ [] = []
+permute_fst permutations ((k, x) : xs)
+    | null xs = [[(p, x)] | p <- permutations k]
+    | otherwise =
+        [(p, x) : rest | p <- permutations k, rest <- go xs]
+    where go = permute_fst permutations

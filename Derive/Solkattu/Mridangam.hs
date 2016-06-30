@@ -70,6 +70,11 @@ patterns pairs
 data Note = Note Stroke | Rest | TimeChange S.TimeChange
     deriving (Show)
 
+instance Pretty.Pretty Note where
+    pretty Rest = "__"
+    pretty (Note s) = pretty s
+    pretty (TimeChange change) = pretty change
+
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Show)
 data Thoppi = Tha | Thom
@@ -89,10 +94,6 @@ instance Pretty.Pretty Stroke where
             Chapu -> "pu" -- These are pretty rare.
             Dheem -> "pi"
         Thom -> Text.toUpper (pretty v)
-instance Pretty.Pretty Note where
-    pretty Rest = "__"
-    pretty (Note s) = pretty s
-    pretty (TimeChange change) = pretty change
 
 instance Pretty.Pretty Thoppi where
     pretty n = case n of

@@ -20,8 +20,8 @@ defaults = check $ Mridangam.patterns
     , (9, [k, __, t, __, k, __, n, __, o])
     ]
 
-patterns2 :: Mridangam.Patterns
-patterns2 = check $ Mridangam.patterns
+kt_kn_o :: Mridangam.Patterns
+kt_kn_o = check $ Mridangam.patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])

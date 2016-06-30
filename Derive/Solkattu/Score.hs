@@ -26,10 +26,10 @@ c1s = korvais (adi 4) mridangam
       . dropM 2 (theme 2 1) . p6 . p6
       . dropM 4 (theme 2 2) . tri p7 . tri p6 . tri p5
 
-    , let tadin = ta.__.din.__.__ in
-                 theme 3 0 . p5 . tadin
-      . dropM 3 (theme 3 1) . p6 . p6 . tadin
-      . dropM 6 (theme 3 2) . trin tadin (tri p7) (tri p6) (tri p5)
+    , let tadin_ = ta.__.din.__.__ in
+                 theme 3 0 . p5 . tadin_
+      . dropM 3 (theme 3 1) . p6 . p6 . tadin_
+      . dropM 6 (theme 3 2) . trin tadin_ (tri p7) (tri p6) (tri p5)
 
     ,            theme 4 0 . pat7 . dheem!u . __4
       . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem!u . __4
@@ -186,9 +186,7 @@ t1s :: [Korvai]
 t1s = korvais (adi 6) mridangam
     [ reduce (tat.__.dit.__.ta.ka.din.na.din.__.__)   . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.din.__)      . utarangam p6
-        -- 567, 765
     , reduce (tat.__.dit.__.ta.ka.din.na.din!p)       . utarangam p7
-        -- 579, 975
     , reduce (tat.__.dit.__.ta.ka.din.na)             . utarangam p8
     , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
     ]
@@ -215,12 +213,9 @@ t2s = korvais (adi 6) mridangam
     , reduce (tat.__.dit.__.ta.ka.din)             . tri (ta.ka.__.ta.din.__.p5)
 
     , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.dinga.p7)
-        -- any 'tri (--.p7)' can become 'tri (--.p{5,7,9})'
-    , reduce (tat.__.dit.__.ta.ka.din)
-        . trin mempty (ta.dinga.p5) (ta.dinga.p7) (ta.dinga.p9)
-    , let tadin n = repeat n (ta.din.__) in
+    , let tadin_ n = repeat n (ta.din.__) in
       reduce (tat.__.dit.__.ta.ka.din)
-        . tadin 1 . p5 . tadin 2 . p5 . tadin 3 . p5
+        . tadin_ 1 . p5 . tadin_ 2 . p5 . tadin_ 3 . p5
 
     , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.din.__.p8)
     ]
@@ -268,6 +263,11 @@ tisrams :: [Korvai]
 tisrams = concat
     [ t1s, t2s, t3s
     ]
+
+-- * vary
+
+vary :: Korvai -> [Korvai]
+vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
 -- * realize
 
