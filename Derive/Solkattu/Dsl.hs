@@ -7,7 +7,7 @@
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
     -- * solkattu
-    Sequence, Korvai, Matras, Mridangam
+    Sequence, Korvai, Matras, Instrument
     -- ** sollus
     , (.)
     , __, __3, __4, __5, __n
@@ -42,17 +42,20 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
 import Util.Pretty (pprint)
+import Derive.Solkattu.Korvai (Korvai)
+import qualified Derive.Solkattu.Mridangam as M
+import Derive.Solkattu.Mridangam (k, t, n, d, u, i, o, p, od, pk)
+import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu
        (Matras, check, duration_of, dropM, takeM, rdropM)
-import qualified Derive.Solkattu.Solkattu as S
-import qualified Derive.Solkattu.Mridangam as M
-import Derive.Solkattu.Mridangam (Mridangam)
-import Derive.Solkattu.Korvai (Korvai)
+
 import Global
 
 
 -- TODO: later M.Stroke can become a union of different stroke types
 type Sequence = S.Sequence M.Stroke
+type Instrument = Realize.Instrument M.Stroke
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -69,7 +72,7 @@ sollu s = [S.Sollu s Nothing]
 
 class Rest a where __ :: a
 instance Rest (S.Sequence stroke) where __ = sq S.Rest
-instance Rest M.Note where __ = M.Rest
+instance Rest (Realize.Note stroke) where __ = Realize.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
@@ -79,7 +82,8 @@ __3 = __n 3
 __4 = __n 4
 __5 = __n 5
 
--- | 'M.Note' is not a monoid like 'S.Sequence', so this can't emit a Rest.
+-- | 'Realize.Note' is not a monoid like 'S.Sequence', so this can't emit
+-- a Rest.
 __n :: Int -> S.Sequence stroke
 __n n = repeat (n-1) __
 
@@ -124,7 +128,7 @@ s2 seq = speed S.S2 <> seq <> speed S.S1
 -- | Add a specific stroke annotation to a sollu.
 stroke :: M.Note -> Sequence -> Sequence
 stroke _ [] = errorStack $ "stroke: empty sequence"
-stroke (M.Note stroke) (n:ns) = case n of
+stroke (Realize.Note stroke) (n:ns) = case n of
     S.Sollu s _ -> S.Sollu s (Just stroke) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> prettys n
 stroke s _ = errorStack $ "st: require a sollu: " <> prettys s
@@ -189,26 +193,3 @@ reduceR n = iterate (rdropM n)
 reduceR3 :: Matras -> S.Sequence stroke -> S.Sequence stroke
     -> S.Sequence stroke
 reduceR3 n sep seq = join sep $ take 3 $ reduceR n seq
-
--- * mridangam
-
-k, t, n, d, u, i, o, p :: M.Note
-k = M.Note (M.Valantalai M.Ki)
-t = M.Note (M.Valantalai M.Ta)
-n = M.Note (M.Valantalai M.Nam)
-d = M.Note (M.Valantalai M.Din)
-u = M.Note (M.Valantalai M.Chapu)
-i = M.Note (M.Valantalai M.Dheem)
-
-p = M.Note (M.Thoppi M.Tha)
-o = M.Note (M.Thoppi M.Thom)
-
--- | @do@ would match score notation, but @do@ is a keyword.
--- Ultimately that's because score uses + for tha, and +o is an attr, while o+
--- is a bareword.  But perhaps I should change + to p in the score, and then
--- the left hand can go on the left side?
-od :: M.Note
-od = M.Note (M.Both M.Thom M.Din)
-
-pk :: M.Note
-pk = M.Note (M.Both M.Tha M.Ki)

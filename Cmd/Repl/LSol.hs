@@ -17,6 +17,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
@@ -38,6 +39,6 @@ realize_korvai realize_patterns stroke_dur korvai = do
     strokes <- State.require_right id $ Korvai.realize realize_patterns korvai
     return $ Events.from_list
         [ Event.event start 0 (Mridangam.stroke_to_call stroke)
-        | (start, Mridangam.Note stroke)
+        | (start, Realize.Note stroke)
             <- zip (Seq.range_ 0 stroke_dur) strokes
         ]

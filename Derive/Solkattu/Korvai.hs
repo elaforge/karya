@@ -9,7 +9,9 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as Solkattu
+
 import Global
 
 
@@ -17,7 +19,7 @@ type Sequence = Solkattu.Sequence Mridangam.Stroke
 
 data Korvai = Korvai {
     korvai_sequence :: Sequence
-    , korvai_mridangam :: Mridangam.Mridangam
+    , korvai_mridangam :: Realize.Instrument Mridangam.Stroke
     , korvai_tala :: Solkattu.Tala
     } deriving (Show)
 
@@ -28,7 +30,7 @@ instance Pretty.Pretty Korvai where
         , ("tala", Pretty.format tala)
         ]
 
-korvai :: Solkattu.Tala -> Mridangam.Mridangam
+korvai :: Solkattu.Tala -> Realize.Instrument Mridangam.Stroke
     -> Solkattu.Sequence Mridangam.Stroke -> Korvai
 korvai tala mridangam sequence = Korvai
     { korvai_sequence = sequence
@@ -37,11 +39,11 @@ korvai tala mridangam sequence = Korvai
     }
 
 -- | Realize a Korvai in mridangam strokes.
-realize :: Bool -> Korvai -> Either Text [Mridangam.Note]
+realize :: Bool -> Korvai -> Either Text [Realize.Note Mridangam.Stroke]
 realize realize_patterns korvai = first Text.unlines $ do
     rnotes <- Solkattu.verify_alignment (korvai_tala korvai)
         (korvai_sequence korvai)
-    Mridangam.realize realize_patterns (korvai_mridangam korvai) rnotes
+    Realize.realize realize_patterns (korvai_mridangam korvai) rnotes
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =

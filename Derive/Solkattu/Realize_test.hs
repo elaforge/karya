@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Solkattu.Mridangam_test where
+module Derive.Solkattu.Realize_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -10,7 +10,7 @@ import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (ta, di, __)
 import qualified Derive.Solkattu.Mridangam as M
-import qualified Derive.Solkattu.Patterns as Patterns
+import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Solkattu (Note(..), Sollu(..))
 
 import Global
@@ -18,9 +18,9 @@ import Global
 
 test_realize = do
     let f = (Text.unlines *** show_strokes)
-            . M.realize True mridangam
-        mridangam = M.Mridangam smap Patterns.defaults
-        smap = M.StrokeMap $ Map.fromList
+            . Realize.realize True mridangam
+        mridangam = Realize.Instrument smap M.defaults
+        smap = Realize.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])
             , ([Ta], map Just [t])
@@ -43,17 +43,18 @@ test_realize = do
     equal (f [Sollu Na Nothing, Sollu Din (Just (M.Valantalai M.Chapu))])
         (Right "n u")
 
-show_strokes :: [M.Note] -> Text
+show_strokes :: [Realize.Note M.Stroke] -> Text
 show_strokes = Text.unwords . map pretty
 
 test_stroke_map = do
-    let f = fmap (\(M.StrokeMap smap) -> Map.toList smap) . M.stroke_map
+    let f = fmap (\(Realize.StrokeMap smap) -> Map.toList smap)
+            . Realize.stroke_map
         (k, t) = (Dsl.k, Dsl.t)
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])])
         (Right [([Ta, Di],
             [Just $ M.Valantalai M.Ki, Just $ M.Valantalai M.Ta])])
-    left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate mridangam keys"
+    left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(Dsl.tang <> Dsl.ga, [Dsl.u, __, __])]) "differing lengths"
     left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"

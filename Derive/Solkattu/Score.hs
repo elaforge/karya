@@ -12,7 +12,7 @@ import qualified Util.Log as Log
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
-import qualified Derive.Solkattu.Patterns as Patterns
+import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
@@ -108,7 +108,7 @@ k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
-k1_mridangam :: Mridangam
+k1_mridangam :: Instrument
 k1_mridangam = make_mridangam
     [ (ta, [k])
     , (ta.ka, [k, p])
@@ -270,14 +270,14 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
 -- * realize
 
-make_mridangam :: Log.Stack => [(Sequence, [Mridangam.Note])] -> Mridangam
-make_mridangam strokes = check $ Mridangam.mridangam strokes Patterns.defaults
+make_mridangam :: Log.Stack => [(Sequence, [Mridangam.Note])] -> Instrument
+make_mridangam strokes = check $ Mridangam.instrument strokes Mridangam.defaults
 
-korvais :: Log.Stack => Solkattu.Tala -> Mridangam -> [Sequence]
+korvais :: Log.Stack => Solkattu.Tala -> Instrument -> [Sequence]
     -> [Korvai]
 korvais tala mridangam = map (korvai tala mridangam)
 
-korvai :: Solkattu.Tala -> Mridangam -> Sequence -> Korvai.Korvai
+korvai :: Solkattu.Tala -> Instrument -> Sequence -> Korvai.Korvai
 korvai = Korvai.korvai
 
 adi :: Matras -> Solkattu.Tala
@@ -295,4 +295,4 @@ realize_ :: Bool -> Korvai.Korvai -> IO ()
 realize_ realize_patterns korvai =
     Text.IO.putStrLn $ case Korvai.realize realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
-        Right notes -> Mridangam.format (Korvai.korvai_tala korvai) notes
+        Right notes -> Realize.format (Korvai.korvai_tala korvai) notes
