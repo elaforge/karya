@@ -121,8 +121,8 @@ adi_tala = Tala 8 4
 data State = State {
     state_avartanam :: !Int
     , state_akshara :: !Aksharas
-    -- | This is not 'Matras' because it's actual fraction matras, rather than
-    -- sollu-durations.
+    -- | This is not 'Matras' because it's actual fractional matras, rather
+    -- than sollu-durations.
     , state_matra :: !Double
     , state_speed :: !Speed
     , state_nadai :: !Int
@@ -136,19 +136,17 @@ initial_state tala = State 0 0 0 S1 (tala_nadai tala)
 verify_alignment :: Pretty.Pretty stroke => Tala -> [Note stroke]
     -> Either [Text] [Note stroke]
 verify_alignment tala =
-    verify_result . filter not_empty
-        . snd . List.mapAccumL verify (initial_state tala)
+    verify_result . filter not_empty . map_time tala verify
         . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
     where
     not_empty (Left err) | Text.null err = False
     not_empty _ = True
-    verify state note = case note of
-        Sollu {} -> (advance 1, Right note)
-        Rest -> (advance 1, Right note)
-        Pattern matras -> (advance (fromIntegral matras), Right note)
-        Alignment align -> (state, verify_align state align)
-        TimeChange change -> (time_change change state, Right note)
-        where advance n = advance_state tala n state
+    verify state note = second (:[]) $ case note of
+        Sollu {} -> (Right 1, Right note)
+        Rest -> (Right 1, Right note)
+        Pattern matras -> (Right (fromIntegral matras), Right note)
+        Alignment align -> (Right 0, verify_align state align)
+        TimeChange change -> (Left change, Right note)
     verify_result vals
         | null errs = Right ok
         | otherwise = Left $
@@ -169,6 +167,16 @@ time_change :: TimeChange -> State -> State
 time_change change state = case change of
     Speed s -> state { state_speed = s }
     Nadai s -> state { state_nadai = s }
+
+-- | Map over notes, keeping track of the position in the talam.
+map_time :: Tala -> (State -> a -> (Either TimeChange Double, [b]))
+    -- ^ (either a time change or matras to advance, results)
+    -> [a] -> [b]
+map_time tala f = concat . snd . List.mapAccumL process (initial_state tala)
+    where
+    process state note =
+        (either time_change (advance_state tala) advance state, vals)
+        where (advance, vals) = f state note
 
 advance_state :: Tala -> Double -> State -> State
 advance_state tala matras state = state

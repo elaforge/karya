@@ -24,17 +24,18 @@ import Types
 
 
 -- | Replace the contents of the selected track.
-replace :: Cmd.M m => TrackTime -> Korvai.Korvai -> m ()
-replace akshara_dur korvai = do
+replace :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
+replace realize_patterns akshara_dur korvai = do
     let stroke_dur = akshara_dur
             / fromIntegral (Solkattu.tala_nadai (Korvai.korvai_tala korvai))
-    events <- realize_korvai stroke_dur korvai
+    events <- realize_korvai realize_patterns stroke_dur korvai
     (_, _, track_id, _) <- Selection.get_insert
     State.modify_events track_id $ const $ events
 
-realize_korvai :: State.M m => TrackTime -> Korvai.Korvai -> m Events.Events
-realize_korvai stroke_dur korvai = do
-    strokes <- State.require_right id $ Korvai.realize korvai
+realize_korvai :: State.M m => Bool -> TrackTime -> Korvai.Korvai
+    -> m Events.Events
+realize_korvai realize_patterns stroke_dur korvai = do
+    strokes <- State.require_right id $ Korvai.realize realize_patterns korvai
     return $ Events.from_list
         [ Event.event start 0 (Mridangam.stroke_to_call stroke)
         | (start, Mridangam.Note stroke)

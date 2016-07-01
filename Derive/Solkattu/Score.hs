@@ -191,7 +191,7 @@ t1s = korvais (adi 6) mridangam
     , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
     ]
     where
-    utarangam p = tri_ (tang.ga) p
+    utarangam = tri_ (tang.ga)
     reduce = reduce3 2 mempty
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
@@ -236,17 +236,16 @@ t2s = korvais (adi 6) mridangam
 
 t3s :: [Korvai]
 t3s = korvais (adi 6) mridangam
-    [ -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
-      --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
-      --              .ta.ka.din.na.__.ka.din.na.dinga
-      reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
-    , -- .tat.__.dit.__.ta.ka.din.na.__.dinga
-      --        .dit.__.ta.ka.din.na.__.dinga
-      --               .ta.ka.din.na.__.dinga
-      reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
-
+    [ reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
+    , reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
     ]
+    -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
+    --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
+    --              .ta.ka.din.na.__.ka.din.na.dinga
+    -- tat.__.dit.__.ta.ka.din.na.__.dinga
+    --       .dit.__.ta.ka.din.na.__.dinga
+    --              .ta.ka.din.na.__.dinga
     where
     utarangam p = tri p . dinga!u . tri_ __ p . dinga!u . tri_ __3 p
     reduce = reduce3 2 mempty
@@ -284,18 +283,16 @@ korvai = Korvai.korvai
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 
-realizes :: [Korvai.Korvai] -> IO ()
-realizes ks =
-    sequence_ $ List.intersperse (putChar '\n') $ map realize1 (zip [0..] ks)
-    where
-    realize1 (i, korvai) = do
-        putStrLn $ "---- " ++ show i
-        realize korvai
+many :: (a -> IO ()) -> [a] -> IO ()
+many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)
+    where put (i, x) = putStrLn ("---- " ++ show i) >> f x
 
-realize :: Korvai.Korvai -> IO ()
-realize korvai = Text.IO.putStrLn $ case result of
-    Left err -> "ERROR:\n" <> err
-    Right notes -> Mridangam.pretty_strokes_tala tala notes
-    where
-    result = Korvai.realize korvai
-    tala = Korvai.korvai_tala korvai
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realize_ True
+realizep = realize_ False
+
+realize_ :: Bool -> Korvai.Korvai -> IO ()
+realize_ realize_patterns korvai =
+    Text.IO.putStrLn $ case Korvai.realize realize_patterns korvai of
+        Left err -> "ERROR:\n" <> err
+        Right notes -> Mridangam.format (Korvai.korvai_tala korvai) notes

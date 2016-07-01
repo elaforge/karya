@@ -37,11 +37,11 @@ korvai tala mridangam sequence = Korvai
     }
 
 -- | Realize a Korvai in mridangam strokes.
-realize :: Korvai -> Either Text [Mridangam.Note]
-realize korvai = first Text.unlines $ do
+realize :: Bool -> Korvai -> Either Text [Mridangam.Note]
+realize realize_patterns korvai = first Text.unlines $ do
     rnotes <- Solkattu.verify_alignment (korvai_tala korvai)
         (korvai_sequence korvai)
-    Mridangam.realize (korvai_mridangam korvai) rnotes
+    Mridangam.realize realize_patterns (korvai_mridangam korvai) rnotes
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =

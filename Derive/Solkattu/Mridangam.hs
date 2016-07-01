@@ -67,12 +67,13 @@ patterns pairs
         , matras /= length ns
         ]
 
-data Note = Note Stroke | Rest | TimeChange S.TimeChange
+data Note = Note Stroke | Rest | Pattern S.Matras | TimeChange S.TimeChange
     deriving (Show)
 
 instance Pretty.Pretty Note where
     pretty Rest = "__"
     pretty (Note s) = pretty s
+    pretty (Pattern matras) = "p" <> showt matras
     pretty (TimeChange change) = pretty change
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
@@ -141,16 +142,19 @@ standard_stroke_map = StrokeMap $ Map.fromList
     , ([S.Dheem], [Just $ Valantalai Dheem])
     ]
 
-realize :: Mridangam -> [SNote] -> Either [Text] [Note]
-realize (Mridangam smap (Patterns patterns)) = format_error . go
+realize :: Bool -> Mridangam -> [SNote] -> Either [Text] [Note]
+realize realize_patterns (Mridangam smap (Patterns patterns)) =
+    format_error . go
     where
     go :: [SNote] -> ([[Note]], Maybe (Text, [SNote]))
     go [] = ([], Nothing)
     go (n : ns) = case n of
-        S.Pattern dur -> case Map.lookup dur patterns of
-            Nothing ->
-                ([], Just ("no pattern with duration " <> showt dur, n:ns))
-            Just mseq -> first (mseq:) (go ns)
+        S.Pattern dur
+            | realize_patterns -> case Map.lookup dur patterns of
+                Nothing ->
+                    ([], Just ("no pattern with duration " <> showt dur, n:ns))
+                Just mseq -> first (mseq:) (go ns)
+            | otherwise -> first ([Pattern dur] :) (go ns)
         S.Rest -> first ([Rest] :) (go ns)
         S.Sollu sollu stroke ->
             case find_sequence smap sollu stroke ns of
@@ -204,17 +208,23 @@ replace_strokes (_:_) [] = ([], [])
     -- the same length as the RealizedNotes used to find them.
 
 -- | Format the notes according to the tala.
-pretty_strokes_tala :: S.Tala -> [Note] -> Text
-pretty_strokes_tala tala =
-    Text.stripStart . mconcat . Maybe.catMaybes . snd
-        . List.mapAccumL format (S.initial_state tala)
+format :: S.Tala -> [Note] -> Text
+format tala = Text.stripStart . mconcat
+    . S.map_time tala per_word . S.map_time tala per_note
     where
-    format state note = second (fmap decorate) $ case note of
-        Rest -> (advance, Just "-")
-        Note n -> (advance, Just (pretty n))
-        TimeChange change -> (S.time_change change state, Nothing)
+    per_note _ note = case note of
+        Rest -> (Right 1, [Right "_"])
+        Note n -> (Right 1, [Right (pretty n)])
+        Pattern matras -> (Right (fromIntegral matras),
+            map Right $ pretty (Pattern matras) : replicate (matras - 1) "--")
+        TimeChange change -> (Left change, [Left change])
+    per_word _ (Left change) = (Left change, [])
+    per_word state (Right word) =
+        (Right 1, [newline <> add_emphasis (pad word)])
         where
-        decorate = (newline<>) . add_emphasis . pad
+        -- TODO look for the highest speed, and normalize to that
+        pad = Text.justifyLeft
+            (if S.state_speed state == S.S1 then 2 else 0) ' '
         add_emphasis s
             | not (Text.null s) && matra == 0 = emphasize s
             | otherwise = s
@@ -222,12 +232,7 @@ pretty_strokes_tala tala =
             | matra == 0 && S.state_akshara state == 0 = "\n\n"
             | matra == 0 && S.state_akshara state == S.tala_arudi tala = "\n"
             | otherwise = ""
-        -- TODO look for the highest speed, and normalize to that
-        pad = Text.justifyLeft (if S.state_speed state == S.S1 then 2 else 0)
-            ' '
-
         matra = S.state_matra state
-        advance = S.advance_state tala 1 state
     emphasize txt = "\ESC[1m" <> txt <> "\ESC[0m"
 
 pretty_strokes :: [Note] -> Text

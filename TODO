@@ -1221,7 +1221,6 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - Support S2 Patterns.
-        - An option to let Patterns through to the end of realization.
         - put sep argument second, so e.g. 'tri p6 (tang.ga)', this way it
           reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"
@@ -1292,7 +1291,7 @@ Derive:
         * Actually (-) is useful... go back to (.)?
         * karvai can have various realizations in the same way patterns can
         * verify Patterns, key and pattern durations should be the same
-        - optionally propagate Patterns through to Stroke, so I can emit it as
+        * optionally propagate Patterns through to Stroke, so I can emit it as
           a 'p#' event.
         - Should I change mridangam notes to be consistent with Solkattu.Dsl?
           I have to put thoppi on the left, for 'od' instead of the keyword

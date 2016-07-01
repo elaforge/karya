@@ -18,7 +18,7 @@ import Global
 
 test_realize = do
     let f = (Text.unlines *** show_strokes)
-            . M.realize mridangam
+            . M.realize True mridangam
         mridangam = M.Mridangam smap Patterns.defaults
         smap = M.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])

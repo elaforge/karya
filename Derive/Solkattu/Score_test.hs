@@ -21,4 +21,4 @@ test_kandams = do
     equal [err | Left err <- map realize Score.kandams] []
 
 realize :: Korvai.Korvai -> Either Text [Mridangam.Note]
-realize = Korvai.realize
+realize = Korvai.realize True
