@@ -329,9 +329,9 @@ pause msg = do
     human_get_char
     putStr "\n"
 
-expect_right :: (Stack, Show a) => String -> Either a b -> b
-expect_right msg (Left v) = error_stack $ msg ++ ": " ++ show v
-expect_right _ (Right v) = v
+expect_right :: (Stack, Show a) => Either a b -> b
+expect_right (Left v) = error_stack (show v)
+expect_right (Right v) = v
 
 -- | Like 'error', but with the caller's position.
 error_stack :: Stack => String -> a

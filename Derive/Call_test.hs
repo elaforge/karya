@@ -33,7 +33,7 @@ test_random = do
     equal v1 v2
 
 test_randoms_in = do
-    let run seed = expect_right "run" . DeriveTest.eval State.empty
+    let run seed = expect_right . DeriveTest.eval State.empty
             . Derive.with_val EnvKey.seed (seed :: Int)
         randoms seed low high = take 4 $
             run seed (Call.randoms_in low high)

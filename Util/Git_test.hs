@@ -68,8 +68,7 @@ test_make_dir = Git.initialize $ do
 
 test_write_dir = Git.initialize $ do
     repo <- new_repo
-    let dir1 = expect_right "make_dir" $
-            Git.make_dir [("a/b", "abc"), ("d", "def")]
+    let dir1 = expect_right $ Git.make_dir [("a/b", "abc"), ("d", "def")]
     tree <- Git.write_dir repo dir1
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
@@ -85,7 +84,7 @@ test_modify_tree = Git.initialize $ do
 
 test_diff_trees = Git.initialize $ do
     repo <- new_repo
-    let make_dir = expect_right "make_dir" . Git.make_dir
+    let make_dir = expect_right . Git.make_dir
     tree1 <- Git.write_dir repo (make_dir [("a/b", "abc"), ("d", "def")])
     tree2 <- Git.modify_tree repo tree1 [Add "a/b" "def"]
     io_equal (Git.diff_trees repo tree1 tree2) [Add "a/b" "def"]

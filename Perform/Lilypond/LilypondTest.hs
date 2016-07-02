@@ -46,8 +46,8 @@ process_simple :: [String] -- ^ only include these lilypond backslash commands
     -> [Types.Event] -> Either String String
 process_simple wanted events = extract_simple wanted $ process events
 
-extract_rights :: (Show a) => [Either a String] -> String
-extract_rights = unwords . map (expect_right "expected only ly")
+extract_rights :: (Stack, Show a) => [Either a String] -> String
+extract_rights = unwords . map expect_right
 
 process :: [Types.Event] -> Either String [Output]
 process events = first untxt $
@@ -111,7 +111,7 @@ mkstate meters = Process.make_state default_config 0 (map mkmeter meters)
     Process.default_key
 
 mkmeter :: String -> Meter.Meter
-mkmeter = expect_right "mkmeter" . Meter.parse_meter . txt
+mkmeter = expect_right . Meter.parse_meter . txt
 
 -- | 1 == quarter, to be consistent with the default behaviour for
 -- 'Types.real_to_time'.
@@ -259,7 +259,7 @@ derive_lilypond state deriver =
 
 make_ly :: Types.Config -> [Types.Event] -> String
 make_ly config events = Text.Lazy.unpack $
-    Lilypond.ly_file config "title" $ expect_right "make_ly" $
+    Lilypond.ly_file config "title" $ expect_right $
     Lilypond.extract_movements config events
 
 -- * extract

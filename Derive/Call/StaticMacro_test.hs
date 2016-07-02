@@ -23,8 +23,7 @@ test_generator = do
     let run trans gen call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup trans gen)
                 "" [(">", [(0, 1, call)])]
-        setup trans gen = CallTest.with_note_generator "m" $
-            expect_right "StaticMacro.generator" $
+        setup trans gen = CallTest.with_note_generator "m" $ expect_right $
             StaticMacro.generator Module.prelude "m" mempty "doc" trans gen
         gen = make_call Note.c_note
         trans = make_call Note.c_note_attributes
@@ -46,8 +45,7 @@ test_transformer = do
     let run trans call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup trans) ""
                 [(">", [(0, 1, call <> " | +z")])]
-        setup trans = CallTest.with_note_transformer "m" $
-            expect_right "StaticMacro.transformer" $
+        setup trans = CallTest.with_note_transformer "m" $ expect_right $
             StaticMacro.transformer Module.prelude "m" mempty "doc" trans
         trans = make_call Note.c_note_attributes
     equal (run [trans [attr "a"]] "m") (["+a+z"], [])
