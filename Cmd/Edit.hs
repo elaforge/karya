@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 {- | Event editing commands.  This is where generic event editing commands go.
     More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.
@@ -193,10 +194,13 @@ modify_event_near_point modify = do
         then modify_prev (Sel.start_pos sel)
         else modify_selection (Sel.range sel)
     where
-    modify_selection = ModifyEvents.selection . ModifyEvents.event . modify
+    modify_selection =
+        ModifyEvents.selection_expanded . ModifyEvents.event . modify
     modify_prev pos = do
-        (_, _, track_ids, _, _) <- Selection.tracks
-        forM_ track_ids $ modify_track pos
+        (block_id, tracknums, track_ids, _, _) <- Selection.tracks
+        forM_ (zip tracknums track_ids) $ \(tracknum, track_id) ->
+            unlessM (State.track_collapsed block_id tracknum) $
+                modify_track pos track_id
     modify_track pos track_id = do
         (pre, post) <- Events.split pos . Track.track_events <$>
             State.get_track track_id
@@ -245,9 +249,10 @@ alter_duration alter = do
     let wanted = if is_note
             then fmap ParseTitle.is_note_track . State.get_track_title
             else const (return True)
-    ModifyEvents.selection $ \_ track_id events -> ifM (wanted track_id)
-        (Just <$> mapM (alter block_id track_id) events)
-        (return Nothing)
+    ModifyEvents.selection_expanded $ \_ track_id events ->
+        ifM (wanted track_id)
+            (Just <$> mapM (alter block_id track_id) events)
+            (return Nothing)
 
 first_track_is_note :: State.M m => BlockId -> Sel.Selection -> m Bool
 first_track_is_note block_id sel =
@@ -255,7 +260,7 @@ first_track_is_note block_id sel =
     where
     find [] = return False
     find (tracknum:tracknums) =
-        State.event_track_at block_id tracknum >>= \x -> case x of
+        State.event_track_at block_id tracknum >>= \case
             Nothing -> find tracknums
             Just track_id -> ParseTitle.is_note_track
                 <$> State.get_track_title track_id
@@ -302,7 +307,7 @@ cmd_set_beginning = do
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
-modify_dur f = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
+modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $ \evt ->
     Event.set_duration (apply (Event.duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
 
@@ -506,8 +511,9 @@ toggle_note_duration = do
 -- ** fancier start\/duration edits
 
 cmd_set_call_duration :: Cmd.M m => m ()
-cmd_set_call_duration = ModifyEvents.selection $ \block_id track_id events ->
-    Just <$> mapM (set_call_duration block_id track_id) events
+cmd_set_call_duration = ModifyEvents.selection_expanded $
+    \block_id track_id events ->
+        Just <$> mapM (set_call_duration block_id track_id) events
 
 -- | Set the event duration to the CallDuration of its call.  For block calls,
 -- this is the natural block duration.
@@ -521,7 +527,7 @@ set_call_duration block_id track_id event =
 lookup_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m (Maybe TrackTime)
 lookup_call_duration block_id track_id event =
-    Perf.lookup_note_deriver block_id track_id event >>= \x -> case x of
+    Perf.lookup_note_deriver block_id track_id event >>= \case
         Nothing -> return Nothing
         Just deriver -> do
             dur <- Perf.get_derive_at block_id track_id $

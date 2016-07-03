@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * I accidentally gave pitches duration with cmd-Z on the note track.  It
+    shouldn't apply to collapsed tracks.
+  - cmd-Z toggle zero duration is inconvenient, it gets the previous event.
+    This is actually the same behaviour as set-dur, but it seems awkward for
+    zero dur.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.

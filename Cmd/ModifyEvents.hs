@@ -66,20 +66,37 @@ failable_text f block_id track_id events = do
 
 -- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
-selection modify = modify_selected modify =<< Selection.events
+selection modify = modify_selected True modify =<< Selection.events
+
+-- | Like 'selection', but don't apply to collapsed tracks.  This is
+-- appropriate for operations that often apply to note tracks.  If you select
+-- multiple note tracks, then the intervening collapsed pitch tracks will also
+-- be selected and if you accidentally modify those you won't see the
+-- modifications.
+selection_expanded :: Cmd.M m => Track m -> m ()
+selection_expanded modify = modify_selected False modify =<< Selection.events
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()
-selected_track modify = modify_selected modify =<< Selection.track_events
+selected_track modify = modify_selected False modify =<< Selection.track_events
+    -- Don't affect collapsed tracks because why would the point selection be
+    -- on one of those?
 
-modify_selected :: Cmd.M m => Track m -> Selection.SelectedEvents -> m ()
-modify_selected modify selected = do
+modify_selected :: Cmd.M m => Bool -- ^ If False, omit collapsed tracks.
+    -> Track m -> Selection.SelectedEvents -> m ()
+modify_selected include_collapsed modify selected = do
     block_id <- Cmd.get_focused_block
-    forM_ selected $ \(track_id, (start, end), events) -> do
-        maybe_new_events <- modify block_id track_id events
-        whenJust maybe_new_events $ \new_events -> do
-            State.remove_events track_id start end
-            State.insert_block_events block_id track_id new_events
+    let wanted track_id
+            | include_collapsed = return True
+            | otherwise = do
+                tracknum <- State.get_tracknum_of block_id track_id
+                not <$> State.track_collapsed block_id tracknum
+    forM_ selected $ \(track_id, (start, end), events) ->
+        whenM (wanted track_id) $ do
+            maybe_new_events <- modify block_id track_id events
+            whenJust maybe_new_events $ \new_events -> do
+                State.remove_events track_id start end
+                State.insert_block_events block_id track_id new_events
 
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.

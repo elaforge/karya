@@ -16,7 +16,7 @@ module Ui.Block (
     , Track(..), track_id, track
     , modify_id
     , divider
-    , track_selectable, track_wants_signal
+    , track_collapsed, track_selectable, track_wants_signal
     -- ** DisplayTrack
     , DisplayTrack(..), Status, TrackFlag(..)
     , block_display_tracks
@@ -290,6 +290,8 @@ data DisplayTrack = DisplayTrack {
     , dtrack_event_brightness :: !Double
     } deriving (Eq, Show, Read)
 
+-- | This has a 2 character string to display above the track, and a background
+-- color.
 type Status = Maybe (String, Color.Color)
 
 instance Pretty.Pretty DisplayTrack where

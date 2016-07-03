@@ -90,7 +90,7 @@ module Ui.State (
     , tracknum_of, get_tracknum_of
     -- *** block track
     , set_track_width
-    , track_flags
+    , track_flags, track_collapsed
     , toggle_track_flag, add_track_flag, remove_track_flag
     , modify_track_flags
     , set_track_ruler
@@ -956,6 +956,10 @@ set_track_width block_id tracknum width =
 track_flags :: M m => BlockId -> TrackNum -> m (Set.Set Block.TrackFlag)
 track_flags block_id tracknum =
     Block.track_flags <$> get_block_track_at block_id tracknum
+
+track_collapsed :: M m => BlockId -> TrackNum -> m Bool
+track_collapsed block_id tracknum =
+    Block.track_collapsed <$> get_block_track_at block_id tracknum
 
 toggle_track_flag :: M m => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 toggle_track_flag block_id tracknum flag =
