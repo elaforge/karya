@@ -71,17 +71,17 @@ c_when_ly = transformer "when-ly" mempty
     \ emit an entirely different set of tracks.\n\
     \ With arguments, evaluate them as a transformer and apply it only\
     \ when in lilypond mode.  Otherwise, the deriver is unchanged."
-    $ Sig.parsed_manually "Any number of arguments of any type." (when_ly False)
+    $ Sig.callt (Sig.many_vals "arg" "Call expression.") (when_ly False)
 
 c_unless_ly :: Derive.Transformer Derive.Note
 c_unless_ly = transformer "unless-ly" mempty
     "The inverse of when-ly, evaluate the deriver or apply the args only when\
     \ not in lilypond mode."
-    $ Sig.parsed_manually "Any number of arguments of any type." (when_ly True)
+    $ Sig.callt (Sig.many_vals "arg" "Call expression.") (when_ly True)
 
-when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-when_ly inverted args deriver = case Derive.passed_vals args of
+when_ly :: Bool -> [BaseTypes.Val] -> Derive.PassedArgs Score.Event
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
+when_ly inverted vals args deriver = case vals of
     [] -> when_lily deriver mempty
     call : vals -> when_lily (apply args (to_sym call) vals deriver) deriver
     where

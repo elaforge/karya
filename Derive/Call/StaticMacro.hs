@@ -65,7 +65,7 @@ generator module_ name tags doc trans gen = do
     gen_args <- extract_args gen
     let args = trans_args ++ gen_args
     return $ Derive.generator module_ name tags (make_doc doc call_docs) $
-        Sig.call (Sig.many_vals args) $ \vals args ->
+        Sig.call (Sig.required_vals args) $ \vals args ->
             generator_macro trans gen vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans ++ [call_doc gen]
 
@@ -90,7 +90,7 @@ transformer :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
     return $ Derive.transformer module_ name tags (make_doc doc call_docs) $
-        Sig.callt (Sig.many_vals args) $ \vals args ->
+        Sig.callt (Sig.required_vals args) $ \vals args ->
             transformer_macro trans vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans
 
@@ -119,8 +119,10 @@ eval_term ctx (RValCall call terms) = do
             }
     Derive.vcall_call call passed
 
+-- | Substitute the given Vals into the non-'Given' Args.
 substitute_vars :: [BaseTypes.Val] -> [Arg] -> ([BaseTypes.Val], [ResolvedTerm])
-substitute_vars vals args = run (mapM subst_arg args)
+    -- ^ (remaining_vals, substituted)
+substitute_vars all_vals args = run (mapM subst_arg args)
     where
     subst_arg arg = case arg of
         Var -> RLiteral <$> pop
@@ -132,26 +134,21 @@ substitute_vars vals args = run (mapM subst_arg args)
             -- This allows the sub-call look in the environ for a default.
             [] -> return BaseTypes.VNotGiven
             v : vs -> Monad.State.put vs >> return v
-    run = Tuple.swap . Identity.runIdentity . flip Monad.State.runStateT vals
+    run = Tuple.swap . Identity.runIdentity
+        . flip Monad.State.runStateT all_vals
 
 -- Look for Vars, and get the corresponding ArgDoc.
 extract_args :: Call (Derive.Call f) -> Either Text [Derive.ArgDoc]
 extract_args (Call call args) = extract (Derive.call_doc call) args
     where
     extract :: Derive.CallDoc -> [Arg] -> Either Text [Derive.ArgDoc]
-    extract cdoc args = case Derive.cdoc_args cdoc of
-        Derive.ArgDocs docs
-            | length args > length docs -> Left $
-                "call can take up to " <> showt (length docs)
-                <> " args, but was given " <> showt (length args)
-            | otherwise -> concatMapM extract_arg (zip docs args)
-        Derive.ArgsParsedManually _ ->
-            -- TODO This means an arbitrary number of Vals.  I think I'd have
-            -- to insist on only one Var, and then give all the arguments to
-            -- it.  It's not that hard, but I don't have a reason to support it
-            -- at the moment.
-            Left "ArgsParsedManually not supported"
+    extract cdoc args
+        | length args > length docs = Left $
+            "call can take up to " <> showt (length docs)
+            <> " args, but was given " <> showt (length args)
+        | otherwise = concatMapM extract_arg (zip docs args)
         where
+        docs = Derive.cdoc_args cdoc
         extract_arg (doc, arg) = case arg of
             Var -> Right [doc]
             Given (Literal _) -> Right []

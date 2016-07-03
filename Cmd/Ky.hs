@@ -157,8 +157,9 @@ simple_generator fname name expr =
     Derive.generator Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
-        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
-            \args -> Eval.reapply_generator args call_id
+        Just call_id ->
+            Sig.call (Sig.many_vals "arg" "Args parsed by reapplied call.") $
+                \_vals args -> Eval.reapply_generator args call_id
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
 simple_transformer :: Derive.Callable d => FilePath -> Text
@@ -167,8 +168,9 @@ simple_transformer fname name expr =
     Derive.transformer Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
-        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
-            reapply call_id
+        Just call_id ->
+            Sig.callt (Sig.many_vals "arg" "Args parsed by reapplied call.") $
+                \_vals -> reapply call_id
     where
     transformer args deriver =
         Eval.eval_transformers (Derive.passed_ctx args)
@@ -184,8 +186,9 @@ simple_val_call fname name call_expr =
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args ->
             Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
-        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call."
-            (call_args call_id)
+        Just call_id ->
+            Sig.call (Sig.many_vals "arg" "Args parsed by reapplied call.") $
+                \_vals -> call_args call_id
     where
     expr = call_expr :| []
     call_args call_id args = do
@@ -195,7 +198,7 @@ simple_val_call fname name call_expr =
 
 broken_val_call :: Text -> Text -> Derive.ValCall
 broken_val_call name msg = Derive.make_val_call Module.local name mempty
-    msg $ Sig.parsed_manually "broken" $ \_ -> Derive.throw msg
+    msg $ Sig.call (Sig.many_vals "arg" "broken") $ \_ _ -> Derive.throw msg
 
 -- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
 no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr

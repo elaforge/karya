@@ -88,7 +88,8 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
     \ and controls the interpolation between the scales. For this to work, the\
     \ scales must have the same degree names, since there's no way to manually\
     \ specify a correspondence between scale degrees."
-    ) $ Sig.parsed_manually "passed to `from` and `to` scales" $ \args -> do
+    ) $ Sig.call (Sig.many_vals "arg" "passed to `from` and `to` scales") $
+    \_vals args -> do
         start <- Args.real_start args
         n <- fromMaybe 0 <$> Derive.untyped_control_at scale_at start
         let apply key = rename_environ key EnvKey.key

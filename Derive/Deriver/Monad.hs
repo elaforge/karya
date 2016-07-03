@@ -82,7 +82,7 @@ module Derive.Deriver.Monad (
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
-    , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
+    , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
 
@@ -1238,13 +1238,8 @@ data CallDoc = CallDoc {
     cdoc_module :: !Module.Module
     , cdoc_tags :: !Tags.Tags
     , cdoc_doc :: !Text
-    , cdoc_args :: !ArgDocs
+    , cdoc_args :: ![ArgDoc]
     } deriving (Eq, Ord, Show)
-
-data ArgDocs = ArgDocs [ArgDoc]
-    -- | This means the call parses the args itself in some special way.
-    | ArgsParsedManually Text
-    deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {
     arg_name :: !Text
@@ -1275,7 +1270,7 @@ data EnvironDefault =
 
 -- | A value annotated with argument docs.  This is returned by the functions
 -- in "Derive.Sig", and accepted by the Call constructors here.
-type WithArgDoc f = (f, ArgDocs)
+type WithArgDoc f = (f, [ArgDoc])
 
 -- ** make calls
 

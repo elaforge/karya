@@ -122,7 +122,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_setup
 
 c_show_args :: Derive.Callable d => Derive.Generator d
 c_show_args = Derive.generator module_ "show-args" mempty "doc" $
-    Sig.parsed_manually "doc" $ \args -> do
+    Sig.call (Sig.many_vals "arg" "doc") $ \_ args -> do
         Log.warn $ Text.intercalate ", " $
             map ShowVal.show_val (Derive.passed_vals args)
         return Stream.empty

@@ -168,13 +168,14 @@ fade_in_call = "-<"
 
 c_sequence :: Derive.Generator Derive.Note
 c_sequence = Derive.generator module_ "sequence" mempty sequence_doc
-    $ Sig.parsed_manually "Expressions separated by `;`."
-    $ Sub.inverting $ \args -> with_sequence args (Call.note_here args)
+    $ Sig.call (Sig.many_vals "arg" "Expressions separated by `;`.")
+    $ \_ -> Sub.inverting $ \args -> with_sequence args (Call.note_here args)
 
 c_sequence_transform :: Derive.Transformer Derive.Note
 c_sequence_transform = Derive.transformer module_ "sequence" mempty
-    sequence_doc $ Sig.parsed_manually "Expressions separated by `;`."
-        with_sequence
+    sequence_doc $
+        Sig.callt (Sig.many_vals "arg" "Expressions separated by `;`.") $
+        \_ -> with_sequence
 
 sequence_doc :: Text
 sequence_doc = "Sequence several pitch calls. Calls are divided into\

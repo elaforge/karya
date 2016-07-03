@@ -131,7 +131,7 @@ substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
 -- and more hacky language features?
 make_signature :: [(Parse.Var, BaseTypes.CallId, Int)]
     -> Sig.Parser [BaseTypes.Val]
-make_signature vars = Sig.many_vals (map doc vars)
+make_signature vars = Sig.required_vals (map doc vars)
     where
     doc (Parse.Var var, call, argnum) = Derive.ArgDoc
         { arg_name = var

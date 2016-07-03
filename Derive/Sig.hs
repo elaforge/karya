@@ -83,11 +83,11 @@ module Derive.Sig (
     Parser, Generator, Transformer
     , check, parse_or_throw, require_right, parse, parse_vals
     -- * parsers
-    , parsed_manually, no_args
+    , no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
     , environ, environ_quoted, required_environ
-    , optional, optional_env, many, many1, many_pairs, many1_pairs
-    , many_vals
+    , optional, optional_env, many, many_vals, many1, many_pairs, many1_pairs
+    , required_vals
     -- ** defaults
     , EnvironDefault(..)
     , control, typed_control, required_control, pitch
@@ -194,12 +194,6 @@ parse_vals parser ctx name vals =
         }
 
 -- * parsers
-
--- | Just pass the arguments through, and let the call process them.
--- This is for calls whose args are more complicated than the Parser can
--- handle.
-parsed_manually :: Text -> a -> Derive.WithArgDoc a
-parsed_manually doc f = (f, Derive.ArgsParsedManually doc)
 
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
 -- 'call0' and 'call0t' as a shortcut.
@@ -393,6 +387,10 @@ many name doc = parser arg_doc $ \state -> do
         , arg_doc = doc
         }
 
+-- | 'many' specialized to Vals, to avoid a type annotation.
+many_vals :: Text -> Text -> Parser [BaseTypes.Val]
+many_vals name doc = many name doc
+
 -- | Collect the rest of the arguments, but there must be at least one.
 many1 :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser (NonEmpty a)
 many1 name doc = non_empty name $ many name doc
@@ -442,9 +440,9 @@ non_empty name (Parser docs p) =
             "arg requires at least one value: " <> name
         Right (state, x : xs) -> Right (state, x :| xs)
 
--- | Accept one Val for each ArgDoc given, but otherwise do no typechecking.
-many_vals :: [Derive.ArgDoc] -> Parser [BaseTypes.Val]
-many_vals docs = Parser docs parser
+-- | Require one Val for each ArgDoc given, but otherwise do no typechecking.
+required_vals :: [Derive.ArgDoc] -> Parser [BaseTypes.Val]
+required_vals docs = Parser docs parser
     where
     -- I don't check the number of arguments because this is used for call
     -- macros, and I need to give the sub-call a chance to default its args.
@@ -565,17 +563,17 @@ type Transformer y d =
 
 call :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
-call parser f = (go, Derive.ArgDocs (parser_docs parser))
+call parser f = (go, parser_docs parser)
     where go args = parse parser args >>= require_right >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
 call0 :: Derive.Taggable y => Generator y d -> Derive.WithArgDoc (Generator y d)
-call0 f = (go, Derive.ArgDocs [])
+call0 f = (go, [])
     where go args = parse no_args args >>= require_right >>= \() -> f args
 
 callt :: Derive.Taggable y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
-callt parser f = (go, Derive.ArgDocs (parser_docs parser))
+callt parser f = (go, parser_docs parser)
     where
     go args deriver = parse parser args >>= require_right
         >>= \a -> f a args deriver
@@ -583,7 +581,7 @@ callt parser f = (go, Derive.ArgDocs (parser_docs parser))
 -- | Specialization of 'callt' for 0 arguments.
 call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
-call0t f = (go, Derive.ArgDocs [])
+call0t f = (go, [])
     where
     go args deriver = parse (pure ()) args >>= require_right
         >>= \() -> f args deriver

@@ -25,6 +25,15 @@ UNSORTED
       where I give all args to one transformer, and the generator is dynamic.
       I think I can do the former with a special arg, and the latter with an
       eval "static call".
+    . But what happens with StaticMacro when it hits a Sig.many?  I think it's
+      broken.
+    . To support this, Sig.required_vals needs to support 'many' parsers.
+      I could infer from ArgParser but it seems like it's getting too
+      complicated.  I think at that point I had better just be able to copy
+      the parser over.  Can't I just reapply to the callee?
+  * Can I get rid of Sig.ArgsParsedManually and replace it with Args.many?
+    . It's an awkward irregularity with ArgDocs.
+    . This is actually more powerful because I can have some parsed args first.
   * thru on charukesi >wy-s is getting pitch bend, but derive is correct
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
   * nruktuk for kajar
