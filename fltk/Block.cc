@@ -809,8 +809,14 @@ BlockViewWindow::handle(int evt)
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.
         MsgCollector::get()->view(UiMsg::msg_resize, this);
+    } else if (evt == FL_FOCUS) {
+        highlight_focused(this);
+        // This is sent *before* the widget becomes Fl::focus().
+        MsgCollector::get()->focus(this);
+        return true;
     }
     if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
+        // This is kind of dumb, but I'm used to using this to quit test_block.
         this->hide();
     }
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
@@ -834,11 +840,6 @@ BlockViewWindow::handle(int evt)
             // If it's in the track area but reached here it must be right
             // of the rightmost track.
             MsgCollector::get()->event(evt, block.event_in_track_area());
-            break;
-        case FL_FOCUS:
-            highlight_focused(this);
-            // This is sent *before* the widget becomes Fl::focus().
-            MsgCollector::get()->focus(this);
             break;
         }
         return true;
