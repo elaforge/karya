@@ -316,11 +316,15 @@ eval_note pos note = Eval.eval_pitch pos $
 note :: Derive.NoteDeriver
 note = Eval.eval_one_call True $ BaseTypes.call "" []
 
--- | Like 'note', but the note reuses the start and duration from the passed
--- args, rather than being normalized from 0 to 1.  This is appropriate when
--- dispatching to the default note call.
-note_here :: Derive.NoteArgs -> Derive.NoteDeriver
-note_here args = Eval.reapply_call (Args.context args) "" []
+-- | Like 'note', but the note reuses the Context, which means it will inherit
+-- the caller's start and duration as well as sub-tracks and thus may apply
+-- inversion.
+--
+-- This is appropriate when adding a wrapper around the default note call, but
+-- not if you don't want to be overridden by sub-tracks.  See 'placed_note'
+-- if you want to inherit the time, but not the rest.
+reapply_note :: Derive.NoteArgs -> Derive.NoteDeriver
+reapply_note args = Eval.reapply_call (Args.context args) "" []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PSignal.Pitch -> Derive.NoteDeriver

@@ -3,6 +3,69 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - make Args.next_logical_pitch work for note calls
+    . Why do I get the error unless there's a setup neighors in the Note call?
+      . It's from the (0, 1) -> (1, 1) "g" call.
+        "1 | 4c | ""
+        "2 | g  |
+      . It's a recursive call to NoteQuery:
+        ..
+      . "1 creates an empty prevs, then evaluates [4c, g]
+        g sees empty prevs, does nothing.
+        ? This seems wrong, it should be 4c, right?
+          . But I shouldn't even need the surrounding pitch events for
+            NotePitchQuery.
+  - Can I change the logical pitch mechanism to be at track level?
+    . Evaluate the whole track with NotePitchQuery, and put a
+      'Map (tid, TrackTime) Pitch' in Dynamic.
+    . I can maybe even get rid of NotePitchQuery by doing the stripping at the
+      track level.
+    . I don't want to run recursively, so there would be holes in the map that
+      correspond to prev/next dependent pitches.
+    . Therefore a sequence of two would be an error.  This is good enough
+      since in practice, only ornaments of the pitch depend on the next one,
+      not the pitch itself.
+  * why does Call.note_here ignore the pitch?
+    no worky: Eval.reapply_call (Args.context args) "" []
+      . eval_expr collect=False ctx expr
+    yes worky: Eval.eval_one_call True $ BaseTypes.call "" []
+      . eval_expr collect=True (dummy_ctx ..) expr
+    . Because the context has the subs, which causes inversion to happen.
+  . Things I don't like about evaluation:
+    . All that stuff in Context.  The presence of sub_tracks can cause
+      unexpected further inversion.  An example is that when I inherited
+      the Context for Call.note_here, it also inherited the sub_tracks,
+      which caused Call.with_pitch to be overridden.
+    . It's also dumb how Context has the event (start, dur) duplicated
+      in the 'event' field.  It's not duplicate info for track events
+      because they have TrackTime, which is otherwise unavailable.
+      This I think is ultimately due to events being in TrackTime
+      context instead of (0, 1) normalized.
+    . Maybe the problem is inheriting Context?  Or maybe it's awkward
+      how it's effectively a manually passed packet of data, while the
+      stuff in Dynamic is dynamically scoped.  Events wanting to know
+      about their neighbors really does complicate things.
+    simplify Context
+      . Maybe I should explicitly provide specific bits of context, e.g.
+        . prev, cur, and next event TrackTime
+        . prev and next logical pitch
+      . Say I do that, and put them in Dynamic.  How can I then get rid of
+        sub_tracks?
+      . I still need prev_val
+      . There's nothing intrinsically wrong with Context, ultimately it's
+        just an argument, like passed_vals.  I guess it's easy to remember
+        passed_vals as just the arguments and understand how they work,
+        while that sub_tracks stuff was confusing.
+      . Maybe it's just the presence of sub_tracks in Context?  How can
+        I get that out?
+    . That 'collect' arg in Eval.eval_expr.  Why False for Eval.reapply
+      but other functions make the caller decide?
+
+  - 'tile' messes up the cache.  If I change the tile callee's contents
+    I think it rederives with only a single cycle and wrong controls.
+  - Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
+    so I can have gongs labeled.  How could I configure that?  Or should
+    I have a specialized kind of meter for gong, like Cmd.Tala?
   * I accidentally gave pitches duration with cmd-Z on the note track.  It
     shouldn't apply to collapsed tracks.
   - cmd-Z toggle zero duration is inconvenient, it gets the previous event.
@@ -605,6 +668,7 @@ performance:
         by using ghc-events to process the eventlog.
     - GHC's +RTS -v flag is documented but doesn't exist.
       It only exists when -debug, but this isn't documented.
+    . Moving the selection gets really laggy on save/transcribe/bali/gabor
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - experiment with GC flags, e.g. -H.
@@ -1338,6 +1402,19 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - is zero dur also mute for reyong?  I keep forgetting!
+        - default to initial=f?
+        - last kotekan note is still not useful
+        - kotekan lines up to the end, but that doesn't interact well when
+          it's interrupted by an angsel.  It should just start at the start
+          time, or at least the repeating regular style should.
+        - 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
+          customized per-score?
+        + Use logical next pitch for kotekan.
+          . Doesn't seem to work.  Why?
+          . I still feel like negative duration solves a lot of problems.
+        - clip should be end-weighted.  If I used a negative duration I could
+          make it based on that...
         - How norot puts notes before itself can be awkward, would it be
           simpler to have the pickup emitted by the end of the previous call?
           That way each call only emits notes within its duration.

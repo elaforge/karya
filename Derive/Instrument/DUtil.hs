@@ -64,7 +64,7 @@ attributes_note :: Attrs.Attributes -> Derive.Generator Derive.Note
 attributes_note attrs =
     generator0 ("attributes_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $ \args ->
-    Call.add_attributes attrs (Call.note_here args)
+    Call.add_attributes attrs (Call.reapply_note args)
 
 zero_duration_transform :: Text
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)

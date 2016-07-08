@@ -169,7 +169,7 @@ fade_in_call = "-<"
 c_sequence :: Derive.Generator Derive.Note
 c_sequence = Derive.generator module_ "sequence" mempty sequence_doc
     $ Sig.call (Sig.many_vals "arg" "Expressions separated by `;`.")
-    $ \_ -> Sub.inverting $ \args -> with_sequence args (Call.note_here args)
+    $ \_ -> Sub.inverting $ \args -> with_sequence args (Call.placed_note args)
 
 c_sequence_transform :: Derive.Transformer Derive.Note
 c_sequence_transform = Derive.transformer module_ "sequence" mempty
