@@ -31,6 +31,7 @@ import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -40,7 +41,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -168,6 +168,8 @@ invert subs start end next_start events_around = do
         }
 
 -- | Go down to a pitch track, then strip the rest down to the note track.
+-- So this strips out everything in between the pitch track and the note track
+-- at the bottom.
 strip_controls :: TrackTree.EventsTree -> TrackTree.EventsTree
 strip_controls = map pre_note
     where

@@ -497,16 +497,32 @@ test_derive_neighbor_pitches = do
         Log.warn $ showt $ extract (pretty . Score.initial_dynamic) neighbors
         return Stream.empty
 
-test_prev_next_logical_pitch = do
-    let run prev = DeriveTest.extract DeriveTest.e_note $
+test_neighbor_pitches_note_track = do
+    let run prev = DeriveTest.extract DeriveTest.e_start_note $
             DeriveTest.derive_tracks_setup
-                (CallTest.with_pitch_generator "g" (gen prev)) "" $
-            UiTest.note_track [(0, 1, "4c"), (1, 1, "g"), (2, 1, "4e")]
-    equal (run True) ([(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4e")], [])
-    equal (run False) ([(0, 1, "4c"), (1, 1, "4e"), (2, 1, "4e")], [])
+                (CallTest.with_note_generator "g" (note_gen prev)) "" $
+            UiTest.note_track [(0, 1, "4c"), (1, 1, "g -- 4d"), (2, 1, "4e")]
+    equal (run True) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
+    equal (run False) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
     where
-    gen :: Bool -> Derive.Generator Derive.Pitch
-    gen prev = CallTest.generator1 $ \args -> do
+    note_gen :: Bool -> Derive.Generator Derive.Note
+    note_gen prev = CallTest.generator $ \args -> do
+        pitch <- Derive.require "no prev/next" =<< if prev
+            then Args.lookup_prev_logical_pitch
+            else Args.lookup_next_logical_pitch
+        Call.place args $ Call.pitched_note pitch
+
+test_neighbor_pitches_pitch_track = do
+    let run prev = DeriveTest.extract DeriveTest.e_start_note $
+            DeriveTest.derive_tracks_setup
+                (CallTest.with_pitch_generator "g" (pitch_gen prev)) "" $
+            UiTest.note_track [(0, 1, "4c"), (1, 1, "g"), (2, 1, "4e")]
+    -- g is called 3 times
+    equal (run True) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
+    equal (run False) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
+    where
+    pitch_gen :: Bool -> Derive.Generator Derive.Pitch
+    pitch_gen prev = CallTest.generator1 $ \args -> do
         pitch <- if prev
             then Args.lookup_prev_logical_pitch
             else Args.lookup_next_logical_pitch

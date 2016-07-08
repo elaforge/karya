@@ -95,7 +95,8 @@ lookup_note_deriver block_id track_id event = do
 
 derive_event :: Derive.Callable d => EvalTrack.TrackInfo d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
-derive_event tinfo event = EvalTrack.derive_event tinfo Nothing [] event []
+derive_event tinfo event = EvalTrack.derive_event ctx event
+    where ctx = EvalTrack.context tinfo Nothing [] event []
     -- TODO get prev and next events
     -- Also, BlockUtil does 'Derive.with_val EnvKey.block_end' and possibly
     -- does Tempo.with_tempo.  If those things turn out to be important,

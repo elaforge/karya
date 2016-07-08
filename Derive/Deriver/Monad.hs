@@ -426,7 +426,7 @@ data Dynamic = Dynamic {
     -- inversion.
     , state_under_invert :: !(NoteDeriver -> NoteDeriver)
     , state_inversion :: !Inversion
-    -- | Lazily evaluated neighbors.
+    -- | Lazily evaluated neighbors.  (prevs, nexts)
     , state_neighbors
         :: !(Maybe ([NotePitchQueryResult], [NotePitchQueryResult]))
 

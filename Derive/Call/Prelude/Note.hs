@@ -32,7 +32,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
@@ -85,15 +84,9 @@ note_call :: Text
     -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
-        Sig.call parser (note_generate generate)
+    Sig.call (Sig.many "attribute" "Change the instrument or attributes.") $
+    \vals -> Sub.inverting (transform_note vals . generate)
     where
-    parser = Sig.many "attribute" "Change the instrument or attributes."
-    note_generate generate_note vals args = do
-        state <- Derive.get
-        let neighbors = EvalTrack.derive_neighbor_pitches state
-                (Args.context args)
-        with_neighbors neighbors $ Sub.inverting generate args
-        where generate args = transform_note vals $ generate_note args
     prepended
         | Text.null prepend_doc = generator_doc
         | otherwise = "Modified note call: " <> prepend_doc <> "\n"
@@ -104,11 +97,6 @@ note_call name prepend_doc tags generate =
         <> " setting those fields of the event.  This is bound to the"
         <> " null call, \"\", but any potential arguments would wind up"
         <> " looking like a different call, so it's bound to `n` as well."
-
-with_neighbors :: ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-    -> Derive.Deriver a -> Derive.Deriver a
-with_neighbors neighbors = Internal.local $ \state -> state
-    { Derive.state_neighbors = Just neighbors }
 
 c_note_track :: Derive.Transformer Derive.Note
 c_note_track = Derive.transformer Module.prelude "note-track" mempty

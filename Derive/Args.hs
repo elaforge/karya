@@ -107,36 +107,33 @@ lookup_prev_pitch = do
 -- ** from 'Derive.state_neighbors'
 
 lookup_prev_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_logical_pitch =
-    justm (lookup_prev_neighbor "prev pitch") $ \event ->
-        return $ Score.pitch_at (Score.event_start event) event
+lookup_prev_logical_pitch = justm lookup_prev_neighbor $ \event ->
+    return $ Score.pitch_at (Score.event_start event) event
 
 lookup_next_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_logical_pitch =
-    justm (lookup_next_neighbor "next pitch") $ \event ->
-        return $ Score.pitch_at (Score.event_start event) event
+lookup_next_logical_pitch = justm lookup_next_neighbor $ \event ->
+    return $ Score.pitch_at (Score.event_start event) event
 
-lookup_prev_neighbor :: Text -> Derive.Deriver (Maybe Score.Event)
-lookup_prev_neighbor caller =
-    get_neighbor_notes caller >>= \(prev, _) -> case prev of
+lookup_prev_neighbor :: Derive.Deriver (Maybe Score.Event)
+lookup_prev_neighbor =
+    get_neighbor_notes >>= \(prev, _) -> case prev of
         (event, logs) : _ -> do
             mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
             return event
         [] -> return Nothing
 
-lookup_next_neighbor :: Text -> Derive.Deriver (Maybe Score.Event)
-lookup_next_neighbor caller =
-    get_neighbor_notes caller >>= \(_, next) -> case next of
+lookup_next_neighbor :: Derive.Deriver (Maybe Score.Event)
+lookup_next_neighbor =
+    get_neighbor_notes >>= \(_, next) -> case next of
         (event, logs) : _ -> do
             mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
             return event
         [] -> return Nothing
 
-get_neighbor_notes :: Text -> Derive.Deriver
+get_neighbor_notes :: Derive.Deriver
     ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-get_neighbor_notes caller =
-    Derive.require (caller <> ": no neighbors")
-        =<< Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
+get_neighbor_notes = fromMaybe ([], []) <$>
+    Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
 
 -- ** eval
 
@@ -160,8 +157,8 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
 -- been evaluated yet, it has to be evaluated here.  So if it depends on the
 -- previous pitch, you won't get a pitch back.
 --
--- Actually, the pitch likely *has* been evaluated, I just don't can't get at
--- it here.  If it's uninverted then I have the whole pitch track, and if it's
+-- Actually, the pitch likely *has* been evaluated, I just can't get at it
+-- here.  If it's uninverted then I have the whole pitch track, and if it's
 -- inverted then the event at or after the end of the event will be included.
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.

@@ -329,12 +329,14 @@ reapply_generator_normalized args = reapply_generator $ args
     }
     where ctx = Derive.passed_ctx args
 
--- | Apply an expr with the current call info.  This discards the parsed
--- arguments in the 'Derive.PassedArgs' since it gets args from the
--- 'BaseTypes.Expr'.
+-- | Apply an expr with an explicit Context.  You can use this to reuse the
+-- current call's Context, but be careful because it will also inherit the
+-- 'Derive.ctx_sub_tracks', which means if inversion hasn't happened yet, which
+-- may be what you or may be surprising.  For instance, it will likely override
+-- any pitch you try to set.
 reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
-reapply = eval_expr False
+reapply = eval_expr False -- TODO why collect=False?
 
 -- | Like 'reapply', but parse the string first.
 reapply_string :: Derive.Callable d => Derive.Context d -> Text

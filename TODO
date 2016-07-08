@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - make Args.next_logical_pitch work for note calls
+  * make Args.next_logical_pitch work for note calls
     . Why do I get the error unless there's a setup neighors in the Note call?
       . It's from the (0, 1) -> (1, 1) "g" call.
         "1 | 4c | ""

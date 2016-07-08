@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables, RankNTypes #-}
 {- | Derive tracks.
 
@@ -83,10 +84,10 @@ module Derive.EvalTrack (
     , GetLastVal
     , derive_control_track, derive_note_track
     , defragment_track_signals, unwarp
-    , derive_event
-    -- * NotePitchQuery
-    , derive_neighbor_pitches
-    , bi_zipper
+    , derive_event, context
+#ifdef TESTING
+    , module Derive.EvalTrack
+#endif
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -192,7 +193,7 @@ derive_note_track_ derive_tracks state tinfo =
 
 -- I used to use the same function to derive note and control tracks.  However,
 -- over time control and note tracks gradually gained separate features, and
--- the function became more complicated to accomodate the differences.
+-- the function became more complicated to accommodate the differences.
 -- Eventually I just split them all into separate functions.  The result is
 -- simpler, but there is a certain amount of duplicated code between them.
 -- So if you modify one, make sure you also modify the other if applicable.
@@ -263,8 +264,9 @@ derive_control_track_stream tinfo (prev_state, prev_val, prev_save_val)
         Just deriver -> run_derive (reset_event_serial prev_state) deriver
         Nothing -> (Stream.empty, prev_state)
     derivers = case cur_events of
-        event : next_events ->
-            Just $ derive_event tinfo prev_val prev_events event next_events
+        event : next_events -> Just $
+            derive_event (context tinfo prev_val prev_events event next_events)
+                event
         [] -> Nothing
     next_val = tinfo_prev_val tinfo prev_val stream
     save_val = if should_save_val then next_val else prev_save_val
@@ -282,18 +284,21 @@ derive_note_track_stream :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> ((Derive.State, Maybe Score.Event), Stream.Stream Score.Event)
 derive_note_track_stream derive_tracks tinfo (prev_state, prev_val)
         (prev_events, cur_events) =
-    ((state, next_val), stream)
+    ((next_state, next_val), stream)
     where
-    (stream, state)
+    (stream, next_state)
         | null derivers = (Stream.empty, prev_state)
         | otherwise = run_derive (reset_event_serial prev_state)
             (mconcat derivers)
     derivers = Maybe.catMaybes $ case cur_events of
         event : next_events ->
             [ derive_empty (Seq.head prev_events) (Just event)
-            , Just $ derive_event tinfo prev_val prev_events event next_events
+            , Just $ derive_note event next_events
             ]
         [] -> [derive_empty (Seq.head prev_events) Nothing]
+    derive_note event next_events =
+        with_neighbor_pitches ctx (derive_event ctx event)
+        where ctx = context tinfo prev_val prev_events event next_events
     next_val = tinfo_prev_val tinfo prev_val stream
     -- Look for orphans in the gap between events.
     derive_empty prev next =
@@ -412,17 +417,9 @@ is_linear_warp warp
         Just (Score.warp_shift warp, Score.warp_stretch warp)
     | otherwise = Nothing
 
-derive_event :: Derive.Callable d => TrackInfo d -> Maybe d
-    -> [Event.Event] -- ^ previous events, in reverse order
-    -> Event.Event -- ^ cur event
-    -> [Event.Event] -- ^ following events
+derive_event :: Derive.Callable d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
-derive_event tinfo prev_val prev event next = derive_event_ctx ctx event
-    where ctx = context tinfo prev_val prev event next
-
-derive_event_ctx :: Derive.Callable d => Derive.Context d -> Event.Event
-    -> Derive.Deriver (Stream.Stream d)
-derive_event_ctx ctx event
+derive_event ctx event
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
     | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
         case Parse.parse_expr text of
@@ -444,8 +441,11 @@ with_event_region track_shifted event =
     Internal.with_stack_region (Event.min event + track_shifted)
         (Event.max event + track_shifted)
 
-context :: TrackInfo a -> Maybe val -> [Event.Event] -> Event.Event
-    -> [Event.Event] -> Derive.Context val
+context :: TrackInfo a -> Maybe val
+    -> [Event.Event] -- ^ previous events, in reverse order
+    -> Event.Event -- ^ cur event
+    -> [Event.Event] -- ^ following events
+    -> Derive.Context val
 context tinfo prev_val prev event next = Derive.Context
     { Derive.ctx_prev_val = prev_val
     , Derive.ctx_event = event
@@ -467,11 +467,25 @@ context tinfo prev_val prev event next = Derive.Context
 
 -- * NotePitchQuery
 
+-- | Evaluate neighboring events for their pitches and put them in
+-- 'Derive.state_neighbors'.
+with_neighbor_pitches :: Derive.Context Score.Event -> Derive.Deriver a
+    -> Derive.Deriver a
+with_neighbor_pitches ctx deriver = do
+    state <- Derive.get
+    with_neighbors (derive_neighbor_pitches state ctx) deriver
+
+with_neighbors :: ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
+    -> Derive.Deriver a -> Derive.Deriver a
+with_neighbors neighbors = Internal.local $ \state -> state
+    { Derive.state_neighbors = Just neighbors }
+
 -- | This takes State as an explicit argument and is thus non-monadic to
 -- emphasize that the results are lazy.  This is important because evaluating
 -- each element is likely to be expensive.
 derive_neighbor_pitches :: Derive.State -> Derive.Context Score.Event
     -> ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
+    -- ^ (prevs, nexts)
 derive_neighbor_pitches state ctx = (map derive1 prevs, map derive1 nexts)
     where
     -- TODO I'm uncertain if this will work with slicing.  I think I should
@@ -487,6 +501,8 @@ derive_neighbor_pitches state ctx = (map derive1 prevs, map derive1 nexts)
     (prevs, nexts) = bi_zipper (Derive.ctx_prev_events ctx)
         (Derive.ctx_event ctx) (Derive.ctx_next_events ctx)
 
+-- | Focus on elements moving backwards and forwards from the
+-- (prevs, cur, nexts) triple.
 bi_zipper :: [a] -> a -> [a] -> ([([a], a, [a])], [([a], a, [a])])
 bi_zipper prevs cur nexts =
     ( mapMaybe extract_prev $ drop 1 $ Seq.zipper (cur : nexts) prevs
@@ -500,5 +516,4 @@ bi_zipper prevs cur nexts =
 
 derive_for_pitch :: Derive.State -> Derive.Context Score.Event -> Event.Event
     -> Derive.NotePitchQueryResult
-derive_for_pitch state ctx event =
-    Derive.query_note_pitch state $ derive_event_ctx ctx event
+derive_for_pitch state ctx = Derive.query_note_pitch state . derive_event ctx
