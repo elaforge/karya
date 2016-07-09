@@ -219,23 +219,22 @@ make_event_control_vals control_vals args dyn start dur flags = do
     offset <- get_start_offset start
     Internal.increment_event_serial
     return $! Score.Event
-        { Score.event_start = start
-        , Score.event_duration = dur
-        , Score.event_text = Event.text (Args.event args)
-        , Score.event_untransformed_controls = controls
-        , Score.event_untransformed_pitch =
-            trim_pitch start (Derive.state_pitch dyn)
-        , Score.event_control_offset = 0
+        { event_start = start
+        , event_duration = dur
+        , event_text = Event.text (Args.event args)
+        , event_untransformed_controls = controls
+        , event_untransformed_pitch = trim_pitch start (Derive.state_pitch dyn)
+        , event_control_offset = 0
         -- I don't have to trim these because the performer doesn't use them,
         -- they're only there for any possible postproc.
-        , Score.event_untransformed_pitches = Derive.state_pitches dyn
-        , Score.event_stack = Derive.state_stack dyn
-        , Score.event_highlight = Color.NoHighlight
-        , Score.event_instrument = fromMaybe Score.empty_instrument $
+        , event_untransformed_pitches = Derive.state_pitches dyn
+        , event_stack = Derive.state_stack dyn
+        , event_highlight = Color.NoHighlight
+        , event_instrument = fromMaybe Score.empty_instrument $
             Env.maybe_val EnvKey.instrument environ
-        , Score.event_environ = stash_convert_values control_vals offset environ
-        , Score.event_flags = flags
-        , Score.event_delayed_args = mempty
+        , event_environ = stash_convert_values control_vals offset environ
+        , event_flags = flags
+        , event_delayed_args = mempty
         }
     where
     controls = trim_controls start (Derive.state_controls dyn)

@@ -312,8 +312,8 @@ strip_ranks max_rank =
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure gets 1t:
 --
--- > local $ measures Meters.m44 4 4
--- > modify $ measures Meters.m34 4 8
+-- > LRuler.local $ LRuler.measures Meters.m44 4 4
+-- > LRuler.modify $ LRuler.measures Meters.m34 4 8
 measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> m Modify
