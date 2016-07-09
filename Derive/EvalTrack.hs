@@ -177,8 +177,8 @@ derive_note_track derive_tracks state tinfo
         Derive.state_inversion (Derive.state_dynamic state)
     | otherwise = derive_note_track_ derive_tracks state tinfo
 
--- Split out from 'derive_note_track' to emphasize the shared structure with
--- 'derive_control_track'.
+-- This function is split out from 'derive_note_track' to emphasize the shared
+-- structure with 'derive_control_track'.
 derive_note_track_ :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event
     -> ([Stream.Stream Score.Event], Derive.Threaded, Derive.Collect)

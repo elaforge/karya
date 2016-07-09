@@ -18,7 +18,8 @@
     normal controls using transposition signals like 'Controls.chromatic'.
 -}
 module Derive.Control (
-    d_control_track
+    Config(..)
+    , d_control_track
     , track_info
     -- * TrackSignal
     , stash_signal, render_of
@@ -30,7 +31,6 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
-import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import qualified Util.Map
@@ -62,21 +62,28 @@ import Global
 import Types
 
 
+data Config = Config {
+    -- | True if this is the single topmost track and is a tempo track.
+    -- Ultimately it'is used by "Derive.Tempo".
+    config_toplevel_tempo :: !Bool
+    , config_use_cache :: !Bool
+    } deriving (Show)
+
 -- | Top level deriver for control tracks.
-d_control_track :: Bool -> TrackTree.EventsNode
-    -> Derive.NoteDeriver -> Derive.NoteDeriver
-d_control_track toplevel (Tree.Node track _) deriver = do
+d_control_track :: Config -> TrackTree.Track -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+d_control_track config track deriver = do
     let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
             return (ParseTitle.parse_control_expr title)
-        eval_track toplevel track expr ctype deriver
+        eval_track config track expr ctype deriver
 
 -- * eval_track
 
-eval_track :: Bool -> TrackTree.Track -> [BaseTypes.Call]
+eval_track :: Config -> TrackTree.Track -> [BaseTypes.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
-eval_track toplevel track expr ctype deriver = case ctype of
+eval_track config track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
         is_ly <- Derive.is_lilypond_mode
         let sig_deriver
@@ -84,7 +91,7 @@ eval_track toplevel track expr ctype deriver = case ctype of
                 | otherwise = with_control_env
                     (Score.control_name Controls.tempo) "compose"
                     (in_normal_mode $ derive_control True track transform)
-        tempo_call toplevel maybe_sym track sig_deriver deriver
+        tempo_call config maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_merge typed_control -> do
         let control = Score.typed_val typed_control
         merger <- get_merger control maybe_merge
@@ -93,7 +100,7 @@ eval_track toplevel track expr ctype deriver = case ctype of
         control_call track typed_control merger sig_deriver deriver
     ParseTitle.Pitch maybe_merge scale_id pcontrol -> do
         merger <- get_pitch_merger maybe_merge
-        pitch_call track pcontrol merger scale_id transform deriver
+        pitch_call config track pcontrol merger scale_id transform deriver
     where
     transform :: Derive.Callable d => Derive.Deriver (Stream.Stream d)
         -> Derive.Deriver (Stream.Stream d)
@@ -132,10 +139,10 @@ get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Bool -> Maybe BaseTypes.Symbol -> TrackTree.Track
+tempo_call :: Config -> Maybe BaseTypes.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-tempo_call toplevel sym track sig_deriver deriver = do
+tempo_call config sym track sig_deriver deriver = do
     (signal, logs) <- Internal.in_real_time $ do
         (signal, logs) <- sig_deriver
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
@@ -150,7 +157,7 @@ tempo_call toplevel sym track sig_deriver deriver = do
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
-    merge_logs logs $ dispatch_tempo toplevel sym range
+    merge_logs logs $ dispatch_tempo config sym range
         maybe_track_id (Signal.coerce signal) (with_damage deriver)
     where
     maybe_block_track_id = TrackTree.block_track_id track
@@ -162,10 +169,10 @@ tempo_call toplevel sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid a => Bool -> Maybe BaseTypes.Symbol
+dispatch_tempo :: Monoid a => Config -> Maybe BaseTypes.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
-dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =
+dispatch_tempo config sym block_range maybe_track_id signal deriver =
     case sym of
         Nothing -> Tempo.with_tempo toplevel block_range maybe_track_id signal
             deriver
@@ -176,6 +183,7 @@ dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =
                 maybe_track_id signal deriver
             | otherwise -> Derive.throw $
                 "unknown tempo modifier: " <> ShowVal.show_val sym
+    where toplevel = config_toplevel_tempo config
 
 control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> Derive.Merger Signal.Control
@@ -203,15 +211,16 @@ with_merger (Score.Typed typ control) merger signal =
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs = fmap (Stream.merge_logs logs)
 
-pitch_call :: TrackTree.Track -> Score.PControl
+pitch_call :: Config -> TrackTree.Track -> Score.PControl
     -> Derive.Merger PSignal.PSignal -> Pitch.ScaleId
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call track pcontrol merger scale_id transform deriver = do
+pitch_call config track pcontrol merger scale_id transform deriver = do
     scale <- get_scale scale_id
     Derive.with_scale scale $ do
         (signal, logs) <- with_control_env (Score.pcontrol_name pcontrol)
-            (ShowVal.show_val merger) (derive_pitch True track transform)
+            (ShowVal.show_val merger)
+            (derive_pitch (config_use_cache config) track transform)
         -- Ignore errors, they should be logged on conversion.
         (nn_sig, _) <- psignal_to_nn signal
         stash_if_wanted track (Signal.coerce nn_sig)
@@ -269,8 +278,8 @@ derive_control is_tempo track transform = do
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PSignal.PSignal)
-derive_pitch cache track transform = do
-    let cache_track = if cache then Cache.track track mempty else id
+derive_pitch use_cache track transform = do
+    let cache_track = if use_cache then Cache.track track mempty else id
     (signal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
     signal <- trim_signal PSignal.drop_after PSignal.drop_at_after

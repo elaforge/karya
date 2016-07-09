@@ -429,6 +429,21 @@ data Dynamic = Dynamic {
     -- | Lazily evaluated neighbors.  (prevs, nexts)
     , state_neighbors
         :: !(Maybe ([NotePitchQueryResult], [NotePitchQueryResult]))
+    -- | Each note track sets this to either an unsliced evaluation of the
+    -- closest pitch track below it, or its surrounding 'state_pitch' if there
+    -- is no pitch track below.  Calls can then use it to get neighboring
+    -- pitches.  It's lazily evaluated so there's no extra derivation if
+    -- you don't need it.
+    --
+    -- This is cleared when evaluating for itself, so there's no recursion.
+    -- This means given two "next pitch"es in a row, they will both get
+    -- Nothing.  Then on real evaluation, the 2nd will get the next pitch, but
+    -- the 1st will get whatever the 2nd does when it can't get a next pitch.
+    --
+    -- TODO if they both emit no pitch, then the 1st will actually get the
+    -- previous pitch, which seems error-prone.  But I think for it to be an
+    -- error, I'd have to have it return an error, e.g. Map TrackTime Pitch
+    , state_pitch_map :: !(Maybe (Maybe PSignal.PSignal, [Log.Msg]))
 
     -- | This is set to the current note track being evaluated.  It's useful
     -- to look up 'state_prev_val' when evaluating other tracks in an
@@ -472,6 +487,7 @@ initial_dynamic environ = Dynamic
     , state_under_invert = id
     , state_inversion = NotInverted
     , state_neighbors = Nothing
+    , state_pitch_map = Nothing
     , state_note_track = Nothing
     , state_stack = Stack.empty
     , state_mode = Normal
@@ -496,8 +512,8 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage _under_invert inversion neighbors note_track stack
-            mode) =
+            aliases damage _under_invert inversion neighbors pitch_map
+            note_track stack mode) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control_functions", Pretty.format cfuncs)
@@ -511,6 +527,7 @@ instance Pretty.Pretty Dynamic where
             , ("damage", Pretty.format damage)
             , ("inversion", Pretty.format inversion)
             , ("neighbors", Pretty.format neighbors)
+            , ("pitch_map", Pretty.format pitch_map)
             , ("note_track", Pretty.format note_track)
             , ("stack", Pretty.format stack)
             , ("mode", Pretty.format mode)
@@ -518,12 +535,12 @@ instance Pretty.Pretty Dynamic where
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage _under_invert _inversion neighbors note_track stack
-            _mode) =
+            aliases damage _under_invert _inversion neighbors pitch_map
+            note_track stack _mode) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
-        `seq` rnf damage `seq` rnf neighbors `seq` rnf note_track
-        `seq` rnf stack
+        `seq` rnf damage `seq` rnf neighbors `seq` rnf pitch_map
+        `seq` rnf note_track `seq` rnf stack
 
 -- ** scope
 

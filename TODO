@@ -15,7 +15,21 @@ UNSORTED
         ? This seems wrong, it should be 4c, right?
           . But I shouldn't even need the surrounding pitch events for
             NotePitchQuery.
-  - Can I change the logical pitch mechanism to be at track level?
+  / I still wind up with recursive pitch queries, I think because I just run
+    whatever call is in the event.  I should ignore event text... except
+    for a parent call.
+    . Actually, I think I can not care about parent calls, because I don't
+      care about timing, just pitch.
+    . In fact, why not just evaluate the pitch track below on its own, and put
+      it in Dynamic?  If there is none, then take Derive.state_pitch.
+    . In that case I still worry about the timing.  The parent call could have
+      moved the pitch... but I think no matter what I still want the visually
+      next pitch.
+    . I do have to apply track transform because they could transpose.
+  * Can I change the logical pitch mechanism to be at track level?
+    - Test this in the other places that use Args.lookup_next_logical_pitch,
+      and if it works, get rid of the whole NotePitchQuery mechanism.
+    - Test for two consecutive pitch calls that depend on the next pitch.
     . Evaluate the whole track with NotePitchQuery, and put a
       'Map (tid, TrackTime) Pitch' in Dynamic.
     . I can maybe even get rid of NotePitchQuery by doing the stripping at the
@@ -25,6 +39,31 @@ UNSORTED
     . Therefore a sequence of two would be an error.  This is good enough
       since in practice, only ornaments of the pitch depend on the next one,
       not the pitch itself.
+
+    . Evaluate notes without regard to their text.
+    . I want to handle both pitch above and below.
+    . Also I need to handle parent calls, e.g. triplets.
+      That means I need to do orphan derivation, and also call parents as they
+      are normally called, but still replace note calls?  I think I don't want
+      block calls either.
+    . The limit is that I do a full derivation, except no recursive pitch query,
+      and thus no pitch map available.
+    . Why better than on-demand?  On-demand is confusing because I wind up
+      with recursive calls... though maybe just returning [] for neighbors is
+      ok?
+    . I think the primary argument against it is that it's hard to understand.
+      As usualy, inversion and slicing make a mess of things.
+  . Could I simplify slicing and inversion by making it into a score
+    preprocessing step?  It would annotate UI Events with children, so the
+    sub tracks would be in Event, not in Context.
+    . If I could get rid of the ctx_sub_events / ctx_sub_tracks thing too that
+      would be nice.
+    . Could I also somehow make inversion universal?  The idea is to
+      eliminate the thing where I forget to add Sub.inverting.
+    . I could also take evaluation control away from the event, effectively it
+      would mean the Sub.notes bit would be hardcoded and events would get
+      [[Sub.Note]] instead of a TrackTree.  I'd lose power, but what are the
+      advantages?
   * why does Call.note_here ignore the pitch?
     no worky: Eval.reapply_call (Args.context args) "" []
       . eval_expr collect=False ctx expr
@@ -1420,6 +1459,11 @@ Derive:
           That way each call only emits notes within its duration.
           . I'll still need a way to explicitly write the pickup because
             sometimes it starts after a gap.
+          - Replace norot with norot2 once I'm sure it works.
+          - Then replace realize_kotekan_pattern with realize_kotekan_pattern2.
+          - I think I will need an explicit flag for prepare, in addition
+            to inferring it.
+          - Rename 'arrival' to 'prepare'?
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used

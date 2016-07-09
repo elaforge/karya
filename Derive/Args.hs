@@ -12,6 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, Context)
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
@@ -98,8 +99,9 @@ lookup_prev_note = do
     Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
         . Derive.state_threaded
 
-lookup_prev_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_pitch = do
+-- TODO unused, do I really need so many ways to get the previous pitch?
+lookup_prev_note_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_note_pitch = do
     prev_event <- lookup_prev_note
     return $ fmap snd . PSignal.last . Score.event_untransformed_pitch
         =<< prev_event
@@ -134,6 +136,27 @@ get_neighbor_notes :: Derive.Deriver
     ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
 get_neighbor_notes = fromMaybe ([], []) <$>
     Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
+
+-- ** 'Derive.state_pitch_map'
+
+lookup_next_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_next_pitch =
+    maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . next_start
+
+lookup_prev_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_pitch =
+    maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . prev_start
+
+-- | Get a logical pitch at the given time, via 'Derive.state_pitch_map'.
+-- As documented by 'Derive.state_pitch_map', the pitch map is unset while
+-- evaluating the pitch map, so pitch calls that use this shouldn't be
+-- surprised if it's Nothing.
+lookup_pitch_at :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
+    \(maybe_sig, logs) -> do
+        mapM_ Log.write $ Log.add_prefix ("lookup_pitch_at " <> pretty pos) $
+            filter ((>=Log.Warn) . Log.msg_priority) logs
+        return $ PSignal.at pos =<< maybe_sig
 
 -- ** eval
 

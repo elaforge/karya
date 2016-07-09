@@ -7,9 +7,13 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Args as Args
+import qualified Derive.Call as Call
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -50,6 +54,44 @@ test_compile = do
         , [(2, 62), (3, 63)]
         , [(4, 64)]
         ]
+
+test_pitch_map_note = do
+    let run next = DeriveTest.extract DeriveTest.e_start_note
+            .  DeriveTest.derive_tracks_setup
+                (CallTest.with_note_generator "g" (note_gen next)) ""
+    let pitches = ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
+        notes = (">", [(0, 1, ""), (1, 1, "g"), (2, 1, "")])
+    equal (run True [notes, pitches]) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
+    equal (run False [notes, pitches]) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
+    strings_like (snd $ run False [(">", [(1, 1, "g"), (2, 1, "")]), pitches])
+        ["no prev/next"]
+    -- Also works if the pitch track is above.
+    equal (run True [pitches, notes]) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
+    equal (run False [pitches, notes]) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
+    where
+    note_gen :: Bool -> Derive.Generator Derive.Note
+    note_gen next = CallTest.generator $ \args -> do
+        pitch <- Derive.require "no prev/next" =<< if next
+            then Args.lookup_next_pitch args
+            else Args.lookup_prev_pitch args
+        Call.place args $ Call.pitched_note pitch
+
+test_pitch_map_pitch = do
+    let run next = DeriveTest.extract DeriveTest.e_start_note
+            .  DeriveTest.derive_tracks_setup
+                (CallTest.with_pitch_generator "g" (pitch_gen next)) ""
+            . UiTest.note_track
+    let notes = [(0, 1, "4c"), (1, 1, "g"), (2, 1, "4e")]
+    equal (run True notes) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
+    equal (run False notes) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
+    where
+    pitch_gen :: Bool -> Derive.Generator Derive.Pitch
+    pitch_gen next = CallTest.generator1 $ \args -> do
+        pitch <- if next
+            then Args.lookup_next_pitch args
+            else Args.lookup_prev_pitch args
+        start <- Args.real_start args
+        return $ PSignal.signal $ maybe [] (\p -> [(start, p)]) pitch
 
 test_control_call = do
     let run tracks = DeriveTest.extract extract $ DeriveTest.derive_blocks

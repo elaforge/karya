@@ -40,7 +40,10 @@ extend_signal track_end sig = sig <> case Signal.last sig of
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is the integral of (1/tempo).
-with_tempo :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+with_tempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
+    -- i.e. controls all other tracks in this block, then I noramlize to the
+    -- block duration.  See comment below.
+    -> Maybe (ScoreTime, ScoreTime)
     -- ^ block start and end, used to normalize block duration to 0--1.  If
     -- Nothing, don't normalize.
     -> Maybe TrackId
