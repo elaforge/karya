@@ -27,6 +27,7 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
+import qualified Data.Maybe as Maybe
 import qualified Data.Typeable as Typeable
 
 import qualified Util.Num as Num
@@ -70,6 +71,10 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("norot", c_norot)
+    -- Alias for norot.  It's separate so I can use the long version for new
+    -- calls.
+    , ("nt", c_norot2)
+    , ("norot2", c_norot2)
     , (">norot", c_norot_arrival)
     , ("gnorot", c_gender_norot)
     , ("k_\\",  c_kotekan_irregular Pat $
@@ -210,6 +215,42 @@ c_norot = Derive.generator module_ "norot" Tags.inst
             <> realize_kotekan_pattern (not arrival && initial, final)
                 (Args.range args) dur pitch under_threshold Repeat
                 (gangsa_norot style pasang nsteps)
+
+c_norot2 :: Derive.Generator Derive.Note
+c_norot2 = Derive.generator module_ "norot" Tags.inst
+    "Emit the basic norot pattern."
+    $ Sig.call ((,,,,,)
+    <$> Sig.defaulted "style" Default "Norot style."
+    <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
+    <*> initial_final_env
+    ) $ \(style, dur, kotekan, inst_top, pasang, (initial, final)) ->
+    Sub.inverting $ \args -> do
+        start <- Args.real_start args
+        scale <- Call.get_scale
+        under_threshold <- under_threshold_function kotekan dur
+        next_pitch <- if Args.next_start args == Just (Args.end args)
+            then Args.lookup_next_pitch args
+            else return Nothing
+        let has_prepare = Maybe.isJust next_pitch
+        sustain <- do
+            pitch <- Call.get_pitch start
+            pitch_t <- Derive.resolve_pitch start pitch
+            let steps = norot_steps scale inst_top pitch_t style
+            let end = Args.end args - if has_prepare then dur*3 else 0
+            return $ realize_kotekan_pattern2
+                (initial, if has_prepare then False else final)
+                (Args.start args, end) dur pitch under_threshold
+                Repeat (gangsa_norot style pasang steps)
+        prepare <- case next_pitch of
+            Just next -> do
+                next_t <- Derive.resolve_pitch start next
+                let steps = norot_steps scale inst_top next_t style
+                return $ Just $ realize_kotekan_pattern2 (True, final)
+                    (Args.end args - dur*3, Args.end args)
+                    dur next under_threshold
+                    Once (gangsa_norot_arrival style pasang steps)
+            Nothing -> return Nothing
+        maybe sustain (sustain<>) prepare
 
 gangsa_norot :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
@@ -458,6 +499,66 @@ realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
     -- Call.pitched_note should use a lower level note call that doesn't do
     -- things like that.
 
+realize_kotekan_pattern2 :: (Bool, Bool) -- ^ include (initial, final)
+    -> (ScoreTime, ScoreTime) -> ScoreTime
+    -> PSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
+    -> Derive.NoteDeriver
+realize_kotekan_pattern2 initial_final (start, end) dur pitch
+        under_threshold repeat cycle =
+    realize_notes realize $ -- Debug.trace_retp "notes" initial_final $
+        realize_pattern2 repeat initial_final start end dur get_cycle
+    where
+    get_cycle t
+        | under_threshold t = fst cycle
+        | otherwise = snd cycle
+    realize (KotekanNote inst steps muted) =
+        maybe id Derive.with_instrument inst $
+        -- TODO the kind of muting should be configurable.  Or, rather I should
+        -- dispatch to a zero dur note call, which will pick up whatever form
+        -- of mute is configured.
+        (if muted then Call.add_attributes Attrs.mute else id) $
+        Call.pitched_note (Pitches.transpose_d steps pitch)
+    -- TODO It should no longer be necessary to strip flags from
+    -- 'Call.pitched_note', because "" only puts flags on if the event is
+    -- at the end of the track, and that shouldn't happen for these.  Still,
+    -- Call.pitched_note should use a lower level note call that doesn't do
+    -- things like that.
+
+-- | Repeatedly call a cycle generating function to create notes.  The result
+-- will presumably be passed to 'realize_notes' to convert the notes into
+-- NoteDerivers.
+realize_pattern2 :: Repeat -- ^ Once will just call get_cycle at the start
+    -- time.  Repeat will start the cycle at t+1 because t is the initial, so
+    -- it's the end of the cycle.
+    -> (Bool, Bool)
+    -> ScoreTime -> ScoreTime -> ScoreTime
+    -> (ScoreTime -> [[a]]) -- ^ Get one cycle of notes, starting at the time.
+    -> [Note a]
+realize_pattern2 repeat (initial, final) start end dur get_cycle =
+    case repeat of
+        Once -> concatMap realize $
+            zip (get_cycle start) (Seq.range start end dur)
+        Repeat -> concat $ concat $ cycles $ Seq.range start end dur
+    where
+    cycles [] = []
+    -- Since cycles are end-weighted, I have to get the end of a cycle if an
+    -- initial note is wanted.
+    cycles (t:ts)
+        | t == start && initial =
+            [realize (fromMaybe [] (Seq.last (get_cycle t)), t)] : cycles ts
+        | t == start = cycles ts
+        | otherwise = map realize pairs : cycles rest_ts
+        where (pairs, rest_ts) = Seq.zip_remainder (get_cycle t) (t:ts)
+    realize (chord, t)
+        | t >= end = if final
+            then map (add_flag (Flags.infer_duration <> final_flag)) ns
+            else []
+        | t == start = if initial
+            then map (add_flag initial_flag) ns
+            else []
+        | otherwise = ns
+        where ns = map (Note t dur mempty) chord
+
 
 type Kernel = [Atom]
 data Atom = Rest | Low | High deriving (Eq, Ord, Show)
@@ -630,7 +731,8 @@ muted_note :: KotekanNote -> KotekanNote
 muted_note note = note { note_muted = True }
 
 instance Pretty.Pretty KotekanNote where
-    format (KotekanNote inst steps attrs) = Pretty.format (inst, steps, attrs)
+    format (KotekanNote inst steps muted) =
+        Pretty.format (inst, steps, if muted then "+mute" else "+open" :: Text)
 
 under_threshold_function :: BaseTypes.ControlRef -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
@@ -886,8 +988,7 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 -- since slicing goes from event start to next event, but I have to evaluate
 -- the next pitch for a positive event.
 --
--- TODO unfortunately I still can't get the next pitch, so it's actually just
--- the pitch at the start for now.
+-- TODO I don't get next pitch for now, but maybe I should?
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
 get_pitch args = Call.get_pitch =<< Args.real_start args
 
@@ -903,7 +1004,7 @@ kotekan_env =
 
 initial_final_env :: Sig.Parser (Bool, Bool)
 initial_final_env = (,)
-    <$> Sig.environ "initial" Sig.Unprefixed True
+    <$> Sig.environ "initial" Sig.Unprefixed True -- TODO change to False
         "If true, include an initial note, which is the same as the final note.\
         \ This is suitable for the start of a sequence of kotekan calls."
     <*> Sig.environ "final" Sig.Unprefixed True

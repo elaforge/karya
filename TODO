@@ -1449,20 +1449,33 @@ Derive:
           time, or at least the repeating regular style should.
         - 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
           customized per-score?
-        + Use logical next pitch for kotekan.
+        * Use logical next pitch for norot.
           . Doesn't seem to work.  Why?
           . I still feel like negative duration solves a lot of problems.
         - clip should be end-weighted.  If I used a negative duration I could
           make it based on that...
-        - How norot puts notes before itself can be awkward, would it be
+        * How norot puts notes before itself can be awkward, would it be
           simpler to have the pickup emitted by the end of the previous call?
           That way each call only emits notes within its duration.
-          . I'll still need a way to explicitly write the pickup because
-            sometimes it starts after a gap.
+          - Don't prepare when the next pitch is the same.
+          - I will need an explicit flag for prepare, in addition to inferring
+            it.  Sometimes it starts after a gap.
+          - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)
+            . So I still need negative duration, though norot is actually a
+              positive duration.
+            . In some regards, norot emits its own preparation is more
+              suitable since I think I only want to prepare for norot, not
+              for any old note.  But on the flip side, I have to turn it off
+              when it starts on the beat.
+            . But with "prepare next", I have no way to prepare for norot that
+              starts after a pause, I would need a special call.  Which I need
+              anyway.
+            . The big advantage of "prepare next" is that its notes are within
+              its range.  Self prepare is kind of confusing.
           - Replace norot with norot2 once I'm sure it works.
+          - Adapt kotekan calls to use realize_kotekan_pattern2.  Also maybe
+            use the next pitch for positive events?
           - Then replace realize_kotekan_pattern with realize_kotekan_pattern2.
-          - I think I will need an explicit flag for prepare, in addition
-            to inferring it.
           - Rename 'arrival' to 'prepare'?
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the

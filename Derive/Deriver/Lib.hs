@@ -825,7 +825,11 @@ query_note_pitch state deriver = (Seq.head events, all_logs)
     (result, _, logs) = run (set_mode state) deriver
     (events, all_logs) = Stream.partition $ merge_logs result logs
     set_mode state = state
-        { state_dynamic = (state_dynamic state) { state_mode = NotePitchQuery }
+        { state_dynamic = (state_dynamic state)
+            { state_mode = NotePitchQuery
+            -- This explicitly disables recursive calls to query_note_pitch.
+            , state_neighbors = Nothing
+            }
         }
 
 -- * postproc
