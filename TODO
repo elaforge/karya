@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I think Gamakam4 doesn't test next event pitch, e.g.
+    Gamakam3_test.test_sequence on '!!-v-'
+  - do a renaming pass on all the prev/next pitch functions in Derive.Args
+    Can Prelude.Pitch.approach use the lookup pitch style?
   * make Args.next_logical_pitch work for note calls
     . Why do I get the error unless there's a setup neighors in the Note call?
       . It's from the (0, 1) -> (1, 1) "g" call.
@@ -27,7 +31,7 @@ UNSORTED
       next pitch.
     . I do have to apply track transform because they could transpose.
   * Can I change the logical pitch mechanism to be at track level?
-    - Test this in the other places that use Args.lookup_next_logical_pitch,
+    * Test this in the other places that use Args.lookup_next_logical_pitch,
       and if it works, get rid of the whole NotePitchQuery mechanism.
     - Test for two consecutive pitch calls that depend on the next pitch.
     . Evaluate the whole track with NotePitchQuery, and put a
@@ -39,7 +43,6 @@ UNSORTED
     . Therefore a sequence of two would be an error.  This is good enough
       since in practice, only ornaments of the pitch depend on the next one,
       not the pitch itself.
-
     . Evaluate notes without regard to their text.
     . I want to handle both pitch above and below.
     . Also I need to handle parent calls, e.g. triplets.

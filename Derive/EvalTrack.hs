@@ -296,8 +296,7 @@ derive_note_track_stream derive_tracks tinfo (prev_state, prev_val)
             , Just $ derive_note event next_events
             ]
         [] -> [derive_empty (Seq.head prev_events) Nothing]
-    derive_note event next_events =
-        with_neighbor_pitches ctx (derive_event ctx event)
+    derive_note event next_events = derive_event ctx event
         where ctx = context tinfo prev_val prev_events event next_events
     next_val = tinfo_prev_val tinfo prev_val stream
     -- Look for orphans in the gap between events.
@@ -464,56 +463,3 @@ context tinfo prev_val prev event next = Derive.Context
     where
     TrackInfo track subs ttype _ = tinfo
     (tprev, tnext) = TrackTree.track_around track
-
--- * NotePitchQuery
-
--- | Evaluate neighboring events for their pitches and put them in
--- 'Derive.state_neighbors'.
-with_neighbor_pitches :: Derive.Context Score.Event -> Derive.Deriver a
-    -> Derive.Deriver a
-with_neighbor_pitches ctx deriver = do
-    state <- Derive.get
-    with_neighbors (derive_neighbor_pitches state ctx) deriver
-
-with_neighbors :: ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-    -> Derive.Deriver a -> Derive.Deriver a
-with_neighbors neighbors = Internal.local $ \state -> state
-    { Derive.state_neighbors = Just neighbors }
-
--- | This takes State as an explicit argument and is thus non-monadic to
--- emphasize that the results are lazy.  This is important because evaluating
--- each element is likely to be expensive.
-derive_neighbor_pitches :: Derive.State -> Derive.Context Score.Event
-    -> ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-    -- ^ (prevs, nexts)
-derive_neighbor_pitches state ctx = (map derive1 prevs, map derive1 nexts)
-    where
-    -- TODO I'm uncertain if this will work with slicing.  I think I should
-    -- have prevs and nexts available, but what of track_shifted?  And what of
-    -- the cache?  Should I strip that out?
-    derive1 (ps, e, ns) =
-        derive_for_pitch state (replace_neighbors ps e ns ctx) e
-    replace_neighbors ps e ns ctx = ctx
-        { Derive.ctx_prev_events = ps
-        , Derive.ctx_next_events = ns
-        , Derive.ctx_event = e
-        }
-    (prevs, nexts) = bi_zipper (Derive.ctx_prev_events ctx)
-        (Derive.ctx_event ctx) (Derive.ctx_next_events ctx)
-
--- | Focus on elements moving backwards and forwards from the
--- (prevs, cur, nexts) triple.
-bi_zipper :: [a] -> a -> [a] -> ([([a], a, [a])], [([a], a, [a])])
-bi_zipper prevs cur nexts =
-    ( mapMaybe extract_prev $ drop 1 $ Seq.zipper (cur : nexts) prevs
-    , mapMaybe extract_next $ Seq.zipper (cur : prevs) nexts
-    )
-    where
-    extract_prev (p:ps, ns) = Just (ns, p, ps)
-    extract_prev _ = Nothing
-    extract_next (ps, n:ns) = Just (ps, n, ns)
-    extract_next _ = Nothing
-
-derive_for_pitch :: Derive.State -> Derive.Context Score.Event -> Event.Event
-    -> Derive.NotePitchQueryResult
-derive_for_pitch state ctx = Derive.query_note_pitch state . derive_event ctx

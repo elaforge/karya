@@ -817,21 +817,6 @@ get_real_duration deriver = do
             { state_mode = RealDurationQuery }
         }
 
--- | Do an abbreviated derivation that is only looking for the pitch of the
--- first event generated.  See 'NotePitchQuery' for the details.
-query_note_pitch :: State -> NoteDeriver -> NotePitchQueryResult
-query_note_pitch state deriver = (Seq.head events, all_logs)
-    where
-    (result, _, logs) = run (set_mode state) deriver
-    (events, all_logs) = Stream.partition $ merge_logs result logs
-    set_mode state = state
-        { state_dynamic = (state_dynamic state)
-            { state_mode = NotePitchQuery
-            -- This explicitly disables recursive calls to query_note_pitch.
-            , state_neighbors = Nothing
-            }
-        }
-
 -- * postproc
 
 -- | If the deriver throws, log the error and return Nothing.

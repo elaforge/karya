@@ -36,7 +36,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
@@ -97,17 +96,15 @@ initial_pitch_state transition args =
         -- pitch signal, whichever is newer.  The current pitch signal will
         -- be newer if there is a pitch on the parent pitch track with no
         -- corresponding gamakam on this one.
-        prev_event <- Args.lookup_prev_note
-        let prev_event_pitch = PSignal.last
-                . Score.event_untransformed_pitch =<< prev_event
+        prev_event_pitch <- Args.prev_note_pitch
         let prev_pitch = snd <$> Args.prev_pitch args
         start <- Args.real_start args
         pitch_signal <- PSignal.before start <$> Derive.get_pitch
         let context_pitch = case (prev_event_pitch, pitch_signal) of
                 (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
                 (a, b) -> snd <$> (a <|> b)
-        maybe_prev <- Args.lookup_prev_logical_pitch
-        maybe_next <- Args.lookup_next_logical_pitch
+        maybe_prev <- Args.lookup_prev_note_pitch args
+        maybe_next <- Args.lookup_next_note_pitch args
         return $ Just $ PitchState
             { state_from_pitch =
                 fromMaybe cur (prev_pitch <|> context_pitch)

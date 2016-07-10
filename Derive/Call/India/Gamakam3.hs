@@ -29,6 +29,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -42,7 +43,6 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -110,12 +110,12 @@ get_state parse2 transition dyn_transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
-        prev_event <- Args.lookup_prev_note
+        prev_event <- Args.prev_note
         let prev_event_pitch = fmap snd . PSignal.last
                 . Score.event_untransformed_pitch =<< prev_event
             prev_pitch = snd <$> Args.prev_pitch args
-        maybe_prev <- Args.lookup_prev_logical_pitch
-        maybe_next <- Args.lookup_next_logical_pitch
+        maybe_prev <- Args.lookup_prev_pitch args
+        maybe_next <- Args.lookup_next_note_pitch args
         return $ Just $ if parse2
             then State
                 { state_from_pitch =

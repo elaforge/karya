@@ -151,6 +151,7 @@ get_ui_config f = get_ui_state (f . State.state_config)
 --
 -- TODO I suppose it could be, but then I'd be tempted to make
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
+-- Or just rethrow, right?
 get_track :: TrackId -> Deriver Track.Track
 get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
 

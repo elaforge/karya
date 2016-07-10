@@ -25,9 +25,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -472,78 +470,7 @@ test_orphan_ranges = do
         ])
         ([[(0, 60), (10, 62)]], [])
 
--- * neighbors
-
-test_derive_neighbor_pitches = do
-    let run notes = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks_setup
-                (CallTest.with_note_generator "g" gen) "" $
-            UiTest.note_track notes
-            ++ [("dyn", [(0, 0, ".5")])]
-    strings_like (snd $ run [(0, 1, "4c"), (1, 1, "g -- 4d"), (2, 1, "4e")])
-        [ "Just \"4c\"*Just \"4e\""
-        -- It stops evaluating at the first pitch track, so it doesn't see the
-        -- dyn track.
-        , "Just \"1\"*Just \"1\""
-        ]
-    where
-    gen :: Derive.Generator Derive.Note
-    gen = CallTest.generator $ \args -> do
-        state <- Derive.get
-        let neighbors = EvalTrack.derive_neighbor_pitches state
-                (Args.context args)
-            extract f = (map (first (fmap f)) *** map (first (fmap f)))
-        Log.warn $ showt $ extract (pretty . Score.initial_note) neighbors
-        Log.warn $ showt $ extract (pretty . Score.initial_dynamic) neighbors
-        return Stream.empty
-
-test_neighbor_pitches_note_track = do
-    let run prev = DeriveTest.extract DeriveTest.e_start_note $
-            DeriveTest.derive_tracks_setup
-                (CallTest.with_note_generator "g" (note_gen prev)) "" $
-            UiTest.note_track [(0, 1, "4c"), (1, 1, "g -- 4d"), (2, 1, "4e")]
-    equal (run True) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
-    equal (run False) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
-    where
-    note_gen :: Bool -> Derive.Generator Derive.Note
-    note_gen prev = CallTest.generator $ \args -> do
-        pitch <- Derive.require "no prev/next" =<< if prev
-            then Args.lookup_prev_logical_pitch
-            else Args.lookup_next_logical_pitch
-        Call.place args $ Call.pitched_note pitch
-
-test_neighbor_pitches_pitch_track = do
-    let run prev = DeriveTest.extract DeriveTest.e_start_note $
-            DeriveTest.derive_tracks_setup
-                (CallTest.with_pitch_generator "g" (pitch_gen prev)) "" $
-            UiTest.note_track [(0, 1, "4c"), (1, 1, "g"), (2, 1, "4e")]
-    -- g is called 3 times
-    equal (run True) ([(0, "4c"), (1, "4c"), (2, "4e")], [])
-    equal (run False) ([(0, "4c"), (1, "4e"), (2, "4e")], [])
-    where
-    pitch_gen :: Bool -> Derive.Generator Derive.Pitch
-    pitch_gen prev = CallTest.generator1 $ \args -> do
-        pitch <- if prev
-            then Args.lookup_prev_logical_pitch
-            else Args.lookup_next_logical_pitch
-        start <- Args.real_start args
-        return $ PSignal.signal $ maybe [] (\p -> [(start, p)]) pitch
-
 -- * misc
-
-test_bi_zipper = do
-    let f = EvalTrack.bi_zipper
-    let (prevs, nexts) = f [2, 1, 0] 3 [4, 5, 6]
-    equal prevs
-        [ ([1, 0], 2, [3, 4, 5, 6])
-        , ([0], 1, [2, 3, 4, 5, 6])
-        , ([], 0, [1, 2, 3, 4, 5, 6])
-        ]
-    equal nexts
-        [ ([3, 2, 1, 0], 4, [5, 6])
-        , ([4, 3, 2, 1, 0], 5, [6])
-        , ([5, 4, 3, 2, 1, 0], 6, [])
-        ]
 
 test_parse_error = do
     let run = first (map Score.event_start) . DeriveTest.extract_logs

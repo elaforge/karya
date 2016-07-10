@@ -10,6 +10,9 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, Context)
 import qualified Derive.Deriver.Internal as Internal
@@ -68,8 +71,7 @@ prev_event = prev_val
 
 prev_event_pitch :: PassedArgs Score.Event -> Maybe PSignal.Pitch
 prev_event_pitch args =
-    fmap snd . PSignal.last . Score.event_untransformed_pitch
-        =<< prev_val args
+    fmap snd . PSignal.last . Score.event_untransformed_pitch =<< prev_val args
 
 -- | Polymorphic version of 'prev_control' or 'prev_pitch'.
 prev_val_end :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
@@ -86,59 +88,28 @@ prev_val = Derive.ctx_prev_val . context
 
 -- ** from 'Derive.state_prev_val'
 
+-- TODO do I really need so many ways to get the previous pitch?
+prev_note_pitch :: Derive.Deriver (Maybe (RealTime, PSignal.Pitch))
+prev_note_pitch = do
+    prev <- prev_note
+    return $ PSignal.last . Score.event_untransformed_pitch =<< prev
+
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
 --
 -- TODO it doesn't really belong here since it doesn't use PassedArgs, but
 -- this is where I would look for a function for the previous value.
-lookup_prev_note :: Derive.Deriver (Maybe Score.Event)
-lookup_prev_note = do
+prev_note :: Derive.Deriver (Maybe Score.Event)
+prev_note = do
     -- TODO this happens if you're not inverting, but that should be ok, right?
     addr <- Derive.require "lookup_prev_note: no state_note_track"
         =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
     Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
         . Derive.state_threaded
 
--- TODO unused, do I really need so many ways to get the previous pitch?
-lookup_prev_note_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_note_pitch = do
-    prev_event <- lookup_prev_note
-    return $ fmap snd . PSignal.last . Score.event_untransformed_pitch
-        =<< prev_event
-
--- ** from 'Derive.state_neighbors'
-
-lookup_prev_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_logical_pitch = justm lookup_prev_neighbor $ \event ->
-    return $ Score.pitch_at (Score.event_start event) event
-
-lookup_next_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_logical_pitch = justm lookup_next_neighbor $ \event ->
-    return $ Score.pitch_at (Score.event_start event) event
-
-lookup_prev_neighbor :: Derive.Deriver (Maybe Score.Event)
-lookup_prev_neighbor =
-    get_neighbor_notes >>= \(prev, _) -> case prev of
-        (event, logs) : _ -> do
-            mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
-            return event
-        [] -> return Nothing
-
-lookup_next_neighbor :: Derive.Deriver (Maybe Score.Event)
-lookup_next_neighbor =
-    get_neighbor_notes >>= \(_, next) -> case next of
-        (event, logs) : _ -> do
-            mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
-            return event
-        [] -> return Nothing
-
-get_neighbor_notes :: Derive.Deriver
-    ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-get_neighbor_notes = fromMaybe ([], []) <$>
-    Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
-
 -- ** 'Derive.state_pitch_map'
 
+-- | Pitch at the time of the next event in this track.
 lookup_next_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_next_pitch =
     maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . next_start
@@ -146,6 +117,31 @@ lookup_next_pitch =
 lookup_prev_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_prev_pitch =
     maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . prev_start
+
+-- | Pitch at the time of the next note event of this track's
+-- 'Derive.state_note_track'.
+lookup_next_note_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_next_note_pitch args =
+    justm (note_after (start args) <$> get_note_events) $
+    lookup_pitch_at <=< Derive.real . Event.start
+
+lookup_prev_note_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_note_pitch args =
+    justm (note_before (start args) <$> get_note_events) $
+    lookup_pitch_at <=< Derive.real . Event.start
+
+note_before :: TrackTime -> Events.Events -> Maybe Event.Event
+note_before p = Events.last . fst . Events.split_at_exclude p
+
+note_after :: TrackTime -> Events.Events -> Maybe Event.Event
+note_after p = Events.head . snd . Events.split_at_exclude p
+
+get_note_events :: Derive.Deriver Events.Events
+get_note_events = do
+    -- TODO this happens if you're not inverting, is that ok?
+    (_, track_id) <- Derive.require "no state_note_track"
+        =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
+    Track.track_events <$> Derive.get_track track_id
 
 -- | Get a logical pitch at the given time, via 'Derive.state_pitch_map'.
 -- As documented by 'Derive.state_pitch_map', the pitch map is unset while
@@ -185,8 +181,8 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
 -- inverted then the event at or after the end of the event will be included.
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.
-next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
-next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
+eval_next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
+eval_next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
 eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do

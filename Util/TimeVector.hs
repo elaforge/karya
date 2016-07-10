@@ -236,18 +236,18 @@ prepend vec1 vec2 = case last vec1 of
     Just v ->
         vec1 V.++ V.dropWhile ((<= sx v) . sx) (drop_before_strict (sx v) vec2)
 
--- | Find the value of the signal at the X value.  Nothing if the X is before
--- the first sample.  However, any sample within 'RealTime.eta' is considered
--- a match.
---
--- There is a special rule that says a sample at <=0 is considered to extend
--- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
--- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
+-- | Same as 'sample_at', except don't return the X.
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
 {-# INLINEABLE at #-}
 at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
 at x = fmap snd . sample_at x
 
+-- | Find the sample at or before X.  Nothing if the X is before the first
+-- sample.
+--
+-- There is a special rule that says a sample at <=0 is considered to extend
+-- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
+-- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
 {-# SPECIALIZE sample_at :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
 {-# INLINEABLE sample_at #-}
 sample_at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)

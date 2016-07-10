@@ -128,7 +128,7 @@ c_approach = generator1 "approach" Tags.next
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
     -> Derive.Deriver PSignal.PSignal
 approach args curve start end = do
-    maybe_next <- Args.next_pitch args
+    maybe_next <- Args.eval_next_pitch args
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
             PitchUtil.make_segment curve start prev end next
