@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Measure the amount of memory taken by various operations.
+-- TODO this is an incomplete experiment that never really worked out.
+-- If I resume this idea I think I'd want to try the @weigh@ package.
 module Cmd.Space_profile where
 import qualified Data.Map as Map
 
@@ -34,7 +36,7 @@ load :: FilePath -> IO State.State
 load fname = do
     result <- Testing.print_timer ("unserialize " ++ show fname)
         (\_ _ _ -> "") (Save.read_state_ fname)
-    return $ expect_right "load" result
+    return $ expect_right result
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)
     -> IO ()
