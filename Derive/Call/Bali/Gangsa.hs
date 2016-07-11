@@ -219,23 +219,24 @@ c_norot = Derive.generator module_ "norot" Tags.inst
 c_norot2 :: Derive.Generator Derive.Note
 c_norot2 = Derive.generator module_ "norot" Tags.inst
     "Emit the basic norot pattern."
-    $ Sig.call ((,,,,,)
-    <$> Sig.defaulted "style" Default "Norot style."
+    $ Sig.call ((,,,,,,)
+    <$> Sig.defaulted "prepare" Nothing
+        "Whether or not to prepare for the next pitch. If Nothing, infer based\
+        \ on the next note."
+    <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> initial_final_env
-    ) $ \(style, dur, kotekan, inst_top, pasang, (initial, final)) ->
+    ) $ \(prep, style, dur, kotekan, inst_top, pasang, (initial, final)) ->
     Sub.inverting $ \args -> do
+        next_pitch <- infer_prepare args prep
         start <- Args.real_start args
         scale <- Call.get_scale
         under_threshold <- under_threshold_function kotekan dur
-        next_pitch <- if Args.next_start args == Just (Args.end args)
-            then Args.lookup_next_pitch args
-            else return Nothing
-        let has_prepare = Maybe.isJust next_pitch
         sustain <- do
             pitch <- Call.get_pitch start
             pitch_t <- Derive.resolve_pitch start pitch
             let steps = norot_steps scale inst_top pitch_t style
+            let has_prepare = Maybe.isJust next_pitch
             let end = Args.end args - if has_prepare then dur*3 else 0
             return $ realize_kotekan_pattern2
                 (initial, if has_prepare then False else final)
@@ -251,6 +252,18 @@ c_norot2 = Derive.generator module_ "norot" Tags.inst
                     Once (gangsa_norot_arrival style pasang steps)
             Nothing -> return Nothing
         maybe sustain (sustain<>) prepare
+
+-- | Prepare for the next pitch if the next notes starts at the end of this one
+-- and has a different pitch.
+infer_prepare :: Derive.PassedArgs a -> Maybe Bool
+    -> Derive.Deriver (Maybe PSignal.Pitch)
+infer_prepare _ (Just False) = return Nothing
+infer_prepare args (Just True) = Args.lookup_next_pitch args
+infer_prepare args Nothing
+    | Args.next_start args /= Just (Args.end args) = return Nothing
+    | otherwise = justm (Args.lookup_next_pitch args) $ \next -> do
+        cur <- Call.get_pitch =<< Args.real_start args
+        return $ if Pitches.equal cur next then Nothing else Just next
 
 gangsa_norot :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle

@@ -70,28 +70,33 @@ test_norot2 = do
     let run = e_pattern 0 . derive title
         title = " | inst-top = (pitch (4f)) | cancel-pasang 2 | initial=f\
             \ | final=t"
-        note_inst e = (DeriveTest.e_note e, Score.event_instrument e)
-    equal (run [(0, 2, "norot2 -- 4c")]) ([(pasang, "-21")], [])
-    equal (run [(0, 2, "initial=t | norot2 -- 4c")]) ([(pasang, "121")], [])
-    equal (run [(0, 4, "norot2 diamond -- 4d")])
+    equal (run [(0, 2, "nt -- 4c")]) ([(pasang, "-21")], [])
+    equal (run [(0, 2, "initial=t | nt -- 4c")]) ([(pasang, "121")], [])
+    equal (run [(0, 4, "nt _ diamond -- 4d")])
         ([(polos, "-3232"), (sangsih, "-1212")], [])
     -- Under threshold, split sangsih and polos.
-    equal (run [(0, 4, "initial=t | kotekan=2 | norot2 -- 4c")])
+    equal (run [(0, 4, "initial=t | kotekan=2 | nt -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])
 
     -- Prepare next note.
-    equal (run [(0, 4, "initial=t | norot2 -- 4c"), (4, 2, "4e")])
+    equal (run [(0, 4, "initial=t | nt -- 4c"), (4, 2, "4e")])
         ([(pasang, "13343")], [])
-    equal (run [(0, 4, "initial=t | norot2 -- 4c"), (4, 2, "norot2 -- 4e")])
+    equal (run [(0, 4, "initial=t | nt -- 4c"), (4, 2, "nt -- 4e")])
         ([(pasang, "1334343")], [])
-    -- Goes down because 4f is the top.
-    equal (run [(0, 8, "kotekan=2 | norot2 -- 4c"),
-            (8, 4, "kotekan=2 | norot2 -- 4f")])
-        ([(polos, "--1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
+    -- Unless it has the same pitch.
+    equal (run [(0, 4, "nt -- 4c"), (4, 2, "4c")]) ([(pasang, "-2121")], [])
+    -- Unless I explicitly ask for a prepare.
+    equal (run [(0, 4, "nt t -- 4c"), (4, 2, "4c")]) ([(pasang, "-1121")], [])
+    equal (run [(0, 4, "initial=t | nt t -- 4c"), (4, 2, "4c")])
+        ([(pasang, "11121")], [])
 
+    -- Goes down because 4f is the top.
+    equal (run [(0, 8, "kotekan=2 | nt -- 4c"),
+            (8, 4, "kotekan=2 | nt -- 4f")])
+        ([(polos, "--1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
     -- Initial and final get flags.
     let run_flags = derive_extract Score.event_flags ""
-    equal (run_flags [(2, 2, "initial=t | norot2 -- 3a")])
+    equal (run_flags [(2, 2, "initial=t | nt -- 3a")])
         ([Gangsa.initial_flag, mempty,
             Flags.infer_duration <> Gangsa.final_flag], [])
 

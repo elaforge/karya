@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to be
+    a parse error, '>pemade |', and then fix it, it forgets that it was called
+    from the root, so presumably it gets cached as a zero and the fix doesn't
+    invalidate that.
   - I think Gamakam4 doesn't test next event pitch, e.g.
     Gamakam3_test.test_sequence on '!!-v-'
   - do a renaming pass on all the prev/next pitch functions in Derive.Args
@@ -1444,42 +1448,61 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - why is k//\\ non-interlocking giving the bottom part to sangsih?
         - is zero dur also mute for reyong?  I keep forgetting!
         - default to initial=f?
+        - add 'init' as a macro for initial=t
         - last kotekan note is still not useful
+          . It should default to infer-duration so it will go to the next note,
+            and replace a pasang note, so I don't get kempyung.
+          - Also noltol shouldn't put a mute on the end, but I think this is
+          a problem with 'noltol'.
         - kotekan lines up to the end, but that doesn't interact well when
           it's interrupted by an angsel.  It should just start at the start
           time, or at least the repeating regular style should.
-        - 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
-          customized per-score?
-        * Use logical next pitch for norot.
-          . Doesn't seem to work.  Why?
-          . I still feel like negative duration solves a lot of problems.
+          . How about align to the beginning for positive duration, to the end
+            for negative.  This affects clipping if it's too short.
         - clip should be end-weighted.  If I used a negative duration I could
           make it based on that...
-        * How norot puts notes before itself can be awkward, would it be
-          simpler to have the pickup emitted by the end of the previous call?
-          That way each call only emits notes within its duration.
-          - Don't prepare when the next pitch is the same.
-          - I will need an explicit flag for prepare, in addition to inferring
-            it.  Sometimes it starts after a gap.
-          - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)
-            . So I still need negative duration, though norot is actually a
-              positive duration.
-            . In some regards, norot emits its own preparation is more
-              suitable since I think I only want to prepare for norot, not
-              for any old note.  But on the flip side, I have to turn it off
-              when it starts on the beat.
-            . But with "prepare next", I have no way to prepare for norot that
-              starts after a pause, I would need a special call.  Which I need
-              anyway.
-            . The big advantage of "prepare next" is that its notes are within
-              its range.  Self prepare is kind of confusing.
-          - Replace norot with norot2 once I'm sure it works.
+          . Wait, isn't that what Clip is?
+        - zero dur note for norot destination winds up being a mute, because
+          of course it is.  I want it to be {infer-duration, final}.
+          . I could give it those explicitly, e.g. a 'final' call, or use
+            -0 dur.
+        norot:
+          - gabor, @b2, pemade, norot has 'initial=t | nt t', but still lacks
+            the initial note.  It works in the test though, so something else
+            is going on.
+          * 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
+            customized per-score?
+          * Use logical next pitch for norot.
+            . Doesn't seem to work.  Why?
+            . I still feel like negative duration solves a lot of problems.
+          * How norot puts notes before itself can be awkward, would it be
+            simpler to have the pickup emitted by the end of the previous call?
+            That way each call only emits notes within its duration.
+            * Don't prepare when the next pitch is the same.
+            * I will need an explicit flag for prepare, in addition to inferring
+              it.  Sometimes it starts after a gap.
+            - Alternatively, I could make 'nt>' be norot with prepare, and
+              then '>' is just the prepare.
+            - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)
+              . So I still need negative duration, though norot is actually a
+                positive duration.
+              . In some regards, norot emits its own preparation is more
+                suitable since I think I only want to prepare for norot, not
+                for any old note.  But on the flip side, I have to turn it off
+                when it starts on the beat.
+              . But with "prepare next", I have no way to prepare for norot that
+                starts after a pause, I would need a special call.  Which I need
+                anyway.
+              . The big advantage of "prepare next" is that its notes are within
+                its range.  Self prepare is kind of confusing.
+            - Replace norot with norot2 once I'm sure it works.
+            - Rename 'arrival' to 'prepare'?
           - Adapt kotekan calls to use realize_kotekan_pattern2.  Also maybe
             use the next pitch for positive events?
           - Then replace realize_kotekan_pattern with realize_kotekan_pattern2.
-          - Rename 'arrival' to 'prepare'?
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used
