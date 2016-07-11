@@ -323,24 +323,40 @@ instance Pretty.Pretty TrackFlag where pretty = showt
 
 -- | Convert logical block level tracks to display tracks.
 block_display_tracks :: Block -> [DisplayTrack]
-block_display_tracks = map display_track . block_tracks
+block_display_tracks = merge_collapsed . map display_track . block_tracks
+
+-- | Merge consecutive collapsed tracks.
+merge_collapsed :: [DisplayTrack] -> [DisplayTrack]
+merge_collapsed = id
+-- TODO I tried this and it looks nice but I'd need to also eliminate the
+-- tracks from a Block.display_skeleton and Block.display_integrate_skeleton
+-- and I'm not sure it's worth it.
+-- merge_collapsed = mapMaybe Seq.head
+--     . List.groupBy (\a b -> a == collapsed_track && b == collapsed_track)
 
 -- | This is not exported so callers are forced to go through
 -- 'block_display_tracks'.
 display_track :: Track -> DisplayTrack
-display_track track = DisplayTrack
-    { dtracklike_id = tracklike
-    , dtrack_width = width
-    , dtrack_merged = track_merged track
-    , dtrack_status = status
-    , dtrack_event_brightness = brightness
+display_track track
+    | track_collapsed track = collapsed_track
+    | otherwise = DisplayTrack
+        { dtracklike_id = tracklike_id track
+        , dtrack_width = track_width track
+        , dtrack_merged = track_merged track
+        , dtrack_status = status
+        , dtrack_event_brightness = brightness
+        }
+    where (status, brightness) = flags_to_status (track_flags track)
+
+-- | Collapsed tracks are replaced with a divider.
+collapsed_track :: DisplayTrack
+collapsed_track = DisplayTrack
+    { dtracklike_id = DId (Divider Config.abbreviation_color)
+    , dtrack_width = Config.collapsed_width
+    , dtrack_merged = mempty
+    , dtrack_status = Nothing
+    , dtrack_event_brightness = 1
     }
-    where
-    (status, brightness) = flags_to_status (track_flags track)
-    (tracklike, width)
-        | track_collapsed track =
-            (DId (Divider Config.abbreviation_color), Config.collapsed_width)
-        | otherwise = (tracklike_id track, track_width track)
 
 display_track_width :: Track -> Types.Width
 display_track_width = dtrack_width . display_track
