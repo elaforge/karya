@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Track titles are still cramped, and even with the expand thing it's still
+    awkward to edit text in them, and annoying to not be able to see what's in
+    them.  Much of the problem is that for editing I want the tracks to be
+    narrow as possible, but that's too small for editing the title.
+    . How about making the title expand horizontally in addition to
+      vertically?
+  - Manually fiddling with track widths is annoying.  It seems like I could
+    ask the UI about text extents to resize them automatically.
   - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to be
     a parse error, '>pemade |', and then fix it, it forgets that it was called
     from the root, so presumably it gets cached as a zero and the fix doesn't
@@ -1456,7 +1464,7 @@ Derive:
           . It should default to infer-duration so it will go to the next note,
             and replace a pasang note, so I don't get kempyung.
           - Also noltol shouldn't put a mute on the end, but I think this is
-          a problem with 'noltol'.
+            a problem with 'noltol'.
         - kotekan lines up to the end, but that doesn't interact well when
           it's interrupted by an angsel.  It should just start at the start
           time, or at least the repeating regular style should.
@@ -1470,9 +1478,10 @@ Derive:
           . I could give it those explicitly, e.g. a 'final' call, or use
             -0 dur.
         norot:
-          - gabor, @b2, pemade, norot has 'initial=t | nt t', but still lacks
+          / gabor, @b2, pemade, norot has 'initial=t | nt t', but still lacks
             the initial note.  It works in the test though, so something else
             is going on.
+            . False alarm, I had polos muted.
           * 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
             customized per-score?
           * Use logical next pitch for norot.
@@ -1485,7 +1494,8 @@ Derive:
             * I will need an explicit flag for prepare, in addition to inferring
               it.  Sometimes it starts after a gap.
             - Alternatively, I could make 'nt>' be norot with prepare, and
-              then '>' is just the prepare.
+              then '>' is just the prepare.  But prepare is the common case,
+              so it should have 'nt'.
             - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)
               . So I still need negative duration, though norot is actually a
                 positive duration.

@@ -72,7 +72,7 @@ instance Pretty.Pretty TimeChange where
 data Sollu =
     Dheem | Dhom | Di | Din | Dit
     | Ga | Gin | Ka | Ki | Ku | Lang
-    | Mi | Na | Ri | Ta | Tam | Tang
+    | Mi | Na | Nam | Ri | Ta | Tam | Tang
     | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 
@@ -219,6 +219,24 @@ takeM matras (n:ns) = case n of
 
 rdropM :: Matras -> Sequence stroke -> Sequence stroke
 rdropM matras = reverse . dropM matras . reverse
+
+reduce3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
+reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
+
+-- | Reduce by a duration until a final duration.
+reduceTo :: Log.Stack => Matras -> Matras -> Sequence stroke -> Sequence stroke
+reduceTo by to seq
+    | (duration_of seq - to) `mod` by /= 0 =
+        errorStack $ show (duration_of seq) <> " can't reduce by " <> show by
+            <> " to " <> show to
+    | otherwise = mconcat $ takeWhile ((>=to) . duration_of) $
+        iterate (dropM by) seq
+
+reduceR :: Matras -> Sequence stroke -> [Sequence stroke]
+reduceR n = iterate (rdropM n)
+
+reduceR3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
+reduceR3 n sep = List.intercalate sep . take 3 . reduceR n
 
 -- ** vary
 

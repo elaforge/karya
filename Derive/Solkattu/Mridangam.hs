@@ -7,6 +7,7 @@ module Derive.Solkattu.Mridangam where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
@@ -97,6 +98,16 @@ od = Realize.Note (Both Thom Din)
 
 pk :: Note
 pk = Realize.Note (Both Tha Ki)
+
+both :: Thoppi -> Valantalai -> Note
+both a b = Realize.Note  (Both a b)
+
+(&) :: Log.Stack => Note -> Note -> Note
+Realize.Note a & Realize.Note b = case (a, b) of
+    (Thoppi a, Valantalai b) -> both a b
+    (Valantalai b, Thoppi a) -> both a b
+    _ -> errorStack $ "requires thoppi & valantalai: " <> show (a, b)
+a & b = errorStack $ "requires thoppi & valantalai: " <> show (a, b)
 
 
 -- * patterns

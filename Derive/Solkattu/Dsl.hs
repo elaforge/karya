@@ -7,13 +7,13 @@
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
     -- * solkattu
-    Sequence, Korvai, Matras, Instrument
+    Sequence, Korvai, Instrument
     -- ** sollus
     , (.)
-    , __, __3, __4, __5, __n
+    , __, __2, __3, __4, __5, __n
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
-    , ku, mi, na, ri, ta, tam, tat, tha, thom, ti
+    , ku, mi, na, nam, ri, ta, tam, tat, tha, thom, ti
     , tang, lang
     , dinga
 
@@ -26,16 +26,13 @@ module Derive.Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- ** combinators
     , tri, tri_, trin
-    , duration_of, repeat, join
-    , reduce, reduce3
-    , reduceR, reduceR3
+    , join, repeat
     -- * transform
-    , dropM, takeM, rdropM
+    , module Derive.Solkattu.Solkattu
     -- * mridangam
-    , k, t, n, d, u, i, o, p
-    , od, pk
+    , module Derive.Solkattu.Mridangam
     -- * misc
-    , check, pprint
+    , pprint
 ) where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
@@ -44,11 +41,12 @@ import qualified Data.Monoid as Monoid
 import Util.Pretty (pprint)
 import Derive.Solkattu.Korvai (Korvai)
 import qualified Derive.Solkattu.Mridangam as M
-import Derive.Solkattu.Mridangam (k, t, n, d, u, i, o, p, od, pk)
+import Derive.Solkattu.Mridangam (k, t, n, d, u, i, o, p, od, pk, (&))
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu
-       (Matras, check, duration_of, dropM, takeM, rdropM)
+       (Matras, check, duration_of, dropM, takeM, rdropM, reduce3, reduceTo,
+        reduceR3)
 
 import Global
 
@@ -77,7 +75,8 @@ instance Rest (Realize.Note stroke) where __ = Realize.Rest
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__3, __4, __5 :: S.Sequence stroke
+__2, __3, __4, __5 :: S.Sequence stroke
+__2 = __
 __3 = __n 3
 __4 = __n 4
 __5 = __n 5
@@ -99,6 +98,7 @@ ki = sollu S.Ki
 ku = sollu S.Ku
 mi = sollu S.Mi
 na = sollu S.Na
+nam = sollu S.Nam
 ri = sollu S.Ri
 ta = sollu S.Ta
 tam = sollu S.Tam
@@ -179,17 +179,4 @@ repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
 join :: S.Sequence stroke -> [S.Sequence stroke] -> S.Sequence stroke
-join with = List.intercalate with
-
-reduce :: Matras -> S.Sequence stroke -> [S.Sequence stroke]
-reduce n = iterate (dropM n)
-
-reduce3 :: Matras -> S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
-reduce3 n sep seq = join sep $ take 3 $ reduce n seq
-
-reduceR :: Matras -> S.Sequence stroke -> [S.Sequence stroke]
-reduceR n = iterate (rdropM n)
-
-reduceR3 :: Matras -> S.Sequence stroke -> S.Sequence stroke
-    -> S.Sequence stroke
-reduceR3 n sep seq = join sep $ take 3 $ reduceR n seq
+join = List.intercalate

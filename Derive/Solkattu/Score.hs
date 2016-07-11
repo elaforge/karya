@@ -52,9 +52,31 @@ c1s = korvais (adi 4) mridangam
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
 
+c2_yt1 :: Korvai
+c2_yt1 = korvai (adi 4) mridangam $
+    -- tat.__.dit.__.ta.ka.din.na.nam.__.dit.__.din.__4
+    --       .dit.__.ta.ka.din.na.nam.__.dit.__.din.__4
+    --              .ta.ka.din.na.nam.__.dit.__.din.__4
+    --                    .din.na.nam.__.dit.__.din.__4
+    --                           .nam.__.dit.__.din.__4
+    --                                  .dit.__.din.__4 -- ta ka din
+    --                                         .din.__4
+    -- TODO ... `replace` (dit.__.din.__4) (ta.ka.din.__4)
+    reduceTo 2 4 (tat.__.dit.__.ta.ka.din.na.nam.__.dit.__.din.__4)
+    . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
+    where
+    mridangam = make_mridangam
+        [ (nam.dit.din, [o&n, k, od])
+        , (tat.dit, [k, t])
+        , (dit, [k])
+        , (din, [od])
+        , (din.na, [p, k])
+        , (ta.ka.din.na, [k, o, o, k])
+        ]
+
 chatusrams :: [Korvai]
 chatusrams = concat
-    [ c1s
+    [ c1s, [c2_yt1]
     ]
 
 -- * kanda nadai
@@ -239,6 +261,12 @@ t3s = korvais (adi 6) mridangam
     [ reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
+
+    , variation (5, 5, 5) (6, 6, 6) (7, 7, 7)
+    , variation (7, 7, 7) (6, 6, 6) (5, 5, 5)
+    , variation (5, 6, 7) (5, 6, 7) (5, 6, 7)
+    , variation (7, 6, 5) (7, 6, 5) (7, 6, 5)
+    , variation (5, 6, 7) (6, 6, 6) (7, 6, 5)
     ]
     -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
     --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
@@ -247,7 +275,13 @@ t3s = korvais (adi 6) mridangam
     --       .dit.__.ta.ka.din.na.__.dinga
     --              .ta.ka.din.na.__.dinga
     where
-    utarangam p = tri p . dinga!u . tri_ __ p . dinga!u . tri_ __3 p
+    utarangam p = trin (tang.ga) (tri p) (tri_ __ p) (tri_ __3 p)
+    variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
+        reduce (tat.__.dit.__.ta.ka.din.na.__.dinga)
+        . trin (tang.ga)
+            (trin mempty (pat a1) (pat a2) (pat a3))
+            (trin __ (pat b1) (pat b2) (pat b3))
+            (trin __3 (pat c1) (pat c2) (pat c3))
     reduce = reduce3 2 mempty
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
@@ -256,6 +290,7 @@ t3s = korvais (adi 6) mridangam
         , (ka.din.na, [o, o, k])
         , (din, [od])
         , (dinga, [od, __])
+        , (tang.ga, [u, __])
         ]
 
 tisrams :: [Korvai]
