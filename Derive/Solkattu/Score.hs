@@ -169,7 +169,7 @@ k3s = korvais (adi 5) mridangam
       . tri_ __ p6
     ]
     where
-    tangkita = s2 (tang . kitataka . tarikitataka)
+    tangkita = s2 (tang . __ . kitataka . tarikitataka)
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam = make_mridangam
@@ -213,7 +213,7 @@ t1s = korvais (adi 6) mridangam
     , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
     ]
     where
-    utarangam = tri_ (tang.ga)
+    utarangam = tri_ (tang.__.ga)
     reduce = reduce3 2 mempty
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
@@ -275,10 +275,10 @@ t3s = korvais (adi 6) mridangam
     --       .dit.__.ta.ka.din.na.__.dinga
     --              .ta.ka.din.na.__.dinga
     where
-    utarangam p = trin (tang.ga) (tri p) (tri_ __ p) (tri_ __3 p)
+    utarangam p = trin (tang.__.ga) (tri p) (tri_ __ p) (tri_ __3 p)
     variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
         reduce (tat.__.dit.__.ta.ka.din.na.__.dinga)
-        . trin (tang.ga)
+        . trin (tang.__.ga)
             (trin mempty (pat a1) (pat a2) (pat a3))
             (trin __ (pat b1) (pat b2) (pat b3))
             (trin __3 (pat c1) (pat c2) (pat c3))

@@ -108,8 +108,8 @@ thom = sollu S.Thom
 ti = sollu S.Ti
 
 tang, lang :: S.Sequence stroke
-tang = sollu S.Tang <> __
-lang = sollu S.Lang <> __
+tang = sollu S.Tang
+lang = sollu S.Lang
 
 dinga :: S.Sequence stroke
 dinga = din <> __ <> ga
