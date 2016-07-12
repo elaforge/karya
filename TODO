@@ -1545,7 +1545,7 @@ Derive:
             * Don't prepare when the next pitch is the same.
             * I will need an explicit flag for prepare, in addition to inferring
               it.  Sometimes it starts after a gap.
-            - Alternatively, I could make 'nt>' be norot with prepare, and
+            * Alternatively, I could make 'nt>' be norot with prepare, and
               then '>' is just the prepare.  But prepare is the common case,
               so it should have 'nt'.
             - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)

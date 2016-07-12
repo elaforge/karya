@@ -198,10 +198,14 @@ infer_pitch prev next = do
 infer_pitch_flag :: Flags.Flags
 infer_pitch_flag = Flags.flag "infer-pitch"
 
--- | Mark events that were damped late, and whose previous event should be
+-- | Mark grace notes that were damped late, and whose previous event should be
 -- extended to be damped together.
-extend_previous, shorten_previous :: Flags.Flags
+extend_previous :: Flags.Flags
 extend_previous = Flags.flag "extend-previous-duration"
+
+-- | Mark grace notes that don't cause a late damp.  The previous event's
+-- duration should be shortened to end where the grace note begins.
+shorten_previous :: Flags.Flags
 shorten_previous = Flags.flag "shorten-previous-duration"
 
 -- * weak

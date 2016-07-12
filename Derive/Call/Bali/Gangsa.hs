@@ -71,10 +71,12 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("norot", c_norot)
+    , ("norot2", c_norot2 Nothing)
     -- Alias for norot.  It's separate so I can use the long version for new
     -- calls.
-    , ("nt", c_norot2)
-    , ("norot2", c_norot2)
+    , ("nt", c_norot2 Nothing)
+    , ("nt>", c_norot2 (Just True))
+    , ("nt-", c_norot2 (Just False))
     , (">norot", c_norot_arrival)
     , ("gnorot", c_gender_norot)
     , ("k_\\",  c_kotekan_irregular Pat $
@@ -216,11 +218,11 @@ c_norot = Derive.generator module_ "norot" Tags.inst
                 (Args.range args) dur pitch under_threshold Repeat
                 (gangsa_norot style pasang nsteps)
 
-c_norot2 :: Derive.Generator Derive.Note
-c_norot2 = Derive.generator module_ "norot" Tags.inst
+c_norot2 :: Maybe Bool -> Derive.Generator Derive.Note
+c_norot2 default_prepare = Derive.generator module_ "norot" Tags.inst
     "Emit the basic norot pattern."
     $ Sig.call ((,,,,,,)
-    <$> Sig.defaulted "prepare" Nothing
+    <$> Sig.defaulted "prepare" default_prepare
         "Whether or not to prepare for the next pitch. If Nothing, infer based\
         \ on the next note."
     <*> Sig.defaulted "style" Default "Norot style."
@@ -958,7 +960,7 @@ c_cancel_pasang = Derive.transformer module_ "cancel-pasang" Tags.postproc
     $ Postproc.make_cancel cancel_pasang pasang_key
 
 -- | The order of precedence is normals, then finals, then initials.
--- The final note also gets Flags.infer_duration, but since it will lose to
+-- The final note also gets 'Flags.infer_duration', but since it will lose to
 -- normal notes, the infer will only happen if there is no next note.  So it
 -- won't ever merge with the duration of a cancelled note.
 cancel_pasang :: [Score.Event] -> Either Text [Score.Event]
