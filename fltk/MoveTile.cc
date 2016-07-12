@@ -121,14 +121,14 @@ MoveTile::handle(int evt)
         break;
 
     case FL_DRAG: case FL_RELEASE: {
-        // I should only get these events if handle_move returned true, which
-        // means am dragging.
-        ASSERT(drag_state.x || drag_state.y);
+        if (!drag_state.x && !drag_state.y) {
+            return 0;
+        }
         IPoint drag_to(drag_state.x ? mouse.x : 0, drag_state.y ? mouse.y : 0);
         this->handle_drag_tile(drag_from, drag_to, this->dragged_child);
-        if (evt == FL_DRAG)
+        if (evt == FL_DRAG) {
             this->set_changed(); // this means "changed value" to a callback
-        else if (evt == FL_RELEASE) {
+        } else if (evt == FL_RELEASE) {
             this->init_sizes();
             // Unlike Fl_Tile, I only callback at the end of a drag.  This
             // means scrollbars don't get updated continuously, but I

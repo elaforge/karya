@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - repl now has no history when it doesn't know the filename.
+    Maybe I should have it ask for the filename.  I'll need a protocol anyway
+    to ask for tab-completion.
+  * Kitten caused a crash:
+    assertion: assertion failed at fltk/MoveTile.cc:126 handle():
+      'drag_state.x || drag_state.y'
+      0   seq       _ZN8MoveTile6handleEi + 1091
+      1   seq       _ZL10send_eventiP9Fl_WidgetP9Fl_Window + 133
+      2   seq       _ZN2Fl7handle_EiP9Fl_Window + 1340
+      3   seq       _ZL17cocoaMouseHandlerP7NSEvent + 727
+      4   AppKit    -[NSWindow _reallySendEvent:isDelayedEvent:] + 2108
+      5   AppKit    -[NSWindow sendEvent:] + 517
+      6   AppKit    -[NSApplication sendEvent:] + 2540
+      7   seq       _Z7fl_waitd + 185
+      8   seq       _Z21fl_mac_flush_and_waitd + 166
+      9   seq       segM_info + 128
+    . Not really sure what this means, but it didn't have to be fatal.
+  - Fix verify_performance for save/complete/blue-hat
+  - LEvent.invert_note is deleting the pitch instead of putting it at the end
   - Track titles are still cramped, and even with the expand thing it's still
     awkward to edit text in them, and annoying to not be able to see what's in
     them.  Much of the problem is that for editing I want the tracks to be
@@ -17,8 +36,8 @@ UNSORTED
     invalidate that.
   - I think Gamakam4 doesn't test next event pitch, e.g.
     Gamakam3_test.test_sequence on '!!-v-'
-  - do a renaming pass on all the prev/next pitch functions in Derive.Args
-    Can Prelude.Pitch.approach use the lookup pitch style?
+  - do a renaming pass on all the prev/next pitch function names in
+    Derive.Args.  Should Prelude.Pitch.approach use the lookup pitch style?
   * make Args.next_logical_pitch work for note calls
     . Why do I get the error unless there's a setup neighors in the Note call?
       . It's from the (0, 1) -> (1, 1) "g" call.
@@ -179,6 +198,7 @@ UNSORTED
       place.
     - I have to also collapse the skeleton, which means I need
       a Block.display_skeleton and Block.display_integrate_skeleton.
+    . However, I'm not sure it's worth it.
   * Pianoteq doesn't save tuning, so I have to send tuning again each time.
     Maybe I need an initialize step that runs when I load a score.
     . If inst alloc has an initialize flag, then an initialize cmd could find
@@ -1456,13 +1476,45 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - gangsa zero dur mutes too loud
+          . Really I need loose and tight mute, but I'll have to do my own
+            samples, or maybe add a loose mute as open with just envelope.
         - why is k//\\ non-interlocking giving the bottom part to sangsih?
+          . It's because kotekan_irregular is designed that way, it has
+            a single kotekan_unison.
         - is zero dur also mute for reyong?  I keep forgetting!
         - default to initial=f?
-        - add 'init' as a macro for initial=t
+          . add 'init' as a macro for initial=t
         - last kotekan note is still not useful
           . It should default to infer-duration so it will go to the next note,
             and replace a pasang note, so I don't get kempyung.
+          . It's because I had 'unison' first, which gives me two simultaneous
+            notes, which can no longer infer duration since they are
+            considered to be the same.  Since they are coincident, they get
+            multiple-event style infer-duration, which means they are
+            individual inferred as a strong with no weaks, which does nothing
+            to the duration.
+          . That actually seems kind of bogus.  The merge-infer vs.
+            single-infer difference seems confusing, especially when merge is
+            not really merge.  Surely a "merge" with weaks=[] should just kick
+            them on to infer_duration_single?
+          . I need to figure out an understandable approach.
+          . Even with that fix, I wind up with a 0 dur sangsih, 1 dur polos.
+
+          . Then there's the question about if 'realize-gangsa | unison' is
+            the right order, or should it be 'unison | realize-gangsa'?
+          . But wait, that's wrong too, because what about noltol?
+          . Why do I feel like I've struggled with this before?
+          . COME UP WITH A REAL PLAN!
+
+          . The problem is that to do cross-blocks, cancel needs to go at the
+            top level.
+
+          . realize-noltol
+            cancel-pasang
+            realize-ngoret
+            unison
+
           - Also noltol shouldn't put a mute on the end, but I think this is
             a problem with 'noltol'.
         - kotekan lines up to the end, but that doesn't interact well when

@@ -194,6 +194,8 @@ invert = ModifyEvents.event $ \event -> event
     , Event.duration = - Event.duration event
     }
 
+-- | Use with 'ModifyNotes.selection' to invert notes and realign its controls.
+-- TODO only it doesn't seem to correctly put a pitch event at the end.
 invert_note :: Monad m => ModifyNotes.ModifyNotes m
 invert_note = ModifyNotes.note $ \note -> note
     { ModifyNotes.note_start = ModifyNotes.note_end note
