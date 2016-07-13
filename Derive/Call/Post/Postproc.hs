@@ -4,6 +4,7 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Postproc where
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
@@ -55,7 +56,12 @@ c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
 -- into a set of output notes.
 type Cancel = [Score.Event] -> Either Text [Score.Event]
 
-make_cancel :: Ord key => Cancel -> (Score.Event -> key)
+-- | The key identifies another event which is in the same voice.  This could
+-- be 'Post.hand_key', but it could also match polos to sangsih, since they
+-- form a composite part.
+type Key key = Score.Event -> key
+
+make_cancel :: Ord key => Cancel -> Key key
     -> Derive.WithArgDoc (Derive.TransformerF Derive.Note)
 make_cancel cancel key =
     Sig.callt final_duration_arg $ \final_dur _args deriver ->
@@ -66,7 +72,7 @@ final_duration_arg :: Sig.Parser RealTime
 final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed 1
     "If there is no following note, infer this duration."
 
-group_and_cancel :: Ord key => Cancel -> (Score.Event -> key) -> RealTime
+group_and_cancel :: Ord key => Cancel -> Key key -> RealTime
     -> Events -> Either Text Events
 group_and_cancel cancel key final_dur =
     fmap (infer_duration_single key final_dur . suppress_notes)
@@ -89,27 +95,38 @@ cancel_strong_weak merge events = case partition events of
     partition = Seq.partition2 (Score.has_flags Flags.strong)
         (Score.has_flags Flags.weak)
 
--- | Handle 'Flags.infer_duration' for notes merged together.
+-- | Handle 'Flags.infer_duration' for notes merged together.  This is the case
+-- where a final note replaces a coincident initial note.  The strong note gets
+-- the duration of the longest weak notes, if there are any.  If there are no
+-- weaks, then there are no coincedent notes to merge, so return the event
+-- unchanged so 'infer_duration_single' can handle it.
 infer_duration_merged :: Score.Event -> [Score.Event] -> Score.Event
-infer_duration_merged strong weaks
-    | Score.has_flags Flags.infer_duration strong =
-        set_end end $ Score.remove_flags Flags.infer_duration strong
-    | otherwise = strong
-    where
-    set_end end event = Score.set_duration (end - Score.event_start event) event
-    end = fromMaybe (Score.event_end strong) $
-        Seq.maximum (map Score.event_end weaks)
+infer_duration_merged strong weaks =
+    case Seq.maximum (map Score.event_end weaks) of
+        Just end | Score.has_flags Flags.infer_duration strong ->
+            Score.remove_flags Flags.infer_duration $
+            Score.set_duration (end - Score.event_start strong) strong
+        _ -> strong
 
--- | Handle 'Flags.infer_duration' for a note by itself.
-infer_duration_single :: Eq key => (Score.Event -> key) -> RealTime
+-- | Handle 'Flags.infer_duration' for a note by itself.  When there is no
+-- coincedent note to replace, the duration extends to the start of the next
+-- matching event, according to the 'Key'.
+--
+-- This actually finds the next matching event which starts later than this
+-- one.  Normally notes of the same key are not expected to occur
+-- simultaneously, but may still do so, for example pasang parts which are
+-- normally considered a single voice but may still contain unison or kempyung.
+infer_duration_single :: Eq key => Key key -> RealTime
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-infer_duration_single key final_dur = Post.emap1_ infer . Post.next_by key id
+infer_duration_single key final_dur = Post.emap1_ infer . Post.nexts_by key id
     where
-    infer (event, next)
+    infer (event, nexts)
         | Score.has_flags Flags.infer_duration event = maybe
             (Score.set_duration final_dur) (set_end . Score.event_start) next $
             Score.remove_flags Flags.infer_duration event
         | otherwise = event
+        where
+        next = List.find ((> Score.event_start event) . Score.event_start) nexts
     set_end end event = Score.set_duration (end - Score.event_start event) event
 
 merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]

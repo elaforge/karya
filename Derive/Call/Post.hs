@@ -190,6 +190,13 @@ neighbors_by key event_of = emap1_ extract . neighbors
     extract (ps, e, ns) = (same ps, e, same ns)
         where same = Seq.head . filter ((== key (event_of e)) . key . event_of)
 
+nexts_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
+    -> Stream (a, [a])
+nexts_by key event_of = emap1_ extract . Stream.zip_on nexts
+    where
+    extract (ns, e) = (e, same ns)
+        where same = filter ((== key (event_of e)) . key . event_of)
+
 -- | Like 'neighbors_by', but only the next neighbor.
 next_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
     -> Stream (a, Maybe a)

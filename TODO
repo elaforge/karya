@@ -1467,6 +1467,17 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      cancel and realize:
+        end of block {final}:
+          [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
+            => (polos, 16, 4, "4i")
+              merge duration from 2nd
+          [(polos, 16, 0, "4i")] -- [(sangsih, 2, 4, "4o")]
+            => [(polos, 16, 2, "4i"), (sangsih, 2, 4, "4o")]
+              extend to fill gap
+          [(polos, 16, 0, "4i") -- [(polos, 0, 4, "4i")
+           (sangsih, 16, 0, "4i")]  (sangsih, 0, 4, "4u")]
+            => like merges with like
       - kajar: automatic hand muting as with reyong.
       - add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -1488,7 +1499,7 @@ Derive:
           . add 'init' as a macro for initial=t
         * why is noltol in delayed_args for LPerf.sel_events?
           . Maybe noltol doesn't take it out if it doesn't do it.
-        - last kotekan note is still not useful
+        * last kotekan note is still not useful
           . It should default to infer-duration so it will go to the next note,
             and replace a pasang note, so I don't get kempyung.
           . It's because I had 'unison' first, which gives me two simultaneous
@@ -1509,15 +1520,24 @@ Derive:
           . I think unison should be able to go first, since everything that
             works for >pasang should work for single instruments.
           . Why do I feel like I've struggled with this before?
-          . COME UP WITH A REAL PLAN!
 
           . The problem is that to do cross-blocks, cancel needs to go at the
             top level.
+          . Why do I need pasang key?  It means the polos note stops the
+            sangsih, which is good.
 
-          . realize-noltol
-            cancel-pasang
+          . realize-noltol - put mutes at the end of notes, so it requires
+              durations, so post infer duration
+            cancel-pasang - infer durations
             realize-ngoret
-            unison
+              realize_damped - set duration for {extend-previous} and
+                {shorten-previous}, since the grace note dur is set
+                regardless, it doesn't need {infer-duration}
+              realize_infer_pitch
+            unison - replace >pasang with >polos / >sangsih
+
+          . Single {infer-duration} is to extend, if it's simultaneous I can
+            find the next non-simultaneous note.
 
           - Also noltol shouldn't put a mute on the end, but I think this is
             a problem with 'noltol'.

@@ -26,7 +26,7 @@ import Types
 
 
 test_norot = do
-    let run e = derive_extract e title
+    let run e = DeriveTest.extract e . derive title
         title = " | inst-top = (pitch (4f)) | norot-dur=1"
             <> " | norot-arrival=f | initial=t"
         note_inst e = (DeriveTest.e_note e, Score.event_instrument e)
@@ -68,7 +68,7 @@ test_norot = do
 
 test_norot2 = do
     let run = e_pattern 0 . derive title
-        title = " | inst-top = (pitch (4f)) | cancel-pasang 2 | initial=f\
+        title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | initial=f\
             \ | final=t"
     equal (run [(0, 2, "nt -- 4c")]) ([(pasang, "-21")], [])
     equal (run [(0, 2, "initial=t | nt -- 4c")]) ([(pasang, "121")], [])
@@ -94,11 +94,27 @@ test_norot2 = do
     equal (run [(0, 8, "kotekan=2 | nt -- 4c"),
             (8, 4, "kotekan=2 | nt -- 4f")])
         ([(polos, "--1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
+
+test_norot2_final = do
     -- Initial and final get flags.
-    let run_flags = derive_extract Score.event_flags ""
+    let run_flags = DeriveTest.extract Score.event_flags . derive ""
     equal (run_flags [(2, 2, "initial=t | nt -- 3a")])
         ([Gangsa.initial_flag, mempty,
             Flags.infer_duration <> Gangsa.final_flag], [])
+
+    -- Infer duration even for simultaneous unison notes.
+    let both n = [(polos, n), (sangsih, n)]
+    let run title = e_by_inst DeriveTest.e_note . derive title
+    equal (run " | cancel-pasang 2 | unison" [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+        (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
+    equal (run (" | cancel-pasang 2 | unison" <> ngotek True)
+            [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+        ([ (polos, [(2, 1, "4c"), (4, 4, "4c"), (8, 2, "4d")])
+         , (sangsih, [(3, 1, "4d"), (8, 2, "4d")])
+         ], [])
+    -- Also works on pasang.
+    equal (run " | unison | cancel-pasang 2" [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+        (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
 
 test_norot_arrival = do
     let run = e_pattern 0 . derive title
@@ -126,7 +142,7 @@ test_gender_norot = do
         ([(polos, "32123"), (sangsih, "34343")], [])
 
 test_kotekan_flags = do
-    let run kotekan = derive_extract extract (ngotek kotekan)
+    let run kotekan = DeriveTest.extract extract . derive (ngotek kotekan)
         extract e = (Score.event_start e, Score.event_flags e)
     equal (run True [(0, 4, "k k-121 -- 4c")])
         ([ (0, Gangsa.initial_flag), (1, mempty), (2, mempty)
@@ -240,7 +256,7 @@ modify_config inst modify = State.allocation inst %= fmap update
         { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }
 
 test_kempyung = do
-    let run title = derive_extract extract (title <> " | kempyung")
+    let run title = DeriveTest.extract extract . derive (title <> " | kempyung")
         extract e = (Score.event_start e, Score.initial_note e)
         notes = [(0, 1, "4c"), (1, 1, "4d")]
     equal (run "" notes)
@@ -249,7 +265,7 @@ test_kempyung = do
         ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
 
 test_nyogcag = do
-    let run = derive_extract extract " | nyog"
+    let run = DeriveTest.extract extract . derive " | nyog"
         extract e = (Score.event_start e, DeriveTest.e_instrument e)
     let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
     equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
@@ -342,10 +358,6 @@ derive_polos extract title = first (fromMaybe [] . lookup polos)
 derive :: String -> [UiTest.EventSpec] -> Derive.Result
 derive title notes = derive_tracks $
     UiTest.note_spec (inst_title <> title, notes, [])
-
-derive_extract :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
-    -> ([a], [String])
-derive_extract extract title = DeriveTest.extract extract . derive title
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = DeriveTest.derive_tracks "import bali.gangsa"
