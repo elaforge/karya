@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Put logs on Score.Event.  When a postproc modifies it, it can add a note.
   - repl now has no history when it doesn't know the filename.
     Maybe I should have it ask for the filename.  I'll need a protocol anyway
     to ask for tab-completion.
@@ -1485,6 +1486,8 @@ Derive:
         - is zero dur also mute for reyong?  I keep forgetting!
         - default to initial=f?
           . add 'init' as a macro for initial=t
+        * why is noltol in delayed_args for LPerf.sel_events?
+          . Maybe noltol doesn't take it out if it doesn't do it.
         - last kotekan note is still not useful
           . It should default to infer-duration so it will go to the next note,
             and replace a pasang note, so I don't get kempyung.
@@ -1500,10 +1503,11 @@ Derive:
             them on to infer_duration_single?
           . I need to figure out an understandable approach.
           . Even with that fix, I wind up with a 0 dur sangsih, 1 dur polos.
-
           . Then there's the question about if 'realize-gangsa | unison' is
             the right order, or should it be 'unison | realize-gangsa'?
           . But wait, that's wrong too, because what about noltol?
+          . I think unison should be able to go first, since everything that
+            works for >pasang should work for single instruments.
           . Why do I feel like I've struggled with this before?
           . COME UP WITH A REAL PLAN!
 

@@ -6,7 +6,6 @@
 module Derive.Call.Post.Retune where
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -35,15 +34,11 @@ note_calls = Derive.transformer_call_map
 module_ :: Module.Module
 module_ = "retune"
 
-retune_attr :: Attrs.Attributes
-retune_attr = Attrs.attr "retune"
-
 -- | (time, dist)
 type RetuneArg = (RealTime, Pitch.NoteNumber)
 
--- TODO util functions for the Score.put_attr_arg / realize pairs.
--- should I clear out Score.event_delayed_args when I process them, as I do for
--- the attr?
+retune_arg :: Text
+retune_arg = "retune"
 
 c_retune :: Derive.Transformer Derive.Note
 c_retune = Derive.transformer module_ "retune" Tags.delayed
@@ -63,7 +58,7 @@ c_retune = Derive.transformer module_ "retune" Tags.delayed
         dist <- Pitch.nn <$> Call.control_at dist start
         Post.emap1_ (put time dist) <$> deriver
     where
-    put time dist = Score.put_attr_arg retune_attr ((time, dist) :: RetuneArg)
+    put time dist = Score.put_arg retune_arg ((time, dist) :: RetuneArg)
 
 c_realize_retune :: Derive.Transformer Derive.Note
 c_realize_retune = Derive.transformer module_ "retune-realize"
@@ -73,25 +68,22 @@ c_realize_retune = Derive.transformer module_ "retune-realize"
         Post.emap_m_ snd (realize srate) . Post.prev_by Post.hand_key id
             =<< deriver
     where
-    realize srate (prev, event)
-        | Score.has_attribute retune_attr event = Derive.require_right id $
-            map (Score.remove_attributes retune_attr) <$>
-            realize_retune srate prev event
-        | otherwise = return [event]
+    realize srate (prev, event) = do
+        (event, maybe_arg) <- Derive.require_right id $
+            Score.take_arg retune_arg event
+        return $ case maybe_arg of
+            Nothing -> [event]
+            Just arg -> [realize_retune srate arg prev event]
 
-realize_retune :: ControlUtil.SRate -> Maybe Score.Event -> Score.Event
-    -> Either Text [Score.Event]
-realize_retune srate prev event =
-    (:[]) . realize <$> Score.get_arg retune_attr event
+realize_retune :: ControlUtil.SRate -> RetuneArg -> Maybe Score.Event
+    -> Score.Event -> Score.Event
+realize_retune srate (time, max_dist) prev event
+    | dist == 0 = event
+    | otherwise = add_nn_transpose curve event
     where
-    realize :: RetuneArg -> Score.Event
-    realize (time, max_dist)
-        | dist == 0 = event
-        | otherwise = add_nn_transpose curve event
-        where
-        dist = calculate_retune (pitch_distance prev event) max_dist
-        curve = retune_curve srate time dist (Score.event_start event)
-            (Score.event_end event)
+    dist = calculate_retune (pitch_distance prev event) max_dist
+    curve = retune_curve srate time dist (Score.event_start event)
+        (Score.event_end event)
 
 -- | Transpose an event by adding to its nn transpose control.
 add_nn_transpose :: Signal.Control -> Score.Event -> Score.Event

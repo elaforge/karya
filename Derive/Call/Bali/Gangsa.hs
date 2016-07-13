@@ -28,7 +28,6 @@
 -}
 module Derive.Call.Bali.Gangsa where
 import qualified Data.Maybe as Maybe
-import qualified Data.Typeable as Typeable
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -893,8 +892,8 @@ c_realize_gangsa = StaticMacro.check "c_realize_gangsa" $
 -- | (noltol-time, kotekan-dur)
 type NoltolArg = (RealTime, RealTime)
 
-noltol_attr :: Attrs.Attributes
-noltol_attr = Attrs.attr "noltol"
+noltol_arg :: Text
+noltol_arg = "noltol"
 
 c_noltol :: Derive.Transformer Derive.Note
 c_noltol = Derive.transformer module_ "noltol" Tags.delayed
@@ -913,8 +912,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
         return $ Post.emap1_ (put max_dur) $ Stream.zip times events
         where
         put max_dur (threshold, event) =
-            Score.put_attr_arg noltol_attr ((threshold, max_dur) :: NoltolArg)
-                event
+            Score.put_arg noltol_arg ((threshold, max_dur) :: NoltolArg) event
 
 c_realize_noltol :: Derive.Transformer Score.Event
 c_realize_noltol = Derive.transformer module_ "realize-noltol"
@@ -925,21 +923,20 @@ realize_noltol_call :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_noltol_call =
     Post.emap_asc_m_ fst realize . Post.next_by Score.event_instrument id
     where
-    realize (event, next)
-        | Score.has_attribute noltol_attr event = Derive.require_right id $
-            map (Score.remove_attributes noltol_attr) <$>
-            realize_noltol event next
-        | otherwise = return [event]
+    realize (event, next) = do
+        (event, maybe_arg) <- Derive.require_right id $
+            Score.take_arg noltol_arg event
+        return $ case maybe_arg of
+            Nothing -> [event]
+            Just arg -> realize_noltol arg event next
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-realize_noltol :: Score.Event -> Maybe Score.Event -> Either Text [Score.Event]
-realize_noltol event next = realize <$> Score.get_arg noltol_attr event
+realize_noltol :: NoltolArg -> Score.Event -> Maybe Score.Event -> [Score.Event]
+realize_noltol (threshold, max_dur) event next
+    | should_noltol threshold max_dur next = [event, muted]
+    | otherwise = [event]
     where
-    realize :: NoltolArg -> [Score.Event]
-    realize (threshold, max_dur)
-        | should_noltol threshold max_dur next = [event, muted]
-        | otherwise = [event]
     -- TODO reapply a note with dur 0 to create the mute
     muted = Score.add_attributes Attrs.mute $
         -- TODO dynamic should probably be configurable
@@ -972,9 +969,11 @@ cancel_pasang events =
             ([], initials, []) -> initials
     where has = Score.has_flags
 
-pasang_key :: Score.Event
-    -> (Either Score.Instrument (Score.Instrument, Score.Instrument),
-        Maybe Text)
+-- | Match any of polos, sangsih, and pasang to each other.  Since polos and
+-- sangsih together are considered one voice, a sangsih start is note end for
+-- a polos note.
+pasang_key :: Postproc.Key
+    (Either Score.Instrument (Score.Instrument, Score.Instrument), Maybe Text)
 pasang_key e = (inst, get EnvKey.hand)
     where
     inst = case (get inst_polos, get inst_sangsih) of
@@ -1071,12 +1070,3 @@ role_env = Sig.required_environ (BaseTypes.unsym EnvKey.role) Sig.Unprefixed
 initial_flag, final_flag :: Flags.Flags
 initial_flag = Flags.flag "initial"
 final_flag = Flags.flag "final"
-
-noltol_flag :: Flags.Flags
-noltol_flag = Flags.flag "noltol"
-
-put_attr_for_inst :: Typeable.Typeable a => Score.Instrument -> Attrs.Attributes
-    -> a -> Score.Event -> Score.Event
-put_attr_for_inst inst attr arg event
-    | Score.event_instrument event == inst = Score.put_attr_arg attr arg event
-    | otherwise = event

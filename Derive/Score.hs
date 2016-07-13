@@ -27,7 +27,7 @@ module Derive.Score (
     , environ_attributes
     , modify_attributes, add_attributes, remove_attributes
     -- ** delayed args
-    , put_attr_arg, put_arg, get_just_arg, get_arg, lookup_arg
+    , put_arg, take_arg
 
     -- ** modify events
     , move, place, move_start, duration, set_duration
@@ -127,7 +127,7 @@ data Event = Event {
     -- I couldn't think of a type safe way to do this, but Dynamic should be
     -- safe enough if you use a shared type declaration in both writer and
     -- reader.
-    , event_delayed_args :: !(Map.Map Attrs.Attributes Dynamic.Dynamic)
+    , event_delayed_args :: !(Map.Map Text Dynamic.Dynamic)
     } deriving (Show, Typeable.Typeable)
 
 -- | Format an event in a way suitable for including inline in log messages.
@@ -315,31 +315,26 @@ instance Pretty.Pretty Event where
 
 -- ** delayed args
 
-put_attr_arg :: Typeable.Typeable a => Attrs.Attributes -> a -> Event -> Event
-put_attr_arg attr arg = add_attributes attr . put_arg attr arg
-
-put_arg :: Typeable.Typeable a => Attrs.Attributes -> a -> Event -> Event
-put_arg attr arg event = event
-    { event_delayed_args = Map.insert attr (Dynamic.toDyn arg)
+put_arg :: Typeable.Typeable a => Text -> a -> Event -> Event
+put_arg key arg event = event
+    { event_delayed_args = Map.insert key (Dynamic.toDyn arg)
         (event_delayed_args event)
     }
 
-get_just_arg :: Typeable.Typeable a => Attrs.Attributes -> Event -> Maybe a
-get_just_arg attrs =
-    Dynamic.fromDynamic <=< Map.lookup attrs . event_delayed_args
-
-get_arg :: Typeable.Typeable a => Attrs.Attributes -> Event -> Either Text a
-get_arg attrs = fromMaybe (Left $ "no delayed args for " <> pretty attrs)
-    . lookup_arg attrs
-
-lookup_arg :: Typeable.Typeable a => Attrs.Attributes -> Event
-    -> Maybe (Either Text a)
-lookup_arg attrs event = case Map.lookup attrs (event_delayed_args event) of
-    Nothing -> Nothing
-    Just arg -> Just $ case Dynamic.fromDynamic arg of
-        Nothing -> Left $ "incorrect delayed arg type for " <> pretty attrs
+-- | Find an arg in 'event_delayed_args', and remove it from the event if it
+-- existed.  Throw an error if it existed but had an unexpected type.
+take_arg :: Typeable.Typeable a => Text -> Event
+    -> Either Text (Event, Maybe a)
+take_arg key event = case Map.lookup key (event_delayed_args event) of
+    Nothing -> Right (event, Nothing)
+    Just arg -> case Dynamic.fromDynamic arg of
+        Nothing -> Left $ "incorrect delayed arg type for " <> showt key
             <> ": " <> pretty arg
-        Just a -> Right a
+        Just a -> Right (delete_arg key event, Just a)
+
+delete_arg :: Text -> Event -> Event
+delete_arg key event =
+    event { event_delayed_args = Map.delete key (event_delayed_args event) }
 
 -- ** modify events
 
