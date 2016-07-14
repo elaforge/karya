@@ -1467,7 +1467,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      cancel and realize:
+      . cancel and realize:
         end of block {final}:
           [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
             => (polos, 16, 4, "4i")
@@ -1497,6 +1497,12 @@ Derive:
         - is zero dur also mute for reyong?  I keep forgetting!
         - default to initial=f?
           . add 'init' as a macro for initial=t
+          . Or maybe default to f for negative duration.
+        - noltol puts a mute stroke after a final note.
+          . It's becasue it has a lower threshold, but not an upper one.
+            But really it's not the threshold, but the form, noltol should be
+            during kotekan.  So maybe I should really build this into kotekan
+            calls.
         * why is noltol in delayed_args for LPerf.sel_events?
           . Maybe noltol doesn't take it out if it doesn't do it.
         * last kotekan note is still not useful
@@ -1520,12 +1526,10 @@ Derive:
           . I think unison should be able to go first, since everything that
             works for >pasang should work for single instruments.
           . Why do I feel like I've struggled with this before?
-
           . The problem is that to do cross-blocks, cancel needs to go at the
             top level.
           . Why do I need pasang key?  It means the polos note stops the
             sangsih, which is good.
-
           . realize-noltol - put mutes at the end of notes, so it requires
               durations, so post infer duration
             cancel-pasang - infer durations
@@ -1535,12 +1539,8 @@ Derive:
                 regardless, it doesn't need {infer-duration}
               realize_infer_pitch
             unison - replace >pasang with >polos / >sangsih
-
           . Single {infer-duration} is to extend, if it's simultaneous I can
             find the next non-simultaneous note.
-
-          - Also noltol shouldn't put a mute on the end, but I think this is
-            a problem with 'noltol'.
         - kotekan lines up to the end, but that doesn't interact well when
           it's interrupted by an angsel.  It should just start at the start
           time, or at least the repeating regular style should.
@@ -1584,7 +1584,7 @@ Derive:
                 anyway.
               . The big advantage of "prepare next" is that its notes are within
                 its range.  Self prepare is kind of confusing.
-            - Replace norot with norot2 once I'm sure it works.
+            * Replace norot with norot2 once I'm sure it works.
             - Rename 'arrival' to 'prepare'?
           - Adapt kotekan calls to use realize_kotekan_pattern2.  Also maybe
             use the next pitch for positive events?

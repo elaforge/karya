@@ -69,14 +69,11 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("norot", c_norot)
-    , ("norot2", c_norot2 Nothing)
-    -- Alias for norot.  It's separate so I can use the long version for new
-    -- calls.
-    , ("nt", c_norot2 Nothing)
-    , ("nt>", c_norot2 (Just True))
-    , ("nt-", c_norot2 (Just False))
-    , (">norot", c_norot_arrival)
+    [ ("norot", c_norot Nothing)
+    -- Alias for norot.  It's separate so I can rebind this locally.
+    , ("nt", c_norot Nothing)
+    , ("nt>", c_norot (Just True))
+    , ("nt-", c_norot (Just False))
     , ("gnorot", c_gender_norot)
     , ("k_\\",  c_kotekan_irregular Pat $
         irregular_pattern "-11-1321" "-11-1-21" "3-32-32-" "-44-43-4")
@@ -186,39 +183,8 @@ parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
-c_norot :: Derive.Generator Derive.Note
-c_norot = Derive.generator module_ "norot" Tags.inst
-    "Emit the basic norot pattern. The last note will line up with the end of\
-    \ the event."
-    $ Sig.call ((,,,,,,)
-    <$> Sig.defaulted "arrival" True "If true, emit the norot arrival pattern."
-    <*> Sig.defaulted "style" Default "Norot style."
-    <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    <*> initial_final_env
-    ) $ \(arrival, style, dur, kotekan, inst_top, pasang, (initial, final)) ->
-    Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        pitch <- Call.get_transposed start
-        scale <- Call.get_scale
-        let nsteps = norot_steps scale inst_top pitch style
-        under_threshold <- under_threshold_function kotekan dur
-        pitch <- Call.get_pitch start
-        -- TODO only thing start does is cut off notes before it, can I pass
-        -- Nothing for start?
-        let arrival_range = (Args.start args - 24, Args.start args)
-        let suppress = Derive.with_val EnvKey.suppress_until start
-        let arrive = realize_kotekan_pattern (True, True) arrival_range dur
-                pitch under_threshold Once
-                (gangsa_norot_arrival style pasang nsteps)
-        (suppress $ if arrival then arrive else mempty)
-            -- If there's an arrival I can omit the first note of the pattern
-            -- regardless of 'initial'.
-            <> realize_kotekan_pattern (not arrival && initial, final)
-                (Args.range args) dur pitch under_threshold Repeat
-                (gangsa_norot style pasang nsteps)
-
-c_norot2 :: Maybe Bool -> Derive.Generator Derive.Note
-c_norot2 default_prepare = Derive.generator module_ "norot" Tags.inst
+c_norot :: Maybe Bool -> Derive.Generator Derive.Note
+c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
     "Emit the basic norot pattern."
     $ Sig.call ((,,,,,,)
     <$> Sig.defaulted "prepare" default_prepare
@@ -280,22 +246,6 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     both = kotekan_note Nothing
     polos = kotekan_note (Just (fst pasang))
     sangsih = kotekan_note (Just (snd pasang))
-
-c_norot_arrival :: Derive.Generator Derive.Note
-c_norot_arrival = Derive.generator module_ "norot" Tags.inst
-    "Emit norot arrival."
-    $ Sig.call ((,,,,)
-    <$> Sig.defaulted "style" Default "Norot style."
-    <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(style, dur, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        pitch <- Call.get_transposed start
-        scale <- Call.get_scale
-        let nsteps = norot_steps scale inst_top pitch style
-        under_threshold <- under_threshold_function kotekan dur
-        pitch <- Call.get_pitch start
-        realize_kotekan_pattern (True, True) (Args.range args) dur pitch
-            under_threshold Once (gangsa_norot_arrival style pasang nsteps)
 
 gangsa_norot_arrival :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle

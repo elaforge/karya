@@ -26,110 +26,70 @@ import Types
 
 
 test_norot = do
-    let run e = DeriveTest.extract e . derive title
-        title = " | inst-top = (pitch (4f)) | norot-dur=1"
-            <> " | norot-arrival=f | initial=t"
-        note_inst e = (DeriveTest.e_note e, Score.event_instrument e)
-    equal (run note_inst [(2, -2, "norot -- 3a")])
-        ([((0, 1, "3a"), pasang), ((1, 1, "3b"), pasang),
-            ((2, 1, "3a"), pasang)], [])
-    equal (run note_inst [(2, -2, "norot -- 4f")])
-        ([((0, 1, "4f"), pasang), ((1, 1, "4e"), pasang),
-            ((2, 1, "4f"), pasang)], [])
-    equal (run note_inst [(2, -2, "norot _ diamond -- 4c")])
-        ([ ((0, 1, "4c"), polos), ((0, 1, "4c"), sangsih)
-         , ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
-         , ((2, 1, "4c"), polos), ((2, 1, "4c"), sangsih)
-         ], [])
-    -- Under threshold, split sangsih and polos.
-    equal (run note_inst [(2, -2, "kotekan = 2 | norot -- 3a")])
-        ([((0, 1, "3a"), polos), ((1, 1, "3b"), sangsih),
-            ((2, 1, "3a"), polos)], [])
-
-    -- >norot is a Once pattern.
-    equal (run note_inst [(8, -8, "kotekan = 2 | >norot -- 3a")])
-        ([ ((5, 1, "3a"), polos), ((5, 1, "3a"), sangsih)
-         , ((6, 1, "3a"), polos), ((6, 1, "3a"), sangsih)
-         , ((7, 1, "3b"), sangsih)
-         , ((8, 1, "3a"), polos)
-         ], [])
-
-    equal (run DeriveTest.e_note [(4, -2, "norot -- 3a")])
-        ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
-    equal (run Score.event_flags [(4, -2, "norot -- 3a")])
-        ([Gangsa.initial_flag, mempty,
-            Flags.infer_duration <> Gangsa.final_flag], [])
-
-    -- Flags aren't messed up from starting at 0.  Also, non-negative duration
-    -- is the same as negative.
-    equal (run Score.event_flags [(0, 4, "norot -- 3a")])
-        ([Gangsa.initial_flag, mempty, mempty, mempty,
-            Flags.infer_duration <> Gangsa.final_flag], [])
-
-test_norot2 = do
     let run = e_pattern 0 . derive title
         title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | initial=f\
             \ | final=t"
-    equal (run [(0, 2, "nt -- 4c")]) ([(pasang, "-21")], [])
-    equal (run [(0, 2, "initial=t | nt -- 4c")]) ([(pasang, "121")], [])
-    equal (run [(0, 4, "nt _ diamond -- 4d")])
+    equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "-21")], [])
+    equal (run [(0, 2, "initial=t | norot -- 4c")]) ([(pasang, "121")], [])
+    equal (run [(0, 4, "norot _ diamond -- 4d")])
         ([(polos, "-3232"), (sangsih, "-1212")], [])
     -- Under threshold, split sangsih and polos.
-    equal (run [(0, 4, "initial=t | kotekan=2 | nt -- 4c")])
+    equal (run [(0, 4, "initial=t | kotekan=2 | norot -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])
 
     -- Prepare next note.
-    equal (run [(0, 4, "initial=t | nt -- 4c"), (4, 2, "4e")])
+    equal (run [(0, 4, "initial=t | norot -- 4c"), (4, 2, "4e")])
         ([(pasang, "13343")], [])
-    equal (run [(0, 4, "initial=t | nt -- 4c"), (4, 2, "nt -- 4e")])
+    equal (run [(0, 4, "initial=t | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
     -- Unless it has the same pitch.
-    equal (run [(0, 4, "nt -- 4c"), (4, 2, "4c")]) ([(pasang, "-2121")], [])
+    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "-2121")], [])
     -- Unless I explicitly ask for a prepare.
-    equal (run [(0, 4, "nt t -- 4c"), (4, 2, "4c")]) ([(pasang, "-1121")], [])
-    equal (run [(0, 4, "initial=t | nt t -- 4c"), (4, 2, "4c")])
+    equal (run [(0, 4, "norot t -- 4c"), (4, 2, "4c")])
+        ([(pasang, "-1121")], [])
+    equal (run [(0, 4, "initial=t | norot t -- 4c"), (4, 2, "4c")])
         ([(pasang, "11121")], [])
 
     -- Goes down because 4f is the top.
-    equal (run [(0, 8, "kotekan=2 | nt -- 4c"),
-            (8, 4, "kotekan=2 | nt -- 4f")])
+    equal (run [(0, 8, "kotekan=2 | norot -- 4c"),
+            (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "--1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
-test_norot2_final = do
+test_norot_final = do
     -- Initial and final get flags.
     let run_flags = DeriveTest.extract Score.event_flags . derive ""
-    equal (run_flags [(2, 2, "initial=t | nt -- 3a")])
+    equal (run_flags [(2, 2, "initial=t | norot -- 3a")])
         ([Gangsa.initial_flag, mempty,
             Flags.infer_duration <> Gangsa.final_flag], [])
 
     -- Infer duration even for simultaneous unison notes.
     let both n = [(polos, n), (sangsih, n)]
     let run title = e_by_inst DeriveTest.e_note . derive title
-    equal (run " | cancel-pasang 2 | unison" [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+    equal (run " | cancel-pasang 2 | unison"
+            [(2, 2, "norot -- 4c"), (8, 2, "4d")])
         (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
     equal (run (" | cancel-pasang 2 | unison" <> ngotek True)
-            [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+            [(2, 2, "norot -- 4c"), (8, 2, "4d")])
         ([ (polos, [(2, 1, "4c"), (4, 4, "4c"), (8, 2, "4d")])
          , (sangsih, [(3, 1, "4d"), (8, 2, "4d")])
          ], [])
     -- Also works on pasang.
-    equal (run " | unison | cancel-pasang 2" [(2, 2, "nt -- 4c"), (8, 2, "4d")])
+    equal (run " | unison | cancel-pasang 2"
+            [(2, 2, "norot -- 4c"), (8, 2, "4d")])
         (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
 
-test_norot_arrival = do
+test_norot_cancel = do
     let run = e_pattern 0 . derive title
         title = " | norot-dur=1 | cancel-pasang 2"
-    equal (run [(4, 4, "norot t -- 4c")]) ([(pasang, "-11212121")], [])
     -- The second half of the first call is cancelled out.
-    equal (run [(0, 8, "norot f -- 4c"), (8, 4, "norot t -- 4d")])
+    equal (run [(0, 8, "norot -- 4c"), (8, 4, "norot -- 4d")])
         ([(pasang, "1212122323232")], [])
 
-    -- Ensure that a 0 dur event at the end of the block still has an arrival.
-    -- This actually tests that (ts e) works at the end of the block.
+    -- Canceled by a note at the end of the block.
     let run_block notes = e_pattern 0 $
             DeriveTest.derive_blocks [("b1=ruler -- import bali.gangsa",
                 UiTest.note_spec (inst_title <> title, notes, []))]
-    equal (run_block [(0, 8, "norot f -- 4c"), (8, 0, "norot t -- 4d")])
+    equal (run_block [(0, 8, "norot -- 4c"), (8, 0, "4d")])
         ([(pasang, "121212232")], [])
 
     -- First note is cancelled out.
