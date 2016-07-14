@@ -33,6 +33,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -287,12 +288,13 @@ c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     "Gender-style norot."
     $ Sig.call ((,,,)
-    <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env)
+    <$> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env)
     $ \(dur, kotekan, pasang, initial_final) -> Sub.inverting $ \args -> do
         pitch <- Call.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern initial_final (Args.range args) dur pitch
-            under_threshold Repeat (gender_norot pasang)
+        realize_kotekan_pattern (infer_initial args initial_final)
+            (Args.range args) dur pitch under_threshold Repeat
+            (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
 gender_norot pasang = (interlocking, normal)
@@ -324,7 +326,7 @@ c_kotekan_irregular default_style pattern =
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,,)
     <$> Sig.defaulted "style" default_style "Kotekan style."
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
     ) $ \(style, dur, kotekan, pasang, initial_final) ->
     Sub.inverting $ \args -> do
         pitch <- get_pitch args
@@ -356,9 +358,6 @@ pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
 
 -- ** regular
 
--- For regular kotekan, the sangsih can be derived mechanically from the
--- polos.
-
 c_kotekan_kernel :: Derive.Generator Derive.Note
 c_kotekan_kernel =
     Derive.generator module_ "kotekan" Tags.inst
@@ -371,7 +370,7 @@ c_kotekan_kernel =
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
         pasang, initial_final) ->
     Sub.inverting $ \args -> do
@@ -380,9 +379,11 @@ c_kotekan_kernel =
         under_threshold <- under_threshold_function kotekan dur
         let cycle = realize_kernel inverted sangsih_above style pasang
                 (rotate rotation kernel)
-        realize_kotekan_pattern initial_final (Args.range args) dur pitch
-            under_threshold Repeat cycle
+        realize_kotekan_pattern (infer_initial args initial_final)
+            (Args.range args) dur pitch under_threshold Repeat cycle
 
+-- | For regular kotekan, the sangsih can be automatically derived from the
+-- polos.
 c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
 c_kotekan_regular maybe_kernel =
     Derive.generator module_ "kotekan" Tags.inst
@@ -394,7 +395,7 @@ c_kotekan_regular maybe_kernel =
     <*> Sig.defaulted "sangsih" Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
     ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang,
         initial_final
     ) -> Sub.inverting $ \args -> do
@@ -403,14 +404,17 @@ c_kotekan_regular maybe_kernel =
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         let cycle = realize_kernel False sangsih_above style pasang kernel
-        realize_kotekan_pattern initial_final (Args.range args) dur pitch
-            under_threshold Repeat cycle
+        realize_kotekan_pattern2 (infer_initial args initial_final)
+            (Args.range args) dur pitch under_threshold Repeat cycle
     where
     infer_sangsih kernel = case Seq.last kernel of
         Nothing -> Call.Up
         Just Rest -> Call.Up
         Just Low -> Call.Up
         Just High -> Call.Down
+
+infer_initial :: Derive.PassedArgs a -> (Maybe Bool, Bool) -> (Bool, Bool)
+infer_initial args = first (fromMaybe (not $ Event.negative (Args.event args)))
 
 kernel_doc :: Text
 kernel_doc = "Polos part in transposition steps.\
@@ -966,11 +970,21 @@ kotekan_env =
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 
+infer_initial_final_env :: Sig.Parser (Maybe Bool, Bool)
+infer_initial_final_env = (,)
+    <$> Sig.environ "initial" Sig.Unprefixed Nothing
+        "If true, include an initial note, which is the same as the final note.\
+        \ This is suitable for the start of a sequence of kotekan calls.\
+        \ If not given, infer false for negative duration, true for positive."
+    <*> Sig.environ "final" Sig.Unprefixed True
+        "If true, include the final note, at the event end."
+
 initial_final_env :: Sig.Parser (Bool, Bool)
 initial_final_env = (,)
-    <$> Sig.environ "initial" Sig.Unprefixed True -- TODO change to False
+    <$> Sig.environ "initial" Sig.Unprefixed False
         "If true, include an initial note, which is the same as the final note.\
-        \ This is suitable for the start of a sequence of kotekan calls."
+        \ This is suitable for the start of a sequence of kotekan calls.\
+        \ If not given, infer false for negative duration, true for positive."
     <*> Sig.environ "final" Sig.Unprefixed True
         "If true, include the final note, at the event end."
 
