@@ -33,14 +33,17 @@ title_damp dur = title_cancel <> " | infer-damp >i1 " <> show dur
 title_realize :: String
 title_realize = title <> " | realize-reyong >i1"
 
-test_kilitan = do
-    let run = e_voice 1 ex . DeriveTest.derive_tracks title_cancel
-            . UiTest.note_track
-        ex e = (Score.event_start e, DeriveTest.e_pitch e)
+test_articulation = do
+    let run = e_voice 1 DeriveTest.e_start_note
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "4u"), (1, "4e"), (1, "4a"), (2, "4e"), (2, "4a")], [])
     equal (run [(0, 0, "XX --")]) (Just [(0, "4u"), (0, "4u")], [])
-    equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
+
+test_kilitan_prepare = do
+    let run = e_voice 1 DeriveTest.e_start_note
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
+    equal (run [(0, 4, "initial=f | >kilit -- 3u"), (4, 4, "kilit -- 3u")])
         (Just
             [ (1, "4u"), (2, "4u"), (3, "4a"), (4, "4u")
             , (5, "4a"), (6, "4u"), (7, "4a"), (8, "4u")
@@ -78,14 +81,12 @@ test_kotekan_regular = do
         (Just "ueu-eue-u-eu-eu-e", [])
 
 test_cancel_kotekan = do
-    let run voice = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.filter_events_range 7 9
-            . DeriveTest.filter_events ((==voice) . event_voice)
-            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
-    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")])
-        ([(7, 1, "5o"), (8, 5, "5i")], [])
-    equal (run 2 [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
-        ([(7, 1, "5o"), (8, 1, "5i")], [])
+    let run = e_pattern 0
+            . DeriveTest.derive_tracks (title_cancel <> " | reyong-voices=2")
+            . UiTest.note_track
+    equal (run [(0, 8, "k k-12-1-21 -- 4i")]) ([(2, "i-io-i-oi")], [])
+    equal (run [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
+        ([(2, "i-ii-i-oi-e-oe-o")], [])
 
 e_pattern :: RealTime -- ^ expect the first note at this time
     -> Derive.Result -> ([(Reyong.Voice, String)], [String])
@@ -189,14 +190,16 @@ test_c_infer_damp = do
         ([(0, "4i", Nothing), (1, "4i", Nothing), (2, "4i", Just 0.5)], [])
 
 test_c_infer_damp_kotekan = do
-    let run = e_voice 1 extract . DeriveTest.derive_tracks (title_damp 1.5)
+    let run = e_voice 2 extract . DeriveTest.derive_tracks (title_damp 1.5)
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp_dyn e)
-    -- The first 4e is too fast, so no damp.
+    -- The first 5i is too fast, so no damp.
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
-        ( Just [(0, "4e", Nothing), (1, "4u", Nothing), (2, "4e", Nothing),
-            (2, "4u", Just 1), (3, "4e", Just 1), (4, "4u", Nothing),
-            (5, "4u", Just 1)]
+        ( Just
+            [ (0, "5i", Nothing)
+            , (2, "5i", Nothing), (3, "5o", Nothing)
+            , (3, "5i", Just 1), (4, "5o", Just 1)
+            ]
         , []
         )
 

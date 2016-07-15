@@ -1467,6 +1467,17 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      Replace negative duration with positive duration + end_weighted flag.
+        . What if I keep using negative as the flag?  It might be confusing
+          how the event (8, -4) is actually (4, 4, End).  (start + dur, -dur)
+        - Add the flag to Event.
+        - Make sure slicing works.
+        - Make sure things like Gangsa.get_pitch work.  One way is to make
+          Args.start look at end_weighted, the other is specific support in
+          calls that want to support it.
+        - See if I want to add special Cmd.Edit support, e.g. with set
+          duration, or just have them work spatially.
+        - UiTest.note_track needs to be able to create them.
       . cancel and realize:
         end of block {final}:
           [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
@@ -1495,6 +1506,19 @@ Derive:
           . It's because kotekan_irregular is designed that way, it has
             a single kotekan_unison.
         - is zero dur also mute for reyong?  I keep forgetting!
+
+        negative vs. positive
+          - negative duration defaults initial=f, positive is initial=t
+          - both align to the beginning
+          . How can I do kotekan to norot?
+            kotekan has to be positive in that case.
+          . Maybe I should rethink that thing where "negative" events instead
+            are positive ones, with a flag saying they're end-weighted.  Then
+            I can have <--k||nt--->
+          . But it still seems like I'd want positive for ngubeng stuff, just
+            negative for movement.  But this way I end up with a lot of
+            <---||----> score, which seems to require that flag approach.
+
         - default to initial=f?
           . add 'init' as a macro for initial=t
           . Or maybe default to f for negative duration.
@@ -1554,6 +1578,11 @@ Derive:
           . I could give it those explicitly, e.g. a 'final' call, or use
             -0 dur.
         norot:
+          update reyong
+            - rename kilit to norot and 'nt'
+            - do the same prepare next note thing as gangsa norot
+          - update gender norot
+          - I only use Once for norot prepare, can I get rid of it?
           / gabor, @b2, pemade, norot has 'initial=t | nt t', but still lacks
             the initial note.  It works in the test though, so something else
             is going on.
@@ -1586,9 +1615,7 @@ Derive:
                 its range.  Self prepare is kind of confusing.
             * Replace norot with norot2 once I'm sure it works.
             - Rename 'arrival' to 'prepare'?
-          - Adapt kotekan calls to use realize_kotekan_pattern2.  Also maybe
-            use the next pitch for positive events?
-          - Then replace realize_kotekan_pattern with realize_kotekan_pattern2.
+          * Adapt kotekan calls to use realize_kotekan_pattern2.
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used

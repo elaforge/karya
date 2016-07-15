@@ -27,12 +27,11 @@ import Types
 
 test_norot = do
     let run = e_pattern 0 . derive title
-        title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | initial=f\
-            \ | final=t"
-    equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "-21")], [])
-    equal (run [(0, 2, "initial=t | norot -- 4c")]) ([(pasang, "121")], [])
+        title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | final=t"
+    equal (run [(0, 2, "initial=f | norot -- 4c")]) ([(pasang, "-21")], [])
+    equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "121")], [])
     equal (run [(0, 4, "norot _ diamond -- 4d")])
-        ([(polos, "-3232"), (sangsih, "-1212")], [])
+        ([(polos, "23232"), (sangsih, "21212")], [])
     -- Under threshold, split sangsih and polos.
     equal (run [(0, 4, "initial=t | kotekan=2 | norot -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])
@@ -43,8 +42,9 @@ test_norot = do
     equal (run [(0, 4, "initial=t | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
     -- Unless it has the same pitch.
-    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "-2121")], [])
+    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "12121")], [])
     -- Unless I explicitly ask for a prepare.
+    -- Also, just prepare defaults to initial=f.
     equal (run [(0, 4, "norot t -- 4c"), (4, 2, "4c")])
         ([(pasang, "-1121")], [])
     equal (run [(0, 4, "initial=t | norot t -- 4c"), (4, 2, "4c")])
@@ -53,7 +53,7 @@ test_norot = do
     -- Goes down because 4f is the top.
     equal (run [(0, 8, "kotekan=2 | norot -- 4c"),
             (8, 4, "kotekan=2 | norot -- 4f")])
-        ([(polos, "--1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
+        ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
 test_norot_final = do
     -- Initial and final get flags.
@@ -64,7 +64,8 @@ test_norot_final = do
 
     -- Infer duration even for simultaneous unison notes.
     let both n = [(polos, n), (sangsih, n)]
-    let run title = e_by_inst DeriveTest.e_note . derive title
+    let run title = e_by_inst DeriveTest.e_note
+            . derive (" | initial=t" <> title)
     equal (run " | cancel-pasang 2 | unison"
             [(2, 2, "norot -- 4c"), (8, 2, "4d")])
         (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
@@ -80,7 +81,7 @@ test_norot_final = do
 
 test_norot_cancel = do
     let run = e_pattern 0 . derive title
-        title = " | norot-dur=1 | cancel-pasang 2"
+        title = " | initial=t | norot-dur=1 | cancel-pasang 2"
     -- The second half of the first call is cancelled out.
     equal (run [(0, 8, "norot -- 4c"), (8, 4, "norot -- 4d")])
         ([(pasang, "1212122323232")], [])
@@ -155,8 +156,9 @@ test_kotekan_regular = do
     -- Start at 2 to avoid accidentally working from 0.
     equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
-    equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
-        ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
+    -- Default initial=f for negative.
+    equal (run True [(10, -8, "k k-12-1-21 -- 4c")])
+        ([(polos, "--12-1-21"), (sangsih, "-3-23-32-")], [])
     equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
         ([(pasang, "131231321")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
@@ -171,6 +173,10 @@ test_kotekan_regular = do
         ([(polos, "3-34-3-43"), (sangsih, "-2-12-21-")], [])
     equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "323423243"), (sangsih, "323123213")], [])
+    -- The pattern is lined up to the start.
+    equal (run False [(2, 12, "k k-12-1-21 -- 4c")])
+        ([(pasang, "1312313213123")], [])
+
 
 test_kotekan_regular_jalan = do
     -- k// and k\\ work as expected.

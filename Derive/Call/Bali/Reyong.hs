@@ -18,7 +18,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -69,14 +68,13 @@ module_ = "bali" <> "reyong"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("kilit", realize_pattern Gangsa.Repeat norot_patterns)
-    , (">kilit", realize_pattern Gangsa.Once pickup_patterns)
+    [ ("kilit", realize_pattern norot_patterns)
+    , (">kilit", realize_pattern pickup_patterns)
     , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
     , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
-    , ("k_\\", realize_pattern Gangsa.Once $
-        reyong_pattern "-44-43-4" "-11-1-21")
-    , ("k//\\\\", realize_pattern Gangsa.Once $
-        reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-")
+    , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
+    , ("k//\\\\", realize_pattern $
+        reyong_pattern "-4-34-3- 43-434-3" "-12-12-2 1-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
     , ("a", c_tumpuk_auto)
@@ -299,18 +297,19 @@ cancel_kotekan es = Postproc.cancel_strong_weak Postproc.infer_duration_merged $
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
 -- and without a polos \/ sangsih division.
-realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
-realize_pattern repeat pattern =
-    Derive.generator module_ "reyong" Tags.inst "Emit reyong kilitan."
+realize_pattern :: Pattern -> Derive.Generator Derive.Note
+realize_pattern pattern =
+    Derive.generator module_ "reyong" Tags.inst "Emit reyong pattern."
     $ Sig.call ((,,)
-    <$> Gangsa.dur_env <*> Gangsa.initial_final_env <*> voices_env)
+    <$> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env)
     $ \(dur, initial_final, voices) -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
         pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap
-            (realize_notes show_pitch repeat initial_final (Args.range args)
+            (realize_notes show_pitch Gangsa.Repeat
+                (Gangsa.infer_initial args initial_final) (Args.range args)
                 dur)
             (filter_voices voices (zip [1..] positions))
 
@@ -334,7 +333,7 @@ c_kotekan_regular maybe_kernel maybe_dir =
         (Sig.defaulted "dir" Call.Up
             "Inferred part is above or below the explicit one.")
         pure maybe_dir
-    <*> Gangsa.dur_env <*> Gangsa.initial_final_env <*> voices_env
+    <*> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env
     ) $ \(kernel_s, dir, dur, initial_final, voices) -> Sub.inverting $
     \args -> do
         kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
@@ -344,8 +343,8 @@ c_kotekan_regular maybe_kernel maybe_dir =
         let positions = kotekan_pattern 5 (map pos_cek reyong_positions)
                 pattern (Pitch.pitch_pc pitch)
         mconcatMap
-            (realize_notes show_pitch Gangsa.Repeat initial_final
-                (Args.range args) dur)
+            (realize_notes show_pitch Gangsa.Repeat
+                (Gangsa.infer_initial args initial_final) (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
 
 kernel_doc :: Text
@@ -357,16 +356,11 @@ kernel_doc = "Transposition steps for the part that ends on the destination\
 realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat
     -> (Bool, Bool) -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
     -> Derive.NoteDeriver
-realize_notes show_pitch repeat (initial, final) (start, end) dur
+realize_notes show_pitch repeat initial_final (start, end) dur
         (voice, position) =
     Gangsa.realize_notes (realize_note show_pitch voice start) $
-        modify_initial $ Gangsa.realize_pattern repeat final start end
-            dur (const position)
-    where
-    modify_initial ns
-        | initial = map (Gangsa.add_flag Gangsa.initial_flag) pre ++ post
-        | otherwise = post
-        where (pre, post) = span ((ScoreTime.<= start) . Gangsa.note_start) ns
+        Gangsa.realize_pattern repeat initial_final start end dur
+            (const position)
 
 kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
 kernel_to_pattern direction kernel = do
