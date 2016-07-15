@@ -1508,8 +1508,8 @@ Derive:
         - is zero dur also mute for reyong?  I keep forgetting!
 
         negative vs. positive
-          - negative duration defaults initial=f, positive is initial=t
-          - both align to the beginning
+          * negative duration defaults initial=f, positive is initial=t
+          . both align to the beginning
           . How can I do kotekan to norot?
             kotekan has to be positive in that case.
           . Maybe I should rethink that thing where "negative" events instead
@@ -1519,7 +1519,7 @@ Derive:
             negative for movement.  But this way I end up with a lot of
             <---||----> score, which seems to require that flag approach.
 
-        - default to initial=f?
+        * default to initial=f?
           . add 'init' as a macro for initial=t
           . Or maybe default to f for negative duration.
         - noltol puts a mute stroke after a final note.

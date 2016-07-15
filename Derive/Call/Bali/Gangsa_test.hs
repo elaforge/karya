@@ -33,21 +33,23 @@ test_norot = do
     equal (run [(0, 4, "norot _ diamond -- 4d")])
         ([(polos, "23232"), (sangsih, "21212")], [])
     -- Under threshold, split sangsih and polos.
-    equal (run [(0, 4, "initial=t | kotekan=2 | norot -- 4c")])
+    equal (run [(0, 4, "kotekan=2 | norot -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])
 
     -- Prepare next note.
-    equal (run [(0, 4, "initial=t | norot -- 4c"), (4, 2, "4e")])
+    equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "4e")])
         ([(pasang, "13343")], [])
-    equal (run [(0, 4, "initial=t | norot -- 4c"), (4, 2, "norot -- 4e")])
+    -- If there's only room for prepare, it defaults to initial=f.
+    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4e")])
+        ([(pasang, "-3343")], [])
+    equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
     -- Unless it has the same pitch.
     equal (run [(0, 4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "12121")], [])
     -- Unless I explicitly ask for a prepare.
-    -- Also, just prepare defaults to initial=f.
     equal (run [(0, 4, "norot t -- 4c"), (4, 2, "4c")])
         ([(pasang, "-1121")], [])
-    equal (run [(0, 4, "initial=t | norot t -- 4c"), (4, 2, "4c")])
+    equal (run [(0, 4, "i+ | norot t -- 4c"), (4, 2, "4c")])
         ([(pasang, "11121")], [])
 
     -- Goes down because 4f is the top.

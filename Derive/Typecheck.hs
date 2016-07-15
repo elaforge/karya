@@ -194,6 +194,7 @@ class Typecheck a => TypecheckNum a where
 
 instance Typecheck Bool
 instance TypecheckSymbol Bool
+instance ToVal Bool
 
 instance ShowVal.ShowVal Meter.RankName where
     show_val = enum_show_val

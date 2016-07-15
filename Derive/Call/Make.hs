@@ -6,6 +6,7 @@
 -- | This is like "Derive.Call", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -88,6 +89,16 @@ with_environ module_ key key_doc sig extract =
         ("Set the " <> key_doc <> " environ variable.")
     $ Sig.callt sig $ \val _args ->
         Derive.with_val key (extract val)
+
+-- | Make a call that sets an environ key to a specific value.
+with_environ_val :: (ShowVal.ShowVal a, Typecheck.Typecheck a,
+        Typecheck.ToVal a, Derive.Taggable d) =>
+    Module.Module -> Text -> Env.Key -> a -> Text -> Derive.Transformer d
+with_environ_val module_ name key val extra_doc =
+    Derive.transformer module_ name mempty (TextUtil.join2 doc extra_doc) $
+        Sig.call0t $ \_args -> Derive.with_val key val
+    where
+    doc = "`" <> ShowVal.show_val key <> " = " <> ShowVal.show_val val <> "`."
 
 
 -- * val calls

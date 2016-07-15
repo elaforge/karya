@@ -39,6 +39,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gender as Gender
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
@@ -99,7 +100,11 @@ note_calls = Derive.call_maps
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
-    [ ("nyog", c_nyogcag)
+    [ ("i+", Make.with_environ_val module_ "i+" "initial" True
+        "Kotekan calls will emit a note on the initial beat.")
+    , ("i-", Make.with_environ_val module_ "i-" "initial" False
+        "Kotekan calls won't emit a note on the initial beat.")
+    , ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
