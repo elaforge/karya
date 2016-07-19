@@ -8,6 +8,7 @@
 #ifndef __EVENT_H
 #define __EVENT_H
 
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,8 @@ struct Event {
         return duration < ScoreTime(0) || duration.negative_zero();
     }
     bool is_positive() const { return !is_negative(); }
+    ScoreTime min() const { return std::min(start, start + duration); }
+    ScoreTime max() const { return std::max(start, start + duration); }
 
     ScoreTime start;
     ScoreTime duration;
@@ -40,5 +43,12 @@ struct Event {
     const char *text;
     StyleId style_id;
 };
+
+inline std::ostream &
+operator<<(std::ostream &os, const Event &e)
+{
+    return os << "Event(" << e.start << ", " << e.duration << ", "
+        << int(e.style_id) << ")";
+}
 
 #endif

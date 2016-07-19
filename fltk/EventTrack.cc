@@ -373,6 +373,9 @@ EventTrackView::draw_area()
         for (int j = i+1; j < count; j++) {
             if ((rank && ranks[j]) || (!rank && !ranks[j])) {
                 next_offset = offsets[j];
+                if (rank == 0 && events[i].max() > events[j].min()) {
+                    DEBUG(events[i] << " overlaps " << events[j]);
+                }
                 break;
             }
         }

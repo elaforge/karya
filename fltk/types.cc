@@ -11,7 +11,7 @@ const ScoreTime ScoreTime::invalid = ScoreTime(-1);
 std::ostream &
 operator<<(std::ostream &os, const ScoreTime &pos)
 {
-    return os << "ScoreTime(" << pos._val << ")";
+    return os << pos._val << "t";
 }
 
 std::ostream &

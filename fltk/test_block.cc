@@ -114,6 +114,10 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(50), ScoreTime(4), "mis`match", style)));
         e.push_back(EventInfo(0,
+            Event(ScoreTime(72), ScoreTime(8), zh1, style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(82), ScoreTime(8), zh2, style)));
+        e.push_back(EventInfo(0,
             Event(ScoreTime(128), ScoreTime(64), "`0x`ff", style2)));
         // coincident with rank 0
         e.push_back(EventInfo(1,
@@ -129,10 +133,6 @@ void t1_set()
         // doesn't overlap rank 0
         e.push_back(EventInfo(0,
             Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
-        e.push_back(EventInfo(0,
-            Event(ScoreTime(72), ScoreTime(16), zh1, style)));
-        e.push_back(EventInfo(0,
-            Event(ScoreTime(82), ScoreTime(16), zh2, style)));
     }
 }
 
