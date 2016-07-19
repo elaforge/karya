@@ -38,19 +38,10 @@ struct Color {
 
     unsigned char r, g, b, a;
 
-    Color brightness(double d) const {
-        if (d < 1) {
-            return Color::from_doubles(
-                util::scale(0.0, double(r), d), util::scale(0.0, double(g), d),
-                util::scale(0.0, double(b), d), a);
-        } else {
-            return Color::from_doubles(
-                util::scale(double(r), 255.0, d-1),
-                util::scale(double(g), 255.0, d-1),
-                util::scale(double(b), 255.0, d-1), a);
-        }
-    }
-
+    // 0-1 scales to black, 1-2 scales to white.
+    Color brightness(double d) const;
+    // 0 is entirely this color, 1 is entirely the other color.
+    Color crossfade(Color c, double d) const;
     static const Color black, white;
 };
 

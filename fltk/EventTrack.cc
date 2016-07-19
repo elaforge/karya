@@ -610,6 +610,46 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 }
 
 
+// Draw trigger line.  This will draw ranked trigger lines on top of unranked
+// ones, but it's ok because they coincide.
+static void
+draw_trigger(bool draw_text, int x, int y, int w, const Event &event, int rank)
+{
+    Color color = draw_text || !event.text
+        ? Config::event_trigger_color
+        : Config::abbreviation_color;
+
+    fl_color(color.fl());
+    fl_line_style(FL_SOLID, 0);
+    double h1 = 6;
+    double cx = 2;
+    double cy = 2;
+    double h2 = 0.5;
+    if (event.is_negative()) {
+        h1 *= -1;
+        cy *= -1;
+        h2 *= -1;
+    }
+
+    fl_begin_polygon();
+    if (rank == 0) {
+        // left side
+        fl_vertex(x, y);
+        fl_vertex(x, y+h1);
+        fl_vertex(x+cx, y+cy);
+    }
+    fl_vertex(x + (w/2), y+h2); // center
+    // right side
+    fl_vertex(x+w-cx, y+cy);
+    fl_vertex(x+w, y+h1);
+    fl_vertex(x+w, y);
+    if (rank > 0) {
+        fl_vertex(x + (w/2), y);
+    }
+    fl_end_polygon();
+}
+
+
 // Draw the stuff that goes on top of the event boxes: trigger line and text.
 std::pair<IRect, IRect>
 EventTrackView::draw_upper_layer(
@@ -617,34 +657,36 @@ EventTrackView::draw_upper_layer(
     int prev_offset, int next_offset,
     const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
 {
-    // So the overlap stuff is actually pretty tricky.  I want to hide
-    // overlapping text so it doesn't get into an unreadable jumble.  It's also
-    // important that the algorithm be consistent and not require context,
-    // because this will be called to redraw various small fragments.  This
-    // is further complicated by the fact that text can be all different sizes
-    // and that there is text aligned to the left (unranked) and lower priority
-    // text aligned to the right (ranked).  Also, text of negative events goes
-    // above the trigger line, while for positive events it goes below.
-    //
-    // So the current plan is to for positive events to hide text if it will
-    // overlap with the offset of the next ranked or unranked event, as
-    // appropriate.  Negative events are the same but for the previous offset.
-    // Ranked events have the additional restriction that they can't overlap
-    // with the previous text rect, so if they bump into it horizontally they
-    // won't be drawn.
-    //
-    // This draws negative ranked text incorrectly since I should be checking
-    // the next_unranked_rect instead of the prev one, but I can fix that if
-    // it ever becomes a problem.
-    //
-    // This scheme hides all text that might overlap with other text, so it
-    // hides a lot of text that could be displayed.  I experimented with a
-    // scheme that recorded where all text was drawn to try to display more,
-    // but in addition to being complicated it wound up looking cluttered and
-    // ugly, and I don't think knowing some random note in the middle of a run
-    // is actually that useful.  If I want to give hints about the contents of
-    // small notes I'll have to come up with some other mechanism, like color
-    // coding.
+    /* The overlap stuff is actually pretty tricky.  I want to hide
+        overlapping text so it doesn't get into an unreadable jumble.  It's
+        also important that the algorithm be consistent and not require
+        context, because this will be called to redraw various small fragments.
+        This is further complicated by the fact that text can be all different
+        sizes and that there is text aligned to the left (unranked) and lower
+        priority text aligned to the right (ranked).  Also, text of negative
+        events goes above the trigger line, while for positive events it goes
+        below.
+
+        So the current plan is to for positive events to hide text if it will
+        overlap with the offset of the next ranked or unranked event, as
+        appropriate.  Negative events are the same but for the previous offset.
+        Ranked events have the additional restriction that they can't overlap
+        with the previous text rect, so if they bump into it horizontally they
+        won't be drawn.
+
+        This draws negative ranked text incorrectly since I should be checking
+        the next_unranked_rect instead of the prev one, but I can fix that if
+        it ever becomes a problem.
+
+        This scheme hides all text that might overlap with other text, so it
+        hides a lot of text that could be displayed.  I experimented with a
+        scheme that recorded where all text was drawn to try to display more,
+        but in addition to being complicated it wound up looking cluttered and
+        ugly, and I don't think knowing some random note in the middle of a run
+        is actually that useful.  If I want to give hints about the contents of
+        small notes I'll have to come up with some other mechanism, like color
+        coding.
+    */
 
     const EventStyle *event_style = StyleTable::get()->get(event.style_id);
     const SymbolTable::Style style(event_style->font, event_style->size,
@@ -709,28 +751,7 @@ EventTrackView::draw_upper_layer(
     // fl_color(FL_BLUE);
     // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
 
-    // Draw trigger line.  This will draw ranked trigger lines over unranked
-    // ones, but it's ok because ranked ones start in the middle of the track.
-    Color trigger_c;
-    if (draw_text || !event.text)
-        trigger_c = Config::event_trigger_color;
-    else
-        trigger_c = Config::abbreviation_color;
-    fl_color(trigger_c.fl());
-    fl_line_style(FL_SOLID, 0);
-    if (rank) {
-        fl_line(x() + w()/2, offset, x()+w() - 2, offset);
-    } else {
-        fl_line(x() + 1, offset, x()+w() - 2, offset);
-        if (event.duration == ScoreTime(0)) {
-            // Draw an arrow to highlight zero duration events.  Otherwise they
-            // can be hard to see.
-            int sz = 5;
-            int r = x() + w();
-            fl_polygon(r - sz, offset, r, offset - sz, r, offset + sz);
-        }
-    }
-
+    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank);
     if (draw_text) {
         // Word wrapping only applies to positive events.  I would need
         // additional code to get them working for negative events, since the
