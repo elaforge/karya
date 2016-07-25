@@ -10,7 +10,9 @@ import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -42,6 +44,12 @@ data Track = Track {
     track_title :: !Text
     , track_events :: ![Event.Event]
     } deriving (Show)
+
+instance Pretty.Pretty Track where
+    format (Track title events) = Pretty.record "Track"
+        [ ("title", Pretty.format title)
+        , ("events", Pretty.format events)
+        ]
 
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]

@@ -285,36 +285,38 @@ add_event_stacks block_id track_id = map add_stack . Events.ascending
 
 -- ** pair
 
--- | If the Convert.Track is present, then that is the track being integrated
--- in from the source.  If it's not present, then this track is no longer
--- present in the integrated source.  If there is a TrackNum, then this track
--- isn't present in the destination, and should be created.  Otherwise, it
--- should be merged with the given Dest.
---
--- (Nothing, Left TrackNum) means the track is gone from both source and
--- destination, so this TrackPair can be ignored.
+{- | If the Convert.Track is present, then that is the track being integrated
+    in from the source.  If it's not present, then this track is no longer
+    present in the integrated source.  If there is a TrackNum, then this track
+    isn't present in the destination, and should be created.  Otherwise, it
+    should be merged with the given Dest.
+
+    (Nothing, Left TrackNum) means the track is gone from both source and
+    destination, so this TrackPair can be ignored.
+-}
 type TrackPair = (Maybe Convert.Track, Either TrackNum Dest)
 -- | Score integrate copies tracks 1:1, so the destination tracks always have
 -- a TrackId, and I can match them up by TrackId.
 type ScoreTrackPair = (Maybe (TrackId, Events.Events), Either TrackNum Dest)
 type Dest = (TrackId, Block.EventIndex)
 
--- | Match up new tracks and integrated tracks so I know who to diff against
--- whom.  This is called once for each integrate source track.
---
--- Note tracks are simply zipped up, so if a note track is added at the
--- beginning it will look like everything changed and the diff won't work
--- correctly.  But control tracks are matched based on name, so they should be
--- robust against controls appearing or disappearing.
---
--- Also figure out TrackNums for index tracks that don't exist.  An index track
--- can not exist because it was never there, or because it was index but is no
--- longer in the block (presumably manually deleted).
---
--- TrackNums are assigned increasing from the previous track that was present,
--- or at the end of the block if no tracks are present.  This way new control
--- tracks should be added adjacent to their sisters, and the first integrate
--- will append the generated tracks to the end of the block.
+{- | Match up new tracks and integrated tracks so I know who to diff against
+    whom.  This is called once for each integrate source track.
+
+    Note tracks are simply zipped up, so if a note track is added at the
+    beginning it will look like everything changed and the diff won't work
+    correctly.  But control tracks are matched based on name, so they should be
+    robust against controls appearing or disappearing.
+
+    Also figure out TrackNums for index tracks that don't exist.  An index
+    track can not exist because it was never there, or because it was index but
+    is no longer in the block (presumably manually deleted).
+
+    TrackNums are assigned increasing from the previous track that was present,
+    or at the end of the block if no tracks are present.  This way new control
+    tracks should be added adjacent to their sisters, and the first integrate
+    will append the generated tracks to the end of the block.
+-}
 pair_tracks :: [Maybe TrackId] -- ^ tracks in the block, in tracknum order
     -> Convert.Tracks -> [Block.DeriveDestination] -> [[TrackPair]]
 pair_tracks track_ids tracks dests = map (filter is_valid) $

@@ -57,6 +57,7 @@ type Binds = [(Text, [Keymap.KeySpec])]
 extract :: CmdMap -> Binds
 extract = sort . strip . group . Map.toList
 
+-- | Sort by the key's position in qwerty.
 sort :: Binds -> Binds
 sort = Seq.sort_on (map key . snd)
     where

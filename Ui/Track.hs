@@ -107,6 +107,9 @@ data RenderStyle = NoRender | Line !(Maybe RenderSource)
 data RenderSource = Control Score.Control | Pitch Score.PControl
     deriving (Eq, Read, Show)
 
+instance Pretty.Pretty RenderSource where
+    pretty (Control c) = "Control " <> pretty c
+    pretty (Pitch c) = "Pitch " <> pretty c
 instance Pretty.Pretty RenderStyle where pretty = showt
 
 set_render_style :: RenderStyle -> Track -> Track

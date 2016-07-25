@@ -75,8 +75,9 @@ test_block_integrate2 = do
         [(0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (1, 0, "4g")]
     res <- next res $ UiTest.insert_event_in source 2 (0.75, 0, "4f")
     equal (pitch_track res) $ Just
-        [(0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (0.75, 0, "4f"),
-            (1, 0, "4g")]
+        [ (0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (0.75, 0, "4f")
+        , (1, 0, "4g")
+        ]
 
 test_track_integrate = do
     let states = ResponderTest.mkstates $ UiTest.note_spec
