@@ -9,7 +9,6 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Repl.LPitch where
-import qualified Ui.Event as Event
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
@@ -39,18 +38,6 @@ patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
     nns <- Scale.note_numbers scale mempty
     return $ Scale.patch_scale scale_id nns
 
--- * invert
-
--- TODO these should invert position of control events too
-to_negative, to_positive :: Cmd.CmdL ()
-to_negative = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
-    if Event.negative evt then evt else negate_event evt
-to_positive = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
-    if Event.positive evt then evt else negate_event evt
-
-negate_event :: Event.Event -> Event.Event
-negate_event event =
-    Event.move (+ Event.duration event) $ Event.modify_duration negate event
 
 -- * transpose
 
