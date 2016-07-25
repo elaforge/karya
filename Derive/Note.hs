@@ -66,7 +66,7 @@ extract_track_signal source events = mconcat $ case source of
         trim_control (Score.event_min event) . Score.typed_val <$>
             Score.event_control control event
     extract_pitch pcontrol event =
-        convert event <$> Score.event_pitch pcontrol event
+        convert event <$> Score.event_named_pitch pcontrol event
     convert event psig = Signal.coerce $ fst $ PSignal.to_nn $
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.

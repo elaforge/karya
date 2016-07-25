@@ -54,7 +54,7 @@ map_control ctx control transformer event = do
 map_pcontrol :: Derive.Context Derive.Pitch -> Score.PControl
     -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_pcontrol ctx control transformer event = do
-    let sig = fromMaybe mempty $ Score.event_pitch control event
+    let sig = fromMaybe mempty $ Score.event_named_pitch control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers ctx transformer $
             return $ Stream.from_event sig

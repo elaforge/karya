@@ -36,7 +36,7 @@ module Derive.Score (
     , modify_control, merge_control
     , set_control, event_controls_at
     -- *** pitch
-    , default_pitch, set_pitch, set_named_pitch, event_pitch
+    , default_pitch, set_pitch, set_named_pitch, event_pitch, event_named_pitch
     , transposed_at, pitch_at, pitch_sample_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
@@ -455,8 +455,11 @@ set_named_pitch pcontrol signal event
             (event_untransformed_pitches event)
         }
 
-event_pitch :: PControl -> Event -> Maybe PSignal.PSignal
-event_pitch pcontrol
+event_pitch :: Event -> PSignal.PSignal
+event_pitch = event_transformed_pitch
+
+event_named_pitch :: PControl -> Event -> Maybe PSignal.PSignal
+event_named_pitch pcontrol
     | pcontrol == default_pitch = Just . event_transformed_pitch
     | otherwise = Map.lookup pcontrol . event_transformed_pitches
 
