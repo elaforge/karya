@@ -12,7 +12,7 @@ module Derive.Call.Sub (
     -- ** events
     , Event, GenericEvent(..), event_end, event_overlaps
     , place, stretch, at
-    , sub_events, sub_events_end_bias
+    , sub_events, sub_events_negative
     , modify_notes
     , derive, derive_pitch, fit
     -- ** RestEvent
@@ -88,8 +88,7 @@ run_invert args call = do
         (Derive.InversionInProgress {}, _) ->
             Derive.throw "tried to invert while inverting"
         (Derive.NotInverted, subs@(_:_)) -> do
-            sliced <- invert subs
-                (Event.start event) (Event.end event) (Args.next args)
+            sliced <- invert subs event (Args.next args)
                 (Derive.ctx_prev_events ctx, Derive.ctx_next_events ctx)
             with_inversion $ BlockUtil.derive_tracks sliced
         (Derive.NotInverted, []) -> call
@@ -138,9 +137,9 @@ save_prev_val args = case Args.prev_val args of
     modify_threaded modify = Derive.modify $
         \st -> st { Derive.state_threaded = modify (Derive.state_threaded st) }
 
-invert :: TrackTree.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime
+invert :: TrackTree.EventsTree -> Event.Event -> ScoreTime
     -> ([Event.Event], [Event.Event]) -> Derive.Deriver TrackTree.EventsTree
-invert subs start end next_start events_around = do
+invert subs event next_start events_around = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
@@ -155,13 +154,15 @@ invert subs start end next_start events_around = do
     return sliced
     where
     slice track_id =
-        map (Slice.slice False start next_start (Just (insert track_id))) subs
+        map (Slice.slice False (Event.start event) next_start
+            (Just (insert track_id))) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
     insert track_id = Slice.InsertEvent
-        { Slice.ins_duration = end - start
-        , Slice.ins_around = events_around
-        , Slice.ins_track_id = track_id
+        { event_duration = Event.duration event
+        , event_orientation = Event.orientation event
+        , event_around = events_around
+        , event_track_id = track_id
         }
 
 stack_track_id :: Derive.Deriver (Maybe TrackId)
@@ -229,9 +230,9 @@ sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events = sub_events_ False
 
 -- | Like 'sub_events', but exclude events at the start time, and include
--- events at the end time.
-sub_events_end_bias :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
-sub_events_end_bias = sub_events_ True
+-- events at the end time.  Presumably suitable for 'Event.Negative' calls.
+sub_events_negative :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events_negative = sub_events_ True
 
 sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_ include_end args =

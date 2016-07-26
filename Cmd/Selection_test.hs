@@ -18,15 +18,14 @@ test_events_around = do
             run_sel Selection.events_around evts start end
     equal (f [(0, 1), (2, 1)] 1 1) $ Right (Just [([], [0], [2])], [])
     equal (f [(1, -1), (3, -1)] 2 2) $ Right (Just [([1], [3], [])], [])
+    equal (f [(0, 1), (3, -1)] 2 2) $ Right (Just [([0], [3], [])], [])
     -- positive events win when there are both choices
-    equal (f [(0, 1), (3, -1)] 2 2) $ Right (Just [([], [0], [3])], [])
+    equal (f [(0, 1), (3, -1)] 1.5 1.5) $ Right (Just [([], [0], [3])], [])
     -- no one wins when there are no choices
     equal (f [(1, -1), (3, 1)] 2 2) $ Right (Just [([1], [], [3])], [])
-
     equal (f [(0, 1), (1, 1), (2, 1)] 0.5 2.5) $
         Right (Just [([0], [1, 2], [])], [])
-    equal (f [(4, -4)] 4 4) $
-        Right (Just [([], [4], [])], [])
+    equal (f [(4, -4)] 4 4) $ Right (Just [([], [4], [])], [])
 
 run_sel :: Cmd.CmdId a -> [(ScoreTime, ScoreTime)] -> ScoreTime -> ScoreTime
     -> CmdTest.Result a
@@ -39,7 +38,8 @@ extract_selected_around :: CmdTest.Result Selection.SelectedAround
 extract_selected_around = CmdTest.extract (map e_sel)
     where
     e_sel (_track_id, _range, (before, within, after)) =
-        (map Event.start before, map Event.start within, map Event.start after)
+        (map Event.trigger before, map Event.trigger within,
+            map Event.trigger after)
 
 mkspec :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
 mkspec specs = [(p, d, show p) | (p, d) <- specs]

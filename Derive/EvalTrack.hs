@@ -172,7 +172,7 @@ derive_control_track state tinfo =
 derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event -> DeriveResult Score.Event
 derive_note_track derive_tracks state tinfo
-    | TrackTree.track_inverted (tinfo_track tinfo) =
+    | TrackTree.track_sliced (tinfo_track tinfo) == TrackTree.Inversion =
         derive_inverted state tinfo $
         Derive.state_inversion (Derive.state_dynamic state)
     | otherwise = derive_note_track_ derive_tracks state tinfo
@@ -381,7 +381,7 @@ record_track_dynamic track state =
     collect = case Internal.record_track_dynamic (Derive.state_dynamic state) of
         Nothing -> mempty
         Just track_dyn
-            | TrackTree.track_inverted track -> mempty
+            | TrackTree.track_sliced track == TrackTree.Inversion -> mempty
                 { Derive.collect_track_dynamic_inverted = track_dyn }
             | otherwise -> mempty { Derive.collect_track_dynamic = track_dyn }
 

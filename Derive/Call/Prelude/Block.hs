@@ -83,7 +83,7 @@ c_block block_id = Derive.with_score_duration get_score_duration $
         where (start, end) = Args.range args
     trim args deriver = do
         end <- Derive.real (1 :: ScoreTime)
-        if Event.positive (Args.event args) then trim_controls end deriver
+        if Event.is_positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
     get_score_duration :: a -> Derive.Deriver (Derive.CallDuration ScoreTime)
     get_score_duration _ = Derive.CallDuration . (\(s, e) -> e-s) <$>

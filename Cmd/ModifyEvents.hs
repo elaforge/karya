@@ -112,10 +112,9 @@ overlapping f = do
     forM_ track_ids $ \track_id -> do
         maybe_event <- Events.overlapping pos . Track.track_events <$>
             State.get_track track_id
-        whenJust maybe_event $ \event -> do
-            maybe_new_events <- f block_id track_id [event]
-            whenJust maybe_new_events $ \new_events -> do
-                State.remove_event track_id pos
+        whenJust maybe_event $ \old_event ->
+            whenJustM (f block_id track_id [old_event]) $ \new_events -> do
+                State.remove_event track_id (Event.start old_event)
                 State.insert_block_events block_id track_id new_events
 
 -- | Map over tracks whose name matches the predicate.

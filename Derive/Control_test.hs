@@ -13,6 +13,9 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Call as Call
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -164,6 +167,26 @@ test_default_merge = do
                 where c = untxt $ Score.control_name control
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
+
+test_trim_signal = do
+    let run = DeriveTest.extract DeriveTest.e_nns
+            . DeriveTest.derive_tracks_setup
+                (CallTest.with_note_generator "g" c_note) ""
+        c_note = CallTest.generator $ Sub.inverting $ \_args -> Call.note
+    equal (run [(">", [(0, 4, "g")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
+        ([[(0, NN.c4), (1, NN.d4)]], [])
+    equal (run
+            [ (">", [(0, 4, "g"), (4, 4, "g")])
+            , ("*", [(0, 0, "4c"), (4, 0, "4d")])
+            ])
+        ([[(0, NN.c4)], [(4, NN.d4)]], [])
+    equal (run
+            [ (">", [(4, -4, "g"), (4, 4, "g")])
+            , ("*", [(0, 0, "4c"), (4, 0, "4d")])
+            ])
+        ([[(0, NN.c4), (4, NN.d4)], [(4, NN.d4)]], [])
+
+-- * track signal
 
 test_track_signal_transpose = do
     let run title = e_tsig_sigs $ DeriveTest.derive_tracks_setup setup title $

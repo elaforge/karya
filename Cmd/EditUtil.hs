@@ -21,7 +21,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
-import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Scale as Scale
@@ -49,12 +48,13 @@ get_pos = do
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_event :: State.M m =>
-    Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
-get_event modify_dur track_id pos dur = do
+get_or_create_event :: State.M m => Event.Orientation
+    -> Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
+get_or_create_event orient modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id
-    return $ maybe (Event.event pos dur "", True)
+    let create = Event.set_orientation orient $ Event.event pos dur ""
+    return $ maybe (create, True)
         (\evt -> (modify evt, False))
         (Events.at pos (Track.track_events track))
 
@@ -76,9 +76,10 @@ modify_event_at :: Cmd.M m => Pos
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
 modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
-    dur <- event_dur =<< Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
+    dur <- get_duration dur
     track_id <- State.get_event_track_at block_id tracknum
-    (event, created) <- get_event modify_dur track_id start dur
+    orient <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
+    (event, created) <- get_or_create_event orient modify_dur track_id start dur
     let (val, advance) = modify $
             if created then Nothing else Just (Event.text event)
     case val of
@@ -87,13 +88,12 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
             (Event.set_text new_text event)
     when advance Selection.advance
     where
-    event_dur dir
+    get_duration dur
         | dur /= 0 = return dur
-        | zero_dur = return $ if dir == TimeStep.Advance then 0 else -0
+        | zero_dur = return 0
         | otherwise = do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-            end <- Selection.step_from tracknum start
-                (TimeStep.direction dir) step
+            end <- Selection.step_from tracknum start 1 step
             return (end - start)
 
 remove_event :: Cmd.M m => Bool -> m ()

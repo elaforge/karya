@@ -64,6 +64,10 @@ run_control_dur events = extract $
 
 -- * call map
 
+-- | Example:
+--
+-- > DeriveTest.derive_tracks_setup (CallTest.with_note_generator "g" c_gen)
+-- > where c_gen = CallTest.generator $ \args -> do ...
 with_note_generator :: BaseTypes.CallId -> Derive.Generator Derive.Note
     -> DeriveTest.SetupA a
 with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $

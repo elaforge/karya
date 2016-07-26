@@ -71,11 +71,8 @@ from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
 
 event :: Event.Event -> Event
-event event =
-    ( from_score (Event.start event)
-    , from_score (Event.duration event)
-    , Event.text event
-    )
+event e = (from_score s, from_score d, Event.text e)
+    where (s, d) = Event.orientation_as_duration e
 
 score_event :: Score.Event -> ScoreEvent
 score_event evt =

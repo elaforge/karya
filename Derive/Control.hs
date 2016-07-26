@@ -35,6 +35,7 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -280,10 +281,9 @@ derive_pitch :: Bool -> TrackTree.Track
     -> Derive.Deriver (TrackResults PSignal.PSignal)
 derive_pitch use_cache track transform = do
     let cache_track = if use_cache then Cache.track track mempty else id
-    (signal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
+    (psignal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
-    signal <- trim_signal PSignal.drop_after PSignal.drop_at_after
-        track signal
+    signal <- trim_signal PSignal.drop_after PSignal.drop_at_after track psignal
     return (signal, logs)
 
 {- | The controls under a note track are intended to apply only to the note
@@ -300,12 +300,18 @@ derive_pitch use_cache track transform = do
 -}
 trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
     -> TrackTree.Track -> sig -> Derive.Deriver sig
-trim_signal drop_after drop_at_after track signal
-    | TrackTree.track_sliced track = do
-        start <- Derive.real $ TrackTree.track_start track
-        end <- Derive.real $ TrackTree.track_end track
-        return $ (if start == end then drop_after else drop_at_after) end signal
-    | otherwise = return signal
+trim_signal drop_after drop_at_after track signal =
+    case TrackTree.track_sliced track of
+        TrackTree.NotSliced -> return signal
+        TrackTree.Inversion ->
+            Derive.throw "unexpected Inversion of a control track"
+        TrackTree.Sliced orientation -> do
+            start <- Derive.real $ TrackTree.track_start track
+            end <- Derive.real $ TrackTree.track_end track
+            let trim
+                    | start == end || orientation == Event.Negative = drop_after
+                    | otherwise = drop_at_after
+            return $ trim end signal
 
 derive_track :: (Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
@@ -351,13 +357,13 @@ last_signal_val xs
 stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig = whenM is_normal_mode $
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
-        if TrackTree.track_sliced track
-            then stash_signal_fragment block_id track_id
+        case TrackTree.track_sliced track of
+            TrackTree.NotSliced -> stash_signal block_id track_id sig
+            _ -> stash_signal_fragment block_id track_id
                 -- The start of the range may not be unique in the case of
                 -- orphans, I think because they aren't shifted to 0.  But
                 -- the end should be unique.
                 (snd $ TrackTree.track_range track) sig
-            else stash_signal block_id track_id sig
 
 is_normal_mode :: Derive.Deriver Bool
 is_normal_mode = Derive.get_mode >>= \mode -> return $ case mode of

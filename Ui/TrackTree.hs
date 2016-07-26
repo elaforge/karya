@@ -68,8 +68,8 @@ children_of block_id track_id =
 -- TODO this is pretty complicated.  If I stored the tracks as a tree in the
 -- first place and generated the skeleton from that then this would all go
 -- away.  But that would mean redoing all the "Ui.Skeleton" operations for
--- trees, which would be a huge pain.  And the reason I didn't do it in the
--- first place was the hassle of graph operations on a Data.Tree.
+-- trees.  And the reason I didn't do it in the first place was the hassle of
+-- graph operations on a Data.Tree.
 track_tree_of :: State.M m => BlockId -> m TrackTree
 track_tree_of block_id = do
     skel <- State.get_skeleton block_id
@@ -137,8 +137,7 @@ data Track = Track {
 
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and certain track-level things should be skipped.
-    , track_sliced :: !Bool
-    , track_inverted :: !Bool
+    , track_sliced :: !Sliced
     -- | These events are not evaluated, but go in
     -- 'Derive.Derive.ctx_prev_events' and ctx_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
@@ -159,7 +158,7 @@ track_range :: Track -> (TrackTime, TrackTime)
 track_range track = (track_shifted track, track_shifted track + track_end track)
 
 instance Pretty.Pretty Track where
-    format (Track title events track_id block_id start end sliced inverted
+    format (Track title events track_id block_id start end sliced
             around shifted voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
@@ -169,7 +168,6 @@ instance Pretty.Pretty Track where
             , ("start", Pretty.format start)
             , ("end", Pretty.format end)
             , ("sliced", Pretty.format sliced)
-            , ("inverted", Pretty.format inverted)
             , ("around", Pretty.format around)
             , ("shifted", Pretty.format shifted)
             , ("voice", Pretty.format voice)
@@ -183,12 +181,26 @@ make_track title events end = Track
     , track_block_id = Nothing
     , track_start = 0
     , track_end = end
-    , track_sliced = False
-    , track_inverted = False
+    , track_sliced = NotSliced
     , track_around = ([], [])
     , track_shifted = 0
     , track_voice = Nothing
     }
+
+data Sliced =
+    -- | An intact track, unchanged from the score.
+    --
+    -- It's confusing to say track_sliced track == NotSliced, and I could pick
+    -- something like Intact, but there's no precedent for that terminology.
+    NotSliced
+    -- | A "Derive.Slice"d fragment, and certain track-level things should be
+    -- skipped.
+    | Sliced !Event.Orientation
+    -- | Set on the fake track created by inversion.
+    | Inversion
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Sliced where pretty = showt
 
 block_track_id :: Track -> Maybe (BlockId, TrackId)
 block_track_id track = do

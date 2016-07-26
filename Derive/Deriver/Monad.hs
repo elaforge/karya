@@ -426,20 +426,21 @@ data Dynamic = Dynamic {
     -- inversion.
     , state_under_invert :: !(NoteDeriver -> NoteDeriver)
     , state_inversion :: !Inversion
-    -- | Each note track sets this to either an unsliced evaluation of the
-    -- closest pitch track below it, or its surrounding 'state_pitch' if there
-    -- is no pitch track below.  Calls can then use it to get neighboring
-    -- pitches.  It's lazily evaluated so there's no extra derivation if
-    -- you don't need it.
-    --
-    -- This is cleared when evaluating for itself, so there's no recursion.
-    -- This means given two "next pitch"es in a row, they will both get
-    -- Nothing.  Then on real evaluation, the 2nd will get the next pitch, but
-    -- the 1st will get whatever the 2nd does when it can't get a next pitch.
-    --
-    -- TODO if they both emit no pitch, then the 1st will actually get the
-    -- previous pitch, which seems error-prone.  But I think for it to be an
-    -- error, I'd have to have it return an error, e.g. Map TrackTime Pitch
+    {- | Each note track sets this to either an unsliced evaluation of the
+        closest pitch track below it, or its surrounding 'state_pitch' if there
+        is no pitch track below.  Calls can then use it to get neighboring
+        pitches.  It's lazily evaluated so there's no extra derivation if you
+        don't need it.
+
+        This is cleared when evaluating for itself, so there's no recursion.
+        This means given two "next pitch"es in a row, they will both get
+        Nothing.  Then on real evaluation, the 2nd will get the next pitch, but
+        the 1st will get whatever the 2nd does when it can't get a next pitch.
+
+        TODO if they both emit no pitch, then the 1st will actually get the
+        previous pitch, which seems error-prone.  But I think for it to be an
+        error, I'd have to have it return an error, e.g. Map TrackTime Pitch
+    -}
     , state_pitch_map :: !(Maybe (Maybe PSignal.PSignal, [Log.Msg]))
 
     -- | This is set to the current note track being evaluated.  It's useful

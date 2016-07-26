@@ -158,9 +158,6 @@ test_kotekan_regular = do
     -- Start at 2 to avoid accidentally working from 0.
     equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
-    -- Default initial=f for negative.
-    equal (run True [(10, -8, "k k-12-1-21 -- 4c")])
-        ([(polos, "--12-1-21"), (sangsih, "-3-23-32-")], [])
     equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
         ([(pasang, "131231321")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
@@ -178,6 +175,19 @@ test_kotekan_regular = do
     -- The pattern is lined up to the start.
     equal (run False [(2, 12, "k k-12-1-21 -- 4c")])
         ([(pasang, "1312313213123")], [])
+
+test_kotekan_regular_negative = do
+    let run kotekan = e_pattern 8
+            . derive (" | cancel-pasang | unison" <> ngotek kotekan)
+    -- Default initial=f for negative.
+    equal (run True [(16, -8, "k k-12-1-21 --"), (16, 2, "4c")])
+        ([(polos, "--12-1-21"), (sangsih, "-3-23-321")], [])
+    equal (run True
+            [ (16, -8, "k k-12-1-21 -- 4c")
+            , (24, -8, "k k-12-1-21 -- 4d")
+            , (24, 1, "4d")
+            ])
+        ([(polos, "--12-1-21-23-2-32"), (sangsih, "-3-23-32-4-34-432")], [])
 
 
 test_kotekan_regular_jalan = do

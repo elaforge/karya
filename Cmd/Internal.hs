@@ -425,8 +425,11 @@ edit_color mode = case mode of
 sync_step_status :: Cmd.M m => Cmd.EditState -> m ()
 sync_step_status st = do
     let step_status = TimeStep.show_time_step (Cmd.state_time_step st)
-        dur_status = TimeStep.show_direction (Cmd.state_note_direction st)
-            <> TimeStep.show_time_step (Cmd.state_note_duration st)
+        dur_status =
+            orient <> TimeStep.show_time_step (Cmd.state_note_duration st)
+        orient = case Cmd.state_note_orientation st of
+            Event.Positive -> "+"
+            Event.Negative -> "-"
     Cmd.set_status Config.status_step (Just step_status)
     Cmd.set_status Config.status_note_duration (Just dur_status)
 

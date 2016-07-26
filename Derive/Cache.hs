@@ -89,7 +89,7 @@ block :: (Derive.PassedArgs d -> Derive.NoteDeriver)
 block call args = caching_deriver Block range (call args)
     where
     range = Ranges (uncurry Ranges.range (Args.range_on_track args))
-        (Event.negative (Args.event args))
+        (Event.is_negative (Args.event args))
 
 -- | If True, these are the ranges of a negative event, which affects how
 -- control damage works.
@@ -105,7 +105,7 @@ track track children
     | otherwise = id
 
 should_cache :: TrackTree.Track -> Bool
-should_cache track = not (TrackTree.track_sliced track)
+should_cache track = TrackTree.track_sliced track == TrackTree.NotSliced
     && Maybe.isJust (TrackTree.track_id track)
 
 caching_deriver :: Cacheable d => Type -> Ranges

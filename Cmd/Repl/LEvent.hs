@@ -189,10 +189,8 @@ insert events = do
 -- * negative events
 
 invert :: Monad m => ModifyEvents.Track m
-invert = ModifyEvents.event $ \event -> event
-    { Event.start = Event.end event
-    , Event.duration = - Event.duration event
-    }
+invert = ModifyEvents.event $ \event ->
+    Event.set_orientation (Event.invert (Event.orientation event)) event
 
 -- | Use with 'ModifyNotes.selection' to invert notes and realign its controls.
 -- TODO only it doesn't seem to correctly put a pitch event at the end.

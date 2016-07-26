@@ -320,10 +320,7 @@ reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
     -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
 reapply_generator_normalized args = reapply_generator $ args
     { Derive.passed_ctx = ctx
-        { Derive.ctx_event = (Derive.ctx_event ctx)
-            { Event.start = 0
-            , Event.duration = 1
-            }
+        { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
         , Derive.ctx_event_end = 1
         }
     }

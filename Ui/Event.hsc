@@ -27,7 +27,8 @@
     be used to store the "parent event" of a derivation, for instance.
 -}
 module Ui.Event (
-    Event, start, duration, style, stack
+    Event, start, duration, orientation, style, stack
+    , Orientation(..), invert
     , Text
     , Stack(..), IndexKey, event
     -- * text
@@ -35,15 +36,17 @@ module Ui.Event (
     , modify_text
     , intern_event
     -- * start, duration
-    , end, min, max, range, overlaps
-    , move, place, set_duration, modify_duration, modify_end
-    , positive, negative
+    , end, trigger, range, overlaps
+    , min, max
+    , move, set_start, place, round, set_duration, modify_duration, modify_end
+    , set_orientation, is_negative, is_positive
+    , orientation_as_duration
     -- * stack
     , set_stack, strip_stack
     -- * style
     , modify_style, modified, EventStyle
 ) where
-import Prelude hiding (min, max)
+import Prelude hiding (round, min, max)
 import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
@@ -64,18 +67,58 @@ import Global hiding (Text)
 
 
 data Event = Event {
-    start :: !TrackTime
-    , duration :: !TrackTime
-    , text :: !Text
+    _start :: !TrackTime
+    , _duration :: !TrackTime
+    , _orientation :: !Orientation
+    , _text :: !Text
     -- | Each event can have its own style.  However, in practice, because I
     -- want events to use styles consistently I set them automatically via
     -- 'EventStyle'.  This way is less flexible, but it's one less bit of state
     -- to get out of sync.
-    , style :: !Style.StyleId
+    , _style :: !Style.StyleId
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
-    , stack :: !(Maybe Stack)
+    , _stack :: !(Maybe Stack)
     } deriving (Eq, Read, Show)
+
+-- Don't allow direct modification.
+
+start :: Event -> TrackTime
+start = _start
+
+duration :: Event -> TrackTime
+duration = _duration
+
+orientation :: Event -> Orientation
+orientation = _orientation
+
+text :: Event -> Text
+text = _text
+
+style :: Event -> Style.StyleId
+style = _style
+
+stack :: Event -> Maybe Stack
+stack = _stack
+
+{- | Whether the event is front-weighted or back-weighted.
+
+    Originally this was represented with positive and negative duration, but it
+    turns out I frequently want a front-weighted note which starts where
+    a back-weighted one ends, which doesn't work if both of them are indexed in
+    the EventMap by the same ScoreTime.  I could continue to encode the
+    orientation in the duration, but that would break the rule that you
+    can look an Event up by it's 'start' and seems confusing.
+
+    I tried a number of pairs: Start|End, Front|Back, but all of them seemed
+    awkward, so I'm back to Positive|Negative even if it's no longer encoded
+    that way.
+-}
+data Orientation = Positive | Negative deriving (Eq, Read, Show)
+
+invert :: Orientation -> Orientation
+invert Positive = Negative
+invert Negative = Positive
 
 type Text = Text.Text
 
@@ -104,31 +147,38 @@ instance DeepSeq.NFData Event where
     rnf = DeepSeq.rnf . stack
 
 instance Pretty.Pretty Event where
-    format (Event start dur bs _style stack) =
+    format (Event start dur orient bs _style stack) =
         -- Event(0t, 1t, "text", Nothing)
-        Pretty.text "Event" <> Pretty.format (start, dur, bs, stack)
+        -- Event-(0t, 1t, "text", Nothing)
+        "Event" <> o <> Pretty.format (start, dur, bs, stack)
+        where o = if orient == Positive then "" else "-"
 
 instance Pretty.Pretty Stack where
     format (Stack stack key) =
         Pretty.format (Pretty.format stack, Pretty.format key)
 
--- | Manual event constructor.
+-- | Event constructor.
 event :: ScoreTime -> ScoreTime -> Text -> Event
 event start dur text = Event
-    { start = start
-    , duration = dur
-    , text = text
-    , style = Config.default_style
-    , stack = Nothing
+    { _start = s
+    , _duration = d
+    , _orientation = orient
+    , _text = text
+    , _style = Config.default_style
+    , _stack = Nothing
     }
+    where
+    (s, d, orient) = if dur < 0 || isNegativeZero (ScoreTime.to_double dur)
+        then (start + dur, -dur, Negative)
+        else (start, dur, Positive)
 
 -- * text
 
 set_text :: Text.Text -> Event -> Event
-set_text s event = modified $ event { text = s }
+set_text s event = modified $ event { _text = s }
 
 modify_text :: (Text -> Text) -> Event -> Event
-modify_text f event = event { text = f (text event) }
+modify_text f event = event { _text = f (text event) }
 
 intern_event :: Map.Map Text (Text, Int) -> Event
     -> (Map.Map Text (Text, Int), Event)
@@ -136,38 +186,60 @@ intern_event table event = case Map.lookup (text event) table of
     Nothing -> (Map.insert (text event) (text event, 1) table, event)
     Just (interned, count) ->
         (Map.insert interned (interned, count+1) table,
-            event { text = interned })
+            event { _text = interned })
 
 -- * start, duration
 
--- | Return the position at the end of the event.  Could be before @pos@ if
--- the event has a negative duration.
+-- | Return the position at the end of the event.
 end :: Event -> ScoreTime
 end e = start e + duration e
 
 min, max :: Event -> ScoreTime
-min e = Prelude.min (start e) (end e)
-max e = Prelude.max (start e) (end e)
+min = start
+max = end
+
+trigger :: Event -> ScoreTime
+trigger e = case orientation e of
+    Positive -> start e
+    Negative -> end e
 
 range :: Event -> (ScoreTime, ScoreTime)
-range e = (min e, max e)
+range e = (start e, end e)
 
 overlaps :: ScoreTime -> Event -> Bool
 overlaps p event
-    | positive event = p == start event || p >= start event && p < end event
-    | otherwise = p == start event || p <= start event && p > end event
+    | is_positive event = start event <= p && p < end event
+    | otherwise = start event < p && p <= end event
 
+-- | Move both start and end, so the duration remains the same.
 move :: (ScoreTime -> ScoreTime) -> Event -> Event
-move f event = modified $ event { start = f (start event) }
+move f event = modified $ event { _start = f (start event) }
+
+-- | Move the start only.  The duration can't go past 0, so the start can't
+-- move past the end.
+set_start :: ScoreTime -> Event -> Event
+set_start p event = place s (end event - s) event
+    where s = Prelude.min (end event) p
 
 place :: ScoreTime -> ScoreTime -> Event -> Event
-place pos dur event = modified $ event { start = pos, duration = dur }
+place start dur event = modified $ event { _start = start, _duration = dur }
 
+-- | Round event times as described in 'ScoreTime.round'.
+-- TODO used by Events, do I really need this?
+round :: Event -> Event
+round event = event
+    { _start = ScoreTime.round (start event)
+    , _duration = ScoreTime.round (duration event)
+    }
+
+-- TODO if it's negative, take abs and set orientation=Negative?
+-- Then I would have to move the start, which this function shouldn't do,
+-- because callers rely on it not being able to move the event.
 set_duration :: ScoreTime -> Event -> Event
-set_duration dur event
-    | dur `notEq` duration event = modified $ event { duration = dur }
+set_duration dur_ event
+    | dur /= duration event = modified $ event { _duration = dur }
     | otherwise = event
-    where notEq a b = a /= b || is_negative a /= is_negative b
+    where dur = Prelude.max 0 dur_
 
 modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (duration evt)) evt
@@ -176,30 +248,35 @@ modify_end :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_end f evt =
     modify_duration (\dur -> f (start evt + dur) - start evt) evt
 
-positive, negative :: Event -> Bool
-positive = not . negative
-negative = is_negative . duration
+set_orientation :: Orientation -> Event -> Event
+set_orientation orient event = event { _orientation = orient }
 
-is_negative :: ScoreTime -> Bool
-is_negative d = d < 0 || isNegativeZero (ScoreTime.to_double d)
+is_negative :: Event -> Bool
+is_negative = (==Negative) . orientation
+
+is_positive :: Event -> Bool
+is_positive = (==Positive) . orientation
+
+orientation_as_duration :: Event -> (TrackTime, TrackTime)
+orientation_as_duration e = decode_orient (orientation e) (start e) (duration e)
 
 -- * stack
 
 set_stack :: Stack -> Event -> Event
-set_stack stack event = event { stack = Just stack }
+set_stack stack event = event { _stack = Just stack }
 
 strip_stack :: Event -> Event
-strip_stack event = modified $ event { stack = Nothing }
+strip_stack event = modified $ event { _stack = Nothing }
 
 -- * style
 
 modify_style :: (Style.StyleId -> Style.StyleId) -> Event -> Event
-modify_style f event = event { style = f (style event) }
+modify_style f event = event { _style = f (style event) }
 
 -- | If this was an integrated event, it might have the unmodified style.
 -- Set it to modified now so I don't have to wait for the next integration.
 modified :: Event -> Event
-modified event = event { style = Config.modified_style (style event) }
+modified event = event { _style = Config.modified_style (style event) }
 
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the
@@ -210,14 +287,28 @@ type EventStyle = Text.Text -- ^ track title
 -- * serialize
 
 instance Serialize.Serialize Event where
-    put (Event a b c d e) = put a >> put b >> put c >> put d >> put e
+    put (Event start dur orient text style stack) =
+        put s >> put d >> put text >> put style >> put stack
+        where (s, d) = decode_orient orient start dur
     get = do
         start :: ScoreTime <- get
         dur :: ScoreTime <- get
         text :: Text <- get
         style :: Style.StyleId <- get
         stack :: Maybe Stack <- get
-        return $ Event start dur text style stack
+        let (s, d, orient) = encode_orient start dur
+        return $ Event s d orient text style stack
+
+decode_orient :: Orientation -> TrackTime -> TrackTime -> (TrackTime, TrackTime)
+decode_orient orient start dur = case orient of
+    Positive -> (start, dur)
+    Negative -> (start + dur, -dur)
+
+encode_orient :: TrackTime -> TrackTime -> (TrackTime, TrackTime, Orientation)
+encode_orient start dur
+    | dur < 0 || isNegativeZero (ScoreTime.to_double dur) =
+        (start + dur, -dur, Negative)
+    | otherwise = (start, dur, Positive)
 
 instance Serialize.Serialize Stack where
     put (Stack a b) = put a >> put b
@@ -237,10 +328,11 @@ instance CStorable Event where
     peek = error "Event peek unimplemented"
 
 poke_event :: Ptr Event -> Event -> IO ()
-poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
+poke_event eventp (Event start dur orient text (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrackView::draw_area.
     textp <- if Text.null text then return nullPtr else Util.textToCString0 text
-    (#poke Event, start) eventp start
-    (#poke Event, duration) eventp dur
+    let (s, d) = decode_orient orient start dur
+    (#poke Event, start) eventp s
+    (#poke Event, duration) eventp d
     (#poke Event, text) eventp textp
     (#poke Event, style_id) eventp style_id

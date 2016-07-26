@@ -11,6 +11,7 @@ module Cmd.Edit where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -88,12 +89,10 @@ toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
 set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
 set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
 
-cmd_invert_step_direction :: Cmd.M m => m ()
-cmd_invert_step_direction = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_note_direction = invert (Cmd.state_note_direction st) }
-    where
-    invert TimeStep.Advance = TimeStep.Rewind
-    invert TimeStep.Rewind = TimeStep.Advance
+cmd_toggle_note_orientation :: Cmd.M m => m ()
+cmd_toggle_note_orientation = Cmd.modify_edit_state $ \st -> st
+    { Cmd.state_note_orientation = Event.invert (Cmd.state_note_orientation st)
+    }
 
 cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
@@ -168,14 +167,19 @@ move_event modify = do
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
 --
--- If the selection is on an event, the previous or next one is extended
--- instead.  This is more useful than reducing the event to 0, which has its
--- own cmd anyway.
+-- If the selection is on an event, the previous or next one (depending on
+-- 'Event.Orientation') is extended instead.  This is more useful than reducing
+-- the event to 0, which has its own cmd anyway.
 cmd_set_duration :: Cmd.M m => m ()
 cmd_set_duration = modify_event_near_point modify
     where
     modify (start, end) event
-        | Event.negative event = set_dur (start - Event.start event) event
+        | Event.duration event == 0 = event
+        | Event.is_negative event =
+            Event.place start (Event.end event - start) event
+            -- limit start by end of negative event, or start of positive.
+            -- Events.insert does the clipping for positive events, but it's
+            -- not working for negative.  Should it?
         | otherwise = set_dur (end - Event.start event) event
 
 cmd_toggle_zero_duration :: Cmd.M m => m ()
@@ -191,27 +195,39 @@ modify_event_near_point :: Cmd.M m =>
 modify_event_near_point modify = do
     (_, sel) <- Selection.get
     if Sel.is_point sel
-        then modify_prev (Sel.start_pos sel)
-        else modify_selection (Sel.range sel)
+        then prev_or_next (Sel.start_pos sel)
+        else selection (Sel.range sel)
     where
-    modify_selection =
-        ModifyEvents.selection_expanded . ModifyEvents.event . modify
-    modify_prev pos = do
+    selection = ModifyEvents.selection_expanded . ModifyEvents.event . modify
+    -- TODO Should I make this ModifyEvents.prev_or_next?
+    prev_or_next pos = do
         (block_id, tracknums, track_ids, _, _) <- Selection.tracks
         forM_ (zip tracknums track_ids) $ \(tracknum, track_id) ->
             unlessM (State.track_collapsed block_id tracknum) $
-                modify_track pos track_id
-    modify_track pos track_id = do
-        (pre, post) <- Events.split pos . Track.track_events <$>
-            State.get_track track_id
-        let maybe_event = case (pre, dropWhile ((==pos) . Event.start) post) of
-                -- Favor a negative event if it overlaps the point.
-                (_, post:_) | Event.overlaps pos post -> Just post
-                -- Otherwise, favor positive.
-                (pre:_, _) | Event.positive pre -> Just pre
-                (_, post:_) | Event.negative post -> Just post
-                _ -> Nothing
-        whenJust maybe_event $ State.insert_event track_id . modify (pos, pos)
+                track_point pos track_id
+    track_point pos track_id = do
+        events <- Track.track_events <$> State.get_track track_id
+        whenJust (event_around pos events) $ \event -> do
+            State.remove_event track_id (Event.start event)
+            State.insert_event track_id $ modify (pos, pos) event
+
+event_around :: TrackTime -> Events.Events -> Maybe Event.Event
+event_around pos events = case Events.split pos events of
+    (pre:_, _) | Event.overlaps pos pre && pos /= Event.trigger pre -> Just pre
+    -- |--->    |---> => take pre
+    (pre:_, posts) | positive pre && maybe True positive (Seq.head posts) ->
+        Just pre
+    -- <---|    <---| => take post
+    (pres, post:_) | negative post && maybe True negative (Seq.head pres) ->
+        Just post
+    -- |--->    <---| => take closer, favor pre
+    (pre:_, post:_) | positive pre && negative post ->
+        Just $ Seq.min_on (abs . subtract pos . Event.trigger) pre post
+    -- <---|    |---> => in the middle, do nothing
+    _ -> Nothing
+    where
+    positive = Event.is_positive
+    negative = Event.is_negative
 
 -- | Toggle duration between zero and non-zero.
 --
@@ -224,8 +240,7 @@ cmd_toggle_zero_timestep = alter_duration toggle_zero_timestep
 toggle_zero_timestep :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m Event.Event
 toggle_zero_timestep block_id track_id event
-    | Event.duration event /= 0 = return $
-        Event.set_duration (if Event.negative event then -0 else 0) event
+    | Event.duration event /= 0 = return $ Event.set_duration 0 event
     | otherwise = do
         tracknum <- State.get_tracknum_of block_id track_id
         step <- Cmd.get_current_step
@@ -293,12 +308,12 @@ cmd_set_beginning = do
         case (pre, post) of
             (prev:_, _) | Event.overlaps pos prev -> set prev
             (_, next:_) | Event.overlaps pos next -> set next
-            (_, next:_) | Event.positive next -> set next
-            (prev:_, _) | Event.negative prev -> set prev
+            (_, next:_) | Event.is_positive next -> set next
+            (prev:_, _) | Event.is_negative prev -> set prev
             _ -> return ()
     where
     set_beginning track_id start event = do
-        let end = (if Event.positive event then max else min)
+        let end = (if Event.is_positive event then max else min)
                 (Event.end event) start
             dur = if Event.duration event == 0 then 0 else end - start
         State.remove_event track_id (Event.start event)
@@ -327,7 +342,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
     join track_id evt1 evt2 =
         -- Yes, this deletes any "backwards" events in the middle, but that
         -- should be ok.
-        case (Event.negative evt1, Event.negative evt2) of
+        case (Event.is_negative evt1, Event.is_negative evt2) of
             (False, False) -> do
                 let end = Event.end evt2
                 State.remove_events track_id (Event.start evt1) end
@@ -351,17 +366,13 @@ cmd_split_events = do
         return . concatMap (split p)
     where
     split p event
-        | not (Event.overlaps p event) || p == Event.start event = [event]
-        | Event.positive event =
+        | not (Event.overlaps p event) || p == Event.trigger event = [event]
+        | otherwise =
             [ Event.set_duration (p - Event.start event) event
             , Event.place p (Event.end event - p) event
             ]
-        | otherwise =
-            [ Event.place p (Event.end event - p) event
-            , Event.set_duration (- (Event.start event - p)) event
-            ]
 
--- | Zero dur events are never lengthened.
+-- | The same as 'Event.set_duration' except don't modify a zero dur event.
 set_dur :: TrackTime -> Event.Event -> Event.Event
 set_dur dur evt
     | Event.duration evt == 0 = evt
@@ -396,7 +407,7 @@ cmd_insert_time = do
 -- shift once the overlapping events are done, but it's probably not worth it.
 insert_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 insert_time start end event
-    | Event.positive event = insertp event
+    | Event.is_positive event = insertp event
     | otherwise = insertn event
     where
     shift = end - start
@@ -446,7 +457,7 @@ delete_time block_id track_id start end = do
 -- it's within the range.
 delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
 delete_event_time start end event
-    | Event.positive event = deletep
+    | Event.is_positive event = deletep
     | otherwise = deleten
     where
     shift = end - start
@@ -623,10 +634,7 @@ open_floating :: Cmd.M m => (Text -> Maybe (Int, Int)) -> m Cmd.Status
 open_floating selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert
-    dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
-    let pos = case dir of
-            TimeStep.Advance -> fst (Sel.range sel)
-            TimeStep.Rewind -> snd (Sel.range sel)
+    let pos = Selection.point sel
     text <- fromMaybe "" <$> event_text_at track_id pos
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)
@@ -649,7 +657,6 @@ handle_floating_input :: Cmd.M m =>
 handle_floating_input always_zero_dur msg = do
     text <- Cmd.abort_unless $ floating_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
-    (start, dur) <- event_range start dur
     track_id <- Cmd.require "handle_floating_input on non-event track"
         =<< State.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
@@ -662,12 +669,6 @@ handle_floating_input always_zero_dur msg = do
     when (old_text == Nothing) $
         try_set_call_duration block_id track_id start
     return Cmd.Done
-    where
-    event_range start dur = do
-        dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
-        return $ case dir of
-            TimeStep.Advance -> (start, dur)
-            TimeStep.Rewind -> (start + dur, -dur)
 
 -- | Set the event's duration to its CallDuration, if it has one.
 --

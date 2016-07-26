@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - move Log.Stack to Util.CStack or Util.CallStack
+  - It seems I get slicing on an already sliced track if I have an
+    intermediate empty note track, e.g.:
+      [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
+    . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
+  Event.Negative:
+    - Edit.toggle_zero_timestep is broken for negative events.
+    - Cmd.Edit: Note entry should put the pitch at the end.
+    - Move events shouldn't clip Negative events at the end of the block.
+      Should also move a negative event under the cursor.
   - Put logs on Score.Event.  When a postproc modifies it, it can add a note.
   - repl now has no history when it doesn't know the filename.
     Maybe I should have it ask for the filename.  I'll need a protocol anyway
@@ -721,10 +731,19 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
-  - storing TrackEvents without duration would make maintaining the
+  / storing TrackEvents without duration would make maintaining the
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
     clear redundant offs, but that's easier right?
+    . Insert, positive: clear Ends from Event.start until the next key,
+      then insert [(Event.start, event), (Event.end, End)]
+    . Insert, negative: clear Ends from prev key until Event.start, then
+      insert [(Event.trigger, End), (Event.start event)].
+    . On read: when I take out the Event, set the duration based on prev End
+      or next End.
+    . Pros: impossible to have overlaps.
+    . Cons: still have to clear out those Ends, which might be around the same
+      amount of work as clipping.  Also, just reading events allocates.
 
 performance:
   - input lag, debug with Trace.traceEventIO
@@ -1019,6 +1038,25 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
+  - Some way to associate a custom pretty-printer with test input or output,
+    e.g.:
+      annotate :: (Eq a, Show a) => (a -> Text) -> (a -> a) -> a -> a -> IO Bool
+      annotate format f input expected
+          | output == expected = equal input output
+          | otherwise = do
+              equal input output
+              putStrLn "input:" >> putStrLn (format input)
+              putStrLn "ouput:" >> putStrLn (format output)
+              putStrLn "expected:" >> putStrLn (format expected)
+              return False
+          where output = f input
+      ...
+      let equal = annotate draw Module.function
+    . It feels bogus to duplicate the (==) comparison.  Maybe have an
+      parameterized version of 'equal'?
+    . Use this with Events.draw_events, it should be useful for all event
+      triplets.
+
   - delete build/test/tmp on every test run to avoid test contamination
     . test/run_tests will clear it out, but sometimes I run them directly
     . But this is pretty much limited to expecting a file in a certain
@@ -1467,17 +1505,50 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - kotekan ending in a unison or kempyung should sometimes have both
+        instruments, but sometimes the last polos note should replace both.
+        . Isn't that what 'cancel-pasasng' is supposed to do?
       Replace negative duration with positive duration + end_weighted flag.
         . What if I keep using negative as the flag?  It might be confusing
           how the event (8, -4) is actually (4, 4, End).  (start + dur, -dur)
-        - Add the flag to Event.
-        - Make sure slicing works.
-        - Make sure things like Gangsa.get_pitch work.  One way is to make
+        . But in a lot of ways it seems like negative is actually the more
+          natural representation.
+          . When I am trimming duration, the start never moves.
+          . When I add an event, it naturally gets the pitch at the "trigger"
+            time, which is the same as start.
+        * Add the flag to Event.
+        / fltk has to draw from (start, -dur) but with the trigger at the bottom
+          . Encode as negative for now, no changes needed.
+        * Create end events.
+        . Now that I think about it, a lot of the negative event handling in
+          editing still kind of makes sense.  Since I spent a lot of effort
+          getting that right, maybe I should just do the minimal amount of
+          work to put the start point at the top so I can have --><-- and
+          leave the rest as-is.  If it turns out confusing then I can change
+          it based on experience.
+        * Edit.set_duration
+        * Edit.set_duration is corrupting Events, probably since Events.insert
+          is buggy.
+          * Put warnings in fltk/EventTrack.cc
+          * Fix Events.
+        * Make sure slicing works.
+          It's because Events.split_range has different behaviour for negative
+          events.  So should I remove that and special case slicing, or just
+          update Events.split?
+          . Since end events are edited from the front now
+        / Cmd.Edit: I can get rid of the complexity with negative durations,
+          but I need a "start" analogue to cmd-s, just like cmd-J and cmd-K
+          are symmetrical.
+          . I have it, it's ^g, but I think I'll try to make the logical "set
+            dur" thing work, instead of the physical "set start".
+        * Make sure things like Gangsa.get_pitch work.  One way is to make
           Args.start look at end_weighted, the other is specific support in
           calls that want to support it.
-        - See if I want to add special Cmd.Edit support, e.g. with set
+        * See if I want to add special Cmd.Edit support, e.g. with set
           duration, or just have them work spatially.
-        - UiTest.note_track needs to be able to create them.
+        / UiTest.note_track needs to be able to create them.
+          Negative durations still work, which might look confusing but is
+          convenient.
       . cancel and realize:
         end of block {final}:
           [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
@@ -1565,7 +1636,7 @@ Derive:
             unison - replace >pasang with >polos / >sangsih
           . Single {infer-duration} is to extend, if it's simultaneous I can
             find the next non-simultaneous note.
-        - kotekan lines up to the end, but that doesn't interact well when
+        * kotekan lines up to the end, but that doesn't interact well when
           it's interrupted by an angsel.  It should just start at the start
           time, or at least the repeating regular style should.
           . How about align to the beginning for positive duration, to the end

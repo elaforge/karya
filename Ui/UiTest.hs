@@ -10,6 +10,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Control
 import qualified Util.Rect as Rect
@@ -520,3 +521,19 @@ wdev = Midi.write_device "wdev"
 
 btrack :: TrackId -> Block.Track
 btrack track_id = Block.track (Block.TId track_id default_ruler_id) 30
+
+-- | Visualize event ranges.
+draw_events :: [EventSpec] -> IO ()
+draw_events events =
+    Text.IO.putStrLn ruler >> mapM_ (Text.IO.putStrLn . draw) events
+    where
+    draw (start, dur, t) = gap <> arrow <> " [" <> txt t <> "]"
+        where
+        gap = Text.replicate (to_steps (min start (start + dur))) " "
+        arrow
+            | dur < 0 = "<" <> middle <> "|"
+            | otherwise = "|" <> middle <> ">"
+        middle = Text.replicate (to_steps (abs dur) - 1) "-"
+    to_steps t = floor (t / 0.25)
+    ruler = Text.intercalate (Text.replicate (to_steps 1 - 1) " ")
+        (take 12 (map showt [0..]))

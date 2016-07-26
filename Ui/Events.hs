@@ -30,18 +30,20 @@ module Ui.Events (
 
     -- ** split
     -- *** events
-    , split_range, split_range_point, split_at, split_at_exclude
+    , split_range, split_range_or_point, split_at, split_at_exclude
     , in_range, in_range_point
     , around
     -- *** List [Event]
     , split
     , at_after, after, before
     , split_at_before
+    , find_overlaps
 
 #ifdef TESTING
-    , clip_events
+    , module Ui.Events
 #endif
 ) where
+import qualified Prelude
 import Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
@@ -53,6 +55,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
+import Global
 import Types
 
 
@@ -68,10 +71,10 @@ length :: Events -> Int
 length = Map.size . get
 
 time_begin :: Events -> ScoreTime
-time_begin = maybe 0 Event.min . head
+time_begin = maybe 0 Event.start . head
 
 time_end :: Events -> ScoreTime
-time_end = maybe 0 Event.max . last
+time_end = maybe 0 Event.end . last
 
 -- ** list conversion
 
@@ -81,7 +84,7 @@ singleton event = Events $ Map.singleton (Event.start event) event
 from_list :: [Event.Event] -> Events
 from_list evts = insert evts empty
 
--- | Get all events in ascending order.  Like @snd . split (ScoreTime 0)@.
+-- | Get all events in ascending order.
 ascending :: Events -> [Event.Event]
 ascending = to_asc_list . get
 
@@ -115,17 +118,21 @@ clip end (event : events)
 -- debugging, since it enforces important invariants.
 insert :: [Event.Event] -> Events -> Events
 insert [] events = events
-insert new_events events = merge clipped events
+insert new_events_ (Events events) =
+    Events $ Map.unions [pre, overlapping, post]
     where
-    clipped = Events $ Map.fromAscList $ Seq.key_on Event.start $
-        clip_events (Seq.sort_on Event.start (map round_event new_events))
+    new_events = map round_event (Seq.sort_on Event.start new_events_)
+    start = Event.start (Prelude.head new_events)
+    end = Event.end (Prelude.last new_events)
+    (pre, within, post) = _split_overlapping start end events
+    overlapping = make $ clip_events $
+        Seq.merge_on Event.start (Map.elems within) new_events
 
 -- | Round event times as described in 'ScoreTime.round'.
 round_event :: Event.Event -> Event.Event
-round_event event = event
-    { Event.start = ScoreTime.round (Event.start event)
-    , Event.duration = ScoreTime.round (Event.duration event)
-    }
+round_event event =
+    Event.place (ScoreTime.round (Event.start event))
+        (ScoreTime.round (Event.duration event)) event
 
 -- | Remove events in the half-open range.  Since the range is half-open, if
 -- start==end this will never remove any events.  Use 'remove_event' for that.
@@ -163,26 +170,31 @@ last (Events events) = snd <$> Map.max events
 
 -- *** events
 
--- | Split into tracks before, within, and after the half-open range.
---
--- This is complicated due to negative events.  The idea is that when positive
--- events are present, the range is half-open where the end is excluded, as is
--- normal.  But when negative events are present, it's the other way around,
--- the start of the range is excluded and the end is excluded.
---
--- Since this is a half-open range, if start==end then within will always be
--- empty.
+{- | Split into tracks before, within, and after the half-open range.
+
+    This is complicated due to negative events.  The idea is that for
+    a positive event, the range is half-open where the end is excluded, as is
+    normal.  But for a negative event, it's the other way around, the start of
+    the range is excluded and the end is excluded.
+
+    Since this is a half-open range, if start==end then within will always be
+    empty.
+-}
 split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
--- | Like 'split_range', but if start==end, events that exactly match are
--- included.
-split_range_point :: ScoreTime -> ScoreTime -> Events
+-- | Like 'split_range', but if start==end, an event whose trigger exactly
+-- matches will be included.
+split_range_or_point :: ScoreTime -> ScoreTime -> Events
     -> (Events, Events, Events)
-split_range_point start end events
-    | start == end = (Events pre,
-        Events $ maybe mempty (Map.singleton start) at, Events post)
+split_range_or_point start end events
+    | start == end = case at of
+        Just e -> (Events pre, singleton e, Events post)
+        Nothing -> case Map.max pre of
+            Just (p, e) | Event.trigger e == start ->
+                (Events (Map.delete p pre), singleton e, Events post)
+            _ -> (Events pre, mempty, Events post)
     | otherwise = split_range start end events
     where (pre, at, post) = Map.splitLookup start (get events)
 
@@ -225,34 +237,59 @@ around start end = emap (split_around start end)
         above m = maybe m (\(pos, evt) -> Map.insert pos evt m)
             (Map.min post)
 
+-- | Adjust a (pre, within, post) triple based on the orientation of the
+-- first and last events within.
+--
+-- The idea is that when positive events are present, the range is half-open
+-- where the end is excluded, as is normal.  But when negative events are
+-- present, it's the other way around, the start of the range is excluded and
+-- the end is excluded.
+--
+-- TODO I didn't wind up using this, but it still seems like a nice way to make
+-- split functions aware of orientation.
+adjust_for_orientation :: ScoreTime -> ScoreTime
+    -> (EventMap, EventMap, EventMap) -> (EventMap, EventMap, EventMap)
+adjust_for_orientation start end (pre, within, post) = (pre2, within3, post2)
+    where
+    -- Include at end.
+    (within2, post2) = case Map.min post of
+        Just (pos, evt) | pos == end && Event.is_negative evt ->
+            (Map.insert pos evt within, Map.delete pos post)
+        _ -> (within, post)
+    -- Omit at beginning.
+    (pre2, within3) = case Map.min within2 of
+        Just (pos, evt) | pos == start && Event.is_negative evt ->
+            (Map.insert pos evt pre, Map.delete pos within2)
+        _ -> (pre, within2)
+
 -- *** List [Event]
 
 -- | Return the events before the given @pos@, and the events at and after it.
+-- No special treatment for negative events.
 split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
 split pos (Events events) = (to_desc_list pre, to_asc_list post)
     where (pre, post) = Map.split2 pos events
 
--- | Events at or after @pos@.
+-- | Events whose start is at or after @pos@.
 at_after :: ScoreTime -> Events -> [Event.Event]
 at_after pos = snd . split pos
 
--- | Events strictly after @pos@.
+-- | Events whose start is strictly after @pos@.
 after :: ScoreTime -> Events -> [Event.Event]
 after pos events = case at_after pos events of
     next : rest | Event.start next == pos -> rest
     events -> events
 
--- | Events before @pos@.
+-- | Events whose start before @pos@.
 before :: ScoreTime -> Events -> [Event.Event]
 before pos = fst . split pos
 
--- | This is like 'split', but if there isn't an event exactly at the pos and
--- the previous event is positive (i.e. has a chance of overlapping), include
--- that in the after event.
+-- | This is like 'split', but if there isn't an event exactly at the pos then
+-- put the previous one in the post list.
 split_at_before :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
 split_at_before pos events
     | next : _ <- post, Event.start next == pos = (pre, post)
-    | before : prepre <- pre, Event.positive before = (prepre, before:post)
+    | before : prepre <- pre = (prepre, before:post)
     | otherwise = (pre, post)
     where (pre, post) = split pos events
 
@@ -271,6 +308,10 @@ newtype Events = Events EventMap
 -- pairs around everywhere.
 type EventMap = Map.Map ScoreTime Event.Event
 
+-- | This assumes the input is already sorted!
+make :: [Event.Event] -> EventMap
+make = Map.fromAscList . Seq.key_on Event.start
+
 to_asc_list :: EventMap -> [Event.Event]
 to_asc_list = map snd . Map.toAscList
 
@@ -279,7 +320,10 @@ to_desc_list = map snd . Map.toDescList
 
 instance Pretty.Pretty Events where
     format = Pretty.format . map event . ascending
-        where event e = (Event.start e, Event.duration e, Event.text e)
+        where
+        event e = Pretty.text $
+            o <> pretty (Event.start e, Event.duration e, Event.text e)
+            where o = if Event.orientation e == Event.Positive then "" else "-"
 
 instance Monoid Events where
     mempty = empty
@@ -303,75 +347,111 @@ _split_range start end events
     where
     (pre, within, post) = Map.split3 start end events
     (within2, post2) = case Map.min post of
-        Just (pos, evt) | pos == end && Event.negative evt ->
+        Just (pos, evt) | pos == end && Event.is_negative evt ->
             (Map.insert pos evt within, Map.delete pos post)
         _ -> (within, post)
     (pre2, within3) = case Map.min within2 of
-        Just (pos, evt) | pos == start && not (Event.positive evt) ->
+        Just (pos, evt) | pos == start && Event.is_negative evt ->
             (Map.insert pos evt pre, Map.delete pos within2)
         _ -> (pre, within2)
 
--- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
--- clipped so they don't overlap.  If events occur simultaneously, the
--- event from @evts1@ wins.
---
--- The strategy is to extract the overlapping section and clip only that,
--- then merge it back into the input maps, before merging them.  So in the
--- common cases of non-overlapping maps or a small narrow map inserted into
--- a large wide one this should traverse only a small portion of the large
--- one, and it should do so in one pass.  However, if the small map straddles
--- the large one, it will force an unnecessary traversal of the large one.  In
--- that case, I'd be better off merging each event individually.
+_split_overlapping :: ScoreTime -> ScoreTime -> EventMap
+    -> (EventMap, EventMap, EventMap)
+_split_overlapping start end events = (pre2, within3, post2)
+    where
+    (pre, within, post) = Map.split3 start end events
+    (within2, post2) = case Map.min post of
+        Just (pos, evt) | Event.overlaps end evt ->
+            (Map.insert pos evt within, Map.delete pos post)
+        _ -> (within, post)
+    (pre2, within3) = case Map.max pre of
+        Just (pos, evt) | Event.overlaps start evt ->
+            (Map.delete pos pre, Map.insert pos evt within2)
+        _ -> (pre, within2)
+
+{- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
+    clipped so they don't overlap.  If events occur simultaneously, the event
+    from @evts1@ wins.
+
+    The strategy is to extract the overlapping section and clip only that, then
+    merge it back into the input maps, before merging them.  So in the common
+    cases of non-overlapping maps or a small narrow map inserted into a large
+    wide one this should traverse only a small portion of the large one, and it
+    should do so in one pass.  However, if the small map straddles the large
+    one, it will force an unnecessary traversal of the large one.  In that
+    case, I'd be better off merging each event individually.
+-}
 merge :: Events -> Events -> Events
 merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
-    | otherwise = Events $ overlapping `Map.union` evts1 `Map.union` evts2
-    where
-    -- minimal overlapping range
-    start = max (find_min evts1) (find_min evts2)
-    end = min (find_max evts2) (find_max evts2)
-    find_min = Event.min . snd . Map.findMin
-    find_max = Event.max . snd . Map.findMax
-    overlapping = Map.fromAscList $ Seq.key_on Event.start $ clip_events $
-        Seq.merge_on Event.start
-            (ascending (around start end (Events evts2)))
-            (ascending (around start end (Events evts1)))
+    | otherwise = Events $ make $ clip_events $
+        Seq.merge_on Event.start (Map.elems evts1) (Map.elems evts2)
+    -- Previously I would extract the overlapping sections and clip only those,
+    -- but I moved that to 'insert'.  Perhaps it's a bit more elegant here, but
+    -- I think I'm never really merging large Events, just inserting small
+    -- lists into a large EventMap.  And in any case, EventMaps never get very
+    -- big.  Also, putting it in 'insert' avoids having to clip_events an extra
+    -- time to create the new Events.
 
--- | Clip overlapping event durations.  If two event positions coincide, the
--- last prevails.  An event with duration overlapping another event will be
--- clipped.  If a positive duration event is followed by a negative duration
--- event, the duration of the positive one will clip the negative one.
---
--- The precondition is that the input events are sorted, the postcondition is
--- that no [pos .. pos+dur) ranges will overlap.
---
--- Though tracks should never have events starting <0, this can still happen
--- when Events are constructed by track slicing.
+{- | Clip overlapping event durations.  If two event positions coincide, the
+    last prevails.  An event with duration overlapping another event will be
+    clipped.  If a positive duration event is followed by a negative duration
+    event, the duration of the positive one will clip the negative one.
+
+    The idea is that the 'Event.trigger' can't be moved, but the other end
+    corresponds to the duration, so it can be shortened by an overlapping
+    event.  However, it's assymetrical because a positive duration will win
+    over a negative one (so the end of the previous event is always unmoveable
+    to the following negative event looking back).  Also, a positive event can
+    be deleted if the next event's trigger point is <= its start.  Given the
+    precondition, this only happens if the next event is positive and its start
+    is equal.
+
+    The precondition is that the input events are sorted, the postcondition is
+    that no [pos .. pos+dur) ranges will overlap.  The output events will also
+    be sorted, though their 'Event.start's may have moved.
+
+    Though tracks should never have events starting <0, this can still happen
+    when Events are constructed by track slicing.
+-}
 clip_events :: [Event.Event] -> [Event.Event]
 clip_events =
-    map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups Event.start
+    Seq.sort_on Event.start . mapMaybe clip_duration . Seq.zip_neighbors
     where
+    -- Why is this so complicated and irregular?
     clip_duration (maybe_prev, cur, maybe_next)
-        | Event.positive cur = maybe cur clip_from_next maybe_next
-        | otherwise = maybe cur clip_from_prev maybe_prev
-        where
-        clip_from_next next
-                -- If the following event is negative it will clip, but don't
-                -- pass its pos.  That will leave a 0 dur event, but will
-                -- prevent overlapping.
-            | Event.end cur > Event.start next =
-                set_dur (Event.start next - Event.start cur)
-            | otherwise = cur
-        clip_from_prev prev
-            | Event.positive prev = if Event.end prev > Event.end cur
-                then set_dur
-                    (min (-0) (Event.end prev - Event.start cur))
-                else cur
-            | otherwise = if Event.end cur < Event.start prev
-                then set_dur (Event.start prev - Event.start cur)
-                else cur
-        set_dur dur = Event.set_duration dur cur
+        | Event.is_positive cur = case positive_clip cur maybe_next of
+            Nothing -> Just cur
+            Just p
+                -- If two events have the same start, the second one wins.
+                | p <= Event.start cur -> Nothing
+                | otherwise ->
+                    Just $ Event.set_duration (p - Event.start cur) cur
+        | otherwise = case negative_clip maybe_prev cur maybe_next of
+            Nothing -> Just cur
+            Just p
+                | p > Event.end cur -> Nothing
+                | otherwise -> Just $ Event.set_start p cur
+    -- Get the clip point for a positive event.
+    positive_clip cur maybe_next = maybe_next >>= \next ->
+        if Event.trigger next < Event.end cur
+            then Just (Event.trigger next) else Nothing
+    negative_clip maybe_prev cur maybe_next = case (maybe_prev, maybe_next) of
+        (_, Just next)
+            | Event.is_positive next && Event.start next < Event.end cur ->
+                Just (Event.end next)
+        (Just prev, _)
+            | Event.end prev > Event.start cur -> Just (Event.end prev)
+        _ -> Nothing
+
+find_overlaps :: Events -> [(Event.Event, Event.Event)]
+find_overlaps = mapMaybe check . Seq.zip_next . ascending
+    where
+    check (cur, Just next)
+        | Event.end cur > Event.start next = Just (cur, next)
+        | otherwise = Nothing
+    check _ = Nothing
 
 -- * serialize
 

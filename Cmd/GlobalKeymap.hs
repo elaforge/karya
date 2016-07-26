@@ -359,8 +359,8 @@ edit_state_bindings = concat
 
     , bind_key [PrimaryCommand] (Key.Char '`') "toggle absolute/relative step"
         Edit.toggle_absolute_relative_step
-    , bind_key [PrimaryCommand, Shift] (Key.Char '`') "invert step direction"
-        Edit.cmd_invert_step_direction
+    , bind_key [PrimaryCommand, Shift] (Key.Char '`')
+        "toggle input note orientation" Edit.cmd_toggle_note_orientation
     , plain_char '`' "toggle advance" Edit.toggle_advance
     , shift_char '`' "toggle chord" Edit.toggle_chord
 

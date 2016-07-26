@@ -56,15 +56,18 @@ import Types
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
 data InsertEvent = InsertEvent {
-    ins_duration :: !ScoreTime
-    , ins_around :: !([Event.Event], [Event.Event])
+    event_duration :: !ScoreTime
+    -- | A Negative orientation means that the controls at the Event.end time
+    -- are not trimmed off.
+    , event_orientation :: !Event.Orientation
+    , event_around :: !([Event.Event], [Event.Event])
     -- | The TrackId for the track created for this event.  This is required
     -- so it can collect a TrackDynamic and when the Cmd level looks at at
     -- track with inverted note calls, it sees the environ established by the
     -- tracks that the calls are inverted beneath.  E.g., if the pitch track
     -- sets a scale, the Cmd layer should see the note track as having that
     -- scale.
-    , ins_track_id :: !(Maybe TrackId)
+    , event_track_id :: !(Maybe TrackId)
     } deriving (Show)
 
 {- | Slice a track between start and end, and optionally put a note track with
@@ -90,26 +93,28 @@ slice exclude_start start end insert_event (Tree.Node track subs) =
     -- The synthesized bottom track.  Since slicing only happens within
     -- a block, I assume the BlockId is the same as the parent.  I need
     -- a BlockId to look up the previous val in 'Derive.Threaded'.
-    make shift block_id (InsertEvent dur around track_id) = TrackTree.Track
-        { TrackTree.track_title = ">"
-        , TrackTree.track_events = Events.singleton (Event.event start dur "")
-        , TrackTree.track_id = track_id
-        , TrackTree.track_block_id = block_id
-        , TrackTree.track_start = start
-        , TrackTree.track_end = end
-        , TrackTree.track_sliced = True
-        , TrackTree.track_inverted = True
-        , TrackTree.track_around = around
+    make shift block_id (InsertEvent dur _ around track_id) = TrackTree.Track
+        { track_title = ">"
+        , track_events = Events.singleton (Event.event start dur "")
+        , track_id = track_id
+        , track_block_id = block_id
+        , track_start = start
+        , track_end = end
+        , track_sliced = TrackTree.Inversion
+        , track_around = around
         -- Since a note may be inverted and inserted after 'slice_notes'
         -- and its shifting, I have to get the shift from the parent track.
-        , TrackTree.track_shifted = shift
-        , TrackTree.track_voice = Nothing
+        , track_shifted = shift
+        , track_voice = Nothing
         }
     slice_t track = track
         { TrackTree.track_events = within
         , TrackTree.track_start = start
         , TrackTree.track_end = end
-        , TrackTree.track_sliced = True
+        , TrackTree.track_sliced = case TrackTree.track_sliced track of
+            TrackTree.NotSliced -> TrackTree.Sliced
+                (maybe Event.Positive event_orientation insert_event)
+            sliced -> sliced
         , TrackTree.track_around = (before, after)
         }
         where (before, within, after) = extract_events track
@@ -127,7 +132,7 @@ extract_note_events :: Bool -> ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
 extract_note_events exclude_start start end events =
     (if exclude_start then exclude_s else id) $
-        let (pre, within, post) = Events.split_range_point start end events
+        let (pre, within, post) = Events.split_range_or_point start end events
         in (Events.descending pre, within, Events.ascending post)
     where
     exclude_s (pre, within, post) = case Events.at start within of
@@ -263,8 +268,8 @@ strip_empty_tracks (Tree.Node track subs)
 -- TODO I think I don't want to allow sub-events larger than their slice, but
 -- currently I do.  Actually I think overlap checking needs an overhaul in
 -- general.
-checked_slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
-    -> Either Text [[Note]]
+checked_slice_notes :: Bool -- ^ TODO change this to Event.Orientation?
+    -> ScoreTime -> ScoreTime -> TrackTree.EventsTree -> Either Text [[Note]]
 checked_slice_notes include_end start end tracks = case maybe_err of
     Nothing -> Right $ filter (not . null) notes
     Just err -> Left err

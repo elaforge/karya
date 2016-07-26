@@ -176,7 +176,8 @@ derive_track toplevel node@(Tree.Node track subs)
             events <- with_voice track $ with_pitch_map track subs $
                 maybe id with_note_track (TrackTree.track_id track) $
                 Note.d_note_track derive_tracks node
-            unless (TrackTree.track_sliced track) defragment
+            when (TrackTree.track_sliced track == TrackTree.NotSliced)
+                defragment
             mapM_ (Note.stash_signal_if_wanted events)
                 (note_signal_tracks track subs)
             return events
@@ -210,9 +211,9 @@ with_note_track track_id deriver = do
 -- them.
 note_signal_tracks :: TrackTree.Track -> TrackTree.EventsTree
     -> [TrackTree.Track]
-note_signal_tracks track subs
-    | TrackTree.track_sliced track = []
-    | otherwise = track : filter is_note (concatMap Tree.flatten subs)
+note_signal_tracks track subs = case TrackTree.track_sliced track of
+    TrackTree.NotSliced -> track : filter is_note (concatMap Tree.flatten subs)
+    _ -> []
     where is_note = ParseTitle.is_note_track . TrackTree.track_title
 
 -- | The tempo track, if the top level track is a tempo track.
@@ -231,12 +232,12 @@ has_top_tempo_track tree = case tree of
 -- into 'Derive.state_pitch_map'.
 with_pitch_map :: TrackTree.Track -> TrackTree.EventsTree -> Derive.Deriver a
     -> Derive.Deriver a
-with_pitch_map track subs deriver
-    | TrackTree.track_sliced track = deriver
-    | otherwise = do
+with_pitch_map track subs deriver = case TrackTree.track_sliced track of
+    TrackTree.NotSliced -> do
         pmap <- get_pitch_map subs
         Internal.local (\state -> state { Derive.state_pitch_map = Just pmap })
             deriver
+    _ -> deriver
 
 get_pitch_map :: TrackTree.EventsTree
     -> Derive.Deriver (Maybe PSignal.PSignal, [Log.Msg])

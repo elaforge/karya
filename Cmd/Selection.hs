@@ -704,48 +704,30 @@ events_around = do
     (_, _, track_ids, start, end) <- tracks
     events_around_tracks track_ids start end
 
--- | Select events whose @pos@ lie strictly within the selection range.
-strict_events_around :: State.M m => [TrackId] -> TrackTime -> TrackTime
-    -> m SelectedAround
-strict_events_around track_ids start end = do
-    tracks <- mapM State.get_track track_ids
-    let split events =
-            (Events.descending pre, Events.ascending within,
-                Events.ascending post)
-            where (pre, within, post) = Events.split_range start end events
-    return [(track_id, (start, end), split (Track.track_events track))
-        | (track_id, track) <- zip track_ids tracks]
-
 -- | Get events in the selection, but if no events are selected, expand it
 -- to include a previous positive event or a following negative one.  If both
 -- are present, the positive event is favored.  If neither are present, select
--- nothing.  And, if it's a point selection that coincides with the position
+-- nothing.  And, if it's a point selection that coincides with the trigger
 -- of an event, that event will be selected.
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
 events_around_tracks :: State.M m => [TrackId] -> TrackTime -> TrackTime
     -> m SelectedAround
-events_around_tracks track_ids start end = do
-    selected <- strict_events_around track_ids start end
-    return $ do
-        (track_id, range, evts) <- selected
-        let evts2 = expand (fst range) evts
-        let range2 = expand_range evts2 range
-        return (track_id, range2, evts2)
+events_around_tracks track_ids start end =
+    zipWith around_track track_ids <$> mapM State.get_track track_ids
     where
-    expand sel_start (before, [], after)
-        | start_equal = (before, take 1 after, drop 1 after)
-        | take_prev = (drop 1 before, take 1 before, after)
-        | take_next = (before, take 1 after, drop 1 after)
-        | otherwise = (before, [], after)
+    around_track track_id track = annotate track_id $ case split_range track of
+        (pre:pres, [], posts) | Event.is_positive pre -> (pres, [pre], posts)
+        (pres, [], post:posts) | Event.is_negative post -> (pres, [post], posts)
+        events -> events
+    annotate track_id events@(_, [e], _) = (track_id, Event.range e, events)
+    annotate track_id events = (track_id, (start, end), events)
+    split_range track =
+        (Events.descending pre, Events.ascending within, Events.ascending post)
         where
-        start_equal = maybe False ((==sel_start) . Event.start) (Seq.head after)
-        take_prev = maybe False Event.positive (Seq.head before)
-        take_next = maybe False Event.negative (Seq.head after)
-    expand _ selected = selected
-    expand_range (_, [evt], _) _ = Event.range evt
-    expand_range _ range = range
+        (pre, within, post) = Events.split_range_or_point start end
+            (Track.track_events track)
 
 -- ** select tracks
 

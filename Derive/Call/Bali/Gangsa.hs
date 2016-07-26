@@ -927,14 +927,10 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 
 -- * implementation
 
--- | Get pitch for a kotekan call.  Since they arrive at a pitch, they get
--- their pitch from the end.  This happens naturally if the event is negative,
--- since slicing goes from event start to next event, but I have to evaluate
--- the next pitch for a positive event.
---
--- TODO I don't get next pitch for now, but maybe I should?
+-- | Get pitch for a kotekan call.  For Negative events, get the pitch at the
+-- end.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
-get_pitch args = Call.get_pitch =<< Args.real_start args
+get_pitch args = Call.get_pitch =<< Args.real_trigger args
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
@@ -956,7 +952,8 @@ infer_initial_final_env = (,)
         "If true, include the final note, at the event end."
 
 infer_initial :: Derive.PassedArgs a -> (Maybe Bool, Bool) -> (Bool, Bool)
-infer_initial args = first (fromMaybe (not $ Event.negative (Args.event args)))
+infer_initial args =
+    first $ fromMaybe (not $ Event.is_negative (Args.event args))
 
 initial_final_env :: Sig.Parser (Bool, Bool)
 initial_final_env = (,)
