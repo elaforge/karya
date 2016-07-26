@@ -456,6 +456,18 @@ data Dynamic = Dynamic {
     , state_mode :: !Mode
     }
 
+{- | When a note call inverts, it stashes its actual note-generating code so
+    it can re-invoke track evaluation on the control tracks below it.  It's
+    kind of like saving a continuation.
+
+    Previously I did it by copying the text of the inverting call to the
+    generated track.  The problem was that I therefore had to keep the
+    evaluated expression around in the call 'Context', and if I forgot to clear
+    it in the right places things would be very confusing when a later
+    inversion executed unexpected code.  'Derive.Call.Sub.under_invert'
+    transforms are now also stored as code rather than data, in
+    'state_under_invert'.
+-}
 data Inversion =
     -- | Pre-inversion.
     NotInverted
