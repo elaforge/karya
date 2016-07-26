@@ -87,7 +87,7 @@ p_whitespace = Parsec.skipMany (Parsec.oneOf " \t") >> Parsec.optional comment
     Comments start with @#@, and blank lines are ignored.
 -}
 patch_file :: FilePath -> IO [Sysex.Patch]
-patch_file fn = either (errorIO . ("parse patches: " ++) . show) return
+patch_file fn = either (errorIO . ("parse patches: " <>) . showt) return
     =<< parse_patch_file fn
 
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Sysex.Patch])

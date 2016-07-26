@@ -44,7 +44,7 @@ import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Util.Control
+import qualified Util.CallStack as CallStack
 import qualified Util.File as File
 import qualified Util.Pretty as Pretty
 
@@ -301,6 +301,6 @@ put_version = putWord8
 get_version :: Get Word.Word8
 get_version = getWord8
 
-bad_version :: Util.Control.Stack => String -> Word.Word8 -> a
+bad_version :: CallStack.Stack => String -> Word.Word8 -> a
 bad_version typ ver = errorStack $
-    "unknown version " ++ show ver ++ " for " ++ show typ
+    "unknown version " <> showt ver <> " for " <> showt typ

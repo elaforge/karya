@@ -36,7 +36,7 @@ main = do
 
 process :: FilePath -> [Note.Note] -> IO ()
 process outputDir notes = do
-    samples <- either (errorIO . untxt) return $ mapM Convert.noteToSample notes
+    samples <- either errorIO return $ mapM Convert.noteToSample notes
     mapM_ print samples
     realizeSamples outputDir samples
 
@@ -46,7 +46,7 @@ loadJson filename = do
     maybe (errorIO "can't parse json") return val
 
 loadBinary :: FilePath -> IO [Note.Note]
-loadBinary = either (errorIO . prettys) return <=< Note.unserialize
+loadBinary = either (errorIO . pretty) return <=< Note.unserialize
 
 realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
 realizeSamples outputDir samples = do

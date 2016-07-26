@@ -78,7 +78,7 @@ initialize app = do
     log_hdl <- Tail.rotate_logs 4 max_log_size log_fn
     Log.configure $ const $ Log.State (Log.write_json log_hdl) Log.Timer
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
-        Left err -> errorStack $ "initializing midi: " ++ err
+        Left err -> errorStack $ "initializing midi: " <> txt err
         Right midi_interface -> Network.withSocketsDo $ do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface

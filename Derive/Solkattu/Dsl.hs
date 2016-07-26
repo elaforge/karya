@@ -130,8 +130,8 @@ stroke :: M.Note -> Sequence -> Sequence
 stroke _ [] = errorStack $ "stroke: empty sequence"
 stroke (Realize.Note stroke) (n:ns) = case n of
     S.Sollu s _ -> S.Sollu s (Just stroke) : ns
-    _ -> errorStack $ "stroke: can't add stroke to " <> prettys n
-stroke s _ = errorStack $ "st: require a sollu: " <> prettys s
+    _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
+stroke s _ = errorStack $ "st: require a sollu: " <> pretty s
 
 -- | Add a specific stroke annotation to a sollu.
 (!) :: Sequence -> M.Note -> Sequence

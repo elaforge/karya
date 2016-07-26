@@ -128,7 +128,7 @@ set_bank_pitch_bend bank fn = do
     where
     set = Sysex.put_rmap "pitch bend.intensity +" (24 :: Int)
         <=< Sysex.put_rmap "pitch bend.intensity -" (-24 :: Int)
-    require msg = either (errorIO . ((msg ++ ": ") ++)) return
+    require msg = either (errorIO . ((msg <> ": ") <>) . txt) return
 
 encode_current_program :: Sysex.RMap -> Either String ByteString
 encode_current_program rmap =

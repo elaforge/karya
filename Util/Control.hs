@@ -4,19 +4,16 @@
 
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Control flow and monadic utilities.
-module Util.Control (module Util.Control, module Control.Monad.Extra) where
-import qualified Control.Exception as Exception
+module Util.Control (
+    module Util.Control, module Control.Monad.Extra, module Util.CallStack
+) where
 import qualified Control.Monad as Monad
 import Control.Monad.Extra
        (whenJust, whenJustM, mapMaybeM, whenM, unlessM, ifM, notM, orM, andM,
         findM, anyM, allM)
-import qualified Control.Monad.Trans as Trans
-
 import qualified Data.Monoid as Monoid
-import Data.Monoid ((<>))
 
-import qualified GHC.SrcLoc as SrcLoc
-import qualified GHC.Stack as Stack
+import Util.CallStack (errorStack, errorIO)
 
 
 -- | This is like the hackage bifunctor package, but with no extra
@@ -88,20 +85,3 @@ firstJust action alternative = maybe alternative (return . Just) =<< action
 -- | 'firstJust' applied to a list.
 firstJusts :: Monad m => [m (Maybe a)] -> m (Maybe a)
 firstJusts = foldr firstJust (return Nothing)
-
-type Stack = (?stack :: Stack.CallStack)
-
--- | Just like 'error', except show the caller's location.
-errorStack :: Stack => String -> a
-errorStack msg = error $ showStack ?stack <> ": " <> msg
-
--- | Like 'errorStack', except run in IO.
-errorIO :: Stack => Trans.MonadIO m => String -> m a
-errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
-    . ((showStack ?stack <> ": ") <>)
-
-showStack :: Stack.CallStack -> String
-showStack stack = case reverse $ Stack.getCallStack stack of
-    (_, srcloc) : _ ->
-        SrcLoc.srcLocFile srcloc <> ":" <> show (SrcLoc.srcLocStartLine srcloc)
-    [] -> "<no-stack>"

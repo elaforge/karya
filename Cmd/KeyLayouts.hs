@@ -32,18 +32,18 @@ from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
 layout :: String -> [Char] -> [Char] -> Layout
 layout name unshifted shifted
     | length unshifted /= length shifted =
-        errorStack $ prefix ++ "(unshifted, shifted) not the same length: "
-            ++ show (Seq.zip_padded unshifted shifted)
+        errorStack $ prefix <> "(unshifted, shifted) not the same length: "
+            <> showt (Seq.zip_padded unshifted shifted)
     | length unshifted /= length qwerty_unshifted =
-        errorStack $ prefix ++ "size should be "
-            ++ show (length qwerty_unshifted) ++ " but is "
-            ++ show (length unshifted)
+        errorStack $ prefix <> "size should be "
+            <> showt (length qwerty_unshifted) <> " but is "
+            <> showt (length unshifted)
     | otherwise = Layout
         { map_to_unshifted = Map.fromList $ zip shifted unshifted
         , map_from_qwerty = Map.fromList $
             zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
         }
-    where prefix = show name ++ ": "
+    where prefix = showt name <> ": "
 
 qwerty_unshifted, qwerty_shifted :: [Char]
 qwerty_unshifted = concat

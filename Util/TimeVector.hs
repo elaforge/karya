@@ -421,7 +421,7 @@ unfoldr f = V.unfoldr $ \st -> case f st of
 y_at :: X -> Double -> X -> Double -> X -> Double
 y_at x0 y0 x1 y1 x
     | x0 == x1 = errorStack $ "y_at on vertical line: "
-        ++ show ((x0, y0), (x1, y1), x)
+        <> showt ((x0, y0), (x1, y1), x)
     | otherwise = (y1 - y0) / x_to_double (x1 - x0) * x_to_double (x - x0) + y0
 
 -- | Given a line defined by the two points, find the x at the given y.

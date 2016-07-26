@@ -10,6 +10,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Pretty ((<+>))
@@ -36,7 +37,7 @@ format_log msg =
         <> Pretty.indent_ (Pretty.text (Log.msg_text msg))
     where
     stars = Text.replicate (fromEnum (Log.msg_priority msg)) "*"
-    caller = Log.show_caller (Log.msg_caller msg) <> ": "
+    caller = CallStack.showCaller (Log.msg_caller msg) <> ": "
     stack = case Log.msg_stack msg of
         Nothing -> Pretty.text "[]"
         Just stack -> Stack.format_ui stack

@@ -131,6 +131,7 @@ import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified GHC.Stack
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Map as Map
@@ -186,7 +187,7 @@ data Error = Error !GHC.Stack.CallStack !Stack.Stack !ErrorVal
 
 instance Pretty.Pretty Error where
     pretty (Error call_stack stack val) =
-        Log.show_caller (Log.stack_to_caller call_stack)
+        CallStack.showCaller (CallStack.caller call_stack)
             <> " " <> pretty stack <> ": " <> pretty val
 
 data ErrorVal = GenericError !Text | CallError !CallError
@@ -247,13 +248,13 @@ instance Pretty.Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
-throw :: Log.Stack => Text -> Deriver a
+throw :: CallStack.Stack => Text -> Deriver a
 throw = throw_error . GenericError
 
-throw_arg_error :: Log.Stack => Text -> Deriver a
+throw_arg_error :: CallStack.Stack => Text -> Deriver a
 throw_arg_error = throw_error . CallError . ArgError
 
-throw_error :: Log.Stack => ErrorVal -> Deriver a
+throw_error :: CallStack.Stack => ErrorVal -> Deriver a
 throw_error err = do
     stack <- gets (state_stack . state_dynamic)
     DeriveM.throw (Error ?stack stack err)

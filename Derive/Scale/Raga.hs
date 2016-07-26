@@ -161,7 +161,7 @@ janya = map assert_valid_name
 assert_valid_name :: (Text, a) -> (Text, a)
 assert_valid_name val@(name, _)
     | name `elem` melakarta_names = val
-    | otherwise = errorStack $ "not in melakarta_names: " ++ show name
+    | otherwise = errorStack $ "not in melakarta_names: " <> showt name
 
 melakarta_names :: [Text]
 melakarta_names =

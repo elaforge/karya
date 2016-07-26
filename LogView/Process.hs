@@ -33,6 +33,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Word as Word
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -222,8 +223,8 @@ format_msg msg = run_formatter $ do
     let style = if Log.msg_priority msg < Log.Warn
             then style_plain else style_warn
     case Log.msg_caller msg of
-        Log.NoCaller -> return ()
-        Log.Caller fname line ->
+        CallStack.NoCaller -> return ()
+        CallStack.Caller fname line ->
             with_style style_filename $ txt fname <> ":" <> showt line <> " "
     whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
     regex_style style msg_text_regexes (Log.msg_text msg)

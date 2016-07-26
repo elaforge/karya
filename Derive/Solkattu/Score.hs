@@ -8,7 +8,7 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Log as Log
+import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
@@ -305,10 +305,11 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
 -- * realize
 
-make_mridangam :: Log.Stack => [(Sequence, [Mridangam.Note])] -> Instrument
+make_mridangam :: CallStack.Stack => [(Sequence, [Mridangam.Note])]
+    -> Instrument
 make_mridangam strokes = check $ Mridangam.instrument strokes Mridangam.defaults
 
-korvais :: Log.Stack => Solkattu.Tala -> Instrument -> [Sequence]
+korvais :: CallStack.Stack => Solkattu.Tala -> Instrument -> [Sequence]
     -> [Korvai]
 korvais tala mridangam = map (korvai tala mridangam)
 

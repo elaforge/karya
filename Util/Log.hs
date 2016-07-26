@@ -14,13 +14,10 @@
 module Util.Log (
     configure
     -- * msgs
-    , Stack
     , Msg(..), msg_string
-    , Caller(..), show_caller, show_stack
     , Data(..), empty_data, has_data, get_data
     , Prio(..), State(..)
     , write_json, write_formatted
-    , stack_to_caller
     , msg, msg_call_stack, initialized_msg
     , timer, debug, notice, warn, error
     , debug_stack, notice_stack, warn_stack, error_stack
@@ -61,9 +58,7 @@ import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified GHC.Generics as Generics
-import qualified GHC.SrcLoc as SrcLoc
-import qualified GHC.Stack as Stack
-import GHC.Stack (CallStack)
+import qualified GHC.Stack
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -71,10 +66,10 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.Stack as Stack
 import Global
@@ -82,7 +77,7 @@ import Global
 
 data Msg = Msg {
     msg_date :: !Time.UTCTime
-    , msg_caller :: !Caller
+    , msg_caller :: !CallStack.Caller
     , msg_priority :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- score the msg was emitted.
@@ -100,15 +95,6 @@ msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
     pretty = format_msg
-
-data Caller = Caller !FilePath !Int | NoCaller deriving (Eq, Show, Read)
-
-show_caller :: Caller -> Text
-show_caller (Caller fname line) = txt fname <> ":" <> showt line
-show_caller NoCaller = "<no-caller>"
-
-show_stack :: CallStack -> Text
-show_stack = show_caller . stack_to_caller
 
 -- | Attach an arbitrary payload to a log msg.
 --
@@ -209,43 +195,35 @@ data Prio =
     | Error
     deriving (Bounded, Enum, Show, Read, Eq, Ord, Generics.Generic)
 
--- | Add this to the context of a function to make that function's caller
--- show up in 'msg_caller'.
-type Stack = (?stack :: CallStack)
-
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: Stack => Prio -> Maybe Stack.Stack -> Text -> Msg
+msg :: CallStack.Stack => Prio -> Maybe Stack.Stack -> Text -> Msg
 msg = msg_call_stack ?stack
 
 -- | Like 'msg' but when you already have a CallStack.
-msg_call_stack :: CallStack -> Prio -> Maybe Stack.Stack -> Text -> Msg
+msg_call_stack :: GHC.Stack.CallStack -> Prio -> Maybe Stack.Stack -> Text
+    -> Msg
 msg_call_stack call_stack prio stack text =
-    Msg no_date_yet (stack_to_caller call_stack) prio stack text NoData
-
-stack_to_caller :: CallStack -> Caller
-stack_to_caller = maybe NoCaller extract . Seq.last . Stack.getCallStack
-    where
-    extract (_, srcloc) = Caller (strip (SrcLoc.srcLocFile srcloc))
-        (SrcLoc.srcLocStartLine srcloc)
-    strip ('.':'/':s) = s
-    strip s = s
+    Msg no_date_yet (CallStack.caller call_stack) prio stack text NoData
 
 -- | Create a msg with the given prio and text.
-initialized_msg :: (Stack, LogMonad m) => Prio -> Text -> m Msg
+initialized_msg :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m Msg
 initialized_msg prio = make_msg prio Nothing
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
-make_msg :: (Stack, LogMonad m) => Prio -> Maybe Stack.Stack -> Text -> m Msg
+make_msg :: (CallStack.Stack, LogMonad m) => Prio -> Maybe Stack.Stack -> Text
+    -> m Msg
 make_msg prio stack text = initialize_msg (msg prio stack text)
 
-log :: (Stack, LogMonad m) => Prio -> Text -> m ()
+log :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m ()
 log prio text = write =<< make_msg prio Nothing text
 
-log_stack :: (Stack, LogMonad m) => Prio -> Stack.Stack -> Text -> m ()
+log_stack :: (CallStack.Stack, LogMonad m) => Prio -> Stack.Stack -> Text
+    -> m ()
 log_stack prio stack text = write =<< make_msg prio (Just stack) text
 
-timer, debug, notice, warn, error :: (Stack, LogMonad m) => Text -> m ()
+timer, debug, notice, warn, error
+    :: (CallStack.Stack, LogMonad m) => Text -> m ()
 timer = log Timer
 debug = log Debug
 notice = log Notice
@@ -255,14 +233,15 @@ error = log Error
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack, notice_stack, warn_stack, error_stack
-    :: (Stack, LogMonad m) => Stack.Stack -> Text -> m ()
+    :: (CallStack.Stack, LogMonad m) => Stack.Stack -> Text -> m ()
 debug_stack = log_stack Debug
 notice_stack = log_stack Notice
 warn_stack = log_stack Warn
 error_stack = log_stack Error
 
 -- | Write a Debug msg with arbitrary data attached to 'msg_data'.
-debug_data :: (Stack, LogMonad m, Dynamic.Typeable a) => Text -> a -> m ()
+debug_data :: (CallStack.Stack, LogMonad m, Dynamic.Typeable a) =>
+    Text -> a -> m ()
 debug_data text data_ = write . add_data =<< make_msg Debug Nothing text
     where add_data msg = msg { msg_data = Data (Dynamic.toDyn data_) }
 
@@ -312,7 +291,7 @@ format_msg (Msg _date caller prio stack text _data) =
     prio_stars prio = Text.replicate (fromEnum prio) "*"
     log_msg = mconcat
         [ Text.justifyLeft 5 ' ' (prio_stars prio)
-        , show_caller caller
+        , CallStack.showCaller caller
         , " - "
         , text
         ]
@@ -379,14 +358,6 @@ deserialize bytes = case Aeson.decode bytes of
 
 instance Aeson.ToJSON Prio
 instance Aeson.FromJSON Prio
-
-instance Aeson.ToJSON Caller where
-    toJSON (Caller fname line) = toJSON (fname, line)
-    toJSON NoCaller = Aeson.Null
-instance Aeson.FromJSON Caller where
-    parseJSON val = case val of
-        Aeson.Null -> return NoCaller
-        _ -> uncurry Caller <$> parseJSON val
 
 -- * util
 

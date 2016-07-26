@@ -245,7 +245,7 @@ tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
     , ("p.0.pm0o", (1/18, 1/20))
     ]
     where
-    expect_right = either (errorStack . untxt . ("tumpuk_patterns: "<>)) id
+    expect_right = either (errorStack . ("tumpuk_patterns: "<>)) id
     firstA f (a, c) = (,) <$> f a <*> pure c
 
 -- * c_byong
@@ -511,7 +511,7 @@ parse_relative = map parse1 . filter (/=' ')
     parse1 '-' = Nothing
     parse1 c = Just (digit c)
     digit c = fromMaybe
-        (errorStack $ "Reyong.parse_kotekan: not a digit: " <> show c)
+        (errorStack $ "Reyong.parse_kotekan: not a digit: " <> showt c)
         (Num.readDigit c)
 
 -- ** absolute
@@ -530,14 +530,14 @@ to_pc = fromEnum
 
 parse_absolute :: NoteTable -> [Char] -> [Chord]
 parse_absolute table = map $ \c -> fromMaybe
-    (errorStack $ "parse_absolute: not in table: " ++ show c)
+    (errorStack $ "parse_absolute: not in table: " <> showt c)
     (Map.lookup c table)
 
 parse_note :: NoteTable -> Char -> Note
 parse_note table = extract . head . parse_absolute table . (:[])
     where
     extract [x] = x
-    extract xs = errorStack $ "parse_note: expected only one: " <> prettys xs
+    extract xs = errorStack $ "parse_note: expected only one: " <> pretty xs
 
 {-
     1 penyorog        3 ponggang

@@ -144,8 +144,8 @@ import qualified Data.Time as Time
 
 import qualified GHC.Stack
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
-import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -326,7 +326,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     throw_call_stack call_stack msg =
         (StateT . lift . lift) (Except.throwError (Error call_stack msg))
 
-throw :: (Log.Stack, M m) => Text -> m a
+throw :: (CallStack.Stack, M m) => Text -> m a
 throw = throw_call_stack ?stack
 
 gets :: M m => (State -> a) -> m a
@@ -404,13 +404,13 @@ data Error = Error !GHC.Stack.CallStack !Text | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
     pretty (Error stack msg) =
-        Log.show_caller (Log.stack_to_caller stack) <> " " <> msg
+        CallStack.showCaller (CallStack.caller stack) <> " " <> msg
     pretty Abort = "(abort)"
 
-require :: (Log.Stack, M m) => Text -> Maybe a -> m a
+require :: (CallStack.Stack, M m) => Text -> Maybe a -> m a
 require err = maybe (throw_call_stack ?stack err) return
 
-require_right :: (Log.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right :: (CallStack.Stack, M m) => (err -> Text) -> Either err a -> m a
 require_right fmt_err = either (throw_call_stack ?stack . fmt_err) return
 
 -- * config
@@ -1362,8 +1362,8 @@ ranges_to_updates track_id ranges = case Ranges.extract ranges of
 
 events_range :: [Event.Event] -> Ranges.Ranges TrackTime
 events_range events = case minmax events of
-        Just (emin, emax) -> Ranges.range emin emax
-        Nothing -> Ranges.nothing
+    Just (emin, emax) -> Ranges.range emin emax
+    Nothing -> Ranges.nothing
     where
     minmax (e:es) = Just $ go (Event.min e) (Event.max e) es
     minmax [] = Nothing

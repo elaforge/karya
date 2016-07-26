@@ -45,7 +45,7 @@ large_test_viola_sonata = run viola_sonata
 compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
-    expected <- either (errorIO . untxt) (return . Vector.toList)
+    expected <- either errorIO (return . Vector.toList)
         =<< DiffPerformance.load_midi saved
     got <- DeriveSaved.perform_file cmd_config score
     let name = FilePath.takeFileName score
@@ -62,5 +62,5 @@ compare_performance saved score = timeout score $ do
 timeout :: String -> IO a -> IO a
 timeout fname = maybe (errorIO msg) return <=< Thread.timeout 60
     where
-    msg = fname
-        ++ ": timed out, this can happen when too many msgs are different"
+    msg = txt fname
+        <> ": timed out, this can happen when too many msgs are different"

@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
@@ -141,10 +142,10 @@ with_default_imported deriver =
 
 -- * errors
 
-require :: Log.Stack => Text -> Maybe a -> Deriver a
+require :: CallStack.Stack => Text -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
 
-require_right :: Log.Stack => (err -> Text) -> Either err a -> Deriver a
+require_right :: CallStack.Stack => (err -> Text) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
 
 

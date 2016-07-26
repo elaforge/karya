@@ -42,8 +42,8 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (ui_state, library) <- either (errorIO . untxt) return =<< load_score fname
-    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+    (ui_state, library) <- either errorIO return =<< load_score fname
+    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     let cmd_state = add_library library (Cmd.initial_state cmd_config)
     (events, logs) <- timed_derive fname ui_state cmd_state block_id

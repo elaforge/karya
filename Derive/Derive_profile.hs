@@ -162,9 +162,9 @@ mkblock tracks = do
 derive_saved :: Bool -> FilePath -> IO ()
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, library) <- either (errorIO . untxt) return
+    (ui_state, library) <- either errorIO return
         =<< DeriveSaved.load_score fname
-    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library
             (Cmd.initial_state cmd_config)
@@ -209,7 +209,7 @@ run_profile :: String
     -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
     -> State.State -> IO ()
 run_profile fname maybe_lookup ui_state = do
-    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     start_cpu <- CPUTime.getCPUTime
     let section = time_section start_cpu

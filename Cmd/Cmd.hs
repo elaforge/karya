@@ -47,6 +47,7 @@ import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.CallStack as CallStack
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -267,7 +268,7 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: (Log.Stack, M m) => Text -> m a
+throw :: (CallStack.Stack, M m) => Text -> m a
 throw = State.throw
 
 -- | Run a subcomputation that is allowed to abort.
@@ -288,10 +289,10 @@ abort_unless :: M m => Maybe a -> m a
 abort_unless = maybe abort return
 
 -- | Throw an exception with the given msg on Nothing.
-require :: (Log.Stack, M m) => Text -> Maybe a -> m a
+require :: (CallStack.Stack, M m) => Text -> Maybe a -> m a
 require msg = maybe (throw msg) return
 
-require_right :: (Log.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right :: (CallStack.Stack, M m) => (err -> Text) -> Either err a -> m a
 require_right fmt_err = either (throw . fmt_err) return
 
 -- * State

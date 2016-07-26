@@ -300,7 +300,7 @@ default_head repo Nothing =
 parse_names :: String -> IO [Text]
 parse_names text = case lines text of
     [_, names] -> map txt <$> readIO names
-    _ -> errorStack $ "can't parse description: " ++ show text
+    _ -> errorStack $ "can't parse description: " <> showt text
 
 unparse_names :: String -> [Text] -> String
 unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"

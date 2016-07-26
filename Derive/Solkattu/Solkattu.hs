@@ -13,7 +13,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 
-import qualified Util.Log as Log
+import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -224,11 +224,12 @@ reduce3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 
 -- | Reduce by a duration until a final duration.
-reduceTo :: Log.Stack => Matras -> Matras -> Sequence stroke -> Sequence stroke
+reduceTo :: CallStack.Stack => Matras -> Matras -> Sequence stroke
+    -> Sequence stroke
 reduceTo by to seq
     | (duration_of seq - to) `mod` by /= 0 =
-        errorStack $ show (duration_of seq) <> " can't reduce by " <> show by
-            <> " to " <> show to
+        errorStack $ showt (duration_of seq) <> " can't reduce by " <> showt by
+            <> " to " <> showt to
     | otherwise = mconcat $ takeWhile ((>=to) . duration_of) $
         iterate (dropM by) seq
 
@@ -302,11 +303,11 @@ find_triads notes =
 
 -- * misc
 
-check :: Log.Stack => Either Error a -> a
-check = either (errorStack . untxt) id
+check :: CallStack.Stack => Either Error a -> a
+check = either errorStack id
 
-check_msg :: Log.Stack => String -> Either Error a -> a
-check_msg msg = either (errorStack . ((msg <> ": ") <>) . untxt) id
+check_msg :: CallStack.Stack => Text -> Either Error a -> a
+check_msg msg = either (errorStack . ((msg <> ": ") <>)) id
 
 -- * util
 

@@ -147,8 +147,7 @@ module_ :: Module.Module
 module_ = "test-module"
 
 expr :: Text -> BaseTypes.Expr
-expr =
-    either (errorStack . ("CallTest.expr: " ++) . untxt) id . Parse.parse_expr
+expr = either (errorStack . ("CallTest.expr: " <>)) id . Parse.parse_expr
 
 val :: Text -> BaseTypes.Val
-val = either (errorStack . ("CallTest.val: " ++) . untxt) id . Parse.parse_val
+val = either (errorStack . ("CallTest.val: " <>)) id . Parse.parse_val

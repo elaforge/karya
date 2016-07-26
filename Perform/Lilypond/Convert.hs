@@ -10,6 +10,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Env as Env
@@ -115,7 +116,7 @@ convert_event quarter event = run $ do
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT
 
-throw :: (Log.Stack, Except.MonadError Log.Msg m) => Text -> m a
+throw :: (CallStack.Stack, Except.MonadError Log.Msg m) => Text -> m a
 throw = Except.throwError . Log.msg Log.Warn Nothing
 
 type Pitch = Text

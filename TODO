@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - move Log.Stack to Util.CStack or Util.CallStack
+  - linux fltk drawing: event ears draw as a solid bar
+  * move Log.Stack to Util.CStack or Util.CallStack
   - It seems I get slicing on an already sliced track if I have an
     intermediate empty note track, e.g.:
       [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]

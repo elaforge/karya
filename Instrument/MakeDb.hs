@@ -29,7 +29,7 @@ main = do
                 not_found = [name | (name, Nothing) <- zip db_names makes]
                 found = [(name, make) | (name, Just make) <- zip db_names makes]
             unless (null not_found) $
-                errorIO $ "dbs not found: " <> show not_found
+                errorIO $ "dbs not found: " <> showt not_found
             make db_path found
 
 make :: FilePath -> [(InstTypes.SynthName, (Instrument.MakeDb, a))] -> IO ()

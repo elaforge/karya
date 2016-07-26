@@ -124,7 +124,7 @@ run_ui_io ustate = run_io ustate default_cmd_state
 -- | Run a Cmd and return just the value.
 eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
-    Left err -> errorStack $ "eval got StateError: " ++ show err
+    Left err -> errorStack $ "eval got StateError: " <> showt err
     Right Nothing -> errorStack "eval: cmd aborted"
     Right (Just val) -> val
 
@@ -156,7 +156,7 @@ extract_derive ex = DeriveTest.extract ex . extract_derive_result
 extract_derive_result :: Result a -> Derive.Result
 extract_derive_result res =
     maybe (eval (result_ui_state res) (result_cmd_state res) mkres)
-        (errorStack . (msg++)) (result_failed res)
+        (errorStack . (msg<>) . txt) (result_failed res)
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do

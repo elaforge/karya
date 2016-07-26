@@ -22,7 +22,7 @@ import Global
 
 
 write :: FilePath -> Either Text Text -> IO ()
-write fname = either (errorIO . untxt) $ \t -> do
+write fname = either errorIO $ \t -> do
     putStrLn $ "write " <> fname
     Text.IO.writeFile fname t
 

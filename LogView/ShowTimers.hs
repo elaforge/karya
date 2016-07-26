@@ -11,6 +11,7 @@ import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 import qualified Text.Read as Read
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified LogView.Tail as Tail
 
@@ -41,7 +42,8 @@ loop threshold = go
                     when (diff >= threshold) $
                         putStr vt100_red
                     Printf.printf "%.03f %s %s" diff
-                        (Text.unpack (Log.show_caller (Log.msg_caller msg)))
+                        (Text.unpack
+                            (CallStack.showCaller (Log.msg_caller msg)))
                         (Text.unpack (Log.msg_text msg))
                     when (diff >= threshold) $
                         putStr vt100_normal
