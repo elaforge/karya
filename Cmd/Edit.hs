@@ -183,10 +183,34 @@ cmd_set_duration = modify_event_near_point modify
         | otherwise = set_dur (end - Event.start event) event
 
 cmd_toggle_zero_duration :: Cmd.M m => m ()
-cmd_toggle_zero_duration = modify_event_near_point $ \(_start, end) event ->
-    if Event.duration event == 0
-        then Event.set_duration (end - Event.start event) event
-        else Event.set_duration 0 event
+cmd_toggle_zero_duration = do
+    (_, sel) <- Selection.get
+    ModifyEvents.selection $ \block_id track_id events -> do
+        tracknum <- State.get_tracknum_of block_id track_id
+        let (start, end) = Sel.range sel
+        Just <$> mapM (toggle_zero_duration block_id tracknum start end) events
+
+-- When sel == start, then I have to pick something.
+toggle_zero_duration :: Cmd.M m => BlockId -> TrackNum
+    -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
+toggle_zero_duration block_id tracknum start end event
+    | Event.duration event /= 0 = return $ if Event.is_positive event
+        then Event.set_duration 0 event
+        else Event.set_start (Event.end event) event
+    | start == end && start == Event.trigger event = do
+        step <- Cmd.get_current_step
+        maybe_pos <- TimeStep.step_from
+            (if Event.is_negative event then -1 else 1)
+            step block_id tracknum start
+        case maybe_pos of
+            Nothing -> return event
+            Just pos -> toggle_zero_duration block_id tracknum
+                (min start pos) (max start pos) event
+    | Event.is_positive event && end > Event.start event =
+        return $ Event.set_end end event
+    | Event.is_negative event && start < Event.start event =
+        return $ Event.set_start start event
+    | otherwise = return event
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.

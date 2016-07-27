@@ -38,7 +38,8 @@ module Ui.Event (
     -- * start, duration
     , end, trigger, range, overlaps
     , min, max
-    , move, set_start, place, round, set_duration, modify_duration, modify_end
+    , move, set_start, set_end
+    , place, round, set_duration, modify_duration, modify_end
     , set_orientation, is_negative, is_positive
     , orientation_as_duration
     -- * stack
@@ -220,6 +221,9 @@ move f event = modified $ event { _start = f (start event) }
 set_start :: ScoreTime -> Event -> Event
 set_start p event = place s (end event - s) event
     where s = Prelude.min (end event) p
+
+set_end :: ScoreTime -> Event -> Event
+set_end p event = set_duration (Prelude.max 0 (p - start event)) event
 
 place :: ScoreTime -> ScoreTime -> Event -> Event
 place start dur event = modified $ event { _start = start, _duration = dur }

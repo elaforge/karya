@@ -148,6 +148,22 @@ test_delete_time = do
         ]
     equal (run [(4, -2)] 4 6) $ Right ([(4, -2)], [])
 
+test_toggle_zero_duration = do
+    let run tracks start end = e_start_dur $
+            run_events_sel Edit.cmd_toggle_zero_duration tracks start end
+    equal (run [(0, 2)] 1 1) $ Right ([(0, 0)], [])
+    -- Expand to a timestep.
+    equal (run [(0, 0), (4, 0)] 1 1) $ Right ([(0, 1), (4, 0)], [])
+    equal (run [(1, -0)] 1 1) $ Right ([(1, -1)], [])
+
+    equal (run [(0, 0), (2, 0), (4, 0)] 0 4) $
+        Right ([(0, 2), (2, 2), (4, 0)], [])
+    equal (run [(2, -0), (4, -0)] 0 4) $
+        Right ([(2, -2), (4, -2)], [])
+
+    -- Broken.
+    -- equal (run [(2, -2), (4, -2)] 1 1) $ Right ([(2, -0), (4, -2)], [])
+
 -- * util
 
 -- | Run with events and a selection.

@@ -10,7 +10,24 @@ UNSORTED
       [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
     . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
   Event.Negative:
-    - Edit.toggle_zero_timestep is broken for negative events.
+    . I'm making Ui.Events treat negative logically instead of physically.
+      But it's awkwardly halfway because I still index by start.
+      Options:
+        . Go back to negative duration.  But EventMap is indexed by the
+          Event.min.  Or index by (start, sign).
+          . Then I would edit from the trigger, but how do I address touching
+            events?
+          . So I think I have to edit from the start.
+        . Make Events totally physical.  Edit and Selection are still logical,
+          so they have to fiddle.
+        . Make Events totally logical.  I think Edit and Selection still
+          have to fiddle, but in a more regalur way, maybe?
+          . But since I edit from the start, if I do delete at start, then
+            nothing happens.
+        . It seems the only physical editing I want is insert/delete, so maybe
+          it should be those commands that do the fiddling.
+        . Make everything totally physical.
+    + Edit.toggle_zero_timestep is broken for negative events.
     - Cmd.Edit: Note entry should put the pitch at the end.
     * Move events shouldn't clip Negative events at the end of the block.
       Should also move a negative event under the cursor.
