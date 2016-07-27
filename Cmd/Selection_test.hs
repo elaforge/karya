@@ -9,8 +9,10 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Simple as Simple
 
 import Types
+import Global
 
 
 test_events_around = do
@@ -27,9 +29,21 @@ test_events_around = do
         Right (Just [([0], [1, 2], [])], [])
     equal (f [(4, -4)] 4 4) $ Right (Just [([], [4], [])], [])
 
+test_events_around_range = do
+    let f evts start end = CmdTest.extract (map extract) $
+            run_sel Selection.events_around evts start end
+        extract (_, range, (_, within, _)) = (range, map Simple.event within)
+    equal (f [(2, -2), (4, -2)] 1 1) $
+        Right (Just [((0, 2), [(2, -2, "2t")])], [])
+    equal (f [(2, -2), (4, -2)] 2 2) $
+        Right (Just [((0, 2), [(2, -2, "2t")])], [])
+    equal (f [(2, -2), (4, -2)] 3 3) $
+        Right (Just [((2, 4), [(4, -2, "4t")])], [])
+
 run_sel :: Cmd.CmdId a -> [(ScoreTime, ScoreTime)] -> ScoreTime -> ScoreTime
     -> CmdTest.Result a
-run_sel cmd events start end = CmdTest.run_tracks [(">", mkspec events)] $ do
+run_sel cmd events start end =
+    CmdTest.run_tracks [(">", start_dur_events events)] $ do
         CmdTest.set_sel 1 start 1 end
         cmd
 
@@ -41,5 +55,5 @@ extract_selected_around = CmdTest.extract (map e_sel)
         (map Event.trigger before, map Event.trigger within,
             map Event.trigger after)
 
-mkspec :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
-mkspec specs = [(p, d, show p) | (p, d) <- specs]
+start_dur_events :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
+start_dur_events specs = [(p, d, prettys p) | (p, d) <- specs]

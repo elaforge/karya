@@ -699,6 +699,7 @@ track_events = do
     (start, end) <- range
     around_to_events <$> events_around_tracks [track_id] start end
 
+-- | 'events_around_tracks' for the selection.
 events_around :: Cmd.M m => m SelectedAround
 events_around = do
     (_, _, track_ids, start, end) <- tracks
@@ -708,7 +709,9 @@ events_around = do
 -- to include a previous positive event or a following negative one.  If both
 -- are present, the positive event is favored.  If neither are present, select
 -- nothing.  And, if it's a point selection that coincides with the trigger
--- of an event, that event will be selected.
+-- of an event, that event will be selected.  The range will become the
+-- 'Event.range', so if you want to replace the selection, you can remove
+-- events in that range.
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
@@ -718,7 +721,12 @@ events_around_tracks track_ids start end =
     zipWith around_track track_ids <$> mapM State.get_track track_ids
     where
     around_track track_id track = annotate track_id $ case split_range track of
-        (pre:pres, [], posts) | Event.is_positive pre -> (pres, [pre], posts)
+        (pre:pres, [at], posts)
+            | Event.is_negative pre && Event.end pre == start ->
+                (pres, [pre], at:posts)
+        (pre:pres, [], posts)
+            | Event.is_positive pre || Event.end pre >= start ->
+                (pres, [pre], posts)
         (pres, [], post:posts) | Event.is_negative post -> (pres, [post], posts)
         events -> events
     annotate track_id events@(_, [e], _) = (track_id, Event.range e, events)
