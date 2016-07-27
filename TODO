@@ -12,7 +12,7 @@ UNSORTED
   Event.Negative:
     - Edit.toggle_zero_timestep is broken for negative events.
     - Cmd.Edit: Note entry should put the pitch at the end.
-    - Move events shouldn't clip Negative events at the end of the block.
+    * Move events shouldn't clip Negative events at the end of the block.
       Should also move a negative event under the cursor.
   - Put logs on Score.Event.  When a postproc modifies it, it can add a note.
   - repl now has no history when it doesn't know the filename.

@@ -59,6 +59,26 @@ test_from_list = do
     equal (f [(0, 1, "a"), (2, 1, "c"), (1, 1, "b")])
         [(0, 1, "a"), (1, 1, "b"), (2, 1, "c")]
 
+test_clip = do
+    let f include_end at = map extract_event $
+            Events.clip include_end at (pos_events [(0, 2, "a"), (2, 2, "b")])
+    equal (map (f False) (Seq.range 0 5 1))
+        [ []
+        , [(0, 1, "a")]
+        , [(0, 2, "a")]
+        , [(0, 2, "a"), (2, 1, "b")]
+        , [(0, 2, "a"), (2, 2, "b")]
+        , [(0, 2, "a"), (2, 2, "b")]
+        ]
+    equal (map (f True) (Seq.range 0 5 1))
+        [ [(0, 0, "a")]
+        , [(0, 1, "a")]
+        , [(0, 2, "a"), (2, 0, "b")]
+        , [(0, 2, "a"), (2, 1, "b")]
+        , [(0, 2, "a"), (2, 2, "b")]
+        , [(0, 2, "a"), (2, 2, "b")]
+        ]
+
 test_insert = do
     let f evts0 evts1 = extract $
             Events.insert (pos_events evts0) (from_list evts1)

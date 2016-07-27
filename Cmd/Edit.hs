@@ -133,10 +133,10 @@ insert_event text dur = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     State.insert_block_events block_id track_id [Event.event pos dur text]
 
--- | Different from insert/delete time since it only modifies one event.
--- Move back the next event, or move down the previous event.  If the
--- selection is non-zero, the event's duration will be modified to the
--- selection.
+-- | Different from 'cmd_insert_time' and 'cmd_delete_time' since it only
+-- modifies one event.  Move back the next event, or move down the previous
+-- event.  If the selection is non-zero, the event's duration will be modified
+-- to the selection.
 cmd_move_event_forward :: Cmd.M m => m ()
 cmd_move_event_forward = move_event $ \pos events ->
     case Events.split pos events of
@@ -387,107 +387,106 @@ place start dur = Event.move (const start) . set_dur dur
 cmd_insert_time :: Cmd.M m => m ()
 cmd_insert_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    (start, end) <- expand_range tracknums start end
+    (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         track <- State.get_track track_id
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                track_end <- State.track_event_end track_id
-                -- +1 to get final event if it's 0 dur, see move_events
-                State.remove_events track_id (min (Event.start event) start)
-                    (track_end + 1)
-                State.insert_block_events block_id track_id
-                    (map (insert_time start end) events)
+                remove_events_from track_id (min (Event.start event) start)
+                State.insert_block_events block_id track_id $
+                    map (insert_event_time start (end-start)) events
 
--- | Modify the event to insert time from @start@ to @end@, lengthening
--- it if @start@ falls within the event's duration.
---
--- TODO both insert_time and delete_time could be faster by just mapping the
--- shift once the overlapping events are done, but it's probably not worth it.
-insert_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
-insert_time start end event
-    | Event.is_positive event = insertp event
-    | otherwise = insertn event
-    where
-    shift = end - start
-    pos = Event.start event
-    insertp
-        | pos < start && Event.end event <= start = id
-        | pos < start = Event.modify_duration (+shift)
-        | otherwise = Event.move (+shift)
-    insertn
-        | pos <= start = id
-        | Event.end event < start =
-            Event.move (+shift) . Event.modify_duration (subtract shift)
-        | otherwise = Event.move (+shift)
+-- | Modify the event to insert time, lengthening it if the start time falls
+-- within the event's duration.
+insert_event_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
+insert_event_time start shift event
+    | Event.start event >= start = Event.move (+shift) event
+    | Event.end event > start = Event.modify_duration (+shift) event
+    | otherwise = event
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
 cmd_delete_time :: Cmd.M m => m ()
 cmd_delete_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    (start, end) <- expand_range tracknums start end
+    (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id ->
-        delete_time block_id track_id start end
+        delete_time block_id track_id start (end-start)
 
+-- | Delete the time range for all tracks in the block.
 delete_block_time :: State.M m => BlockId -> TrackTime -> TrackTime -> m ()
-delete_block_time block_id start end = do
+delete_block_time block_id start dur = do
     track_ids <- State.track_ids_of block_id
     forM_ track_ids $ \track_id ->
-        delete_time block_id track_id start end
+        delete_time block_id track_id start dur
 
 delete_time :: State.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
-delete_time block_id track_id start end = do
-    when (start >= end) $
-        State.throw $ "delete_time: start >= end: " <> showt (start, end)
+delete_time block_id track_id start dur = do
+    when (dur < 0) $
+        State.throw $ "delete_time: negative dur " <> pretty dur
     track <- State.get_track track_id
     case Events.split_at_before start (Track.track_events track) of
         (_, []) -> return ()
         (_, events@(event:_)) -> do
-            track_end <- State.track_event_end track_id
-            -- +1 to get final event if it's 0 dur, see move_events
-            State.remove_events track_id (min (Event.start event) start)
-                (track_end + 1)
+            remove_events_from track_id (min (Event.start event) start)
             State.insert_block_events block_id track_id
-                (mapMaybe (delete_event_time start end) events)
+                (mapMaybe (delete_event_time start dur) events)
 
--- | Modify the event to delete the time from @start@ to @end@, shortening it
--- if @start@ falls within the event's duration, or removing it entirely if
--- it's within the range.
+-- | Modify the event to delete time, shortening it the start time falls within
+-- the event's duration, or removing it entirely if its 'Event.trigger' was
+-- deleted.
 delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
-delete_event_time start end event
-    | Event.is_positive event = deletep
-    | otherwise = deleten
+delete_event_time start shift event
+    -- Why is this SO COMPLICATED?
+    -- if overlaps trigger, then delete
+    | Event.is_positive event && overlaps (Event.start event) = Nothing
+    -- Negative events use an end range, except I don't want to delete
+    -- a -0 dur when it touches the end, only when it passses it.
+    | Event.is_negative event && Event.duration event > 0
+        && overlaps_end (Event.end event) = Nothing
+    | Event.is_negative event && Event.duration event == 0
+        && overlaps (Event.end event) = Nothing
+    -- if within, then subtract dur
+    | Event.start event < start && end <= Event.end event =
+        Just $ Event.modify_duration (subtract shift) event
+    -- if overlaps end of positive, shorten to the end
+    | Event.is_positive event && overlaps (Event.end event) =
+        Just $ Event.modify_duration (subtract (Event.end event - start)) event
+    -- if overlap start of negative, then place
+    | Event.is_negative event && overlaps (Event.start event) =
+        Just $ Event.place start
+            (Event.duration event - (end - Event.start event)) event
+    -- if before, then move.
+    | end <= Event.start event = Just $ Event.move (subtract shift) event
+    -- if after, then leave it alone
+    | otherwise {- start >= Event.end event -} = Just event
     where
-    shift = end - start
-    pos = Event.start event
-    deletep
-        | pos < start && Event.end event <= start = Just event
-        | pos < start =
-            Just $ Event.modify_duration
-                (subtract (min (Event.end event - start) shift)) event
-        | pos < end = Nothing
-        | otherwise = Just $ Event.move (subtract shift) event
-    deleten
-        | pos <= start = Just event
-        | pos <= end = Nothing
-        | Event.end event < end = Just $
-            Event.move (subtract shift) $ Event.modify_duration
-                (+ min shift (end - Event.end event)) event
-        | otherwise = Just $ Event.move (subtract shift) event
+    end = start + shift
+    overlaps p = start <= p && p < end
+    overlaps_end p = start < p && p <= end
+
+remove_events_from :: State.M m => TrackId -> TrackTime -> m ()
+remove_events_from track_id start = do
+    end <- State.track_event_end track_id
+    -- +1 to get final event if it's 0 dur.  It seems gross, but it works and
+    -- otherwise I'd need to add a function to Ui.State.
+    State.remove_events track_id start (end + 1)
+    -- Normally the start of the range is exclusive for Event.Negative.  But
+    -- since I use this to move events, I want to always include the start.
+    State.remove_event track_id start
 
 -- | If the range is a point, then expand it to one timestep.
-expand_range :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
+point_to_timestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
     -> m (TrackTime, TrackTime)
-expand_range (tracknum:_) start end
+point_to_timestep (tracknum:_) start end
     | start == end = do
         block_id <- Cmd.get_focused_block
         step <- Cmd.get_current_step
         pos <- TimeStep.advance step block_id tracknum end
         return (start, fromMaybe end pos)
     | otherwise = return (start, end)
-expand_range [] start end = return (start, end)
+point_to_timestep [] start end = return (start, end)
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.

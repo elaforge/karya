@@ -265,7 +265,7 @@ clip_to_selection start end
     -- A point selection should be able to paste a 0 dur event.
     | start == end = maybe [] (:[])
         . List.find (\e -> Event.start e == 0 && Event.duration e == 0)
-    | otherwise = Events.clip (end - start)
+    | otherwise = Events.clip False (end - start)
 
 -- | Get the destination and clip tracks involved in a paste, along with the
 -- paste selection.

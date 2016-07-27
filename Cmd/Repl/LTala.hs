@@ -25,7 +25,7 @@ chatusram_to_tisram = do
         LRuler.replace_range start (start + dur) $
         Tala.simple_meter Tala.adi_tala 3 10 4
     -- Delete final 1/3.
-    Edit.delete_block_time block_id (start + dur) end
+    Edit.delete_block_time block_id (start + dur) (end - (start+dur))
 
 -- | Create adi tala in chatusram-tisram.  Assuming 1t per aksharam, there
 -- is 3/4 per c-t aksharam.  So 8 of them fits in 6t, so each one is 6/8t.

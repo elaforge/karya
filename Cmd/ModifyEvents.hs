@@ -179,7 +179,7 @@ move_events block_end point shift events = merged
     -- Ick.  Maybe I need a less error-prone way to say "select until the end
     -- of the track"?
     end = Events.time_end events + 1
-    shifted = Events.clip block_end $
+    shifted = Events.clip False block_end $
         map (Event.move (+shift)) (Events.at_after point events)
     merged = Events.insert shifted (Events.remove point end events)
 

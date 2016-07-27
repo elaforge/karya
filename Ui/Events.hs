@@ -99,14 +99,14 @@ map_events f = from_list . map f . ascending
 
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.
-clip :: ScoreTime -> [Event.Event] -> [Event.Event]
-clip _ [] = []
-clip end (event : events)
-    | Event.start event >= end = []
-    | Event.end event > end =
-        [Event.modify_duration (\d -> min d (end - Event.start event)) event]
-    | otherwise = event : clip end events
-    -- TODO negative durations
+clip :: Bool -> ScoreTime -> [Event.Event] -> [Event.Event]
+clip _ _ [] = []
+clip allow_zero at (event : events)
+    | allow_zero && Event.start event > at = []
+    | not allow_zero && Event.start event >= at = []
+    | Event.end event > at =
+        [Event.modify_duration (\d -> min d (at - Event.start event)) event]
+    | otherwise = event : clip allow_zero at events
 
 -- ** insert / remove
 
@@ -185,7 +185,7 @@ split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
 -- | Like 'split_range', but if start==end, an event whose trigger exactly
--- matches will be included.
+-- matches will be in the within value.
 split_range_or_point :: ScoreTime -> ScoreTime -> Events
     -> (Events, Events, Events)
 split_range_or_point start end events

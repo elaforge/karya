@@ -62,7 +62,7 @@ split_time_at from_block_id pos block_name = do
     forM_ tracks $ \(track_id, _) -> do
         events <- fst . Events.split_at pos . Track.track_events <$>
             State.get_track track_id
-        let clipped = Events.from_list $ Events.clip pos $
+        let clipped = Events.from_list $ Events.clip False pos $
                 Events.ascending events
         State.modify_events track_id (const clipped)
     -- Create new block.
