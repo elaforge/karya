@@ -47,10 +47,10 @@ stretch_event start n event
 stretch_to :: TrackTime -> Cmd.CmdL ()
 stretch_to dur = do
     selected <- Selection.events
+    (start, _) <- Selection.range
     let maybe_end = Seq.maximum $
-            mapMaybe (\(_, _, events) -> Event.end <$> Seq.last events) selected
-        maybe_start = Seq.minimum [s | (_, (s, _), _) <- selected]
-    whenJust ((,) <$> maybe_start <*> maybe_end) $ \(start, end) ->
+            mapMaybe (fmap Event.end . Seq.last . snd) selected
+    whenJust maybe_end $ \end ->
         ModifyEvents.selection $ ModifyEvents.event $
             stretch_event start (dur / (end - start))
 

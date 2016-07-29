@@ -672,17 +672,12 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 -- ** select events
 
 -- | Selected events per track.  Gives events previous to, within, and after
--- the selection.  As usual, previous events are in descending order.  The
--- event range is also returned, which may not be the same as the selection
--- range because these functions may select more events than lie strictly
--- within the selection.
-type SelectedAround = [(TrackId, (TrackTime, TrackTime),
-    ([Event.Event], [Event.Event], [Event.Event]))]
-type SelectedEvents = [(TrackId, (TrackTime, TrackTime), [Event.Event])]
+-- the selection.  As usual, previous events are in descending order.
+type SelectedAround = [(TrackId, ([Event.Event], [Event.Event], [Event.Event]))]
+type SelectedEvents = [(TrackId, [Event.Event])]
 
 around_to_events :: SelectedAround -> SelectedEvents
-around_to_events = map $ \(track_id, range, (_, within, _)) ->
-    (track_id, range, within)
+around_to_events = map $ \(track_id, (_, within, _)) -> (track_id, within)
 
 -- | All selected events.  'events_around' is the default selection behaviour.
 events :: Cmd.M m => m SelectedEvents
@@ -723,11 +718,10 @@ events_around_tracks block_id track_ids start end = do
     extend . zipWith around_track track_ids <$> mapM State.get_track track_ids
     where
     around_track track_id track = case split_range track of
-        (pre:pres, [], posts) ->
-            (track_id, Event.range pre, (pres, [pre], posts))
-        events -> (track_id, (start, end), events)
-    until_end (track_id, (start, end), (pre, within, post)) =
-        (track_id, (start, end + ScoreTime.eta), (pre, within ++ post, []))
+        (pre:pres, [], posts) -> (track_id, (pres, [pre], posts))
+        events -> (track_id, events)
+    until_end (track_id, (pre, within, post)) =
+        (track_id, (pre, within ++ post, []))
     split_range track =
         (Events.descending pre, Events.ascending within, Events.ascending post)
         where

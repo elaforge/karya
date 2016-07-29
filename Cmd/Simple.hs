@@ -179,10 +179,7 @@ load_event (start, dur, text) =
     Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
-dump_selection = do
-    track_events <- Selection.events
-    return [(track_id, map event events)
-        | (track_id, _, events) <- track_events]
+dump_selection = map (second (map event)) <$> Selection.events
 
 -- * allocations
 

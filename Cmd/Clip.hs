@@ -142,7 +142,7 @@ cmd_paste_overwrite :: Cmd.M m => m ()
 cmd_paste_overwrite = do
     (start, end, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) -> do
-        State.remove_events track_id start end
+        State.remove_event_range track_id start end
         State.insert_events track_id events
 
 cmd_paste_merge :: Cmd.M m => m ()
@@ -191,7 +191,7 @@ cmd_paste_stretch = do
             let stretched = map (stretch (start, end) (clip_s, clip_e)
                     . Events.ascending) events
             forM_ (zip track_ids stretched) $ \(track_id, stretched) -> do
-                State.remove_events track_id start end
+                State.remove_event_range track_id start end
                 State.insert_events track_id stretched
         _ -> return ()
 

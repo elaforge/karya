@@ -91,11 +91,11 @@ modify_selected include_collapsed modify selected = do
             | otherwise = do
                 tracknum <- State.get_tracknum_of block_id track_id
                 not <$> State.track_collapsed block_id tracknum
-    forM_ selected $ \(track_id, (start, end), events) ->
+    forM_ selected $ \(track_id, events) ->
         whenM (wanted track_id) $ do
             maybe_new_events <- modify block_id track_id events
             whenJust maybe_new_events $ \new_events -> do
-                State.remove_events track_id start end
+                State.remove_events track_id (map Event.start events)
                 State.insert_block_events block_id track_id new_events
 
 -- | Advance the selection if it was a point.  This is convenient for applying

@@ -165,7 +165,7 @@ selection modify = do
     notes <- Cmd.require_right id =<< notes_from_range note_trees start end
     notes <- modify block_id notes
     -- Clear selected events before merging in new ones.
-    forM_ track_ids $ \tid -> State.remove_events tid start end
+    forM_ track_ids $ \tid -> State.remove_event_range tid start end
     write_tracks block_id track_ids (merge_notes notes)
 
 -- | Find the top-level note tracks in the selection, and reduce them down to

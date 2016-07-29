@@ -105,7 +105,7 @@ cmd_open_block = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
     let block_calls = NoteTrack.block_calls (Just block_id) . Event.text
-    forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
+    forM_ sel $ \(_, events) -> forM_ events $ \event ->
         mapM_ Create.view_or_focus =<< block_calls event
 
 cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()

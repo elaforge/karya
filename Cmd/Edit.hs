@@ -304,15 +304,15 @@ modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $ \evt ->
 
 -- | If there is a following event, delete it and extend this one to its end.
 --
--- Since 0 dur events are neven lengthened, joining control events simply
+-- Since 0 dur events are never lengthened, joining control events simply
 -- deletes the later ones.
 cmd_join_events :: Cmd.M m => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
     -- If I only selected one, join with the next.  Otherwise, join selected
     -- events.
-    process (track_id, _, (_, [evt1], evt2:_)) = join track_id evt1 evt2
-    process (track_id, _, (_, events@(_ : _ : _), _)) =
+    process (track_id, (_, [evt1], evt2:_)) = join track_id evt1 evt2
+    process (track_id, (_, events@(_ : _ : _), _)) =
         join track_id (head events) (last events)
     process _ = return ()
     join track_id evt1 evt2 =
@@ -321,14 +321,14 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         case (Event.is_negative evt1, Event.is_negative evt2) of
             (False, False) -> do
                 let end = Event.end evt2
-                State.remove_events track_id (Event.start evt1) end
+                State.remove_event_range track_id (Event.start evt1) end
                 -- If evt2 is zero dur, the above half-open range won't get it.
                 State.remove_event track_id (Event.start evt2)
                 State.insert_event track_id $
                     set_dur (end - Event.start evt1) evt1
             (True, True) -> do
                 let start = Event.end evt1
-                State.remove_events track_id start (Event.start evt2)
+                State.remove_event_range track_id start (Event.start evt2)
                 State.remove_event track_id (Event.start evt2)
                 State.insert_event track_id $
                     set_dur (start - Event.start evt2) evt2
@@ -447,10 +447,7 @@ remove_events_from track_id start = do
     end <- State.track_event_end track_id
     -- +1 to get final event if it's 0 dur.  It seems gross, but it works and
     -- otherwise I'd need to add a function to Ui.State.
-    State.remove_events track_id start (end + 1)
-    -- Normally the start of the range is exclusive for Event.Negative.  But
-    -- since I use this to move events, I want to always include the start.
-    State.remove_event track_id start
+    State.remove_event_range track_id start (end + 1)
 
 -- | If the range is a point, then expand it to one timestep.
 point_to_timestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
@@ -473,9 +470,7 @@ cmd_clear_selected = do
 
 clear_range :: State.M m => [TrackId] -> TrackTime -> TrackTime -> m ()
 clear_range track_ids start end =
-    forM_ track_ids $ \track_id -> if start == end
-        then State.remove_event track_id start
-        else State.remove_events track_id start end
+    forM_ track_ids $ \track_id -> State.remove_event_range track_id start end
 
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do

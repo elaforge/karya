@@ -109,7 +109,7 @@ module Ui.State (
     , insert_events, insert_block_events, insert_event
     , get_events, get_event, get_all_events
     , modify_events, modify_some_events, calculate_damage
-    , remove_events, remove_event, remove_event_range
+    , remove_event, remove_events, remove_event_range
     , track_event_end
 
     -- * ruler
@@ -1297,13 +1297,6 @@ calculate_damage old new =
         | otherwise =
             (Event.start old, max (Event.end old) (Event.end new)) : ranges
 
--- | Remove any events whose starting positions fall within the half-open
--- range given, or under the point if the selection is a point.
-remove_events :: M m => TrackId -> TrackTime -> TrackTime -> m ()
-remove_events track_id start end
-    | start == end = remove_event track_id start
-    | otherwise = remove_event_range track_id start end
-
 -- | Remove a single event at @pos@, if there is one.
 remove_event :: M m => TrackId -> TrackTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
@@ -1311,12 +1304,28 @@ remove_event track_id pos = _modify_events track_id $ \events ->
         Nothing -> (events, Ranges.nothing)
         Just event -> (Events.remove_event pos events, events_range [event])
 
+-- | Just like @map (remove_event track_id)@ but more efficient.
+remove_events :: M m => TrackId -> [TrackTime] -> m ()
+remove_events _ [] = return ()
+remove_events track_id starts = do
+    remove_event_range track_id (minimum starts) (maximum starts)
+    -- The range excludes the end.
+    remove_event track_id (maximum starts)
+
+-- | Remove any events whose starting positions fall within the half-open
+-- range given, or under the point if the selection is a point.
+remove_event_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
+remove_event_range track_id start end
+    | start == end = remove_event track_id start
+    | otherwise = remove_event_strict_range track_id start end
+
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
-remove_event_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
-remove_event_range track_id start end = _modify_events track_id $ \events ->
-    let evts = Events.ascending (Events.in_range start end events)
-    in (Events.remove start end events, events_range evts)
+remove_event_strict_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
+remove_event_strict_range track_id start end =
+    _modify_events track_id $ \events ->
+        let evts = Events.ascending (Events.in_range start end events)
+        in (Events.remove start end events, events_range evts)
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime

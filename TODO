@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Take range out of Selection.SelectedEvents?  If a caller wants to delete
+  * Take range out of Selection.SelectedEvents?  If a caller wants to delete
     the events, then it can just use a remove_events :: [Event].
   * Use Edit.cmd_toggle_zero_timestep instead of cmd_toggle_zero_duration.
     . But remove alter_duration, since ModifyEvent.selection_expanded does
@@ -35,7 +35,7 @@ UNSORTED
         . It seems the only physical editing I want is insert/delete, so maybe
           it should be those commands that do the fiddling.
         . Make everything totally physical.
-    + Edit.toggle_zero_timestep is broken for negative events.
+    * Edit.toggle_zero_timestep is broken for negative events.
     - Cmd.Edit: Note entry should put the pitch at the end.
     * Move events shouldn't clip Negative events at the end of the block.
       Should also move a negative event under the cursor.

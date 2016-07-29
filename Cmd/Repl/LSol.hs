@@ -30,11 +30,10 @@ insert realize_patterns akshara_dur korvai = do
     let stroke_dur = akshara_dur
             / fromIntegral (Solkattu.tala_nadai (Korvai.korvai_tala korvai))
     (_, _, track_id, at) <- Selection.get_insert
-    events <- Events.map_events (Event.move (+at)) <$>
+    events <- map (Event.move (+at)) . Events.ascending <$>
         realize_korvai realize_patterns stroke_dur korvai
-    State.remove_events track_id (maybe 0 Event.start (Events.head events))
-        (maybe 0 Event.start (Events.last events))
-    State.insert_events track_id (Events.ascending events)
+    State.remove_events track_id (map Event.start events)
+    State.insert_events track_id events
 
 realize_korvai :: State.M m => Bool -> TrackTime -> Korvai.Korvai
     -> m Events.Events
