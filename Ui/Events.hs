@@ -38,6 +38,7 @@ module Ui.Events (
     , at_after, after, before
     , split_at_before
     , find_overlaps
+    , clip_negative_events
 
 #ifdef TESTING
     , module Ui.Events
@@ -138,7 +139,7 @@ round_event event =
 -- start==end this will never remove any events.  Use 'remove_event' for that.
 remove :: ScoreTime -> ScoreTime -> Events -> Events
 remove start end events = emap (`Map.difference` deletes) events
-    where (_, deletes, _) = _split_range start end (get events)
+    where (_, deletes, _) = Map.split3 start end (get events)
 
 -- | Remove an event if it occurs exactly at the given pos.
 remove_event :: ScoreTime -> Events -> Events
@@ -153,9 +154,9 @@ at pos = Map.lookup pos . get
 -- | Like 'at', but return an event that overlaps the given pos.
 overlapping :: ScoreTime -> Events -> Maybe Event.Event
 overlapping pos events
-    | (next:_) <- post, Event.start next == pos || Event.end next < pos =
+    | next : _ <- post, Event.start next == pos || Event.end next < pos =
         Just next
-    | (prev:_) <- pre, Event.end prev > pos = Just prev
+    | prev : _ <- pre, Event.end prev > pos = Just prev
     | otherwise = Nothing
     where (pre, post) = split pos events
 
@@ -170,19 +171,12 @@ last (Events events) = snd <$> Map.max events
 
 -- *** events
 
-{- | Split into tracks before, within, and after the half-open range.
-
-    This is complicated due to negative events.  The idea is that for
-    a positive event, the range is half-open where the end is excluded, as is
-    normal.  But for a negative event, it's the other way around, the start of
-    the range is excluded and the end is excluded.
-
-    Since this is a half-open range, if start==end then within will always be
-    empty.
--}
+-- | Split into tracks before, within, and after the half-open range.
+-- Since this is a half-open range, if start==end then within will always be
+-- empty.
 split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
-    where (pre, within, post) = _split_range start end (get events)
+    where (pre, within, post) = Map.split3 start end (get events)
 
 -- | Like 'split_range', but if start==end, an event whose trigger exactly
 -- matches will be in the within value.
@@ -236,31 +230,6 @@ around start end = emap (split_around start end)
                 (Map.max pre)
         above m = maybe m (\(pos, evt) -> Map.insert pos evt m)
             (Map.min post)
-
--- | Adjust a (pre, within, post) triple based on the orientation of the
--- first and last events within.
---
--- The idea is that when positive events are present, the range is half-open
--- where the end is excluded, as is normal.  But when negative events are
--- present, it's the other way around, the start of the range is excluded and
--- the end is excluded.
---
--- TODO I didn't wind up using this, but it still seems like a nice way to make
--- split functions aware of orientation.
-adjust_for_orientation :: ScoreTime -> ScoreTime
-    -> (EventMap, EventMap, EventMap) -> (EventMap, EventMap, EventMap)
-adjust_for_orientation start end (pre, within, post) = (pre2, within3, post2)
-    where
-    -- Include at end.
-    (within2, post2) = case Map.min post of
-        Just (pos, evt) | pos == end && Event.is_negative evt ->
-            (Map.insert pos evt within, Map.delete pos post)
-        _ -> (within, post)
-    -- Omit at beginning.
-    (pre2, within3) = case Map.min within2 of
-        Just (pos, evt) | pos == start && Event.is_negative evt ->
-            (Map.insert pos evt pre, Map.delete pos within2)
-        _ -> (pre, within2)
 
 -- *** List [Event]
 
@@ -335,39 +304,16 @@ get (Events evts) = evts
 emap :: (EventMap -> EventMap) -> Events -> Events
 emap f (Events evts) = Events (f evts)
 
--- | The hairiness here is documented in 'split_range'.
-_split_range :: ScoreTime -> ScoreTime -> EventMap
-    -> (EventMap, EventMap, EventMap)
-_split_range start end events
-    -- A point selection always divides events into pre and post.
-    | start == end =
-        let (pre, post) = Map.split2 start events
-        in (pre, mempty, post)
-    | otherwise = (pre2, within3, post2)
-    where
-    (pre, within, post) = Map.split3 start end events
-    (within2, post2) = case Map.min post of
-        Just (pos, evt) | pos == end && Event.is_negative evt ->
-            (Map.insert pos evt within, Map.delete pos post)
-        _ -> (within, post)
-    (pre2, within3) = case Map.min within2 of
-        Just (pos, evt) | pos == start && Event.is_negative evt ->
-            (Map.insert pos evt pre, Map.delete pos within2)
-        _ -> (pre, within2)
-
+-- | Put events that overlap the range into within.
 _split_overlapping :: ScoreTime -> ScoreTime -> EventMap
     -> (EventMap, EventMap, EventMap)
-_split_overlapping start end events = (pre2, within3, post2)
+_split_overlapping start end events = (pre2, within2, post)
     where
     (pre, within, post) = Map.split3 start end events
-    (within2, post2) = case Map.min post of
-        Just (pos, evt) | Event.overlaps end evt ->
-            (Map.insert pos evt within, Map.delete pos post)
-        _ -> (within, post)
-    (pre2, within3) = case Map.max pre of
+    (pre2, within2) = case Map.max pre of
         Just (pos, evt) | Event.overlaps start evt ->
-            (Map.delete pos pre, Map.insert pos evt within2)
-        _ -> (pre, within2)
+            (Map.delete pos pre, Map.insert pos evt within)
+        _ -> (pre, within)
 
 {- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
     clipped so they don't overlap.  If events occur simultaneously, the event
@@ -396,27 +342,27 @@ merge (Events evts1) (Events evts2)
 
 {- | Clip overlapping event durations.  If two event positions coincide, the
     last prevails.  An event with duration overlapping another event will be
-    clipped.  If a positive duration event is followed by a negative duration
-    event, the duration of the positive one will clip the negative one.
-
-    The idea is that the 'Event.trigger' can't be moved, but the other end
-    corresponds to the duration, so it can be shortened by an overlapping
-    event.  However, it's assymetrical because a positive duration will win
-    over a negative one (so the end of the previous event is always unmoveable
-    to the following negative event looking back).  Also, a positive event can
-    be deleted if the next event's trigger point is <= its start.  Given the
-    precondition, this only happens if the next event is positive and its start
-    is equal.
+    clipped.
 
     The precondition is that the input events are sorted, the postcondition is
-    that no [pos .. pos+dur) ranges will overlap.  The output events will also
-    be sorted, though their 'Event.start's may have moved.
-
-    Though tracks should never have events starting <0, this can still happen
-    when Events are constructed by track slicing.
+    that they are still sorted and no [pos .. pos+dur) ranges will overlap.
 -}
 clip_events :: [Event.Event] -> [Event.Event]
-clip_events =
+clip_events = mapMaybe clip . Seq.zip_next
+    where
+    clip (cur, Nothing) = Just cur
+    clip (cur, Just next)
+        | Event.start next <= Event.start cur = Nothing
+        | Event.start next < Event.end cur =
+            Just $ Event.set_duration (Event.start next - Event.start cur) cur
+        | otherwise = Just cur
+
+-- | Like 'clip_events', except that negative events will clip their starts
+-- instead of their ends.  If a positive duration event is followed by
+-- a negative duration event, the duration of the positive one will clip the
+-- negative one.
+clip_negative_events :: [Event.Event] -> [Event.Event]
+clip_negative_events =
     Seq.sort_on Event.start . mapMaybe clip_duration . Seq.zip_neighbors
     where
     -- Why is this so complicated and irregular?

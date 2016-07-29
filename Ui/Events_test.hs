@@ -18,11 +18,8 @@ test_split_range = do
     let f start end evts = e_ranges $ Events.split_range start end
             (from_list [(p, d, showt p) | (p, d) <- evts])
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)]) ([0], [1], [2, 3])
-    equal (f 1 2 [(0, 0.5), (1, -0.5), (2, 1), (3, 1)]) ([0.5, 0], [], [2, 3])
     equal (f 1 2 [(0, 1), (1, 0.5), (2, -0.5), (3, 1)]) ([0], [1, 1.5], [3])
-    -- 0 dur events included at beginning, -0 included at end
     equal (f 1 2 [(0, 0), (1, 0), (2, 0), (3, 0)]) ([0], [1], [2, 3])
-    equal (f 1 2 [(0, -0), (1, -0), (2, -0), (3, -0)]) ([1, 0], [2], [3])
 
     -- A point selection divides into before and after, even for negative
     -- events.
@@ -96,21 +93,6 @@ test_insert = do
         [(0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25"),
             (2, 0, "2")]
 
-test_insert_negative_events = do
-    let f evts0 evts1 = extract $
-            Events.insert (pos_events evts0) (from_list evts1)
-    equal (f
-        [(1, -1, "a0")] [(2, -0.5, "b0")]) [(1, -1, "a0"), (2, -0.5, "b0")]
-    equal (f [(1, -1, "a0")] [(2, -2, "b0")]) [(2, -2, "b0")]
-    equal (f [(1, -1, "a0")] [(2, -1.5, "b0")]) [(1, -1, "a0"), (2, -1, "b0")]
-    equal (f [(0, 2, "a0"), (2, 2, "a1")] [(1, -1, "b0")])
-        [(0, 2, "a0"), (2, 2, "a1")]
-    equal (f [(0, 1, "a0"), (4, 2, "a1")] [(1.5, -1, "b0")])
-        [(0, 1, "a0"), (1.5, -0.5, "b0"), (4, 2, "a1")]
-    equal (f [(1.25, 0.25, "a0")] [(2, -1, "b0")])
-        [(1.25, 0.25, "a0"), (2, -0.5, "b0")]
-    equal (f [(0, -0, "a"), (1, -0, "b")] []) [(0, -0, "a"), (1, -0, "b")]
-
 -- TODO unimplemented.  I should do this with quickcheck.
 -- Not only to generate the events but also to report the failing input.
 test_properties = do
@@ -130,17 +112,8 @@ test_clip_events = do
     equal (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
     equal (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
     equal (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal (f [(1, -1, "a"), (2, -1, "b")]) [(1, -1, "a"), (2, -1, "b")]
-    equal (f [(1, -1, "a"), (2, -2, "b")]) [(1, -1, "a"), (2, -1, "b")]
-    equal (f [(0, 2, "a"), (1, -1, "b")]) [(0, 1, "a")]
     equal (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
-    equal (f [(0, 0.5, "a0"), (1, -5, "b0")]) [(0, 0.5, "a0"), (1, -0.5, "b0")]
     equal (f [(0, 2, "a"), (0, 1, "b")]) [(0, 1, "b")]
-    equal (f [(2, -2, "a"), (1, -1, "b")]) [(2, -2, "a")]
-    equal (f [(0, 1, "a0"), (1.5, -1, "b0"), (4, 2, "a1")])
-        [(0, 1, "a0"), (1.5, -0.5, "b0"), (4, 2, "a1")]
-    equal (f [(3, -3, "b"), (1, 1, "a")]) [(1, 1, "a"), (3, -1, "b")]
-    equal (f [(0, 0, "a"), (1, -0, "b")]) [(0, 0, "a"), (1, -0, "b")]
     equal (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
 
 test_remove = do

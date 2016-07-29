@@ -397,8 +397,8 @@ event_bindings = concat
 
     , command_char 's' "set dur" Edit.cmd_set_duration
     , command_char 'z' "set call duration" Edit.cmd_set_call_duration
-    , command_char 'Z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
-    , command_char 'g' "set beginning" Edit.cmd_set_beginning
+    , command_char 'Z' "toggle zero-dur" Edit.cmd_toggle_zero_timestep
+    , command_char 'g' "set start" Edit.cmd_set_start
 
     , bind_repeatable [] (Key.Char '.') "run last action"
         (Edit.run_action_at '.')

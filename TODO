@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Take range out of Selection.SelectedEvents?  If a caller wants to delete
+    the events, then it can just use a remove_events :: [Event].
+  * Use Edit.cmd_toggle_zero_timestep instead of cmd_toggle_zero_duration.
+    . But remove alter_duration, since ModifyEvent.selection_expanded does
+      that now.
   - linux fltk drawing: event ears draw as a solid bar
   * move Log.Stack to Util.CStack or Util.CallStack
   - It seems I get slicing on an already sliced track if I have an
@@ -10,6 +15,9 @@ UNSORTED
       [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
     . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
   Event.Negative:
+    - A -0 event at 0 is not visible.
+      . Also, [-(0, 1), -(0, 0)] the second event is not visible.
+    . Previously I couldn't have <--||-->, now I can't have <|<---|
     . I'm making Ui.Events treat negative logically instead of physically.
       But it's awkwardly halfway because I still index by start.
       Options:

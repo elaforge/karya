@@ -29,7 +29,6 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
 import Global
 import Types
@@ -134,7 +133,7 @@ insert_event text dur = do
     State.insert_block_events block_id track_id [Event.event pos dur text]
 
 -- | Different from 'cmd_insert_time' and 'cmd_delete_time' since it only
--- modifies one event.  Move back the next event, or move down the previous
+-- modifies one event.  Move back the next event, or move forward the previous
 -- event.  If the selection is non-zero, the event's duration will be modified
 -- to the selection.
 cmd_move_event_forward :: Cmd.M m => m ()
@@ -175,42 +174,8 @@ cmd_set_duration = modify_event_near_point modify
     where
     modify (start, end) event
         | Event.duration event == 0 = event
-        | Event.is_negative event =
-            Event.place start (Event.end event - start) event
-            -- limit start by end of negative event, or start of positive.
-            -- Events.insert does the clipping for positive events, but it's
-            -- not working for negative.  Should it?
+        | Event.is_negative event = Event.set_start start event
         | otherwise = set_dur (end - Event.start event) event
-
-cmd_toggle_zero_duration :: Cmd.M m => m ()
-cmd_toggle_zero_duration = do
-    (_, sel) <- Selection.get
-    ModifyEvents.selection $ \block_id track_id events -> do
-        tracknum <- State.get_tracknum_of block_id track_id
-        let (start, end) = Sel.range sel
-        Just <$> mapM (toggle_zero_duration block_id tracknum start end) events
-
--- When sel == start, then I have to pick something.
-toggle_zero_duration :: Cmd.M m => BlockId -> TrackNum
-    -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
-toggle_zero_duration block_id tracknum start end event
-    | Event.duration event /= 0 = return $ if Event.is_positive event
-        then Event.set_duration 0 event
-        else Event.set_start (Event.end event) event
-    | start == end && start == Event.trigger event = do
-        step <- Cmd.get_current_step
-        maybe_pos <- TimeStep.step_from
-            (if Event.is_negative event then -1 else 1)
-            step block_id tracknum start
-        case maybe_pos of
-            Nothing -> return event
-            Just pos -> toggle_zero_duration block_id tracknum
-                (min start pos) (max start pos) event
-    | Event.is_positive event && end > Event.start event =
-        return $ Event.set_end end event
-    | Event.is_negative event && start < Event.start event =
-        return $ Event.set_start start event
-    | otherwise = return event
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.
@@ -222,7 +187,8 @@ modify_event_near_point modify = do
         then prev_or_next (Sel.start_pos sel)
         else selection (Sel.range sel)
     where
-    selection = ModifyEvents.selection_expanded . ModifyEvents.event . modify
+    selection range = ModifyEvents.selection_expanded $ ModifyEvents.events $
+        return . Events.clip_negative_events . map (modify range)
     -- TODO Should I make this ModifyEvents.prev_or_next?
     prev_or_next pos = do
         (block_id, tracknums, track_ids, _, _) <- Selection.tracks
@@ -253,56 +219,42 @@ event_around pos events = case Events.split pos events of
     positive = Event.is_positive
     negative = Event.is_negative
 
--- | Toggle duration between zero and non-zero.
---
--- If the event is non-zero, then make it zero.  Otherwise, set its end to the
--- cursor.  Unless the cursor is on the event start, and then extend it by
--- a timestep.
+{- | Toggle duration between zero and non-zero.
+
+    If the event is non-zero, then make it zero.  Otherwise, set its end to the
+    cursor.  Unless the cursor is on the event start, and then extend it by
+    a timestep.
+
+    Previously I would \"zero\" negative duration to the 'Event.trigger', like
+    'cmd_set_duration'.  But because this is actually moving the start time, it
+    will delete a next event that starts where this one ends, which is
+    confusing.
+
+    Also I previously used the same event selection strategy as
+    'cmd_set_duration', which avoided the awkward point selection on zero-dur
+    event case, but it turned out to be unintuitive to use in practice, because
+    to toggle an event I'd have to put the selection on the next event.
+-}
 cmd_toggle_zero_timestep :: Cmd.M m => m ()
-cmd_toggle_zero_timestep = alter_duration toggle_zero_timestep
-
-toggle_zero_timestep :: Cmd.M m => BlockId -> TrackId -> Event.Event
-    -> m Event.Event
-toggle_zero_timestep block_id track_id event
-    | Event.duration event /= 0 = return $ Event.set_duration 0 event
-    | otherwise = do
+cmd_toggle_zero_timestep = do
+    (_, sel) <- Selection.get
+    ModifyEvents.selection_expanded $ \block_id track_id events -> do
         tracknum <- State.get_tracknum_of block_id track_id
+        let (start, end) = Sel.range sel
+        Just <$> mapM (toggle_zero_timestep block_id tracknum start end) events
+
+toggle_zero_timestep :: Cmd.M m => BlockId -> TrackNum
+    -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
+toggle_zero_timestep block_id tracknum start end event
+    | Event.duration event /= 0 = return $ Event.set_duration 0 event
+    | start == end && start == Event.trigger event = do
         step <- Cmd.get_current_step
-        end <- TimeStep.advance step block_id tracknum (Event.start event)
-        return $ case end of
-            Nothing -> event
-            Just end -> Event.set_duration (end - Event.start event) event
-
--- | Alter the duration of the selected events.  If the first selected track is
--- a note track, then modify only note tracks.  This is because control tracks
--- generally have zero duration events, while note tracks generally don't,
--- and if you want to alter duration of multiple tracks then you probably want
--- to affect one or the other, not both.  This is common because of collapsed
--- pitch tracks.
-alter_duration :: Cmd.M m =>
-    (BlockId -> TrackId -> Event.Event -> m Event.Event) -> m ()
-alter_duration alter = do
-    (view_id, sel) <- Selection.get
-    block_id <- State.block_id_of view_id
-    is_note <- first_track_is_note block_id sel
-    let wanted = if is_note
-            then fmap ParseTitle.is_note_track . State.get_track_title
-            else const (return True)
-    ModifyEvents.selection_expanded $ \_ track_id events ->
-        ifM (wanted track_id)
-            (Just <$> mapM (alter block_id track_id) events)
-            (return Nothing)
-
-first_track_is_note :: State.M m => BlockId -> Sel.Selection -> m Bool
-first_track_is_note block_id sel =
-    find =<< Sel.tracknums <$> State.track_count block_id <*> return sel
-    where
-    find [] = return False
-    find (tracknum:tracknums) =
-        State.event_track_at block_id tracknum >>= \case
-            Nothing -> find tracknums
-            Just track_id -> ParseTitle.is_note_track
-                <$> State.get_track_title track_id
+        maybe_pos <- TimeStep.step_from 1 step block_id tracknum start
+        case maybe_pos of
+            Nothing -> return event
+            Just pos -> return $ Event.set_end pos event
+    | end > Event.start event = return $ Event.set_end end event
+    | otherwise = return event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -320,8 +272,8 @@ first_track_is_note block_id sel =
 -- TODO for zero duration events, this is equivalent to
 -- 'cmd_move_event_backward'.  I'm not totally happy about the overlap, is
 -- there a more orthogonal organization?
-cmd_set_beginning :: Cmd.M m => m ()
-cmd_set_beginning = do
+cmd_set_start :: Cmd.M m => m ()
+cmd_set_start = do
     (_, sel) <- Selection.get
     (_, _, track_ids, _, _) <- Selection.tracks
     let pos = Selection.point sel
