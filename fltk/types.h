@@ -54,7 +54,7 @@ ScoreTime operator X(const ScoreTime &o) const { \
 }
     OP(+) OP(-)
 #undef OP
-#define OP(X) bool operator X(const ScoreTime &o) const { return _val X o._val; }
+#define OP(X) bool operator X(const ScoreTime &o) const {return _val X o._val;}
     OP(==) OP(!=) OP(<) OP(<=) OP(>) OP(>=)
 #undef OP
     // The only reason this isn't private is so the haskell FFI can see it.

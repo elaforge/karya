@@ -30,6 +30,9 @@ static const double rank_brightness = 1.35;
 // The color of events with a negative duration is scaled by this.
 static const double negative_duration_brightness = .85;
 
+// Height of the ears on either side of the trigger line.
+static const double trigger_height = 7;
+
 // Don't use INT_MIN because it overflows too easily.
 enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
 
@@ -616,15 +619,15 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 // Draw trigger line.  This will draw ranked trigger lines on top of unranked
 // ones, but it's ok because they coincide.
 static void
-draw_trigger(bool draw_text, int x, int y, int w, const Event &event, int rank)
+draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
+    int rank, int track_start_y)
 {
     Color color = draw_text || !event.text
-        ? Config::event_trigger_color
-        : Config::abbreviation_color;
+        ? Config::event_trigger_color : Config::abbreviation_color;
 
     fl_color(color.fl());
     fl_line_style(FL_SOLID, 0);
-    double h1 = 6;
+    double h1 = trigger_height;
     double cx = 2;
     double cy = 2;
     double h2 = 0.5;
@@ -632,6 +635,10 @@ draw_trigger(bool draw_text, int x, int y, int w, const Event &event, int rank)
         h1 *= -1;
         cy *= -1;
         h2 *= -1;
+
+        // A -0 event at 0 will be invisible, so bump it down just enough to
+        // see what it is.
+        y = std::max(y, track_start_y + 4.0);
     }
 
     fl_begin_polygon();
@@ -754,7 +761,8 @@ EventTrackView::draw_upper_layer(
     // fl_color(FL_BLUE);
     // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
 
-    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank);
+    int track_start_y = this->track_start() - zoom.to_pixels(zoom.offset);
+    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank, track_start_y);
     if (draw_text) {
         // Word wrapping only applies to positive events.  I would need
         // additional code to get them working for negative events, since the
