@@ -365,14 +365,15 @@ EventTrackView::draw_area()
     else
         this->update_child(this->overlay_ruler);
 
+    // Offset of previous rank 0 event, since this is only used when drawing
+    // a rank 0 negative trigger.
+    int prev_offset = MIN_PIXEL;
     std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
     // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
         int rank = ranks[i];
+        // Next event offset on the same side.
         int next_offset = MAX_PIXEL;
-        int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
-        // Find the next event offset on the same side.
-        // TODO negative events should do this for the prev_offset
         for (int j = i+1; j < count; j++) {
             if ((rank && ranks[j]) || (!rank && !ranks[j])) {
                 next_offset = offsets[j];
@@ -385,6 +386,8 @@ EventTrackView::draw_area()
         prev_rects = this->draw_upper_layer(
             offsets[i], events[i], rank, prev_offset, next_offset,
             prev_rects.first, prev_rects.second);
+        if (!rank)
+            prev_offset = offsets[i];
     }
     if (count) {
         for (int i = 0; i < count; i++) {
@@ -620,7 +623,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 // ones, but it's ok because they coincide.
 static void
 draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
-    int rank, int track_start_y)
+    int rank, int prev_limit)
 {
     Color color = draw_text || !event.text
         ? Config::event_trigger_color : Config::abbreviation_color;
@@ -635,10 +638,11 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
         h1 *= -1;
         cy *= -1;
         h2 *= -1;
-
         // A -0 event at 0 will be invisible, so bump it down just enough to
         // see what it is.
-        y = std::max(y, track_start_y + 4.0);
+        if (!rank) {
+            y = std::max(y, prev_limit + 3.0);
+        }
     }
 
     fl_begin_polygon();
@@ -703,10 +707,6 @@ EventTrackView::draw_upper_layer(
         (rank ? event_style->text_color.brightness(rank_brightness)
             : event_style->text_color).fl());
 
-    // DEBUG("---------event " << event.text << " " << prev_offset << ", "
-    //     << offset << ", " << next_offset
-    //     << " prev " << prev_unranked_rect << " / " << prev_ranked_rect);
-
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
@@ -757,12 +757,14 @@ EventTrackView::draw_upper_layer(
     // The various pixel tweaks in here were determined by zooming in and
     // squinting.
 
-    // DEBUG("offset " << offset << ", text_rect " << text_rect);
-    // fl_color(FL_BLUE);
-    // fl_rect(text_rect.x, text_rect.y, text_rect.w, text_rect.h);
-
-    int track_start_y = this->track_start() - zoom.to_pixels(zoom.offset);
-    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank, track_start_y);
+    // Don't draw above 0 since I can't scroll further up to see it.  Also
+    // don't draw on top of the previous trigger line.  Since the limit only
+    // applies to negative events, which draw upwards, this prevents an overlap
+    // for [-(0, 1), -(1, 0)].
+    int prev_limit = std::max(
+        this->track_start() - zoom.to_pixels(zoom.offset),
+        prev_offset);
+    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank, prev_limit);
     if (draw_text) {
         // Word wrapping only applies to positive events.  I would need
         // additional code to get them working for negative events, since the

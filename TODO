@@ -16,7 +16,7 @@ UNSORTED
     . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
   Event.Negative:
     * A -0 event at 0 is not visible.
-      - Also, [-(0, 1), -(1, 0)] the second event is not visible.
+      * Also, [-(0, 1), -(1, 0)] the second event is not visible.
     . Previously I couldn't have <--||-->, now I can't have <|<---|
     . I'm making Ui.Events treat negative logically instead of physically.
       But it's awkwardly halfway because I still index by start.
