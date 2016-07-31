@@ -162,6 +162,18 @@ test_toggle_zero_timestep = do
     equal (run [(0, 0), (4, 0)] 1 1) $ Right ([(0, 1), (4, 0)], [])
     equal (run [(1, -0), (4, -0)] 1 1) $ Right ([(2, -1), (4, -0)], [])
 
+test_join_events = do
+    let run tracks start end = e_start_dur_text $
+            run_events_sel Edit.cmd_join_events tracks start end
+    equal (run [(0, 2), (2, 2)] 1 1) $ Right ([(0, 4, "a")], [])
+    equal (run [(0, 2), (2, 2), (6, 2)] 2 8) $
+        Right ([(0, 2, "a"), (2, 6, "b")], [])
+    equal (run [(0, 0), (2, 0)] 1 1) $ Right ([(0, 0, "a")], [])
+    equal (run [(0, -0), (2, -0)] 1 1) $ Right ([(2, -0, "b")], [])
+    equal (run [(2, -2), (4, -2)] 1 1) $ Right ([(4, -4, "b")], [])
+    -- Don't try for mixed polarities.
+    equal (run [(0, 2), (4, -2)] 1 1) $ Right ([(0, 2, "a"), (4, -2, "b")], [])
+
 -- * util
 
 -- | Run with events and a selection.

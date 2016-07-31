@@ -309,8 +309,8 @@ modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $ \evt ->
 cmd_join_events :: Cmd.M m => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
-    -- If I only selected one, join with the next.  Otherwise, join selected
-    -- events.
+    -- If I only selected one, join with the next.  Otherwise, join select
+    -- first to last.
     process (track_id, (_, [evt1], evt2:_)) = join track_id evt1 evt2
     process (track_id, (_, events@(_ : _ : _), _)) =
         join track_id (head events) (last events)
@@ -318,21 +318,24 @@ cmd_join_events = mapM_ process =<< Selection.events_around
     join track_id evt1 evt2 =
         -- Yes, this deletes any "backwards" events in the middle, but that
         -- should be ok.
-        case (Event.is_negative evt1, Event.is_negative evt2) of
-            (False, False) -> do
-                let end = Event.end evt2
-                State.remove_event_range track_id (Event.start evt1) end
-                -- If evt2 is zero dur, the above half-open range won't get it.
-                State.remove_event track_id (Event.start evt2)
-                State.insert_event track_id $
-                    set_dur (end - Event.start evt1) evt1
+        case (Event.is_positive evt1, Event.is_positive evt2) of
             (True, True) -> do
-                let start = Event.end evt1
-                State.remove_event_range track_id start (Event.start evt2)
-                State.remove_event track_id (Event.start evt2)
+                remove_range track_id evt1 evt2
                 State.insert_event track_id $
-                    set_dur (start - Event.start evt2) evt2
+                    set_dur (Event.end evt2 - Event.start evt1) evt1
+            (False, False) -> do
+                remove_range track_id evt1 evt2
+                State.insert_event track_id $ if Event.duration evt2 == 0
+                    then evt2
+                    else Event.place (Event.start evt1)
+                        (Event.end evt2 - Event.start evt1) evt2
             _ -> return () -- no sensible way to join these
+    remove_range track_id evt1 evt2 = do
+        State.remove_event_range track_id (Event.start evt1) (Event.end evt2)
+        -- If evt2 is zero dur, the above half-open range won't get it.
+        when (Event.duration evt2 == 0) $
+            State.remove_event track_id (Event.start evt2)
+
 
 -- | Split the events under the cursor.
 cmd_split_events :: Cmd.M m => m ()

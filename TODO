@@ -3,12 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * test Edit.cmd_join_events
   * Take range out of Selection.SelectedEvents?  If a caller wants to delete
     the events, then it can just use a remove_events :: [Event].
   * Use Edit.cmd_toggle_zero_timestep instead of cmd_toggle_zero_duration.
     . But remove alter_duration, since ModifyEvent.selection_expanded does
       that now.
-  - linux fltk drawing: event ears draw as a solid bar
   * move Log.Stack to Util.CStack or Util.CallStack
   - It seems I get slicing on an already sliced track if I have an
     intermediate empty note track, e.g.:
@@ -59,14 +59,6 @@ UNSORTED
     . Not really sure what this means, but it didn't have to be fatal.
   - Fix verify_performance for save/complete/blue-hat
   - LEvent.invert_note is deleting the pitch instead of putting it at the end
-  - Track titles are still cramped, and even with the expand thing it's still
-    awkward to edit text in them, and annoying to not be able to see what's in
-    them.  Much of the problem is that for editing I want the tracks to be
-    narrow as possible, but that's too small for editing the title.
-    . How about making the title expand horizontally in addition to
-      vertically?
-  - Manually fiddling with track widths is annoying.  It seems like I could
-    ask the UI about text extents to resize them automatically.
   - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to be
     a parse error, '>pemade |', and then fix it, it forgets that it was called
     from the root, so presumably it gets cached as a zero and the fix doesn't
@@ -972,6 +964,17 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - linux fltk drawing: event ears draw as a solid bar
+  - Track titles are still cramped, and even with the expand thing it's still
+    awkward to edit text in them, and annoying to not be able to see what's in
+    them.  Much of the problem is that for editing I want the tracks to be
+    narrow as possible, but that's too small for editing the title.
+    . How about making the title expand horizontally in addition to
+      vertically?
+  - Manually fiddling with track widths is annoying.  It seems like I could
+    ask the UI about text extents to resize them automatically.
+  - I never wound up using rank > 1, so presumably I could simplify things by
+    calling it 'bool align_right' or something.
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.  This is visible when I add logical range markers.
