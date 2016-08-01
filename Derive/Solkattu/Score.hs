@@ -293,6 +293,37 @@ t3s = korvais (adi 6) mridangam
         , (tang.ga, [u, __])
         ]
 
+t4s :: [Korvai]
+t4s = korvais (adi 6) mridangam $ map (purvangam.)
+    [ let tdgnt = [ta, din, gin, na, thom] in
+        mconcatMap (.__.__) tdgnt . mconcatMap (.__) tdgnt
+        . tri_ __ (mconcat tdgnt)
+    , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
+    , tri_ (dheem.__3) (p5.ta.__.din.__.ta.din.__)
+    , p123 p6 (dheem.__3)
+
+    , p123 p5 (tat.__3.din.__3)
+    , let dinga s = din!s . __ . ga
+        in p5.dinga u . ta.ka . p5.p5. dinga i . ta.ka.ti.ku . p5.p5.p5
+    , tri (tat.dinga . tat.__.dinga.p5)
+    ]
+    where
+    p123 p karvai = p.karvai . p.p.karvai . p.p.p
+    purvangam = tri (ta_katakita . din.__6)
+    ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
+    mridangam = make_mridangam
+        [ (ta.din.gin.na.thom, [k, t, k, n, o])
+        , (ta.ka.(ta.ki.ta).(ta.ka), [t, p, k, t, k, t, k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ta.din, [k, od])
+        , (dheem, [u])
+        , (din, [od])
+        , (tat, [k])
+        , (ta.ka.ti.ku, [k, p, n, p])
+        , (ta.ka, [k, p])
+        , (dinga, [od, p])
+        ]
+
 tisrams :: [Korvai]
 tisrams = concat
     [ t1s, t2s, t3s
