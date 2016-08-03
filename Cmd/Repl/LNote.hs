@@ -37,7 +37,7 @@ note_controls = do
 
 -- | Merge the selected note tracks into one.
 merge :: Cmd.CmdL ()
-merge = ModifyNotes.selection $ ModifyNotes.note $ set_index 0
+merge = ModifyNotes.selection $ ModifyNotes.note $ ModifyNotes.index #= 0
 
 -- | Distribute the notes among the given number of tracks, round-robin.  Since
 -- only each note only carries over the controls in its extent, if there are
@@ -47,7 +47,7 @@ distribute_n :: Int -> Cmd.CmdL ()
 distribute_n tracks = ModifyNotes.selection $ \_ notes -> return $
         zipWith (modify tracks) [0..] (map fst notes)
     where
-    modify tracks n note = note { ModifyNotes.note_index = n `mod` tracks }
+    modify tracks n = ModifyNotes.index #= n `mod` tracks
 
 -- | Like 'distribute_n', but use only the selected tracks.
 distribute :: Cmd.CmdL ()
@@ -63,7 +63,7 @@ compact =
     ModifyNotes.selection $ const $
         return . snd . List.mapAccumL allocate [] . map fst
     where
-    allocate state note = (next, set_index i note)
+    allocate state note = (next, ModifyNotes.index #= i $ note)
         where
         (i, next) = find_index (ModifyNotes.note_start note)
             (ModifyNotes.note_end note) state
@@ -94,10 +94,10 @@ split_on_pitch high_index break_nn =
     allocate (low_alloc, high_alloc) (note, maybe_nn)
         | maybe True (<=break_nn) maybe_nn =
             let (i, next) = find low_alloc
-            in ((next, high_alloc), set_index i note)
+            in ((next, high_alloc), ModifyNotes.index #= i $ note)
         | otherwise =
             let (i, next) = find high_alloc
-            in ((low_alloc, next), set_index (high_index + i) note)
+            in ((low_alloc, next), ModifyNotes.index #= (high_index + i) $ note)
         where
         find = find_index (ModifyNotes.note_start note)
             (ModifyNotes.note_end note)
@@ -133,7 +133,7 @@ bump_index index m =
 
 extract :: State a -> [ModifyNotes.Note]
 extract state = concat $
-    [ map (set_index i . fst) (reverse notes)
+    [ map ((ModifyNotes.index #= i) . fst) (reverse notes)
     | (i, notes) <- Map.toAscList state
     ]
 
@@ -142,6 +142,3 @@ type State annot = Map.Map ModifyNotes.Index [(ModifyNotes.Note, annot)]
 
 insert_cons :: Ord k => k -> a -> Map.Map k [a] -> Map.Map k [a]
 insert_cons k a = Map.alter (Just . maybe [a] (a:)) k
-
-set_index :: ModifyNotes.Index -> ModifyNotes.Note -> ModifyNotes.Note
-set_index i note = note { ModifyNotes.note_index = i }

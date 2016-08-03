@@ -524,12 +524,9 @@ lookup_call_duration block_id track_id event =
 cmd_invert_orientation :: Cmd.M m => m ()
 cmd_invert_orientation = ModifyNotes.selection $ ModifyNotes.note invert
     where
-    invert note = note
-        { ModifyNotes.note_orientation =
-            Event.invert (ModifyNotes.note_orientation note)
-        , ModifyNotes.note_controls =
-            invert_control note <$> ModifyNotes.note_controls note
-        }
+    invert note = ModifyNotes.orientation %= Event.invert $
+        ModifyNotes.controls %= fmap (invert_control note) $
+        note
     invert_control note events = case Events.ascending events of
         [event]
             | zero_dur event && positive

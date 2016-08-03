@@ -47,6 +47,7 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
+import qualified Util.Lens as Lens
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -87,6 +88,22 @@ data Note = Note {
 
 note_end :: Note -> TrackTime
 note_end note = note_start note + note_duration note
+
+start = Lens.lens note_start
+    (\f r -> r { note_start = f (note_start r) })
+duration = Lens.lens note_duration
+    (\f r -> r { note_duration = f (note_duration r) })
+orientation = Lens.lens note_orientation
+    (\f r -> r { note_orientation = f (note_orientation r) })
+text = Lens.lens note_text
+    (\f r -> r { note_text = f (note_text r) })
+controls = Lens.lens note_controls
+    (\f r -> r { note_controls = f (note_controls r) })
+index = Lens.lens note_index
+    (\f r -> r { note_index = f (note_index r) })
+
+end = Lens.lens note_end
+    (\f r -> r { note_start = f (note_end r) - note_duration r })
 
 -- | Each note has an Index, which indicates which of the selected note tracks
 -- it came from, or should be written to.
