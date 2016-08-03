@@ -16,7 +16,7 @@ void alpha_rectf(IRect r, Color c)
 {
     if (!fl_not_clipped(r.x, r.y, r.w, r.h))
         return;
-    // If it has no alpha, don't bother doing the aplha stuff.
+    // Fast path for no alpha.
     if (c.a == 0xff) {
         fl_color(c.fl());
         fl_rectf(r.x, r.y, r.w, r.h);
@@ -31,13 +31,7 @@ void alpha_rectf(IRect r, Color c)
         data[i] = c.r;
         data[i+1] = c.g;
         data[i+2] = c.b;
-        // Just for fun, make the last line more transparent.
-        /*
-        if (r.h > 1 && i >= r.w * (r.h-1) * 4)
-            data[i+3] = c.a / 3;
-        else
-        */
-            data[i+3] = c.a;
+        data[i+3] = c.a;
     }
     Fl_RGB_Image im(data, r.w, r.h, 4);
     im.draw(r.x, r.y);
