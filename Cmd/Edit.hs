@@ -23,6 +23,7 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
@@ -160,7 +161,7 @@ move_event modify = do
         whenJust (modify pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
             State.insert_block_events block_id track_id
-                [Event.move (const pos) event]
+                [Event.move_to pos event]
 
 
 -- | Extend the events in the selection to either the end of the selection or
@@ -358,7 +359,7 @@ set_dur dur evt
     | otherwise = Event.set_duration dur evt
 
 place :: TrackTime -> TrackTime -> Event.Event -> Event.Event
-place start dur = Event.move (const start) . set_dur dur
+place start dur = Event.move_to start . set_dur dur
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
@@ -519,6 +520,29 @@ lookup_call_duration block_id track_id event =
             return $ Just $ case dur of
                 Derive.Unknown -> Event.duration event
                 Derive.CallDuration dur -> dur
+
+cmd_invert_orientation :: Cmd.M m => m ()
+cmd_invert_orientation = ModifyNotes.selection $ ModifyNotes.note invert
+    where
+    invert note = note
+        { ModifyNotes.note_orientation =
+            Event.invert (ModifyNotes.note_orientation note)
+        , ModifyNotes.note_controls =
+            invert_control note <$> ModifyNotes.note_controls note
+        }
+    invert_control note events = case Events.ascending events of
+        [event]
+            | zero_dur event && positive
+                    && Event.start event == ModifyNotes.note_start note ->
+                Events.singleton $
+                    Event.move_to (ModifyNotes.note_end note) event
+            | zero_dur event && Event.end event == ModifyNotes.note_end note ->
+                Events.singleton $
+                    Event.move_to (ModifyNotes.note_start note) event
+        _ -> events
+        where
+        positive = ModifyNotes.note_orientation note == Event.Positive
+        zero_dur = (==0) . Event.duration
 
 -- * modify text
 

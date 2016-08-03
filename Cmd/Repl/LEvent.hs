@@ -21,7 +21,6 @@ import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
@@ -140,7 +139,7 @@ resolve_conflicts :: [TrackTime] -> [Event.Event] -> [Event.Event]
 resolve_conflicts _ [] = []
 resolve_conflicts points (event : events) =
     event : resolve_conflicts points_after
-        (map (Event.move (const bump)) group ++ rest)
+        (map (Event.move_to bump) group ++ rest)
     where
     (group, rest) = span ((== Event.start event) . Event.start) events
     bump = fromMaybe (Event.start event + 1) (Seq.head points_after)
@@ -185,32 +184,3 @@ insert events = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id
         [Event.event (start + pos) dur text | (start, dur, text) <- events]
-
--- * negative events
-
-invert :: Monad m => ModifyEvents.Track m
-invert = ModifyEvents.event $ \event ->
-    Event.set_orientation (Event.invert (Event.orientation event)) event
-
--- | Use with 'ModifyNotes.selection' to invert notes and realign its controls.
--- TODO only it doesn't seem to correctly put a pitch event at the end.
-invert_note :: Monad m => ModifyNotes.ModifyNotes m
-invert_note = ModifyNotes.note $ \note -> note
-    { ModifyNotes.note_start = ModifyNotes.note_end note
-    , ModifyNotes.note_duration = - ModifyNotes.note_duration note
-    , ModifyNotes.note_controls = (if ModifyNotes.note_duration note < 0
-        then to_positive (ModifyNotes.note_end note)
-        else to_negative (ModifyNotes.note_start note)) <$>
-            ModifyNotes.note_controls note
-    }
-    where
-    to_positive start events = case Events.last events of
-        Just final | Event.duration final == 0 ->
-            Events.singleton $ Event.move (const start) $
-                Event.set_duration 0 final
-        _ -> events
-    to_negative end events = case Events.head events of
-        Just first | Event.duration first == 0 ->
-            Events.singleton $ Event.move (const end) $
-                Event.set_duration (-0) first
-        _ -> events

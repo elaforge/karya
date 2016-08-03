@@ -495,7 +495,7 @@ apply_modifications :: [Modify] -> Event.Event -> Event.Event
 apply_modifications mods event = List.foldl' go event mods
     where
     go event mod = ($event) $ case mod of
-        Position p -> Event.move (const p)
+        Position p -> Event.move_to p
         Duration d -> Event.set_duration d
         Set text -> Event.modify_text (const text)
         Prefix text -> Event.modify_text (text<>)

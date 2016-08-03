@@ -195,14 +195,14 @@ deallocate :: Cmd.M m => Score.Instrument -> m ()
 deallocate inst = State.modify_config $ State.allocations_map %= Map.delete inst
 
 -- | Toggle and return the new value.
-toggle_mute :: State.M m => Instrument -> m Bool
-toggle_mute inst = modify_common_config inst $ \config ->
+mute :: State.M m => Instrument -> m Bool
+mute inst = modify_common_config inst $ \config ->
     let mute = not $ Common.config_mute config
     in (config { Common.config_mute = mute }, mute)
 
 -- | Toggle and return the new value.
-toggle_solo :: State.M m => Instrument -> m Bool
-toggle_solo inst = modify_common_config inst $ \config ->
+solo :: State.M m => Instrument -> m Bool
+solo inst = modify_common_config inst $ \config ->
     let solo = not $ Common.config_solo config
     in (config { Common.config_solo = solo }, solo)
 

@@ -16,7 +16,7 @@ import Types
 
 test_split_events = do
     let run events sel = e_start_dur $
-            run_sel (start_dur_events events) Edit.cmd_split_events 1 sel sel
+            run_sel (start_dur_events events) Edit.cmd_split_events sel sel
     equal (run [(0, 4)] 0) $ Right ([(0, 4)], [])
     equal (run [(0, 4)] 2) $ Right ([(0, 2), (2, 2)], [])
     equal (run [(2, 2)] 3) $ Right ([(2, 1), (3, 1)], [])
@@ -29,7 +29,7 @@ test_split_events = do
 test_set_duration = do
     -- I don't know why this function is so hard to get right, but it is.
     let run events start end = e_start_dur $
-            run_sel (start_dur_events events) Edit.cmd_set_duration 1 start end
+            run_sel (start_dur_events events) Edit.cmd_set_duration start end
     -- |--->   |---> => take pre
     let events = [(0, 2), (4, 2)]
     equal [run events p p | p <- Seq.range 0 6 1] $ map (Right . (,[]))
@@ -174,6 +174,22 @@ test_join_events = do
     -- Don't try for mixed polarities.
     equal (run [(0, 2), (4, -2)] 1 1) $ Right ([(0, 2, "a"), (4, -2, "b")], [])
 
+test_cmd_invert_orientation = do
+    let run tracks = CmdTest.e_tracks $ CmdTest.run_tracks tracks $ do
+            CmdTest.set_sel 1 0 2 0
+            Edit.cmd_invert_orientation
+    equal (run [(">", [(0, 2, "1")])])
+        (Right ([(">", [(2, -2, "1")])], []))
+    equal (run [(">", [(0, 2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])])
+        (Right ([(">", [(2, -2, "1")]), ("*", [(2, 0, "4c")])], []))
+    equal (run [(">", [(2, -2, "1")])]) $
+        Right ([(">", [(0, 2, "1")])], [])
+    equal (run [(">", [(2, -2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])])
+        (Right ([(">", [(0, 2, "1")]), ("*", [(0, 0, "4d")])], []))
+    -- Don't move controls if there isn't exactly one control at start.
+    equal (run [(">", [(0, 2, "1")]), ("*", [(1, 0, "4d")])])
+        (Right ([(">", [(2, -2, "1")]), ("*", [(1, 0, "4d")])], []))
+
 -- * util
 
 -- | Run with events and a selection.
@@ -181,16 +197,15 @@ run_events_sel :: Cmd.CmdId a -> [(TrackTime, TrackTime)]
     -> TrackTime -> TrackTime
     -> CmdTest.Result a
 run_events_sel cmd events start end =
-    CmdTest.run_tracks_ruler (start_dur_events events) $
-    with_sel 1 start end cmd
+    CmdTest.run_tracks_ruler (start_dur_events events) $ do
+        CmdTest.set_sel 1 start 1 end
+        cmd
 
-run_sel :: [UiTest.TrackSpec] -> Cmd.CmdId a -> TrackNum -> ScoreTime
+run_sel :: [UiTest.TrackSpec] -> Cmd.CmdId a -> ScoreTime
     -> ScoreTime -> CmdTest.Result a
-run_sel tracks cmd tracknum start end = CmdTest.run_tracks tracks $
-    with_sel tracknum start end cmd
-
-with_sel :: Cmd.M m => TrackNum -> ScoreTime -> ScoreTime -> m a -> m a
-with_sel tracknum start end = (CmdTest.set_sel tracknum start tracknum end >>)
+run_sel tracks cmd start end = CmdTest.run_tracks tracks $ do
+    CmdTest.set_sel 1 start 1 end
+    cmd
 
 start_dur_events :: [(TrackTime, TrackTime)] -> [UiTest.TrackSpec]
 start_dur_events events =

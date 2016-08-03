@@ -38,7 +38,7 @@ module Ui.Event (
     -- * start, duration
     , end, trigger, range, overlaps
     , min, max
-    , move, set_start, set_end
+    , move, move_to, set_start, set_end
     , place, round, set_duration, modify_duration, modify_end
     , set_orientation, is_negative, is_positive
     , orientation_as_duration
@@ -116,6 +116,7 @@ stack = _stack
     that way.
 -}
 data Orientation = Positive | Negative deriving (Eq, Read, Show)
+instance Pretty.Pretty Orientation where pretty = showt
 
 invert :: Orientation -> Orientation
 invert Positive = Negative
@@ -215,6 +216,9 @@ overlaps p event
 -- | Move both start and end, so the duration remains the same.
 move :: (ScoreTime -> ScoreTime) -> Event -> Event
 move f event = modified $ event { _start = f (start event) }
+
+move_to :: ScoreTime -> Event -> Event
+move_to p = move (const p)
 
 -- | Move the start only.  The duration can't go past 0, so the start can't
 -- move past the end.

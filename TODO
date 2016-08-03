@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * bind a key to invert a note
+    - ModifyNotes.selection should use the Selection.events_around rules
+    - if only control tracks are selected, invert events directly
   * test Edit.cmd_join_events
   * Take range out of Selection.SelectedEvents?  If a caller wants to delete
     the events, then it can just use a remove_events :: [Event].
