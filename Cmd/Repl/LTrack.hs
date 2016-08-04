@@ -110,13 +110,13 @@ selected :: Cmd.M m => m [Event.Event]
 selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
     track_id <- Cmd.require "selected track" (Seq.head track_ids)
-    Events.ascending . Events.in_range start end . Track.track_events <$>
-        State.get_track track_id
+    Events.ascending . Events.in_range (Events.Positive start end)
+        . Track.track_events <$> State.get_track track_id
 
 events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
 events_range track_id start end = do
     track <- State.get_track track_id
-    return $ Events.ascending $ Events.in_range start end $
+    return $ Events.ascending $ Events.in_range (Events.Positive start end) $
         Track.track_events track
 
 selected_notation :: Cmd.M m => TrackTime -> m Text

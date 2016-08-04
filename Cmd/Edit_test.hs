@@ -184,6 +184,8 @@ test_cmd_invert_orientation = do
         (Right ([(">", [(2, -2, "1")]), ("*", [(2, 0, "4c")])], []))
     equal (run [(">", [(2, -2, "1")])]) $
         Right ([(">", [(0, 2, "1")])], [])
+    -- Since a negative note gets the control at the end, it should also
+    -- clear it when it replaces it.
     equal (run [(">", [(2, -2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])])
         (Right ([(">", [(0, 2, "1")]), ("*", [(0, 0, "4d")])], []))
     -- Don't move controls if there isn't exactly one control at start.

@@ -131,12 +131,13 @@ slice exclude_start start end insert_event (Tree.Node track subs) =
 extract_note_events :: Bool -> ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
 extract_note_events exclude_start start end events =
-    (if exclude_start then exclude_s else id) $
-        let (pre, within, post) = Events.split_range_or_point start end events
-        in (Events.descending pre, within, Events.ascending post)
+    (if exclude_start then exclude_s else id)
+        (Events.descending pre, within, Events.ascending post)
     where
+    (pre, within, post) =
+        Events.split_range (Events.range Event.Positive start end) events
     exclude_s (pre, within, post) = case Events.at start within of
-        Just event -> (event : pre, Events.remove_event start within, post)
+        Just event -> (event : pre, Events.remove_at start within, post)
         Nothing -> (pre, within, post)
 
 extract_control_events :: ScoreTime -> ScoreTime
@@ -144,7 +145,7 @@ extract_control_events :: ScoreTime -> ScoreTime
     -- ^ (descending_pre, within, ascending_post)
 extract_control_events start end events = (pre, Events.from_list within, post2)
     where
-    (pre, post1) = case Events.split start events of
+    (pre, post1) = case Events.split_lists start events of
         (at_1:pre, at:post) | Event.start at > start -> (pre, at_1:at:post)
         (at_1:pre, []) -> (pre, [at_1])
         a -> a
@@ -243,7 +244,8 @@ events_in_range include_end start end events
     | include_end =
         maybe within (\e -> Events.insert [e] within) (Events.at end post)
     | otherwise = within
-    where (_, within, post) = Events.split_range start end events
+    where
+    (_, within, post) = Events.split_range (Events.Positive start end) events
 
 strip_note :: Note -> Maybe Note
 strip_note (start, dur, tree)

@@ -23,7 +23,7 @@ import Types
 -- * query
 
 notes :: Cmd.CmdL [(ModifyNotes.Note, TrackId)]
-notes = ModifyNotes.selection_notes
+notes = ModifyNotes.selected_notes
 
 note_controls :: Cmd.CmdL
     [(ModifyNotes.Note, (Maybe PSignal.Transposed, Score.ControlValMap))]

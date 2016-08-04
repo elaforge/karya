@@ -725,8 +725,8 @@ events_around_tracks block_id track_ids start end = do
     split_range track =
         (Events.descending pre, Events.ascending within, Events.ascending post)
         where
-        (pre, within, post) = Events.split_range_or_point start end
-            (Track.track_events track)
+        (pre, within, post) = Events.split_range
+            (Events.range Event.Positive start end) (Track.track_events track)
 
 -- ** select tracks
 

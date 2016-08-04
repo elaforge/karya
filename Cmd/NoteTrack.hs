@@ -210,7 +210,7 @@ should_create_control block_id track is_control = case Info.track_type track of
 event_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
 event_at_or_before track_id pos = do
     track <- State.get_track track_id
-    let (pre, post) = Events.split pos (Track.track_events track)
+    let (pre, post) = Events.split_lists pos (Track.track_events track)
     return $ case (pre, post) of
         (_, next : _) | Event.start next == pos -> pos
         (prev : _, _) -> Event.start prev

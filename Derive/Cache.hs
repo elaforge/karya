@@ -311,7 +311,7 @@ get_tempo_damage block_id track_id track_end events = do
         case Ranges.extract ranges of
             Nothing -> Ranges.everything
             Just [] -> Ranges.nothing
-            Just ((s, _) : _) -> case Events.split s events of
+            Just ((s, _) : _) -> case Events.split_lists s events of
                 (prev : _, _) ->
                     Ranges.range (Event.start prev) track_end
                 ([], _) -> Ranges.range s track_end
@@ -345,7 +345,7 @@ _extend_control_damage :: ScoreTime -> Events.Events
 _extend_control_damage track_end events = Ranges.fmap (extend1 events)
     where
     extend1 events (s, e) = (event_at_before s events, event_after e events)
-    event_at_before p events = case Events.split p events of
+    event_at_before p events = case Events.split_lists p events of
         (_, at : _) | p == Event.start at -> p
         (prev : _, _) -> Event.start prev
         _ -> p

@@ -10,29 +10,28 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import Ui.Events (Range(..))
 import Global
 import Types
 
 
 test_split_range = do
-    let f start end evts = e_ranges $ Events.split_range start end
-            (from_list [(p, d, showt p) | (p, d) <- evts])
-    equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)]) ([0], [1], [2, 3])
-    equal (f 1 2 [(0, 1), (1, 0.5), (2, -0.5), (3, 1)]) ([0], [1, 1.5], [3])
-    equal (f 1 2 [(0, 0), (1, 0), (2, 0), (3, 0)]) ([0], [1], [2, 3])
-
-    -- A point selection divides into before and after, even for negative
-    -- events.
-    equal (f 1 1 [(1, 1)]) ([], [], [1])
-    equal (f 1 1 [(1, -1)]) ([0], [], [])
-
-test_split_range_or_point = do
-    let f start evts = e_ranges $ Events.split_range_or_point start start
-            (from_list [(p, d, showt p) | (p, d) <- evts])
-    equal (f 1 [(0, 1), (2, 1), (4, 1)]) ([0], [], [2, 4])
-    equal (f 2 [(0, 1), (2, 1), (4, 1)]) ([0], [2], [4])
-    equal (f 1 [(0, 1), (3, -1), (4, 1)]) ([0], [], [2, 4])
-    equal (f 2 [(0, 1), (3, -1), (4, 1)]) ([0], [2], [4])
+    let f range evts = e_ranges $ Events.split_range range $
+            from_list [(p, d, showt p) | (p, d) <- evts]
+    equal (f (Positive 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
+        ([0], [1], [2, 3])
+    equal (f (Positive 1 2) [(0, 1), (1, 0.5), (2, -0.5), (3, 1)])
+        ([0], [1, 1.5], [3])
+    equal (f (Positive 1 2) [(0, 0), (1, 0), (2, 0), (3, 0)])
+        ([0], [1], [2, 3])
+    -- Negative.
+    equal (f (Negative 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
+        ([1, 0], [2], [3])
+    -- An empty range divides into before and after, even for negative events.
+    equal (f (Positive 1 1) [(1, 1)]) ([], [], [1])
+    equal (f (Positive 1 1) [(1, -1)]) ([0], [], [])
+    -- Point gets the one exactly at.
+    equal (f (Inclusive 1 1) [(0, 1), (1, 1), (2, 1)]) ([0], [1], [2])
 
 e_ranges :: (Events.Events, Events.Events, Events.Events)
     -> ([TrackTime], [TrackTime], [TrackTime])
@@ -117,21 +116,21 @@ test_clip_events = do
     equal (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
 
 test_remove = do
-    let events1 = from_list [(0, 0, "0"), (16, 1, "16")]
+    let f range = extract $
+            Events.remove range (from_list [(0, 0, "0"), (16, 1, "16")])
     -- able to remove 0 dur events
-    equal (extract $ Events.remove_event 0 events1) [(16, 1, "16")]
+    equal (f (Inclusive 0 0)) [(16, 1, "16")]
 
-    let f = Events.remove
-    -- doesn't include end of range
-    equal (extract $ f 0 16 events1) [(16, 1, "16")]
+    equal (f (Positive 0 16)) [(16, 1, "16")]
+    equal (f (Negative 0 16)) [(0, 0, "0")]
     -- get it all
-    equal (extract $ f 0 17 events1) []
+    equal (f (Positive 0 17)) []
     -- missed entirely
-    equal (extract $ f 4 10 events1) [(0, 0, "0"), (16, 1, "16")]
+    equal (f (Positive 4 10)) [(0, 0, "0"), (16, 1, "16")]
 
 test_round_events = do
     let move events =
-            Events.insert [next] $ Events.remove_event (Event.start e) events
+            Events.insert [next] $ Events.remove_at (Event.start e) events
             where
             e = Maybe.fromJust $ Events.head events
             next = Event.move (+ 1/3) e

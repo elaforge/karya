@@ -51,7 +51,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
+import qualified Util.Tree
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -182,31 +182,38 @@ note f _ = return . map (f . fst)
 -- I verify that the transformation worked.  TODO revisit this if it's annoying
 selection :: Cmd.M m => ModifyNotes m -> m ()
 selection modify = do
-    (block_id, _, track_ids, start, end) <- Selection.tracks
-    note_trees <- extract_note_trees block_id track_ids
-    -- Make sure subsequent operations only apply to the note tracks and their
-    -- descendents.
-    track_ids <- return $ map State.track_id $ concatMap Tree.flatten note_trees
-    old_notes <- Cmd.require_right id =<< notes_from_range note_trees start end
+    old_notes <- selected_notes
+    block_id <- Cmd.get_focused_block
     new_notes <- mapM verify =<< modify block_id old_notes
     -- Clear selected events before merging in new ones.
-    forM_ track_ids $ \tid -> State.remove_event_range tid start end
-    -- A negative event will get controls at the end time.  It won't get
-    -- controls at its start time, so maybe I should not delete those, but
-    -- I'll worry about that later if it's a problem in practice.
-    let negatives = filter ((==Event.Negative) . note_orientation) $
-            map fst old_notes
-    forM_ negatives $ \note -> forM_ (note_control_track_ids note) $ \tid ->
-        State.remove_event tid (note_end note)
+    let ranges = remove_ranges old_notes
+    forM_ ranges $ \(track_id, range) ->
+        State.remove_event_range track_id range
+    let track_ids = map fst ranges
     write_tracks block_id track_ids (merge_notes new_notes)
 
+remove_ranges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]
+remove_ranges = concatMap range . Seq.group_snd
+    where
+    range ([], _) = [] -- shouldn't happen, per Seq.group_snd's postcondition
+    range (notes@(note : _), track_id) =
+        (track_id, Events.Inclusive start (maximum (map note_start notes)))
+        : map (, range) (note_control_track_ids note)
+        where
+        start = minimum (map note_start notes)
+        end = maximum (map note_end notes)
+        -- All Notes with the same TrackId should also have the same
+        -- note_control_track_ids.
+        range = Events.range (note_orientation note) start end
+
 -- | Find the top-level note tracks in the selection, and reduce them down to
--- Notes, sorted by start time.
-selection_notes :: Cmd.M m => m [(Note, TrackId)]
-selection_notes = do
-    (block_id, _, track_ids, start, end) <- Selection.tracks
-    note_trees <- extract_note_trees block_id track_ids
-    Cmd.require_right id =<< notes_from_range note_trees start end
+-- Notes.
+selected_notes :: Cmd.M m => m [(Note, TrackId)]
+selected_notes = do
+    let is_note = fmap ParseTitle.is_note_track . State.get_track_title . fst
+    sel <- filterM is_note =<< Selection.events
+    tree <- TrackTree.track_tree_of =<< Cmd.get_focused_block
+    slice_tracks tree sel
 
 verify :: Cmd.M m => Note -> m Note
 verify note
@@ -262,30 +269,22 @@ stack_matches track_id start end =
 
 -- * read
 
-notes_from_range :: State.M m => TrackTree.TrackTree
-    -> TrackTime -> TrackTime -> m (Either Error [(Note, TrackId)])
-notes_from_range note_trees start end = do
-    let traverse2 = traverse . traverse
-    event_tracks <- traverse2 (get_events start end) note_trees
-    return $ extract_notes event_tracks
+slice_tracks :: State.M m => TrackTree.TrackTree -> [(TrackId, [Event.Event])]
+    -> m [(Note, TrackId)]
+slice_tracks tree = concatMapM slice . zip [0..]
     where
-    get_events start end track =
-        (track,) . extract start end <$> State.get_track (State.track_id track)
-    extract start end track
-        | ParseTitle.is_note_track (Track.track_title track) =
-            Events.in_range_point start end $ Track.track_events track
-        | otherwise = Track.track_events track
-
-extract_note_trees :: State.M m => BlockId -> [TrackId]
-    -> m TrackTree.TrackTree
-extract_note_trees block_id track_ids =
-    Tree.filter (wanted_track (Set.fromList track_ids)) <$>
-        TrackTree.track_tree_of block_id
-    where
-    -- | Accept the top level note tracks.
-    wanted_track track_ids track =
-        ParseTitle.is_note_track (State.track_title track)
-        && State.track_id track `Set.member` track_ids
+    slice :: State.M m => (Index, (TrackId, [Event.Event]))
+        -> m [(Note, TrackId)]
+    slice (index, (track_id, events)) =
+        case Util.Tree.find ((==track_id) . State.track_id) tree of
+            Nothing -> return []
+            Just (Tree.Node _track subs) -> do
+                subs <- mapM (traverse get_events) subs
+                notes <- State.require_right id $
+                    mapM (slice_note index subs) events
+                return $ map (, track_id) notes
+    get_events track =
+        (track,) . Track.track_events <$> State.get_track (State.track_id track)
 
 -- | The whole thing fails if a title is unparseable or the control tracks have
 -- a fork in the skeleton.
@@ -293,30 +292,21 @@ extract_note_trees block_id track_ids =
 -- This is similar to 'Derive.Slice.slice' and I initially spent some time
 -- trying to reuse it, but it's different enough that most of the work that
 -- slice does doesn't apply here.
-extract_notes :: [Tree.Tree (State.TrackInfo, Events.Events)]
-    -> Either Error [(Note, TrackId)]
-extract_notes tree =
-    Seq.merge_lists (note_start . fst) <$> zipWithM extract_track [0..] tree
-    where
-    extract_track index (Tree.Node (track, events) subs) =
-        annotate ("note track " <> showt (State.track_id track)) $
-        mapM (fmap (, State.track_id track) . extract_note index subs)
-            (Events.ascending events)
-    extract_note :: Index -> [Tree.Tree (State.TrackInfo, Events.Events)]
-        -> Event.Event -> Either Error Note
-    extract_note index subs event = do
-        controls <- extract_controls (Event.orientation event)
-            (Event.range event) subs
-        return $ Note
-            { note_start = Event.start event
-            , note_duration = Event.duration event
-            , note_orientation = Event.orientation event
-            , note_text = Event.text event
-            , note_controls = Map.fromList controls
-            , note_index = index
-            , note_control_track_ids = map (State.track_id . fst) $
-                concatMap Tree.flatten subs
-            }
+slice_note :: Index -> [Tree.Tree (State.TrackInfo, Events.Events)]
+    -> Event.Event -> Either Error Note
+slice_note index subs event = do
+    controls <- extract_controls (Event.orientation event)
+        (Event.range event) subs
+    return $ Note
+        { note_start = Event.start event
+        , note_duration = Event.duration event
+        , note_orientation = Event.orientation event
+        , note_text = Event.text event
+        , note_controls = Map.fromList controls
+        , note_index = index
+        , note_control_track_ids = map (State.track_id . fst) $
+            concatMap Tree.flatten subs
+        }
 
 extract_controls :: Event.Orientation -> (TrackTime, TrackTime)
     -> [Tree.Tree (State.TrackInfo, Events.Events)]
@@ -394,6 +384,17 @@ write_tracks block_id track_ids tracks = do
                 State.add_edges block_id [(State.track_tracknum p, tracknum)]
             create (tracknum + length tracks) rest
 
+extract_note_trees :: State.M m => BlockId -> [TrackId]
+    -> m TrackTree.TrackTree
+extract_note_trees block_id track_ids =
+    Util.Tree.filter (wanted_track (Set.fromList track_ids)) <$>
+        TrackTree.track_tree_of block_id
+    where
+    -- | Accept the top level note tracks.
+    wanted_track track_ids track =
+        ParseTitle.is_note_track (State.track_title track)
+        && State.track_id track `Set.member` track_ids
+
 merge_controls :: State.M m => BlockId -> TrackId -> TrackTree.TrackTree
     -> [(Control, Events.Events)] -> m ()
 merge_controls block_id note_track_id tree controls = do
@@ -431,11 +432,14 @@ tracknum_after block_id track_ids = do
 bottom_track :: State.M m => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 bottom_track block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Seq.maximum_on State.track_tracknum . Tree.leaves
-        =<< Tree.find ((==track_id) . State.track_id) tree
+    return $ Seq.maximum_on State.track_tracknum . Util.Tree.leaves
+        =<< Util.Tree.find ((==track_id) . State.track_id) tree
 
 parent_of :: State.M m => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 parent_of block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Seq.head [track | (track, _, children) <- Tree.flat_paths tree,
-        track_id `elem` map State.track_id children]
+    return $ Seq.head
+        [ track
+        | (track, _, children) <- Util.Tree.flat_paths tree
+        , track_id `elem` map State.track_id children
+        ]

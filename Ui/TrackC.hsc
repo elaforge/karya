@@ -144,7 +144,7 @@ cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     -- Almost, but not quite the same as 'Events.in_range_around'.
     in_range start end events =
         take 1 pre ++ Then.takeWhile1 ((<=end) . Event.start) post
-        where (pre, post) = Events.split start events
+        where (pre, post) = Events.split_lists start events
 
 foreign import ccall "wrapper"
     c_make_find_events :: FindEvents -> IO (FunPtr FindEvents)

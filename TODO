@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   * bind a key to invert a note
-    - ModifyNotes.selection should use the Selection.events_around rules
+    * ModifyNotes.selection should use the Selection.events_around rules
     - if only control tracks are selected, invert events directly
   * test Edit.cmd_join_events
   * Take range out of Selection.SelectedEvents?  If a caller wants to delete

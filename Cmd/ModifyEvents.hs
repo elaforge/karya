@@ -175,13 +175,11 @@ move_events :: ScoreTime -- ^ events past the block end are shortened or removed
     -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 move_events block_end point shift events = merged
     where
-    -- If the last event has 0 duration, the selection will not include it.
-    -- Ick.  Maybe I need a less error-prone way to say "select until the end
-    -- of the track"?
-    end = Events.time_end events + 1
     shifted = Events.clip False block_end $
         map (Event.move (+shift)) (Events.at_after point events)
-    merged = Events.insert shifted (Events.remove point end events)
+    -- Inclusive in case the last event is zero duration.
+    merged = Events.insert shifted $
+        Events.remove (Events.Inclusive point (Events.time_end events)) events
 
 -- * replace tokens
 

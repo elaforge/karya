@@ -308,7 +308,7 @@ track_events dir event_start block_id tracknum start tracks = case tracks of
     at_before p events = case post of
             e : _ | Event.start e == p -> e : pre
             _ -> pre
-        where (pre, post) = Events.split p events
+        where (pre, post) = Events.split_lists p events
 
 merge_points :: Direction -> [[TrackTime]] -> [TrackTime]
 merge_points Advance = Seq.drop_dups id . Seq.merge_lists id

@@ -12,6 +12,7 @@
 module Ui.Events (
     -- * events
     Events
+    , Range(..), range
     , empty, null, length, time_begin, time_end
 
     -- ** list conversion
@@ -22,7 +23,7 @@ module Ui.Events (
     , map_events, clip
 
     -- ** insert / remove
-    , insert, remove, remove_event
+    , insert, remove, remove_at
     , merge
 
     -- ** lookup
@@ -30,11 +31,11 @@ module Ui.Events (
 
     -- ** split
     -- *** events
-    , split_range, split_range_or_point, split_at, split_at_exclude
-    , in_range, in_range_point
+    , split_range, split, split_exclude
+    , in_range
     , around
     -- *** List [Event]
-    , split
+    , split_lists
     , at_after, after, before
     , split_at_before
     , find_overlaps
@@ -59,6 +60,31 @@ import qualified Ui.ScoreTime as ScoreTime
 import Global
 import Types
 
+
+data Range =
+    Inclusive ScoreTime ScoreTime
+    | Positive ScoreTime ScoreTime
+    | Negative ScoreTime ScoreTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Range where
+    pretty r = case r of
+        Inclusive s e -> pretty s <> "++" <> pretty e
+        Positive s e -> pretty s <> "+-" <> pretty e
+        Negative s e -> pretty s <> "-+" <> pretty e
+        -- the [1, 2) notation looks really confusing in context.
+
+range :: Event.Orientation -> ScoreTime -> ScoreTime -> Range
+range orientation start end
+    | start == end = Inclusive start end
+    | orientation == Event.Positive = Positive (min start end) (max start end)
+    | otherwise = Negative (min start end) (max start end)
+
+range_times :: Range -> (ScoreTime, ScoreTime)
+range_times r = case r of
+    Inclusive s e -> (s, e)
+    Positive s e -> (s, e)
+    Negative s e -> (s, e)
 
 -- * events
 
@@ -135,15 +161,16 @@ round_event event =
     Event.place (ScoreTime.round (Event.start event))
         (ScoreTime.round (Event.duration event)) event
 
--- | Remove events in the half-open range.  Since the range is half-open, if
--- start==end this will never remove any events.  Use 'remove_event' for that.
-remove :: ScoreTime -> ScoreTime -> Events -> Events
-remove start end events = emap (`Map.difference` deletes) events
-    where (_, deletes, _) = Map.split3 start end (get events)
+-- | Remove events in the range.
+remove :: Range -> Events -> Events
+remove range events = case range of
+    Inclusive start end | start == end -> emap (Map.delete start) events
+    _ -> case split_range range events of
+        (_, Events within, _) -> emap (`Map.difference` within) events
 
 -- | Remove an event if it occurs exactly at the given pos.
-remove_event :: ScoreTime -> Events -> Events
-remove_event pos = emap (Map.delete pos)
+remove_at :: ScoreTime -> Events -> Events
+remove_at t = remove (Inclusive t t)
 
 -- ** lookup
 
@@ -158,7 +185,7 @@ overlapping pos events
         Just next
     | prev : _ <- pre, Event.end prev > pos = Just prev
     | otherwise = Nothing
-    where (pre, post) = split pos events
+    where (pre, post) = (descending *** ascending) $ split pos events
 
 head :: Events -> Maybe Event.Event
 head (Events events) = snd <$> Map.min events
@@ -171,49 +198,43 @@ last (Events events) = snd <$> Map.max events
 
 -- *** events
 
--- | Split into tracks before, within, and after the half-open range.
--- Since this is a half-open range, if start==end then within will always be
--- empty.
-split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
-split_range start end events = (Events pre, Events within, Events post)
-    where (pre, within, post) = Map.split3 start end (get events)
-
--- | Like 'split_range', but if start==end, an event whose trigger exactly
--- matches will be in the within value.
-split_range_or_point :: ScoreTime -> ScoreTime -> Events
-    -> (Events, Events, Events)
-split_range_or_point start end events
-    | start == end = case at of
-        Just e -> (Events pre, singleton e, Events post)
-        Nothing -> case Map.max pre of
-            Just (p, e) | Event.trigger e == start ->
-                (Events (Map.delete p pre), singleton e, Events post)
-            _ -> (Events pre, mempty, Events post)
-    | otherwise = split_range start end events
-    where (pre, at, post) = Map.splitLookup start (get events)
+split_range :: Range -> Events -> (Events, Events, Events)
+split_range range (Events events) = (Events pre, Events within, Events post)
+    where
+    (pre, within, post) = adjust_end $ adjust_start $
+        Map.split3 start end events
+    (start, end) = range_times range
+    adjust_start (pre, within, post)
+        | not want_start, Just (t, evt) <- Map.min within, t == start =
+            (Map.insert t evt pre, Map.delete t within, post)
+        | otherwise = (pre, within, post)
+    adjust_end (pre, within, post)
+        | want_end, Just (t, evt) <- Map.min post, t == end =
+            (pre, Map.insert t evt within, Map.delete t post)
+        | otherwise = (pre, within, post)
+    want_start = case range of
+        Negative {} -> False
+        _ -> True
+    want_end = case range of
+        Positive {} -> False
+        _ -> True
 
 -- | Split at the given time.  An event that starts at the give time will
 -- appear in the above events.
-split_at :: ScoreTime -> Events -> (Events, Events)
-split_at pos (Events events) = (Events pre, Events post)
+split :: ScoreTime -> Events -> (Events, Events)
+split pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split2 pos events
 
--- | Liek 'split_at', but an event that matches exactly is excluded from the
+-- | Like 'split', but an event that matches exactly is excluded from the
 -- result.
-split_at_exclude :: ScoreTime -> Events -> (Events, Events)
-split_at_exclude pos (Events events) = (Events pre, Events post)
+split_exclude :: ScoreTime -> Events -> (Events, Events)
+split_exclude pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split pos events
 
 -- | Like 'split_range', but only return the middle part.
-in_range :: ScoreTime -> ScoreTime -> Events -> Events
-in_range start end events = within
-    where (_, within, _) = split_range start end events
-
--- | Like 'in_range', but if start==end then get an event that matches exactly.
-in_range_point :: ScoreTime -> ScoreTime -> Events -> Events
-in_range_point start end events
-    | start == end = maybe mempty singleton $ at start events
-    | otherwise = in_range start end events
+in_range :: Range -> Events -> Events
+in_range range events = within
+    where (_, within, _) = split_range range events
 
 -- | Get events in the given range, plus surrounding.  If there is no event at
 -- 'start', the previous event will be included.  The event after 'end' is
@@ -233,15 +254,12 @@ around start end = emap (split_around start end)
 
 -- *** List [Event]
 
--- | Return the events before the given @pos@, and the events at and after it.
--- No special treatment for negative events.
-split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split pos (Events events) = (to_desc_list pre, to_asc_list post)
-    where (pre, post) = Map.split2 pos events
+split_lists :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+split_lists pos = (descending *** ascending) . split pos
 
 -- | Events whose start is at or after @pos@.
 at_after :: ScoreTime -> Events -> [Event.Event]
-at_after pos = snd . split pos
+at_after pos = snd . split_lists pos
 
 -- | Events whose start is strictly after @pos@.
 after :: ScoreTime -> Events -> [Event.Event]
@@ -251,7 +269,7 @@ after pos events = case at_after pos events of
 
 -- | Events whose start before @pos@.
 before :: ScoreTime -> Events -> [Event.Event]
-before pos = fst . split pos
+before pos = fst . split_lists pos
 
 -- | This is like 'split', but if there isn't an event exactly at the pos then
 -- put the previous one in the post list.
@@ -260,7 +278,7 @@ split_at_before pos events
     | next : _ <- post, Event.start next == pos = (pre, post)
     | before : prepre <- pre = (prepre, before:post)
     | otherwise = (pre, post)
-    where (pre, post) = split pos events
+    where (pre, post) = split_lists pos events
 
 -- * implementation
 

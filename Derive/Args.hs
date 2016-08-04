@@ -131,10 +131,10 @@ lookup_prev_note_pitch args =
     lookup_pitch_at <=< Derive.real . Event.start
 
 note_before :: TrackTime -> Events.Events -> Maybe Event.Event
-note_before p = Events.last . fst . Events.split_at_exclude p
+note_before p = Events.last . fst . Events.split_exclude p
 
 note_after :: TrackTime -> Events.Events -> Maybe Event.Event
-note_after p = Events.head . snd . Events.split_at_exclude p
+note_after p = Events.head . snd . Events.split_exclude p
 
 get_note_events :: Derive.Deriver Events.Events
 get_note_events = do

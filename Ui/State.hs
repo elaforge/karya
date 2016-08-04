@@ -109,7 +109,7 @@ module Ui.State (
     , insert_events, insert_block_events, insert_event
     , get_events, get_event, get_all_events
     , modify_events, modify_some_events, calculate_damage
-    , remove_event, remove_events, remove_event_range
+    , remove_event, remove_events, remove_event_range, remove_from
     , track_event_end
 
     -- * ruler
@@ -1258,14 +1258,15 @@ insert_block_events block_id track_id events = do
 insert_event :: M m => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
 
-get_events :: M m => TrackId -> TrackTime -> TrackTime -> m [Event.Event]
-get_events track_id start end = do
+get_events :: M m => TrackId -> Events.Range -> m [Event.Event]
+get_events track_id range = do
     events <- Track.track_events <$> get_track track_id
-    return $ Events.ascending $ Events.in_range_point start end events
+    return $ Events.ascending $ Events.in_range range events
 
 -- | Get an event at or before the given time.
 get_event :: M m => TrackId -> TrackTime -> m (Maybe Event.Event)
-get_event track_id pos = Seq.head <$> get_events track_id pos pos
+get_event track_id pos =
+    Seq.head <$> get_events track_id (Events.Inclusive pos pos)
 
 get_all_events :: M m => TrackId -> m [Event.Event]
 get_all_events = (Events.ascending . Track.track_events <$>) . get_track
@@ -1302,30 +1303,28 @@ remove_event :: M m => TrackId -> TrackTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
     case Events.at pos events of
         Nothing -> (events, Ranges.nothing)
-        Just event -> (Events.remove_event pos events, events_range [event])
+        Just event -> (Events.remove_at pos events, events_range [event])
 
--- | Just like @map (remove_event track_id)@ but more efficient.
+-- | Just like @mapM_ (remove_event track_id)@ but more efficient.
 remove_events :: M m => TrackId -> [TrackTime] -> m ()
 remove_events _ [] = return ()
-remove_events track_id starts = do
-    remove_event_range track_id (minimum starts) (maximum starts)
-    -- The range excludes the end.
-    remove_event track_id (maximum starts)
+remove_events track_id starts =
+    remove_event_range track_id
+        (Events.Inclusive (minimum starts) (maximum starts))
 
--- | Remove any events whose starting positions fall within the half-open
--- range given, or under the point if the selection is a point.
-remove_event_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
-remove_event_range track_id start end
-    | start == end = remove_event track_id start
-    | otherwise = remove_event_strict_range track_id start end
+-- | Remove any events whose starting positions fall within a range.
+remove_event_range :: M m => TrackId -> Events.Range -> m ()
+remove_event_range track_id range = _modify_events track_id $ \events ->
+    ( Events.remove range events
+    , events_range (Events.ascending (Events.in_range range events))
+    )
 
--- | Remove any events whose starting positions strictly fall within the
--- half-open range given.
-remove_event_strict_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
-remove_event_strict_range track_id start end =
-    _modify_events track_id $ \events ->
-        let evts = Events.ascending (Events.in_range start end events)
-        in (Events.remove start end events, events_range evts)
+-- | Remove from the pont to the end.
+remove_from :: M m => TrackId -> TrackTime -> m ()
+remove_from track_id start = do
+    end <- track_event_end track_id
+    -- +1 to get final event if it's 0 dur.  It seems gross, but it works.
+    remove_event_range track_id (Events.Positive start (end + 1))
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime

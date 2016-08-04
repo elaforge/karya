@@ -54,13 +54,13 @@ split_time_at from_block_id pos block_name = do
     tracks <- State.tracknums_of from_block_id
     -- Copy over the new events.
     track_events <- forM tracks $ \(track_id, tracknum) -> do
-        events <- snd . Events.split pos . Track.track_events <$>
+        events <- Events.at_after pos . Track.track_events <$>
             State.get_track track_id
         let shifted = map (Event.move (subtract pos)) events
         return (tracknum, shifted)
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
-        events <- fst . Events.split_at pos . Track.track_events <$>
+        events <- fst . Events.split pos . Track.track_events <$>
             State.get_track track_id
         let clipped = Events.from_list $ Events.clip False pos $
                 Events.ascending events
@@ -176,14 +176,14 @@ selection_at relative name block_id tracknums track_ids start end = do
     to_block_id <- Create.named_block name ruler_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- State.get_track_title track_id
-        events <- Events.in_range_point start end . Track.track_events <$>
-            State.get_track track_id
+        events <- Events.in_range (Events.range Event.Positive start end)
+            . Track.track_events <$> State.get_track track_id
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
             Events.map_events (Event.move (subtract start)) events
     clipped_skeleton block_id to_block_id tracknums
     -- Clear selected range and put in a call to the new block.
-    Edit.clear_range track_ids start end
+    Edit.clear_range track_ids (Events.Positive start end)
     whenJust (Seq.head track_ids) $ \track_id ->
         State.insert_event track_id $ Event.event start (end-start)
             (Eval.block_id_to_call relative block_id to_block_id)

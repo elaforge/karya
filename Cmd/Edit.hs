@@ -139,7 +139,7 @@ insert_event text dur = do
 -- to the selection.
 cmd_move_event_forward :: Cmd.M m => m ()
 cmd_move_event_forward = move_event $ \pos events ->
-    case Events.split pos events of
+    case Events.split_lists pos events of
         (_, next : _) | Event.start next == pos -> Nothing
         (prev : _, _) -> Just prev
         _ -> Nothing
@@ -203,7 +203,7 @@ modify_event_near_point modify = do
             State.insert_event track_id $ modify (pos, pos) event
 
 event_around :: TrackTime -> Events.Events -> Maybe Event.Event
-event_around pos events = case Events.split pos events of
+event_around pos events = case Events.split_lists pos events of
     (pre:_, _) | Event.overlaps pos pre && pos /= Event.trigger pre -> Just pre
     -- |--->    |---> => take pre
     (pre:_, posts) | positive pre && maybe True positive (Seq.head posts) ->
@@ -279,7 +279,7 @@ cmd_set_start = do
     (_, _, track_ids, _, _) <- Selection.tracks
     let pos = Selection.point sel
     forM_ track_ids $ \track_id -> do
-        (pre, post) <- Events.split pos . Track.track_events <$>
+        (pre, post) <- Events.split_lists pos . Track.track_events <$>
             State.get_track track_id
         let set = set_beginning track_id pos
         case (pre, post) of
@@ -332,7 +332,8 @@ cmd_join_events = mapM_ process =<< Selection.events_around
                         (Event.end evt2 - Event.start evt1) evt2
             _ -> return () -- no sensible way to join these
     remove_range track_id evt1 evt2 = do
-        State.remove_event_range track_id (Event.start evt1) (Event.end evt2)
+        State.remove_event_range track_id
+            (Events.Positive (Event.start evt1) (Event.end evt2))
         -- If evt2 is zero dur, the above half-open range won't get it.
         when (Event.duration evt2 == 0) $
             State.remove_event track_id (Event.start evt2)
@@ -373,7 +374,7 @@ cmd_insert_time = do
         case Events.split_at_before start (Track.track_events track) of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                remove_events_from track_id (min (Event.start event) start)
+                State.remove_from track_id (min (Event.start event) start)
                 State.insert_block_events block_id track_id $
                     map (insert_event_time start (end-start)) events
 
@@ -409,7 +410,7 @@ delete_time block_id track_id start dur = do
     case Events.split_at_before start (Track.track_events track) of
         (_, []) -> return ()
         (_, events@(event:_)) -> do
-            remove_events_from track_id (min (Event.start event) start)
+            State.remove_from track_id (min (Event.start event) start)
             State.insert_block_events block_id track_id
                 (mapMaybe (delete_event_time start dur) events)
 
@@ -446,13 +447,6 @@ delete_event_time start shift event
     overlaps p = start <= p && p < end
     overlaps_end p = start < p && p <= end
 
-remove_events_from :: State.M m => TrackId -> TrackTime -> m ()
-remove_events_from track_id start = do
-    end <- State.track_event_end track_id
-    -- +1 to get final event if it's 0 dur.  It seems gross, but it works and
-    -- otherwise I'd need to add a function to Ui.State.
-    State.remove_event_range track_id start (end + 1)
-
 -- | If the range is a point, then expand it to one timestep.
 point_to_timestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
     -> m (TrackTime, TrackTime)
@@ -470,11 +464,11 @@ point_to_timestep [] start end = return (start, end)
 cmd_clear_selected :: Cmd.M m => m ()
 cmd_clear_selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
-    clear_range track_ids start end
+    clear_range track_ids (Events.Positive start end)
 
-clear_range :: State.M m => [TrackId] -> TrackTime -> TrackTime -> m ()
-clear_range track_ids start end =
-    forM_ track_ids $ \track_id -> State.remove_event_range track_id start end
+clear_range :: State.M m => [TrackId] -> Events.Range -> m ()
+clear_range track_ids range =
+    forM_ track_ids $ \track_id -> State.remove_event_range track_id range
 
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
