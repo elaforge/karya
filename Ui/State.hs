@@ -107,8 +107,7 @@ module Ui.State (
     , blocks_with_track_id
     -- ** events
     , insert_events, insert_block_events, insert_event
-    , get_events, get_event, get_all_events
-    , modify_events, modify_some_events, calculate_damage
+    , get_events, modify_events, modify_some_events, calculate_damage
     , remove_event, remove_events, remove_event_range, remove_from
     , track_event_end
 
@@ -1258,18 +1257,8 @@ insert_block_events block_id track_id events = do
 insert_event :: M m => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
 
-get_events :: M m => TrackId -> Events.Range -> m [Event.Event]
-get_events track_id range = do
-    events <- Track.track_events <$> get_track track_id
-    return $ Events.ascending $ Events.in_range range events
-
--- | Get an event at or before the given time.
-get_event :: M m => TrackId -> TrackTime -> m (Maybe Event.Event)
-get_event track_id pos =
-    Seq.head <$> get_events track_id (Events.Inclusive pos pos)
-
-get_all_events :: M m => TrackId -> m [Event.Event]
-get_all_events = (Events.ascending . Track.track_events <$>) . get_track
+get_events :: M m => TrackId -> m Events.Events
+get_events track_id = Track.track_events <$> get_track track_id
 
 -- | Modify the events on a track, and assume the entire track has been
 -- damaged.
@@ -1328,8 +1317,7 @@ remove_from track_id start = do
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime
-track_event_end track_id =
-    Events.time_end . Track.track_events <$> get_track track_id
+track_event_end = fmap Events.time_end . get_events
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous

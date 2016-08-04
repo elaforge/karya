@@ -56,7 +56,6 @@ import qualified Util.Tree
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -283,8 +282,7 @@ slice_tracks tree = concatMapM slice . zip [0..]
                 notes <- State.require_right id $
                     mapM (slice_note index subs) events
                 return $ map (, track_id) notes
-    get_events track =
-        (track,) . Track.track_events <$> State.get_track (State.track_id track)
+    get_events track = (track,) <$> State.get_events (State.track_id track)
 
 -- | The whole thing fails if a title is unparseable or the control tracks have
 -- a fork in the skeleton.

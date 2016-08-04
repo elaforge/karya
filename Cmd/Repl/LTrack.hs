@@ -50,10 +50,8 @@ orphans = Set.elems <$> Create.orphan_tracks
 remove_empty :: BlockId -> Cmd.CmdL ()
 remove_empty block_id = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
-    mapM_ State.destroy_track =<< filterM is_empty track_ids
-    where
-    is_empty = fmap ((==Events.empty) . Track.track_events)
-        . State.get_track
+    mapM_ State.destroy_track
+        =<< filterM (fmap Events.null . State.get_events) track_ids
 
 remove_all_empty :: Cmd.CmdL ()
 remove_all_empty = mapM_ remove_empty =<< State.all_block_ids
@@ -102,22 +100,19 @@ duplicate source_block source_tracknum dest_block dest_tracknum = do
 -- * events
 
 events :: State.M m => TrackId -> m [Event.Event]
-events track_id = do
-    track <- State.get_track track_id
-    return $ Events.ascending $ Track.track_events track
+events = fmap Events.ascending . State.get_events
 
 selected :: Cmd.M m => m [Event.Event]
 selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
     track_id <- Cmd.require "selected track" (Seq.head track_ids)
-    Events.ascending . Events.in_range (Events.Positive start end)
-        . Track.track_events <$> State.get_track track_id
+    Events.ascending . Events.in_range (Events.Positive start end) <$>
+        State.get_events track_id
 
 events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
-events_range track_id start end = do
-    track <- State.get_track track_id
-    return $ Events.ascending $ Events.in_range (Events.Positive start end) $
-        Track.track_events track
+events_range track_id start end =
+    Events.ascending . Events.in_range (Events.Positive start end) <$>
+        State.get_events track_id
 
 selected_notation :: Cmd.M m => TrackTime -> m Text
 selected_notation step = do

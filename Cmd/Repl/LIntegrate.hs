@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
@@ -77,8 +78,8 @@ edits block_id track_id = do
     index <- Cmd.require "track is not integrated from anywhere" $
         lookup track_id $ indices_of (Block.block_integrated block)
             (Block.block_integrated_tracks block)
-    events <- State.get_all_events track_id
-    let (deleted, edits) = Merge.diff_events index events
+    events <- State.get_events track_id
+    let (deleted, edits) = Merge.diff_events index (Events.ascending events)
     return (Set.toList deleted, filter Merge.is_modified edits)
 
 indices_of :: Maybe (BlockId, Block.TrackDestinations)

@@ -15,7 +15,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -51,12 +50,10 @@ get_pos = do
 get_or_create_event :: State.M m => Event.Orientation
     -> Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
 get_or_create_event orient modify_dur track_id pos dur = do
-    track <- State.get_track track_id
+    event <- Events.at pos <$> State.get_events track_id
     let modify = if modify_dur then Event.set_duration dur else id
     let create = Event.set_orientation orient $ Event.event pos dur ""
-    return $ maybe (create, True)
-        (\evt -> (modify evt, False))
-        (Events.at pos (Track.track_events track))
+    return $ maybe (create, True) (\evt -> (modify evt, False)) event
 
 -- | Modify event text.
 type Modify = Maybe Text

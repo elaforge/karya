@@ -259,8 +259,7 @@ clear_generated_events track_id = State.modify_events track_id $
 -- integrate output.
 merge_track :: State.M m => [Event.Event] -> Dest -> m ()
 merge_track source_events (track_id, index) = do
-    old_events <- Events.ascending . Track.track_events <$>
-        State.get_track track_id
+    old_events <- Events.ascending <$> State.get_events track_id
     let (deletes, edits) = diff_events index old_events
         new_events = apply deletes edits source_events
     State.modify_some_events track_id (const new_events)

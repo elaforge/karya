@@ -16,7 +16,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -110,8 +109,7 @@ overlapping f = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
     pos <- Selection.point . snd <$> Selection.get
     forM_ track_ids $ \track_id -> do
-        maybe_event <- Events.overlapping pos . Track.track_events <$>
-            State.get_track track_id
+        maybe_event <- Events.overlapping pos <$> State.get_events track_id
         whenJust maybe_event $ \old_event ->
             whenJustM (f block_id track_id [old_event]) $ \new_events -> do
                 State.remove_event track_id (Event.start old_event)
@@ -140,7 +138,7 @@ block :: Cmd.M m => BlockId -> Track m -> m ()
 block block_id f = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
     forM_ track_ids $ \track_id -> do
-        events <- State.get_all_events track_id
+        events <- Events.ascending <$> State.get_events track_id
         maybe (return ())
                 (State.modify_events track_id . const . Events.from_list)
             =<< f block_id track_id events

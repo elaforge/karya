@@ -16,7 +16,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -54,14 +53,12 @@ split_time_at from_block_id pos block_name = do
     tracks <- State.tracknums_of from_block_id
     -- Copy over the new events.
     track_events <- forM tracks $ \(track_id, tracknum) -> do
-        events <- Events.at_after pos . Track.track_events <$>
-            State.get_track track_id
+        events <- Events.at_after pos <$> State.get_events track_id
         let shifted = map (Event.move (subtract pos)) events
         return (tracknum, shifted)
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
-        events <- fst . Events.split pos . Track.track_events <$>
-            State.get_track track_id
+        events <- fst . Events.split pos <$> State.get_events track_id
         let clipped = Events.from_list $ Events.clip False pos $
                 Events.ascending events
         State.modify_events track_id (const clipped)
@@ -176,8 +173,8 @@ selection_at relative name block_id tracknums track_ids start end = do
     to_block_id <- Create.named_block name ruler_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- State.get_track_title track_id
-        events <- Events.in_range (Events.range Event.Positive start end)
-            . Track.track_events <$> State.get_track track_id
+        events <- Events.in_range (Events.range Event.Positive start end) <$>
+            State.get_events track_id
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
             Events.map_events (Event.move (subtract start)) events
@@ -226,7 +223,7 @@ rebase_call caller block_id = Id.id ns name
 
 get_block_calls :: State.M m => TrackId -> m [BaseTypes.CallId]
 get_block_calls track_id = do
-    events <- Events.ascending . Track.track_events <$> State.get_track track_id
+    events <- Events.ascending <$> State.get_events track_id
     return $ map BaseTypes.Symbol $
         concatMap (NoteTrack.possible_block_calls . Event.text) events
 
@@ -249,8 +246,7 @@ block_from_template = do
 
 delete_empty_tracks :: State.M m => BlockId -> m ()
 delete_empty_tracks block_id = do
-    let empty = Events.null . Track.track_events
-    track_ids <- filterM (fmap empty . State.get_track)
+    track_ids <- filterM (fmap Events.null . State.get_events)
         =<< State.track_ids_of block_id
     mapM_ State.destroy_track track_ids
 

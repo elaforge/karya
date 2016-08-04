@@ -157,7 +157,7 @@ cmd_paste_soft_merge :: Cmd.M m => m ()
 cmd_paste_soft_merge = do
     (_, _, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) -> do
-        track_events <- fmap Track.track_events (State.get_track track_id)
+        track_events <- State.get_events track_id
         State.insert_events track_id $
             filter (not . overlaps track_events) events
     where
@@ -181,7 +181,7 @@ cmd_paste_insert = do
 cmd_paste_stretch :: Cmd.M m => m ()
 cmd_paste_stretch = do
     (track_ids, clip_track_ids, start, end, _) <- get_paste_area
-    events <- mapM (fmap Track.track_events . State.get_track) clip_track_ids
+    events <- mapM State.get_events clip_track_ids
     let m_clip_s = Seq.minimum $ map Events.time_begin $
             filter (not . Events.null) events
         m_clip_e = Seq.maximum $ map Events.time_end $

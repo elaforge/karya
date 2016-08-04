@@ -28,7 +28,6 @@ import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -715,18 +714,18 @@ events_around_tracks block_id track_ids start end = do
     let extend
             | block_end == end = map until_end
             | otherwise = id
-    extend . zipWith around_track track_ids <$> mapM State.get_track track_ids
+    extend . zipWith around_track track_ids <$> mapM State.get_events track_ids
     where
-    around_track track_id track = case split_range track of
+    around_track track_id events = case split_range events of
         (pre:pres, [], posts) -> (track_id, (pres, [pre], posts))
         events -> (track_id, events)
     until_end (track_id, (pre, within, post)) =
         (track_id, (pre, within ++ post, []))
-    split_range track =
+    split_range events =
         (Events.descending pre, Events.ascending within, Events.ascending post)
         where
         (pre, within, post) = Events.split_range
-            (Events.range Event.Positive start end) (Track.track_events track)
+            (Events.range Event.Positive start end) events
 
 -- ** select tracks
 

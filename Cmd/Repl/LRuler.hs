@@ -81,7 +81,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -395,8 +394,7 @@ final_mark = Meter.LabeledMark 0 0 ""
 extract_calls :: State.M m => BlockId -> TrackId
     -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls block_id track_id =
-    mapMaybeM extract =<< Events.ascending . Track.track_events <$>
-        State.get_track track_id
+    mapMaybeM extract =<< Events.ascending <$> State.get_events track_id
     where
     extract event = fmap (range event) <$>
         NoteTrack.block_call (Just block_id) (Event.text event)

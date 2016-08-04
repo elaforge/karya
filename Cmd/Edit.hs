@@ -17,7 +17,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
@@ -157,7 +156,7 @@ move_event :: Cmd.M m =>
 move_event modify = do
     (block_id, _, track_ids, pos, _) <- Selection.tracks
     forM_ track_ids $ \track_id -> do
-        events <- Track.track_events <$> State.get_track track_id
+        events <- State.get_events track_id
         whenJust (modify pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
             State.insert_block_events block_id track_id
@@ -197,7 +196,7 @@ modify_event_near_point modify = do
             unlessM (State.track_collapsed block_id tracknum) $
                 track_point pos track_id
     track_point pos track_id = do
-        events <- Track.track_events <$> State.get_track track_id
+        events <- State.get_events track_id
         whenJust (event_around pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
             State.insert_event track_id $ modify (pos, pos) event
@@ -279,8 +278,7 @@ cmd_set_start = do
     (_, _, track_ids, _, _) <- Selection.tracks
     let pos = Selection.point sel
     forM_ track_ids $ \track_id -> do
-        (pre, post) <- Events.split_lists pos . Track.track_events <$>
-            State.get_track track_id
+        (pre, post) <- Events.split_lists pos <$> State.get_events track_id
         let set = set_beginning track_id pos
         case (pre, post) of
             (prev:_, _) | Event.overlaps pos prev -> set prev
@@ -370,8 +368,8 @@ cmd_insert_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
-        track <- State.get_track track_id
-        case Events.split_at_before start (Track.track_events track) of
+        events <- State.get_events track_id
+        case Events.split_at_before start events of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
                 State.remove_from track_id (min (Event.start event) start)
@@ -406,8 +404,8 @@ delete_time :: State.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
 delete_time block_id track_id start dur = do
     when (dur < 0) $
         State.throw $ "delete_time: negative dur " <> pretty dur
-    track <- State.get_track track_id
-    case Events.split_at_before start (Track.track_events track) of
+    events <- State.get_events track_id
+    case Events.split_at_before start events of
         (_, []) -> return ()
         (_, events@(event:_)) -> do
             State.remove_from track_id (min (Event.start event) start)
@@ -631,8 +629,7 @@ event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
 event_text_at track_id = fmap (fmap Event.text) . event_at track_id
 
 event_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
-event_at track_id pos =
-    Events.at pos . Track.track_events <$> State.get_track track_id
+event_at track_id pos = Events.at pos <$> State.get_events track_id
 
 -- ** handle floating input msg
 

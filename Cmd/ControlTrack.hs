@@ -8,6 +8,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 
@@ -68,8 +69,9 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 infer_normalized :: State.M m => TrackId -> m Bool
 infer_normalized =
     -- Don't get fooled by the ' call, which is fairly common.
-    fmap (maybe True normal . Seq.head . dropWhile (=="'") . map Event.text)
-        . State.get_all_events
+    fmap (maybe True normal . Seq.head . dropWhile (=="'") . map Event.text
+        . Events.ascending)
+    . State.get_events
     where
     normal event = any (`Text.isInfixOf` event) normalized_prefixes
 

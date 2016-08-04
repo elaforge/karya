@@ -221,8 +221,8 @@ events_tree block_id end = mapM resolve . track_voices
     resolve (Tree.Node (State.TrackInfo title track_id _ _, voice) subs) =
         Tree.Node <$> make title track_id voice <*> mapM resolve subs
     make title track_id voice = do
-        track <- State.get_track track_id
-        return $ (make_track title (Track.track_events track) end)
+        events <- State.get_events track_id
+        return $ (make_track title events end)
             { track_id = Just track_id
             , track_block_id = Just block_id
             , track_voice = voice

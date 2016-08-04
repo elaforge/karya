@@ -40,7 +40,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Meter as Meter
 import Global
@@ -299,8 +298,7 @@ track_events dir event_start block_id tracknum start tracks = case tracks of
         merge_points dir <$> mapM get_times track_ids
     where
     event_time = if event_start then Event.start else Event.end
-    get_times = fmap (map event_time . get_events . Track.track_events)
-        . State.get_track
+    get_times = fmap (map event_time . get_events) . State.get_events
     get_events = case dir of
         Advance -> if event_start then Events.at_after start
             else snd . Events.split_at_before start
