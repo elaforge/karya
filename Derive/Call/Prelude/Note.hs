@@ -235,6 +235,7 @@ make_event_control_vals control_vals args dyn start dur flags = do
         , event_environ = stash_convert_values control_vals offset environ
         , event_flags = flags
         , event_delayed_args = mempty
+        , event_logs = []
         }
     where
     controls = trim_controls start (Derive.state_controls dyn)

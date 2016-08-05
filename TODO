@@ -6,8 +6,6 @@ UNSORTED
   * bind a key to invert a note
     * ModifyNotes.selection should use the Selection.events_around rules
     * if only control tracks are selected, invert events directly
-    - set orientation based on the first selected event, so I can easily set
-      all to the same.
   * test Edit.cmd_join_events
   * Take range out of Selection.SelectedEvents?  If a caller wants to delete
     the events, then it can just use a remove_events :: [Event].
@@ -15,10 +13,6 @@ UNSORTED
     . But remove alter_duration, since ModifyEvent.selection_expanded does
       that now.
   * move Log.Stack to Util.CStack or Util.CallStack
-  - It seems I get slicing on an already sliced track if I have an
-    intermediate empty note track, e.g.:
-      [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
-    . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
   Event.Negative:
     * A -0 event at 0 is not visible.
       * Also, [-(0, 1), -(1, 0)] the second event is not visible.
@@ -44,10 +38,7 @@ UNSORTED
     * Cmd.Edit: Note entry should put the pitch at the end.
     * Move events shouldn't clip Negative events at the end of the block.
       Should also move a negative event under the cursor.
-  - Put logs on Score.Event.  When a postproc modifies it, it can add a note.
-  - repl now has no history when it doesn't know the filename.
-    Maybe I should have it ask for the filename.  I'll need a protocol anyway
-    to ask for tab-completion.
+  * Put logs on Score.Event.  When a postproc modifies it, it can add a note.
   * Kitten caused a crash:
     assertion: assertion failed at fltk/MoveTile.cc:126 handle():
       'drag_state.x || drag_state.y'
@@ -63,11 +54,7 @@ UNSORTED
       9   seq       segM_info + 128
     . Not really sure what this means, but it didn't have to be fatal.
   - Fix verify_performance for save/complete/blue-hat
-  - LEvent.invert_note is deleting the pitch instead of putting it at the end
-  - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to be
-    a parse error, '>pemade |', and then fix it, it forgets that it was called
-    from the root, so presumably it gets cached as a zero and the fix doesn't
-    invalidate that.
+  / LEvent.invert_note is deleting the pitch instead of putting it at the end
   - I think Gamakam4 doesn't test next event pitch, e.g.
     Gamakam3_test.test_sequence on '!!-v-'
   - do a renaming pass on all the prev/next pitch function names in
@@ -168,8 +155,13 @@ UNSORTED
     . That 'collect' arg in Eval.eval_expr.  Why False for Eval.reapply
       but other functions make the caller decide?
 
-  - 'tile' messes up the cache.  If I change the tile callee's contents
-    I think it rederives with only a single cycle and wrong controls.
+  cache:
+    - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to
+      be a parse error, '>pemade |', and then fix it, it forgets that it was
+      called from the root, so presumably it gets cached as a zero and the fix
+      doesn't invalidate that.
+    - 'tile' messes up the cache.  If I change the tile callee's contents
+      I think it rederives with only a single cycle and wrong controls.
   - Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
     so I can have gongs labeled.  How could I configure that?  Or should
     I have a specialized kind of meter for gong, like Cmd.Tala?
@@ -685,6 +677,10 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - It seems I get slicing on an already sliced track if I have an
+    intermediate empty note track, e.g.:
+      [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
+    . Is it a problem?  Should I skip if already sliced?  Document if it's ok.
   - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
     make sure it has the right specializations.
     . Or at least use mine in Util.Vector.
@@ -1144,6 +1140,13 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - repl now has no history when it doesn't know the filename.
+    Maybe I should have it ask for the filename.  I'll need a protocol anyway
+    to ask for tab-completion.
+      data Query = QUpdate | QCommand Text
+      data Response = RUpdate FilePath [Text] | RCommend Result [Log]
+      type Log = Text
+      data Result = Raw !Text | Format !Text
   * Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
@@ -1231,6 +1234,8 @@ Cmd:
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit
+    - Make Edit.cmd_invert_orientation set orientation based on the first
+      selected event, so I can easily set all to the same.
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)

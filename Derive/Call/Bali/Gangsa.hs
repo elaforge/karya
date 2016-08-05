@@ -752,10 +752,11 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
-            [ Post.set_instrument polos event
-            , Post.set_instrument sangsih event
+            [ Score.add_log msg $ Post.set_instrument polos event
+            , Score.add_log msg $ Post.set_instrument sangsih event
             ]
         | otherwise = [event]
+        where msg = "unison from " <> pretty inst
 
 -- | I could do this in two different ways:  Eval normally, then eval with
 -- +kempyung, and make instrument note call understand it.  Or, postproc,
@@ -781,8 +782,10 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     where
     kempyung too_high inst polos sangsih event
         | Score.event_instrument event == inst =
-            [ Post.set_instrument polos event
-            , transpose too_high $ Post.set_instrument sangsih event
+            [ Score.add_log ("low kempyung from " <> pretty inst) $
+                Post.set_instrument polos event
+            , Score.add_log ("high kempyung from " <> pretty inst) $
+                transpose too_high $ Post.set_instrument sangsih event
             ]
         | otherwise = [event]
     transpose too_high event

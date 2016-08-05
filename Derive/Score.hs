@@ -20,6 +20,8 @@ module Derive.Score (
     , copy, normalize
     -- ** flags
     , has_flags, add_flags, remove_flags
+    -- ** logs
+    , add_log, add_log_msg
     -- ** environ
     , modify_environ, modify_environ_key
     -- ** attributes
@@ -63,7 +65,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
+import qualified Util.CallStack as CallStack
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Derive.Attrs as Attrs
@@ -128,6 +133,9 @@ data Event = Event {
     -- safe enough if you use a shared type declaration in both writer and
     -- reader.
     , event_delayed_args :: !(Map.Map Text Dynamic.Dynamic)
+    -- | Keep track of interesting things that have happened to this event.
+    -- Postproc transforms that alter it should prefix a note.
+    , event_logs :: ![Log.Msg]
     } deriving (Show, Typeable.Typeable)
 
 -- | Format an event in a way suitable for including inline in log messages.
@@ -181,6 +189,7 @@ empty_event = Event
     , event_environ = mempty
     , event_flags = mempty
     , event_delayed_args = mempty
+    , event_logs = []
     }
 
 event_end :: Event -> RealTime
@@ -213,7 +222,7 @@ event_transformed_pitches event =
 -- | If you use an event to create another event, call this to clear out
 -- data that shouldn't go with the copy.
 copy :: Event -> Event
-copy event = event { event_flags = mempty }
+copy event = event { event_flags = mempty, event_logs = [] }
 
 -- | Apply 'event_control_offset' and apply environ and controls to pitches.
 -- Normally this is done by Convert, but if you want to see an event for
@@ -244,6 +253,14 @@ add_flags flags event = event { event_flags = flags <> event_flags event }
 remove_flags :: Flags.Flags -> Event -> Event
 remove_flags flags event =
     event { event_flags = event_flags event Set.\\ flags }
+
+-- ** logs
+
+add_log :: CallStack.Stack => Text -> Event -> Event
+add_log msg = add_log_msg (Log.msg Log.Debug Nothing msg)
+
+add_log_msg :: Log.Msg -> Event -> Event
+add_log_msg msg event = event { event_logs = msg : event_logs event }
 
 -- ** environ
 
@@ -290,14 +307,15 @@ remove_attributes attrs event
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch pitches _ _ _ _ _ flags
-            _delayed_args) =
+            _delayed_args logs) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch `seq` rnf pitches `seq` rnf flags
+            `seq` rnf logs
             -- I can't force Dynamic, so leave off _delayed_args.
 
 instance Pretty.Pretty Event where
     format (Event start dur text controls pitch pitches coffset stack highlight
-            inst env flags delayed_args) =
+            inst env flags delayed_args logs) =
         Pretty.record ("Event"
                 Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format text)
@@ -311,6 +329,7 @@ instance Pretty.Pretty Event where
             , ("environ", Pretty.format env)
             , ("flags", Pretty.format flags)
             , ("delayed_args", Pretty.format delayed_args)
+            , ("logs", Pretty.format logs)
             ]
 
 -- ** delayed args

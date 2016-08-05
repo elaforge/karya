@@ -104,6 +104,8 @@ infer_duration_merged :: Score.Event -> [Score.Event] -> Score.Event
 infer_duration_merged strong weaks =
     case Seq.maximum (map Score.event_end weaks) of
         Just end | Score.has_flags Flags.infer_duration strong ->
+            Score.add_log ("set duration to max of weak notes: "
+                <> pretty (map Score.event_end weaks)) $
             Score.remove_flags Flags.infer_duration $
             Score.set_duration (end - Score.event_start strong) strong
         _ -> strong
@@ -120,13 +122,16 @@ infer_duration_single :: Eq key => Key key -> RealTime
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
 infer_duration_single key final_dur = Post.emap1_ infer . Post.nexts_by key id
     where
-    infer (event, nexts)
-        | Score.has_flags Flags.infer_duration event = maybe
-            (Score.set_duration final_dur) (set_end . Score.event_start) next $
-            Score.remove_flags Flags.infer_duration event
-        | otherwise = event
+    infer (event, _) | not (Score.has_flags Flags.infer_duration event) = event
+    infer (event, nexts) =
+        Score.remove_flags Flags.infer_duration $ case next of
+            Just next -> Score.add_log "set duration to next start" $
+                set_end (Score.event_start next) event
+            Nothing -> Score.add_log "set duration to final dur" $
+                Score.set_duration final_dur event
         where
         next = List.find ((> Score.event_start event) . Score.event_start) nexts
+
     set_end end event = Score.set_duration (end - Score.event_start event) event
 
 merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
