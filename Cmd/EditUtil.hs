@@ -31,6 +31,9 @@ import Types
 
 
 -- | block tracknum start duration
+--
+-- The duration from the selection, so if it's zero, then an event duration
+-- will be inferred by 'get_duration' based on the 'Cmd.state_note_duration'.
 data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
     deriving (Eq, Show)
 
@@ -73,7 +76,7 @@ modify_event_at :: Cmd.M m => Pos
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
 modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
-    dur <- get_duration dur
+    dur <- infer_duration dur
     track_id <- State.get_event_track_at block_id tracknum
     orient <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
     (event, created) <- get_or_create_event orient modify_dur track_id start dur
@@ -85,13 +88,16 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
             (Event.set_text new_text event)
     when advance Selection.advance
     where
-    get_duration dur
+    infer_duration dur
         | dur /= 0 = return dur
         | zero_dur = return 0
-        | otherwise = do
-            step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-            end <- Selection.step_from tracknum start 1 step
-            return (end - start)
+        | otherwise = get_duration tracknum start
+
+get_duration :: Cmd.M m => TrackNum -> TrackTime -> m TrackTime
+get_duration tracknum start = do
+    step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
+    end <- Selection.step_from tracknum start 1 step
+    return (end - start)
 
 remove_event :: Cmd.M m => Bool -> m ()
 remove_event advance = do

@@ -12,6 +12,7 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Edit as Edit
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
@@ -34,14 +35,22 @@ test_cmd_val_edit_create = do
 
 test_cmd_val_edit_simple = do
     let f = NoteTrack.cmd_val_edit
+    let note_on = CmdTest.m_note_on NN.middle_c
+    -- create pitch track
+    equal (run [(">", [])] (f note_on)) $
+        Right [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
+    -- put pitch at the end for Negative
+    equal (run [(">", [])] (Edit.cmd_toggle_note_orientation >> f note_on)) $
+        Right [(">", [(1, -1, "")]), ("*", [(1, -0, "4c")])]
     -- modify existing track
     let note_tracks = [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
         Right [(">i", []), ("*", [])]
     -- pitch is changed, note text remains
-    equal (run note_tracks (f (CmdTest.m_note_on NN.middle_c))) $
+    equal (run note_tracks (f note_on)) $
         Right [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4c")])]
+
 
 test_cmd_val_edit_advance = do
     -- Test advance mode.

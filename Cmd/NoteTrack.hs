@@ -116,8 +116,15 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
             else this_control_track block_id sel_tracknum is_pitch
         when create $ create_pitch_track block_id ctrack
         associate_note_id block_id (track_control ctrack) note_id
-        PitchTrack.val_edit_at
-            (EditUtil.Pos block_id (track_control ctrack) pos 0) note
+        is_positive <- (==Event.Positive) <$>
+            Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit)
+        let mkpos = EditUtil.Pos block_id (track_control ctrack)
+        pitch_pos <- if is_positive
+            then return $ mkpos pos 0
+            else do
+                note_dur <- EditUtil.get_duration sel_tracknum pos
+                return $ mkpos (pos + note_dur) (-0)
+        PitchTrack.val_edit_at pitch_pos note
         -- Dyn track.
         whenM (get_state Cmd.state_record_velocity) $ do
             (dtrack, create) <- if chord_mode

@@ -188,8 +188,7 @@ selection modify = do
     let ranges = remove_ranges old_notes
     forM_ ranges $ \(track_id, range) ->
         State.remove_event_range track_id range
-    let track_ids = map fst ranges
-    write_tracks block_id track_ids (merge_notes new_notes)
+    write_tracks block_id (map fst ranges) (merge_notes new_notes)
 
 remove_ranges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]
 remove_ranges = concatMap range . Seq.group_snd
