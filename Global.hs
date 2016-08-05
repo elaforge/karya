@@ -11,6 +11,7 @@ module Global (
     , Monoid(..), (<>)
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
+    , allM, anyM
     , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 

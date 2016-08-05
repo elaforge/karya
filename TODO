@@ -5,7 +5,9 @@ LEGEND
 UNSORTED
   * bind a key to invert a note
     * ModifyNotes.selection should use the Selection.events_around rules
-    - if only control tracks are selected, invert events directly
+    * if only control tracks are selected, invert events directly
+    - set orientation based on the first selected event, so I can easily set
+      all to the same.
   * test Edit.cmd_join_events
   * Take range out of Selection.SelectedEvents?  If a caller wants to delete
     the events, then it can just use a remove_events :: [Event].

@@ -29,6 +29,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
 import Global
 import Types
@@ -514,7 +515,17 @@ lookup_call_duration block_id track_id event =
                 Derive.CallDuration dur -> dur
 
 cmd_invert_orientation :: Cmd.M m => m ()
-cmd_invert_orientation = ModifyNotes.selection $ ModifyNotes.note invert
+cmd_invert_orientation = do
+    track_ids <- Selection.track_ids
+    let is_control = fmap ParseTitle.is_control_track . State.get_track_title
+    ifM (allM is_control track_ids) invert_events invert_notes
+
+invert_events :: Cmd.M m => m ()
+invert_events = ModifyEvents.selection $ ModifyEvents.event $ \event ->
+    Event.set_orientation (Event.invert (Event.orientation event)) event
+
+invert_notes :: Cmd.M m => m ()
+invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
     where
     invert note = ModifyNotes.orientation %= Event.invert $
         ModifyNotes.controls %= fmap (invert_control note) $
