@@ -27,7 +27,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -60,7 +59,7 @@ data ControlTrack = ControlTrack {
     , track_control :: TrackNum
     } deriving (Show, Eq)
 
--- | The val edit for note tracks edits its pitch track (possibly creating it
+-- | The val edit for note tracks edits its pitch track (possibly creating one
 -- if necessary), and creates a blank event on the note track.  It may also
 -- edit multiple pitch tracks for chords, or record velocity in addition to
 -- pitch.
@@ -83,7 +82,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 note <- EditUtil.input_to_note input
                 -- If advance is set, the selection may have advanced past
                 -- the pitch's position, so look for a previous event.
-                pos <- event_at_or_before track_id pos
+                pos <- event_pos_at_or_before track_id pos
                 PitchTrack.val_edit_at
                     (EditUtil.Pos block_id pitch_tracknum pos dur) note
             InputNote.NoteOff note_id _vel -> do
@@ -119,7 +118,6 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         associate_note_id block_id (track_control ctrack) note_id
         PitchTrack.val_edit_at
             (EditUtil.Pos block_id (track_control ctrack) pos 0) note
-
         -- Dyn track.
         whenM (get_state Cmd.state_record_velocity) $ do
             (dtrack, create) <- if chord_mode
@@ -207,14 +205,10 @@ should_create_control block_id track is_control = case Info.track_type track of
     find = List.find (is_control . State.track_title)
     tracknum = State.track_tracknum (Info.track_info track)
 
-event_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
-event_at_or_before track_id pos = do
-    track <- State.get_track track_id
-    let (pre, post) = Events.split_lists pos (Track.track_events track)
-    return $ case (pre, post) of
-        (_, next : _) | Event.start next == pos -> pos
-        (prev : _, _) -> Event.start prev
-        _ -> pos
+event_pos_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
+event_pos_at_or_before track_id pos = do
+    (_, events) <- Events.split_at_before pos <$> State.get_events track_id
+    return $ maybe pos Event.start (Seq.head events)
 
 all_keys_up :: Cmd.M m => m Bool
 all_keys_up = do

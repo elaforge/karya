@@ -286,7 +286,7 @@ split_at_before pos events
 -- is that events start + duration don't overlap.
 --
 -- This type should remain abstract, and you should manipulate events using
--- functions in this model.
+-- functions in this module.
 newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
 

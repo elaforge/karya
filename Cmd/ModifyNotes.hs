@@ -197,7 +197,7 @@ remove_ranges = concatMap range . Seq.group_snd
     range ([], _) = [] -- shouldn't happen, per Seq.group_snd's postcondition
     range (notes@(note : _), track_id) =
         (track_id, Events.Inclusive start (maximum (map note_start notes)))
-        : map (, range) (note_control_track_ids note)
+            : map (, range) (note_control_track_ids note)
         where
         start = minimum (map note_start notes)
         end = maximum (map note_end notes)
@@ -279,8 +279,7 @@ slice_tracks tree = concatMapM slice . zip [0..]
             Nothing -> return []
             Just (Tree.Node _track subs) -> do
                 subs <- mapM (traverse get_events) subs
-                notes <- State.require_right id $
-                    mapM (slice_note index subs) events
+                notes <- State.require_right id $ mapM (slice_note index subs) events
                 return $ map (, track_id) notes
     get_events track = (track,) <$> State.get_events (State.track_id track)
 
