@@ -100,8 +100,7 @@ io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
     -- This actually belongs in 'player_bindings', but needs to be in IO.
-    , plain_char ' ' "stop, selection to point"
-        (context_stop >> return Cmd.Done)
+    , plain_char ' ' "stop, selection to point" context_stop
     ]
 
 context_stop :: Cmd.CmdT IO ()
@@ -458,20 +457,21 @@ pitch_bindings = concat
 
 create_bindings :: Cmd.M m => [Keymap.Binding m]
 create_bindings = concat
-    [ command_char 'n' "insert track right" Create.insert_track_right
-    , command_char 't' "splice track below" Create.splice_below
+    [ command_char 'n' "insert track right" (void Create.insert_track_right)
+    , command_char 't' "splice track below" (void Create.splice_below)
     , command_char 'T' "insert branch" Create.insert_branch
-    , command_char 'h' "splice track above" Create.splice_above
+    , command_char 'h' "splice track above" (void Create.splice_above)
     , command_char 'H' "splice track above ancestors"
-        Create.splice_above_ancestors
+        (void Create.splice_above_ancestors)
     , command_char 'd' "delete tracks" Create.destroy_selected_tracks
 
-    , command_char 'N' "create view" (Create.view =<< Cmd.get_focused_block)
+    , command_char 'N' "create view"
+        (void $ Create.view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
     , command_char 'W' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
     , command_char 'b' "create block"
-        (Create.view =<< Create.block =<< State.block_ruler
+        (void $ Create.view =<< Create.block =<< State.block_ruler
             =<< Cmd.get_focused_block)
     , command_char 'B' "create block from template or selection"
         Factor.block_from_template

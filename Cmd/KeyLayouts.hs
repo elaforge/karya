@@ -5,6 +5,9 @@
 -- | This defines some key layouts.  "Local.KeyLayout" is expected to export
 -- @layout :: KeyLayouts.Layout@.  If your key layout is already qwerty, just
 -- use @KeyLayouts.qwerty@.
+--
+-- Ultimately this is necessary because some keys are mapped based on their
+-- physical location.
 module Cmd.KeyLayouts (
     Layout, layout, to_unshifted, from_qwerty
     , qwerty, dvorak

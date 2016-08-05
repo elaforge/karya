@@ -51,26 +51,26 @@ import Global
 -- * binding
 
 -- | Bind a Key with no modifiers.
-plain_key :: Cmd.M m => Key.Key -> Text -> m a -> [Binding m]
+plain_key :: Cmd.M m => Key.Key -> Text -> m () -> [Binding m]
 plain_key = bind_key []
 
 -- | Bind a Char with no modifiers.
-plain_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
+plain_char :: Cmd.M m => Char -> Text -> m () -> [Binding m]
 plain_char = plain_key . Key.Char
 
-shift_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
+shift_char :: Cmd.M m => Char -> Text -> m () -> [Binding m]
 shift_char = bind_key [Shift] . Key.Char
 
 -- | Bind a Char with the 'PrimaryCommand'.
-command_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
+command_char :: Cmd.M m => Char -> Text -> m () -> [Binding m]
 command_char = bind_key [PrimaryCommand] . Key.Char
 
 -- | Bind a Char with the 'SecondaryCommand'.
-secondary_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
+secondary_char :: Cmd.M m => Char -> Text -> m () -> [Binding m]
 secondary_char = bind_key [SecondaryCommand] . Key.Char
 
 -- | Bind a key with the given modifiers.
-bind_key :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m a -> [Binding m]
+bind_key :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m () -> [Binding m]
 bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
 -- | Bind a key with a Cmd that returns Status.
@@ -80,7 +80,7 @@ bind_key_status smods key desc cmd =
     bind_status smods (Key False key) desc (const cmd)
 
 -- | Like 'bind_key', but the binding will be retriggered on key repeat.
-bind_repeatable :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m a
+bind_repeatable :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m ()
     -> [Binding m]
 bind_repeatable smods key desc cmd = bind smods (Key True key) desc (const cmd)
 
@@ -88,22 +88,22 @@ bind_repeatable smods key desc cmd = bind smods (Key True key) desc (const cmd)
 -- to want the msg to find out where the click was.  @clicks@ is 1 for a single
 -- click, 2 for a double click, etc.
 bind_click :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn -> Int
-    -> Text -> (Msg.Msg -> m a) -> [Binding m]
+    -> Text -> (Msg.Msg -> m ()) -> [Binding m]
 bind_click smods btn on clicks desc cmd =
     bind smods (Click btn on (clicks-1)) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.
 bind_drag :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn
-    -> Text -> (Msg.Msg -> m a) -> [Binding m]
+    -> Text -> (Msg.Msg -> m ()) -> [Binding m]
 bind_drag smods btn on desc cmd =
     bind smods (Click btn on 0) desc cmd ++ bind smods (Drag btn on) desc cmd
 
--- | Like 'bind_status' but the return value of the Cmd is ignored and assumed
--- to be 'Cmd.Done'.  Since the cmd has already been matched on the bound key
--- this is likely what it would have done anyway.
+-- | Like 'bind_status' but the Cmd is expected to return (), which will become
+-- 'Cmd.Done'.  Since the cmd has already been matched on the bound key this is
+-- likely what it would have done anyway.
 bind :: Cmd.M m => [SimpleMod] -> Bindable -> Text
-    -> (Msg.Msg -> m a) -> [Binding m]
+    -> (Msg.Msg -> m ()) -> [Binding m]
 bind smods bindable desc cmd =
     bind_status smods bindable desc ((>> return Cmd.Done) . cmd)
 
