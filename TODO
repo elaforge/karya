@@ -3,111 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * bind a key to invert a note
-    * ModifyNotes.selection should use the Selection.events_around rules
-    * if only control tracks are selected, invert events directly
-  * test Edit.cmd_join_events
-  * Take range out of Selection.SelectedEvents?  If a caller wants to delete
-    the events, then it can just use a remove_events :: [Event].
-  * Use Edit.cmd_toggle_zero_timestep instead of cmd_toggle_zero_duration.
-    . But remove alter_duration, since ModifyEvent.selection_expanded does
-      that now.
-  * move Log.Stack to Util.CStack or Util.CallStack
-  Event.Negative:
-    * A -0 event at 0 is not visible.
-      * Also, [-(0, 1), -(1, 0)] the second event is not visible.
-    . Previously I couldn't have <--||-->, now I can't have <|<---|
-    . I'm making Ui.Events treat negative logically instead of physically.
-      But it's awkwardly halfway because I still index by start.
-      Options:
-        . Go back to negative duration.  But EventMap is indexed by the
-          Event.min.  Or index by (start, sign).
-          . Then I would edit from the trigger, but how do I address touching
-            events?
-          . So I think I have to edit from the start.
-        . Make Events totally physical.  Edit and Selection are still logical,
-          so they have to fiddle.
-        . Make Events totally logical.  I think Edit and Selection still
-          have to fiddle, but in a more regalur way, maybe?
-          . But since I edit from the start, if I do delete at start, then
-            nothing happens.
-        . It seems the only physical editing I want is insert/delete, so maybe
-          it should be those commands that do the fiddling.
-        . Make everything totally physical.
-    * Edit.toggle_zero_timestep is broken for negative events.
-    * Cmd.Edit: Note entry should put the pitch at the end.
-    * Move events shouldn't clip Negative events at the end of the block.
-      Should also move a negative event under the cursor.
-  * Put logs on Score.Event.  When a postproc modifies it, it can add a note.
-  * Kitten caused a crash:
-    assertion: assertion failed at fltk/MoveTile.cc:126 handle():
-      'drag_state.x || drag_state.y'
-      0   seq       _ZN8MoveTile6handleEi + 1091
-      1   seq       _ZL10send_eventiP9Fl_WidgetP9Fl_Window + 133
-      2   seq       _ZN2Fl7handle_EiP9Fl_Window + 1340
-      3   seq       _ZL17cocoaMouseHandlerP7NSEvent + 727
-      4   AppKit    -[NSWindow _reallySendEvent:isDelayedEvent:] + 2108
-      5   AppKit    -[NSWindow sendEvent:] + 517
-      6   AppKit    -[NSApplication sendEvent:] + 2540
-      7   seq       _Z7fl_waitd + 185
-      8   seq       _Z21fl_mac_flush_and_waitd + 166
-      9   seq       segM_info + 128
-    . Not really sure what this means, but it didn't have to be fatal.
   - Fix verify_performance for save/complete/blue-hat
-  / LEvent.invert_note is deleting the pitch instead of putting it at the end
-  - I think Gamakam4 doesn't test next event pitch, e.g.
-    Gamakam3_test.test_sequence on '!!-v-'
   - do a renaming pass on all the prev/next pitch function names in
-    Derive.Args.  Should Prelude.Pitch.approach use the lookup pitch style?
-  * make Args.next_logical_pitch work for note calls
-    . Why do I get the error unless there's a setup neighors in the Note call?
-      . It's from the (0, 1) -> (1, 1) "g" call.
-        "1 | 4c | ""
-        "2 | g  |
-      . It's a recursive call to NoteQuery:
-        ..
-      . "1 creates an empty prevs, then evaluates [4c, g]
-        g sees empty prevs, does nothing.
-        ? This seems wrong, it should be 4c, right?
-          . But I shouldn't even need the surrounding pitch events for
-            NotePitchQuery.
-  / I still wind up with recursive pitch queries, I think because I just run
-    whatever call is in the event.  I should ignore event text... except
-    for a parent call.
-    . Actually, I think I can not care about parent calls, because I don't
-      care about timing, just pitch.
-    . In fact, why not just evaluate the pitch track below on its own, and put
-      it in Dynamic?  If there is none, then take Derive.state_pitch.
-    . In that case I still worry about the timing.  The parent call could have
-      moved the pitch... but I think no matter what I still want the visually
-      next pitch.
-    . I do have to apply track transform because they could transpose.
-  * Can I change the logical pitch mechanism to be at track level?
-    * Test this in the other places that use Args.lookup_next_logical_pitch,
-      and if it works, get rid of the whole NotePitchQuery mechanism.
-    - Test for two consecutive pitch calls that depend on the next pitch.
-    . Evaluate the whole track with NotePitchQuery, and put a
-      'Map (tid, TrackTime) Pitch' in Dynamic.
-    . I can maybe even get rid of NotePitchQuery by doing the stripping at the
-      track level.
-    . I don't want to run recursively, so there would be holes in the map that
-      correspond to prev/next dependent pitches.
-    . Therefore a sequence of two would be an error.  This is good enough
-      since in practice, only ornaments of the pitch depend on the next one,
-      not the pitch itself.
-    . Evaluate notes without regard to their text.
-    . I want to handle both pitch above and below.
-    . Also I need to handle parent calls, e.g. triplets.
-      That means I need to do orphan derivation, and also call parents as they
-      are normally called, but still replace note calls?  I think I don't want
-      block calls either.
-    . The limit is that I do a full derivation, except no recursive pitch query,
-      and thus no pitch map available.
-    . Why better than on-demand?  On-demand is confusing because I wind up
-      with recursive calls... though maybe just returning [] for neighbors is
-      ok?
-    . I think the primary argument against it is that it's hard to understand.
-      As usualy, inversion and slicing make a mess of things.
+    Derive.Args.
+    . Should Prelude.Pitch.approach use the lookup pitch style?
   . Could I simplify slicing and inversion by making it into a score
     preprocessing step?  It would annotate UI Events with children, so the
     sub tracks would be in Event, not in Context.
@@ -119,12 +18,6 @@ UNSORTED
       would mean the Sub.notes bit would be hardcoded and events would get
       [[Sub.Note]] instead of a TrackTree.  I'd lose power, but what are the
       advantages?
-  * why does Call.note_here ignore the pitch?
-    no worky: Eval.reapply_call (Args.context args) "" []
-      . eval_expr collect=False ctx expr
-    yes worky: Eval.eval_one_call True $ BaseTypes.call "" []
-      . eval_expr collect=True (dummy_ctx ..) expr
-    . Because the context has the subs, which causes inversion to happen.
   . Things I don't like about evaluation:
     . All that stuff in Context.  The presence of sub_tracks can cause
       unexpected further inversion.  An example is that when I inherited
@@ -165,11 +58,8 @@ UNSORTED
   - Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
     so I can have gongs labeled.  How could I configure that?  Or should
     I have a specialized kind of meter for gong, like Cmd.Tala?
-  * I accidentally gave pitches duration with cmd-Z on the note track.  It
-    shouldn't apply to collapsed tracks.
-  - cmd-Z toggle zero duration is inconvenient, it gets the previous event.
-    This is actually the same behaviour as set-dur, but it seems awkward for
-    zero dur.
+    . On the other side, I could imagine wanting sections for a quick chapu
+      talam, where the phrase structure was e.g. 4 avartanams.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.
@@ -198,16 +88,8 @@ UNSORTED
       I could infer from ArgParser but it seems like it's getting too
       complicated.  I think at that point I had better just be able to copy
       the parser over.  Can't I just reapply to the callee?
-  * Can I get rid of Sig.ArgsParsedManually and replace it with Args.many?
-    . It's an awkward irregularity with ArgDocs.
-    . This is actually more powerful because I can have some parsed args first.
-  * thru on charukesi >wy-s is getting pitch bend, but derive is correct
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
-  * nruktuk for kajar
   - Use kotekan for >wy with sargam scale.
-  * There should be a way to reparent a track, so I don't have manually make
-    sure it doesn't have two parents.  Or since I kind of never want two
-    parents I could make that happen automatically.
   - Special play support for tambura-like instruments, where it will start
     playing a note from the middle.
     . Instrument gets a ResumePlay flag.
@@ -225,68 +107,11 @@ UNSORTED
     - I have to also collapse the skeleton, which means I need
       a Block.display_skeleton and Block.display_integrate_skeleton.
     . However, I'm not sure it's worth it.
-  * Pianoteq doesn't save tuning, so I have to send tuning again each time.
-    Maybe I need an initialize step that runs when I load a score.
-    . If inst alloc has an initialize flag, then an initialize cmd could find
-      those and do whatever is necessary, for both MIDI and tuning.
-  / The patch name should go only in the Instrument.Inst.Synth Map, and not
-    in Midi.Patch.patch_name.
-    . Turns out this is already the case.
-  / PitchedKeymap should use IntNoteNumber for low pitch?
-    . Midi.Key requires less conversions and accurately expresses that it's a
-      Midi.Key, but then I wind up with Key -> Key -> Key in signatures.
-  * Midi.Key as Word8 seems dangerous since I do math with it.  Switch to Int?
-  * I'd like to use retune_ksp for >kontakt/wayang, but it uses a PitchKeymap
-    since mutes are in their own range.
-    . One way would be to switch to just one pitch range like reyong, and use
-      poly at to switch articulations.  Downsides:
-      . Obnoxious custom KSP, though I can copy from reyong.
-      . Can't be played outside of karya, but I'm unlikely to want to do that.
-    . To support PitchedKeymap:
-      . For each pitch range, I have a (Midi.Key, Midi.Key), so I need to
-        create a Patch.Scale with subranges.
-      . The timbre is mapped over the inclusive MIDI key range from low to
-        high, where the pitch of the low end of the range is given by the
-        NoteNumber.  So this transposes the event's pitch and clips it to the
-        given range. (low, high, pitch)
-    . Convert asks: I have NN n at a PitchedKeymap offset, which Key k should
-      I play?
-    . Retune asks: given a scale as (Key, NN), how to map that to the
-      PitchedKeymap regions?  This needs [PitchedKeymap] and the Patch.Scale.
-    . make_disjoint_scale is very confusing because it combines PitchedKeymap
-      details with scale tuning details.  I'll never have one with different
-      scales in each region.
-      But even a 12tet PitchedKeymap needs to map through Scale to subtract
-      the PitchedKeymap base note.  Currently that's handled via the same
-      mechanism as UnpitchedKeymap, but for a pitched region I would need the
-      same subtract a constant thing.  And in that case, why can't I just use
-      a scale without the ranges baked in?
-    . So, pull ranges out of Scale.  Instead retune needs
-      AttributeMap -> Scale -> [(Maybe (Pitch.IntNoteNumber, Pitch.NoteNumber))]
-
-    * Update Kontakt.Util.tuning_ksp
-    * Update LTuning.realtime
-    * Perform.Midi.Convert
-  * Cmd.MidiThru should support PitchedKeymaps
-    . This means it has to duplicate some of Midi.Convert.convert_midi_pitch
-  * Cmd.MidiThru should also support attrs in general.
-    * For that I'll need some way to set it, like some kind of Cmd.State level
-      attrs set for each instrument.
-    - I'm probably going to want an easier way to set attrs, e.g. a key to set
-      from current selection.
-  * get rid of type aliases: Cmd.Events
-  * '%c = 1 _' doesn't actually work, because '_' makes it use set.  Pass
-    'default' explicitly.
-  * Track disable gray makes it impossible to read merged track text.
   - The error selection is still hard to see on a busy block, I usually have
     to zoom in and do it again.
     . I think to be more visible it would have to blink or somehow be larger.
       Ideally I could have some kind of glow
       Or maybe red is just overused, if it were green or blue?
-  * A playback mode that scrolled automatically would actually be useful.
-    . But usually annoying, so it would have to be off by default.
-    . Or how about open multiple views at the current zoom, to cover the
-      range.
   vsl:
     - figure out how to do tuning
       . I think it needs to be pitch bend, since it doesn't seem to respond to
@@ -644,11 +469,6 @@ external
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
     - Need to add <||> to attoparsec.
-  * problem with pianoteq: if the same note occurs on two channels, one
-    will be dropped.  Report to pianoteq.  I could work around, but it won't
-    occur with real multitimbral instruments anyway.
-    . Could also work around this with realtime midi tuning
-    . Reported, but I don't think they'll do anything about it.
   + send a patch to improve Random.Shuffle?
 
 local: plugins:
@@ -1147,14 +967,6 @@ REPL: repl:
       data Response = RUpdate FilePath [Text] | RCommend Result [Log]
       type Log = Text
       data Result = Raw !Text | Format !Text
-  * Local.Instrument modules include configuration functions, how to call them?
-    . Kontakt.configure_wayang, configure_legong, Spicy.configure
-    . import into a Local.Repl module
-      * hmm, looks like I'm not importing Local.Repl any more
-    . make the repl support :m
-    . bundle them into the instrument db
-  * bug: repl: SaveFileChanged
-    repl: thread blocked indefinitely in an MVar operation
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - is Cmd.Lang.Fast now obsolete?
@@ -1465,35 +1277,12 @@ Derive:
           reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
-        * The error msg is confusing:
-          . mridangam map ([tang, __, ga], [u, __, __]): sollus and strokes have
-            differing lengths
-          . It should make clear that it's [tang__, ga], so needs [u, __]
-        * Can I vary 567, 666, 765 automatically?  And 579, etc.
-          . Any 666 can be 567, 666, 765.  Any 777 can be 678 or 579.
-          . I think it should be a Sequence -> [Sequence].
-          . Since the 'tri' is not preserved, it would have to infer from
-            3 patterns.  Initially I can just infer, maybe later I'll have to
-            mark them explicitly as a 'family'.
-          . Patterns come in families, and a pattern will use ones from the
-            same family.  But an independent set of patterns would use
-            a different family.
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
           777 777 777 -> 567 876 789.  Actually the latter seems not so
           interesting.
         - Implement PatternFamilies so I can have 6 8 6 7 6 5, or even just
           distinct realizations within a single korvai.
         - Repeat oriented variation, e.g. 3 5 33 5 333 -> 333 5 33 5 3
-        * Longer patterns tend to have a korvai-specific realization.
-          I should keep the PatternMap in Korvai, and pass that in with
-          the StrokeMap.
-          . If I'm going to do that, why have patterns as a separate concept
-            at all?  Maybe I should have a more general concept of alternates.
-        * I have dinga as (din.__.ga, [od, __, __])
-          But from patterns don't have rests.
-          . I could make them have rests, but then tdgnt would have to be
-            repeated for every pattern that uses it.
-          . Or I could allow rests only in the MNotes.
         speed
           . I can't represent double speed without changing the talam, which
             then makes me write everything with spaces between.
@@ -1524,15 +1313,6 @@ Derive:
             retain the distunction... or why even do that?
           . Often (always?) you count the stroke along with its duration, so
             d__ is a 3.
-        * nadai change
-        * speed change
-        * align at any akshara
-        / align mid pattern, e.g.  p6 X@2
-        * Actually (-) is useful... go back to (.)?
-        * karvai can have various realizations in the same way patterns can
-        * verify Patterns, key and pattern durations should be the same
-        * optionally propagate Patterns through to Stroke, so I can emit it as
-          a 'p#' event.
         - Should I change mridangam notes to be consistent with Solkattu.Dsl?
           I have to put thoppi on the left, for 'od' instead of the keyword
           'do'.  And I have to change tha to p instead of +.
@@ -1565,39 +1345,6 @@ Derive:
           . When I am trimming duration, the start never moves.
           . When I add an event, it naturally gets the pitch at the "trigger"
             time, which is the same as start.
-        * Add the flag to Event.
-        / fltk has to draw from (start, -dur) but with the trigger at the bottom
-          . Encode as negative for now, no changes needed.
-        * Create end events.
-        . Now that I think about it, a lot of the negative event handling in
-          editing still kind of makes sense.  Since I spent a lot of effort
-          getting that right, maybe I should just do the minimal amount of
-          work to put the start point at the top so I can have --><-- and
-          leave the rest as-is.  If it turns out confusing then I can change
-          it based on experience.
-        * Edit.set_duration
-        * Edit.set_duration is corrupting Events, probably since Events.insert
-          is buggy.
-          * Put warnings in fltk/EventTrack.cc
-          * Fix Events.
-        * Make sure slicing works.
-          It's because Events.split_range has different behaviour for negative
-          events.  So should I remove that and special case slicing, or just
-          update Events.split?
-          . Since end events are edited from the front now
-        / Cmd.Edit: I can get rid of the complexity with negative durations,
-          but I need a "start" analogue to cmd-s, just like cmd-J and cmd-K
-          are symmetrical.
-          . I have it, it's ^g, but I think I'll try to make the logical "set
-            dur" thing work, instead of the physical "set start".
-        * Make sure things like Gangsa.get_pitch work.  One way is to make
-          Args.start look at end_weighted, the other is specific support in
-          calls that want to support it.
-        * See if I want to add special Cmd.Edit support, e.g. with set
-          duration, or just have them work spatially.
-        / UiTest.note_track needs to be able to create them.
-          Negative durations still work, which might look confusing but is
-          convenient.
       . cancel and realize:
         end of block {final}:
           [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
@@ -1627,69 +1374,11 @@ Derive:
             a single kotekan_unison.
         - is zero dur also mute for reyong?  I keep forgetting!
 
-        negative vs. positive
-          * negative duration defaults initial=f, positive is initial=t
-          . both align to the beginning
-          . How can I do kotekan to norot?
-            kotekan has to be positive in that case.
-          . Maybe I should rethink that thing where "negative" events instead
-            are positive ones, with a flag saying they're end-weighted.  Then
-            I can have <--k||nt--->
-          . But it still seems like I'd want positive for ngubeng stuff, just
-            negative for movement.  But this way I end up with a lot of
-            <---||----> score, which seems to require that flag approach.
-
-        * default to initial=f?
-          . add 'init' as a macro for initial=t
-          . Or maybe default to f for negative duration.
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
             during kotekan.  So maybe I should really build this into kotekan
             calls.
-        * why is noltol in delayed_args for LPerf.sel_events?
-          . Maybe noltol doesn't take it out if it doesn't do it.
-        * last kotekan note is still not useful
-          . It should default to infer-duration so it will go to the next note,
-            and replace a pasang note, so I don't get kempyung.
-          . It's because I had 'unison' first, which gives me two simultaneous
-            notes, which can no longer infer duration since they are
-            considered to be the same.  Since they are coincident, they get
-            multiple-event style infer-duration, which means they are
-            individual inferred as a strong with no weaks, which does nothing
-            to the duration.
-          . That actually seems kind of bogus.  The merge-infer vs.
-            single-infer difference seems confusing, especially when merge is
-            not really merge.  Surely a "merge" with weaks=[] should just kick
-            them on to infer_duration_single?
-          . I need to figure out an understandable approach.
-          . Even with that fix, I wind up with a 0 dur sangsih, 1 dur polos.
-          . Then there's the question about if 'realize-gangsa | unison' is
-            the right order, or should it be 'unison | realize-gangsa'?
-          . But wait, that's wrong too, because what about noltol?
-          . I think unison should be able to go first, since everything that
-            works for >pasang should work for single instruments.
-          . Why do I feel like I've struggled with this before?
-          . The problem is that to do cross-blocks, cancel needs to go at the
-            top level.
-          . Why do I need pasang key?  It means the polos note stops the
-            sangsih, which is good.
-          . realize-noltol - put mutes at the end of notes, so it requires
-              durations, so post infer duration
-            cancel-pasang - infer durations
-            realize-ngoret
-              realize_damped - set duration for {extend-previous} and
-                {shorten-previous}, since the grace note dur is set
-                regardless, it doesn't need {infer-duration}
-              realize_infer_pitch
-            unison - replace >pasang with >polos / >sangsih
-          . Single {infer-duration} is to extend, if it's simultaneous I can
-            find the next non-simultaneous note.
-        * kotekan lines up to the end, but that doesn't interact well when
-          it's interrupted by an angsel.  It should just start at the start
-          time, or at least the repeating regular style should.
-          . How about align to the beginning for positive duration, to the end
-            for negative.  This affects clipping if it's too short.
         - clip should be end-weighted.  If I used a negative duration I could
           make it based on that...
           . Wait, isn't that what Clip is?
@@ -1707,35 +1396,7 @@ Derive:
             the initial note.  It works in the test though, so something else
             is going on.
             . False alarm, I had polos muted.
-          * 'norot' is too long, maybe nrt?  n?  Or maybe expect it to be
-            customized per-score?
-          * Use logical next pitch for norot.
-            . Doesn't seem to work.  Why?
-            . I still feel like negative duration solves a lot of problems.
-          * How norot puts notes before itself can be awkward, would it be
-            simpler to have the pickup emitted by the end of the previous call?
-            That way each call only emits notes within its duration.
-            * Don't prepare when the next pitch is the same.
-            * I will need an explicit flag for prepare, in addition to inferring
-              it.  Sometimes it starts after a gap.
-            * Alternatively, I could make 'nt>' be norot with prepare, and
-              then '>' is just the prepare.  But prepare is the common case,
-              so it should have 'nt'.
-            - I still can't express this: (nt, 5a), (nt, 5u), (k//\\, 5o)
-              . So I still need negative duration, though norot is actually a
-                positive duration.
-              . In some regards, norot emits its own preparation is more
-                suitable since I think I only want to prepare for norot, not
-                for any old note.  But on the flip side, I have to turn it off
-                when it starts on the beat.
-              . But with "prepare next", I have no way to prepare for norot that
-                starts after a pause, I would need a special call.  Which I need
-                anyway.
-              . The big advantage of "prepare next" is that its notes are within
-                its range.  Self prepare is kind of confusing.
-            * Replace norot with norot2 once I'm sure it works.
             - Rename 'arrival' to 'prepare'?
-          * Adapt kotekan calls to use realize_kotekan_pattern2.
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used
@@ -1812,19 +1473,6 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        * Reyong thru notes frquently have the wrong articulation or are
-          entirely silent.  Maybe need to be sure to send all the keyswitches
-          each time?
-          . The difference with reyong is that it uses aftertouch keyswitches.
-          . I think thru doesn't send keyswitches because it assumes I want
-            to keep using the last articulation, and otherwise can't know
-            which one I mean.
-          . First reproduce and see what MIDI is actually being sent.
-        * Force a certain keyswitch for midi thru.
-          . Config is 'Map Score.Instrument Attributes', and I can set it
-            from the selection or manually.
-          . Should it be in Cmd.State or UI state?  Let's put it in UI state
-            so I don't have to reset it every time I restart.
         - instead of the awkward >kilit or the cancel range, should I do
           next note preparation as the end of the current kilit call?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
@@ -1878,6 +1526,8 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    - I think Gamakam4 doesn't test next event pitch, e.g.
+      Gamakam3_test.test_sequence on '!!-v-'
     dyn:
       - Add support for '_' and, why not, '.'.
     - '.' call on the note messes up gamakam
