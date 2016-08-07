@@ -204,18 +204,23 @@ c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
         start <- Args.real_start args
         scale <- Call.get_scale
         under_threshold <- under_threshold_function kotekan dur
-        sustain <- do
+        let has_prepare = Maybe.isJust next_pitch
+        -- False if all the time is taken up by the prepare.
+        let has_sustain = not has_prepare
+                || (Args.duration args > dur*4
+                    || Args.duration args > dur*3 && maybe_initial == Just True)
+        sustain <- if not has_sustain then return mempty else do
             pitch <- Call.get_pitch start
             pitch_t <- Derive.resolve_pitch start pitch
             let steps = norot_steps scale inst_top pitch_t style
-            let has_prepare = Maybe.isJust next_pitch
-            let end = Args.end args - if has_prepare then dur*3 else 0
-            -- True if there is only room for a prepare.
-            let only_prepare = has_prepare && end - Args.start args <= dur
-            let initial = fromMaybe (not only_prepare) maybe_initial
+            -- Default to no initial if this is immediately going into
+            -- a prepare.  This is so I can use a 'nt>' for just prepare but
+            -- line it up on the beat.
+            let initial = fromMaybe has_sustain maybe_initial
+            let sustain_end = Args.end args - if has_prepare then dur*3 else 0
             return $ realize_kotekan_pattern
                 (initial, if has_prepare then False else final)
-                (Args.start args, end) dur pitch under_threshold
+                (Args.start args, sustain_end) dur pitch under_threshold
                 Repeat (gangsa_norot style pasang steps)
         prepare <- case next_pitch of
             Just next -> do

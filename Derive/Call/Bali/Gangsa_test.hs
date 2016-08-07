@@ -40,8 +40,7 @@ test_norot = do
     equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "4e")])
         ([(pasang, "13343")], [])
     -- If there's only room for prepare, it defaults to initial=f.
-    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4e")])
-        ([(pasang, "-3343")], [])
+    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4e")]) ([(pasang, "-3343")], [])
     equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
     -- Unless it has the same pitch.
@@ -56,6 +55,11 @@ test_norot = do
     equal (run [(0, 8, "kotekan=2 | norot -- 4c"),
             (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
+
+test_norot_prepare = do
+    let run = e_pattern 0 . derive " | cancel-pasang 2"
+    -- No pitch at 0, but it's not a problem because there's no sustain.
+    equal (run [(4, -4, "nt> -- 4c"), (4, 4, "4c")]) ([(pasang, "-1121")], [])
 
 test_norot_final = do
     -- Initial and final get flags.
@@ -188,7 +192,6 @@ test_kotekan_regular_negative = do
             , (24, 1, "4d")
             ])
         ([(polos, "--12-1-21-23-2-32"), (sangsih, "-3-23-32-4-34-432")], [])
-
 
 test_kotekan_regular_jalan = do
     -- k// and k\\ work as expected.

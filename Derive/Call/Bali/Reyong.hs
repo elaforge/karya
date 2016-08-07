@@ -745,6 +745,14 @@ assign_hands =
             | pitch > prev_pitch = R
             | otherwise = L
 
+-- * patterns
+
+baris :: [([Char], [Char])]
+baris =
+    [ ( "-e-oe-eo-eo-oe-oeo-eo-oe-oe-eo-e"
+      , "-ai-aia-ia-i-ai-a-ia-i-ai-aia-ia"
+      )
+    ]
 
 -- * realize-reyong
 
