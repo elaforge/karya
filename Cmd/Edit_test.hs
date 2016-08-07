@@ -5,14 +5,27 @@
 module Cmd.Edit_test where
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Ui.Sel as Sel
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Selection as Selection
 
 import Global
 import Types
 
+
+test_cmd_clear_and_advance = do
+    let run events start end = extract $ run_events_sel cmd events start end
+        cmd = do
+            Edit.cmd_clear_and_advance
+            (_, sel) <- Selection.get
+            return (Sel.start_pos sel, Sel.cur_pos sel)
+        extract r = (e_start_dur_text r, expect_right $ CmdTest.result_val r)
+    equal (run [(0, 1)] 0 0) (Right ([], []), Just (1, 1))
+    equal (run [(0, 0), (1, 0)] 0 0) (Right ([(1, 0, "b")], []), Just (1, 1))
+    equal (run [(0, 0), (1, 0)] 0 1) (Right ([(1, 0, "b")], []), Just (0, 1))
 
 test_split_events = do
     let run events sel = e_start_dur $

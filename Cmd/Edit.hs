@@ -463,7 +463,7 @@ point_to_timestep [] start end = return (start, end)
 cmd_clear_selected :: Cmd.M m => m ()
 cmd_clear_selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
-    clear_range track_ids (Events.Positive start end)
+    clear_range track_ids (Events.range Event.Positive start end)
 
 clear_range :: State.M m => [TrackId] -> Events.Range -> m ()
 clear_range track_ids range =
