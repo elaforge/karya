@@ -194,10 +194,9 @@ instance Pretty.Pretty a => Pretty.Pretty (Pasang a) where
         , ("sangsih", Pretty.format sangsih)
         ]
 
--- TODO use instead of pairs, and in Cycle
 data Realization a = Realization {
-    interlocking :: [a]
-    , non_interlocking :: [a]
+    interlocking :: a
+    , non_interlocking :: a
     } deriving (Eq, Show)
 
 irregular_pattern :: CallStack.Stack => [Char] -> [Char]
@@ -230,23 +229,26 @@ parse_pattern destination = map (fmap (subtract destination) . parse1)
 
 kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang Score.Instrument
     -> Cycle
-kotekan_pattern pattern style pasang =
-    (realize *** realize) $ pattern_steps style pasang pattern
-    where realize = map (map (uncurry kotekan_note))
+kotekan_pattern pattern style pasang = Realization
+    { interlocking = realize (interlocking realization)
+    , non_interlocking = realize (non_interlocking realization)
+    }
+    where
+    realization = pattern_steps style pasang pattern
+    realize = map (map (uncurry kotekan_note))
 
 pattern_steps :: KotekanStyle -> Pasang Score.Instrument -> KotekanPattern
-    -> ([[(Maybe Score.Instrument, Pitch.Step)]],
-        [[(Maybe Score.Instrument, Pitch.Step)]])
-pattern_steps style pasang (KotekanPattern telu pat itelu ipat) =
-    (interlock, normal)
-    where
-    normal = case style of
-        Telu -> map (realize Nothing) telu
-        Pat -> interlocking (Pasang { polos = telu, sangsih = pat })
-    realize inst n = maybe [] ((:[]) . (inst,)) n
-    interlock = case style of
+    -> Realization [[(Maybe Score.Instrument, Pitch.Step)]]
+pattern_steps style pasang (KotekanPattern telu pat itelu ipat) = Realization
+    { interlocking = case style of
         Telu -> interlocking itelu
         Pat -> interlocking ipat
+    , non_interlocking = case style of
+        Telu -> map (realize Nothing) telu
+        Pat -> interlocking (Pasang { polos = telu, sangsih = pat })
+    }
+    where
+    realize inst n = maybe [] ((:[]) . (inst,)) n
     interlocking part =
         [ realize (Just (polos pasang)) p ++ realize (Just (sangsih pasang)) s
         | (p, s) <- zip (polos part) (sangsih part)
@@ -316,30 +318,30 @@ infer_prepare args Nothing
 
 gangsa_norot :: NorotStyle -> Pasang Score.Instrument
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
-    where
-    interlock = map (:[]) [s (fst pstep), p (snd pstep)]
-    normal = case style of
+gangsa_norot style pasang (pstep, sstep) = Realization
+    { interlocking = map (:[]) [s (fst pstep), p (snd pstep)]
+    , non_interlocking = case style of
         Default -> map ((:[]) . both) [fst pstep, snd pstep]
         Diamond ->
             [ [p (fst pstep), s (fst sstep)]
             , [p (snd pstep), s (snd sstep)]
             ]
+    }
+    where
     both = kotekan_note Nothing
     p = kotekan_note (Just (polos pasang))
     s = kotekan_note (Just (sangsih pasang))
 
 gangsa_norot_arrival :: NorotStyle -> Pasang Score.Instrument
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
-    where
-    interlock =
+gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = Realization
+    { interlocking =
         [ [p p2, s p2]
         , [p p2, s p2]
         , [s p1]
         , [p p2]
         ]
-    normal = case style of
+    , non_interlocking = case style of
         Default -> map (:[]) [muted_note (both p2), both p2, both p1, both p2]
         Diamond ->
             [ map muted_note [p p2, s s2]
@@ -347,6 +349,8 @@ gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
             , [p p1, s s1]
             , [p p2, s s2]
             ]
+    }
+    where
     both = kotekan_note Nothing
     p = kotekan_note (Just (polos pasang))
     s = kotekan_note (Just (sangsih pasang))
@@ -379,15 +383,16 @@ c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
             (gender_norot pasang)
 
 gender_norot :: Pasang Score.Instrument -> Cycle
-gender_norot pasang = (interlocking, normal)
-    where
-    interlocking = [[s 1], [p 0], [s 1], [p 0]]
-    normal =
+gender_norot pasang = Realization
+    { interlocking = [[s 1], [p 0], [s 1], [p 0]]
+    , non_interlocking =
         [ [p (-1), s 1]
         , [p (-2), s 0]
         , [p (-1), s 1]
         , if include_unison then [p 0, s 0] else [s 0]
         ]
+    }
+    where
     include_unison = True -- TODO chance based on signal
     p = kotekan_note (Just (polos pasang))
     s = kotekan_note (Just (sangsih pasang))
@@ -501,8 +506,8 @@ realize_kotekan_pattern initial_final (start, end) dur pitch
         realize_pattern repeat initial_final start end dur get_cycle
     where
     get_cycle t
-        | under_threshold t = fst cycle
-        | otherwise = snd cycle
+        | under_threshold t = interlocking cycle
+        | otherwise = non_interlocking cycle
     realize (KotekanNote inst steps muted) =
         maybe id Derive.with_instrument inst $
         -- TODO the kind of muting should be configurable.  Or, rather I should
@@ -547,22 +552,24 @@ to_char c = case c of
 -- | Make both parts end on zero by subtracting the pitch of the final
 -- non-interlocking note.
 end_on_zero :: Cycle -> Cycle
-end_on_zero (interlocking, non_interlocking) =
-    (add (-steps) interlocking, add (-steps) non_interlocking)
+end_on_zero realization = Realization
+    { interlocking = add (-steps) (interlocking realization)
+    , non_interlocking = add (-steps) (non_interlocking realization)
+    }
     where
     add steps = map $ map $ \note ->
         note { note_steps = steps + note_steps note }
     steps = fromMaybe 0 $ do
-        final : _ <- Seq.last non_interlocking
+        final : _ <- Seq.last (non_interlocking realization)
         return $ note_steps final
 
 kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle
     -> Pasang Score.Instrument -> Cycle
-kernel_to_pattern kernel sangsih_above kotekan_style pasang =
-    (interlocking, non_interlocking)
+kernel_to_pattern kernel sangsih_above kotekan_style pasang = Realization
+    { interlocking = map interlock kernel
+    , non_interlocking = map non_interlock kernel
+    }
     where
-    interlocking = map interlock kernel
-    non_interlocking = map non_interlock kernel
     interlock atom = case (sangsih_above, kotekan_style) of
         (Call.Up, Telu) -> case atom of
             Rest -> [s 2]
@@ -651,7 +658,7 @@ instance Pretty.Pretty Repeat where pretty = showt
 -- | (interlocking pattern, non-interlocking pattern)
 --
 -- Each list represents coincident notes.  [] is a rest.
-type Cycle = ([[KotekanNote]], [[KotekanNote]])
+type Cycle = Realization [[KotekanNote]]
 
 data Note a = Note {
     note_start :: !ScoreTime
