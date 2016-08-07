@@ -163,6 +163,7 @@ c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
 -- * patterns
 
 -- | There are 4 ways to realize a kotekan:
+--
 -- 1. Undivided.  Since it's undivided it could be unison or kempyung.
 -- 2. Slow but divided.  Play all the notes, but sangsih and polos are kempyung
 -- on the outer notes.
@@ -170,13 +171,9 @@ c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
 data KotekanPattern = KotekanPattern {
     kotekan_telu :: ![Maybe Pitch.Step]
     , kotekan_pat :: ![Maybe Pitch.Step]
-    , kotekan_interlock_telu :: !KotekanParts
-    , kotekan_interlock_pat :: !KotekanParts
+    , kotekan_interlock_telu :: !(Pasang [Maybe Pitch.Step])
+    , kotekan_interlock_pat :: !(Pasang [Maybe Pitch.Step])
     } deriving (Eq, Show)
-
--- | (polos, sangsih)
--- TODO use a polymorphic record
-type KotekanParts = ([Maybe Pitch.Step], [Maybe Pitch.Step])
 
 instance Pretty.Pretty KotekanPattern where
     format (KotekanPattern telu pat itelu ipat) = Pretty.record "KotekanPattern"
@@ -184,6 +181,17 @@ instance Pretty.Pretty KotekanPattern where
         , ("pat", Pretty.format pat)
         , ("interlock_telu", Pretty.format itelu)
         , ("interlock_pat", Pretty.format ipat)
+        ]
+
+data Pasang a = Pasang {
+    polos :: a
+    , sangsih :: a
+    } deriving (Eq, Show)
+
+instance Pretty.Pretty a => Pretty.Pretty (Pasang a) where
+    format (Pasang polos sangsih) = Pretty.record "Pasang"
+        [ ("polos", Pretty.format polos)
+        , ("sangsih", Pretty.format sangsih)
         ]
 
 -- TODO use instead of pairs, and in Cycle
@@ -197,13 +205,14 @@ irregular_pattern :: CallStack.Stack => [Char] -> [Char]
 irregular_pattern polos sangsih4 polos_i sangsih_i3 sangsih_i4 = KotekanPattern
     { kotekan_telu = parse1 polos
     , kotekan_pat = parse1 sangsih4
-    , kotekan_interlock_telu = parse (polos_i, sangsih_i3)
-    , kotekan_interlock_pat = parse (polos_i, sangsih_i4)
+    , kotekan_interlock_telu =
+        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i3 }
+    , kotekan_interlock_pat =
+        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i4 }
     }
     where
     -- TODO the CallStack.Stack doesn't actually work because all these
     -- functions would have to have it too.
-    parse = parse1 *** parse1
     parse1 = parse_pattern destination . check
     check ns
         | length ns == length polos = ns
@@ -219,27 +228,28 @@ parse_pattern destination = map (fmap (subtract destination) . parse1)
     parse1 c = Just $ fromMaybe
         (CallStack.errorStack $ "not a digit: " <> showt c) $ Num.readDigit c
 
-kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
+kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang Score.Instrument
+    -> Cycle
 kotekan_pattern pattern style pasang =
     (realize *** realize) $ pattern_steps style pasang pattern
     where realize = map (map (uncurry kotekan_note))
 
-pattern_steps :: KotekanStyle -> Pasang -> KotekanPattern
+pattern_steps :: KotekanStyle -> Pasang Score.Instrument -> KotekanPattern
     -> ([[(Maybe Score.Instrument, Pitch.Step)]],
         [[(Maybe Score.Instrument, Pitch.Step)]])
-pattern_steps style (polos, sangsih) (KotekanPattern telu pat itelu ipat) =
+pattern_steps style pasang (KotekanPattern telu pat itelu ipat) =
     (interlock, normal)
     where
     normal = case style of
         Telu -> map (realize Nothing) telu
-        Pat -> interlocking telu pat
+        Pat -> interlocking (Pasang { polos = telu, sangsih = pat })
     realize inst n = maybe [] ((:[]) . (inst,)) n
     interlock = case style of
-        Telu -> uncurry interlocking itelu
-        Pat -> uncurry interlocking ipat
-    interlocking ps ss =
-        [ realize (Just polos) p ++ realize (Just sangsih) s
-        | (p, s) <- zip ps ss
+        Telu -> interlocking itelu
+        Pat -> interlocking ipat
+    interlocking part =
+        [ realize (Just (polos pasang)) p ++ realize (Just (sangsih pasang)) s
+        | (p, s) <- zip (polos part) (sangsih part)
         ]
 
 -- ** norot
@@ -304,42 +314,42 @@ infer_prepare args Nothing
         cur <- Call.get_pitch =<< Args.real_start args
         return $ if Pitches.equal cur next then Nothing else Just next
 
-gangsa_norot :: NorotStyle -> Pasang
+gangsa_norot :: NorotStyle -> Pasang Score.Instrument
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
 gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     where
-    interlock = map (:[]) [sangsih (fst pstep), polos (snd pstep)]
+    interlock = map (:[]) [s (fst pstep), p (snd pstep)]
     normal = case style of
         Default -> map ((:[]) . both) [fst pstep, snd pstep]
         Diamond ->
-            [ [polos (fst pstep), sangsih (fst sstep)]
-            , [polos (snd pstep), sangsih (snd sstep)]
+            [ [p (fst pstep), s (fst sstep)]
+            , [p (snd pstep), s (snd sstep)]
             ]
     both = kotekan_note Nothing
-    polos = kotekan_note (Just (fst pasang))
-    sangsih = kotekan_note (Just (snd pasang))
+    p = kotekan_note (Just (polos pasang))
+    s = kotekan_note (Just (sangsih pasang))
 
-gangsa_norot_arrival :: NorotStyle -> Pasang
+gangsa_norot_arrival :: NorotStyle -> Pasang Score.Instrument
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
 gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
     where
     interlock =
-        [ [polos p2, sangsih p2]
-        , [polos p2, sangsih p2]
-        , [sangsih p1]
-        , [polos p2]
+        [ [p p2, s p2]
+        , [p p2, s p2]
+        , [s p1]
+        , [p p2]
         ]
     normal = case style of
         Default -> map (:[]) [muted_note (both p2), both p2, both p1, both p2]
         Diamond ->
-            [ map muted_note [polos p2, sangsih s2]
-            , [polos p2, sangsih s2]
-            , [polos p1, sangsih s1]
-            , [polos p2, sangsih s2]
+            [ map muted_note [p p2, s s2]
+            , [p p2, s s2]
+            , [p p1, s s1]
+            , [p p2, s s2]
             ]
     both = kotekan_note Nothing
-    polos = kotekan_note (Just (fst pasang))
-    sangsih = kotekan_note (Just (snd pasang))
+    p = kotekan_note (Just (polos pasang))
+    s = kotekan_note (Just (sangsih pasang))
 
 norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
     -- ^ this is to figure out if the sangsih part will be in range
@@ -368,19 +378,19 @@ c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
             (Args.range args) dur pitch under_threshold Repeat
             (gender_norot pasang)
 
-gender_norot :: Pasang -> Cycle
+gender_norot :: Pasang Score.Instrument -> Cycle
 gender_norot pasang = (interlocking, normal)
     where
-    interlocking = [[sangsih 1], [polos 0], [sangsih 1], [polos 0]]
+    interlocking = [[s 1], [p 0], [s 1], [p 0]]
     normal =
-        [ [polos (-1), sangsih 1]
-        , [polos (-2), sangsih 0]
-        , [polos (-1), sangsih 1]
-        , if include_unison then [polos 0, sangsih 0] else [sangsih 0]
+        [ [p (-1), s 1]
+        , [p (-2), s 0]
+        , [p (-1), s 1]
+        , if include_unison then [p 0, s 0] else [s 0]
         ]
     include_unison = True -- TODO chance based on signal
-    polos = kotekan_note (Just (fst pasang))
-    sangsih = kotekan_note (Just (snd pasang))
+    p = kotekan_note (Just (polos pasang))
+    s = kotekan_note (Just (sangsih pasang))
 
 -- * kotekan
 
@@ -471,8 +481,8 @@ kernel_doc = "Polos part in transposition steps.\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_kernel :: Bool -> Call.UpDown -> KotekanStyle -> Pasang -> Kernel
-    -> Cycle
+realize_kernel :: Bool -> Call.UpDown -> KotekanStyle -> Pasang Score.Instrument
+    -> Kernel -> Cycle
 realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
         ((if inverted then invert else id) kernel) sangsih_above style pasang
@@ -546,8 +556,8 @@ end_on_zero (interlocking, non_interlocking) =
         final : _ <- Seq.last non_interlocking
         return $ note_steps final
 
-kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle -> Pasang
-    -> Cycle
+kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle
+    -> Pasang Score.Instrument -> Cycle
 kernel_to_pattern kernel sangsih_above kotekan_style pasang =
     (interlocking, non_interlocking)
     where
@@ -555,40 +565,40 @@ kernel_to_pattern kernel sangsih_above kotekan_style pasang =
     non_interlocking = map non_interlock kernel
     interlock atom = case (sangsih_above, kotekan_style) of
         (Call.Up, Telu) -> case atom of
-            Rest -> [sangsih 2]
-            Low -> [polos 0]
-            High -> [polos 1, sangsih 1]
+            Rest -> [s 2]
+            Low -> [p 0]
+            High -> [p 1, s 1]
         (Call.Up, Pat) -> case atom of
-            Rest -> [sangsih 2]
-            Low -> [polos 0, sangsih 3]
-            High -> [polos 1]
+            Rest -> [s 2]
+            Low -> [p 0, s 3]
+            High -> [p 1]
         (Call.Down, Telu) -> case atom of
-            Rest -> [sangsih (-1)]
-            Low -> [polos 0, sangsih 0]
-            High -> [polos 1]
+            Rest -> [s (-1)]
+            Low -> [p 0, s 0]
+            High -> [p 1]
         (Call.Down, Pat) -> case atom of
-            Rest -> [sangsih (-1)]
-            Low -> [polos 0]
-            High -> [polos 1, sangsih (-2)]
+            Rest -> [s (-1)]
+            Low -> [p 0]
+            High -> [p 1, s (-2)]
     non_interlock atom = case (sangsih_above, kotekan_style) of
         (Call.Up, Telu) -> case atom of
             Rest -> [both 2]
             Low -> [both 0]
             High -> [both 1]
         (Call.Up, Pat) -> case atom of
-            Rest -> [polos 2, sangsih 2]
-            Low -> [polos 0, sangsih 3]
-            High -> [polos 1, sangsih 1]
+            Rest -> [p 2, s 2]
+            Low -> [p 0, s 3]
+            High -> [p 1, s 1]
         (Call.Down, Telu) -> case atom of
             Rest -> [both (-1)]
             Low -> [both 0]
             High -> [both 1]
         (Call.Down, Pat) -> case atom of
-            Rest -> [polos (-1), sangsih (-1)]
-            Low -> [polos 0, sangsih 0]
-            High -> [polos 1, sangsih (-2)]
-    polos = kotekan_note (Just (fst pasang))
-    sangsih = kotekan_note (Just (snd pasang))
+            Rest -> [p (-1), s (-1)]
+            Low -> [p 0, s 0]
+            High -> [p 1, s (-2)]
+    p = kotekan_note (Just (polos pasang))
+    s = kotekan_note (Just (sangsih pasang))
     both = kotekan_note Nothing
 
 rotate :: Int -> [a] -> [a]
@@ -755,7 +765,6 @@ cycle_pattern (initial, final) start end dur get_cycle =
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
 
-
 -- | Turn Notes into a NoteDeriver.
 realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver
 realize_notes realize = mconcatMap $ \(Note start dur flags note) ->
@@ -786,16 +795,16 @@ instance Typecheck.TypecheckSymbol KotekanStyle
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih."
-    $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
+    $ Sig.callt pasang_env $ \pasang _args deriver -> do
         inst <- Call.get_instrument
-        polos <- Derive.get_instrument polos
-        sangsih <- Derive.get_instrument sangsih
-        Post.emap_asc_ (unison inst polos sangsih) <$> deriver
+        pasang <- Pasang <$> Derive.get_instrument (polos pasang)
+            <*> Derive.get_instrument (sangsih pasang)
+        Post.emap_asc_ (unison inst pasang) <$> deriver
     where
-    unison inst polos sangsih event
+    unison inst pasang event
         | Score.event_instrument event == inst =
-            [ Score.add_log msg $ Post.set_instrument polos event
-            , Score.add_log msg $ Post.set_instrument sangsih event
+            [ Score.add_log msg $ Post.set_instrument (polos pasang) event
+            , Score.add_log msg $ Post.set_instrument (sangsih pasang) event
             ]
         | otherwise = [event]
         where msg = "unison from " <> pretty inst
@@ -814,20 +823,20 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     \ above."
     $ Sig.callt ((,)
     <$> instrument_top_env <*> pasang_env
-    ) $ \(maybe_top, (polos, sangsih)) _args deriver -> do
+    ) $ \(maybe_top, pasang) _args deriver -> do
         inst <- Call.get_instrument
-        polos <- Derive.get_instrument polos
-        sangsih <- Derive.get_instrument sangsih
+        pasang <- Pasang <$> Derive.get_instrument (polos pasang)
+            <*> Derive.get_instrument (sangsih pasang)
         scale <- Call.get_scale
         let too_high = pitch_too_high scale maybe_top
-        Post.emap_asc_ (kempyung too_high inst polos sangsih) <$> deriver
+        Post.emap_asc_ (kempyung too_high inst pasang) <$> deriver
     where
-    kempyung too_high inst polos sangsih event
+    kempyung too_high inst pasang event
         | Score.event_instrument event == inst =
             [ Score.add_log ("low kempyung from " <> pretty inst) $
-                Post.set_instrument polos event
+                Post.set_instrument (polos pasang) event
             , Score.add_log ("high kempyung from " <> pretty inst) $
-                transpose too_high $ Post.set_instrument sangsih event
+                transpose too_high $ Post.set_instrument (sangsih pasang) event
             ]
         | otherwise = [event]
     transpose too_high event
@@ -847,11 +856,14 @@ c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
     $ Sig.callt pasang_env $ \pasang _args deriver ->
         snd . Post.emap_asc (nyogcag pasang) True <$> deriver
 
-nyogcag :: Pasang -> Bool -> Score.Event -> (Bool, [Score.Event])
-nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
+nyogcag :: Pasang Score.Instrument -> Bool -> Score.Event
+    -> (Bool, [Score.Event])
+nyogcag pasang is_polos event = (not is_polos, [with_inst])
     where
     with_inst = event
-        { Score.event_instrument = if is_polos then polos else sangsih }
+        { Score.event_instrument =
+            if is_polos then polos pasang else sangsih pasang
+        }
 
 -- * realize calls
 
@@ -1030,11 +1042,8 @@ pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
 pitch_too_high scale maybe_top =
     maybe False (note_too_high scale maybe_top) . Score.initial_pitch
 
--- | (polos, sangsih)
-type Pasang = (Score.Instrument, Score.Instrument)
-
-pasang_env :: Sig.Parser Pasang
-pasang_env = (,)
+pasang_env :: Sig.Parser (Pasang Score.Instrument)
+pasang_env = Pasang
     <$> Sig.required_environ (BaseTypes.unsym inst_polos) Sig.Unprefixed
         "Polos instrument."
     <*> Sig.required_environ (BaseTypes.unsym inst_sangsih) Sig.Unprefixed
