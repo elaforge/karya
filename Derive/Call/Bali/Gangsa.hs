@@ -29,6 +29,7 @@
 module Derive.Call.Bali.Gangsa where
 import qualified Data.Maybe as Maybe
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -76,19 +77,24 @@ note_calls = Derive.call_maps
     , ("nt>", c_norot (Just True))
     , ("nt-", c_norot (Just False))
     , ("gnorot", c_gender_norot)
-    , ("k_\\",  c_kotekan_irregular Pat $
-        irregular_pattern "-11-1321" "-11-1-21" "3-32-32-" "-44-43-4")
-    , ("k//\\\\", c_kotekan_irregular Pat $
-        irregular_pattern "3123123213213123"
-            "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
-
+    , ("k_\\", c_kotekan_irregular Pat $ irregular_pattern
+        "-11-1321" "-44-4324"
+        "-11-1-21"
+        "3-32-32-" "-44-43-4")
+    , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern
+        "-123123213213123" "-423423243243423"
+        "-12-12-21-21-12-"
+        "3-23-232-32-3-23" "44-34-3-43-434-3")
     -- There are two ways to play k\\, either 21321321 or 31321321.  The first
     -- one is irregular since sangsih starts on 2 but there's no unison polos.
-    -- The first way also seems to be more common.
-    , ("k\\\\",   c_kotekan_irregular Telu $
-        irregular_pattern "21321321" "-1-21-21" "2-32-32-" "-43-43-4")
-    , ("k//",   c_kotekan_irregular Telu $
-        irregular_pattern "23123123" "-3-23-23" "2-12-12-" "-01-01-0")
+    , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern
+        "21321321" "24324324"
+        "-1-21-21"
+        "2-32-32-" "-43-43-4")
+    , ("k//", c_kotekan_irregular Telu $ irregular_pattern
+        "23123123" "20120120"
+        "-3-23-23"
+        "2-12-12-" "-01-01-0")
     , ("k\\\\2", c_kotekan_regular (Just "-1-21-21"))
     , ("k//2",   c_kotekan_regular (Just "-2-12-12"))
 
@@ -156,32 +162,85 @@ c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
 
 -- * patterns
 
+-- | There are 4 ways to realize a kotekan:
+-- 1. Undivided.  Since it's undivided it could be unison or kempyung.
+-- 2. Slow but divided.  Play all the notes, but sangsih and polos are kempyung
+-- on the outer notes.
+-- 3, 4. Ngotek, in telu and pat versions.
 data KotekanPattern = KotekanPattern {
-    kotekan_unison :: [Maybe Pitch.Step]
-    , kotekan_polos_pat :: [Maybe Pitch.Step]
-    , kotekan_sangsih_pat :: [Maybe Pitch.Step]
-    , kotekan_polos_telu :: [Maybe Pitch.Step]
-    , kotekan_sangsih_telu :: [Maybe Pitch.Step]
+    kotekan_telu :: ![Maybe Pitch.Step]
+    , kotekan_pat :: ![Maybe Pitch.Step]
+    , kotekan_interlock_telu :: !KotekanParts
+    , kotekan_interlock_pat :: !KotekanParts
     } deriving (Eq, Show)
 
+-- | (polos, sangsih)
+-- TODO use a polymorphic record
+type KotekanParts = ([Maybe Pitch.Step], [Maybe Pitch.Step])
+
 instance Pretty.Pretty KotekanPattern where
-    format (KotekanPattern unison p4 s4 p3 s3) =
-        Pretty.record "KotekanPattern" $ zip
-            ["unison", "polos pat", "sangsih pat", "polos telu", "sangsih telu"]
-            (map Pretty.format [unison, p4, s4, p3, s3])
+    format (KotekanPattern telu pat itelu ipat) = Pretty.record "KotekanPattern"
+        [ ("telu", Pretty.format telu)
+        , ("pat", Pretty.format pat)
+        , ("interlock_telu", Pretty.format itelu)
+        , ("interlock_pat", Pretty.format ipat)
+        ]
 
-irregular_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> KotekanPattern
-irregular_pattern unison polos sangsih_telu sangsih_pat =
-    parse_pattern unison polos sangsih_pat polos sangsih_telu
+-- TODO use instead of pairs, and in Cycle
+data Realization a = Realization {
+    interlocking :: [a]
+    , non_interlocking :: [a]
+    } deriving (Eq, Show)
 
-parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
-    -> KotekanPattern
-parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
-    KotekanPattern (parse unison) (parse polos_pat) (parse sangsih_pat)
-        (parse polos_telu) (parse sangsih_telu)
+irregular_pattern :: CallStack.Stack => [Char] -> [Char]
+    -> [Char] -> [Char] -> [Char] -> KotekanPattern
+irregular_pattern polos sangsih4 polos_i sangsih_i3 sangsih_i4 = KotekanPattern
+    { kotekan_telu = parse1 polos
+    , kotekan_pat = parse1 sangsih4
+    , kotekan_interlock_telu = parse (polos_i, sangsih_i3)
+    , kotekan_interlock_pat = parse (polos_i, sangsih_i4)
+    }
     where
-    Just destination = Seq.last $ mapMaybe Num.readDigit unison
-    parse = map (fmap (subtract destination) . Num.readDigit) . filter (/=' ')
+    -- TODO the CallStack.Stack doesn't actually work because all these
+    -- functions would have to have it too.
+    parse = parse1 *** parse1
+    parse1 = parse_pattern destination . check
+    check ns
+        | length ns == length polos = ns
+        | otherwise =
+            CallStack.errorStack $ "not same length as polos: " <> showt ns
+    destination = fromMaybe (CallStack.errorStack "no final pitch") $
+        Seq.last $ Maybe.catMaybes $ parse_pattern 0 polos
+
+parse_pattern :: CallStack.Stack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
+parse_pattern destination = map (fmap (subtract destination) . parse1)
+    where
+    parse1 '-' = Nothing
+    parse1 c = Just $ fromMaybe
+        (CallStack.errorStack $ "not a digit: " <> showt c) $ Num.readDigit c
+
+kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
+kotekan_pattern pattern style pasang =
+    (realize *** realize) $ pattern_steps style pasang pattern
+    where realize = map (map (uncurry kotekan_note))
+
+pattern_steps :: KotekanStyle -> Pasang -> KotekanPattern
+    -> ([[(Maybe Score.Instrument, Pitch.Step)]],
+        [[(Maybe Score.Instrument, Pitch.Step)]])
+pattern_steps style (polos, sangsih) (KotekanPattern telu pat itelu ipat) =
+    (interlock, normal)
+    where
+    normal = case style of
+        Telu -> map (realize Nothing) telu
+        Pat -> interlocking telu pat
+    realize inst n = maybe [] ((:[]) . (inst,)) n
+    interlock = case style of
+        Telu -> uncurry interlocking itelu
+        Pat -> uncurry interlocking ipat
+    interlocking ps ss =
+        [ realize (Just polos) p ++ realize (Just sangsih) s
+        | (p, s) <- zip ps ss
+        ]
 
 -- ** norot
 
@@ -347,28 +406,6 @@ c_kotekan_irregular default_style pattern =
         realize_kotekan_pattern (infer_initial args initial_final)
             (Args.range args) dur pitch under_threshold Repeat
             (kotekan_pattern pattern style pasang)
-
-kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
-kotekan_pattern pattern style pasang =
-    (realize *** realize) $ pattern_steps style pasang pattern
-    where realize = map (map (uncurry kotekan_note))
-
-pattern_steps :: KotekanStyle -> Pasang -> KotekanPattern
-    -> ([[(Maybe Score.Instrument, Pitch.Step)]],
-        [[(Maybe Score.Instrument, Pitch.Step)]])
-pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
-    (interlock, normal unison)
-    where
-    interlock = case style of
-        Telu -> interlocking p3 s3
-        Pat -> interlocking p4 s4
-    interlocking ps ss =
-        [ mapMaybe id [(,) (Just polos) <$> p, (,) (Just sangsih) <$> s]
-        | (p, s) <- zip ps ss
-        ]
-    normal = map $ \n -> case n of
-        Nothing -> []
-        Just steps -> [(Nothing, steps)]
 
 -- ** regular
 

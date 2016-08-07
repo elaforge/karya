@@ -1337,25 +1337,19 @@ Derive:
       - kotekan ending in a unison or kempyung should sometimes have both
         instruments, but sometimes the last polos note should replace both.
         . Isn't that what 'cancel-pasasng' is supposed to do?
-      Replace negative duration with positive duration + end_weighted flag.
-        . What if I keep using negative as the flag?  It might be confusing
-          how the event (8, -4) is actually (4, 4, End).  (start + dur, -dur)
-        . But in a lot of ways it seems like negative is actually the more
-          natural representation.
-          . When I am trimming duration, the start never moves.
-          . When I add an event, it naturally gets the pitch at the "trigger"
-            time, which is the same as start.
-      . cancel and realize:
-        end of block {final}:
-          [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
-            => (polos, 16, 4, "4i")
-              merge duration from 2nd
-          [(polos, 16, 0, "4i")] -- [(sangsih, 2, 4, "4o")]
-            => [(polos, 16, 2, "4i"), (sangsih, 2, 4, "4o")]
-              extend to fill gap
-          [(polos, 16, 0, "4i") -- [(polos, 0, 4, "4i")
-           (sangsih, 16, 0, "4i")]  (sangsih, 0, 4, "4u")]
-            => like merges with like
+        . Also, in save/transcribe/bali/gabor @end-a 24t, the end of the
+          kotekan should be polos, not kempyung.
+        . cancel and realize:
+          end of block {final}:
+            [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
+              => (polos, 16, 4, "4i")
+                merge duration from 2nd
+            [(polos, 16, 0, "4i")] -- [(sangsih, 2, 4, "4o")]
+              => [(polos, 16, 2, "4i"), (sangsih, 2, 4, "4o")]
+                extend to fill gap
+            [(polos, 16, 0, "4i") -- [(polos, 0, 4, "4i")
+             (sangsih, 16, 0, "4i")]  (sangsih, 0, 4, "4u")]
+              => like merges with like
       - kajar: automatic hand muting as with reyong.
       - add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -1369,7 +1363,7 @@ Derive:
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.
-        - why is k//\\ non-interlocking giving the bottom part to sangsih?
+        * why is k//\\ non-interlocking giving the bottom part to sangsih?
           . It's because kotekan_irregular is designed that way, it has
             a single kotekan_unison.
         - is zero dur also mute for reyong?  I keep forgetting!
