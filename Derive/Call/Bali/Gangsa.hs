@@ -397,7 +397,7 @@ c_kotekan_irregular default_style pattern =
     ("Render a kotekan pattern where both polos and sangsih are explicitly\
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,,)
-    <$> Sig.defaulted "style" default_style "Kotekan style."
+    <$> style_arg default_style
     <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
     ) $ \(style, dur, kotekan, pasang, initial_final) ->
     Sub.inverting $ \args -> do
@@ -416,7 +416,7 @@ c_kotekan_kernel =
         <> kotekan_doc)
     $ Sig.call ((,,,,,,,,)
     <$> Sig.defaulted "rotation" 0 "Rotate kernel to make a different pattern."
-    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> style_arg Telu
     <*> Sig.defaulted "sangsih" Call.Up
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
@@ -442,7 +442,7 @@ c_kotekan_regular maybe_kernel =
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)
     <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
-    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> style_arg Telu
     <*> Sig.defaulted "sangsih" Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
@@ -976,6 +976,9 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 -- end.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
 get_pitch args = Call.get_pitch =<< Args.real_trigger args
+
+style_arg :: KotekanStyle -> Sig.Parser KotekanStyle
+style_arg deflt = Sig.defaulted_env "style" Sig.Both deflt "Kotekan style."
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed

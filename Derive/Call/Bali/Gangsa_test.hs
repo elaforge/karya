@@ -155,19 +155,18 @@ test_kotekan_irregular = do
             . derive (ngotek kotekan <> " | cancel-pasang 2")
     equal (run True [(0, 8, "k_\\ -- 4c")])
         ([(polos, "1-11-1-21"), (sangsih, "4-44-43-4")], [])
-    -- TODO why doesn't style=telu work?
-    equal (run False [(0, 8, "kotekan-style=telu | k_\\ -- 4c")])
+    equal (run False [(0, 8, "style=telu | k_\\ -- 4c")])
         ([(pasang, "1-11-1321")], [])
     equal (run False [(16, -16, "k//\\\\ -- 4e")])
         ([(polos, "--123123213213123"), (sangsih, "--423423243243423")], [])
-    equal (run False [(16, -16, "kotekan-style=telu | k//\\\\ -- 4e")])
+    equal (run False [(16, -16, "style=telu | k//\\\\ -- 4e")])
         ([(pasang, "--123123213213123")], [])
     equal (run True [(0, 8, "k// -- 4e"), (8, 8, "k\\\\ -- 4c")])
-        ([(polos, "3-3-23-23-1-21-21"),
-        (sangsih, "-2-12-12-2-32-32-")], [])
+        ([(polos,   "3-3-23-23-1-21-21"),
+          (sangsih, "-2-12-12-2-32-32-")], [])
     equal (run True [(8, -8, "k// -- 4e"), (16, -8, "k\\\\ -- 4c")])
-        ([(polos, "--3-23-23-1-21-21"),
-        (sangsih, "-2-12-12-2-32-32-")], [])
+        ([(polos,   "--3-23-23-1-21-21"),
+          (sangsih, "-2-12-12-2-32-32-")], [])
 
 test_kotekan_regular = do
     let run kotekan = e_pattern 2 . derive (ngotek kotekan)
