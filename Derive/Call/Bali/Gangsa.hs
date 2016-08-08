@@ -317,8 +317,8 @@ infer_prepare args Nothing
         return $ if Pitches.equal cur next then Nothing else Just next
 
 gangsa_norot :: NorotStyle -> Pasang Score.Instrument
-    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot style pasang (pstep, sstep) = Realization
+    -> Pasang (Pitch.Step, Pitch.Step) -> Cycle
+gangsa_norot style pasang steps = Realization
     { interlocking = map (:[]) [s (fst pstep), p (snd pstep)]
     , non_interlocking = case style of
         Default -> map ((:[]) . both) [fst pstep, snd pstep]
@@ -331,10 +331,12 @@ gangsa_norot style pasang (pstep, sstep) = Realization
     both = kotekan_note Nothing
     p = kotekan_note (Just (polos pasang))
     s = kotekan_note (Just (sangsih pasang))
+    pstep = polos steps
+    sstep = sangsih steps
 
 gangsa_norot_arrival :: NorotStyle -> Pasang Score.Instrument
-    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = Realization
+    -> Pasang (Pitch.Step, Pitch.Step) -> Cycle
+gangsa_norot_arrival style pasang steps = Realization
     { interlocking =
         [ [p p2, s p2]
         , [p p2, s p2]
@@ -354,17 +356,19 @@ gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = Realization
     both = kotekan_note Nothing
     p = kotekan_note (Just (polos pasang))
     s = kotekan_note (Just (sangsih pasang))
+    (p1, p2) = polos steps
+    (s1, s2) = sangsih steps
 
 norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
     -- ^ this is to figure out if the sangsih part will be in range
-    -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
+    -> NorotStyle -> Pasang (Pitch.Step, Pitch.Step)
 norot_steps scale inst_top pitch style
-    | out_of_range 1 = ((-1, 0), (-1, 0))
+    | out_of_range 1 = Pasang { polos = (-1, 0), sangsih = (-1, 0) }
     | otherwise = case style of
-        Diamond -> ((1, 0), (-1, 0))
+        Diamond -> Pasang { polos = (1, 0), sangsih = (-1, 0) }
         -- Sangsih is only used if non-interlocking and using Diamond style.
         -- So the snd pair should be ignored.
-        Default -> ((1, 0), (1, 0))
+        Default -> Pasang { polos = (1, 0), sangsih = (1, 0) }
     where
     out_of_range steps = note_too_high scale inst_top $
         Pitches.transpose_d steps pitch
