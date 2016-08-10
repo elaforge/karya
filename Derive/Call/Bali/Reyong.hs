@@ -74,7 +74,7 @@ note_calls = Derive.call_maps
     , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
     , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
     , ("k//\\\\", realize_pattern $
-        reyong_pattern "-4-34-3- 43-434-3" "-12-12-2 1-21-12-")
+        reyong_pattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
     , ("a", c_tumpuk_auto)
@@ -303,8 +303,7 @@ realize_pattern pattern =
     $ Sig.call ((,,)
     <$> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env)
     $ \(dur, initial_final, voices) -> Sub.inverting $ \args -> do
-        (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
-        pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
+        (pitch, show_pitch) <- get_parsed_pitch args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap
@@ -337,8 +336,7 @@ c_kotekan_regular maybe_kernel maybe_dir =
     ) $ \(kernel_s, dir, dur, initial_final, voices) -> Sub.inverting $
     \args -> do
         kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
-        (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
-        pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
+        (pitch, show_pitch) <- get_parsed_pitch args
         pattern <- Derive.require "empty pattern" $ kernel_to_pattern dir kernel
         let positions = kotekan_pattern 5 (map pos_cek reyong_positions)
                 pattern (Pitch.pitch_pc pitch)
@@ -393,6 +391,14 @@ kernel_to_pattern direction kernel = do
             Gangsa.Low -> Nothing
             Gangsa.High -> Just (-2)
             Gangsa.Rest -> Just (-1)
+
+-- | Like 'Gangsa.get_pitch', but get the symbolic pitch.
+get_parsed_pitch :: Derive.PassedArgs a
+    -> Derive.Deriver (Pitch.Pitch, Pitch.Pitch -> Maybe Pitch.Note)
+get_parsed_pitch args = do
+    (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
+    pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_trigger args
+    return (pitch, show_pitch)
 
 -- * articulation
 

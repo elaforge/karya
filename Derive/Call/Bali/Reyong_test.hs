@@ -80,6 +80,14 @@ test_kotekan_regular = do
     equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
         (Just "ueu-eue-u-eu-eu-e", [])
 
+test_kotekan_irregular = do
+    let run voice = first (lookup voice) . e_pattern 0
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
+    equal (run 1 [(0, 16, "k//\\\\ -- 6i")])
+        (Just "--ua-ua-au-au-ua-", [])
+    equal (run 1 [(16, -16, "k//\\\\ -- 6i")])
+        (Just "--ua-ua-au-au-ua-", [])
+
 test_cancel_kotekan = do
     let run = e_pattern 0
             . DeriveTest.derive_tracks (title_cancel <> " | reyong-voices=2")

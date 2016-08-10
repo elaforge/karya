@@ -84,7 +84,7 @@ note_calls = Derive.call_maps
     , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern
         "-123123213213123" "-423423243243423"
         "-12-12-21-21-12-"
-        "3-23-232-32-3-23" "44-34-3-43-434-3")
+        "3-23-232-32-3-23" "-4-34-3-43-434-3")
     -- There are two ways to play k\\, either 21321321 or 31321321.  The first
     -- one is irregular since sangsih starts on 2 but there's no unison polos.
     , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern
@@ -373,7 +373,6 @@ norot_steps scale inst_top pitch style
     out_of_range steps = note_too_high scale inst_top $
         Pitches.transpose_d steps pitch
 
--- TODO update
 c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     "Gender-style norot."
