@@ -88,6 +88,21 @@ test_kotekan_irregular = do
     equal (run 1 [(16, -16, "k//\\\\ -- 6i")])
         (Just "--ua-ua-au-au-ua-", [])
 
+
+test_kotekan_negative_slice = do
+    -- This actually ensures that negative slices include the final pitch
+    -- sample even when it's under an orphan slice.
+    let run voice = first (lookup voice) . e_pattern 0
+            . derive_tracks_ruler title_cancel
+    equal (run 1
+            [(">", []), (">", [(16, -16, "k//\\\\")]), ("*", [(16, -0, "4i")])])
+        (Just "--ua-ua-au-au-ua-", [])
+
+derive_tracks_ruler :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_ruler title tracks =
+    DeriveTest.derive_blocks_setup DeriveTest.with_linear
+        [(UiTest.default_block_name <> "=ruler -- " <> title, tracks)]
+
 test_cancel_kotekan = do
     let run = e_pattern 0
             . DeriveTest.derive_tracks (title_cancel <> " | reyong-voices=2")

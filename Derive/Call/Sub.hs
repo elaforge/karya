@@ -79,7 +79,8 @@ under_invert transformer args deriver
             Derive.state_under_invert state . transformer args
         }
 
--- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
+-- | Convert a call into an inverting call.  Documented in
+-- @doc/slicing-inverting.md@.
 run_invert :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 run_invert args call = do

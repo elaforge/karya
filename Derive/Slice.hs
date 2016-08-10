@@ -112,9 +112,12 @@ slice exclude_start start end insert_event (Tree.Node track subs) =
         , TrackTree.track_start = start
         , TrackTree.track_end = end
         , TrackTree.track_sliced = case TrackTree.track_sliced track of
-            TrackTree.NotSliced -> TrackTree.Sliced
+            TrackTree.Inversion -> TrackTree.Inversion
+            -- This might already be Sliced Positive because of orphan
+            -- slicing, so make sure to update the orientation for both
+            -- Sliced and NotSliced.
+            _ -> TrackTree.Sliced
                 (maybe Event.Positive event_orientation insert_event)
-            sliced -> sliced
         , TrackTree.track_around = (before, after)
         }
         where (before, within, after) = extract_events track

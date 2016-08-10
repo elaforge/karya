@@ -1360,6 +1360,8 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - perhaps I should line up to the end for negative events
+        - 'k//\\' can start in multiple ways, e.g. 444 or 4-4, or 434.
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.
@@ -1367,7 +1369,6 @@ Derive:
           . It's because kotekan_irregular is designed that way, it has
             a single kotekan_unison.
         - is zero dur also mute for reyong?  I keep forgetting!
-
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
@@ -1384,13 +1385,8 @@ Derive:
           update reyong
             - rename kilit to norot and 'nt'
             - do the same prepare next note thing as gangsa norot
-          - update gender norot
           - I only use Once for norot prepare, can I get rid of it?
-          / gabor, @b2, pemade, norot has 'initial=t | nt t', but still lacks
-            the initial note.  It works in the test though, so something else
-            is going on.
-            . False alarm, I had polos muted.
-            - Rename 'arrival' to 'prepare'?
+          - Rename 'arrival' to 'prepare'?
         - With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used
