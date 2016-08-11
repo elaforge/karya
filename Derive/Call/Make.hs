@@ -11,10 +11,12 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
+import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -100,6 +102,12 @@ with_environ_val module_ name key val extra_doc =
     where
     doc = "`" <> ShowVal.show_val key <> " = " <> ShowVal.show_val val <> "`."
 
+-- | Make a call that adds a flag.
+add_flag :: Module.Module -> Text -> Text -> Flags.Flags
+    -> Derive.Transformer Score.Event
+add_flag module_ name doc flags =
+    Derive.transformer module_ name Tags.postproc doc $
+    Sig.call0t $ \_args -> fmap $ Post.emap1_ $ Score.add_flags flags
 
 -- * val calls
 

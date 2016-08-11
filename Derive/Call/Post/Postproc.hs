@@ -12,6 +12,7 @@ import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Map
 import qualified Util.Seq as Seq
 
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Prelude.ControlFunction as ControlFunction
@@ -42,12 +43,23 @@ note_calls = Derive.transformer_call_map
     [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
     , ("randomize-start", c_randomize_start)
+    , ("strong", Make.add_flag module_ "strong"
+        "Add the 'Derive.Flags.strong' flag, which will cancel coincident\
+            \ non-strong notes."
+        Flags.strong)
+    , ("weak", Make.add_flag module_ "weak"
+        "Add the 'Derive.Flags.weak' flag, which will cause this to be\
+            \ cancelled by coincident non-weak notes."
+        Flags.weak)
     ]
+
+module_ :: Module.Module
+module_ = Module.prelude
 
 -- * cancel
 
 c_cancel :: Derive.Transformer Derive.Note
-c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
+c_cancel = Derive.transformer module_ "cancel" Tags.postproc
     "Process the 'Derive.Flags.strong' and 'Derive.Flags.weak' flags.\
     \ This will cause notes to be dropped."
     $ make_cancel (cancel_strong_weak infer_duration_merged) Post.hand_key
@@ -105,7 +117,7 @@ infer_duration_merged strong weaks =
     case Seq.maximum (map Score.event_end weaks) of
         Just end | Score.has_flags Flags.infer_duration strong ->
             Score.add_log ("set duration to max of weak notes: "
-                <> pretty (map Score.event_end weaks)) $
+                <> Score.log_events weaks) $
             Score.remove_flags Flags.infer_duration $
             Score.set_duration (end - Score.event_start strong) strong
         _ -> strong
@@ -226,7 +238,7 @@ replace_note next event = event
 
 c_randomize_start :: Derive.Transformer Derive.Note
 c_randomize_start = StaticMacro.check "c_randomize_start" $
-    StaticMacro.transformer Module.prelude "randomize-start" Tags.postproc ""
+    StaticMacro.transformer module_ "randomize-start" Tags.postproc ""
         -- apply-start-offset | %start-s = (cf-rnd-a+ $)
         [ StaticMacro.Call c_apply_start_offset []
         , StaticMacro.Call Equal.c_equal
@@ -244,7 +256,7 @@ c_randomize_start = StaticMacro.check "c_randomize_start" $
 -}
 c_apply_start_offset :: Derive.Transformer Derive.Note
 c_apply_start_offset =
-    Derive.transformer Module.prelude "apply-start-offset" Tags.postproc
+    Derive.transformer module_ "apply-start-offset" Tags.postproc
     ("Apply the " <> ShowVal.doc EnvKey.start_offset_val <> " env var.\
      \ This is set by note deriver from the "
      <> ShowVal.doc Controls.start_s <> " and "
