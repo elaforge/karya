@@ -1335,7 +1335,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      - Gangsa.cycle_pattern is copy paste from 'realize_pattern', get rid of
+      * Gangsa.cycle_pattern is copy paste from 'realize_pattern', get rid of
         one of them
       * kotekan ending in a unison or kempyung should sometimes have both
         instruments, but sometimes the last polos note should replace both.

@@ -745,34 +745,6 @@ realize_pattern repeat (initial, final) start end dur get_cycle =
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
 
-
--- | Repeatedly call a cycle generating function to create notes.  The result
--- will presumably be passed to 'realize_notes' to convert the notes into
--- NoteDerivers.  Start the cycle at t+1 because t is the initial, so it's the
--- end of the cycle.
-cycle_pattern :: (Bool, Bool) -> ScoreTime -> ScoreTime -> ScoreTime
-    -> (ScoreTime -> [[a]]) -- ^ Get one cycle of notes, starting at the time.
-    -> [Note a]
-cycle_pattern (initial, final) start end dur get_cycle =
-    concat $ concat $ cycles $ Seq.range start end dur
-    where
-    cycles [] = []
-    -- Since cycles are end-weighted, I have to get the end of a cycle if an
-    -- initial note is wanted.
-    cycles (t:ts)
-        | t == start && initial =
-            [realize (fromMaybe [] (Seq.last (get_cycle t)), t)] : cycles ts
-        | t == start = cycles ts
-        | otherwise = map realize pairs : cycles rest_ts
-        where (pairs, rest_ts) = Seq.zip_remainder (get_cycle t) (t:ts)
-    realize (chord, t)
-        | t >= end = if final
-            then map (add_flag (Flags.infer_duration <> final_flag)) ns
-            else []
-        | t == start = if initial then ns else []
-        | otherwise = ns
-        where ns = map (Note t dur mempty) chord
-
 -- | Turn Notes into a NoteDeriver.
 realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver
 realize_notes realize = mconcatMap $ \(Note start dur flags note) ->
