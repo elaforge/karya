@@ -27,6 +27,7 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
+import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import qualified Util.CallStack as CallStack
@@ -666,7 +667,7 @@ type Cycle = Realization [[KotekanNote]]
 data Note a = Note {
     note_start :: !ScoreTime
     , note_duration :: !ScoreTime
-    -- | Used for initial_flag or final_flag.
+    -- | Used for 'final_flag'.
     , note_flags :: !Flags.Flags
     , note_data :: !a
     } deriving (Functor, Show)
@@ -740,11 +741,10 @@ realize_pattern repeat (initial, final) start end dur get_cycle =
         | t >= end = if final
             then map (add_flag (Flags.infer_duration <> final_flag)) ns
             else []
-        | t == start = if initial
-            then map (add_flag initial_flag) ns
-            else []
+        | t == start = if initial then ns else []
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
+
 
 -- | Repeatedly call a cycle generating function to create notes.  The result
 -- will presumably be passed to 'realize_notes' to convert the notes into
@@ -769,9 +769,7 @@ cycle_pattern (initial, final) start end dur get_cycle =
         | t >= end = if final
             then map (add_flag (Flags.infer_duration <> final_flag)) ns
             else []
-        | t == start = if initial
-            then map (add_flag initial_flag) ns
-            else []
+        | t == start = if initial then ns else []
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
 
@@ -951,20 +949,24 @@ c_cancel_pasang = Derive.transformer module_ "cancel-pasang" Tags.postproc
     "This is like the `cancel` call, except it also knows how to cancel out\
     \ pasang instruments such that adjacent kotekan calls can have initial and\
     \ final notes, but won't get doubled notes."
-    $ Postproc.make_cancel cancel_pasang pasang_key
+    $ Postproc.make_cancel cancel_strong_final pasang_key
 
--- | The order of precedence is normals, then finals, then initials.
--- The final note also gets 'Flags.infer_duration', but since it will lose to
--- normal notes, the infer will only happen if there is no next note.  So it
--- won't ever merge with the duration of a cancelled note.
-cancel_pasang :: [Score.Event] -> Either Text [Score.Event]
-cancel_pasang events =
-    Postproc.cancel_strong_weak Postproc.infer_duration_merged $
-        case Seq.partition2 (has final_flag) (has initial_flag) events of
-            (_, _, normals@(_:_)) -> normals
-            (finals@(_:_), _, []) -> finals
-            ([], initials, []) -> initials
-    where has = Score.has_flags
+-- | Kotekan ends with a final, which cancels normal, but loses to strong.
+-- This is like 'Postproc.cancel_strong_weak', except it adds 'final_flag',
+-- so I can have the end of a kotekan override, but still be overidden
+-- with an explicit strong note.
+cancel_strong_final :: [Score.Event] -> Either Text [Score.Event]
+cancel_strong_final events
+    | not (null strongs) = merge strongs (finals ++ rest)
+    | not (null finals) = merge finals rest
+    | not (null normals) = merge normals weaks
+    | otherwise = Right weaks
+    where
+    (strongs, finals, rest) = Seq.partition2
+        (Score.has_flags Flags.strong) (Score.has_flags final_flag) events
+    (weaks, normals) = List.partition (Score.has_flags Flags.weak) events
+    merge strongs weaks =
+        Right [Postproc.infer_duration_merged strong weaks | strong <- strongs]
 
 -- | Match any of polos, sangsih, and pasang to each other.  Since polos and
 -- sangsih together are considered one voice, a sangsih start is note end for
@@ -1074,6 +1076,5 @@ role_env :: Sig.Parser Role
 role_env = Sig.required_environ (BaseTypes.unsym EnvKey.role) Sig.Unprefixed
     "Instrument role."
 
-initial_flag, final_flag :: Flags.Flags
-initial_flag = Flags.flag "initial"
+final_flag :: Flags.Flags
 final_flag = Flags.flag "final"

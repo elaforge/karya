@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Derive.Doc type to make call args clearer
   - Fix verify_performance for save/complete/blue-hat
   - do a renaming pass on all the prev/next pitch function names in
     Derive.Args.
@@ -1334,7 +1335,9 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      - kotekan ending in a unison or kempyung should sometimes have both
+      - Gangsa.cycle_pattern is copy paste from 'realize_pattern', get rid of
+        one of them
+      * kotekan ending in a unison or kempyung should sometimes have both
         instruments, but sometimes the last polos note should replace both.
         . Isn't that what 'cancel-pasasng' is supposed to do?
         . Also, in save/transcribe/bali/gabor @end-a 24t, the end of the

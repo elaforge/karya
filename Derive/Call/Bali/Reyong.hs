@@ -281,16 +281,7 @@ c_cancel_kotekan :: Derive.Transformer Derive.Note
 c_cancel_kotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
     "This is like the `cancel` call, except it understands flags set by\
     \ kotekan, and cancels based on reyong voice." $
-    Postproc.make_cancel cancel_kotekan Post.voice_key
-
--- | Same as 'Gangsa.cancel_pasang' except don't handle pasang.
-cancel_kotekan :: [Score.Event] -> Either Text [Score.Event]
-cancel_kotekan es = Postproc.cancel_strong_weak Postproc.infer_duration_merged $
-    case Seq.partition2 (has Gangsa.final_flag) (has Gangsa.initial_flag) es of
-        (_, _, normals@(_:_)) -> normals
-        (finals@(_:_), _, []) -> finals
-        ([], initials, []) -> initials
-    where has = Score.has_flags
+    Postproc.make_cancel Gangsa.cancel_strong_final Post.voice_key
 
 -- * kilitan
 

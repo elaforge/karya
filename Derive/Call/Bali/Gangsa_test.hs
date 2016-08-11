@@ -65,8 +65,7 @@ test_norot_final = do
     -- Initial and final get flags.
     let run_flags = DeriveTest.extract Score.event_flags . derive ""
     equal (run_flags [(2, 2, "initial=t | norot -- 3a")])
-        ([Gangsa.initial_flag, mempty,
-            Flags.infer_duration <> Gangsa.final_flag], [])
+        ([mempty, mempty, Flags.infer_duration <> Gangsa.final_flag], [])
 
     -- Infer duration even for simultaneous unison notes.
     let both n = [(polos, n), (sangsih, n)]
@@ -112,7 +111,7 @@ test_kotekan_flags = do
     let run kotekan = DeriveTest.extract extract . derive (ngotek kotekan)
         extract e = (Score.event_start e, Score.event_flags e)
     equal (run True [(0, 4, "k k-121 -- 4c")])
-        ([ (0, Gangsa.initial_flag), (1, mempty), (2, mempty)
+        ([ (0, mempty), (1, mempty), (2, mempty)
          , (3, mempty), (3, mempty)
          , (4, Gangsa.final_flag <> Flags.infer_duration)
          ], [])
@@ -121,12 +120,13 @@ test_kotekan_flags = do
 
 test_kotekan_cancel = do
     -- The final note of the kotekan is cancelled.
-    let run = e_pattern 0 . derive (" | cancel-pasang | unison" <> ngotek True)
+    let run = e_pattern 0 . derive title
+        title = " | cancel-pasang | unison" <> ngotek True
     -- Base case, with initial and final notes.
     equal (run [(0, 8, "k// -- 4e")])
         ([(polos, "3-3-23-23"), (sangsih, "-2-12-12-")], [])
-    -- The unison notes replace the final kotekan note.
-    equal (run [(0, 8, "k// -- 4e"), (8, 8, "4f")])
+    -- If strong, the unison notes replace the final kotekan note.
+    equal (run [(0, 8, "k// -- 4e"), (8, 8, "strong | -- 4f")])
         ([(polos, "3-3-23-24"), (sangsih, "-2-12-124")], [])
     -- Consecutive kotekan calls don't result in doubled notes.
     equal (run [(0, 8, "k k-12-1-21 -- 4c"), (8, 8, "k k-12-1-21 -- 4d")])
@@ -140,6 +140,17 @@ test_kotekan_cancel = do
             (8, 8, "k k21-21-21 pat -- 4c")])
         ( [ (polos,   "-2-12-12-21-21-21")
           , (sangsih, "3-34-34-3-43-43-4")
+          ]
+        , []
+        )
+    -- Polos replaces both (polos, sangsih) from the unison.
+    equal (run [(0, 4, "i- | k k1-21 -- 4c"), (4, 4, "4c")])
+        ([(polos, "-1-21"), (sangsih, "--32-")], [])
+    -- Same, but ensure it gets the 4 duration.
+    let run_notes = e_by_inst DeriveTest.e_note . derive title
+    equal (run_notes [(0, 4, "i- | k k1-21 -- 4c"), (4, 4, "4c")])
+        ( [ (polos, [(1, 1, "4c"), (3, 1, "4d"), (4, 4, "4c")])
+          , (sangsih, [(2, 1, "4e"), (3, 1, "4d")])
           ]
         , []
         )
@@ -196,13 +207,13 @@ test_kotekan_regular_negative = do
             . derive (" | cancel-pasang | unison" <> ngotek kotekan)
     -- Default initial=f for negative.
     equal (run True [(16, -8, "k k-12-1-21 --"), (16, 2, "4c")])
-        ([(polos, "--12-1-21"), (sangsih, "-3-23-321")], [])
+        ([(polos, "--12-1-21"), (sangsih, "-3-23-32-")], [])
     equal (run True
             [ (16, -8, "k k-12-1-21 -- 4c")
             , (24, -8, "k k-12-1-21 -- 4d")
             , (24, 1, "4d")
             ])
-        ([(polos, "--12-1-21-23-2-32"), (sangsih, "-3-23-32-4-34-432")], [])
+        ([(polos, "--12-1-21-23-2-32"), (sangsih, "-3-23-32-4-34-43-")], [])
 
 test_kotekan_regular_jalan = do
     -- k// and k\\ work as expected.
@@ -325,7 +336,7 @@ test_kotekan_cancel_noltol = do
     equal (run " | realize-noltol | cancel-pasang | noltol" notes) expected
 
     equal (run " | realize-noltol | noltol | cancel-pasang"
-            [(0, 8, "k// -- 4e"), (8, 2, "kempyung | -- 4f")])
+            [(0, 8, "k// -- 4e"), (8, 2, "kempyung | strong | -- 4f")])
         ([ (polos,
             [ (0, "3"), (1, "3+")
             , (2, "3"), (3, "3+"), (4, "2"), (5, "3"), (6, "3+")
