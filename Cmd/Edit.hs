@@ -205,16 +205,16 @@ modify_event_near_point modify = do
 event_around :: TrackTime -> Events.Events -> Maybe Event.Event
 event_around pos events = case Events.split_lists pos events of
     (pre:_, _) | Event.overlaps pos pre && pos /= Event.trigger pre -> Just pre
-    -- |--->    |---> => take pre
+    --  |--->    |---> => take pre
     (pre:_, posts) | positive pre && maybe True positive (Seq.head posts) ->
         Just pre
-    -- <---|    <---| => take post
+    --  <---|    <---| => take post
     (pres, post:_) | negative post && maybe True negative (Seq.head pres) ->
         Just post
-    -- |--->    <---| => take closer, favor pre
+    --  |--->    <---| => take closer, favor pre
     (pre:_, post:_) | positive pre && negative post ->
         Just $ Seq.min_on (abs . subtract pos . Event.trigger) pre post
-    -- <---|    |---> => in the middle, do nothing
+    --  <---|    |---> => in the middle, do nothing
     _ -> Nothing
     where
     positive = Event.is_positive
