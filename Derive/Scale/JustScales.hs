@@ -78,7 +78,8 @@ scale_map keys default_key fmt = ScaleMap
 layout :: Theory.Layout
 layout = Theory.piano_layout
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> [(Text, Text)] -> Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Derive.Doc -> [(Text, Text)]
+    -> Scale.Scale
 make_scale scale_id smap doc doc_fields = Scale.Scale
     { scale_id = scale_id
     , scale_pattern = TheoryFormat.fmt_pattern fmt
@@ -115,7 +116,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_stable snd
 show_ratios :: Ratios -> Text
 show_ratios = Text.intercalate ", " . map pretty . Vector.toList
 
-just_doc :: Text
+just_doc :: Derive.Doc
 just_doc =
     "\nJust scales are tuned by ratios from a base frequency, taken from the "
     <> ShowVal.doc just_base_control

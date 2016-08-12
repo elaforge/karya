@@ -60,7 +60,7 @@ trill_variations make =
 -- the two behaviours, and expect to bind locally.  But it seems like both
 -- would be useful simultaneously, and why not have a reasonable default
 -- vocabulary if I can manage it?
-make_gliss :: Text -> Bool -> Derive.Generator Derive.Note
+make_gliss :: Derive.CallName -> Bool -> Derive.Generator Derive.Note
 make_gliss name is_absolute = Derive.generator module_ name mempty
     "Glissando along the open strings. The standard version divides the `time`\
     \ among the number of notes, while the -a (absolute) version gives `time`\

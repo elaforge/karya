@@ -15,6 +15,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -111,11 +112,11 @@ equal_args = (,,)
     <*> Sig.required "rhs" "Source of the assignment."
     <*> (parse_merge <$> Sig.defaulted "merge" "set" merge_doc)
 
-merge_doc :: Text
+merge_doc :: Derive.Doc
 merge_doc = "Merge operator. This can be `default` to use the default for the\
     \ control, `set` to replace the old signal, or one of the operators from\
     \ 'Derive.Deriver.Monad.mergers': "
-    <> Text.intercalate ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
+    <> TextUtil.join ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
 
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 
@@ -130,7 +131,7 @@ parse_merge name
     | name == "default" = Default
     | otherwise = Merge name
 
-equal_doc :: Text
+equal_doc :: Derive.Doc
 equal_doc =
     "Evaluate the deriver with a value set. Special parser support means this\
     \ can be called infix.  The arguments can take many forms to set different\
@@ -333,21 +334,21 @@ single_val_lookup name =
 quoted_generator :: Derive.Callable d => BaseTypes.Quoted -> Derive.Generator d
 quoted_generator quoted@(BaseTypes.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val quoted)
+    ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> Eval.eval_expr False (Args.context args) expr
 
 quoted_transformer :: Derive.Callable d => BaseTypes.Quoted
     -> Derive.Transformer d
 quoted_transformer quoted@(BaseTypes.Quoted expr) =
     Derive.transformer quoted_module "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val quoted)
+    ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0t $ \args deriver ->
         Eval.eval_transformers (Args.context args) (NonEmpty.toList expr)
             deriver
 
 quoted_val_call :: BaseTypes.Quoted -> Derive.ValCall
 quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val quoted)
+    ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
             BaseTypes.Quoted (call :| []) -> return $ BaseTypes.ValCall call

@@ -29,6 +29,7 @@ import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
@@ -104,10 +105,10 @@ doc_equal :: CallDoc.SymbolName -> Cmd.CmdL Text
 doc_equal name = find_doc (\sym _call -> sym == name)
 
 doc_like :: Text -> Cmd.CmdL Text
-doc_like pattern = find_doc $ \sym call ->
+doc_like pattern = find_doc $ \sym (Derive.CallName call) ->
     pattern `Text.isInfixOf` sym || pattern `Text.isInfixOf` call
 
-find_doc :: (CallDoc.SymbolName -> CallDoc.CallName -> Bool) -> Cmd.CmdL Text
+find_doc :: (CallDoc.SymbolName -> Derive.CallName -> Bool) -> Cmd.CmdL Text
 find_doc matches  = Lazy.toStrict . CallDoc.doc_text
     . CallDoc.filter_calls matches <$> track_doc
 

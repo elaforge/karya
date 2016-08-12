@@ -486,7 +486,7 @@ trill_env start_dir end_dir =
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser BaseTypes.Duration
 hold_env = Typecheck._real <$>
-    Sig.environ (BaseTypes.unsym EnvKey.hold) Sig.Both
+    Sig.environ (Derive.sym_to_arg_name EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first pitch."
 
 trill_variations :: [(BaseTypes.Symbol, Maybe Direction, Maybe Direction)]
@@ -505,7 +505,7 @@ direction_affix Nothing = ""
 direction_affix (Just High) = "^"
 direction_affix (Just Low) = "_"
 
-direction_doc :: Maybe a -> Maybe a -> Text
+direction_doc :: Maybe a -> Maybe a -> Derive.Doc
 direction_doc Nothing Nothing = ""
 direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ while `_` makes it start on the lower value. A second suffix causes it\

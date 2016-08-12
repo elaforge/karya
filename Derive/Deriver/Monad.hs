@@ -82,6 +82,7 @@ module Derive.Deriver.Monad (
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
+    , CallName(..), ArgName(..), Doc(..), sym_to_call_name, sym_to_arg_name
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
@@ -127,6 +128,7 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified GHC.Stack
@@ -155,6 +157,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import Derive.ShowVal (Doc(..))
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
@@ -179,7 +182,6 @@ instance Log.LogMonad Deriver where
             (Log.msg_stack msg)
         return $ msg { Log.msg_stack = Just stack }
 
-
 -- * error
 
 data Error = Error !GHC.Stack.CallStack !Stack.Stack !ErrorVal
@@ -202,7 +204,7 @@ data CallError =
     -- error.  If the derive error is present, the type check required running
     -- a Deriver and the Deriver crashed.
     TypeError !ErrorPlace !EvalSource
-        !Text -- arg name
+        !ArgName
         !ValType.Type -- expected type
         !(Maybe BaseTypes.Val) -- received val
         !(Maybe Error) -- derive error
@@ -225,7 +227,8 @@ data EvalSource =
 
 instance Pretty.Pretty CallError where
     pretty err = case err of
-        TypeError place source arg_name expected received derive_error ->
+        TypeError place source (ArgName arg_name) expected received
+                derive_error ->
             "TypeError: arg " <> pretty place <> "/" <> arg_name
             <> source_desc <> ": expected " <> pretty expected
             <> " but got " <> pretty (ValType.type_of <$> received)
@@ -688,7 +691,7 @@ instance Pretty.Pretty (ScopeType call) where
             ]
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
-data DocumentedCall = DocumentedCall !Text !CallDoc
+data DocumentedCall = DocumentedCall !CallName !CallDoc
 
 extract_doc :: Call d -> DocumentedCall
 extract_doc call = DocumentedCall (call_name call) (call_doc call)
@@ -1062,7 +1065,7 @@ data LookupCall call =
 instance Pretty.Pretty (LookupCall call) where
     format c = case c of
         LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
-        LookupPattern name _ _ -> "Pattern: " <> Pretty.text name
+        LookupPattern doc _ _ -> "Pattern: " <> Pretty.text doc
 
 {- | Previously, a single Call contained both generator and transformer.
     This turned out to not be flexible enough, because an instrument that
@@ -1110,7 +1113,7 @@ data PassedArgs val = PassedArgs {
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
-    , passed_call_name :: !Text
+    , passed_call_name :: !CallName
     , passed_ctx :: !(Context val)
     }
 
@@ -1227,9 +1230,7 @@ tag_context ctx = ctx { ctx_prev_val = to_tagged <$> ctx_prev_val ctx }
 --
 -- More details on this strange setup are in the "Derive.Call" haddock.
 data Call func = Call {
-    -- | Since call IDs may be rebound dynamically, each call has its own name
-    -- so that error msgs are unambiguous.
-    call_name :: !Text
+    call_name :: !CallName
     , call_doc :: !CallDoc
     , call_func :: !func
     }
@@ -1239,7 +1240,27 @@ type Transformer d = Call (TransformerF d)
 instance Show (Call derived) where
     show (Call name _ _) = "((Call " <> show name <> "))"
 instance Pretty.Pretty (Call derived) where
-    pretty (Call name _ _) = name
+    pretty (Call (CallName name) _ _) = name
+
+-- | Each call has an intrinsic name.  Since call IDs may be rebound
+-- dynamically, each call has its own name so that error msgs are unambiguous.
+-- It's also used along with 'ArgName' for argument defaulting, so if you want
+-- that to work it should be short and parseable by 'Derive.Parse.p_symbol'.
+-- The name is not necessarily unique, and in fact may be intentionally
+-- non-unique to share defaults with another.
+newtype CallName = CallName Text
+    deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
+
+-- | Each call argument has its own name, which is used for documentation as
+-- well as argument defaulting, as documented in "Derive.Sig".
+newtype ArgName = ArgName Text
+    deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
+
+sym_to_call_name :: BaseTypes.Symbol -> CallName
+sym_to_call_name (BaseTypes.Symbol sym) = CallName sym
+
+sym_to_arg_name :: BaseTypes.Symbol -> ArgName
+sym_to_arg_name (BaseTypes.Symbol sym) = ArgName sym
 
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough
@@ -1248,16 +1269,16 @@ instance Pretty.Pretty (Call derived) where
 data CallDoc = CallDoc {
     cdoc_module :: !Module.Module
     , cdoc_tags :: !Tags.Tags
-    , cdoc_doc :: !Text
+    , cdoc_doc :: !Doc
     , cdoc_args :: ![ArgDoc]
     } deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {
-    arg_name :: !Text
+    arg_name :: !ArgName
     , arg_type :: !ValType.Type
     , arg_parser :: !ArgParser
     , arg_environ_default :: !EnvironDefault
-    , arg_doc :: !Text
+    , arg_doc :: !Doc
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
@@ -1316,7 +1337,7 @@ default_real_duration args = CallDuration <$>
 type TransformerF d = PassedArgs d -> Deriver (Stream.Stream d)
     -> Deriver (Stream.Stream d)
 
-make_call :: Module.Module -> Text -> Tags.Tags -> Text -> WithArgDoc func
+make_call :: Module.Module -> CallName -> Tags.Tags -> Doc -> WithArgDoc func
     -> Call func
 make_call module_ name tags doc (func, arg_docs) = Call
     { call_name = name
@@ -1332,14 +1353,14 @@ make_call module_ name tags doc (func, arg_docs) = Call
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: Module.Module -> Text -> Tags.Tags -> Text
+generator :: Module.Module -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (GeneratorF d) -> Generator d
 generator module_ name tags doc (func, arg_docs) =
     make_call module_ name tags doc (generator_func func, arg_docs)
 
 -- | Make a generator from a function which returns events in sorted order.
 -- TODO this just trusts that the events will be sorted.  Is there a safer way?
-generator_events :: Module.Module -> Text -> Tags.Tags -> Text
+generator_events :: Module.Module -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
 generator_events module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
@@ -1350,7 +1371,7 @@ generator_events module_ name tags doc (func, arg_docs) =
 -- in a Stream singleton.
 --
 -- TODO call this signal_generator?
-generator1 :: Module.Module -> Text -> Tags.Tags -> Text
+generator1 :: Module.Module -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
 generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
@@ -1370,14 +1391,14 @@ with_real_duration get call = call
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
-transformer :: Module.Module -> Text -> Tags.Tags -> Text
+transformer :: Module.Module -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (TransformerF d) -> Transformer d
 transformer = make_call
 
 -- ** val
 
 data ValCall = ValCall {
-    vcall_name :: !Text
+    vcall_name :: !CallName
     , vcall_doc :: !CallDoc
     , vcall_call :: PassedArgs Tagged -> Deriver BaseTypes.Val
     }
@@ -1385,7 +1406,7 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-make_val_call :: Module.Module -> Text -> Tags.Tags -> Text
+make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver BaseTypes.Val) -> ValCall
 make_val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name

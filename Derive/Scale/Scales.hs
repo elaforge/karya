@@ -38,7 +38,7 @@ import Types
 
 -- | Make a simple scale where there is a direct mapping from input to note to
 -- nn.
-make_scale :: Pitch.ScaleId -> DegreeMap -> Text -> Text -> Scale.Scale
+make_scale :: Pitch.ScaleId -> DegreeMap -> Text -> Derive.Doc -> Scale.Scale
 make_scale scale_id dmap pattern doc = Scale.Scale
     { scale_id = scale_id
     , scale_pattern = pattern
@@ -382,7 +382,8 @@ adjust_octave pc_per_octave kbd_per_octave oct pc =
 
 -- ** call_doc
 
-call_doc :: Set.Set Score.Control -> DegreeMap -> Text -> Derive.DocumentedCall
+call_doc :: Set.Set Score.Control -> DegreeMap -> Derive.Doc
+    -> Derive.DocumentedCall
 call_doc transposers dmap doc =
     annotate_call_doc transposers doc fields default_scale_degree_doc
     where
@@ -405,27 +406,28 @@ scale_degree_doc scale_degree =
     Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
+annotate_call_doc :: Set.Set Score.Control -> Derive.Doc -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
 annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where
-    extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
+    extra_doc = doc <> "\n\n" <> join (transposers_field ++ fields)
     transposers_field =
         [("transposers", pretty transposers) | not (Set.null transposers)]
-    join = Text.unlines
+    join = Derive.Doc . Text.unlines
         . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 
-add_doc :: Text -> Scale.Scale -> Scale.Scale
+add_doc :: Derive.Doc -> Scale.Scale -> Scale.Scale
 add_doc doc scale = scale
     { Scale.scale_call_doc = prepend_doc doc (Scale.scale_call_doc scale) }
 
 -- *** DocumentedCall
 
 -- | Prepend a bit of text to the documentation.
-prepend_doc :: Text -> Derive.DocumentedCall -> Derive.DocumentedCall
+prepend_doc :: Derive.Doc -> Derive.DocumentedCall -> Derive.DocumentedCall
 prepend_doc text = modify_doc ((text <> "\n") <>)
 
-modify_doc :: (Text -> Text) -> Derive.DocumentedCall -> Derive.DocumentedCall
+modify_doc :: (Derive.Doc -> Derive.Doc) -> Derive.DocumentedCall
+    -> Derive.DocumentedCall
 modify_doc modify (Derive.DocumentedCall name doc) =
     Derive.DocumentedCall name (annotate doc)
     where

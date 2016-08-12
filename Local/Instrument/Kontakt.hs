@@ -188,7 +188,7 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
         <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
     standard_strings = DUtil.transformer0 "standard-strings"
         ("Set " <> ShowVal.doc EnvKey.open_strings
-            <> " to standard pitches: " <> ShowVal.show_val strings)
+            <> " to standard pitches: " <> ShowVal.doc strings)
         $ \_ deriver -> Derive.with_val EnvKey.open_strings
             (map PSignal.nn_pitch strings) deriver
     ks =

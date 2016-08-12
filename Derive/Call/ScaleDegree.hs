@@ -102,12 +102,12 @@ scale_degree_interval scale named_intervals note =
         Just interval ->
             Just $ relative_scale_degree scale named_intervals interval
 
-interval_arg_doc :: NamedIntervals -> Text
+interval_arg_doc :: NamedIntervals -> Derive.Doc
 interval_arg_doc named_intervals =
     "Multiply this interval with the note's frequency. Negative numbers\
     \ divide, so while `3/2` goes up a fifth, `-3/2` goes down a fifth.\
     \ Can be either a ratio or a symbol drawn from: "
-    <> Text.intercalate ", " (Map.keys named_intervals)
+    <> Derive.Doc (Text.intercalate ", " (Map.keys named_intervals))
 
 parse_relative_interval :: NamedIntervals -> Pitch.Note -> Maybe Pitch.Hz
 parse_relative_interval named_intervals note =

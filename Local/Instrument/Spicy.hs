@@ -67,7 +67,8 @@ note_call = Note.transformed_note
         <> " for that string.") mempty
     (const transform)
     where
-    attrs_doc = Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
+    attrs_doc = Derive.Doc $
+        Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
         attrs <- Call.get_attributes
         inst <- Call.lookup_instrument

@@ -136,7 +136,7 @@ c_abs = Derive.generator1 Module.prelude "abs" mempty
     $ Sig.call (Sig.required "val" "Set to this value.") $ \val args ->
         set_absolute val =<< Args.real_start args
 
-c_dynamic :: Text -> Signal.Y -> Derive.Generator Derive.Control
+c_dynamic :: Derive.CallName -> Signal.Y -> Derive.Generator Derive.Control
 c_dynamic name val = Derive.generator1 Module.prelude name mempty
     "Set the control to an absolute value. This is useful for the `dyn`\
     \ control, so a part can override the dynamic in scope."
@@ -282,7 +282,7 @@ c_swell = generator1 "swell" mempty
         return $ ControlUtil.breakpoints srate id
             [(start, val), (middle, peak), (end, val)]
 
-generator1 :: Text -> Tags.Tags -> Text
+generator1 :: Derive.CallName -> Tags.Tags -> Derive.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 Module.prelude

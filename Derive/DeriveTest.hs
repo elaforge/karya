@@ -704,7 +704,7 @@ e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 
 -- * call
 
-passed_args :: Text -> [BaseTypes.Val] -> Derive.PassedArgs derived
+passed_args :: Derive.CallName -> [BaseTypes.Val] -> Derive.PassedArgs derived
 passed_args name vals = Derive.PassedArgs
     { Derive.passed_vals = vals
     , Derive.passed_call_name = name

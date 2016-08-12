@@ -41,7 +41,7 @@ type InterpolatorTime a =
     Either (Sig.Parser BaseTypes.Duration) (GetTime a, Text)
 type GetTime a = Derive.PassedArgs a -> Derive.Deriver BaseTypes.Duration
 
-interpolator_call :: Text
+interpolator_call :: Derive.CallName
     -> (Sig.Parser arg, arg -> Curve)
     -- ^ get args for the function and the interpolating function
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
@@ -61,7 +61,7 @@ interpolator_call name (get_arg, curve) interpolator_time =
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
     where
-    doc = "Interpolate from the previous value to the given one."
+    doc = Derive.Doc $ "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
 
 -- | Use this for calls that start from the previous value, to give a way
@@ -85,18 +85,23 @@ curve_time_env = (,) <$> curve_env <*> time
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
-    (Text -> get_arg -> InterpolatorTime a -> call)
-    -> Text -> Text -> get_arg -> [(BaseTypes.CallId, call)]
-interpolator_variations_ make c name get_arg =
-    [ (sym c, make name get_arg prev)
-    , (sym $ c <> "<<", make (name <> "-prev-const") get_arg
-        (Left prev_time_arg))
-    , (sym $ c <> ">", make (name <> "-next") get_arg next)
-    , (sym $ c <> ">>", make (name <> "-next-const") get_arg
-        (Left next_time_arg))
+    (Derive.CallName -> get_arg -> InterpolatorTime a -> call)
+    -> BaseTypes.CallId -> Derive.CallName -> get_arg
+    -> [(BaseTypes.CallId, call)]
+interpolator_variations_ make (BaseTypes.Symbol sym) (Derive.CallName name)
+        get_arg =
+    [ (mksym sym, make (Derive.CallName name) get_arg prev)
+    , (mksym $ sym <> "<<",
+        make (Derive.CallName (name <> "-prev-const")) get_arg
+            (Left prev_time_arg))
+    , (mksym $ sym <> ">",
+        make (Derive.CallName (name <> "-next")) get_arg next)
+    , (mksym $ sym <> ">>",
+        make (Derive.CallName (name <> "-next-const")) get_arg
+            (Left next_time_arg))
     ]
     where
-    sym = BaseTypes.Symbol
+    mksym = BaseTypes.Symbol
     next_time_arg = Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."
@@ -128,12 +133,14 @@ get_prev_val args = do
         Nothing -> 0
         Just prev -> prev - start
 
-interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)
+interpolator_variations :: BaseTypes.CallId -> Derive.CallName
+    -> (Sig.Parser arg, arg -> Curve)
     -> [(BaseTypes.CallId, Derive.Generator Derive.Control)]
 interpolator_variations = interpolator_variations_ interpolator_call
 
 standard_interpolators ::
-    (forall arg. Text -> Text -> (Sig.Parser arg, arg -> Curve)
+    (forall arg. BaseTypes.CallId -> Derive.CallName
+        -> (Sig.Parser arg, arg -> Curve)
         -> [(BaseTypes.CallId, Derive.Generator result)])
     -> Derive.CallMaps result
 standard_interpolators make = Derive.generator_call_map $ concat
@@ -224,7 +231,7 @@ make_function curve x1 y1 x2 y2 =
 
 -- * exponential
 
-exp_doc :: Text
+exp_doc :: Derive.Doc
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
     \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\

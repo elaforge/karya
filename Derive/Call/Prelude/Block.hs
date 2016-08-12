@@ -68,7 +68,8 @@ lookup_note_block = Derive.LookupPattern "block name"
 c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.with_score_duration get_score_duration $
     Derive.with_real_duration (const $ get_real_duration block_id) $
-    Derive.generator Module.prelude ("block " <> showt block_id) mempty
+    Derive.generator Module.prelude
+        (Derive.CallName $ "block " <> showt block_id) mempty
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\
@@ -220,7 +221,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
 
 c_capture_null_control :: Derive.Generator Derive.Note
 c_capture_null_control = Derive.generator1 Module.internal
-    (BaseTypes.unsym BlockUtil.capture_null_control) mempty
+    (Derive.sym_to_call_name BlockUtil.capture_null_control) mempty
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do

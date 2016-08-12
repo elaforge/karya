@@ -120,30 +120,31 @@ compile_library (Parse.Definitions note control pitch val aliases) =
     call_maps (gen, trans) = Derive.call_maps
         (compile make_generator gen) (compile make_transformer trans)
     compile make = map $ \(fname, (call_id, expr)) ->
-        (call_id, make fname call_id expr)
+        (call_id, make fname (sym_to_name call_id) expr)
+    sym_to_name (BaseTypes.Symbol name) = Derive.CallName name
 
-make_generator :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+make_generator :: Derive.Callable d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Generator d
-make_generator fname (BaseTypes.Symbol name) var_expr
+make_generator fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_generator fname name expr
     | otherwise = Macro.generator Module.local name mempty
-        ("Defined in " <> txt fname <> ".") var_expr
+        (Derive.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
-make_transformer :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+make_transformer :: Derive.Callable d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Transformer d
-make_transformer fname (BaseTypes.Symbol name) var_expr
+make_transformer fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_transformer fname name expr
     | otherwise = Macro.transformer Module.local name mempty
-        ("Defined in " <> txt fname <> ".") var_expr
+        (Derive.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
-make_val_call :: FilePath -> BaseTypes.CallId -> Parse.Expr -> Derive.ValCall
-make_val_call fname (BaseTypes.Symbol name) var_expr
+make_val_call :: FilePath -> Derive.CallName -> Parse.Expr -> Derive.ValCall
+make_val_call fname name var_expr
     | Just expr <- no_free_vars var_expr = case expr of
         call_expr :| [] -> simple_val_call fname name call_expr
         _ -> broken
     | otherwise = case var_expr of
         Parse.Expr (call_expr :| []) -> Macro.val_call Module.local name mempty
-            ("Defined in " <> txt fname <> ".") call_expr
+            (Derive.Doc $ "Defined in " <> txt fname <> ".") call_expr
         _ -> broken
     where
     broken = broken_val_call name $
@@ -151,7 +152,7 @@ make_val_call fname (BaseTypes.Symbol name) var_expr
         <> ": val calls don't support pipeline syntax: "
         <> ShowVal.show_val var_expr
 
-simple_generator :: Derive.Callable d => FilePath -> Text
+simple_generator :: Derive.Callable d => FilePath -> Derive.CallName
     -> BaseTypes.Expr -> Derive.Generator d
 simple_generator fname name expr =
     Derive.generator Module.local name mempty (make_doc fname name expr) $
@@ -162,7 +163,7 @@ simple_generator fname name expr =
                 \_vals args -> Eval.reapply_generator args call_id
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
-simple_transformer :: Derive.Callable d => FilePath -> Text
+simple_transformer :: Derive.Callable d => FilePath -> Derive.CallName
     -> BaseTypes.Expr -> Derive.Transformer d
 simple_transformer fname name expr =
     Derive.transformer Module.local name mempty (make_doc fname name expr) $
@@ -180,7 +181,8 @@ simple_transformer fname name expr =
         Eval.apply_transformer (Derive.passed_ctx args) call
             (Derive.passed_vals args) deriver
 
-simple_val_call :: FilePath -> Text -> BaseTypes.Call -> Derive.ValCall
+simple_val_call :: FilePath -> Derive.CallName -> BaseTypes.Call
+    -> Derive.ValCall
 simple_val_call fname name call_expr =
     Derive.val_call Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
@@ -196,9 +198,10 @@ simple_val_call fname name call_expr =
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
 
-broken_val_call :: Text -> Text -> Derive.ValCall
+broken_val_call :: Derive.CallName -> Text -> Derive.ValCall
 broken_val_call name msg = Derive.make_val_call Module.local name mempty
-    msg $ Sig.call (Sig.many_vals "arg" "broken") $ \_ _ -> Derive.throw msg
+    (Derive.Doc msg)
+    (Sig.call (Sig.many_vals "arg" "broken") $ \_ _ -> Derive.throw msg)
 
 -- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
 no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr
@@ -210,9 +213,9 @@ no_free_vars (Parse.Expr expr) = traverse convent_call expr
     convert_term (Parse.ValCall call) = BaseTypes.ValCall <$> convent_call call
     convert_term (Parse.Literal val) = Just $ BaseTypes.Literal val
 
-make_doc :: FilePath -> Text -> BaseTypes.Expr -> Text
-make_doc fname name expr =
-    name <> " defined in " <> txt fname <> ": " <> ShowVal.show_val expr
+make_doc :: FilePath -> Derive.CallName -> BaseTypes.Expr -> Derive.Doc
+make_doc fname name expr = Derive.Doc $
+    pretty name <> " defined in " <> txt fname <> ": " <> ShowVal.show_val expr
 
 -- | If there are arguments in the definition, then don't accept any in the
 -- score.  I could do partial application, but it seems confusing, so

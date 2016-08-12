@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
@@ -29,7 +30,7 @@ scales = map Scale.Simple
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
-doc :: Text
+doc :: Derive.Doc
 doc =
     "7-note Western style scales tuned in just intonation.\
     \\nKeys look like `c-maj`, where `c` is the tonic and `maj` selects\

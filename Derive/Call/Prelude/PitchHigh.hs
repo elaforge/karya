@@ -79,8 +79,8 @@ c_drop_note_start = make_note_fade "Drop"
     PitchLift AlignStart AlignEnd
     -- Like 'c_lift_note_start', the PitchDirection is reversed.
 
-make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
-    -> Derive.Transformer Derive.Note
+make_note_fade :: Derive.CallName -> Derive.Doc -> PitchDirection -> Align
+    -> Align -> Derive.Transformer Derive.Note
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
@@ -127,7 +127,7 @@ c_lift = make_pitch_fade "lift"
     \ defaults to going up instead of down."
     PitchLift
 
-make_pitch_fade :: Text -> Text -> PitchDirection
+make_pitch_fade :: Derive.CallName -> Derive.Doc -> PitchDirection
     -> Derive.Generator Derive.Pitch
 make_pitch_fade name doc pitch_dir =
     Derive.generator1 Module.prelude name Tags.cmod doc

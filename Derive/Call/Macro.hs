@@ -34,20 +34,20 @@ import qualified Derive.ValType as ValType
 import Global
 
 
-generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
-    -> Parse.Expr -> Derive.Generator d
+generator :: Derive.Callable d => Module.Module -> Derive.CallName
+    -> Tags.Tags -> Derive.Doc -> Parse.Expr -> Derive.Generator d
 generator module_ name tags doc expr =
     Derive.generator module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (generator_macro expr)
 
-transformer :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
-    -> Parse.Expr -> Derive.Transformer d
+transformer :: Derive.Callable d => Module.Module -> Derive.CallName
+    -> Tags.Tags -> Derive.Doc -> Parse.Expr -> Derive.Transformer d
 transformer module_ name tags doc expr =
     Derive.transformer module_ name tags (make_doc doc expr) $
         Sig.callt (make_signature (extract_vars expr)) (transformer_macro expr)
 
-val_call :: Module.Module -> Text -> Tags.Tags -> Text -> Parse.Call
-    -> Derive.ValCall
+val_call :: Module.Module -> Derive.CallName -> Tags.Tags -> Derive.Doc
+    -> Parse.Call -> Derive.ValCall
 val_call module_ name tags doc call_expr =
     Derive.make_val_call module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (val_macro call_expr)
@@ -134,7 +134,7 @@ make_signature :: [(Parse.Var, BaseTypes.CallId, Int)]
 make_signature vars = Sig.required_vals (map doc vars)
     where
     doc (Parse.Var var, call, argnum) = Derive.ArgDoc
-        { arg_name = var
+        { arg_name = Derive.ArgName var
         , arg_type = ValType.TVal
         , arg_parser = Derive.Required
         , arg_environ_default = Derive.Prefixed
@@ -142,10 +142,11 @@ make_signature vars = Sig.required_vals (map doc vars)
             <> ordinal (argnum+1) <> " argument."
         }
 
-ordinal :: Int -> Text
-ordinal n = showt n <> case n of
+ordinal :: Int -> Derive.Doc
+ordinal n = Derive.Doc $ showt n <> case n of
     1 -> "st"; 2 -> "nd"; 3 -> "rd"; _ -> "th"
 
-make_doc :: Text -> Parse.Expr -> Text
-make_doc doc expr =
-    TextUtil.joinWith "\n" ("A macro for: " <> ShowVal.doc expr <> ".") doc
+make_doc :: Derive.Doc -> Parse.Expr -> Derive.Doc
+make_doc (Derive.Doc doc) expr = Derive.Doc $
+    TextUtil.joinWith "\n" ("A macro for: " <> expr_doc <> ".") doc
+    where (Derive.Doc expr_doc) = ShowVal.doc expr

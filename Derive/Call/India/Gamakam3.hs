@@ -152,12 +152,12 @@ lookup_last_dyn event = do
         Score.event_untransformed_controls event
     snd <$> Signal.last (Score.typed_val sig)
 
-sequence_doc :: Text
+sequence_doc :: Derive.Doc
 sequence_doc = "doc doc\
     \ Currently the transition curve is hardcoded to a sigmoid curve, but\
     \ I could add a curve env var if necessary."
 
-sequence_arg_doc :: Text
+sequence_arg_doc :: Derive.Doc
 sequence_arg_doc = "Abbreviated string of calls... TODO"
 
 -- * dyn-sequence
@@ -221,7 +221,8 @@ type DynSequenceExpr call = (call, Text, Text)
 
 eval_dyn :: ((ScoreTime, ScoreTime), DynSequenceExpr (Text, DynCall))
     -> M DynState Signal.Control
-eval_dyn ((start, end), ((name, DynCall _ sig1 sig2 func), arg1, arg2)) = do
+eval_dyn ((start, end), ((name_, DynCall _ sig1 sig2 func), arg1, arg2)) = do
+    let name = Derive.CallName name_
     let ctx = Context
             { ctx_start = start
             , ctx_end = end
@@ -324,7 +325,7 @@ eval (PitchExpr ((start, end), pcall) arg_) = case pcall_call pcall of
     ctx = Context
         { ctx_start = start
         , ctx_end = end
-        , ctx_call_name = Text.cons (pcall_name pcall) arg_
+        , ctx_call_name = Derive.CallName $ Text.cons (pcall_name pcall) arg_
         }
 eval (Group exprs) = concatMapM eval exprs
 eval (DynExpr (name, call) arg1 arg2 exprs) = case (start, end) of
@@ -647,13 +648,14 @@ apply_arg call arg = call
 
 -- ** PitchCall implementation
 
-parse_args :: State.MonadTrans m => Text -> Text -> Sig.Parser a
+parse_args :: State.MonadTrans m => Derive.CallName -> Text -> Sig.Parser a
     -> m Derive.Deriver a
 parse_args name arg sig = lift $ do
     vals <- Derive.require_right (("parsing " <> showt name <> ": ") <>) $
         if Text.null arg then return [] else (:[]) <$> Parse.parse_val arg
     Sig.require_right
-        =<< Sig.parse_vals sig (Derive.dummy_context 0 1 name) name vals
+        =<< Sig.parse_vals sig (Derive.dummy_context 0 1 (pretty name))
+            name vals
 
 -- | Here I am reinventing Derive.Call yet again.  This is the equivalent of
 -- 'Derive.Context' and 'Derive.PassedArgs'.
@@ -661,7 +663,7 @@ data Context = Context {
     ctx_start :: !ScoreTime
     , ctx_end :: !ScoreTime
     -- | Complete call name, first char consed to arg.
-    , ctx_call_name :: !Text
+    , ctx_call_name :: !Derive.CallName
     } deriving (Show)
 
 ctx_range :: Context -> M s (RealTime, RealTime)

@@ -57,8 +57,8 @@ check call_name (Left err) = errorStack $ call_name <> ": " <> err
 check _ (Right val) = val
 
 -- | Create a generator macro from a list of transformers and a generator.
-generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
-    -> [Call (Derive.Transformer d)]
+generator :: Derive.Callable d => Module.Module -> Derive.CallName
+    -> Tags.Tags -> Derive.Doc -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)
 generator module_ name tags doc trans gen = do
     trans_args <- concatMapM extract_args trans
@@ -85,8 +85,9 @@ generator_macro trans gen vals ctx = do
     where
     split (Call call args) = (call, args)
 
-transformer :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
-    -> [Call (Derive.Transformer d)] -> Either Text (Derive.Transformer d)
+transformer :: Derive.Callable d => Module.Module -> Derive.CallName
+    -> Tags.Tags -> Derive.Doc -> [Call (Derive.Transformer d)]
+    -> Either Text (Derive.Transformer d)
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
     return $ Derive.transformer module_ name tags (make_doc doc call_docs) $
@@ -156,20 +157,21 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 
 -- ** doc
 
-make_doc :: Text -> [Text] -> Text
+make_doc :: Derive.Doc -> [Derive.Doc] -> Derive.Doc
 make_doc doc calls = TextUtil.joinWith "\n" doc $
-    "A static macro for: `" <> Text.intercalate " | " calls <> "`.\
+    "A static macro for: `" <> TextUtil.join " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
     \\nThis directly calls the underlying sub-calls, so it's not dependent on\
     \ the names they are bound to, which also means the macro text may not be a\
     \ valid expression."
 
-call_doc :: Call (Derive.Call f) -> Text
-call_doc (Call call args) = Text.unwords $
-    Derive.call_name call : map arg_doc args
+call_doc :: Call (Derive.Call f) -> Derive.Doc
+call_doc (Call call args) = Derive.Doc $ Text.unwords $ name : map arg_doc args
+    where Derive.CallName name = Derive.call_name call
 
 arg_doc :: Arg -> Text
 arg_doc (Given (Literal val)) = ShowVal.show_val val
 arg_doc (Given (ValCall call args)) =
-    "(" <> Text.unwords (Derive.vcall_name call : map arg_doc args) <> ")"
+    "(" <> Text.unwords (name : map arg_doc args) <> ")"
+    where Derive.CallName name = Derive.vcall_name call
 arg_doc Var = "$"

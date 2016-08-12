@@ -4,7 +4,7 @@
 
 module Util.TextUtil where
 import Control.Arrow (first)
-import Control.Monad
+import Control.Monad (liftM)
 import qualified Control.Monad.Identity as Identity
 
 import qualified Data.Char as Char
@@ -23,6 +23,14 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 
+class Textlike a where
+    toText :: a -> Text
+    fromText :: Text -> a
+
+instance Textlike Text where
+    toText = id
+    fromText = id
+
 -- | Replace substrings simultaneously.
 replaceMany :: [(Text, Text)] -> Text -> Text
 replaceMany replace = mconcat . go
@@ -37,11 +45,14 @@ replaceMany replace = mconcat . go
         | otherwise = pre : to : go (Text.drop (Text.length from) post)
 
 -- | Join the two pieces with a space, if they are non-empty.
-join2 :: Text -> Text -> Text
-join2 t1 t2 = Text.unwords $ filter (not . Text.null) [t1, t2]
+join2 :: Textlike a => a -> a -> a
+join2 = joinWith (fromText " ")
 
-joinWith :: Text -> Text -> Text -> Text
-joinWith sep t1 t2 = Text.intercalate sep $ filter (not . Text.null) [t1, t2]
+joinWith :: Textlike a => a -> a -> a -> a
+joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
+
+join :: Textlike a => a -> [a] -> a
+join sep = fromText . Text.intercalate (toText sep) . map toText
 
 ellipsis :: Int -> Text -> Text
 ellipsis maxWidth text

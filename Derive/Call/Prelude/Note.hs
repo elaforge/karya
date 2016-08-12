@@ -13,7 +13,6 @@ module Derive.Call.Prelude.Note (
 ) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
@@ -65,7 +64,7 @@ c_note :: Derive.Generator Derive.Note
 c_note = note_call "note" "" mempty (default_note use_attributes)
 
 -- | Create a standard note call with a transformer applied.
-transformed_note :: Text -> Tags.Tags
+transformed_note :: Derive.Doc -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 transformed_note prepend_doc tags transform =
@@ -75,20 +74,20 @@ transformed_note prepend_doc tags transform =
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
 -- receives the usual instrument and attribute transform.
-note_call :: Text
+note_call :: Derive.CallName
     -- ^ Call name.  The documentation for all calls that differ only in name
     -- can be grouped together, so it's easier to read if small modifications
     -- are reflected in the name only.  If you put invalid identifiers in the
     -- name, it can't be used to set default arguments.  That's not really
     -- a big deal for the note call, though.
-    -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
+    -> Derive.Doc -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
     Sig.call (Sig.many "attribute" "Change the instrument or attributes.") $
     \vals -> Sub.inverting (transform_note vals . generate)
     where
     prepended
-        | Text.null prepend_doc = generator_doc
+        | prepend_doc == "" = generator_doc
         | otherwise = "Modified note call: " <> prepend_doc <> "\n"
             <> generator_doc
     generator_doc =

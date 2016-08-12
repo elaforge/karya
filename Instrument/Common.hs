@@ -38,6 +38,8 @@ data Common code = Common {
     -- a list of standard tags in "Instrument.Tag".
     , common_tags :: ![Tag.Tag]
     -- | So, instrument, tell me about yourself.
+    -- TODO maybe it should be Derive.Doc, but I'd have to move it to avoid
+    -- a circular import.
     , common_doc :: !Text
     } deriving (Show)
 

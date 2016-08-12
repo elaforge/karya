@@ -52,6 +52,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.Typecheck as Typecheck
@@ -210,7 +211,7 @@ c_jaru = generator1 "jaru" mempty
 c_jaru_intervals :: Typecheck.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch
 c_jaru_intervals transpose intervals = generator1 "jaru" mempty
-    ("This is `jaru` hardcoded to " <> pretty intervals <> ".")
+    ("This is `jaru` hardcoded to " <> ShowVal.doc_pretty intervals <> ".")
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "time" jaru_time_default "Time for each note."
@@ -348,7 +349,7 @@ dip high low speed dyn_scale transition (start, end) = do
     ControlUtil.multiply_dyn end dyn
     return transpose
 
-jaru_transition_c :: Text -> Maybe RealTime -> Text
+jaru_transition_c :: Derive.CallName -> Maybe RealTime -> Derive.Doc
     -> Derive.Generator Derive.Control
 jaru_transition_c name default_transition transition_doc =
     generator1 name mempty
@@ -365,7 +366,7 @@ jaru_transition_c name default_transition transition_doc =
 
 c_jaru_intervals_c :: [Signal.Y] -> Derive.Generator Derive.Control
 c_jaru_intervals_c intervals = generator1 "jaru" mempty
-    ("This is `jaru` hardcoded to " <> pretty intervals <> ".")
+    ("This is `jaru` hardcoded to " <> ShowVal.doc_pretty intervals <> ".")
     $ Sig.call ((,)
     <$> defaulted "time" jaru_time_default "Time for each note."
     <*> defaulted "transition" Nothing
@@ -382,7 +383,7 @@ jaru srate start time transition intervals =
     SignalTransform.smooth id srate (-transition) $
         Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
 
-generator1 :: Text -> Tags.Tags -> Text
+generator1 :: Derive.CallName -> Tags.Tags -> Derive.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 module_

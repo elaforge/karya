@@ -52,7 +52,7 @@ call_bindings_text include_module (binds, ctype, call_doc) =
     </> show_call_doc call_doc
     <> "\n\n"
     where
-    show_bind (sym, name) =
+    show_bind (sym, Derive.CallName name) =
         Format.text sym <+> "--" <+> Format.text name
         <+> (if include_module
             then Format.text (show_module (Derive.cdoc_module call_doc))
@@ -64,7 +64,7 @@ call_bindings_text include_module (binds, ctype, call_doc) =
             <> Format.indentLine (arg_docs args)
     arg_docs = Format.unlines . map arg_doc
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
-        Format.text (name <> super <> " :: " <> pretty typ
+        Format.text (unname name <> super <> " :: " <> pretty typ
             <> maybe "" (" = "<>) deflt
             <> " " <> environ_keys name env_default
             <> " --")
@@ -78,15 +78,18 @@ call_bindings_text include_module (binds, ctype, call_doc) =
         | tags == mempty = "Args:"
         | otherwise = Format.text $ "Tags: "
             <> Text.intercalate ", " (Tags.untag tags)
+    unname (Derive.ArgName s) = s
 
-environ_keys :: Text -> Sig.EnvironDefault -> Text
+environ_keys :: Derive.ArgName -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
-    "[" <> Text.intercalate ", " (map unsym (Sig.environ_keys "*" name deflt))
-        <> "]"
-    where unsym (BaseTypes.Symbol sym) = sym
+    "[" <> Text.intercalate ", "
+        (map BaseTypes.unsym (Sig.environ_keys "*" name deflt))
+    <> "]"
 
-write_doc :: Text -> Format.Doc
-write_doc = Format.indent . Format.wrapWords . map Format.text . Text.words
+write_doc :: Derive.Doc -> Format.Doc
+write_doc =
+    Format.indent . Format.wrapWords . map Format.text . Text.words . undoc
+    where undoc (Derive.Doc s) = s
 
 show_module :: Module.Module -> Text
 show_module (Module.Module name) = "[" <> name <> "]"
@@ -118,10 +121,12 @@ bindings_text =
         | null bindings = []
         | otherwise = "\t" <> call_kind <> " " <> pretty call_type
             : map binding bindings
-    binding (scope_source, ((symbol_name, call_name), call_doc)) =
+    binding (scope_source,
+            ((symbol_name, Derive.CallName call_name), call_doc)) =
         doc <> " " <> TextUtil.ellipsis (width - Text.length doc - 1)
-            (Derive.cdoc_doc call_doc)
+            (undoc (Derive.cdoc_doc call_doc))
         where
+        undoc (Derive.Doc d) = d
         doc = symbol_name <> " -- " <> call_name <> " (" <> pretty scope_source
             <> ") " <> show_module (Derive.cdoc_module call_doc)
     width = 76
@@ -314,27 +319,29 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     <> "</div>\n\n"
     where
     tags = "kind:" <> call_kind : binding_tags bindings
-    show_bind (first, (sym, name)) =
+    show_bind (first, (sym, Derive.CallName name)) =
         "<dt>" <> tag "code" (html sym)
         -- This used to be &mdash;, but that's too hard to use text search on.
         <> " -- " <> tag "b" (html name)
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (pretty ctype)) <> "</div>"
-    show_call_doc (Derive.CallDoc _module tags doc args) =
+    show_call_doc (Derive.CallDoc _module tags (Derive.Doc doc) args) =
         "<dd> <dl class=compact>\n"
         <> html_doc hstate doc
         <> write_tags tags <> "\n"
         <> tag "ul" (mconcatMap arg_doc args)
         <> "</dl>\n"
-    arg_doc (Derive.ArgDoc name typ parser env_default doc) =
-        "<li" <> li_type <> ">" <> tag "code" (html name) <> show_char char
+    arg_doc (Derive.ArgDoc name typ parser env_default (Derive.Doc doc)) =
+        "<li" <> li_type <> ">" <> tag "code" (html (unname name))
+        <> show_char char
         <> " :: " <> tag "em" (html (pretty typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
         <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
         <> "\n"
         where
+        unname (Derive.ArgName s) = s
         (char, deflt) = show_parser parser
         li_type = if Maybe.isNothing deflt then ""
             else " style=list-style-type:circle"
@@ -464,11 +471,9 @@ instance Pretty.Pretty ScopeSource where pretty = Text.toLower . showt
 
 -- | Multiple bound symbols with the same DocumentedCall are grouped together:
 type CallBindings = ([Binding], CallType, Derive.CallDoc)
-type Binding = (SymbolName, CallName)
+type Binding = (SymbolName, Derive.CallName)
 -- | This is the name the call is bound to.
 type SymbolName = Text
--- | This is the intrinsic name of the call, from 'Derive.call_name'.
-type CallName = Text
 
 data CallType = ValCall | GeneratorCall | TransformerCall
     deriving (Eq, Ord, Show)
@@ -483,7 +488,7 @@ instance Pretty.Pretty CallType where
 -- ** implementation
 
 -- | Keep only CallDocs whose name or binding name matches the function.
-filter_calls :: (SymbolName -> CallName -> Bool) -> Document -> Document
+filter_calls :: (SymbolName -> Derive.CallName -> Bool) -> Document -> Document
 filter_calls matches = strip_empty . map (second (map scope_doc))
     where
     scope_doc = second (map call_bindings)

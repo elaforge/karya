@@ -39,34 +39,34 @@ import Global
 import Types
 
 
-generator :: Text -> Text
+generator :: Derive.CallName -> Derive.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d)
     -> Derive.Generator d
 generator name = Derive.generator Module.instrument name mempty
 
-generator0 :: Derive.Taggable d => Text -> Text
+generator0 :: Derive.Taggable d => Derive.CallName -> Derive.Doc
     -> (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d))
     -> Derive.Generator d
 generator0 name doc call = generator name doc (Sig.call0 call)
 
-transformer :: Text -> Text -> Derive.WithArgDoc (Derive.TransformerF d)
-    -> Derive.Transformer d
+transformer :: Derive.CallName -> Derive.Doc
+    -> Derive.WithArgDoc (Derive.TransformerF d) -> Derive.Transformer d
 transformer name doc =
     Derive.transformer Module.instrument name mempty doc
 
-transformer0 :: Derive.Taggable d => Text -> Text -> Derive.TransformerF d
-    -> Derive.Transformer d
+transformer0 :: Derive.Taggable d => Derive.CallName -> Derive.Doc
+    -> Derive.TransformerF d -> Derive.Transformer d
 transformer0 name doc call =
     Derive.transformer Module.instrument name mempty doc (Sig.call0t call)
 
 -- | Make a call that simply calls the default note call with the given attrs.
 attributes_note :: Attrs.Attributes -> Derive.Generator Derive.Note
 attributes_note attrs =
-    generator0 ("attributes_note " <> ShowVal.show_val attrs)
+    generator0 (Derive.CallName $ "attributes_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $ \args ->
     Call.add_attributes attrs (Call.reapply_note args)
 
-zero_duration_transform :: Text
+zero_duration_transform :: Derive.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 zero_duration_transform doc transform = Note.transformed_note
@@ -76,7 +76,8 @@ zero_duration_transform doc transform = Note.transformed_note
 
 -- | Create a generator that has a different implementation for zero and
 -- non-zero duration.
-zero_duration :: Text -> Text -> (Derive.NoteArgs -> Derive.NoteDeriver)
+zero_duration :: Derive.CallName -> Derive.Doc
+    -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> Derive.Generator Derive.Note
 zero_duration name doc zero non_zero = generator0 name doc $ \args ->
     ifM (is_zero_duration args) (zero args) (non_zero args)
@@ -94,7 +95,7 @@ is_zero_duration args
     | otherwise = return False
 
 -- | Just like the default note call, except apply a function to the output.
-postproc_note :: Text -> Text -> (Score.Event -> Score.Event)
+postproc_note :: Derive.CallName -> Derive.Doc -> (Score.Event -> Score.Event)
     -> Derive.Generator Derive.Note
 postproc_note name doc f = postproc_generator name doc Note.c_note apply
     where apply d = fmap f <$> d
@@ -102,7 +103,7 @@ postproc_note name doc f = postproc_generator name doc Note.c_note apply
 -- | Transform an existing call by applying a function to it.  It gets a new
 -- name and the documentation is prepended to the documentation of the original
 -- call.
-postproc_generator :: Text -> Text -> Derive.Generator d
+postproc_generator :: Derive.CallName -> Derive.Doc -> Derive.Generator d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Generator d
 postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
@@ -117,11 +118,13 @@ postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
 multiple_calls :: [(BaseTypes.CallId, [BaseTypes.CallId])]
     -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 multiple_calls calls =
-    [(call, multiple_call (BaseTypes.unsym call) subcalls)
-        | (call, subcalls) <- calls]
+    [ (call, multiple_call (Derive.sym_to_call_name call) subcalls)
+    | (call, subcalls) <- calls
+    ]
 
 -- | Create a call that just dispatches to other calls.
-multiple_call :: Text -> [BaseTypes.CallId] -> Derive.Generator Derive.Note
+multiple_call :: Derive.CallName -> [BaseTypes.CallId]
+    -> Derive.Generator Derive.Note
 multiple_call name calls = generator0 name
     -- I intentionally omit the calls from the doc string, so they will
     -- combine in the call doc.  Presumably the calls are apparent from the
@@ -132,7 +135,7 @@ multiple_call name calls = generator0 name
 -- | The grace note falls either before or after the beat.
 data Placement = Before | After deriving (Show, Eq)
 
-doubled_call :: BaseTypes.CallId -> Text -> Placement -> RealTime
+doubled_call :: BaseTypes.CallId -> Derive.CallName -> Placement -> RealTime
     -> Signal.Y -> Derive.Generator Derive.Note
 doubled_call callee name place default_time default_dyn_scale = generator name
     ("Doubled call. The grace note falls "
@@ -141,7 +144,7 @@ doubled_call callee name place default_time default_dyn_scale = generator name
     <$> Sig.defaulted "time" (Typecheck.real default_time)
         "Time between the strokes."
     <*> Sig.defaulted "dyn" default_dyn_scale "Dyn scale for the grace note."
-    ) $ \(Typecheck.DefaultReal time, dyn_scale) args -> do
+    ) $ \(Typecheck.DefaultReal time, dyn_scale) -> Sub.inverting $ \args -> do
         dyn <- Call.dynamic =<< Args.real_start args
         let with_dyn = Call.with_dynamic (dyn * dyn_scale)
         let note = Eval.reapply_generator_normalized args callee
@@ -156,7 +159,7 @@ doubled_call callee name place default_time default_dyn_scale = generator name
 
 -- * composite
 
-composite_doc :: Text
+composite_doc :: Derive.Doc
 composite_doc = "Composite instrument calls create notes for multiple\
     \ instruments, splitting pitch and control signals among them. The\
     \ composite instrument itself doesn't wind up in the output, so it\
@@ -191,11 +194,11 @@ data Pitch = NoPitch | Pitch Score.PControl deriving (Show)
 -- to other instruments.  Otherwise, it only gets the named ones.
 type Controls = Maybe (Set.Set Score.Control)
 
-show_controls :: Controls -> Text
-show_controls = maybe "(all)" pretty
+show_controls :: Controls -> Derive.Doc
+show_controls = Derive.Doc . maybe "(all)" pretty
 
-redirect_pitch :: Text -> BaseTypes.CallId -> Controls -> BaseTypes.CallId
-    -> Controls -> Derive.Generator Derive.Note
+redirect_pitch :: Derive.CallName -> BaseTypes.CallId -> Controls
+    -> BaseTypes.CallId -> Controls -> Derive.Generator Derive.Note
 redirect_pitch name pitched_call pitched_controls unpitched_call
         unpitched_controls =
     generator name ("A composite instrument splits pitch and controls to\
@@ -212,7 +215,7 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
         , Composite unpitched_call unpitched NoPitch unpitched_controls
         ]
 
-double_pitch :: Text -> Controls -> Score.PControl -> Controls
+double_pitch :: Derive.CallName -> Controls -> Score.PControl -> Controls
     -> Derive.Generator Derive.Note
 double_pitch name base_controls pcontrol secondary_controls =
     generator name ("A composite instrument that has two pitch signals.\n"

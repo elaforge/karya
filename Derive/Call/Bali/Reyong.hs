@@ -124,8 +124,8 @@ c_tumpuk :: Derive.Generator Derive.Note
 c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
     $ Sig.call ((,,)
     <$> Sig.required "notes" ("Articulations, from `"
-        <> txt (Map.keys articulations) <> "`, pitches from `edcba0123456789`,\
-        \ or a space for a rest.")
+        <> Derive.Doc (txt (Map.keys articulations))
+        <> "`, pitches from `edcba0123456789`, or a space for a rest.")
     <*> Sig.defaulted "dur" 0.1 "Duration of each note."
     <*> place_env
     ) $ \(notes, dur, place) -> Sub.inverting $ \args -> do
@@ -336,7 +336,7 @@ c_kotekan_regular maybe_kernel maybe_dir =
                 (Gangsa.infer_initial args initial_final) (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
 
-kernel_doc :: Text
+kernel_doc :: Derive.Doc
 kernel_doc = "Transposition steps for the part that ends on the destination\
     \ pitch. It should consist of `-`, `1`, and `2`. You can start with `k` to\
     \ avoid needing quotes. Starting with `k` will also require the length to\
@@ -393,8 +393,9 @@ get_parsed_pitch args = do
 
 -- * articulation
 
-make_articulation :: [Position] -> Bool -> Text -> (Position -> [Pitch.Pitch])
-    -> Attrs.Attributes -> Derive.Generator Derive.Note
+make_articulation :: [Position] -> Bool -> Derive.CallName
+    -> (Position -> [Pitch.Pitch]) -> Attrs.Attributes
+    -> Derive.Generator Derive.Note
 make_articulation positions double name get_notes attrs =
     Derive.generator module_ name Tags.inst
     "Reyong articulation. The doubled variants emit two notes, and rely on\

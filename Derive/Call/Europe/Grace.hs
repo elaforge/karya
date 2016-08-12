@@ -12,6 +12,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -79,7 +81,7 @@ grace_place_env :: Sig.Parser BaseTypes.ControlRef
 grace_place_env = Sig.environ "place" Sig.Both
     (Sig.control "place" 0) grace_place_doc
 
-grace_place_doc :: Text
+grace_place_doc :: Derive.Doc
 grace_place_doc =
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
@@ -129,7 +131,7 @@ c_grace_hold = make_grace Module.prelude
         event { Sub.event_duration = end - Sub.event_start event }
 
 -- | Make a grace call with the standard arguments.
-make_grace :: Module.Module -> Text
+make_grace :: Module.Module -> Derive.Doc
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (Derive.PassedArgs Score.Event -> [Sub.Event] -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
@@ -238,7 +240,8 @@ c_attr_grace supported =
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
-    <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
+    <> TextUtil.join ", "
+        (map (Derive.Doc . ShowVal.show_val) (Map.elems supported))
     ) $ Sig.call ((,,)
     <$> grace_pitches_arg <*> grace_envs
     <*> Sig.environ "attr" Sig.Prefixed Nothing
@@ -351,7 +354,7 @@ grace_p grace_dur pitches (start, end) = do
 grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch Score.TypedVal]
 grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
 
-grace_pitches_doc :: Text
+grace_pitches_doc :: Derive.Doc
 grace_pitches_doc = "Grace note pitches. If they are numbers,\
     \ they are taken as transpositions and must all be the same type,\
     \ defaulting to diatonic."

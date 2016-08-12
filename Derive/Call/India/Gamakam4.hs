@@ -116,8 +116,8 @@ initial_pitch_state transition args =
     where
     get_pitch = Derive.pitch_at <=< Derive.real
 
-pitch_sequence_doc :: Text
-pitch_sequence_doc = mconcat
+pitch_sequence_doc :: Derive.Doc
+pitch_sequence_doc = Derive.Doc $ mconcat
     [ "This is a mini-language, where each one or two characters is a call."
     , " An upper-case call will take a single character argument. A special"
     , " parsing rule means that `-` and its following character is considered"
@@ -191,7 +191,7 @@ c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
                 { state_from_dyn = maybe 0 snd (Args.prev_control args) }
         Derive.at start $ dyn_sequence (end - start) state text
     where
-    doc = mconcat
+    doc = Derive.Doc $ mconcat
         [ "This is a mini-language, where each one or two characters is a call."
         , " Each character can take an argument, which can only be a single"
         , " digit. Typically this represents a dyn level / 9, so 0 is 0 and"
@@ -237,9 +237,9 @@ eval_dyn ((start, end), (Call (DynCall _ sig func, name) arg)) = do
     let ctx = Context
             { ctx_start = start
             , ctx_end = end
-            , ctx_call_name = Text.singleton name
+            , ctx_call_name = Derive.CallName $ Text.singleton name
             }
-    parsed_arg <- parse_args (Text.singleton name) arg sig
+    parsed_arg <- parse_args (Derive.CallName (Text.singleton name)) arg sig
     func parsed_arg ctx
 
 -- ** parse
@@ -326,7 +326,7 @@ eval_pitch (Call ((start, end), (pcall, name)) arg_) = case pcall_call pcall of
     ctx = Context
         { ctx_start = start
         , ctx_end = end
-        , ctx_call_name = Text.cons name arg_
+        , ctx_call_name = Derive.CallName $ Text.cons name arg_
         }
 
 data Call call = Call !call !Text
@@ -501,13 +501,14 @@ apply_arg call name arg = call
 
 -- ** PitchCall implementation
 
-parse_args :: State.MonadTrans m => Text -> Text -> Sig.Parser a
+parse_args :: State.MonadTrans m => Derive.CallName -> Text -> Sig.Parser a
     -> m Derive.Deriver a
 parse_args name arg sig = lift $ do
     vals <- Derive.require_right (("parsing " <> showt name <> ": ") <>) $
         if Text.null arg then return [] else (:[]) <$> Parse.parse_val arg
     Sig.require_right
-        =<< Sig.parse_vals sig (Derive.dummy_context 0 1 name) name vals
+        =<< Sig.parse_vals sig (Derive.dummy_context 0 1 (pretty name))
+            name vals
 
 -- | Here I am reinventing Derive.Call yet again.  This is the equivalent of
 -- 'Derive.Context' and 'Derive.PassedArgs'.
@@ -515,7 +516,7 @@ data Context = Context {
     ctx_start :: !ScoreTime
     , ctx_end :: !ScoreTime
     -- | Complete call name, first char consed to arg.
-    , ctx_call_name :: !Text
+    , ctx_call_name :: !Derive.CallName
     } deriving (Show)
 
 ctx_range :: Context -> M s (RealTime, RealTime)

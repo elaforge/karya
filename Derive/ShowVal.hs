@@ -4,13 +4,20 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.ShowVal where
+import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Numeric
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.TextUtil as TextUtil
+
 import Global
 
+
+instance TextUtil.Textlike Doc where
+    toText (Doc t) = t
+    fromText = Doc
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
 -- produced by show_val should be parseable by "Derive.ParseBs", except values
@@ -35,15 +42,6 @@ show_hex_val n
 is_hex_val :: Text -> Bool
 is_hex_val = (hex_prefix `Text.isPrefixOf`)
 
--- | Show a val for inclusion into CallDoc.
-doc :: ShowVal a => a -> Text
-doc a = "`" <> show_val a <> "`"
-
--- | This probably doesn't belong here, but it's useful in the same contexts as
--- 'doc'.
-doc_pretty :: Pretty.Pretty a => a -> Text
-doc_pretty a = "`" <> pretty a <> "`"
-
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.
 
@@ -66,3 +64,19 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 
 instance ShowVal Bool where
     show_val b = if b then "t" else "f"
+
+-- * Doc
+
+-- | This is for CallDoc.  It's only here for 'doc' and 'doc_pretty', and
+-- is otherwise re-exported from "Derive.Derive".
+newtype Doc = Doc Text
+    deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString)
+
+-- | Show a val for inclusion into CallDoc.
+doc :: ShowVal a => a -> Doc
+doc a = Doc $ "`" <> show_val a <> "`"
+
+-- | This probably doesn't belong here, but it's useful in the same contexts as
+-- 'doc'.
+doc_pretty :: Pretty.Pretty a => a -> Doc
+doc_pretty a = Doc $ "`" <> pretty a <> "`"

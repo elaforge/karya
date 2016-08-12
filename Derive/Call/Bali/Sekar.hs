@@ -79,7 +79,7 @@ arrive_env = Sig.environ "arrive" Sig.Prefixed True $
     "If true, the last note of the pattern is aligned to the end of the event,\
     \ and given " <> ShowVal.doc_pretty Flags.infer_duration <> "."
 
-pattern_doc :: Text
+pattern_doc :: Derive.Doc
 pattern_doc =
     "The pattern is letters from a-z, where `a` is the first note and `z` is\
     \ the 26th. Capital letters replace that note with a rest. Gaps in the\

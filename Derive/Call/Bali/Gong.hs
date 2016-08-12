@@ -99,10 +99,10 @@ range_env = Scale.Range
 
 make_pokok :: Text -> Scale.Range -> [Score.Instrument]
     -> Derive.Transformer Derive.Note
-make_pokok name range default_insts = Derive.transformer module_ name
-    (Tags.inst <> Tags.under_invert)
-    ("Add a " <> name <> " note with 'Derive.Flags.infer_duration' and the\
-    \ same pitch, transposed into the " <> name <> " range.")
+make_pokok name range default_insts = Derive.transformer module_
+    (Derive.CallName name) (Tags.inst <> Tags.under_invert)
+    (Derive.Doc $ "Add a " <> name <> " note with 'Derive.Flags.infer_duration'\
+        \ and the same pitch, transposed into the " <> name <> " range.")
     $ Sig.callt ((,)
     <$> Sig.defaulted "octave" Call.Down
         "If the pitch exists in multiple octaves, choose this one."
@@ -124,7 +124,7 @@ c_nruk = Derive.transformer module_ "nruk" Tags.inst
     "Nruktuk, for kajar or gangsa."
     $ Sig.callt nruk_args nruk
 
-nruk_generator :: Module.Module -> Text -> Text
+nruk_generator :: Module.Module -> Derive.CallName -> Derive.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 nruk_generator mod name doc deriver = Derive.generator mod name Tags.inst doc $

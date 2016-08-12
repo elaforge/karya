@@ -403,7 +403,7 @@ gender_norot pasang = Realization
 
 -- * kotekan
 
-kotekan_doc :: Text
+kotekan_doc :: Derive.Doc
 kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event but may also emit a note at the\
@@ -483,7 +483,7 @@ c_kotekan_regular maybe_kernel =
         Just Low -> Call.Up
         Just High -> Call.Down
 
-kernel_doc :: Text
+kernel_doc :: Derive.Doc
 kernel_doc = "Polos part in transposition steps.\
     \ This will be normalized to end on the destination pitch.\
     \ It should consist of `-`, `1`, and `2`. You can start with `k` to\
@@ -1010,7 +1010,8 @@ initial_final_env = (,)
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
-    Sig.environ (BaseTypes.unsym EnvKey.instrument_top) Sig.Unprefixed Nothing
+    Sig.environ (Derive.sym_to_arg_name EnvKey.instrument_top) Sig.Unprefixed
+        Nothing
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
@@ -1028,10 +1029,10 @@ pitch_too_high scale maybe_top =
 
 pasang_env :: Sig.Parser (Pasang Score.Instrument)
 pasang_env = Pasang
-    <$> Sig.required_environ (BaseTypes.unsym inst_polos) Sig.Unprefixed
-        "Polos instrument."
-    <*> Sig.required_environ (BaseTypes.unsym inst_sangsih) Sig.Unprefixed
-        "Sangsih instrument."
+    <$> Sig.required_environ (Derive.sym_to_arg_name inst_polos)
+        Sig.Unprefixed "Polos instrument."
+    <*> Sig.required_environ (Derive.sym_to_arg_name inst_sangsih)
+        Sig.Unprefixed "Sangsih instrument."
 
 inst_polos :: Env.Key
 inst_polos = "inst-polos"
@@ -1045,8 +1046,8 @@ instance Typecheck.Typecheck Role
 instance Typecheck.TypecheckSymbol Role
 
 role_env :: Sig.Parser Role
-role_env = Sig.required_environ (BaseTypes.unsym EnvKey.role) Sig.Unprefixed
-    "Instrument role."
+role_env = Sig.required_environ (Derive.sym_to_arg_name EnvKey.role)
+    Sig.Unprefixed "Instrument role."
 
 final_flag :: Flags.Flags
 final_flag = Flags.flag "final"

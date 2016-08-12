@@ -388,7 +388,7 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
             return $ Stream.from_event $ PSignal.signal [(pos, pitch)]
-        _ -> throw $ "scale call " <> name
+        _ -> throw $ "scale call " <> pretty name
             <> " returned non-pitch: " <> ShowVal.show_val val
 
 -- | Run the a deriver with the given instrument in scope.  Mostly this just
@@ -876,7 +876,7 @@ shift_control shift deriver = do
 -- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
 -- a circular import with "Derive.BaseTypes".
 val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Module.Module
-    -> Text -> Tags.Tags -> Text
+    -> CallName -> Tags.Tags -> Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call module_ name tags doc (call, arg_docs) =
     make_val_call module_ name tags doc (fmap Typecheck.to_val . call, arg_docs)

@@ -317,7 +317,8 @@ num_or_pitch start argnum (val :| vals) = case val of
         maybe (type_error argnum "bp" typ val) return
             =<< Typecheck.from_val_eval start val
 
-type_error :: Int -> Text -> ValType.Type -> BaseTypes.Val -> Derive.Deriver a
+type_error :: Int -> Derive.ArgName -> ValType.Type -> BaseTypes.Val
+    -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
@@ -329,8 +330,8 @@ type_error argnum name expected received =
 
 -- * util
 
-val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Text -> Tags.Tags
-    -> Text
+val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
+    Derive.CallName -> Tags.Tags -> Derive.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude

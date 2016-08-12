@@ -312,7 +312,7 @@ drum_call :: Maybe Score.Control -> Signal.Y -> Attrs.Attributes
 drum_call maybe_tuning_control dyn attrs transform =
     Derive.generator Module.instrument name Tags.attr doc generate
     where
-    name = "drum attrs: " <> ShowVal.show_val attrs
+    name = Derive.CallName $ "drum attrs: " <> ShowVal.show_val attrs
     generate = Sig.call Sig.no_args $ \() -> Sub.inverting $ \args ->
         Call.multiply_dynamic dyn $ Call.add_attributes attrs $
             with_tuning args $ transform $
@@ -321,7 +321,7 @@ drum_call maybe_tuning_control dyn attrs transform =
     doc = case maybe_tuning_control of
         Nothing -> ""
         Just control -> "This instrument is unpitched, but its tuning can be\
-            \ adjusted with " <> ShowVal.show_val control <> ", in semitones\
+            \ adjusted with " <> ShowVal.doc control <> ", in semitones\
             \ from the natural pitch."
 
 tuning_control :: Derive.NoteArgs -> Score.Control -> Derive.Deriver a

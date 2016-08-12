@@ -31,7 +31,7 @@ resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
 
 -- * interpolator call
 
-interpolator_call :: Text
+interpolator_call :: Derive.CallName
     -> (Sig.Parser arg, (arg -> Curve))
     -> ControlUtil.InterpolatorTime Derive.Pitch
     -> Derive.Generator Derive.Pitch
@@ -51,7 +51,7 @@ interpolator_call name (get_arg, curve) interpolator_time =
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
     where
-    doc = "Interpolate from the previous value to the given one."
+    doc = Derive.Doc $ "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
     -- The only difference between this and ControlUtil.interpolator_call is
     -- the 'interpolate' call and 'pitch_arg'.
@@ -70,7 +70,8 @@ prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
 prev_val from args = from <|> (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
-interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)
+interpolator_variations :: BaseTypes.CallId -> Derive.CallName
+    -> (Sig.Parser arg, arg -> Curve)
     -> [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 

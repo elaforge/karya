@@ -10,6 +10,7 @@ import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
 import qualified Util.Num as Num
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
@@ -29,7 +30,7 @@ scales = map Scale.Simple
         doc doc_fields
     ]
 
-doc :: Text
+doc :: Derive.Doc
 doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ The keys look like `a-159b-1`.  The `a` means that in absolute naming,\
     \ unity is on `a` (in relative naming, unity is always `1`).  `159b` means\

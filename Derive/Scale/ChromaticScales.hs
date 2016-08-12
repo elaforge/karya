@@ -43,7 +43,7 @@ data ScaleMap = ScaleMap {
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.FSemi
     -> Either BaseTypes.PitchError Pitch.NoteNumber
 
-twelve_doc :: Text
+twelve_doc :: Derive.Doc
 twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
     \ That is, note names look like octave-letter-accidentals like \"4c#\".\
     \ They have a notion of a \"layout\", which is a pattern of half and\
@@ -71,7 +71,7 @@ make_keys :: TheoryFormat.Format -> [Theory.Key] -> Keys
 make_keys fmt keys =
     Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Derive.Doc -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
     { scale_id = scale_id
     , scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
@@ -187,7 +187,8 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     key = fromMaybe (smap_default_key smap) $
         flip Map.lookup (smap_keys smap) =<< Scales.environ_key env
 
-call_doc :: Set.Set Score.Control -> ScaleMap -> Text -> Derive.DocumentedCall
+call_doc :: Set.Set Score.Control -> ScaleMap -> Derive.Doc
+    -> Derive.DocumentedCall
 call_doc transposers smap doc =
     Scales.annotate_call_doc transposers doc fields $
         Derive.extract_val_doc call

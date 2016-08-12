@@ -101,7 +101,7 @@ import qualified Data.Text as Text
 import qualified Ui.Event as Event
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
-import Derive.Derive (EnvironDefault(..))
+import Derive.Derive (EnvironDefault(..), ArgName, CallName, Doc)
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.ScoreTypes as Score
@@ -131,7 +131,7 @@ data State = State {
     -- in state_vals doesn't work because when I run out I don't know where
     -- I am.
     , state_argnum :: !Int
-    , state_call_name :: !Text
+    , state_call_name :: !CallName
     , state_derive :: !Derive.State
     , state_context :: !(Derive.Context Derive.Tagged)
     }
@@ -180,7 +180,7 @@ parse parser args = parse_vals parser
     (Derive.passed_call_name args)
     (Derive.passed_vals args)
 
-parse_vals :: Parser a -> Derive.Context Derive.Tagged -> Text
+parse_vals :: Parser a -> Derive.Context Derive.Tagged -> CallName
     -> [BaseTypes.Val] -> Derive.Deriver (Either Error a)
 parse_vals parser ctx name vals =
     run_parser parser . make_state <$> Derive.get
@@ -201,11 +201,11 @@ no_args :: Parser ()
 no_args = pure ()
 
 -- | The argument is required to be present, and have the right type.
-required :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser a
+required :: forall a. Typecheck.Typecheck a => ArgName -> Doc -> Parser a
 required name = required_env name Derive.Prefixed
 
-required_env :: forall a. Typecheck.Typecheck a => Text
-    -> Derive.EnvironDefault -> Text -> Parser a
+required_env :: forall a. Typecheck.Typecheck a => ArgName
+    -> Derive.EnvironDefault -> Doc -> Parser a
 required_env name env_default doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> Left $ Derive.ArgError $
@@ -225,24 +225,24 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
-defaulted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text -> a
-    -> Text -> Parser a
+defaulted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName -> a
+    -> Doc -> Parser a
 defaulted name = defaulted_env name Derive.Prefixed
 
-defaulted_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
-    -> Derive.EnvironDefault -> a -> Text -> Parser a
+defaulted_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName
+    -> Derive.EnvironDefault -> a -> Doc -> Parser a
 defaulted_env name env_default deflt =
     defaulted_env_ name env_default (Left deflt)
 
 -- | The defaulted value can be a 'BaseTypes.Quoted', which will be evaluated
 -- if needed.
 defaulted_env_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    Text -> Derive.EnvironDefault -> BaseTypes.Quoted -> Text -> Parser a
+    ArgName -> Derive.EnvironDefault -> BaseTypes.Quoted -> Doc -> Parser a
 defaulted_env_quoted name env_default quoted =
     defaulted_env_ name env_default (Right quoted)
 
-defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
-    -> Derive.EnvironDefault -> Either a BaseTypes.Quoted -> Text -> Parser a
+defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName
+    -> Derive.EnvironDefault -> Either a BaseTypes.Quoted -> Doc -> Parser a
 defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> deflt state1
@@ -263,7 +263,7 @@ defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
 
 -- | Eval a Quoted default value.
 eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
-    -> Derive.ErrorPlace -> Text -> State -> Either a BaseTypes.Quoted
+    -> Derive.ErrorPlace -> ArgName -> State -> Either a BaseTypes.Quoted
     -> Either Error (State, a)
 eval_default _ _ _ state (Left a) = return (state, a)
 eval_default arg_doc place name state (Right quoted) =
@@ -282,22 +282,22 @@ eval_default arg_doc place name state (Right quoted) =
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
 environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    Text -> Derive.EnvironDefault
+    ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> a -> Text -> Parser a
+    -> a -> Doc -> Parser a
 environ name env_default = environ_ name env_default . Left
 
 -- | This is like 'environ', but the default is a 'BaseTypes.Quoted', which
 -- will be evaluated if needed.
-environ_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
-    -> Derive.EnvironDefault -> BaseTypes.Quoted -> Text -> Parser a
+environ_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    ArgName -> Derive.EnvironDefault -> BaseTypes.Quoted -> Doc -> Parser a
 environ_quoted name env_default = environ_ name env_default . Right
 
 -- Internal function that handles both quoted and unquoted default.
-environ_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
-    -> Derive.EnvironDefault
+environ_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> Either a BaseTypes.Quoted -> Text -> Parser a
+    -> Either a BaseTypes.Quoted -> Doc -> Parser a
 environ_ name env_default quoted doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> deflt state
@@ -317,7 +317,7 @@ environ_ name env_default quoted doc = parser arg_doc $ \state ->
 
 -- | This is like 'environ', but without a default.
 required_environ :: forall a. Typecheck.Typecheck a =>
-    Text -> Derive.EnvironDefault -> Text -> Parser a
+    ArgName -> Derive.EnvironDefault -> Doc -> Parser a
 required_environ name env_default doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> Left $ Derive.TypeError (environ_error state name)
@@ -337,12 +337,12 @@ required_environ name env_default doc = parser arg_doc $ \state ->
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- the default instead of failing.  It's mostly useful with 'many' or 'many1',
 -- where you can distinguish the arguments by type.
-optional :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text -> a
-    -> Text -> Parser a
+optional :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName -> a
+    -> Doc -> Parser a
 optional name = optional_env name Derive.Prefixed
 
 optional_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    Text -> Derive.EnvironDefault -> a -> Text -> Parser a
+    ArgName -> Derive.EnvironDefault -> a -> Doc -> Parser a
 optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> Right (state1, deflt)
@@ -368,7 +368,7 @@ optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
         }
 
 -- | Collect the rest of the arguments.
-many :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser [a]
+many :: forall a. Typecheck.Typecheck a => ArgName -> Doc -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
     vals <- mapM (typecheck state)
         (zip [state_argnum state ..] (state_vals state))
@@ -388,17 +388,18 @@ many name doc = parser arg_doc $ \state -> do
         }
 
 -- | 'many' specialized to Vals, to avoid a type annotation.
-many_vals :: Text -> Text -> Parser [BaseTypes.Val]
+many_vals :: ArgName -> Doc -> Parser [BaseTypes.Val]
 many_vals name doc = many name doc
 
 -- | Collect the rest of the arguments, but there must be at least one.
-many1 :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser (NonEmpty a)
+many1 :: forall a. Typecheck.Typecheck a => ArgName -> Derive.Doc
+    -> Parser (NonEmpty a)
 many1 name doc = non_empty name $ many name doc
 
 -- | Collect the rest of the arguments, but expect a even number of them and
 -- pair them up.
 many_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
-    Text -> Text -> Parser [(a, b)]
+    ArgName -> Derive.Doc -> Parser [(a, b)]
 many_pairs name doc = parser (arg_doc expected) $ \state -> do
     let vals = state_vals state
     when (odd (length vals)) $
@@ -426,18 +427,18 @@ many_pairs name doc = parser (arg_doc expected) $ \state -> do
     pairs _ = []
 
 many1_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
-    Text -> Text -> Parser (NonEmpty (a, b))
+    ArgName -> Derive.Doc -> Parser (NonEmpty (a, b))
 many1_pairs name doc = non_empty name $ many_pairs name doc
 
 -- | Modify a 'many' parser to require at least one thing.
-non_empty :: Text -> Parser [a] -> Parser (NonEmpty a)
+non_empty :: ArgName -> Parser [a] -> Parser (NonEmpty a)
 non_empty name (Parser docs p) =
     Parser (map (\d -> d { Derive.arg_parser = Derive.Many1 }) docs) convert
     where
     convert state = case p state of
         Left err -> Left err
         Right (_, []) -> Left $ Derive.ArgError $
-            "arg requires at least one value: " <> name
+            "arg requires at least one value: " <> pretty name
         Right (state, x : xs) -> Right (state, x :| xs)
 
 -- | Require one Val for each ArgDoc given, but otherwise do no typechecking.
@@ -454,7 +455,7 @@ required_vals docs = Parser docs parser
 argnum_error :: State -> Derive.ErrorPlace
 argnum_error = Derive.TypeErrorArg . state_argnum
 
-environ_error :: State -> Text -> Derive.ErrorPlace
+environ_error :: State -> ArgName -> Derive.ErrorPlace
 environ_error state name =
     Derive.TypeErrorEnviron (prefixed_environ (state_call_name state) name)
 
@@ -482,7 +483,7 @@ pitch = BaseTypes.LiteralControl
 
 -- ** util
 
-get_val :: Derive.EnvironDefault -> State -> Text
+get_val :: Derive.EnvironDefault -> State -> ArgName
     -> Maybe (State, BaseTypes.Val)
 get_val env_default state name = case state_vals state of
     [] -> (,) next <$> lookup_default env_default state name
@@ -493,7 +494,7 @@ get_val env_default state name = case state_vals state of
     where next = increment_argnum 1 state
 
 check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
-    -> Derive.ErrorPlace -> Text -> BaseTypes.Val -> Either Error a
+    -> Derive.ErrorPlace -> ArgName -> BaseTypes.Val -> Either Error a
 check_arg state arg_doc place name val =
     maybe from_quoted Right =<<
         promote_error Derive.Literal val (from_val state val)
@@ -533,16 +534,13 @@ eval_quoted state (BaseTypes.Quoted expr) = result
             _ -> Derive.throw "expected a val call, but got a full expression"
         Eval.eval (state_context state) (BaseTypes.ValCall call)
 
-lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe BaseTypes.Val
+lookup_default :: Derive.EnvironDefault -> State -> ArgName
+    -> Maybe BaseTypes.Val
 lookup_default env_default state name =
     msum $ map lookup $ environ_keys (state_call_name state) name env_default
     where lookup key = Env.lookup key (state_environ state)
 
-prefixed_environ :: Text -> Text -> Env.Key
-prefixed_environ call_name arg_name =
-    BaseTypes.Symbol $ call_name <> "-" <> arg_name
-
-environ_keys :: Text -> Text -> Derive.EnvironDefault -> [Env.Key]
+environ_keys :: CallName -> ArgName -> Derive.EnvironDefault -> [Env.Key]
 environ_keys call_name arg_name env_default = case env_default of
     Derive.None -> []
     Derive.Prefixed -> [prefixed]
@@ -550,7 +548,11 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.Both -> [unprefixed, prefixed]
     where
     prefixed = prefixed_environ call_name arg_name
-    unprefixed = BaseTypes.Symbol arg_name
+    unprefixed = BaseTypes.Symbol ((\(Derive.ArgName n) -> n) arg_name)
+
+prefixed_environ :: CallName -> ArgName -> Env.Key
+prefixed_environ (Derive.CallName call_name) (Derive.ArgName arg_name) =
+    BaseTypes.Symbol $ call_name <> "-" <> arg_name
 
 
 -- * call

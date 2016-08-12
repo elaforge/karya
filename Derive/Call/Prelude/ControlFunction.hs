@@ -276,8 +276,8 @@ to_signal_or_function dyn control = case control of
 
 -- * misc
 
-val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Text -> Tags.Tags
-    -> Text
+val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
+    Derive.CallName -> Tags.Tags -> Derive.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude
