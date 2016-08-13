@@ -270,40 +270,76 @@ c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> infer_initial_final_env
-    ) $ \(prep, style, dur, kotekan, inst_top, pasang, (maybe_initial, final))
+    ) $ \(prepare, style, note_dur, kotekan, inst_top, pasang, initial_final)
     -> Sub.inverting $ \args -> do
-        next_pitch <- infer_prepare args prep
-        start <- Args.real_start args
+        next_pitch <- infer_prepare args prepare
         scale <- Call.get_scale
-        under_threshold <- under_threshold_function kotekan dur
-        let has_prepare = Maybe.isJust next_pitch
-        -- False if all the time is taken up by the prepare.
-        let has_sustain = not has_prepare
-                || (Args.duration args > dur*4
-                    || Args.duration args > dur*3 && maybe_initial == Just True)
-        sustain <- if not has_sustain then return mempty else do
-            pitch <- Call.get_pitch start
-            pitch_t <- Derive.resolve_pitch start pitch
-            let steps = norot_steps scale inst_top pitch_t style
-            -- Default to no initial if this is immediately going into
-            -- a prepare.  This is so I can use a 'nt>' for just prepare but
-            -- line it up on the beat.
-            let initial = fromMaybe has_sustain maybe_initial
-            let sustain_end = Args.end args - if has_prepare then dur*3 else 0
-            return $ realize_kotekan_pattern
-                (initial, if has_prepare then False else final)
-                (Args.start args, sustain_end) dur pitch under_threshold
-                Repeat (gangsa_norot style pasang steps)
-        prepare <- case next_pitch of
-            Just next -> do
-                next_t <- Derive.resolve_pitch start next
-                let steps = norot_steps scale inst_top next_t style
-                return $ Just $ realize_kotekan_pattern (True, final)
-                    (Args.end args - dur*3, Args.end args)
-                    dur next under_threshold
-                    Once (gangsa_norot_arrival style pasang steps)
-            Nothing -> return Nothing
-        maybe sustain (sustain<>) prepare
+        under_threshold <- under_threshold_function kotekan note_dur
+        let get_steps = norot_steps scale inst_top style
+        let sustain_cycle = gangsa_norot style pasang . get_steps
+            prepare_cycle = gangsa_norot_prepare style pasang . get_steps
+        norot sustain_cycle prepare_cycle under_threshold next_pitch
+            note_dur initial_final (Event.orientation (Args.event args))
+            (Args.start args) (Args.end args)
+
+norot :: (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
+    -> (ScoreTime -> Bool) -> Maybe PSignal.Pitch
+    -> ScoreTime -> (Maybe Bool, Bool)
+    -> Event.Orientation -> ScoreTime -> ScoreTime
+    -> Derive.NoteDeriver
+norot sustain_cycle prepare_cycle under_threshold next_pitch note_dur
+        initial_final orient start end = do
+    real_start <- Derive.real (start :: ScoreTime)
+    sustain <- case sustain_params of
+        Nothing -> return mempty
+        Just (initial_final, range) -> do
+            pitch <- Call.get_pitch real_start
+            pitch_t <- Derive.resolve_pitch real_start pitch
+            return $ realize_kotekan_pattern initial_final range
+                note_dur pitch under_threshold Repeat (sustain_cycle pitch_t)
+    prepare <- case (,) <$> next_pitch <*> prepare_params of
+        Nothing -> return Nothing
+        Just (next, (initial_final, range)) -> do
+            next_t <- Derive.resolve_pitch real_start next
+            return $ Just $ realize_kotekan_pattern initial_final range
+                note_dur next under_threshold Once (prepare_cycle next_t)
+    maybe sustain (sustain<>) prepare
+    where
+    (sustain_params, prepare_params) =
+        prepare_sustain (Maybe.isJust next_pitch) note_dur initial_final
+            orient start end
+
+-- | Figure out parameters for the sustain and prepare phases.
+prepare_sustain :: Bool -> ScoreTime -> (Maybe Bool, Bool)
+    -> Event.Orientation -> ScoreTime -> ScoreTime
+    -> (Maybe ((Bool, Bool), (ScoreTime, ScoreTime)),
+        Maybe ((Bool, Bool), (ScoreTime, ScoreTime)))
+prepare_sustain has_prepare note_dur (maybe_initial, final) orient start end =
+    (sustain, prepare)
+    where
+    sustain
+        | has_sustain =
+            Just ((initial, if has_prepare then False else final),
+                (start, sustain_end))
+        | otherwise = Nothing
+        where
+        initial = fromMaybe (orient == Event.Positive) maybe_initial
+    -- first $ fromMaybe (not $ Event.is_negative (Args.event args))
+        sustain_end = end - if has_prepare then prepare_dur else 0
+    prepare
+        | has_prepare =
+            Just ((True, final), (end - prepare_dur, end))
+        | otherwise = Nothing
+    dur = end - start
+    -- False if all the time is taken up by the prepare.
+    -- Default to no initial if this is immediately going into a prepare.  This
+    -- is so I can use a 'nt>' for just prepare but line it up on the beat.
+    -- I don't actually need this if I expect a plain 'nt>' to be negative.
+    has_sustain = not has_prepare
+        || (dur > prepare_dur1
+            || dur > prepare_dur && maybe_initial == Just True)
+    prepare_dur = note_dur * 3
+    prepare_dur1 = note_dur * 4
 
 -- | Prepare for the next pitch if the next notes starts at the end of this one
 -- and has a different pitch.
@@ -335,9 +371,9 @@ gangsa_norot style pasang steps = Realization
     pstep = polos steps
     sstep = sangsih steps
 
-gangsa_norot_arrival :: NorotStyle -> Pasang Score.Instrument
+gangsa_norot_prepare :: NorotStyle -> Pasang Score.Instrument
     -> Pasang (Pitch.Step, Pitch.Step) -> Cycle
-gangsa_norot_arrival style pasang steps = Realization
+gangsa_norot_prepare style pasang steps = Realization
     { interlocking =
         [ [p p2, s p2]
         , [p p2, s p2]
@@ -360,10 +396,11 @@ gangsa_norot_arrival style pasang steps = Realization
     (p1, p2) = polos steps
     (s1, s2) = sangsih steps
 
-norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
+norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> NorotStyle
+    -> PSignal.Transposed
     -- ^ this is to figure out if the sangsih part will be in range
-    -> NorotStyle -> Pasang (Pitch.Step, Pitch.Step)
-norot_steps scale inst_top pitch style
+    -> Pasang (Pitch.Step, Pitch.Step)
+norot_steps scale inst_top style pitch
     | out_of_range 1 = Pasang { polos = (-1, 0), sangsih = (-1, 0) }
     | otherwise = case style of
         Diamond -> Pasang { polos = (1, 0), sangsih = (-1, 0) }

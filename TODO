@@ -1438,7 +1438,7 @@ Derive:
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
         - control for noltol +mute dyn
-        - gender norot: control for polos 234- vs. 434-
+        / gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
       wayang in octaves
@@ -1494,6 +1494,12 @@ Derive:
                21      21
         - kbd entry for /, X, O, + etc.?
         kilitan: norot:
+          . How to do norot for real?
+            . Each voice is semi-independent, and may have different
+              preparation patterns and times.  But then sometimes they
+              coordinate.
+            . Variations are random, but frequency is controlled by
+              "kewayahan".
           variants:
             - controlled by variant control
             - omit notes
@@ -1502,7 +1508,6 @@ Derive:
             - Pickup can be iioi style, but parts that don't have the pitch
               often play the normal kilitan, or a passing tone.
           above speed threshold:
-            - open damping and then no damping
             - omit notes
             - Entirely different fast patterns.
           - Also I want to be able to control the dyn.  There should be

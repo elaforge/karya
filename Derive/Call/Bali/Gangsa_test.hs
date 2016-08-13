@@ -32,6 +32,9 @@ test_norot = do
     equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "121")], [])
     equal (run [(0, 4, "norot _ diamond -- 4d")])
         ([(polos, "23232"), (sangsih, "21212")], [])
+    -- Positive defaults to initial=t, negative to initial=f.
+    equal (run [(0, 4, "nt -- 4c")]) ([(pasang, "12121")], [])
+    equal (run [(0, 0, "4c"), (4, -4, "nt -- 4c")]) ([(pasang, "-2121")], [])
     -- Under threshold, split sangsih and polos.
     equal (run [(0, 4, "kotekan=2 | norot -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])
@@ -56,10 +59,13 @@ test_norot = do
             (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
+
 test_norot_prepare = do
     let run = e_pattern 0 . derive " | cancel-pasang 2"
     -- No pitch at 0, but it's not a problem because there's no sustain.
-    equal (run [(4, -4, "nt> -- 4c"), (4, 4, "4c")]) ([(pasang, "-1121")], [])
+    equal (run [(4, -4, "norot t -- 4c"), (4, 4, "4c")])
+        ([(pasang, "-1121")], [])
+
 
 test_norot_final = do
     -- Initial and final get flags.
