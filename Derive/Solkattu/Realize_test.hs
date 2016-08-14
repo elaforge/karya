@@ -11,6 +11,7 @@ import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (ta, di, __)
 import qualified Derive.Solkattu.Mridangam as M
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Note(..), Sollu(..))
 
 import Global
@@ -58,3 +59,18 @@ test_stroke_map = do
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(Dsl.tang <> Dsl.ga, [Dsl.u, __, __])]) "differing lengths"
     left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"
+
+test_format = do
+    let f = Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"
+            . Realize.format (Solkattu.adi_tala 4)
+        n4 = [Dsl.k, Dsl.t, Dsl.__, Dsl.n]
+    -- Emphasize every 4.
+    equal (f n4) "!k! t _ n"
+    equal (f (n4 <> n4)) "!k! t _ n !k! t _ n"
+    -- Emphasis works in patterns.
+    equal (f (n4 <> [Realize.Pattern 5] <> n4))
+        "!k! t _ n !p5!------!--!k t _ !n!"
+    -- Patterns are wrapped properly.
+    equal (f (n4 <> [Realize.Pattern 5] <> n4 <> [Realize.Pattern 5]))
+        "!k! t _ n !p5!------!--!k t _ !n! p5----\n\
+        \!--!--"

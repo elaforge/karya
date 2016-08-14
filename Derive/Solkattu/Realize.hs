@@ -180,7 +180,7 @@ replace_strokes (_:_) [] = ([], [])
 
 -- | Format the notes according to the tala.
 format :: forall stroke. Pretty.Pretty stroke => S.Tala -> [Note stroke] -> Text
-format tala = Text.stripStart . mconcat
+format tala = Text.strip . mconcat
     . S.map_time tala per_word . S.map_time tala per_note
     where
     per_note _ note = case note of
@@ -207,4 +207,6 @@ format tala = Text.stripStart . mconcat
             | matra == 0 && S.state_akshara state == S.tala_arudi tala = "\n"
             | otherwise = ""
         matra = S.state_matra state
-    emphasize txt = "\ESC[1m" <> txt <> "\ESC[0m"
+    -- I have to pad first so it doesn't count the control chars.
+    emphasize word = "\ESC[1m" <> pre <> "\ESC[0m" <> post
+        where (pre, post) = Text.break (==' ') word
