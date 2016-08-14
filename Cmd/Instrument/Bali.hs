@@ -13,7 +13,16 @@ import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Bali.Gangsa as Gangsa
+import qualified Derive.Call.Prelude.Articulation as Articulation
+import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.Sub as Sub
+import qualified Derive.Eval as Eval
+import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.ShowVal as ShowVal
+
 import Global
 
 
@@ -44,3 +53,14 @@ pasang_thru msg = do
             MidiThru.midi_thru_instrument inst attrs $
                 InputNote.multiply_note_id 1 input
         return Cmd.Continue
+
+zero_dur_mute :: MidiInst.Code
+zero_dur_mute = zero_dur_reapply Articulation.mute_call
+
+zero_dur_reapply :: BaseTypes.Symbol -> MidiInst.Code
+zero_dur_reapply mute_call = MidiInst.note_calls $ MidiInst.null_call $
+    DUtil.zero_duration "note"
+    ("When the event has zero duration, dispatch to the "
+        <> ShowVal.doc mute_call <> " call.")
+    (\args -> Eval.reapply_call (Args.context args) mute_call [])
+    (Sub.inverting $ Note.default_note Note.use_attributes)

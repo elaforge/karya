@@ -51,7 +51,8 @@ patches = map add_doc $
     ]
     where
     gangsa with_pasang range name = concat
-        [ [MidiInst.code #= zero_dur_mute $ gangsa_ks $ ranged_patch range name]
+        [ [MidiInst.code #= Bali.zero_dur_mute $ gangsa_ks $
+            ranged_patch range name]
         , [ MidiInst.code #= Bali.pasang_code $
               ranged_patch range (name <> "-pasang")
           | with_pasang

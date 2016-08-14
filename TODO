@@ -1371,7 +1371,7 @@ Derive:
         * why is k//\\ non-interlocking giving the bottom part to sangsih?
           . It's because kotekan_irregular is designed that way, it has
             a single kotekan_unison.
-        - is zero dur also mute for reyong?  I keep forgetting!
+        * is zero dur also mute for reyong?  I keep forgetting!
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
