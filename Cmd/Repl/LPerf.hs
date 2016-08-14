@@ -300,10 +300,10 @@ type Events d = [LEvent.LEvent d]
 
 -- | Like 'get_sel_events_logs', but filter out the LEvent.Logs.
 get_sel_events :: Bool -- ^ from root
-    -> (BlockId -> Cmd.CmdL (Events Score.Event))
-    -> Cmd.CmdL [Score.Event]
-get_sel_events from_root = (LEvent.events_of <$>)
-    . get_sel Score.event_start Score.event_stack from_root
+    -> (BlockId -> Cmd.CmdL (Events Score.Event)) -> Cmd.CmdL [Score.Event]
+get_sel_events from_root =
+    LEvent.write_logs <=< get_sel Score.event_start Score.event_stack from_root
+
 
 -- | Get events derived in the selected range.
 get_sel_events_logs :: Bool -- ^ from root
@@ -338,8 +338,8 @@ in_tracks event_stack track_ids =
 in_range :: (a -> RealTime) -> RealTime -> RealTime -> [LEvent.LEvent a]
     -> [LEvent.LEvent a]
 in_range start_of start end =
-    takeWhile (LEvent.log_or $ (<end) . start_of)
-    . dropWhile (LEvent.log_or $ before start . start_of)
+    LEvent.take_while ((<end) . start_of)
+    . LEvent.drop_while (before start . start_of)
     where
     before start ts
         -- I can't put a selection before 0, so assume that means I want

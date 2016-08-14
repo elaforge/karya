@@ -58,6 +58,19 @@ is_log _ = False
 log_or :: (d -> Bool) -> LEvent d -> Bool
 log_or f = either f (const True)
 
+-- | Drop while the predicate is true, but keep preceding logs.
+drop_while :: (a -> Bool) -> [LEvent a] -> [LEvent a]
+drop_while f = go []
+    where
+    go accum [] = reverse accum
+    go accum es@(Event event : rest)
+        | f event = go [] rest
+        | otherwise = reverse accum ++ es
+    go accum (log@(Log _) : rest) = go (log:accum) rest
+
+take_while :: (a -> Bool) -> [LEvent a] -> [LEvent a]
+take_while f = takeWhile (log_or f)
+
 either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event
 either _ f2 (Log log) = f2 log
