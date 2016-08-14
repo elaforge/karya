@@ -51,10 +51,6 @@ ghci_flags = build_dir </> "ghci-flags"
 newtype Session = Session (Chan.Chan (Text, MVar.MVar Cmd))
 type Cmd = Cmd.CmdL ReplUtil.Response
 
--- | Text version of the Cmd type.
-cmd_type :: String
-cmd_type = "Cmd.CmdL String"
-
 type Ghc a = GHC.GhcT IO a
 
 make_session :: IO Session
@@ -132,7 +128,7 @@ interpreter (Session chan) = do
         ReplUtil.raw $ "Unknown colon command: " <> showt colon
 
 make_response :: Result (Cmd.CmdL String) -> Cmd
-make_response (result, logs, warns) = case result of
+make_response (val, logs, warns) = case val of
     Left err -> return (ReplUtil.Raw ("compile error: " <> txt err), all_logs)
     Right cmd -> do
         result <- cmd
@@ -141,7 +137,7 @@ make_response (result, logs, warns) = case result of
 
 -- * implementation
 
--- | (Either error result, logs, warns)
+-- | (Either error cmd, logs, warns)
 type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
@@ -168,7 +164,8 @@ compile expr = do
     (hval, logs, warns) <- collect_logs $ GHC.compileExpr typed_expr
     return (fmap coerce hval, logs, warns)
     where
-    typed_expr = "fmap show (" ++ expr ++ ") :: " ++ cmd_type
+    typed_expr = "fmap show (" ++ expr ++ ") :: Cmd.CmdL String"
+    -- This should be safe because I just asserted the the type above.
     coerce val = GHC.Exts.unsafeCoerce# val :: Cmd.CmdL String
 
 set_context :: [String] -> Ghc ()

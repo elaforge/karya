@@ -117,27 +117,31 @@ run_cmdio :: Cmd.CmdT IO ReplUtil.Response
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
-    result <- liftIO $ Exception.try $ do
+    run_result <- liftIO $ Exception.try $ do
         let aborted = ReplUtil.raw "<aborted>"
-        (cmd_state, midi, logs, result) <- Cmd.run aborted ui_state
+        (cmd_state, midi, logs, cmd_result) <- Cmd.run aborted ui_state
             (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
-        mapM_ Log.write logs
-        case result of
+        case cmd_result of
             Left _ -> return ()
             -- Try to force out any async exceptions.  UI state may also have
             -- some, but I try to force those out in Ui.State functions.
+            -- Otherwise, if an error gets out of this try block it can kill
+            -- the responder when serializes the value for the socket.
             Right (val, _state, _updates) -> val `DeepSeq.deepseq` return ()
-        return (cmd_state, midi, result)
-    case result of
+        return (cmd_state, midi, cmd_result, logs)
+    case run_result of
         Left (exc :: Exception.SomeException) -> return
             (ReplUtil.raw $ "IO exception: " <> showt exc, Cmd.Done)
-        Right (cmd_state, midi, result) -> case result of
+        Right (cmd_state, midi, cmd_result, logs) -> case cmd_result of
             Left err -> return
                 (ReplUtil.raw $ "State error: " <> pretty err, Cmd.Done)
-            Right (val, ui_state, updates) -> do
+            Right ((response, eval_logs), ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state
                 mapM_ State.update updates
-                return (val, Cmd.state_repl_status cmd_state)
+                return
+                    ( (response, eval_logs ++ map pretty logs)
+                    , Cmd.state_repl_status cmd_state
+                    )
