@@ -18,6 +18,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -69,7 +70,12 @@ module_ = "bali" <> "reyong"
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("kilit", realize_pattern norot_patterns)
-    , (">kilit", realize_pattern pickup_patterns)
+    , (">kilit", realize_pattern norot_prepare_patterns)
+    -- kilit is probably redundant now that I have norot.
+    , ("norot", c_norot Nothing)
+    , ("nt", c_norot Nothing)
+    , ("nt>", c_norot (Just True))
+    , ("nt-", c_norot (Just False))
     , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
     , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
     , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
@@ -285,6 +291,45 @@ c_cancel_kotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
 
 -- * kilitan
 
+c_norot :: Maybe Bool -> Derive.Generator Derive.Note
+c_norot default_prepare =
+    Derive.generator module_ "norot" Tags.inst "Reyong norot."
+    $ Sig.call ((,,,)
+    <$> Sig.defaulted "prepare" default_prepare
+        "Whether or not to prepare for the next pitch. If Nothing, infer based\
+        \ on the next note."
+    <*> Gangsa.dur_env <*> Gangsa.infer_initial_final_env <*> voices_env
+    ) $ \(prepare, note_dur, initial_final, voices) -> Sub.inverting $
+    \args -> do
+        (pitch, show_pitch) <- get_parsed_pitch args
+        next_pitch <- infer_prepare args prepare
+        let (sustain_params, prepare_params) = Gangsa.prepare_sustain
+                (Maybe.isJust next_pitch) note_dur initial_final
+                (Event.orientation (Args.event args))
+                (Args.start args) (Args.end args)
+        sustain <- case sustain_params of
+            Nothing -> return mempty
+            Just (initial_final, range) -> realize_positions
+                (realize_notes show_pitch Gangsa.Repeat initial_final range
+                    note_dur)
+                voices norot_patterns pitch
+        prepare <- case (,) <$> next_pitch <*> prepare_params of
+            Nothing -> return Nothing
+            Just (next, (initial_final, range)) -> Just <$> realize_positions
+                (realize_notes show_pitch Gangsa.Once initial_final range
+                    note_dur)
+                voices norot_prepare_patterns next
+        maybe sustain (sustain<>) prepare
+
+realize_positions :: ((Voice, note) -> Derive.NoteDeriver)
+    -> [Voice] -> Map.Map Pitch.PitchClass [note]
+    -> Pitch.Pitch -> Derive.Deriver Derive.NoteDeriver
+realize_positions realize voices patterns pitch = do
+    positions <- Derive.require
+        ("no pattern for pitch: " <> pretty pitch)
+        (Map.lookup (Pitch.pitch_pc pitch) patterns)
+    return $ mconcatMap realize (filter_voices voices positions)
+
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
 -- and without a polos \/ sangsih division.
@@ -301,12 +346,12 @@ realize_pattern pattern =
             (realize_notes show_pitch Gangsa.Repeat
                 (Gangsa.infer_initial args initial_final) (Args.range args)
                 dur)
-            (filter_voices voices (zip [1..] positions))
+            (filter_voices voices positions)
 
-filter_voices :: [Voice] -> [(Voice, a)] -> [(Voice, a)]
-filter_voices voices
-    | null voices = id
-    | otherwise = filter ((`elem` voices) . fst)
+filter_voices :: [Voice] -> [a] -> [(Voice, a)]
+filter_voices voices positions
+    | null voices = zip [1..] positions
+    | otherwise = filter ((`elem` voices) . fst) (zip [1..] positions)
 
 -- * kotekan
 
@@ -334,7 +379,7 @@ c_kotekan_regular maybe_kernel maybe_dir =
         mconcatMap
             (realize_notes show_pitch Gangsa.Repeat
                 (Gangsa.infer_initial args initial_final) (Args.range args) dur)
-            (filter_voices voices (zip [1..] positions))
+            (filter_voices voices positions)
 
 kernel_doc :: Derive.Doc
 kernel_doc = "Transposition steps for the part that ends on the destination\
@@ -391,6 +436,16 @@ get_parsed_pitch args = do
     pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_trigger args
     return (pitch, show_pitch)
 
+-- | Like 'Gangsa.infer_prepare', except return a parsed Pitch.Pitch.
+infer_prepare :: Derive.PassedArgs a -> Maybe Bool
+    -> Derive.Deriver (Maybe Pitch.Pitch)
+infer_prepare args prepare = do
+    (parse_pitch, _, _) <- Call.get_pitch_functions
+    justm (Gangsa.infer_prepare args prepare) $ \_ -> do
+        maybe (return Nothing)
+            (Args.lookup_parsed_pitch_at parse_pitch <=< Derive.real) $
+                Args.next_start args
+
 -- * articulation
 
 make_articulation :: [Position] -> Bool -> Derive.CallName
@@ -403,8 +458,7 @@ make_articulation positions double name get_notes attrs =
     Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
         mconcat $ concat $ replicate (if double then 2 else 1) $
-            map (realize show_pitch args) $
-            filter_voices voices (zip [1..] positions)
+            map (realize show_pitch args) (filter_voices voices positions)
     where
     realize show_pitch args (voice, position) = mconcatMap
         (Call.place args . realize_note show_pitch voice (Args.start args))
@@ -544,8 +598,8 @@ parse_note table = extract . head . parse_absolute table . (:[])
              |------|---    |---------|
     4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
 -}
-pickup_patterns :: Map.Map Pitch.PitchClass [[Chord]]
-pickup_patterns = Map.fromList $ zip [0..] $ map parse by_degree
+norot_prepare_patterns :: Map.Map Pitch.PitchClass [[Chord]]
+norot_prepare_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
     by_degree =

@@ -1467,7 +1467,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        - instead of the awkward >kilit or the cancel range, should I do
+        * instead of the awkward >kilit or the cancel range, should I do
           next note preparation as the end of the current kilit call?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.

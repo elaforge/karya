@@ -20,9 +20,11 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -153,6 +155,15 @@ lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
         mapM_ Log.write $ Log.add_prefix ("lookup_pitch_at " <> pretty pos) $
             filter ((>=Log.Warn) . Log.msg_priority) logs
         return $ PSignal.at pos =<< maybe_sig
+
+-- | Like 'lookup_pitch_at', except for parsed pitches.  Normally you'd pass
+-- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
+lookup_parsed_pitch_at :: (Pitch.Note -> Maybe a) -> RealTime
+    -> Derive.Deriver (Maybe a)
+lookup_parsed_pitch_at parse_pitch pos = do
+    justm (lookup_pitch_at pos) $ \pitch -> do
+        note <- Pitches.pitch_note =<< Derive.resolve_pitch pos pitch
+        Just <$> Derive.require "unparseable pitch" (parse_pitch note)
 
 -- ** eval
 

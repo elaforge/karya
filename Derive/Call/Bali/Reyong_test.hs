@@ -40,6 +40,13 @@ test_articulation = do
         (Just [(0, "4u"), (1, "4e"), (1, "4a"), (2, "4e"), (2, "4a")], [])
     equal (run [(0, 0, "XX --")]) (Just [(0, "4u"), (0, "4u")], [])
 
+test_norot = do
+    let run = first (lookup 2) . e_pattern 0
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
+    equal (run [(0, 4, "nt -- 4i")]) (Just "ioioi", [])
+    equal (run [(0, 8, "nt -- 4i"), (8, 4, "nt -- 4o")])
+        (Just "ioioiooeoeoeo", [])
+
 test_kilitan_prepare = do
     let run = e_voice 1 DeriveTest.e_start_note
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
@@ -87,7 +94,6 @@ test_kotekan_irregular = do
         (Just "--ua-ua-au-au-ua-", [])
     equal (run 1 [(16, -16, "k//\\\\ -- 6i")])
         (Just "--ua-ua-au-au-ua-", [])
-
 
 test_kotekan_negative_slice = do
     -- This actually ensures that negative slices include the final pitch
