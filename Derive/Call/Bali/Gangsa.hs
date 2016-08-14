@@ -11,7 +11,7 @@
     a constant duration, that line up at the end of an event's range, and the
     last duration is negative (i.e. implicit, depending on the next note).
     They use polos and sangsih and may switch patterns when the a kotekan speed
-    threshold is passed.  Notes are also possible muted.
+    threshold is passed.  Notes are also possibly muted.
 
     There are a number of ways this can be extended:
 
@@ -24,7 +24,6 @@
     abstraction:
 
     - Variable durations.
-    - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
 import qualified Data.List as List
@@ -129,7 +128,7 @@ val_calls = Derive.call_map
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
 
--- * instrument transform
+-- * instrument postproc
 
 -- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
 -- This interprets 'Controls.mute' and turns it into either a @%mod@ control or

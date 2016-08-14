@@ -210,7 +210,7 @@ UNSORTED
         down if necessary.
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
-  - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
+  / can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
