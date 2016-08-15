@@ -82,7 +82,8 @@ pb_range = (-24, 24)
 
 mine_patches :: [MidiInst.Patch]
 mine_patches =
-    [ patch "tambura" []
+    [ MidiInst.make_patch $ Patch.set_flag Patch.ResumePlay $
+        Patch.patch pb_range "tambura"
     ]
 
 -- * misc

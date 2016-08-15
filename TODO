@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - If State.allocations is so read-only, why not make it a plain function?
   * Derive.Doc type to make call args clearer
   - Fix verify_performance for save/complete/blue-hat
   - do a renaming pass on all the prev/next pitch function names in
@@ -91,7 +92,7 @@ UNSORTED
       the parser over.  Can't I just reapply to the callee?
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
   - Use kotekan for >wy with sargam scale.
-  - Special play support for tambura-like instruments, where it will start
+  * Special play support for tambura-like instruments, where it will start
     playing a note from the middle.
     . Instrument gets a ResumePlay flag.
     . This needs support at PlayUtil.perform_from.  events_from needs to

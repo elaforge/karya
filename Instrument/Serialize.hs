@@ -62,6 +62,7 @@ instance Serialize Patch.Flag where
     put Patch.Pressure = put_tag 1
     put Patch.ConstantPitch = put_tag 2
     put Patch.HoldKeyswitch = put_tag 3
+    put Patch.ResumePlay = put_tag 4
     get = do
         tag <- get_tag
         case tag of
@@ -69,6 +70,7 @@ instance Serialize Patch.Flag where
             1 -> return Patch.Pressure
             2 -> return Patch.ConstantPitch
             3 -> return Patch.HoldKeyswitch
+            4 -> return Patch.ResumePlay
             _ -> bad_tag "Patch.Flag" tag
 
 instance Serialize Patch.InitializePatch where

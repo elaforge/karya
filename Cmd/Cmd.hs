@@ -1094,8 +1094,8 @@ state_lookup_instrument ui_state cmd_state = \inst_name -> do
     StateConfig.Allocation qualified config backend <-
         State.allocation inst_name #$ ui_state
     inst <- Inst.lookup qualified db
-    let environ = Common.config_environ config
-    return (merge_environ environ backend inst, qualified)
+    return (merge_environ (Common.config_environ config) backend inst,
+        qualified)
     where
     db = config_instrument_db (state_config cmd_state)
     merge_environ environ backend =

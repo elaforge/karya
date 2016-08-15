@@ -146,7 +146,16 @@ initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
-perform_from start = perform_events . events_from start . Cmd.perf_events
+perform_from start perf = do
+    insts <- Map.keys <$> (State.config#State.allocations_map <#> State.get)
+    resume_insts <- Set.fromList <$> filterM (has_flag Patch.ResumePlay) insts
+    let (extra, events) = events_from resume_insts start $ Cmd.perf_events perf
+    perform_events_list (extra ++ Vector.toList events)
+
+has_flag :: Cmd.M m => Patch.Flag -> Score.Instrument -> m Bool
+has_flag flag inst =
+    maybe False ((flag `Set.member`) . Patch.patch_flags) <$>
+        Cmd.lookup_midi_patch inst
 
 shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
     -> Perform.MidiEvents
@@ -163,13 +172,40 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
-events_from :: RealTime -> Vector.Vector Score.Event
-    -> Vector.Vector Score.Event
-events_from start events
-    | start <= 0 = events
-    | otherwise = Vector.drop i events
+events_from :: Set.Set Score.Instrument -> RealTime
+    -> Vector.Vector Score.Event -> ([Score.Event], Vector.Vector Score.Event)
+events_from resume_insts start events
+    | start <= 0 = ([], events)
+    | Set.null resume_insts = ([], from)
+    | otherwise = (starts, Vector.drop i events)
     where
+    from = Vector.drop i events
     i = Util.Vector.lowest_index Score.event_start (start - RealTime.eta) events
+    starts = scan_for_starts resume_insts events start i
+
+-- | Starting from the index, look back for overlapping events in the given set.
+scan_for_starts :: Set.Set Score.Instrument -> Vector.Vector Score.Event
+    -> RealTime -> Int -> [Score.Event]
+scan_for_starts resume_insts events pos i =
+    reverse $ mapMaybe (set_start pos) $
+        scan (resume_insts `Set.difference` present_here) back
+    where
+    here = Vector.takeWhile ((==pos) . Score.event_start) $ Vector.drop i events
+    present_here = Vector.foldl' (\s e -> Set.insert (inst e) s) mempty here
+    back = Util.Vector.to_reverse_list $ Vector.take i events
+    scan _ [] = []
+    scan insts (e:es)
+        | Set.null insts = []
+        | inst e `Set.member` insts = e : scan (Set.delete (inst e) insts) es
+        | otherwise = scan insts es
+    inst = Score.event_instrument
+
+set_start :: RealTime -> Score.Event -> Maybe Score.Event
+set_start pos event
+    | dur <= 0 = Nothing
+    | otherwise =
+        Just $ event { Score.event_start = pos, Score.event_duration = dur }
+    where dur = Score.event_end event - pos
 
 -- | How to know how far back to go?  Impossible to know!  Well, I could look
 -- up overlapping ui events, then map the earliest time to RealTime, and start
@@ -182,6 +218,38 @@ overlapping_events pos = Vector.foldl' collect []
         | Score.event_end event <= pos || Score.event_start event > pos =
             overlap
         | otherwise = event : overlap
+
+perform_events :: Cmd.M m => Vector.Vector Score.Event -> m Perform.MidiEvents
+perform_events = perform_events_list . Vector.toList
+    -- Performance should be lazy, so converting to a list here means I can
+    -- avoid doing work for the notes that never get played.
+
+perform_events_list :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
+perform_events_list events = do
+    allocs <- State.gets $ State.config_allocations . State.state_config
+    lookup <- get_convert_lookup
+    lookup_inst <- Cmd.get_lookup_instrument
+    blocks <- State.gets (Map.toList . State.state_blocks)
+    tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
+    let alloc = Patch.config_allocation <$> midi_configs allocs
+    return $ fst $ Perform.perform Perform.initial_state alloc $
+        Convert.convert lookup lookup_inst $
+        filter_track_muted tree blocks $ filter_instrument_muted allocs events
+
+-- | Similar to the Solo and Mute track flags, individual instruments can be
+-- soloed or muted.
+filter_instrument_muted :: StateConfig.Allocations -> [Score.Event]
+    -> [Score.Event]
+filter_instrument_muted (StateConfig.Allocations allocs)
+    | not (Set.null soloed) = filter $
+        (`Set.member` soloed) . Score.event_instrument
+    | not (Set.null muted) = filter $
+        (`Set.notMember` muted) . Score.event_instrument
+    | otherwise = id
+    where
+    configs = map (second StateConfig.alloc_config) (Map.toList allocs)
+    soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
+    muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
 
 -- | Filter events according to the Solo and Mute flags in the tracks of the
 -- given blocks.
@@ -244,36 +312,6 @@ solo_to_mute tree blocks soloed = Set.fromList
         , any ((Block.Solo `Set.member`) . Block.track_flags)
             (Block.block_tracks block)
         ]
-
--- | Similar to the Solo and Mute track flags, individual instruments can be
--- soloed or muted.
-filter_instrument_muted :: StateConfig.Allocations -> [Score.Event]
-    -> [Score.Event]
-filter_instrument_muted (StateConfig.Allocations allocs)
-    | not (Set.null soloed) = filter $
-        (`Set.member` soloed) . Score.event_instrument
-    | not (Set.null muted) = filter $
-        (`Set.notMember` muted) . Score.event_instrument
-    | otherwise = id
-    where
-    configs = map (second StateConfig.alloc_config) (Map.toList allocs)
-    soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
-    muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
-
-perform_events :: Cmd.M m => Vector.Vector Score.Event -> m Perform.MidiEvents
-perform_events events = do
-    allocs <- State.gets $ State.config_allocations . State.state_config
-    lookup <- get_convert_lookup
-    lookup_inst <- Cmd.get_lookup_instrument
-    blocks <- State.gets (Map.toList . State.state_blocks)
-    tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    let alloc = Patch.config_allocation <$> midi_configs allocs
-    return $ fst $ Perform.perform Perform.initial_state alloc $
-        Convert.convert lookup lookup_inst $
-        filter_track_muted tree blocks $ filter_instrument_muted allocs $
-        -- Performance should be lazy, so converting to a list here means I can
-        -- avoid doing work for the notes that never get played.
-        Vector.toList events
 
 midi_configs :: StateConfig.Allocations -> Map.Map Score.Instrument Patch.Config
 midi_configs (StateConfig.Allocations allocs) = Map.fromAscList

@@ -343,9 +343,13 @@ data Flag =
     -- the note generator, but it's convenient to apply it in convert because
     -- that's where the transpose signals are applied.
     | ConstantPitch
-    -- | If true, a keysitch has to be held while its note is playing.
+    -- | If set, a keysitch has to be held while its note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     | HoldKeyswitch
+    -- | When playing from mid-score, scan backwards for the first overlapping
+    -- notes with this instrument set.  This way you can play long notes
+    -- like tambure from the middle.
+    | ResumePlay
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Flag where pretty = showt

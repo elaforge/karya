@@ -4,6 +4,8 @@
 
 module Cmd.PlayUtil_test where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import Util.Test
 import qualified Midi.Key as Key
@@ -17,10 +19,31 @@ import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Patch as Patch
 import Global
 import Types
 
+
+test_events_from = do
+    let i1 = UiTest.i1
+        i2 = UiTest.i2
+        i3 = UiTest.i3
+    let f pos = (map extract *** map extract . Vector.toList)
+            . PlayUtil.events_from (Set.fromList [i1, i2]) pos
+            . Vector.fromList . map mkevent
+        mkevent (start, dur, inst) =
+            DeriveTest.mkevent (start, dur, "4c", [], inst)
+        extract e = (Score.event_start e, Score.event_duration e,
+            Score.event_instrument e)
+    equal (f 0 []) ([], [])
+    -- The one at means don't look for the previous one.
+    equal (f 2 [(0, 1, i1), (1, 1, i1), (2, 1, i1)]) ([], [(2, 1, i1)])
+    equal (f 2 [(0, 1, i1), (1, 2, i1), (3, 1, i1)])
+        ([(2, 1, i1)], [(3, 1, i1)])
+    -- Not interested in i3.
+    equal (f 2 [(0, 1, i3), (1, 2, i3), (3, 1, i3)]) ([], [(3, 1, i3)])
 
 test_control_defaults = do
     let make = (State.allocation UiTest.i1 #= Just alloc)

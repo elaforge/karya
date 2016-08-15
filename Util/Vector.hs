@@ -13,6 +13,10 @@ import qualified Data.Vector as V
 count :: Generic.Vector v a => (a -> Bool) -> v a -> Int
 count f = Generic.foldl' (\c a -> if f a then succ c else c) 0
 
+to_reverse_list :: Generic.Vector v a => v a -> [a]
+to_reverse_list vec = map (Generic.unsafeIndex vec) [from, from-1 .. 0]
+    where from = Generic.length vec - 1
+
 fold_abort :: Generic.Vector v a => (accum -> a -> Maybe accum) -> accum
     -> v a -> accum
 fold_abort f accum vec = go 0 accum
