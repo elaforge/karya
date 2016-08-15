@@ -231,7 +231,7 @@ synth_controls controls = map $
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
 pressure = (patch#Patch.decay #= Just 0)
-    . (patch %= Patch.set_flag Patch.Pressure)
+    . (patch %= Patch.add_flag Patch.Pressure)
 
 -- ** environ
 

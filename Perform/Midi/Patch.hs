@@ -28,7 +28,7 @@ module Perform.Midi.Patch (
     , scale_nns, scale_offsets, scale_tuning
     -- ** Flag
     , Flag(..)
-    , set_flag, unset_flag, has_flag, triggered, pressure
+    , add_flag, remove_flag, has_flag, triggered, pressure
     -- ** InitializePatch
     , InitializePatch(..)
     -- ** AttributeMap
@@ -354,18 +354,18 @@ data Flag =
 
 instance Pretty.Pretty Flag where pretty = showt
 
-set_flag :: Flag -> Patch -> Patch
-set_flag flag = flags %= Set.insert flag
+add_flag :: Flag -> Patch -> Patch
+add_flag flag = flags %= Set.insert flag
 
-unset_flag :: Flag -> Patch -> Patch
-unset_flag flag = flags %= Set.delete flag
+remove_flag :: Flag -> Patch -> Patch
+remove_flag flag = flags %= Set.delete flag
 
 has_flag :: Patch -> Flag -> Bool
 has_flag inst flag = Set.member flag (patch_flags inst)
 
 triggered, pressure :: Patch -> Patch
-triggered = set_flag Triggered
-pressure = set_flag Pressure
+triggered = add_flag Triggered
+pressure = add_flag Pressure
 
 -- ** InitializePatch
 

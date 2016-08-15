@@ -285,7 +285,7 @@ events_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id
     start <- Perf.get_realtime perf block_id (Just track_id) pos
-    return $ PlayUtil.events_from start (Cmd.perf_events perf)
+    return $ snd $ PlayUtil.events_from mempty start (Cmd.perf_events perf)
 
 perform_from :: Cmd.CmdL Perform.MidiEvents
 perform_from = do

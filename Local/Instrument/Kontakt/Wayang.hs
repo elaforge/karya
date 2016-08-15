@@ -71,7 +71,7 @@ patches = map (MidiInst.code #= code <> with_weak)
         where dur = Args.next args - Args.start args
     patch name = set_params $ MidiInst.named_patch (-24, 24) name []
     set_params = (MidiInst.patch %=) $
-        Patch.set_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
+        Patch.add_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
         . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
         (MidiInst.patch#Patch.scale

@@ -33,7 +33,7 @@ patches :: [MidiInst.Patch]
 patches = (:[]) $
     MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
     MidiInst.make_patch $
-    Patch.set_flag Patch.HoldKeyswitch $
+    Patch.add_flag Patch.HoldKeyswitch $
     Patch.attribute_map #= Patch.single_keyswitches keyswitches $
     Patch.patch (-3, 3) Patch.default_name
 
