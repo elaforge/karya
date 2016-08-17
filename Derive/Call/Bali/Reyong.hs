@@ -307,17 +307,18 @@ c_norot default_prepare =
                 (Maybe.isJust next_pitch) note_dur initial_final
                 (Event.orientation (Args.event args))
                 (Args.start args) (Args.end args)
+        let orientation = Event.orientation (Args.event args)
         sustain <- case sustain_params of
             Nothing -> return mempty
             Just (initial_final, range) -> realize_positions
-                (realize_notes show_pitch Gangsa.Repeat initial_final range
-                    note_dur)
+                (realize_notes range orientation initial_final
+                    show_pitch Gangsa.Repeat note_dur)
                 voices norot_patterns pitch
         prepare <- case (,) <$> next_pitch <*> prepare_params of
             Nothing -> return Nothing
             Just (next, (initial_final, range)) -> Just <$> realize_positions
-                (realize_notes show_pitch Gangsa.Once initial_final range
-                    note_dur)
+                (realize_notes range orientation initial_final
+                    show_pitch Gangsa.Once note_dur)
                 voices norot_prepare_patterns next
         maybe sustain (sustain<>) prepare
 
@@ -343,9 +344,7 @@ realize_pattern pattern =
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap
-            (realize_notes show_pitch Gangsa.Repeat
-                (Gangsa.infer_initial args initial_final) (Args.range args)
-                dur)
+            (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
             (filter_voices voices positions)
 
 filter_voices :: [Voice] -> [a] -> [(Voice, a)]
@@ -377,8 +376,7 @@ c_kotekan_regular maybe_kernel maybe_dir =
         let positions = kotekan_pattern 5 (map pos_cek reyong_positions)
                 pattern (Pitch.pitch_pc pitch)
         mconcatMap
-            (realize_notes show_pitch Gangsa.Repeat
-                (Gangsa.infer_initial args initial_final) (Args.range args) dur)
+            (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
             (filter_voices voices positions)
 
 kernel_doc :: Derive.Doc
@@ -387,13 +385,20 @@ kernel_doc = "Transposition steps for the part that ends on the destination\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat
-    -> (Bool, Bool) -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
-    -> Derive.NoteDeriver
-realize_notes show_pitch repeat initial_final (start, end) dur
+realize_notes_args :: Derive.PassedArgs a -> (Maybe Bool, Bool)
+    -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
+    -> (Voice, [[Note]]) -> Derive.NoteDeriver
+realize_notes_args args initial_final =
+    realize_notes (Args.range args) (Event.orientation (Args.event args))
+        (Gangsa.infer_initial args initial_final)
+
+realize_notes :: (ScoreTime, ScoreTime) -> Event.Orientation -> (Bool, Bool)
+    -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
+    -> (Voice, [[Note]]) -> Derive.NoteDeriver
+realize_notes (start, end) orientation initial_final show_pitch repeat dur
         (voice, position) =
     Gangsa.realize_notes (realize_note show_pitch voice start) $
-        Gangsa.realize_pattern repeat initial_final start end dur
+        Gangsa.realize_pattern repeat orientation initial_final start end dur
             (const position)
 
 kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern

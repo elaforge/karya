@@ -327,12 +327,12 @@ zip_neighbors (x:xs) = (Nothing, x, head xs) : go x xs
     go prev [x] = [(Just prev, x, Nothing)]
     go prev (x : xs@(y:_)) = (Just prev, x, Just y) : go x xs
 
--- | This is like 'zip', but it returns the remainder of the second argument
+-- | This is like 'zip', but it returns the remainder of the longer argument
 -- instead of discarding it.
-zip_remainder :: [a] -> [b] -> ([(a, b)], [b])
+zip_remainder :: [a] -> [b] -> ([(a, b)], Either [a] [b])
 zip_remainder (x:xs) (y:ys) = Arrow.first ((x, y) :) (zip_remainder xs ys)
-zip_remainder [] ys = ([], ys)
-zip_remainder _ [] = ([], [])
+zip_remainder [] ys = ([], Right ys)
+zip_remainder xs [] = ([], Left xs)
 
 data Paired a b = First !a | Second !b | Both !a !b
     deriving (Show, Eq)

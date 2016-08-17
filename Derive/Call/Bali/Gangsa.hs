@@ -294,14 +294,15 @@ norot sustain_cycle prepare_cycle under_threshold next_pitch note_dur
         Just (initial_final, range) -> do
             pitch <- Call.get_pitch real_start
             pitch_t <- Derive.resolve_pitch real_start pitch
-            return $ realize_kotekan_pattern initial_final range
+            return $ realize_kotekan_pattern initial_final range Event.Positive
                 note_dur pitch under_threshold Repeat (sustain_cycle pitch_t)
     prepare <- case (,) <$> next_pitch <*> prepare_params of
         Nothing -> return Nothing
         Just (next, (initial_final, range)) -> do
             next_t <- Derive.resolve_pitch real_start next
             return $ Just $ realize_kotekan_pattern initial_final range
-                note_dur next under_threshold Once (prepare_cycle next_t)
+                Event.Positive note_dur next under_threshold Once
+                (prepare_cycle next_t)
     maybe sustain (sustain<>) prepare
     where
     (sustain_params, prepare_params) =
@@ -418,9 +419,8 @@ c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     $ \(dur, kotekan, pasang, initial_final) -> Sub.inverting $ \args -> do
         pitch <- Call.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (infer_initial args initial_final)
-            (Args.range args) dur pitch under_threshold Repeat
-            (gender_norot pasang)
+        realize_kotekan_pattern_args args initial_final
+            dur pitch under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang Score.Instrument -> Cycle
 gender_norot pasang = Realization
@@ -458,8 +458,8 @@ c_kotekan_irregular default_style pattern =
     Sub.inverting $ \args -> do
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (infer_initial args initial_final)
-            (Args.range args) dur pitch under_threshold Repeat
+        realize_kotekan_pattern_args args initial_final
+            dur pitch under_threshold Repeat
             (kotekan_pattern pattern style pasang)
 
 -- ** regular
@@ -485,8 +485,8 @@ c_kotekan_kernel =
         under_threshold <- under_threshold_function kotekan dur
         let cycle = realize_kernel inverted sangsih_above style pasang
                 (rotate rotation kernel)
-        realize_kotekan_pattern (infer_initial args initial_final)
-            (Args.range args) dur pitch under_threshold Repeat cycle
+        realize_kotekan_pattern_args args initial_final dur pitch
+            under_threshold Repeat cycle
 
 -- | For regular kotekan, the sangsih can be automatically derived from the
 -- polos.
@@ -510,8 +510,8 @@ c_kotekan_regular maybe_kernel =
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         let cycle = realize_kernel False sangsih_above style pasang kernel
-        realize_kotekan_pattern (infer_initial args initial_final)
-            (Args.range args) dur pitch under_threshold Repeat cycle
+        realize_kotekan_pattern_args args initial_final
+            dur pitch under_threshold Repeat cycle
     where
     infer_sangsih kernel = case Seq.last kernel of
         Nothing -> Call.Up
@@ -534,16 +534,22 @@ realize_kernel inverted sangsih_above style pasang kernel =
 
 -- *** implementation
 
+realize_kotekan_pattern_args :: Derive.PassedArgs a -> (Maybe Bool, Bool)
+    -> ScoreTime -> PSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
+    -> Derive.NoteDeriver
+realize_kotekan_pattern_args args initial_final =
+    realize_kotekan_pattern (infer_initial args initial_final)
+        (Args.range args) (Event.orientation (Args.event args))
+
 -- | Take a Cycle, which is an abstract description of a pattern via
 -- 'KotekanNote's, to real notes in a NoteDeriver.
 realize_kotekan_pattern :: (Bool, Bool) -- ^ include (initial, final)
-    -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> PSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
-    -> Derive.NoteDeriver
-realize_kotekan_pattern initial_final (start, end) dur pitch
+    -> (ScoreTime, ScoreTime) -> Event.Orientation -> ScoreTime -> PSignal.Pitch
+    -> (ScoreTime -> Bool) -> Repeat -> Cycle -> Derive.NoteDeriver
+realize_kotekan_pattern initial_final (start, end) orientation dur pitch
         under_threshold repeat cycle =
     realize_notes realize $
-        realize_pattern repeat initial_final start end dur get_cycle
+        realize_pattern repeat orientation initial_final start end dur get_cycle
     where
     get_cycle t
         | under_threshold t = interlocking cycle
@@ -754,32 +760,60 @@ under_threshold_function kotekan dur = do
 realize_pattern :: Repeat -- ^ Once will just call get_cycle at the start
     -- time.  Repeat will start the cycle at t+1 because t is the initial, so
     -- it's the end of the cycle.
+    -> Event.Orientation -- ^ align to start or end
     -> (Bool, Bool)
     -> ScoreTime -> ScoreTime -> ScoreTime
     -> (ScoreTime -> [[a]]) -- ^ Get one cycle of notes, starting at the time.
     -> [Note a]
-realize_pattern repeat (initial, final) start end dur get_cycle =
+realize_pattern repeat orientation (initial, final) start end dur get_cycle =
     case repeat of
         Once -> concatMap realize $
-            zip (get_cycle start) (Seq.range start end dur)
-        Repeat -> concat $ concat $ cycles $ Seq.range start end dur
+            (if orientation == Event.Positive then zip else zip_end)
+                (Seq.range start end dur) (get_cycle start)
+        Repeat -> concatMap realize pairs
     where
-    cycles [] = []
+    pairs = case orientation of
+        Event.Positive -> cycles wrapped ts
+        Event.Negative -> cycles_end get_cycle ts
+        where ts = Seq.range start end dur
     -- Since cycles are end-weighted, I have to get the end of a cycle if an
     -- initial note is wanted.
-    cycles (t:ts)
-        | t == start && initial =
-            [realize (fromMaybe [] (Seq.last (get_cycle t)), t)] : cycles ts
-        | t == start = cycles ts
-        | otherwise = map realize pairs : cycles rest_ts
-        where (pairs, rest_ts) = Seq.zip_remainder (get_cycle t) (t:ts)
-    realize (chord, t)
+    wrapped t
+        | t == start = maybe [] (:[]) (Seq.last ns)
+        | otherwise = ns
+        where ns = get_cycle t
+    realize (t, chord)
         | t >= end = if final
             then map (add_flag (Flags.infer_duration <> final_flag)) ns
             else []
         | t == start = if initial then ns else []
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
+
+cycles :: (t -> [a]) -> [t] -> [(t, a)]
+cycles get_cycle = go
+    where
+    go [] = []
+    go (t:ts) = case rest of
+        Left ts -> pairs ++ go ts
+        Right _ -> pairs
+        where (pairs, rest) = Seq.zip_remainder (t:ts) (get_cycle t)
+
+cycles_end :: (t -> [a]) -> [t] -> [(t, a)]
+cycles_end get_cycle = shift . go
+    where
+    shift (pairs, rest_ns) = zip ts (drop (length rest_ns) ns ++ rest_ns)
+        where (ts, ns) = unzip pairs
+    go [] = ([], [])
+    go (t:ts) = case rest of
+        Left ts -> first (pairs++) (go ts)
+        Right ns -> (pairs, ns)
+        where (pairs, rest) = Seq.zip_remainder (t:ts) (get_cycle t)
+
+-- | Like 'zip', but two sequences are aligned at at their ends, instead of
+-- their starts.
+zip_end :: [a] -> [b] -> [(a, b)]
+zip_end xs ys = reverse (zip (reverse xs) (reverse ys))
 
 -- | Turn Notes into a NoteDeriver.
 realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver

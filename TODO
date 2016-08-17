@@ -4,6 +4,7 @@ LEGEND
 
 UNSORTED
   - If State.allocations is so read-only, why not make it a plain function?
+    . Tests use it to write...
   * Derive.Doc type to make call args clearer
   - Fix verify_performance for save/complete/blue-hat
   - do a renaming pass on all the prev/next pitch function names in
@@ -1364,7 +1365,7 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
-        - perhaps I should line up to the end for negative events
+        * perhaps I should line up to the end for negative events
         - 'k//\\' can start in multiple ways, e.g. 444 or 4-4, or 434.
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
@@ -1387,8 +1388,8 @@ Derive:
             -0 dur.
         norot:
           update reyong
-            - rename kilit to norot and 'nt'
-            - do the same prepare next note thing as gangsa norot
+            * rename kilit to norot and 'nt'
+            * do the same prepare next note thing as gangsa norot
           - I only use Once for norot prepare, can I get rid of it?
           - Rename 'arrival' to 'prepare'?
         * With pitch at the beginning I actually can't express some things,

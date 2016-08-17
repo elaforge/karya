@@ -59,13 +59,11 @@ test_norot = do
             (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
-
 test_norot_prepare = do
     let run = e_pattern 0 . derive " | cancel-pasang 2"
     -- No pitch at 0, but it's not a problem because there's no sustain.
     equal (run [(4, -4, "norot t -- 4c"), (4, 4, "4c")])
         ([(pasang, "-1121")], [])
-
 
 test_norot_final = do
     -- Initial and final get flags.
@@ -207,6 +205,18 @@ test_kotekan_regular = do
     -- The pattern is lined up to the start.
     equal (run False [(2, 12, "k k-12-1-21 -- 4c")])
         ([(pasang, "1312313213123")], [])
+
+test_kotekan_alignment = do
+    let run = e_pattern 0 . derive (ngotek False)
+    equal (run [(0, 8, "k k-12-1-21 -- 4c")]) ([(pasang, "131231321")], [])
+    equal (run [(0, 4, "k k-12-1-21 -- 4c")]) ([(pasang, "13123")], [])
+    equal (run [(4, -4, "k k-12-1-21 -- 4c")]) ([(pasang, "-1321")], [])
+
+test_cycles = do
+    equal (Gangsa.cycles (const ['a', 'b', 'c']) [0..4])
+        [(0, 'a'), (1, 'b'), (2, 'c'), (3, 'a'), (4, 'b')]
+    equal (Gangsa.cycles_end (const ['a', 'b', 'c']) [0..4])
+        [(0, 'b'), (1, 'c'), (2, 'a'), (3, 'b'), (4, 'c')]
 
 test_kotekan_regular_negative = do
     let run kotekan = e_pattern 8
