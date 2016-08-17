@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.Events_test where
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
@@ -11,6 +10,7 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import Ui.Events (Range(..))
+
 import Global
 import Types
 
@@ -98,9 +98,7 @@ test_properties = do
     let checks = []
     forM_ checks $ \(events, inserts) -> do
         let result = Events.insert (pos_events inserts) (from_list events)
-        equal [(k, e) | (k, e) <- Map.toList (Events.get result),
-            k /= Event.start e] []
-        equal (Events.find_overlaps result) []
+        equal (Events.check_invariants result) []
         -- no events created or destroyed, except where start==start
         let start (s, _, _) = s
         equal (Events.length result)

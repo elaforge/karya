@@ -1366,7 +1366,8 @@ Derive:
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
         * perhaps I should line up to the end for negative events
-        - 'k//\\' can start in multiple ways, e.g. 444 or 4-4, or 434.
+        / 'k//\\' can start in multiple ways, e.g. 444 or 4-4, or 434.
+          . I can just chop off the front for now.
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.

@@ -38,7 +38,7 @@ module Ui.Events (
     , split_lists
     , at_after, after, before
     , split_at_before
-    , find_overlaps
+    , check_invariants
     , clip_negative_events
 
 #ifdef TESTING
@@ -152,7 +152,7 @@ insert new_events_ (Events events) =
     start = Event.start (Prelude.head new_events)
     end = Event.end (Prelude.last new_events)
     (pre, within, post) = _split_overlapping start end events
-    overlapping = make $ clip_events $
+    overlapping = from_ascending $ clip_events $
         Seq.merge_on Event.start (Map.elems within) new_events
 
 -- | Round event times as described in 'ScoreTime.round'.
@@ -296,8 +296,8 @@ newtype Events = Events EventMap
 type EventMap = Map.Map ScoreTime Event.Event
 
 -- | This assumes the input is already sorted!
-make :: [Event.Event] -> EventMap
-make = Map.fromAscList . Seq.key_on Event.start
+from_ascending :: [Event.Event] -> EventMap
+from_ascending = Map.fromAscList . Seq.key_on Event.start
 
 to_asc_list :: EventMap -> [Event.Event]
 to_asc_list = map snd . Map.toAscList
@@ -349,7 +349,7 @@ merge :: Events -> Events -> Events
 merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
-    | otherwise = Events $ make $ clip_events $
+    | otherwise = Events $ from_ascending $ clip_events $
         Seq.merge_on Event.start (Map.elems evts1) (Map.elems evts2)
     -- Previously I would extract the overlapping sections and clip only those,
     -- but I moved that to 'insert'.  Perhaps it's a bit more elegant here, but
@@ -409,8 +409,17 @@ clip_negative_events =
             | Event.end prev > Event.start cur -> Just (Event.end prev)
         _ -> Nothing
 
-find_overlaps :: Events -> [(Event.Event, Event.Event)]
-find_overlaps = mapMaybe check . Seq.zip_next . ascending
+check_invariants :: Events -> [Text]
+check_invariants (Events events) =
+    [ "key /= event start: " <> showt (t, event)
+    | (t, event) <- Map.toAscList events, t /= Event.start event
+    ] ++
+    [ "overlapping: " <> showt evt1 <> " and " <> showt evt2
+    | (evt1, evt2) <- find_overlaps events
+    ]
+
+find_overlaps :: EventMap -> [(Event.Event, Event.Event)]
+find_overlaps = mapMaybe check . Seq.zip_next . map snd . Map.toAscList
     where
     check (cur, Just next)
         | Event.end cur > Event.start next = Just (cur, next)
