@@ -190,18 +190,16 @@ data Flags = Flags {
     , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [Flag]
-    -- | Flags needed only by ghci.
-    , ghciFlags :: [Flag]
     -- | Package DB flags to use a cabal sandbox, if there is one.
     , sandboxFlags :: [Flag]
     } deriving (Show)
 
 instance Monoid.Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] [] []
-    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2) =
+    mempty = Flags [] [] [] [] [] [] [] [] [] []
+    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2)
+            (h1<>h2) (i1<>i2) (j1<>j2)
 
 -- * binaries
 
@@ -508,16 +506,11 @@ configure midi = do
                 -- not sure for plain profiling, maybe I always want manual
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
-        , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
+        , hLinkFlags = ["-rtsopts", "-threaded"]
             ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | Config.enableEkg]
-        -- Make sure ghci gets link flags, otherwise it wants to load
-        -- everything as bytecode and fails on missing symbols.  Actually,
-        -- these only apply to loading the modules for the main app.  But
-        -- that's where I care most about load time.
-        , ghciFlags = libs
         , sandboxFlags = case sandbox of
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
@@ -534,7 +527,6 @@ configure midi = do
             -- positives.  Also, this is only for g++.
             -- ++ ["-Weffc++"]
         }
-    libs = []
     osFlags = case System.Info.os of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
         -- __linux__ are already defined, but ghc doesn't define them.
@@ -1103,11 +1095,7 @@ writeGhciFlags modeConfig =
     -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
     -- belong.
     getFlags config = "-dynamic" : ghcFlags config
-        ++ map (resolveSrc config) (ghciFlags (configFlags config))
         ++ sandboxFlags (configFlags config)
-    resolveSrc config arg
-        | FilePath.takeExtension arg == ".cc" = srcToObj config arg
-        | otherwise = arg
 
 -- | This has large binary files I don't want to put into source control.
 makeDataLink :: IO ()
