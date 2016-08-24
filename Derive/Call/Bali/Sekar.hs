@@ -77,7 +77,7 @@ c_sekar_even = Derive.generator module_ "sekar" (Tags.inst <> Tags.subs)
 arrive_env :: Sig.Parser Bool
 arrive_env = Sig.environ "arrive" Sig.Prefixed True $
     "If true, the last note of the pattern is aligned to the end of the event,\
-    \ and given " <> ShowVal.doc_pretty Flags.infer_duration <> "."
+    \ and given " <> ShowVal.pretty Flags.infer_duration <> "."
 
 pattern_doc :: Derive.Doc
 pattern_doc =

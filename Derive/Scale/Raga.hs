@@ -14,6 +14,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -36,7 +37,7 @@ doc = "Carnatic ragas, from the melakarta system.\
     \\nSince latin orthography is inconsistent, they might be spelled slightly\
     \ differently from how you expect."
 
-doc_fields :: [(Text, Text)]
+doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
 doc_fields = JustScales.group_relative_keys melakarta_keys
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap

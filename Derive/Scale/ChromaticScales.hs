@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -22,6 +23,7 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -199,20 +201,19 @@ call_doc transposers smap doc =
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))
     (bottom, top) = smap_range smap
-    show_p = either pretty pretty . show_pitch smap Nothing
+    show_p = either ShowVal.pretty ShowVal.pretty . show_pitch smap Nothing
         . Theory.semis_to_pitch_sharps (smap_layout smap)
     fields = concat
         [ [("range", show_p bottom <> " to " <> show_p top)]
-        , maybe [] (\n -> [("default key", pretty n)]) default_key
+        , maybe [] (\n -> [("default key", ShowVal.doc n)]) default_key
         , [ ("keys", format_keys $ Map.keys (smap_keys smap)) ]
         ]
 
-format_keys :: [Pitch.Key] -> Text
+format_keys :: [Pitch.Key] -> ShowVal.Doc
 format_keys keys
-    | all (("-" `Text.isInfixOf`) . name) keys = Text.intercalate ", " $
-        map fst $ group_tonic_mode $ map (, ()) keys
-    | otherwise = Text.intercalate ", " $ map name keys
-    where name (Pitch.Key k) = k
+    | all (("-" `Text.isInfixOf`) . Pitch.key_text) keys = TextUtil.join ", " $
+        map (ShowVal.literal . fst) $ group_tonic_mode $ map (, ()) keys
+    | otherwise = TextUtil.join ", " (map ShowVal.pretty keys)
 
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.

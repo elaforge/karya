@@ -10,12 +10,13 @@ module Derive.Scale.Scales where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import Data.Vector ((!?))
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -389,10 +390,11 @@ call_doc transposers dmap doc =
     where
     fields
         | Vector.null notes = []
-        | otherwise = [("note range", pretty bottom <> " to " <> pretty top)]
+        | otherwise = [("range",
+            ShowVal.pretty bottom <> " to " <> ShowVal.pretty top)]
         where
-        (bottom, top) = (notes Vector.! 0,
-            notes Vector.! (Vector.length notes - 1))
+        bottom = notes Vector.! 0
+        top = notes Vector.! (Vector.length notes - 1)
         notes = dm_to_note dmap
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
@@ -406,15 +408,17 @@ scale_degree_doc scale_degree =
     Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set.Set Score.Control -> Derive.Doc -> [(Text, Text)]
-    -> Derive.DocumentedCall -> Derive.DocumentedCall
+annotate_call_doc :: Set.Set Score.Control -> Derive.Doc
+    -> [(ShowVal.Doc, ShowVal.Doc)] -> Derive.DocumentedCall
+    -> Derive.DocumentedCall
 annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where
     extra_doc = doc <> "\n\n" <> join (transposers_field ++ fields)
     transposers_field =
-        [("transposers", pretty transposers) | not (Set.null transposers)]
-    join = Derive.Doc . Text.unlines
-        . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
+        [("transposers", ShowVal.Doc $ pretty transposers) |
+            not (Set.null transposers)]
+    join = TextUtil.list
+        . map (\(k, v) -> k <> ": " <> v) . filter ((/="") . snd)
 
 add_doc :: Derive.Doc -> Scale.Scale -> Scale.Scale
 add_doc doc scale = scale

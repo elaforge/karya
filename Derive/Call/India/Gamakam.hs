@@ -211,7 +211,7 @@ c_jaru = generator1 "jaru" mempty
 c_jaru_intervals :: Typecheck.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch
 c_jaru_intervals transpose intervals = generator1 "jaru" mempty
-    ("This is `jaru` hardcoded to " <> ShowVal.doc_pretty intervals <> ".")
+    ("This is `jaru` hardcoded to " <> ShowVal.pretty intervals <> ".")
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "time" jaru_time_default "Time for each note."
@@ -366,7 +366,7 @@ jaru_transition_c name default_transition transition_doc =
 
 c_jaru_intervals_c :: [Signal.Y] -> Derive.Generator Derive.Control
 c_jaru_intervals_c intervals = generator1 "jaru" mempty
-    ("This is `jaru` hardcoded to " <> ShowVal.doc_pretty intervals <> ".")
+    ("This is `jaru` hardcoded to " <> ShowVal.pretty intervals <> ".")
     $ Sig.call ((,)
     <$> defaulted "time" jaru_time_default "Time for each note."
     <*> defaulted "transition" Nothing

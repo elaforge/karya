@@ -414,6 +414,11 @@ html_quote :: Text -> Text
 html_quote = Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
     . Text.replace "&" "&amp;"
 
+-- | Format a Doc to HTML.  Interpret simple markdown-like formatting:
+-- single quotes for a reference to function or module haddock, backticks
+-- for \<code\>, and newline for \<br\>.
+--
+-- TODO maybe support leading - for \<ol\>.
 html_doc :: HtmlState -> Text -> Html
 html_doc (haddock_dir, files) = Html . postproc . html_quote
     where

@@ -15,6 +15,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -39,9 +40,10 @@ doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ 5th scale degree, you would change the key to `a-159b-6` and set\
     \ `%just-base` accordingly.\n"
 
-doc_fields :: [(Text, Text)]
+doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
 doc_fields =
-    [ (name, JustScales.show_ratios (JustScales.key_ratios key))
+    [ (ShowVal.literal name,
+        ShowVal.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
     | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
     ]
 

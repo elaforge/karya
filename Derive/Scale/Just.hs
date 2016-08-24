@@ -17,6 +17,7 @@ import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -39,9 +40,10 @@ doc =
     \ only which MIDI key maps to the first scale degree. So for the ASCII kbd\
     \ where the input is also relative, the tonic is irrelevant."
 
-doc_fields :: [(Text, Text)]
+doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
 doc_fields =
-    [ (name, JustScales.show_ratios (JustScales.key_ratios key))
+    [ (ShowVal.literal name,
+        ShowVal.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
     | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
     ]
 

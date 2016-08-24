@@ -344,7 +344,8 @@ modify_transpose f t = case t of
 -- This is not very strongly typed, because it's intended to be scale
 -- independent, and not every scale will have the same values for key and
 -- mode.
-newtype Key = Key Text deriving (Eq, Ord, Read, Show, Serialize.Serialize)
+newtype Key = Key Text
+    deriving (Eq, Ord, Read, Show, Serialize.Serialize, ShowVal.ShowVal)
 
 key_text :: Key -> Text
 key_text (Key t) = t

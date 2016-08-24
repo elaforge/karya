@@ -30,7 +30,6 @@
 -}
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Char as Char
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
@@ -452,39 +451,17 @@ instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
 
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
-        Serialize.Serialize)
+        Serialize.Serialize, ShowVal.ShowVal)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
-
-instance ShowVal.ShowVal Symbol where
-    -- TODO This is actually kind of error prone.  The problem is that symbols
-    -- at the beginning of an expression are parsed as-is and cannot have
-    -- quotes.  Only ones as arguments need quotes.  Symbols are rarely
-    -- arguments, but strings frequently are.  Maybe I should go back to
-    -- separate types for symbols and strings?
-    show_val (Symbol s)
-        | parseable = s
-        | otherwise = "'" <> Text.concatMap quote s <> "'"
-        where
-        -- This should be the same as ParseBs.p_symbol.  I can't use it
-        -- directly because that would be a circular import.
-        parseable = case Text.uncons s of
-            Just (c, cs) -> (Char.isAlpha c || c == '-' || c == '*')
-                && Text.all (\c -> c /= ' ' && c /= ')' && c /= '=') cs
-            Nothing -> False
-        quote '\'' = "''"
-        quote c = Text.singleton c
 
 -- | Show a symbol intended for call position.  Call position is special in
 -- that it can contain any character except space and equals without quoting.
 show_call_val :: Val -> Text
 show_call_val (VSymbol (Symbol sym)) = sym
 show_call_val val = ShowVal.show_val val
-
-instance ShowVal.ShowVal Text where
-    show_val = ShowVal.show_val . Symbol
 
 -- ** val utils
 

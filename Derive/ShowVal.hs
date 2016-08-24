@@ -4,15 +4,17 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.ShowVal where
+import qualified Data.Char as Char
 import qualified Data.String as String
 import qualified Data.Text as Text
+
 import qualified Numeric
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 
-import Global
+import Global hiding (pretty)
 
 
 instance TextUtil.Textlike Doc where
@@ -65,18 +67,41 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 instance ShowVal Bool where
     show_val b = if b then "t" else "f"
 
+instance ShowVal Text where
+    -- TODO This is actually kind of error prone.  The problem is that symbols
+    -- at the beginning of an expression are parsed as-is and cannot have
+    -- quotes.  Only ones as arguments need quotes.  Symbols are rarely
+    -- arguments, but strings frequently are.  Maybe I should go back to
+    -- separate types for symbols and strings?
+    show_val s
+        | parseable = s
+        | otherwise = "'" <> Text.concatMap quote s <> "'"
+        where
+        -- This should be the same as ParseBs.p_symbol.  I can't use it
+        -- directly because that would be a circular import.
+        parseable = case Text.uncons s of
+            Just (c, cs) -> (Char.isAlpha c || c == '-' || c == '*')
+                && Text.all (\c -> c /= ' ' && c /= ')' && c /= '=') cs
+            Nothing -> False
+        quote '\'' = "''"
+        quote c = Text.singleton c
+
 -- * Doc
 
--- | This is for CallDoc.  It's only here for 'doc' and 'doc_pretty', and
--- is otherwise re-exported from "Derive.Derive".
+-- | This is for documentation text.  It can contain some simple markdown-like
+-- formatting, which may be either be printed directly, or formatted via
+-- 'Cmd.CallDoc.html_doc'.
 newtype Doc = Doc Text
     deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString)
 
 -- | Show a val for inclusion into CallDoc.
 doc :: ShowVal a => a -> Doc
-doc a = Doc $ "`" <> show_val a <> "`"
+doc = literal . show_val
 
 -- | This probably doesn't belong here, but it's useful in the same contexts as
 -- 'doc'.
-doc_pretty :: Pretty.Pretty a => a -> Doc
-doc_pretty a = Doc $ "`" <> pretty a <> "`"
+pretty :: Pretty.Pretty a => a -> Doc
+pretty = literal . Pretty.pretty
+
+literal :: Text -> Doc
+literal text = Doc $ "`" <> text <> "`"
