@@ -15,6 +15,7 @@
     @
 -}
 module Derive.Scale.Wayang where
+import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Midi.Key2 as Key2
@@ -47,15 +48,15 @@ scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
 complete_scale :: BaliScales.ScaleMap
 complete_scale =
     BaliScales.scale_map layout BaliScales.ioeua_absolute base_oct all_keys
-        default_key note_numbers Nothing
+        default_key saihs default_saih Nothing
 
 pemade :: BaliScales.ScaleMap
 pemade = BaliScales.instrument_scale_map layout all_keys default_key
-    note_numbers base_oct 4 (3, 1) (5, 0)
+    saihs default_saih base_oct 4 (3, 1) (5, 0)
 
 kantilan :: BaliScales.ScaleMap
 kantilan = BaliScales.instrument_scale_map layout all_keys default_key
-    note_numbers base_oct 5 (4, 1) (6, 0)
+    saihs default_saih base_oct 5 (4, 1) (6, 0)
 
 -- | Start octave for the extended scale.
 base_oct :: Pitch.Octave
@@ -73,50 +74,36 @@ all_keys = mempty
 default_key :: Theory.Key
 default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
 
-note_numbers :: BaliScales.NoteNumbers
-note_numbers = BaliScales.NoteNumbers
-    (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
+-- * saihs
 
-umbang :: [Pitch.NoteNumber]
-umbang =
-    [ 53 -- pemade begin
-    , 55.15
-    , 57.73
-    , 60.4
+default_saih :: Text
+default_saih = "sawan"
 
-    , 62.95 -- pemade middle
-    , 64.7 -- kantilan begin
-    , 67.57
-    , 69.45
-    , 72.1
-
-    , 74.83 -- pemade end, kantilan middle
-    , 76.85
-    , 79.48
-    , 81.63
-    , 84.12
-    , 86.88 -- kantilan end
+saihs :: Map.Map Text BaliScales.Saih
+saihs = Map.fromList
+    [ (default_saih, saih_sawan)
     ]
 
-isep :: [Pitch.NoteNumber]
-isep =
-    [ 52.3 -- pemade begin
-    , 54.55
-    , 57.35
-    , 59.85
+saih_sawan :: BaliScales.Saih
+saih_sawan = BaliScales.saih extend
+    "Tuning from my gender wayang, made in Sawan, Singaraja."
+    [ (53.00,   52.30) -- pemade begin
+    , (55.15,   54.55)
+    , (57.73,   57.35)
+    , (60.40,   59.85)
 
-    , 62.5 -- pemade middle
-    , 64.45 -- kantilan begin
-    , 67.26
-    , 69.25
-    , 71.81
+    , (62.95,   62.50) -- pemade middle
+    , (64.70,   64.45) -- kantilan begin
+    , (67.57,   67.26)
+    , (69.45,   69.25)
+    , (72.10,   71.81)
 
-    , 74.63 -- pemade end, kantilan middle
-    , 76.73
-    , 79.35
-    , 81.51
-    , 84
-    , 86.78 -- kantilan end
+    , (74.83,   74.63) -- pemade end, kantilan middle
+    , (76.85,   76.73)
+    , (79.48,   79.35)
+    , (81.63,   81.51)
+    , (84.12,   84.00)
+    , (86.88,   86.78) -- kantilan end
     ]
 
 -- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
@@ -131,17 +118,20 @@ extend nns =
     low = take 5 nns -- oeuai
     high = drop (length nns - 5) nns -- oeuai
 
+undo_extend :: [a] -> [a]
+undo_extend = take 15 . drop (1 + 5 + 5)
 
 -- * instrument integration
 
-instrument_scale :: Bool -> BaliScales.Tuning -> Patch.Scale
-instrument_scale extended tuning =
+instrument_scale :: Bool -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+instrument_scale extended saih tuning =
     Patch.make_scale ("wayang " <> ShowVal.show_val tuning) $
-        zip (midi_keys extended) (if extended then extend nns else nns)
+        zip (midi_keys extended)
+            ((if extended then id else undo_extend) (Vector.toList nns))
     where
     nns = case tuning of
-        BaliScales.Umbang -> umbang
-        BaliScales.Isep -> isep
+        BaliScales.Umbang -> BaliScales.saih_umbang saih
+        BaliScales.Isep -> BaliScales.saih_isep saih
 
 -- | If extended is True, emit from i1 on up.  Otherwise, give pemade to
 -- kantilan range.

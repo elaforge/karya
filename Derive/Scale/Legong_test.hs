@@ -3,12 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Legong_test where
+import qualified Data.Vector as Vector
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Score as Score
@@ -21,12 +24,15 @@ test_note_to_call = do
     let run key ps = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks ("scale=" ++ key) $
             UiTest.note_track [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) ps]
-        ding = drop 5 Legong.umbang
+        umbang = Vector.toList $ BaliScales.saih_umbang Legong.saih_rambat
+        isep = Vector.toList $ BaliScales.saih_isep Legong.saih_rambat
+        -- 2 to undo 'Legong.extend', 5 to get to ding
+        ding = drop (2 + 5) umbang
 
     -- 4i is close to middle C (60nn).
     equal (run "legong" ["4i"]) ([Just (head ding)], [])
     equal (run "legong" ["3i"])
-        ([Just $ head (Legong.extend Legong.umbang)], [])
+        ([Just $ head umbang], [])
     -- *legong-c is centered around pemade middle ding
     let i5 = drop 7 ding
     equal (run "legong-c" ["1"]) ([Just (head i5)], [])
@@ -34,7 +40,7 @@ test_note_to_call = do
     equal (run "legong-pemade" ["i-", "o-", "e-"]) (map Just (take 3 i5), [])
 
     equal (run "legong" ["tuning=isep | -- 3i"])
-        ([Just $ head (Legong.extend Legong.isep)], [])
+        ([Just $ head isep], [])
     equal (run "legong" ["4i", "4o", "4e", "4e#"])
         (map Just (take 4 ding), [])
 

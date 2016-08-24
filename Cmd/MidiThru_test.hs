@@ -73,7 +73,8 @@ test_patch_scale = do
         make_config scale = Patch.cscale #= scale $ Patch.config1 UiTest.wdev 0
         set_config inst_db scale = do
             set_midi_config inst_db (make_config scale)
-    let legong = Legong.complete_instrument_scale BaliScales.Umbang
+    let legong = Legong.complete_instrument_scale
+            Legong.saih_rambat BaliScales.Umbang
         c4 = CmdTest.note_on 1 (Pitch.pitch 4 0)
         cstate = CmdTest.default_cmd_state
     -- No Patch.Scale means it assumes the patch is in 12TET and needs a tweak.

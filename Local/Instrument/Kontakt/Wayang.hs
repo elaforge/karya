@@ -74,8 +74,8 @@ patches = map (MidiInst.code #= code <> with_weak)
         Patch.add_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
         . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
-        (MidiInst.patch#Patch.scale
-            #= Just (Wayang.instrument_scale False tuning))
+        (MidiInst.patch#Patch.scale #= Just
+            (Wayang.instrument_scale False Wayang.saih_sawan tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 

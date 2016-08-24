@@ -34,7 +34,8 @@ patches =
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
     instrument_scale =
-        Legong.instrument_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
+        Legong.instrument_scale (take 15 . drop 4 . Legong.strip_pemero)
+            Legong.saih_rambat tuning
 
 attribute_map :: Patch.AttributeMap
 attribute_map = Patch.keyswitches $ map at

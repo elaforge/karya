@@ -6,7 +6,6 @@ UNSORTED
   - If State.allocations is so read-only, why not make it a plain function?
     . Tests use it to write...
   * Derive.Doc type to make call args clearer
-  - Fix verify_performance for save/complete/blue-hat
   - do a renaming pass on all the prev/next pitch function names in
     Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
@@ -1356,7 +1355,7 @@ Derive:
              (sangsih, 16, 0, "4i")]  (sangsih, 0, 4, "4u")]
               => like merges with like
       - kajar: automatic hand muting as with reyong.
-      - add additional legong and wayang tunings.  Probably 'tuning' would be
+      + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
         saih=umbang/isep?  Or keep tuning the same and use laras?  Kelamin
         would be cheeky but only appropriate to kendang and not even Balinese.
@@ -1392,7 +1391,7 @@ Derive:
             * rename kilit to norot and 'nt'
             * do the same prepare next note thing as gangsa norot
           - I only use Once for norot prepare, can I get rid of it?
-          - Rename 'arrival' to 'prepare'?
+          * Rename 'arrival' to 'prepare'?
         * With pitch at the beginning I actually can't express some things,
           e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
           'k' because it's manual.  It would happen correctly if norot used

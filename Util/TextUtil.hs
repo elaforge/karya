@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Monoid ((<>))
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
 
@@ -45,19 +46,22 @@ replaceMany replace = mconcat . go
         | otherwise = pre : to : go (Text.drop (Text.length from) post)
 
 -- | Join the two pieces with a space, if they are non-empty.
-join2 :: Textlike a => a -> a -> a
+join2 :: (Textlike a, Textlike b) => a -> a -> b
 join2 = joinWith (fromText " ")
 
-joinWith :: Textlike a => a -> a -> a -> a
+joinWith :: (Textlike a, Textlike b) => a -> a -> a -> b
 joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 
-join :: Textlike a => a -> [a] -> a
+join :: (Textlike a, Textlike b) => a -> [a] -> b
 join sep = fromText . Text.intercalate (toText sep) . map toText
 
 ellipsis :: Int -> Text -> Text
 ellipsis maxWidth text
     | Text.length text <= maxWidth = text
     | otherwise = Text.take (maxWidth - 3) text <> "..."
+
+list :: (Textlike a, Monoid a, String.IsString a) => [a] -> a
+list = join "\n" . map ("- "<>)
 
 -- | Format the given rows into columns, aligned vertically.
 formatColumns :: Int -> [[Text]] -> [Text]

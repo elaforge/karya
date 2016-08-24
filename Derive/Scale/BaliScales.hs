@@ -19,6 +19,7 @@ import Data.Vector ((!?))
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
@@ -43,60 +44,70 @@ make_scale scale_id smap =
     (ChromaticScales.make_scale scale_id (smap_chromatic smap) doc)
     { Scale.scale_enharmonics = Scales.no_enharmonics }
     where
-    doc = "Balinese scales come in detuned pairs. They use the `tuning` env var\
-        \ to select between pengumbang and pengisep tuning. The env var\
-        \ should be set to either `umbang` or `isep`, and if it's not\
-        \ set, `umbang` is assumed. Normally the umbang and isep\
+    doc = "Balinese scales come in detuned pairs. They use the "
+        <> ShowVal.doc EnvKey.tuning <> " env var to select between pengumbang\
+        \ and pengisep. The env var should be set to either `umbang` or `isep`,\
+        \ defaulting to `umbang`. Normally the umbang and isep\
         \ frequencies are hardcoded according to the scale, but if the "
         <> ShowVal.doc c_ombak
-        <> " control is present, they will be tuned that many hz apart."
+        <> " control is present, they will be tuned that many hz apart.\
+        \\nThe " <> ShowVal.doc saih_key <> " env var chooses between different\
+        \ versions of the same scale.  It defaults to "
+        <> ShowVal.doc (smap_default_saih smap)
+        <> ". Saihs:\n"
+        <> TextUtil.list
+            [ ShowVal.doc name <> " - " <> saih_doc saih
+            | (name, saih) <- Map.toList (smap_saihs smap)
+            ]
 
 data ScaleMap = ScaleMap {
     smap_chromatic :: !ChromaticScales.ScaleMap
-    , smap_note_numbers :: !NoteNumbers
+    , smap_saihs :: !SaihMap
+    , smap_default_saih :: !Text
     }
 
 scale_map :: Theory.Layout -> TheoryFormat.Format -> Pitch.Octave
-    -- ^ The octave where the NoteNumbers start.  It should be such that
+    -- ^ The octave where the saih starts.  It should be such that
     -- octave 4 is close to middle C.
     -> ChromaticScales.Keys
-    -> Theory.Key -> NoteNumbers -> Maybe (Pitch.Semi, Pitch.Semi)
-    -- ^ If not given, use the complete range of the NoteNumbers.
+    -> Theory.Key -> SaihMap -> Text -> Maybe (Pitch.Semi, Pitch.Semi)
+    -- ^ If not given, use the complete range of the saih.
     -> ScaleMap
-scale_map layout fmt base_oct all_keys default_key note_numbers maybe_range =
+scale_map layout fmt base_oct all_keys default_key saihs default_saih
+        maybe_range =
     ScaleMap
         { smap_chromatic =
             (ChromaticScales.scale_map layout fmt all_keys default_key)
-            { ChromaticScales.smap_semis_to_nn = semis_to_nn offset note_numbers
+            { ChromaticScales.smap_semis_to_nn =
+                semis_to_nn offset saihs default_saih
             -- Convert range to absolute.
             , ChromaticScales.smap_range = ((+offset) *** (+offset)) range
             }
-        , smap_note_numbers = note_numbers
+        , smap_saihs = saihs
+        , smap_default_saih = default_saih
         }
     where
     offset = Theory.layout_semis_per_octave layout * base_oct
-    range = fromMaybe (0, Vector.length (nn_umbang note_numbers) - 1)
-        maybe_range
+    range = fromMaybe (0, top) maybe_range
+    top = maybe 0 (subtract 1 . Vector.length . saih_umbang) $
+        Seq.head (Map.elems saihs)
 
--- | This is a specialized version of 'scale_map' that
+-- | This is a specialized version of 'scale_map' that uses octave and
+-- 'Pitch.Semi' offsets to compute the range.
 instrument_scale_map :: Theory.Layout -> ChromaticScales.Keys -> Theory.Key
-    -> NoteNumbers -> Pitch.Octave -> Pitch.Octave
+    -> SaihMap -> Text -> Pitch.Octave -> Pitch.Octave
     -> (Pitch.Octave, Pitch.Semi) -> (Pitch.Octave, Pitch.Semi)
     -> ScaleMap
-instrument_scale_map layout all_keys default_key note_numbers
+instrument_scale_map layout all_keys default_key saihs default_saih
         base_oct center_oct (low_oct, low_pc) (high_oct, high_pc) =
-    scale_map layout fmt base_oct all_keys default_key note_numbers $ Just
-        ( (low_oct-base_oct) * per_oct + low_pc
-        , (high_oct-base_oct) * per_oct + high_pc
-        )
+    scale_map layout fmt base_oct all_keys default_key saihs default_saih $
+        Just
+            ( (low_oct-base_oct) * per_oct + low_pc
+            , (high_oct-base_oct) * per_oct + high_pc
+            )
     where
     fmt = ioeua_relative_arrow center_oct True default_key all_keys
     per_oct = Theory.layout_semis_per_octave layout
-
-data NoteNumbers = NoteNumbers {
-    nn_umbang :: !(Vector.Vector Pitch.NoteNumber)
-    , nn_isep :: !(Vector.Vector Pitch.NoteNumber)
-    } deriving (Show)
 
 scale_range :: ScaleMap -> Scale.Range
 scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
@@ -104,6 +115,25 @@ scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
     (bottom, top) = ChromaticScales.smap_range $ smap_chromatic smap
     to_pitch = Theory.semis_to_pitch_sharps
         (ChromaticScales.smap_layout (smap_chromatic smap))
+
+-- * Saih
+
+type SaihMap = Map.Map Text Saih
+
+data Saih = Saih {
+    saih_doc :: ShowVal.Doc
+    , saih_umbang :: Vector.Vector Pitch.NoteNumber
+    , saih_isep :: Vector.Vector Pitch.NoteNumber
+    } deriving (Show)
+
+saih :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
+    -> ShowVal.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
+saih extend doc nns = Saih
+    { saih_doc = doc
+    , saih_umbang = Vector.fromList (extend umbang)
+    , saih_isep = Vector.fromList (extend isep)
+    }
+    where (umbang, isep) = unzip nns
 
 -- * Format
 
@@ -213,22 +243,30 @@ c_ombak :: Score.Control
 c_ombak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
-semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
-semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
-    let fsemis = fsemis_ - fromIntegral offset
-    tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
-    let to_either = maybe (Left BaseTypes.out_of_range) Right
-    to_either $ case Map.lookup c_ombak controls of
-        Nothing -> case tuning of
-            Umbang -> get_nn (nn_umbang nns) fsemis
-            Isep -> get_nn (nn_isep nns) fsemis
-        Just ombak -> do
-            umbang <- get_nn (nn_umbang nns) fsemis
-            isep <- get_nn (nn_isep nns) fsemis
-            let avg = (Pitch.nn_to_hz umbang + Pitch.nn_to_hz isep) / 2
-            return $ Pitch.hz_to_nn $ case tuning of
-                Umbang -> avg - ombak / 2
-                Isep -> avg + ombak / 2
+semis_to_nn :: Pitch.Semi -> SaihMap -> Text
+    -> ChromaticScales.SemisToNoteNumber
+semis_to_nn offset saihs default_saih =
+    \(PSignal.PitchConfig env controls) fsemis_ -> do
+        let fsemis = fsemis_ - fromIntegral offset
+        tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
+        saih <- Scales.read_environ_default (\v -> Map.lookup v saihs)
+            (Just default_saih) saih_key env
+        let to_either = maybe (Left BaseTypes.out_of_range) Right
+        to_either $ case Map.lookup c_ombak controls of
+            Nothing -> case tuning of
+                Umbang -> get_nn (saih_umbang saih) fsemis
+                Isep -> get_nn (saih_isep saih) fsemis
+            Just ombak -> do
+                umbang <- get_nn (saih_umbang saih) fsemis
+                isep <- get_nn (saih_isep saih) fsemis
+                let avg = (Pitch.nn_to_hz umbang + Pitch.nn_to_hz isep) / 2
+                return $ Pitch.hz_to_nn $ case tuning of
+                    Umbang -> avg - ombak / 2
+                    Isep -> avg + ombak / 2
+
+-- | VSymbol: Select saih tuning.
+saih_key :: BaseTypes.Key
+saih_key = "saih"
 
 get_nn :: Vector.Vector Pitch.NoteNumber -> Pitch.FSemi
     -> Maybe Pitch.NoteNumber

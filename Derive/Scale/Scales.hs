@@ -445,12 +445,30 @@ read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     -> Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
     -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
-read_environ read_val maybe_deflt name env = case Env.get_val name env of
+read_environ read_val maybe_deflt =
+    read_environ_ read_val (Right <$> maybe_deflt)
+
+-- | Like 'read_environ', except the default is given to the parse function.
+read_environ_default :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    (a -> Maybe val) -> Maybe a
+    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+read_environ_default read_val maybe_deflt name =
+    read_environ_ read_val (parse <$> maybe_deflt) name
+    where
+    parse val = maybe
+        (environ_error ("unexpected default value: " <> ShowVal.show_val val))
+        Right (read_val val)
+    environ_error = Left . BaseTypes.EnvironError name
+
+read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    (a -> Maybe val) -> Maybe (Either PSignal.PitchError val)
+    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+read_environ_ read_val maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
     Left Env.NotFound -> case maybe_deflt of
         Nothing -> Left $ BaseTypes.EnvironError name "not set"
-        Just deflt -> Right deflt
+        Just deflt -> deflt
     Right val -> parse val
     where
     parse val = maybe

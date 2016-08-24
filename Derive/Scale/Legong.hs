@@ -77,7 +77,7 @@ cipher_scale = scale_map
 scale_map :: TheoryFormat.Format -> BaliScales.ScaleMap
 scale_map fmt =
     BaliScales.scale_map layout fmt base_oct all_keys default_key
-        note_numbers Nothing
+        saihs default_saih Nothing
 
 jegog, calung, penyacah :: BaliScales.ScaleMap
 jegog = inst_scale_map 1 (3, 0) (4, -1)
@@ -93,7 +93,7 @@ kantilan = inst_scale_map 6 (5, 1) (7, 0)
 inst_scale_map :: Pitch.Octave -> (Pitch.Octave, Pitch.Semi)
     -> (Pitch.Octave, Pitch.Semi) -> BaliScales.ScaleMap
 inst_scale_map = BaliScales.instrument_scale_map layout all_keys default_key
-    note_numbers base_oct
+    saihs default_saih base_oct
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
@@ -124,10 +124,6 @@ make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
-note_numbers :: BaliScales.NoteNumbers
-note_numbers = BaliScales.NoteNumbers
-    (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
-
 ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
 ugal_range = Scale.Range (Pitch.pitch 3 1) (Pitch.pitch 5 0)
 rambat_range = Scale.Range (Pitch.pitch 3 2) (Pitch.pitch 6 0)
@@ -138,45 +134,53 @@ reyong_range = Scale.Range (Pitch.pitch 4 2) (Pitch.pitch 6 4)
 base_oct :: Pitch.Octave
 base_oct = 3
 
--- | Extended scale.
-umbang :: [Pitch.NoteNumber]
-umbang =
-    [ 51.82 -- deng, rambat begin
-    , 54 -- TODO deng#
-    , 55.7
-    , 56.82 -- dang, trompong begin
-    , 58 -- TODO
+-- * saihs
 
-    , 60.73
-    , 62.8 -- dong, pemade begin
-    , 63.35 -- deng, reyong begin
-    , 65 -- TODO
-    , 67.7
-    , 68.2
-    , 70 -- TODO
+default_saih :: Text
+default_saih = "rambat"
 
-    , 72.46 -- ding
-    , 73.9 -- dong, kantilan begin
-    , 75.5
-    , 78 -- TODO
-    , 79.4 -- dung, trompong end
-    , 80.5
-    , 83 -- TODO
-
-    , 84.46 -- ding, rambat end, pemade end
-    , 86
-    , 87.67
-    , 90 -- TODO
-    , 91.74 -- dung, reyong end
-    , 92.5
-    , 95 -- TODO
-
-    , 96.46 -- ding, kantilan end
+saihs :: Map.Map Text BaliScales.Saih
+saihs = Map.fromList
+    [ (default_saih, saih_rambat)
     ]
 
--- TODO
-isep :: [Pitch.NoteNumber]
-isep = map (Pitch.add_hz 4) umbang
+saih_rambat :: BaliScales.Saih
+saih_rambat = BaliScales.saih extend
+    "Tuning from my gender rambat, made in Blabatuh, Gianyar, tuned in\
+    \ Munduk, Buleleng." $
+    map (second (Pitch.add_hz 4)) -- TODO until I measure the real values
+    [ (51.82,   51.82)  -- deng, rambat begin
+    , (54.00,   54.00)  -- TODO deng#
+    , (55.70,   55.70)
+    , (56.82,   56.82)  -- dang, trompong begin
+    , (58.00,   58.00)  -- TODO
+
+    , (60.73,   60.73)
+    , (62.80,   62.80)  -- dong, pemade begin
+    , (63.35,   63.35)  -- deng, reyong begin
+    , (65.00,   65.00)  -- TODO
+    , (67.70,   67.70)
+    , (68.20,   68.20)
+    , (70.00,   70.00)  -- TODO
+
+    , (72.46,   72.46)  -- ding
+    , (73.90,   73.90)  -- dong, kantilan begin
+    , (75.50,   75.50)
+    , (78.00,   78.00)  -- TODO
+    , (79.40,   79.40)  -- dung, trompong end
+    , (80.50,   80.50)
+    , (83.00,   83.00)  -- TODO
+
+    , (84.46,   84.46)  -- ding, rambat end, pemade end
+    , (86.00,   86.00)
+    , (87.67,   87.67)
+    , (90.00,   90.00)  -- TODO
+    , (91.74,   91.74)  -- dung, reyong end
+    , (92.50,   92.50)
+    , (95.00,   95.00)  -- TODO
+
+    , (96.46,   96.46)  -- ding, kantilan end
+    ]
 
 -- | I don't actually have the pemero notes on my instruments, so strip them
 -- back out to get the actually recorded scale.
@@ -198,20 +202,20 @@ extend nns = from_ding
 
 -- | A Scale with the entire theoretical range.  This is for instruments
 -- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
-complete_instrument_scale :: BaliScales.Tuning -> Patch.Scale
+complete_instrument_scale :: BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
 complete_instrument_scale = instrument_scale id
 
 instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Tuning -> Patch.Scale
-instrument_scale take_range tuning =
+    -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+instrument_scale take_range saih tuning =
     Patch.make_scale ("legong " <> ShowVal.show_val tuning) $
-        take_range $ zip midi_keys (extend nns)
+        take_range $ zip midi_keys (Vector.toList nns)
     where
     nns = case tuning of
-        BaliScales.Umbang -> umbang
-        BaliScales.Isep -> isep
+        BaliScales.Umbang -> BaliScales.saih_umbang saih
+        BaliScales.Isep -> BaliScales.saih_isep saih
 
 -- | Emit from i3 on up.
 midi_keys :: [Midi.Key]

@@ -36,7 +36,7 @@ test_note_to_call = do
     let run key ps = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks ("scale=" ++ key) $
             UiTest.note_track [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) ps]
-        umbang = Vector.toList $ BaliScales.nn_umbang Wayang.note_numbers
+        umbang = Vector.toList $ BaliScales.saih_umbang Wayang.saih_sawan
     equal (run "wayang" ["1i"]) ([Just (head umbang)], [])
     equal (run "wayang" ["4i"]) ([Just (umbang !! (3*5))], [])
 
