@@ -33,6 +33,7 @@ import qualified Data.Time as Time
 
 import System.FilePath ((</>), (<.>))
 
+import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -214,7 +215,7 @@ default_patch pb_range controls = Patch
 code :: Lens Patch Code
 code = common # Common.code
 
-doc :: Lens Patch Text
+doc :: Lens Patch Doc.Doc
 doc = common # Common.doc
 
 attribute_map :: Lens Patch Patch.AttributeMap

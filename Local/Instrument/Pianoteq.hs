@@ -69,7 +69,7 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
     lute = "lute"
     damp = "damp"
     doc = "The harp has a backwards sustain pedal, in that it sustains by\
-        \ default unless " <> ShowVal.show_val damp <> " is 1.  The `ped`\
+        \ default unless " <> ShowVal.doc damp <> " is 1.  The `ped`\
         \ control call is useful to quickly damp ringing notes."
 
 -- | Controls which are not already explicitly set are explicitly set to 0.

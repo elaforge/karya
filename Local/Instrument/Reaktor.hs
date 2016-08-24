@@ -6,6 +6,7 @@
 module Local.Instrument.Reaktor where
 import qualified Data.Set as Set
 
+import qualified Util.Doc as Doc
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -170,7 +171,8 @@ silverwood_patches =
     ]
     where
     mk name controls =
-        MidiInst.doc #= ("Silverwood woodwind physical model: " <> name) $
+        MidiInst.doc #=
+            ("Silverwood woodwind physical model: " <> Doc.Doc name) $
         MidiInst.pressure $ patch ("sw-" <> name) $
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)

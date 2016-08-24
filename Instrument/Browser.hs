@@ -34,6 +34,7 @@ import qualified Data.Text.Lazy as Lazy
 
 import qualified Text.Printf as Printf
 
+import qualified Util.Doc as Doc
 import qualified Util.Fltk as Fltk
 import qualified Util.Format as Format
 import qualified Util.Seq as Seq
@@ -131,7 +132,7 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
         Inst.Im patch -> patch_fields patch
 
 common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
-common_fields tags (Common.Common code env _tags doc) =
+common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
     [ ("Environ", if env == mempty then "" else pretty env)
     -- code
     , ("Cmds", show_cmds (Cmd.inst_cmds code))

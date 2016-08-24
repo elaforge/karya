@@ -12,6 +12,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.Key as Key
 import qualified Cmd.CallDoc as CallDoc
@@ -32,12 +33,12 @@ main = do
     case args of
         ["keymap"] -> Text.IO.putStr keymap_doc
         ["calls"] -> do
-            hstate <- CallDoc.get_html_state "../haddock" "."
-            Text.IO.putStr $ CallDoc.doc_html hstate $
+            hstate <- Doc.get_html_state "../haddock" "."
+            Text.IO.putStr $ Doc.un_html $ CallDoc.doc_html hstate $
                 CallDoc.library Call.All.library
         ["scales"] -> do
-            hstate <- CallDoc.get_html_state "../haddock" "."
-            Text.IO.putStr $ CallDoc.scales_html hstate $
+            hstate <- Doc.get_html_state "../haddock" "."
+            Text.IO.putStr $ Doc.un_html $ CallDoc.scales_html hstate $
                 CallDoc.scale_docs Scale.All.docs
         _ -> error "usage: extract_doc [ keymap | calls | scales ]"
 

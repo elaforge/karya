@@ -20,6 +20,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
+import qualified Util.Doc as Doc
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -119,10 +120,10 @@ parse_dir dir = do
 parse_file :: FilePath -> IO [Either String MidiInst.Patch]
 parse_file fn = do
     syxs <- file_to_syx fn
-    txt <- fromMaybe "" <$> File.ignoreEnoent
+    doc <- fromMaybe "" <$> File.ignoreEnoent
         (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
-    return [(failed i *** combine fn txt syx) result
+    return [(failed i *** combine fn doc syx) result
         | (i, syx, result) <- zip3 [1..] syxs results]
     where
     failed i msg = "parsing " ++ show fn ++ "/" ++ show i ++ ": " ++ msg
@@ -130,7 +131,7 @@ parse_file fn = do
 combine :: FilePath -> Text -> ByteString -> MidiInst.Patch -> MidiInst.Patch
 combine fn doc syx =
     (MidiInst.common %= Sysex.add_file fn)
-    . (MidiInst.doc #= Text.strip doc)
+    . (MidiInst.doc #= Doc.Doc (Text.strip doc))
     . (MidiInst.patch#Patch.initialize #=
         Patch.InitializeMidi [Midi.Encode.decode syx])
 

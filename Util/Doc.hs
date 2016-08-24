@@ -18,6 +18,7 @@ import Data.Text (Text)
 import qualified Util.File as File
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 
 
@@ -25,7 +26,8 @@ import qualified Util.TextUtil as TextUtil
 -- formatting, which may be either be printed directly, or formatted via
 -- 'html_doc'.
 newtype Doc = Doc Text
-    deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString)
+    deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString,
+        Serialize.Serialize)
 
 instance TextUtil.Textlike Doc where
     toText (Doc t) = t
