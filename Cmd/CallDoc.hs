@@ -238,15 +238,15 @@ javascript = Seq.join "\n"
     [ search_javascript
     , ""
     , hide_empty_javascript
+    , ""
+    , "window.onload = function() {"
+    , "    var input = document.getElementById('input');"
     -- Theoretically this is useful, but in practice I'm usually reloading to
     -- see doc changes, and so auto-focus is just an annoyance.
-    -- , ""
-    -- , "window.onload = function() {"
-    -- , "    var input = document.getElementById('input');"
     -- , "    input.focus();"
     -- , "    input.setSelectionRange(999, 999);"
-    -- , "    search(input.value);"
-    -- , "};"
+    , "    search(input.value);"
+    , "};"
     ]
 
 search_javascript :: Html
