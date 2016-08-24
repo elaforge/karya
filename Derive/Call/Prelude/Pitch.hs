@@ -10,6 +10,7 @@ module Derive.Call.Prelude.Pitch (
     pitch_calls
     , approach
 ) where
+import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -142,7 +143,7 @@ c_down :: Derive.Generator Derive.Pitch
 c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
-slope :: Derive.Doc -> Double -> Derive.WithArgDoc
+slope :: Doc.Doc -> Double -> Derive.WithArgDoc
     (Derive.PitchArgs -> Derive.Deriver PSignal.PSignal)
 slope word sign = Sig.call ((,,)
     <$> defaulted "slope" (Pitch.Chromatic 1)
@@ -180,7 +181,7 @@ c_porta = generator1 "porta" mempty
 
 -- * util
 
-generator1 :: Derive.CallName -> Tags.Tags -> Derive.Doc
+generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 Module.prelude

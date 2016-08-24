@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
@@ -116,8 +117,8 @@ initial_pitch_state transition args =
     where
     get_pitch = Derive.pitch_at <=< Derive.real
 
-pitch_sequence_doc :: Derive.Doc
-pitch_sequence_doc = Derive.Doc $ mconcat
+pitch_sequence_doc :: Doc.Doc
+pitch_sequence_doc = Doc.Doc $ mconcat
     [ "This is a mini-language, where each one or two characters is a call."
     , " An upper-case call will take a single character argument. A special"
     , " parsing rule means that `-` and its following character is considered"
@@ -191,7 +192,7 @@ c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
                 { state_from_dyn = maybe 0 snd (Args.prev_control args) }
         Derive.at start $ dyn_sequence (end - start) state text
     where
-    doc = Derive.Doc $ mconcat
+    doc = Doc.Doc $ mconcat
         [ "This is a mini-language, where each one or two characters is a call."
         , " Each character can take an argument, which can only be a single"
         , " digit. Typically this represents a dyn level / 9, so 0 is 0 and"

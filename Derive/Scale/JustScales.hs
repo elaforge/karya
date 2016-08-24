@@ -9,6 +9,7 @@ import Data.Ratio ((%))
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -79,8 +80,8 @@ scale_map keys default_key fmt = ScaleMap
 layout :: Theory.Layout
 layout = Theory.piano_layout
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Derive.Doc
-    -> [(ShowVal.Doc, ShowVal.Doc)] -> Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
+    -> Scale.Scale
 make_scale scale_id smap doc doc_fields = Scale.Scale
     { scale_id = scale_id
     , scale_pattern = TheoryFormat.fmt_pattern fmt
@@ -107,18 +108,18 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
 
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
 -- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
-group_relative_keys :: [(Pitch.Key, Key)] -> [(ShowVal.Doc, ShowVal.Doc)]
+group_relative_keys :: [(Pitch.Key, Key)] -> [(Doc.Doc, Doc.Doc)]
 group_relative_keys = mapMaybe fmt . Seq.group_stable snd
     where
     fmt ((name, key) :| rest) =
         Just (fmt_names (name : map fst rest),
-            ShowVal.Doc $ show_ratios (key_ratios key))
+            Doc.Doc $ show_ratios (key_ratios key))
     fmt_names = TextUtil.join ", " . map ShowVal.doc
 
 show_ratios :: Ratios -> Text
 show_ratios = Text.intercalate ", " . map pretty . Vector.toList
 
-just_doc :: Derive.Doc
+just_doc :: Doc.Doc
 just_doc =
     "\nJust scales are tuned by ratios from a base frequency, taken from the "
     <> ShowVal.doc just_base_control

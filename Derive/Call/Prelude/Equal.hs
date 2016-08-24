@@ -15,6 +15,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -112,7 +113,7 @@ equal_args = (,,)
     <*> Sig.required "rhs" "Source of the assignment."
     <*> (parse_merge <$> Sig.defaulted "merge" "set" merge_doc)
 
-merge_doc :: Derive.Doc
+merge_doc :: Doc.Doc
 merge_doc = "Merge operator. This can be `default` to use the default for the\
     \ control, `set` to replace the old signal, or one of the operators from\
     \ 'Derive.Deriver.Monad.mergers': "
@@ -131,7 +132,7 @@ parse_merge name
     | name == "default" = Default
     | otherwise = Merge name
 
-equal_doc :: Derive.Doc
+equal_doc :: Doc.Doc
 equal_doc =
     "Evaluate the deriver with a value set. Special parser support means this\
     \ can be called infix.  The arguments can take many forms to set different\

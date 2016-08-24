@@ -10,6 +10,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -20,7 +21,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
 import Global
@@ -77,9 +77,9 @@ c_sekar_even = Derive.generator module_ "sekar" (Tags.inst <> Tags.subs)
 arrive_env :: Sig.Parser Bool
 arrive_env = Sig.environ "arrive" Sig.Prefixed True $
     "If true, the last note of the pattern is aligned to the end of the event,\
-    \ and given " <> ShowVal.pretty Flags.infer_duration <> "."
+    \ and given " <> Doc.pretty Flags.infer_duration <> "."
 
-pattern_doc :: Derive.Doc
+pattern_doc :: Doc.Doc
 pattern_doc =
     "The pattern is letters from a-z, where `a` is the first note and `z` is\
     \ the 26th. Capital letters replace that note with a rest. Gaps in the\

@@ -5,10 +5,12 @@
 module Derive.Call.Prelude.Val where
 import qualified Data.Map as Map
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
@@ -26,7 +28,6 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
@@ -331,7 +332,7 @@ type_error argnum name expected received =
 -- * util
 
 val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
-    Derive.CallName -> Tags.Tags -> Derive.Doc
+    Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude

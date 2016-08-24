@@ -10,14 +10,13 @@ import qualified Data.Map as Map
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
-import qualified Derive.Derive as Derive
+import qualified Util.Doc as Doc
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -31,7 +30,7 @@ scales = map Scale.Simple
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
-doc :: Derive.Doc
+doc :: Doc.Doc
 doc =
     "7-note Western style scales tuned in just intonation.\
     \\nKeys look like `c-maj`, where `c` is the tonic and `maj` selects\
@@ -40,10 +39,10 @@ doc =
     \ only which MIDI key maps to the first scale degree. So for the ASCII kbd\
     \ where the input is also relative, the tonic is irrelevant."
 
-doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
+doc_fields :: [(Doc.Doc, Doc.Doc)]
 doc_fields =
-    [ (ShowVal.literal name,
-        ShowVal.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
+    [ (Doc.literal name,
+        Doc.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
     | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
     ]
 

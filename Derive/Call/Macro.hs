@@ -18,8 +18,10 @@ import qualified Control.Monad.State as Monad.State
 
 import qualified Data.List.NonEmpty as NonEmpty
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -35,18 +37,18 @@ import Global
 
 
 generator :: Derive.Callable d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Derive.Doc -> Parse.Expr -> Derive.Generator d
+    -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Generator d
 generator module_ name tags doc expr =
     Derive.generator module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (generator_macro expr)
 
 transformer :: Derive.Callable d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Derive.Doc -> Parse.Expr -> Derive.Transformer d
+    -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Transformer d
 transformer module_ name tags doc expr =
     Derive.transformer module_ name tags (make_doc doc expr) $
         Sig.callt (make_signature (extract_vars expr)) (transformer_macro expr)
 
-val_call :: Module.Module -> Derive.CallName -> Tags.Tags -> Derive.Doc
+val_call :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Parse.Call -> Derive.ValCall
 val_call module_ name tags doc call_expr =
     Derive.make_val_call module_ name tags (make_doc doc expr) $
@@ -142,11 +144,11 @@ make_signature vars = Sig.required_vals (map doc vars)
             <> ordinal (argnum+1) <> " argument."
         }
 
-ordinal :: Int -> Derive.Doc
-ordinal n = Derive.Doc $ showt n <> case n of
+ordinal :: Int -> Doc.Doc
+ordinal n = Doc.Doc $ showt n <> case n of
     1 -> "st"; 2 -> "nd"; 3 -> "rd"; _ -> "th"
 
-make_doc :: Derive.Doc -> Parse.Expr -> Derive.Doc
-make_doc (Derive.Doc doc) expr = Derive.Doc $
+make_doc :: Doc.Doc -> Parse.Expr -> Doc.Doc
+make_doc (Doc.Doc doc) expr = Doc.Doc $
     TextUtil.joinWith "\n" ("A macro for: " <> expr_doc <> ".") doc
-    where (Derive.Doc expr_doc) = ShowVal.doc expr
+    where (Doc.Doc expr_doc) = ShowVal.doc expr

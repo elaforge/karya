@@ -4,6 +4,7 @@
 
 -- | Calls that create code events for the lilypond backend.
 module Derive.Call.Prelude.Lily (note_calls) where
+import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -317,7 +318,7 @@ ly_span text args
 -- * util
 
 -- | Attach ly code to the first note in the transformed deriver.
-code_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
 code_call name doc sig make_code = (gen, trans)
     where
@@ -348,13 +349,13 @@ require_nonempty events
     | otherwise = return events
 
 -- | Emit a free-standing fragment of lilypond code.
-code0_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
 code0_call name doc sig make_code =
     make_code_call name (doc <> code0_doc) sig $ \_ val args ->
         Lily.code0 (Args.start args) =<< make_code val
 
-code0_around_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+code0_around_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver (Lily.Code, Lily.Code))
     -> Make.Calls Derive.Note
 code0_around_call name doc sig make_code = (gen, trans)
@@ -383,7 +384,7 @@ code0_around_call name doc sig make_code = (gen, trans)
 -- | Like 'code0_call', except that the call can emit 2 Codes.  The second
 -- will be used at the end of the event if it has non-zero duration and is
 -- a transformer.
-code0_pair_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+code0_pair_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver (Lily.Code, Lily.Code))
     -> Make.Calls Derive.Note
 code0_pair_call name doc sig make_code =
@@ -393,13 +394,13 @@ code0_pair_call name doc sig make_code =
         Lily.code0 start code1 <> if is_transformer || start == end
             then mempty else Lily.code0 end code2
 
-code0_doc :: Derive.Doc
+code0_doc :: Doc.Doc
 code0_doc = "\nThis either be placed in a separate track as a zero-dur\
     \ event, or it can be attached to an individual note as a transformer."
 
 -- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
-global_code0_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+global_code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
@@ -407,7 +408,7 @@ global_code0_call name doc sig call =
         Lily.global (call val (Derive.place (Args.start args) 0 Call.note))
 
 -- | Emit a free-standing fragment of lilypond code.
-make_code_call :: Derive.CallName -> Derive.Doc -> Sig.Parser a
+make_code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (Bool -> a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver)
     -- ^ First arg is True if this is a transformer call.
     -> Make.Calls Derive.Note
@@ -420,10 +421,10 @@ make_code_call name doc sig call = (gen, trans)
         Sig.callt sig $ \val args deriver ->
             Lily.when_lilypond (call True val args <> deriver) deriver
 
-generator :: Derive.CallName -> Tags.Tags -> Derive.Doc
+generator :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
 generator = Derive.generator Module.ly
 
-transformer :: Derive.CallName -> Tags.Tags -> Derive.Doc
+transformer :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.TransformerF d) -> Derive.Transformer d
 transformer = Derive.transformer Module.ly

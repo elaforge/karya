@@ -30,6 +30,7 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -439,7 +440,7 @@ gender_norot pasang = Realization
 
 -- * kotekan
 
-kotekan_doc :: Derive.Doc
+kotekan_doc :: Doc.Doc
 kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event but may also emit a note at the\
@@ -519,7 +520,7 @@ c_kotekan_regular maybe_kernel =
         Just Low -> Call.Up
         Just High -> Call.Down
 
-kernel_doc :: Derive.Doc
+kernel_doc :: Doc.Doc
 kernel_doc = "Polos part in transposition steps.\
     \ This will be normalized to end on the destination pitch.\
     \ It should consist of `-`, `1`, and `2`. You can start with `k` to\

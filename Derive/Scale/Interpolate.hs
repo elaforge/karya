@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Interpolate between two different scales.
 module Derive.Scale.Interpolate where
+import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -103,7 +104,7 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
                 p2 <- typecheck =<< apply key_to to
                 return $ Typecheck.to_val $ Pitches.interpolated p1 p2 n
     where
-    doc :: ShowVal.ShowVal a => a -> Derive.Doc
+    doc :: ShowVal.ShowVal a => a -> Doc.Doc
     doc = ShowVal.doc
 
 rename_environ :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a

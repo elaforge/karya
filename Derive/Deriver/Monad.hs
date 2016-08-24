@@ -82,7 +82,7 @@ module Derive.Deriver.Monad (
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
-    , CallName(..), ArgName(..), Doc(..), sym_to_call_name, sym_to_arg_name
+    , CallName(..), ArgName(..), sym_to_call_name, sym_to_arg_name
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
@@ -134,6 +134,7 @@ import qualified Data.Vector.Unboxed as Vector.Unboxed
 import qualified GHC.Stack
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Map as Map
@@ -157,7 +158,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import Derive.ShowVal (Doc(..))
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
@@ -1269,7 +1269,7 @@ sym_to_arg_name (BaseTypes.Symbol sym) = ArgName sym
 data CallDoc = CallDoc {
     cdoc_module :: !Module.Module
     , cdoc_tags :: !Tags.Tags
-    , cdoc_doc :: !Doc
+    , cdoc_doc :: !Doc.Doc
     , cdoc_args :: ![ArgDoc]
     } deriving (Eq, Ord, Show)
 
@@ -1278,7 +1278,7 @@ data ArgDoc = ArgDoc {
     , arg_type :: !ValType.Type
     , arg_parser :: !ArgParser
     , arg_environ_default :: !EnvironDefault
-    , arg_doc :: !Doc
+    , arg_doc :: !Doc.Doc
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
@@ -1337,8 +1337,8 @@ default_real_duration args = CallDuration <$>
 type TransformerF d = PassedArgs d -> Deriver (Stream.Stream d)
     -> Deriver (Stream.Stream d)
 
-make_call :: Module.Module -> CallName -> Tags.Tags -> Doc -> WithArgDoc func
-    -> Call func
+make_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+    -> WithArgDoc func -> Call func
 make_call module_ name tags doc (func, arg_docs) = Call
     { call_name = name
     , call_doc = CallDoc
@@ -1353,14 +1353,14 @@ make_call module_ name tags doc (func, arg_docs) = Call
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: Module.Module -> CallName -> Tags.Tags -> Doc
+generator :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (GeneratorF d) -> Generator d
 generator module_ name tags doc (func, arg_docs) =
     make_call module_ name tags doc (generator_func func, arg_docs)
 
 -- | Make a generator from a function which returns events in sorted order.
 -- TODO this just trusts that the events will be sorted.  Is there a safer way?
-generator_events :: Module.Module -> CallName -> Tags.Tags -> Doc
+generator_events :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
 generator_events module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
@@ -1371,7 +1371,7 @@ generator_events module_ name tags doc (func, arg_docs) =
 -- in a Stream singleton.
 --
 -- TODO call this signal_generator?
-generator1 :: Module.Module -> CallName -> Tags.Tags -> Doc
+generator1 :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
 generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
@@ -1391,7 +1391,7 @@ with_real_duration get call = call
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
-transformer :: Module.Module -> CallName -> Tags.Tags -> Doc
+transformer :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (TransformerF d) -> Transformer d
 transformer = make_call
 
@@ -1406,7 +1406,7 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc
+make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver BaseTypes.Val) -> ValCall
 make_val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name

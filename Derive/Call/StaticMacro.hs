@@ -19,7 +19,9 @@ import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -58,7 +60,7 @@ check _ (Right val) = val
 
 -- | Create a generator macro from a list of transformers and a generator.
 generator :: Derive.Callable d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Derive.Doc -> [Call (Derive.Transformer d)]
+    -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)
 generator module_ name tags doc trans gen = do
     trans_args <- concatMapM extract_args trans
@@ -86,7 +88,7 @@ generator_macro trans gen vals ctx = do
     split (Call call args) = (call, args)
 
 transformer :: Derive.Callable d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Derive.Doc -> [Call (Derive.Transformer d)]
+    -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
     -> Either Text (Derive.Transformer d)
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
@@ -157,7 +159,7 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 
 -- ** doc
 
-make_doc :: Derive.Doc -> [Derive.Doc] -> Derive.Doc
+make_doc :: Doc.Doc -> [Doc.Doc] -> Doc.Doc
 make_doc doc calls = TextUtil.joinWith "\n" doc $
     "A static macro for: `" <> TextUtil.join " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
@@ -165,8 +167,8 @@ make_doc doc calls = TextUtil.joinWith "\n" doc $
     \ the names they are bound to, which also means the macro text may not be a\
     \ valid expression."
 
-call_doc :: Call (Derive.Call f) -> Derive.Doc
-call_doc (Call call args) = Derive.Doc $ Text.unwords $ name : map arg_doc args
+call_doc :: Call (Derive.Call f) -> Doc.Doc
+call_doc (Call call args) = Doc.Doc $ Text.unwords $ name : map arg_doc args
     where Derive.CallName name = Derive.call_name call
 
 arg_doc :: Arg -> Text

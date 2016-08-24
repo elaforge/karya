@@ -6,6 +6,7 @@
 -- | This is like "Derive.Call", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
+import qualified Util.Doc as Doc
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -45,7 +46,7 @@ attributed_note module_ attrs = transform_notes module_
 
 -- | This is a specialization of 'transform_notes' that sets an environ value.
 environ_note :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
-    Module.Module -> Derive.CallName -> Tags.Tags -> Derive.Doc -> Env.Key -> a
+    Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc -> Env.Key -> a
     -> Calls Derive.Note
 environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
@@ -55,15 +56,16 @@ environ_note module_ name tags doc key val =
 control_note :: Module.Module -> Derive.CallName -> Score.Control -> Signal.Y
     -> Calls Derive.Note
 control_note module_ name control val = transform_notes module_ name mempty
-    (Derive.Doc $ "Note with `" <> ShowVal.show_val control <> " = "
-        <> ShowVal.show_val val <> "`.")
+    ("Note with " <> Doc.literal (ShowVal.show_val control <> " = "
+        <> ShowVal.show_val val) <> ".")
     Sig.no_args $ \() ->
         Derive.with_constant_control control (Score.untyped val)
 
 -- | The generator either derives subs or derives a new Call.note if there are
 -- no subs, and then applies the transform.  The transformer call just applies
 -- the transform.
-transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Derive.Doc -> Sig.Parser a
+transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
+    -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Calls Derive.Note
 transform_notes module_ name tags transform_doc sig transform =
@@ -84,7 +86,7 @@ transform_notes module_ name tags transform_doc sig transform =
 -- level and more concise than using the @=@ transformer.
 with_environ ::
     (Typecheck.Typecheck val, Typecheck.ToVal val, Derive.Taggable d) =>
-    Module.Module -> BaseTypes.Key -> Derive.Doc -> Sig.Parser a
+    Module.Module -> BaseTypes.Key -> Doc.Doc -> Sig.Parser a
     -> (a -> val) -> Derive.Transformer d
 with_environ module_ key key_doc sig extract =
     Derive.transformer module_ (Derive.sym_to_call_name key) mempty
@@ -95,17 +97,17 @@ with_environ module_ key key_doc sig extract =
 -- | Make a call that sets an environ key to a specific value.
 with_environ_val :: (ShowVal.ShowVal a, Typecheck.Typecheck a,
         Typecheck.ToVal a, Derive.Taggable d) =>
-    Module.Module -> Derive.CallName -> Env.Key -> a -> Derive.Doc
+    Module.Module -> Derive.CallName -> Env.Key -> a -> Doc.Doc
     -> Derive.Transformer d
 with_environ_val module_ name key val extra_doc =
     Derive.transformer module_ name mempty (TextUtil.join2 doc extra_doc) $
         Sig.call0t $ \_args -> Derive.with_val key val
     where
-    doc = Derive.Doc $
-        "`" <> ShowVal.show_val key <> " = " <> ShowVal.show_val val <> "`."
+    doc = Doc.literal (ShowVal.show_val key <> " = " <> ShowVal.show_val val)
+        <> "."
 
 -- | Make a call that adds a flag.
-add_flag :: Module.Module -> Derive.CallName -> Derive.Doc -> Flags.Flags
+add_flag :: Module.Module -> Derive.CallName -> Doc.Doc -> Flags.Flags
     -> Derive.Transformer Score.Event
 add_flag module_ name doc flags =
     Derive.transformer module_ name Tags.postproc doc $
@@ -114,7 +116,7 @@ add_flag module_ name doc flags =
 -- * val calls
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
-modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Derive.Doc
+modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
     -> (BaseTypes.Val -> BaseTypes.Val) -> Derive.ValCall
 modify_vcall vcall module_ name doc f = vcall
     { Derive.vcall_name = name

@@ -13,6 +13,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
@@ -876,7 +877,7 @@ shift_control shift deriver = do
 -- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
 -- a circular import with "Derive.BaseTypes".
 val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Module.Module
-    -> CallName -> Tags.Tags -> Doc
+    -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call module_ name tags doc (call, arg_docs) =
     make_val_call module_ name tags doc (fmap Typecheck.to_val . call, arg_docs)

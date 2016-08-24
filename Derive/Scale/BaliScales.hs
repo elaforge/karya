@@ -16,6 +16,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import Data.Vector ((!?))
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -121,13 +122,13 @@ scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
 type SaihMap = Map.Map Text Saih
 
 data Saih = Saih {
-    saih_doc :: ShowVal.Doc
+    saih_doc :: Doc.Doc
     , saih_umbang :: Vector.Vector Pitch.NoteNumber
     , saih_isep :: Vector.Vector Pitch.NoteNumber
     } deriving (Show)
 
 saih :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
-    -> ShowVal.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
+    -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
 saih extend doc nns = Saih
     { saih_doc = doc
     , saih_umbang = Vector.fromList (extend umbang)

@@ -11,8 +11,10 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 
+import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -118,9 +120,9 @@ html_doc :: Cmd.CmdL ()
 html_doc = do
     doc <- track_doc
     app_dir <- Cmd.gets (Cmd.config_app_dir . Cmd.state_config)
-    hstate <- liftIO $ CallDoc.get_html_state "haddock" app_dir
+    hstate <- liftIO $ Doc.get_html_state "haddock" app_dir
     liftIO $ Text.IO.writeFile "build/derive_doc.html" $
-        CallDoc.doc_html hstate doc
+        Doc.un_html $ CallDoc.doc_html hstate doc
 
 -- | Print a summary of bindings in scope, grouped by namespace and sorted by
 -- shadow priority.  This is useful to see if your call is being shadowed.

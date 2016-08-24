@@ -5,21 +5,13 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.ShowVal where
 import qualified Data.Char as Char
-import qualified Data.String as String
 import qualified Data.Text as Text
-
 import qualified Numeric
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
-import qualified Util.TextUtil as TextUtil
-
 import Global hiding (pretty)
 
-
-instance TextUtil.Textlike Doc where
-    toText (Doc t) = t
-    fromText = Doc
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
 -- produced by show_val should be parseable by "Derive.ParseBs", except values
@@ -43,6 +35,10 @@ show_hex_val n
 
 is_hex_val :: Text -> Bool
 is_hex_val = (hex_prefix `Text.isPrefixOf`)
+
+-- | Show a val for inclusion into CallDoc.
+doc :: ShowVal a => a -> Doc.Doc
+doc = Doc.literal . show_val
 
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.
@@ -85,23 +81,3 @@ instance ShowVal Text where
             Nothing -> False
         quote '\'' = "''"
         quote c = Text.singleton c
-
--- * Doc
-
--- | This is for documentation text.  It can contain some simple markdown-like
--- formatting, which may be either be printed directly, or formatted via
--- 'Cmd.CallDoc.html_doc'.
-newtype Doc = Doc Text
-    deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString)
-
--- | Show a val for inclusion into CallDoc.
-doc :: ShowVal a => a -> Doc
-doc = literal . show_val
-
--- | This probably doesn't belong here, but it's useful in the same contexts as
--- 'doc'.
-pretty :: Pretty.Pretty a => a -> Doc
-pretty = literal . Pretty.pretty
-
-literal :: Text -> Doc
-literal text = Doc $ "`" <> text <> "`"

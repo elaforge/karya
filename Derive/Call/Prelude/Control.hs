@@ -7,6 +7,7 @@ module Derive.Call.Prelude.Control (control_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -282,7 +283,7 @@ c_swell = generator1 "swell" mempty
         return $ ControlUtil.breakpoints srate id
             [(start, val), (middle, peak), (end, val)]
 
-generator1 :: Derive.CallName -> Tags.Tags -> Derive.Doc
+generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 Module.prelude

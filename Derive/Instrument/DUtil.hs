@@ -12,8 +12,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -39,22 +41,22 @@ import Global
 import Types
 
 
-generator :: Derive.CallName -> Derive.Doc
+generator :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d)
     -> Derive.Generator d
 generator name = Derive.generator Module.instrument name mempty
 
-generator0 :: Derive.Taggable d => Derive.CallName -> Derive.Doc
+generator0 :: Derive.Taggable d => Derive.CallName -> Doc.Doc
     -> (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d))
     -> Derive.Generator d
 generator0 name doc call = generator name doc (Sig.call0 call)
 
-transformer :: Derive.CallName -> Derive.Doc
+transformer :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.TransformerF d) -> Derive.Transformer d
 transformer name doc =
     Derive.transformer Module.instrument name mempty doc
 
-transformer0 :: Derive.Taggable d => Derive.CallName -> Derive.Doc
+transformer0 :: Derive.Taggable d => Derive.CallName -> Doc.Doc
     -> Derive.TransformerF d -> Derive.Transformer d
 transformer0 name doc call =
     Derive.transformer Module.instrument name mempty doc (Sig.call0t call)
@@ -66,7 +68,7 @@ attributes_note attrs =
         "Invoke the default note call with the given attrs." $ \args ->
     Call.add_attributes attrs (Call.reapply_note args)
 
-zero_duration_transform :: Derive.Doc
+zero_duration_transform :: Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 zero_duration_transform doc transform = Note.transformed_note
@@ -76,7 +78,7 @@ zero_duration_transform doc transform = Note.transformed_note
 
 -- | Create a generator that has a different implementation for zero and
 -- non-zero duration.
-zero_duration :: Derive.CallName -> Derive.Doc
+zero_duration :: Derive.CallName -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> Derive.Generator Derive.Note
 zero_duration name doc zero non_zero = generator0 name doc $ \args ->
@@ -95,7 +97,7 @@ is_zero_duration args
     | otherwise = return False
 
 -- | Just like the default note call, except apply a function to the output.
-postproc_note :: Derive.CallName -> Derive.Doc -> (Score.Event -> Score.Event)
+postproc_note :: Derive.CallName -> Doc.Doc -> (Score.Event -> Score.Event)
     -> Derive.Generator Derive.Note
 postproc_note name doc f = postproc_generator name doc Note.c_note apply
     where apply d = fmap f <$> d
@@ -103,7 +105,7 @@ postproc_note name doc f = postproc_generator name doc Note.c_note apply
 -- | Transform an existing call by applying a function to it.  It gets a new
 -- name and the documentation is prepended to the documentation of the original
 -- call.
-postproc_generator :: Derive.CallName -> Derive.Doc -> Derive.Generator d
+postproc_generator :: Derive.CallName -> Doc.Doc -> Derive.Generator d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Generator d
 postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
@@ -159,7 +161,7 @@ doubled_call callee name place default_time default_dyn_scale = generator name
 
 -- * composite
 
-composite_doc :: Derive.Doc
+composite_doc :: Doc.Doc
 composite_doc = "Composite instrument calls create notes for multiple\
     \ instruments, splitting pitch and control signals among them. The\
     \ composite instrument itself doesn't wind up in the output, so it\
@@ -194,8 +196,8 @@ data Pitch = NoPitch | Pitch Score.PControl deriving (Show)
 -- to other instruments.  Otherwise, it only gets the named ones.
 type Controls = Maybe (Set.Set Score.Control)
 
-show_controls :: Controls -> Derive.Doc
-show_controls = Derive.Doc . maybe "(all)" pretty
+show_controls :: Controls -> Doc.Doc
+show_controls = Doc.Doc . maybe "(all)" pretty
 
 redirect_pitch :: Derive.CallName -> BaseTypes.CallId -> Controls
     -> BaseTypes.CallId -> Controls -> Derive.Generator Derive.Note

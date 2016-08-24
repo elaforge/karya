@@ -6,6 +6,7 @@
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
 import qualified Util.ApproxEq as ApproxEq
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -61,7 +62,7 @@ interpolator_call name (get_arg, curve) interpolator_time =
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
     where
-    doc = Derive.Doc $ "Interpolate from the previous value to the given one."
+    doc = Doc.Doc $ "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
 
 -- | Use this for calls that start from the previous value, to give a way
@@ -231,7 +232,7 @@ make_function curve x1 y1 x2 y2 =
 
 -- * exponential
 
-exp_doc :: Derive.Doc
+exp_doc :: Doc.Doc
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
     \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\

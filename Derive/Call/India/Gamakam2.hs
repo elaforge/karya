@@ -8,8 +8,10 @@ import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -126,7 +128,7 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
         , (BaseTypes.Symbol $ "n" <> BaseTypes.unsym name,
             c_nkampita doc arg dir)
         ]
-    doc = Derive.Doc $ Text.unlines
+    doc = Doc.Doc $ Text.unlines
         [ "These are hardcoded `k` variants:"
         , "`o^` touches the swaram from above, like `k2^ 1 0`."
         , "`o_` touches the swaram from below, like `k2_ -1 0`."
@@ -177,7 +179,7 @@ c_sequence_transform = Derive.transformer module_ "sequence" mempty
         Sig.callt (Sig.many_vals "arg" "Expressions separated by `;`.") $
         \_ -> with_sequence
 
-sequence_doc :: Derive.Doc
+sequence_doc :: Doc.Doc
 sequence_doc = "Sequence several pitch calls. Calls are divided into\
     \ `begin ; middle1 ; middle2; ... ; end` phases. Calls are pitch\
     \ generators, and are sequenced such that the middle calls stretch\
@@ -192,7 +194,7 @@ sequence_doc = "Sequence several pitch calls. Calls are divided into\
     <> " and " <> ShowVal.doc fade_out_call <> " calls: they have 0\
     \ duration, but are overlaid with their neighbors. This is so you can fade\
     \ in or out without having to flatten the pitch."
-    where doc v = Derive.Doc $ "`" <> pretty v <> "`"
+    where doc = Doc.pretty
 
 with_sequence :: Derive.PassedArgs Score.Event -> Derive.Deriver a
     -> Derive.Deriver a
@@ -554,7 +556,7 @@ data KampitaArgs =
     | Kampita2
     deriving (Show)
 
-c_kampita:: Derive.Doc -> KampitaArgs -> Maybe Trill.Direction
+c_kampita:: Doc.Doc -> KampitaArgs -> Maybe Trill.Direction
     -> Derive.Generator Derive.Pitch
 c_kampita doc kam_args end_dir = generator1 "kam" mempty
     ("This is a kind of trill, but its interval defaults to NNs,\
@@ -574,7 +576,7 @@ c_kampita doc kam_args end_dir = generator1 "kam" mempty
             transition hold lilt (Args.range args)
         kampita start args control transpose
 
-c_nkampita :: Derive.Doc -> KampitaArgs -> Maybe Trill.Direction
+c_nkampita :: Doc.Doc -> KampitaArgs -> Maybe Trill.Direction
     -> Derive.Generator Derive.Pitch
 c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
     ("`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
@@ -787,7 +789,7 @@ optional_pitch maybe_pitch current_pitch =
     maybe current_pitch (PitchUtil.resolve_pitch_transpose current_pitch)
         maybe_pitch
 
-generator1 :: Derive.CallName -> Tags.Tags -> Derive.Doc
+generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 module_

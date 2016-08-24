@@ -22,6 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
@@ -152,12 +153,12 @@ lookup_last_dyn event = do
         Score.event_untransformed_controls event
     snd <$> Signal.last (Score.typed_val sig)
 
-sequence_doc :: Derive.Doc
+sequence_doc :: Doc.Doc
 sequence_doc = "doc doc\
     \ Currently the transition curve is hardcoded to a sigmoid curve, but\
     \ I could add a curve env var if necessary."
 
-sequence_arg_doc :: Derive.Doc
+sequence_arg_doc :: Doc.Doc
 sequence_arg_doc = "Abbreviated string of calls... TODO"
 
 -- * dyn-sequence

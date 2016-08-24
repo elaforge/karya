@@ -19,8 +19,10 @@ import qualified Data.Time as Time
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
+import qualified Util.Doc as Doc
 import qualified Util.File as File
 import qualified Util.Log as Log
+
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
@@ -128,14 +130,14 @@ make_generator :: Derive.Callable d => FilePath -> Derive.CallName
 make_generator fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_generator fname name expr
     | otherwise = Macro.generator Module.local name mempty
-        (Derive.Doc $ "Defined in " <> txt fname <> ".") var_expr
+        (Doc.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
 make_transformer :: Derive.Callable d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Transformer d
 make_transformer fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_transformer fname name expr
     | otherwise = Macro.transformer Module.local name mempty
-        (Derive.Doc $ "Defined in " <> txt fname <> ".") var_expr
+        (Doc.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
 make_val_call :: FilePath -> Derive.CallName -> Parse.Expr -> Derive.ValCall
 make_val_call fname name var_expr
@@ -144,7 +146,7 @@ make_val_call fname name var_expr
         _ -> broken
     | otherwise = case var_expr of
         Parse.Expr (call_expr :| []) -> Macro.val_call Module.local name mempty
-            (Derive.Doc $ "Defined in " <> txt fname <> ".") call_expr
+            (Doc.Doc $ "Defined in " <> txt fname <> ".") call_expr
         _ -> broken
     where
     broken = broken_val_call name $
@@ -200,7 +202,7 @@ simple_val_call fname name call_expr =
 
 broken_val_call :: Derive.CallName -> Text -> Derive.ValCall
 broken_val_call name msg = Derive.make_val_call Module.local name mempty
-    (Derive.Doc msg)
+    (Doc.Doc msg)
     (Sig.call (Sig.many_vals "arg" "broken") $ \_ _ -> Derive.throw msg)
 
 -- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
@@ -213,8 +215,8 @@ no_free_vars (Parse.Expr expr) = traverse convent_call expr
     convert_term (Parse.ValCall call) = BaseTypes.ValCall <$> convent_call call
     convert_term (Parse.Literal val) = Just $ BaseTypes.Literal val
 
-make_doc :: FilePath -> Derive.CallName -> BaseTypes.Expr -> Derive.Doc
-make_doc fname name expr = Derive.Doc $
+make_doc :: FilePath -> Derive.CallName -> BaseTypes.Expr -> Doc.Doc
+make_doc fname name expr = Doc.Doc $
     pretty name <> " defined in " <> txt fname <> ": " <> ShowVal.show_val expr
 
 -- | If there are arguments in the definition, then don't accept any in the

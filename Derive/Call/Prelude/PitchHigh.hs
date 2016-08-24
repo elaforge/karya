@@ -10,6 +10,7 @@
 --
 -- TODO this module has a dumb name.  What would be better?
 module Derive.Call.Prelude.PitchHigh where
+import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -79,7 +80,7 @@ c_drop_note_start = make_note_fade "Drop"
     PitchLift AlignStart AlignEnd
     -- Like 'c_lift_note_start', the PitchDirection is reversed.
 
-make_note_fade :: Derive.CallName -> Derive.Doc -> PitchDirection -> Align
+make_note_fade :: Derive.CallName -> Doc.Doc -> PitchDirection -> Align
     -> Align -> Derive.Transformer Derive.Note
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
@@ -127,7 +128,7 @@ c_lift = make_pitch_fade "lift"
     \ defaults to going up instead of down."
     PitchLift
 
-make_pitch_fade :: Derive.CallName -> Derive.Doc -> PitchDirection
+make_pitch_fade :: Derive.CallName -> Doc.Doc -> PitchDirection
     -> Derive.Generator Derive.Pitch
 make_pitch_fade name doc pitch_dir =
     Derive.generator1 Module.prelude name Tags.cmod doc

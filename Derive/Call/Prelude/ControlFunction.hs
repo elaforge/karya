@@ -8,8 +8,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
@@ -277,7 +279,7 @@ to_signal_or_function dyn control = case control of
 -- * misc
 
 val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
-    Derive.CallName -> Tags.Tags -> Derive.Doc
+    Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude

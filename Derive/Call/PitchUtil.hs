@@ -4,8 +4,10 @@
 
 -- | Utilities that emit 'PSignal.PSignal's.
 module Derive.Call.PitchUtil where
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -51,7 +53,7 @@ interpolator_call name (get_arg, curve) interpolator_time =
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
     where
-    doc = Derive.Doc $ "Interpolate from the previous value to the given one."
+    doc = Doc.Doc $ "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
     -- The only difference between this and ControlUtil.interpolator_call is
     -- the 'interpolate' call and 'pitch_arg'.

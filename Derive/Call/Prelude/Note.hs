@@ -14,6 +14,7 @@ module Derive.Call.Prelude.Note (
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -64,7 +65,7 @@ c_note :: Derive.Generator Derive.Note
 c_note = note_call "note" "" mempty (default_note use_attributes)
 
 -- | Create a standard note call with a transformer applied.
-transformed_note :: Derive.Doc -> Tags.Tags
+transformed_note :: Doc.Doc -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 transformed_note prepend_doc tags transform =
@@ -80,7 +81,7 @@ note_call :: Derive.CallName
     -- are reflected in the name only.  If you put invalid identifiers in the
     -- name, it can't be used to set default arguments.  That's not really
     -- a big deal for the note call, though.
-    -> Derive.Doc -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
+    -> Doc.Doc -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
     Sig.call (Sig.many "attribute" "Change the instrument or attributes.") $

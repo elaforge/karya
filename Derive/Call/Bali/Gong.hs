@@ -4,6 +4,7 @@
 
 -- | Calls to deal with an entire ensemble, or miscellaneous instruments.
 module Derive.Call.Bali.Gong where
+import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -101,8 +102,9 @@ make_pokok :: Text -> Scale.Range -> [Score.Instrument]
     -> Derive.Transformer Derive.Note
 make_pokok name range default_insts = Derive.transformer module_
     (Derive.CallName name) (Tags.inst <> Tags.under_invert)
-    (Derive.Doc $ "Add a " <> name <> " note with 'Derive.Flags.infer_duration'\
-        \ and the same pitch, transposed into the " <> name <> " range.")
+    ("Add a " <> Doc.literal name <> " note with 'Derive.Flags.infer_duration'\
+        \ and the same pitch, transposed into the " <> Doc.literal name
+        <> " range.")
     $ Sig.callt ((,)
     <$> Sig.defaulted "octave" Call.Down
         "If the pitch exists in multiple octaves, choose this one."
@@ -124,7 +126,7 @@ c_nruk = Derive.transformer module_ "nruk" Tags.inst
     "Nruktuk, for kajar or gangsa."
     $ Sig.callt nruk_args nruk
 
-nruk_generator :: Module.Module -> Derive.CallName -> Derive.Doc
+nruk_generator :: Module.Module -> Derive.CallName -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 nruk_generator mod name doc deriver = Derive.generator mod name Tags.inst doc $

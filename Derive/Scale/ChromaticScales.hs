@@ -10,8 +10,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -45,7 +47,7 @@ data ScaleMap = ScaleMap {
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.FSemi
     -> Either BaseTypes.PitchError Pitch.NoteNumber
 
-twelve_doc :: Derive.Doc
+twelve_doc :: Doc.Doc
 twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
     \ That is, note names look like octave-letter-accidentals like \"4c#\".\
     \ They have a notion of a \"layout\", which is a pattern of half and\
@@ -73,7 +75,7 @@ make_keys :: TheoryFormat.Format -> [Theory.Key] -> Keys
 make_keys fmt keys =
     Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Derive.Doc -> Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
     { scale_id = scale_id
     , scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
@@ -189,7 +191,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     key = fromMaybe (smap_default_key smap) $
         flip Map.lookup (smap_keys smap) =<< Scales.environ_key env
 
-call_doc :: Set.Set Score.Control -> ScaleMap -> Derive.Doc
+call_doc :: Set.Set Score.Control -> ScaleMap -> Doc.Doc
     -> Derive.DocumentedCall
 call_doc transposers smap doc =
     Scales.annotate_call_doc transposers doc fields $
@@ -201,7 +203,7 @@ call_doc transposers smap doc =
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))
     (bottom, top) = smap_range smap
-    show_p = either ShowVal.pretty ShowVal.pretty . show_pitch smap Nothing
+    show_p = either Doc.pretty Doc.pretty . show_pitch smap Nothing
         . Theory.semis_to_pitch_sharps (smap_layout smap)
     fields = concat
         [ [("range", show_p bottom <> " to " <> show_p top)]
@@ -209,11 +211,11 @@ call_doc transposers smap doc =
         , [ ("keys", format_keys $ Map.keys (smap_keys smap)) ]
         ]
 
-format_keys :: [Pitch.Key] -> ShowVal.Doc
+format_keys :: [Pitch.Key] -> Doc.Doc
 format_keys keys
     | all (("-" `Text.isInfixOf`) . Pitch.key_text) keys = TextUtil.join ", " $
-        map (ShowVal.literal . fst) $ group_tonic_mode $ map (, ()) keys
-    | otherwise = TextUtil.join ", " (map ShowVal.pretty keys)
+        map (Doc.literal . fst) $ group_tonic_mode $ map (, ()) keys
+    | otherwise = TextUtil.join ", " (map Doc.pretty keys)
 
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.

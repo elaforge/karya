@@ -9,13 +9,12 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -31,7 +30,7 @@ scales = map Scale.Simple
         doc doc_fields
     ]
 
-doc :: Derive.Doc
+doc :: Doc.Doc
 doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ The keys look like `a-159b-1`.  The `a` means that in absolute naming,\
     \ unity is on `a` (in relative naming, unity is always `1`).  `159b` means\
@@ -40,10 +39,10 @@ doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ 5th scale degree, you would change the key to `a-159b-6` and set\
     \ `%just-base` accordingly.\n"
 
-doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
+doc_fields :: [(Doc.Doc, Doc.Doc)]
 doc_fields =
-    [ (ShowVal.literal name,
-        ShowVal.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
+    [ (Doc.literal name,
+        Doc.Doc $ JustScales.show_ratios (JustScales.key_ratios key))
     | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
     ]
 

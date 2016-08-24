@@ -10,11 +10,10 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
-import qualified Derive.Derive as Derive
+import qualified Util.Doc as Doc
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -26,7 +25,7 @@ scales = map Scale.Simple
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
-doc :: Derive.Doc
+doc :: Doc.Doc
 doc = "Carnatic ragas, from the melakarta system.\
     \\nThe \"key\" is actually the raga, e.g.\
     \ `key=shankarabharanam`. Arohana and avarohana are not represented in the\
@@ -37,7 +36,7 @@ doc = "Carnatic ragas, from the melakarta system.\
     \\nSince latin orthography is inconsistent, they might be spelled slightly\
     \ differently from how you expect."
 
-doc_fields :: [(ShowVal.Doc, ShowVal.Doc)]
+doc_fields :: [(Doc.Doc, Doc.Doc)]
 doc_fields = JustScales.group_relative_keys melakarta_keys
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap

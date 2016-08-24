@@ -6,6 +6,7 @@
 module Local.Instrument.Spicy where
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -67,8 +68,7 @@ note_call = Note.transformed_note
         <> " for that string.") mempty
     (const transform)
     where
-    attrs_doc = Derive.Doc $
-        Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
+    attrs_doc = Doc.Doc $ Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
         attrs <- Call.get_attributes
         inst <- Call.lookup_instrument

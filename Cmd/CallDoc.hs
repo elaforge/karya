@@ -4,15 +4,13 @@
 
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.CallDoc where
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
-import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
-import qualified Util.File as File
+import qualified Util.Doc as Doc
+import Util.Doc (html, tag)
 import qualified Util.Format as Format
 import Util.Format ((<+>), (</>), (<//>), (<+/>))
 import qualified Util.Pretty as Pretty
@@ -86,10 +84,10 @@ environ_keys name deflt =
         (map BaseTypes.unsym (Sig.environ_keys "*" name deflt))
     <> "]"
 
-write_doc :: Derive.Doc -> Format.Doc
+write_doc :: Doc.Doc -> Format.Doc
 write_doc =
     Format.indent . Format.wrapWords . map Format.text . Text.words . undoc
-    where undoc (Derive.Doc s) = s
+    where undoc (Doc.Doc s) = s
 
 show_module :: Module.Module -> Text
 show_module (Module.Module name) = "[" <> name <> "]"
@@ -126,7 +124,7 @@ bindings_text =
         doc <> " " <> TextUtil.ellipsis (width - Text.length doc - 1)
             (undoc (Derive.cdoc_doc call_doc))
         where
-        undoc (Derive.Doc d) = d
+        undoc (Doc.Doc d) = d
         doc = symbol_name <> " -- " <> call_name <> " (" <> pretty scope_source
             <> ") " <> show_module (Derive.cdoc_module call_doc)
     width = 76
@@ -142,31 +140,18 @@ bindings_text =
 
 -- ** html output
 
--- | (haddock_dir, directory_tree)
-type HtmlState = (FilePath, Set.Set FilePath)
-
-get_html_state :: FilePath -> FilePath -> IO HtmlState
-get_html_state haddock_dir app_dir = do
-    files <- liftIO $ get_files app_dir
-    -- The eventual output is in build/doc.
-    return (haddock_dir, files)
-    where
-    get_files dir = do
-        files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
-        return $ Set.fromList files
-
 -- | Convert a Document to HTML.
-doc_html :: HtmlState -> Document -> Text
-doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
+doc_html :: Doc.HtmlState -> Document -> Doc.Html
+doc_html hstate = (html_header hstate <>) . mconcatMap section
     where
     section (call_kind, scope_docs) =
-        tag_class "div" "call-kind" $ tag "h2" (html call_kind)
+        Doc.tag_class "div" "call-kind" $ tag "h2" (html call_kind)
             <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
     scope_doc call_kind (source, call_bindings) = case source of
         -- 'imported_scope_doc' does this since Library doesn't have source
         -- types.
         IrrelevantSource -> doc
-        _ -> tag_class "div" "call-source" $
+        _ -> Doc.tag_class "div" "call-source" $
             tag "h3" ("from " <> html (pretty source)) <> "\n\n" <> doc
         where
         doc = "<dl class=main-dl>\n"
@@ -175,14 +160,14 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
             <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, call_bindings) =
-        tag_class "div" "call-module" $
+        Doc.tag_class "div" "call-module" $
             show_module module_ (length call_bindings) <> "<br>\n"
             <> mconcatMap (call_bindings_html hstate call_kind) call_bindings
     show_module (Module.Module m) calls = tag "center" $
         tag "b" "Module: " <> tag "code" (html m)
             <> " (" <> html (showt calls) <> " calls)"
 
-html_header :: HtmlState -> Html
+html_header :: Doc.HtmlState -> Doc.Html
 html_header hstate = mconcat
     [ "<meta charset=utf-8>\n"
     , "<style type=text/css>\n" <> css <> "</style>\n"
@@ -209,12 +194,12 @@ html_header hstate = mconcat
         \<code>control</code>, ...).\
         \\n<br>Search for calls with the browser's text search, \"call --\"\
         \ to search by binding, \"-- call\" to search by name.\n<br>"
-    , html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
+    , Doc.html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
     , " &mdash; <span id=totals> x </span>\n"
     ]
     where default_search = "-m:internal -m:ly "
 
-css :: Html
+css :: Doc.Html
 css = Seq.join "\n"
     [ ".main-dl dl { border-bottom: 1px solid #999 }"
     , "dl.compact {"
@@ -233,7 +218,7 @@ css = Seq.join "\n"
     , "}"
     ]
 
-javascript :: Html
+javascript :: Doc.Html
 javascript = Seq.join "\n"
     [ search_javascript
     , ""
@@ -249,7 +234,7 @@ javascript = Seq.join "\n"
     , "};"
     ]
 
-search_javascript :: Html
+search_javascript :: Doc.Html
 search_javascript = Seq.join "\n"
     [ "var total_calls = 0;"
     , "var displayed_calls = 0;"
@@ -286,7 +271,7 @@ search_javascript = Seq.join "\n"
     , "};"
     ]
 
-hide_empty_javascript :: Html
+hide_empty_javascript :: Doc.Html
 hide_empty_javascript = Seq.join "\n"
     [ "var hide_all_empty = function() {"
     , "    hide_if_empty('call-module');"
@@ -311,7 +296,7 @@ hide_empty_javascript = Seq.join "\n"
     , "};"
     ]
 
-call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
+call_bindings_html :: Doc.HtmlState -> Text -> CallBindings -> Doc.Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     "<div class=call tags=\"" <> html (Text.unwords tags) <> "\">"
     <> mconcatMap show_bind (zip (True : repeat False) binds)
@@ -326,19 +311,19 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (pretty ctype)) <> "</div>"
-    show_call_doc (Derive.CallDoc _module tags (Derive.Doc doc) args) =
+    show_call_doc (Derive.CallDoc _module tags doc args) =
         "<dd> <dl class=compact>\n"
-        <> html_doc hstate doc
+        <> Doc.html_doc hstate doc
         <> write_tags tags <> "\n"
         <> tag "ul" (mconcatMap arg_doc args)
         <> "</dl>\n"
-    arg_doc (Derive.ArgDoc name typ parser env_default (Derive.Doc doc)) =
+    arg_doc (Derive.ArgDoc name typ parser env_default doc) =
         "<li" <> li_type <> ">" <> tag "code" (html (unname name))
         <> show_char char
         <> " :: " <> tag "em" (html (pretty typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
-        <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
+        <> (if doc == "" then "" else " &mdash; " <> Doc.html_doc hstate doc)
         <> "\n"
         where
         unname (Derive.ArgName s) = s
@@ -377,70 +362,13 @@ binding_tags (binds, ctype, call_doc) =
         | otherwise = []
     arg_control_tags _ = []
 
-tag :: Text -> Html -> Html
-tag name content = tag_attrs name [] (Just content)
-
-tag_class :: Text -> Text -> Html -> Html
-tag_class name class_ content =
-    tag_attrs name [("class", class_)] (Just content)
-
-html_link :: Text -> Text -> Html
-html_link text url = tag_attrs "a" [("href", url)] (Just (html text))
-
-tag_attrs :: Text -> [(Text, Text)] -> Maybe Html -> Html
-tag_attrs name attrs maybe_content =
-    "<" <> html name <> attrs_text <> ">" <> content_text
-    where
-    content_text = case maybe_content of
-        Nothing -> ""
-        Just content -> content <> "</" <> html name <> ">"
-    attrs_text
-        | null attrs = ""
-        | otherwise = (" "<>) $ Seq.join " "
-            [html name <> "=\"" <> html val <> "\"" | (name, val) <- attrs]
-
-newtype Html = Html Text
-    deriving (Monoid, String.IsString, Show)
-    -- TODO doesn't IsString defeat the purpose of using Html in the first
-    -- place?
-
-un_html :: Html -> Text
-un_html (Html text) = text
-
-html :: Text -> Html
-html = Html . html_quote
-
-html_quote :: Text -> Text
-html_quote = Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
-    . Text.replace "&" "&amp;"
-
--- | Format a Doc to HTML.  Interpret simple markdown-like formatting:
--- single quotes for a reference to function or module haddock, backticks
--- for \<code\>, and newline for \<br\>.
---
--- TODO maybe support leading - for \<ol\>.
-html_doc :: HtmlState -> Text -> Html
-html_doc (haddock_dir, files) = Html . postproc . html_quote
-    where
-    -- To keep the Text vs. Html type distinction I'd have to have [Either Text
-    -- Html] and make mapDelimited return a list, and I couldn't use
-    -- Text.replace.  It's doable, but would be more trouble than it's worth.
-    postproc = para . backticks . single_quotes
-    para = Text.replace "\n" "\n<br>"
-    backticks = TextUtil.mapDelimited True '`'
-        (\t -> "<code>" <> t <> "</code>")
-    single_quotes = TextUtil.mapDelimited False '\'' $ \text ->
-        case TextUtil.haddockUrl files haddock_dir text of
-            Nothing -> "'" <> text <> "'"
-            Just url -> un_html $ html_link text (txt url)
-
 
 -- * scale doc
 
 type Scale = [CallBindings]
 
-scales_html :: HtmlState -> [CallBindings] -> Text
-scales_html hstate scales = un_html $ html_header hstate
+scales_html :: Doc.HtmlState -> [CallBindings] -> Doc.Html
+scales_html hstate scales = html_header hstate
         <> "<h2>Scales</h2>\n"
         <> "<dl class=main-dl>\n" <> scale_html scales <> "</dl>\n"
     where scale_html = mconcatMap (call_bindings_html hstate "scale")

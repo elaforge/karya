@@ -43,8 +43,10 @@ module Derive.Call.Prelude.Trill where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -505,7 +507,7 @@ direction_affix Nothing = ""
 direction_affix (Just High) = "^"
 direction_affix (Just Low) = "_"
 
-direction_doc :: Maybe a -> Maybe a -> Derive.Doc
+direction_doc :: Maybe a -> Maybe a -> Doc.Doc
 direction_doc Nothing Nothing = ""
 direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ while `_` makes it start on the lower value. A second suffix causes it\
