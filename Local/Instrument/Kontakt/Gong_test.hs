@@ -17,11 +17,16 @@ test_resolve = do
     equal Gong.kajar_resolve_errors []
 
 test_doubled = do
-    let run notes = DeriveTest.extract extract $ derive "" [(">k", notes)]
+    let run tracks = DeriveTest.extract extract $ derive "" tracks
         extract e = (Score.event_start e, Score.initial_dynamic e,
             DeriveTest.e_attributes e)
-    equal (run [(1, 0, "oo-time=.5 | oo-dyn=.75 | oo")])
+    equal (run [(">k", [(1, 0, "oo-time=.5 | oo-dyn=.75 | oo")])])
         ([(1, 1, "+center+closed"), (1.5, 0.75, "+center+closed")], [])
+    equal (run
+            [ (">k", [(1, 0, "oo-time=.5 | oo-dyn=.75 | oo")])
+            , ("dyn", [(0, 0, ".5")])
+            ])
+        ([(1, 0.5, "+center+closed"), (1.5, 0.75 * 0.5, "+center+closed")], [])
 
 test_nruk = do
     let run notes = DeriveTest.extract extract $ derive "" [(">k", notes)]
