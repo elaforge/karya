@@ -73,8 +73,8 @@ data Pitch = Pitch {
     , pitch_degree :: !Degree
     } deriving (Eq, Ord, Read, Show)
 
-pitch :: Octave -> PitchClass -> Pitch
-pitch oct pc = Pitch oct (Degree pc 0)
+pitch :: Enum pc => Octave -> pc -> Pitch
+pitch oct pc = Pitch oct (Degree (fromEnum pc) 0)
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct degree) = showt oct <> "-" <> pretty degree

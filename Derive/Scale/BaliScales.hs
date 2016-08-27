@@ -93,20 +93,17 @@ scale_map layout fmt base_oct all_keys default_key saihs default_saih
     top = maybe 0 (subtract 1 . Vector.length . saih_umbang) $
         Seq.head (Map.elems saihs)
 
--- | This is a specialized version of 'scale_map' that uses octave and
--- 'Pitch.Semi' offsets to compute the range.
+-- | This is a specialized version of 'scale_map' that uses base octave and
+-- low and high pitches to compute the range.
 instrument_scale_map :: Theory.Layout -> ChromaticScales.Keys -> Theory.Key
     -> SaihMap -> Text -> Pitch.Octave -> Pitch.Octave
-    -> (Pitch.Octave, Pitch.Semi) -> (Pitch.Octave, Pitch.Semi)
-    -> ScaleMap
+    -> Pitch.Pitch -> Pitch.Pitch -> ScaleMap
 instrument_scale_map layout all_keys default_key saihs default_saih
-        base_oct center_oct (low_oct, low_pc) (high_oct, high_pc) =
-    scale_map layout fmt base_oct all_keys default_key saihs default_saih $
-        Just
-            ( (low_oct-base_oct) * per_oct + low_pc
-            , (high_oct-base_oct) * per_oct + high_pc
-            )
+        base_oct center_oct low high =
+    scale_map layout fmt base_oct all_keys default_key saihs default_saih
+        (Just (to_pc low, to_pc high))
     where
+    to_pc p = Pitch.subtract_pitch per_oct p (Pitch.pitch base_oct 0)
     fmt = ioeua_relative_arrow center_oct True default_key all_keys
     per_oct = Theory.layout_semis_per_octave layout
 
@@ -125,7 +122,7 @@ data Saih = Saih {
     saih_doc :: Doc.Doc
     , saih_umbang :: Vector.Vector Pitch.NoteNumber
     , saih_isep :: Vector.Vector Pitch.NoteNumber
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 saih :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
     -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
@@ -135,6 +132,26 @@ saih extend doc nns = Saih
     , saih_isep = Vector.fromList (extend isep)
     }
     where (umbang, isep) = unzip nns
+
+-- | Extend a scale downwards and upwards, assuming the extended octaves
+-- are exactly 2:1.  The input should have at least an octave's worth of
+-- pitches.
+extend_scale :: Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch -> Pitch.Pitch
+    -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend_scale per_octave low high start nns =
+    reverse (take to_low down) ++ nns ++ take to_high up
+    where
+    to_low = Pitch.subtract_pitch per_octave start low
+    -- 'high' is inclusive, so +1.
+    to_high = Pitch.subtract_pitch per_octave high start - length nns + 1
+    down =
+        [ nn - 12 * fromIntegral oct
+        | oct <- [1..], nn <- reverse (take per_octave nns)
+        ]
+    up =
+        [ nn + 12 * fromIntegral oct
+        | oct <- [1..], nn <- Seq.rtake per_octave nns
+        ]
 
 -- * Format
 

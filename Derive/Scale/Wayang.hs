@@ -52,15 +52,21 @@ complete_scale =
 
 pemade :: BaliScales.ScaleMap
 pemade = BaliScales.instrument_scale_map layout all_keys default_key
-    saihs default_saih base_oct 4 (3, 1) (5, 0)
+    saihs default_saih base_oct 4 pemade_low pemade_high
 
 kantilan :: BaliScales.ScaleMap
 kantilan = BaliScales.instrument_scale_map layout all_keys default_key
-    saihs default_saih base_oct 5 (4, 1) (6, 0)
+    saihs default_saih base_oct 5 kantilan_low kantilan_high
 
 -- | Start octave for the extended scale.
 base_oct :: Pitch.Octave
 base_oct = 1
+
+pemade_low, pemade_high :: Pitch.Pitch
+(pemade_low, pemade_high) = (Pitch.pitch 3 O, Pitch.pitch 5 I)
+
+kantilan_low, kantilan_high :: Pitch.Pitch
+(kantilan_low, kantilan_high) = (Pitch.pitch 4 O, Pitch.pitch 6 I)
 
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
@@ -76,6 +82,8 @@ default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
 
 -- * saihs
 
+data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
+
 default_saih :: Text
 default_saih = "sawan"
 
@@ -87,39 +95,35 @@ saihs = Map.fromList
 saih_sawan :: BaliScales.Saih
 saih_sawan = BaliScales.saih extend
     "Tuning from my gender wayang, made in Sawan, Singaraja."
-    [ (53.00,   52.30) -- pemade begin
+    [ (53.00,   52.30) -- 3o, pemade begin
     , (55.15,   54.55)
     , (57.73,   57.35)
     , (60.40,   59.85)
 
-    , (62.95,   62.50) -- pemade middle
-    , (64.70,   64.45) -- kantilan begin
+    , (62.95,   62.50) -- 4i, pemade middle
+    , (64.70,   64.45) -- 4o, kantilan begin
     , (67.57,   67.26)
     , (69.45,   69.25)
     , (72.10,   71.81)
 
-    , (74.83,   74.63) -- pemade end, kantilan middle
+    , (74.83,   74.63) -- 5i, pemade end, kantilan middle
     , (76.85,   76.73)
     , (79.48,   79.35)
     , (81.63,   81.51)
     , (84.12,   84.00)
-    , (86.88,   86.78) -- kantilan end
+    , (86.88,   86.78) -- 6i, kantilan end
     ]
 
 -- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
 --
 -- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend nns =
-    ding - 36 : map (subtract 24) low ++ map (subtract 12) low
-        ++ nns ++ map (+12) high ++ map (+24) high
-    where
-    ding = nns !! 4
-    low = take 5 nns -- oeuai
-    high = drop (length nns - 5) nns -- oeuai
+extend = BaliScales.extend_scale 5 (Pitch.pitch 1 I) (Pitch.pitch 8 I)
+    pemade_low
 
 undo_extend :: [a] -> [a]
 undo_extend = take 15 . drop (1 + 5 + 5)
+    -- take (kantilan_high - kantilan_low) . drop (pemade_low - 1 I)
 
 -- * instrument integration
 

@@ -5,7 +5,10 @@
 module Derive.Scale.BaliScales_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
+
+import qualified Perform.Pitch as Pitch
 
 
 test_ombak = do
@@ -18,3 +21,11 @@ test_ombak = do
 
     equalf 0.01 (run "| %ombak = 5" "4e") ([Just 67.306], [])
     equalf 0.01 (run "| %ombak = 10" "4e") ([Just 67.198], [])
+
+test_extend_scale = do
+    let f = BaliScales.extend_scale 2
+        p = Pitch.pitch
+    equal (f (p 1 0) (p 2 0) (p 1 0) [12, 13]) [12, 13, 24]
+    equal (f (p 1 0) (p 2 1) (p 1 0) [12, 13]) [12, 13, 24, 25]
+    equal (f (p 0 0) (p 1 1) (p 1 0) [12, 13]) [0, 1, 12, 13]
+    equal (f (p 0 0) (p 3 0) (p 1 0) [12, 13]) [0, 1, 12, 13, 24, 25, 36]

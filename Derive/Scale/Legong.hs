@@ -80,18 +80,18 @@ scale_map fmt =
         saihs default_saih Nothing
 
 jegog, calung, penyacah :: BaliScales.ScaleMap
-jegog = inst_scale_map 1 (3, 0) (4, -1)
-calung = inst_scale_map 2 (4, 0) (5, -1)
-penyacah = inst_scale_map 3 (5, 0) (6, -1)
+jegog = inst_scale_map 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
+calung = inst_scale_map 2 (Pitch.pitch 4 I) (Pitch.pitch 5 As)
+penyacah = inst_scale_map 3 (Pitch.pitch 5 0) (Pitch.pitch 5 As)
 
 pemade :: BaliScales.ScaleMap
-pemade = inst_scale_map 5 (4, 1) (6, 0)
+pemade = inst_scale_map 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
 
 kantilan :: BaliScales.ScaleMap
-kantilan = inst_scale_map 6 (5, 1) (7, 0)
+kantilan = inst_scale_map 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
 
-inst_scale_map :: Pitch.Octave -> (Pitch.Octave, Pitch.Semi)
-    -> (Pitch.Octave, Pitch.Semi) -> BaliScales.ScaleMap
+inst_scale_map :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
+    -> BaliScales.ScaleMap
 inst_scale_map = BaliScales.instrument_scale_map layout all_keys default_key
     saihs default_saih base_oct
 
@@ -118,23 +118,25 @@ all_keys = BaliScales.make_keys layout $ map make_key
     ]
 
 make_key :: (Text, [Pitch.Semi]) -> (Text, Pitch.Semi, [Pitch.Semi])
-make_key (_, []) = error "no semis for scale"
+make_key (_, []) = errorStack "no semis for scale"
 make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
 ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
-ugal_range = Scale.Range (Pitch.pitch 3 1) (Pitch.pitch 5 0)
-rambat_range = Scale.Range (Pitch.pitch 3 2) (Pitch.pitch 6 0)
-trompong_range = Scale.Range (Pitch.pitch 3 5) (Pitch.pitch 5 4)
-reyong_range = Scale.Range (Pitch.pitch 4 2) (Pitch.pitch 6 4)
+ugal_range = Scale.Range (Pitch.pitch 3 O) (Pitch.pitch 5 I)
+rambat_range = Scale.Range (Pitch.pitch 3 E) (Pitch.pitch 6 I)
+trompong_range = Scale.Range (Pitch.pitch 3 A) (Pitch.pitch 5 U)
+reyong_range = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
 
 -- | Lowest note start on this octave.
 base_oct :: Pitch.Octave
 base_oct = 3
 
--- * saihs
+-- * saih
+
+data Pitch = I | O | E | Es | U | A | As deriving (Eq, Enum, Show)
 
 default_saih :: Text
 default_saih = "rambat"
@@ -142,45 +144,67 @@ default_saih = "rambat"
 saihs :: Map.Map Text BaliScales.Saih
 saihs = Map.fromList
     [ (default_saih, saih_rambat)
+    , ("teges", saih_teges_pegulingan)
     ]
 
 saih_rambat :: BaliScales.Saih
-saih_rambat = BaliScales.saih extend
-    "Tuning from my gender rambat, made in Blabatuh, Gianyar, tuned in\
-    \ Munduk, Buleleng." $
-    map (second (Pitch.add_hz 4)) -- TODO until I measure the real values
-    [ (51.82,   51.82)  -- deng, rambat begin
-    , (54.00,   54.00)  -- TODO deng#
-    , (55.70,   55.70)
-    , (56.82,   56.82)  -- dang, trompong begin
+saih_rambat = BaliScales.saih (extend 3 E)
+    "From my gender rambat, made in Blabatuh, Gianyar, tuned in\
+    \ Munduk, Buleleng."
+    $ map (second (Pitch.add_hz 4)) -- TODO until I measure real values
+    [ (51.82,   51.82)  -- 3e, rambat begin
+    , (54.00,   54.00)  -- TODO
+    , (55.70,   55.70)  -- 3u
+    , (56.82,   56.82)  -- 3a, trompong begin
     , (58.00,   58.00)  -- TODO
 
-    , (60.73,   60.73)
-    , (62.80,   62.80)  -- dong, pemade begin
-    , (63.35,   63.35)  -- deng, reyong begin
+    , (60.73,   60.73)  -- 4i
+    , (62.80,   62.80)  -- 4o, pemade begin
+    , (63.35,   63.35)  -- 4e, reyong begin
     , (65.00,   65.00)  -- TODO
-    , (67.70,   67.70)
-    , (68.20,   68.20)
+    , (67.70,   67.70)  -- 4u
+    , (68.20,   68.20)  -- 4a
     , (70.00,   70.00)  -- TODO
 
-    , (72.46,   72.46)  -- ding
-    , (73.90,   73.90)  -- dong, kantilan begin
-    , (75.50,   75.50)
+    , (72.46,   72.46)  -- 5i
+    , (73.90,   73.90)  -- 5o, kantilan begin
+    , (75.50,   75.50)  -- 5e
     , (78.00,   78.00)  -- TODO
-    , (79.40,   79.40)  -- dung, trompong end
-    , (80.50,   80.50)
+    , (79.40,   79.40)  -- 5u, trompong end
+    , (80.50,   80.50)  -- 5a
     , (83.00,   83.00)  -- TODO
 
-    , (84.46,   84.46)  -- ding, rambat end, pemade end
-    , (86.00,   86.00)
-    , (87.67,   87.67)
+    , (84.46,   84.46)  -- 6i, rambat end, pemade end
+    , (86.00,   86.00)  -- 6o
+    , (87.67,   87.67)  -- 6e
     , (90.00,   90.00)  -- TODO
-    , (91.74,   91.74)  -- dung, reyong end
-    , (92.50,   92.50)
+    , (91.74,   91.74)  -- 6u, reyong end
+    , (92.50,   92.50)  -- 6a
     , (95.00,   95.00)  -- TODO
 
-    , (96.46,   96.46)  -- ding, kantilan end
+    , (96.46,   96.46)  -- 7i, kantilan end
     ]
+
+saih_teges_pegulingan :: BaliScales.Saih
+saih_teges_pegulingan = BaliScales.saih (extend 4 U)
+    "From Teges Semar Pegulingan, via Bob Brown's 1972 recording.\
+    \ The original is saih lima, so pemero and penyerog are invented."
+    $ map (\nn -> (nn, nn))
+    [ 69.55 -- 4u
+    , 70.88 -- 4a
+    , 73.00
+
+    , 75.25 -- 5i
+    , 76.90 -- 5o, kantilan begin
+    , 77.94 -- 5e
+    , 81.00
+    , 81.80 -- 5u... should I agree with the lower octave?
+    ]
+
+-- | Extend down to 3i, which is jegog range.
+extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend oct pc = BaliScales.extend_scale 7
+    (Pitch.pitch base_oct I) (Pitch.pitch 7 I) (Pitch.pitch oct pc)
 
 -- | I don't actually have the pemero notes on my instruments, so strip them
 -- back out to get the actually recorded scale.
@@ -190,13 +214,6 @@ strip_pemero = go
     go [] = []
     go nns = strip nns ++ go (drop 7 nns)
     strip nns = mapMaybe (Seq.at nns) [0, 1, 2, 4, 5]
-
--- | Extend down to 3i, which is jegog range.
-extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend nns = from_ding
-    where
-    from_ding = map (subtract 12) (take 2 (drop (oct-2) nns)) ++ nns
-    oct = 7
 
 -- * instrument integration
 
