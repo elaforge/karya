@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
+    have per_octave built-in, but I could still use Int for generic cases.
   - If State.allocations is so read-only, why not make it a plain function?
     . Tests use it to write...
   * Derive.Doc type to make call args clearer
@@ -914,15 +916,18 @@ test:
     . But this is pretty much limited to expecting a file in a certain
       place, which pretty much only Perform.Im.Convert does.  Tests that
       create tmp files should use Testing.unique_tmp_dir.
-  - Integrate_test.test_block_integrate is flaky, sometimes I get:
-    __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
-    ((bid "test/b2"),
-     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
-      ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
-      /=
-    ((bid "test/b2"),
-     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
-      ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
+  + Integrate_test.test_block_integrate is flaky, sometimes I get:
+    . __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
+      ((bid "test/b2"),
+       [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
+        ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
+        /=
+      ((bid "test/b2"),
+       [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
+        ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
+    . Presumably due to non-determinism within the respond cycle.
+    . Or maybe not, since the 'f' write is lost, maybe integrate itself is
+      non-deterministic.
   criterion
     / it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?
@@ -1382,10 +1387,11 @@ Derive:
         - clip should be end-weighted.  If I used a negative duration I could
           make it based on that...
           . Wait, isn't that what Clip is?
-        - zero dur note for norot destination winds up being a mute, because
+        / zero dur note for norot destination winds up being a mute, because
           of course it is.  I want it to be {infer-duration, final}.
           . I could give it those explicitly, e.g. a 'final' call, or use
             -0 dur.
+          . Or just remove the event, but keep the pitch.
         norot:
           update reyong
             * rename kilit to norot and 'nt'

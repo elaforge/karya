@@ -31,7 +31,7 @@ test_block_integrate = do
     let states = mkstates "<< | reverse"
             ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
     res <- start states $ UiTest.insert_event 1 (1, 1, "")
-    -- create a new block
+    -- create a new block, integrate b1 to b2
     equal (e_tracks res)
         [ (UiTest.bid "b1",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
@@ -42,24 +42,44 @@ test_block_integrate = do
             , ("*", [(0, 0, "4d"), (1, 0, "4c")])
             ])
         ]
-    -- merge in changes
-    res <- next res $
-        UiTest.insert_event 1 (2, 1, "") >> UiTest.insert_event 2 (2, 0, "4e")
+    -- change b1, reversed changes are merged into b2
+    res <- next res $ do
+        UiTest.insert_event 1 (2, 1, "")
+        UiTest.insert_event 2 (2, 0, "4e")
     equal (last (e_tracks res))
         (UiTest.bid "b2",
             [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
             ])
-    -- delete an event, then change the source
-    -- cde -> edc ;; cdf -> f c
-    res <- next res $
-        UiTest.remove_event_in "b2" 1 1 >> UiTest.remove_event_in "b2" 2 1
-        >> UiTest.insert_event 2 (2, 0, "4f")
-    equal (last (e_tracks res))
+    -- Delete an event in b2 and change b1.
+    -- b1: 'cde' -> reverse to 'edc', remove 'd' so 'e c'
+    -- b2: replace 'c' with 'f', so 'e f'
+    reses <- nexts res $ do
+        UiTest.remove_event_in "b2" 1 1
+        UiTest.remove_event_in "b2" 2 1
+        UiTest.insert_event 2 (2, 0, "4f")
+
+    -- debugging to track down flakiness
+    putStrLn $ "reses: " <> show (length reses)
+    -- normally: ['e c', 'e c', 'f c']
+    pprint (map (last . e_tracks) reses)
+    -- normally index has fdc
+    let get_index = Block.block_integrated . (!!1) . Map.elems
+            . State.state_blocks . ResponderTest.result_ui_state
+    prettyp (get_index (last reses))
+    equal (last (e_tracks (last reses)))
         (UiTest.bid "b2",
             [ (">i1", [(0, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
+    -- flaky: sometimes is 'e c', instead of 'f c'
+    -- ((bid "test/b2"),
+    --  [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
+    --   ("*", [(0.0, 0.0, "4e"), (2.0, 0.0, "4c")])])
+    --     /=
+    -- ((bid "test/b2"),
+    --  [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
+    --   ("*", [(0.0, 0.0, "4f"), (2.0, 0.0, "4c")])])
 
 test_block_integrate2 = do
     let states = mkstates "<<" ("i1", [(0, 1, "4c"), (1, 1, "4g")], [])
@@ -305,6 +325,9 @@ continue =
 -- | Run another cmd on the state returned from a previous one.
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
 next = start . ResponderTest.result_states
+
+nexts :: ResponderTest.Result -> Cmd.CmdT IO a -> IO [ResponderTest.Result]
+nexts = until_complete . ResponderTest.result_states
 
 until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]

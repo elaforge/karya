@@ -146,8 +146,10 @@ data DeriveDestination = DeriveDestination {
 type EventIndex = Map.Map Event.IndexKey Event.Event
 
 instance Pretty.Pretty DeriveDestination where
-    format (DeriveDestination note controls) =
-        Pretty.format (fst note, Map.map fst controls)
+    format (DeriveDestination note controls) = Pretty.record "DeriveDestination"
+        [ ("note", Pretty.format note)
+        , ("controls", Pretty.format controls)
+        ]
 
 -- | Arrows that should be drawn to indicate integrate relationships.
 integrate_skeleton :: Block -> [(Color.Color, [(TrackNum, TrackNum)])]
