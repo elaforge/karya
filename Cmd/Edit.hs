@@ -607,10 +607,10 @@ run_action action = do
 -- ** floating text input
 
 append_text :: Cmd.M m => m Cmd.Status
-append_text = open_floating (const Nothing)
+append_text = open_floating (\text -> (Text.length text, Text.length text))
 
 prepend_text :: Cmd.M m => m Cmd.Status
-prepend_text = open_floating (const $ Just (0, 0))
+prepend_text = open_floating (const (0, 0))
 
 -- | This will be fooled by a @|@ inside a string, but I'll fix that if it's
 -- ever actually a problem.
@@ -618,16 +618,16 @@ replace_first_call :: Cmd.M m => m Cmd.Status
 replace_first_call = open_floating $ \text -> case Text.breakOn "|" text of
     (pre, _) ->
         let space = " " `Text.isSuffixOf` pre
-        in Just (0, Text.length pre - (if space then 1 else 0))
+        in (0, Text.length pre - (if space then 1 else 0))
 
 replace_last_call :: Cmd.M m => m Cmd.Status
 replace_last_call = open_floating $ \text -> case Text.breakOnEnd "|" text of
     (pre, post) ->
         let space = " " `Text.isPrefixOf` post
-        in Just (Text.length pre + (if space then 1 else 0), Text.length text)
+        in (Text.length pre + (if space then 1 else 0), Text.length text)
 
 -- | Open a floating text entry with a selection set.
-open_floating :: Cmd.M m => (Text -> Maybe (Int, Int)) -> m Cmd.Status
+open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
 open_floating selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert

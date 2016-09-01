@@ -139,7 +139,7 @@ instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
 data FloatingInput =
     -- | Open a new floating text input.
     -- View, track, pos, (select start, select end).
-    FloatingOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
+    FloatingOpen !ViewId !TrackNum !ScoreTime !Text !(Int, Int)
     -- | Insert the given text into an already open edit box.
     | FloatingInsert !Text
     deriving (Show)

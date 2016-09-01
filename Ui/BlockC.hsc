@@ -207,12 +207,11 @@ foreign import ccall "set_display_track"
 
 -- ** floating input
 
-floating_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
+floating_open :: ViewId -> TrackNum -> ScoreTime -> Text -> (Int, Int)
     -> Fltk ()
-floating_open view_id tracknum pos text selection =
+floating_open view_id tracknum pos text (sel_start, sel_end) =
     fltk $ exc "floating_open" $ do
         viewp <- PtrMap.get view_id
-        let (sel_start, sel_end) = fromMaybe (-1, 0) selection
         Util.withText text $ \textp ->
             c_floating_open viewp (Util.c_int tracknum)
                 (ScoreTime.to_cdouble pos) textp (Util.c_int sel_start)
