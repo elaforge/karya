@@ -796,6 +796,17 @@ fltk:
     narrow as possible, but that's too small for editing the title.
     . How about making the title expand horizontally in addition to
       vertically?
+    . Maybe expand to a certain minimum.
+    . What if it's on the right side of the window?  Could I go past the edge
+      if the floating input is actually a separate window?  Would that also
+      solve the redraw / resize difficulties?
+    - Do this for track titles.
+      . Normally they have a plain Fl_Input, but if you focus on it, then
+        it makes a new FloatingInput window in the same spot.
+    - It gets lots of callbacks before focus, why?
+    - Also, it seems resize on a window which is a child of another window
+      goes into endless recursion.  What is a child window supposed to mean
+      anyway?
   - Manually fiddling with track widths is annoying.  It seems like I could
     ask the UI about text extents to resize them automatically.
   - I never wound up using rank > 1, so presumably I could simplify things by

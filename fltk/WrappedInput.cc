@@ -22,8 +22,8 @@ enum {
 };
 
 
-WrappedInput::WrappedInput(int X, int Y, int W, int H, bool strip) :
-    Fl_Multiline_Input(X, Y, W, H), strip(strip)
+WrappedInput::WrappedInput(int x, int y, int w, int h, bool strip) :
+    Fl_Multiline_Input(x, y, w, h), strip(strip)
 {
     this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
@@ -40,9 +40,8 @@ WrappedInput::resize(int x, int y, int w, int h)
 {
     int old_w = this->w();
     Fl_Multiline_Input::resize(x, y, w, h);
-    // Only a horizontal change can affect wrapping.  Previously I called
-    // do_callback(), but this causes a call to BlockView::set_widget_sizes()
-    // which winds up calling resize()s re-entrantly, which is just trouble.
+
+    // Only a horizontal change can affect wrapping.
     if (this->w() != old_w)
         this->wrap_text();
 }

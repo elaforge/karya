@@ -7,6 +7,8 @@
 
 #include "util.h"
 #include "f_util.h"
+#include "FloatingInput.h"
+
 #include "MsgCollector.h"
 
 
@@ -130,8 +132,14 @@ set_context(UiMsg::Context &c, BlockViewWindow *view)
     if (focus) {
         while (focus && focus->window())
             focus = focus->window();
-        c.focus = dynamic_cast<BlockViewWindow *>(focus);
-        ASSERT(c.focus); // all windows should be BlockViewWindows
+        // All windows should be either FloatingInput or BlockViewWindow.
+        FloatingInput *input = dynamic_cast<FloatingInput *>(focus);
+        if (input != nullptr) {
+            c.focus = dynamic_cast<BlockViewWindow *>(input->owner());
+        } else {
+            c.focus = dynamic_cast<BlockViewWindow *>(focus);
+        }
+        ASSERT(c.focus);
     }
 }
 

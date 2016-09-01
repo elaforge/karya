@@ -46,6 +46,9 @@ namespace View {
     enum {
         block_title_height = 20,
         track_title_height = 20,
+        // FloatingInputs (also used by track titles) always have at least this
+        // width.  This is so that text in narrow tracks is still editable.
+        floating_input_min_width = 80,
         skel_height = 16,
         sb_size = 6,
         status_size = 16,

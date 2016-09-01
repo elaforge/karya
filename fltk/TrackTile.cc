@@ -12,6 +12,7 @@
 
 #include "TrackTile.h"
 #include "WrappedInput.h"
+#include "FloatingInput.h"
 #include "MsgCollector.h"
 
 
@@ -72,20 +73,11 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 
 // floating input //////////////////////
 
-void
-TrackTile::floating_input_cb(Fl_Widget *_w, void *vp)
+static void
+floating_input_done_cb(Fl_Widget *_w, void *arg)
 {
-    TrackTile *self = static_cast<TrackTile *>(vp);
-    WrappedInput *input = self->floating_input;
-    if (input == Fl::focus()) {
-        int height = input->text_height();
-        if (height != input->h()) {
-            input->size(input->w(), height);
-            self->redraw();
-        }
-    } else {
-        self->floating_close();
-    }
+    TrackTile *self = static_cast<TrackTile *>(arg);
+    self->floating_close();
 }
 
 void
@@ -95,44 +87,29 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     this->floating_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
-    int xpos, width;
-    if (tracks() == 0) {
-        xpos = x();
-        width = 60;
-    } else {
-        xpos = track_at(std::max(0, tracknum - 1))->x();
-        width = track_at(std::max(0, tracknum - 1))->w();
-    }
+    int xpos = tracks() == 0 ? x() : track_at(std::max(0, tracknum - 1))->x();
+    // The OS will make sure the window doesn't go off the right edge.
+    const int width = std::max(
+        int(Config::View::floating_input_min_width),
+        tracks() == 0 ? 60 : track_at(std::max(0, tracknum - 1))->w() - 3);
+
     // +3 gets the input right below the trigger line of an event at this
     // position.
     ypos += y() + title_height + 3;
     // More pixel tweaks to keep the input from going off the bottom.
     int max_y = this->y() + this->h() - Config::font_size::input - 4;
     ypos = std::min(ypos, max_y);
-    width -= 3;
     xpos += 2;
-    this->floating_input = new WrappedInput(
-        xpos, ypos, width, Config::View::track_title_height, false);
-    floating_input->callback(floating_input_cb, static_cast<void *>(this));
-    floating_input->show();
-    // When a widget gets focus from a click, it becomes Fl::focus() and then
-    // gets FL_FOCUS.  But when it gets focus from take_focus(), it gets
-    // FL_FOCUS and then becomes Fl::focus().  floating_input_cb relies on the
-    // former, so I have to assign focus first, or it will delete the widget
-    // while I'm still working on it.
-    Fl::focus(floating_input);
-    floating_input->take_focus();
-    if (*text)
-        floating_input->set_text(text);
-    if (select_start >= 0) {
-        int len = strlen(text);
-        floating_input->position(
-            utf8::bytes(text, len, select_end),
-            utf8::bytes(text, len, select_start));
-    }
+    this->floating_input = new FloatingInput(
+        top_window()->x() + xpos, top_window()->y() + ypos,
+        width, Config::View::track_title_height,
+        this->top_window(), text);
+    floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
 
-    this->add(floating_input);
-    this->redraw();
+    int len = strlen(text);
+    floating_input->cursor_position(
+        utf8::bytes(text, len, select_end),
+        utf8::bytes(text, len, select_start));
 }
 
 
@@ -144,13 +121,12 @@ TrackTile::floating_close()
     MsgCollector::get()->floating_input(
         this,
         floating_input->text_changed() ? floating_input->get_text() : nullptr);
-    this->remove(floating_input);
+    floating_input->hide();
     // This function can be called from the callback, and you can't delete
     // yourself from inside a callback without crashing.  So I have to delay
     // the delete until its safe to do so.
     Fl::delete_widget(floating_input);
-    floating_input = nullptr;
-    this->redraw();
+    this->floating_input = nullptr;
 }
 
 
@@ -215,9 +191,6 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
 
-    // Track placement assumes [(title, track)], which the extra floating_input
-    // child messes up.
-    this->floating_close();
     // Can't create a track smaller than you could resize, except dividers
     // which are supposed to be small.
     if (track->track_resizable())
@@ -246,7 +219,6 @@ TrackView *
 TrackTile::remove_track(int tracknum)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    this->floating_close();
     TrackView *t = track_at(tracknum);
     this->remove_child(t);
     this->remove_child(&t->title_widget());
@@ -345,10 +317,10 @@ TrackTile::update_sizes()
 
 
 void
-TrackTile::title_input_cb(Fl_Widget *w, void *vp)
+TrackTile::title_input_cb(Fl_Widget *w, void *arg)
 {
     WrappedInput *input = static_cast<WrappedInput *>(w);
-    TrackTile *self = static_cast<TrackTile *>(vp);
+    TrackTile *self = static_cast<TrackTile *>(arg);
     if (input == Fl::focus()) {
         // Expand the widget's height enough to display all its text.
         int height = std::max(self->title_height, input->text_height());

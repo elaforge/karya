@@ -404,6 +404,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     [ "Block.cc"
     , "Color.cc"
     , "EventTrack.cc"
+    , "FloatingInput.cc"
     , "MoveTile.cc"
     , "MsgCollector.cc"
     , "P9Scrollbar.cc"

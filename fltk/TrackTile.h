@@ -27,9 +27,9 @@
 #include "util.h"
 #include "f_util.h"
 
+#include "FloatingInput.h"
 #include "MoveTile.h"
 #include "Track.h"
-#include "WrappedInput.h"
 
 
 class TrackTile : public MoveTile {
@@ -79,7 +79,7 @@ public:
     TrackView *remove_track(int tracknum);
     // A track is a (title, body) pair, minus the track_pad.
     int tracks() const {
-        return floor((children() - (floating_input ? 1 : 0)) / 2.0);
+        return floor((children() - (bool(floating_input) ? 1 : 0)) / 2.0);
     }
     TrackView *track_at(int tracknum);
     const TrackView *track_at(int tracknum) const;
@@ -97,10 +97,9 @@ private:
     ZoomInfo zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'floating_open' is called.
-    WrappedInput *floating_input;
+    FloatingInput *floating_input;
 
     void update_sizes();
-    static void floating_input_cb(Fl_Widget *_w, void *vp);
     static void title_input_cb(Fl_Widget *_w, void *vp);
 };
 

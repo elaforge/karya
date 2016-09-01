@@ -374,7 +374,7 @@ main(int argc, char **argv)
         view.block.track_at(1)->set_title("track title");
         // view.block.set_track_signal(1, *control_track_signal());
     }
-    view.block.set_title("hi there");
+    view.block.set_title("clocky blocky");
 
     Fl::add_timeout(1, timeout_func, nullptr);
 
