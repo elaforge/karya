@@ -125,9 +125,9 @@ public:
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
     int track_start() { return overlay_ruler.track_start(); }
-    virtual WrappedInput &title_widget() override { return *this->title_input; }
+    virtual WrappedInput &title_widget() override { return title_input; }
     virtual const char *get_title() const override {
-        return this->title_input->value();
+        return title_input.value();
     }
     virtual void set_title(const char *title) override;
     virtual void set_title_focus() override;
@@ -166,7 +166,7 @@ private:
     double brightness;
     Color bg_color;
 
-    WrappedInput *title_input;
+    WrappedInput title_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
 };

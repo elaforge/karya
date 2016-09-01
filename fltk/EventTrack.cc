@@ -146,7 +146,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
-    title_input(new WrappedInput(0, 0, 1, 1, true)),
+    title_input(0, 0, 1, 1, true),
     bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config, false)
 {
@@ -174,16 +174,16 @@ EventTrackView::resize(int x, int y, int w, int h)
 void
 EventTrackView::set_title(const char *title)
 {
-    this->title_input->set_text(title);
+    title_input.set_text(title);
     // If it has multiple lines, make sure it always displays the first one.
-    this->title_input->position(0);
+    title_input.position(0);
 }
 
 
 void
 EventTrackView::set_title_focus()
 {
-    this->title_input->take_focus();
+    title_input.take_focus();
     // Since focus goes to the text input, the msg collector won't receive
     // any subsequent key ups.
     MsgCollector::get()->all_keys_up();
