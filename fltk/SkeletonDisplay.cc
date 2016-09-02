@@ -3,15 +3,15 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <math.h>
-#include "SkeletonDisplay.h"
 #include <FL/Fl_Box.H>
 #include <FL/fl_draw.H>
 
 #include "config.h"
-#include "util.h"
-#include "utf8.h"
 #include "f_util.h"
-#include <iostream>
+#include "utf8.h"
+#include "util.h"
+
+#include "SkeletonDisplay.h"
 
 
 SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H) :

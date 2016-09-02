@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <FL/Fl_Window.H>
 
-#include "util.h"
 #include "f_util.h"
+#include "util.h"
 
 #include "MoveTile.h"
 

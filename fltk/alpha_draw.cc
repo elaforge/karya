@@ -8,7 +8,9 @@
 #include <FL/Fl_Image.H>
 #include <FL/fl_draw.H>
 
+#include "Color.h"
 #include "f_util.h"
+
 #include "alpha_draw.h"
 
 

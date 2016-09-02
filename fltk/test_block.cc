@@ -5,15 +5,15 @@
 #include <iostream>
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
-
-#include "f_util.h"
+#include <FL/Fl_Sys_Menu_Bar.H>
 
 #include "Block.h"
 #include "EventTrack.h"
+#include "MsgCollector.h"
 #include "Ruler.h"
 #include "SkeletonDisplay.h"
-#include "MsgCollector.h"
 #include "SymbolTable.h"
+#include "f_util.h"
 
 
 static const bool arrival_beats = false;

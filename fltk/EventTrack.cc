@@ -5,15 +5,15 @@
 #include <sstream>
 #include <math.h>
 
-#include "config.h"
-#include "util.h"
-#include "f_util.h"
-#include "alpha_draw.h"
-
-#include "EventTrack.h"
 #include "FloatingInput.h"
 #include "MsgCollector.h"
 #include "SymbolTable.h"
+#include "alpha_draw.h"
+#include "config.h"
+#include "f_util.h"
+#include "util.h"
+
+#include "EventTrack.h"
 
 
 // #define DEBUG(X) ;

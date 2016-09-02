@@ -6,10 +6,10 @@
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Double_Window.H>
 
-#include "FloatingInput.h"
 #include "WrappedInput.h"
-
 #include "f_util.h"
+
+#include "FloatingInput.h"
 
 
 FloatingInput::FloatingInput(int x, int y, int w, int h,

@@ -5,11 +5,11 @@
 #include <math.h>
 #include <utility>
 
-#include "util.h"
-#include "f_util.h"
 #include "alpha_draw.h"
-
 #include "config.h"
+#include "f_util.h"
+#include "util.h"
+
 #include "Ruler.h"
 
 

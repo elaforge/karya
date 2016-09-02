@@ -3,7 +3,9 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <FL/Enumerations.H>
+
 #include "util.h"
+
 #include "StyleTable.h"
 
 

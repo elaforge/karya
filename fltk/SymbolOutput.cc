@@ -7,8 +7,9 @@
 
 #include <FL/Fl_Box.H>
 
-#include "SymbolOutput.h"
 #include "SymbolTable.h"
+
+#include "SymbolOutput.h"
 
 
 void

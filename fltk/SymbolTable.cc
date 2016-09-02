@@ -6,9 +6,9 @@
 #include <FL/Fl.H>
 #include <FL/x.H> // Needed for Fl_Offscreen.
 
+#include "f_util.h"
 #include "utf8.h"
 #include "util.h"
-#include "f_util.h"
 
 #include "SymbolTable.h"
 

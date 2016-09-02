@@ -9,8 +9,8 @@
 #include <vector>
 #include <utility>
 
-#include "utf8.h"
 #include "Color.h"
+#include "utf8.h"
 
 
 struct SkeletonEdge {

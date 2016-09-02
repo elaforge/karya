@@ -7,6 +7,7 @@
 
 #include <FL/Fl_Input.H>
 
+
 // Code common to text entry widgets.
 namespace input_util {
 

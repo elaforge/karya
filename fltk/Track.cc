@@ -4,10 +4,11 @@
 
 #include "f_util.h"
 
-#include "Track.h"
 #include "EventTrack.h"
-#include "Ruler.h"
 #include "MsgCollector.h"
+#include "Ruler.h"
+
+#include "Track.h"
 
 
 int

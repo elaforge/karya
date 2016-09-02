@@ -18,11 +18,11 @@
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
 
-#include "Selection.h"
 #include "Color.h"
+#include "Selection.h"
+#include "Track.h"
 #include "config.h"
 #include "types.h"
-#include "Track.h"
 
 
 struct Mark {

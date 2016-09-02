@@ -5,8 +5,8 @@
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
 
-#include "util.h"
 #include "f_util.h"
+#include "util.h"
 
 
 // Simple scrollbar.

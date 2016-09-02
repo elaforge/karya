@@ -8,8 +8,9 @@
 #define __CONFIG_H
 
 #include <FL/Enumerations.H>
-#include "util.h"
+
 #include "types.h"
+#include "util.h"
 
 
 namespace Config {

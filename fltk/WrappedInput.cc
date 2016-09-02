@@ -5,11 +5,11 @@
 #include <memory>
 #include <FL/Fl.H>
 
-#include "f_util.h"
+#include "MsgCollector.h"
 #include "config.h"
+#include "f_util.h"
 #include "input_util.h"
 
-#include "MsgCollector.h"
 #include "WrappedInput.h"
 
 

@@ -6,8 +6,9 @@
 #include <FL/Fl_Input_.H>
 #include <FL/Fl_Multiline_Input.H>
 
-#include "AbbreviatedInput.h"
 #include "config.h"
+
+#include "AbbreviatedInput.h"
 
 
 AbbreviatedInput::AbbreviatedInput(int x, int y, int w, int h) :

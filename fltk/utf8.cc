@@ -4,6 +4,7 @@
 
 #include <FL/fl_utf8.h>
 #include <FL/fl_draw.H>
+
 #include "utf8.h"
 
 namespace utf8 {
