@@ -401,7 +401,8 @@ ccBinaries =
 -}
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc"
+    [ "AbbreviatedInput.cc"
+    , "Block.cc"
     , "Color.cc"
     , "EventTrack.cc"
     , "FloatingInput.cc"

@@ -208,7 +208,8 @@ private:
     static void scrollbar_cb(Fl_Widget *w, void *vp);
     static void update_scrollbars_cb(Fl_Widget *w, void *vp);
     static void track_tile_cb(Fl_Widget *w, void *vp);
-    static void title_cb(Fl_Widget *w, void *vp);
+    static void title_cb_dispatch(Fl_Widget *w, void *vp);
+    void title_cb();
 };
 
 class BlockViewWindow : public Fl_Double_Window {

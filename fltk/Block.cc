@@ -90,7 +90,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.resizable(body_resize_group);
     track_group.resizable(track_scroll);
 
-    title.callback(BlockView::title_cb, static_cast<void *>(this));
+    title.callback(BlockView::title_cb_dispatch, static_cast<void *>(this));
     title.hide(); // It starts with no text.
 
     this->set_widget_sizes();
@@ -398,7 +398,7 @@ void
 BlockView::set_title(const char *s)
 {
     title.set_text(s);
-    title_cb(nullptr, this);
+    title_cb();
 }
 
 
@@ -695,30 +695,35 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 
 
 void
-BlockView::title_cb(Fl_Widget *_w, void *vp)
+BlockView::title_cb_dispatch(Fl_Widget *_w, void *vp)
 {
     BlockView *self = static_cast<BlockView *>(vp);
-    BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());
+    self->title_cb();
+}
 
+void
+BlockView::title_cb()
+{
+    BlockViewWindow *view = static_cast<BlockViewWindow *>(window());
     if (Fl::event() == FL_UNFOCUS)
         MsgCollector::get()->view(UiMsg::msg_input, view);
     bool changed = false;
-    if (!*self->title.value()) {
+    if (!*title.value()) {
         // Delay hiding the title until focus is lost.
-        if (self->title.visible() && Fl::event() == FL_UNFOCUS) {
+        if (title.visible() && Fl::event() == FL_UNFOCUS) {
             changed = true;
-            self->title.hide();
+            title.hide();
         }
     } else {
-        if (!self->title.visible()) {
+        if (!title.visible()) {
             changed = true;
-            self->title.show();
+            title.show();
         }
     }
-    changed = changed || self->title.h() != self->title.text_height();
+    changed = changed || title.h() != title.text_height();
     if (changed) {
-        self->set_widget_sizes();
-        MsgCollector::get()->block(UiMsg::msg_resize, self);
+        set_widget_sizes();
+        MsgCollector::get()->block(UiMsg::msg_resize, this);
     }
 }
 

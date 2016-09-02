@@ -25,13 +25,13 @@ enum {
 WrappedInput::WrappedInput(int x, int y, int w, int h, bool strip) :
     Fl_Multiline_Input(x, y, w, h), strip(strip)
 {
-    this->color(FL_WHITE);
-    this->textsize(Config::font_size::input);
-    this->box(FL_THIN_DOWN_BOX);
+    color(FL_WHITE);
+    textsize(Config::font_size::input);
+    box(FL_THIN_DOWN_BOX);
     // FL_WHEN_RELEASE is documented as firing whenever focus leaves the input.
     // But that's not true, it doesn't fire if the text hasn't changed.
     // So I have to call 'do_callback' on FL_UNFOCUS myself.
-    this->when(0);
+    when(0);
 }
 
 

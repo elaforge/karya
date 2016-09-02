@@ -103,7 +103,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     this->floating_input = new FloatingInput(
         top_window()->x() + xpos, top_window()->y() + ypos,
         width, Config::View::track_title_height,
-        this->top_window(), text);
+        this->top_window(), text, false);
     floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
 
     int len = strlen(text);

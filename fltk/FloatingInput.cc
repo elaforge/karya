@@ -13,15 +13,14 @@
 
 
 FloatingInput::FloatingInput(int x, int y, int w, int h,
-        Fl_Window *owner, const char *text)
+        Fl_Window *owner, const char *text, bool strip)
     : Fl_Double_Window(x, y, w, h),
-        input(0, 0, w, h, /*strip*/ false),
-        owner_(owner), ready(false)
+        input(0, 0, w, h, strip), owner_(owner), ready(false)
 {
     end();
     resizable(this);
     border(false);
-    input.callback(wrapped_input_dispatch, static_cast<void *>(this));
+    input.callback(wrapped_input_cb_dispatch, static_cast<void *>(this));
     when(0); // Only do the callback when I explicitly want it.
     if (text && *text)
         input.set_text(text);
@@ -37,7 +36,7 @@ FloatingInput::FloatingInput(int x, int y, int w, int h,
 
 
 void
-FloatingInput::wrapped_input_dispatch(Fl_Widget *_w, void *arg)
+FloatingInput::wrapped_input_cb_dispatch(Fl_Widget *_w, void *arg)
 {
     FloatingInput *self = static_cast<FloatingInput *>(arg);
     self->wrapped_input_cb();

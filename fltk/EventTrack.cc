@@ -4,15 +4,16 @@
 
 #include <sstream>
 #include <math.h>
+
 #include "config.h"
 #include "util.h"
 #include "f_util.h"
 #include "alpha_draw.h"
 
-#include "WrappedInput.h"
 #include "EventTrack.h"
-#include "SymbolTable.h"
+#include "FloatingInput.h"
 #include "MsgCollector.h"
+#include "SymbolTable.h"
 
 
 // #define DEBUG(X) ;
@@ -146,9 +147,10 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
-    title_input(0, 0, 1, 1, true),
+    title_input(0, 0, 1, 1),
     bg_box(0, 0, 1, 1),
-    overlay_ruler(ruler_config, false)
+    overlay_ruler(ruler_config, false),
+    floating_input(nullptr)
 {
     // this->resizable(0); // don't resize children
     end(); // make sure no one else falls in
@@ -157,6 +159,8 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(config.bg_color.brightness(this->brightness).fl());
+
+    title_input.callback(title_input_focus_cb, static_cast<void *>(this));
 }
 
 
@@ -170,11 +174,12 @@ EventTrackView::resize(int x, int y, int w, int h)
     this->bg_box.resize(x, y, w, h);
 }
 
+// title ////////////////
 
 void
 EventTrackView::set_title(const char *title)
 {
-    title_input.set_text(title);
+    title_input.value(title);
     // If it has multiple lines, make sure it always displays the first one.
     title_input.position(0);
 }
@@ -183,12 +188,65 @@ EventTrackView::set_title(const char *title)
 void
 EventTrackView::set_title_focus()
 {
-    title_input.take_focus();
-    // Since focus goes to the text input, the msg collector won't receive
-    // any subsequent key ups.
-    MsgCollector::get()->all_keys_up();
+    focus_title();
 }
 
+
+void
+EventTrackView::title_input_focus_cb(Fl_Widget *_w, void *arg)
+{
+    // focus_title() will turn change Fl::event() to FL_FOCUS.
+    int evt = Fl::event();
+    EventTrackView *self = static_cast<EventTrackView *>(arg);
+    self->focus_title();
+
+    // Set the insertion point based on the click position.
+    if (evt == FL_PUSH) {
+        int p = self->title_input.mouse_position();
+        // TODO Because I create a new window, it doesn't notice that the mouse
+        // button is down, so a drag will be lost.
+        // self->floating_input->handle(FL_PUSH);
+        self->floating_input->cursor_position(p, p);
+    }
+}
+
+
+void
+EventTrackView::floating_input_done_cb(Fl_Widget *_w, void *arg)
+{
+    EventTrackView *self = static_cast<EventTrackView *>(arg);
+    self->unfocus_title();
+}
+
+
+void
+EventTrackView::focus_title()
+{
+    ASSERT(floating_input == nullptr);
+    Fl_Window *w = top_window();
+    this->floating_input = new FloatingInput(
+        w->x() + title_input.x(), w->y() + title_input.y(),
+        std::max(int(Config::View::floating_input_min_width), title_input.w()),
+        Config::View::track_title_height,
+        top_window(), title_input.value(), true);
+    floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
+    int len = strlen(title_input.value());
+    floating_input->cursor_position(len, len);
+}
+
+
+void
+EventTrackView::unfocus_title()
+{
+    if (!floating_input)
+        return;
+    set_title(floating_input->get_text());
+    floating_input->hide();
+    Fl::delete_widget(floating_input);
+    this->floating_input = nullptr;
+}
+
+/////////////////////////
 
 void
 EventTrackView::set_zoom(const ZoomInfo &new_zoom)

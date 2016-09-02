@@ -13,10 +13,11 @@
 #include <vector>
 #include "types.h"
 
-#include "WrappedInput.h"
+#include "Event.h"
+#include "FloatingInput.h"
 #include "Ruler.h"
 #include "Track.h"
-#include "Event.h"
+#include "AbbreviatedInput.h"
 
 
 // TODO make these const, except test_block wants to initialize them...
@@ -125,7 +126,7 @@ public:
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
     int track_start() { return overlay_ruler.track_start(); }
-    virtual WrappedInput &title_widget() override { return title_input; }
+    virtual Fl_Widget &title_widget() override { return title_input; }
     virtual const char *get_title() const override {
         return title_input.value();
     }
@@ -158,17 +159,25 @@ private:
         int offset,
         const Event &event, int rank, int prev_offset, int next_offset,
         const IRect &prev_unranked_rect, const IRect &prev_ranked_rect);
+    void static title_input_focus_cb(Fl_Widget *_w, void *arg);
+    void static floating_input_done_cb(Fl_Widget *_w, void *arg);
+    void focus_title();
+    void unfocus_title();
 
     EventTrackConfig config;
     ZoomInfo zoom;
     // Remember how much I've scrolled, to do fl_scroll() optimization.
+    // TODO but not anymore
     ScoreTime last_offset;
     double brightness;
     Color bg_color;
 
-    WrappedInput title_input;
+    // This only ever displays the text, since as soon as you try to focus on
+    // it, 'floating_input' will pop up in front.
+    AbbreviatedInput title_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
+    FloatingInput *floating_input;
 };
 
 #endif

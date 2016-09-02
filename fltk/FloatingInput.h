@@ -13,7 +13,7 @@
 class FloatingInput : public Fl_Double_Window {
 public:
     FloatingInput(int x, int y, int w, int h, Fl_Window *owner,
-        const char *text);
+        const char *text, bool strip);
     void cursor_position(int cursor, int mark) {
         input.position(cursor, mark);
     }
@@ -30,7 +30,7 @@ public:
     // bool text_changed() const { return false; }
 
 private:
-    static void wrapped_input_dispatch(Fl_Widget *_w, void *vp);
+    static void wrapped_input_cb_dispatch(Fl_Widget *_w, void *vp);
     void wrapped_input_cb();
 
     WrappedInput input;
