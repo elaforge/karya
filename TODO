@@ -7,7 +7,7 @@ UNSORTED
   - ruler is hard to read due to leading prefixes, can I omit those?
     Also 0 is very close to O.
     . Also it would be nice to have different font sizes.
-  - shift '/' doesn't work if there's no root
+  * shift '/' doesn't work if there's no root
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
   - If State.allocations is so read-only, why not make it a plain function?

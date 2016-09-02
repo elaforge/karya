@@ -139,6 +139,7 @@ cmd_stop = do
 
 -- * play
 
+-- | Play the local block from its beginning.
 local_block :: Cmd.M m => m Cmd.PlayMidiArgs
 local_block = do
     block_id <- Cmd.get_focused_block
@@ -174,11 +175,12 @@ local_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
 local_from block_id track_id pos =
     from_score block_id (Just track_id) pos Nothing
 
--- | Play the root block from the beginning.
+-- | Play the root block from its beginning.
 root_block :: Cmd.M m => m Cmd.PlayMidiArgs
 root_block = do
-    block_id <- State.get_root_id
-    from_score block_id Nothing 0 Nothing
+    State.lookup_root_id >>= \x -> case x of
+        Nothing -> local_block
+        Just root_id -> from_score root_id Nothing 0 Nothing
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
@@ -195,12 +197,14 @@ root_selection = do
     let (pos, repeat_at) = if Sel.is_point sel
             then (Sel.start_pos sel, Nothing)
             else Just <$> Sel.range sel
-    root_id <- State.get_root_id
-    perf <- get_performance root_id
-    let realtime_at = Perf.lookup_realtime perf block_id (Just track_id)
-    real_repeat_at <- maybe (return Nothing) realtime_at repeat_at
-    maybe local_selection (from_realtime root_id real_repeat_at)
-        =<< realtime_at pos
+    State.lookup_root_id >>= \x -> case x of
+        Nothing -> local_selection
+        Just root_id -> do
+            perf <- get_performance root_id
+            let realtime_at = Perf.lookup_realtime perf block_id (Just track_id)
+            real_repeat_at <- maybe (return Nothing) realtime_at repeat_at
+            maybe local_selection (from_realtime root_id real_repeat_at)
+                =<< realtime_at pos
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.  If this block isn't linked from the root,
