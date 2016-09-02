@@ -24,12 +24,11 @@
 
 #include <FL/Fl_Box.H>
 
-#include "util.h"
-#include "f_util.h"
-
 #include "FloatingInput.h"
 #include "MoveTile.h"
 #include "Track.h"
+#include "f_util.h"
+#include "util.h"
 
 
 class TrackTile : public MoveTile {

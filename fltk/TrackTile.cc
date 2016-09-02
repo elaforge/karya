@@ -7,13 +7,14 @@
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Widget.H>
 
-#include "util.h"
-#include "config.h"
-
-#include "TrackTile.h"
-#include "WrappedInput.h"
 #include "FloatingInput.h"
 #include "MsgCollector.h"
+#include "WrappedInput.h"
+#include "config.h"
+#include "utf8.h"
+#include "util.h"
+
+#include "TrackTile.h"
 
 
 TrackTile::TrackTile(int x, int y, int w, int h, Color bg_color,

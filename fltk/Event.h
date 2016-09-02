@@ -14,9 +14,9 @@
 
 #include <FL/Fl_Box.H>
 
-#include "util.h"
-#include "types.h"
 #include "StyleTable.h"
+#include "types.h"
+#include "util.h"
 
 
 // Events are immutable, but as usual I can't use const since I assign them by

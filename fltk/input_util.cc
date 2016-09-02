@@ -6,10 +6,11 @@
 #include <FL/Fl_Input.H>
 #include <ctype.h>
 
-#include "f_util.h"
-#include "input_util.h"
-
 #include "MsgCollector.h"
+#include "f_util.h"
+#include "utf8.h"
+
+#include "input_util.h"
 
 
 namespace input_util {

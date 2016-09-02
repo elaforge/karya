@@ -824,7 +824,7 @@ fltk:
       anyway?
   Make naming more consistent:
     - Rename XyzView to just Xyz
-    - namespace utf8 should be defined in utf8.h
+    * namespace utf8 should be defined in utf8.h
     - rename P9Scrollbar to just Scrollbar.  I didn't wind up making it very
       plan9-like.
   - Manually fiddling with track widths is annoying.  It seems like I could

@@ -37,19 +37,19 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Double_Window.H>
 
-#include "SimpleScroll.h"
+#include "Event.h"
+#include "EventTrack.h"
+#include "Ruler.h"
 #include "SeqScrollbar.h"
+#include "SimpleScroll.h"
+#include "SkeletonDisplay.h"
 #include "SymbolOutput.h"
+#include "Track.h"
+#include "TrackTile.h"
 #include "WrappedInput.h"
-
 #include "config.h"
 #include "types.h"
-#include "Track.h"
-#include "EventTrack.h"
-#include "TrackTile.h"
-#include "Ruler.h"
-#include "Event.h"
-#include "SkeletonDisplay.h"
+#include "utf8.h"
 
 
 struct BlockBox {

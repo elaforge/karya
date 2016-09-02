@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "util.h"
+#include "utf8.h"
 #include "f_util.h"
 #include <iostream>
 

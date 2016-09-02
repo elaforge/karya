@@ -9,6 +9,7 @@
 #include <vector>
 #include <utility>
 
+#include "utf8.h"
 #include "Color.h"
 
 

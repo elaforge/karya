@@ -11,13 +11,13 @@
 #define __EVENT_TRACK_H
 
 #include <vector>
-#include "types.h"
 
+#include "AbbreviatedInput.h"
 #include "Event.h"
 #include "FloatingInput.h"
 #include "Ruler.h"
 #include "Track.h"
-#include "AbbreviatedInput.h"
+#include "types.h"
 
 
 // TODO make these const, except test_block wants to initialize them...

@@ -424,7 +424,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "f_util.cc"
     , "input_util.cc"
     , "types.cc"
-    , "util.cc"
+    , "utf8.cc"
     ]
 
 -- * mode

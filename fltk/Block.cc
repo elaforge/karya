@@ -4,13 +4,14 @@
 
 #include <sstream>
 #include <vector>
-#include "util.h"
-#include "f_util.h"
 
-#include "MsgCollector.h"
-#include "Track.h"
 #include "EventTrack.h"
+#include "MsgCollector.h"
 #include "Ruler.h"
+#include "Track.h"
+#include "f_util.h"
+#include "utf8.h"
+#include "util.h"
 
 #include "Block.h"
 

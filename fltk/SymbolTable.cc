@@ -6,9 +6,11 @@
 #include <FL/Fl.H>
 #include <FL/x.H> // Needed for Fl_Offscreen.
 
-#include "SymbolTable.h"
+#include "utf8.h"
 #include "util.h"
 #include "f_util.h"
+
+#include "SymbolTable.h"
 
 using std::string;
 

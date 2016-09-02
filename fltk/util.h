@@ -68,24 +68,6 @@ operator<<(std::ostream &os, const AssertionError &a)
     return os;
 }
 
-namespace utf8 {
-
-// This is a UCS-4 char, which is the same as a Haskell char.
-typedef uint32_t rune;
-
-const char *backward(const char *str, const char *start);
-const char *forward(const char *str, const char *end);
-int width(const char *str);
-// The byte index of 'chars' char index into a utf8 string, of the given length.
-// Returns 'len' if the index is past the end.
-int bytes(const char *str, int len, int chars);
-
-// Encode and return in a null-terminated buffer.  The buffer is owned by
-// 'encode'.
-const char *encode(rune c);
-
-}
-
 
 // Numeric /////////////////////////////
 
