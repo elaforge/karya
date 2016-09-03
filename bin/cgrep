@@ -1,3 +1,3 @@
-#!/bin/sh
+#!/bin/zsh
 # Grep through C++.
-grep -n -- "$@" fltk/*.cc fltk/*.h
+grep -n -- "$@" */*.(cc|h)
