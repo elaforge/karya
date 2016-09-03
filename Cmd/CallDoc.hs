@@ -398,7 +398,7 @@ type ScopeDoc = (ScopeSource, [CallBindings])
 
 -- | From the fields of 'Derive.ScopeType'.  These sort by the override
 -- priority, so an Override binding will shadow an Instrument binding.
-data ScopeSource = Override | Instrument | Scale | Imported | IrrelevantSource
+data ScopeSource = Override | Instrument | Scale | Library | IrrelevantSource
     deriving (Eq, Ord, Show)
 instance Pretty.Pretty ScopeSource where pretty = Text.toLower . showt
 
@@ -526,9 +526,9 @@ track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
 
 convert_scope :: (Derive.LookupCall call -> LookupCall)
     -> Derive.ScopeType call -> Derive.ScopeType Derive.DocumentedCall
-convert_scope convert (Derive.ScopeType override inst scale imported) =
+convert_scope convert (Derive.ScopeType override inst scale library) =
     Derive.ScopeType (map convert override) (map convert inst)
-        (map convert scale) (map convert imported)
+        (map convert scale) (map convert library)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 merged_scope_docs :: Derive.ScopeType Derive.DocumentedCall
@@ -552,12 +552,12 @@ imported_scope_doc ctype lookups =
     [(IrrelevantSource, lookup_calls ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopeType Derive.DocumentedCall -> [ScopeDoc]
-scope_type ctype (Derive.ScopeType override inst scale imported) =
+scope_type ctype (Derive.ScopeType override inst scale library) =
     filter (not . null . snd)
     [ (Override, lookup_calls ctype override)
     , (Instrument, lookup_calls ctype inst)
     , (Scale, lookup_calls ctype scale)
-    , (Imported, lookup_calls ctype imported)
+    , (Library, lookup_calls ctype library)
     ]
 
 lookup_calls :: CallType -> [LookupCall] -> [CallBindings]

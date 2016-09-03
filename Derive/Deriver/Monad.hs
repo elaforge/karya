@@ -54,7 +54,7 @@ module Derive.Deriver.Monad (
     , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
-    , ScopeType(..), s_override, s_instrument, s_scale, s_imported
+    , ScopeType(..), s_override, s_instrument, s_scale, s_library
     , DocumentedCall(..)
     , LookupCall(..)
     , extract_doc, extract_val_doc
@@ -552,7 +552,7 @@ instance DeepSeq.NFData Dynamic where
 
 -- ** scope
 
--- | This is the library of built-in calls.  The 'stype_imported' Scope fields
+-- | This is the library of built-in calls.  The 'stype_library' Scope fields
 -- are imported from this.
 data Library = Library {
     lib_note :: !(CallMaps Note)
@@ -669,7 +669,7 @@ data ScopeType call = ScopeType {
     -- imported by pitch tracks.
     , stype_scale :: ![LookupCall call]
     -- | Imported from the 'Library'.
-    , stype_imported :: ![LookupCall call]
+    , stype_library :: ![LookupCall call]
     }
 
 s_override = Lens.lens stype_override
@@ -678,8 +678,8 @@ s_instrument = Lens.lens stype_instrument
     (\f r -> r { stype_instrument = f (stype_instrument r) })
 s_scale = Lens.lens stype_scale
     (\f r -> r { stype_scale = f (stype_scale r) })
-s_imported = Lens.lens stype_imported
-    (\f r -> r { stype_imported = f (stype_imported r) })
+s_library = Lens.lens stype_library
+    (\f r -> r { stype_library = f (stype_library r) })
 
 instance Monoid (ScopeType call) where
     mempty = ScopeType [] [] [] []
@@ -688,12 +688,12 @@ instance Monoid (ScopeType call) where
 
 instance Show (ScopeType call) where show = prettys
 instance Pretty.Pretty (ScopeType call) where
-    format (ScopeType override inst scale imported) =
+    format (ScopeType override inst scale library) =
         Pretty.record "ScopeType"
             [ ("override", Pretty.format override)
             , ("inst", Pretty.format inst)
             , ("scale", Pretty.format scale)
-            , ("imported", Pretty.format imported)
+            , ("library", Pretty.format library)
             ]
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
@@ -718,9 +718,9 @@ lookup_with get call_id = do
 
 get_scopes :: (Scopes -> ScopeType call) -> Deriver [LookupCall call]
 get_scopes get = do
-    ScopeType override inst scale imported <-
+    ScopeType override inst scale library <-
         gets $ get . state_scopes . state_dynamic
-    return $ override ++ inst ++ scale ++ imported
+    return $ override ++ inst ++ scale ++ library
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.

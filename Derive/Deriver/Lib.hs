@@ -257,10 +257,10 @@ import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
     trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
     imported lookups = mempty
-        { stype_imported = imports
+        { stype_library = normal
         , stype_override = overrides
         }
-        where (overrides, imports) = List.partition is_override_call lookups
+        where (overrides, normal) = List.partition is_override_call lookups
 
 -- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
 -- If there are collisions, the first one wins.
