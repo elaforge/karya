@@ -4,6 +4,8 @@
 
 -- | The selection type.
 module Ui.Sel where
+import qualified Prelude
+import Prelude hiding (min, max)
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
@@ -64,7 +66,7 @@ expand_tracks n sel
 
 -- | Start and end tracks, from small to large.
 track_range :: Selection -> (TrackNum, TrackNum)
-track_range sel = (min track0 track1, max track0 track1)
+track_range sel = (Prelude.min track0 track1, Prelude.max track0 track1)
     where (track0, track1) = (start_track sel, cur_track sel)
 
 -- | TrackNums covered by the selection.  Since Selections may have out of
@@ -76,18 +78,23 @@ tracknums tracks sel
     | otherwise = [Num.clamp 0 (tracks-1) start .. Num.clamp 0 (tracks-1) end]
     where (start, end) = track_range sel
 
+min :: Selection -> TrackTime
+min sel = Prelude.min (start_pos sel) (cur_pos sel)
+
+max :: Selection -> TrackTime
+max sel = Prelude.max (start_pos sel) (cur_pos sel)
+
 -- | Start and end points, from small to large.
 range :: Selection -> (TrackTime, TrackTime)
-range sel = (min pos0 pos1, max pos0 pos1)
-    where (pos0, pos1) = (start_pos sel, cur_pos sel)
+range sel = (min sel, max sel)
 
 duration :: Selection -> TrackTime
 duration sel = abs (start_pos sel - cur_pos sel)
 
 set_duration :: TrackTime -> Selection -> Selection
 set_duration dur sel
-    | cur > start = sel { cur_pos = start + max 0 dur }
-    | otherwise = sel { start_pos = cur + max 0 dur }
+    | cur > start = sel { cur_pos = start + Prelude.max 0 dur }
+    | otherwise = sel { start_pos = cur + Prelude.max 0 dur }
     where
     start = start_pos sel
     cur = cur_pos sel
@@ -107,12 +114,12 @@ union sel1 sel2 = Selection strack spos ctrack cpos
     (strack, ctrack) =
         if cur_track sel2 >= cur_track sel1 then se else Tuple.swap se
         where
-        se = (min s1 s2, max e1 e2)
+        se = (Prelude.min s1 s2, Prelude.max e1 e2)
         (s1, e1) = track_range sel1
         (s2, e2) = track_range sel2
     (spos, cpos) = if cur_pos sel2 >= cur_pos sel1 then se else Tuple.swap se
         where
-        se = (min s1 s2, max e1 e2)
+        se = (Prelude.min s1 s2, Prelude.max e1 e2)
         (s1, e1) = range sel1
         (s2, e2) = range sel2
 

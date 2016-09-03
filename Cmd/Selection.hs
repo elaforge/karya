@@ -263,8 +263,7 @@ select_track_all block_end tracks sel
     | sel == select_rest = select_tracks
     | otherwise = select_rest
     where
-    select_rest = until_end $ sel { Sel.cur_pos = start }
-        where start = fst $ Sel.range sel
+    select_rest = until_end $ sel { Sel.cur_pos = Sel.min sel }
     select_tracks = until_end $ sel { Sel.cur_pos = 0 }
     select_all = until_end $ track_selection 1 (tracks - 1)
     until_end = select_until_end block_end

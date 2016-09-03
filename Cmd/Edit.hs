@@ -631,7 +631,7 @@ open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
 open_floating selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert
-    let pos = Selection.point sel
+    let pos = Sel.min sel
     text <- fromMaybe "" <$> event_text_at track_id pos
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)
