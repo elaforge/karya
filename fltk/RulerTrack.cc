@@ -10,7 +10,7 @@
 #include "f_util.h"
 #include "util.h"
 
-#include "Ruler.h"
+#include "RulerTrack.h"
 
 
 // Height in pixels both above and below  of the special indicator that is

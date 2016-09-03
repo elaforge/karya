@@ -39,7 +39,7 @@ skel_box  skel_display  ruler_group _____________        track_group
 
 #include "Event.h"
 #include "EventTrack.h"
-#include "Ruler.h"
+#include "RulerTrack.h"
 #include "SeqScrollbar.h"
 #include "SimpleScroll.h"
 #include "SkeletonDisplay.h"

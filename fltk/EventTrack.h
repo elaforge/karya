@@ -15,7 +15,7 @@
 #include "AbbreviatedInput.h"
 #include "Event.h"
 #include "FloatingInput.h"
-#include "Ruler.h"
+#include "RulerTrack.h"
 #include "Track.h"
 #include "types.h"
 

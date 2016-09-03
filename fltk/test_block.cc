@@ -10,7 +10,7 @@
 #include "Block.h"
 #include "EventTrack.h"
 #include "MsgCollector.h"
-#include "Ruler.h"
+#include "RulerTrack.h"
 #include "SkeletonDisplay.h"
 #include "SymbolTable.h"
 #include "f_util.h"

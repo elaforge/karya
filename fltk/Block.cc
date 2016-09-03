@@ -7,7 +7,7 @@
 
 #include "EventTrack.h"
 #include "MsgCollector.h"
-#include "Ruler.h"
+#include "RulerTrack.h"
 #include "Track.h"
 #include "f_util.h"
 #include "utf8.h"

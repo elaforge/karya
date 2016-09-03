@@ -10,7 +10,7 @@
 
 #include "Color.h"
 #include "Scrollbar.h"
-#include "Ruler.h"
+#include "RulerTrack.h"
 
 class SeqScrollbar : public Scrollbar {
 public:

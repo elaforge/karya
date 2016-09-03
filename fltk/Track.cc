@@ -6,7 +6,6 @@
 
 #include "EventTrack.h"
 #include "MsgCollector.h"
-#include "Ruler.h"
 
 #include "Track.h"
 
