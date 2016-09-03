@@ -23,7 +23,7 @@ free_haskell_fun_ptr(void *val)
         _free_haskell_fun_ptr(val);
     } else {
         DEBUG("null _free_haskell_fun_ptr, someone didn't call"
-            " BlockViewWindow::initialize: "  << val);
+            " BlockWindow::initialize: "  << val);
     }
 }
 

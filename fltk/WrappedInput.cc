@@ -178,7 +178,7 @@ WrappedInput::draw()
 {
     Fl_Multiline_Input::draw();
     if (has_multiple_lines(value(), size())
-            && h() <= Config::View::track_title_height) {
+            && h() <= Config::Block::track_title_height) {
         fl_color(Config::abbreviation_color.fl());
         fl_rectf(x(), y() + h() - 3, w(), 3);
     }

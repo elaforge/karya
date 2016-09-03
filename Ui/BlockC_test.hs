@@ -94,16 +94,16 @@ test_set_selection = do
         ]
     io_human "goes away" $ send $ set []
 
-test_set_model_config = do
+test_set_config = do
     view <- create_empty_view
     let config = Block.default_config
 
     -- block config
     io_human "track box turns red" $
-        send $ BlockC.set_model_config view
+        send $ BlockC.set_config view
             (config { Block.config_track_box = Block.Box Color.red ' ' })
     io_human "sb box red, gets 中" $
-        send $ BlockC.set_model_config view
+        send $ BlockC.set_config view
             (config { Block.config_sb_box = Block.Box Color.red '中' })
 
 test_set_title = do

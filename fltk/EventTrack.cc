@@ -141,11 +141,11 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 }
 
 
-// EventTrackView ///////
+// EventTrack ///////
 
-EventTrackView::EventTrackView(const EventTrackConfig &config,
+EventTrack::EventTrack(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
-    TrackView("events"),
+    Track("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
     title_input(0, 0, 1, 1),
     bg_box(0, 0, 1, 1),
@@ -165,7 +165,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
 
 
 void
-EventTrackView::resize(int x, int y, int w, int h)
+EventTrack::resize(int x, int y, int w, int h)
 {
     // DEBUG("resize " << f_util::rect(this) << " -> " << IRect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
@@ -177,7 +177,7 @@ EventTrackView::resize(int x, int y, int w, int h)
 // title ////////////////
 
 void
-EventTrackView::set_title(const char *title)
+EventTrack::set_title(const char *title)
 {
     title_input.value(title);
     // If it has multiple lines, make sure it always displays the first one.
@@ -186,18 +186,18 @@ EventTrackView::set_title(const char *title)
 
 
 void
-EventTrackView::set_title_focus()
+EventTrack::set_title_focus()
 {
     focus_title();
 }
 
 
 void
-EventTrackView::title_input_focus_cb(Fl_Widget *_w, void *arg)
+EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
 {
     // focus_title() will turn change Fl::event() to FL_FOCUS.
     int evt = Fl::event();
-    EventTrackView *self = static_cast<EventTrackView *>(arg);
+    EventTrack *self = static_cast<EventTrack *>(arg);
     self->focus_title();
 
     // Set the insertion point based on the click position.
@@ -212,22 +212,22 @@ EventTrackView::title_input_focus_cb(Fl_Widget *_w, void *arg)
 
 
 void
-EventTrackView::floating_input_done_cb(Fl_Widget *_w, void *arg)
+EventTrack::floating_input_done_cb(Fl_Widget *_w, void *arg)
 {
-    EventTrackView *self = static_cast<EventTrackView *>(arg);
+    EventTrack *self = static_cast<EventTrack *>(arg);
     self->unfocus_title();
 }
 
 
 void
-EventTrackView::focus_title()
+EventTrack::focus_title()
 {
     ASSERT(floating_input == nullptr);
     Fl_Window *w = top_window();
     this->floating_input = new FloatingInput(
         w->x() + title_input.x(), w->y() + title_input.y(),
-        std::max(int(Config::View::floating_input_min_width), title_input.w()),
-        Config::View::track_title_height,
+        std::max(int(Config::Block::floating_input_min_width), title_input.w()),
+        Config::Block::track_title_height,
         top_window(), title_input.value(), true);
     floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
     int len = strlen(title_input.value());
@@ -236,7 +236,7 @@ EventTrackView::focus_title()
 
 
 void
-EventTrackView::unfocus_title()
+EventTrack::unfocus_title()
 {
     if (!floating_input)
         return;
@@ -249,7 +249,7 @@ EventTrackView::unfocus_title()
 /////////////////////////
 
 void
-EventTrackView::set_zoom(const ZoomInfo &new_zoom)
+EventTrack::set_zoom(const ZoomInfo &new_zoom)
 {
     // DEBUG("zoom " << this->zoom << " to " << new_zoom);
     if (new_zoom == this->zoom)
@@ -264,7 +264,7 @@ EventTrackView::set_zoom(const ZoomInfo &new_zoom)
 
 
 void
-EventTrackView::set_event_brightness(double d)
+EventTrack::set_event_brightness(double d)
 {
     this->brightness = d;
     this->bg_box.color(this->bg_color.brightness(this->brightness).fl());
@@ -273,14 +273,14 @@ EventTrackView::set_event_brightness(double d)
 
 
 ScoreTime
-EventTrackView::time_end() const
+EventTrack::time_end() const
 {
     return std::max(this->config.time_end, this->overlay_ruler.time_end());
 }
 
 
 void
-EventTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
+EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.track, "updated an event track with a non-event config");
     if (track.ruler)
@@ -303,7 +303,7 @@ EventTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 }
 
 void
-EventTrackView::set_track_signal(const TrackSignal &tsig)
+EventTrack::set_track_signal(const TrackSignal &tsig)
 {
     this->config.track_signal.free_signals();
     // Copy over the pointers, I'm taking ownership now.
@@ -317,7 +317,7 @@ EventTrackView::set_track_signal(const TrackSignal &tsig)
 
 
 void
-EventTrackView::finalize_callbacks()
+EventTrack::finalize_callbacks()
 {
     Config::free_haskell_fun_ptr(
         reinterpret_cast<void *>(this->config.find_events));
@@ -327,7 +327,7 @@ EventTrackView::finalize_callbacks()
 
 
 void
-EventTrackView::draw()
+EventTrack::draw()
 {
     IRect draw_area = f_util::rect(this);
 
@@ -353,7 +353,7 @@ EventTrackView::draw()
         // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
         // When overlay_ruler.draw() is called it will redundantly clip again
         // on damage_range, but that's ok because it needs the clip when called
-        // from RulerTrackView::draw().
+        // from RulerTrack::draw().
         f_util::ClipArea clip_area(draw_area);
 
         // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
@@ -385,7 +385,7 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
 }
 
 void
-EventTrackView::draw_area()
+EventTrack::draw_area()
 {
     IRect clip = f_util::clip_rect(f_util::rect(this));
     // Expand by a pixel, otherwise I miss little slivers on retina displays.
@@ -461,7 +461,7 @@ EventTrackView::draw_area()
 // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure out
 // overlaps and they're meant to be used with control tracks anyway.
 void
-EventTrackView::draw_event_boxes(
+EventTrack::draw_event_boxes(
     const Event *events, const int *ranks, int count,
     const std::vector<int> &offsets)
 {
@@ -609,7 +609,7 @@ draw_segment(RenderConfig::RenderStyle style, int min_x,
 
 
 void
-EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
+EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
 {
     if (config.render.style == RenderConfig::render_none)
         return;
@@ -724,7 +724,7 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
 
 // Draw the stuff that goes on top of the event boxes: trigger line and text.
 std::pair<IRect, IRect>
-EventTrackView::draw_upper_layer(
+EventTrack::draw_upper_layer(
     int offset, const Event &event, int rank,
     int prev_offset, int next_offset,
     const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
@@ -855,7 +855,7 @@ EventTrackView::draw_upper_layer(
 
 
 std::string
-EventTrackView::dump() const
+EventTrack::dump() const
 {
     std::ostringstream out;
     out << "type event title " << f_util::show_string(this->get_title());

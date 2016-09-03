@@ -21,7 +21,7 @@ static const bool arrival_beats = false;
 static const bool draw_lots_of_stuff = true;
 
 // Visible windows.
-static std::vector<BlockViewWindow *> windows;
+static std::vector<BlockWindow *> windows;
 
 
 Color selection_colors[] = {
@@ -30,9 +30,9 @@ Color selection_colors[] = {
     Color(0, 255, 255, 90)
 };
 
-BlockModelConfig block_model_config()
+BlockConfig block_config()
 {
-    BlockModelConfig c;
+    BlockConfig c;
     c.skel_box = BlockBox(Color(0x99, 0x99, 0xff), 'a');
     c.track_box = BlockBox(Color(0x44, 0xff, 0xff), 'K');
     c.sb_box = BlockBox(Color(0x00, 0xff, 0xff), ' ');
@@ -189,7 +189,7 @@ static const Color render_color = Color(166, 166, 205, 127);
 static void
 timeout_func(void *unused)
 {
-    BlockView &block = windows[0]->block;
+    Block &block = windows[0]->block;
     static int n;
     /*
     static int i = t1_events.size() - 1;
@@ -224,7 +224,7 @@ timeout_func(void *unused)
 static void
 creep_selection(void *vp)
 {
-    BlockViewWindow &view = *((BlockViewWindow *) vp);
+    BlockWindow &view = *((BlockWindow *) vp);
     static int i;
     if (++i >= 100)
         return;
@@ -295,9 +295,9 @@ int
 main(int argc, char **argv)
 {
     handle_argv(argc, argv);
-    BlockModelConfig config = block_model_config();
+    BlockConfig config = block_config();
 
-    BlockViewWindow::initialize(nullptr);
+    BlockWindow::initialize(nullptr);
     t1_set();
     ScoreTime m44_last_pos;
     Marklist *m44_marks = m44_set(&m44_last_pos);
@@ -323,11 +323,11 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockViewWindow *w =
-        new BlockViewWindow(1100, 40, 300, 500, "view1", config);
+    BlockWindow *w =
+        new BlockWindow(1100, 40, 300, 500, "view1", config);
     w->show();
     windows.push_back(w);
-    BlockViewWindow &view = *w;
+    BlockWindow &view = *w;
     view.testing = true;
     // view.border(0);
 

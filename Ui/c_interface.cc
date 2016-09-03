@@ -20,7 +20,7 @@ void
 initialize(Config::FreeHaskellFunPtr finalize)
 {
     Fl::lock();
-    BlockViewWindow::initialize(finalize);
+    BlockWindow::initialize(finalize);
 }
 
 void
@@ -54,18 +54,16 @@ clear_ui_msgs()
 
 // Block view
 
-BlockViewWindow *
-create(int x, int y, int w, int h, const char *label,
-    BlockModelConfig *model_config)
+BlockWindow *
+create(int x, int y, int w, int h, const char *label, BlockConfig *config)
 {
-    BlockViewWindow *win =
-        new BlockViewWindow(x, y, w, h, label, *model_config);
+    BlockWindow *win = new BlockWindow(x, y, w, h, label, *config);
     win->show();
     return win;
 }
 
 void
-destroy(BlockViewWindow *view)
+destroy(BlockWindow *view)
 {
     // Make sure all the callbacks are finalized.
     for (int i = view->block.tracks() - 1; i >= 0; i--)
@@ -74,13 +72,13 @@ destroy(BlockViewWindow *view)
 }
 
 void
-set_size(BlockViewWindow *view, int x, int y, int w, int h)
+set_size(BlockWindow *view, int x, int y, int w, int h)
 {
     view->resize(x, y, w, h);
 }
 
 void
-get_size(BlockViewWindow *view, int *sz)
+get_size(BlockWindow *view, int *sz)
 {
     sz[0] = view->x();
     sz[1] = view->y();
@@ -89,19 +87,19 @@ get_size(BlockViewWindow *view, int *sz)
 }
 
 void
-set_zoom(BlockViewWindow *view, const ZoomInfo *zoom)
+set_zoom(BlockWindow *view, const ZoomInfo *zoom)
 {
     view->block.set_zoom(*zoom);
 }
 
 void
-set_track_scroll(BlockViewWindow *view, int pixels)
+set_track_scroll(BlockWindow *view, int pixels)
 {
     view->block.set_track_scroll(pixels);
 }
 
 void
-set_selection(BlockViewWindow *view, int selnum, int tracknum,
+set_selection(BlockWindow *view, int selnum, int tracknum,
     Selection *sels, int nsels)
 {
     // This function is the only one which may be called independently of the
@@ -122,7 +120,7 @@ set_selection(BlockViewWindow *view, int selnum, int tracknum,
 }
 
 void
-bring_to_front(BlockViewWindow *view)
+bring_to_front(BlockWindow *view)
 {
     view->show();
 }
@@ -131,38 +129,38 @@ bring_to_front(BlockViewWindow *view)
 // block
 
 void
-set_model_config(BlockViewWindow *view, BlockModelConfig *config)
+set_config(BlockWindow *view, BlockConfig *config)
 {
-    view->block.set_model_config(*config);
+    view->block.set_config(*config);
 }
 
 void
-set_skeleton(BlockViewWindow *view, SkeletonConfig *skel)
+set_skeleton(BlockWindow *view, SkeletonConfig *skel)
 {
     view->block.set_skeleton(*skel);
 }
 
 void
-set_title(BlockViewWindow *view, const char *title)
+set_title(BlockWindow *view, const char *title)
 {
     view->block.set_title(title);
 }
 
 void
-set_status(BlockViewWindow *view, const char *status, Color *color)
+set_status(BlockWindow *view, const char *status, Color *color)
 {
     view->block.set_status(status, *color);
 }
 
 void
-set_display_track(BlockViewWindow *view, int tracknum,
+set_display_track(BlockWindow *view, int tracknum,
     DisplayTrack *dtrack)
 {
     view->block.set_display_track(tracknum, *dtrack);
 }
 
 void
-floating_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
+floating_open(BlockWindow *view, int tracknum, double pos, const char *text,
     int select_start, int select_end)
 {
     view->block.floating_open(tracknum, ScoreTime(pos), text,
@@ -170,7 +168,7 @@ floating_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
 }
 
 void
-floating_insert(BlockViewWindow *view, const char *text)
+floating_insert(BlockWindow *view, const char *text)
 {
     view->block.floating_insert(text);
 }
@@ -179,13 +177,13 @@ floating_insert(BlockViewWindow *view, const char *text)
 // tracks
 
 int
-tracks(BlockViewWindow *view)
+tracks(BlockWindow *view)
 {
     return view->block.tracks();
 }
 
 void
-insert_track(BlockViewWindow *view, int tracknum,
+insert_track(BlockWindow *view, int tracknum,
     Tracklike *track, int width, Marklist **marklists, int nmarklists)
 {
     RulerConfig *old_ruler = track->ruler;
@@ -207,13 +205,13 @@ insert_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-remove_track(BlockViewWindow *view, int tracknum)
+remove_track(BlockWindow *view, int tracknum)
 {
     view->block.remove_track(tracknum);
 }
 
 void
-update_track(BlockViewWindow *view, int tracknum,
+update_track(BlockWindow *view, int tracknum,
         Tracklike *track, Marklist **marklists, int nmarklists,
         double start, double end)
 {
@@ -239,26 +237,26 @@ update_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig)
+set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig)
 {
     tsig->calculate_val_bounds();
     view->block.set_track_signal(tracknum, *tsig);
 }
 
 void
-set_track_title(BlockViewWindow *view, int tracknum, const char *title)
+set_track_title(BlockWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);
 }
 
 void
-set_track_title_focus(BlockViewWindow *view, int tracknum)
+set_track_title_focus(BlockWindow *view, int tracknum)
 {
     view->block.track_at(tracknum)->set_title_focus();
 }
 
 void
-set_block_title_focus(BlockViewWindow *view)
+set_block_title_focus(BlockWindow *view)
 {
     view->block.set_title_focus();
 }
@@ -324,13 +322,13 @@ insert_style(StyleId id, EventStyle *style)
 // debugging
 
 const char *
-i_show_children(const BlockViewWindow *w, int nlevels)
+i_show_children(const BlockWindow *w, int nlevels)
 {
     return f_util::show_children(w, nlevels);
 }
 
 const char *
-dump_view(const BlockViewWindow *view)
+dump_view(const BlockWindow *view)
 {
     return view->block.dump();
 }

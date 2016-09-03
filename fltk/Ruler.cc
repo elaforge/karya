@@ -334,10 +334,10 @@ OverlayRuler::draw_selections()
 }
 
 
-// RulerTrackView
+// RulerTrack
 
-RulerTrackView::RulerTrackView(const RulerConfig &config) :
-    TrackView("ruler"),
+RulerTrack::RulerTrack(const RulerConfig &config) :
+    Track("ruler"),
     title_box(0),
     bg_box(0, 0, 1, 1),
     ruler(config, true)
@@ -354,7 +354,7 @@ RulerTrackView::RulerTrackView(const RulerConfig &config) :
 // Don't create the title widget until it is actually requested.  This avoids
 // creating a title box for Rulers that don't have one.
 Fl_Box &
-RulerTrackView::title_widget()
+RulerTrack::title_widget()
 {
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
@@ -366,9 +366,9 @@ RulerTrackView::title_widget()
 
 
 void
-RulerTrackView::set_zoom(const ZoomInfo &new_zoom)
+RulerTrack::set_zoom(const ZoomInfo &new_zoom)
 {
-    // duplicated, like the scroll in ::draw, with EventTrackView
+    // duplicated, like the scroll in ::draw, with EventTrack
     if (new_zoom == ruler.zoom)
         return;
     if (ruler.zoom.factor == new_zoom.factor)
@@ -380,7 +380,7 @@ RulerTrackView::set_zoom(const ZoomInfo &new_zoom)
 
 
 void
-RulerTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
+RulerTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
@@ -396,13 +396,13 @@ RulerTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 }
 
 void
-RulerTrackView::finalize_callbacks()
+RulerTrack::finalize_callbacks()
 {
     ruler.delete_config();
 }
 
 void
-RulerTrackView::draw()
+RulerTrack::draw()
 {
     IRect draw_area = f_util::rect(this);
 
@@ -438,7 +438,7 @@ RulerTrackView::draw()
 }
 
 std::string
-RulerTrackView::dump() const
+RulerTrack::dump() const
 {
     return "type ruler";
 }

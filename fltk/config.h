@@ -35,15 +35,15 @@ extern const Color block_bg;
 // lets the haskell GC know that C++ no longer references the given value.
 typedef void (*FreeHaskellFunPtr)(void *val);
 
-// private except to BlockViewWindow::initialize
+// private except to BlockWindow::initialize
 extern FreeHaskellFunPtr _free_haskell_fun_ptr;
 void free_haskell_fun_ptr(void *val);
 
-// Default sizes for a BlockView.
+// Default sizes for a Block.
 //
 // Previously these were configurable from haskell in the same way as
-// BlockModelConfig, but it didn't seem useful so they're hardcoded now.
-namespace View {
+// BlockConfig, but it didn't seem useful so they're hardcoded now.
+namespace Block {
     enum {
         block_title_height = 20,
         track_title_height = 20,

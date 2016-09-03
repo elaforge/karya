@@ -27,15 +27,15 @@ static const double mousewheel_track_scale = 3;
 // messed up.  Rather than trying to figure all that out, just forbid windows
 // below a certain size.
 static const int min_height =
-    Config::View::block_title_height
-    + Config::View::track_title_height
-    + Config::View::skel_height + Config::View::status_size
-    + Config::View::sb_size;
-static const int min_width = Config::View::sb_size + 10;
+    Config::Block::block_title_height
+    + Config::Block::track_title_height
+    + Config::Block::skel_height + Config::Block::status_size
+    + Config::Block::sb_size;
+static const int min_width = Config::Block::sb_size + 10;
 
 
-BlockView::BlockView(int X, int Y, int W, int H,
-        const BlockModelConfig &model_config, const char *window_title) :
+Block::Block(int X, int Y, int W, int H,
+        const BlockConfig &config, const char *window_title) :
     Fl_Group(X, Y, W, H),
 
     title(0, 0, 1, 1, true),
@@ -54,7 +54,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
             track_sb(0, 0, 1, 1),
             track_scroll(0, 0, 1, 1),
                 track_tile(0, 0, 1, 1, Config::block_bg,
-                        Config::View::track_title_height)
+                        Config::Block::track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
     // of them.  The real resizing will be done in set_widget_sizes
@@ -69,7 +69,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
     // Insert a placeholder for the ruler.  The size will be set again by
     // set_widget_sizes, but that's ok.
-    this->no_ruler = new DividerView(DividerConfig(Color::black));
+    this->no_ruler = new Divider(DividerConfig(Color::black));
     this->replace_ruler_track(no_ruler, 0);
 
     // Remove the status line from the tab focus list.  I bypass that anyway
@@ -79,10 +79,10 @@ BlockView::BlockView(int X, int Y, int W, int H,
     status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);
     sb_box.box(FL_FLAT_BOX);
-    time_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
-    track_sb.callback(BlockView::scrollbar_cb, static_cast<void *>(this));
-    body.callback(BlockView::track_tile_cb, static_cast<void *>(this));
-    track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
+    time_sb.callback(Block::scrollbar_cb, static_cast<void *>(this));
+    track_sb.callback(Block::scrollbar_cb, static_cast<void *>(this));
+    body.callback(Block::track_tile_cb, static_cast<void *>(this));
+    track_tile.callback(Block::track_tile_cb, static_cast<void *>(this));
 
     skel_display.color(Config::skeleton_display_bg.fl());
     skel_display.set_title(window_title);
@@ -91,11 +91,11 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.resizable(body_resize_group);
     track_group.resizable(track_scroll);
 
-    title.callback(BlockView::title_cb_dispatch, static_cast<void *>(this));
+    title.callback(Block::title_cb_dispatch, static_cast<void *>(this));
     title.hide(); // It starts with no text.
 
     this->set_widget_sizes();
-    this->set_model_config(model_config, true);
+    this->set_config(config, true);
 
     // See dummy_ruler_size in set_widget_sizes.
     this->set_ruler_width(0);
@@ -107,14 +107,14 @@ BlockView::BlockView(int X, int Y, int W, int H,
 }
 
 
-BlockView::~BlockView()
+Block::~Block()
 {
     delete no_ruler; // drop no tea
 }
 
 
 int
-BlockView::handle(int evt)
+Block::handle(int evt)
 {
     if (evt == FL_MOUSEWHEEL) {
         if (Fl::event_dy()) {
@@ -141,7 +141,7 @@ BlockView::handle(int evt)
 
 
 void
-BlockView::resize(int X, int Y, int W, int H)
+Block::resize(int X, int Y, int W, int H)
 {
     int old_w = this->w();
     Fl_Group::resize(X, Y, W, H);
@@ -160,7 +160,7 @@ BlockView::resize(int X, int Y, int W, int H)
 
 
 void
-BlockView::set_widget_sizes()
+Block::set_widget_sizes()
 {
     // I update everything, even if update_all is false.  It's probably not
     // worth trying to skip things that haven't changed for this.
@@ -185,20 +185,20 @@ BlockView::set_widget_sizes()
     title.resize(wx, wy, w(), title_h);
 
     status_line.resize(
-        wx, h() - Config::View::status_size,
-        w() - mac_resizer_width, Config::View::status_size);
+        wx, h() - Config::Block::status_size,
+        w() - mac_resizer_width, Config::Block::status_size);
     body.resize(wx, wy + title_h, w(), h() - title_h - status_line.h());
     body_resize_group.resize(
-        body.x() + Config::View::sb_size, body.y(),
-        body.w() - Config::View::sb_size, body.h());
+        body.x() + Config::Block::sb_size, body.y(),
+        body.w() - Config::Block::sb_size, body.h());
 
-    int ruler_group_w = Config::View::sb_size + ruler_track->w();
+    int ruler_group_w = Config::Block::sb_size + ruler_track->w();
     skel_box.resize(
         body.x(), body.y(),
-        ruler_group_w, Config::View::skel_height);
+        ruler_group_w, Config::Block::skel_height);
     skel_display_scroll.resize(
         skel_box.x() + skel_box.w(), skel_box.y(),
-        body.w() - ruler_group_w, Config::View::skel_height);
+        body.w() - ruler_group_w, Config::Block::skel_height);
     IRect p = f_util::rect(skel_display_scroll);
     skel_display.resize(p.x, p.y, p.w, p.h);
 
@@ -206,34 +206,34 @@ BlockView::set_widget_sizes()
     // to set_widget_sizes.  It has to be at least 1, or else the 'body' Fl_Tile
     // won't resize properly.
     ruler_group.resize(
-        wx, body.y() + Config::View::skel_height,
-        ruler_group_w, body.h() - Config::View::skel_height);
+        wx, body.y() + Config::Block::skel_height,
+        ruler_group_w, body.h() - Config::Block::skel_height);
     p = f_util::rect(ruler_group);
     track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
 
     // The track_box looks taller than just the track titles because it's
     // always the same color as the skel_box.
-    track_box.resize(p.x, p.y, p.w, Config::View::track_title_height);
+    track_box.resize(p.x, p.y, p.w, Config::Block::track_title_height);
     sb_box.resize(
-        p.x, p.b() - Config::View::sb_size,
-        p.w, Config::View::sb_size);
+        p.x, p.b() - Config::Block::sb_size,
+        p.w, Config::Block::sb_size);
 
     time_sb.set_orientation(P9Scrollbar::vertical);
     track_sb.set_orientation(P9Scrollbar::horizontal);
 
     time_sb.resize(p.x, p.y + track_box.h(),
-        Config::View::sb_size, p.h - track_box.h() - sb_box.h());
+        Config::Block::sb_size, p.h - track_box.h() - sb_box.h());
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
         ruler_track->w(), time_sb.h());
 
     p = f_util::rect(track_group);
-    track_sb.resize(p.x, p.b() - Config::View::sb_size,
-        p.w, Config::View::sb_size);
+    track_sb.resize(p.x, p.b() - Config::Block::sb_size,
+        p.w, Config::Block::sb_size);
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
     track_tile.resize(track_scroll.x(), track_scroll.y(),
             track_scroll.w(), track_scroll.h());
 
-    this->track_tile.set_title_height(Config::View::track_title_height);
+    this->track_tile.set_title_height(Config::Block::track_title_height);
 
     // This is overhead required by fltk when you resize anything manually.
     init_sizes();
@@ -249,7 +249,7 @@ BlockView::set_widget_sizes()
 
 
 void
-BlockView::set_ruler_width(int width)
+Block::set_ruler_width(int width)
 {
     ASSERT(0 <= width);
     if (this->ruler_track->w() == width)
@@ -274,21 +274,21 @@ set_block_box(Fl_Box &box, const BlockBox &b)
 
 
 void
-BlockView::set_model_config(const BlockModelConfig &config, bool update_all)
+Block::set_config(const BlockConfig &config, bool update_all)
 {
-    const BlockModelConfig &old = this->model_config;
+    const BlockConfig &old = this->config;
     if (update_all || old.skel_box != config.skel_box)
         set_block_box(skel_box, config.skel_box);
     if (update_all || old.track_box != config.track_box)
         set_block_box(track_box, config.track_box);
     if (update_all || old.sb_box != config.sb_box)
         set_block_box(sb_box, config.sb_box);
-    this->model_config = config;
+    this->config = config;
 }
 
 
 void
-BlockView::set_skeleton(const SkeletonConfig &skel)
+Block::set_skeleton(const SkeletonConfig &skel)
 {
     std::vector<int> widths(track_tile.tracks());
     for (int i = 0; i < track_tile.tracks(); i++) {
@@ -299,7 +299,7 @@ BlockView::set_skeleton(const SkeletonConfig &skel)
 
 
 void
-BlockView::set_skeleton_display_bg(const Color &color)
+Block::set_skeleton_display_bg(const Color &color)
 {
     if (color.fl() != skel_display.color()) {
         skel_display.color(color.fl());
@@ -309,7 +309,7 @@ BlockView::set_skeleton_display_bg(const Color &color)
 
 
 void
-BlockView::set_zoom(const ZoomInfo &zoom)
+Block::set_zoom(const ZoomInfo &zoom)
 {
     // This function, and hence set_zoom_attr below, is called from the outside
     // to set the zoom.  Therefore, no msg should be sent back out, since I
@@ -320,7 +320,7 @@ BlockView::set_zoom(const ZoomInfo &zoom)
 
 
 void
-BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
+Block::set_zoom_attr(const ZoomInfo &new_zoom)
 {
     ZoomInfo clamped = new_zoom;
     // Clip offset to be positive, and quantize it to conform exactly to
@@ -343,14 +343,14 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
 
 
 int
-BlockView::get_track_scroll() const
+Block::get_track_scroll() const
 {
     return -track_scroll.get_offset().x;
 }
 
 
 void
-BlockView::set_track_scroll(int offset)
+Block::set_track_scroll(int offset)
 {
     int track_end = this->track_tile.track_end();
     int max_offset = std::max(0, track_end - this->track_scroll.w());
@@ -368,21 +368,21 @@ BlockView::set_track_scroll(int offset)
 
 
 IPoint
-BlockView::get_padding() const
+Block::get_padding() const
 {
     // Subtract, rather than try to remember every widget to add them up.
     IPoint p = track_tile.visible_pixels();
     return IPoint(w() - (p.x + ruler_track->w()), h() - p.y
-        + Config::View::extra_time_padding);
+        + Config::Block::extra_time_padding);
 }
 
 
 void
-BlockView::set_selection(
+Block::set_selection(
     int selnum, int tracknum, const std::vector<Selection> &sels)
 {
     if (!(0 <= tracknum && tracknum < tracks())) {
-        DEBUG("BlockView::set_selection: tracknum out of range: " << tracknum);
+        DEBUG("Block::set_selection: tracknum out of range: " << tracknum);
         return;
     }
     if (tracknum == 0) {
@@ -396,7 +396,7 @@ BlockView::set_selection(
 
 
 void
-BlockView::set_title(const char *s)
+Block::set_title(const char *s)
 {
     title.set_text(s);
     title_cb();
@@ -404,17 +404,17 @@ BlockView::set_title(const char *s)
 
 
 void
-BlockView::insert_track(int tracknum, const Tracklike &track, int width)
+Block::insert_track(int tracknum, const Tracklike &track, int width)
 {
-    TrackView *t;
+    Track *t;
 
     // DEBUG("view insert at " << tracknum);
     if (track.track) {
-        t = new EventTrackView(*track.track, *track.ruler);
+        t = new EventTrack(*track.track, *track.ruler);
     } else if (track.ruler) {
-        t = new RulerTrackView(*track.ruler);
+        t = new RulerTrack(*track.ruler);
     } else {
-        t = new DividerView(*track.divider);
+        t = new Divider(*track.divider);
     }
     this->insert_track_view(tracknum, t, width);
 }
@@ -426,11 +426,11 @@ BlockView::insert_track(int tracknum, const Tracklike &track, int width)
 // removed from the ruler track.
 
 void
-BlockView::remove_track(int tracknum)
+Block::remove_track(int tracknum)
 {
     if (tracknum != 0) {
         tracknum--; // adjust to be relative to the first non-ruler track
-        TrackView *t = track_tile.remove_track(tracknum);
+        Track *t = track_tile.remove_track(tracknum);
         t->finalize_callbacks();
         delete t;
 
@@ -442,13 +442,13 @@ BlockView::remove_track(int tracknum)
         this->skel_display.set_width(tracknum, 0);
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
-            TrackView *t = this->replace_ruler_track(this->no_ruler, 0);
+            Track *t = this->replace_ruler_track(this->no_ruler, 0);
             t->finalize_callbacks();
             delete t;
         }
     } else {
-        TrackView *t = track_tile.remove_track(0);
-        TrackView *removed = this->replace_ruler_track(t, t->w());
+        Track *t = track_tile.remove_track(0);
+        Track *removed = this->replace_ruler_track(t, t->w());
         if (removed != this->no_ruler) {
             removed->finalize_callbacks();
             delete removed;
@@ -457,7 +457,7 @@ BlockView::remove_track(int tracknum)
 }
 
 void
-BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
+Block::set_display_track(int tracknum, const DisplayTrack &dtrack)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
     if (tracknum > 0) {
@@ -470,7 +470,7 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
 
 
 void
-BlockView::floating_open(int tracknum, ScoreTime pos, const char *text,
+Block::floating_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
@@ -481,17 +481,17 @@ BlockView::floating_open(int tracknum, ScoreTime pos, const char *text,
 
 
 void
-BlockView::floating_insert(const char *text)
+Block::floating_insert(const char *text)
 {
     track_tile.floating_insert(text);
 }
 
 
 void
-BlockView::insert_track_view(int tracknum, TrackView *track, int width)
+Block::insert_track_view(int tracknum, Track *track, int width)
 {
     if (tracknum == 0) {
-        TrackView *replaced = this->replace_ruler_track(track, width);
+        Track *replaced = this->replace_ruler_track(track, width);
         // Manually emulate that inserting a track will bump the others over.
         if (replaced != this->no_ruler)
             track_tile.insert_track(0, replaced, replaced->w());
@@ -509,10 +509,10 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
 }
 
 
-TrackView *
-BlockView::replace_ruler_track(TrackView *track, int width)
+Track *
+Block::replace_ruler_track(Track *track, int width)
 {
-    TrackView *removed = nullptr;
+    Track *removed = nullptr;
     // The only time ruler_track is NULL is when replace_ruler_track is called
     // from the constructor on no_ruler.
     if (this->ruler_track) {
@@ -538,7 +538,7 @@ BlockView::replace_ruler_track(TrackView *track, int width)
 
 
 void
-BlockView::update_track(int tracknum, const Tracklike &track,
+Block::update_track(int tracknum, const Tracklike &track,
     ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.track || track.ruler || track.divider,
@@ -549,7 +549,7 @@ BlockView::update_track(int tracknum, const Tracklike &track,
 
 
 void
-BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
+Block::set_track_signal(int tracknum, const TrackSignal &tsig)
 {
     this->track_at(tracknum)->set_track_signal(tsig);
     // There may be a floating input box that needs to be redrawn.
@@ -558,7 +558,7 @@ BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
 
 
 int
-BlockView::get_track_width(int tracknum) const
+Block::get_track_width(int tracknum) const
 {
     if (tracknum == 0)
         return this->ruler_track->w();
@@ -568,7 +568,7 @@ BlockView::get_track_width(int tracknum) const
 
 
 void
-BlockView::set_track_width(int tracknum, int width)
+Block::set_track_width(int tracknum, int width)
 {
     if (tracknum == 0) {
         this->set_ruler_width(width);
@@ -580,7 +580,7 @@ BlockView::set_track_width(int tracknum, int width)
 }
 
 const char *
-BlockView::dump() const
+Block::dump() const
 {
     std::ostringstream out;
     static std::string outs;
@@ -605,7 +605,7 @@ BlockView::dump() const
 
 // Update scrollbar display based on the current zoom and scroll offset.
 void
-BlockView::update_scrollbars()
+Block::update_scrollbars()
 {
     this->track_sb.set_scroll_zoom(
         track_tile.track_end(), get_track_scroll(), track_scroll.w());
@@ -623,13 +623,13 @@ BlockView::update_scrollbars()
 // Scrollbar callback.  Update the view window based on the scrollbar
 // positions.
 void
-BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
+Block::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
 {
-    BlockView *self = static_cast<BlockView *>(vp);
+    Block *self = static_cast<Block *>(vp);
 
     double time_offset = self->time_sb.get_offset();
     ScoreTime end = self->track_tile.time_end();
-    // This does the same stuff as BlockView::set_zoom, but doesn't call
+    // This does the same stuff as Block::set_zoom, but doesn't call
     // update_scrollbars and collects the msg.
     ZoomInfo new_zoom(
         ScoreTime(end.scale(time_offset)), self->get_zoom().factor);
@@ -638,9 +638,9 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
         self->set_zoom_attr(new_zoom);
     }
 
-    // This is the same as BlockView::set_track_scroll, but can reuse
-    // track_end, and doesn't call update_scrollbars.  Since they do the same
-    // thing, if you update this, also update set_track_scroll!
+    // This is the same as Block::set_track_scroll, but can reuse track_end,
+    // and doesn't call update_scrollbars.  Since they do the same thing, if
+    // you update this, also update set_track_scroll!
     double track_offset = self->track_sb.get_offset();
     int track_end = self->track_tile.track_end();
     int max_offset = std::max(0, track_end - self->track_scroll.w());
@@ -659,18 +659,18 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
 
 // The tracks or events changed, so fix up the scrollbars.
 void
-BlockView::update_scrollbars_cb(Fl_Widget *w, void *vp)
+Block::update_scrollbars_cb(Fl_Widget *w, void *vp)
 {
-    BlockView *self = static_cast<BlockView *>(vp);
+    Block *self = static_cast<Block *>(vp);
     self->update_scrollbars();
 }
 
 // This is called by both body and track_tile.  track_tile calls only on
 // FL_RELEASE (TODO which I should probably fix).
 void
-BlockView::track_tile_cb(Fl_Widget *w, void *vp)
+Block::track_tile_cb(Fl_Widget *w, void *vp)
 {
-    BlockView *self = static_cast<BlockView *>(vp);
+    Block *self = static_cast<Block *>(vp);
     self->update_scrollbars();
     int track = self->track_tile.get_dragged_track();
     // get_dragged_track is -1 if there is none, which means it must have been
@@ -696,16 +696,16 @@ BlockView::track_tile_cb(Fl_Widget *w, void *vp)
 
 
 void
-BlockView::title_cb_dispatch(Fl_Widget *_w, void *vp)
+Block::title_cb_dispatch(Fl_Widget *_w, void *vp)
 {
-    BlockView *self = static_cast<BlockView *>(vp);
+    Block *self = static_cast<Block *>(vp);
     self->title_cb();
 }
 
 void
-BlockView::title_cb()
+Block::title_cb()
 {
-    BlockViewWindow *view = static_cast<BlockViewWindow *>(window());
+    BlockWindow *view = static_cast<BlockWindow *>(window());
     if (Fl::event() == FL_UNFOCUS)
         MsgCollector::get()->view(UiMsg::msg_input, view);
     bool changed = false;
@@ -729,12 +729,12 @@ BlockView::title_cb()
 }
 
 
-// BlockViewWindow ///////////
+// BlockWindow ///////////
 
 static void
 block_view_window_cb(Fl_Window *win, void *p)
 {
-    BlockViewWindow *view = static_cast<BlockViewWindow *>(win);
+    BlockWindow *view = static_cast<BlockWindow *>(win);
     MsgCollector::get()->view(UiMsg::msg_close, view);
     if (view->testing) {
         view->hide();
@@ -742,13 +742,13 @@ block_view_window_cb(Fl_Window *win, void *p)
 }
 
 
-BlockViewWindow::BlockViewWindow(
+BlockWindow::BlockWindow(
         int X, int Y, int W, int H,
         const char *label,
-        const BlockModelConfig &model_config) :
+        const BlockConfig &config) :
     Fl_Double_Window(
         X, Y, std::max(min_width, W), std::max(min_height, H), label),
-    block(X, Y, std::max(min_width, W), std::max(min_height, H), model_config,
+    block(X, Y, std::max(min_width, W), std::max(min_height, H), config,
         label),
     testing(false)
 {
@@ -770,7 +770,7 @@ BlockViewWindow::BlockViewWindow(
 
 
 void
-BlockViewWindow::resize(int X, int Y, int W, int H)
+BlockWindow::resize(int X, int Y, int W, int H)
 {
     int sx, sy, sw, sh;
     Fl::screen_work_area(sx, sy, sw, sh, X, Y);
@@ -785,7 +785,7 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
 
 
 void
-BlockViewWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
+BlockWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
 {
     Config::_free_haskell_fun_ptr = free_haskell_fun_ptr;
     // Setup event notification when a screen is added or removed.
@@ -795,10 +795,10 @@ BlockViewWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
 
 
 static void
-highlight_focused(BlockViewWindow *focus)
+highlight_focused(BlockWindow *focus)
 {
     for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
-        BlockViewWindow *block = dynamic_cast<BlockViewWindow *>(w);
+        BlockWindow *block = dynamic_cast<BlockWindow *>(w);
         if (block) {
             block->block.set_skeleton_display_bg(
                 block == focus ? Config::focus_skeleton_display_bg
@@ -810,7 +810,7 @@ highlight_focused(BlockViewWindow *focus)
 
 
 int
-BlockViewWindow::handle(int evt)
+BlockWindow::handle(int evt)
 {
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.

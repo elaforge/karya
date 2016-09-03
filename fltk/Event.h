@@ -2,7 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-/* Events have a start and duration ScoreTime.  The duration can be 0.
+/* Events have a start and duration ScoreTime.  The duration can be 0, or
+    even -0.
 */
 
 #ifndef __EVENT_H

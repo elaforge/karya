@@ -428,7 +428,7 @@ modify_default f = modify_config $ \st ->
     st { config_default = f (config_default st) }
 
 get_root_id :: M m => m BlockId
-get_root_id = require "root_id" =<< lookup_root_id
+get_root_id = require "no root root_id" =<< lookup_root_id
 
 lookup_root_id :: M m => m (Maybe BlockId)
 lookup_root_id = get_config config_root

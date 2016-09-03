@@ -28,42 +28,41 @@ void clear_ui_msgs();
 // I pass a partially constructed RulerConfig and then fill in the vector from
 // the passed c array.
 // This hack is also in insert_track.
-BlockViewWindow *create(int x, int y, int w, int h, const char *label,
-    BlockModelConfig *model_config);
-void destroy(BlockViewWindow *view);
+BlockWindow *create(int x, int y, int w, int h, const char *label,
+    BlockConfig *config);
+void destroy(BlockWindow *view);
 
-void set_size(BlockViewWindow *view, int x, int y, int w, int h);
-void get_size(BlockViewWindow *view, int *sz);
-void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
-void set_track_scroll(BlockViewWindow *view, int pixels);
-void set_selection(BlockViewWindow *view, int selnum, int tracknum,
+void set_size(BlockWindow *view, int x, int y, int w, int h);
+void get_size(BlockWindow *view, int *sz);
+void set_zoom(BlockWindow *view, const ZoomInfo *zoom);
+void set_track_scroll(BlockWindow *view, int pixels);
+void set_selection(BlockWindow *view, int selnum, int tracknum,
     Selection *sels, int nsels);
-void bring_to_front(BlockViewWindow *view);
+void bring_to_front(BlockWindow *view);
 
-void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
-void set_skeleton(BlockViewWindow *view, SkeletonConfig *skel);
-void set_title(BlockViewWindow *view, const char *title);
-void set_status(BlockViewWindow *view, const char *status, Color *color);
-void set_display_track(BlockViewWindow *view, int tracknum,
-        DisplayTrack *dtrack);
+void set_config(BlockWindow *view, BlockConfig *config);
+void set_skeleton(BlockWindow *view, SkeletonConfig *skel);
+void set_title(BlockWindow *view, const char *title);
+void set_status(BlockWindow *view, const char *status, Color *color);
+void set_display_track(BlockWindow *view, int tracknum, DisplayTrack *dtrack);
 
-void floating_open(BlockViewWindow *view, int tracknum, double pos,
+void floating_open(BlockWindow *view, int tracknum, double pos,
     const char *text, int select_start, int select_end);
-void floating_insert(BlockViewWindow *view, const char *text);
+void floating_insert(BlockWindow *view, const char *text);
 
 // tracks
 
-int tracks(BlockViewWindow *view);
-void insert_track(BlockViewWindow *view, int tracknum,
+int tracks(BlockWindow *view);
+void insert_track(BlockWindow *view, int tracknum,
         Tracklike *track, int width, Marklist **marklists, int nmarklists);
-void remove_track(BlockViewWindow *view, int tracknum);
-void update_track(BlockViewWindow *view, int tracknum,
+void remove_track(BlockWindow *view, int tracknum);
+void update_track(BlockWindow *view, int tracknum,
         Tracklike *track, Marklist **marklists, int nmarklists,
         double start, double end);
-void set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig);
-void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
-void set_track_title_focus(BlockViewWindow *view, int tracknum);
-void set_block_title_focus(BlockViewWindow *view);
+void set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig);
+void set_track_title(BlockWindow *view, int tracknum, const char *title);
+void set_track_title_focus(BlockWindow *view, int tracknum);
+void set_block_title_focus(BlockWindow *view);
 
 // rulers
 
@@ -85,7 +84,7 @@ void insert_style(StyleId id, EventStyle *style);
 
 // debugging
 
-const char *i_show_children(const BlockViewWindow *w, int nlevels);
-const char *dump_view(const BlockViewWindow *view);
+const char *i_show_children(const BlockWindow *w, int nlevels);
+const char *dump_view(const BlockWindow *view);
 
 }

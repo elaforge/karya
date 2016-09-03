@@ -12,7 +12,7 @@
 
 
 int
-TrackView::handle(int evt)
+Track::handle(int evt)
 {
     // Capture drags, so that even if they go out of the bounds of the track
     // tile or the window I still send drag events from this track.
@@ -26,8 +26,8 @@ TrackView::handle(int evt)
 }
 
 
-DividerView::DividerView(const DividerConfig &config) :
-    TrackView("divider"), box(0, 0, 1, 1)
+Divider::Divider(const DividerConfig &config) :
+    Track("divider"), box(0, 0, 1, 1)
 {
     box.box(FL_FLAT_BOX);
     box.color(config.color.fl());
@@ -40,17 +40,17 @@ DividerView::DividerView(const DividerConfig &config) :
 
 
 void
-DividerView::draw()
+Divider::draw()
 {
     IRect r = f_util::rect(this);
     r.h--;
     f_util::ClipArea c(r);
-    TrackView::draw();
+    Track::draw();
 }
 
 
 std::string
-DividerView::dump() const
+Divider::dump() const
 {
     return "type divider";
 }

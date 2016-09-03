@@ -337,7 +337,7 @@ instance CStorable Event where
 
 poke_event :: Ptr Event -> Event -> IO ()
 poke_event eventp (Event start dur orient text (Style.StyleId style_id) _) = do
-    -- Must be freed by the caller, EventTrackView::draw_area.
+    -- Must be freed by the caller, EventTrack::draw_area.
     textp <- if Text.null text then return nullPtr else Util.textToCString0 text
     let (s, d) = decode_orient orient start dur
     (#poke Event, start) eventp s

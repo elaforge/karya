@@ -125,19 +125,19 @@ operator<<(std::ostream &os, const UiMsg::Event &e)
 // Context ///////////////////
 
 static void
-set_context(UiMsg::Context &c, BlockViewWindow *view)
+set_context(UiMsg::Context &c, BlockWindow *view)
 {
     c.view = view;
     Fl_Widget *focus = Fl::focus();
     if (focus) {
         while (focus && focus->window())
             focus = focus->window();
-        // All windows should be either FloatingInput or BlockViewWindow.
+        // All windows should be either FloatingInput or BlockWindow.
         FloatingInput *input = dynamic_cast<FloatingInput *>(focus);
         if (input != nullptr) {
-            c.focus = dynamic_cast<BlockViewWindow *>(input->owner());
+            c.focus = dynamic_cast<BlockWindow *>(input->owner());
         } else {
-            c.focus = dynamic_cast<BlockViewWindow *>(focus);
+            c.focus = dynamic_cast<BlockWindow *>(focus);
         }
         ASSERT(c.focus);
     }
@@ -147,14 +147,14 @@ set_context(UiMsg::Context &c, BlockViewWindow *view)
 // track_drag means this is part of a drag that started on a track, so it
 // should continue to provide tracknum context no matter where the cursor is.
 static void
-set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
+set_event_context(UiMsg::Context &c, BlockWindow *view, bool track_drag)
 {
     static const int divider_pad = 3;
 
     set_context(c, view);
     if (!c.focus)
         return;
-    TrackView *t = 0;
+    Track *t = 0;
     int tracks = c.focus->block.tracks();
 
     // This implementation means that dragging upward from the status bar
@@ -171,7 +171,7 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
             if (i+1 < tracks) {
                 t = c.focus->block.track_at(i+1);
                 int x = Fl::event_x() + divider_pad;
-                if (dynamic_cast<DividerView *>(t)
+                if (dynamic_cast<Divider *>(t)
                         && x >= t->x() && x <= t->x() + t->w())
                 {
                     i++;
@@ -181,7 +181,7 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
             if (i > 0) {
                 t = c.focus->block.track_at(i-1);
                 int x = Fl::event_x() - divider_pad;
-                if (dynamic_cast<DividerView *>(t) && x <= t->x() + t->w()) {
+                if (dynamic_cast<Divider *>(t) && x <= t->x() + t->w()) {
                     i--;
                     break;
                 }
@@ -193,7 +193,7 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
         }
         // Count an event past the rightmost track as the rightmost track.
         c.tracknum = std::min(i, tracks-1);
-        if (dynamic_cast<DividerView *>(t))
+        if (dynamic_cast<Divider *>(t))
             c.track_type = UiMsg::track_divider;
     }
 
@@ -210,7 +210,7 @@ set_event_context(UiMsg::Context &c, BlockViewWindow *view, bool track_drag)
 // want Context() to do complicated stuff like figure out focus.
 
 static UiMsg::Context
-context(BlockViewWindow *view)
+context(BlockWindow *view)
 {
     UiMsg::Context c;
     set_context(c, view);
@@ -219,7 +219,7 @@ context(BlockViewWindow *view)
 
 
 static UiMsg::Context
-context(BlockViewWindow *view, int tracknum)
+context(BlockWindow *view, int tracknum)
 {
     UiMsg::Context c;
     c.track_type = UiMsg::track_normal;
@@ -261,7 +261,7 @@ static void
 set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
 {
     ASSERT_MSG(m.context.view, "caller must explicitly set view for updates");
-    BlockView *block = &m.context.view->block;
+    Block *block = &m.context.view->block;
     switch (type) {
     case UiMsg::msg_input:
         {
@@ -322,7 +322,7 @@ MsgCollector::event(int evt, bool track_drag)
 }
 
 void
-MsgCollector::focus(BlockViewWindow *focus)
+MsgCollector::focus(BlockWindow *focus)
 {
     UiMsg m;
     m.type = UiMsg::msg_event;
@@ -338,11 +338,11 @@ MsgCollector::update(UiMsg::MsgType type)
 }
 
 
-static BlockViewWindow *
+static BlockWindow *
 window(Fl_Widget *w)
 {
     if (w)
-        return static_cast<BlockViewWindow *>(w->window());
+        return static_cast<BlockWindow *>(w->window());
     else
         return nullptr;
 }
@@ -381,7 +381,7 @@ MsgCollector::floating_input(Fl_Widget *w, const char *floating_input)
 
 
 void
-MsgCollector::view(UiMsg::MsgType type, BlockViewWindow *view)
+MsgCollector::view(UiMsg::MsgType type, BlockWindow *view)
 {
     push_update(type, context(view));
 }

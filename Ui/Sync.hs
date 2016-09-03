@@ -313,7 +313,7 @@ update_block track_signals set_style block_id update = do
         Update.BlockTitle title -> return $
             mapM_ (flip BlockC.set_title title) view_ids
         Update.BlockConfig config -> return $
-            mapM_ (flip BlockC.set_model_config config) view_ids
+            mapM_ (flip BlockC.set_config config) view_ids
         Update.BlockSkeleton skel integrate_edges statuses -> return $
             forM_ view_ids $ \view_id ->
                 BlockC.set_skeleton view_id skel integrate_edges statuses

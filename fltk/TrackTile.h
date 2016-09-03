@@ -8,7 +8,7 @@
     Fill rightmost track edge until the right edge of the window with a pad box
     of the given color.
 
-    Accept zoom callbacks from parent Zoom and BlockView.
+    Accept zoom callbacks from parent Zoom and Block.
 
     Tracks come in pairs of a title and body.
 
@@ -73,15 +73,15 @@ public:
     // Visible width and height.
     IPoint visible_pixels() const;
 
-    void insert_track(int tracknum, TrackView *track, int width);
-    // Remove and return the TrackView, so the parent can delete it.
-    TrackView *remove_track(int tracknum);
+    void insert_track(int tracknum, Track *track, int width);
+    // Remove and return the Track, so the parent can delete it.
+    Track *remove_track(int tracknum);
     // A track is a (title, body) pair, minus the track_pad.
     int tracks() const {
         return floor((children() - (bool(floating_input) ? 1 : 0)) / 2.0);
     }
-    TrackView *track_at(int tracknum);
-    const TrackView *track_at(int tracknum) const;
+    Track *track_at(int tracknum);
+    const Track *track_at(int tracknum) const;
     int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
 

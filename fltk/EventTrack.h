@@ -118,10 +118,9 @@ public:
 };
 
 
-class EventTrackView : public TrackView {
+class EventTrack : public Track {
 public:
-    EventTrackView(const EventTrackConfig &config,
-        const RulerConfig &ruler_config);
+    EventTrack(const EventTrackConfig &config, const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h) override;
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.

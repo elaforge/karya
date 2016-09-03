@@ -43,7 +43,7 @@ module Ui.BlockC (
     , bring_to_front
 
     -- * Block operations
-    , set_model_config, set_skeleton, set_title, set_status
+    , set_config, set_skeleton, set_title, set_status
     , set_display_track
     -- ** floating input
     , floating_open, floating_insert
@@ -165,11 +165,11 @@ foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
 -- These operate on ViewIds too because there is no block/view distinction at
 -- this layer.
 
-set_model_config :: ViewId -> Block.Config -> Fltk ()
-set_model_config view_id config = fltk $ exc "set_model_config" $ do
+set_config :: ViewId -> Block.Config -> Fltk ()
+set_config view_id config = fltk $ exc "set_config" $ do
     viewp <- PtrMap.get view_id
     with config $ \configp -> c_set_model_config viewp configp
-foreign import ccall "set_model_config"
+foreign import ccall "set_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
 set_skeleton :: ViewId -> Skeleton.Skeleton
@@ -378,12 +378,12 @@ instance CStorable TracklikePtr where
 -- ** configs
 
 instance CStorable Block.Config where
-    sizeOf _ = #size BlockModelConfig
+    sizeOf _ = #size BlockConfig
     alignment _ = alignment Color.black
     poke configp (Block.Config skel_box track_box sb_box) = do
-        (#poke BlockModelConfig, skel_box) configp skel_box
-        (#poke BlockModelConfig, track_box) configp track_box
-        (#poke BlockModelConfig, sb_box) configp sb_box
+        (#poke BlockConfig, skel_box) configp skel_box
+        (#poke BlockConfig, track_box) configp track_box
+        (#poke BlockConfig, sb_box) configp sb_box
 
 instance CStorable Block.Box where
     sizeOf _ = #size BlockBox

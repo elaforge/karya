@@ -84,7 +84,7 @@ public:
     {}
     Marklists marklists;
 
-    // RulerTrackView uses this to set the bg_box, an EventTrack's OverlayRuler
+    // RulerTrack uses this to set the bg_box, an EventTrack's OverlayRuler
     // doesn't use it.
     Color bg;
 
@@ -140,9 +140,9 @@ private:
 };
 
 
-class RulerTrackView : public TrackView {
+class RulerTrack : public Track {
 public:
-    explicit RulerTrackView(const RulerConfig &config);
+    explicit RulerTrack(const RulerConfig &config);
     virtual Fl_Box &title_widget() override;
     virtual void set_zoom(const ZoomInfo &zoom) override;
     virtual void set_selection(

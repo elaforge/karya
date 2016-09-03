@@ -63,14 +63,14 @@ struct BlockBox {
     utf8::rune c;
 };
 
-struct BlockModelConfig {
+struct BlockConfig {
     BlockBox skel_box;
     BlockBox track_box;
     BlockBox sb_box;
 };
 
 
-// Track config local to each BlockView.
+// Track config local to each Block.
 struct DisplayTrack {
     double event_brightness;
     int width;
@@ -85,19 +85,18 @@ struct DisplayTrack {
 // like the other tracks do.  There is always just one ruler track and it's
 // at tracknum 0.  It ignores remove_track, but will be replaced by
 // insert_track.
-class BlockView : public Fl_Group {
+class Block : public Fl_Group {
 public:
-    BlockView(int X, int Y, int W, int H,
-        const BlockModelConfig &model_config, const char *window_title);
-    virtual ~BlockView();
+    Block(int X, int Y, int W, int H,
+        const BlockConfig &config, const char *window_title);
+    virtual ~Block();
 
     int handle(int evt) override;
     void resize(int X, int Y, int W, int H) override;
 private:
     void set_widget_sizes();
 public:
-    void set_model_config(
-        const BlockModelConfig &config, bool update_all=false);
+    void set_config(const BlockConfig &config, bool update_all=false);
     void set_skeleton(const SkeletonConfig &skel);
     void set_skeleton_display_bg(const Color &color);
 
@@ -126,8 +125,8 @@ public:
     void set_display_track(int tracknum, const DisplayTrack &dtrack);
 
 private:
-    void insert_track_view(int tracknum, TrackView *track, int width);
-    TrackView *replace_ruler_track(TrackView *track, int width);
+    void insert_track_view(int tracknum, Track *track, int width);
+    Track *replace_ruler_track(Track *track, int width);
 public:
     // Update the given track.  For simplicity, there's only one way to update
     // a track and that's to update everything in it.  This is practical
@@ -145,13 +144,13 @@ public:
     // Update the signal for this track.
     void set_track_signal(int tracknum, const TrackSignal &tsig);
 
-    TrackView *track_at(int tracknum) {
+    Track *track_at(int tracknum) {
         if (tracknum == 0)
             return ruler_track;
         else
             return track_tile.track_at(tracknum-1);
     }
-    const TrackView *track_at(int tracknum) const {
+    const Track *track_at(int tracknum) const {
         if (tracknum == 0)
             return ruler_track;
         else
@@ -174,10 +173,10 @@ public:
         return Fl::event_inside(&track_scroll);
     }
 private:
-    BlockModelConfig model_config;
+    BlockConfig config;
     ZoomInfo zoom;
     // The ruler track gets this when there's "nothing" in it.
-    TrackView *no_ruler;
+    Track *no_ruler;
 
     WrappedInput title;
     SymbolOutput status_line;
@@ -193,7 +192,7 @@ private:
             // FlSeqScrollbar time_sb;
             P9SeqScrollbar time_sb;
             // This can be replaced.
-            TrackView *ruler_track;
+            Track *ruler_track;
         Fl_Group track_group;
             // FlSeqScrollbar track_sb;
             P9SeqScrollbar track_sb;
@@ -212,12 +211,12 @@ private:
     void title_cb();
 };
 
-class BlockViewWindow : public Fl_Double_Window {
+class BlockWindow : public Fl_Double_Window {
 public:
-    BlockViewWindow(int X, int Y, int W, int H,
-        const char *label, const BlockModelConfig &model_config);
+    BlockWindow(int X, int Y, int W, int H,
+        const char *label, const BlockConfig &config);
     void resize(int X, int Y, int W, int H) override;
-    BlockView block;
+    Block block;
 
     // If true, this is running from c++, not haskell.
     bool testing;

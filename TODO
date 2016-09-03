@@ -823,7 +823,7 @@ fltk:
       goes into endless recursion.  What is a child window supposed to mean
       anyway?
   Make naming more consistent:
-    - Rename XyzView to just Xyz
+    * Rename XyzView to just Xyz
     * namespace utf8 should be defined in utf8.h
     - rename P9Scrollbar to just Scrollbar.  I didn't wind up making it very
       plan9-like.

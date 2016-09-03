@@ -88,12 +88,12 @@ struct UiMsg {
             has_pos(0), pos(0)
         {}
 
-        // View with focus.
-        BlockViewWindow *focus;
-        // View to which this event applies, if any.  In haskell this is
-        // given to the UiUpdates, but it's more of a hassle to nest types
-        // in c++, so make it an optional field here.
-        BlockViewWindow *view;
+        // Window with focus.
+        BlockWindow *focus;
+        // Window to which this event applies, if any.  In haskell this is
+        // given to the UiUpdates, but it's more of a hassle to nest types in
+        // c++, so make it an optional field here.
+        BlockWindow *view;
         // Mouse was over this track.
         // Should be a TrackType.
         char track_type;
@@ -186,7 +186,7 @@ public:
     void event(int evt, bool track_drag = false);
     // FL_FOCUS events are special because they are send *before* the
     // focus is changed.
-    void focus(BlockViewWindow *focus);
+    void focus(BlockWindow *focus);
 
     // Record an update with no Context.
     void update(UiMsg::MsgType type);
@@ -199,7 +199,7 @@ public:
     // Record msg_input for text changes.
     void track_title(Fl_Widget *w, int tracknum, const char *text);
     void floating_input(Fl_Widget *w, const char *floating_input);
-    void view(UiMsg::MsgType type, BlockViewWindow *view);
+    void view(UiMsg::MsgType type, BlockWindow *view);
 
     // Send one msg_screen_size msg for each screen.
     //

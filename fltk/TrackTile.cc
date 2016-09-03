@@ -91,7 +91,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     int xpos = tracks() == 0 ? x() : track_at(std::max(0, tracknum - 1))->x();
     // The OS will make sure the window doesn't go off the right edge.
     const int width = std::max(
-        int(Config::View::floating_input_min_width),
+        int(Config::Block::floating_input_min_width),
         tracks() == 0 ? 60 : track_at(std::max(0, tracknum - 1))->w() - 3);
 
     // +3 gets the input right below the trigger line of an event at this
@@ -103,7 +103,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     xpos += 2;
     this->floating_input = new FloatingInput(
         top_window()->x() + xpos, top_window()->y() + ypos,
-        width, Config::View::track_title_height,
+        width, Config::Block::track_title_height,
         this->top_window(), text, false);
     floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
 
@@ -175,7 +175,7 @@ TrackTile::track_end() const
     // These both have a 1 minimum to keep others from dividing by 0.
     int end = 1;
     for (int i = 0; i < this->tracks(); i++) {
-        const TrackView *t = const_cast<TrackTile *>(this)->track_at(i);
+        const Track *t = const_cast<TrackTile *>(this)->track_at(i);
         end = std::max(end, t->x() + t->w() - this->x());
     }
     return end;
@@ -188,7 +188,7 @@ TrackTile::visible_pixels() const
 }
 
 void
-TrackTile::insert_track(int tracknum, TrackView *track, int width)
+TrackTile::insert_track(int tracknum, Track *track, int width)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
 
@@ -216,11 +216,11 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
 }
 
 
-TrackView *
+Track *
 TrackTile::remove_track(int tracknum)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    TrackView *t = track_at(tracknum);
+    Track *t = track_at(tracknum);
     this->remove_child(t);
     this->remove_child(&t->title_widget());
     this->update_sizes();
@@ -228,19 +228,19 @@ TrackTile::remove_track(int tracknum)
 }
 
 
-TrackView *
+Track *
 TrackTile::track_at(int tracknum)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    return dynamic_cast<TrackView *>(child(track_index(tracknum)));
+    return dynamic_cast<Track *>(child(track_index(tracknum)));
 }
 
 
-const TrackView *
+const Track *
 TrackTile::track_at(int tracknum) const
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    return dynamic_cast<const TrackView *>(child(track_index(tracknum)));
+    return dynamic_cast<const Track *>(child(track_index(tracknum)));
 }
 
 
@@ -255,7 +255,7 @@ void
 TrackTile::set_track_width(int tracknum, int width)
 {
     width = std::max(3, width);
-    TrackView *track = this->track_at(tracknum);
+    Track *track = this->track_at(tracknum);
     if (track->track_resizable())
         width = std::max(this->minimum_size.x, width);
     if (track->w() == width)
@@ -337,7 +337,7 @@ TrackTile::title_input_cb(Fl_Widget *w, void *arg)
             // Scroll the track backwards to account for how much the title
             // expanded.
             if (self->child(title_index(i)) == input) {
-                TrackView *track = self->track_at(i);
+                Track *track = self->track_at(i);
                 ZoomInfo z = self->zoom;
                 track->set_zoom(ZoomInfo(
                     z.offset + z.to_time(height - self->title_height),
