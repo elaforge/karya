@@ -218,8 +218,8 @@ Block::set_widget_sizes()
         p.x, p.b() - Config::Block::sb_size,
         p.w, Config::Block::sb_size);
 
-    time_sb.set_orientation(P9Scrollbar::vertical);
-    track_sb.set_orientation(P9Scrollbar::horizontal);
+    time_sb.set_orientation(Scrollbar::vertical);
+    track_sb.set_orientation(Scrollbar::horizontal);
 
     time_sb.resize(p.x, p.y + track_box.h(),
         Config::Block::sb_size, p.h - track_box.h() - sb_box.h());

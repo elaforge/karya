@@ -3,22 +3,19 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 /*
-A P9Scrollbar with some additions
-It has an optional overlay ruler.
-
-Or adapt to a Fl_Scrollbar for 1 mouse macs?
-
+    A Scrollbar with some additions
+    It has an optional overlay ruler.
 */
 #include <FL/Fl_Scroll.H>
 
 #include "Color.h"
-#include "P9Scrollbar.h"
+#include "Scrollbar.h"
 #include "Ruler.h"
 
-class P9SeqScrollbar : public P9Scrollbar {
+class SeqScrollbar : public Scrollbar {
 public:
-    P9SeqScrollbar(int X, int Y, int W, int H) :
-        P9Scrollbar(X, Y, W, H, Color(255, 255, 200), Color(127, 100, 50))
+    SeqScrollbar(int X, int Y, int W, int H) :
+        Scrollbar(X, Y, W, H, Color(255, 255, 200), Color(127, 100, 50))
     {
     }
 
@@ -36,8 +33,8 @@ public:
             this->do_callback();
         return Fl_Scrollbar::handle(evt);
     }
-    void set_orientation(P9Scrollbar::Orientation o) {
-        if (o == P9Scrollbar::horizontal)
+    void set_orientation(Scrollbar::Orientation o) {
+        if (o == Scrollbar::horizontal)
             this->type(FL_HORIZONTAL);
         else
             this->type(FL_VERTICAL);

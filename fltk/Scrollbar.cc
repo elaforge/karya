@@ -5,11 +5,11 @@
 #include <math.h>
 #include <algorithm>
 
-#include "P9Scrollbar.h"
+#include "Scrollbar.h"
 
 
-P9Scrollbar::P9Scrollbar(int X, int Y, int W, int H, Color bg, Color fg) :
-    Fl_Group(X, Y, W, H), orientation(P9Scrollbar::vertical), min_size(4),
+Scrollbar::Scrollbar(int X, int Y, int W, int H, Color bg, Color fg) :
+    Fl_Group(X, Y, W, H), orientation(Scrollbar::vertical), min_size(4),
     scrollbox(X, Y, W, H)
 {
     box(FL_FLAT_BOX);
@@ -23,7 +23,7 @@ P9Scrollbar::P9Scrollbar(int X, int Y, int W, int H, Color bg, Color fg) :
 
 
 void
-P9Scrollbar::resize(int x, int y, int w, int h)
+Scrollbar::resize(int x, int y, int w, int h)
 {
     Fl_Widget::resize(x, y, w, h);
     this->set_scroll(offset, size);
@@ -31,7 +31,7 @@ P9Scrollbar::resize(int x, int y, int w, int h)
 
 
 void
-P9Scrollbar::set_orientation(P9Scrollbar::Orientation o)
+Scrollbar::set_orientation(Scrollbar::Orientation o)
 {
     this->orientation = o;
     this->set_scroll(offset, size);
@@ -39,17 +39,17 @@ P9Scrollbar::set_orientation(P9Scrollbar::Orientation o)
 
 
 void
-P9Scrollbar::set_scroll(double offset, double size)
+Scrollbar::set_scroll(double offset, double size)
 {
     this->offset = offset;
     this->size = size;
-    if (orientation == P9Scrollbar::vertical) {
+    if (orientation == Scrollbar::vertical) {
         int pos = std::min(h() - this->min_size, int(offset*h()));
         int sz = std::max(this->min_size, int(size*h()));
         // DEBUG("scroll pos " << DPoint(offset, size) << " actually "
         //         << IPoint(pos, sz));
         scrollbox.resize(x()+1, y() + pos, w()-2, sz);
-    } else if (orientation == P9Scrollbar::horizontal) {
+    } else if (orientation == Scrollbar::horizontal) {
         int pos = std::min(w() - this->min_size, int(offset*w()));
         int sz = std::max(this->min_size, int(size*w()));
         scrollbox.resize(x() + pos, y()+1, sz, h()-2);
@@ -62,7 +62,7 @@ P9Scrollbar::set_scroll(double offset, double size)
 
 
 void
-P9Scrollbar::set_scroll_zoom(double max, double offset, double displayed_area)
+Scrollbar::set_scroll_zoom(double max, double offset, double displayed_area)
 {
     if (max == 0) {
         this->set_scroll(0, 1);
@@ -77,11 +77,11 @@ P9Scrollbar::set_scroll_zoom(double max, double offset, double displayed_area)
 
 
 int
-P9Scrollbar::handle(int evt)
+Scrollbar::handle(int evt)
 {
     if (evt == FL_PUSH || evt == FL_RELEASE || evt == FL_DRAG) {
         double click;
-        if (orientation == P9Scrollbar::vertical) {
+        if (orientation == Scrollbar::vertical) {
             click = double(Fl::event_y() - this->y()) / this->h();
         } else {
             click = double(Fl::event_x() - this->x()) / this->w();

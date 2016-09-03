@@ -794,6 +794,8 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
+  - Do I want to support set_ruler for Scrollbar?
   - linux fltk drawing: event ears draw as a solid bar
   * Track titles are still cramped, and even with the expand thing it's still
     awkward to edit text in them, and annoying to not be able to see what's in
@@ -825,7 +827,7 @@ fltk:
   Make naming more consistent:
     * Rename XyzView to just Xyz
     * namespace utf8 should be defined in utf8.h
-    - rename P9Scrollbar to just Scrollbar.  I didn't wind up making it very
+    * rename P9Scrollbar to just Scrollbar.  I didn't wind up making it very
       plan9-like.
   - Manually fiddling with track widths is annoying.  It seems like I could
     ask the UI about text extents to resize them automatically.

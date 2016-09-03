@@ -10,13 +10,13 @@
 
 
 // Simple scrollbar.
-class P9Scrollbar : public Fl_Group {
+class Scrollbar : public Fl_Group {
 public:
-    P9Scrollbar(int X, int Y, int W, int H, Color bg, Color fg);
+    Scrollbar(int X, int Y, int W, int H, Color bg, Color fg);
     void resize(int x, int y, int w, int h) override;
 
     enum Orientation { horizontal, vertical };
-    void set_orientation(P9Scrollbar::Orientation o);
+    void set_orientation(Scrollbar::Orientation o);
 
     double get_offset() const { return offset; }
     double get_size() const { return size; }

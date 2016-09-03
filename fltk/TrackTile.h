@@ -4,17 +4,16 @@
 
 /* This adds track-specific stuff to a MoveTile.
 
-    Manage the underlying MoveTile:
-    Fill rightmost track edge until the right edge of the window with a pad box
-    of the given color.
+    Fill the rightmost track edge until the right edge of the window with a pad
+    box of the bg_color.
 
     Accept zoom callbacks from parent Zoom and Block.
 
     Tracks come in pairs of a title and body.
 
-    TrackTile________________
-       |           \         \
-    title_input  EventTrack  WrappedInput (floating_input, temporary)
+    TrackTile____________________________
+       |                  \       \      \
+    (Track::title_widget, Track)  ...  FloatingInput (floating_input, temporary)
 */
 
 #ifndef __TRACK_TILE_H
