@@ -101,6 +101,13 @@ delayed = tag "delayed"
 realize_delayed :: Tags
 realize_delayed = tag "realize-delayed"
 
+-- | When imported, this call will go into the
+-- 'Derive.Deriver.Monad.stype_override' scope priority level.  This is really
+-- just for the block lookup.  Since blocks are effectively local definitions,
+-- they should override library calls.
+override :: Tags
+override = tag "override"
+
 -- * automatically applied
 
 generator, transformer :: Tags

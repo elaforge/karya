@@ -8,6 +8,7 @@
     "Derive.Deriver.Monad".
 -}
 module Derive.Deriver.Lib where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -255,13 +256,26 @@ import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
     gen_of (CallMaps gs _) = gs
     trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
-    imported lookups = mempty { stype_imported = lookups }
+    imported lookups = mempty
+        { stype_imported = imports
+        , stype_override = overrides
+        }
+        where (overrides, imports) = List.partition is_override_call lookups
 
 -- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
 -- If there are collisions, the first one wins.
 merge_lookups :: [LookupCall call] -> [LookupCall call]
 merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
     where calls = Map.unions [calls | LookupMap calls <- lookups]
+
+-- | True if this is a LookupPattern with 'Tags.override'.  This doesn't
+-- support LookupMap but doesn't need to because 'Tags.override' is only
+-- for the block lookup call.
+is_override_call :: LookupCall a -> Bool
+is_override_call lookup = case lookup of
+    LookupPattern _ (DocumentedCall _ doc) _ ->
+        cdoc_tags doc `Tags.contains` Tags.override
+    LookupMap {} -> False
 
 -- ** scale
 
@@ -392,9 +406,9 @@ val_to_pitch (ValCall name doc vcall) = Call
         _ -> throw $ "scale call " <> pretty name
             <> " returned non-pitch: " <> ShowVal.show_val val
 
--- | Run the a deriver with the given instrument in scope.  Mostly this just
--- assigns the instrument to the 'EnvKey.instrument' field where note calls
--- can inherit it, but it also brings the 'Instrument' fields into scope, which
+-- | Run the a deriver with the given instrument in scope.  In addition to
+-- assigning the instrument to the 'EnvKey.instrument' field where note calls
+-- can inherit it, this also brings the 'Instrument' fields into scope, which
 -- is the per-instrument calls and per-instrument environ.
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do

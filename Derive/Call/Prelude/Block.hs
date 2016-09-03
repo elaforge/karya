@@ -18,10 +18,12 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -30,7 +32,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Signal as Signal
 import Global
@@ -69,7 +70,7 @@ c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.with_score_duration get_score_duration $
     Derive.with_real_duration (const $ get_real_duration block_id) $
     Derive.generator Module.prelude
-        (Derive.CallName $ "block " <> showt block_id) mempty
+        (Derive.CallName $ "block " <> showt block_id) Tags.override
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\

@@ -37,6 +37,15 @@ test_block = do
         , (1, 2, "", "i", ["a"])
         ]
 
+test_block_call_overrides_other_calls = do
+    let run sub_name evts = DeriveTest.extract extract $
+            DeriveTest.derive_blocks
+                [("b1", [(">", evts)]), (sub_name <> "=ruler", sub)]
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        sub = UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")]
+    equal (run "xyz" [(0, 2, "o")]) ([(0, "+harm")], [])
+    equal (run "o" [(0, 2, "o")]) ([(0, "+"), (1, "+")], [])
+
 test_block_logical_range = do
     let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $
             DeriveTest.derive_blocks_setup

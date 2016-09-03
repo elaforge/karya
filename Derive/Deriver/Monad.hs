@@ -644,23 +644,29 @@ instance (Pretty.Pretty note, Pretty.Pretty control, Pretty.Pretty pitch) =>
 
 instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 
--- | An instrument or scale may put calls into scope.  If that instrument
--- or scale is replaced with another, the old calls must be replaced with
--- the new ones.
---
--- This is hard-coded for the types of scopes I currently use.  It would be
--- more general to make this a Map from symbol to scopes, but since I only
--- have three types at the moment, this is simpler.
---
--- Priority is determined by 'get_scopes', which returns them in the
--- declaration order.  So override calls take priority over instrument calls,
--- which take priority over scale and imported calls.
+{- | An instrument or scale may put calls into scope.  If that instrument
+    or scale is replaced with another, the old calls must be replaced with the
+    new ones.
+
+    Priority is determined by 'get_scopes', which returns them in the fields'
+    declaration order.
+
+    The reason this can't be accomplished just by arranging imports in the
+    right order is that when an instrument or scale comes into scope, it needs
+    to replace existing instrument or scale calls.  To do that, I need to keep
+    each category separate.  Also, this way I can import the ky file once at
+    the toplevel, and it will still override library imported calls.
+-}
 data ScopeType call = ScopeType {
     -- | Override calls shadow all others.  They're useful when you want to
     -- prevent instruments from overriding calls, which the lilypond deriver
     -- needs to do.
     stype_override :: ![LookupCall call]
+    -- | These are instrument-specific calls implicitly imported by note
+    -- tracks.
     , stype_instrument :: ![LookupCall call]
+    -- | This is for value calls introduced by a scale.  They are implicitly
+    -- imported by pitch tracks.
     , stype_scale :: ![LookupCall call]
     -- | Imported from the 'Library'.
     , stype_imported :: ![LookupCall call]

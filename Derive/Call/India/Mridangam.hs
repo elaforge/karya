@@ -31,7 +31,7 @@ note_calls = Derive.generator_call_map
     , ("Pr", c_pattern_repeat True)
 
     -- standard patterns
-    , ("tari", c_pattern_once (pure faran_base))
+    , ("tari", c_pattern_once (pure nakatiku))
     , ("tk", c_pattern_once (pure "k+"))
     , ("tknk", c_pattern_once (pure "k+n+"))
     ]
@@ -172,8 +172,8 @@ pattern7 =
 -- These are not exposed in any way, and I'm not even sure how they should be
 -- exposed.
 
-faran_base :: Text
-faran_base = "n+u+kt+k" -- naka tiku tari kita
+nakatiku :: Text
+nakatiku = "n+u+kt+k" -- naka tiku tari kita
 
 farans :: [[Text]]
 farans = concat
@@ -218,5 +218,5 @@ farans = concat
         ]
         where
         rest = 32 - Text.length short * 3 - Text.length fill2
-        pattern = start <> faran_base
+        pattern = start <> nakatiku
         short = Text.take 6 start
