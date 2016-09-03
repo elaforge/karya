@@ -207,7 +207,7 @@ timeout_func(void *unused)
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        // block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
+        // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
         return;
         break;
     case 1:

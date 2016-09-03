@@ -35,8 +35,6 @@ public:
     }
     int text_height() const;
     int handle(int evt) override;
-protected:
-    void draw() override;
 private:
     bool wrap_text();
     // Strip spaces from the text on unfocus.

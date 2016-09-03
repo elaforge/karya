@@ -24,11 +24,6 @@ public:
     int text_height() const { return input.text_height(); }
     bool text_changed() const { return input.text_changed(); }
 
-    // void insert(const char *text) { }
-    // const char *get_text() const { return ""; }
-    // int text_height() const { return 0; }
-    // bool text_changed() const { return false; }
-
 private:
     static void wrapped_input_cb_dispatch(Fl_Widget *_w, void *vp);
     void wrapped_input_cb();

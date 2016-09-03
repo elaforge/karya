@@ -163,27 +163,6 @@ WrappedInput::handle(int evt)
     return handled;
 }
 
-static bool
-has_multiple_lines(const char *text, int size)
-{
-    for (int i = 0; i < size; i++) {
-        if (text[i] == '\n')
-            return true;
-    }
-    return false;
-}
-
-void
-WrappedInput::draw()
-{
-    Fl_Multiline_Input::draw();
-    if (has_multiple_lines(value(), size())
-            && h() <= Config::Block::track_title_height) {
-        fl_color(Config::abbreviation_color.fl());
-        fl_rectf(x(), y() + h() - 3, w(), 3);
-    }
-}
-
 static char *
 find_space(char *s, char *end)
 {
