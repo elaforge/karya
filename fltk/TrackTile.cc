@@ -200,13 +200,11 @@ TrackTile::insert_track(int tracknum, Track *track, int width)
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
-    WrappedInput *wrapped = dynamic_cast<WrappedInput *>(&title);
-    if (wrapped)
-        wrapped->callback(title_input_cb, static_cast<void *>(this));
     this->insert_child(title, title_index(tracknum));
 
     track->size(width, h() - this->title_height);
     this->insert_child(*track, track_index(tracknum));
+    track->callback(title_input_cb_dispatch, static_cast<void *>(this));
 
     if (!track->track_resizable()) {
         this->set_stiff_child(track_index(tracknum));
@@ -318,43 +316,20 @@ TrackTile::update_sizes()
 
 
 void
-TrackTile::title_input_cb(Fl_Widget *w, void *arg)
+TrackTile::title_input_cb_dispatch(Fl_Widget *w, void *arg)
 {
-    WrappedInput *input = static_cast<WrappedInput *>(w);
     TrackTile *self = static_cast<TrackTile *>(arg);
-    if (input == Fl::focus()) {
-        // Expand the widget's height enough to display all its text.
-        int height = std::max(self->title_height, input->text_height());
-        // This could be wrapped in 'if (height != input->h())' and avoid an
-        // update on every character typed, but because update_sizes() updates
-        // all titles, if I switch focus directly from one title to another,
-        // the defocus of the old title will have already expanded this title,
-        // so I'll miss the update.  I could fix it by adding a variant of
-        // update_sizes() that only updates one track, but that gets
-        // complicated and updating everything shouldn't be that expensive.
-        self->update_sizes();
-        for (int i = 0; i < self->tracks(); i++) {
-            // Scroll the track backwards to account for how much the title
-            // expanded.
-            if (self->child(title_index(i)) == input) {
-                Track *track = self->track_at(i);
-                ZoomInfo z = self->zoom;
-                track->set_zoom(ZoomInfo(
-                    z.offset + z.to_time(height - self->title_height),
-                    z.factor));
-                break;
-            }
-        }
-    } else {
-        // Collapse to the default height, if necessary.
-        self->update_sizes();
-        // scroll track back
-        for (int i = 0; i < self->tracks(); i++) {
-            if (self->child(title_index(i)) == input) {
-                MsgCollector::get()->track_title(
-                    self, i + 1, input->get_text());
-                self->track_at(i)->set_zoom(self->zoom);
-                break;
+    self->title_input_cb(w);
+}
+
+void
+TrackTile::title_input_cb(Fl_Widget *w)
+{
+    for (int i = 0; i < tracks(); i++) {
+        if (child(track_index(i)) == w) {
+            const char *text = track_at(i)->get_title();
+            if (text != nullptr) {
+                MsgCollector::get()->track_title(this, i + 1, text);
             }
         }
     }

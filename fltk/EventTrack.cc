@@ -244,6 +244,7 @@ EventTrack::unfocus_title()
     floating_input->hide();
     Fl::delete_widget(floating_input);
     this->floating_input = nullptr;
+    do_callback();
 }
 
 /////////////////////////

@@ -118,6 +118,8 @@ public:
 };
 
 
+// A Track with events on it.  It will call its callback when the title has
+// been edited.
 class EventTrack : public Track {
 public:
     EventTrack(const EventTrackConfig &config, const RulerConfig &ruler_config);

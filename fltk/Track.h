@@ -107,7 +107,7 @@ public:
     virtual Fl_Widget &title_widget() = 0;
 
     // The text in the title_widget, if there is any.
-    virtual const char *get_title() const { return 0; }
+    virtual const char *get_title() const { return nullptr; }
 
     virtual void set_title(const char *title) {}
     virtual void set_title_focus() {}

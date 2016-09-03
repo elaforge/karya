@@ -98,7 +98,8 @@ private:
     FloatingInput *floating_input;
 
     void update_sizes();
-    static void title_input_cb(Fl_Widget *_w, void *vp);
+    static void title_input_cb_dispatch(Fl_Widget *w, void *arg);
+    void title_input_cb(Fl_Widget *title);
 };
 
 #endif
