@@ -54,7 +54,7 @@ module Derive.Deriver.Monad (
     , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
-    , ScopeType(..), s_override, s_instrument, s_scale, s_library
+    , ScopePriority(..), s_override, s_instrument, s_scale, s_library
     , DocumentedCall(..)
     , LookupCall(..)
     , extract_doc, extract_val_doc
@@ -552,7 +552,7 @@ instance DeepSeq.NFData Dynamic where
 
 -- ** scope
 
--- | This is the library of built-in calls.  The 'stype_library' Scope fields
+-- | This is the library of built-in calls.  The 'prio_library' Scope fields
 -- are imported from this.
 data Library = Library {
     lib_note :: !(CallMaps Note)
@@ -593,7 +593,7 @@ instance Pretty.Pretty Library where
 data Scopes = Scopes {
     scopes_generator :: !GeneratorScope
     , scopes_transformer :: !TransformerScope
-    , scopes_val :: !(ScopeType ValCall)
+    , scopes_val :: !(ScopePriority ValCall)
     } deriving (Show)
 
 empty_scopes :: Scopes
@@ -619,9 +619,9 @@ type TransformerScope =
     Scope (Transformer Note) (Transformer Control) (Transformer Pitch)
 
 data Scope note control pitch = Scope {
-    scope_note :: !(ScopeType note)
-    , scope_control :: !(ScopeType control)
-    , scope_pitch :: !(ScopeType pitch)
+    scope_note :: !(ScopePriority note)
+    , scope_control :: !(ScopePriority control)
+    , scope_pitch :: !(ScopePriority pitch)
     } deriving (Show)
 
 s_note = Lens.lens scope_note
@@ -657,39 +657,39 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
     each category separate.  Also, this way I can import the ky file once at
     the toplevel, and it will still override library imported calls.
 -}
-data ScopeType call = ScopeType {
+data ScopePriority call = ScopePriority {
     -- | Override calls shadow all others.  They're useful when you want to
     -- prevent instruments from overriding calls, which the lilypond deriver
     -- needs to do.
-    stype_override :: ![LookupCall call]
+    prio_override :: ![LookupCall call]
     -- | These are instrument-specific calls implicitly imported by note
     -- tracks.
-    , stype_instrument :: ![LookupCall call]
+    , prio_instrument :: ![LookupCall call]
     -- | This is for value calls introduced by a scale.  They are implicitly
     -- imported by pitch tracks.
-    , stype_scale :: ![LookupCall call]
+    , prio_scale :: ![LookupCall call]
     -- | Imported from the 'Library'.
-    , stype_library :: ![LookupCall call]
+    , prio_library :: ![LookupCall call]
     }
 
-s_override = Lens.lens stype_override
-    (\f r -> r { stype_override = f (stype_override r) })
-s_instrument = Lens.lens stype_instrument
-    (\f r -> r { stype_instrument = f (stype_instrument r) })
-s_scale = Lens.lens stype_scale
-    (\f r -> r { stype_scale = f (stype_scale r) })
-s_library = Lens.lens stype_library
-    (\f r -> r { stype_library = f (stype_library r) })
+s_override = Lens.lens prio_override
+    (\f r -> r { prio_override = f (prio_override r) })
+s_instrument = Lens.lens prio_instrument
+    (\f r -> r { prio_instrument = f (prio_instrument r) })
+s_scale = Lens.lens prio_scale
+    (\f r -> r { prio_scale = f (prio_scale r) })
+s_library = Lens.lens prio_library
+    (\f r -> r { prio_library = f (prio_library r) })
 
-instance Monoid (ScopeType call) where
-    mempty = ScopeType [] [] [] []
-    mappend (ScopeType a1 b1 c1 d1) (ScopeType a2 b2 c2 d2) =
-        ScopeType (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
+instance Monoid (ScopePriority call) where
+    mempty = ScopePriority [] [] [] []
+    mappend (ScopePriority a1 b1 c1 d1) (ScopePriority a2 b2 c2 d2) =
+        ScopePriority (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
-instance Show (ScopeType call) where show = prettys
-instance Pretty.Pretty (ScopeType call) where
-    format (ScopeType override inst scale library) =
-        Pretty.record "ScopeType"
+instance Show (ScopePriority call) where show = prettys
+instance Pretty.Pretty (ScopePriority call) where
+    format (ScopePriority override inst scale library) =
+        Pretty.record "ScopePriority"
             [ ("override", Pretty.format override)
             , ("inst", Pretty.format inst)
             , ("scale", Pretty.format scale)
@@ -710,15 +710,15 @@ extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
 lookup_val_call :: BaseTypes.CallId -> Deriver (Maybe ValCall)
 lookup_val_call = lookup_with scopes_val
 
-lookup_with :: (Scopes -> ScopeType call)
+lookup_with :: (Scopes -> ScopePriority call)
     -> (BaseTypes.CallId -> Deriver (Maybe call))
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
 
-get_scopes :: (Scopes -> ScopeType call) -> Deriver [LookupCall call]
+get_scopes :: (Scopes -> ScopePriority call) -> Deriver [LookupCall call]
 get_scopes get = do
-    ScopeType override inst scale library <-
+    ScopePriority override inst scale library <-
         gets $ get . state_scopes . state_dynamic
     return $ override ++ inst ++ scale ++ library
 

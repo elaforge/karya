@@ -396,7 +396,7 @@ type CallKind = Text
 -- | Documentation for one type of scope.
 type ScopeDoc = (ScopeSource, [CallBindings])
 
--- | From the fields of 'Derive.ScopeType'.  These sort by the override
+-- | From the fields of 'Derive.ScopePriority'.  These sort by the override
 -- priority, so an Override binding will shadow an Instrument binding.
 data ScopeSource = Override | Instrument | Scale | Library | IrrelevantSource
     deriving (Eq, Ord, Show)
@@ -525,14 +525,14 @@ track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
     convert = convert_scope convert_call
 
 convert_scope :: (Derive.LookupCall call -> LookupCall)
-    -> Derive.ScopeType call -> Derive.ScopeType Derive.DocumentedCall
-convert_scope convert (Derive.ScopeType override inst scale library) =
-    Derive.ScopeType (map convert override) (map convert inst)
+    -> Derive.ScopePriority call -> Derive.ScopePriority Derive.DocumentedCall
+convert_scope convert (Derive.ScopePriority override inst scale library) =
+    Derive.ScopePriority (map convert override) (map convert inst)
         (map convert scale) (map convert library)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
-merged_scope_docs :: Derive.ScopeType Derive.DocumentedCall
-    -> Derive.ScopeType Derive.DocumentedCall -> [ScopeDoc]
+merged_scope_docs :: Derive.ScopePriority Derive.DocumentedCall
+    -> Derive.ScopePriority Derive.DocumentedCall -> [ScopeDoc]
 merged_scope_docs generator transformer =
     merge_scope_docs $ scope_type GeneratorCall generator
         ++ scope_type TransformerCall transformer
@@ -551,8 +551,9 @@ imported_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
 imported_scope_doc ctype lookups =
     [(IrrelevantSource, lookup_calls ctype lookups)]
 
-scope_type :: CallType -> Derive.ScopeType Derive.DocumentedCall -> [ScopeDoc]
-scope_type ctype (Derive.ScopeType override inst scale library) =
+scope_type :: CallType -> Derive.ScopePriority Derive.DocumentedCall
+    -> [ScopeDoc]
+scope_type ctype (Derive.ScopePriority override inst scale library) =
     filter (not . null . snd)
     [ (Override, lookup_calls ctype override)
     , (Instrument, lookup_calls ctype inst)

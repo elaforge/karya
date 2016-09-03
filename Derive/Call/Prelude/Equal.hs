@@ -267,8 +267,8 @@ parse_val = either (const Nothing) Just . Parse.parse_val . BaseTypes.unsym
 -- they're not sufficiently polymorphic.
 override_call :: (Derive.Callable d1, Derive.Callable d2) =>
     Text -> BaseTypes.Val -> Text
-    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
-    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
+    -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Generator d1))
+    -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
 override_call lhs rhs name generator transformer deriver
     | Just stripped <- Text.stripPrefix "-" lhs =
@@ -283,7 +283,7 @@ override_call lhs rhs name generator transformer deriver
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.s_override' slot.
 override_transformer :: Derive.Callable d => Text -> BaseTypes.Val -> Text
-    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d))
+    -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d))
     -> Derive.Deriver a -> Derive.Deriver a
 override_transformer lhs rhs name transformer deriver =
     override_scope =<< resolve_source (name <> " transformer") transformer
@@ -295,7 +295,7 @@ override_transformer lhs rhs name transformer deriver =
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
 -- everything else is turned into a Symbol via ShowVal.  This will cause
 -- a parse error for un-showable Vals, but what else is new?
-resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopeType a)
+resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopePriority a)
     -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
 resolve_source name lens make_quoted rhs = case rhs of
     BaseTypes.VQuoted quoted -> return $ make_quoted quoted
@@ -310,7 +310,7 @@ override_val_call lhs rhs deriver = do
             %= (single_val_lookup lhs call :)
     Derive.with_scopes modify deriver
 
-get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
+get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
     -> BaseTypes.CallId -> Derive.Deriver call
 get_call name get call_id =
     maybe (Derive.throw $ Eval.unknown_call_id name call_id)

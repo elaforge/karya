@@ -257,8 +257,8 @@ import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
     trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
     imported lookups = mempty
-        { stype_library = normal
-        , stype_override = overrides
+        { prio_library = normal
+        , prio_override = overrides
         }
         where (overrides, normal) = List.partition is_override_call lookups
 
@@ -433,7 +433,7 @@ with_instrument inst deriver = do
             }
     set_note lookups scope =
         scope { scope_note = set_inst lookups (scope_note scope) }
-    set_inst lookups stype = stype { stype_instrument = lookups }
+    set_inst lookups stype = stype { prio_instrument = lookups }
 
 with_instrument_alias :: Score.Instrument -> Score.Instrument
     -> Deriver a -> Deriver a

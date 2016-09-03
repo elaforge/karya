@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - rename ScopeType to ScopePriority
+  * rename ScopeType to ScopePriority
     * rename stype_imported to library
   * why does creating a 'tari' block not override the 'tari' call?
   - ruler is hard to read due to leading prefixes, can I omit those?
