@@ -1304,6 +1304,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Reuse solkattu patterns in india.mridanngam
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
           ta_ta.din_din.gin_gin.na_na.thom_thom

@@ -36,6 +36,9 @@ context = Derive.passed_ctx
 event :: PassedArgs a -> Event.Event
 event = Derive.ctx_event . context
 
+orientation :: PassedArgs a -> Event.Orientation
+orientation = Event.orientation . event
+
 -- * prev and next
 
 {- NOTE [previous-pitch]

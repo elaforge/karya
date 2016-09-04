@@ -304,11 +304,10 @@ c_norot default_prepare =
     \args -> do
         (pitch, show_pitch) <- get_parsed_pitch args
         next_pitch <- infer_prepare args prepare
+        let orientation = Args.orientation args
         let (sustain_params, prepare_params) = Gangsa.prepare_sustain
                 (Maybe.isJust next_pitch) note_dur initial_final
-                (Event.orientation (Args.event args))
-                (Args.start args) (Args.end args)
-        let orientation = Event.orientation (Args.event args)
+                orientation (Args.start args) (Args.end args)
         sustain <- case sustain_params of
             Nothing -> return mempty
             Just (initial_final, range) -> realize_positions
@@ -390,7 +389,7 @@ realize_notes_args :: Derive.PassedArgs a -> (Maybe Bool, Bool)
     -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
     -> (Voice, [[Note]]) -> Derive.NoteDeriver
 realize_notes_args args initial_final =
-    realize_notes (Args.range args) (Event.orientation (Args.event args))
+    realize_notes (Args.range args) (Args.orientation args)
         (Gangsa.infer_initial args initial_final)
 
 realize_notes :: (ScoreTime, ScoreTime) -> Event.Orientation -> (Bool, Bool)

@@ -279,7 +279,7 @@ c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
         let sustain_cycle = gangsa_norot style pasang . get_steps
             prepare_cycle = gangsa_norot_prepare style pasang . get_steps
         norot sustain_cycle prepare_cycle under_threshold next_pitch
-            note_dur initial_final (Event.orientation (Args.event args))
+            note_dur initial_final (Args.orientation args)
             (Args.start args) (Args.end args)
 
 norot :: (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
@@ -540,7 +540,7 @@ realize_kotekan_pattern_args :: Derive.PassedArgs a -> (Maybe Bool, Bool)
     -> Derive.NoteDeriver
 realize_kotekan_pattern_args args initial_final =
     realize_kotekan_pattern (infer_initial args initial_final)
-        (Args.range args) (Event.orientation (Args.event args))
+        (Args.range args) (Args.orientation args)
 
 -- | Take a Cycle, which is an abstract description of a pattern via
 -- 'KotekanNote's, to real notes in a NoteDeriver.
