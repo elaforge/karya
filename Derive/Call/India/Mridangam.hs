@@ -5,10 +5,13 @@
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
 import qualified Data.IntMap as IntMap
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -18,6 +21,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Realize as Solkattu.Realize
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -37,7 +43,7 @@ note_calls = Derive.generator_call_map
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
-    [ ("pi", c_infer_pattern)
+    [ ("infer", c_infer_pattern)
     ]
 
 module_ :: Module.Module
@@ -96,81 +102,62 @@ realize_sequence ctx = map realize . Text.unpack
             call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
             Eval.apply_generator ctx call []
 
+-- * c_pattern
+
 c_pattern :: Derive.Generator Derive.Note
 c_pattern = Derive.generator module_ "pattern" Tags.inst
     "Like `seq`, but pick a standard pattern."
     $ Sig.call ((,,)
     <$> (Typecheck.positive <$> Sig.required "n" "Number of strokes.")
-    <*> (Typecheck.non_negative <$> Sig.defaulted "var" 0 "Variation.")
-    <*> dur_arg
+    <*> variation_arg <*> dur_arg
     ) $ \(strokes, variation, dur) -> Sub.inverting $ \args -> do
-        seq <- Derive.require_right id $
-            realize_sequence (Args.context args) <$>
-                infer_pattern strokes variation
-        m_sequence seq dur (Args.range args) (Args.orientation args)
+        (speed, pattern) <- Derive.require_right id $
+            infer_pattern strokes variation
+        let seq = realize_sequence (Args.context args) pattern
+        let factor = ScoreTime.double $ Solkattu.speed_factor speed
+        m_sequence seq (dur / factor) (Args.range args)
+            (Args.orientation args)
 
--- * infer-pattern
+-- * c_infer_pattern
 
 c_infer_pattern :: Derive.ValCall
 c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
     "Pick a pattern based on the event duration."
-    $ Sig.call ((,)
-    <$> Sig.defaulted "var" 0 "Variation."
-    <*> Sig.defaulted "dur" 0.25 "Duration for each note."
-    ) $ \(var, dur) args -> do
+    $ Sig.call ((,) <$> variation_arg <*> dur_arg) $
+    \(variation, dur) args -> do
         let notes = round $ Args.duration args / dur
-        Derive.require
-            ("invalid variation: dur " <> showt (Args.duration args)
-                    <> " for var " <> showt var) $
-            infer_pattern notes var
+        Derive.require_right id $ snd <$> infer_pattern notes variation
 
-infer_pattern :: Int -> Int -> Maybe Text
-infer_pattern dur var = IntMap.lookup dur =<< Seq.at patterns var
+variation_arg :: Sig.Parser Text
+variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
+    ("Variation name. Possibilities are: "
+        <> Doc.commas (map Doc.literal (Map.keys variations)))
 
-patterns :: [IntMap.IntMap Text]
-patterns =
-    [ IntMap.fromList [(5, p5), (6, p6), (7, p7)]
-    | (p5, p6, p7) <- zip3 pattern5 pattern6 pattern7
-    ]
+infer_pattern :: Int -> Text -> Either Text (Solkattu.Speed, Text)
+infer_pattern dur variation = do
+    patterns <- maybe (Left $ "unknown variation " <> showt variation) Right
+        (Map.lookup variation variations)
+    let msg = "variation " <> showt variation <> " doesn't have duration: "
+            <> showt dur
+    maybe (Left msg) Right (IntMap.lookup dur patterns)
 
-pattern5 :: [Text]
-pattern5 =
-    [ "ktkno"
-    , "k t k kto "
-    , "k t k kno "
-    , "kt+k+ktkno"
-    , "ktkt+k+to "
-    , "n kt+k+to "
-    , "u kt+k+to "
-    , "k t kt kno"
-    , "k+kD ktkno"
-    ]
+-- | Map pattern duration to Speed to play and the pattern to play.
+type Patterns = IntMap.IntMap (Solkattu.Speed, Text)
 
-pattern6 :: [Text]
-pattern6 =
-    [ "kt kno"
-    , "k t   k kto "
-    , "k t   k kno "
-    , "k+kt+k+ktkno"
-    , "+ ktkt+k+to "
-    , "+ n kt+k+to "
-    , "+ u kt+k+to "
-    , "k+k t kt kno"
-    , "k+ kD kt kno"
-    ]
+default_variation :: Text
+default_variation = "d"
 
-pattern7 :: [Text]
-pattern7 =
-    [ "k t kno"
-    , "k   t   k kto "
-    , "k   t   k kno "
-    , "k+n+kt+k+ktkno"
-    , "k + ktkt+k+to "
-    , "k + n kt+k+to "
-    , "k + u kt+k+to "
-    , "k+n+k t kt kno"
-    , "k+  kD k t kno"
-    ]
+variations :: Map.Map Text Patterns
+variations = Map.fromList $ map (second convert_patterns) $
+    [ (default_variation, Mridangam.defaults)
+    , ("kt_tn_o", Mridangam.kt_kn_o)
+    ] ++
+    [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]
+
+convert_patterns :: Mridangam.Patterns -> Patterns
+convert_patterns (Solkattu.Realize.Patterns pmap) =
+    IntMap.fromAscList (Map.toAscList (convert <$> pmap))
+    where convert = second $ mconcatMap (maybe "_" Mridangam.stroke_to_call)
 
 -- These are not exposed in any way, and I'm not even sure how they should be
 -- exposed.

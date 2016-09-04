@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - look into using the 'errors' package for things like
+    'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
   * rename ScopeType to ScopePriority
     * rename stype_imported to library
   * why does creating a 'tari' block not override the 'tari' call?
@@ -1306,7 +1308,7 @@ Derive:
       solkattu:
         - why format make the S2 sequence in Realize_test.test_realize_pattern
           have underscores?
-        - Reuse solkattu patterns in india.mridanngam
+        * Reuse solkattu patterns in india.mridanngam
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
           ta_ta.din_din.gin_gin.na_na.thom_thom

@@ -17,7 +17,6 @@ import Global
 test_sequence = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-        ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
     equal (run [(2, 5, "seq ktkno")])
         (zip (Seq.range_ 2 1) ktkno, [])
     -- D is two strokes together, and _ or space are rest.
@@ -43,19 +42,23 @@ test_sequence = do
 test_pattern = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-        ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
     equal (run [(2, 5, "p 5")]) (zip (Seq.range_ 2 1) ktkno, [])
+    equal (run [(2, 5, "var=f567-1 | p 5")])
+        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ki"), (5.5, "+ta"),
+            (6, "+thom")], [])
 
 test_infer_pattern = do
     let run title = DeriveTest.extract extract . derive_tracks title
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-        attrs = map ('+':) ["ki", "ta", "ki", "nam", "thom"]
-    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "seq (pi 0 1)")])
-        (zip [1, 2, 3, 4, 5] attrs, [])
-    equal (run " | pattern = \"(pi 0 1)" [(1, 6, "seq")])
-        (zip [1, 2, 4, 5, 6] attrs, [])
-    equal (run " | pattern = \"(pi 0 1)" [(1, 7, "seq")])
-        (zip [1, 3, 5, 6, 7] attrs, [])
+    equal (run " | pattern = \"(infer _ 1)" [(1, 5, "seq (infer _ 1)")])
+        (zip [1, 2, 3, 4, 5] ktkno, [])
+    equal (run " | pattern = \"(infer _ 1)" [(1, 6, "seq")])
+        (zip [1, 2, 4, 5, 6] ktkno, [])
+    equal (run " | pattern = \"(infer _ 1)" [(1, 7, "seq")])
+        (zip [1, 3, 5, 6, 7] ktkno, [])
+
+ktkno :: [String]
+ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
