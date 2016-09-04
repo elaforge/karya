@@ -486,7 +486,7 @@ instance ToVal a => ToVal (Positive a) where
 
 instance TypecheckNum a => Typecheck (NonNegative a) where
     from_val v@(VNum val)
-        | Score.typed_val val > 0 = NonNegative <$> from_val v
+        | Score.typed_val val >= 0 = NonNegative <$> from_val v
         | otherwise = Val Nothing
     from_val _ = Val Nothing
     to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNonNegative

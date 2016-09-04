@@ -66,7 +66,7 @@ pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
 dur_arg :: Sig.Parser ScoreTime
-dur_arg = Sig.defaulted_env_quoted "dur" Sig.Both
+dur_arg = Typecheck.non_negative <$> Sig.defaulted_env_quoted "dur" Sig.Both
     (BaseTypes.quoted "ts" [BaseTypes.str "e"])
     "Duration for each letter in the pattern. If 0, the pattern will\
     \ stretch to the event's duration."
@@ -150,7 +150,7 @@ default_variation = "d"
 variations :: Map.Map Text Patterns
 variations = Map.fromList $ map (second convert_patterns) $
     [ (default_variation, Mridangam.defaults)
-    , ("kt_tn_o", Mridangam.kt_kn_o)
+    , ("kt_kn_o", Mridangam.kt_kn_o)
     ] ++
     [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]
 
