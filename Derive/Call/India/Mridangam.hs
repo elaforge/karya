@@ -18,6 +18,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 import Types
@@ -26,6 +27,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
     [ ("seq", c_sequence pattern_arg)
+    , ("p", c_pattern)
 
     -- standard patterns
     , ("tari", c_sequence (pure nakatiku))
@@ -48,25 +50,24 @@ c_sequence pattern_arg = Derive.generator module_ "sequence" Tags.inst
     \ available space. If a whole cycle doesn't fit, clip from the end for a\
     \ positive event, or from the beginning for a negative one.\
     \ If `dur` is 0, then stretch to the sequence to fit the event."
-    $ Sig.call ((,)
-    <$> pattern_arg
-    <*> Sig.defaulted_env_quoted "dur" Sig.Both
-        (BaseTypes.quoted "ts" [BaseTypes.str "e"])
-        "Duration for each letter in the pattern. If 0, the pattern will\
-        \ stretch to the event's duration."
-    ) $ \(pattern, dur) -> Sub.inverting $ \args ->
-        realize $ m_sequence (realize_pattern (Args.context args) pattern) dur
-            (Args.range args) (Args.orientation args)
-    where
-    realize notes = mconcat [Derive.place start 0 note | (start, note) <- notes]
+    $ Sig.call ((,) <$> pattern_arg <*> dur_arg) $ \(pattern, dur) ->
+    Sub.inverting $ \args -> do
+        let seq = realize_sequence (Args.context args) pattern
+        m_sequence seq dur (Args.range args) (Args.orientation args)
 
 pattern_arg :: Sig.Parser Text
 pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
+dur_arg :: Sig.Parser ScoreTime
+dur_arg = Sig.defaulted_env_quoted "dur" Sig.Both
+    (BaseTypes.quoted "ts" [BaseTypes.str "e"])
+    "Duration for each letter in the pattern. If 0, the pattern will\
+    \ stretch to the event's duration."
+
 m_sequence :: [Maybe Derive.NoteDeriver] -> ScoreTime -> (TrackTime, TrackTime)
-    -> Event.Orientation -> [(ScoreTime, Derive.NoteDeriver)]
-m_sequence pattern dur (start, end) orientation = strip $ case orientation of
+    -> Event.Orientation -> Derive.NoteDeriver
+m_sequence pattern dur (start, end) orientation = realize $ case orientation of
     _ | dur == 0 -> stretch_to_range (start, end) pattern
     Event.Positive -> takeWhile ((<end) . fst) $
         zip (Seq.range_ start dur) (cycle pattern)
@@ -77,21 +78,36 @@ m_sequence pattern dur (start, end) orientation = strip $ case orientation of
         -- because otherwise to put a note at the start I'd have to have
         -- a previous negative event, but if it's a problem I could add
         -- Flags.weak.
-    where strip xs = [(a, b) | (a, Just b) <- xs]
+    where
+    realize notes =
+        mconcat [Derive.place start 0 note | (start, Just note) <- notes]
 
 stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
 stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
     where dur = (end - start) / fromIntegral (length xs)
 
-realize_pattern :: Derive.Context Score.Event -> Text
+realize_sequence :: Derive.Context Score.Event -> Text
     -> [Maybe Derive.NoteDeriver]
-realize_pattern ctx = map realize . Text.unpack
+realize_sequence ctx = map realize . Text.unpack
     where
     realize c
         | c == ' ' || c == '_' = Nothing
         | otherwise = Just $ do
             call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
             Eval.apply_generator ctx call []
+
+c_pattern :: Derive.Generator Derive.Note
+c_pattern = Derive.generator module_ "pattern" Tags.inst
+    "Like `seq`, but pick a standard pattern."
+    $ Sig.call ((,,)
+    <$> (Typecheck.positive <$> Sig.required "n" "Number of strokes.")
+    <*> (Typecheck.non_negative <$> Sig.defaulted "var" 0 "Variation.")
+    <*> dur_arg
+    ) $ \(strokes, variation, dur) -> Sub.inverting $ \args -> do
+        seq <- Derive.require_right id $
+            realize_sequence (Args.context args) <$>
+                infer_pattern strokes variation
+        m_sequence seq dur (Args.range args) (Args.orientation args)
 
 -- * infer-pattern
 

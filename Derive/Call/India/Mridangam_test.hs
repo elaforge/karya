@@ -40,6 +40,12 @@ test_sequence = do
     -- hardcoded pattern
     equal (run [(2, 2, "tk")]) ([(2, "+ki"), (3, "+tha")], [])
 
+test_pattern = do
+    let run = DeriveTest.extract extract . derive_tracks ""
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
+    equal (run [(2, 5, "p 5")]) (zip (Seq.range_ 2 1) ktkno, [])
+
 test_infer_pattern = do
     let run title = DeriveTest.extract extract . derive_tracks title
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
