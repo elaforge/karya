@@ -44,6 +44,26 @@ test_realize = do
     equal (f [Sollu Na Nothing, Sollu Din (Just (M.Valantalai M.Chapu))])
         (Right "n u")
 
+test_realize_pattern = do
+    let f patterns = Realize.realize True (Realize.Instrument mempty patterns)
+        fmt = Text.unlines *** show_strokes
+    equal (fmt $ f (M.families567 !! 0) [Pattern 5]) (Right "k t k n o")
+    -- Patterns with a speed factor work.
+    equal (fmt $ f (M.families567 !! 1) [Pattern 5])
+        (Right "speed S2 k __ t __ k __ k t o __ speed S1")
+
+    let p = expect_right $ f (M.families567 !! 1) [Pattern 5]
+    -- TODO why all the underscores?
+    equal (strip_emphasis $ Realize.format (Solkattu.adi_tala 4) p)
+        "!k!_t_k_kt!o!_"
+
+test_patterns = do
+    let f = Realize.patterns
+    left_like (f [(2, [M.k])]) "not a log2"
+    left_like (f [(2, [M.k, M.__, M.k])]) "not a log2"
+    left_like (f [(2, [M.k, Realize.Pattern 5])]) "expected Note or Rest"
+    equal (second (const True) $ f [(2, [M.k, M.t])]) (Right True)
+
 show_strokes :: [Realize.Note M.Stroke] -> Text
 show_strokes = Text.unwords . map pretty
 
@@ -61,8 +81,7 @@ test_stroke_map = do
     left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"
 
 test_format = do
-    let f = Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"
-            . Realize.format (Solkattu.adi_tala 4)
+    let f = strip_emphasis . Realize.format (Solkattu.adi_tala 4)
         n4 = [Dsl.k, Dsl.t, Dsl.__, Dsl.n]
     -- Emphasize every 4.
     equal (f n4) "!k! t _ n"
@@ -74,3 +93,6 @@ test_format = do
     equal (f (n4 <> [Realize.Pattern 5] <> n4 <> [Realize.Pattern 5]))
         "!k! t _ n !p5!------!--!k t _ !n! p5----\n\
         \!--!--"
+
+strip_emphasis :: Text -> Text
+strip_emphasis = Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"

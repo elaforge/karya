@@ -55,6 +55,14 @@ speed_factor s = case s of
     S3 -> 4
     S4 -> 8
 
+factor_speed :: Int -> Maybe Speed
+factor_speed n = case n of
+    1 -> Just S1
+    2 -> Just S2
+    4 -> Just S3
+    8 -> Just S4
+    _ -> Nothing
+
 instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
     pretty n = case n of
         Sollu s stroke -> maybe (pretty s)

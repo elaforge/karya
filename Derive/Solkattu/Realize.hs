@@ -6,6 +6,7 @@
 -- | Realize an abstract solkattu 'S.Sequence' to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -31,21 +32,46 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
     pretty (TimeChange change) = pretty change
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  S.Matras
--- should equal length [Note].  This is enforced in the constructor 'patterns'.
-newtype Patterns stroke = Patterns (Map.Map S.Matras [Note stroke])
+-- should be an integral multiple of the length of the list.  This is enforced
+-- in the constructor 'patterns'.
+newtype Patterns stroke = Patterns (Map.Map S.Matras (S.Speed, [Maybe stroke]))
     deriving (Show, Pretty.Pretty, Monoid.Monoid)
 
-patterns :: Pretty.Pretty stroke => [(S.Matras, [Note stroke])]
-    -> Either Text (Patterns stroke)
+patterns :: Pretty.Pretty stroke =>
+    [(S.Matras, [Note stroke])] -> Either Text (Patterns stroke)
 patterns pairs
-    | null wrong = Right $ Patterns $ Map.fromList pairs
+    | null wrong = Right $ Patterns $ Map.fromList right
     | otherwise = Left $ Text.intercalate "; " wrong
     where
-    wrong =
-        [ "matras should match notes: " <> showt matras <> " /= " <> pretty ns
-        | (matras, ns) <- pairs
-        , matras /= length ns
-        ]
+    (wrong, right) = Either.partitionEithers $ map check pairs
+    check (matras, notes) = case factor_speed (length notes) matras of
+        Nothing -> Left $
+            "matras " <> showt matras <> " not a log2 of note length "
+                <> pretty notes
+        Just speed -> do
+            strokes <- mapM (check_note matras) notes
+            return (matras, (speed, strokes))
+    check_note matras n = case n of
+        Note s -> Right $ Just s
+        Rest -> Right Nothing
+        _ -> Left $ showt matras <> " matras: expected Note or Rest: "
+            <> pretty n
+
+factor_speed :: S.Matras -- ^ If I want to fit this many strokes
+    -> S.Matras -- ^ into this duration
+    -> Maybe S.Speed -- ^ play at this speed.
+factor_speed strokes dur
+    | strokes `mod` dur /= 0 = Nothing
+    | otherwise = S.factor_speed (strokes `div` dur)
+
+realize_pattern :: (S.Speed, [Maybe stroke]) -> [Note stroke]
+realize_pattern (speed, strokes) = case speed of
+    -- TODO This assumes that the speed is S1.  Maybe I should just always
+    -- emit the speed?
+    S.S1 -> notes
+    _ -> TimeChange (S.Speed speed) : notes ++ [TimeChange (S.Speed S.S1)]
+    where
+    notes = map (maybe Rest Note) strokes
 
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
@@ -117,7 +143,7 @@ realize realize_patterns (Instrument smap (Patterns patterns)) =
             | realize_patterns -> case Map.lookup dur patterns of
                 Nothing ->
                     ([], Just ("no pattern with duration " <> showt dur, n:ns))
-                Just mseq -> first (mseq:) (go ns)
+                Just strokes -> first (realize_pattern strokes :) (go ns)
             | otherwise -> first ([Pattern dur] :) (go ns)
         S.Rest -> first ([Rest] :) (go ns)
         S.Sollu sollu stroke ->
@@ -180,8 +206,8 @@ replace_strokes (_:_) [] = ([], [])
 
 -- | Format the notes according to the tala.
 format :: forall stroke. Pretty.Pretty stroke => S.Tala -> [Note stroke] -> Text
-format tala = Text.strip . mconcat
-    . S.map_time tala per_word . S.map_time tala per_note
+format tala =
+    Text.strip . mconcat . S.map_time tala per_word . S.map_time tala per_note
     where
     per_note _ note = case note of
         Rest -> (Right 1, [Right "_"])

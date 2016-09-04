@@ -1304,6 +1304,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - why format make the S2 sequence in Realize_test.test_realize_pattern
+          have underscores?
         - Reuse solkattu patterns in india.mridanngam
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
@@ -1315,7 +1317,7 @@ Derive:
           . Of course the other way to do that is just put the exact manual
             sequence in the StrokeMap, but it's a duplication, but minus
             the rests.
-        - Support S2 Patterns.
+        * Support S2 Patterns.
         - put sep argument second, so e.g. 'tri p6 (tang.ga)', this way it
           reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"

@@ -133,9 +133,13 @@ kt_kn_o = S.check $ Realize.patterns
     , (9, [k, t, __, __, k, n, __, __, o])
     ]
 
-families567 :: [[(Int, (S.Speed, [Note]))]]
-families567 = map (\xs -> zip [5..] (map (S.S2,) xs))
-    [ [ [k, __, t, __, k, __, k, t, o, __]
+families567 :: [Patterns]
+families567 = map (S.check . Realize.patterns . zip [5..])
+    [ [ [k, t, k, n, o]
+      , [k, t, __, k, n, o]
+      , [k, __, t, __, k, n, o]
+      ]
+    , [ [k, __, t, __, k, __, k, t, o, __]
       , [k, __, t, __, __, __, k, __, k, t, o, __]
       , [k, __, __, __, t, __, __, __, k, __, k, t, o, __]
       ]
