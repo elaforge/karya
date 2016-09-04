@@ -206,10 +206,10 @@ eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
 
 -- * event timing
 
-start :: PassedArgs a -> ScoreTime
+start :: PassedArgs a -> TrackTime
 start = Event.start . event
 
-duration :: PassedArgs a -> ScoreTime
+duration :: PassedArgs a -> TrackTime
 duration = Event.duration . event
 
 real_duration :: PassedArgs a -> Derive.Deriver RealTime
@@ -218,13 +218,13 @@ real_duration args = (-) <$> real_end args <*> real_start args
 real_start :: PassedArgs a -> Derive.Deriver RealTime
 real_start = Derive.real . start
 
-end :: PassedArgs a -> ScoreTime
+end :: PassedArgs a -> TrackTime
 end = Event.end . event
 
 real_end :: PassedArgs a -> Derive.Deriver RealTime
 real_end = Derive.real . end
 
-trigger :: PassedArgs a -> ScoreTime
+trigger :: PassedArgs a -> TrackTime
 trigger = Event.trigger . event
 
 real_trigger :: PassedArgs a -> Derive.Deriver RealTime
@@ -235,26 +235,26 @@ real_trigger = Derive.real . trigger
 --
 -- Used by calls to determine their extent, especially control calls, which
 -- have no explicit duration.
-next :: PassedArgs a -> ScoreTime
+next :: PassedArgs a -> TrackTime
 next = Derive.ctx_event_end . context
 
 -- | End of the next event, or the end of the block if there is no next event.
-next_end :: PassedArgs a -> ScoreTime
+next_end :: PassedArgs a -> TrackTime
 next_end args = maybe (next args) Event.end (Seq.head (next_events args))
 
 -- | Get the start of the next event, if there is one.
 --
 -- This is similar to 'next', except that it will be Nothing at the end of
 -- the block.
-next_start :: PassedArgs a -> Maybe ScoreTime
+next_start :: PassedArgs a -> Maybe TrackTime
 next_start = fmap Event.start . Seq.head . next_events
 
 -- | Start time of the previous event.
-prev_start :: PassedArgs a -> Maybe ScoreTime
+prev_start :: PassedArgs a -> Maybe TrackTime
 prev_start = fmap Event.start . Seq.head . prev_events
 
 -- | End time of the previous event.
-prev_end :: PassedArgs a -> Maybe ScoreTime
+prev_end :: PassedArgs a -> Maybe TrackTime
 prev_end = fmap Event.end . Seq.head . prev_events
 
 prev_events, next_events :: PassedArgs a -> [Event.Event]
@@ -265,7 +265,7 @@ prev_events = Derive.ctx_prev_events . context
 
 -- | Modify the duration of the ctx_event.  This is a hack, because calls run
 -- in TrackTime, instead of using Derive.place.
-set_duration :: ScoreTime -> PassedArgs a -> PassedArgs a
+set_duration :: TrackTime -> PassedArgs a -> PassedArgs a
 set_duration dur args = args
     { Derive.passed_ctx = ctx
         { Derive.ctx_event = Event.set_duration dur $ Derive.ctx_event ctx }
@@ -277,7 +277,7 @@ set_duration dur args = args
 -- | Range of the called event, i.e. (start, end).  Note that range is the
 -- minimum to maximum, which is not the same as the start and end if the event
 -- has negative duration.
-range :: PassedArgs a -> (ScoreTime, ScoreTime)
+range :: PassedArgs a -> (TrackTime, TrackTime)
 range = Event.range . event
 
 real_range :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
@@ -285,7 +285,7 @@ real_range args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range args
 
 -- | Like 'range', but if the duration is 0, then the end is 'next' event.
-range_or_next :: PassedArgs a -> (ScoreTime, ScoreTime)
+range_or_next :: PassedArgs a -> (TrackTime, TrackTime)
 range_or_next args
     | start == end = (start, next args)
     | otherwise = (start, end)
@@ -305,7 +305,7 @@ real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
 -- (note_start, note_start), which should cause the call to just emit its final
 -- sample at the note-start, which will both get the correct value for the
 -- event and not destroy the earlier track signal fragment.
-range_or_note_end :: PassedArgs a -> Derive.Deriver (ScoreTime, ScoreTime)
+range_or_note_end :: PassedArgs a -> Derive.Deriver (TrackTime, TrackTime)
 range_or_note_end args
     | start == end = do
         note_start <- Derive.lookup_val EnvKey.note_start
@@ -322,7 +322,7 @@ range_or_note_end args
 -- | Start and duration of the event.  This is probably the right thing for
 -- calls that generate a note since it will give a negative duration when
 -- appropriate.
-extent :: PassedArgs a -> (ScoreTime, ScoreTime)
+extent :: PassedArgs a -> (TrackTime, TrackTime)
 extent = (\e -> (Event.start e, Event.duration e)) . event
 
 real_extent :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
