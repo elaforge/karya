@@ -5,11 +5,12 @@
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
 import qualified Data.IntMap as IntMap
-import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Ui.Event as Event
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -17,7 +18,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.BaseTypes as BaseTypes
 
 import Global
 import Types
@@ -25,15 +25,12 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
-    [ ("p1", c_pattern_once pattern_arg)
-    , ("pn", c_pattern_times)
-    , ("pr", c_pattern_repeat False)
-    , ("Pr", c_pattern_repeat True)
+    [ ("seq", c_sequence pattern_arg)
 
     -- standard patterns
-    , ("tari", c_pattern_once (pure nakatiku))
-    , ("tk", c_pattern_once (pure "k+"))
-    , ("tknk", c_pattern_once (pure "k+n+"))
+    , ("tari", c_sequence (pure nakatiku))
+    , ("tk", c_sequence (pure "k+"))
+    , ("tknk", c_sequence (pure "k+n+"))
     ]
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
@@ -44,57 +41,47 @@ val_calls = Derive.call_map
 module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
-c_pattern_once :: Sig.Parser Text -> Derive.Generator Derive.Note
-c_pattern_once pattern_arg = Derive.generator module_ "pattern" Tags.inst
-    "Emit a pattern, fitted into the note duration."
-    $ Sig.call pattern_arg $ \pattern -> Sub.inverting $ \args -> do
-        let notes = stretch_to_range (Args.range args) $
-                realize_pattern (Args.context args) pattern
-        mconcat [Derive.place start 0 note | (start, Just note) <- notes]
-
-stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
-stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
-    where dur = (end - start) / fromIntegral (length xs)
-
-c_pattern_times :: Derive.Generator Derive.Note
-c_pattern_times = Derive.generator module_ "pattern" Tags.inst
-    "Repeat a pattern a certain number of times, fitted into the note duration."
+c_sequence :: Sig.Parser Text -> Derive.Generator Derive.Note
+c_sequence pattern_arg = Derive.generator module_ "sequence" Tags.inst
+    "Play a sequence of mridangam strokes. Each one takes the given `dur`, and\
+    \ if the event is longer than the sequence, it is repeated to fill up\
+    \ available space. If a whole cycle doesn't fit, clip from the end for a\
+    \ positive event, or from the beginning for a negative one.\
+    \ If `dur` is 0, then stretch to the sequence to fit the event."
     $ Sig.call ((,)
     <$> pattern_arg
-    <*> Sig.defaulted "times" 3 "Repeat the pattern this many times."
-    ) $ \(pattern, times) -> Sub.inverting $ \args -> do
-        let notes = stretch_to_range (Args.range args) $
-                concat $ List.replicate times $
-                realize_pattern (Args.context args) pattern
-        mconcat [Derive.place start 0 note | (start, Just note) <- notes]
-
-c_pattern_repeat :: Bool -> Derive.Generator Derive.Note
-c_pattern_repeat clip_start = Derive.generator module_ "pattern" Tags.inst
-    "Repeat a pattern, where each note has the given duration. The first\
-    \ variant clips before the end of the note, and the second variant\
-    \ lines the end of the pattern up to the end of the note."
-    $ Sig.call ((,)
-    <$> pattern_arg
-    <*> Sig.defaulted_env_quoted "dur" Sig.Prefixed
+    <*> Sig.defaulted_env_quoted "dur" Sig.Both
         (BaseTypes.quoted "ts" [BaseTypes.str "e"])
-        "Duration for each letter in the pattern."
-    ) $ \(pattern, dur) -> Sub.inverting $ \args -> do
-        let notes = pattern_repeat clip_start (Args.range args) dur $
-                realize_pattern (Args.context args) pattern
-        mconcat [Derive.place start 0 note | (start, note) <- notes]
-
-pattern_repeat :: Bool -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> [Maybe Derive.NoteDeriver] -> [(ScoreTime, Derive.NoteDeriver)]
-pattern_repeat clip_start (start, end) dur pattern
-    | clip_start = strip $ reverse $ takeWhile ((>=start) . fst) $
-        zip (Seq.range_ end (-dur)) (cycle (reverse pattern))
-    | otherwise = strip $ takeWhile ((<end) . fst) $
-        zip (Seq.range_ start dur) (cycle pattern)
-    where strip xs = [(a, b) | (a, Just b) <- xs]
+        "Duration for each letter in the pattern. If 0, the pattern will\
+        \ stretch to the event's duration."
+    ) $ \(pattern, dur) -> Sub.inverting $ \args ->
+        realize $ m_sequence (realize_pattern (Args.context args) pattern) dur
+            (Args.range args) (Args.orientation args)
+    where
+    realize notes = mconcat [Derive.place start 0 note | (start, note) <- notes]
 
 pattern_arg :: Sig.Parser Text
 pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
+
+m_sequence :: [Maybe Derive.NoteDeriver] -> ScoreTime -> (TrackTime, TrackTime)
+    -> Event.Orientation -> [(ScoreTime, Derive.NoteDeriver)]
+m_sequence pattern dur (start, end) orientation = strip $ case orientation of
+    _ | dur == 0 -> stretch_to_range (start, end) pattern
+    Event.Positive -> takeWhile ((<end) . fst) $
+        zip (Seq.range_ start dur) (cycle pattern)
+    Event.Negative -> reverse $ takeWhile ((>=start) . fst) $
+        zip (Seq.range_ end (-dur)) (cycle (reverse pattern))
+        -- Since this is >=start, but includes the end, I'll wind up with one
+        -- more note than the duration would indicate.  I think this is ok,
+        -- because otherwise to put a note at the start I'd have to have
+        -- a previous negative event, but if it's a problem I could add
+        -- Flags.weak.
+    where strip xs = [(a, b) | (a, Just b) <- xs]
+
+stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
+stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
+    where dur = (end - start) / fromIntegral (length xs)
 
 realize_pattern :: Derive.Context Score.Event -> Text
     -> [Maybe Derive.NoteDeriver]

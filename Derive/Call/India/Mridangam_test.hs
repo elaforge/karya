@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Mridangam_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
@@ -13,34 +14,41 @@ import qualified Local.Instrument.Kontakt as Kontakt
 import Global
 
 
-test_pattern = do
+test_sequence = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run [(2, 5, "p1 ktkno")])
-        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+nam"), (6, "+thom")], [])
-    equal (run [(2, 3, "p1 k_D")])
-        ([(2, "+ki"), (4, "+thom"), (4, "+din")], [])
+        ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
+    equal (run [(2, 5, "seq ktkno")])
+        (zip (Seq.range_ 2 1) ktkno, [])
+    -- D is two strokes together, and _ or space are rest.
+    equal (run [(2, 5, "seq 'k_D t'")])
+        ([(2, "+ki"), (4, "+thom"), (4, "+din"), (6, "+ta")], [])
 
-    equal (run [(2, 4, "pr kt")])
-        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta")], [])
-    equal (run [(2, 3, "pr kt")])
+    -- Positive means clip the end.
+    equal (run [(2, 3, "seq ktkno")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki")], [])
-    equal (run [(2, 2, "Pr kt")])
-        ([(2, "+ta"), (3, "+ki"), (4, "+ta")], [])
+    -- Negative means clip the beginning.
+    equal (run [(5, -3, "seq ktkno")])
+        ([(2, "+ta"), (3, "+ki"), (4, "+nam"), (5, "+thom")], [])
+    -- Cycle if longer than needed.
+    equal (run [(2, 10, "seq ktkno")])
+        (zip (Seq.range_ 2 1) (ktkno ++ ktkno), [])
+    -- Otherwise dur 0 means stretch.
+    equal (run [(2, 10, "dur=0 | seq ktkno")])
+        (zip (Seq.range_ 2 2) ktkno, [])
 
-    equal (run [(2, 6, "pn kt 3")])
-        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta"), (6, "+ki"),
-            (7, "+ta")], [])
+    -- hardcoded pattern
+    equal (run [(2, 2, "tk")]) ([(2, "+ki"), (3, "+tha")], [])
 
 test_infer_pattern = do
     let run title = DeriveTest.extract extract . derive_tracks title
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
         attrs = map ('+':) ["ki", "ta", "ki", "nam", "thom"]
-    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "p1 (pi 0 1)")])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "seq (pi 0 1)")])
         (zip [1, 2, 3, 4, 5] attrs, [])
-    equal (run " | pattern = \"(pi 0 1)" [(1, 6, "p1")])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 6, "seq")])
         (zip [1, 2, 4, 5, 6] attrs, [])
-    equal (run " | pattern = \"(pi 0 1)" [(1, 7, "p1")])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 7, "seq")])
         (zip [1, 3, 5, 6, 7] attrs, [])
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
