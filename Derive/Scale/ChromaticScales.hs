@@ -12,8 +12,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
-
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -213,9 +211,9 @@ call_doc transposers smap doc =
 
 format_keys :: [Pitch.Key] -> Doc.Doc
 format_keys keys
-    | all (("-" `Text.isInfixOf`) . Pitch.key_text) keys = TextUtil.join ", " $
+    | all (("-" `Text.isInfixOf`) . Pitch.key_text) keys = Doc.commas $
         map (Doc.literal . fst) $ group_tonic_mode $ map (, ()) keys
-    | otherwise = TextUtil.join ", " (map Doc.pretty keys)
+    | otherwise = Doc.commas (map Doc.pretty keys)
 
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.

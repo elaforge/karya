@@ -18,7 +18,6 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -109,7 +108,7 @@ interval_arg_doc named_intervals =
     "Multiply this interval with the note's frequency. Negative numbers\
     \ divide, so while `3/2` goes up a fifth, `-3/2` goes down a fifth.\
     \ Can be either a ratio or a symbol drawn from: "
-    <> TextUtil.join ", " (map Doc.literal (Map.keys named_intervals))
+    <> Doc.commas (map Doc.literal (Map.keys named_intervals))
 
 parse_relative_interval :: NamedIntervals -> Pitch.Note -> Maybe Pitch.Hz
 parse_relative_interval named_intervals note =

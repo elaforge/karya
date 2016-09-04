@@ -13,7 +13,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
@@ -114,7 +113,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_stable snd
     fmt ((name, key) :| rest) =
         Just (fmt_names (name : map fst rest),
             Doc.Doc $ show_ratios (key_ratios key))
-    fmt_names = TextUtil.join ", " . map ShowVal.doc
+    fmt_names = Doc.commas . map ShowVal.doc
 
 show_ratios :: Ratios -> Text
 show_ratios = Text.intercalate ", " . map pretty . Vector.toList

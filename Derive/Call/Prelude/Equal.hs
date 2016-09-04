@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -117,7 +116,7 @@ merge_doc :: Doc.Doc
 merge_doc = "Merge operator. This can be `default` to use the default for the\
     \ control, `set` to replace the old signal, or one of the operators from\
     \ 'Derive.Deriver.Monad.mergers': "
-    <> TextUtil.join ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
+    <> Doc.commas (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
 
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 

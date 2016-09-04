@@ -13,7 +13,6 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -241,7 +240,7 @@ c_attr_grace supported =
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
-    <> TextUtil.join ", " (map ShowVal.doc (Map.elems supported))
+    <> Doc.commas (map ShowVal.doc (Map.elems supported))
     ) $ Sig.call ((,,)
     <$> grace_pitches_arg <*> grace_envs
     <*> Sig.environ "attr" Sig.Prefixed Nothing

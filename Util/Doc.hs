@@ -1,6 +1,6 @@
 -- | Utilities for the 'Doc' type.
 module Util.Doc (
-    Doc(..), pretty, literal
+    Doc(..), pretty, literal, commas
     -- * HTML
     , Html, html, un_html
     -- ** create
@@ -40,6 +40,9 @@ pretty = literal . Pretty.pretty
 
 literal :: Text -> Doc
 literal text = Doc $ "`" <> text <> "`"
+
+commas :: [Doc] -> Doc
+commas = TextUtil.join ", "
 
 -- * HTML
 
