@@ -110,7 +110,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             -- o- is the same as 'o 0'.  Maybe it should be called o0 then?
             -- But it might also be more useful to have generic low, medium,
             -- high.  Or o_ o- o^
-            , n '/' "*" (thom <> dry) 1
+            , n 'b' "*" (thom <> dry) 1
             ]
         ]
     right_notes = concat
