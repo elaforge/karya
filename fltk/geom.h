@@ -93,7 +93,7 @@ struct RectTmpl {
     }
 
     // Return the union of this and 'o'.
-    RectTmpl<T> union_(const RectTmpl<T> &o) {
+    RectTmpl<T> union_(const RectTmpl<T> &o) const {
         // Rects with 0 width are ignored.
         if (o.w==T() || o.h==T())
             return *this;
@@ -106,11 +106,10 @@ struct RectTmpl {
             T b_ = std::max(this->b(), o.b());
             return RectTmpl<T>(x_, y_, r_ - x_, b_ - y_);
         }
-        return *this; // not reached, but shut up gcc
     }
 
     // Return the intersection of this with 'o'.
-    RectTmpl<T> intersect(const RectTmpl<T> &o) {
+    RectTmpl<T> intersect(const RectTmpl<T> &o) const {
         T x_ = std::max(this->x, o.x);
         T y_ = std::max(this->y, o.y);
         T r_ = std::min(this->r(), o.r());
@@ -120,7 +119,7 @@ struct RectTmpl {
 
     // Return whether the two rects intersect each other at all.
     // A rect with zero width or height will never intersect with anything.
-    bool intersects(const RectTmpl<T> &o) {
+    bool intersects(const RectTmpl<T> &o) const {
         if (!(w && h && o.w && o.h))
             return false;
         return !(x >= o.r() || r() <= o.x || y >= o.b() || b() <= o.y);
