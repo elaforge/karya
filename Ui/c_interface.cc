@@ -294,7 +294,7 @@ insert_symbol(const char *name, int absolute_y,
     for (int i = 0; i < glyphs_len; i++) {
         sym.glyphs.push_back(glyphs[i]);
     }
-    SymbolTable::get()->insert(string(strdup(name)), sym);
+    SymbolTable::get()->insert(std::string(name), sym);
 }
 
 
