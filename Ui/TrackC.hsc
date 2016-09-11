@@ -28,14 +28,14 @@ import Global
 -- 'with'.
 with_track :: Track.Track -> Track.SetStyle -> [Events.Events]
     -> (Ptr Track.Track -> IO a) -> IO a
-with_track track (track_bg, event_style) event_lists f =
+with_track track (track_bg, event_style) merged_events f =
     allocaBytesAligned size align $ \trackp -> do
         -- Wrap style is customizable per track, but I'll hardcode it for now.
         (#poke EventTrackConfig, text_wrap) trackp
             ((#const EventTrackConfig::wrap) :: CInt)
         (#poke EventTrackConfig, bg_color) trackp (track_bg track)
         poke_find_events trackp (event_style (Track.track_title track))
-            (Track.track_events track : event_lists)
+            (Track.track_events track : merged_events)
         (#poke EventTrackConfig, render) trackp (Track.track_render track)
         initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)
         f trackp
@@ -53,8 +53,8 @@ poke_find_events trackp event_style event_lists = do
     (#poke EventTrackConfig, time_end) trackp time_end
 
 make_find_events :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events event_style events = Util.make_fun_ptr "find_events" $
-    c_make_find_events (cb_find_events event_style events)
+make_find_events event_style event_lists = Util.make_fun_ptr "find_events" $
+    c_make_find_events (cb_find_events event_style event_lists)
 
 instance CStorable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
@@ -123,12 +123,17 @@ cb_find_events :: EventStyle -> [Events.Events] -> FindEvents
 cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
+    -- The haskell level stores negative events as (start, dur, Negative),
+    -- while fltk sees them as (start+dur, -dur).  So I have to order by
+    -- 'Event.trigger' to make sure fltk sees them in order.  'in_range' uses
+    -- Event.start instead of Event.trigger, but since it also unconditionally
+    -- includes neighbors, I think it should work out to be the same.
     let (events, ranks) = unzip $ Seq.sort_on key
             [ (style event, rank)
             | (rank, events) <- zip [0..] event_lists
             , event <- in_range start end events
             ]
-        key (event, rank) = (Event.start event, rank)
+        key (event, rank) = (Event.trigger event, rank)
         style event = Event.modify_style (const (event_style event)) event
     unless (null events) $ do
         -- Calling c++ is responsible for freeing these.
@@ -136,7 +141,7 @@ cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
         poke ret_ranks =<< newArray ranks
     return (length events)
     where
-    -- Get everything in the half-open range, plus one event before and after.
+    -- Get everything in the inclusive range, plus one event before and after.
     -- The drawing code needs to know if the previous event text would overlap
     -- the first one.  The same goes for the last event, in case it has
     -- negative duration and the text goes above.
