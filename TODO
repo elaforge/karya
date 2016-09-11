@@ -839,7 +839,7 @@ fltk:
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.  This is visible when I add logical range markers.
-  - If I wrap text, and there is then space available on the right, check if
+  * If I wrap text, and there is then space available on the right, check if
     I can squeeze in ranked text.
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?

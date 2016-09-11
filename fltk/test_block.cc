@@ -16,7 +16,7 @@
 #include "f_util.h"
 
 
-static const bool arrival_beats = false;
+static const bool negative_durations = false;
 // Turn this off just draw a single event.
 static const bool draw_lots_of_stuff = true;
 
@@ -86,7 +86,7 @@ void t1_set()
     StyleId style = 0;
     StyleId style2 = 1;
 
-    if (arrival_beats) {
+    if (negative_durations) {
         e.push_back(EventInfo(0,
             Event(ScoreTime(8), ScoreTime(-8), "a", style)));
         e.push_back(EventInfo(0,
@@ -189,7 +189,6 @@ static const Color render_color = Color(166, 166, 205, 127);
 static void
 timeout_func(void *unused)
 {
-    Block &block = windows[0]->block;
     static int n;
     /*
     static int i = t1_events.size() - 1;
@@ -201,16 +200,17 @@ timeout_func(void *unused)
     static EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
             RenderConfig(RenderConfig::render_line, render_color));
     static RulerConfig ruler(
-            ruler_bg, false, true, true, arrival_beats, m44_last_pos);
+            ruler_bg, false, true, true, negative_durations, m44_last_pos);
     */
 
     std::cout << n << "------------\n";
     switch (n) {
-    case 0:
+    case 0: {
+        // Block &block = windows[0]->block;
         // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
         return;
         break;
-    case 1:
+    } case 1:
         break;
     case 2:
         break;
@@ -291,10 +291,20 @@ show_fonts()
     free(fonts);
 }
 
+void
+menu_cb(Fl_Widget *w, void *arg)
+{
+}
+
 int
 main(int argc, char **argv)
 {
     handle_argv(argc, argv);
+    Fl_Sys_Menu_Bar menu(0, 0, 0, 0, nullptr);
+    menu.add("Window/blorp", 0, menu_cb, nullptr, FL_MENU_TOGGLE);
+    menu.show();
+    // check for focused, diamond for minimized
+
     BlockConfig config = block_config();
 
     BlockWindow::initialize(nullptr);
@@ -306,10 +316,11 @@ main(int argc, char **argv)
     mlists.push_back(m44_marks);
     Marklists nomarks;
 
-    RulerConfig ruler(ruler_bg, false, true, true, arrival_beats, m44_last_pos);
+    RulerConfig ruler(
+        ruler_bg, false, true, true, negative_durations, m44_last_pos);
     ruler.marklists = mlists;
     RulerConfig no_ruler(
-        ruler_bg, false, true, true, arrival_beats, ScoreTime(0));
+        ruler_bg, false, true, true, negative_durations, ScoreTime(0));
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
