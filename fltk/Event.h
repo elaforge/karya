@@ -44,7 +44,7 @@ inline std::ostream &
 operator<<(std::ostream &os, const Event &e)
 {
     return os << "Event(" << e.start << ", " << e.duration << ", "
-        << int(e.style_id) << ")";
+        << int(e.style_id) << " '" << (e.text ? e.text : "") << "'" << ")";
 }
 
 #endif

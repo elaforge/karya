@@ -284,4 +284,12 @@ color_cycle()
     return colors[i];
 }
 
+
+void
+draw(const IRect &rect, Color color)
+{
+    fl_color(color.fl());
+    fl_rect(rect.x, rect.y, rect.w, rect.h);
+}
+
 }

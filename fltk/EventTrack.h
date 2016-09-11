@@ -10,12 +10,14 @@
 #ifndef __EVENT_TRACK_H
 #define __EVENT_TRACK_H
 
+#include <string>
 #include <vector>
 
 #include "AbbreviatedInput.h"
 #include "Event.h"
 #include "FloatingInput.h"
 #include "RulerTrack.h"
+#include "SymbolTable.h"
 #include "Track.h"
 #include "types.h"
 
@@ -96,19 +98,11 @@ public:
     typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
             Event **ret_events, int **ret_ranks);
 
-    // What to do about text that's too long.  If it's too long but there's
-    // no room below, it's always clipped.
-    enum text_wrap_style { clip, wrap };
-
     EventTrackConfig(Color bg_color, FindEvents find_events,
             ScoreTime time_end, RenderConfig render_config) :
-        text_wrap(wrap), // hardcode for now
         bg_color(bg_color), find_events(find_events), time_end(time_end),
         render(render_config), track_signal()
     {}
-    // This should be a text_wrap_style, but it's easier to use from the
-    // haskell FFI if it's an int.
-    int text_wrap;
     Color bg_color;
     FindEvents find_events;
     ScoreTime time_end;
@@ -147,6 +141,17 @@ public:
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 
+    // Whether text is aligned to the left or right side of the track.  Left
+    // aligned text has higher drawing priority.
+    enum Align { Left, Right };
+    struct TextBox {
+        TextBox(std::vector<std::pair<std::string, IRect>> lines, Align align)
+            : lines(lines), align(align)
+        {}
+        TextBox() {}
+        std::vector<std::pair<std::string, IRect>> lines;
+        Align align;
+    };
 protected:
     void draw() override;
 
@@ -156,10 +161,9 @@ private:
     void draw_event_boxes(
         const Event *events, const int *ranks, int count,
         const std::vector<int> &offsets);
-    std::pair<IRect, IRect> draw_upper_layer(
-        int offset,
-        const Event &event, int rank, int prev_offset, int next_offset,
-        const IRect &prev_unranked_rect, const IRect &prev_ranked_rect);
+    void draw_upper_layer(
+        int index, const Event *events, Align align,
+        const std::vector<TextBox> &boxes, const std::vector<int> &triggers);
     void static title_input_focus_cb(Fl_Widget *_w, void *arg);
     void static floating_input_done_cb(Fl_Widget *_w, void *arg);
     void focus_title();

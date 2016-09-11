@@ -76,16 +76,16 @@ SymbolTable::insert(const string &name, const Symbol &sym)
 
 // Draw the given text and return its width.
 static double
-draw_text(const char *text, int n, IPoint pos, bool measure,
+draw_text(const char *text, int len, IPoint pos, bool measure,
     DPoint align = DPoint(), int rotate = 0)
 {
-    if (n == 0)
+    if (len == 0)
         return 0;
 
     pos = pos + IPoint(align.x * fl_size(), align.y * fl_size());
     if (!measure)
-        fl_draw(rotate, text, n, pos.x, pos.y);
-    return fl_width(text, n);
+        fl_draw(rotate, text, len, pos.x, pos.y);
+    return fl_width(text, len);
 }
 
 static void
@@ -113,10 +113,23 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
 
 
 IPoint
-SymbolTable::draw(const string &text, IPoint pos, Style style, bool measure)
-    const
+SymbolTable::draw(const string &text, IPoint pos, Style style) const
 {
-    size_t start = 0;
+    return draw_or_measure(text, 0, text.length(), pos, style, false);
+}
+
+
+IPoint
+SymbolTable::measure(const string &text, int start, int end, Style style) const
+{
+    return draw_or_measure(text, start, end, IPoint(0, 0), style, true);
+}
+
+
+IPoint
+SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
+    Style style, bool measure) const
+{
     size_t i, j;
 
     style.set();
@@ -124,10 +137,10 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool measure)
     // of the text.
     IPoint box(0, fl_height() - fl_descent());
 
-    while ((i = text.find('`', start)) < text.size()) {
+    while ((i = text.find('`', start)) < end) {
         i++;
         j = text.find('`', i);
-        if (j >= text.size())
+        if (j >= end)
             break;
 
         // Draw text before ``s.
@@ -163,18 +176,11 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool measure)
     }
     // Draw trailing text.
     style.set();
-    if (start < text.size()) {
-        box.x += draw_text(text.c_str() + start, text.size() - start,
+    if (start < end) {
+        box.x += draw_text(text.c_str() + start, end - start,
             IPoint(pos.x + box.x, pos.y), measure, DPoint());
     }
     return box;
-}
-
-
-IPoint
-SymbolTable::measure(const string &text, Style style) const
-{
-    return this->draw(text, IPoint(0, 0), style, true);
 }
 
 
@@ -225,126 +231,122 @@ SymbolTable::measure_glyph(const char *p, int size) const
 }
 
 
-IPoint
-SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
-    int max_height, Style style, bool right_justify) const
+static int
+next_split(const string &text, int start)
 {
-    // This function is a real rat's nest.
-    //
-    // It's probably fairly inefficient since I do lots of measuring before
-    // drawing.  But it seems to be fast enough, and in particular fl_width has
-    // been optimized for single characters.
+    int i = start;
+    while (i < text.length() && text[i] == ' ')
+        i++;
+    while (i < text.length() && text[i] != ' ')
+        i++;
+    return i;
+}
 
-    // This is the bounding box of the text, returned to the caller.
-    IPoint total_size(0, 0);
-    // Beginning of the line of text I'm trying to draw.
-    const char *line_start = text.c_str();
-    // The last time I saw a space character, for line breaking.
-    const char *last_space = line_start;
-    f_util::ClipArea clip(f_util::clip_rect(right_justify
-        ? IRect(pos.x - wrap_width, pos.y, wrap_width, max_height)
-        : IRect(pos.x, pos.y, wrap_width, max_height)));
 
-    style.set(); // because of utf8::width below
-    // This accumulates the space used on the current line.
-    double line_width = 0;
-    for (const char *p = line_start;;) {
-        if (*p == ' ')
-            last_space = p;
-        line_width += this->measure_glyph(p, style.size);
-        // Display at least one char before a line wrap, this prevents an
-        // endless loop.
-        const bool should_wrap = line_width > wrap_width && p > line_start;
-        if (!*p || should_wrap) {
-            // if (should_wrap) {
-            //     DEBUG("should wrap: " << line_width << " > " << wrap_width);
-            // } else {
-            //     DEBUG("eol");
-            // }
-            const char *break_at;
-            if (should_wrap) {
-                if (last_space == line_start)
-                    break_at = p;
-                else
-                    break_at = last_space;
-            } else {
-                break_at = p;
-            }
-            // DEBUG("break_at '" << string(break_at, 1) << "' "
-            //     << break_at - text.c_str());
-
-            const string line(line_start, break_at - line_start);
-            IPoint line_size = this->measure(line, style);
-            // For text, line_size.y will be fl_height() - fl_descent(), but
-            // it looks a little cramped.
-            line_size.y += 2;
-            total_size.x = std::max(total_size.x, line_size.x);
-            total_size.y += line_size.y;
-
-            // Give some extra pixels when right_justify, otherwise the last
-            // character gets cut off.
-            IPoint draw_at(
-                right_justify ? pos.x - line_size.x - 2 : pos.x,
-                pos.y + total_size.y);
-            this->draw(line, draw_at, style);
-            // If I'm done drawing, and text has a last char, and the last char
-            // is space, and the poodle's eating noodles, draw a mark to
-            // indicate that the text has a trailing space.
-            bool trailing_space = !right_justify && *break_at == '\0'
-                && text.size() > 0 && *(--text.end()) == ' ';
-            if (trailing_space) {
-                IPoint trailing(pos.x + line_size.x,
-                    pos.y + total_size.y - line_size.y);
-                // I want to put the mark on the last space, not afterwards,
-                // so subtract a bit.  But if it wrapped exactly at the space,
-                // the space will be omitted so don't subtract past the left
-                // margin.
-                trailing.x = std::max(trailing.x - 3, pos.x);
-                trailing.y += fl_descent();
-                fl_color(FL_RED);
-                fl_rectf(trailing.x, trailing.y, 2, fl_height() - fl_descent());
-            }
-
-            // If I'm forced to clip vertically, draw a horizontal abbreviation
-            // rectangle to indicate that.
-            if (total_size.y >= max_height) {
-                if (total_size.y > line_size.y) {
-                    fl_color(Config::abbreviation_color.fl());
-                    fl_rectf(pos.x, pos.y + max_height - 2, wrap_width, 2);
-                    style.set();
-                }
-                break;
-            } else if (!*break_at) {
-                break;
-            } else {
-                p = break_at;
-                // If I broke on 'p' then I have to rewind a character because
-                // I haven't actually drawn the char at 'p' yet.
-                if (*p != ' ')
-                    p = utf8::backward(p, text.c_str());
-                line_width = 0;
-                line_start = break_at;
-                if (*line_start == ' ')
-                    line_start++;
-                last_space = line_start;
-            }
-        }
-        // Increment to the next char, counting a `sym` as a single char.
-        if (*p == '`') {
-            for (int i = 1;; i++) {
-                if (p[i] == '`') {
-                    p += i+1;
-                    break;
-                } else if (!p[i]) {
-                    p = utf8::forward(p, text.c_str() + text.length());
-                    break;
-                }
-            }
+static int
+next_glyph(const string &text, int start)
+{
+    if (text[start] == '`') {
+        int end = start + 1;
+        while (end < text.length() && text[end] != '`')
+            end++;
+        if (end == text.length()) { // unclosed `
+            return start + 1;
         } else {
-            p = utf8::forward(p, text.c_str() + text.length());
+            return end + 1;
+        }
+    } else {
+        return start
+            + utf8::bytes(text.c_str() + start, text.length() - start, 1);
+    }
+}
+
+SymbolTable::Wrapped
+SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
+{
+    std::vector<std::pair<string, IPoint>> lines;
+    IPoint total_box(0, 0);
+    string line;
+    line.reserve(text.length());
+
+    // Otherwise glyphs will overlap the edge a bit anyway.
+    wrap_width--;
+
+    int start = 0;
+    IPoint line_box(0, 0);
+    // DEBUG("text: " << text << " (" << text.length() << ")");
+    while (start < text.length()) {
+        int end = next_split(text, start);
+        IPoint word_box = this->measure(text, start, end, style);
+        if (line_box.x + word_box.x <= wrap_width) {
+            // DEBUG(start << "--" << end << ": " << word_box << " <= "
+            //     << wrap_width);
+            line.append(text, start, end - start);
+            line_box.x += word_box.x;
+            line_box.y = std::max(line_box.y, word_box.y);
+            start = end;
+        } else {
+            // I exceeded the width, so I have to break before this word.
+            // DEBUG(start << "--" << end << ": " << word_box << " > "
+            //     << wrap_width << ", line: " << line);
+            if (line.empty()) {
+                // A single word doesn't fit, so split by glyph.
+                int end;
+                line_box = wrap_glyphs(text, start, style, wrap_width, &end);
+                // DEBUG("wrap_glyphs: " << start << "--" << end);
+                line.append(text, start, end - start);
+                start = end;
+            }
+            // DEBUG("Line: '" << line << "' incremental: " << line_box
+            //     << ", recomputed: "
+            //     << measure(line, 0, line.length(), style));
+            // Using line_box incrementally should be faster than measuring
+            // each time, but is a bit inaccurate.  Hopefully it's good enough
+            // for wrapping, but for drawing it should be exact, so text
+            // visibility can work reliably.
+            lines.push_back(std::make_pair(
+                line, this->measure(line, 0, line.length(), style)));
+            line_box = IPoint(0, 0);
+            line.clear();
+            // I just broke a line, so I can skip all the whitespace.
+            while (text[start] == ' ')
+                start++;
         }
     }
-    return total_size;
+    if (!line.empty())
+        lines.push_back(std::make_pair(
+            line, this->measure(line, 0, line.length(), style)));
+
+    // for (int i = 0; i < lines.size(); i++) {
+    //     DEBUG("LINE " << i << ": " << lines[i]);
+    // }
+    return lines;
+}
+
+
+IPoint
+SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
+    int wrap_width, int *wrap_at) const
+{
+    IPoint box;
+    int end = next_glyph(text, start);
+    for (int prev_end = end; end < text.length(); prev_end = end) {
+        end = next_glyph(text, end);
+        // Always measure from the start.  The width of a string is quite a bit
+        // more than the sum of the widths of the characters.  This doesn't
+        // seem to be a problem for wrap, maybe because there are fewer
+        // words and thus not so much error accumulation.
+        box = this->measure(text, start, end, style);
+        // DEBUG(IPoint(start, end)
+        //     << "'" << text.substr(start, end - start) << "'"
+        //     << ": " << box);
+        if (box.x > wrap_width) {
+            end = prev_end;
+            break;
+        }
+    }
+    *wrap_at = end;
+    return box;
 }
 
 
@@ -353,6 +355,7 @@ white(const unsigned char *p)
 {
     return p[0] == 255 && p[1] == 255 && p[2] == 255;
 }
+
 
 static IRect
 find_box(const unsigned char *buf, int w, int h)

@@ -14,9 +14,6 @@
 #include "config.h"
 
 
-using std::string;
-
-
 // This class is responsible for drawing text, mapping specially quoted
 // sequences to Symbols, which are a composition of glyphs from some font.
 //
@@ -95,7 +92,12 @@ public:
     char **fonts() const;
 
     // Create a name -> Symbol association.  An existing one will be replaced.
-    void insert(const string &name, const Symbol &sym);
+    void insert(const std::string &name, const Symbol &sym);
+
+    // Wrapped words, as [(Line, BoundingBox)].
+    typedef std::vector<std::pair<std::string, IPoint>> Wrapped;
+    Wrapped wrap(const std::string &text, const Style &style, int wrap_width)
+        const;
 
     // Draw the text, rendering `` symbols in their proper font.  Symbols that
     // are not found are drawn as normal text.
@@ -103,17 +105,10 @@ public:
     // Return the bounding box of the symbols that were drawn, or would have
     // been drawn if measure is true.  The bounding box includes ascenders but
     // doesn't include descenders, because those can generally overlap.
-    IPoint draw(const string &text, IPoint pos, Style style,
-        bool measure = false) const;
-
-    // Specialization for 'draw' that just measures.
-    IPoint measure(const string &text, Style style) const;
-
-    // SymbolTable::measure_wrapped and SymbolTable::draw_wrapped
-    // inherently go downwards, so unlike SymbolTable::draw() the
-    // draw position is the upper left, not the lower left.
-    IPoint draw_wrapped(const string &text, IPoint pos, int width,
-        int max_height, Style style, bool right_justify) const;
+    IPoint draw(const std::string &text, IPoint pos, Style style) const;
+    // Like 'draw' but just measure, don't actually draw.
+    IPoint measure(const std::string &text, int start, int end, Style style)
+        const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.
@@ -123,12 +118,18 @@ public:
 
     static SymbolTable *get();
 private:
+    IPoint draw_or_measure(
+        const std::string &text, int start, int end, IPoint pos,
+        Style style, bool measure) const;
     int measure_backticks(const char *text, Size size) const;
     double measure_glyph(const char *p, int size) const;
 
-    typedef std::map<string, Symbol> SymbolMap;
+    IPoint wrap_glyphs(const std::string &text, int start, const Style &style,
+        int wrap_width, int *wrap_at) const;
+
+    typedef std::map<std::string, Symbol> SymbolMap;
     SymbolMap symbol_map;
-    std::map<string, Font> font_map;
+    std::map<std::string, Font> font_map;
 
     typedef std::pair<const Symbol *, Size> CacheKey;
     typedef std::map<const CacheKey, IRect> CacheMap;

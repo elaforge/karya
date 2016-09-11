@@ -249,7 +249,7 @@ MILESTONES
     * just scales, and other ratio-oriented scales that use letters and
       accidentals
     * complete Idiom.Wind, experiment with the Idiom postprocs
-    + bring back negative duration / arrival beats
+    * bring back negative duration / arrival beats
     * scales and keyswitches
     / efficient thru
     * tracklang complete with set of basic calls
@@ -473,8 +473,6 @@ negative duration / arrival beats:
     work, but if it's buggy or turns into continual for for every cmd then it
     becomes a big deal.
   / ensure inversion works (it should slice >start <=end)
-  - ensure redraw works
-    I have to make SymbolTable wrap text above too.
 
 external
   parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
@@ -798,6 +796,7 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - reduce duplication in EventTrack.cc drawable_pixels
   - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
   - Do I want to support set_ruler for Scrollbar?
   - linux fltk drawing: event ears draw as a solid bar
@@ -844,8 +843,20 @@ fltk:
     I can squeeze in ranked text.
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
-  - Text in negative events doesn't wrap.
-  - It would be nicer if WrappedText could take an always_wrap=true flag to
+  * Text in negative events doesn't wrap.
+    . Let's redo text drawing to be more clever in general.
+    . Figure out text bounding box based on is_positive and previous left and
+      right boxes.  Positive events wrap downwards, clip them based on the next
+      event with text.  Negative clip from the previous bottom.
+    . First compute bounding box for each event.
+    * Glyph level wrapping.
+      . wraps after 5, should be after 4
+      . actual width=74, so 37, 0--5 is actually 34
+    * align Left should have priority over align Right text
+      . Also test with long Right text that wraps.
+    * test with large glyphs, and glyph wrap where even one won't fit
+    * Get rid of SymbolTable::draw_wrapped.
+  / It would be nicer if WrappedText could take an always_wrap=true flag to
     make it wrap even when there's no space, for edit input.  However, this
     would complicate the wrapping algorithm and would mean I have to store
     breaks explicitly, instead of just replacing '\n' with ' '.

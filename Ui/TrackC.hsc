@@ -30,9 +30,6 @@ with_track :: Track.Track -> Track.SetStyle -> [Events.Events]
     -> (Ptr Track.Track -> IO a) -> IO a
 with_track track (track_bg, event_style) merged_events f =
     allocaBytesAligned size align $ \trackp -> do
-        -- Wrap style is customizable per track, but I'll hardcode it for now.
-        (#poke EventTrackConfig, text_wrap) trackp
-            ((#const EventTrackConfig::wrap) :: CInt)
         (#poke EventTrackConfig, bg_color) trackp (track_bg track)
         poke_find_events trackp (event_style (Track.track_title track))
             (Track.track_events track : merged_events)

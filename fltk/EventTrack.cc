@@ -16,6 +16,10 @@
 #include "EventTrack.h"
 
 
+using std::string;
+using std::pair;
+using std::vector;
+
 // #define DEBUG(X) ;
 
 // Hack for debugging.
@@ -385,6 +389,61 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
     printf("\n");
 }
 
+
+static bool
+is_empty(const char *str)
+{
+    if (!str)
+        return true;
+    bool all_white = true;
+    while (*str) {
+        if (*str != ' ')
+            return false;
+        str++;
+    }
+    return all_white;
+}
+
+static SymbolTable::Wrapped
+wrap_text(const Event &event, int width)
+{
+    const EventStyle *event_style = StyleTable::get()->get(event.style_id);
+    const SymbolTable::Style style(
+        event_style->font, event_style->size, event_style->text_color.fl());
+
+    if (is_empty(event.text))
+        return SymbolTable::Wrapped();
+    else
+        return SymbolTable::get()->wrap(event.text, style, width);
+}
+
+
+static EventTrack::TextBox
+compute_text_box(
+    const Event &event, const SymbolTable::Wrapped &wrapped,
+    int y, int x, int width, EventTrack::Align align)
+{
+    vector<pair<string, IRect>> lines;
+    lines.reserve(wrapped.size());
+    if (event.is_negative()) {
+        for (const pair<string, IPoint> &line : wrapped)
+            y -= line.second.y;
+        y -= 2; // Up a couple pixels to avoid overlapping the trigger.
+    } else {
+        y++;
+    }
+    for (const pair<string, IPoint> &line : wrapped) {
+        int tx = align == EventTrack::Right
+            ? x + width - line.second.x - 2
+            : x + 2;
+        IRect box(tx, y, line.second.x, line.second.y);
+        lines.push_back(std::make_pair(line.first, box));
+        y += line.second.y;
+    }
+    return EventTrack::TextBox(lines, align);
+}
+
+
 void
 EventTrack::draw_area()
 {
@@ -392,9 +451,12 @@ EventTrack::draw_area()
     // Expand by a pixel, otherwise I miss little slivers on retina displays.
     clip.y--;
     clip.h++;
-    int y = this->track_start();
+    const int y_start = this->track_start();
+    const int wrap_width = w() - 3; // minus some padding to avoid the bevel
 
-    ScoreTime start = this->zoom.to_time(clip.y - y);
+    // Calculate bounds.
+
+    ScoreTime start = this->zoom.to_time(clip.y - y_start);
     ScoreTime end = start + this->zoom.to_time(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
@@ -410,44 +472,32 @@ EventTrack::draw_area()
     if (false)
         show_found_events(start, end, events, count);
 
-    std::vector<int> offsets(count);
+    vector<TextBox> boxes(count);
+    vector<int> triggers(count);
     for (int i = 0; i < count; i++) {
-        offsets[i] =
-            y + this->zoom.to_pixels(events[i].start - this->zoom.offset);
+        triggers[i] = y_start
+            + this->zoom.to_pixels(events[i].start - this->zoom.offset);
+        const SymbolTable::Wrapped wrapped = wrap_text(events[i], wrap_width);
+        Align align = ranks[i] > 0 ? Right : Left;
+        boxes[i] = compute_text_box(
+            events[i], wrapped, triggers[i], x(), wrap_width, align);
     }
-    draw_event_boxes(events, ranks, count, offsets);
-    this->draw_signal(clip.y, clip.b(), start);
 
+    // Actually start drawing.
+
+    this->draw_event_boxes(events, ranks, count, triggers);
+    this->draw_signal(clip.y, clip.b(), start);
     // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
     if (damage() & FL_DAMAGE_ALL)
         this->draw_child(this->overlay_ruler);
     else
         this->update_child(this->overlay_ruler);
-
-    // Offset of previous rank 0 event, since this is only used when drawing
-    // a rank 0 negative trigger.
-    int prev_offset = MIN_PIXEL;
-    std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
-    // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
-        int rank = ranks[i];
-        // Next event offset on the same side.
-        int next_offset = MAX_PIXEL;
-        for (int j = i+1; j < count; j++) {
-            if ((rank && ranks[j]) || (!rank && !ranks[j])) {
-                next_offset = offsets[j];
-                if (rank == 0 && events[i].max() > events[j].min()) {
-                    DEBUG(events[i] << " overlaps " << events[j]);
-                }
-                break;
-            }
-        }
-        prev_rects = this->draw_upper_layer(
-            offsets[i], events[i], rank, prev_offset, next_offset,
-            prev_rects.first, prev_rects.second);
-        if (!rank)
-            prev_offset = offsets[i];
+        Align align = ranks[i] > 0 ? Right : Left;
+        draw_upper_layer(i, events, align, boxes, triggers);
     }
+
+    // Free text, allocated on the haskell side.
     if (count) {
         for (int i = 0; i < count; i++) {
             if (events[i].text)
@@ -464,7 +514,7 @@ EventTrack::draw_area()
 void
 EventTrack::draw_event_boxes(
     const Event *events, const int *ranks, int count,
-    const std::vector<int> &offsets)
+    const vector<int> &triggers)
 {
     for (int i = 0; i < count; i++) {
         if (ranks[i])
@@ -474,25 +524,25 @@ EventTrack::draw_event_boxes(
         // If this event touches the next one, make its box one pixel short,
         // so it's clearer which direction it's facing.
         if (height > 0) {
-            int next_offset = MAX_PIXEL;
+            int next_trigger = MAX_PIXEL;
             for (int j = i+1; j < count; j++) {
                 if (!ranks[j]) {
-                    next_offset = offsets[j];
+                    next_trigger = triggers[j];
                     break;
                 }
             }
-            if (offsets[i] + height == next_offset) {
+            if (triggers[i] + height == next_trigger) {
                 height--;
             }
         } else if (height < 0) {
             int prev_offset = MIN_PIXEL;
             for (int j = i-1; j >= 0; j--) {
                 if (!ranks[j]) {
-                    prev_offset = offsets[j];
+                    prev_offset = triggers[j];
                     break;
                 }
             }
-            if (offsets[i] + height == prev_offset) {
+            if (triggers[i] + height == prev_offset) {
                 height += 2;
             }
         }
@@ -500,8 +550,8 @@ EventTrack::draw_event_boxes(
             Color c = StyleTable::get()->get(event.style_id)
                 ->event_color.brightness(this->brightness);
             if (event.duration != ScoreTime(0)) {
-                int y0 = std::min(offsets[i], offsets[i] + height);
-                int y1 = std::max(offsets[i], offsets[i] + height);
+                int y0 = std::min(triggers[i], triggers[i] + height);
+                int y1 = std::max(triggers[i], triggers[i] + height);
 
                 if (event.duration < ScoreTime(0))
                     c = c.brightness(negative_duration_brightness);
@@ -682,7 +732,7 @@ EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
 // ones, but it's ok because they coincide.
 static void
 draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
-    int rank, int prev_limit)
+    EventTrack::Align align, int prev_limit)
 {
     Color color = draw_text || !event.text
         ? Config::event_trigger_color : Config::abbreviation_color;
@@ -699,13 +749,13 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
         h2 *= -1;
         // A -0 event at 0 will be invisible, so bump it down just enough to
         // see what it is.
-        if (!rank) {
+        if (align == EventTrack::Left) {
             y = std::max(y, prev_limit + 3.0);
         }
     }
 
     fl_begin_polygon();
-    if (rank == 0) {
+    if (align == EventTrack::Left) {
         // left side
         fl_vertex(x, y);
         fl_vertex(x, y+h1);
@@ -716,29 +766,168 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
     fl_vertex(x+w-cx, y+cy);
     fl_vertex(x+w, y+h1);
     fl_vertex(x+w, y);
-    if (rank > 0) {
+    if (align == EventTrack::Right) {
         fl_vertex(x + (w/2), y);
     }
     fl_end_polygon();
 }
 
 
+/*
+    Find the number of drawable pixels above or below.
+    This needs the TextBoxes because how much draw space is available depends
+    on how they overlap.  It will return either 0, or >= the complete first
+    line, since there's not much point displaying a chopped-off single line.
+
+    Left events will ignore Right ones since Left has drawing priority.
+*/
+static int
+drawable_pixels(
+    int index, const Event *events, const vector<EventTrack::TextBox> &boxes)
+{
+    const Event &event = events[index];
+    if (!event.text || !*event.text)
+        return 0;
+
+    bool is_left = boxes[index].align == EventTrack::Left;
+    // DEBUG("---- calculate drawable pixels for " << event
+    //     << " is_left: " << is_left);
+    int pixels = 0;
+    // For each event line, see if it can fit by iterating over each line
+    // of each previous TextBox.
+
+    // TODO the negative and positive cases are mostly copy-pastes, except
+    // backwards.  How can I reduce the repetition?
+    if (event.is_negative()) {
+        for (auto event_line = boxes[index].lines.crbegin();
+            event_line != boxes[index].lines.crend();
+            pixels += event_line->second.h, ++event_line)
+        {
+            IRect event_box = event_line->second;
+            // Preserve some distance between Right and Left text.
+            if (boxes[index].align == EventTrack::Right) {
+                event_box.x -= 2;
+                event_box.w += 2;
+            }
+            // Go forward to find all events starting here.
+            int prev = index + 1;
+            while (prev < boxes.size() && events[prev].start == event.start)
+                prev++;
+            for (--prev; prev >= 0; --prev) {
+                if (prev == index)
+                    continue;
+                if (is_left && boxes[prev].align == EventTrack::Right)
+                    continue;
+                for (auto prev_line = boxes[prev].lines.crbegin();
+                    prev_line != boxes[prev].lines.crend();
+                    ++prev_line)
+                {
+                    IRect prev_box = prev_line->second;
+                    // Add some padding to avoid touching the previous event's
+                    // trigger.  Negative event text is bumped up a bit in
+                    // compute_text_box and this counteracts that.
+                    bool at_trigger = prev_line == boxes[prev].lines.crbegin()
+                        && events[prev].is_negative();
+                    if (at_trigger)
+                        prev_box.h += 3;
+
+                    // DEBUG("prev " << prev << ", box: " << prev_box
+                    //     << " '" << prev_line->first << "'");
+                    if (prev_box.intersects(event_box)) {
+                        // If it's not the first line, a partial line is ok.
+                        // DEBUG("intersect: " << prev_box << " with "
+                        //     << event_box << " (" << event_line->first
+                        //     << ")");
+                        if (pixels > 0) {
+                            pixels += event_box.b() - prev_box.b();
+                        }
+                        return pixels;
+                    } else if (prev_box.b() <= event_box.y) {
+                        // DEBUG("fits, continue, pixels += " << event_box.h);
+                        prev = -1; // break outer loop
+                        break;
+                    }
+                }
+            }
+        }
+    } else {
+        for (auto event_line = boxes[index].lines.begin();
+            event_line != boxes[index].lines.end();
+            pixels += event_line->second.h, ++event_line)
+        {
+            // DEBUG("event_line " << *event_line << " pixels: " << pixels);
+            IRect event_box = event_line->second;
+            // Preserve some distance between Right and Left text.
+            if (boxes[index].align == EventTrack::Right) {
+                event_box.x -= 2;
+                event_box.w += 2;
+            }
+            // Rewind to find all events starting here.
+            int next = index - 1;
+            while (next >= 0 && events[next].start == event.start)
+                --next;
+            for (++next; next < boxes.size(); ++next) {
+                if (next == index)
+                    continue;
+                if (is_left && boxes[next].align == EventTrack::Right)
+                    continue;
+                for (auto next_line = boxes[next].lines.begin();
+                    next_line != boxes[next].lines.end();
+                    ++next_line)
+                {
+                    IRect next_box = next_line->second;
+                    // DEBUG("next " << next << ", box: " << next_box
+                    //     << " '" << next_line->first << "'");
+                    if (next_box.intersects(event_box)) {
+                        // If it's not the first line, a partial line is ok.
+                        // DEBUG("intersect: " << next_box << " with "
+                        //     << event_box << " (" << event_line->first
+                        //     << ")");
+                        if (pixels > 0) {
+                            // DEBUG("add partial "
+                            //     << next_box.y - event_box.y);
+                            pixels += next_box.y - event_box.y;
+                        }
+                        return pixels;
+                    } else if (next_box.y >= event_box.b()) {
+                        // DEBUG("fits, continue, pixels += " << event_box.h);
+                        next = boxes.size(); // break outer loop
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    // I never ran into another box so there's plenty of space.  Give some
+    // extra to avoid chopping off descenders.
+    return pixels + 10;
+}
+
+
+static void
+draw_line(const string &line, const IRect &box, const SymbolTable::Style &style)
+{
+    // Drawing text that touches the bottom of a box means drawing one
+    // above the bottom.  I don't totally understand this.
+    IPoint draw_at(box.x, box.b() - 1);
+    SymbolTable::get()->draw(line, draw_at, style);
+}
+
+
 // Draw the stuff that goes on top of the event boxes: trigger line and text.
-std::pair<IRect, IRect>
+void
 EventTrack::draw_upper_layer(
-    int offset, const Event &event, int rank,
-    int prev_offset, int next_offset,
-    const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
+    int index, const Event *events, Align align,
+    const vector<TextBox> &boxes, const vector<int> &triggers)
 {
     /* The overlap stuff is actually pretty tricky.  I want to hide
         overlapping text so it doesn't get into an unreadable jumble.  It's
         also important that the algorithm be consistent and not require
         context, because this will be called to redraw various small fragments.
         This is further complicated by the fact that text can be all different
-        sizes and that there is text aligned to the left (unranked) and lower
-        priority text aligned to the right (ranked).  Also, text of negative
-        events goes above the trigger line, while for positive events it goes
-        below.
+        sizes and that there is text aligned to the left and lower priority
+        text aligned to the right.  Also, text of negative events goes above
+        the trigger line, while for positive events it goes below.
 
         So the current plan is to for positive events to hide text if it will
         overlap with the offset of the next ranked or unranked event, as
@@ -746,10 +935,6 @@ EventTrack::draw_upper_layer(
         Ranked events have the additional restriction that they can't overlap
         with the previous text rect, so if they bump into it horizontally they
         won't be drawn.
-
-        This draws negative ranked text incorrectly since I should be checking
-        the next_unranked_rect instead of the prev one, but I can fix that if
-        it ever becomes a problem.
 
         This scheme hides all text that might overlap with other text, so it
         hides a lot of text that could be displayed.  I experimented with a
@@ -760,102 +945,88 @@ EventTrack::draw_upper_layer(
         small notes I'll have to come up with some other mechanism, like color
         coding.
     */
-
+    const Event &event = events[index];
+    // TODO duplicated with wrap_text
     const EventStyle *event_style = StyleTable::get()->get(event.style_id);
     const SymbolTable::Style style(event_style->font, event_style->size,
-        (rank ? event_style->text_color.brightness(rank_brightness)
+        (align == Right
+            ? event_style->text_color.brightness(rank_brightness)
             : event_style->text_color).fl());
 
-    IRect text_rect(0, 0, 0, 0);
-    bool draw_text = false;
-    if (event.text) {
-        // The first measure tells me if one line of text will fit.  If not
-        // even one line fits, then don't bother to draw any text.
-        IPoint box = SymbolTable::get()->measure(event.text, style);
-        text_rect.w = box.x;
-        text_rect.h = box.y;
-        // Text goes above the trigger line for negative events, plus spacing.
-        if (event.is_negative())
-            text_rect.y = offset - box.y - 1;
-        else
-            text_rect.y = offset + 1;
-        if (rank)
-            text_rect.x = (x() + w()) - text_rect.w - 2;
-        else
-            text_rect.x = x() + 2;
-
-        if (event.is_negative()) {
-            // Negative event text draws above, so check for overlap with the
-            // previous text box.  This is regardless of whether or not the
-            // previous event text was actually drawn!
-            if (rank)
-                draw_text = text_rect.y >= prev_ranked_rect.b();
-            else
-                draw_text = text_rect.y >= prev_unranked_rect.b();
-            if (rank && text_rect.intersects(prev_unranked_rect))
-                draw_text = false;
-        } else {
-            draw_text = text_rect.b() <= next_offset;
-            if (rank && text_rect.intersects(prev_unranked_rect))
-                draw_text = false;
-        }
-    }
-
-    // Negative events at the top of the track wind up with text above the top.
-    text_rect.y = std::max(
-        text_rect.y, this->track_start() - zoom.to_pixels(zoom.offset));
-    // Similarly, avoid going past the end of the ruler, unless there's space
-    // to draw.
-    int bottom = std::max(
-        y() + zoom.to_pixels(overlay_ruler.time_end() - zoom.offset),
-        y() + h() - 4);
-        // Just like track_start(), subtract a few pixels from the bottom to
-        // avoid the bevel.
-    text_rect.b(std::min(text_rect.b(), bottom));
-
-    // The various pixel tweaks in here were determined by zooming in and
-    // squinting.
+    int drawable = drawable_pixels(index, events, boxes);
+    // DEBUG("drawable pixels for " << events[index] << ": " << drawable);
 
     // Don't draw above 0 since I can't scroll further up to see it.  Also
-    // don't draw on top of the previous trigger line.  Since the limit only
-    // applies to negative events, which draw upwards, this prevents an overlap
-    // for [-(0, 1), -(1, 0)].
-    int prev_limit = std::max(
-        this->track_start() - zoom.to_pixels(zoom.offset),
-        prev_offset);
-    draw_trigger(draw_text, x()+1, offset, w()-2, event, rank, prev_limit);
-    if (draw_text) {
-        // Word wrapping only applies to positive events.  I would need
-        // additional code to get them working for negative events, since the
-        // text goes up rather than down.
-        int track_width = w() - 3;
-        if (config.text_wrap == EventTrackConfig::wrap && event.is_positive()) {
-            // Ranked events align to the right, non-ranked ones align to the
-            // left.
-            bool right_justify = rank > 0;
-            // The *_wrapped functions start at upper left, not lower left.
-            IPoint draw_pos(
-                right_justify ? text_rect.r() : text_rect.x, text_rect.y - 2);
-            SymbolTable::get()->draw_wrapped(
-                event.text, draw_pos, track_width,
-                next_offset - draw_pos.y, style, right_justify);
-        } else {
-            // Due to boundary issues, drawing text that touches the bottom of
-            // a box means drawing one above the bottom.  I don't totally
-            // understand this.
-            IPoint draw_pos = IPoint(text_rect.x, text_rect.b() - 1);
-            SymbolTable::get()->draw(event.text, draw_pos, style, false);
+    // don't draw on top of the previous trigger line of a Left event.  Since
+    // the limit only applies to negative events, which draw upwards, this
+    // prevents an overlap for [-(0, 1), -(1, 0)].
+    int prev_limit = this->track_start() - zoom.to_pixels(zoom.offset);
+    for (int i = index - 1; i >= 0; i--) {
+        if (boxes[i].align == EventTrack::Left) {
+            prev_limit = std::max(prev_limit, triggers[i]);
+            break;
         }
     }
-    if (rank) {
-        return std::make_pair(prev_unranked_rect, text_rect);
+    // Due to the drawing order, I'll only see a blue right-hand trigger if
+    // the Right event comes after its conincident Left one.  The haskell side
+    // does this for merged tracks.
+    draw_trigger(
+        drawable > 0, x()+1, triggers[index], w()-2, event, align, prev_limit);
+
+    // for (int i = 0; i < boxes[index].lines.size(); i++) {
+    //     DEBUG("text box: " << i << ": " << boxes[index].lines[i]);
+    // }
+    if (drawable <= 0 || boxes[index].lines.empty()) {
+        // drawable_pixels will return 0 if there isn't room for at least one
+        // line.
+        // for (auto &line : boxes[index].lines)
+        //     f_util::draw(line.second, Color(0, 0, 0xff));
+    } else if (event.is_negative()) {
+        int bottom = boxes[index].lines.crbegin()->second.b();
+        // I'm not worried about drawing below the last box, because that's
+        // where the trigger is, so give some extra space for descenders.
+        // Ultimately this is because SymbolTable doesn't include descenders
+        // in the bounding box.
+        f_util::ClipArea clip(
+            IRect(x(), bottom - drawable, w(), drawable + 10));
+
+        for (auto line = boxes[index].lines.crbegin();
+            drawable >= 0 && line != boxes[index].lines.crend();
+            drawable -= line->second.h, ++line)
+        {
+            // Even if drawable==0, I still have stuff left to draw, so I need
+            // to draw the abbreviation bar at least.
+            const auto &box = line->second;
+            // DEBUG("NEGATIVE: " << box << ": " << line->first << " left "
+            //     << drawable << " - " << box.h);
+            draw_line(line->first, box, style);
+            // f_util::draw(box, Color(0, 0xff, 0xff));
+            if (drawable < box.h) {
+                fl_color(Config::abbreviation_color.fl());
+                fl_rectf(x(), box.b() - drawable, w(), 2);
+            }
+        }
     } else {
-        return std::make_pair(text_rect, prev_ranked_rect);
+        f_util::ClipArea clip(
+            IRect(x(), boxes[index].lines[0].second.y, w(), drawable));
+        for (auto line = boxes[index].lines.cbegin();
+            drawable >= 0 && line != boxes[index].lines.cend();
+            drawable -= line->second.h, ++line)
+        {
+            const auto &box = line->second;
+            // DEBUG("POSITIVE: " << box << ": " << line->first << " left "
+            //     << drawable << " - " << box.h);
+            draw_line(line->first, box, style);
+            // f_util::draw(box, Color(0, 0xff, 0xff));
+            if (drawable < box.h) {
+                fl_color(Config::abbreviation_color.fl());
+                fl_rectf(x(), box.y + drawable - 2, w(), 2);
+            }
+        }
     }
 }
 
-
-std::string
+string
 EventTrack::dump() const
 {
     std::ostringstream out;
