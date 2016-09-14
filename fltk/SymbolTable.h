@@ -84,6 +84,18 @@ public:
         std::vector<Glyph> glyphs;
     };
 
+    // `+3/abc` => ParsedSymbol("abc", 3, 0)
+    // `bolditalic/abc` => ParsedSymbol("abc", 0, FL_BOLD | FL_ITALIC)
+    struct ParsedSymbol {
+        ParsedSymbol(std::string text, Size size = 0,
+                Fl_Font attributes = 0)
+            : text(text), size(size), attributes(attributes)
+        {}
+        std::string text;
+        Size size;
+        Fl_Font attributes; // 0, FL_BOLD, FL_ITALIC, FL_BOLD | FL_ITALIC
+    };
+
     // Convert a font name into a Font.  NULL means Config::font.
     // This will return font_not_found if 'name' is not valid.
     Font font(const char *name) const;
@@ -122,6 +134,9 @@ private:
     IPoint draw_or_measure(
         const std::string &text, int start, int end, IPoint pos,
         Style style, bool measure) const;
+    IPoint draw_backticks(
+        const std::string &text, IPoint pos, const Style &style, bool measure)
+            const;
     int measure_backticks(const char *text, Size size) const;
     double measure_glyph(const char *p, int size) const;
 

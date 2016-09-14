@@ -102,6 +102,12 @@ express quite a lot with ASCII and it's easier to type.  For example, I'm not
 yet sure whether I prefer a plain `tr` or a fancy trill symbol, though in the
 case of sharps and flats I've decided on plain ASCII `#` and `b`.
 
+Backticks also support font size and style changes.  If you write \`+4/xyz\`,
+then `xyz` will be rendered with a relative size increase of +4.  In addition
+to `+` or `-` a number, you can also write \`bold/xyz\`, \`italic/xyz\`, or
+\`bold+italic/xyz\`.  In this case, the `xyz` is printed literally, it's not
+the name of a symbol.
+
 ## IDs
 
 IDs are names for the major score elements.  ViewIds name 'Ui.Block.View's,

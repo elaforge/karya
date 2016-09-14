@@ -2,6 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <string.h>
+
 #include <FL/fl_draw.H>
 #include <FL/Fl.H>
 #include <FL/x.H> // Needed for Fl_Offscreen.
@@ -97,9 +99,9 @@ set_font(const SymbolTable::Glyph &glyph, SymbolTable::Size size)
 }
 
 
-// Draw a group of glyphs.
+// Draw a Symbol.
 static void
-draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
+draw_symbol(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
     int rotate)
 {
     for (std::vector<SymbolTable::Glyph>::const_iterator
@@ -126,6 +128,80 @@ SymbolTable::measure(const string &text, int start, int end, Style style) const
 }
 
 
+static SymbolTable::ParsedSymbol
+parse_symbol(const std::string &text)
+{
+    using ParsedSymbol = SymbolTable::ParsedSymbol;
+
+    const char *divider = strchr(text.c_str(), '/');
+    // DEBUG("parse " << text);
+    if (divider == nullptr) {
+        return ParsedSymbol(text);
+    } else if (text[0] == '+' || text[0] == '-') {
+        char *end;
+        int size = strtol(text.c_str(), &end, 10);
+        if (end != divider) {
+            return ParsedSymbol(text);
+        } else {
+            // DEBUG("found " << (divider + 1) << ": " << size);
+            return ParsedSymbol(divider + 1, size, 0);
+        }
+    } else {
+        static const std::vector<std::pair<const char *, Fl_Font>> table =
+            { { "bold", FL_BOLD }
+            , { "italic", FL_ITALIC }
+            , { "bold+italic", FL_BOLD | FL_ITALIC }
+            };
+        int len = divider - text.c_str();
+        for (const auto &p : table) {
+            if (strncmp(text.c_str(), p.first, len) == 0) {
+                // DEBUG("found " << (divider + 1) << ": " << p.second);
+                return ParsedSymbol(divider + 1, 0, p.second);
+            }
+        }
+    }
+    return ParsedSymbol(text);
+}
+
+
+IPoint
+SymbolTable::draw_backticks(
+    const std::string &text, IPoint pos, const Style &style, bool measure)
+    const
+{
+    ParsedSymbol parsed(parse_symbol(text));
+
+    if (parsed.size != 0 || parsed.attributes != 0) {
+        fl_font(fl_font() + parsed.attributes, fl_size() + parsed.size);
+        int width = draw_text(
+            parsed.text.c_str(), parsed.text.size(), pos, measure, DPoint());
+        return IPoint(width, fl_height() - fl_descent());
+    } else {
+        SymbolMap::const_iterator it = this->symbol_map.find(parsed.text);
+
+        if (it == symbol_map.end()) {
+            // Unknown symbol, draw it as plain text including the ``s.
+            int width = draw_text(
+                parsed.text.c_str(), parsed.text.size(), pos, measure,
+                DPoint());
+            return IPoint(width, 0);
+        } else {
+            // Draw symbol inside ``s.
+            IRect sym_box = this->measure_symbol(it->second, style.size);
+            // The box measures the actual bounding box of the symbol.  Clip
+            // out the spacing inserted by the characters by translating back
+            // by the box's offsets.
+            if (!measure) {
+                draw_symbol(
+                    IPoint(pos.x - sym_box.x, pos.y + sym_box.y),
+                    it->second, style.size, 0);
+            }
+            return IPoint(sym_box.w, sym_box.h);
+        }
+    }
+}
+
+
 IPoint
 SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
     Style style, bool measure) const
@@ -145,33 +221,16 @@ SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
 
         // Draw text before ``s.
         style.set();
+        // draw_text actually returns a double, but I round down to int.
+        // Surely this leads to inaccuracy.
         box.x += draw_text(
             text.c_str() + start, i-start-1, IPoint(pos.x + box.x, pos.y),
             measure, DPoint());
 
-        SymbolMap::const_iterator it =
-            this->symbol_map.find(text.substr(i, j-i));
-        if (it == symbol_map.end()) {
-            // Unknown symbol, draw it as plain text including the ``s.
-            box.x += draw_text(text.c_str() + i - 1, j-i + 2,
-                IPoint(pos.x + box.x, pos.y), measure, DPoint());
-        } else {
-            // Draw symbol inside ``s.
-            IRect sym_box = this->measure_symbol(it->second, style.size);
-            // The box measures the actual bounding box of the symbol.  Clip
-            // out the spacing inserted by the characters by translating back
-            // by the box's offsets.
-            // DEBUG("draw " << text << " sym " << sym_box << ", pos " << pos
-            //         << " -> " << IPoint(pos.x + box.x - sym_box.x,
-            //           pos.y + sym_box.y));
-            if (!measure) {
-                draw_glyphs(
-                    IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
-                    it->second, style.size, 0);
-            }
-            box.x += sym_box.w;
-            box.y = std::max(box.y, sym_box.h);
-        }
+        IPoint b = draw_backticks(
+            text.substr(i, j-i), IPoint(pos.x + box.x, pos.y), style, measure);
+        box.x += b.x;
+        box.y = std::max(box.y, b.y);
         start = j + 1;
     }
     // Draw trailing text.
@@ -244,7 +303,7 @@ next_split(const string &text, int start)
 
 
 static int
-next_glyph(const string &text, int start)
+next_symbol(const string &text, int start)
 {
     if (text[start] == '`') {
         int end = start + 1;
@@ -329,9 +388,9 @@ SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
     int wrap_width, int *wrap_at) const
 {
     IPoint box;
-    int end = next_glyph(text, start);
+    int end = next_symbol(text, start);
     for (int prev_end = end; end < text.length(); prev_end = end) {
-        end = next_glyph(text, end);
+        end = next_symbol(text, end);
         // Always measure from the start.  The width of a string is quite a bit
         // more than the sum of the widths of the characters.  This doesn't
         // seem to be a problem for wrap, maybe because there are fewer
@@ -439,7 +498,7 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 
     // Due to boundary issues, drawing text that touches the bottom of a box
     // means drawing one above the bottom.  I don't totally understand this.
-    draw_glyphs(IPoint(size, size*2 - 1), sym, size, 0);
+    draw_symbol(IPoint(size, size*2 - 1), sym, size, 0);
     unsigned char *buf = fl_read_image(nullptr, 0, 0, w, h);
     fl_end_offscreen();
     IRect box = find_box(buf, w, h);
