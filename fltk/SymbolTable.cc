@@ -137,6 +137,8 @@ parse_symbol(const std::string &text)
     // DEBUG("parse " << text);
     if (divider == nullptr) {
         return ParsedSymbol(text);
+    } else if (divider == text.c_str()) {
+        return ParsedSymbol(divider + 1);
     } else if (text[0] == '+' || text[0] == '-') {
         char *end;
         int size = strtol(text.c_str(), &end, 10);
