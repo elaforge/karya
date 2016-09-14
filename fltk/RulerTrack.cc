@@ -261,25 +261,10 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
         && mark.name)
     {
-        // Extra pixels to keep from bumping into the bevel.
-        int text_width = fl_width(mark.name) + 2;
         int xmin = x() + 2;
-        int xmax = x() + w() - text_width;
-        // Try to be right to the left of the mark, but align with the left
-        // side if I must.
-        int xpos = util::clamp(xmin, xmax, x() + w() - int(width) - text_width);
-        // Unless there really isn't enough room, then clip on the left.
-        if (xpos + text_width > x() + w()) {
-            fl_color(Config::abbreviation_color.fl());
-            fl_line_style(FL_SOLID, 2);
-            fl_line(x() + 2, offset - fl_height(), x() + 2, offset);
-            fl_line_style(0);
-            xpos = xmax;
-        }
-
-        int text_at = at_zero ? offset + fl_height()  : offset - 1;
+        int ypos = at_zero ? offset + fl_height()  : offset - 1;
         fl_color(FL_BLACK);
-        fl_draw(mark.name, xpos, text_at);
+        fl_draw(mark.name, xmin, ypos);
         drew_text = true;
     }
     return drew_text;

@@ -38,6 +38,7 @@ public:
 
     enum { font_not_found = -1 };
 
+    // A glyph is an indivisible graphic made from a string, font, and size.
     struct Glyph {
         Glyph(const char *utf8, Font font = Config::font, Size size = 0,
                 DPoint align = DPoint(), int rotate = 0) :

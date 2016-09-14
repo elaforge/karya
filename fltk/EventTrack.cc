@@ -798,6 +798,10 @@ drawable_pixels(
 
     // TODO the negative and positive cases are mostly copy-pastes, except
     // backwards.  How can I reduce the repetition?
+    // iteration order for event_line
+    // rewind for prev/next text and line
+    // iteration order for event lines
+    // negative has at_trigger
     if (event.is_negative()) {
         for (auto event_line = boxes[index].lines.crbegin();
             event_line != boxes[index].lines.crend();

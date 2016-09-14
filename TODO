@@ -9,9 +9,27 @@ UNSORTED
   * rename ScopeType to ScopePriority
     * rename stype_imported to library
   * why does creating a 'tari' block not override the 'tari' call?
-  - ruler is hard to read due to leading prefixes, can I omit those?
-    Also 0 is very close to O.
-    . Also it would be nice to have different font sizes.
+  Ruler
+    - ruler is hard to read due to leading prefixes, can I omit those?
+    * Maybe left-align will more readable.
+    - only strip first n prefixes
+    - MeterConfig setting to strip
+    / Also 0 is very close to O.
+    - Also it would be nice to have different font sizes.
+      . I could use mini html, e.g. <font size=n>..</font>, but it seems like
+        overkill.
+      . Custom ascii: <13>3<9>.5 or relative ++4--.5
+      . Or use non-ascii to avoid having to quote ascii: ^[^[4^z^z.5
+      . It would be nicer to have a more uniform way so I can style text in
+        all places.  So use ``, but maybe add `+n` and `-n` as a special case
+        for add or subtract size.
+      . Or maybe since it's just numbers, I can just hardcode a bunch of `x+y`
+        where 'x' is a size and 'y' is 0-9.  Except it's not just numbers,
+        Tala uses O and X.
+      . I think I do want the whole nonstandard section in ``s so measure and
+        word wrap keep working normally.  So maybe `+4/xyz`, which now means
+        that the delimeter / must now be quoted.  E.g. `//` for a single
+        slash.  Or maybe ';': `+4;x` or `bold;x`.
   * shift '/' doesn't work if there's no root
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
