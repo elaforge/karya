@@ -463,7 +463,7 @@ load_ky paths fname =
 -- | Find the file in the given paths and return its modification time.
 find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Time.UTCTime))
 find_ky paths fname =
-    catch_io (txt fname) $ maybe (Left msg) Right <$>
+    catch_io (txt fname) $ justErr msg <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
     msg = "ky file not found: " <> txt fname <> " (searched "
@@ -580,8 +580,8 @@ parse_alias (BaseTypes.Symbol sym, expr) = do
 parse_instrument :: Text -> Text -> Either Text Score.Instrument
 parse_instrument side sym = do
     let prefix = "instrument alias on " <> side
-    sym <- maybe (Left $ prefix <> " should start with >: " <> showt sym)
-        Right (Text.stripPrefix ">" sym)
+    sym <- justErr (prefix <> " should start with >: " <> showt sym)
+        (Text.stripPrefix ">" sym)
     if not (Text.all (`elem` Score.instrument_valid_chars) sym)
         then Left $ prefix <> " has invalid chars: " <> showt sym
         else Right (Score.instrument sym)

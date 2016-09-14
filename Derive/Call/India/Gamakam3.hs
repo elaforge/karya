@@ -626,9 +626,8 @@ resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
     resolve (name, Right call) = Right (name, [call])
     resolve (name, Left calls) = (,) name <$> mapM resolve1 calls
     resolve1 to = do
-        (c, arg) <- maybe (Left "empty alias") Right $ Text.uncons to
-        call <- maybe (Left $ "not found: " <> showt c) Right $
-            Map.lookup c call_map
+        (c, arg) <- justErr "empty alias" $ Text.uncons to
+        call <- justErr ("not found: " <> showt c) $ Map.lookup c call_map
         call <- first (("alias to alias: "<>) . showt) call
         Right $ apply_arg call arg
 

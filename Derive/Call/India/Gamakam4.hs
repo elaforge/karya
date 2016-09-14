@@ -479,9 +479,8 @@ resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
         (,) name . map (set_dur duration) <$> mapM resolve1 calls
     set_dur dur pcall = pcall { pcall_duration = dur }
     resolve1 to = do
-        (c, arg) <- maybe (Left "empty alias") Right $ Text.uncons to
-        call <- maybe (Left $ "not found: " <> showt c) Right $
-            Map.lookup c call_map
+        (c, arg) <- justErr "empty alias" $ Text.uncons to
+        call <- justErr ("not found: " <> showt c) $ Map.lookup c call_map
         call <- first (("alias to alias: "<>) . showt) call
         Right $ apply_arg call c arg
 

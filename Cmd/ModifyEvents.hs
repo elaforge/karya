@@ -202,7 +202,7 @@ substitute parser replacements text = case match of
     match = IntMap.fromList . zip [0..] <$> parse_tokens parser text
     replace matches r = case r of
         RLiteral text -> Right text
-        F n -> maybe (Left $ "no match for field " <> showt n) Right $
+        F n -> justErr ("no match for field " <> showt n) $
             IntMap.lookup n matches
 
 -- ** parser

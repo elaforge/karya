@@ -122,11 +122,11 @@ type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
 -- * scale functions
 
 read_note :: DegreeMap -> Pitch.Note -> Either BaseTypes.PitchError Pitch.Pitch
-read_note dmap note = maybe (Left BaseTypes.UnparseableNote)
-    (Right . semis_to_pitch dmap) $ Map.lookup note (dm_to_semis dmap)
+read_note dmap note = semis_to_pitch dmap <$>
+    justErr BaseTypes.UnparseableNote (Map.lookup note (dm_to_semis dmap))
 
 show_pitch :: DegreeMap -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Note
-show_pitch dmap pitch = maybe (Left BaseTypes.UnparseableNote) Right $
+show_pitch dmap pitch = justErr BaseTypes.UnparseableNote $
     dm_to_note dmap !? pitch_to_semis dmap pitch
 
 -- ** transpose
@@ -164,8 +164,7 @@ mapped_note_to_call dmap scale note = do
         (semis_to_note semis)
     where
     semis_to_nn semis _config transpose =
-        maybe (Left BaseTypes.out_of_range) Right $
-            dm_to_nn dmap !? (semis + transpose)
+        justErr BaseTypes.out_of_range $ dm_to_nn dmap !? (semis + transpose)
     semis_to_note semis transpose = dm_to_note dmap !? (semis + transpose)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
@@ -186,10 +185,8 @@ note_to_call per_octave scale semis_to_nn semis_to_note =
             <*> semis_to_nn config (semis + 1)
             <*> pure (Pitch.NoteNumber frac)
     pitch_note :: Scale.PitchNote
-    pitch_note config =
-        maybe (Left BaseTypes.out_of_range) Right $ semis_to_note transpose
-        where
-        transpose = floor $ transposition config
+    pitch_note config = justErr BaseTypes.out_of_range $ semis_to_note transpose
+        where transpose = floor $ transposition config
     transposition config =
         get Controls.octave * fromIntegral per_octave
             + get Controls.chromatic + get Controls.diatonic
@@ -207,8 +204,7 @@ type InputToNote = Env.Environ -> Pitch.Input
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
-    note <- maybe (Left BaseTypes.UnparseableNote) Right $
-        dm_to_note dmap !? steps
+    note <- justErr BaseTypes.UnparseableNote $ dm_to_note dmap !? steps
     return $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
@@ -219,7 +215,7 @@ type InputToNn = ScoreTime -> Pitch.Input
 mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
     semis <- simple_kbd_to_scale dmap kbd pitch
-    maybe (Left BaseTypes.out_of_range) Right $ to_nn semis frac
+    justErr BaseTypes.out_of_range $ to_nn semis frac
     where
     to_nn semis frac
         | frac == 0 = lookup semis
@@ -274,7 +270,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     where
     get_call env = do
         note <- input_to_note env input
-        maybe (Left BaseTypes.UnparseableNote) Right $ note_to_call note
+        justErr BaseTypes.UnparseableNote $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber
@@ -308,8 +304,7 @@ semis_to_pitch dmap semis =
 kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
     -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Pitch
 kbd_to_scale kbd pc_per_octave tonic =
-    maybe (Left BaseTypes.InvalidInput) Right
-    . lookup_kbd_to_scale kbd pc_per_octave tonic
+    justErr BaseTypes.InvalidInput . lookup_kbd_to_scale kbd pc_per_octave tonic
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
 -- Pitch within a scale with the given number of diatonic steps per octave, or
@@ -495,8 +490,7 @@ environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
     -> Either BaseTypes.PitchError key
 get_key deflt _ Nothing = Right deflt
-get_key _ keys (Just key) =
-    maybe (Left $ key_error key) Right $ Map.lookup key keys
+get_key _ keys (Just key) = justErr (key_error key) (Map.lookup key keys)
 
 lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
 lookup_key deflt _ Nothing = Just deflt

@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - look into using the 'errors' package for things like
+  * look into using the 'errors' package for things like
     'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
+    - use tryJust and tryRght instead of require and require_right
   * rename ScopeType to ScopePriority
     * rename stype_imported to library
   * why does creating a 'tari' block not override the 'tari' call?
@@ -869,7 +870,7 @@ fltk:
     . Some of this may be fltk bugs.
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
-  - Should fltk collapse adjacent dividers?
+  / Should fltk collapse adjacent dividers?
   - bug: There's a focus bug, but I'm not sure how to reproduce it.
     . The focus bug is still here.  Even clicking on the "unfocused" block
       doesn't fix it.  Don't all msgs contain focus?  What can I log after the

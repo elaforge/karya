@@ -107,8 +107,7 @@ typecheck msg pos val = from_val_eval pos val >>= \x -> case x of
 
 typecheck_simple :: forall a. Typecheck a => BaseTypes.Val -> Either Text a
 typecheck_simple val =
-    maybe (Left $ type_error_msg (Proxy :: Proxy a) val) Right
-        (from_val_simple val)
+    justErr (type_error_msg (Proxy :: Proxy a) val) (from_val_simple val)
 
 type_error_msg :: Typecheck a => Proxy a -> Val -> Text
 type_error_msg expected val = "expected " <> pretty (to_type expected)

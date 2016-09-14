@@ -25,11 +25,11 @@ import Global
 -- TODO use dur for an envelope
 noteToSample :: Note.Note -> Either Text Sample.Sample
 noteToSample note@(Note.Note instName start _dur controls attrs) = do
-    inst <- maybe (Left $ "instrument not found: " <> instName) Right $
+    inst <- justErr ("instrument not found: " <> instName) $
         Map.lookup instName PatchDb.db
     let msg = "sample not found for " <> showt (instName, attrs)
             <> " with pitch " <> showt (Note.initialPitch note)
-    (samplePath, instSample) <- maybe (Left msg) Right $
+    (samplePath, instSample) <- justErr msg $
         lookupSample inst attrs (Note.initialPitch note)
     let get k = Map.lookup k controls
     return $ Sample.Sample

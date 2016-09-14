@@ -240,8 +240,7 @@ make_cmd_state library cmd_config =
     DeriveSaved.add_library library $ Cmd.initial_state cmd_config
 
 get_root :: State.State -> Either Text BlockId
-get_root state = maybe (Left "no root block") Right $
-    State.config#State.root #$ state
+get_root state = justErr "no root block" $ State.config#State.root #$ state
 
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')

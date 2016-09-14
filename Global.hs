@@ -15,9 +15,11 @@ module Global (
     , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
+    -- * error
     , justm, rightm
     , firstJust, firstJusts
     , errorStack, errorIO
+    , justErr
     -- * pretty
     , pretty, prettys
 

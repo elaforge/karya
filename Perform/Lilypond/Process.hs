@@ -369,7 +369,7 @@ collect_voices events = do
         voices -> (voices, code, rest)
     where
     check_type (Right num, event) = do
-        voice <- maybe (Left $ "voice should be 1--4: " <> showt num) Right $
+        voice <- justErr ("voice should be 1--4: " <> showt num) $
             parse_voice num
         return (voice, event)
     check_type (Left err, event) = Left $ pretty event <> ": " <> err
@@ -732,11 +732,11 @@ instance ToLily Key where
 
 parse_key :: Text -> Either Text Key
 parse_key key_name = do
-    key <- maybe (Left $ "unknown key: " <> key_name) Right $
+    key <- justErr ("unknown key: " <> key_name) $
         Map.lookup (Pitch.Key key_name) Twelve.all_keys
     tonic <- Types.show_pitch_note (Theory.key_tonic key)
-    mode <- maybe (Left $ "unknown mode: " <> Theory.key_name key)
-        Right $ Map.lookup (Theory.key_name key) modes
+    mode <- justErr ("unknown mode: " <> Theory.key_name key) $
+        Map.lookup (Theory.key_name key) modes
     return $ Key tonic mode
     where
     modes = Map.fromList

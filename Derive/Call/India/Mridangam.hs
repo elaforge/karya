@@ -135,11 +135,12 @@ variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
 
 infer_pattern :: Int -> Text -> Either Text (Solkattu.Speed, Text)
 infer_pattern dur variation = do
-    patterns <- maybe (Left $ "unknown variation " <> showt variation) Right
-        (Map.lookup variation variations)
-    let msg = "variation " <> showt variation <> " doesn't have duration: "
-            <> showt dur
-    maybe (Left msg) Right (IntMap.lookup dur patterns)
+    patterns <- justErr ("unknown variation " <> showt variation) $
+        Map.lookup variation variations
+    justErr ("variation " <> showt variation <> " doesn't have duration: "
+            <> showt dur)
+        (IntMap.lookup dur patterns)
+
 
 -- | Map pattern duration to Speed to play and the pattern to play.
 type Patterns = IntMap.IntMap (Solkattu.Speed, Text)

@@ -174,8 +174,7 @@ find_generator_cache :: Cacheable d => Type -> Stack.Stack -> Ranges
     -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
 find_generator_cache typ stack (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
-    cached <- maybe (Left (False, "not in cache")) Right $
-        Map.lookup stack cache
+    cached <- justErr (False, "not in cache") $ Map.lookup stack cache
     -- Look for block damage before looking for Invalid, because if there is
     -- block damage I inflict control damage too.  This is because block damage
     -- means things like a block title change, or skeleton change, and those
@@ -194,7 +193,7 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
             | otherwise -> return ()
     Derive.CallType collect stream <- case cached of
         Invalid -> Left (False, "cache invalidated by score damage")
-        Cached entry -> maybe (Left (False, "cache has wrong type")) Right $
+        Cached entry -> justErr (False, "cache has wrong type") $
             from_cache_entry entry
     let Derive.BlockDeps block_deps = Derive.collect_block_deps collect
     let damaged_blocks = Set.union

@@ -269,8 +269,7 @@ semis_to_nn offset saihs default_saih =
         tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
         saih <- Scales.read_environ_default (\v -> Map.lookup v saihs)
             (Just default_saih) saih_key env
-        let to_either = maybe (Left BaseTypes.out_of_range) Right
-        to_either $ case Map.lookup c_ombak controls of
+        justErr BaseTypes.out_of_range $ case Map.lookup c_ombak controls of
             Nothing -> case tuning of
                 Umbang -> get_nn (saih_umbang saih) fsemis
                 Isep -> get_nn (saih_isep saih) fsemis

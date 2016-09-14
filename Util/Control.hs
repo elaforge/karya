@@ -8,9 +8,11 @@ module Util.Control (
     module Util.Control, module Control.Monad.Extra, module Util.CallStack
 ) where
 import qualified Control.Monad as Monad
+import qualified Control.Monad.Except as Except
 import Control.Monad.Extra
        (whenJust, whenJustM, mapMaybeM, whenM, unlessM, ifM, notM, orM, andM,
         findM, anyM, allM)
+
 import qualified Data.Monoid as Monoid
 
 import Util.CallStack (errorStack, errorIO)
@@ -85,3 +87,19 @@ firstJust action alternative = maybe alternative (return . Just) =<< action
 -- | 'firstJust' applied to a list.
 firstJusts :: Monad m => [m (Maybe a)] -> m (Maybe a)
 firstJusts = foldr firstJust (return Nothing)
+
+-- * errors
+
+-- The names are chosen to be consistent with the @errors@ package.
+
+-- | Throw on Nothing.
+justErr :: err -> Maybe a -> Either err a
+justErr err = maybe (Left err) Right
+
+-- | I usually call this @require@.
+tryJust :: Monad m => err -> Maybe a -> Except.ExceptT err m a
+tryJust err = maybe (Except.throwError err) return
+
+-- | I usually call this @require_right@.
+tryRight :: Monad m => Either err a -> Except.ExceptT err m a
+tryRight = either Except.throwError return

@@ -80,7 +80,7 @@ make_scale scale_id degrees = Scale.Scale
 
 read_pitch :: Pitch.PitchClass -> Pitch.Note
     -> Either BaseTypes.PitchError Pitch.Pitch
-read_pitch per_octave note = maybe (Left BaseTypes.UnparseableNote) Right $
+read_pitch per_octave note = justErr BaseTypes.UnparseableNote $
     ParseText.maybe_parse (Pitch.pitch <$> ParseText.p_int <*> p_degree)
         (Pitch.note_text note)
     where
@@ -110,12 +110,11 @@ note_to_call scale degrees note = do
     -- Pass 0 for per_octave, since I'll be handling the octave here.
     Just $ Scales.note_to_call 0 scale (semis_to_nn pitch) (semis_to_note pitch)
     where
-    semis_to_nn pitch config semis = to_either $ do
+    semis_to_nn pitch config semis = justErr BaseTypes.out_of_range $ do
         let a0 = Pitch.nn $ get a0_nn
         nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
         Just $ a0 + nn + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
         where
-        to_either = maybe (Left BaseTypes.out_of_range) Right
         octaves = floor $ get Controls.octave
         get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
     semis_to_note pitch steps

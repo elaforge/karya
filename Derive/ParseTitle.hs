@@ -139,8 +139,8 @@ parse_control_type :: BaseTypes.Symbol
 parse_control_type (BaseTypes.Symbol name) = case Text.uncons post of
     Just (':', t) -> do
         control <- Score.control pre
-        typ <- maybe (Left $ "unknown type on control track: " <> showt t)
-            Right $ Score.code_to_type (untxt t)
+        typ <- justErr ("unknown type on control track: " <> showt t) $
+            Score.code_to_type (untxt t)
         return $ Score.Typed typ control
     _ -> Score.untyped <$> Score.control name
     where (pre, post) = Text.break (==':') name

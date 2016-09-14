@@ -124,8 +124,7 @@ make_stop_groups stop_groups groups = do
         stops <- mapM get stops
         return $ take ngroups $ stops ++ repeat none
         where stops = fromMaybe [] $ lookup group stop_groups
-    get g = maybe (Left $ "no group: " <> showt g) Right $
-        List.elemIndex g groups
+    get g = justErr ("no group: " <> showt g) $ List.elemIndex g groups
 
 midi_pitch_array :: Vector.Unbox a => a -> [((Int, Int), a)] -> Vector.Vector a
 midi_pitch_array deflt ranges =
@@ -225,7 +224,7 @@ drum_mute_template =
 interpolate :: Map.Map Text Text -> Text -> Either Text Text
 interpolate values =
     TextUtil.mapDelimitedM False '*' $ \v ->
-        maybe (Left $ "no value for " <> showt v) Right $ Map.lookup v values
+        justErr ("no value for " <> showt v) $ Map.lookup v values
 
 ksp_array :: Int -> [Int] -> Text
 ksp_array chunk_size =

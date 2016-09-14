@@ -221,8 +221,7 @@ c_tumpuk_auto = Derive.generator module_ "tumpuk-auto" Tags.inst
 -- their fastest.
 select_pattern :: RealTime -> Double -> Double
     -> Either Text ([TumpukNote], RealTime)
-select_pattern dur rnd1 rnd2 =
-    maybe (Left err) Right $ select fits_well <|> select fits
+select_pattern dur rnd1 rnd2 = justErr err $ select fits_well <|> select fits
     where
     select ps = case NonEmpty.nonEmpty ps of
         Nothing -> Nothing
