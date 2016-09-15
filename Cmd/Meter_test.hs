@@ -95,3 +95,8 @@ test_apply_labels = do
             ]
     equal (f labels [0, 2, 1, 2, 1, 2, 0])
         ["A.a.1", "A.a.2", "A.b.1", "A.b.2", "A.c.1", "A.c.2", "B.a.1"]
+
+test_strip_prefixes = do
+    let f = Meter.strip_prefixes "-"
+    equal (f 2 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.-.1", "2"]
+    equal (f 1 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.2.1", "2"]

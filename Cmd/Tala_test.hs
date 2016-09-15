@@ -4,6 +4,7 @@
 
 module Cmd.Tala_test where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
@@ -19,7 +20,10 @@ test_make_ruler = do
         extract zoom = map snd . extract_marklist zoom . snd . snd . head
             . Map.toList . Ruler.ruler_marklists
     equal (extract 20 adi)
-        ["1.0", "1.1", "1.2", "1.3", "1.X", "1.O", "1.X", "1.O", "2.0"]
+        [ "`+4/1`", "_.`+2/1`", "_.`+2/2`", "_.`+2/3`"
+        , "_.`+2/X`", "_.`+2/O`" , "_.`+2/X`", "_.`+2/O`"
+        , "`+4/2`"
+        ]
 
 test_make_meter = do
     let f = Meter.labeled_marklist . Tala.make_meter
@@ -27,8 +31,12 @@ test_make_meter = do
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
         round_trip = Meter.labeled_marklist . Meter.marklist_labeled
-    let labels = [showt n <> "." <> o | n <- [1, 2, 3],
-            o <- ["0", "1", "2", "3", "X", "O", "X", "O"]]
+    let labels = Meter.strip_prefixes "_" 2
+            [ Meter.biggest_label (showt n)
+                <> (if Text.null o then "" else "." <> o)
+            | n <- [1, 2, 3], o <- adi
+            ]
+        adi = "" : map Meter.big_label ["1", "2", "3", "X", "O", "X", "O"]
     -- Ensure that concatenated marklists get the right labelling, and that
     -- rulers with 1/3 divisions still wind up at integral points.  Previously,
     -- Meter.Meter used ScoreTime, which got inaccurate after consecutive

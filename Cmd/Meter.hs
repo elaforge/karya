@@ -29,6 +29,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -56,6 +57,9 @@ data LabeledMark = LabeledMark {
     , m_duration :: !Duration
     , m_label :: !Label
     } deriving (Show)
+
+instance Pretty.Pretty LabeledMark where
+    pretty (LabeledMark rank dur label) = pretty (rank, dur, label)
 
 -- | Duration between ruler marks.  Since these are added together, there is
 -- a risk of accumulating innaccuracy.  I could use rationals if I changed
@@ -289,8 +293,8 @@ label_meter (MeterConfig start from0) meter =
     ]
     where
     (ranks, ps) = unzip meter
-    labels = text_labels 1 (make_labels start (if from0 then 0 else 1)) $
-        collapse_ranks unlabeled_ranks ranks
+    labels = text_labels 1 (make_labels start (if from0 then 0 else 1))
+        (collapse_ranks unlabeled_ranks ranks)
 
 unlabel_meter :: LabeledMeter -> Meter
 unlabel_meter = map (\m -> (m_rank m, m_duration m))
@@ -359,6 +363,12 @@ pixels_to_zoom dur pixels
     | otherwise = fromIntegral pixels / ScoreTime.to_double dur
 
 -- * labels
+
+big_label :: Label -> Label
+big_label t = "`+2/" <> t <> "`"
+
+biggest_label :: Label -> Label
+biggest_label t = "`+4/" <> t <> "`"
 
 -- | Standard numbered meter, starting from 1.
 mtype_meter :: Ruler.MeterType
@@ -431,19 +441,24 @@ collapse_ranks :: [Ruler.Rank] -> [Ruler.Rank] -> [Ruler.Rank]
 collapse_ranks omit = map (\r -> r - sub r)
     where sub r = length (takeWhile (<r) omit)
 
+strip_mark_prefixes :: Text -> Int -> [LabeledMark] -> [LabeledMark]
+strip_mark_prefixes replacement depth marks =
+    [m { m_label = s } | (m, s) <- zip marks labels]
+    where labels = strip_prefixes replacement depth $ map m_label marks
+
 -- | When labels are created, many of them have the same components as the
 -- previous label, e.g. @1.1.1@, @1.1.2@.  Replace the identical components
 -- with a placeholder to make the difference more apparent: @1.1.1@, @-.-.2@.
 --
 -- This doesn't actually look that nice on the UI because it does it for all
 -- labels, not just the visible ones.
-strip_prefixes :: Text -> [Label] -> [Label]
-strip_prefixes replacement =
+strip_prefixes :: Text -> Int -> [Label] -> [Label]
+strip_prefixes replacement depth =
     map (join_label . strip) . Seq.zip_prev . map split_label
     where
     strip (prev, cur) =
-        [ if Just c == mp then replacement else c
-        | (c, mp) <- Seq.zip_padded_snd cur (fromMaybe [] prev)
+        [ if d < depth && Just c == mp then replacement else c
+        | (d, (c, mp)) <- zip [0..] $ Seq.zip_padded_snd cur (fromMaybe [] prev)
         ]
 
 -- | Apply the labels according to the ranks.  Each Rank input has

@@ -124,12 +124,13 @@ make_meter rulers = label_meter (make_labels labels) meter
 -- * implementation
 
 label_meter :: [[Meter.Label]] -> Meter.Meter -> Meter.LabeledMeter
-label_meter labels meter =
-    [Meter.LabeledMark rank dur (Meter.join_label label)
-        | (rank, dur, label) <- List.zip3 ranks ps all_labels]
+label_meter labels meter = Meter.strip_mark_prefixes "_" 2
+    [ Meter.LabeledMark rank dur (Meter.join_label label)
+    | (rank, dur, label) <- List.zip3 ranks ps all_labels
+    ]
     where
     (ranks, ps) = unzip (clean meter)
-    all_labels = Meter.text_labels 2 labels $
+    all_labels = Meter.text_labels 1 labels $
         Meter.collapse_ranks unlabeled_ranks ranks
     -- Appending Meters can result in 0 dur marks in the middle.
     clean [] = []
@@ -138,8 +139,8 @@ label_meter labels meter =
         | otherwise = (r, d) : clean meter
 
 -- Ranks (* marks labeled ranks):
--- r_section is several avarta -- sections -- *
--- r_1 avarta -- avartanams
+-- r_section is several avartanam -- sections -- *
+-- r_1 avartanam -- avartanams
 -- r_2 anga -- based on tala -- *
 -- r_4 akshara -- basad on akshara type and jati
 -- r_8 nadai / gati -- variable -- *
@@ -178,7 +179,7 @@ anga_aksharas jati anga = case anga of
     U -> 1
 
 tala_labels :: Tala -> [Meter.Label]
-tala_labels (Tala angas jati) = concatMap mk angas
+tala_labels (Tala angas jati) = map Meter.big_label $ concatMap mk angas
     where
     mk anga = case anga of
         Clap n -> "X" : replicate (n-1) "-"
@@ -189,7 +190,7 @@ tala_labels (Tala angas jati) = concatMap mk angas
 
 make_labels :: [Meter.Label] -> [[Meter.Label]]
 make_labels aksharas =
-    [ numbers -- avarta
+    [ map Meter.biggest_label numbers -- avartanam
     , aksharas -- akshara
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers
