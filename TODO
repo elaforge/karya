@@ -16,7 +16,7 @@ UNSORTED
     * ruler is hard to read due to leading prefixes, can I omit those?
     * Maybe left-align will more readable.
     * only strip first n prefixes
-    - MeterConfig setting to strip
+    * MeterConfig setting to strip
     / Also 0 is very close to O.
     - Also it would be nice to have different font sizes.
       . I could use mini html, e.g. <font size=n>..</font>, but it seems like

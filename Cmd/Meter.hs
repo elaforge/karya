@@ -273,10 +273,12 @@ data MeterConfig = MeterConfig {
     meter_start :: !Int
     -- | Whether label groups start from 0, or 1.
     , meter_from0 :: !Bool
+    -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
+    , meter_strip_depth :: !Int
     } deriving (Show)
 
 default_config :: MeterConfig
-default_config = MeterConfig 1 False
+default_config = MeterConfig 1 False 0
 
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: MeterConfig -> Meter -> Ruler.Marklist
@@ -287,10 +289,11 @@ marklist_meter =
     map (\(LabeledMark rank dur _) -> (rank, dur)) . marklist_labeled
 
 label_meter :: MeterConfig -> Meter -> LabeledMeter
-label_meter (MeterConfig start from0) meter =
-    [ LabeledMark rank dur (join_label label)
-    | (rank, dur, label) <- List.zip3 ranks ps labels
-    ]
+label_meter (MeterConfig start from0 strip_depth) meter =
+    strip_mark_prefixes "_" strip_depth
+        [ LabeledMark rank dur (join_label label)
+        | (rank, dur, label) <- List.zip3 ranks ps labels
+        ]
     where
     (ranks, ps) = unzip meter
     labels = text_labels 1 (make_labels start (if from0 then 0 else 1))
@@ -397,7 +400,7 @@ type Renumber = LabeledMeter -> LabeledMeter
 
 -- | Strip all labels and renumber.
 renumber_meter :: Bool -> Renumber
-renumber_meter from0 = label_meter (MeterConfig 1 from0)
+renumber_meter from0 = label_meter (default_config { meter_from0 = from0 })
     . map (\(LabeledMark rank dur _) -> (rank, dur))
 
 -- | Renumber only the topmost count.  The number is increased at ranks 0 and
@@ -442,9 +445,11 @@ collapse_ranks omit = map (\r -> r - sub r)
     where sub r = length (takeWhile (<r) omit)
 
 strip_mark_prefixes :: Text -> Int -> [LabeledMark] -> [LabeledMark]
-strip_mark_prefixes replacement depth marks =
-    [m { m_label = s } | (m, s) <- zip marks labels]
-    where labels = strip_prefixes replacement depth $ map m_label marks
+strip_mark_prefixes replacement depth marks
+    | depth <= 0 = marks
+    | otherwise =
+        [m { m_label = s } | (m, s) <- zip marks labels]
+        where labels = strip_prefixes replacement depth $ map m_label marks
 
 -- | When labels are created, many of them have the same components as the
 -- previous label, e.g. @1.1.1@, @1.1.2@.  Replace the identical components
