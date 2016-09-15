@@ -9,7 +9,7 @@ UNSORTED
   * rename ScopeType to ScopePriority
     * rename stype_imported to library
   * why does creating a 'tari' block not override the 'tari' call?
-  - fltk: wrapping right-aligned text is broken
+  * fltk: wrapping right-aligned text is broken
   Ruler
     * SymbolTable.cc: don't round off the double returned by draw_text
       . Can I remove the re-measure in SymbolTable::wrap now?
@@ -18,7 +18,7 @@ UNSORTED
     * only strip first n prefixes
     * MeterConfig setting to strip
     / Also 0 is very close to O.
-    - Also it would be nice to have different font sizes.
+    * Also it would be nice to have different font sizes.
       . I could use mini html, e.g. <font size=n>..</font>, but it seems like
         overkill.
       . Custom ascii: <13>3<9>.5 or relative ++4--.5

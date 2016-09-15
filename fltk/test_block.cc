@@ -18,8 +18,8 @@
 
 enum Events { Negative, Symbols, Normal };
 static const Events t1_use_events = Normal;
-// Turn this off just draw a single event.
-static const bool draw_lots_of_stuff = true;
+// Turn this off just draw a single track.
+static const bool many_tracks = true;
 
 // Visible windows.
 static std::vector<BlockWindow *> windows;
@@ -345,7 +345,7 @@ main(int argc, char **argv)
     view.testing = true;
     // view.border(0);
 
-    if (draw_lots_of_stuff) {
+    if (many_tracks) {
         view.block.insert_track(0, Tracklike(&ruler), 20);
         view.block.insert_track(1, Tracklike(&empty_track, &ruler), 60);
         view.block.insert_track(2, Tracklike(&track1, &ruler), 130);

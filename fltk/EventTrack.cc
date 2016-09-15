@@ -421,7 +421,7 @@ wrap_text(const Event &event, int width)
 static EventTrack::TextBox
 compute_text_box(
     const Event &event, const SymbolTable::Wrapped &wrapped,
-    int y, int x, int width, EventTrack::Align align)
+    int x, int y, int width, EventTrack::Align align)
 {
     vector<pair<string, IRect>> lines;
     lines.reserve(wrapped.size());
@@ -434,7 +434,7 @@ compute_text_box(
     }
     for (const pair<string, DPoint> &line : wrapped) {
         int tx = align == EventTrack::Right
-            ? x + width - ceil(line.second.x) - 2
+            ? x + width - ceil(line.second.x)
             : x + 2;
         IRect box(tx, y, ceil(line.second.x), ceil(line.second.y));
         lines.push_back(std::make_pair(line.first, box));
@@ -480,7 +480,7 @@ EventTrack::draw_area()
         const SymbolTable::Wrapped wrapped = wrap_text(events[i], wrap_width);
         Align align = ranks[i] > 0 ? Right : Left;
         boxes[i] = compute_text_box(
-            events[i], wrapped, triggers[i], x(), wrap_width, align);
+            events[i], wrapped, x(), triggers[i], wrap_width, align);
     }
 
     // Actually start drawing.

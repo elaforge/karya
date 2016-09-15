@@ -385,8 +385,10 @@ SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
 {
     // Always include at least one symbol, otherwise I could loop forever.
     int end = next_symbol(text, start);
-    DPoint box = this->measure(text, start, end, style);
-    for (int prev_end = end; end < text.length(); prev_end = end) {
+    DPoint prev_box = this->measure(text, start, end, style);
+    DPoint box;
+    for (int prev_end = end; end < text.length();
+            prev_end = end, prev_box = box) {
         end = next_symbol(text, end);
         box = this->measure(text, start, end, style);
         // DEBUG(IPoint(start, end)
@@ -394,6 +396,7 @@ SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
         //     << ": " << box);
         if (box.x > wrap_width) {
             end = prev_end;
+            box = prev_box;
             break;
         }
     }
