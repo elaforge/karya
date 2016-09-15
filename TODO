@@ -11,6 +11,7 @@ UNSORTED
   * why does creating a 'tari' block not override the 'tari' call?
   Ruler
     - SymbolTable.cc: don't round off the double returned by draw_text
+      . Can I remove the re-measure in SymbolTable::wrap now?
     - ruler is hard to read due to leading prefixes, can I omit those?
     * Maybe left-align will more readable.
     - only strip first n prefixes

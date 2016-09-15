@@ -270,7 +270,7 @@ data Mark = Mark {
     -- | Width in pixels.
     , mark_width :: !Int
     , mark_color :: !Color.Color
-    -- | A bit of text displayed with the mark.
+    -- | A bit of text displayed with the mark.  This can use backtick symbols.
     , mark_name :: !Text
     -- | The text is only displayed when the zoom factor exceeds this value.
     , mark_name_zoom_level :: !Double

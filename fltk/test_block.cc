@@ -50,11 +50,11 @@ Marklist *m44_set(ScoreTime *last_pos)
     for (int i = 0; i < length; i++) {
         ScoreTime t = ScoreTime(i*8);
         if (i % 4 == 0) {
-            sprintf(name, "%d", i / 4);
+            sprintf(name, "`+2/%d`", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
             marks[i] = PosMark(t, m);
         } else {
-            sprintf(name, "long %d.%d", i / 4, i % 4);
+            sprintf(name, "%d.%d", i / 4, i % 4);
             Mark m(2, 2, minor, strdup(name), 0, 0);
             marks[i] = PosMark(t, m);
         }
@@ -190,18 +190,6 @@ static void
 timeout_func(void *unused)
 {
     static int n;
-    /*
-    static int i = t1_events.size() - 1;
-    static ScoreTime t1_time_end =
-        t1_events[i].event.start + t1_events[i].event.duration;
-    static ScoreTime m44_last_pos;
-    m44_set(&m44_last_pos);
-
-    static EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
-            RenderConfig(RenderConfig::render_line, render_color));
-    static RulerConfig ruler(
-            ruler_bg, false, true, true, negative_durations, m44_last_pos);
-    */
 
     std::cout << n << "------------\n";
     switch (n) {
@@ -324,8 +312,8 @@ main(int argc, char **argv)
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
-    ScoreTime t1_time_end =
-        t1_events[i].event.start + t1_events[i].event.duration;
+    ScoreTime t1_time_end = t1_events.size() == 0
+        ? ScoreTime(0) : t1_events[i].event.start + t1_events[i].event.duration;
 
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
             RenderConfig(RenderConfig::render_line, render_color));

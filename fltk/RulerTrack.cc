@@ -11,6 +11,7 @@
 #include "util.h"
 
 #include "RulerTrack.h"
+#include "SymbolTable.h"
 
 
 // Height in pixels both above and below  of the special indicator that is
@@ -206,7 +207,6 @@ OverlayRuler::draw_marklists()
     // DEBUG("RULER CLIP: " << start << "--" << end << ", "
     //         << SHOW_RANGE(clip));
 
-    fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
     for (auto &mlist : config.marklists) {
         const PosMark *marks_end = mlist->marks + mlist->length;
@@ -249,9 +249,9 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
     if (this->config.full_width || mark.rank == 0)
         ;
     else if (mark.rank == 1)
-        width *= 3.0/4.0;
+        width *= 3.0 / 4.0;
     else
-        width *= 1.0/mark.rank;
+        width *= 1.0 / mark.rank;
     width = floor(width);
 
     if (this->zoom.factor >= mark.zoom_level)
@@ -261,10 +261,11 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
         && mark.name)
     {
+        static SymbolTable::Style style(
+            Config::font, Config::font_size::ruler, FL_BLACK);
         int xmin = x() + 2;
         int ypos = at_zero ? offset + fl_height()  : offset - 1;
-        fl_color(FL_BLACK);
-        fl_draw(mark.name, xmin, ypos);
+        SymbolTable::get()->draw(mark.name, IPoint(xmin, ypos), style);
         drew_text = true;
     }
     return drew_text;
