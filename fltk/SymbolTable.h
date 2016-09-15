@@ -108,7 +108,7 @@ public:
     void insert(const std::string &name, const Symbol &sym);
 
     // Wrapped words, as [(Line, BoundingBox)].
-    typedef std::vector<std::pair<std::string, IPoint>> Wrapped;
+    typedef std::vector<std::pair<std::string, DPoint>> Wrapped;
     Wrapped wrap(const std::string &text, const Style &style, int wrap_width)
         const;
 
@@ -118,9 +118,9 @@ public:
     // Return the bounding box of the symbols that were drawn, or would have
     // been drawn if measure is true.  The bounding box includes ascenders but
     // doesn't include descenders, because those can generally overlap.
-    IPoint draw(const std::string &text, IPoint pos, Style style) const;
+    DPoint draw(const std::string &text, IPoint pos, Style style) const;
     // Like 'draw' but just measure, don't actually draw.
-    IPoint measure(const std::string &text, int start, int end, Style style)
+    DPoint measure(const std::string &text, int start, int end, Style style)
         const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
@@ -131,16 +131,16 @@ public:
 
     static SymbolTable *get();
 private:
-    IPoint draw_or_measure(
+    DPoint draw_or_measure(
         const std::string &text, int start, int end, IPoint pos,
         Style style, bool measure) const;
-    IPoint draw_backticks(
+    DPoint draw_backticks(
         const std::string &text, IPoint pos, const Style &style, bool measure)
             const;
     int measure_backticks(const char *text, Size size) const;
     double measure_glyph(const char *p, int size) const;
 
-    IPoint wrap_glyphs(const std::string &text, int start, const Style &style,
+    DPoint wrap_glyphs(const std::string &text, int start, const Style &style,
         int wrap_width, int *wrap_at) const;
 
     typedef std::map<std::string, Symbol> SymbolMap;

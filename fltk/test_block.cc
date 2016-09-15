@@ -16,7 +16,8 @@
 #include "f_util.h"
 
 
-static const bool negative_durations = false;
+enum Events { Negative, Symbols, Normal };
+static const Events t1_use_events = Normal;
 // Turn this off just draw a single event.
 static const bool draw_lots_of_stuff = true;
 
@@ -86,7 +87,8 @@ void t1_set()
     StyleId style = 0;
     StyleId style2 = 1;
 
-    if (negative_durations) {
+    switch (t1_use_events) {
+    case Negative:
         e.push_back(EventInfo(0,
             Event(ScoreTime(8), ScoreTime(-8), "a", style)));
         e.push_back(EventInfo(0,
@@ -97,7 +99,21 @@ void t1_set()
             Event(ScoreTime(32), ScoreTime(-8), "d", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(40), ScoreTime(-8), "e", style)));
-    } else {
+        break;
+    case Symbols:
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(16), ScoreTime(0), "mis`match", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(32), ScoreTime(0), "`nosym`", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(48), ScoreTime(0), "`+8/big`norm", style)));
+
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(64), ScoreTime(0), "`bold+italic/bold`", style)));
+        break;
+    case Normal: {
         const char *zh1 = "\xe4\xb8\xad\xe6\x96\x87"; // 中文
         // 兩個 分開
         const char *zh2 = "\xe5\x85\xa9\xe5\x80\x8b \xe5\x88\x86\xe9\x96\x8b";
@@ -111,8 +127,6 @@ void t1_set()
             Event(ScoreTime(36), ScoreTime(4), "overlap", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(44), ScoreTime(4), "6--", style)));
-        e.push_back(EventInfo(0,
-            Event(ScoreTime(50), ScoreTime(4), "mis`match", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(72), ScoreTime(8), zh1, style)));
         e.push_back(EventInfo(0,
@@ -133,7 +147,8 @@ void t1_set()
         // doesn't overlap rank 0
         e.push_back(EventInfo(0,
             Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
-    }
+        break;
+     } }
 }
 
 int
@@ -305,10 +320,10 @@ main(int argc, char **argv)
     Marklists nomarks;
 
     RulerConfig ruler(
-        ruler_bg, false, true, true, negative_durations, m44_last_pos);
+        ruler_bg, false, true, true, t1_use_events == Negative, m44_last_pos);
     ruler.marklists = mlists;
     RulerConfig no_ruler(
-        ruler_bg, false, true, true, negative_durations, ScoreTime(0));
+        ruler_bg, false, true, true, t1_use_events == Negative, ScoreTime(0));
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;

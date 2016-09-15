@@ -114,14 +114,14 @@ draw_symbol(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
 }
 
 
-IPoint
+DPoint
 SymbolTable::draw(const string &text, IPoint pos, Style style) const
 {
     return draw_or_measure(text, 0, text.length(), pos, style, false);
 }
 
 
-IPoint
+DPoint
 SymbolTable::measure(const string &text, int start, int end, Style style) const
 {
     return draw_or_measure(text, start, end, IPoint(0, 0), style, true);
@@ -166,7 +166,7 @@ parse_symbol(const std::string &text)
 }
 
 
-IPoint
+DPoint
 SymbolTable::draw_backticks(
     const std::string &text, IPoint pos, const Style &style, bool measure)
     const
@@ -175,18 +175,18 @@ SymbolTable::draw_backticks(
 
     if (parsed.size != 0 || parsed.attributes != 0) {
         fl_font(fl_font() + parsed.attributes, fl_size() + parsed.size);
-        int width = draw_text(
+        double width = draw_text(
             parsed.text.c_str(), parsed.text.size(), pos, measure, DPoint());
-        return IPoint(width, fl_height() - fl_descent());
+        return DPoint(width, fl_height() - fl_descent());
     } else {
         SymbolMap::const_iterator it = this->symbol_map.find(parsed.text);
 
         if (it == symbol_map.end()) {
             // Unknown symbol, draw it as plain text including the ``s.
-            int width = draw_text(
+            double width = draw_text(
                 parsed.text.c_str(), parsed.text.size(), pos, measure,
                 DPoint());
-            return IPoint(width, 0);
+            return DPoint(width, 0);
         } else {
             // Draw symbol inside ``s.
             IRect sym_box = this->measure_symbol(it->second, style.size);
@@ -198,13 +198,13 @@ SymbolTable::draw_backticks(
                     IPoint(pos.x - sym_box.x, pos.y + sym_box.y),
                     it->second, style.size, 0);
             }
-            return IPoint(sym_box.w, sym_box.h);
+            return DPoint(sym_box.w, sym_box.h);
         }
     }
 }
 
 
-IPoint
+DPoint
 SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
     Style style, bool measure) const
 {
@@ -213,7 +213,7 @@ SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
     style.set();
     // Keep track of the current bounding box.  The box is the width and height
     // of the text.
-    IPoint box(0, fl_height() - fl_descent());
+    DPoint box(0, fl_height() - fl_descent());
 
     while ((i = text.find('`', start)) < end) {
         i++;
@@ -223,16 +223,14 @@ SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
 
         // Draw text before ``s.
         style.set();
-        // draw_text actually returns a double, but I round down to int.
-        // Surely this leads to inaccuracy.
         box.x += draw_text(
             text.c_str() + start, i-start-1, IPoint(pos.x + box.x, pos.y),
             measure, DPoint());
 
-        IPoint b = draw_backticks(
+        DPoint sym_box = draw_backticks(
             text.substr(i, j-i), IPoint(pos.x + box.x, pos.y), style, measure);
-        box.x += b.x;
-        box.y = std::max(box.y, b.y);
+        box.x += sym_box.x;
+        box.y = std::max(box.y, sym_box.y);
         start = j + 1;
     }
     // Draw trailing text.
@@ -325,8 +323,7 @@ next_symbol(const string &text, int start)
 SymbolTable::Wrapped
 SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
 {
-    std::vector<std::pair<string, IPoint>> lines;
-    IPoint total_box(0, 0);
+    std::vector<std::pair<string, DPoint>> lines;
     string line;
     line.reserve(text.length());
 
@@ -334,11 +331,11 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
     wrap_width--;
 
     int start = 0;
-    IPoint line_box(0, 0);
+    DPoint line_box(0, 0);
     // DEBUG("text: " << text << " (" << text.length() << ")");
     while (start < text.length()) {
         int end = next_split(text, start);
-        IPoint word_box = this->measure(text, start, end, style);
+        DPoint word_box = this->measure(text, start, end, style);
         if (line_box.x + word_box.x <= wrap_width) {
             // DEBUG(start << "--" << end << ": " << word_box << " <= "
             //     << wrap_width);
@@ -354,29 +351,26 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
                 // A single word doesn't fit, so split by glyph.
                 int end;
                 line_box = wrap_glyphs(text, start, style, wrap_width, &end);
-                // DEBUG("wrap_glyphs: " << start << "--" << end);
+                // DEBUG("wrap_glyphs: " << start << "--" << end << " box: "
+                //     << line_box);
                 line.append(text, start, end - start);
                 start = end;
             }
-            // DEBUG("Line: '" << line << "' incremental: " << line_box
-            //     << ", recomputed: "
+            // DEBUG("text '" << line << "' sum " << line_box << " recalc "
             //     << measure(line, 0, line.length(), style));
-            // Using line_box incrementally should be faster than measuring
-            // each time, but is a bit inaccurate.  Hopefully it's good enough
-            // for wrapping, but for drawing it should be exact, so text
-            // visibility can work reliably.
-            lines.push_back(std::make_pair(
-                line, this->measure(line, 0, line.length(), style)));
-            line_box = IPoint(0, 0);
+            lines.push_back(std::make_pair(line, line_box));
+            line_box = DPoint(0, 0);
             line.clear();
             // I just broke a line, so I can skip all the whitespace.
             while (text[start] == ' ')
                 start++;
         }
     }
-    if (!line.empty())
-        lines.push_back(std::make_pair(
-            line, this->measure(line, 0, line.length(), style)));
+    if (!line.empty()) {
+        // DEBUG("FINAL text '" << line << "' sum " << line_box << " recalc "
+        //     << measure(line, 0, line.length(), style));
+        lines.push_back(std::make_pair(line, line_box));
+    }
 
     // for (int i = 0; i < lines.size(); i++) {
     //     DEBUG("LINE " << i << ": " << lines[i]);
@@ -385,18 +379,15 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
 }
 
 
-IPoint
+DPoint
 SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
     int wrap_width, int *wrap_at) const
 {
-    IPoint box;
+    // Always include at least one symbol, otherwise I could loop forever.
     int end = next_symbol(text, start);
+    DPoint box = this->measure(text, start, end, style);
     for (int prev_end = end; end < text.length(); prev_end = end) {
         end = next_symbol(text, end);
-        // Always measure from the start.  The width of a string is quite a bit
-        // more than the sum of the widths of the characters.  This doesn't
-        // seem to be a problem for wrap, maybe because there are fewer
-        // words and thus not so much error accumulation.
         box = this->measure(text, start, end, style);
         // DEBUG(IPoint(start, end)
         //     << "'" << text.substr(start, end - start) << "'"

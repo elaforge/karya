@@ -426,19 +426,19 @@ compute_text_box(
     vector<pair<string, IRect>> lines;
     lines.reserve(wrapped.size());
     if (event.is_negative()) {
-        for (const pair<string, IPoint> &line : wrapped)
-            y -= line.second.y;
+        for (const pair<string, DPoint> &line : wrapped)
+            y -= ceil(line.second.y);
         y -= 2; // Up a couple pixels to avoid overlapping the trigger.
     } else {
         y++;
     }
-    for (const pair<string, IPoint> &line : wrapped) {
+    for (const pair<string, DPoint> &line : wrapped) {
         int tx = align == EventTrack::Right
-            ? x + width - line.second.x - 2
+            ? x + width - ceil(line.second.x) - 2
             : x + 2;
-        IRect box(tx, y, line.second.x, line.second.y);
+        IRect box(tx, y, ceil(line.second.x), ceil(line.second.y));
         lines.push_back(std::make_pair(line.first, box));
-        y += line.second.y;
+        y += ceil(line.second.y);
     }
     return EventTrack::TextBox(lines, align);
 }
