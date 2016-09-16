@@ -186,7 +186,7 @@ SymbolTable::draw_backticks(
             double width = draw_text(
                 parsed.text.c_str(), parsed.text.size(), pos, measure,
                 DPoint());
-            return DPoint(width, 0);
+            return DPoint(width, fl_height() - fl_descent());
         } else {
             // Draw symbol inside ``s.
             IRect sym_box = this->measure_symbol(it->second, style.size);

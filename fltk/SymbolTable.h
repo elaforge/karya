@@ -85,7 +85,7 @@ public:
     };
 
     // `+3/abc` => ParsedSymbol("abc", 3, 0)
-    // `bolditalic/abc` => ParsedSymbol("abc", 0, FL_BOLD | FL_ITALIC)
+    // `bold/abc` => ParsedSymbol("abc", 0, FL_BOLD)
     struct ParsedSymbol {
         ParsedSymbol(std::string text, Size size = 0,
                 Fl_Font attributes = 0)

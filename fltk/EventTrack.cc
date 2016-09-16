@@ -438,7 +438,7 @@ compute_text_box(
             : x + 2;
         IRect box(tx, y, ceil(line.second.x), ceil(line.second.y));
         lines.push_back(std::make_pair(line.first, box));
-        y += ceil(line.second.y);
+        y += ceil(line.second.y) + 1;
     }
     return EventTrack::TextBox(lines, align);
 }

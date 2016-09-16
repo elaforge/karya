@@ -114,9 +114,8 @@ void t1_set()
             Event(ScoreTime(64), ScoreTime(0), "`bold+italic/bold`", style)));
         break;
     case Normal: {
-        const char *zh1 = "\xe4\xb8\xad\xe6\x96\x87"; // 中文
-        // 兩個 分開
-        const char *zh2 = "\xe5\x85\xa9\xe5\x80\x8b \xe5\x88\x86\xe9\x96\x8b";
+        const char *zh1 = "漢字";
+        const char *zh2 = "兩個 分開";
         e.push_back(EventInfo(0,
             Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
         e.push_back(EventInfo(0,
