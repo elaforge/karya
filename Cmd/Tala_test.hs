@@ -31,9 +31,8 @@ test_make_meter = do
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
         round_trip = Meter.labeled_marklist . Meter.marklist_labeled
-    let labels = Meter.strip_prefixes "_" 2
-            [ Meter.biggest_label (showt n)
-                <> (if Text.null o then "" else "." <> o)
+    let labels = map Meter.join_label $ Meter.strip_prefixes "_" 2
+            [ Meter.biggest_label (showt n) : if Text.null o then [] else [o]
             | n <- [1, 2, 3], o <- adi
             ]
         adi = "" : map Meter.big_label ["1", "2", "3", "X", "O", "X", "O"]

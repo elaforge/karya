@@ -16,15 +16,13 @@ import Types
 
 test_make_meter = do
     let meter = Meter.make_meter 1 [Meter.regular_subdivision [4, 4]]
-    equal meter (Meter.marklist_meter
-        (Meter.meter_marklist Meter.default_config meter))
+    equal meter (Meter.marklist_meter (Meter.meter_marklist config meter))
 
-    let marks = Ruler.ascending 0
-            (Meter.meter_marklist Meter.default_config meter)
+    let marks = Ruler.ascending 0 (Meter.meter_marklist config meter)
     equal (map fst marks) (Seq.range 0 16 1)
 
 test_meter_marklist = do
-    let f = extract_marklist 20 . Meter.meter_marklist Meter.default_config
+    let f = extract_marklist 20 . Meter.meter_marklist config
             . Meter.fit_meter 64 . replicate 4
     equal (take 9 $ f Meters.m44_4) $ zip (Seq.range_ 0 1)
         [ "1", "1.2", "1.3", "1.4"
@@ -34,22 +32,14 @@ test_meter_marklist = do
 
 test_rational_meter = do
     -- Meters with 1/3 divisions don't get inaccurate.
-    let f = Meter.meter_marklist Meter.default_config . Meter.fit_meter 4
+    let f = Meter.meter_marklist config . Meter.fit_meter 4
         extract = extract_marklist 20
-        round_trip = Meter.meter_marklist Meter.default_config
-            . Meter.marklist_meter
+        round_trip = Meter.meter_marklist config . Meter.marklist_meter
         meter = [Meter.repeat 4 Meters.m34]
     equal (extract $ f meter)
         (zip (Seq.range_ 0 1) ["1", "2", "3", "4", "5"])
     equal (extract $ round_trip $ f meter)
         (zip (Seq.range_ 0 1) ["1", "2", "3", "4", "5"])
-
-    let modify :: Meter.LabeledMeter -> Meter.LabeledMeter
-        modify = dropWhile ((>=2) . Meter.m_rank) . drop 1
-        ruler = Meters.ruler (f meter)
-    equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
-            Meter.modify_meter modify ruler) $
-        Right (zip (Seq.range_ 0 1) ["1", "2", "3", "4"])
 
 test_rational_meter2 = do
     -- Even awkward fractions add up correctly.
@@ -57,6 +47,17 @@ test_rational_meter2 = do
             replicate 1025 $ Meter.LabeledMark 0 dur ""
         dur = 5/8 / 128
     equal (last meter) 5 -- dur*1024 == 5
+
+test_renumber = do
+    let modify :: Meter.LabeledMeter -> Meter.LabeledMeter
+        modify = dropWhile ((>=2) . Meter.m_rank) . drop 1
+        ruler = Meters.ruler $ Meter.meter_marklist Meter.default_config $
+            Meter.fit_meter 4 [Meter.repeat 4 Meters.m34]
+        extract = extract_marklist 20
+    equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
+            Meter.modify_meter modify ruler) $
+        Right (zip (Seq.range_ 0 1)
+            (map Meter.biggest_label ["1", "2", "3", "4"]))
 
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
@@ -97,7 +98,13 @@ test_apply_labels = do
         ["A.a.1", "A.a.2", "A.b.1", "A.b.2", "A.c.1", "A.c.2", "B.a.1"]
 
 test_strip_prefixes = do
-    let f = Meter.strip_prefixes "-"
+    let f depth = map Meter.join_label . Meter.strip_prefixes "-" depth
+            . map Meter.split_label
     equal (f 2 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.-.1", "2"]
     equal (f 1 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.2.1", "2"]
     equal (f 0 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "1.2", "1.2.1", "2"]
+
+
+config :: Meter.MeterConfig
+config = Meter.default_config
+    { Meter.config_label_components = Meter.number_components 1 1 }

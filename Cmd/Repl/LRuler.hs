@@ -85,7 +85,6 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
-import qualified Cmd.Meters as Meters
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
@@ -317,9 +316,9 @@ measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> m Modify
 measures meter sections measures =
-    ruler $ make_measures config 1 meter sections measures
+    ruler $ make_measures Meter.default_config 1 meter sections measures
 measures0 meter sections measures =
-    ruler $ make_measures config0 1 meter sections measures
+    ruler $ make_measures Meter.default_config0 1 meter sections measures
 
 make_measures :: Meter.MeterConfig -> TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter
@@ -337,11 +336,6 @@ fit_to_end config meter block_id = do
     end <- State.block_event_end block_id
     return $ fit_ruler config end meter
 
-config, config0 :: Meter.MeterConfig
-config = Meter.default_config
-config0 = Meter.default_config
-    { Meter.meter_start = 0, Meter.meter_from0 = True }
-
 fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> m Ruler.Ruler
 fit_to_selection config meter = do
@@ -352,7 +346,7 @@ fit_to_selection config meter = do
 fit_ruler :: Meter.MeterConfig -> ScoreTime -> [Meter.AbstractMeter]
     -> Ruler.Ruler
 fit_ruler config dur meters =
-    (if Meter.meter_from0 config then Meters.ruler0 else Meters.ruler) $
+    Ruler.meter_ruler (Just (Meter.config_meter_type config)) $
     Meter.meter_marklist config $
     Meter.fit_meter (Meter.time_to_duration dur) meters
 

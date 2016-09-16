@@ -23,8 +23,6 @@ module Cmd.Tala (
     , Ruler(..), Sections, Avartanams, Nadai
     , make_meter
 ) where
-import qualified Data.List as List
-
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
@@ -116,27 +114,22 @@ type Nadai = Int
 
 -- | Concatenate the rulers and make a meter.
 make_meter :: [Ruler] -> Meter.LabeledMeter
-make_meter rulers = label_meter (make_labels labels) meter
+make_meter rulers =
+    Meter.label_meter (meter_config (make_components labels)) meter
     where
     meter = concatMap ruler_meter rulers
     labels = concatMap (tala_labels . ruler_tala) rulers
 
 -- * implementation
 
-label_meter :: [[Meter.Label]] -> Meter.Meter -> Meter.LabeledMeter
-label_meter labels meter = Meter.strip_mark_prefixes "_" 2
-    [ Meter.LabeledMark rank dur (Meter.join_label label)
-    | (rank, dur, label) <- List.zip3 ranks ps all_labels
-    ]
-    where
-    (ranks, ps) = unzip (clean meter)
-    all_labels = Meter.text_labels 1 labels $
-        Meter.collapse_ranks unlabeled_ranks ranks
-    -- Appending Meters can result in 0 dur marks in the middle.
-    clean [] = []
-    clean ((r, d) : meter)
-        | d == 0 && not (null meter) = clean meter
-        | otherwise = (r, d) : clean meter
+meter_config :: Meter.LabelComponents -> Meter.MeterConfig
+meter_config components = Meter.MeterConfig
+    { config_unlabeled_ranks = unlabeled_ranks
+    , config_label_components = components
+    , config_min_depth = 1
+    , config_strip_depth = 2
+    , config_meter_type = Meter.mtype_tala
+    }
 
 -- Ranks (* marks labeled ranks):
 -- r_section is several avartanam -- sections -- *
@@ -184,15 +177,15 @@ tala_labels (Tala angas jati) = map Meter.big_label $ concatMap mk angas
     mk anga = case anga of
         Clap n -> "X" : replicate (n-1) "-"
         Wave n -> "O" : replicate (n-1) "-"
-        I -> take jati (Meter.count 0)
+        I -> take jati (Meter.count_from 0)
         O -> ["X", "O"]
         U -> ["X"]
 
-make_labels :: [Meter.Label] -> [[Meter.Label]]
-make_labels aksharas =
+make_components :: [Meter.Label] -> Meter.LabelComponents
+make_components aksharas = Meter.LabelComponents
     [ map Meter.biggest_label numbers -- avartanam
     , aksharas -- akshara
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers
     ]
-    where numbers = Meter.count 1
+    where numbers = Meter.count_from 1

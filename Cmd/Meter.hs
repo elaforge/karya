@@ -269,16 +269,31 @@ fit_meter dur meters = make_meter stretch meters
 -- ** marklist conversion
 
 data MeterConfig = MeterConfig {
-    -- | The first section number.
-    meter_start :: !Int
-    -- | Whether label groups start from 0, or 1.
-    , meter_from0 :: !Bool
+    -- | Skip labels for these ranks.
+    config_unlabeled_ranks :: ![Ruler.Rank]
+    , config_label_components :: !LabelComponents
+    -- | Labels have at least this many sections.  Otherwise, trailing sections
+    -- are omitted.
+    , config_min_depth :: !Int
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
-    , meter_strip_depth :: !Int
+    , config_strip_depth :: !Int
+    , config_meter_type :: !Ruler.MeterType
     } deriving (Show)
 
 default_config :: MeterConfig
-default_config = MeterConfig 1 False 0
+default_config = MeterConfig
+    { config_unlabeled_ranks = unlabeled_ranks
+    , config_label_components = big_number_components 1 1
+    , config_min_depth = 1
+    , config_strip_depth = 2
+    , config_meter_type = mtype_meter
+    }
+
+default_config0 :: MeterConfig
+default_config0 = default_config
+    { config_label_components = big_number_components 1 0
+    , config_meter_type = mtype_meter0
+    }
 
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: MeterConfig -> Meter -> Ruler.Marklist
@@ -288,16 +303,22 @@ marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter =
     map (\(LabeledMark rank dur _) -> (rank, dur)) . marklist_labeled
 
-label_meter :: MeterConfig -> Meter -> LabeledMeter
-label_meter (MeterConfig start from0 strip_depth) meter =
-    strip_mark_prefixes "_" strip_depth
-        [ LabeledMark rank dur (join_label label)
-        | (rank, dur, label) <- List.zip3 ranks ps labels
-        ]
+label_meter :: MeterConfig -> Meter -> [LabeledMark]
+label_meter (MeterConfig unlabeled_ranks components min_depth strip_depth _)
+        meter =
+    [ LabeledMark rank dur label
+    | (rank, dur, label) <- List.zip3 ranks ps labels
+    ]
     where
-    (ranks, ps) = unzip meter
-    labels = text_labels 1 (make_labels start (if from0 then 0 else 1))
-        (collapse_ranks unlabeled_ranks ranks)
+    (ranks, ps) = unzip (drop_0dur meter)
+    labels = map join_label $ strip_prefixes "" strip_depth $
+        convert_labels min_depth components $
+        collapse_ranks unlabeled_ranks ranks
+    -- Appending Meters can result in 0 dur marks in the middle.
+    drop_0dur [] = []
+    drop_0dur ((r, d) : meter)
+        | d == 0 && not (null meter) = drop_0dur meter
+        | otherwise = (r, d) : drop_0dur meter
 
 unlabel_meter :: LabeledMeter -> Meter
 unlabel_meter = map (\m -> (m_rank m, m_duration m))
@@ -342,12 +363,19 @@ marklist_labeled mlist =
 
 -- *** implementation
 
-count :: Int -> [Label]
-count n = map showt [n..]
+count_from :: Int -> [Label]
+count_from n = map showt [n..]
 
-make_labels :: Int -> Int -> [[Label]]
-make_labels section_start label_start =
-    count section_start : List.repeat (count label_start)
+number_components :: Int -> Int -> LabelComponents
+number_components section_start start = LabelComponents $ take 10 $
+    count_from section_start : List.repeat (count_from start)
+
+-- | Like 'number_components', but the first two are bigger.
+big_number_components :: Int -> Int -> LabelComponents
+big_number_components section_start start = LabelComponents $ take 10 $
+    map biggest_label (count_from section_start)
+    : map big_label (count_from start)
+    : List.repeat (count_from start)
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
@@ -391,17 +419,21 @@ mtype_tala = "tala"
 -- created type and use that to look up the 'Renumber' function.
 meter_types :: Map.Map Ruler.MeterType Renumber
 meter_types = Map.fromList
-    [ (mtype_meter, renumber_meter False)
-    , (mtype_meter0, renumber_meter True)
+    [ (mtype_meter, renumber_meter default_config)
+    , (mtype_meter0, renumber_meter default_config0)
     , (mtype_tala, renumber_topmost)
     ]
+    -- TODO just take a [MeterConfig] and use 'config_meter_type'
 
 type Renumber = LabeledMeter -> LabeledMeter
 
--- | Strip all labels and renumber.
-renumber_meter :: Bool -> Renumber
-renumber_meter from0 = label_meter (default_config { meter_from0 = from0 })
-    . map (\(LabeledMark rank dur _) -> (rank, dur))
+-- | Strip all labels and renumber.  I can do this for 'default_config' because
+-- I can regenerate the labels from the rank.
+-- TODO can't I do it for tala too?  I would need to put 'meter_types' into
+-- another module that can import both Cmd.Meter and Cmd.Tala
+renumber_meter :: MeterConfig -> Renumber
+renumber_meter config =
+    label_meter config . map (\(LabeledMark rank dur _) -> (rank, dur))
 
 -- | Renumber only the topmost count.  The number is increased at ranks 0 and
 -- 1, based on 'Tala.unlabeled_ranks'.
@@ -427,13 +459,24 @@ join_label = Text.intercalate "."
 split_label :: Label -> [Label]
 split_label = Text.split (=='.')
 
+-- | This is the prototype for how to draw labels.  The outer list is indexed
+-- by rank, while the inner is has the sequence of labels at that rank.
+-- 'convert_labels' will take from a given level each time it sees that rank,
+-- and reset back to the beginning when the rank becomes less than that level.
+-- The inner list should be infinite to so it won't run out of labels no matter
+-- how many consecutive ranks are at that level.
+newtype LabelComponents = LabelComponents [[Label]]
 type Label = Text
 
-text_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
+instance Show LabelComponents where
+    show (LabelComponents labels) = show $ map ((++["..."]) . take 10) labels
+
+-- | Convert label components to label lists based on the given ranks.
+convert_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
     -- trailing sections are omitted.
-    -> [[Label]] -> [Ruler.Rank] -> [[Label]]
-text_labels min_depth labels ranks =
-    strip $ map (map replace) $ apply_labels labels ranks
+    -> LabelComponents -> [Ruler.Rank] -> [[Label]]
+convert_labels min_depth (LabelComponents components) ranks =
+    strip $ map (map replace) $ apply_labels components ranks
     where
     strip = zipWith take (map (max min_depth . (+1)) ranks)
     replace t = if Text.null t then "-" else t
@@ -444,22 +487,16 @@ collapse_ranks :: [Ruler.Rank] -> [Ruler.Rank] -> [Ruler.Rank]
 collapse_ranks omit = map (\r -> r - sub r)
     where sub r = length (takeWhile (<r) omit)
 
-strip_mark_prefixes :: Text -> Int -> [LabeledMark] -> [LabeledMark]
-strip_mark_prefixes replacement depth marks
-    | depth <= 0 = marks
-    | otherwise =
-        [m { m_label = s } | (m, s) <- zip marks labels]
-        where labels = strip_prefixes replacement depth $ map m_label marks
-
 -- | When labels are created, many of them have the same components as the
 -- previous label, e.g. @1.1.1@, @1.1.2@.  Replace the identical components
 -- with a placeholder to make the difference more apparent: @1.1.1@, @-.-.2@.
 --
 -- This doesn't actually look that nice on the UI because it does it for all
 -- labels, not just the visible ones.
-strip_prefixes :: Text -> Int -> [Label] -> [Label]
-strip_prefixes replacement depth =
-    map (join_label . strip) . Seq.zip_prev . map split_label
+strip_prefixes :: Text -> Int -> [[Label]] -> [[Label]]
+strip_prefixes replacement depth
+    | depth <= 0 = id
+    | otherwise = map strip . Seq.zip_prev
     where
     strip (prev, cur) =
         [ if d < depth && Just c == mp then replacement else c

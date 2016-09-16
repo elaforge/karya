@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Would it make sense to also put Perform.Midi.Patch.Flags in Config?
   * look into using the 'errors' package for things like
     'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
     - use tryJust and tryRght instead of require and require_right
@@ -858,6 +859,8 @@ fltk:
     ask the UI about text extents to resize them automatically.
   - I never wound up using rank > 1, so presumably I could simplify things by
     calling it 'bool align_right' or something.
+    . I'm using EventTrack::Align, but the haskell side is still sending
+      ranks.
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.  This is visible when I add logical range markers.

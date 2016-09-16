@@ -15,9 +15,6 @@ import Cmd.Meter (AbstractMeter(..), regular_subdivision)
 ruler :: Ruler.Marklist -> Ruler.Ruler
 ruler = Ruler.meter_ruler (Just Meter.mtype_meter)
 
-ruler0 :: Ruler.Marklist -> Ruler.Ruler
-ruler0 = Ruler.meter_ruler (Just Meter.mtype_meter0)
-
 -- half/measure, quarter/half, eighth/quarter, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation
 -- durations, as documented in "Cmd.Meter".
