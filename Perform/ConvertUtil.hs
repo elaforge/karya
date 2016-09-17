@@ -46,8 +46,8 @@ convert process lookup_inst = go Nothing Set.empty
         increases events
             | Just prev <- maybe_prev,
                     Score.event_start event < Score.event_start prev =
-                warn ("start of " <> Score.log_event event
-                    <> " less than previous " <> Score.log_event prev)
+                warn ("start of " <> Score.short_event event
+                    <> " less than previous " <> Score.short_event prev)
                 : events
             | otherwise = events
         warn = LEvent.Log . Log.msg Log.Warn (Just (Score.event_stack event))

@@ -20,6 +20,8 @@ module Derive.Stream (
     , merge_log, merge_logs
     -- ** zip
     , zip, zip_on, zip3, zip3_on, zip4
+    -- * misc util
+    , pretty_short_events, short_events
 ) where
 import Prelude hiding (length, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
@@ -226,3 +228,12 @@ zip3_on key1 key2 = emap $ \xs ->
 
 zip4 :: [a] -> [b] -> [c] -> Stream x -> Stream (a, b, c, x)
 zip4 as bs cs = emap $ LEvent.zip4 as bs cs
+
+-- * misc util
+
+-- | Like 'Score.short_events', but works on a Stream.
+pretty_short_events :: Stream Score.Event -> Text
+pretty_short_events = pretty . Pretty.formattedList '[' ']' . short_events
+
+short_events :: Stream Score.Event -> [Text]
+short_events = map (LEvent.either Score.short_event pretty) . to_list

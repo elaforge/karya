@@ -117,7 +117,7 @@ infer_duration_merged strong weaks =
     case Seq.maximum (map Score.event_end weaks) of
         Just end | Score.has_flags Flags.infer_duration strong ->
             Score.add_log ("set duration to max of weak notes: "
-                <> Score.log_events weaks) $
+                <> Score.short_events weaks) $
             Score.remove_flags Flags.infer_duration $
             Score.set_duration (end - Score.event_start strong) strong
         _ -> strong
