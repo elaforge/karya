@@ -25,8 +25,8 @@ test_meter_marklist = do
     let f = extract_marklist 20 . Meter.meter_marklist config
             . Meter.fit_meter 64 . replicate 4
     equal (take 9 $ f Meters.m44_4) $ zip (Seq.range_ 0 1)
-        [ "1", "1.2", "1.3", "1.4"
-        , "2", "2.2", "2.3", "2.4"
+        [ "1", ".2", ".3", ".4"
+        , "2", ".2", ".3", ".4"
         , "3"
         ]
 

@@ -20,8 +20,8 @@ test_make_ruler = do
         extract zoom = map snd . extract_marklist zoom . snd . snd . head
             . Map.toList . Ruler.ruler_marklists
     equal (extract 20 adi)
-        [ "`+4/1`", "_.`+2/1`", "_.`+2/2`", "_.`+2/3`"
-        , "_.`+2/X`", "_.`+2/O`" , "_.`+2/X`", "_.`+2/O`"
+        [ "`+4/1`", ".`+2/1`", ".`+2/2`", ".`+2/3`"
+        , ".`+2/X`", ".`+2/O`" , ".`+2/X`", ".`+2/O`"
         , "`+4/2`"
         ]
 
@@ -31,7 +31,7 @@ test_make_meter = do
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
         round_trip = Meter.labeled_marklist . Meter.marklist_labeled
-    let labels = map Meter.join_label $ Meter.strip_prefixes "_" 2
+    let labels = map Meter.join_label $ Meter.strip_prefixes "" 2
             [ Meter.biggest_label (showt n) : if Text.null o then [] else [o]
             | n <- [1, 2, 3], o <- adi
             ]
