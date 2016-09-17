@@ -44,9 +44,10 @@ test_invalidate_damaged = do
             (Set.fromList (map UiTest.bid blocks))
         empty = Derive.CachedEvents (Derive.CallType mempty Stream.empty)
         mkcache stack = Derive.Cache $
-            Map.singleton stack (Derive.Cached empty)
-    let extract (stack, Derive.Invalid) = (stack, False)
-        extract (stack, _) = (stack, True)
+            Map.singleton (Derive.CacheKey stack 0) (Derive.Cached empty)
+    let extract (key, cached) = (Derive.key_stack key,) $ case cached of
+            Derive.Invalid -> False
+            _ -> True
     let f damage stack = map extract $ Map.toList $ uncache $
             Derive.invalidate_damaged damage (mkcache stack)
 
@@ -122,6 +123,34 @@ test_add_remove = do
     equal (diff_events cached uncached) []
 
     let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t1" 4 1 ""
+    equal (diff_events cached uncached) []
+
+test_double_eval = do
+    -- Cache entries from a block called multiple times from the same event
+    -- won't collide.  This is what 'Derive.key_serial' is for.
+    let create call = mkblocks
+            [ ("top", [(">", [(0, 4, call <> " | sub")])])
+            , ("sub=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            ]
+    let extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
+
+    let (_, cached, uncached) = compare_cached (create "echo 2") $
+            insert_event "top.t1" 4 1 ""
+    equal (diff_events cached uncached) []
+    -- This is just 'diff_events', but shows the dyn.
+    equal (DeriveTest.extract extract uncached)
+        (DeriveTest.extract extract cached)
+
+    -- It works even if both blocks are called at the same time.
+    let (_, cached, uncached) = compare_cached (create "echo 0") $
+            insert_event "top.t1" 4 1 ""
+    equal (diff_events cached uncached) []
+    equal (DeriveTest.extract extract uncached)
+        (DeriveTest.extract extract cached)
+
+    -- This was the original case.
+    let (_, cached, uncached) = compare_cached (create "tile") $
             insert_event "top.t1" 4 1 ""
     equal (diff_events cached uncached) []
 
@@ -713,8 +742,9 @@ log_with_stack msg = prettys (Log.msg_stack msg) <> ": " <> Log.msg_string msg
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
-    [(DeriveTest.show_stack (Just stack), collect ctype)
-        | (stack, ctype) <- Map.assocs cmap]
+    [ (DeriveTest.show_stack (Just (Derive.key_stack key)), collect ctype)
+    | (key, ctype) <- Map.toList cmap
+    ]
     where
     cmap = uncache (Derive.r_cache result)
     collect (Derive.Cached (Derive.CachedEvents (Derive.CallType collect _))) =
@@ -732,13 +762,13 @@ mk_block_deps :: [String] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
 r_cache_stacks :: Derive.Result -> [Text]
-r_cache_stacks = map Stack.pretty_ui_ . Map.keys . Map.filter valid . uncache
-    . Derive.r_cache
+r_cache_stacks = map (Stack.pretty_ui_ . Derive.key_stack) . Map.keys
+    . Map.filter valid . uncache . Derive.r_cache
     where
     valid Derive.Invalid = False
     valid _ = True
 
-uncache :: Derive.Cache -> Map.Map Stack.Stack Derive.Cached
+uncache :: Derive.Cache -> Map.Map Derive.CacheKey Derive.Cached
 uncache (Derive.Cache cache) = cache
 
 mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId

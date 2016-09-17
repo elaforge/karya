@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - fltk: blue abbrev line at the bottom of a positive event is chopped off
   - Would it make sense to also put Perform.Midi.Patch.Flags in Config?
   * look into using the 'errors' package for things like
     'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
@@ -89,8 +90,22 @@ UNSORTED
       be a parse error, '>pemade |', and then fix it, it forgets that it was
       called from the root, so presumably it gets cached as a zero and the fix
       doesn't invalidate that.
-    - 'tile' messes up the cache.  If I change the tile callee's contents
+    * 'tile' messes up the cache.  If I change the tile callee's contents
       I think it rederives with only a single cycle and wrong controls.
+      . The first time the second block call is shifted, the second time it
+        uses the cache, which isn't.  Why does it work the first time?
+        It works because neither call uses the cache.  The second time, both
+        use the same cache, but one has been overwritten.
+      . The cache is for 0-4, and there's only one entry, so it can't
+        recognize that there were two calls to that block from the same place.
+        To cache each one separately, I need to distinguish.
+      . Ideally, I'd use all the inputs as key, but it's impractical so I use
+        the stack as a stand-in.  But at least I could use the warp, or just
+        the warp at start time.  It still won't help with simultaneous ones,
+        but then I need another key.
+      . Perhaps an artificial key?  That's what state_event_serial was for,
+        but it increments on notes generated, what about block calls?
+        Also I worry that it's easy fooled
   - Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
     so I can have gongs labeled.  How could I configure that?  Or should
     I have a specialized kind of meter for gong, like Cmd.Tala?

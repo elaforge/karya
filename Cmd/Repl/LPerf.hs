@@ -427,14 +427,14 @@ simple_midi = map $ \wmsg -> (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
 
 -- ** cache contents
 
-get_cache :: Cmd.M m => BlockId -> m (Map.Map Stack.Stack Derive.Cached)
+get_cache :: Cmd.M m => BlockId -> m (Map.Map Derive.CacheKey Derive.Cached)
 get_cache block_id = do
     Derive.Cache cache <- Cmd.perf_derive_cache <$>
         Cmd.get_performance block_id
     return cache
 
 get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
-    -> m (Map.Map Stack.Stack [LEvent.LEvent d])
+    -> m (Map.Map Derive.CacheKey [LEvent.LEvent d])
 get_cache_events block_id = do
     cache <- get_cache block_id
     return $ fmap Stream.to_list $ Map.mapMaybe get cache
@@ -447,16 +447,7 @@ get_cache_events block_id = do
 show_cache :: Cmd.M m => BlockId -> m Text
 show_cache block_id = do
     perf <- Cmd.get_performance block_id
-    return $ Text.unlines (pretty_cache (Cmd.perf_derive_cache perf))
-
-pretty_cache :: Derive.Cache -> [Text]
-pretty_cache (Derive.Cache cache) =
-    [Stack.pretty_ui_ stack <> ": " <> pretty_cached cached
-        | (stack, cached) <- Map.toAscList cache]
-    where
-    pretty_cached Derive.Invalid = "Invalid"
-    pretty_cached (Derive.Cached entry) =
-        showt (entry_events entry) <> " events"
+    return $ Cache.pretty_cache (Cmd.perf_derive_cache perf)
 
 entry_events :: Derive.CacheEntry -> Int
 entry_events entry = case entry of

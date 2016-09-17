@@ -101,7 +101,7 @@ module Derive.Deriver.Monad (
 
     -- ** cache types
     -- $cache_doc
-    , Cache(..), Cached(..), cache_size
+    , Cache(..), CacheKey(..), Cached(..), cache_size
     , CacheEntry(..), CallType(..)
     , BlockDeps(..)
 
@@ -386,8 +386,12 @@ data Threaded = Threaded {
     -- every Score.Event is emitted.  This way, multiple score events emitted
     -- by a single UI event (and thus likely all having the same 'Stack.Stack')
     -- can all be randomized uniquely.  See NOTE [event-serial] for history.
-    , state_event_serial :: !Int
+    --
+    -- EventSerial is also in the 'CacheKey' for reasons described there.
+    , state_event_serial :: !EventSerial
     } deriving (Show)
+
+type EventSerial = Int
 
 initial_threaded :: Threaded
 initial_threaded = Threaded mempty 0
@@ -1433,13 +1437,39 @@ make_val_call module_ name tags doc (call, arg_docs) = ValCall
 -- defined here to avoid circular dependencies.
 
 -- instead of a stack, this could be a tree of frames
-newtype Cache = Cache (Map.Map Stack.Stack Cached)
+newtype Cache = Cache (Map.Map CacheKey Cached)
     deriving (Monoid, Pretty.Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
 cache_size :: Cache -> Int
 cache_size (Cache c) = Map.size c
+
+{- | Ideally, the cache would be keyed by all data that can affect derivation,
+    which would mean all of 'Dynamic' and 'Threaded'.  Effectively a deriver is
+    a function that takes 'State' as its input, and this would be memoizing
+    that function.  But in practice, there's too much junk in there, so I have
+    to do an approximation.
+
+    The first approximation is the stack, which is a proxy for the things that
+    are likely to affect derivation.  Different calls in the stack are likely
+    to result in a different environment, or a different 'Stack.Region' likely
+    means a different warp.  However, the stack is the same during the
+    evaluation of a single event, so if one event calls a block multiple times,
+    I need something else to distinguish them.  'EventSerial' is incremented
+    on each block call (in addition to each event), so it should make each
+    block call unique.
+-}
+data CacheKey = CacheKey {
+    key_stack :: !Stack.Stack
+    , key_serial :: !EventSerial
+    } deriving (Eq, Ord, Show)
+
+instance DeepSeq.NFData CacheKey where
+    rnf (CacheKey stack _) = rnf stack
+
+instance Pretty.Pretty CacheKey where
+    format (CacheKey stack serial) = Pretty.format (stack, serial)
 
 -- | When cache entries are invalidated by ScoreDamage, a marker is left in
 -- their place.  This is just for a nicer log msg that can tell the difference
@@ -1528,8 +1558,8 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     where
     is_valid Invalid = False
     is_valid _ = True
-    invalidate stack cached
-        | has_damage stack = Invalid
+    invalidate key cached
+        | has_damage (key_stack key) = Invalid
         | otherwise = cached
     has_damage stack = any overlaps (Stack.to_ui_innermost stack)
     overlaps (block, track, range) = maybe False (`Set.member` blocks) block

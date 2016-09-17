@@ -9,6 +9,8 @@ module Derive.Cache (
     , block, track
     , get_control_damage, get_tempo_damage
     , is_cache_log, extract_cached_msg, extract_rederived_msg
+    -- * debugging
+    , pretty_cache
 
 #ifdef TESTING
     , find_generator_cache
@@ -115,7 +117,9 @@ caching_deriver typ range call = do
     let cdamage = Derive.state_control_damage (Derive.state_dynamic st)
         sdamage = Derive.state_score_damage (Derive.state_constant st)
         stack = Derive.state_stack (Derive.state_dynamic st)
-    generate stack $ find_generator_cache typ stack range
+        serial = Derive.state_event_serial (Derive.state_threaded st)
+        key = Derive.CacheKey { key_stack = stack, key_serial = serial }
+    generate stack $ find_generator_cache typ key range
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
@@ -127,8 +131,11 @@ caching_deriver typ range call = do
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
         Log.debug $ rederived_msg reason
+        serial <- Derive.gets $
+            Derive.state_event_serial . Derive.state_threaded
+        let key = Derive.CacheKey { key_stack = stack, key_serial = serial }
         Internal.merge_collect $
-            mempty { Derive.collect_cache = make_cache stack collect result }
+            mempty { Derive.collect_cache = make_cache key collect result }
         return result
 
     -- To get the deps of just the deriver below me, I have to clear out
@@ -169,18 +176,19 @@ with_empty_collect inflict_control_damage deriver = do
     Derive.put old
     return (result, collect)
 
-find_generator_cache :: Cacheable d => Type -> Stack.Stack -> Ranges
+find_generator_cache :: Cacheable d => Type -> Derive.CacheKey -> Ranges
     -> ScoreDamage -> ControlDamage -> Cache
     -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
-find_generator_cache typ stack (Ranges event_range is_negative) score
+find_generator_cache typ key (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
-    cached <- justErr (False, "not in cache") $ Map.lookup stack cache
+    cached <- justErr (False, "not in cache") $ Map.lookup key cache
     -- Look for block damage before looking for Invalid, because if there is
     -- block damage I inflict control damage too.  This is because block damage
     -- means things like a block title change, or skeleton change, and those
     -- can invalidate all blocks called from this one.
+    let stack = Stack.innermost (Derive.key_stack key)
     case typ of
-        Block -> case msum (map Stack.block_of (Stack.innermost stack)) of
+        Block -> case msum (map Stack.block_of stack) of
             Just this_block
                 | this_block `Set.member` sdamage_blocks score ->
                     Left (True, "direct block damage")
@@ -209,9 +217,11 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
         Left (True, "control damage")
     return (collect, stream)
 
-make_cache :: Cacheable d => Stack.Stack -> Derive.Collect -> Stream.Stream d
-    -> Cache
-make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
+-- | Make a single cache entry.  This will go into 'Derive.collect_cache'
+-- and be merged in with the rest.
+make_cache :: Cacheable d => Derive.CacheKey -> Derive.Collect
+    -> Stream.Stream d -> Cache
+make_cache key collect stream = Cache $ Map.singleton key (Cached entry)
     where
     stripped = collect
         { Derive.collect_cache = mempty
@@ -253,6 +263,22 @@ rederived_msg reason = "rederived generator because of " <> reason
 -- | Get the reason from a 'rederived_msg'.
 extract_rederived_msg :: Text -> Maybe Text
 extract_rederived_msg = Text.stripPrefix "rederived generator because of "
+
+-- * debugging
+
+-- | Format the cache in a hopefully readable way.
+pretty_cache :: Derive.Cache -> Text
+pretty_cache (Derive.Cache cache) = Text.unlines $ concat
+    [ showt serial <> ", " <> Stack.pretty_ui_ stack <> ": "
+        : map ("    "<>) (fmt cached) ++ [""]
+    | (Derive.CacheKey stack serial, cached) <- Map.toList cache
+    ]
+    where
+    fmt Derive.Invalid = ["Invalid"]
+    fmt (Derive.Cached cached) = case cached of
+        Derive.CachedEvents (Derive.CallType _ a) -> Stream.short_events a
+        Derive.CachedControl (Derive.CallType _ a) -> [pretty a]
+        Derive.CachedPitch (Derive.CallType _ a) -> [pretty a]
 
 
 -- * get_control_damage

@@ -75,7 +75,10 @@ c_block block_id = Derive.with_score_duration get_score_duration $
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\
     \ prepended."
-    $ Sig.call0 $ Sub.inverting $ \args ->
+    $ Sig.call0 $ Sub.inverting $ \args -> do
+        -- This ensures that each block call from the same event sees a new
+        -- serial number, as documented in 'Derive.CacheKey'.
+        Internal.increment_event_serial
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
