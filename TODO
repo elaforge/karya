@@ -3,7 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - fltk: blue abbrev line at the bottom of a positive event is chopped off
+  - fltk: I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
+  * fltk: blue abbrev line at the bottom of a positive event is chopped off
+  - fltk: negative event text is pushed downwards the more it wraps
+    . Probably that padding pixel making it not line up.
+    . All these padding tweaks are a real mess.  Can I get rid of them and
+      apply them all in one spot?
+  - fltk: event "a`tamil-i``xie`" clipping with next event is wrong
+
   - Would it make sense to also put Perform.Midi.Patch.Flags in Config?
   * look into using the 'errors' package for things like
     'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
@@ -106,11 +113,12 @@ UNSORTED
       . Perhaps an artificial key?  That's what state_event_serial was for,
         but it increments on notes generated, what about block calls?
         Also I worry that it's easy fooled
-  - Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
+  * Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
     so I can have gongs labeled.  How could I configure that?  Or should
     I have a specialized kind of meter for gong, like Cmd.Tala?
     . On the other side, I could imagine wanting sections for a quick chapu
       talam, where the phrase structure was e.g. 4 avartanams.
+    . MeterConfig can handle this now.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.

@@ -81,7 +81,8 @@ clip_rect(IRect r)
 // draw
 
 Fl_Color color_cycle();
-void draw(const IRect &rect, Color color);
+void draw_rect(const IRect &rect, Color color);
+void draw_rectf(const IRect &rect, Color color);
 
 }
 

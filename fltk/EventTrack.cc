@@ -22,6 +22,10 @@ using std::vector;
 
 // #define DEBUG(X) ;
 
+// DEBUG text drawing.
+// #define TEXT(X) DEBUG(X)
+#define TEXT(X) ;
+
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
@@ -171,7 +175,6 @@ EventTrack::EventTrack(const EventTrackConfig &config,
 void
 EventTrack::resize(int x, int y, int w, int h)
 {
-    // DEBUG("resize " << f_util::rect(this) << " -> " << IRect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
     Fl_Widget::resize(x, y, w, h);
     this->overlay_ruler.resize(x, y, w, h);
@@ -256,7 +259,6 @@ EventTrack::unfocus_title()
 void
 EventTrack::set_zoom(const ZoomInfo &new_zoom)
 {
-    // DEBUG("zoom " << this->zoom << " to " << new_zoom);
     if (new_zoom == this->zoom)
         return;
     if (this->zoom.factor == new_zoom.factor)
@@ -460,8 +462,6 @@ EventTrack::draw_area()
     ScoreTime end = start + this->zoom.to_time(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
-    // DEBUG("TRACK CLIP: " << start << "--" << end
-    //     << ", " << SHOW_RANGE(clip));
 
     // The results are sorted by (event_start, rank), so lower ranks always
     // come first.
@@ -790,8 +790,8 @@ drawable_pixels(
         return 0;
 
     bool is_left = boxes[index].align == EventTrack::Left;
-    // DEBUG("---- calculate drawable pixels for " << event
-    //     << " is_left: " << is_left);
+    TEXT("---- calculate drawable pixels for " << event
+        << " is_left: " << is_left);
     int pixels = 0;
     // For each event line, see if it can fit by iterating over each line
     // of each previous TextBox.
@@ -808,6 +808,7 @@ drawable_pixels(
             pixels += event_line->second.h, ++event_line)
         {
             IRect event_box = event_line->second;
+            TEXT("event: " << event_box << " '" << event_line->first << "'");
             // Preserve some distance between Right and Left text.
             if (boxes[index].align == EventTrack::Right) {
                 event_box.x -= 2;
@@ -830,24 +831,31 @@ drawable_pixels(
                     // Add some padding to avoid touching the previous event's
                     // trigger.  Negative event text is bumped up a bit in
                     // compute_text_box and this counteracts that.
-                    bool at_trigger = prev_line == boxes[prev].lines.crbegin()
+                    bool at_prev_trigger =
+                        prev_line == boxes[prev].lines.crbegin()
                         && events[prev].is_negative();
-                    if (at_trigger)
-                        prev_box.h += 3;
+                    // Unless this is the first event line, which is clipped
+                    // all or nothing, because otherwise text that clearly fits
+                    // will not be displayed at all.
+                    // TODO this is way complicated, surely there's a simpler
+                    // way to express this?
+                    bool is_first = event_line == boxes[index].lines.crbegin();
+                    if (at_prev_trigger && !is_first)
+                        prev_box.h += 2;
 
-                    // DEBUG("prev " << prev << ", box: " << prev_box
-                    //     << " '" << prev_line->first << "'");
+                    TEXT("prev " << prev << ", box: " << prev_box
+                        << " '" << prev_line->first << "'");
                     if (prev_box.intersects(event_box)) {
                         // If it's not the first line, a partial line is ok.
-                        // DEBUG("intersect: " << prev_box << " with "
-                        //     << event_box << " (" << event_line->first
-                        //     << ")");
+                        TEXT("intersect: prev " << prev_box << " with cur "
+                            << event_box << " (" << event_line->first
+                            << "), pixels += " << event_box.b()-prev_box.b());
                         if (pixels > 0) {
                             pixels += event_box.b() - prev_box.b();
                         }
                         return pixels;
                     } else if (prev_box.b() <= event_box.y) {
-                        // DEBUG("fits, continue, pixels += " << event_box.h);
+                        TEXT("fits, continue, pixels += " << event_box.h);
                         prev = -1; // break outer loop
                         break;
                     }
@@ -859,7 +867,7 @@ drawable_pixels(
             event_line != boxes[index].lines.end();
             pixels += event_line->second.h, ++event_line)
         {
-            // DEBUG("event_line " << *event_line << " pixels: " << pixels);
+            TEXT("event_line " << *event_line << " pixels: " << pixels);
             IRect event_box = event_line->second;
             // Preserve some distance between Right and Left text.
             if (boxes[index].align == EventTrack::Right) {
@@ -880,21 +888,21 @@ drawable_pixels(
                     ++next_line)
                 {
                     IRect next_box = next_line->second;
-                    // DEBUG("next " << next << ", box: " << next_box
-                    //     << " '" << next_line->first << "'");
+                    TEXT("next " << next << ", box: " << next_box
+                        << " '" << next_line->first << "'");
                     if (next_box.intersects(event_box)) {
                         // If it's not the first line, a partial line is ok.
-                        // DEBUG("intersect: " << next_box << " with "
-                        //     << event_box << " (" << event_line->first
-                        //     << ")");
+                        TEXT("intersect: " << next_box << " with "
+                            << event_box << " (" << event_line->first
+                            << ")");
                         if (pixels > 0) {
-                            // DEBUG("add partial "
-                            //     << next_box.y - event_box.y);
+                            TEXT("add partial "
+                                << next_box.y - event_box.y);
                             pixels += next_box.y - event_box.y;
                         }
                         return pixels;
                     } else if (next_box.y >= event_box.b()) {
-                        // DEBUG("fits, continue, pixels += " << event_box.h);
+                        TEXT("fits, continue, pixels += " << event_box.h);
                         next = boxes.size(); // break outer loop
                         break;
                     }
@@ -957,8 +965,8 @@ EventTrack::draw_upper_layer(
             ? event_style->text_color.brightness(rank_brightness)
             : event_style->text_color).fl());
 
-    int drawable = drawable_pixels(index, events, boxes);
-    // DEBUG("drawable pixels for " << events[index] << ": " << drawable);
+    const int drawable = drawable_pixels(index, events, boxes);
+    TEXT("drawable pixels for " << events[index] << ": " << drawable);
 
     // Don't draw above 0 since I can't scroll further up to see it.  Also
     // don't draw on top of the previous trigger line of a Left event.  Since
@@ -978,53 +986,60 @@ EventTrack::draw_upper_layer(
         drawable > 0, x()+1, triggers[index], w()-2, event, align, prev_limit);
 
     // for (int i = 0; i < boxes[index].lines.size(); i++) {
-    //     DEBUG("text box: " << i << ": " << boxes[index].lines[i]);
+    //     TEXT("text box: " << i << ": " << boxes[index].lines[i]);
     // }
     if (drawable <= 0 || boxes[index].lines.empty()) {
         // drawable_pixels will return 0 if there isn't room for at least one
         // line.
         // for (auto &line : boxes[index].lines)
-        //     f_util::draw(line.second, Color(0, 0, 0xff));
+        //     f_util::draw_rect(line.second, Color(0, 0, 0xff));
     } else if (event.is_negative()) {
-        int bottom = boxes[index].lines.crbegin()->second.b();
+        const int bottom = boxes[index].lines.crbegin()->second.b();
         // I'm not worried about drawing below the last box, because that's
         // where the trigger is, so give some extra space for descenders.
         // Ultimately this is because SymbolTable doesn't include descenders
         // in the bounding box.
+        // static ColorCycle c;
+        // f_util::draw_rect(
+        //     IRect(x()+2, bottom - drawable, w()-2, drawable + 10), c.get());
         f_util::ClipArea clip(
             IRect(x(), bottom - drawable, w(), drawable + 10));
 
+        int remaining = drawable;
         for (auto line = boxes[index].lines.crbegin();
-            drawable >= 0 && line != boxes[index].lines.crend();
-            drawable -= line->second.h, ++line)
+            remaining >= 0 && line != boxes[index].lines.crend();
+            remaining -= line->second.h, ++line)
         {
-            // Even if drawable==0, I still have stuff left to draw, so I need
+            // Even if remaining==0, I still have stuff left to draw, so I need
             // to draw the abbreviation bar at least.
             const auto &box = line->second;
-            // DEBUG("NEGATIVE: " << box << ": " << line->first << " left "
-            //     << drawable << " - " << box.h);
+            TEXT("NEGATIVE: " << box << ": " << line->first << " left "
+                << remaining << " - " << box.h);
             draw_line(line->first, box, style);
-            // f_util::draw(box, Color(0, 0xff, 0xff));
-            if (drawable < box.h) {
-                fl_color(Config::abbreviation_color.fl());
-                fl_rectf(x(), box.b() - drawable, w(), 2);
+            // f_util::draw_rect(box, Color(0, 0xff, 0xff));
+            if (remaining < box.h) {
+                f_util::draw_rectf(
+                    IRect(x(), bottom - drawable, w(), 2),
+                    Config::abbreviation_color);
             }
         }
     } else {
-        f_util::ClipArea clip(
-            IRect(x(), boxes[index].lines[0].second.y, w(), drawable));
+        const int top = boxes[index].lines[0].second.y;
+        f_util::ClipArea clip(IRect(x(), top, w(), drawable));
+        int remaining = drawable;
         for (auto line = boxes[index].lines.cbegin();
-            drawable >= 0 && line != boxes[index].lines.cend();
-            drawable -= line->second.h, ++line)
+            remaining >= 0 && line != boxes[index].lines.cend();
+            remaining -= line->second.h, ++line)
         {
             const auto &box = line->second;
-            // DEBUG("POSITIVE: " << box << ": " << line->first << " left "
-            //     << drawable << " - " << box.h);
+            TEXT("POSITIVE: " << box << ": " << line->first << " left "
+                << remaining << " - " << box.h);
             draw_line(line->first, box, style);
-            // f_util::draw(box, Color(0, 0xff, 0xff));
-            if (drawable < box.h) {
-                fl_color(Config::abbreviation_color.fl());
-                fl_rectf(x(), box.y + drawable - 2, w(), 2);
+            // f_util::draw_rect(box, Color(0, 0xff, 0xff));
+            if (remaining < box.h) {
+                f_util::draw_rectf(
+                    IRect(x(), top + drawable - 2, w(), 2),
+                    Config::abbreviation_color);
             }
         }
     }

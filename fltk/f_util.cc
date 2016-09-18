@@ -286,10 +286,17 @@ color_cycle()
 
 
 void
-draw(const IRect &rect, Color color)
+draw_rect(const IRect &rect, Color color)
 {
     fl_color(color.fl());
     fl_rect(rect.x, rect.y, rect.w, rect.h);
+}
+
+void
+draw_rectf(const IRect &rect, Color color)
+{
+    fl_color(color.fl());
+    fl_rectf(rect.x, rect.y, rect.w, rect.h);
 }
 
 }
