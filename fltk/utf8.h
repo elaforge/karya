@@ -5,6 +5,7 @@
 #ifndef __UTF8_H
 #define __UTF8_H
 
+#include <stdint.h>
 
 namespace utf8 {
 
