@@ -278,13 +278,13 @@ test_stack_damage = do
 -- make more informative errors when they don't match.
 r_cache_logs :: Derive.Result -> [String]
 r_cache_logs =
-    map DeriveTest.show_log_stack . filter DeriveTest.cache_msg . r_logs
+    map DeriveTest.show_log_stack . filter Cache.is_cache_log . r_logs
 
 -- | Sometimes the cache msgs for the track cache are just clutter.
 r_block_logs :: Derive.Result -> [String]
 r_block_logs =
     map DeriveTest.show_log_stack . filter (not . track_stack)
-        . filter DeriveTest.cache_msg . r_logs
+        . filter Cache.is_cache_log . r_logs
     where
     track_stack msg = case Log.msg_stack msg of
         Just stack -> case Stack.innermost stack of

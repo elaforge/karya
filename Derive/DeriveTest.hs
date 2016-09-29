@@ -499,14 +499,6 @@ trace_low_prio msgs = Log.trace_logs low high
 interesting_log :: Log.Msg -> Bool
 interesting_log = (>=Log.Warn) . Log.msg_priority
 
--- It's a hack, but the cache logs are annoying.
--- Srcpos would be better but it doesn't exist in ghci.
--- cache = (== Just (Just "cached_generator")) . fmap SrcPos.srcpos_func
---     . Log.msg_caller
-cache_msg :: Log.Msg -> Bool
-cache_msg msg = any (`List.isInfixOf` s) ["using cache", "rederived generator"]
-    where s = Log.msg_string msg
-
 quiet_filter_logs :: [Log.Msg] -> [Log.Msg]
 quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
 
