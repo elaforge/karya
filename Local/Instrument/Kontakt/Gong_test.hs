@@ -36,5 +36,4 @@ test_nruk = do
         ([(4, o), (4.5, o), (5, o), (5.5, o), (6, "+open+rim")], [])
 
 derive :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive = KontaktTest.derive allocs
-    where allocs = UiTest.allocations [("k", "kontakt/kajar")]
+derive = KontaktTest.derive [("k", "kontakt/kajar")]

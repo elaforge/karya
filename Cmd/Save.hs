@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 {- | Functions to save and restore state to and from files.
 
     The naming convention is that @load@ and @save@ functions either load
@@ -12,7 +13,7 @@
 -}
 module Cmd.Save (
     -- * universal
-    save, load, read, load_template
+    save, load, read, read_, load_template
     , infer_save_type
     -- * state
     , save_state, save_state_as, load_state
@@ -30,6 +31,7 @@ module Cmd.Save (
 ) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -49,14 +51,18 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.Serialize
 
+import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 
@@ -88,6 +94,15 @@ read path = do
     case save of
         Cmd.SaveRepo repo -> read_git repo Nothing
         Cmd.SaveState fn -> read_state fn
+
+-- | Low level 'read'.
+read_ :: Cmd.InstrumentDb -> FilePath -> IO (Either Text State.State)
+read_ db path = infer_save_type path >>= \case
+    Left err -> return $ Left $ "read " <> showt path <> ": " <> err
+    Right save -> case save of
+        Cmd.SaveState fname -> first pretty <$> read_state_ db fname
+        Cmd.SaveRepo repo -> fmap extract <$> read_git_ db repo Nothing
+            where extract (state, _, _) = state
 
 -- | Like 'load', but don't set SaveFile, so you can't overwrite the loaded
 -- file when you save.
@@ -193,18 +208,67 @@ load_state fname = do
 
 read_state :: FilePath -> Cmd.CmdT IO (State.State, StateSaveFile)
 read_state fname = do
-    let mkmsg err = "load " <> txt fname <> ": " <> err
+    let mkmsg err = "load " <> txt fname <> ": " <> pretty err
     writable <- liftIO $ File.writable fname
     Log.notice $ "read state from " <> showt fname
         <> if writable then "" else " (ro)"
-    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
+    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
+    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ db fname)
     return (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
--- | Lower level 'read_state'.
-read_state_ :: FilePath -> IO (Either Text State.State)
-read_state_ =
-    fmap (first pretty) . Serialize.unserialize Cmd.Serialize.score_magic
+-- | Low level 'read_state'.
+read_state_ :: Cmd.InstrumentDb -> FilePath
+    -> IO (Either Serialize.UnserializeError State.State)
+read_state_ db fname =
+    Serialize.unserialize Cmd.Serialize.score_magic fname >>= \case
+        Right state -> mapM_ Log.write logs >> return (Right upgraded)
+            where (upgraded, logs) = upgrade_state db state
+        Left err -> return $ Left err
+
+-- | Low level 'read_git'.
+read_git_ :: Cmd.InstrumentDb -> SaveGit.Repo -> Maybe SaveGit.Commit
+    -> IO (Either Text (State.State, SaveGit.Commit, [Text]))
+read_git_ db repo maybe_commit = SaveGit.load repo maybe_commit >>= \case
+    Right (state, commit, names) -> do
+        mapM_ Log.write logs
+        return $ Right (upgraded, commit, names)
+        where (upgraded, logs) = upgrade_state db state
+    Left err -> return $ Left err
+
+
+-- * upgrade
+
+upgrade_state :: Cmd.InstrumentDb -> State.State -> (State.State, [Log.Msg])
+upgrade_state db state = Identity.runIdentity $ Log.run $ do
+    upgraded <- forM allocs $ \alloc -> if is_old alloc
+        then case upgrade_allocation db alloc of
+            Left err -> do
+                Log.warn $ "upgrading " <> pretty alloc <> ": " <> err
+                return alloc
+            Right new -> do
+                Log.warn $ "upgraded old alloc: " <> pretty alloc
+                    <> " to: " <> pretty (alloc_settings new)
+                return new
+        else return alloc
+    return $ State.config#StateConfig.allocations
+        #= StateConfig.Allocations upgraded $ state
+    where
+    StateConfig.Allocations allocs = State.config#State.allocations #$ state
+    is_old = maybe False (Cmd.Serialize.is_old_settings . Patch.config_settings)
+        . StateConfig.midi_config . StateConfig.alloc_backend
+
+alloc_settings :: StateConfig.Allocation -> Maybe Patch.Settings
+alloc_settings = fmap Patch.config_settings . StateConfig.midi_config
+    . StateConfig.alloc_backend
+
+upgrade_allocation :: Cmd.InstrumentDb -> StateConfig.Allocation
+    -> Either Text StateConfig.Allocation
+upgrade_allocation db alloc =
+    case Inst.lookup (StateConfig.alloc_qualified alloc) db of
+        Just inst -> MidiInst.merge_defaults inst alloc
+        Nothing -> Left "no inst for alloc"
+
 
 -- ** path
 
@@ -267,9 +331,10 @@ load_git repo maybe_commit = do
 read_git :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (State.State, StateSaveFile)
 read_git repo maybe_commit = do
+    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
     (state, commit, names) <- Cmd.require_right
         (("load git " <> txt repo <> ": ") <>)
-        =<< liftIO (SaveGit.load repo maybe_commit)
+        =<< liftIO (read_git_ db repo maybe_commit)
     writable <- liftIO $ File.writable repo
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names

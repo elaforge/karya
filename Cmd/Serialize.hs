@@ -16,6 +16,7 @@
 -}
 module Cmd.Serialize (
     allocations_magic, score_magic, views_magic
+    , is_old_settings
 ) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -43,6 +44,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Perform.Lilypond.Types as Lilypond
+import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
@@ -425,24 +427,42 @@ instance Serialize Track.RenderSource where
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
-    put (Patch.Config a b c d) = Serialize.put_version 8
+    put (Patch.Config a b c d) = Serialize.put_version 9
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
             7 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 scale :: Maybe Patch.Scale <- get
                 control_defaults :: Score.ControlValMap <- get
-                return $ Patch.Config addrs scale control_defaults mempty
+                let settings = old_settings { Patch.config_scale = scale }
+                return $ Patch.Config alloc control_defaults mempty settings
             8 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 scale :: Maybe Patch.Scale <- get
                 control_defaults :: Score.ControlValMap <- get
                 initialization :: Set.Set Patch.Initialization <- get
-                return $ Patch.Config addrs scale control_defaults
-                    initialization
+                let settings = old_settings { Patch.config_scale = scale }
+                return $ Patch.Config alloc control_defaults initialization
+                    settings
+            9 -> do
+                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+                control_defaults :: Score.ControlValMap <- get
+                initialization :: Set.Set Patch.Initialization <- get
+                settings :: Patch.Settings <- get
+                return $ Patch.Config alloc control_defaults initialization
+                    settings
             _ -> Serialize.bad_version "Patch.Config" v
+
+-- | This tags Settings which will have to be upgraded by merging with patch
+-- defaults.
+old_settings :: Patch.Settings
+old_settings = mempty
+
+is_old_settings :: Patch.Settings -> Bool
+is_old_settings =
+    (== Patch.config_pitch_bend_range mempty) . Patch.config_pitch_bend_range
 
 instance Serialize Patch.Scale where
     put (Patch.Scale a b) = put a >> put b
@@ -455,6 +475,20 @@ instance Serialize Patch.Initialization where
         case v of
             0 -> Serialize.get_enum
             _ -> Serialize.bad_version "Patch.Initialization" v
+
+instance Serialize Patch.Settings where
+    put (Patch.Settings a b c d) = Serialize.put_version 0
+        >> put a >> put b >> put c >> put d
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                flags :: Set.Set Patch.Flag <- get
+                scale :: Maybe Patch.Scale <- get
+                decay :: Maybe RealTime <- get
+                pitch_bend_range :: Midi.Control.PbRange <- get
+                return $ Patch.Settings flags scale decay pitch_bend_range
+            _ -> Serialize.bad_version "Patch.Settings" v
 
 -- ** lilypond
 

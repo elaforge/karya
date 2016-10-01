@@ -62,7 +62,13 @@ type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 -- | (instrument, (qualified, [(device, chan)]))
 --
 -- [] chans means it's StateConfig.Dummy.
-type Allocations = [(Text, (Text, [(Text, Midi.Channel)]))]
+--
+-- This doesn't include 'Patch.config_settings', so it's assumed they're the
+-- same as 'Patch.patch_defaults'.
+type Allocations = [(Instrument, (Qualified, [(WriteDevice, Midi.Channel)]))]
+type Instrument = Text
+type Qualified = Text
+type WriteDevice = Text
 
 from_score :: ScoreTime -> Double
 from_score = ScoreTime.to_double
@@ -104,13 +110,15 @@ dump_state = do
         , blocks
         )
 
-load_state :: State.M m => State -> m State.State
-load_state (global_transform, allocs, blocks) =
+load_state :: State.M m => (InstTypes.Qualified -> Maybe Patch.Settings)
+    -> State -> m State.State
+load_state lookup_settings (global_transform, allocs, blocks) =
     State.exec_rethrow "convert state" State.empty $ do
         mapM_ make_block blocks
+        allocs <- State.require_right id $ allocations lookup_settings allocs
         State.modify $
             (State.config#State.global_transform #= global_transform)
-            . (State.config#State.allocations #= allocations allocs)
+            . (State.config#State.allocations #= allocs)
 
 -- * block
 
@@ -198,16 +206,24 @@ dump_allocations (StateConfig.Allocations allocs) = do
         | (dev, chan) <- Patch.config_addrs config
         ]
 
-allocations :: Allocations -> StateConfig.Allocations
-allocations allocs = StateConfig.Allocations $ Map.fromList $ do
-    (inst, (qualified, addrs)) <- allocs
-    let backend = case addrs of
-            [] -> StateConfig.Dummy
-            _ -> StateConfig.Midi $ Patch.config $
-                map (first Midi.write_device) addrs
-        alloc = StateConfig.allocation (InstTypes.parse_qualified qualified)
-            backend
-    return (Score.Instrument inst, alloc)
+allocations :: (InstTypes.Qualified -> Maybe Patch.Settings) -> Allocations
+    -> Either Text StateConfig.Allocations
+allocations lookup_settings =
+    fmap (StateConfig.Allocations . Map.fromList) . mapM make1
+    where
+    make1 (inst, (qual, addrs)) = (Score.Instrument inst,) <$> alloc
+        where
+        alloc = StateConfig.allocation qualified <$> backend
+        qualified = InstTypes.parse_qualified qual
+        backend = case addrs of
+            [] -> Right StateConfig.Dummy
+            _ -> case lookup_settings qualified of
+                Nothing -> Left $ "no patch for " <> pretty qualified
+                Just settings -> Right $ StateConfig.Midi $
+                    Patch.config settings
+                        [ ((Midi.write_device dev, chan), Nothing)
+                        | (dev,chan) <- addrs
+                        ]
 
 
 -- * ExactPerfEvent

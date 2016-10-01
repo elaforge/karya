@@ -85,6 +85,8 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Types as Midi.Types
@@ -783,14 +785,14 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-make_derive_instrument :: Score.ControlValMap -> Inst -> Derive.Instrument
-make_derive_instrument controls inst = Derive.Instrument
+make_derive_instrument :: ResolvedInstrument -> Derive.Instrument
+make_derive_instrument resolved = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code common
-    , inst_environ = Common.get_environ common
-    , inst_controls = controls
-    , inst_attributes = Inst.inst_attributes inst
+    , inst_environ = Common.get_environ (inst_common_config resolved)
+    , inst_controls = Common.config_controls (inst_common_config resolved)
+    , inst_attributes = Inst.inst_attributes (inst_instrument resolved)
     }
-    where common = Inst.inst_common inst
+    where common = Inst.inst_common (inst_instrument resolved)
 
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
@@ -1059,62 +1061,128 @@ set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-lookup_midi_patch :: M m => Score.Instrument -> m (Maybe Patch.Patch)
-lookup_midi_patch inst =
-    justm (lookup_instrument inst) $ return . Inst.inst_midi
+-- ** lookup instrument
 
-get_midi_patch :: M m => Score.Instrument -> m Patch.Patch
-get_midi_patch inst =
-    require ("not midi instrument: " <> pretty inst) . Inst.inst_midi
-    =<< require ("instrument not found: " <> pretty inst)
-    =<< lookup_instrument inst
+data ResolvedInstrument = ResolvedInstrument {
+    inst_instrument :: !Inst
+    , inst_qualified :: !InstTypes.Qualified
+    , inst_common_config :: !Common.Config
+    , inst_backend :: !(Maybe Backend)
+    } deriving (Show)
 
-lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
-lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
+instance Pretty.Pretty ResolvedInstrument where
+    format (ResolvedInstrument instrument qualified common_config backend) =
+        Pretty.record "ResolvedInstrument"
+            [ ("instrument", Pretty.format instrument)
+            , ("qualified", Pretty.format qualified)
+            , ("common_config", Pretty.format common_config)
+            , ("backend", Pretty.format backend)
+            ]
 
-get_instrument :: M m => Score.Instrument -> m Inst
+data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config
+    | Im !Im.Patch.Patch
+    deriving (Show)
+
+instance Pretty.Pretty Backend where
+    format (Midi patch config) = Pretty.format (patch, config)
+    format (Im patch) = Pretty.format patch
+
+midi_instrument :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
+midi_instrument inst = case inst_backend inst of
+    Just (Midi patch config) -> Just (patch, config)
+    _ -> Nothing
+
+get_midi_instrument :: M m => Score.Instrument -> m (Patch.Patch, Patch.Config)
+get_midi_instrument inst =
+    require ("not a midi instrument: " <> pretty inst) . midi_instrument
+        =<< get_instrument inst
+
+lookup_midi_config :: M m => Score.Instrument -> m (Maybe Patch.Config)
+lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved -> do
+    case inst_backend resolved of
+        Just (Midi _ config) -> return $ Just config
+        _ -> throw $ "not a midi instrument: " <> pretty inst
+
+lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
+lookup_instrument inst = do
+    ui_state <- State.get
+    cmd_state <- get
+    case State.allocation inst #$ ui_state of
+        Nothing -> return Nothing
+        Just alloc -> fmap Just $ require_right (prefix<>) $
+            resolve_instrument (config_instrument_db (state_config cmd_state))
+                alloc
+    where prefix = "lookup " <> pretty inst <> ": "
+
+get_instrument :: M m => Score.Instrument -> m ResolvedInstrument
 get_instrument inst = require ("instrument not found: " <> pretty inst)
     =<< lookup_instrument inst
 
-lookup_qualified :: State.M m => Score.Instrument
-    -> m (Maybe InstTypes.Qualified)
-lookup_qualified inst = fmap StateConfig.alloc_qualified <$>
-    (State.allocation inst <#> State.get)
+get_lookup_instrument :: M m => m (Score.Instrument -> Maybe ResolvedInstrument)
+get_lookup_instrument = do
+    ui_state <- State.get
+    cmd_state <- get
+    return $ \inst -> do
+        alloc <- State.allocation inst #$ ui_state
+        either (const Nothing) Just $
+            resolve_instrument (config_instrument_db (state_config cmd_state))
+                alloc
 
-get_lookup_instrument :: M m =>
-    m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
-get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
+state_resolve_instrument :: State.State -> State -> Score.Instrument
+    -> Maybe ResolvedInstrument
+state_resolve_instrument ui_state cmd_state = \inst -> do
+    alloc <- State.allocation inst #$ ui_state
+    either (const Nothing) Just $
+        resolve_instrument (config_instrument_db (state_config cmd_state)) alloc
 
--- | Get a function to look up a 'Score.Instrument'.  This is where
--- the environ and other local configuration is merged into the 'Patch.Patch',
--- so anyone looking up a Patch should go through this.
-state_lookup_instrument :: State.State -> State -> Score.Instrument
-    -> Maybe (Inst, InstTypes.Qualified)
-state_lookup_instrument ui_state cmd_state = \inst_name -> do
-    StateConfig.Allocation qualified config backend <-
-        State.allocation inst_name #$ ui_state
-    inst <- Inst.lookup qualified db
-    return (merge_environ (Common.config_environ config) backend inst,
-        qualified)
+resolve_instrument :: InstrumentDb -> StateConfig.Allocation
+    -> Either Text ResolvedInstrument
+resolve_instrument db alloc = do
+    let qualified = StateConfig.alloc_qualified alloc
+    inst <- justErr ("no instrument: " <> pretty qualified) $
+        Inst.lookup qualified db
+    backend <- case (Inst.inst_backend inst, StateConfig.alloc_backend alloc) of
+        (Inst.Midi patch, StateConfig.Midi config) ->
+            return $ Just (Midi patch config)
+        (Inst.Im patch, StateConfig.Im) ->
+            return $ Just (Im patch)
+        (_, StateConfig.Dummy) -> return Nothing
+        -- 'StateConfig.verify_allocation' should have prevented this.
+        (inst_backend, alloc_backend) -> Left $ "inconsistent backends: "
+            <> pretty (inst_backend, alloc_backend)
+    return $ ResolvedInstrument
+        { inst_instrument = inst
+        , inst_qualified = qualified
+        , inst_common_config = merge_environ (Inst.inst_common inst) $
+            StateConfig.alloc_config alloc
+        , inst_backend = backend
+        }
     where
-    db = config_instrument_db (state_config cmd_state)
-    merge_environ environ backend =
-        (Inst.common#Common.environ %= (environ <>)) . set_scale
-        where
-        -- MIDI instruments can also get a scale from the local config.
-        set_scale inst = case (scale, Inst.inst_backend inst) of
-            (Just scale, Inst.Midi patch) -> inst
-                { Inst.inst_backend =
-                    Inst.Midi $ (Patch.scale #= Just scale) patch
-                }
-            _ -> inst
-        scale = case backend of
-            StateConfig.Midi config -> Patch.config_scale config
-            _ -> Nothing
+    -- TODO Merge the patch environ into the local config's environ.  This
+    -- is inconsistent with how Patch.Settings works, which copies over the
+    -- patch settings when the config is created and lets you modify it.  To
+    -- avoid confusion I should make Common also use a Defaults type.
+    -- TODO write a test for this
+    merge_environ common = Common.cenviron %= (<> Common.common_environ common)
+
+-- ** lookup qualified name
+
+get_qualified :: M m => InstTypes.Qualified -> m Inst
+get_qualified qualified =
+    require ("instrument not in db: " <> pretty qualified)
+        =<< lookup_qualified qualified
+
+-- | Look up an instrument that might not be allocated.
+lookup_qualified :: M m => InstTypes.Qualified -> m (Maybe Inst)
+lookup_qualified qualified = do
+    state <- get
+    return $ state_lookup_qualified state qualified
 
 state_lookup_qualified :: State -> InstTypes.Qualified -> Maybe Inst
 state_lookup_qualified state qualified =
     Inst.lookup qualified $ config_instrument_db (state_config state)
+
+-- ** misc
 
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
@@ -1145,7 +1213,7 @@ inflict_track_damage block_id track_id = inflict_damage $ mempty
     , Derive.sdamage_track_blocks = Set.singleton block_id
     }
 
--- *** EditState
+-- ** EditState
 
 modify_edit_state :: M m => (EditState -> EditState) -> m ()
 modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }

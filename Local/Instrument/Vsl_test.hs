@@ -8,7 +8,6 @@ import qualified Data.List as List
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
@@ -51,8 +50,7 @@ test_natural_harmonic = do
                 , ("*", [(0, 0, pitch)])
                 ]
         extract = Midi.to_key . maybe 0 round . Score.initial_nn
-        with = DeriveTest.with_synths
-            (UiTest.allocations [("v", "vsl/violin")]) [Vsl.synth]
+        with = DeriveTest.with_synths_simple [("v", "vsl/violin")] [Vsl.synth]
     equal (run "+harm+nat" "4c")
         ([], ["Error: c4(60) unplayable on [+g, +d, +a, +e]"])
     equal (run "+harm+nat" "3g") ([Key.c3], [])
@@ -63,8 +61,7 @@ test_natural_harmonic = do
 test_infer_seconds = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with "" [(">v", [(0, 2, call)])]
-        with = DeriveTest.with_synths
-            (UiTest.allocations [("v", "vsl/violin")]) [Vsl.synth]
+        with = DeriveTest.with_synths_simple [("v", "vsl/violin")] [Vsl.synth]
     equal (run "sec +cresc") (["+cresc+sec1-5"], [])
     equal (run "sec +cresc u") (["+cresc+sec3"], [])
     equal (run "sec +cresc d") (["+cresc+sec1-5"], [])

@@ -44,13 +44,13 @@ test_insert_call = do
 insert_call :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
     -> IO (Either String [UiTest.TrackSpec], [Midi.Message])
 insert_call tracks tracknum val_edit msg =
-    fmap extract $ CmdTest.run_perf ustate cstate $ do
+    fmap extract $ CmdTest.run_with_performance ustate cstate $ do
         Cmd.modify_edit_state (set_edit_mode val_edit)
         CmdTest.set_sel tracknum 0 tracknum 0
         CUtil.insert_call char_to_call msg
     where
-    (ustate, cstate) = CmdTest.set_synths [make_synth note_keys]
-        (UiTest.allocations [("i1", "synth/1")]) (CmdTest.make_tracks tracks)
+    (ustate, cstate) = CmdTest.set_synths_simple [make_synth note_keys]
+        [("i1", "synth/1")] (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
     char_to_call = CUtil.notes_to_calls (map fst note_keys)
     note_keys =
@@ -67,10 +67,10 @@ set_edit_mode val_edit state = state
 
 test_drum_instrument = do
     let run = DeriveTest.derive_tracks_setup
-            (DeriveTest.with_synths allocs [drum_synth]) ""
-        allocs = UiTest.allocations [("x", "synth/1")]
+            (DeriveTest.with_synths_simple allocs [drum_synth]) ""
+        allocs = [("x", "synth/1")]
         extract = DeriveTest.extract DeriveTest.e_attributes
-    let perform = DeriveTest.perform_synths allocs [drum_synth]
+    let perform = DeriveTest.perform_synths_simple allocs [drum_synth]
             . Derive.r_events
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
@@ -106,7 +106,7 @@ drum_synth :: MidiInst.Synth
 drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
 
 make_synth :: [(Drums.Note, Midi.Key)] -> MidiInst.Synth
-make_synth note_keys = DeriveTest.make_synth "synth" [patch]
+make_synth note_keys = UiTest.make_synth "synth" [patch]
     where
     patch = MidiInst.code #= code $
         CUtil.drum_patch note_keys $ MidiInst.named_patch (-24, 24) "1" []

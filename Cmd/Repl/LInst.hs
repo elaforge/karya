@@ -7,7 +7,6 @@
 module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -23,6 +22,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
@@ -41,12 +41,14 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+
 import Global
 import Types
 
 
-lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.Inst)
+lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
 -- * config
@@ -105,12 +107,18 @@ pretty_alloc inst alloc =
             ++ ["solo" | Common.config_solo config]
     show_midi_config config = join
         [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , maybe "" (("("<>) . (<>")") . show_scale) (Patch.config_scale config)
+        , pretty_settings (Patch.config_settings config)
         ]
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
     join = Text.unwords . filter (not . Text.null)
+
+pretty_settings :: Patch.Settings -> Text
+pretty_settings settings = Text.unwords $ filter (not . Text.null)
+    [ maybe "" (("("<>) . (<>")") . show_scale) (Patch.config_scale settings)
+    ]
+    -- TODO show the other fields if they differ from defaults
 
 show_scale :: Patch.Scale -> Text
 show_scale scale = "scale " <> Patch.scale_name scale <> " "
@@ -140,18 +148,22 @@ rename from to = do
 -- channel 0 allocated.
 add :: Instrument -> Qualified -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 add inst qualified wdev chans =
-    add_config inst qualified (Patch.config (map (dev,) chans))
+    add_config inst qualified [((dev, chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
 -- | Allocate the given channels for the instrument using its default device.
 add_default :: Instrument -> Qualified -> [Midi.Channel] -> Cmd.CmdL ()
 add_default inst qualified chans = do
-    wdev <- device_of (Util.instrument inst)
-    add_config inst qualified (Patch.config (map (wdev,) chans))
+    dev <- device_of (Util.instrument inst)
+    add_config inst qualified [((dev, chan), Nothing) | chan <- chans]
 
-add_config :: Instrument -> Qualified -> Patch.Config -> Cmd.CmdL ()
-add_config inst qualified config = do
+add_config :: Instrument -> Qualified -> [(Patch.Addr, Maybe Patch.Voices)]
+    -> Cmd.CmdL ()
+add_config inst qualified allocs = do
     qualified <- parse_qualified qualified
+    patch <- Cmd.require ("not a midi instrument: " <> pretty qualified)
+        . Inst.inst_midi =<< Cmd.get_qualified qualified
+    let config = Patch.patch_to_config patch allocs
     allocate (Util.instrument inst) $
         StateConfig.allocation qualified (StateConfig.Midi config)
 
@@ -184,11 +196,11 @@ remove = deallocate . Util.instrument
 -- | All allocations should go through this to verify their validity, unless
 -- it's modifying an existing allocation and not changing the Qualified name.
 allocate :: Cmd.M m => Score.Instrument -> StateConfig.Allocation -> m ()
-allocate inst alloc = do
-    lookup_inst <- Cmd.gets Cmd.state_lookup_qualified
+allocate score_inst alloc = do
+    inst <- Cmd.get_qualified (StateConfig.alloc_qualified alloc)
     allocs <- State.config#State.allocations <#> State.get
     allocs <- Cmd.require_right id $
-        StateConfig.allocate lookup_inst inst alloc allocs
+        StateConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
     State.modify_config $ State.allocations #= allocs
 
 deallocate :: Cmd.M m => Score.Instrument -> m ()
@@ -222,10 +234,12 @@ set_controls inst controls = modify_common_config_ inst $
     Common.controls #= Map.fromList controls
 
 get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
-get_scale inst = Patch.patch_scale <$> Cmd.get_midi_patch inst
+get_scale inst =
+    (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
 
 set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
-set_scale inst scale = modify_midi_config inst $ Patch.cscale #= Just scale
+set_scale inst scale = modify_midi_config inst $
+    Patch.settings#Patch.scale #= Just scale
 
 set_tuning_scale :: State.M m => Instrument -> Text -> Patch.Scale -> m ()
 set_tuning_scale inst tuning scale = do
@@ -265,7 +279,7 @@ modify_config inst_ modify = do
 
 get_allocation :: State.M m => Score.Instrument -> m StateConfig.Allocation
 get_allocation inst =
-    State.require ("no config for " <> pretty inst)
+    State.require ("no allocation for " <> pretty inst)
         =<< State.allocation inst <#> State.get
 
 modify_midi_config :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
@@ -288,17 +302,24 @@ modify_common_config_ :: State.M m => Instrument
 modify_common_config_ inst modify =
     modify_common_config inst $ \config -> (modify config, ())
 
--- | Merge the given configs into the existing one.
+-- | Merge the given configs into the existing one.  This also merges
+-- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
+-- that create Allocations don't have to find the relevant Patch.
 merge :: Cmd.M m => StateConfig.Allocations -> m ()
-merge allocations@(StateConfig.Allocations allocs) = do
-    lookup_inst <- Cmd.gets Cmd.state_lookup_qualified
-    let errors = Maybe.catMaybes
-            [ StateConfig.verify_allocation lookup_inst inst alloc
-            | (inst, alloc) <- Map.toList allocs
-            ]
+merge (StateConfig.Allocations alloc_map) = do
+    let (names, allocs) = unzip (Map.toList alloc_map)
+    insts <- mapM (Cmd.get_qualified . StateConfig.alloc_qualified) allocs
+    merged <- Cmd.require_right id $
+        mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
+    let errors = mapMaybe verify (zip3 names merged insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
-    State.modify_config $ State.allocations %= (allocations<>)
+    State.modify_config $ State.allocations
+        %= (StateConfig.Allocations (Map.fromList (zip names merged)) <>)
+    where
+    verify (name, alloc, inst) =
+        StateConfig.verify_allocation (Inst.inst_backend inst) name alloc
+
 
 -- * Cmd.EditState
 
@@ -347,8 +368,7 @@ block_instruments block_id = do
 device_of :: Score.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
     InstTypes.Qualified synth _ <-
-        Cmd.require ("no instrument: " <> pretty inst)
-            =<< Cmd.lookup_qualified inst
+        Cmd.inst_qualified <$> Cmd.get_instrument inst
     return $ Midi.write_device synth
 
 
@@ -425,7 +445,7 @@ initialize_inst inst =
 initialize_tuning :: Cmd.M m => Score.Instrument -> m ()
 initialize_tuning inst = whenJustM (get_scale inst) $ \scale -> do
     (_, _, config) <- get_midi_config inst
-    attr_map <- Patch.patch_attribute_map <$> Cmd.get_midi_patch inst
+    attr_map <- Patch.patch_attribute_map . fst <$> Cmd.get_midi_instrument inst
     let devs = map fst (Patch.config_addrs config)
     let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
             Patch.scale_nns (Just attr_map) scale
@@ -433,7 +453,7 @@ initialize_tuning inst = whenJustM (get_scale inst) $ \scale -> do
 
 initialize_midi :: Cmd.M m => Score.Instrument -> Patch.Addr -> m ()
 initialize_midi inst addr = do
-    patch <- Cmd.get_midi_patch inst
+    (patch, _) <- Cmd.get_midi_instrument inst
     send_initialize (Patch.patch_initialize patch) inst addr
 
 send_initialize :: Cmd.M m => Patch.InitializePatch -> Score.Instrument

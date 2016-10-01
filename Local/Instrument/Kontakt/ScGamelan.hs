@@ -61,7 +61,7 @@ patches = map add_doc $
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
-        MidiInst.patch %= Patch.add_flag Patch.ConstantPitch $
+        MidiInst.patch %= MidiInst.add_flag Patch.ConstantPitch $
         MidiInst.named_patch (-2, 2) ("sc-" <> name) []
     add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
@@ -139,7 +139,8 @@ kebyar_allocations dev_ = make_config $ concat
             next_chan = if gets_chan then chan+1 else chan
             backend
                 | gets_chan = StateConfig.Midi $
-                    Patch.cscale #= scale $ Patch.config1 dev chan
+                    Patch.settings#Patch.scale #= scale $
+                    MidiInst.config1 dev chan
                 -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
                 | otherwise = StateConfig.Dummy

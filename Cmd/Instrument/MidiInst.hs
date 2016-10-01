@@ -16,11 +16,13 @@ module Cmd.Instrument.MidiInst (
     , Patch(..), patch, common
     , make_patch, patch_from_pair, named_patch, default_patch
     -- ** modify
-    , code, doc, attribute_map, decay, synth_controls, pressure
+    , code, doc, attribute_map, decay, synth_controls
+    , add_flag, pressure
     -- ** environ
     , environ, default_scale, range, nn_range
     -- * allocations
-    , allocations
+    , allocations, config, config1
+    , merge_defaults
 
     -- * db
     , save_synth, load_synth
@@ -222,17 +224,21 @@ attribute_map :: Lens Patch Patch.AttributeMap
 attribute_map = patch # Patch.attribute_map
 
 decay :: Lens Patch (Maybe RealTime)
-decay = patch # Patch.decay
+decay = patch # Patch.defaults # Patch.decay
 
 -- | Annotate all the patches with some global controls.
 synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
 synth_controls controls = map $
     patch # Patch.control_map %= (Control.control_map controls <>)
 
+add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
+add_flag flag = Patch.defaults#Patch.flags %= Patch.add_flag flag
+
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
-pressure = (patch#Patch.decay #= Just 0)
-    . (patch %= Patch.add_flag Patch.Pressure)
+pressure = patch %=
+    (Patch.defaults#Patch.decay #= Just 0)
+    . add_flag Patch.Pressure
 
 -- ** environ
 
@@ -267,6 +273,31 @@ allocations = StateConfig.make_allocations . map make
         , StateConfig.Allocation (InstTypes.parse_qualified qualified)
             (set_config Common.empty_config) backend
         )
+
+-- | Create an incomplete Config.  It's incomplete because it doesn't have
+-- the Settings from 'Patch.patch_defaults', so it'll need to have those
+-- applied when it gets applied to 'StateConfig.state_allocations'.
+config :: [Patch.Addr] -> Patch.Config
+config = Patch.config mempty . map (, Nothing)
+
+-- | Specialize 'config' for a single Addr.
+config1 :: Midi.WriteDevice -> Midi.Channel -> Patch.Config
+config1 dev chan = config [(dev, chan)]
+
+-- | Merge an incomplete allocation with defaults from its instrument.
+merge_defaults :: Cmd.Inst -> StateConfig.Allocation
+    -> Either Text StateConfig.Allocation
+merge_defaults inst alloc = case (Inst.inst_midi inst, backend) of
+    (Just patch, StateConfig.Midi config) -> Right $ alloc
+        { StateConfig.alloc_backend =
+            StateConfig.Midi (Patch.merge_defaults patch config)
+        }
+    (Just _, StateConfig.Dummy) -> Right alloc
+    (Just _, StateConfig.Im) ->
+        Left $ pretty inst <> ": can't merge defaults from Midi to Im"
+    (Nothing, _) -> Left $ pretty inst
+        <> ": can't merge defaults for a non-Midi inst"
+    where backend = StateConfig.alloc_backend alloc
 
 
 -- * db

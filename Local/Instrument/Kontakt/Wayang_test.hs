@@ -8,7 +8,6 @@ import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
-import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -56,8 +55,8 @@ test_wayang_pasang = do
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.95, Just 62.5]
 
-    let (_events, midi, logs) = KontaktTest.perform allocations
-            (Derive.r_events result)
+    let (_events, midi, logs) =
+            KontaktTest.perform allocations (Derive.r_events result)
     equal logs []
     -- Note no PitchBend, which means the split instruments applied
     -- tuning=umbang and tuning=isep to their pitches.
@@ -88,11 +87,11 @@ test_wayang_kempyung = do
          , ("u", (1, 1, "4e")), ("i", (1, 1, "4e"))
          ], [])
 
-allocations :: StateConfig.Allocations
+allocations :: DeriveTest.SimpleAllocations
 allocations = make_allocations "pemade"
 
-make_allocations :: Text -> StateConfig.Allocations
-make_allocations suffix = UiTest.allocations
+make_allocations :: Text -> DeriveTest.SimpleAllocations
+make_allocations suffix =
     [ ("w", "kontakt/wayang-" <> suffix)
     , ("u", "kontakt/wayang-umbang"), ("i", "kontakt/wayang-isep")
     ]

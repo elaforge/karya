@@ -34,9 +34,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-
 import Global
 
 
@@ -47,22 +44,24 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
+convert :: Lookup -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert lookup = ConvertUtil.convert $ \event backend _name -> case backend of
-    Inst.Midi patch -> convert_event lookup event patch
-    _ -> []
+convert lookup = ConvertUtil.convert $ \event resolved ->
+    case Cmd.inst_backend resolved of
+        Just (Cmd.Midi patch config) -> convert_event lookup event patch config
+        _ -> []
 
-convert_event :: Lookup -> Score.Event -> Patch.Patch
+convert_event :: Lookup -> Score.Event -> Patch.Patch -> Patch.Config
     -> [LEvent.LEvent Types.Event]
-convert_event lookup event patch = run $ do
+convert_event lookup event patch config = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_transformed_controls event
-    (perf_patch, pitch) <- convert_midi_pitch inst patch event_controls event
+    (perf_patch, pitch) <-
+        convert_midi_pitch inst patch config event_controls event
     let controls = convert_controls (Types.patch_control_map perf_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup inst)
-        pressure = Patch.has_flag patch Patch.Pressure
+        pressure = Patch.has_flag config Patch.Pressure
         velocity = fromMaybe Perform.default_velocity $
             Env.maybe_val EnvKey.attack_val env
             <|> Env.maybe_val EnvKey.dynamic_val env
@@ -99,8 +98,9 @@ run = merge . Identity.runIdentity . Log.run
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
 convert_midi_pitch :: Log.LogMonad m => Score.Instrument -> Patch.Patch
-    -> Score.ControlMap -> Score.Event -> m (Types.Patch, Signal.NoteNumber)
-convert_midi_pitch inst patch controls event =
+    -> Patch.Config -> Score.ControlMap -> Score.Event
+    -> m (Types.Patch, Signal.NoteNumber)
+convert_midi_pitch inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (perf_patch,) . round_sig <$> get_signal
         Just (keyswitches, maybe_keymap) -> do
@@ -118,13 +118,14 @@ convert_midi_pitch inst patch controls event =
     -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
-    get_signal = apply_patch_scale (Patch.patch_scale patch)
+    get_signal = apply_patch_scale scale
         =<< convert_event_pitch perf_patch constant_pitch controls event
+    scale = Patch.config_scale (Patch.config_settings config)
     round_sig = Signal.map_y round_pitch
 
-    perf_patch = Types.patch inst patch
+    perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
-    constant_pitch = Patch.has_flag patch Patch.ConstantPitch
+    constant_pitch = Patch.has_flag config Patch.ConstantPitch
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> Signal.NoteNumber -> Signal.NoteNumber

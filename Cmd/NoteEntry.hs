@@ -24,7 +24,6 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.Controls as Controls
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import qualified Instrument.Inst as Inst
 import Global
 
 
@@ -49,10 +48,10 @@ import Global
     additional Cmd feature to re-emits a new Msg.  In addition, it would
     preclude the ability to shadow it and catch MIDI msgs for other purposes.
 -}
-cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Patch
+cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
-cmds_with_input kbd_entry maybe_patch cmds msg =
-    msg_to_inputs kbd_entry maybe_patch msg >>= \x -> case x of
+cmds_with_input kbd_entry maybe_config cmds msg =
+    msg_to_inputs kbd_entry maybe_config msg >>= \x -> case x of
         Nothing -> Cmd.sequence_cmds cmds msg
         Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
     where
@@ -69,23 +68,24 @@ run_cmds_with_input :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
     -> (Msg.Msg -> m Cmd.Status)
 run_cmds_with_input cmds msg = do
     kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
-    maybe_patch <- justm EditUtil.lookup_instrument $ \inst ->
-        justm (Cmd.lookup_instrument inst) $ return . Inst.inst_midi
-    cmds_with_input kbd_entry maybe_patch cmds msg
+    maybe_config <- justm EditUtil.lookup_instrument $ \inst ->
+        justm (Cmd.lookup_instrument inst) $
+        return . fmap snd . Cmd.midi_instrument
+    cmds_with_input kbd_entry maybe_config cmds msg
 
 -- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Patch -> Msg.Msg
+msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
     -> m (Maybe [Msg.Msg])
-msg_to_inputs kbd_entry maybe_patch msg = do
+msg_to_inputs kbd_entry maybe_config msg = do
     has_mods <- are_modifiers_down
     new_msgs <- if kbd_entry && not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
-                    (`Patch.has_flag` Patch.Pressure) maybe_patch
+                    (`Patch.has_flag` Patch.Pressure) maybe_config
             return $ kbd_input is_pressure octave msg
         else return Nothing
     maybe (midi_input msg) (return . Just) new_msgs

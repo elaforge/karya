@@ -318,7 +318,7 @@ triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) =
     maybe False (`Patch.has_flag` Patch.Triggered)
-        <$> Cmd.lookup_midi_patch inst
+        <$> Cmd.lookup_midi_config inst
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()

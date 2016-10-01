@@ -65,5 +65,5 @@ derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) [(">m", notes)]
 
 with_synth :: DeriveTest.Setup
-with_synth = DeriveTest.with_synths
-    (UiTest.allocations [("m", "kontakt/mridangam")]) [Kontakt.synth]
+with_synth =
+    DeriveTest.with_synths_simple [("m", "kontakt/mridangam")] [Kontakt.synth]

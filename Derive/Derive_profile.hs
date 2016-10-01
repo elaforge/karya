@@ -20,8 +20,6 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Simple as Simple
-
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
@@ -163,7 +161,7 @@ derive_saved :: Bool -> FilePath -> IO ()
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     (ui_state, library) <- either errorIO return
-        =<< DeriveSaved.load_score fname
+        =<< DeriveSaved.load_score (Cmd.config_instrument_db cmd_config) fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library
@@ -247,9 +245,13 @@ inst1 = ">i1"
 inst2 = ">i2"
 
 set_allocations :: State.State -> State.State
-set_allocations = State.config#State.allocations #= Simple.allocations
-    [("i1", ("s/1", dev [0, 1])), ("i2", ("s/2", dev [2]))]
-    where dev = map ("wdev",)
+set_allocations = State.config#State.allocations #= allocs
+    where
+    allocs = DeriveTest.allocs_from_db UiTest.default_db
+        [ ("i1", ("s/1", dev [0, 1]))
+        , ("i2", ("s/2", dev [2]))
+        ]
+        where dev = map ("wdev",)
 
 note_track inst = ctrack 1 inst [""]
 make_tempo n = track_take (ceiling (fromIntegral n / 10)) $

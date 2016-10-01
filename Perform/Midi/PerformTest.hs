@@ -36,9 +36,9 @@ read_perf_events events = do
 
 lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
-    inst <- Inst.inst_midi =<< Inst.lookup qualified db
-    return $ Types.patch (Score.Instrument (InstTypes.show_qualified qualified))
-        inst
+    patch <- Inst.inst_midi =<< Inst.lookup qualified db
+    let score_inst = Score.Instrument (InstTypes.show_qualified qualified)
+    return $ Types.patch_from_settings score_inst mempty patch
 
 empty_event :: Types.Event
 empty_event = Types.Event
@@ -57,7 +57,10 @@ patch1 = mkpatch "patch1"
 patch2 = mkpatch "patch2"
 
 mkpatch :: Text -> Types.Patch
-mkpatch name = Types.patch (Score.Instrument name) (Patch.patch (-1, 1) name)
+mkpatch name =
+    Types.patch_from_settings (Score.Instrument name)
+        (Patch.patch_defaults patch) patch
+    where patch = Patch.patch (-1, 1) name
 
 
 -- * extract

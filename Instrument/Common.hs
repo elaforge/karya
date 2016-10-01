@@ -42,9 +42,6 @@ data Common code = Common {
     , common_doc :: !Doc.Doc
     } deriving (Show)
 
-get_environ :: Common code -> BaseTypes.Environ
-get_environ = RestrictedEnviron.convert . common_environ
-
 code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
 environ = Lens.lens common_environ
     (\f r -> r { common_environ = f (common_environ r) })
@@ -175,3 +172,6 @@ add_environ :: RestrictedEnviron.ToVal a => BaseTypes.Key -> a
     -> Config -> Config
 add_environ key val = cenviron %= (RestrictedEnviron.make [(key, v)] <>)
     where v = RestrictedEnviron.to_val val
+
+get_environ :: Config -> BaseTypes.Environ
+get_environ = RestrictedEnviron.convert . config_environ

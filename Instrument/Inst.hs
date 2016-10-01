@@ -16,6 +16,17 @@
     - 'Inst' - instrument encompassing all backends.
 
     - Patch - backend-specific instrument
+
+    Instrument configuration is divided into static (built-in to the instrument)
+    and dynamic (configured per score).
+
+    Static configuration starts with 'Inst', and is divided into 'Backend'
+    specific and 'Common.Common'.
+
+    Dynamic configuration starts with 'Ui.StateConfig.Allocation' and is also
+    divided into 'Ui.StateConfig.Backend' specific and 'Common.Config'.  When
+    a new allocation is created, the 'Midi.Patch.patch_defaults' are copied
+    to 'Midi.Patch.config_settings'.
 -}
 module Instrument.Inst (
     -- * Inst

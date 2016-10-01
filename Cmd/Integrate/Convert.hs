@@ -62,7 +62,7 @@ convert source_block stream = do
     -- TODO CallMap could go in Common but I don't know how much I care about
     -- this feature.
     let lookup_call = maybe mempty Patch.patch_call_map
-            . (Inst.inst_midi . fst<=< lookup_inst)
+            . (Inst.inst_midi . Cmd.inst_instrument <=< lookup_inst)
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block
     let (events, logs) = Stream.partition stream

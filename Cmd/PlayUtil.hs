@@ -121,17 +121,9 @@ get_constant cache damage = do
     lookup_inst <- Cmd.get_lookup_instrument
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     defs_library <- get_library
-    let allocs = State.config#State.allocations_map #$ ui_state
     return $ Derive.initial_constant ui_state (defs_library <> library)
-        lookup_scale (adapt allocs lookup_inst) cache damage
-    where
-    adapt allocs lookup_inst = \inst -> case lookup_inst inst of
-        Just (patch, _qualified) -> Just $
-            Cmd.make_derive_instrument (lookup_controls inst allocs) patch
-        Nothing -> Nothing
-    lookup_controls inst allocs =
-        maybe mempty (Common.config_controls . StateConfig.alloc_config)
-            (Map.lookup inst allocs)
+        lookup_scale (fmap Cmd.make_derive_instrument . lookup_inst)
+        cache damage
 
 -- | Get Library from the cache.
 get_library :: Cmd.M m => m Derive.Library
@@ -154,8 +146,7 @@ perform_from start perf = do
 
 has_flag :: Cmd.M m => Patch.Flag -> Score.Instrument -> m Bool
 has_flag flag inst =
-    maybe False ((flag `Set.member`) . Patch.patch_flags) <$>
-        Cmd.lookup_midi_patch inst
+    maybe False (`Patch.has_flag` flag) <$> Cmd.lookup_midi_config inst
 
 shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
     -> Perform.MidiEvents

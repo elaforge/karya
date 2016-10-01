@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.MidiThru_test where
-import qualified Data.Map as Map
-
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Midi.Key as Key
@@ -20,7 +18,6 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
@@ -70,22 +67,22 @@ test_patch_scale = do
         e_pitches =
             first (mapMaybe Midi.channel_message . filter Midi.is_pitched)
             . e_midi
-        make_config scale = Patch.cscale #= scale $ Patch.config1 UiTest.wdev 0
-        set_config inst_db scale = do
-            set_midi_config inst_db (make_config scale)
+        set_config inst_db scale =
+            set_midi_config inst_db (Patch.settings#Patch.scale #= scale)
     let legong = Legong.complete_instrument_scale
             Legong.saih_rambat BaliScales.Umbang
         c4 = CmdTest.note_on 1 (Pitch.pitch 4 0)
         cstate = CmdTest.default_cmd_state
     -- No Patch.Scale means it assumes the patch is in 12TET and needs a tweak.
-    let db = DeriveTest.default_db
+    let db = UiTest.default_db
     io_equal (e_pitches <$> run cstate db Nothing (mempty, c4))
         ([Midi.PitchBend 0.365, Midi.NoteOn Key.c4 127], [])
+
     io_equal (e_pitches <$> run cstate db (Just legong) (mempty, c4))
         ([Midi.NoteOn Key.c4 127], [])
 
     -- PitchKeymap also goes through the Patch.Scale.
-    let inst_db = DeriveTest.make_db [("s", [pitched_keymap_patch legong])]
+    let inst_db = UiTest.make_db [("s", [pitched_keymap_patch legong])]
     io_equal (e_pitches <$> run cstate inst_db (Just legong) (mempty, c4))
         ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
     io_equal (e_pitches <$> run cstate inst_db (Just legong) (Attrs.mute, c4))
@@ -103,7 +100,8 @@ pitched_keymap_patch :: Patch.Scale -> Patch.Patch
 pitched_keymap_patch scale =
     Patch.attribute_map #= attr_map $ make_patch (Just scale)
     where
-    make_patch scale = Patch.scale #= scale $ Patch.patch (-1, 1) "1"
+    make_patch scale = Patch.defaults#Patch.scale #= scale $
+        Patch.patch (-1, 1) "1"
     attr_map = Common.attribute_map
         [ (Attrs.mute, ([Patch.Keyswitch 0],
             Just (Patch.PitchedKeymap Key.c1 Key.c2 Key.c4)))
@@ -113,22 +111,20 @@ pitched_keymap_patch scale =
 
 -- | There is also CmdTest.set_synths, but it expects to work with raw states
 -- instead of Cmd.M.
-set_midi_config :: Cmd.M m => Cmd.InstrumentDb -> Patch.Config -> m ()
-set_midi_config inst_db config = do
-    State.modify_config $ StateConfig.allocations_map
-        %= Map.insert UiTest.i1 alloc
+set_midi_config :: Cmd.M m => Cmd.InstrumentDb -> (Patch.Config -> Patch.Config)
+    -> m ()
+set_midi_config inst_db modify_config = do
+    State.modify_config $ StateConfig.allocations
+        %= UiTest.modify_midi_config "i1" modify_config
     Cmd.modify $ \st -> st
         { Cmd.state_config = (Cmd.state_config st)
             { Cmd.config_instrument_db = inst_db }
         }
-    where
-    alloc = StateConfig.Allocation UiTest.i1_qualified Common.empty_config
-        (StateConfig.Midi config)
 
 run_thru :: Cmd.State -> String -> Cmd.CmdT IO ()
     -> (Attrs.Attributes, InputNote.Input) -> IO (CmdTest.Result ())
 run_thru cmd_state title setup (attrs, input) =
-    CmdTest.run_perf (CmdTest.make_tracks tracks) cmd_state $ do
+    CmdTest.run_with_performance (CmdTest.make_tracks tracks) cmd_state $ do
         CmdTest.set_point_sel 1 0
         setup
         MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input

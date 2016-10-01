@@ -99,7 +99,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
 import Global
 
 
@@ -117,27 +116,20 @@ cmd_midi_thru msg = do
 midi_thru_instrument :: Cmd.M m => Score.Instrument -> Attrs.Attributes
     -> InputNote.Input -> m ()
 midi_thru_instrument score_inst attrs input = do
-    alloc <- Cmd.require ("no alloc for " <> pretty score_inst)
-        =<< (State.allocation score_inst <#> State.get)
-    midi_config <- case StateConfig.alloc_backend alloc of
-        StateConfig.Midi midi_config -> return midi_config
-        -- Explicitly abort on a Dummy.  If you want thru for a Dummy, then it
-        -- should install its own thru cmd (that presumably uses a non-Dummy),
-        -- and this one will abort and be effectively disabled.
-        StateConfig.Dummy -> Cmd.abort
-        _ -> Cmd.abort -- Ignore non-MIDI instruments.
-    let addrs = Patch.config_addrs midi_config
+    resolved <- Cmd.get_instrument score_inst
+    -- If you want thru for a Dummy or non-MIDI instrument, then it should
+    -- install its own thru cmd.
+    (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
+    let addrs = Patch.config_addrs config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
-        inst <- Cmd.require ("no instrument: " <> pretty score_inst)
-            =<< Cmd.lookup_instrument score_inst
-        patch <- Cmd.require ("no midi patch for " <> pretty score_inst) $
-            Inst.inst_midi inst
         (input_nn, ks) <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< input_to_nn score_inst patch scale attrs input
+            =<< input_to_nn score_inst (Patch.patch_attribute_map patch)
+                (Patch.settings#Patch.scale #$ config) scale attrs input
         wdev_state <- Cmd.get_wdev_state
-        let result = input_to_midi (Patch.patch_pitch_bend_range patch)
+        let result = input_to_midi
+                (Patch.settings#Patch.pitch_bend_range #$ config)
                 wdev_state addrs input_nn
         whenJust result $ \(thru_msgs, wdev_state) -> do
             Cmd.modify_wdev_state (const wdev_state)
@@ -163,10 +155,10 @@ keyswitch_to_midi msgs ks = case msum (map note_msg msgs) of
     note_msg _ = Nothing
 
 -- | Realize the Input as a pitch in the given scale.
-input_to_nn :: Cmd.M m => Score.Instrument -> Patch.Patch -> Scale.Scale
-    -> Attrs.Attributes -> InputNote.Input
+input_to_nn :: Cmd.M m => Score.Instrument -> Patch.AttributeMap
+    -> Maybe Patch.Scale -> Scale.Scale -> Attrs.Attributes -> InputNote.Input
     -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
-input_to_nn inst patch scale attrs input_note = case input_note of
+input_to_nn inst attr_map patch_scale scale attrs inote = case inote of
     InputNote.NoteOn note_id input vel ->
         justm (convert input) $ \(nn, ks) ->
             return $ Just (InputNote.NoteOn note_id nn vel, ks)
@@ -176,8 +168,7 @@ input_to_nn inst patch scale attrs input_note = case input_note of
     InputNote.NoteOff note_id vel ->
         return $ Just (InputNote.NoteOff note_id vel, ks)
         where
-        ks = maybe [] fst $ Common.lookup_attributes attrs
-            (Patch.patch_attribute_map patch)
+        ks = maybe [] fst $ Common.lookup_attributes attrs attr_map
     InputNote.Control note_id control val ->
         return $ Just (InputNote.Control note_id control val, [])
     where
@@ -195,12 +186,12 @@ input_to_nn inst patch scale attrs input_note = case input_note of
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> do
-                let (result, not_found) = convert_pitch patch attrs nn
+                let (result, not_found) =
+                        convert_pitch attr_map patch_scale attrs nn
                 when not_found $
                     Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
                         <> pretty attrs <> ", understood attrs are: "
-                        <> pretty (Common.mapped_attributes
-                            (Patch.patch_attribute_map patch))
+                        <> pretty (Common.mapped_attributes attr_map)
                 return result
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
@@ -220,17 +211,18 @@ filter_transposers scale = Derive.with_controls transposers
 -- | This is a midi thru version of 'Perform.Midi.Convert.convert_midi_pitch'.
 -- It's different because it works with a scalar NoteNumber instead of
 -- a Score.Event with a pitch signal, which makes it hard to share code.
-convert_pitch :: Patch.Patch -> Attrs.Attributes -> Pitch.NoteNumber
+convert_pitch :: Patch.AttributeMap -> Maybe Patch.Scale -> Attrs.Attributes
+    -> Pitch.NoteNumber
     -> (Maybe (Pitch.NoteNumber, [Patch.Keyswitch]), Bool)
     -- ^ The Bool is True if the attrs were non-empty but not found.
-convert_pitch patch attrs nn = case Common.lookup_attributes attrs attr_map of
-    Nothing -> ((, []) <$> maybe_pitch, attrs /= mempty)
-    Just (keyswitches, maybe_keymap) ->
-        ((, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap, False)
+convert_pitch attr_map patch_scale attrs nn =
+    case Common.lookup_attributes attrs attr_map of
+        Nothing -> ((, []) <$> maybe_pitch, attrs /= mempty)
+        Just (keyswitches, maybe_keymap) -> ((, keyswitches) <$>
+            maybe maybe_pitch set_keymap maybe_keymap, False)
     where
     maybe_pitch = apply_patch_scale nn
-    apply_patch_scale = maybe Just Patch.convert_scale (Patch.patch_scale patch)
-    attr_map = Patch.patch_attribute_map patch
+    apply_patch_scale = maybe Just Patch.convert_scale patch_scale
     set_keymap (Patch.UnpitchedKeymap key) = Just $ Midi.from_key key
     set_keymap (Patch.PitchedKeymap low _ low_pitch) =
         (+ Midi.from_key (low - low_pitch)) <$> maybe_pitch

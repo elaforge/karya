@@ -165,16 +165,19 @@ instrument_fields name inst =
     , ("Original name", if name == orig_name then "" else showt orig_name)
     ]
     where
-    Patch.Patch {
-        patch_name = orig_name
+    Patch.Patch
+        { patch_name = orig_name
         , patch_control_map = control_map
-        , patch_pitch_bend_range = pb_range
-        , patch_decay = decay
-        , patch_scale = scale
-        , patch_flags = flags
         , patch_initialize = initialize
         , patch_attribute_map = attr_map
+        , patch_defaults = settings
         } = inst
+    Patch.Settings
+        { config_flags = flags
+        , config_scale = scale
+        , config_decay = decay
+        , config_pitch_bend_range = pb_range
+        } = settings
 
 patch_fields :: Im.Patch.Patch -> [(Text, Text)]
 patch_fields (Im.Patch.Patch controls attr_map flags) =

@@ -51,18 +51,20 @@ get_track_cmds = do
     maybe_track_id <- State.event_track_at block_id tracknum
     track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
 
-    maybe_inst <- maybe (return Nothing) (lookup_inst block_id)
+    maybe_resolved <- maybe (return Nothing) (lookup_inst block_id)
         maybe_track_id
     track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
         maybe_track_id
-    let icmds = case (track_title, maybe_inst) of
-            (Just title, Just inst) | ParseTitle.is_note_track title ->
-                Cmd.inst_cmds $ Common.common_code $ Inst.inst_common inst
+    let icmds = case (track_title, maybe_resolved) of
+            (Just title, Just resolved) | ParseTitle.is_note_track title ->
+                Cmd.inst_cmds $ Common.common_code $ Inst.inst_common $
+                    Cmd.inst_instrument resolved
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let with_input = NoteEntry.cmds_with_input
-            (Cmd.state_kbd_entry edit_state) (Inst.inst_midi =<< maybe_inst)
+            (Cmd.state_kbd_entry edit_state)
+            (fmap snd . Cmd.midi_instrument =<< maybe_resolved)
         tcmds = track_cmds edit_mode track
     let floating_input_cmd = Edit.handle_floating_input $
             case Info.track_type track of
@@ -89,7 +91,7 @@ get_track_cmds = do
         : with_input (input_cmds edit_mode track)
         : tcmds ++ kcmds
 
-lookup_inst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.Inst)
+lookup_inst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.ResolvedInstrument)
 lookup_inst block_id track_id =
     justm (Perf.lookup_instrument (block_id, Just track_id)) $ \inst ->
     Cmd.lookup_instrument inst

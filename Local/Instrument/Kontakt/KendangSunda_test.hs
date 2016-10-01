@@ -30,6 +30,7 @@ test_resolve = do
     equal KendangSunda.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup
-    (DeriveTest.with_synths allocs [Kontakt.synth]) ""
-    where allocs = UiTest.allocations [("k", "kontakt/kendang-sunda")]
+derive = DeriveTest.derive_tracks_setup with_synths ""
+    where
+    with_synths = DeriveTest.with_synths_simple
+        [("k", "kontakt/kendang-sunda")] [Kontakt.synth]

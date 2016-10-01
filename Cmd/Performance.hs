@@ -44,7 +44,6 @@ import qualified Derive.Stream as Stream
 import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.RealTime as RealTime
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
 import Types
@@ -185,7 +184,7 @@ generate_performance ui_state wait send_status block_id = do
         let allocs = State.config#State.allocations #$ ui_state
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
-            (Cmd.state_lookup_instrument ui_state cmd_state)
+            (Cmd.state_resolve_instrument ui_state cmd_state)
             wait send_status block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
@@ -219,7 +218,7 @@ derive ui_state cmd_state block_id = (perf, logs)
         PlayUtil.derive_block prev_cache damage block_id
 
 evaluate_performance :: Maybe Cmd.ImConfig
-    -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> BlockId -> Cmd.Performance -> IO ()
 evaluate_performance im_config lookup_inst wait send_status block_id perf = do
     send_status block_id Msg.OutOfDate
@@ -247,7 +246,7 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 -- | Convert Im events, serialize them, and start 'Cmd.im_binary' to render
 -- them.
 evaluate_im :: Maybe Cmd.ImConfig
-    -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event
     -> (Vector.Vector Score.Event -> Maybe Process.ProcessHandle -> IO a)
     -> IO a
@@ -261,8 +260,8 @@ evaluate_im maybe_im_config lookup_inst events action
     where
     (im_events, rest_events) =
         Vector.partition (is_im . Score.event_instrument) events
-    is_im inst = case lookup_inst inst of
-        Just (Inst.Inst (Inst.Im {}) _, _) -> True
+    is_im inst = case Cmd.inst_instrument <$> lookup_inst inst of
+        Just (Inst.Inst (Inst.Im {}) _) -> True
         _ -> False
 
 -- | If there are no StateConfig.Im instruments, then I don't need to bother to

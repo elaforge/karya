@@ -45,7 +45,7 @@ test_resolve = do
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = KontaktTest.derive allocs ""
     where
-    allocs = UiTest.allocations
+    allocs =
         [ ("k", "kontakt/kendang-bali")
         , ("pasang", "kontakt/kendang-bali-pasang")
         , ("w", "kontakt/kendang-bali")

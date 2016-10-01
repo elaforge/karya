@@ -18,7 +18,7 @@ import Global
 
 test_derive_expr = do
     let run extract tracks cmd = CmdTest.extract (extract_events extract) <$>
-            CmdTest.run_perf_tracks tracks cmd
+            CmdTest.run_tracks_with_performance tracks cmd
         f tracknum pos expr = Perf.derive_expr UiTest.default_block_id
             (UiTest.mk_tid tracknum) pos
             (expect_right (Parse.parse_expr expr))

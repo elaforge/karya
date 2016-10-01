@@ -101,43 +101,38 @@ test_patch_scale = do
                 UiTest.note_spec ("i1", [(0, 1, pitch)], [])
         make_lookup config patch = DeriveTest.make_convert_lookup_for UiTest.i1
             (make_config config) patch
-        make_config scale = Patch.cscale #= scale $ Patch.config1 UiTest.wdev 0
-        make_patch scale = Patch.scale #= scale $ Patch.patch (-1, 1) "1"
+        make_config scale = Patch.settings#Patch.scale #= scale $
+            DeriveTest.empty_midi_config
+        patch = Patch.patch (-1, 1) "1"
 
-    equal (run Nothing (make_patch Nothing) "4c") ([Left (0, [(0, NN.c4)])], [])
+    equal (run Nothing patch "4c") ([Left (0, [(0, NN.c4)])], [])
     let scale_g = Patch.make_scale "scale" [(Key.c4, NN.g4)]
         scale_e = Patch.make_scale "scale" [(Key.c4, NN.e4)]
-    equal (run (Just scale_g) (make_patch Nothing) "4g")
-        ([Left (0, [(0, NN.c4)])], [])
-    equal (run Nothing (make_patch (Just scale_e)) "4e")
-        ([Left (0, [(0, NN.c4)])], [])
-    -- Patch config wins.
-    equal (run (Just scale_e) (make_patch (Just scale_g)) "4e")
-        ([Left (0, [(0, NN.c4)])], [])
+    equal (run (Just scale_g) patch "4g") ([Left (0, [(0, NN.c4)])], [])
+    equal (run (Just scale_e) patch "4e") ([Left (0, [(0, NN.c4)])], [])
 
     let scale1 = Patch.make_scale "scale"
             [(k, Midi.from_key k + 1) | k <- [0..127]]
-    equal (run Nothing (make_patch (Just scale1)) "4c")
-        ([Left (0, [(0, NN.b3)])], [])
+    equal (run (Just scale1) patch "4c") ([Left (0, [(0, NN.b3)])], [])
     -- Keyswitches go through the Patch.Scale.
-    let attr_patch attr_map =
-            Patch.attribute_map #= attr_map $ make_patch (Just scale1)
+    let attr_patch attr_map = Patch.attribute_map #= attr_map $ patch
     let ks_map = Common.attribute_map
             [ (Attrs.mute, ([Patch.Keyswitch 0], Nothing))
             , (mempty, ([Patch.Keyswitch 1], Nothing))
             ]
-    equal (run Nothing (attr_patch ks_map) "4c") ([Left (0, [(0, NN.b3)])], [])
+    equal (run (Just scale1) (attr_patch ks_map) "4c")
+        ([Left (0, [(0, NN.b3)])], [])
+
     -- PitchKeymap also goes through the Patch.Scale.
     let pitched_map = Common.attribute_map
             [ (Attrs.mute,
                 ([], Just (Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)))
             , (mempty, ([], Just (Patch.PitchedKeymap Key.c4 Key.c5 Key.c4)))
             ]
-        pitched_patch =
-            Patch.attribute_map #= pitched_map $ make_patch (Just scale1)
-    equal (run Nothing pitched_patch "5c")
+        pitched_patch = Patch.attribute_map #= pitched_map $ patch
+    equal (run (Just scale1) pitched_patch "5c")
         ([Left (0, [(0, NN.b4)])], [])
-    equal (run Nothing pitched_patch "+mute -- 5c")
+    equal (run (Just scale1) pitched_patch "+mute -- 5c")
         ([Left (0, [(0, NN.b2)])], [])
 
 test_convert_dynamic = do
@@ -149,9 +144,10 @@ test_convert_dynamic = do
             , maybe [] Signal.unsignal $ Map.lookup Controls.breath $
                 Types.event_controls e
             )
-        clookup = DeriveTest.make_convert_lookup UiTest.default_allocations $
-            DeriveTest.make_db [("s", [p "1", Patch.pressure $ p "2"])]
-        p = DeriveTest.make_patch
+        clookup = DeriveTest.make_convert_lookup allocs UiTest.default_db
+        allocs = UiTest.modify_midi_config "i2"
+            (Patch.settings#Patch.flags %= Patch.add_flag Patch.Pressure)
+            UiTest.default_allocations
     -- >i1 is non-Pressure, >i2 is Pressure.
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
         ([Left (1, [])], [])
@@ -204,13 +200,13 @@ test_instrument_scale = do
     equal (map (Signal.unsignal . Types.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
-    patch = Patch.scale #= Just scale $ DeriveTest.make_patch "1"
+    patch = Patch.defaults#Patch.scale #= Just scale $ UiTest.make_patch "1"
     scale = Patch.make_scale "test" [(1, 60), (2, 62), (3, 63)]
 
 -- * keymap
 
 test_pitched_keymap = do
-    let patch = set_keymap [bd] $ DeriveTest.make_patch "1"
+    let patch = set_keymap [bd] $ UiTest.make_patch "1"
         bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)
         set_keymap kmap = Patch.attribute_map
             #= Patch.keymap (map (first Attrs.attr) kmap)
@@ -235,14 +231,14 @@ test_pitched_keymap = do
 nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
-perform :: Patch.Patch -> [(Text, Text)] -> [UiTest.TrackSpec]
+perform :: Patch.Patch -> DeriveTest.SimpleAllocations -> [UiTest.TrackSpec]
     -> (Derive.Result, ([Types.Event], [Midi.WriteMessage], [Log.Msg]))
 perform patch allocs tracks = (result, performance)
     where
-    allocations = UiTest.allocations allocs
+    allocations = DeriveTest.simple_allocs_from_db db allocs
     performance = DeriveTest.perform
         (DeriveTest.make_convert_lookup allocations db)
         allocations (Derive.r_events result)
-    db = DeriveTest.make_db [("s", [patch])]
+    db = UiTest.make_db [("s", [patch])]
     result = DeriveTest.derive_tracks_setup
         (DeriveTest.with_instrument_db allocations db) "" tracks

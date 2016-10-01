@@ -24,12 +24,13 @@ patches =
     where
     patch name = MidiInst.code #= Bali.zero_dur_mute $ set_params $
         MidiInst.named_patch (-24, 24) name []
-    set_params = (MidiInst.patch %=) $
-        Patch.add_flag Patch.ConstantPitch
-        . (Patch.decay #= Just 0)
-        . (Patch.attribute_map #= attribute_map)
+    set_params = MidiInst.patch
+        %= MidiInst.add_flag Patch.ConstantPitch
+            . (Patch.defaults#Patch.decay #= Just 0)
+            . (Patch.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
-    set_scale = (MidiInst.patch#Patch.scale #= Just instrument_scale)
+    set_scale =
+        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.

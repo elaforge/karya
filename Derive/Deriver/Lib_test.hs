@@ -19,7 +19,7 @@ test_with_instrument_controls = do
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
         with_config controls = DeriveTest.with_midi_config "i1" "s/1"
             (Common.controls #= controls $ Common.empty_config)
-            (Patch.config [])
+            (Patch.config mempty [])
     -- This doesn't test the controls directly, but rather that the
     -- transposition is applied as expected.
     equal (run "" mempty) ([(0, 1, "4c")], [])

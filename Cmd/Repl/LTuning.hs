@@ -134,8 +134,8 @@ all_inputs =
 -- | Show tuning map for debugging.
 get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
 get_tuning inst scale = do
-    attr_map@(Common.AttributeMap amap) <- Patch.patch_attribute_map <$>
-        Cmd.get_midi_patch (Util.instrument inst)
+    attr_map@(Common.AttributeMap amap) <- Patch.patch_attribute_map . fst <$>
+        Cmd.get_midi_instrument (Util.instrument inst)
     let tuning = Patch.scale_tuning (Just attr_map) scale
     return $ Text.unlines $ concat
         [ map pretty amap
@@ -158,8 +158,8 @@ write_ksp :: Maybe Util.Instrument -> FilePath -> Patch.Scale -> Cmd.CmdT IO ()
 write_ksp maybe_inst filename scale = do
     attr_map <- case maybe_inst of
         Nothing -> return Nothing
-        Just inst -> Just . Patch.patch_attribute_map <$> Cmd.get_midi_patch
-            (Util.instrument inst)
+        Just inst -> Just . Patch.patch_attribute_map . fst <$>
+            Cmd.get_midi_instrument (Util.instrument inst)
     ksp <- Cmd.require_right id $ Kontakt.Util.tuning_ksp attr_map scale
     liftIO $ Text.IO.writeFile filename ksp
     return ()

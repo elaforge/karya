@@ -21,7 +21,6 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
@@ -80,11 +79,14 @@ run_tracks_ruler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks_ruler tracks = run (make_tracks_ruler tracks) default_cmd_state
 
 -- | Derive the tracks and then run the cmd with the performance available.
-run_perf_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT IO a -> IO (Result a)
-run_perf_tracks tracks = run_perf (make_tracks tracks) default_cmd_state
+run_tracks_with_performance :: [UiTest.TrackSpec] -> Cmd.CmdT IO a
+    -> IO (Result a)
+run_tracks_with_performance tracks =
+    run_with_performance (make_tracks tracks) default_cmd_state
 
-run_perf :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
-run_perf ustate cstate cmd = do
+run_with_performance :: State.State -> Cmd.State -> Cmd.CmdT IO a
+    -> IO (Result a)
+run_with_performance ustate cstate cmd = do
     cstate <- update_performance State.empty ustate cstate []
     run_io ustate cstate cmd
 
@@ -223,7 +225,7 @@ default_cmd_state = (Cmd.initial_state cmd_config)
     }
 
 cmd_config :: Cmd.Config
-cmd_config = DeriveTest.cmd_config DeriveTest.default_db
+cmd_config = DeriveTest.cmd_config UiTest.default_db
 
 default_play_state :: Cmd.PlayState
 default_play_state =
@@ -334,15 +336,18 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_synths :: [MidiInst.Synth] -> StateConfig.Allocations -> State.State
-    -> Cmd.State -> (State.State, Cmd.State)
-set_synths synths allocs ui_state cmd_state =
+set_synths_simple :: [MidiInst.Synth] -> DeriveTest.SimpleAllocations
+    -> State.State -> Cmd.State -> (State.State, Cmd.State)
+set_synths_simple synths simple_allocs ui_state cmd_state =
     ( (State.config#State.allocations #= allocs) ui_state
     , cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
-            { Cmd.config_instrument_db = DeriveTest.synth_to_db synths }
+            { Cmd.config_instrument_db = db }
         }
     )
+    where
+    db = DeriveTest.synth_to_db synths
+    allocs = DeriveTest.simple_allocs_from_db db simple_allocs
 
 -- * msg
 

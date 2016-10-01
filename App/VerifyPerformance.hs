@@ -80,9 +80,9 @@ main = Git.initialize $ do
     when (null args) $ usage "no inputs"
     unless (null [Help | Help <- flags]) $ usage ""
     let out_dir = fromMaybe default_out_dir $ Seq.last [d | Output d <- flags]
+    cmd_config <- DeriveSaved.load_cmd_config
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
-            cmd_config <- DeriveSaved.load_cmd_config
             fnames <- concatMapM expand_verify_me args
             fmap sum $ forM fnames $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
@@ -91,12 +91,9 @@ main = Git.initialize $ do
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
                 return fails
-        Save -> run $ concat <$> mapM (save out_dir) args
-        Profile -> do
-            cmd_config <- DeriveSaved.load_cmd_config
-            run $ concat <$> mapM (perform Nothing cmd_config) args
-        Perform -> do
-            cmd_config <- DeriveSaved.load_cmd_config
+        Save -> run $ concat <$> mapM (save cmd_config out_dir) args
+        Profile -> run $ concat <$> mapM (perform Nothing cmd_config) args
+        Perform ->
             run $ concat <$> mapM (perform (Just out_dir) cmd_config) args
         DumpMidi -> run $ concat <$> mapM dump_midi args
     Process.exit failures
@@ -134,9 +131,10 @@ require_right io = either Except.throwError return =<< liftIO io
 -- * implementation
 
 -- | Extract saved performances and write them to disk.
-save :: FilePath -> FilePath -> Error [Text]
-save out_dir fname = do
-    (state, _defs_lib, block_id) <- load fname
+save :: Cmd.Config -> FilePath -> FilePath -> Error [Text]
+save cmd_config out_dir fname = do
+    (state, _defs_lib, block_id) <-
+        load (Cmd.config_instrument_db cmd_config) fname
     let meta = State.config#State.meta #$ state
         look = Map.lookup block_id
     midi <- case look (State.meta_midi_performances meta) of
@@ -159,7 +157,8 @@ save out_dir fname = do
 -- | Perform to MIDI and write to disk.
 perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
 perform maybe_out_dir cmd_config fname = do
-    (state, library, block_id) <- load fname
+    (state, library, block_id) <-
+        load (Cmd.config_instrument_db cmd_config) fname
     msgs <- perform_block fname (make_cmd_state library cmd_config) state
         block_id
     whenJust maybe_out_dir $ \out_dir -> do
@@ -176,7 +175,8 @@ dump_midi fname = do
 
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
 verify_performance out_dir cmd_config fname = do
-    (state, library, block_id) <- load fname
+    (state, library, block_id) <-
+        load (Cmd.config_instrument_db cmd_config) fname
     let meta = State.config#State.meta #$ state
     let cmd_state = make_cmd_state library cmd_config
     let midi_perf = Map.lookup block_id (State.meta_midi_performances meta)
@@ -229,9 +229,10 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 -- * util
 
 -- | Load a score and get its root block id.
-load :: FilePath -> Error (State.State, Derive.Library, BlockId)
-load fname = do
-     (state, library) <- require_right $ DeriveSaved.load_score fname
+load :: Cmd.InstrumentDb -> FilePath
+    -> Error (State.State, Derive.Library, BlockId)
+load db fname = do
+     (state, library) <- require_right $ DeriveSaved.load_score db fname
      block_id <- require_right $ return $ get_root state
      return (state, library, block_id)
 

@@ -9,15 +9,21 @@
 module Perform.Midi.Patch (
     -- * Config
     Config(..), config_addrs
-    , allocation, cscale, control_defaults, initialization
-    , config, config1, voice_config
+    , patch_to_config, merge_defaults
+    , allocation, control_defaults, initialization, settings
+    , config
     , Initialization(..), Addr, Voices
+    , has_flag
     -- Re-exported so instrument definitions don't have to have
     -- Midi.Control.PbRange.
     , Control.PbRange
+    -- ** Settings
+    , Settings(..), make_settings
+    , pitch_bend_range, decay, scale, flags
+
     -- * Patch
-    , Patch(..), name, control_map, pitch_bend_range, decay, scale, flags
-    , initialize, attribute_map, call_map
+    , Patch(..), name, control_map
+    , initialize, attribute_map, call_map, defaults
     , patch
     , default_name
     , CallMap
@@ -28,7 +34,7 @@ module Perform.Midi.Patch (
     , scale_nns, scale_offsets, scale_tuning
     -- ** Flag
     , Flag(..)
-    , add_flag, remove_flag, has_flag, triggered, pressure
+    , add_flag, remove_flag
     -- ** InitializePatch
     , InitializePatch(..)
     -- ** AttributeMap
@@ -49,6 +55,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
@@ -78,8 +85,6 @@ data Config = Config {
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
     config_allocation :: ![(Addr, Maybe Voices)]
-    -- | A local version of 'patch_scale'.
-    , config_scale :: !(Maybe Scale)
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.  This is different from
@@ -88,34 +93,34 @@ data Config = Config {
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
     , config_initialization :: !(Set.Set Initialization)
+    , config_settings :: !Settings
     } deriving (Eq, Read, Show)
 
 allocation = Lens.lens config_allocation
     (\f r -> r { config_allocation = f (config_allocation r) })
-cscale = Lens.lens config_scale
-    (\f r -> r { config_scale = f (config_scale r) })
 control_defaults = Lens.lens config_control_defaults
     (\f r -> r { config_control_defaults = f (config_control_defaults r) })
 initialization = Lens.lens config_initialization
     (\f r -> r { config_initialization = f (config_initialization r) })
+settings = Lens.lens config_settings
+    (\f r -> r { config_settings = f (config_settings r) })
 
 config_addrs :: Config -> [Addr]
 config_addrs = map fst . config_allocation
 
--- | Make a simple config.
-config :: [Addr] -> Config
-config = voice_config . map (, Nothing)
-
-config1 :: Midi.WriteDevice -> Midi.Channel -> Config
-config1 dev chan = config [(dev, chan)]
-
-voice_config :: [(Addr, Maybe Voices)] -> Config
-voice_config alloc = Config
+config :: Settings -> [(Addr, Maybe Voices)] -> Config
+config settings alloc = Config
     { config_allocation = alloc
-    , config_scale = Nothing
     , config_control_defaults = mempty
     , config_initialization = mempty
+    , config_settings = settings
     }
+
+patch_to_config :: Patch -> [(Addr, Maybe Voices)] -> Config
+patch_to_config patch = config (patch_defaults patch)
+
+merge_defaults :: Patch -> Config -> Config
+merge_defaults patch = settings %= (<> patch_defaults patch)
 
 instance Pretty.Pretty Config where
     format (Config alloc scale control_defaults initialization) =
@@ -128,7 +133,9 @@ instance Pretty.Pretty Config where
 
 -- | Document what kinds of initialization this instrument needs.  Each
 -- instrument is initialized once when the score is loaded.
-data Initialization = Tuning | Midi
+data Initialization =
+    Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
+    | Midi -- ^ Send 'InitializePatch'.
     deriving (Read, Show, Eq, Ord, Bounded, Enum)
 instance Pretty.Pretty Initialization where pretty = showt
 
@@ -137,6 +144,64 @@ instance Pretty.Pretty Initialization where pretty = showt
 type Addr = (Midi.WriteDevice, Midi.Channel)
 -- | Number of simultaneous voices a certain Addr supports, aka polyphony.
 type Voices = Int
+
+has_flag :: Config -> Flag -> Bool
+has_flag config flag = Set.member flag (settings#flags #$ config)
+
+-- ** Settings
+
+-- | This has instrument configuration which has built-in defaults but can also
+-- be modified per score.  When the instrument is allocated, 'patch_defaults'
+-- is copied to 'config_settings'.
+data Settings = Settings {
+    config_flags :: !(Set.Set Flag)
+    , config_scale :: !(Maybe Scale)
+    -- | Time from NoteOff to inaudible, in seconds.  This can be used to
+    -- figure out how long to generate control messages, or possibly determine
+    -- overlap for channel allocation, though I use LRU so it shouldn't matter.
+    , config_decay :: !(Maybe RealTime)
+    , config_pitch_bend_range :: !Control.PbRange
+    } deriving (Eq, Read, Show)
+
+instance Pretty.Pretty Settings where
+    format (Settings flags scale decay pb_range) = Pretty.record "Settings"
+        [ ("flags", Pretty.format flags)
+        , ("scale", Pretty.format scale)
+        , ("decay", Pretty.format decay)
+        , ("pitch_bend_range", Pretty.format pb_range)
+        ]
+
+instance Monoid Settings where
+    mempty = make_settings no_pb_range
+    mappend (Settings flags1 scale1 decay1 pb_range1)
+            (Settings flags2 scale2 decay2 pb_range2) =
+        Settings (flags1 <> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
+            (if pb_range1 == no_pb_range then pb_range2 else pb_range1)
+
+-- | This is a special magic value to indicate an incomplete Settings, which
+-- is what mempty is.  Normally 'Config' should be initialized from Settings in
+-- 'patch_defaults', but 'Cmd.Instrument.MidiInst.config' is used to create
+-- template allocations which are merged with the patch defaults when the
+-- allocation is created.
+no_pb_range :: Control.PbRange
+no_pb_range = (100, -100)
+
+make_settings :: Control.PbRange -> Settings
+make_settings pb_range = Settings
+    { config_flags = Set.empty
+    , config_scale = Nothing
+    , config_decay = Nothing
+    , config_pitch_bend_range = pb_range
+    }
+
+pitch_bend_range = Lens.lens config_pitch_bend_range
+    (\f r -> r { config_pitch_bend_range = f (config_pitch_bend_range r) })
+decay = Lens.lens config_decay
+    (\f r -> r { config_decay = f (config_decay r) })
+scale = Lens.lens config_scale
+    (\f r -> r { config_scale = f (config_scale r) })
+flags = Lens.lens config_flags
+    (\f r -> r { config_flags = f (config_flags r) })
 
 -- * Patch
 
@@ -152,60 +217,44 @@ data Patch = Patch {
     -- the patch, is in 'Instrument.Inst.synth_insts'.
     patch_name :: !Text
     , patch_control_map :: !Control.ControlMap
-    , patch_pitch_bend_range :: !Control.PbRange
-    -- | Time from NoteOff to inaudible, in seconds.  This can be used to
-    -- figure out how long to generate control messages, or possibly determine
-    -- overlap for channel allocation, though I use LRU so it shouldn't matter.
-    , patch_decay :: !(Maybe RealTime)
-    , patch_scale :: !(Maybe Scale)
-    , patch_flags :: !(Set.Set Flag)
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
     , patch_call_map :: !CallMap
+    , patch_defaults :: !Settings
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Patch where
-    format (Patch name cmap pb_range decay scale flags init attr_map call_map) =
+    format (Patch name cmap init attr_map call_map defaults) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
             , ("control_map", Pretty.format cmap)
-            , ("pitch_bend_range", Pretty.format pb_range)
-            , ("decay", Pretty.format decay)
-            , ("scale", Pretty.format scale)
-            , ("flags", Pretty.format flags)
             , ("initialize", Pretty.format init)
             , ("attribute_map", Pretty.format attr_map)
             , ("call_map", Pretty.format call_map)
+            , ("defaults", Pretty.format defaults)
             ]
 
 name = Lens.lens patch_name (\f r -> r { patch_name = f (patch_name r) })
 control_map = Lens.lens patch_control_map
     (\f r -> r { patch_control_map = f (patch_control_map r) })
-pitch_bend_range = Lens.lens patch_pitch_bend_range
-    (\f r -> r { patch_pitch_bend_range = f (patch_pitch_bend_range r) })
-decay = Lens.lens patch_decay (\f r -> r { patch_decay = f (patch_decay r) })
-scale = Lens.lens patch_scale (\f r -> r { patch_scale = f (patch_scale r) })
-flags = Lens.lens patch_flags
-    (\f r -> r { patch_flags = f (patch_flags r) })
 initialize = Lens.lens patch_initialize
     (\f r -> r { patch_initialize = f (patch_initialize r) })
 attribute_map = Lens.lens patch_attribute_map
     (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
 call_map = Lens.lens patch_call_map
     (\f r -> r { patch_call_map = f (patch_call_map r) })
+defaults = Lens.lens patch_defaults
+    (\f r -> r { patch_defaults = f (patch_defaults r) })
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Control.PbRange -> InstTypes.Name -> Patch
 patch pb_range name = Patch
     { patch_name = name
     , patch_control_map = mempty
-    , patch_pitch_bend_range = pb_range
-    , patch_decay = Nothing
-    , patch_scale = Nothing
-    , patch_flags = Set.empty
     , patch_initialize = NoInitialization
     , patch_attribute_map = Common.AttributeMap []
     , patch_call_map = Map.empty
+    , patch_defaults = make_settings pb_range
     }
 
 -- | This is a convention for the default instrument of a synth.  This is
@@ -350,22 +399,18 @@ data Flag =
     -- notes with this instrument set.  This way you can play long notes
     -- like tambure from the middle.
     | ResumePlay
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
 instance Pretty.Pretty Flag where pretty = showt
+instance Serialize.Serialize Flag where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
 
-add_flag :: Flag -> Patch -> Patch
-add_flag flag = flags %= Set.insert flag
+add_flag :: Flag -> Set.Set Flag -> Set.Set Flag
+add_flag = Set.insert
 
-remove_flag :: Flag -> Patch -> Patch
-remove_flag flag = flags %= Set.delete flag
-
-has_flag :: Patch -> Flag -> Bool
-has_flag inst flag = Set.member flag (patch_flags inst)
-
-triggered, pressure :: Patch -> Patch
-triggered = add_flag Triggered
-pressure = add_flag Pressure
+remove_flag :: Flag -> Set.Set Flag -> Set.Set Flag
+remove_flag = Set.delete
 
 -- ** InitializePatch
 

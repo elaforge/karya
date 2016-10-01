@@ -47,11 +47,16 @@ convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert config =
     ConvertUtil.convert event1 lookup_inst . filter_instruments
     where
-    lookup_inst = const $
-        Just (fake_inst, InstTypes.Qualified "ly" "ly-fake-inst")
-    fake_inst = Inst.Inst (Inst.Midi (Midi.Patch.patch (-1, 1) "ly-fake-inst"))
-        (Common.common Cmd.empty_code)
-    event1 event _backend _name =
+    -- Fake an instrument, which 'event1' will ignore.
+    lookup_inst = const $ Just $ Cmd.ResolvedInstrument
+        { inst_instrument = Inst.Inst
+            (Inst.Midi $ Midi.Patch.patch (-1, 1) "ly-fake-inst")
+            (Common.common Cmd.empty_code)
+        , inst_qualified = InstTypes.Qualified "ly" "ly-fake-inst"
+        , inst_common_config = Common.empty_config
+        , inst_backend = Nothing
+        }
+    event1 event _resolved =
         convert_event (Types.config_quarter_duration config) event
     filter_instruments
         | null (Types.config_staves config) = id

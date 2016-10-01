@@ -52,26 +52,9 @@ instance Serialize Search.Index where
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
 instance Serialize Patch.Patch where
-    put (Patch.Patch a b c d e f g h i) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h >> put i
+    put (Patch.Patch a b c d e f) = put a >> put b >> put c
+        >> put d >> put e >> put f
     get = Patch.Patch <$> get <*> get <*> get <*> get <*> get <*> get
-        <*> get <*> get <*> get
-
-instance Serialize Patch.Flag where
-    put Patch.Triggered = put_tag 0
-    put Patch.Pressure = put_tag 1
-    put Patch.ConstantPitch = put_tag 2
-    put Patch.HoldKeyswitch = put_tag 3
-    put Patch.ResumePlay = put_tag 4
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> return Patch.Triggered
-            1 -> return Patch.Pressure
-            2 -> return Patch.ConstantPitch
-            3 -> return Patch.HoldKeyswitch
-            4 -> return Patch.ResumePlay
-            _ -> bad_tag "Patch.Flag" tag
 
 instance Serialize Patch.InitializePatch where
     put (Patch.InitializeMidi a) = put_tag 0 >> put a

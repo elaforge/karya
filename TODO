@@ -3,15 +3,68 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - fltk: I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
-  * fltk: blue abbrev line at the bottom of a positive event is chopped off
-  - fltk: negative event text is pushed downwards the more it wraps
-    . Probably that padding pixel making it not line up.
-    . All these padding tweaks are a real mess.  Can I get rid of them and
-      apply them all in one spot?
-  - fltk: event "a`tamil-i``xie`" clipping with next event is wrong
+  - rename DeriveTest.synth* to synths
+  * Would it make sense to also put Perform.Midi.Patch.Flags in Config?
+    - LInst.list should print settings when they differ from the defaults
+    - Test that Common.config_environ is merged with Common.common_environ.
+    * Make allocation copy Patch.patch_defaults to Patch.config_settings.
+    * LInst also has to add defaults when it merges Configs.
+    * Come up with a way to update old saved scores.
+      . This will actually continue to be a problem, if I later add fields to
+        Settings.
+      . This is also getting annoying with tests, because I need to get ahold
+        of the inst db.
+      . How about separate Defaults and Settings, where there are Maybes in
+        Settings?
+      . That's kind of even worse, because now everyone needs both Patch and
+        Config.  The reason they didn't before was that I would copy the
+        overrides into the Patch... and I could still do that.  But I remember
+        being confused by that earlier so I kind of like not doing that.
+    * Fix the tests.
+      . It's annoying how I have UiTest.default_allocations, then
+        Simple.Allocations, and then DeriveTest.SimpleAllocations.
+      . For inst definition tests, I need the inst defaults, so I can use
+        DeriveTest.SimpleAllocations, or even simpler since I'm not testing
+        allocation... except I need some for pasang instruments.
+      . Then for the rest, I use UiTest.allocations, and modify settings in
+        the allocation instead of the patch.
+    / Cmd.Simple should save Settings
+    . Maybe, but when deserializing I have to patch old scores.
+    . Also convert now needs Config.
+    . Or, I could do it the same way as environ, which is that the config
+      is merged into the Patch.  But this means I can only add flags...
+      which, come to think of it, is also true for environ.
+    . So maybe both environ and flags in Patch should be default, and
+      is copied to the config when it is first created.
+    . It also seems less confusing to not modify Patch.
+    . On the other hand, then everyone has to look in both Config and Patch,
+      or Config has to have all of Patch's fields.
+    . But in that vein, why not put a Patch inside of Config?  Then I can
+      modify everything.
+    . Except fields of Instrument.Common, which is just environ.  I think I
+      still have to merge that, which means I still can't remove default
+      environ keys.
+      . Static config, common and backend: (Common.Common, Midi.Patch)
+        Dynamic config, common and backend: (Common.Config, Midi.Config)
+      . Some things are dynamic only, e.g. solo flag, some are static only,
+        e.g. doc.  So I think in static I put a default, which is copied to
+        dynamic on creation.  This does mean that I can't retroactively add
+        a env key, though seems like not a big deal.
+      . So, split configurable fields from Patch into Defaults.  That can
+        directly go into Config.
+      . Local.Instrument.* has functions to make allocations, for which it's
+        more convenient to just have the added env, and merge with the default
+        one later, but surely the merge allocs function in LInst can do that.
+      . I could replace patch_defaults with config_defaults.  Then I'm back to
+        the confusing modify Patch thing, but then callers don't have to pick
+        the right Defaults themselves.
+      . Or I could make a new type: Midi Patch.Patch Patch.Config, which gives
+        me a place to complain about a mismatched allocation (though
+        StateConfig.verify_allocation should have already verified that), but
+        I still have two Defaults.
+      . Maybe it's the name that's the problem.  Defaults are only defaults
+        when in Patch.  In Config they're just more Config.  Settings?
 
-  - Would it make sense to also put Perform.Midi.Patch.Flags in Config?
   * look into using the 'errors' package for things like
     'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
     - use tryJust and tryRght instead of require and require_right
@@ -843,7 +896,17 @@ performance:
 
 fltk:
   - reduce duplication in EventTrack.cc drawable_pixels
+  - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
+    . I'd need to pass a haskell callback.
+  * blue abbrev line at the bottom of a positive event is chopped off
+  - negative event text is pushed downwards the more it wraps
+    . Probably that padding pixel making it not line up.
+    . All these padding tweaks are a real mess.  Can I get rid of them and
+      apply them all in one spot?
+  - event "a`tamil-i``xie`" clipping with next event is wrong
   - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
+    . It still might be useful to put the top level ruler labels, or cues if
+      I ever use those, but I'd have to make it wider.
   - Do I want to support set_ruler for Scrollbar?
   - linux fltk drawing: event ears draw as a solid bar
   * Track titles are still cramped, and even with the expand thing it's still

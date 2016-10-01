@@ -15,6 +15,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Util.CallStack as CallStack
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.Testing as Testing
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -32,7 +33,9 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
@@ -43,6 +46,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
@@ -486,25 +490,39 @@ midi_allocation :: Text -> Patch.Config -> StateConfig.Allocation
 midi_allocation qualified config = StateConfig.allocation
     (InstTypes.parse_qualified qualified) (StateConfig.Midi config)
 
--- | Make Simple.Allocations from just (inst, qualified).
-allocations :: [(Text, Text)] -> StateConfig.Allocations
-allocations allocs = Simple.allocations
-    [ (inst, (qualified, [("wdev", chan)]))
-    | ((inst, qualified), chan) <- zip allocs [0..]
-    ]
+-- | Make Simple.Allocations from (inst, qualified, [chan]).
+allocations :: [(Text, Text, [Midi.Channel])] -> StateConfig.Allocations
+allocations allocs = either errorStack id $
+    Simple.allocations (const $ Just settings)
+        [ (inst, (qualified, map (wdev_name,) chans))
+        | (inst, qualified, chans) <- allocs
+        ]
+    where settings = Patch.patch_defaults $ make_patch "test"
+    -- Since the lookup is just const, it should never return Left.
 
 set_default_allocations :: State.State -> State.State
 set_default_allocations = State.config#State.allocations #= default_allocations
 
--- | (instrument, (qualified, [(device, chan)]))
 default_allocations :: StateConfig.Allocations
-default_allocations = Simple.allocations
-    [ ("i", ("s/1", dev [0..2]))
-    , ("i1", ("s/1", dev [0..2]))
-    , ("i2", ("s/2", dev [3]))
-    , ("i3", ("s/3", dev [4]))
+default_allocations = allocations
+    [ ("i", "s/1", [0..2])
+    , ("i1", "s/1", [0..2])
+    , ("i2", "s/2", [3])
+    , ("i3", "s/3", [4])
     ]
-    where dev = map ("wdev",) -- TODO use 'wdev'
+
+modify_midi_config :: CallStack.Stack =>
+    Text -> (Patch.Config -> Patch.Config)
+    -> StateConfig.Allocations -> StateConfig.Allocations
+modify_midi_config inst_ modify =
+    Testing.expect_right . StateConfig.modify_allocation inst modify_alloc
+    where
+    inst = Score.Instrument inst_
+    modify_alloc alloc = do
+        config <- justErr ("not a midi alloc: " <> pretty inst) $
+            StateConfig.midi_config (StateConfig.alloc_backend alloc)
+        return $ alloc
+            { StateConfig.alloc_backend = StateConfig.Midi (modify config) }
 
 i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"
@@ -515,7 +533,26 @@ i1_qualified :: InstTypes.Qualified
 i1_qualified = InstTypes.Qualified "s" "1"
 
 wdev :: Midi.WriteDevice
-wdev = Midi.write_device "wdev"
+wdev = Midi.write_device wdev_name
+
+wdev_name :: Text
+wdev_name = "wdev"
+
+-- * instrument db
+
+default_db :: Cmd.InstrumentDb
+default_db = make_db [("s", map make_patch ["1", "2", "3"])]
+
+make_patch :: InstTypes.Name -> Patch.Patch
+make_patch name = Patch.patch (-2, 2) name
+
+make_db :: [(Text, [Patch.Patch])] -> Cmd.InstrumentDb
+make_db synth_patches = fst $ Inst.db $ map make synth_patches
+    where
+    make (name, patches) = make_synth name (map MidiInst.make_patch patches)
+
+make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
+make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 -- * misc
 

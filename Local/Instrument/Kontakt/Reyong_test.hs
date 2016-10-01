@@ -15,7 +15,7 @@ test_aftertouch = do
     let run notes = extract $ KontaktTest.perform allocs $
             Derive.r_events $ KontaktTest.derive allocs title $
                 UiTest.note_spec ("r", notes, [])
-        allocs = UiTest.allocations [("r", "kontakt/reyong")]
+        allocs = [("r", "kontakt/reyong")]
         extract (_, midi, logs) = (mapMaybe e_midi midi, logs)
         e_midi msg = case Midi.channel_message $ Midi.wmsg_msg msg of
             Just (m@(Midi.NoteOn {})) -> Just m

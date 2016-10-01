@@ -14,13 +14,16 @@ import qualified Util.Testing as Testing
 
 import qualified Ui.State as State
 import qualified Ui.Transform as Transform
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
+import qualified Derive.DeriveSaved as DeriveSaved
 
 
 profile_load = do
     -- Check memory usage for just the state data.
     start_mem <- Memory.memory_usage
-    state <- load "save/bloom"
+    cmd_config <- DeriveSaved.load_cmd_config
+    state <- load (Cmd.config_instrument_db cmd_config) "save/bloom"
     let (state2, table) = Transform.intern_text state
     putStrLn $ "loaded blocks: " ++ show (Map.size (State.state_blocks state))
     print_memory_diff start_mem =<< Memory.memory_usage
@@ -32,10 +35,10 @@ profile_load = do
 
 -- Check memory usage after a bunch of changes.
 
-load :: FilePath -> IO State.State
-load fname = do
+load :: Cmd.InstrumentDb -> FilePath -> IO State.State
+load db fname = do
     result <- Testing.print_timer ("unserialize " ++ show fname)
-        (\_ _ _ -> "") (Save.read_state_ fname)
+        (\_ _ _ -> "") (Save.read_state_ db fname)
     return $ expect_right result
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)

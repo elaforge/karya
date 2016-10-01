@@ -42,7 +42,8 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (ui_state, library) <- either errorIO return =<< load_score fname
+    (ui_state, library) <- either errorIO return
+        =<< load_score (Cmd.config_instrument_db cmd_config) fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     let cmd_state = add_library library (Cmd.initial_state cmd_config)
@@ -143,27 +144,28 @@ perform cmd_state ui_state events =
         where (events, perf_logs) = LEvent.partition levents
 
 -- | Load a score and its accompanying local definitions library, if it has one.
-load_score :: FilePath -> IO (Either Text (State.State, Derive.Library))
-load_score fname =
-    Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
-        Except.runExceptT $ do
-            save <- require_right $ Save.infer_save_type fname
-            (state, dir) <- case save of
-                Cmd.SaveRepo repo -> do
-                    (state, _, _) <- require_right $ SaveGit.load repo Nothing
-                    return (state, FilePath.takeDirectory repo)
-                Cmd.SaveState fname -> do
-                    state <- require_right $ Save.read_state_ fname
-                    return (state, FilePath.takeDirectory fname)
-            case State.config#State.ky_file #$ state of
-                Nothing -> return (state, mempty)
-                Just ky_fname -> do
-                    app_dir <- liftIO Config.get_app_dir
-                    let paths = dir
-                            : map (Config.make_path app_dir) Config.ky_paths
-                    (lib, _) <- either Except.throwError return
-                        =<< liftIO (Ky.load paths ky_fname)
-                    return (state, lib)
+load_score :: Cmd.InstrumentDb -> FilePath
+    -> IO (Either Text (State.State, Derive.Library))
+load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
+    Except.runExceptT $ do
+        save <- require_right $ Save.infer_save_type fname
+        (state, dir) <- case save of
+            Cmd.SaveRepo repo -> do
+                (state, _, _) <- require_right $ SaveGit.load repo Nothing
+                return (state, FilePath.takeDirectory repo)
+            Cmd.SaveState fname -> do
+                state <- require_right $ first pretty <$>
+                    Save.read_state_ db fname
+                return (state, FilePath.takeDirectory fname)
+        case State.config#State.ky_file #$ state of
+            Nothing -> return (state, mempty)
+            Just ky_fname -> do
+                app_dir <- liftIO Config.get_app_dir
+                let paths = dir
+                        : map (Config.make_path app_dir) Config.ky_paths
+                (lib, _) <- either Except.throwError return
+                    =<< liftIO (Ky.load paths ky_fname)
+                return (state, lib)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = either Except.throwError return =<< liftIO io

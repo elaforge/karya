@@ -70,11 +70,12 @@ patches = map (MidiInst.code #= code <> with_weak)
         Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
         where dur = Args.next args - Args.start args
     patch name = set_params $ MidiInst.named_patch (-24, 24) name []
-    set_params = (MidiInst.patch %=) $
-        Patch.add_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
-        . (Patch.attribute_map #= attribute_map)
+    set_params = MidiInst.patch
+        %= MidiInst.add_flag Patch.ConstantPitch
+            . (Patch.defaults#Patch.decay #= Just 0)
+            . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
-        (MidiInst.patch#Patch.scale #= Just
+        (MidiInst.patch#Patch.defaults#Patch.scale #= Just
             (Wayang.instrument_scale False Wayang.saih_sawan tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
@@ -96,7 +97,7 @@ allocations dev_ = MidiInst.allocations
     , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 3)
     ]
     where
-    midi_channel = StateConfig.Midi . Patch.config1 dev
+    midi_channel chan = StateConfig.Midi (MidiInst.config1 dev chan)
     pasang polos sangsih = Common.add_environ Gangsa.inst_polos (inst polos)
         . Common.add_environ Gangsa.inst_sangsih (inst sangsih)
     dev = Midi.write_device dev_

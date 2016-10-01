@@ -82,7 +82,7 @@ pb_range = (-24, 24)
 
 mine_patches :: [MidiInst.Patch]
 mine_patches =
-    [ MidiInst.make_patch $ Patch.add_flag Patch.ResumePlay $
+    [ MidiInst.make_patch $ MidiInst.add_flag Patch.ResumePlay $
         Patch.patch pb_range "tambura"
     ]
 
@@ -115,7 +115,7 @@ balalaika =
     [ MidiInst.code #= code $
         MidiInst.attribute_map #= Patch.single_keyswitches ks $
         MidiInst.make_patch $
-        Patch.add_flag Patch.HoldKeyswitch $
+        MidiInst.add_flag Patch.HoldKeyswitch $
         Patch.control_map #= Control.control_map controls $
         Patch.patch pb_range "balalaika"
     ]

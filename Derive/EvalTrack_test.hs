@@ -221,19 +221,19 @@ test_inst_call = do
     let run inst = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with_inst ""
             [(inst, [(0, 1, "sn")])]
-        with_inst = DeriveTest.with_synths
-            (UiTest.allocations [("i1", "s/1"), ("with-call", "s/with-call")])
+        with_inst = DeriveTest.with_synths_simple
+            [("i1", "s/1"), ("with-call", "s/with-call")]
             [synth]
     equal (run ">i1") ([], ["Error: note generator not found: sn"])
     equal (run ">with-call") (["+snare"], [])
     where
-    synth = DeriveTest.make_synth "s" patches
+    synth = UiTest.make_synth "s" patches
     code = MidiInst.note_generators [("sn", DUtil.attributes_note Attrs.snare)]
     patches =
         [ MidiInst.code #= code $ MidiInst.make_patch $
             Patch.attribute_map #= Patch.unpitched_keymap [(Attrs.snare, 42)] $
-            DeriveTest.make_patch "with-call"
-        , MidiInst.make_patch $ DeriveTest.make_patch "1"
+            UiTest.make_patch "with-call"
+        , MidiInst.make_patch $ UiTest.make_patch "1"
         ]
 
 test_events_around = do

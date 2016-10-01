@@ -6,6 +6,7 @@
 module Perform.Midi.Types where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
 import qualified Derive.Score as Score
@@ -46,14 +47,20 @@ data Patch = Patch {
     , patch_decay :: !(Maybe RealTime)
     } deriving (Eq, Ord, Show)
 
-patch :: Score.Instrument -> Patch.Patch -> Patch
-patch score_inst inst = Patch
+patch :: Score.Instrument -> Patch.Config -> Patch.Patch -> Patch
+patch score_inst config =
+    patch_from_settings score_inst (Patch.config_settings config)
+
+patch_from_settings :: Score.Instrument -> Patch.Settings -> Patch.Patch
+    -> Patch
+patch_from_settings score_inst settings patch = Patch
     { patch_name = score_inst
     , patch_keyswitch = mempty
-    , patch_hold_keyswitch = Patch.has_flag inst Patch.HoldKeyswitch
-    , patch_control_map = Patch.patch_control_map inst
-    , patch_pitch_bend_range = Patch.patch_pitch_bend_range inst
-    , patch_decay = Patch.patch_decay inst
+    , patch_hold_keyswitch =
+        Set.member Patch.HoldKeyswitch (Patch.config_flags settings)
+    , patch_control_map = Patch.patch_control_map patch
+    , patch_pitch_bend_range = Patch.config_pitch_bend_range settings
+    , patch_decay = Patch.config_decay settings
     }
 
 instance DeepSeq.NFData Patch where

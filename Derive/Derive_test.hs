@@ -21,7 +21,6 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Simple as Simple
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -95,10 +94,12 @@ test_round_pitch = do
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
-    let convert_lookup = DeriveTest.make_convert_lookup
-            (UiTest.allocations [("i1", "s/i1")])
-            (DeriveTest.make_db [("s", [patch])])
-        patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"
+    let convert_lookup = DeriveTest.make_convert_lookup allocs db
+        allocs = DeriveTest.allocs_from_db db
+            [("i1", ("s/i1", [("wdev", 0)]))]
+        db = UiTest.make_db [("s", [patch])]
+            where
+            patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"
         keyswitches = Patch.single_keyswitches $ map (first Attrs.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
@@ -113,8 +114,7 @@ test_attributes = do
             , ("*twelve", [(0, 0, "4c")])
             ]
         (_, mmsgs, logs) = DeriveTest.perform convert_lookup
-            (Simple.allocations [("i1", ("s/1", [("wdev", 0)]))])
-            (Derive.r_events res)
+            allocs (Derive.r_events res)
 
     -- Attribute inheritance thing works.
     equal (DeriveTest.extract DeriveTest.e_attributes res)

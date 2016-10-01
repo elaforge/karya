@@ -117,28 +117,27 @@ empty_config = Config
 -- lens, but there is still uncontrolled access through 'State.modify_config'.
 -- On the other hand, it might not really matter, and I do use unchecked
 -- modification when the backend doesn't change.
-allocate :: (InstTypes.Qualified -> Maybe (Inst.Inst a)) -> Score.Instrument
-    -> Allocation -> Allocations -> Either Text Allocations
-allocate lookup_inst instrument alloc (Allocations allocs) =
-    maybe (Right inserted) Left $ verify_allocation lookup_inst instrument alloc
+allocate :: Inst.Backend -- ^ This should correspond to the 'alloc_qualified'.
+    -> Score.Instrument -> Allocation -> Allocations
+    -> Either Text Allocations
+allocate backend instrument alloc (Allocations allocs) =
+    maybe (Right inserted) Left $ verify_allocation backend instrument alloc
     where inserted = Allocations $ Map.insert instrument alloc allocs
 
-verify_allocation :: (InstTypes.Qualified -> Maybe (Inst.Inst code))
-    -> Score.Instrument -> Allocation -> Maybe Text
-verify_allocation lookup_inst instrument alloc =
+verify_allocation :: Inst.Backend -> Score.Instrument -> Allocation
+    -> Maybe Text
+verify_allocation backend instrument alloc =
     fmap (prefix<>) $ case (alloc_backend alloc, backend) of
-        (_, Nothing) -> Just "can't allocate non-existent instrument"
-        (Midi {}, Just (Inst.Midi {})) -> Nothing
-        (Im, Just (Inst.Im {})) -> Nothing
+        (Midi {}, Inst.Midi {}) -> Nothing
+        (Im, Inst.Im {}) -> Nothing
         -- TODO Dummy should perhaps only match with a Dummy backend, but I'd
         -- need to move some fields from Patch.Config to a Common record so
         -- they can still have environ.
-        (Dummy, Just _) -> Nothing
-        (_, Just backend) -> Just $ "allocation type " <> allocation_type
+        (Dummy, _) -> Nothing
+        (_, backend) -> Just $ "allocation type " <> allocation_type
             <> " /= instrument type " <> backend_type backend
     where
     qualified = alloc_qualified alloc
-    backend = Inst.inst_backend <$> lookup_inst qualified
     prefix = pretty instrument <> " from " <> pretty qualified <> ": "
     allocation_type = case alloc_backend alloc of
         Midi {} -> "midi"
@@ -165,6 +164,16 @@ midi_allocations allocs = Allocations $ Map.fromList
     | (inst, (qual, config)) <- allocs
     ]
 
+modify_allocation :: Score.Instrument -> (Allocation -> Either Text Allocation)
+    -> Allocations -> Either Text Allocations
+modify_allocation inst modify (Allocations allocs) = do
+    alloc <- justErr ("no allocation for " <> pretty inst) $
+        Map.lookup inst allocs
+    alloc <- modify alloc
+    return $ Allocations (Map.insert inst alloc allocs)
+
+-- | This is the root of the dynamic (per-score) instrument config.  It's
+-- divided into common and backend-specific configuration.
 data Allocation = Allocation {
     alloc_qualified :: !InstTypes.Qualified
     , alloc_config :: !Common.Config
@@ -181,6 +190,12 @@ instance Pretty.Pretty Allocation where
         , ("backend", Pretty.format backend)
         ]
 
+-- | Backend-specific config.  This should match the 'Inst.Backend' of the
+-- instrument in question, ensured by 'verify_allocation'.
+--
+-- I can't think of a way to ensure this statically, since the instrument and
+-- config are saved in instrument db and score respectively, and only come
+-- together when a new score is loaded.
 data Backend =
     Midi !Patch.Config
     | Im
@@ -194,6 +209,10 @@ instance Pretty.Pretty Backend where
     format (Midi config) = Pretty.format config
     format Im = "Im"
     format Dummy = "Dummy"
+
+midi_config :: Backend -> Maybe Patch.Config
+midi_config (Midi config) = Just config
+midi_config _ = Nothing
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {

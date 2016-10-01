@@ -494,8 +494,9 @@ chan_state_msgs :: Midi.Key -> Patch.Addr -> RealTime
     -> Either Text [Midi.WriteMessage]
 chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
     | not same_inst = Left $ "program change not supported yet on "
-        <> showt addr <> ": " <> pretty
-            (T.patch_name <$> maybe_old_inst, T.patch_name new_inst)
+        <> pretty addr <> ": "
+            <> pretty (T.patch_name <$> maybe_old_inst)
+            <> " -> " <> pretty (T.patch_name new_inst)
     | not (same_keyswitches maybe_old_inst new_inst) = Right $
         keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start
     | otherwise = Right []

@@ -15,9 +15,9 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 import qualified Util.Git as Git
-import qualified Ui.State as State
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
+import qualified Derive.DeriveSaved as DeriveSaved
 import Global
 
 
@@ -25,24 +25,17 @@ main :: IO ()
 main = Git.initialize $ do
     args <- Environment.getArgs
     case args of
-        [from_fn, to_fn] -> update from_fn to_fn
+        [from_fn, to_fn] -> do
+            cmd_config <- DeriveSaved.load_cmd_config
+            update (Cmd.config_instrument_db cmd_config) from_fn to_fn
         _ -> fail_with "usage: update from_fn to_fn"
 
-update :: FilePath -> FilePath -> IO ()
-update from_fn to_fn = do
-    either_state <- if SaveGit.is_git from_fn
-        then load_git from_fn
-        else unserialize from_fn
-    case either_state of
+update :: Cmd.InstrumentDb -> FilePath -> FilePath -> IO ()
+update db from_fn to_fn = do
+    result <- Save.read_ db from_fn
+    case result of
         Left err -> fail_with $ "Reading " <> showt from_fn <> ": " <> err
         Right state -> Save.write_state to_fn state
-
-unserialize :: FilePath -> IO (Either Text State.State)
-unserialize = fmap (first pretty) . Save.read_state_
-
-load_git :: SaveGit.Repo -> IO (Either Text State.State)
-load_git repo = fmap extract <$> SaveGit.load repo Nothing
-    where extract (state, _, _) = state
 
 err_msg :: Text -> IO ()
 err_msg = Text.IO.hPutStrLn IO.stderr

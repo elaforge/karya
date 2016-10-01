@@ -41,7 +41,8 @@ patches =
         patch "kendang-bali"
     , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
         patch "kendang-bali-old"
-    , MidiInst.code #= pasang_code $ MidiInst.patch %= Patch.triggered $
+    , MidiInst.code #= pasang_code $
+        MidiInst.patch %= MidiInst.add_flag Patch.Triggered $
         patch "kendang-bali-pasang"
     ]
     where
@@ -151,7 +152,7 @@ allocations name dev_ = MidiInst.allocations
       )
     ]
     where
-    midi_channel = StateConfig.Midi . Patch.config1 dev
+    midi_channel = StateConfig.Midi . MidiInst.config1 dev
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

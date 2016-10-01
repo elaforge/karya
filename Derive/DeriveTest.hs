@@ -162,6 +162,15 @@ perform_synths :: StateConfig.Allocations -> [MidiInst.Synth]
 perform_synths allocations synths =
     perform (synth_to_convert_lookup allocations synths) allocations
 
+perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
+    -> Stream.Stream Score.Event
+    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+perform_synths_simple simple_allocs synths =
+    perform (make_convert_lookup allocs db) allocs
+    where
+    db = synth_to_db synths
+    allocs = simple_allocs_from_db db simple_allocs
+
 -- * derive
 
 derive_tracks :: String -> [UiTest.TrackSpec] -> Derive.Result
@@ -207,10 +216,13 @@ derive_block_setup_m setup create =
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
-derive_dump synths dump@(_, allocations, _) =
-    derive_block_setup (with_synths (Simple.allocations allocations) synths)
-        state
-    where state = UiTest.eval State.empty (Simple.load_state dump)
+derive_dump synths dump@(_, simple_allocs, _) =
+    derive_block_setup (with_synths allocs synths) state
+    where
+    db = synth_to_db synths
+    allocs = allocs_from_db db simple_allocs
+    state = UiTest.eval State.empty
+        (Simple.load_state (lookup_settings db) dump)
 
 -- | Derive a block in the same way that the app does.
 derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
@@ -226,11 +238,12 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_dump synths (_, allocations, _) =
+perform_dump synths (_, simple_allocs, _) =
     perform lookup allocs . Derive.r_events
     where
-    lookup = synth_to_convert_lookup allocs synths
-    allocs = Simple.allocations allocations
+    db = synth_to_db synths
+    lookup = make_convert_lookup allocs db
+    allocs = allocs_from_db db simple_allocs
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
@@ -374,11 +387,59 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 with_synths :: StateConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synth_to_db synths)
 
+-- | Merge the incomplete Allocations with the Patch defaults.  Crash if it
+-- doesn't like you.  TODO unused... maybe I don't really need this?
+merge_allocs :: CallStack.Stack => [MidiInst.Synth] -> StateConfig.Allocations
+    -> StateConfig.Allocations
+merge_allocs synths (StateConfig.Allocations allocs) =
+    StateConfig.Allocations (merge <$> allocs)
+    where
+    merge alloc =
+        case Inst.lookup (StateConfig.alloc_qualified alloc) db of
+            Just inst ->
+                Testing.expect_right $ MidiInst.merge_defaults inst alloc
+            Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
+    db = synth_to_db synths
+
+with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
+with_synths_simple allocs synths =
+    with_instrument_db (simple_allocs_from_db db allocs) db
+    where db = synth_to_db synths
+
 with_instrument_db :: StateConfig.Allocations -> Cmd.InstrumentDb -> Setup
 with_instrument_db allocs db = with_allocations allocs <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.config_instrument_db = db }
+
+-- | Use the db to infer 'Patch.Settings' for the allocations.  The simple
+-- version doesn't record the Patch.config_settings, so I get the defaults.
+allocs_from_db :: Cmd.InstrumentDb -> Simple.Allocations
+    -> StateConfig.Allocations
+allocs_from_db db allocs = Testing.expect_right $
+        Simple.allocations (lookup_settings db) allocs
+
+-- | A further-simplified version of 'Simple.Allocations' for tests:
+-- [(Instrument, Qualified)]
+type SimpleAllocations = [(Text, Text)]
+
+simple_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
+    -> StateConfig.Allocations
+simple_allocs_from_db db allocs =
+    allocs_from_db db
+        [ (inst, (qual, [(UiTest.wdev_name, chan)]))
+        | (chan, (inst, qual)) <- zip [0..] allocs
+        ]
+
+-- | This uses patch_defaults for settings, since I don't have a config.
+lookup_settings :: Cmd.InstrumentDb -> InstTypes.Qualified
+    -> Maybe Patch.Settings
+lookup_settings db = fmap Patch.patch_defaults . (Inst.inst_midi =<<)
+    . lookup_qualified db
+
+lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
+    -> Maybe Cmd.Inst
+lookup_qualified = flip Inst.lookup
 
 with_allocations :: StateConfig.Allocations -> Setup
 with_allocations allocations = with_ui $
@@ -390,7 +451,7 @@ set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
 -- ** defaults
 
 default_cmd_state :: Cmd.State
-default_cmd_state = Cmd.initial_state (cmd_config default_db)
+default_cmd_state = Cmd.initial_state (cmd_config UiTest.default_db)
 
 -- | Config to initialize the Cmd.State.
 cmd_config :: Cmd.InstrumentDb -> Cmd.Config
@@ -438,15 +499,14 @@ default_environ = Env.from_list
 
 -- *** instrument defaults
 
-default_db :: Cmd.InstrumentDb
-default_db = make_db [("s", map make_patch ["1", "2", "3"])]
-
-make_patch :: InstTypes.Name -> Patch.Patch
-make_patch name = Patch.patch (-2, 2) name
-
 default_convert_lookup :: Lookup
 default_convert_lookup =
-    make_convert_lookup UiTest.default_allocations default_db
+    make_convert_lookup UiTest.default_allocations UiTest.default_db
+
+synth_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
+    -> Maybe Cmd.Inst
+synth_lookup_qualified synth = \qualified -> Inst.lookup qualified db
+    where db = synth_to_db synth
 
 synth_to_convert_lookup :: StateConfig.Allocations -> [MidiInst.Synth] -> Lookup
 synth_to_convert_lookup allocs = make_convert_lookup allocs . synth_to_db
@@ -455,16 +515,7 @@ synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
 synth_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
-make_db :: [(Text, [Patch.Patch])] -> Cmd.InstrumentDb
-make_db synth_patches = fst $ Inst.db $ map make synth_patches
-    where
-    make (name, patches) = make_synth name (map MidiInst.make_patch patches)
-
-make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
-make_synth name patches = MidiInst.synth name "Test Synth" patches
-
-type Lookup =
-    (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified), Convert.Lookup)
+type Lookup = (Score.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.Lookup)
 
 -- | Make a Lookp for a single patch.
 make_convert_lookup_for :: Score.Instrument -> Patch.Config -> Patch.Patch
@@ -474,7 +525,7 @@ make_convert_lookup_for inst patch_config patch =
     where
     allocs = StateConfig.midi_allocations
         [(inst, (InstTypes.Qualified "s" "1", patch_config))]
-    inst_db = make_db [("s", [patch { Patch.patch_name = "1" }])]
+    inst_db = UiTest.make_db [("s", [patch { Patch.patch_name = "1" }])]
 
 make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
@@ -795,3 +846,9 @@ make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
 make_damage block tracknum s e = Derive.ScoreDamage
     (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
     (Set.singleton (UiTest.bid block)) mempty
+
+-- | A generic empty config for testing.  It's only suitable for tests because
+-- normally a Config will have its 'Patch.config_settincgs' initialized from
+-- the Patch.
+empty_midi_config :: Patch.Config
+empty_midi_config = Patch.config mempty [((UiTest.wdev, 0), Nothing)]

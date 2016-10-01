@@ -449,7 +449,7 @@ mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
 
 type NoteNumber = Double
 
--- | Create a realtime tuning msg.
+-- | Create a realtime tuning msg.  Few synthesizers support this.
 --
 -- Based on <http://www.midi.org/techspecs/midituning.php>
 realtime_tuning :: [(Key, NoteNumber)] -> Message

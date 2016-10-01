@@ -26,7 +26,8 @@ make_db dir = do
     patches <- map MidiInst.patch_from_pair <$>
         Parse.patch_file (dir </> untxt synth_name)
     patches <- return $
-        map (MidiInst.patch#Patch.pitch_bend_range #= (-12, 12)) patches
+        map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range #= (-12, 12))
+            patches
     MidiInst.save_synth dir synth_name patches
 
 synth_controls :: [(Midi.Control, Score.Control)]

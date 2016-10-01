@@ -11,7 +11,8 @@ import qualified Cmd.Repl.LNote as LNote
 
 test_sort_on_pitch = do
     let run high_left tracks =
-            CmdTest.e_pitch_tracks <$> CmdTest.run_perf_tracks tracks cmd
+            CmdTest.e_pitch_tracks <$>
+                CmdTest.run_tracks_with_performance tracks cmd
             where cmd = CmdTest.select_all >> LNote.sort_on_pitch high_left
     let mktracks = concatMap UiTest.note_track
     let c_to_e = mktracks

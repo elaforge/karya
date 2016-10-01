@@ -34,7 +34,7 @@ patches :: [MidiInst.Patch]
 patches = (:[]) $
     MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
     MidiInst.make_patch $
-    Patch.add_flag Patch.HoldKeyswitch $
+    MidiInst.add_flag Patch.HoldKeyswitch $
     Patch.attribute_map #= Patch.single_keyswitches keyswitches $
     Patch.patch (-3, 3) Patch.default_name
 
@@ -96,6 +96,6 @@ allocations dev_name name = StateConfig.midi_allocations $
     where
     inst name chan =
         ( Score.instrument name
-        , (InstTypes.Qualified synth_name name, Patch.config [(dev, chan)])
+        , (InstTypes.Qualified synth_name name, MidiInst.config1 dev chan)
         )
     dev = Midi.write_device dev_name
