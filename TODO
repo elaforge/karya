@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - rename DeriveTest.synth* to synths
+  * rename DeriveTest.synth* to synths
   * Would it make sense to also put Perform.Midi.Patch.Flags in Config?
     - LInst.list should print settings when they differ from the defaults
     - Test that Common.config_environ is merged with Common.common_environ.

@@ -346,7 +346,7 @@ set_synths_simple synths simple_allocs ui_state cmd_state =
         }
     )
     where
-    db = DeriveTest.synth_to_db synths
+    db = DeriveTest.synths_to_db synths
     allocs = DeriveTest.simple_allocs_from_db db simple_allocs
 
 -- * msg

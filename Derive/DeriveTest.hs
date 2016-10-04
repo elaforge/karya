@@ -160,7 +160,7 @@ perform_synths :: StateConfig.Allocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_synths allocations synths =
-    perform (synth_to_convert_lookup allocations synths) allocations
+    perform (synths_to_convert_lookup allocations synths) allocations
 
 perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
@@ -168,7 +168,7 @@ perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
 perform_synths_simple simple_allocs synths =
     perform (make_convert_lookup allocs db) allocs
     where
-    db = synth_to_db synths
+    db = synths_to_db synths
     allocs = simple_allocs_from_db db simple_allocs
 
 -- * derive
@@ -219,7 +219,7 @@ derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, simple_allocs, _) =
     derive_block_setup (with_synths allocs synths) state
     where
-    db = synth_to_db synths
+    db = synths_to_db synths
     allocs = allocs_from_db db simple_allocs
     state = UiTest.eval State.empty
         (Simple.load_state (lookup_settings db) dump)
@@ -241,7 +241,7 @@ perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
 perform_dump synths (_, simple_allocs, _) =
     perform lookup allocs . Derive.r_events
     where
-    db = synth_to_db synths
+    db = synths_to_db synths
     lookup = make_convert_lookup allocs db
     allocs = allocs_from_db db simple_allocs
 
@@ -385,7 +385,7 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
 with_synths :: StateConfig.Allocations -> [MidiInst.Synth] -> Setup
-with_synths allocs synths = with_instrument_db allocs (synth_to_db synths)
+with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
 
 -- | Merge the incomplete Allocations with the Patch defaults.  Crash if it
 -- doesn't like you.  TODO unused... maybe I don't really need this?
@@ -399,12 +399,12 @@ merge_allocs synths (StateConfig.Allocations allocs) =
             Just inst ->
                 Testing.expect_right $ MidiInst.merge_defaults inst alloc
             Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
-    db = synth_to_db synths
+    db = synths_to_db synths
 
 with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
 with_synths_simple allocs synths =
     with_instrument_db (simple_allocs_from_db db allocs) db
-    where db = synth_to_db synths
+    where db = synths_to_db synths
 
 with_instrument_db :: StateConfig.Allocations -> Cmd.InstrumentDb -> Setup
 with_instrument_db allocs db = with_allocations allocs <> with_db
@@ -503,16 +503,17 @@ default_convert_lookup :: Lookup
 default_convert_lookup =
     make_convert_lookup UiTest.default_allocations UiTest.default_db
 
-synth_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
+synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
     -> Maybe Cmd.Inst
-synth_lookup_qualified synth = \qualified -> Inst.lookup qualified db
-    where db = synth_to_db synth
+synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
+    where db = synths_to_db synth
 
-synth_to_convert_lookup :: StateConfig.Allocations -> [MidiInst.Synth] -> Lookup
-synth_to_convert_lookup allocs = make_convert_lookup allocs . synth_to_db
+synths_to_convert_lookup :: StateConfig.Allocations -> [MidiInst.Synth]
+    -> Lookup
+synths_to_convert_lookup allocs = make_convert_lookup allocs . synths_to_db
 
-synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
-synth_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
+synths_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
+synths_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
 type Lookup = (Score.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.Lookup)
