@@ -54,29 +54,53 @@ c1s = korvais (adi 4) mridangam
 
 c2_yt1 :: Korvai
 c2_yt1 = korvai (adi 4) mridangam $
-    -- tat.__.dit.__.ta.ka.din.na.nam.__.dit.__.din.__4
-    --       .dit.__.ta.ka.din.na.nam.__.dit.__.din.__4
-    --              .ta.ka.din.na.nam.__.dit.__.din.__4
-    --                    .din.na.nam.__.dit.__.din.__4
-    --                           .nam.__.dit.__.din.__4
-    --                                  .dit.__.din.__4 -- ta ka din
-    --                                         .din.__4
-    -- TODO ... `replace` (dit.__.din.__4) (ta.ka.din.__4)
-    reduceTo 2 4 (tat.__.dit.__.ta.ka.din.na.nam.__.dit.__.din.__4)
+    -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
+    --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
+    --              .ta.ka.din.na.thom.__.tat.__.din.__4
+    --                    .din.na.thom.__.tat.__.din.__4
+    --                           .thom.__.tat.__.din.__4
+    --                                   .tat.__.din.__4 -- ta ka din
+    --                                          .din.__4
+    -- TODO ... `replace` (tat.__.din.__4) (ta.ka.din.__4)
+    reduceTo 2 4 (tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4)
     . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
     where
     mridangam = make_mridangam
-        [ (nam.dit.din, [o&n, k, od])
-        , (tat.dit, [k, t])
-        , (dit, [k])
-        , (din, [od])
-        , (din.na, [p, k])
+        [ (tat.dit, [k, t])
         , (ta.ka.din.na, [k, o, o, k])
+        , (din.na, [o, k])
+        , (thom.tat.din, [o&n, k, od])
+        , (dit, [k])
+        , (tat, [k])
+        , (din, [od])
         ]
+
+c_16_09_28 :: Korvai
+c_16_09_28 = korvai (adi 4) mridangam $
+    tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
+          .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
+                 .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
+    . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
+    where
+    kitakina = ki.ta.ki.na.ta.ki.ta.ka
+    nakatiku = na.ka.ti.ku.ta.ri.ki.ta
+    mridangam = make_mridangam
+        [ (tat.dit, [k&p, t])
+        , (dit, [k])
+        , (kitakina, [k, t, k, n, o, k, t&o, k])
+        , (nakatiku, [n, p, u, p, k, t, p, k])
+        , (na.ka, [n, p])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ta.ka.dheem, [p, k, o&d])
+        , (ta.ka, [k, p])
+        , (ta.ka.na.ka, [k, p, n, p])
+        , (dheem, [o&d])
+        ]
+
 
 chatusrams :: [Korvai]
 chatusrams = concat
-    [ c1s, [c2_yt1]
+    [ c1s, [c2_yt1, c_16_09_28]
     ]
 
 -- * kanda nadai
