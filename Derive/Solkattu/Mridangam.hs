@@ -23,6 +23,21 @@ data Thoppi = Tha | Thom
 data Valantalai = Ki | Ta | Nam | Din | Chapu | Dheem
     deriving (Eq, Show)
 
+instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
+    -> Either Text (Realize.Instrument Stroke)
+instrument = Realize.instrument standard_stroke_map
+
+standard_stroke_map :: Realize.StrokeMap Stroke
+standard_stroke_map = Realize.StrokeMap $ Map.fromList
+    [ ([S.Thom], [Just $ Thoppi Thom])
+    , ([S.Tam], [Just $ Valantalai Chapu])
+    , ([S.Tang], [Just $ Valantalai Chapu])
+    , ([S.Lang], [Just $ Valantalai Chapu])
+    , ([S.Dheem], [Just $ Valantalai Dheem])
+    ]
+
+-- * strokes
+
 instance Pretty.Pretty Stroke where
     pretty (Thoppi t) = pretty t
     pretty (Valantalai v) = pretty v
@@ -63,21 +78,6 @@ stroke_to_call s = case s of
     thoppi t = case t of
         Thom -> "o"
         Tha -> "+"
-
-instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
-    -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument standard_stroke_map
-
-standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.StrokeMap $ Map.fromList
-    [ ([S.Thom], [Just $ Thoppi Thom])
-    , ([S.Tam], [Just $ Valantalai Chapu])
-    , ([S.Tang], [Just $ Valantalai Chapu])
-    , ([S.Lang], [Just $ Valantalai Chapu])
-    , ([S.Dheem], [Just $ Valantalai Dheem])
-    ]
-
--- * strokes
 
 k, t, n, d, u, i, o, p :: Note
 k = Realize.Note (Valantalai Ki)

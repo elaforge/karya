@@ -7,7 +7,7 @@
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
     -- * solkattu
-    Sequence, Korvai, Instrument
+    Sequence, Korvai
     -- ** sollus
     , (.)
     , __, __2, __3, __4, __5, __6, __n
@@ -53,7 +53,6 @@ import Global
 
 -- TODO: later M.Stroke can become a union of different stroke types
 type Sequence = S.Sequence M.Stroke
-type Instrument = Realize.Instrument M.Stroke
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a

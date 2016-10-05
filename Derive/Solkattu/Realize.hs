@@ -10,7 +10,6 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 
 import qualified Util.Map
@@ -35,7 +34,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
 -- should be an integral multiple of the length of the list.  This is enforced
 -- in the constructor 'patterns'.
 newtype Patterns stroke = Patterns (Map.Map S.Matras (S.Speed, [Maybe stroke]))
-    deriving (Show, Pretty.Pretty, Monoid.Monoid)
+    deriving (Show, Pretty.Pretty, Monoid)
 
 patterns :: Pretty.Pretty stroke =>
     [(S.Matras, [Note stroke])] -> Either Text (Patterns stroke)
@@ -77,7 +76,7 @@ realize_pattern (speed, strokes) = case speed of
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
 newtype StrokeMap stroke = StrokeMap (Map.Map [S.Sollu] [Maybe stroke])
-    deriving (Show, Pretty.Pretty, Monoid.Monoid)
+    deriving (Show, Pretty.Pretty, Monoid)
 
 stroke_map :: Pretty.Pretty stroke => [(S.Sequence stroke, [Note stroke])]
     -> Either Text (StrokeMap stroke)
@@ -109,7 +108,7 @@ data Instrument stroke = Instrument {
     , inst_patterns :: Patterns stroke
     } deriving (Show)
 
-instance Monoid.Monoid (Instrument stroke) where
+instance Monoid (Instrument stroke) where
     mempty = Instrument mempty mempty
     mappend (Instrument a1 b1) (Instrument a2 b2) = Instrument (a1<>a2) (b1<>b2)
 

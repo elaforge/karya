@@ -10,6 +10,7 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
+import qualified Derive.Solkattu.KendangBaliTunggal as KendangBaliTunggal
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
@@ -154,7 +155,7 @@ k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
-k1_mridangam :: Instrument
+k1_mridangam :: Korvai.Realizations
 k1_mridangam = make_mridangam
     [ (ta, [k])
     , (ta.ka, [k, p])
@@ -363,14 +364,24 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 -- * realize
 
 make_mridangam :: CallStack.Stack => [(Sequence, [Mridangam.Note])]
-    -> Instrument
-make_mridangam strokes = check $ Mridangam.instrument strokes Mridangam.defaults
+    -> Korvai.Realizations
+make_mridangam strokes = mempty
+    { Korvai.mridangam = check $ Mridangam.instrument strokes Mridangam.defaults
+    }
 
-korvais :: CallStack.Stack => Solkattu.Tala -> Instrument -> [Sequence]
+make_kendang1 :: CallStack.Stack =>
+    [(Solkattu.Sequence KendangBaliTunggal.Stroke, [KendangBaliTunggal.Note])]
+    -> Korvai.Realizations
+make_kendang1 strokes = mempty
+    { Korvai.kendang_bali_tunggal = check $
+        KendangBaliTunggal.instrument strokes KendangBaliTunggal.defaults
+    }
+
+korvais :: CallStack.Stack => Solkattu.Tala -> Korvai.Realizations -> [Sequence]
     -> [Korvai]
-korvais tala mridangam = map (korvai tala mridangam)
+korvais tala realizations = map (korvai tala realizations)
 
-korvai :: Solkattu.Tala -> Instrument -> Sequence -> Korvai.Korvai
+korvai :: Solkattu.Tala -> Korvai.Realizations -> Sequence -> Korvai.Korvai
 korvai = Korvai.korvai
 
 adi :: Matras -> Solkattu.Tala
