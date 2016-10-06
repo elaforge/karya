@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RecordWildCards #-}
 module Derive.Solkattu.Realize_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -59,10 +60,11 @@ test_realize_pattern = do
 
 test_patterns = do
     let f = Realize.patterns
-    left_like (f [(2, [M.k])]) "not a log2"
-    left_like (f [(2, [M.k, M.__, M.k])]) "not a log2"
-    left_like (f [(2, [M.k, Realize.Pattern 5])]) "expected Note or Rest"
-    equal (second (const True) $ f [(2, [M.k, M.t])]) (Right True)
+    let M.Strokes {..} = M.strokes
+    left_like (f [(2, [k])]) "not a log2"
+    left_like (f [(2, [k, M.__, k])]) "not a log2"
+    left_like (f [(2, [k, Realize.Pattern 5])]) "expected Note or Rest"
+    equal (second (const True) $ f [(2, [k, t])]) (Right True)
 
 show_strokes :: [Realize.Note M.Stroke] -> Text
 show_strokes = Text.unwords . map pretty
@@ -70,19 +72,20 @@ show_strokes = Text.unwords . map pretty
 test_stroke_map = do
     let f = fmap (\(Realize.StrokeMap smap) -> Map.toList smap)
             . Realize.stroke_map
-        (k, t) = (Dsl.k, Dsl.t)
+        M.Strokes {..} = M.strokes
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])])
         (Right [([Ta, Di],
             [Just $ M.Valantalai M.Ki, Just $ M.Valantalai M.Ta])])
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(Dsl.tang <> Dsl.ga, [Dsl.u, __, __])]) "differing lengths"
+    left_like (f [(Dsl.tang <> Dsl.ga, [u, __, __])]) "differing lengths"
     left_like (f [(ta <> [Pattern 5], [k])]) "only have plain sollus"
 
 test_format = do
     let f = strip_emphasis . Realize.format (Solkattu.adi_tala 4)
-        n4 = [Dsl.k, Dsl.t, Dsl.__, Dsl.n]
+        n4 = [k, t, Dsl.__, n]
+        M.Strokes {..} = M.strokes
     -- Emphasize every 4.
     equal (f n4) "!k! t _ n"
     equal (f (n4 <> n4)) "!k! t _ n !k! t _ n"

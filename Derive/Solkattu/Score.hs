@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RecordWildCards #-}
 -- | Korvais expressed in "Derive.Solkattu.Dsl".
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
@@ -10,7 +11,8 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
-import qualified Derive.Solkattu.KendangBaliTunggal as KendangBaliTunggal
+import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
@@ -19,10 +21,12 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
+Mridangam.Strokes {..} = Mridangam.strokes
+
 -- * chatusra nadai
 
 c1s :: [Korvai]
-c1s = korvais (adi 4) mridangam
+c1s = korvais (adi 4) (mridangam <> kendang)
     [            theme 2 0 . p5
       . dropM 2 (theme 2 1) . p6 . p6
       . dropM 4 (theme 2 2) . tri p7 . tri p6 . tri p5
@@ -32,7 +36,7 @@ c1s = korvais (adi 4) mridangam
       . dropM 3 (theme 3 1) . p6 . p6 . tadin_
       . dropM 6 (theme 3 2) . trin tadin_ (tri p7) (tri p6) (tri p5)
 
-    ,            theme 4 0 . pat7 . dheem!u . __4
+    ,            theme 4 0 . pat7 . dheem ! (u <+> K.u) . __4
       . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem!u . __4
       . dropM 8 (theme 4 2)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
@@ -49,6 +53,14 @@ c1s = korvais (adi 4) mridangam
         -- for pat7 -- pat9
         , (ta.ka, [k, p])
         ]
+    kendang = make_kendang1
+        [ (ta.dit, [p, p])
+        , (dit, [p])
+        , (ta.ka.din.na.din, [k, a, a, k, a])
+        , (ta.din, [o, a])
+        -- for pat7 -- pat9
+        , (ta.ka, [p, k])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.strokes
     pat7 = ta.ka.p5
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
@@ -198,7 +210,7 @@ k3s = korvais (adi 5) mridangam
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam = make_mridangam
-        [ (dit, [pk])
+        [ (dit, [p&k])
         , (ta.ki.ta, [p, k, od])
         , (ta.ka, [p, k])
         , (dit.tat, [p, k])
@@ -363,18 +375,19 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
 -- * realize
 
-make_mridangam :: CallStack.Stack => [(Sequence, [Mridangam.Note])]
+make_mridangam :: CallStack.Stack =>
+    [(Solkattu.Sequence Mridangam.Stroke, [Mridangam.Note])]
     -> Korvai.Realizations
 make_mridangam strokes = mempty
     { Korvai.mridangam = check $ Mridangam.instrument strokes Mridangam.defaults
     }
 
 make_kendang1 :: CallStack.Stack =>
-    [(Solkattu.Sequence KendangBaliTunggal.Stroke, [KendangBaliTunggal.Note])]
+    [(Solkattu.Sequence KendangTunggal.Stroke, [KendangTunggal.Note])]
     -> Korvai.Realizations
 make_kendang1 strokes = mempty
     { Korvai.kendang_bali_tunggal = check $
-        KendangBaliTunggal.instrument strokes KendangBaliTunggal.defaults
+        KendangTunggal.instrument strokes KendangTunggal.defaults
     }
 
 korvais :: CallStack.Stack => Solkattu.Tala -> Korvai.Realizations -> [Sequence]

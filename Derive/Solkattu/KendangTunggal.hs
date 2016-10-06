@@ -2,8 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RecordWildCards #-}
 -- | Realize an abstract solkattu 'S.Sequence' to concrete kendang 'Note's.
-module Derive.Solkattu.KendangBaliTunggal where
+module Derive.Solkattu.KendangTunggal where
 import qualified Data.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
@@ -57,15 +58,21 @@ stroke_to_call s = case s of
     Tut -> "o"
     Dag -> "+"
 
-pk, p, t, u, å, k, o, a :: Note
-pk = Realize.Note Plak
-p = Realize.Note Pak
-t = Realize.Note Pang
-u = Realize.Note TutL
-å = Realize.Note DagL
-k = Realize.Note Ka
-o = Realize.Note Tut
-a = Realize.Note Dag
+data Strokes a = Strokes {
+    pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
+    } deriving (Show)
+
+strokes :: Strokes Note
+strokes = Strokes
+    { pk = Realize.Note Plak
+    , p = Realize.Note Pak
+    , t = Realize.Note Pang
+    , u = Realize.Note TutL
+    , å = Realize.Note DagL
+    , k = Realize.Note Ka
+    , o = Realize.Note Tut
+    , a = Realize.Note Dag
+    }
 
 
 -- * Patterns
@@ -83,6 +90,8 @@ defaults = S.check $ Realize.patterns
     , (8, [o, p, __, k, __, t, __, a])
     , (9, [o, __, p, __, k, __, t, __, a])
     ]
+    where Strokes {..} = strokes
 
 nakatiku :: [Note]
 nakatiku = [t, o, u, k, p, k, a, k]
+    where Strokes {..} = strokes

@@ -8,7 +8,7 @@ module Derive.Solkattu.Korvai where
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
-import qualified Derive.Solkattu.KendangBaliTunggal as KendangBaliTunggal
+import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as Solkattu
@@ -16,7 +16,7 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
-type Sequence = Solkattu.Sequence Mridangam.Stroke
+type Sequence = Solkattu.Sequence Stroke
 
 data Korvai = Korvai {
     korvai_sequence :: Sequence
@@ -31,8 +31,7 @@ instance Pretty.Pretty Korvai where
         , ("tala", Pretty.format tala)
         ]
 
-korvai :: Solkattu.Tala -> Realizations
-    -> Solkattu.Sequence Mridangam.Stroke -> Korvai
+korvai :: Solkattu.Tala -> Realizations -> Sequence -> Korvai
 korvai tala realizations sequence = Korvai
     { korvai_sequence = sequence
     , korvai_realizations = realizations
@@ -41,7 +40,7 @@ korvai tala realizations sequence = Korvai
 
 data Realizations = Realizations {
     mridangam :: Realize.Instrument Mridangam.Stroke
-    , kendang_bali_tunggal :: Realize.Instrument KendangBaliTunggal.Stroke
+    , kendang_bali_tunggal :: Realize.Instrument KendangTunggal.Stroke
     } deriving (Show)
 
 instance Monoid Realizations where
@@ -61,10 +60,37 @@ realize :: Bool -> Korvai -> Either Text [Realize.Note Mridangam.Stroke]
 realize realize_patterns korvai = first Text.unlines $ do
     rnotes <- Solkattu.verify_alignment (korvai_tala korvai)
         (korvai_sequence korvai)
-    -- TODO
-    Realize.realize realize_patterns (mridangam (korvai_realizations korvai))
-        rnotes
+    -- TODO extend for non-mridangam realization
+    Realize.realize realize_patterns
+        (mridangam (korvai_realizations korvai))
+        (map (Solkattu.map_stroke (s_mridangam =<<)) rnotes)
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =
     [korvai { korvai_sequence = new } | new <- modify (korvai_sequence korvai)]
+
+data Stroke = Stroke {
+    s_mridangam :: !(Maybe Mridangam.Stroke)
+    , s_kendang_tunggal :: !(Maybe KendangTunggal.Stroke)
+    } deriving (Show)
+
+instance Monoid Stroke where
+    mempty = Stroke Nothing Nothing
+    mappend (Stroke a1 a2) (Stroke b1 b2) = Stroke (a1<|>b1) (a2<|>b2)
+
+instance Pretty.Pretty Stroke where
+    pretty (Stroke m k) = pretty (m, k)
+
+class ToStroke stroke where
+    to_stroke :: stroke -> Stroke
+instance ToStroke Stroke where
+    to_stroke = id
+instance ToStroke Mridangam.Stroke where
+    to_stroke s = mempty { s_mridangam = Just s }
+instance ToStroke KendangTunggal.Stroke where
+    to_stroke s = mempty { s_kendang_tunggal = Just s }
+
+instance (Pretty.Pretty stroke, ToStroke stroke) =>
+        ToStroke (Realize.Note stroke) where
+    to_stroke (Realize.Note s) = to_stroke s
+    to_stroke n = errorStack $ "requires a note: " <> pretty n

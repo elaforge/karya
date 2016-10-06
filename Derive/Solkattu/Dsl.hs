@@ -20,7 +20,7 @@ module Derive.Solkattu.Dsl (
     -- ** directives
     , nadai
     , speed, s2
-    , (!)
+    , (!), (<+>)
     , at0, atX, (^)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
@@ -30,7 +30,7 @@ module Derive.Solkattu.Dsl (
     -- * transform
     , module Derive.Solkattu.Solkattu
     -- * mridangam
-    , module Derive.Solkattu.Mridangam
+    , (&)
     -- * misc
     , pprint
 ) where
@@ -38,10 +38,11 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
+import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
+import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai)
-import qualified Derive.Solkattu.Mridangam as M
-import Derive.Solkattu.Mridangam (k, t, n, d, u, i, o, p, od, pk, (&))
+import Derive.Solkattu.Mridangam ((&))
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu
@@ -51,8 +52,7 @@ import Derive.Solkattu.Solkattu
 import Global
 
 
--- TODO: later M.Stroke can become a union of different stroke types
-type Sequence = S.Sequence M.Stroke
+type Sequence = S.Sequence Korvai.Stroke
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -125,18 +125,6 @@ speed s = [S.TimeChange (S.Speed s)]
 s2 :: S.Sequence stroke -> S.Sequence stroke
 s2 seq = speed S.S2 <> seq <> speed S.S1
 
--- | Add a specific stroke annotation to a sollu.
-stroke :: M.Note -> Sequence -> Sequence
-stroke _ [] = errorStack $ "stroke: empty sequence"
-stroke (Realize.Note stroke) (n:ns) = case n of
-    S.Sollu s _ -> S.Sollu s (Just stroke) : ns
-    _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
-stroke s _ = errorStack $ "st: require a sollu: " <> pretty s
-
--- | Add a specific stroke annotation to a sollu.
-(!) :: Sequence -> M.Note -> Sequence
-(!) = flip stroke
-
 -- | Align at sam or the arudi.
 at0, atX :: S.Sequence stroke
 at0 = sq $ S.Alignment (S.Akshara 0)
@@ -149,6 +137,30 @@ infix 9 ^
 
 pat :: Matras -> S.Sequence stroke
 pat d = sq $ S.Pattern d
+
+-- ** strokes
+
+-- | Add a specific stroke annotation to a sollu.
+stroke :: (Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
+    stroke -> Sequence -> Sequence
+stroke _ [] = errorStack $ "stroke: empty sequence"
+stroke stroke (n:ns) = case n of
+    S.Sollu s _ -> S.Sollu s (Just (Korvai.to_stroke stroke)) : ns
+    _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
+
+-- | Add a specific stroke annotation to a sollu.
+--
+-- If e.g. mridangam strokes are \"imported\" via @Strokes {..} = ...@, then
+-- just @sollu ! d@ works.  For non-imported, it would have to be
+-- @sollu ! d <+> K.p@.
+(!) :: (Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
+    Sequence -> stroke -> Sequence
+(!) = flip stroke
+
+(<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
+a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
+
+-- ** structures
 
 -- | Repeat thrice, with no karvai.
 tri :: S.Sequence stroke -> S.Sequence stroke

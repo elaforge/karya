@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams #-}
 -- | Notation for Carnatic solkattu.
 --
 -- This is actually a separate library that's independent of Derive.  The only
@@ -35,6 +34,14 @@ data Note stroke =
     | Alignment Alignment
     | TimeChange TimeChange
     deriving (Eq, Show)
+
+map_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
+map_stroke f n = case n of
+    Sollu sollu stroke -> Sollu sollu (f stroke)
+    Rest -> Rest
+    Pattern a -> Pattern a
+    Alignment a -> Alignment a
+    TimeChange a -> TimeChange a
 
 data Alignment = Akshara Aksharas | Arudi
     deriving (Eq, Show)

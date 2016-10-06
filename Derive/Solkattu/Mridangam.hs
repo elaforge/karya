@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RecordWildCards #-}
 -- | Realize an abstract solkattu 'S.Sequence' to concrete mridangam 'Note's.
 module Derive.Solkattu.Mridangam where
 import qualified Data.Map as Map
@@ -79,25 +80,28 @@ stroke_to_call s = case s of
         Thom -> "o"
         Tha -> "+"
 
-k, t, n, d, u, i, o, p :: Note
-k = Realize.Note (Valantalai Ki)
-t = Realize.Note (Valantalai Ta)
-n = Realize.Note (Valantalai Nam)
-d = Realize.Note (Valantalai Din)
-u = Realize.Note (Valantalai Chapu)
-i = Realize.Note (Valantalai Dheem)
-o = Realize.Note (Thoppi Thom)
-p = Realize.Note (Thoppi Tha)
+data Strokes a = Strokes {
+    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a, o :: a, p :: a
+    -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
+    -- that's because score uses + for tha, and +o is an attr, while o+ is
+    -- a bareword.  But perhaps I should change + to p in the score, and then
+    -- the left hand can go on the left side?
+    , od :: a
+    -- Less common combinations can use (&).
+    }
 
--- | @do@ would match score notation, but @do@ is a keyword.
--- Ultimately that's because score uses + for tha, and +o is an attr, while o+
--- is a bareword.  But perhaps I should change + to p in the score, and then
--- the left hand can go on the left side?
-od :: Note
-od = Realize.Note (Both Thom Din)
-
-pk :: Note
-pk = Realize.Note (Both Tha Ki)
+strokes :: Strokes Note
+strokes = Strokes
+    { k = Realize.Note $ Valantalai Ki
+    , t = Realize.Note $ Valantalai Ta
+    , n = Realize.Note $ Valantalai Nam
+    , d = Realize.Note $ Valantalai Din
+    , u = Realize.Note $ Valantalai Chapu
+    , i = Realize.Note $ Valantalai Dheem
+    , o = Realize.Note $ Thoppi Thom
+    , p = Realize.Note $ Thoppi Tha
+    , od = Realize.Note $ Both Thom Din
+    }
 
 both :: Thoppi -> Valantalai -> Note
 both a b = Realize.Note  (Both a b)
@@ -125,6 +129,7 @@ defaults = S.check $ Realize.patterns
     , (8, [k, t, __, k, __, n, __, o])
     , (9, [k, __, t, __, k, __, n, __, o])
     ]
+    where Strokes {..} = strokes
 
 kt_kn_o :: Patterns
 kt_kn_o = S.check $ Realize.patterns
@@ -132,6 +137,7 @@ kt_kn_o = S.check $ Realize.patterns
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
     ]
+    where Strokes {..} = strokes
 
 families567 :: [Patterns]
 families567 = map (S.check . Realize.patterns . zip [5..])
@@ -173,5 +179,6 @@ families567 = map (S.check . Realize.patterns . zip [5..])
       ]
     ]
     where
+    Strokes {..} = strokes
     kp = [k, p]
     kpnp = [k, p, n, p]
