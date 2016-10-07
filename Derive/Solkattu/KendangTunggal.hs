@@ -22,7 +22,7 @@ data Stroke =
 
 instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument mempty
+instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
 standard_stroke_map = Realize.StrokeMap $ Map.fromList
@@ -52,9 +52,9 @@ stroke_to_call s = case s of
     Plak -> "PL"
     Pak -> "P"
     Pang -> "T"
-    TutL -> "ø"
+    TutL -> "Ø"
     DagL -> "`O+`"
-    Ka -> "."
+    Ka -> ".."
     Tut -> "o"
     Dag -> "+"
 

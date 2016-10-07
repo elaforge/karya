@@ -10,6 +10,7 @@ import qualified Data.List as List
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Pretty as Pretty
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
@@ -37,7 +38,7 @@ c1s = korvais (adi 4) (mridangam <> kendang)
       . dropM 6 (theme 3 2) . trin tadin_ (tri p7) (tri p6) (tri p5)
 
     ,            theme 4 0 . pat7 . dheem ! (u <+> K.u) . __4
-      . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem!u . __4
+      . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem ! (u <+> K.u) . __4
       . dropM 8 (theme 4 2)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
 
@@ -54,9 +55,9 @@ c1s = korvais (adi 4) (mridangam <> kendang)
         , (ta.ka, [k, p])
         ]
     kendang = make_kendang1
-        [ (ta.dit, [p, p])
-        , (dit, [p])
-        , (ta.ka.din.na.din, [k, a, a, k, a])
+        [ (ta.dit, [p, t])
+        , (dit, [t])
+        , (ta.ka.din.na.din, [p, a, a, p, a])
         , (ta.din, [o, a])
         -- for pat7 -- pat9
         , (ta.ka, [p, k])
@@ -167,7 +168,7 @@ k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
-k1_mridangam :: Korvai.Realizations
+k1_mridangam :: Korvai.Instruments
 k1_mridangam = make_mridangam
     [ (ta, [k])
     , (ta.ka, [k, p])
@@ -377,24 +378,25 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
 make_mridangam :: CallStack.Stack =>
     [(Solkattu.Sequence Mridangam.Stroke, [Mridangam.Note])]
-    -> Korvai.Realizations
+    -> Korvai.Instruments
 make_mridangam strokes = mempty
-    { Korvai.mridangam = check $ Mridangam.instrument strokes Mridangam.defaults
+    { Korvai.inst_mridangam =
+        check $ Mridangam.instrument strokes Mridangam.defaults
     }
 
 make_kendang1 :: CallStack.Stack =>
     [(Solkattu.Sequence KendangTunggal.Stroke, [KendangTunggal.Note])]
-    -> Korvai.Realizations
+    -> Korvai.Instruments
 make_kendang1 strokes = mempty
-    { Korvai.kendang_bali_tunggal = check $
+    { Korvai.inst_kendang_tunggal = check $
         KendangTunggal.instrument strokes KendangTunggal.defaults
     }
 
-korvais :: CallStack.Stack => Solkattu.Tala -> Korvai.Realizations -> [Sequence]
+korvais :: CallStack.Stack => Solkattu.Tala -> Korvai.Instruments -> [Sequence]
     -> [Korvai]
 korvais tala realizations = map (korvai tala realizations)
 
-korvai :: Solkattu.Tala -> Korvai.Realizations -> Sequence -> Korvai.Korvai
+korvai :: Solkattu.Tala -> Korvai.Instruments -> Sequence -> Korvai.Korvai
 korvai = Korvai.korvai
 
 adi :: Matras -> Solkattu.Tala
@@ -409,7 +411,14 @@ realize = realize_ True
 realizep = realize_ False
 
 realize_ :: Bool -> Korvai.Korvai -> IO ()
-realize_ realize_patterns korvai =
-    Text.IO.putStrLn $ case Korvai.realize realize_patterns korvai of
+realize_ = realize_instrument Korvai.mridangam
+
+realize_k1 :: Bool -> Korvai.Korvai -> IO ()
+realize_k1 = realize_instrument Korvai.kendang_tunggal
+
+realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
+    -> Bool -> Korvai.Korvai -> IO ()
+realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
+    case Korvai.realize instrument realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
         Right notes -> Realize.format (Korvai.korvai_tala korvai) notes
