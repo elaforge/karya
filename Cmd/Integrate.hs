@@ -188,8 +188,9 @@ score_integrate_tracks (block_id, track_id) = do
     where
     msg dests = "score integrated " <> showt track_id <> ": "
         <> Text.intercalate ", "
-            [pretty source_id <> " -> " <> pretty dest_id
-                | (source_id, (dest_id, _)) <- dests]
+            [ pretty source_id <> " -> " <> pretty dest_id
+            | (source_id, (dest_id, _)) <- dests
+            ]
 
 replace :: Eq key => key -> [(key, a)] -> [(key, a)] -> [(key, a)]
 replace key new xs = new ++ filter ((/=key) . fst) xs

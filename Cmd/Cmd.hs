@@ -1079,8 +1079,7 @@ instance Pretty.Pretty ResolvedInstrument where
             , ("backend", Pretty.format backend)
             ]
 
-data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config
-    | Im !Im.Patch.Patch
+data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config | Im !Im.Patch.Patch
     deriving (Show)
 
 instance Pretty.Pretty Backend where

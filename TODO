@@ -5,7 +5,8 @@ LEGEND
 UNSORTED
   * rename DeriveTest.synth* to synths
   * Would it make sense to also put Perform.Midi.Patch.Flags in Config?
-    - LInst.list should print settings when they differ from the defaults
+    - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
+    * LInst.list should print settings when they differ from the defaults
     - Test that Common.config_environ is merged with Common.common_environ.
     * Make allocation copy Patch.patch_defaults to Patch.config_settings.
     * LInst also has to add defaults when it merges Configs.
@@ -1087,6 +1088,31 @@ test:
     . Presumably due to non-determinism within the respond cycle.
     . Or maybe not, since the 'f' write is lost, maybe integrate itself is
       non-deterministic.
+    . Broken:
+      5 responses:
+        DeriveStatus: (bid "test/b1"): OutOfDate
+        **   Cmd/Integrate.hs:159 - score integrated (bid "test/b1") to: []
+        DeriveStatus: (bid "test/b1"): Deriving
+        **   Cmd/Integrate.hs:159 - score integrated (bid "test/b1") to: []
+        DeriveStatus: (bid "test/b2"): OutOfDate
+        DeriveStatus: (bid "test/b2"): Deriving
+        DeriveStatus: (bid "test/b2"): DeriveComplete
+            ((Performance 2 events 2 logs))
+      . ['e c'] * 5
+      . index has edc
+    . Working:
+      3 responses:
+        DeriveStatus: (bid "test/b1"): OutOfDate
+        DeriveStatus: (bid "test/b1"): Deriving
+        DeriveStatus: (bid "test/b1"): DeriveComplete
+            ((Performance 3 events 3 logs))
+      . ['e c', 'e c', 'f c']
+      . index has fdc
+
+    . So it looks like the first OutOfDate gets interrupted by another.a What
+      is the expected sequence?
+
+
   criterion
     / it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?

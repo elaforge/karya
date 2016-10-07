@@ -51,6 +51,11 @@ import Types
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
+lookup_allocation :: State.M m => Util.Instrument
+    -> m (Maybe StateConfig.Allocation)
+lookup_allocation inst =
+    State.allocation (Util.instrument inst) <#> State.get
+
 -- * config
 
 -- | List all allocated instruments.
@@ -58,24 +63,30 @@ allocated :: State.M m => m [Score.Instrument]
 allocated = State.get_config $ Map.keys . (StateConfig.allocations_map #$)
 
 -- | List all allocated instrument configs all purty-like.
-list :: State.M m => m Text
+list :: Cmd.M m => m Text
 list = list_like ""
 
 -- | Pretty print matching instruments:
 --
 -- > >pno - pianoteq/ loop1 [0..15]
 -- > >syn - sampler/inst 音
-list_like :: State.M m => Text -> m Text
+list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- State.config#State.allocations_map <#> State.get
-    return $ Text.unlines $
-        TextUtil.formatColumns 1 $ map (uncurry pretty_alloc) $
-        filter (matches . fst) $ Map.toAscList alloc_map
+    let (names, allocs) = unzip $ Map.toAscList alloc_map
+    patches <- map (fmap fst . Cmd.midi_instrument) <$>
+        mapM Cmd.get_instrument names
+    return $ Text.unlines $ TextUtil.formatColumns 1
+        [ pretty_alloc patch name alloc
+        | (name, alloc, patch) <- zip3 names allocs patches
+        , matches name
+        ]
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
 
-pretty_alloc :: Score.Instrument -> StateConfig.Allocation -> [Text]
-pretty_alloc inst alloc =
+pretty_alloc :: Maybe Patch.Patch -> Score.Instrument -> StateConfig.Allocation
+    -> [Text]
+pretty_alloc patch inst alloc =
     [ ShowVal.show_val inst
     , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
     , case StateConfig.alloc_backend alloc of
@@ -107,18 +118,28 @@ pretty_alloc inst alloc =
             ++ ["solo" | Common.config_solo config]
     show_midi_config config = join
         [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , pretty_settings (Patch.config_settings config)
+        , pretty_settings (Patch.patch_defaults <$> patch)
+            (Patch.config_settings config)
         ]
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
     join = Text.unwords . filter (not . Text.null)
 
-pretty_settings :: Patch.Settings -> Text
-pretty_settings settings = Text.unwords $ filter (not . Text.null)
-    [ maybe "" (("("<>) . (<>")") . show_scale) (Patch.config_scale settings)
-    ]
-    -- TODO show the other fields if they differ from defaults
+pretty_settings :: Maybe Patch.Settings -> Patch.Settings -> Text
+pretty_settings maybe_defaults settings =
+    Text.unwords $ filter (not . Text.null)
+        [ if_changed Patch.config_flags pretty
+        , if_changed Patch.config_scale $
+            maybe "" (("("<>) . (<>")") . show_scale)
+        , if_changed Patch.config_decay $ ("decay="<>) . pretty
+        , if_changed Patch.config_pitch_bend_range $ ("pb="<>) . pretty
+        ]
+    where
+    if_changed get fmt
+        | Just defaults <- maybe_defaults, get defaults /= get settings =
+            fmt (get settings)
+        | otherwise = ""
 
 show_scale :: Patch.Scale -> Text
 show_scale scale = "scale " <> Patch.scale_name scale <> " "
@@ -206,6 +227,8 @@ allocate score_inst alloc = do
 deallocate :: Cmd.M m => Score.Instrument -> m ()
 deallocate inst = State.modify_config $ State.allocations_map %= Map.delete inst
 
+-- * Common.Config
+
 -- | Toggle and return the new value.
 mute :: State.M m => Instrument -> m Bool
 mute inst = modify_common_config inst $ \config ->
@@ -229,17 +252,11 @@ add_environ inst name val =
 clear_environ :: State.M m => Instrument -> m ()
 clear_environ inst = modify_common_config_ inst $ Common.cenviron #= mempty
 
+-- * Midi.Patch.Config
+
 set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
     Common.controls #= Map.fromList controls
-
-get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
-get_scale inst =
-    (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
-
-set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
-set_scale inst scale = modify_midi_config inst $
-    Patch.settings#Patch.scale #= Just scale
 
 set_tuning_scale :: State.M m => Instrument -> Text -> Patch.Scale -> m ()
 set_tuning_scale inst tuning scale = do
@@ -250,6 +267,26 @@ set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
     -> m ()
 set_control_defaults inst controls = modify_midi_config inst $
     Patch.control_defaults #= Map.fromList controls
+
+-- ** Midi.Patch.Config settings
+
+get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
+get_scale inst =
+    (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
+
+set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
+set_scale inst scale = modify_midi_config inst $
+    Patch.settings#Patch.scale #= Just scale
+
+add_flag :: State.M m => Instrument -> Patch.Flag -> m ()
+add_flag inst flag = modify_midi_config inst $
+    Patch.settings#Patch.flags %= Patch.add_flag flag
+
+remove_flag :: State.M m => Instrument -> Patch.Flag -> m ()
+remove_flag inst flag = modify_midi_config inst $
+    Patch.settings#Patch.flags %= Patch.remove_flag flag
+
+-- * get and modify utilities
 
 get_midi_config :: State.M m => Score.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
