@@ -10,7 +10,6 @@
 -- to a simplified chromatic scale.
 module Derive.Scale.BaliScales where
 import qualified Data.Attoparsec.Text as A
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
@@ -95,16 +94,18 @@ scale_map layout fmt base_oct all_keys default_key saihs default_saih
 
 -- | This is a specialized version of 'scale_map' that uses base octave and
 -- low and high pitches to compute the range.
-instrument_scale_map :: Theory.Layout -> ChromaticScales.Keys -> Theory.Key
+instrument_scale_map :: TheoryFormat.Degrees -> RelativeOctaves
+    -> Theory.Layout -> ChromaticScales.Keys -> Theory.Key
     -> SaihMap -> Text -> Pitch.Octave -> Pitch.Octave
     -> Pitch.Pitch -> Pitch.Pitch -> ScaleMap
-instrument_scale_map layout all_keys default_key saihs default_saih
-        base_oct center_oct low high =
+instrument_scale_map degrees relative_octaves layout all_keys default_key saihs
+        default_saih base_oct center_oct low high =
     scale_map layout fmt base_oct all_keys default_key saihs default_saih
         (Just (to_pc low, to_pc high))
     where
     to_pc p = Pitch.subtract_pitch per_oct p (Pitch.pitch base_oct 0)
-    fmt = ioeua_relative_arrow center_oct True default_key all_keys
+    fmt = relative_arrow degrees relative_octaves center_oct True
+        default_key all_keys
     per_oct = Theory.layout_semis_per_octave layout
 
 scale_range :: ScaleMap -> Scale.Range
@@ -155,59 +156,94 @@ extend_scale per_octave low high start nns =
 
 -- * Format
 
+-- | This can't use `ding` etc. because then the combining octave characters
+-- don't combine.
+balinese :: TheoryFormat.Degrees
+balinese = TheoryFormat.make_degrees ["᭦", "᭡", "᭢", "᭣", "᭤"]
+
 ioeua :: TheoryFormat.Degrees
 ioeua = TheoryFormat.make_degrees ["i", "o", "e", "u", "a"]
 
+digit_octave_relative :: TheoryFormat.Degrees -> Bool -> Theory.Key
+    -> ChromaticScales.Keys -> TheoryFormat.Format
+digit_octave_relative degrees chromatic default_key keys =
+    TheoryFormat.make_relative_format
+        ("[1-9]" <> degrees_doc degrees <> if chromatic then "#?" else "")
+        degrees fmt
+    where fmt = ChromaticScales.relative_fmt default_key keys
+
 ioeua_relative :: Bool -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
-ioeua_relative chromatic default_key keys =
+ioeua_relative = digit_octave_relative ioeua
+
+-- | (high, middle, low)
+type RelativeOctaves = (Char, Maybe Char, Char)
+
+-- | Use ascii-art arrows for octaves.
+arrow_octaves :: RelativeOctaves
+arrow_octaves = ('^', Just '-', '_')
+
+-- | Use combining marks for octaves.
+balinese_octaves :: RelativeOctaves
+balinese_octaves =
+    ( '\x1b6b' -- balinese musical symbol combining tegeh
+    , Nothing
+    , '\x1b6c' -- balinese musical symbol combining endep
+    )
+
+degrees_doc :: TheoryFormat.Degrees -> Text
+degrees_doc degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
+
+relative_arrow :: TheoryFormat.Degrees -> RelativeOctaves
+    -> Pitch.Octave -> Bool -> Theory.Key
+    -> ChromaticScales.Keys -> TheoryFormat.Format
+relative_arrow degrees relative_octaves center chromatic default_key keys =
     TheoryFormat.make_relative_format
-        ("[1-9][ioeua]" <> if chromatic then "#?" else "") ioeua fmt
+        (degrees_doc degrees <> (if chromatic then "#?" else "") <> "[_^-]")
+        degrees fmt
     where
-    fmt = ChromaticScales.relative_fmt default_key keys
+    fmt = with_config (set_relative_octaves relative_octaves center) $
+        ChromaticScales.relative_fmt default_key keys
 
 ioeua_relative_arrow :: Pitch.Octave -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
-ioeua_relative_arrow center chromatic default_key keys =
-    TheoryFormat.make_relative_format
-        ("[ioeua]" <> (if chromatic then "#?" else "") <> "[_^-]") ioeua fmt
-    where
-    fmt = with_octaves (arrow_octaves center) $
-        ChromaticScales.relative_fmt default_key keys
+ioeua_relative_arrow = relative_arrow ioeua arrow_octaves
 
 ioeua_absolute :: TheoryFormat.Format
 ioeua_absolute = TheoryFormat.make_absolute_format "[1-9][ioeua]" ioeua
 
-ioeua_absolute_arrow :: Pitch.Octave -> TheoryFormat.Format
-ioeua_absolute_arrow center = TheoryFormat.make_absolute_format_config
-    (arrow_octaves center TheoryFormat.default_config) "[ioeua][_^-]" ioeua
-
-with_octaves :: (TheoryFormat.Config -> TheoryFormat.Config)
+with_config :: (TheoryFormat.Config -> TheoryFormat.Config)
     -> TheoryFormat.RelativeFormat key -> TheoryFormat.RelativeFormat key
-with_octaves f config = config
+with_config f config = config
     { TheoryFormat.rel_config = f (TheoryFormat.rel_config config) }
 
-arrow_octaves :: Pitch.Octave -> TheoryFormat.Config -> TheoryFormat.Config
-arrow_octaves center = TheoryFormat.set_octave show_octave parse_octave
+set_relative_octaves :: RelativeOctaves -> Pitch.Octave
+    -> TheoryFormat.Config -> TheoryFormat.Config
+set_relative_octaves (high, middle, low) center =
+    TheoryFormat.set_octave show_octave parse_octave
     where
     show_octave oct
-        | oct > center = (<> Text.replicate (oct-center) "^")
-        | oct < center = (<> Text.replicate (center-oct) "_")
-        | otherwise = (<>"-")
+        | oct > center = (<> Text.replicate (oct-center) (t high))
+        | oct < center = (<> Text.replicate (center-oct) (t low))
+        | otherwise = (<> maybe "" t middle)
     parse_octave p_degree = do
         (pc, acc) <- p_degree
-        octs <- A.many1 $ A.satisfy $ \c -> c == '_' || c == '-' || c == '^'
-        let oct | "_" `List.isPrefixOf` octs = -(length octs)
-                | "-" `List.isPrefixOf` octs = 0
-                | otherwise = length octs
+        oct_str <- A.many' $ A.satisfy $ \c ->
+            c == high || c == low || maybe True (==c) middle
+        let oct_value c
+                | c == high = 1
+                | c == low = -1
+                | otherwise = 0
+        let oct = sum $ map oct_value oct_str
         return $ TheoryFormat.RelativePitch (center + oct) pc acc
+    t = Text.singleton
 
 cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
 cipher_relative_dotted center default_key keys =
     TheoryFormat.make_relative_format "[12356]|`[12356][.^]*`" cipher5 fmt
     where
-    fmt = with_octaves (dotted_octaves center) $
+    fmt = with_config (dotted_octaves center) $
         ChromaticScales.relative_fmt default_key keys
 
 cipher5 :: TheoryFormat.Degrees

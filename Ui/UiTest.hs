@@ -511,8 +511,7 @@ default_allocations = allocations
     , ("i3", "s/3", [4])
     ]
 
-modify_midi_config :: CallStack.Stack =>
-    Text -> (Patch.Config -> Patch.Config)
+modify_midi_config :: CallStack.Stack => Text -> (Patch.Config -> Patch.Config)
     -> StateConfig.Allocations -> StateConfig.Allocations
 modify_midi_config inst_ modify =
     Testing.expect_right . StateConfig.modify_allocation inst modify_alloc

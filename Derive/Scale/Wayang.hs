@@ -51,12 +51,17 @@ complete_scale =
         default_key saihs default_saih Nothing
 
 pemade :: BaliScales.ScaleMap
-pemade = BaliScales.instrument_scale_map layout all_keys default_key
-    saihs default_saih base_oct 4 pemade_low pemade_high
+pemade = inst_scale_map 4 pemade_low pemade_high
 
 kantilan :: BaliScales.ScaleMap
-kantilan = BaliScales.instrument_scale_map layout all_keys default_key
-    saihs default_saih base_oct 5 kantilan_low kantilan_high
+kantilan = inst_scale_map 5 kantilan_low kantilan_high
+
+inst_scale_map :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
+    -> BaliScales.ScaleMap
+inst_scale_map =
+    BaliScales.instrument_scale_map
+        BaliScales.ioeua BaliScales.arrow_octaves
+        layout all_keys default_key saihs default_saih base_oct
 
 -- | Start octave for the extended scale.
 base_oct :: Pitch.Octave

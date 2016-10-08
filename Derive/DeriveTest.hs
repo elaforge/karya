@@ -442,8 +442,8 @@ lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
 lookup_qualified = flip Inst.lookup
 
 with_allocations :: StateConfig.Allocations -> Setup
-with_allocations allocations = with_ui $
-    State.config#State.allocations %= (allocations <>)
+with_allocations allocations =
+    with_ui $ State.config#State.allocations %= (allocations <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }

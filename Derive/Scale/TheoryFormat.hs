@@ -273,6 +273,7 @@ make_absolute_format_config config pattern degrees = Format
     , fmt_relative = False
     }
 
+-- | Make a Format from a 'RelativeFormat'.
 make_relative_format :: Show key => Text -> Degrees -> RelativeFormat key
     -> Format
 make_relative_format pattern degrees rel_fmt = Format

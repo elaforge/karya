@@ -52,23 +52,27 @@ scales :: [Scale.Make]
 scales =
     map (Scale.Simple . Scales.add_doc "Saih pelegongan, from my instruments.")
     [ BaliScales.make_scale scale_id complete_scale
+    , BaliScales.make_scale "legong-b" complete_scale_balinese
     , Scales.add_doc "Use Javanese-style cipher notation. This can be more\
         \ convenient for saih pitu." $
         -- TODO use 4 and 7 instead of 3# and 6#.
         BaliScales.make_scale "legong-c" cipher_scale
-    , Scales.add_doc
-        "Pemade scale. This can be used to give the the same score to both\
-            \ pemade and kantilan." $
-        BaliScales.make_scale "legong-pemade" pemade
-    , Scales.add_doc
-        "Kantilan scale. This can be used to give the the same score to both\
-            \ pemade and kantilan." $
-        BaliScales.make_scale "legong-kantilan" kantilan
+    , inst_doc "pemade" $ BaliScales.make_scale "legong-pemade" pemade
+    , inst_doc "pemade" $ BaliScales.make_scale "legong-pemade-b" pemade_b
+    , inst_doc "kantilan" $ BaliScales.make_scale "legong-kantilan" kantilan
+    , inst_doc "kantilan" $ BaliScales.make_scale "legong-kantilan-b" kantilan_b
     ]
+    where
+    inst_doc name =
+        Scales.add_doc ("This is centered around the " <> name <> " range.")
 
 complete_scale :: BaliScales.ScaleMap
-complete_scale = scale_map
-    (BaliScales.ioeua_relative True default_key all_keys)
+complete_scale = scale_map (BaliScales.ioeua_relative True default_key all_keys)
+
+complete_scale_balinese :: BaliScales.ScaleMap
+complete_scale_balinese =
+    scale_map (BaliScales.digit_octave_relative BaliScales.balinese True
+        default_key all_keys)
 
 cipher_scale :: BaliScales.ScaleMap
 cipher_scale = scale_map
@@ -84,16 +88,27 @@ jegog = inst_scale_map 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
 calung = inst_scale_map 2 (Pitch.pitch 4 I) (Pitch.pitch 5 As)
 penyacah = inst_scale_map 3 (Pitch.pitch 5 0) (Pitch.pitch 5 As)
 
-pemade :: BaliScales.ScaleMap
+pemade, pemade_b :: BaliScales.ScaleMap
 pemade = inst_scale_map 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
+pemade_b = inst_scale_map_balinese 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
 
-kantilan :: BaliScales.ScaleMap
+kantilan, kantilan_b :: BaliScales.ScaleMap
 kantilan = inst_scale_map 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
+kantilan_b = inst_scale_map_balinese 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
 
 inst_scale_map :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.ScaleMap
-inst_scale_map = BaliScales.instrument_scale_map layout all_keys default_key
-    saihs default_saih base_oct
+inst_scale_map =
+    BaliScales.instrument_scale_map
+        BaliScales.ioeua BaliScales.arrow_octaves
+        layout all_keys default_key saihs default_saih base_oct
+
+inst_scale_map_balinese :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
+    -> BaliScales.ScaleMap
+inst_scale_map_balinese =
+    BaliScales.instrument_scale_map
+        BaliScales.balinese BaliScales.balinese_octaves
+        layout all_keys default_key saihs default_saih base_oct
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"

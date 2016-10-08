@@ -114,8 +114,6 @@ void t1_set()
             Event(ScoreTime(64), ScoreTime(0), "`bold+italic/bold`", style)));
         break;
     case Normal: {
-        const char *zh1 = "漢字";
-        const char *zh2 = "兩個 分開";
         e.push_back(EventInfo(0,
             Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
         e.push_back(EventInfo(0,
@@ -127,9 +125,9 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(44), ScoreTime(4), "6--", style)));
         e.push_back(EventInfo(0,
-            Event(ScoreTime(72), ScoreTime(8), zh1, style)));
+            Event(ScoreTime(72), ScoreTime(8), "漢字", style)));
         e.push_back(EventInfo(0,
-            Event(ScoreTime(82), ScoreTime(8), zh2, style)));
+            Event(ScoreTime(82), ScoreTime(8), "兩個 分開", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(128), ScoreTime(64), "`0x`ff", style2)));
         // coincident with rank 0
@@ -298,6 +296,83 @@ menu_cb(Fl_Widget *w, void *arg)
 {
 }
 
+static void
+add_symbols()
+{
+    // Technically the Glyphs should use heap space, not constants, since they
+    // will be freed if there is a duplicate symbol.  But I don't care for a
+    // test.
+    SymbolTable *t = SymbolTable::get();
+
+    // TODO: use Noto on linux too
+
+#ifdef __linux__
+    Fl_Font chinese = t->font(" AR PL UKai TW");
+    Fl_Font tamil = t->font(" Lohit Tamil");
+#endif
+#ifdef __APPLE__
+    // Fl_Font chinese = t->font("LiSongPro");
+    Fl_Font chinese = t->font("NotoSerif");
+    Fl_Font tamil = t->font("NotoSerif");
+#endif
+
+    SymbolTable::Symbol zerox = SymbolTable::Symbol(
+        SymbolTable::Glyph("x", Config::font, -2, DPoint(0, -.4)));
+    zerox.absolute_y = true;
+    t->insert("0x", zerox);
+    t->insert("tamil-i", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe0\xae\x87", tamil, 4)));
+    //෴  looks useful
+    t->insert("sinhala-stop", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe0\xb7\xb4", Config::font, 4)));
+    // t->load("yen", "\xc2\xa5");
+    // t->load("coda", "\xef\x80\xa5");
+
+    // xie2 radical, slant of dai4, CJK STROKE XG
+    // radicals are at +31c0
+    t->insert("xie", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe3\x87\x82", chinese, 4)));
+
+    t->insert("1.", SymbolTable::Symbol(
+        SymbolTable::Glyph("1"),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
+    t->insert("1..", SymbolTable::Symbol(
+        SymbolTable::Glyph("1"),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
+        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
+
+    Fl_Font bravura = t->font("Bravura");
+    t->insert("arp-up", SymbolTable::Symbol(
+        // arrow
+        SymbolTable::Glyph("\xee\xaa\xad", bravura, 8, DPoint(0, -0.25), 90),
+        // wiggle
+        SymbolTable::Glyph("\xee\xaa\xa9", bravura, 8, DPoint(0, 0), 90)));
+    t->insert("arp-down", SymbolTable::Symbol(
+        // arrow
+        SymbolTable::Glyph("\xee\xaa\xae", bravura, 8, DPoint(0, 0.25), -90),
+        // wiggle
+        SymbolTable::Glyph("\xee\xaa\xaa", bravura, 8, DPoint(0, 0), -90)));
+
+
+    // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
+    Fl_Font bali = t->font("NotoSansBalinese");
+
+    t->insert("ding", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe1\xad\xa6", bali, 8)));
+    t->insert("dong", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe1\xad\xa1", bali, 8)));
+    t->insert("deng", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe1\xad\xa2", bali, 8)));
+    t->insert("dung", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe1\xad\xa3", bali, 8)));
+    t->insert("dang", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe1\xad\xa4", bali, 8)));
+
+    // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
+    // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -383,7 +458,7 @@ main(int argc, char **argv)
         view.block.set_display_track(2, dtrack);
     } else {
         view.block.insert_track(0, Tracklike(&ruler), 20);
-        view.block.insert_track(1, Tracklike(&track1, &no_ruler), 60);
+        view.block.insert_track(1, Tracklike(&track1, &no_ruler), 40);
         view.block.track_at(1)->set_title("track title");
         // view.block.set_track_signal(1, *control_track_signal());
     }
@@ -414,68 +489,7 @@ main(int argc, char **argv)
     StyleTable::get()->put(1, EventStyle(FL_HELVETICA, 12, Color::black,
         Color::rgb_normalized(0.8, 1, 0.9)));
 
-    // Technically the Glyphs should use heap space, not constants, since they
-    // will be freed if there is a duplicate symbol.  But I don't care for a
-    // test.
-    SymbolTable *t = SymbolTable::get();
-
-#ifdef __linux__
-    Fl_Font chinese = t->font(" AR PL UKai TW");
-    Fl_Font tamil = t->font(" Lohit Tamil");
-#endif
-#ifdef __APPLE__
-    Fl_Font chinese = t->font("LiSongPro");
-    Fl_Font tamil = Config::font; // thanks to OS X font substitution I guess
-#endif
-    Fl_Font bravura = t->font("Bravura");
-
-    SymbolTable::Symbol zerox = SymbolTable::Symbol(
-        SymbolTable::Glyph("x", Config::font, -2, DPoint(0, -.4)));
-    zerox.absolute_y = true;
-    t->insert("0x", zerox);
-    t->insert("tamil-i", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe0\xae\x87", tamil, 4)));
-    //෴  looks useful
-    t->insert("sinhala-stop", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe0\xb7\xb4", Config::font, 4)));
-    // t->load("yen", "\xc2\xa5");
-    // t->load("coda", "\xef\x80\xa5");
-
-    // xie2 radical, slant of dai4, CJK STROKE XG
-    // radicals are at +31c0
-    t->insert("xie", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xe3\x87\x82", chinese, 4)));
-
-    t->insert("1.", SymbolTable::Symbol(
-        SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
-    t->insert("1..", SymbolTable::Symbol(
-        SymbolTable::Glyph("1"),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
-        SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
-
-    t->insert("arp-up", SymbolTable::Symbol(
-        // arrow
-        SymbolTable::Glyph("\xee\xaa\xad", bravura, 8, DPoint(0, -0.25), 90),
-        // wiggle
-        SymbolTable::Glyph("\xee\xaa\xa9", bravura, 8, DPoint(0, 0), 90)));
-    t->insert("arp-down", SymbolTable::Symbol(
-        // arrow
-        SymbolTable::Glyph("\xee\xaa\xae", bravura, 8, DPoint(0, 0.25), -90),
-        // wiggle
-        SymbolTable::Glyph("\xee\xaa\xaa", bravura, 8, DPoint(0, 0), -90)));
-
-    // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
-    // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
-
-    // t->load("ding", "M", nullptr, 10, IPoint(0, 0), IPoint(0, 0));
-    // t->load("ding", "i", "Bali-Simbar-B", 28, IPoint(12, 18), IPoint(12, 10));
-    // t->load("ding", "i", "Bali-Simbar-B", 10, IPoint(0, 0), IPoint(0, 0));
-    // t->load("dong", "o", "Bali-Simbar-B", 26, IPoint(0, 8), IPoint(0, 10));
-    // t->load("deng", "e", "Bali-Simbar-B", 16, IPoint(0, -6), IPoint(0, 0));
-    // t->load("dung", "u", "Bali-Simbar-B", 16, IPoint(7, -14), IPoint(7, 0));
-    // t->load("dang", "*", "Bali-Simbar-B", 16, IPoint(12, 2), IPoint(8, 0));
-    // t->load("pepet", ")", "Bali-Simbar-B", 16);
+    add_symbols();
 
     // view.show();
     //

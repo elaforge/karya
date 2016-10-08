@@ -191,6 +191,23 @@ pasang_calls =
     , ('/', "]", Lanang, "[") -- tek
     ]
 
+-- | Unicode has some kendang notation, but it's harder to type and I'm not
+-- sure if I'll wind up using it.
+balinese_notation :: [Text]
+balinese_notation =
+    -- left
+    [ "᭸" -- open pang      t kam
+    , "᭹" -- open pung      T pang
+    , "᭺" -- closed plak    k ka
+    , "᭻" -- closed pluk    P pak
+    , "᭼" -- open ping      Ø pung
+    -- right
+    , "᭴" -- open dug       < dag   + de
+    , "᭵" -- open dag       > dug   o tut
+    , "᭶" -- closed tuk     [ tak   u kum
+    , "᭷" -- closed tak     ] tek   U pung
+    ]
+
 pasang_code :: MidiInst.Code
 pasang_code =
     MidiInst.note_transformers [("realize", c_realize_kendang)]

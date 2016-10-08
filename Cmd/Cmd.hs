@@ -1143,12 +1143,11 @@ resolve_instrument db alloc = do
     backend <- case (Inst.inst_backend inst, StateConfig.alloc_backend alloc) of
         (Inst.Midi patch, StateConfig.Midi config) ->
             return $ Just (Midi patch config)
-        (Inst.Im patch, StateConfig.Im) ->
-            return $ Just (Im patch)
+        (Inst.Im patch, StateConfig.Im) -> return $ Just (Im patch)
         (_, StateConfig.Dummy) -> return Nothing
         -- 'StateConfig.verify_allocation' should have prevented this.
-        (inst_backend, alloc_backend) -> Left $ "inconsistent backends: "
-            <> pretty (inst_backend, alloc_backend)
+        (inst_backend, alloc_backend) -> Left $
+            "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
     return $ ResolvedInstrument
         { inst_instrument = inst
         , inst_qualified = qualified
