@@ -193,20 +193,42 @@ pasang_calls =
 
 -- | Unicode has some kendang notation, but it's harder to type and I'm not
 -- sure if I'll wind up using it.
-balinese_notation :: [Text]
-balinese_notation =
+balinese_pasang_calls :: [(Char, BaseTypes.CallId, Kendang, BaseTypes.CallId)]
+balinese_pasang_calls =
+    [ ('b', "PL",           Wadon, "PL")
+    , ('t', open_ping,      Lanang, "Ø")
     -- left
-    [ "᭸" -- open pang      t kam
-    , "᭹" -- open pung      T pang
-    , "᭺" -- closed plak    k ka
-    , "᭻" -- closed pluk    P pak
-    , "᭼" -- open ping      Ø pung
+    , ('q', closed_plak,    Wadon,  "P") -- ka
+    , ('w', closed_pluk,    Lanang, "P") -- pak
+    , ('e', open_pang,      Wadon,  "T") -- kam
+    , ('r', open_pung,      Lanang, "T") -- pang
     -- right
-    , "᭴" -- open dug       < dag   + de
-    , "᭵" -- open dag       > dug   o tut
-    , "᭶" -- closed tuk     [ tak   u kum
-    , "᭷" -- closed tak     ] tek   U pung
+    , ('z', open_dag,       Wadon,  "+") -- de
+    , ('a', quiet open_dag, Wadon,  "-") -- de
+    , ('x', open_dug,       Lanang, "+") -- tut
+    , ('c', closed_tak,     Wadon,  "o") -- kum
+    , ('v', closed_tuk,     Lanang, "o") -- pung
+    -- TODO since I use the same symbols for with and without panggul, there
+    -- needs to be a separate attribute.
+    , ('m', open_dag,       Wadon,  "<") -- dag
+    , ('j', quiet open_dag, Wadon,  "-<") -- dag
+    , (',', open_dug,       Lanang, "<") -- dug
+    , ('.', closed_tak,     Wadon,  "[") -- tak
+    , ('/', closed_tuk,     Lanang, "[") -- tek
     ]
+    where
+    -- left
+    open_pang = "᭸"     -- t kam
+    open_pung = "᭹"     -- T pang
+    closed_plak = "᭺"   -- k ka
+    closed_pluk = "᭻"   -- P pak
+    open_ping = "᭼"     -- Ø pung
+   -- right
+    open_dag = "᭵"      -- < dag   + de
+    open_dug = "᭴"      -- > dug   o tut
+    closed_tak = "᭷"    -- ] tek   u kum
+    closed_tuk = "᭶"    -- [ tak   U pung
+    quiet (BaseTypes.Symbol s) = BaseTypes.Symbol ("," <> s)
 
 pasang_code :: MidiInst.Code
 pasang_code =
