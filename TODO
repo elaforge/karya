@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - remove fm8/pressure and use local config instead
   - convert Util.Testing to Text
   - Put tags in Log.Msg like [(Text, Text | Int)], so I don't have to do
     Cache.extract_cached_msg.
@@ -387,6 +388,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation:
+  - update the screenshots
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   - Can I have Util.Linkify check the validity of single-quote links?  Or
     maybe I could run a link checker against the final output.  Otherwise

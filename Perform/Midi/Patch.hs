@@ -388,16 +388,16 @@ data Flag =
     -- signal starts after the note and the note is moved, it winds up at the
     -- end of the note.
     --
-    -- Obviously it's a hack, but it's useful in practice.  It could also go in
-    -- the note generator, but it's convenient to apply it in convert because
-    -- that's where the transpose signals are applied.
+    -- It's a hack, but it's useful in practice.  It could also go in the note
+    -- generator, but it's convenient to apply it in convert because that's
+    -- where the transpose signals are applied.
     | ConstantPitch
     -- | If set, a keysitch has to be held while its note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     | HoldKeyswitch
     -- | When playing from mid-score, scan backwards for the first overlapping
-    -- notes with this instrument set.  This way you can play long notes
-    -- like tambure from the middle.
+    -- notes with this instrument set and resume that note.  This way you can
+    -- play long notes like tambura from the middle.
     | ResumePlay
     deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
@@ -416,8 +416,8 @@ remove_flag = Set.delete
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
-    -- | Send these msgs to initialize the patch.  Should be a patch change or
-    -- a sysex.
+    -- | Send these msgs to initialize the patch.  It should be a patch
+    -- change or a sysex.
     InitializeMidi ![Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage !Text
@@ -432,7 +432,7 @@ instance Pretty.Pretty InitializePatch where
 -- ** AttributeMap
 
 -- | This is a specialization of 'Common.AttributeMap' for MIDI.
--- Should use a constructor like 'keyswitches', which will call
+-- You should use a constructor like 'keyswitches', which will call
 -- 'Common.sort_attributes' to make sure there are no overlaps.
 type AttributeMap = Common.AttributeMap ([Keyswitch], Maybe Keymap)
 

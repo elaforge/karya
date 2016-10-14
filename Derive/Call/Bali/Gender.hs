@@ -75,7 +75,7 @@ ngoret module_ late_damping damp_arg interval_arg =
     Derive.generator module_ "ngoret"
     (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
-    \ The grace note moves up for `'^`, down for `'`, or is based\
+    \ The grace note moves up for `'^`, down for `'_`, or is based\
     \ on the previous note's pitch for `'`.\
     \\nThis requires the `realize-ngoret` postproc."
     ) $ Sig.call ((,,,,)

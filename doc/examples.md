@@ -84,7 +84,7 @@ optional phrases.  This means repeats come back slightly differently, and since
 each part is doubled an octave up, the upper and lower parts also differ.
 
 There is also extensive use of hierarchical score to express the sometimes
-complciated structure of repeats, and the use of nested tempos to express broad
+complicated structure of repeats, and the use of nested tempos to express broad
 tempo changes combined with local expressive variations.
 
 <br>

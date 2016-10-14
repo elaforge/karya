@@ -12,7 +12,7 @@
 - Build optimized binaries and documentation: `bin/mk binaries doc`.  It will
 try to link to CoreMIDI on the mac and to JACK on linux.  If for some reason
 you don't have either of those, you can pass `midi=stub` to link the stub MIDI
-driver, but don't expect any interesting music to come out.
+driver, but now it will never produce any MIDI so what was the point?
 
 - On OS X, run `defaults write -g ApplePressAndHoldEnabled -bool false` to
 re-enable key repeats globally.  Provided you want them to work sanely, and
@@ -24,7 +24,7 @@ For whatever reason cabal won't install happy automatically, so first run
 
     cabal install happy
 
-The reason for happy is some dumb thing like needing haskell-src to do pretty
+The reason for happy is some dumb thing like needing `haskell-src` to do pretty
 printing, or something like that.  To install the needed haskell dependencies,
 type:
 
@@ -44,13 +44,15 @@ If you want to build the documentation:
 These are separate because pandoc has a ridiculous number of dependencies and
 all it does is turn the `doc/*.md` files into html.  pandoc has so many
 dependencies it might break your install by downgrading things, so maybe do
-that in a separate sandbox.
+that in a separate sandbox.  It's a completely independent binary, so however
+you can get it compiled and installed is fine.
 
 ## INSTALLED SEPARATELY
 
 - fltk-1.3, from <http://fltk.org/>.  Install the latest version from SVN
 for bugfixes and better rendering on retina macs.  `Shake/Config.hs` needs
-the path to the `fltk-config` script.
+the path to the `fltk-config` script, which is normally going to be
+`/usr/local/bin` if you did a `make install`.
 
 - libpcre library from <http://www.pcre.org>.
 
@@ -65,7 +67,7 @@ you need flags:
 
 - The bravura font for music symbols: <http://www.smufl.org/fonts/>
 
-    OS X: `cp *.otf ~/Library/Fonts`
+    OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 
     Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
 
@@ -84,4 +86,5 @@ support.
 ## MISC
 
 `tools/run_profile` expects `ps2pdf` in the path, which is part of ghostscript.
-It's fine if it's not, but you'll get ps instead of pdf.
+It's fine if it's not, but you'll get ps instead of pdf.  Help with heap
+profiling would be very welcome!

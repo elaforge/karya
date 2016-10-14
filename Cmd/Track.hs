@@ -2,7 +2,10 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Get track-specific Cmds.
+-- | Get track-specific Cmds.  Essentially, this detects the type of track
+-- under the selection, and then returns cmds from one of "Cmd.NoteTrack",
+-- "Cmd.PitchTrack", or "Cmd.ControlTrack".  This also handles per-instrument
+-- and per-scale cmds.
 module Cmd.Track (track_cmd, event_and_note_step) where
 import qualified Control.Monad.Except as Except
 

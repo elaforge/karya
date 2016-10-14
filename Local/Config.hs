@@ -42,12 +42,12 @@ load_static_config = do
 
 oxygen8_v2 :: Controller.TransportConfig
 oxygen8_v2 = Controller.TransportConfig
-    { Controller.config_repeat = note_on Key.cs_1
-    , Controller.config_backward = note_on Key.ds_1
-    , Controller.config_forward = note_on Key.fs_1
-    , Controller.config_stop = note_on Key.gs_1
-    , Controller.config_play = note_on Key.as_1
-    , Controller.config_record = note_on Key.cs0
+    { config_repeat = note_on Key.cs_1
+    , config_backward = note_on Key.ds_1
+    , config_forward = note_on Key.fs_1
+    , config_stop = note_on Key.gs_1
+    , config_play = note_on Key.as_1
+    , config_record = note_on Key.cs0
     }
     where note_on = Controller.note_on
 

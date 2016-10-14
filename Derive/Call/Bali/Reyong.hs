@@ -458,7 +458,7 @@ make_articulation :: [Position] -> Bool -> Derive.CallName
 make_articulation positions double name get_notes attrs =
     Derive.generator module_ name Tags.inst
     "Reyong articulation. The doubled variants emit two notes, and rely on\
-    \ the usual start time randomization so they're not exactly simultaneous." $
+    \ start time randomization so they're not exactly simultaneous." $
     Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
         mconcat $ concat $ replicate (if double then 2 else 1) $
@@ -680,8 +680,9 @@ make_position table cek byong = Position
 
 c_infer_damp :: Derive.Transformer Derive.Note
 c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
-    ("Add damping for reyong parts. The " <> ShowVal.doc damped
-    <> " attribute will force a damp, while " <> ShowVal.doc undamped
+    ("Add damping for reyong parts based on a simulation of the hand technique.\
+    \ The " <> ShowVal.doc damped <> " attribute will force a damp, while "
+    <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
     \ to become damped because the hand is now freed  up.")
     $ Sig.callt ((,)

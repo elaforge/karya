@@ -2,7 +2,7 @@
 
 ## GUI
 
-<img align=right width=180 src="../../doc/img/ly-example.png">
+<img align=right width=180 src="../../doc/img/example-tracks.png">
 
 The GUI only has one kind of window, and that is a view on a block, which is
 the top level of score organization.  All blocks have the same physical
@@ -38,7 +38,8 @@ hides itself when it's empty, and you can get it to come back by double
 clicking on the skeleton display.
 
 The [skeleton display](derivation.md.html#derivation) has arrows from track to
-track.
+track.  The meaning is defined in the derive layer, but the short version is
+that it represents which tracks scope over which other tracks.
 
 To the left of a the skeleton is a blank gray box that displays the [edit
 mode](cmd.md.html#editmode), and below that is the [ruler](#ruler).
@@ -59,6 +60,8 @@ view" section of 'App.Config'.
 There's another tiny little gray box in the lower left corner.  This shows play
 status: gray when ready to play, light blue when the score needs to be
 rederived, dark blue when derivation is in progress, and green when playing.
+There's a few seconds of delay between light and dark blue so it can avoid
+starting a new derivation if you're about to do another edit.
 
 That's all!
 
@@ -66,14 +69,14 @@ That's all!
 
 Text input boxes expand temporarily if their text is too large to fit.  It's
 not very satisfactory, but I couldn't come up with a better way to cram
-text into small spaces.  Track titles still usually wind up being too short to
-display their contents.
+text into small spaces.
 
-Control-h and control-l skip backward and forward by a token, where a token is
-a space separated word, a `symbol`, or a parenthesized expression.  TODO maybe
-it should just be a word.  Holding shift extends the selection as usual.
-Control-backspace deletes a token.  Otherwise, they use the shortcuts
-documented on fltk's Fl_Input.
+In a text edit box, control-h and control-l skip backward and forward by a
+token, where a token is a space separated word, a `symbol`, or a parenthesized
+expression.  TODO maybe it should just be a word.  Holding shift extends the
+selection as usual.  Control-backspace deletes a token.  Otherwise, they use
+the shortcuts documented on fltk's Fl_Input.  If you play on a MIDI keyboard,
+it will insert pitch expressions.
 
 ## symbols
 
@@ -99,14 +102,16 @@ its name.
 
 All this said, I've wound up not using symbols very often.  You can still
 express quite a lot with ASCII and it's easier to type.  For example, I'm not
-yet sure whether I prefer a plain `tr` or a fancy trill symbol, though in the
-case of sharps and flats I've decided on plain ASCII `#` and `b`.
+yet sure whether I prefer a plain `tr` or a fancy trill symbol, or `i o e u a`
+vs ᭦ ᭡ ᭢ ᭣ ᭤, though in the case of sharps and flats I've decided on plain ASCII
+`#` and `b`.
 
 Backticks also support font size and style changes.  If you write \`+4/xyz\`,
 then `xyz` will be rendered with a relative size increase of +4.  In addition
 to `+` or `-` a number, you can also write \`bold/xyz\`, \`italic/xyz\`, or
 \`bold+italic/xyz\`.  In this case, the `xyz` is printed literally, it's not
-the name of a symbol.
+the name of a symbol.  This is used in the ruler labels, so it can make larger
+beat divisions more prominent.  I don't recommend fancy markup anywhere else.
 
 ## IDs
 
@@ -121,13 +126,13 @@ Each ID has a namespace and a name component, e.g.  `(bid "namespace/name")` is
 a BlockId.  Each score has a default namespace
 'Ui.StateConfig.config_namespace'.  New IDs get the default namespace, and when
 writing a block call you normally just write the name, leaving the namespace
-implicit.  The result is that you should be able to merge two scores together
-and avoid ID clashes.
+implicit.  The idea is that you should be able to merge two scores together and
+avoid ID clashes.
 
 Identifier naming is more strict than most languages.  Only lowercase letters
 a-z, digits 0-9, period and hyphen are allowed.  IDs also allow \`s so BlockIds
 can embed symbols.  This enforces a lowercase-with-hyphens naming scheme.  The
-exact definition is in 'Derive.ParseBs.p_identifier'.
+exact definition is in 'Derive.Parse.p_identifier'.
 
 The intent of the restrictive rules are that they relieve me of the burden of
 remembering a naming scheme (e.g. '.' vs. '-' vs. '_') and leave room for

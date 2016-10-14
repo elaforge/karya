@@ -12,9 +12,9 @@ import Global
 
 
 -- | This is an instrument name qualified by synth name.  It should uniquely
--- address a single instrument.  It's different from a 'ScoreTypes.Instrument',
--- which addresses a particular instantiation of an instrument in a particular
--- score.
+-- address a single instrument.  It's different from
+-- a 'Derive.ScoreTypes.Instrument', which addresses a particular instantiation
+-- of an instrument in a particular score.
 data Qualified = Qualified SynthName Name deriving (Show, Eq, Ord)
 
 instance Pretty.Pretty Qualified where pretty = show_qualified
@@ -23,13 +23,12 @@ instance Serialize.Serialize Qualified where
     put (Qualified a b) = Serialize.put a >> Serialize.put b
     get = Qualified <$> Serialize.get <*> Serialize.get
 
--- | Short but unabbreviated lowercase name with no spaces.  This is used to
--- address instruments so it should be easy to type.
+-- | Short but unabbreviated lowercase name with no spaces.  It should
+-- follow 'Ui.Id.valid'.
 type SynthName = Text
 
--- | A name uniquely addresses this instrument within a synth.  It's not
--- a Score.Instrument so it doesn't have to follow its rules about valid
--- characters.
+-- | A name uniquely addresses this instrument within a synth.  It should also
+-- follow 'Ui.Id.valid'.
 type Name = Text
 
 parse_qualified :: Text -> Qualified

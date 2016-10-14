@@ -11,43 +11,28 @@ General instrument details are in [instrument.md](instrument.md.html).
 At the derive level, a 'Derive.BaseTypes.Instrument' is simply a text string,
 but the first step in performance is to look up all those instruments in the
 [instrument db](#instrument-db), and in the per-score configuration, which is
-'Ui.StateConfig.config_midi', which maps instruments to
-'Perform.Midi.Instrument.Config's.
+'Ui.StateConfig.config_allocations', which maps instruments to
+'Perform.Midi.Patch.Config's.
 
 The main feature of the Config is the allocation, which says which Addrs, (MIDI
 device, channel) pairs, the instrument is allocated to.  If there are multiple
 Addrs, the instrument will be [multiplexed](#multiplexing) across them.
 
-The other important bit of config is 'Ui.StateConfig.config_aliases', which
-simply maps one Score.Instrument to another.  The idea is that you will alias a
-generic instrument to its specific instance in your score.  For example, you
-might alias `>reaktor/trumpet` to `>tpt1` and another `>reaktor/trumpet` to
-`>tpt2`.  Now you can refer to the instrument by its logical name in your score
-instead of by what synthesizer it happens to be in, but more importantly, since
-the MIDI config is for the aliased-to instrument, you now have two independent
-trumpets implemented by the same instrument.
-
-Instrument specific configuration is in 'Perform.Midi.Instrument.Instrument'
-and 'Perform.Midi.Instrument.Patch', with per-synth configuration in
-'Perform.Midi.Instrument.Synth'.
+The backend-indepndent per-allocation configuration is in
+'Instrument.Common.Config'.
 
 ### controls
 
 As an example, one of the basic things that most all instruments set is
-'Perform.Midi.Instrument.inst_control_map'.  This is just a mapping from
+'Perform.Midi.Patch.patch_control_map'.  This is just a mapping from
 symbolic control names to MIDI CC numbers.  As a special rule, you can always
 name controls like `cc15` or `cc23` and they will be mapped directly to MIDI CC
 numbers, but if the instrument has a control map, you can write names like
 `filter` or `bow-speed`.
 
-A more specific example is that you could write breath control as `cc2` or
-`breath`, and you could write velocity as `vel`.  But if you use `dyn`, it will
-be mapped to whatever control is appropriate for the instrument: `breath` if it
-has the 'Perform.Midi.Instrument.Pressure' flag set, and `vel` otherwise.
-
-'Perform.Midi.Instrument.synth_control_map' is merged into the per-instrument
-control maps, since often a synthesizer will define a common set of controls
-that all patches respond to.
+The `dyn` control ('Derive.Controls.dynamic') has special support.  If the
+instrument has the `Pressure` 'Perform.Midi.Patch.Flag' set, it is mapped to
+the `breath` control, otherwise it's mapped to `vel`.
 
 ### multiplexing
 
@@ -64,15 +49,15 @@ use, it will simply reuse the one that was used longest ago.
 The result is that if you allocate multiple channels, you should be able to
 give notes independent tunings, controls, or keyswitches.  This is especially
 important for scales which are not 12TET, since every note will be retuned
-(unless 'Perform.Midi.Instrument.patch_scale' is set to the same scale).  But
+(unless 'Perform.Midi.Patch.config_scale' is set to the same scale).  But
 if you have more overlapping notes than channels, they will start to share and
 you'll hear artifacts.  This can happen easily if you have an instrument with a
 long decay.
 
 ### attributes
 
-Another basic configuration is 'Perform.Midi.Instrument.AttributeMap'.  The
-deriver keeps an attribute set in 'Derive.Environ.attributes'.  These are used
+Another basic configuration is 'Perform.Midi.Patch.AttributeMap'.  The
+deriver keeps an attribute set in 'Derive.EnvKey.attributes'.  These are used
 to select a particular articulation or playing style for the instrument, which
 will then map to a keyswitch or a key range, or what have you.  Attributes are
 additive, so while you may add `+pont` to a whole section to switch all
@@ -130,15 +115,14 @@ In addition, some concepts exist only in staff notation, such as "mf" or
 hairpin dynamics, or special markings like cross-staff notes or cautionary
 accidentals.
 
-To round it all out, while some calls are replaced outright with
-lilypond-emitting versions, others change their behaviour when they notice they
-are being derived in lilypond mode.  Which is which is just a question of code
-modularity.  Other calls exist only to emit lilypond.  The library of
-lilypond-specific calls is in 'Derive.Call.Lily'.  You can also seach by tag
-in the [call doc](calls.html), calls that can emit lilypond have `ly`, while
-ones that exist only for lilypond have `ly-only`.
+While some calls are replaced outright with lilypond-emitting versions, others
+change their behaviour when they notice they are being derived in lilypond
+mode.  Which is which is just a question of code modularity.  Other calls exist
+only to emit lilypond.  The library of lilypond-specific calls is in
+'Derive.Call.Lily', and are in the 'Derive.Call.Module.ly' module.  You can
+search for them [call doc](calls.html) with `m:ly`.
 
-<img align=right width=180 src="../../doc/img/ly-example.png">
+<img align=right width=180 src="../../doc/img/example-tracks.png">
 
 Sometimes the differences between lilypond output and MIDI output are too great
 to be reconciled by the calls.  For instance, you may want to write notes as
@@ -164,15 +148,15 @@ you'd then put `ly-track` on it so normal derivation can skip it entirely.
 
 One of the concepts that exists in staff notation but not Karya notation is
 voice and staff.  These are handled with environ values.  If there are notes
-with the `hand` value set, they will be split into the upper and lower staves
-of a grand staff.  And if there are notes with `voice` set, the notes on a
-single staff will be split into multiple voices.  However, the voices are only
-split for the time where the voice number is actually set.  And if you set
-voice for some notes, you have to set it for all of them, and for the same
-duration.  Bad things will happen if you have voiced notes overlapping with
-non-voiced notes on the same staff.  Hopefully warnings in the log, and
-definitely messed up notation.  The environ keys are documented in
-'Derive.Environ'.
+with the 'Derive.EnvKey.hand' value set, they will be split into the upper and
+lower staves of a grand staff.  And if there are notes with
+'Derive.EnvKey.voice' set, the notes on a single staff will be split into
+multiple voices.  However, the voices are only split for the time where the
+voice number is actually set.  And if you set voice for some notes, you have to
+set it for all of them, and for the same duration.  Bad things will happen if
+you have voiced notes overlapping with non-voiced notes on the same staff.
+Hopefully there will be warnings in the log, and you should notice messed up
+notation.
 
 ### pitch
 
@@ -194,17 +178,17 @@ no matter which instrument (if any instrument) it happens to fall under.
 While technically different simultaneous meters are possible, they're tricky to
 implement.
 
-The more important part of meter is that it affects rhythm spelling, another
-concept that doesn't exist in Karya.  Therefore, it's the responsibility of the
-lilypond performer to decide on how to spell rhythms.  This also means that
-irregular meters must be explicit, e.g. you have to write 3+2/4 or 3+3/8
-instead of 5/4 or 6/8.  Rhythm spelling is complicated and partially a
-matter of aesthetics, so it may spell it differently than you want.  E.g.  if
-the meter is 2+2+2/8, it will spell a duple pattern with ties instead of dotted
-notes.  Currently, there's no way to override the rhythm spelling, so you'd
-have to either change the meter to 3+3/8 for that measure, edit the lilypond
-code by hand, or just live with it.  Or make like Stravinsky and write it as a
-duplet.
+The more important part of meter is that it affects rhythm spelling, which
+another concept that doesn't exist in Karya.  Therefore, it's the
+responsibility of the lilypond performer to decide on how to spell rhythms.
+This also means that irregular meters must be explicit, e.g. you have to write
+3+2/4 or 3+3/8 instead of 5/4 or 6/8.  Rhythm spelling is complicated and
+partially a matter of aesthetics, so it may spell a rhythm differently than you
+want.  E.g.  if the meter is 2+2+2/8, it will spell a duple pattern with ties
+instead of dotted notes.  Currently, there's no way to override the rhythm
+spelling, so you'd have to either change the meter to 3+3/8 for that measure,
+edit the lilypond code by hand, or just live with it.  Or make like Stravinsky
+and write it as a duplet.
 
 Currently, meter support is hardcoded, so 'Perform.Lilypond.Meter' only
 supports a limited set of them.  However, it's easy to add new ones, and I

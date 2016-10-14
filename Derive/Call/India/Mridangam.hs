@@ -36,7 +36,7 @@ note_calls = Derive.generator_call_map
     , ("p", c_pattern)
 
     -- standard patterns
-    , ("tari", c_sequence (pure nakatiku))
+    , ("tari", c_sequence (pure tari))
     , ("tk", c_sequence (pure "k+"))
     , ("tknk", c_sequence (pure "k+n+"))
     ]
@@ -163,8 +163,8 @@ convert_patterns (Solkattu.Realize.Patterns pmap) =
 -- These are not exposed in any way, and I'm not even sure how they should be
 -- exposed.
 
-nakatiku :: Text
-nakatiku = "n+u+kt+k" -- naka tiku tari kita
+tari :: Text
+tari = "n+u+kt+k" -- naka tiku tari kita
 
 farans :: [[Text]]
 farans = concat
@@ -209,5 +209,5 @@ farans = concat
         ]
         where
         rest = 32 - Text.length short * 3 - Text.length fill2
-        pattern = start <> nakatiku
+        pattern = start <> tari
         short = Text.take 6 start

@@ -29,7 +29,7 @@ Tracks are divided into two kinds: note tracks, and control tracks.  Control
 tracks are further divided into tempo, control, and pitch.  The type of a track
 is indicated by its title.  Note tracks begin with `>`, pitch tracks begin with
 `*`, tempo tracks are called `tempo`, and tracks starting with letters set
-controls of that name.  Full details are in 'Derive.TrackInfo'.  Note tracks
+controls of that name.  Full details are in 'Derive.ParseTitle'.  Note tracks
 generate events, and control tracks generate a control signal and put it into
 the dynamic environment.  What all of that means will be defined later.
 
@@ -116,11 +116,12 @@ highly related to [scales](#scales).
 Control tracks look like `control`, `add control` or `%`.  If a control with
 the same name is already in scope, the new track will be merged with it.
 The default merge depends on the signal: additive for controls which are
-'Derive.Controls.is_additive' and multiplicative for the rest.
+'Derive.Controls.is_additive' and multiplicative for the rest.  There's also a
+`default-merge` call you can use to configure that locally.
 
 This behaviour can be changed with a leading "operator", e.g.  `set c` will
-replace `c`, or `add c` will add to it.  The complete set of operators is
-listed in 'Derive.Deriver.Monad.default_control_op_map'.
+replace `c`, or `add c` will add to it.  The complete set of merge operators is
+listed in 'Derive.Deriver.Monad.mergers'.
 
 `%` is an unnamed control track and is used only by [control block
 calls](#control-block-calls).
@@ -137,15 +138,12 @@ they indicate the type of they generate.  For instance, `delay-time:s` will
 create a control which the `delay` call will interpret as being in RealTime
 seconds.
 
-Control tracks have another feature, which is experimental:
-'Derive.Control.split_control_tracks'.
-
 ### tempo track
 
 Tempo tracks are titled `tempo`, followed by an optional word.  The track is
 just a normal control track, but the generated signal will be composed with the
 warp signal in scope.  Normally a single tempo track will have scope over all
-the tracks in a module, but it's also possible to have multiple tempo tracks.
+the tracks in a block, but it's also possible to have multiple tempo tracks.
 
 The optional word can be `abs` or `hybrid`.  `abs` is implemented by
 'Derive.Tempo.with_absolute', and `hybrid` is implemented by
@@ -171,7 +169,7 @@ and then modifying their "dyn" signal (for "dynamics"), you can modify the dyn
 signal in the environment, and when the notes are eventually generated they
 will inherit the dyn signal.  But any function in between (or the eventual
 event generating function) can intercept that signal and treat it specially,
-e.g. by resetting the dyn signal and reducing instrument doubling.  Or the
+e.g. by resetting the dyn signal and doubling the instrument.  Or the
 instrument itself could respond to the dyn signal, e.g. by making intonation
 less accurate when playing loudly.
 
@@ -184,27 +182,24 @@ of a call.
 ### controls
 
 Control signals are floating point values that change in time, by convention
-ranging from 0--1.  Pitch signals are similar, except the values are abstract
-objects that can have numeric controls applied to them, for instance chromatic
-or diatonic transposition, and later evaluated to a normal control signal
-representing frequency.  The warp signal is the same as a control signal,
-except it's used to control [ScoreTime to RealTime
-mapping](#scoretime-and-realtime).
+ranging from 0--1 or perhaps -1--1, depending on what is controlled.  Pitch
+signals are similar, except the values are abstract objects that can have
+numeric controls applied to them, for instance chromatic or diatonic
+transposition, and later evaluated to a normal control signal representing
+frequency.  The warp signal is the same as a control signal, except it's used
+to control [ScoreTime to RealTime mapping](#scoretime-and-realtime).
 
 Control signals may carry types also, for instance to document whether a
 transposition signal is in chromatic or diatonic steps, or whether a delay
-signal is in ScoreTime or RealTime, as in 'Derive.Score.TypedVal' and
-'Derive.Score.Type' ('Derive.BaseTypes.TypedVal' and 'Derive.BaseTypes.Type',
-haddock bug).
+signal is in ScoreTime or RealTime, as in 'Derive.ScoreTypes.Typed'.
 
 ### environ
 
-The environ ('Derive.TrackLang.Environ') is different: it holds constant
-[vals](#vals) ('Derive.TrackLang.Val' or 'Derive.BaseTypes.Val' thanks to
-haddock bugs), but they they may be typed.  For instance, the key of a section
-of music is a string, the current instrument is an instrument type, and a
-`trill-depth` value might be a typed number, e.g.  `2d` for 2 diatonic steps.
-As documented in [Calls](#calls), the environ is also used for argument
+The environ ('Derive.Env') is different: it holds constant [vals](#vals)
+('Derive.BaseTypes.Val'), but they they may be typed.  For instance, the key of
+a section of music is a string, the current instrument is an instrument type,
+and a `trill-depth` value might be a typed number, e.g.  `2d` for 2 diatonic
+steps.  As documented in [Calls](#calls), the environ is also used for argument
 defaulting.
 
 Controls and environ vals are separate!  This can be a bit confusing, because
@@ -215,7 +210,7 @@ setting an env val instead of a control, and nothing happens!
 
 Environ keys are arbitrary strings, but there is a set of standard ones, which
 are understood by the built-in derivation functions or scales, documneted in
-'Derive.Environ'.
+'Derive.EnvKey'.
 
 TODO: it would probably be possible to unify all the environ types into a
 single map of typed signals.
@@ -250,8 +245,7 @@ is a built-in note call that matches calls starting with `+`, so if you write
 will presumably cause everything under it to play as tremolo.  If one of the
 notes underneath has a `+cresc`, then the instrument will get `+trem+cresc`,
 which it might have a special sample for, or it might decide which one to
-apply based on priority.  Details are in
-'Perform.Midi.Instrument.KeyswitchMap'.
+apply based on priority.  Details are in 'Perform.Midi.Patch.AttributeMap'.
 
 Note that there are two different approaches here: a tremolo could be realized
 as the `+trem` attribute, which delays the realization to the instrument.  Or
@@ -298,6 +292,12 @@ ScoreTimes through the warp signal, or adjust the times itself.  For instance,
 a call implementing grace notes may override the warp to give them a constant
 duration regardless of the tempo.
 
+The various warp signals will also be combined into a 'Derive.TrackWarp',
+will become a functions from ScoreTime to RealTime and its inverse, which are
+used to display the playback position or start playing from a particular point.
+
+This concept originates from the `nyquist` language.
+
 ## tracklang syntax
 
 The text that appears in the block title, track titles, and events is a
@@ -321,7 +321,7 @@ separated by `|`.  As described in [calls](#calls), the last one is called the
 is not true in track titles though!  They just have the transformer part of the
 pipeline, since the track itself is the generator.
 
-Details on the syntax are in in 'Derive.TrackLang' and 'Derive.ParseBs'.
+Details on the syntax are in in 'Derive.Parse' and 'Derive.BaseTypes'.
 
 There are a couple of hacks in the syntax to make scores look nicer:
 
@@ -343,17 +343,18 @@ could use it as a comment.
 - An expression with an infix `=` such as `x = 42` will be parsed the same as
 the prefix application `= x 42`.  The default behaviour of this call is a
 transformer that sets the given value in the dynamic environ of its generator.
-It's not really necessary, but I think infix looks a little nicer.
+It's not really necessary, but I think infix looks a little nicer.  The `=`
+call is very useful, and is overloaded to be able to assign a lot of different
+types of values.  See the call documentation.
 
 ### Vals
 
-These are your basic types.  They are defined in 'Derive.TrackLang.Val' (or
-'Derive.BaseTypes.Val' if haddock still doesn't work properly).  Most of them
-have a literal syntax so they can written as call arguments.
+These are your basic types.  They are defined in 'Derive.BaseTypes.Val'.  Most
+of them have a literal syntax so they can written as call arguments.
 
 #### number types
 
-The types and their codes are enumerated in 'Derive.BaseTypes.Type', but
+The types and their codes are enumerated in 'Derive.ScoreTypes.Type', but
 hopefully this is up to date:
 Chromatic: `c`, diatonic: `d`, NoteNumber: `nn`, ScoreTime: `t`, RealTime: `s`.
 These break down into transposition and duration.
@@ -372,7 +373,7 @@ chromatic neighbor, and a score time or real time speed.
 
 Calls can expect untyped numbers, transpositions, or durations, and can specify
 that untyped numbers default to a particular type.  So a call may accept `1`,
-`1t`, or `1s`, and cause `1` to default to `1t`.  A call the expects a
+`1t`, or `1s`, and cause `1` to default to `1t`.  A call that expects a
 transposition will always default to Chromatic, however.  The rationale is that
 many scales don't have diatonic or chromatic, and it would be annoying to have
 to specify one or the other when it was definitely irrelevant.  But the
@@ -380,7 +381,7 @@ RealTime ScoreTime distinction is universal, there is no single default that is
 appropriate for all calls.
 
 The details of how Vals are coerced into haskell values are handled by the
-'Derive.TrackLang.Typecheck' class.  The interaction between typed controls and
+'Derive.Typecheck.Typecheck' class.  The interaction between typed controls and
 arguments is also documented in 'Derive.Sig'.
 
 #### quoted
@@ -418,14 +419,6 @@ nested in expressions.  Just like a normal programming language!  So given an
 expression like `a (b (c 1)) (d)`, `b`, `c`, and `d` are all val calls by
 virtue of not being at the front of the expression, while `a` is whatever call
 is relevant for the track.
-
-There's another wrinkle for val calls: if "normal" call isn't found for a
-symbol in generator call position, 'Derive.Call.apply_generator' will search
-for a val call.  If one is found, its result will be passed to the null
-generator call.  So e.g. given an expression `4c` on a pitch track, if there
-is no PitchCall called `4c`, but there is such a ValCall, the result of `(4c)`
-will be passed to the null call.  In fact, this is how pitch tracks usually
-work, since scale degrees are implemented as ValCalls.
 
 There's another wrinkle for val calls: If a generator call is not found in the
 appropriate scope for the track (note, control, or pitch), the evaluator looks
@@ -495,10 +488,11 @@ call whose result is passed to `t2`.  So the pipe operator is effectively
 function application.  The reason it isn't literally function application is
 for syntactical convenience, so generators and transformers can have their own
 namespaces, and so the calls themselves can have separate types at the haskell
-level.  I actually tried it once and it was all kinds of inconvenient.
+level.  I actually tried to make them into normal nested function calls once
+and it was all kinds of inconvenient.
 
-Gory details in 'Derive.Call', and evaluation is implemented by
-'Derive.Call.apply_toplevel'.
+Gory details are in 'Derive.Eval', and evaluation is implemented by
+'Derive.Eval.apply_toplevel'.
 
 ### call docs
 
@@ -529,8 +523,8 @@ master block is up to you, but the cache works at the block level, so if you
 take the one giant block route you will probably see significantly longer
 rederive times.
 
-'Cmd.Refactor' has cmds for easily splitting bits of score into their own
-blocks.
+'Cmd.Factor' has cmds for easily splitting bits of score into their own blocks.
+Use it from the REPL.
 
 ### Control block calls
 
@@ -584,7 +578,7 @@ A 'Derive.Scale.Scale' is somewhat complicated.  Much of the complication is
 [Cmd layer support](cmd.md.html#scales).  From the deriver's point of view,
 the important part of a scale is the set of [ValCalls](#valcall) it brings
 into scope.  Those in turn are expected to return a 'Derive.BaseTypes.VPitch'
-val, which is assembled into a 'Derive.PitchSignal.Signal', analogous to a
+val, which is assembled into a 'Derive.PSignal.Signal', analogous to a
 'Perform.Signal.Control'.
 
 Scale degree val calls are defined within the scale, but should typically use
@@ -631,7 +625,7 @@ to fix it to that version.
 
 Calls that want randomness can use the various calls in 'Derive.Call.Util' to
 get a pseudo-random number.  The number depends soley on the random
-'Derive.Environ.seed', so if the seed is the same, the number will always be
+'Derive.EnvKey.seed', so if the seed is the same, the number will always be
 the same.  The seed is hashed with each stack frame as it is added, so
 each event should get a unique stream of random numbers, even if it winds up
 being called more than once.  However, the seed is an environ value, and if you
@@ -643,4 +637,4 @@ it manually, or you can ask for a different variation by setting a new seed.
 Because the seed depends on the stack, two calls on the same event will get the
 same random sequence.  Hopefully that's not a problem.
 
-'Derive.Call.Random' has some randomness-using calls.
+'Derive.Call.Prelude.Random' has some randomness-using calls.

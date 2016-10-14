@@ -186,7 +186,7 @@ html_header hstate = mconcat
         \ <code>-word</code> to\n\
         \exclude.  Prefix with <code>m:</code> for modules,\
         \ <code>kind:(note|control|pitch|val)</code> for call kinds, or\
-        \ <code>type:(val|generator|transformer></code> for call types.\n\
+        \ <code>type:(val|generator|transformer)</code> for call types.\n\
         \<input id=input type=text size=60 value=\"" <> default_search
         <> "\" onchange=\"search(this.value)\">\n\
         \<br>You can also search by <code>%control</code>, arg default\n\
@@ -195,7 +195,7 @@ html_header hstate = mconcat
         \\n<br>Search for calls with the browser's text search, \"call --\"\
         \ to search by binding, \"-- call\" to search by name.\n<br>"
     , Doc.html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
-    , " &mdash; <span id=totals> x </span>\n"
+    , "\n<p> <span id=totals> x </span>\n"
     ]
     where default_search = "-m:internal -m:ly "
 

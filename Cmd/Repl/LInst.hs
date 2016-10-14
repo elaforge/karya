@@ -162,7 +162,7 @@ rename from to = do
 
 -- | Allocate a new MIDI instrument.  For instance:
 --
--- > LInst.add \"m\" \"kontakt/mridangam-g\" \"loop1\" [0]
+-- > LInst.add "m" "kontakt/mridangam-g" "loop1" [0]
 --
 -- This will create an instance of the @kontakt/mridangam@ instrument named
 -- @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI

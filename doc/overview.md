@@ -124,8 +124,9 @@ you set checkpoints along the branches you can jump between different versions
 at will, and hopefully no edits need ever be lost.  The underlying storage is
 git, so you can use the usual git tools to inspect and manipulate it.  Only in
 a limited way, though, since the files are binary and it's a "bare" repo with
-no checked out files.  Theoretically I could invent a text format and then
-diffs would work.
+no checked out files.  I could invent a text format and then diffs would work,
+or check out the files, and then manual branches would work, but I haven't had
+any motivation to do that yet.
 
 ## Weaknesses:
 
@@ -135,7 +136,7 @@ inversion](slicing-inverting.md.html), the structure of the score can get
 complicated and hard to understand.  There are a lot of tools for inspecting
 intermediate output, but sometimes it can feel like debugging a compiler.  And
 since it's a rather programmerly view of music and relies on writing code to
-perform operations, it will probably never be very usable by non-programmers.
+perform operations, it will probably never be usable by non-programmers.
 
 - Slow.  It relies on caching to rederive scores quickly.  If you put your
 score together in a way that defeats caching it will start taking a long time
@@ -146,7 +147,8 @@ bugs.
 
 - Greedy.  What with the various caches, an internal focus on simplicity over
 efficiency, and plenty of unoptimized bits, it demands quite a lot of memory
-and CPU for a program that doesn't actually handle audio.
+and CPU for a program that doesn't actually handle audio.  This could probably
+be greatly improved with some optimization work, especially fixing space leaks.
 
 - Non-realtime.  While you should be able to play back a score soon after
 making changes, it's still very much oriented around non-realtime
@@ -157,6 +159,7 @@ mostly because I don't work that way.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
+ports.  On OS X you can use IAC ports, on Linux you can make a bunch of JACK
 ports.  If you route to a DAW like Reaper or Ardour you can then bounce or
 "freeze" tracks by recording in the DAW, but since neither of these programs
 provide much remote control ability you likely have to set up the routing
@@ -169,8 +172,8 @@ and channels, and will be limited to low resolution controls, on both value and
 time axes.  The underlying problem is the software synths, which have all
 deeply embedded MIDI's limitations.  To solve this we'd need to drag software
 synths out of the '80s, create a new high-resolution protocol, and modify the
-major samplers and synthesizers to support it.  This has been tried but failed,
-perhaps because there were no sequencers or input devices to generate the high
+major samplers and synthesizers to support it.  This will surely never happen,
+because there were no sequencers or input devices to generate the high
 resolution output, and no tradition of music that relies on it.  As far as I
 can tell, VST's "automation parameters" are basically higher resolution MIDI
 controls, so some of this could probably be ameliorated by extending a VST host
@@ -261,7 +264,9 @@ includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 
 ## karya
 
-The [quickstart](quickstart.md.html) covers basic configuration.
+The [quickstart](quickstart.md.html) covers basic configuration.  This is the
+closest there is to "how to do it" documentation, the rest is reference style
+and maybe hard to get a big picture from.
 
 For the purposes of documentation, there are several major layers:
 

@@ -11,12 +11,12 @@ import Global
 
 midi_config :: Cmd.InstrumentDb -> StaticConfig.Midi
 midi_config db = StaticConfig.Midi
-    { StaticConfig.rdev_map = StaticConfig.make_rdev_map rdev_map
-    , StaticConfig.wdev_map = StaticConfig.make_wdev_map $
+    { rdev_map = StaticConfig.make_rdev_map rdev_map
+    , wdev_map = StaticConfig.make_wdev_map $
         -- Give all the softsynths a default mapping so they're easy to play
         -- with.
         [(dev, iac 1) | dev <- Inst.synth_names db] ++ wdev_map
-    , StaticConfig.read_devices = StaticConfig.make_read_devices read_devices
+    , read_devices = StaticConfig.make_read_devices read_devices
     }
 
 iac, tapco, network :: Int -> Text

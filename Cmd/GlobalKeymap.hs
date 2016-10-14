@@ -4,12 +4,13 @@
 
 {- | The default keyboard layout.
 
-    I group cmds by their function.  The cmds of with higher numbers will
-    shadow the cmds with lower numbers.
+    I group cmds by their function.  Overlapping keys will be detected and show
+    up in the log as a warning on startup.
 
-    There should be deriver independent generic editing, and then deriver
-    specific shortcuts built on that.  Global cmds also generally have
-    a command-key version, so you can invoke them even when kbd entry is on.
+    Some global cmds also have a command-key version, so you can invoke them
+    even when kbd entry is on.
+
+    Track-specific cmds are bound in 'Cmd.Track'.
 
     Global generic cmds:
 
@@ -33,13 +34,14 @@
     4. Kbd entry, if on, will hijack the letter keys and turn them into
     NoteOns.
 
-    TODO then there's midi recording:
+    Then there's midi recording:  (TODO which is theoretical since it's not
+    implemented)
 
     In record mode, the block is played while recording midi msgs and their
     timestamps, which are later passed to the integrator to convert into
     events.
 -}
-module Cmd.GlobalKeymap where
+module Cmd.GlobalKeymap (pure_cmds, io_cmds, all_cmd_map, cmd_map_errors) where
 import qualified Control.Monad.Identity as Identity
 
 import qualified Ui.Block as Block
@@ -76,15 +78,20 @@ import qualified App.Config as Config
 import Global
 
 
+-- | Cmds that don't use IO.  Exported from the module for the responder.
 pure_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
 pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
 
+-- | Cmds that use IO.  This should be a limited to the small set of cmds that
+-- need it.
 io_cmds :: [Msg.Msg -> Cmd.CmdIO]
 io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
 
--- | 'all_cmd_map' is not useful for actual cmds since the cmds themselves
--- have been stripped, but it's still useful to find keymap collisions and
--- print a global keymap.
+-- | This is not useful for execution since the cmds themselves have been
+-- stripped of their code, but it's still useful to find keymap collisions and
+-- print a global keymap.  They're stripped to make them all the same type, so
+-- they can all go into the same CmdMap, so collision detection and
+-- documentation doesn't have to care about 'pure_cmds' vs 'io_cmds'.
 all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
 cmd_map_errors :: [Text]
 (all_cmd_map, cmd_map_errors) =

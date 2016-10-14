@@ -112,9 +112,17 @@ type CmdIO = CmdT IO Status
 -- | Cmds used by the REPL, which all run in IO.
 type CmdL a = CmdT IO a
 
-data Status = Done | Continue | Quit
+data Status =
+    -- | Stop further cmd processing, \"consuming\" the Msg.
+    Done
+    -- | Continue processing, so another Cmd will have an opportunity to see
+    -- the Msg.
+    | Continue
+    -- | Pack it up and go home.
+    | Quit
     -- | Hack to control import dependencies, see "Cmd.PlayC".
     | PlayMidi !PlayMidiArgs
+    -- | Open a FloatingInput box.
     | FloatingInput !FloatingInput
     deriving (Show)
 

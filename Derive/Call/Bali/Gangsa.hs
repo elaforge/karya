@@ -262,7 +262,10 @@ pattern_steps style pasang (KotekanPattern telu pat itelu ipat) = Realization
 -- gets really complicated.
 c_norot :: Maybe Bool -> Derive.Generator Derive.Note
 c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
-    "Emit the basic norot pattern."
+    ("Emit the basic norot pattern." <> case default_prepare of
+        Just True -> " Default to prepare."
+        Just False -> " Default to no preparation."
+        Nothing -> "")
     $ Sig.call ((,,,,,,)
     <$> Sig.defaulted "prepare" default_prepare
         "Whether or not to prepare for the next pitch. If Nothing, infer based\
@@ -444,7 +447,9 @@ kotekan_doc :: Doc.Doc
 kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event but may also emit a note at the\
-    \ start of the event, so use `cancel-pasang` to cancel the extra notes."
+    \ start of the event, so use `cancel-pasang` to cancel the extra notes.\
+    \ Ngubeng kotekan is naturally suited to positive duration, while majalan\
+    \ is suited to negative duration."
 
 c_kotekan_irregular :: KotekanStyle -> KotekanPattern
     -> Derive.Generator Derive.Note
@@ -871,7 +876,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
 c_kempyung :: Derive.Transformer Derive.Note
 c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
-    \ above."
+    \ above. If the sangsih would go out of range, it's forced into unison."
     $ Sig.callt ((,)
     <$> instrument_top_env <*> pasang_env
     ) $ \(maybe_top, pasang) _args deriver -> do
@@ -902,8 +907,8 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
 
 c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
-    "Split a single part into polos and sangsih parts by assigning\
-    \ polos and sangsih to alternating notes."
+    "Nyog cag style. Split a single part into polos and sangsih parts by\
+    \ assigning polos and sangsih to alternating notes."
     $ Sig.callt pasang_env $ \pasang _args deriver ->
         snd . Post.emap_asc (nyogcag pasang) True <$> deriver
 

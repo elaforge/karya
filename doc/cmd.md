@@ -7,13 +7,13 @@ basically just a state monad on 'Ui.State.State' and 'Cmd.Cmd.State', which
 means a Cmd is a function that can modify the score or the app state.
 
 Bound Cmds are just functions that take a 'Cmd.Msg.Msg' and decide whether or
-not to do something based on that: 'Cmd.Cmd.Cmd'.  Most of them are bound in
-'Cmd.GlobalKeymap' and track-specific ones are bound from 'Cmd.Track'.  The
-keymap bound cmds are summarized in [the keymap doc](keymap.html), and the
-track commands mostly depend on the [EditMode](#editmode).
+not to do something based on that: `'Msg.Msg' -> 'Cmd.CmdId Cmd.Status'`.
+Most of them are bound in 'Cmd.GlobalKeymap' and track-specific ones are bound
+from 'Cmd.Track'.  The keymap bound cmds are summarized in [the keymap
+doc](keymap.html), and the track commands mostly depend on the
+[EditMode](#editmode).
 
-However, the vast majority of Cmds are accessible only from the
-[REPL](repl.md.html).
+However, most Cmds are accessible only from the [REPL](repl.md.html).
 
 ## Tracks
 
@@ -50,17 +50,18 @@ the meter.  If you are so inclined, you could put an event track in TrackNum 0,
 perhaps as a reference.  Or you could have multiple rulers, which is analogous
 to multiple simultaneous meters.  However, cmds that deal with rulers generally
 expect only one ruler per block, and that it be in TrackNum 0, so you might
-have to make those smarter.
+have to make those smarter.  'Cmd.Repl.LRuler' does have basic support for
+multiple meters, in that it can modify a single track, or a group of tracks
+bound by a ruler track to their left, or all the tracks in a block.
 
 A 'Ui.Ruler.Ruler' has 'Ui.Ruler.Marklist's, which is just a list of
 'Ui.Ruler.Mark's.
 
-Technically a ruler can have marks in any kind of arbitrary pattern, but
-typically you'd want them dividing up time according to a meter or tala or
-whatever system you use to organize time.  'Cmd.Meter' has utilities to
-describe Western-style meters, while 'Cmd.Tala' has Carnatic talas.  Normally
-you'd use the functions in 'Cmd.Repl.LRuler' to modify the ruler or create new
-rulers.
+A ruler can have marks in any kind of arbitrary pattern, but typically you'd
+want them dividing up time according to a meter or tala or whatever system you
+use.  'Cmd.Meter' has utilities to describe European-style meters, while
+'Cmd.Tala' has Carnatic talas.  Normally you'd use the functions in
+'Cmd.Repl.LRuler' to modify the ruler or create new rulers.
 
 While ruler tracks have a ruler only, event tracks have rulers too, which show
 up as transparent lines.  Normally all tracks in a block have the same ruler,
@@ -71,19 +72,19 @@ Since rulers are addressed by RulerId, they have an identity and are shared.
 So you need to be aware if you are modifying an existing ruler, which will
 change all blocks with that ruler, or if you are creating a local copy.  The
 'Cmd.Repl.LRuler.modify' and 'Cmd.Repl.LRuler.local' functions apply a ruler
-modification destructively or to a local copy, respectively.  Remember to
-occasionally call 'Cmd.Repl.LRuler.gc' to delete orphaned rulers.
+modification destructively or to a local copy, respectively.  The LRuler
+functions should delete rulers when no references remain, but not always, so
+'Cmd.Repl.LRuler.gc' will do that explicitly.
 
 ### event track
 
 Event tracks have 'Ui.Event.Event's.  They are divided into several types,
 differentiated by their titles.  Details are in the [derivation
-doc](derivation.md.html#track-evaluation).  Since this is the track that
-actually holds score data, and which you spend most of your time editing,
-"track" usually means an event track, not a ruler.  Usually I say "note track"
-or "pitch track" or "control track", all of which are event tracks at the low
-level, but are distinguished by their titles and treated differently by cmds
-and derivation.
+doc](derivation.md.html#track-evaluation).  Since this is the track that holds
+score data, and which you spend most of your time editing, "track" usually
+means an event track, not a ruler.  Usually I say "note track" or "pitch track"
+or "control track", all of which are event tracks at the low level, but are
+distinguished by their titles and treated differently by cmds and derivation.
 
 Of course, to be visible, a track has to live in a block.  The same track,
 identified by its TrackId, can be in multiple blocks at once, but it can only
@@ -118,9 +119,8 @@ mostly act like pitch tracks.  But ValEdit on note tracks also supports
 'Cmd.Cmd.state_record_velocity'.
 
 Instruments can carry their own Cmds, which come into scope on the relative
-note track.  So for instance an unpitched drum instrument may override the note
-track Cmds so that entering notes creates drum strokes rather than pitched
-notes.
+note track.  So for instance an drum instrument may override the note track
+Cmds so that entering notes creates drum strokes rather than pitched notes.
 
 #### pitch track
 
@@ -142,10 +142,10 @@ But since they mostly are normalized, the default call to set a control value
 is a bit weird, though it may be familiar if you've used a tracker.  ValEdit
 will accept hex "higits" and replace any existing number.  The value is
 superscripted with an `x` to indicate that it's in hex, and is divided by 0xff
-to normalize it.  This makes it fast and convenient to type normalized
-numbers, makes them all the same physical width, and doesn't rely on a tiny
-decimal point to determine their magnitude.  But you can still use [raw
-input](#raw-input) enter decimal numbers if you like them, or need numbers
+to normalize it.  This makes it fast and convenient to type normalized numbers,
+makes them all the same physical width, and doesn't rely on a tiny decimal
+point to determine their magnitude.  But you can still use [floating
+input](#floating-input) enter decimal numbers if you like them, or need numbers
 outside the 0--1 range.  As documented in 'Cmd.ControlTrack.cmd_val_edit', a
 track is only edited in normalized mode if it's inferred to be normalized.
 
@@ -153,8 +153,8 @@ track is only edited in normalized mode if it's inferred to be normalized.
 
 [Tempo tracks](derivation.md.html#tempo-track), also implemented in
 'Cmd.ControlTrack', are in most respects normal control tracks, except of
-course they are treated differently by the deriver.  One wrinkle is that
-they're not normalized between 0--1, so they don't do the hex input thing.
+course they are treated differently by the deriver.  They're not normalized
+between 0--1, so they don't do the hex input thing.
 
 ### Signal render
 
@@ -166,20 +166,19 @@ turn signal render on and off.
 
 ## selections
 
-Selections are differently-colored transparent rectangles that are drawn in
-event or ruler tracks, starting at some time and ending at some other time.
-At the lowest level, that's all they are, but of course cmds establish some
-conventional meanings for them.  The most frequently used is the insert
-selection, which corresponds to the "edit point selection" found in most
-programs, but there are others, configured and documented in
-'App.Config.insert_selnum'.
+Selections are colored transparent rectangles that are drawn in event or ruler
+tracks, starting at some time and ending at some other time.  At the lowest
+level, that's all they are, but of course cmds establish some conventional
+meanings for them.  The most frequently used is the insert selection, which
+corresponds to the "edit point selection" found in most programs, but there are
+others, configured and documented in 'App.Config.insert_selnum'.
 
 Selections can have zero duration, at which point they're called "point
 selections" and in the case of the insert selection, some cmds may behave
 slightly differently, e.g. act upon an overlapping or previous event rather
 than the events strictly contained within.  It's all rather ad-hoc and
-complicated, but is hopefully what you expect, as long as you're
-sufficiently like me.
+complicated, but is hopefully what you expect, as long as your expectations are
+similar to mine.
 
 ## TimeStep
 
@@ -191,7 +190,7 @@ of ruler mark ranks.  Utilities in 'Cmd.Meter' can create and modify rulers
 with appropriately spaced marks, which cause the various timesteps to
 correspond to whole notes, quarter notes, etc.  The short form of a TimeStep as
 emitted by 'Cmd.TimeStep.show_time_step' uses mnemonics like `w`, `h` and `q`,
-and in Western meters these generally correspond to whole, half, and quarter
+and in European meters these generally correspond to whole, half, and quarter
 notes, but not necessarily exactly, as documented in 'Cmd.Meter'.
 
 ## EditMode
@@ -238,18 +237,21 @@ Note entry mode ('Cmd.NoteEntry') is actually orthogonal to EditMode, in that
 it can be enabled and disabled independently, but is conceptually also a mode.
 It turns the ASCII keyboard into a music keyboard by remapping the keys to
 emit pitched notes.  It's often more convenient to use a MIDI keyboard, though,
-because then you get to keep the computer keyboard for cmds.
+because then you get to keep the ASCII keyboard for cmds.
 
 But since the ASCII keyboard is actually analogous to a 10-key per octave
 keyboard with black keys in between each white key, it can be more convenient
 for scales with non-piano layouts.  This also allows it to behave slightly
 differently, for example relative scales always start at `z` and `q` (the
-"middle c" of the ASCII keyboard), even for the piano style scales, because
-the ASCII keyboard allows black keys to be anywhere.
+"middle c" of the ASCII keyboard), even for the piano style scales, because the
+ASCII keyboard allows black keys to be anywhere.
 
 An input note, whether via MIDI or ASCII keyboard, is represented by a
 'Perform.Pitch.Input', which has more information about how they're
 represented.
+
+Sometimes I call this "kbd entry", though I'm trying to standardize on "note
+entry."  They're both kind of vague though.
 
 ## Integration
 
