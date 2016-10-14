@@ -7,108 +7,15 @@ UNSORTED
   - convert Util.Testing to Text
   - Put tags in Log.Msg like [(Text, Text | Int)], so I don't have to do
     Cache.extract_cached_msg.
-  * rename DeriveTest.synth* to synths
-  * Would it make sense to also put Perform.Midi.Patch.Flags in Config?
-    - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
-      . Not quite, since Backend encodes that alloc and patch backends are
-        equal, but is it really necessary?
-    * LInst.list should print settings when they differ from the defaults
-    / Test that Common.config_environ is merged with Common.common_environ.
-      . Too much hassle.
-    * Make allocation copy Patch.patch_defaults to Patch.config_settings.
-    * LInst also has to add defaults when it merges Configs.
-    * Come up with a way to update old saved scores.
-      . This will actually continue to be a problem, if I later add fields to
-        Settings.
-      . This is also getting annoying with tests, because I need to get ahold
-        of the inst db.
-      . How about separate Defaults and Settings, where there are Maybes in
-        Settings?
-      . That's kind of even worse, because now everyone needs both Patch and
-        Config.  The reason they didn't before was that I would copy the
-        overrides into the Patch... and I could still do that.  But I remember
-        being confused by that earlier so I kind of like not doing that.
-    * Fix the tests.
-      . It's annoying how I have UiTest.default_allocations, then
-        Simple.Allocations, and then DeriveTest.SimpleAllocations.
-      . For inst definition tests, I need the inst defaults, so I can use
-        DeriveTest.SimpleAllocations, or even simpler since I'm not testing
-        allocation... except I need some for pasang instruments.
-      . Then for the rest, I use UiTest.allocations, and modify settings in
-        the allocation instead of the patch.
-    / Cmd.Simple should save Settings
-    . Maybe, but when deserializing I have to patch old scores.
-    . Also convert now needs Config.
-    . Or, I could do it the same way as environ, which is that the config
-      is merged into the Patch.  But this means I can only add flags...
-      which, come to think of it, is also true for environ.
-    . So maybe both environ and flags in Patch should be default, and
-      is copied to the config when it is first created.
-    . It also seems less confusing to not modify Patch.
-    . On the other hand, then everyone has to look in both Config and Patch,
-      or Config has to have all of Patch's fields.
-    . But in that vein, why not put a Patch inside of Config?  Then I can
-      modify everything.
-    . Except fields of Instrument.Common, which is just environ.  I think I
-      still have to merge that, which means I still can't remove default
-      environ keys.
-      . Static config, common and backend: (Common.Common, Midi.Patch)
-        Dynamic config, common and backend: (Common.Config, Midi.Config)
-      . Some things are dynamic only, e.g. solo flag, some are static only,
-        e.g. doc.  So I think in static I put a default, which is copied to
-        dynamic on creation.  This does mean that I can't retroactively add
-        a env key, though seems like not a big deal.
-      . So, split configurable fields from Patch into Defaults.  That can
-        directly go into Config.
-      . Local.Instrument.* has functions to make allocations, for which it's
-        more convenient to just have the added env, and merge with the default
-        one later, but surely the merge allocs function in LInst can do that.
-      . I could replace patch_defaults with config_defaults.  Then I'm back to
-        the confusing modify Patch thing, but then callers don't have to pick
-        the right Defaults themselves.
-      . Or I could make a new type: Midi Patch.Patch Patch.Config, which gives
-        me a place to complain about a mismatched allocation (though
-        StateConfig.verify_allocation should have already verified that), but
-        I still have two Defaults.
-      . Maybe it's the name that's the problem.  Defaults are only defaults
-        when in Patch.  In Config they're just more Config.  Settings?
-
-  * look into using the 'errors' package for things like
-    'maybe (Left msg) Right' in Derive.Call.India.Mridangam.infer_pattern
-    - use tryJust and tryRght instead of require and require_right
-  * rename ScopeType to ScopePriority
-    * rename stype_imported to library
-  * why does creating a 'tari' block not override the 'tari' call?
-  * fltk: wrapping right-aligned text is broken
-  Ruler
-    * SymbolTable.cc: don't round off the double returned by draw_text
-      . Can I remove the re-measure in SymbolTable::wrap now?
-    * ruler is hard to read due to leading prefixes, can I omit those?
-    * Maybe left-align will more readable.
-    * only strip first n prefixes
-    * MeterConfig setting to strip
-    / Also 0 is very close to O.
-    * Also it would be nice to have different font sizes.
-      . I could use mini html, e.g. <font size=n>..</font>, but it seems like
-        overkill.
-      . Custom ascii: <13>3<9>.5 or relative ++4--.5
-      . Or use non-ascii to avoid having to quote ascii: ^[^[4^z^z.5
-      . It would be nicer to have a more uniform way so I can style text in
-        all places.  So use ``, but maybe add `+n` and `-n` as a special case
-        for add or subtract size.
-      . Or maybe since it's just numbers, I can just hardcode a bunch of `x+y`
-        where 'x' is a size and 'y' is 0-9.  Except it's not just numbers,
-        Tala uses O and X.
-      . I think I do want the whole nonstandard section in ``s so measure and
-        word wrap keep working normally.  So maybe `+4/xyz`, which now means
-        that the delimeter / must now be quoted.  E.g. `//` for a single
-        slash.  Or maybe ';': `+4;x` or `bold;x`.
-  * shift '/' doesn't work if there's no root
+  - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
+    . Not quite, since Backend encodes that alloc and patch backends are
+      equal, but is it really necessary?
+  - Use 'errors' package tryJust and tryRght instead of require and
+    require_right.
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
   - If State.allocations is so read-only, why not make it a plain function?
     . Tests use it to write...
-  * Derive.Doc type to make call args clearer
   - do a renaming pass on all the prev/next pitch function names in
     Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
@@ -153,34 +60,9 @@ UNSORTED
     . That 'collect' arg in Eval.eval_expr.  Why False for Eval.reapply
       but other functions make the caller decide?
 
-  cache:
-    * cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to
-      be a parse error, '>pemade |', and then fix it, it forgets that it was
-      called from the root, so presumably it gets cached as a zero and the fix
-      doesn't invalidate that.
-      . It's because I don't get a block dep on the sub block.
-    * 'tile' messes up the cache.  If I change the tile callee's contents
-      I think it rederives with only a single cycle and wrong controls.
-      . The first time the second block call is shifted, the second time it
-        uses the cache, which isn't.  Why does it work the first time?
-        It works because neither call uses the cache.  The second time, both
-        use the same cache, but one has been overwritten.
-      . The cache is for 0-4, and there's only one entry, so it can't
-        recognize that there were two calls to that block from the same place.
-        To cache each one separately, I need to distinguish.
-      . Ideally, I'd use all the inputs as key, but it's impractical so I use
-        the stack as a stand-in.  But at least I could use the warp, or just
-        the warp at start time.  It still won't help with simultaneous ones,
-        but then I need another key.
-      . Perhaps an artificial key?  That's what state_event_serial was for,
-        but it increments on notes generated, what about block calls?
-        Also I worry that it's easy fooled
-  * Cmd.Meter: It's still useful to take r_section out of unlabeled_ranks
-    so I can have gongs labeled.  How could I configure that?  Or should
-    I have a specialized kind of meter for gong, like Cmd.Tala?
-    . On the other side, I could imagine wanting sections for a quick chapu
-      talam, where the phrase structure was e.g. 4 avartanams.
-    . MeterConfig can handle this now.
+  - have an easier way to use MeterConfig to take e.g. r_section out of
+    unlabeled_ranks so I can have a absolute gong count.
+    . The other option is for r_measure to keep going after each r_section.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.
@@ -211,12 +93,6 @@ UNSORTED
       the parser over.  Can't I just reapply to the callee?
   - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
   - Use kotekan for >wy with sargam scale.
-  * Special play support for tambura-like instruments, where it will start
-    playing a note from the middle.
-    . Instrument gets a ResumePlay flag.
-    . This needs support at PlayUtil.perform_from.  events_from needs to
-      scan back for the last NoteOn of the ResumePlay instruments.
-    . If I want to get controls right, it would have to collect controls.
   - I should collapse adjacent Collapsed tracks so they don't turn into
     a giant blue block.
     . If I do it at the fltk draw level, then I don't have to worry about diff
@@ -907,8 +783,7 @@ performance:
 fltk:
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
-    . I'd need to pass a haskell callback.
-  * blue abbrev line at the bottom of a positive event is chopped off
+    . I'd need to pass a haskell callback.  Worth it?
   - negative event text is pushed downwards the more it wraps
     . Probably that padding pixel making it not line up.
     . All these padding tweaks are a real mess.  Can I get rid of them and
@@ -919,23 +794,6 @@ fltk:
       I ever use those, but I'd have to make it wider.
   - Do I want to support set_ruler for Scrollbar?
   - linux fltk drawing: event ears draw as a solid bar
-  * Track titles are still cramped, and even with the expand thing it's still
-    awkward to edit text in them, and annoying to not be able to see what's in
-    them.  Much of the problem is that for editing I want the tracks to be
-    narrow as possible, but that's too small for editing the title.
-    . How about making the title expand horizontally in addition to
-      vertically?
-    . Maybe expand to a certain minimum.
-    . What if it's on the right side of the window?  Could I go past the edge
-      if the floating input is actually a separate window?  Would that also
-      solve the redraw / resize difficulties?
-    * Do this for track titles.
-      . Normally they have a plain Fl_Input, but if you focus on it, then
-        it makes a new FloatingInput window in the same spot.
-      . Move blue-line drawing into AbbreviatedInput.cc
-      . It looks weird for a track title to expand when it doesn't need it,
-        but maybe I'll see if I get used to it.  Otherwise, I could do the
-        horizontal expand thing.
     - Drag on an event track title doesn't work, because the new FloatingInput
       doesn't realize that a drag has started.
       . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
@@ -946,11 +804,6 @@ fltk:
     - Also, it seems resize on a window which is a child of another window
       goes into endless recursion.  What is a child window supposed to mean
       anyway?
-  Make naming more consistent:
-    * Rename XyzView to just Xyz
-    * namespace utf8 should be defined in utf8.h
-    * rename P9Scrollbar to just Scrollbar.  I didn't wind up making it very
-      plan9-like.
   - Manually fiddling with track widths is annoying.  It seems like I could
     ask the UI about text extents to resize them automatically.
   - I never wound up using rank > 1, so presumably I could simplify things by
@@ -960,27 +813,8 @@ fltk:
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.  This is visible when I add logical range markers.
-  * If I wrap text, and there is then space available on the right, check if
-    I can squeeze in ranked text.
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
-  * Text in negative events doesn't wrap.
-    . Let's redo text drawing to be more clever in general.
-    . Figure out text bounding box based on is_positive and previous left and
-      right boxes.  Positive events wrap downwards, clip them based on the next
-      event with text.  Negative clip from the previous bottom.
-    . First compute bounding box for each event.
-    * Glyph level wrapping.
-      . wraps after 5, should be after 4
-      . actual width=74, so 37, 0--5 is actually 34
-    * align Left should have priority over align Right text
-      . Also test with long Right text that wraps.
-    * test with large glyphs, and glyph wrap where even one won't fit
-    * Get rid of SymbolTable::draw_wrapped.
-  / It would be nicer if WrappedText could take an always_wrap=true flag to
-    make it wrap even when there's no space, for edit input.  However, this
-    would complicate the wrapping algorithm and would mean I have to store
-    breaks explicitly, instead of just replacing '\n' with ' '.
   - add edit and windows menu to all apps
     There must be special OS X support for these
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
@@ -1465,7 +1299,6 @@ Derive:
       solkattu:
         - Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
-        * Reuse solkattu patterns in india.mridanngam
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
           ta_ta.din_din.gin_gin.na_na.thom_thom
@@ -1476,7 +1309,6 @@ Derive:
           . Of course the other way to do that is just put the exact manual
             sequence in the StrokeMap, but it's a duplication, but minus
             the rests.
-        * Support S2 Patterns.
         - put sep argument second, so e.g. 'tri p6 (tang.ga)', this way it
           reads forwards.
         - dinga can be realized with a light tha, so maybe I need a "light"
@@ -1524,7 +1356,6 @@ Derive:
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
         alternate realization
-          * kendang tunggal
           - kendang pasangan
           - reyong
           - gangsa / marimba
@@ -1539,24 +1370,6 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      * Gangsa.cycle_pattern is copy paste from 'realize_pattern', get rid of
-        one of them
-      * kotekan ending in a unison or kempyung should sometimes have both
-        instruments, but sometimes the last polos note should replace both.
-        . Isn't that what 'cancel-pasasng' is supposed to do?
-        . Also, in save/transcribe/bali/gabor @end-a 24t, the end of the
-          kotekan should be polos, not kempyung.
-        . cancel and realize:
-          end of block {final}:
-            [(polos, 16, 0, "4i")] -- [(polos, 0, 4, "4o")]
-              => (polos, 16, 4, "4i")
-                merge duration from 2nd
-            [(polos, 16, 0, "4i")] -- [(sangsih, 2, 4, "4o")]
-              => [(polos, 16, 2, "4i"), (sangsih, 2, 4, "4o")]
-                extend to fill gap
-            [(polos, 16, 0, "4i") -- [(polos, 0, 4, "4i")
-             (sangsih, 16, 0, "4i")]  (sangsih, 0, 4, "4u")]
-              => like merges with like
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -1567,16 +1380,10 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
-        * perhaps I should line up to the end for negative events
-        / 'k//\\' can start in multiple ways, e.g. 444 or 4-4, or 434.
-          . I can just chop off the front for now.
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.
-        * why is k//\\ non-interlocking giving the bottom part to sangsih?
-          . It's because kotekan_irregular is designed that way, it has
-            a single kotekan_unison.
-        * is zero dur also mute for reyong?  I keep forgetting!
+        ? is zero dur also mute for reyong?  I keep forgetting!
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
@@ -1591,45 +1398,7 @@ Derive:
             -0 dur.
           . Or just remove the event, but keep the pitch.
         norot:
-          update reyong
-            * rename kilit to norot and 'nt'
-            * do the same prepare next note thing as gangsa norot
           - I only use Once for norot prepare, can I get rid of it?
-          * Rename 'arrival' to 'prepare'?
-        * With pitch at the beginning I actually can't express some things,
-          e.g. uuau | k//\\ 5o, I can't put the dung on the beginning of the
-          'k' because it's manual.  It would happen correctly if norot used
-          the next pitch, and I could put the dung on the 'k' and the 'k' got
-          dong from the end.
-          . What happens when I need to write simple notes though?
-        * negative events are convenient for the pitch, but sometimes I still
-          want to control the final note.  Maybe I could still use positive
-          durations, but take pitch from the end?
-          . That doesn't work because slicing uses a negative event to include
-            the end.
-          . Maybe I could include control calls if they are -0?
-          . Actually I don't understand why the negative event gets the next
-            control.
-            . It's because slice goes from start--next_start, which happens
-              to be correct for negative events.
-          . I would need Control.trim_signal to include the sample at the end,
-            buts its whole job is to trim that one off.  So I think I need the
-            negative duration on the event as a way to signal that I want the
-            controls after the event, not during it.
-          . If I did the thing where negative events are edited at their end,
-            I could have a positive note at the end of a negative one.
-            Negative becomes more of a flag on a note to tell it to draw and
-            slice differently.  The tradeoff is that I can no longer put a
-            positive note at the start of a negative one.  Even if I did, it
-            would have to be zero duration and have its duration inferred.
-          . The other option is to just use the "next pitch" feature to make
-            kotekan calls depend on the next pitch instead of the current one.
-            . This doesn't work because next pitch only works in a pitch
-              track.  To make it work in a note track I'd have to evaluate the
-              whole next note, or have an entirely separate way to get the
-              next pitch.
-            . Actually I now have this, via NotePitchQuery.
-          . Solved with the new negative duration encoding.
         kotekan kernel:
           - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
@@ -1673,8 +1442,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        * instead of the awkward >kilit or the cancel range, should I do
-          next note preparation as the end of the current kilit call?
+        - remove kilit, isn't it just norot now?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
