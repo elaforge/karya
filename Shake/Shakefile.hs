@@ -1119,8 +1119,10 @@ ghcFlags config = concat $
 -- | Language extensions which are globally enabled.
 ghcLanguageFlags :: [String]
 ghcLanguageFlags = map ("-X"++)
+    -- Pretty conservative, and useful.
+    [ "BangPatterns"
     -- Without this, it becomes really annoying to use Text everywhere.
-    [ "OverloadedStrings"
+    , "OverloadedStrings"
     -- This enables slightly more concise record initialization and doesn't
     -- seem to hurt anything.
     , "DisambiguateRecordFields"
