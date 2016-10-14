@@ -129,7 +129,7 @@ pretty_compare equal inequal expect_equal a b is_equal
     | not big_values = pa <> " " <> inequal <> " " <> pb
     | otherwise = '\n' : diff_values color inequal pa pb
     where
-    color = if expect_equal then vt100_red else vt100_green
+    color = if expect_equal then failure_color else success_color
     -- If the values are a bit long, run the diff highlighter on them.
     big_values = '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
     -- Equal values are usually not interesting, so abbreviate if they're too
@@ -253,7 +253,7 @@ strings_like gotten_ expected
             (zip [0..] expected))
     where
     fmt_line failures (n, line)
-        | Set.member n failures = highlight vt100_red line
+        | Set.member n failures = highlight failure_color line
         | otherwise = line
     gotten = map to_string gotten_
     diffs = numbered_diff pattern_matches expected gotten
@@ -390,13 +390,13 @@ pprint val = s `DeepSeq.deepseq` putStr s
 -- | Print a msg with a special tag indicating a passing test.
 success :: Stack => String -> IO Bool
 success msg = do
-    print_test_line ?stack vt100_green "++-> " msg
+    print_test_line ?stack success_color "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
 failure :: Stack => String -> IO Bool
 failure msg = do
-    print_test_line ?stack vt100_red "__-> " msg
+    print_test_line ?stack failure_color "__-> " msg
     return False
 
 print_test_line :: Stack.CallStack -> ColorCode -> String -> String -> IO ()
@@ -443,12 +443,11 @@ vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
 
 -- | These codes should probably come from termcap, but I can't be bothered.
--- TODO rename failure_color and success_color
-vt100_red :: ColorCode
-vt100_red = ColorCode "\ESC[31m"
+failure_color :: ColorCode
+failure_color = ColorCode "\ESC[31m" -- red
 
-vt100_green :: ColorCode
-vt100_green = ColorCode "\ESC[32m"
+success_color :: ColorCode
+success_color = ColorCode "\ESC[32m" -- green
 
 -- | getChar with no buffering.
 human_get_char :: IO Char
