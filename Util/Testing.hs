@@ -44,6 +44,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Monoid ((<>))
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
@@ -189,7 +190,7 @@ diff first second =
         [(n, text) | Diff.First (Numbered n text) <- diffs]
     second_by_line = Map.fromList
         [(n, text) | Diff.Second (Numbered n text) <- diffs]
-    diffs = numbered_diff (lines first) (lines second)
+    diffs = numbered_diff (==) (lines first) (lines second)
 
 char_diff :: String -> String -> ([CharRange], [CharRange])
 char_diff first second
@@ -199,7 +200,7 @@ char_diff first second
     where
     first_cs = to_ranges [n | Diff.First (Numbered n _) <- diffs]
     second_cs = to_ranges [n | Diff.Second (Numbered n _) <- diffs]
-    diffs = numbered_diff first second
+    diffs = numbered_diff (==) first second
     -- If there are too many diff ranges let's just mark the whole thing
     -- different.  Perhaps I should ignore spaces that are the same, but let's
     -- see how this work first.
@@ -208,9 +209,9 @@ char_diff first second
 to_ranges :: [Int] -> [(Int, Int)]
 to_ranges xs = Ranges.merge_sorted [(n, n+1) | n <- xs]
 
-numbered_diff :: Eq a => [a] -> [a] -> [Diff.Diff (Numbered a)]
-numbered_diff a b =
-    Diff.getDiffBy (\a b -> numbered_val a == numbered_val b)
+numbered_diff :: (a -> a -> Bool) -> [a] -> [a] -> [Diff.Diff (Numbered a)]
+numbered_diff equal a b =
+    Diff.getDiffBy (\a b -> numbered_val a `equal` numbered_val b)
         (number a) (number b)
     where number = zipWith Numbered [0..]
 
@@ -239,24 +240,32 @@ instance TextLike Text where
     to_text = id
     to_string = Text.unpack
 
--- | Strings in the first list match regexes in the second list.
+-- | Strings in the first list match patterns in the second list, using
+-- 'pattern_matches'.
 strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [String]
     -> IO Bool
-strings_like gotten expected
-    | null gotten && null expected = success "[] =~ []"
-    | otherwise = and <$>
-        mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
+strings_like gotten_ expected
+    | all is_both diffs = success $ fmt_lines "=~" gotten expected
+    | otherwise = failure $ fmt_lines "/~"
+        (map (fmt_line (Set.fromList [_numbered a | Diff.Second a <- diffs]))
+            (zip [0..] gotten))
+        (map (fmt_line (Set.fromList [_numbered a | Diff.First a <- diffs]))
+            (zip [0..] expected))
     where
-    string_like :: Stack => (Int, Seq.Paired txt String) -> IO Bool
-    string_like (n, Seq.Second pattern) = failure $
-        show n ++ ": gotten list too short: expected " ++ show pattern
-    string_like (n, Seq.First gotten) = failure $
-        show n ++ ": expected list too short: got " ++ show gotten
-    string_like (n, Seq.Both gotten pattern)
-        | pattern_matches pattern gotten = success $
-            show n ++ ": " ++ to_string gotten ++ " =~ " ++ pattern
-        | otherwise =
-            failure $ show n ++ ": " ++ to_string gotten ++ " !~ " ++ pattern
+    fmt_line failures (n, line)
+        | Set.member n failures = highlight vt100_red line
+        | otherwise = line
+    gotten = map to_string gotten_
+    diffs = numbered_diff pattern_matches expected gotten
+    is_both (Diff.Both {}) = True
+    is_both _ = False
+
+-- | Format multiple lines with an operator between them, on a single line if
+-- there is only one line.
+fmt_lines :: String -> [String] -> [String] -> String
+fmt_lines operator [x] [y] = x <> " " <> operator <> " " <> y
+fmt_lines operator xs ys = ('\n':) $ Seq.rstrip $
+    unlines $ xs ++ ["    " <> operator] ++ ys
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
@@ -434,6 +443,7 @@ vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
 
 -- | These codes should probably come from termcap, but I can't be bothered.
+-- TODO rename failure_color and success_color
 vt100_red :: ColorCode
 vt100_red = ColorCode "\ESC[31m"
 
