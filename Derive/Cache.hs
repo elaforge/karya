@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE BangPatterns, TypeSynonymInstances, FlexibleInstances #-}
 module Derive.Cache (
     Cacheable(..)
     , block, track
@@ -18,6 +18,7 @@ module Derive.Cache (
 #endif
 ) where
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -123,7 +124,7 @@ caching_deriver typ range call = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ cached_msg (Stream.length cached)
+        Log.debug $ make_cached_msg cached
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
@@ -176,6 +177,8 @@ with_empty_collect inflict_control_damage deriver = do
     Derive.put old
     return (result, collect)
 
+-- | Find the cached value, or a reason why there is no cache entry.  This
+-- is the function that determines whether you hit the cache or not.
 find_generator_cache :: Cacheable d => Type -> Derive.CacheKey -> Ranges
     -> ScoreDamage -> ControlDamage -> Cache
     -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
@@ -249,10 +252,16 @@ is_cache_log :: Log.Msg -> Bool
 is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
     where prefix = (`Text.isPrefixOf` Log.msg_text msg)
 
-cached_msg :: Int -> Text
-cached_msg ncached = "using cache, " <> showt ncached <> " vals"
+make_cached_msg :: Stream.Stream a -> Text
+make_cached_msg cached =
+    "using cache, " <> showt events <> " events, " <> showt logs <> " logs"
+    where
+    (events, logs) = List.foldl' count (0, 0) (Stream.to_list cached)
+    count (!es, !ms) e = if LEvent.is_event e then (es+1, ms) else (es, ms+1)
 
--- | Get the number of cached values from a 'cached_msg'.
+-- | Get the number of cached values from a 'make_cached_msg'.
+--
+-- TODO this is grody, I should just put some structured data in Log.Msg.
 extract_cached_msg :: Text -> Maybe Int
 extract_cached_msg = extract <=< Text.stripPrefix "using cache, "
     where extract = ParseText.int . Text.takeWhile Char.isDigit

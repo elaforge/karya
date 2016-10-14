@@ -221,7 +221,7 @@ test_logs = do
     let (_, cached, uncached) = compare_cached create $
             insert_event "sub2.t1" 1 1 ""
     -- Make sure errors are still present in the cached output.
-    strings_like (r_all_logs uncached)
+    strings_like (r_pretty_logs uncached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: rederived"
@@ -230,7 +230,7 @@ test_logs = do
         , "top top.t1 2-3: sub2 \\* \\*: rederived"
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
-    strings_like (r_all_logs cached)
+    strings_like (r_pretty_logs cached)
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: using cache"
@@ -273,49 +273,38 @@ test_stack_damage = do
             insert_event "top.t1" 0 1 "%t-dia = 1 | sub"
     equal (diff_events cached uncached) []
 
--- | Extract cache logs so I can tell who rederived and who used the cache.
--- I use strings instead of parsing it into structured data because strings
--- make more informative errors when they don't match.
-r_cache_logs :: Derive.Result -> [String]
-r_cache_logs =
-    map DeriveTest.show_log_stack . filter Cache.is_cache_log . r_logs
-
--- | Sometimes the cache msgs for the track cache are just clutter.
-r_block_logs :: Derive.Result -> [String]
-r_block_logs =
-    map DeriveTest.show_log_stack . filter (not . track_stack)
-        . filter Cache.is_cache_log . r_logs
-    where
-    track_stack msg = case Log.msg_stack msg of
-        Just stack -> case Stack.innermost stack of
-            Stack.Track _ : _ -> True
-            _ -> False
-        _ -> False
-
-r_all_logs :: Derive.Result -> [String]
-r_all_logs = map DeriveTest.show_log_stack . r_logs
-
--- | The logs are sorted for tests, since log order isn't really defined.
-r_logs :: Derive.Result -> [Log.Msg]
-r_logs = Seq.sort_on DeriveTest.show_log_stack . Stream.logs_of
-    . Derive.r_events
-
--- TODO test fail track parse, should damage track
--- TODO test localdeps... how do they get reset anyway?
-
 test_failed_sub_track = do
-    let create = mkblocks
-            [ ("top", [(">i", [(0, 2, "sub"), (5, 1, "sub")])])
-            , ("sub", [(">i", [(0, 2, "")]), ("*twelve", [])])
+    let create title = mkblocks
+            [ ("top", [(">i", [(0, 1, ""), (1, 1, "sub")])])
+            , ("sub=ruler", [(title, [(0, 1, "")])])
             ]
-    let (_, cached, uncached) = compare_cached create $
-            State.set_track_title (UiTest.tid "sub.t1") "*broken"
-    equal (diff_events cached uncached) expect_no_events
-    strings_like (r_all_logs cached)
+        tid = (UiTest.mk_tid_block (UiTest.bid "sub") 1)
+    -- From error to non-error.
+    let (orig, cached, uncached) = compare_cached (create "> |") $
+            State.set_track_title tid ">"
+    equal (diff_events cached uncached) []
+    -- top has a dep on sub even though sub crashed.
+    equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
+        [ ("top * *", ["sub", "top"])
+        , ("top top.t1 *", ["sub"])
+        , ("top top.t1 1-2: sub * *", ["sub"])
+        ]
+
+    -- From non-error to error.
+    let (orig, cached, uncached) = compare_cached (create ">") $
+            State.set_track_title tid "> |"
+    equal (diff_events cached uncached) []
+    equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
+        [ ("top * *", ["sub", "top"])
+        , ("top top.t1 *", ["sub"])
+        , ("top top.t1 1-2: sub * *", ["sub"])
+        , ("top top.t1 1-2: sub sub.t1 *", [])
+        ]
+    strings_like (r_pretty_logs cached)
         [ "top * sub-block damage"
         , "top.t1 * sub-block damage"
-        , "sub.t1 * get_scale: unknown"
-        , "top top.t1 5-6: sub sub.t1 * get_scale: unknown"
+        , "top top.t1 1-2: sub * track block damage"
+        , "top top.t1 1-2: sub * note transformer not found"
         ]
 
 test_has_score_damage = do
@@ -647,7 +636,7 @@ test_extend_tempo_damage = do
             , ("modulation", [(0, 1, "0")])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (mk_tid 1) (Event.event 1 0 "2")
+            State.insert_event (top_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
 test_block_title_damage = do
@@ -669,7 +658,7 @@ test_track_cache = do
             ]
     -- Ensure that a control track above a note track is cached.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (mk_tid 2) $ Event.event 1 1 ""
+            State.insert_event (top_tid 2) $ Event.event 1 1 ""
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top \\* \\*: rederived"
@@ -679,7 +668,7 @@ test_track_cache = do
 
     -- And invalidated on damage.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (mk_tid 1) $ Event.event 0 0 ".75"
+            State.insert_event (top_tid 1) $ Event.event 0 0 ".75"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top \\* \\*: rederived"
@@ -715,29 +704,75 @@ test_track_cache2 = do
             ]
     -- Two levels of track caching.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (mk_tid 2) $ Event.event 0 0 "1"
+            State.insert_event (top_tid 2) $ Event.event 0 0 "1"
     equal (diff_events cached uncached) []
 
 
--- ** support
+-- * make
 
-mk_tid :: TrackNum -> TrackId
-mk_tid = UiTest.mk_tid_name "top"
+block :: String -> Stack.Frame
+block = Stack.Block . UiTest.bid
+
+track :: String -> Stack.Frame
+track = Stack.Track . UiTest.tid
+
+region :: TrackTime -> TrackTime -> Stack.Frame
+region = Stack.Region
+
+call :: Text -> Stack.Frame
+call = Stack.Call
+
+top_tid :: TrackNum -> TrackId
+top_tid = UiTest.mk_tid_name "top"
 
 -- | The toplevel block is just about always damaged.
 toplevel_rederived :: Bool -> String
 toplevel_rederived True = "top *: rederived * block damage"
 toplevel_rederived False = "top *: rederived * sub-block damage"
 
--- UiTest.run discards the Updates, which I need.
-run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
-run state m = case result of
-        Left err -> error $ "state error: " <> show err
-        Right (val, state', updates) -> (val, state', updates)
-    where result = Identity.runIdentity (State.run state m)
+mk_block_deps :: [String] -> Derive.BlockDeps
+mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
-log_with_stack :: Log.Msg -> String
-log_with_stack msg = prettys (Log.msg_stack msg) <> ": " <> Log.msg_string msg
+mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
+mkblocks blocks = do
+    bid : _ <- UiTest.mkblocks blocks
+    return bid
+
+mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
+mkblock tracks = mkblocks [("top", tracks)]
+
+insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
+insert_event tid pos dur text =
+    State.insert_event (UiTest.tid tid) (Event.event pos dur text)
+
+-- * extract
+
+-- | Extract cache logs so I can tell who rederived and who used the cache.
+-- I use strings instead of parsing it into structured data because strings
+-- make more informative errors when they don't match.
+r_cache_logs :: Derive.Result -> [String]
+r_cache_logs =
+    map DeriveTest.show_log_stack . filter Cache.is_cache_log . r_logs
+
+-- | Sometimes the cache msgs for the track cache are just clutter.
+r_block_logs :: Derive.Result -> [String]
+r_block_logs =
+    map DeriveTest.show_log_stack . filter (not . track_stack)
+        . filter Cache.is_cache_log . r_logs
+    where
+    track_stack msg = case Log.msg_stack msg of
+        Just stack -> case Stack.innermost stack of
+            Stack.Track _ : _ -> True
+            _ -> False
+        _ -> False
+
+r_pretty_logs :: Derive.Result -> [String]
+r_pretty_logs = map DeriveTest.show_log_stack . r_logs
+
+-- | The logs are sorted for tests, since log order isn't really defined.
+r_logs :: Derive.Result -> [Log.Msg]
+r_logs = Seq.sort_on DeriveTest.show_log_stack . Stream.logs_of
+    . Derive.r_events
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
@@ -758,9 +793,6 @@ r_cache_deps result =
     deps collect = case Derive.collect_block_deps collect of
         Derive.BlockDeps blocks -> Set.toAscList blocks
 
-mk_block_deps :: [String] -> Derive.BlockDeps
-mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
-
 r_cache_stacks :: Derive.Result -> [Text]
 r_cache_stacks = map (Stack.pretty_ui_ . Derive.key_stack) . Map.keys
     . Map.filter valid . uncache . Derive.r_cache
@@ -771,13 +803,14 @@ r_cache_stacks = map (Stack.pretty_ui_ . Derive.key_stack) . Map.keys
 uncache :: Derive.Cache -> Map.Map Derive.CacheKey Derive.Cached
 uncache (Derive.Cache cache) = cache
 
-mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
-mkblocks blocks = do
-    bid : _ <- UiTest.mkblocks blocks
-    return bid
+-- * run
 
-mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
-mkblock tracks = mkblocks [("top", tracks)]
+-- UiTest.run discards the Updates, which I need.
+run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
+run state m = case result of
+        Left err -> error $ "state error: " <> show err
+        Right (val, state', updates) -> (val, state', updates)
+    where result = Identity.runIdentity (State.run state m)
 
 -- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,
@@ -815,10 +848,6 @@ derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
 derive_block_cache =
     DeriveTest.derive_block_standard mempty DeriveTest.default_cmd_state
 
-insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
-insert_event tid pos dur text =
-    State.insert_event (UiTest.tid tid) (Event.event pos dur text)
-
 get_root_id :: State.State -> BlockId
 get_root_id state = UiTest.eval state State.get_root_id
 
@@ -853,10 +882,3 @@ type DiffEvent = (RealTime, RealTime, String, Double)
 simple_event :: Score.Event -> DiffEvent
 simple_event e = (Score.event_start e, Score.event_duration e,
     DeriveTest.e_pitch e, Score.initial_dynamic e)
-
--- *
-
-block = Stack.Block . UiTest.bid
-track = Stack.Track . UiTest.tid
-region = Stack.Region
-call = Stack.Call

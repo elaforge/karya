@@ -6,11 +6,9 @@
 module Derive.Call.Prelude.Block (
     eval_root_block, note_calls, control_calls
 ) where
-import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Text as Text
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -32,6 +30,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
 import Global
@@ -157,18 +156,19 @@ d_block block_id = do
     title <- case Map.lookup block_id blocks of
         Nothing -> Derive.throw "block_id not found"
         Just block -> return $ Block.block_title block
-    transform <- if Text.all Char.isSpace title
-        then return id
-        else case ParseTitle.parse_block title of
+    -- Record a dependency on this block.  This should happen even if the
+    -- derivation throws, because a dependency on a block with an error is
+    -- still a dependency.
+    Internal.add_block_dep block_id
+    let deriver = BlockUtil.note_deriver block_id
+    fmap (fromMaybe Stream.empty) $ Derive.catch True $
+        case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
-            -- A title with just a comment will come out like this.
-            Right (BaseTypes.Call call [] :| []) | call == "" -> return id
+            -- An empty title means no transformation.
+            Right (BaseTypes.Call call [] :| []) | call == "" -> deriver
             Right expr ->
-                return $ Eval.eval_transformers info (NonEmpty.toList expr)
+                Eval.eval_transformers info (NonEmpty.toList expr) deriver
                 where info = Derive.dummy_context 0 1 "block title"
-    -- Record a dependency on this block.
-    transform $ Internal.add_block_dep block_id
-        *> BlockUtil.note_deriver block_id
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> BaseTypes.Call

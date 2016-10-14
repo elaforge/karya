@@ -3,11 +3,17 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - convert Util.Testing to Text
+  - Put tags in Log.Msg like [(Text, Text | Int)], so I don't have to do
+    Cache.extract_cached_msg.
   * rename DeriveTest.synth* to synths
   * Would it make sense to also put Perform.Midi.Patch.Flags in Config?
     - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
+      . Not quite, since Backend encodes that alloc and patch backends are
+        equal, but is it really necessary?
     * LInst.list should print settings when they differ from the defaults
-    - Test that Common.config_environ is merged with Common.common_environ.
+    / Test that Common.config_environ is merged with Common.common_environ.
+      . Too much hassle.
     * Make allocation copy Patch.patch_defaults to Patch.config_settings.
     * LInst also has to add defaults when it merges Configs.
     * Come up with a way to update old saved scores.
@@ -147,10 +153,11 @@ UNSORTED
       but other functions make the caller decide?
 
   cache:
-    - cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to
+    * cache: In save/transcribe/bali/gabor, @b2, if I change >pemade track to
       be a parse error, '>pemade |', and then fix it, it forgets that it was
       called from the root, so presumably it gets cached as a zero and the fix
       doesn't invalidate that.
+      . It's because I don't get a block dep on the sub block.
     * 'tile' messes up the cache.  If I change the tile callee's contents
       I think it rederives with only a single cycle and wrong controls.
       . The first time the second block call is shifted, the second time it
@@ -1454,8 +1461,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - why format make the S2 sequence in Realize_test.test_realize_pattern
-          have underscores?
+        - Why does format make the S2 sequence in
+          Realize_test.test_realize_pattern have underscores?
         * Reuse solkattu patterns in india.mridanngam
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
