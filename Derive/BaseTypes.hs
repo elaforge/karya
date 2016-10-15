@@ -323,11 +323,12 @@ data Val =
     --
     -- Literal: @%control@, @%control,.4@
     | VControlRef !ControlRef
-    -- | If a control name starts with a *, it denotes a pitch signal and the
-    -- scale is taken from the environ.  Unlike a control signal, the empty
-    -- string is a valid signal name and means the default pitch signal.
+    -- | A pitch control name.  The scale is taken from the environ.  Unlike
+    -- a control signal, the empty string is a valid signal name and means the
+    -- default pitch signal.  The @#@ val call is needed to make a pitch signal
+    -- with a default.
     --
-    -- Literal: @\#pitch@, @(# pitch (4c))@
+    -- Literal: @\#@, @\#pitch@, @(# pitch (4c))@
     | VPControlRef !PControlRef
 
     -- | No literal, but is returned from val calls, notably scale calls.

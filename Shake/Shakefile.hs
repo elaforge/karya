@@ -4,7 +4,7 @@
 
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
 -- | Shakefile for seq and associated binaries.
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>))
+import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
@@ -42,6 +43,7 @@ import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
+import qualified Shake.SourceControl as SourceControl
 import qualified Shake.Util as Util
 
 
@@ -844,8 +846,13 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
+    entry <- liftIO $
+        either Util.errorIO return =<< SourceControl.currentPatchParsed
+    let title = "Karya, built on " <> SourceControl._localDate entry
+            <> " (patch " <> SourceControl._hash entry <> ")"
     Util.system "haddock" $ filter (not . null)
         [ "--html", "-B", ghcLib config
+        , "--title=" <> Text.unpack title
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"

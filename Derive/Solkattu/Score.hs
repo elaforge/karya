@@ -374,6 +374,9 @@ tisrams = concat
 vary :: Korvai -> [Korvai]
 vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
+set_nadai :: Solkattu.Tala -> Korvai -> Korvai
+set_nadai tala korvai = korvai { Korvai.korvai_tala = tala }
+
 -- * realize
 
 make_mridangam :: CallStack.Stack =>

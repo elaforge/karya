@@ -10,4 +10,4 @@ The four main layers are:
 "Derive.Deriver.Monad" and 'Derive.Deriver.Monad.State'.
 
 - Perform.  For MIDI, the core module is "Perform.Midi.Perform".
-"Perform.Midi.Instrument" describes MIDI instruments.
+"Perform.Midi.Patch" describes MIDI patches.

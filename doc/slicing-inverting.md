@@ -55,15 +55,18 @@ if you put the delay on the note you get
 `dyn [1] (pitch [4c] (>inst (delay (note))))`.  In score notation this looks
 like:
 
+```
     dyn ->      * ->    >inst
     1           4c      delay |
+```
 
 The delay is too late to affect the dynamics or pitch.  What we really want is
-to put the delay outside: `dyn [1] (delay (pitch [4c] (>inst (note))))`.
-I.e.:
+to put the delay outside: `dyn [1] (delay (pitch [4c] (>inst (note))))`:
 
+```
     dyn ->      > ->    * ->    >inst
     1           delay   4c      ""
+```
 
 Unfortunately, tracks don't work that way.  Only control tracks can modify
 other tracks, and control tracks generate a single signal that has scope over
@@ -71,9 +74,11 @@ the entire track below it.
 
 However, tracks *could* work that way, even control tracks.  Given:
 
+```
     dyn ->      >inst
     1           ""
     .5          ""
+```
 
 You could view this as `dyn [1, .5] (>inst (note <> note))` (if `<>` is the
 merge operator) where both notes get the `[1, .5]` signal, but it also could
@@ -105,14 +110,17 @@ Inverting calls are wrapped in 'Derive.Call.Note.inverting'.
 
 Visually, the transformation looks like this:
 
+```
     dyn ->      >inst ->        *
     1           a               4c
     .5          b               4d
+```
 
 [1, .5] is intended to be a decrescendo, while 4c and 4d belong to notes `a`
 and `b` respectively.  After inversion and slicing we effectively have two
 blocks:
 
+```
     dyn ->      * ->            >inst
     1           4c              a
     .5
@@ -120,18 +128,22 @@ blocks:
     dyn ->      * ->            >inst
     1
     .5          4d              b
+```
 
 Of course this transformation isn't useful as-is, since we could have written
 in the second form in the first place (ignoring the slicing into two blocks
 part).  But if we only invert the generator part of the note expression and
 wrap the transformer part around the sliced children, we can transform this:
 
+```
     dyn ->      >inst ->        *
     1           delay 1 | a     4c
     .5          delay 2 | b     4d
+```
 
 Into this:
 
+```
     dyn ->      delay 1 | ->    * ->            >inst
     1                           4c              a
     .5
@@ -139,12 +151,15 @@ Into this:
     dyn ->      delay 2 | ->    * ->            >inst
     1
     .5                          4d              b
+```
 
 Here, `delay 1 |` isn't real tracklang syntax, but represents a transformer
 wrapped around its children.  In functional notation:
 
+```
     dyn [1, .5] ((delay 1 (pitch [4c] (>inst (a))))
               <> (delay 2 (pitch [4d] (>inst (b)))))
+```
 
 Which is exactly what is needed for delay to work as expected.
 
@@ -156,13 +171,15 @@ way for a note track to take other notes as arguments.  Since the note call
 isn't inverting itself below the control track children, there has to be
 another note track below it.  E.g.
 
+```
     >inst ->    >
     tuplet      a
       |         b
                 c
+```
 
 In this case, the `tuplet` call (really named `t`, defined in
-'Derive.Call.NoteTransformer') slices events within its duration, so it gets
+'Derive.Call.Prelude.Parent') slices events within its duration, so it gets
 `a` and `b` as arguments and is free to do with them as it wishes.  This is
 how ornaments that transform multiple other notes are implemented.
 
@@ -185,7 +202,7 @@ all the other notes over to the parent, which would then have a mixture of
 notes on a child note track that are not covered under any event on a parent
 note track, they're extracted out into their own event track and evaluated
 separately.  This is called "orphan extraction" and is implemented by
-'Derive.Slice.extract_orphans'.
+'Derive.Slice.slice_orphans'.
 
 - If one of the intervening tracks is a note track that also has a call, it
 will in turn insert itself below the inverted call, and this will continue
@@ -205,19 +222,14 @@ sliced off.  This is solved with a grody hack: such calls are hardcoded into
 extract as many events as necessary (e.g. a whole chain of "repeat previous
 value" calls).
 
-- Similar to the above but slightly more tractable and less hacky, some
-calls need to look into the future.  For instance, a note call might want to
-know the pitch of the next note.  If the pitch track is below the note track,
-the next note's pitch event will be sliced away.  For calls that know how far
-into the future they'll need to look, 'Derive.Call.Note.inverting_n' will
-expand the scope of the slice.
-
 Note that inverting and non-inverting slicing calls can be combined, for
 instance:
 
+```
     >inst ->    > ->    *
     tuplet      ""      4c
       |         ""      4d
+```
 
 `tuplet` will slice the two events under it and receive the two null note
 calls as arguments.  If it chooses to evaluate them, they will then invert
@@ -246,26 +258,32 @@ So what is needed is for the transform to be placed "above" the note, e.g.
 tracks, but it's awkward, because the delay, which is logically part of the
 note track, must be split into two tracks, like so:
 
+```
     dynamics ->     transform ->    pitch ->    note
     1               delay           4c          ""
                     |                           |
     i 0             V                           V
+```
 
 It's not clear what the duration of "delay" means, and the fact that it
 applies to the "" note two tracks below it.  So there's a concept of track
 inversion, which is an automatic transformation from this:
 
+```
     note    pitch
     t | n   4c
     |
     V
+```
 
 To this:
 
+```
     note    pitch   (note)
     t       4c      n
     |               |
     V               V
+```
 
 If there are tracks below the note track, they are sliced horizontally in the
 range of the note being evaluated, and the generator part of the note is put

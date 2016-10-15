@@ -195,12 +195,11 @@ signal is in ScoreTime or RealTime, as in 'Derive.ScoreTypes.Typed'.
 
 ### environ
 
-The environ ('Derive.Env') is different: it holds constant [vals](#vals)
-('Derive.BaseTypes.Val'), but they they may be typed.  For instance, the key of
-a section of music is a string, the current instrument is an instrument type,
-and a `trill-depth` value might be a typed number, e.g.  `2d` for 2 diatonic
-steps.  As documented in [Calls](#calls), the environ is also used for argument
-defaulting.
+The environ ('Derive.Env') is different: it holds constant [vals](#vals), but
+they they may be typed.  For instance, the key of a section of music is a
+string, the current instrument is an instrument type, and a `trill-depth` value
+might be a typed number, e.g.  `2d` for 2 diatonic steps.  As documented in
+[Calls](#calls), the environ is also used for argument defaulting.
 
 Controls and environ vals are separate!  This can be a bit confusing, because
 a call may expect default values in the environ, which you would set like
@@ -303,8 +302,7 @@ This concept originates from the `nyquist` language.
 The text that appears in the block title, track titles, and events is a
 simple expression oriented language.  It has the usual literals such as
 `'strings'`, and numbers, but also has music-related literals such as
-`*scales`, `>instruments` or `+attributes`.  See [vals](#vals) and
-'Derive.BaseTypes.Val'.
+`*scales`, `>instruments` or `+attributes`.  See [vals](#vals).
 
 A call expression consists of literals separated by spaces, and the first word
 is a "call", which is like a function call.  So `f 4 'hi'` is a call to `f`
@@ -321,7 +319,7 @@ separated by `|`.  As described in [calls](#calls), the last one is called the
 is not true in track titles though!  They just have the transformer part of the
 pipeline, since the track itself is the generator.
 
-Details on the syntax are in in 'Derive.Parse' and 'Derive.BaseTypes'.
+Details on the syntax are in in 'Derive.Parse' and 'Derive.BaseTypes.Val'.
 
 There are a couple of hacks in the syntax to make scores look nicer:
 

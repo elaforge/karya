@@ -11,11 +11,9 @@ import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
-import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.Posix as Posix
-import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Lens as Lens
@@ -45,6 +43,7 @@ import qualified Derive.Stream as Stream
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Global
+import qualified Shake.SourceControl as SourceControl
 import Types
 
 
@@ -129,16 +128,6 @@ get_midi_performance block_id =
         =<< State.get_config
             (State.meta#State.midi_performances # Lens.map block_id #$)
 
--- | This assumes the current dir is in the darcs repo.
-get_current_patch :: IO (Either Text Text)
-get_current_patch = do
-    (exit, stdout, stderr) <- Process.readProcessWithExitCode "darcs"
-        ["changes", "--last=1"] ""
-    return $ case exit of
-        Exit.ExitFailure n -> Left $ "darcs failed with " <> showt n
-            <> ": " <> txt stderr
-        Exit.ExitSuccess -> Right $ Text.strip $ txt stdout
-
 -- | Compare the current root block performance against the saved one.
 verify_performance :: Cmd.CmdL Text
 verify_performance = do
@@ -160,7 +149,8 @@ perform_midi block_id = do
 make_performance :: a -> Cmd.CmdT IO (State.Performance a)
 make_performance perf = do
     time <- liftIO Time.getCurrentTime
-    patch <- either Cmd.throw return =<< liftIO get_current_patch
+    patch <- either (Cmd.throw . txt) (return . txt)
+        =<< liftIO SourceControl.currentPatch
     return $ State.Performance
         { State.perf_performance = perf
         , State.perf_creation = time

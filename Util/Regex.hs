@@ -7,7 +7,7 @@ module Util.Regex (
     Regex
     -- * compile
     , Option(..)
-    , compile, compileUnsafe, compileOptionsUnsafe
+    , compile, compileOptions, compileUnsafe, compileOptionsUnsafe
 
     -- * matching
     , matches, groups, groupRanges
