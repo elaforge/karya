@@ -48,6 +48,8 @@ import Global
 import Types
 
 
+-- * get
+
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
@@ -56,7 +58,10 @@ lookup_allocation :: State.M m => Util.Instrument
 lookup_allocation inst =
     State.allocation (Util.instrument inst) <#> State.get
 
--- * config
+get_allocation :: State.M m => Score.Instrument -> m StateConfig.Allocation
+get_allocation inst =
+    State.require ("no allocation for " <> pretty inst)
+        =<< State.allocation inst <#> State.get
 
 -- | List all allocated instruments.
 allocated :: State.M m => m [Score.Instrument]
@@ -148,16 +153,7 @@ show_scale scale = "scale " <> Patch.scale_name scale <> " "
 allocations :: State.M m => m StateConfig.Allocations
 allocations = State.config#State.allocations <#> State.get
 
--- | Rename an instrument.
-rename :: State.M m => Instrument -> Instrument -> m ()
-rename from to = do
-    alloc <- State.require ("not found: " <> pretty from)
-        =<< (State.allocation (Util.instrument from) <#> State.get)
-    State.modify_config $ State.allocations %= rename alloc
-    where
-    rename alloc (StateConfig.Allocations allocs) = StateConfig.Allocations $
-        Map.insert (Util.instrument to) alloc $
-        Map.delete (Util.instrument from) allocs
+-- * add and remove
 
 -- | Allocate a new MIDI instrument.  For instance:
 --
@@ -194,12 +190,6 @@ add_im inst qualified = do
     allocate (Util.instrument inst) $
         StateConfig.allocation qualified StateConfig.Im
 
-save :: FilePath -> Cmd.CmdL ()
-save = Save.save_allocations
-
-load :: FilePath -> Cmd.CmdL ()
-load = Save.load_allocations
-
 -- | Create a dummy instrument .  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
 -- instance, pasang instruments are stand-ins for polos sangsih pairs.
@@ -208,10 +198,6 @@ add_dummy inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
         StateConfig.allocation qualified StateConfig.Dummy
-
--- | Remove an instrument allocation.
-remove :: Instrument -> Cmd.CmdL ()
-remove = deallocate . Util.instrument
 
 -- | All allocations should go through this to verify their validity, unless
 -- it's modifying an existing allocation and not changing the Qualified name.
@@ -223,10 +209,45 @@ allocate score_inst alloc = do
         StateConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
     State.modify_config $ State.allocations #= allocs
 
+-- | Remove an instrument allocation.
+remove :: Instrument -> Cmd.CmdL ()
+remove = deallocate . Util.instrument
+
 deallocate :: Cmd.M m => Score.Instrument -> m ()
 deallocate inst = State.modify_config $ State.allocations_map %= Map.delete inst
 
--- * Common.Config
+-- | Merge the given configs into the existing one.  This also merges
+-- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
+-- that create Allocations don't have to find the relevant Patch.
+merge :: Cmd.M m => StateConfig.Allocations -> m ()
+merge (StateConfig.Allocations alloc_map) = do
+    let (names, allocs) = unzip (Map.toList alloc_map)
+    insts <- mapM (Cmd.get_qualified . StateConfig.alloc_qualified) allocs
+    merged <- Cmd.require_right id $
+        mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
+    let errors = mapMaybe verify (zip3 names merged insts)
+    unless (null errors) $
+        Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
+    State.modify_config $ State.allocations
+        %= (StateConfig.Allocations (Map.fromList (zip names merged)) <>)
+    where
+    verify (name, alloc, inst) =
+        StateConfig.verify_allocation (Inst.inst_backend inst) name alloc
+
+-- * modify
+
+-- | Rename an instrument.
+rename :: State.M m => Instrument -> Instrument -> m ()
+rename from to = do
+    alloc <- State.require ("not found: " <> pretty from)
+        =<< (State.allocation (Util.instrument from) <#> State.get)
+    State.modify_config $ State.allocations %= rename alloc
+    where
+    rename alloc (StateConfig.Allocations allocs) = StateConfig.Allocations $
+        Map.insert (Util.instrument to) alloc $
+        Map.delete (Util.instrument from) allocs
+
+-- ** Common.Config
 
 -- | Toggle and return the new value.
 mute :: State.M m => Instrument -> m Bool
@@ -251,7 +272,7 @@ add_environ inst name val =
 clear_environ :: State.M m => Instrument -> m ()
 clear_environ inst = modify_common_config_ inst $ Common.cenviron #= mempty
 
--- * Midi.Patch.Config
+-- ** Midi.Patch.Config
 
 set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
@@ -285,7 +306,11 @@ remove_flag :: State.M m => Instrument -> Patch.Flag -> m ()
 remove_flag inst flag = modify_midi_config inst $
     Patch.settings#Patch.flags %= Patch.remove_flag flag
 
--- * get and modify utilities
+set_decay :: State.M m => Instrument -> Maybe RealTime -> m ()
+set_decay inst decay = modify_midi_config inst $
+    Patch.settings#Patch.decay #= decay
+
+-- * util
 
 get_midi_config :: State.M m => Score.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
@@ -313,11 +338,6 @@ modify_config inst_ modify = do
     State.modify_config $ State.allocations_map %= Map.insert inst new
     return result
 
-get_allocation :: State.M m => Score.Instrument -> m StateConfig.Allocation
-get_allocation inst =
-    State.require ("no allocation for " <> pretty inst)
-        =<< State.allocation inst <#> State.get
-
 modify_midi_config :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
     -> m ()
 modify_midi_config inst modify = modify_config inst $ \common midi ->
@@ -337,24 +357,6 @@ modify_common_config_ :: State.M m => Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_common_config_ inst modify =
     modify_common_config inst $ \config -> (modify config, ())
-
--- | Merge the given configs into the existing one.  This also merges
--- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
--- that create Allocations don't have to find the relevant Patch.
-merge :: Cmd.M m => StateConfig.Allocations -> m ()
-merge (StateConfig.Allocations alloc_map) = do
-    let (names, allocs) = unzip (Map.toList alloc_map)
-    insts <- mapM (Cmd.get_qualified . StateConfig.alloc_qualified) allocs
-    merged <- Cmd.require_right id $
-        mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
-    let errors = mapMaybe verify (zip3 names merged insts)
-    unless (null errors) $
-        Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
-    State.modify_config $ State.allocations
-        %= (StateConfig.Allocations (Map.fromList (zip names merged)) <>)
-    where
-    verify (name, alloc, inst) =
-        StateConfig.verify_allocation (Inst.inst_backend inst) name alloc
 
 
 -- * Cmd.EditState
@@ -433,6 +435,12 @@ run_interface op = do
 
 
 -- * misc
+
+save :: FilePath -> Cmd.CmdL ()
+save = Save.save_allocations
+
+load :: FilePath -> Cmd.CmdL ()
+load = Save.load_allocations
 
 -- | Send a CC MIDI message on the given device.  This is for synths that use
 -- MIDI learn.
