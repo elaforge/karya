@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - remove fm8/pressure and use local config instead
+  * remove fm8/pressure and use local config instead
   - convert Util.Testing to Text
   - Put tags in Log.Msg like [(Text, Text | Int)], so I don't have to do
     Cache.extract_cached_msg.
@@ -62,7 +62,7 @@ UNSORTED
 
   - have an easier way to use MeterConfig to take e.g. r_section out of
     unlabeled_ranks so I can have a absolute gong count.
-    . The other option is for r_measure to keep going after each r_section.
+    . Another option is for r_measure to keep going after each r_section.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.
