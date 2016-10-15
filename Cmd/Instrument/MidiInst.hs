@@ -236,8 +236,7 @@ add_flag flag = Patch.defaults#Patch.flags %= Patch.add_flag flag
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
-pressure = patch %=
-    (Patch.defaults#Patch.decay #= Just 0)
+pressure = patch %= (Patch.defaults#Patch.decay #= Just 0)
     . add_flag Patch.Pressure
 
 -- ** environ

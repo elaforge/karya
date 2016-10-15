@@ -58,10 +58,8 @@ lookup_allocation :: State.M m => Util.Instrument
 lookup_allocation inst =
     State.allocation (Util.instrument inst) <#> State.get
 
-get_allocation :: State.M m => Score.Instrument -> m StateConfig.Allocation
-get_allocation inst =
-    State.require ("no allocation for " <> pretty inst)
-        =<< State.allocation inst <#> State.get
+get_allocation :: State.M m => Util.Instrument -> m StateConfig.Allocation
+get_allocation = get_instrument_allocation . Util.instrument
 
 -- | List all allocated instruments.
 allocated :: State.M m => m [Score.Instrument]
@@ -239,8 +237,7 @@ merge (StateConfig.Allocations alloc_map) = do
 -- | Rename an instrument.
 rename :: State.M m => Instrument -> Instrument -> m ()
 rename from to = do
-    alloc <- State.require ("not found: " <> pretty from)
-        =<< (State.allocation (Util.instrument from) <#> State.get)
+    alloc <- get_allocation from
     State.modify_config $ State.allocations %= rename alloc
     where
     rename alloc (StateConfig.Allocations allocs) = StateConfig.Allocations $
@@ -273,6 +270,11 @@ clear_environ :: State.M m => Instrument -> m ()
 clear_environ inst = modify_common_config_ inst $ Common.cenviron #= mempty
 
 -- ** Midi.Patch.Config
+
+set_addr :: State.M m => Instrument -> Text -> [Midi.Channel] -> m ()
+set_addr inst wdev chans = modify_midi_config inst $
+    Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
+    where dev = Midi.write_device wdev
 
 set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
@@ -321,7 +323,8 @@ get_midi_config inst =
 lookup_midi_config :: State.M m => Score.Instrument
     -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
 lookup_midi_config inst = do
-    StateConfig.Allocation qualified config backend <- get_allocation inst
+    StateConfig.Allocation qualified config backend
+        <- get_instrument_allocation inst
     return $ case backend of
         StateConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
@@ -347,7 +350,7 @@ modify_common_config :: State.M m => Instrument
     -> (Common.Config -> (Common.Config, a)) -> m a
 modify_common_config inst_ modify = do
     let inst = Util.instrument inst_
-    alloc <- get_allocation inst
+    alloc <- get_instrument_allocation inst
     let (config, result) = modify (StateConfig.alloc_config alloc)
         new = alloc { StateConfig.alloc_config = config }
     State.modify_config $ State.allocations_map %= Map.insert inst new
@@ -357,6 +360,12 @@ modify_common_config_ :: State.M m => Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_common_config_ inst modify =
     modify_common_config inst $ \config -> (modify config, ())
+
+get_instrument_allocation :: State.M m => Score.Instrument
+    -> m StateConfig.Allocation
+get_instrument_allocation inst =
+    State.require ("no allocation for " <> pretty inst)
+        =<< State.allocation inst <#> State.get
 
 
 -- * Cmd.EditState
