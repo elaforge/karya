@@ -74,11 +74,11 @@ list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- State.config#State.allocations_map <#> State.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
-    patches <- map (fmap fst . Cmd.midi_instrument) <$>
-        mapM Cmd.get_instrument names
+    patches <- map (fmap fst . (Cmd.midi_instrument =<<)) <$>
+        mapM Cmd.lookup_instrument names
     return $ Text.unlines $ TextUtil.formatColumns 1
-        [ pretty_alloc patch name alloc
-        | (name, alloc, patch) <- zip3 names allocs patches
+        [ pretty_alloc maybe_patch name alloc
+        | (name, alloc, maybe_patch) <- zip3 names allocs patches
         , matches name
         ]
     where
@@ -86,7 +86,7 @@ list_like pattern = do
 
 pretty_alloc :: Maybe Patch.Patch -> Score.Instrument -> StateConfig.Allocation
     -> [Text]
-pretty_alloc patch inst alloc =
+pretty_alloc maybe_patch inst alloc =
     [ ShowVal.show_val inst
     , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
     , case StateConfig.alloc_backend alloc of
@@ -118,7 +118,7 @@ pretty_alloc patch inst alloc =
             ++ ["solo" | Common.config_solo config]
     show_midi_config config = join
         [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , pretty_settings (Patch.patch_defaults <$> patch)
+        , pretty_settings (Patch.patch_defaults <$> maybe_patch)
             (Patch.config_settings config)
         ]
     show_controls msg controls
@@ -137,9 +137,8 @@ pretty_settings maybe_defaults settings =
         ]
     where
     if_changed get fmt
-        | Just defaults <- maybe_defaults, get defaults /= get settings =
-            fmt (get settings)
-        | otherwise = ""
+        | Just defaults <- maybe_defaults, get defaults == get settings = ""
+        | otherwise = fmt (get settings)
 
 show_scale :: Patch.Scale -> Text
 show_scale scale = "scale " <> Patch.scale_name scale <> " "

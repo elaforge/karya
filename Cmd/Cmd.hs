@@ -1113,13 +1113,15 @@ lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved -> do
 lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
     ui_state <- State.get
-    cmd_state <- get
+    db <- gets $ config_instrument_db . state_config
     case State.allocation inst #$ ui_state of
         Nothing -> return Nothing
-        Just alloc -> fmap Just $ require_right (prefix<>) $
-            resolve_instrument (config_instrument_db (state_config cmd_state))
-                alloc
-    where prefix = "lookup " <> pretty inst <> ": "
+        Just alloc -> case resolve_instrument db alloc of
+            Left err -> do
+                -- This is a broken allocation, so I should log it at least.
+                Log.warn $ "lookup " <> pretty inst <> ": " <> err
+                return Nothing
+            Right val -> return (Just val)
 
 get_instrument :: M m => Score.Instrument -> m ResolvedInstrument
 get_instrument inst = require ("instrument not found: " <> pretty inst)
