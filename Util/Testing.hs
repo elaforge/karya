@@ -283,10 +283,10 @@ pattern_matches :: TextLike txt => Text -> txt -> Bool
 pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
     . to_text
 
-pattern_to_regex :: Text -> Regex.Regex
+pattern_to_regex :: Stack => Text -> Regex.Regex
 pattern_to_regex =
-    Regex.compileOptionsUnsafe "Test.pattern_to_regex" [Regex.DotAll] . mkstar
-        . Regex.escape . Text.unpack
+    Regex.compileOptionsUnsafe [Regex.DotAll] . mkstar . Regex.escape
+        . Text.unpack
     where
     mkstar "" = ""
     mkstar ('\\' : '\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs

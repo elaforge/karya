@@ -130,7 +130,7 @@ interpolate template variables
     notInTemplate = inVariables `Set.difference` inTemplate
     notInVariables = inTemplate `Set.difference` inVariables
     commas = Text.intercalate ", "
-    variable = Regex.compileUnsafe "interpolate" "\\$\\{([a-z0-9_]+)\\}"
+    variable = Regex.compileUnsafe "\\$\\{([a-z0-9_]+)\\}"
 
 -- * haddockUrl
 

@@ -26,6 +26,8 @@ import qualified Text.Regex.PCRE.Heavy as PCRE
 import Text.Regex.PCRE.Heavy (Regex)
 import qualified Text.Regex.PCRE.Light as PCRE
 
+import qualified Util.CallStack as CallStack
+
 
 -- * compile
 
@@ -54,13 +56,13 @@ convertOptions = (options++) . map convert
     options = [PCRE.utf8, PCRE.no_utf8_check]
 
 -- | Will throw a runtime error if the regex has an error!
-compileUnsafe :: String -> String -> Regex
-compileUnsafe caller = compileOptionsUnsafe caller []
+compileUnsafe :: CallStack.Stack => String -> Regex
+compileUnsafe = compileOptionsUnsafe []
 
 -- | Will throw a runtime error if the regex has an error!
-compileOptionsUnsafe :: String -> [Option] -> String -> Regex
-compileOptionsUnsafe caller options =
-    either (error . ((caller ++ ": ") ++)) id . compileOptions options
+compileOptionsUnsafe :: CallStack.Stack => [Option] -> String -> Regex
+compileOptionsUnsafe options =
+    either (CallStack.errorStack . Text.pack) id . compileOptions options
 
 -- * match
 

@@ -391,7 +391,7 @@ get_sel_midi from_root = do
 logs_like :: BlockId -> String -> Cmd.CmdL [Log.Msg]
 logs_like block_id regex = do
     logs <- LEvent.logs_of <$> block_midi block_id
-    let reg = Regex.compileUnsafe "LPerf.logs_like" regex
+    let reg = Regex.compileUnsafe regex
     return $ filter (Regex.matches reg . Log.msg_text) logs
 
 -- | Get logs that include a stack frame that matches the given block, tracks,

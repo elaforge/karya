@@ -112,8 +112,7 @@ matchingTests regexes tests = concatMap match regexes
     match reg = case Map.lookup reg byName of
         Just test -> [test]
         Nothing -> filter
-            (Regex.matches (Regex.compileUnsafe "matchingTests" reg)
-                . Text.pack . testName)
+            (Regex.matches (Regex.compileUnsafe reg) . Text.pack . testName)
             tests
 
 runTest :: Test -> IO ()

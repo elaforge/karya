@@ -102,9 +102,7 @@ extractInitialize :: FilePath -> Text -> Maybe Text
 extractInitialize fname content
     | Regex.matches reg content = Just $ pathToModule fname <> ".initialize"
     | otherwise = Nothing
-    where
-    reg = Regex.compileOptionsUnsafe "extractInitialize" [Regex.Multiline]
-        "^initialize .*="
+    where reg = Regex.compileOptionsUnsafe [Regex.Multiline] "^initialize .*="
 
 pathToModule :: FilePath -> Text
 pathToModule =
@@ -129,8 +127,7 @@ hasTestFunction line
     | Regex.matches reg line = Just $ head (Text.words line)
     | otherwise = Nothing
     where
-    reg = Regex.compileUnsafe "hasTestFunction"
-        "^(?:large_test|test|profile)_[a-zA-Z0-9_]+ \\="
+    reg = Regex.compileUnsafe "^(?:large_test|test|profile)_[a-zA-Z0-9_]+ \\="
 
 -- * make
 

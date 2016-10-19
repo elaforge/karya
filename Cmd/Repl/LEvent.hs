@@ -111,7 +111,7 @@ replace_pattern from to =
 replace_regex :: Monad m => String -> ([Text] -> Text) -> ModifyEvents.Track m
 replace_regex regex modify =
     ModifyEvents.text (Regex.substituteGroups reg (const modify))
-    where reg = Regex.compileUnsafe "LEvent.replace_regex" regex
+    where reg = Regex.compileUnsafe regex
 
 -- * quantize
 
