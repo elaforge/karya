@@ -9,9 +9,7 @@
 -- | Basic testing utilities.
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
-    -- * tests
-    , Stack
-    -- ** pure assertions
+    -- * assertions
     , check, equal, right_equal, not_equal, equalf, strings_like
     , left_like , match
     -- ** exception assertions
@@ -64,6 +62,7 @@ import qualified System.Posix.Terminal as Terminal
 import qualified Text.Printf as Printf
 
 import qualified Util.ApproxEq as ApproxEq
+import Util.CallStack (Stack)
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.PPrint as PPrint
@@ -96,8 +95,6 @@ data Config = Config {
 check :: Stack => Bool -> IO Bool
 check False = failure "assertion false"
 check True = success "assertion true"
-
-type Stack = (?stack :: Stack.CallStack)
 
 -- * equal and diff
 

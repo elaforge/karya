@@ -46,7 +46,7 @@ process_simple :: [String] -- ^ only include these lilypond backslash commands
     -> [Types.Event] -> Either String String
 process_simple wanted events = extract_simple wanted $ process events
 
-extract_rights :: (Stack, Show a) => [Either a String] -> String
+extract_rights :: (CallStack.Stack, Show a) => [Either a String] -> String
 extract_rights = unwords . map expect_right
 
 process :: [Types.Event] -> Either String [Output]

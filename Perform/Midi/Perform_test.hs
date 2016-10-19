@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
@@ -568,7 +569,7 @@ perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [String])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
-expect_no_logs :: Stack => (a, [String]) -> a
+expect_no_logs :: CallStack.Stack => (a, [String]) -> a
 expect_no_logs (val, []) = val
 expect_no_logs (_, logs) =
     error_stack $ "expected no logs: " ++ Seq.join "\n" logs
