@@ -1135,9 +1135,8 @@ ghcLanguageFlags = map ("-X"++)
     , "DisambiguateRecordFields"
     -- ghc-7.10 adds a new rule where you can't infer a signature you can't
     -- type.  OverloadedStrings combined with local definitions results in
-    -- a lot of types like "IsString [a] => [a] -> ...", which for some reason
-    -- yields "Non type-variable argument in the constraint: IsString [a]".
-    -- I don't really know what that means, but FlexibleContexts fixes it.
+    -- a lot of types like "IsString [a] => [a] -> ...", which results in
+    -- "Non type-variable argument in the constraint: IsString [a]".
     , "FlexibleContexts"
     -- It's nicer than flip (,), but not worth using if you have to put in
     -- a LANGUAGE.

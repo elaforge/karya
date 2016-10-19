@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, OverloadedStrings #-}
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Utilities for GHC's implicit call stacks feature.
 module Util.CallStack where
