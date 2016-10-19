@@ -422,26 +422,26 @@ thread setup tests = do
         unparsed <- map snd . List.sort <$> BlockC.dump
         putStr "***dump: " >> pprint unparsed
         let dumps = map parse_dump unparsed
-        passed <- match_dumps desc dumps expected
+        passed <- match_dumps (txt desc) dumps expected
         unless passed (pause "")
         return state
 
-match_dumps :: String -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
+match_dumps :: Text -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
 match_dumps desc dumps attrs = allM matches (Seq.zip_padded dumps attrs)
     where
     matches (Seq.Second attrs) =
-        fail $ "view missing for attrs: " ++ show attrs
+        fail $ "view missing for attrs: " <> showt attrs
     matches (Seq.First dump) =
-        fail $ "unexpected view: " ++ show dump
+        fail $ "unexpected view: " <> showt dump
     matches (Seq.Both dump attrs)
-        | null missing = pass $ "found " ++ show attrs
+        | null missing = pass $ "found " <> showt attrs
         | otherwise =
-            fail $ "attrs " ++ show missing ++ " not in dump: "
-                ++ PPrint.pshow dump
+            fail $ "attrs " <> showt missing <> " not in dump: "
+                <> txt (PPrint.pshow dump)
         where missing = filter (`notElem` dump) attrs
     allM f xs = List.foldl' (&&) True <$> mapM f xs
-    fail = failure . ((desc ++ ": ") ++)
-    pass = success . ((desc ++ ": ") ++)
+    fail = failure . ((desc <> ": ") <>)
+    pass = success . ((desc <> ": ") <>)
 
 parse_dump :: String -> Dump.Dump
 parse_dump = either (error . ("failed to parse dump: "++) . untxt) id

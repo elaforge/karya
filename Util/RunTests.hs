@@ -11,6 +11,7 @@ import Control.Monad
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import Data.Monoid ((<>))
 import qualified Data.Text as Text
 
 import qualified Numeric
@@ -98,7 +99,8 @@ runSubprocess argv0 test = do
     case val of
         System.Exit.ExitFailure code -> Testing.with_test_name (testName test) $
             void $ Testing.failure $
-                "test returned " ++ show code ++ ": " ++ testName test
+                "test returned " <> Text.pack (show code) <> ": "
+                <> Text.pack (testName test)
         _ -> return ()
 
 -- | Match all tests whose names match any regex, or if a test is an exact
@@ -133,7 +135,8 @@ catch name op = do
     result <- Exception.try op
     case result of
         Left (exc :: Exception.SomeException) -> do
-            void $ Testing.failure $ name ++ " threw exception: " ++ show exc
+            void $ Testing.failure $ Text.pack name <> " threw exception: "
+                <> Text.pack (show exc)
             -- Die on async exception, otherwise it will try to continue
             -- after ^C or out of memory.
             case Exception.fromException exc of

@@ -726,7 +726,7 @@ top_tid :: TrackNum -> TrackId
 top_tid = UiTest.mk_tid_name "top"
 
 -- | The toplevel block is just about always damaged.
-toplevel_rederived :: Bool -> String
+toplevel_rederived :: Bool -> Text
 toplevel_rederived True = "top *: rederived * block damage"
 toplevel_rederived False = "top *: rederived * sub-block damage"
 

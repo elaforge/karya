@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Basic testing utilities.
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
@@ -108,7 +109,7 @@ equal a b
 
 right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
 right_equal (Right a) b = equal a b
-right_equal (Left err) _ = failure $ "Left: " <> PPrint.pshow err
+right_equal (Left err) _ = failure $ "Left: " <> pshowt err
 
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
@@ -118,63 +119,67 @@ not_equal a b
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>
-    String -- ^ equal operator
-    -> String -- ^ inequal operator
+    Text -- ^ equal operator
+    -> Text -- ^ inequal operator
     -> Bool -- ^ If True then equal is expected so inequal will be highlighted
     -- red.  Otherwise, inequal is expected and highlighted green.
     -> a -> a -> Bool -- ^ True if as are equal
-    -> String
+    -> Text
 pretty_compare equal inequal expect_equal a b is_equal
-    | is_equal = equal <> " " <> ellipse (show a)
+    -- TODO use fmt_lines
+    | is_equal = equal <> " " <> ellipse (showt a)
     | not big_values = pa <> " " <> inequal <> " " <> pb
-    | otherwise = '\n' : diff_values color inequal pa pb
+    | otherwise = "\n" <> diff_values color inequal pa pb
     where
     color = if expect_equal then failure_color else success_color
     -- If the values are a bit long, run the diff highlighter on them.
-    big_values = '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
+    big_values = has_newline pa || has_newline pb
+        || Text.length pa + Text.length pb >= 60
     -- Equal values are usually not interesting, so abbreviate if they're too
     -- long.
     ellipse s
-        | len > maxlen = take maxlen s ++ "... {" ++ show len ++ "}"
+        | len > maxlen = Text.take maxlen s <> "... {" <> showt len <> "}"
         | otherwise = s
-        where len = length s
+        where len = Text.length s
     maxlen = 200
-    pa = Seq.strip $ PPrint.pshow a
-    pb = Seq.strip $ PPrint.pshow b
+    pa = Text.strip $ pshowt a
+    pb = Text.strip $ pshowt b
+    has_newline = ("\n" `Text.isInfixOf`)
 
 -- | Diff two strings and highlight the different parts.
-diff_values :: ColorCode -> String -> String -> String -> String
-diff_values color inequal first second = concat
-    [ Seq.strip $ highlight_lines color firsts first
-    , "\n\t" ++ inequal ++ "\n"
-    , Seq.strip $ highlight_lines color seconds second
+diff_values :: ColorCode -> Text -> Text -> Text -> Text
+diff_values color inequal first second = Text.unlines
+    [ Text.strip $ highlight_lines color firsts first
+    , "\t" <> inequal
+    , Text.strip $ highlight_lines color seconds second
     ]
     where (firsts, seconds) = diff first second
 
-highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> String -> String
-highlight_lines color nums = unlines . zipWith hi [0..] . lines
+highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> Text -> Text
+highlight_lines color nums = Text.unlines . zipWith hi [0..] . Text.lines
     where
     hi i line = case IntMap.lookup i nums of
         Just ranges -> highlight_ranges color ranges line
         Nothing -> line
 
-highlight_ranges :: ColorCode -> [CharRange] -> String -> String
-highlight_ranges color ranges text = concatMap hi (split_ranges ranges text)
-    where hi (outside, inside) = outside ++ highlight color inside
+highlight_ranges :: ColorCode -> [CharRange] -> Text -> Text
+highlight_ranges color ranges = mconcat . map hi . split_ranges ranges
+    where hi (outside, inside) = outside <> highlight color inside
 
-split_ranges :: [(Int, Int)] -> [a] -> [([a], [a])] -- ^ (out, in) pairs
+split_ranges :: [(Int, Int)] -> Text -> [(Text, Text)] -- ^ (out, in) pairs
 split_ranges ranges = go 0 ranges
     where
-    go _ _ [] = []
-    go _ [] xs = [(xs, [])]
-    go prev ((s, e) : ranges) xs = (pre, within) : go e ranges post
+    go _ [] text
+        | Text.null text = []
+        | otherwise = [(text, mempty)]
+    go prev ((s, e) : ranges) text = (pre, within) : go e ranges post
         where
-        (pre, rest) = splitAt (s-prev) xs
-        (within, post) = splitAt (e - s) rest
+        (pre, rest) = Text.splitAt (s-prev) text
+        (within, post) = Text.splitAt (e - s) rest
 
 type CharRange = (Int, Int)
 
-diff :: String -> String
+diff :: Text -> Text
     -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
 diff first second =
     to_map $ Seq.partition_paired $ map diff_line $
@@ -184,23 +189,23 @@ diff first second =
     diff_line (num, d) = case d of
         Seq.Both line1 line2 -> Seq.Both (num, d1) (num, d2)
             where (d1, d2) = char_diff line1 line2
-        Seq.First line1 -> Seq.First (num, [(0, length line1)])
-        Seq.Second line2 -> Seq.Second (num, [(0, length line2)])
+        Seq.First line1 -> Seq.First (num, [(0, Text.length line1)])
+        Seq.Second line2 -> Seq.Second (num, [(0, Text.length line2)])
     first_by_line = Map.fromList
         [(n, text) | Diff.First (Numbered n text) <- diffs]
     second_by_line = Map.fromList
         [(n, text) | Diff.Second (Numbered n text) <- diffs]
-    diffs = numbered_diff (==) (lines first) (lines second)
+    diffs = numbered_diff (==) (Text.lines first) (Text.lines second)
 
-char_diff :: String -> String -> ([CharRange], [CharRange])
+char_diff :: Text -> Text -> ([CharRange], [CharRange])
 char_diff first second
     | too_different first_cs || too_different second_cs =
-        ([(0, length first)], [(0, length second)])
+        ([(0, Text.length first)], [(0, Text.length second)])
     | otherwise = (first_cs, second_cs)
     where
     first_cs = to_ranges [n | Diff.First (Numbered n _) <- diffs]
     second_cs = to_ranges [n | Diff.Second (Numbered n _) <- diffs]
-    diffs = numbered_diff (==) first second
+    diffs = numbered_diff (==) (Text.unpack first) (Text.unpack second)
     -- If there are too many diff ranges let's just mark the whole thing
     -- different.  Perhaps I should ignore spaces that are the same, but let's
     -- see how this work first.
@@ -230,19 +235,13 @@ equalf eta a b
 
 -- * other assertions
 
-class Show a => TextLike a where
-    to_text :: a -> Text
-    to_string :: a -> String -- TODO convert everything to Text and remove this
-instance TextLike String where
-    to_text = Text.pack
-    to_string = id
-instance TextLike Text where
-    to_text = id
-    to_string = Text.unpack
+class Show a => TextLike a where to_text :: a -> Text
+instance TextLike String where to_text = Text.pack
+instance TextLike Text where to_text = id
 
 -- | Strings in the first list match patterns in the second list, using
 -- 'pattern_matches'.
-strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [String]
+strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Text]
     -> IO Bool
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
@@ -255,46 +254,48 @@ strings_like gotten_ expected
     fmt_line failures (n, line)
         | Set.member n failures = highlight failure_color line
         | otherwise = line
-    gotten = map to_string gotten_
+    gotten = map to_text gotten_
     diffs = numbered_diff pattern_matches expected gotten
     is_both (Diff.Both {}) = True
     is_both _ = False
 
 -- | Format multiple lines with an operator between them, on a single line if
 -- there is only one line.
-fmt_lines :: String -> [String] -> [String] -> String
+fmt_lines :: Text -> [Text] -> [Text] -> Text
 fmt_lines operator [x] [y] = x <> " " <> operator <> " " <> y
-fmt_lines operator xs ys = ('\n':) $ Seq.rstrip $
-    unlines $ xs ++ ["    " <> operator] ++ ys
+fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
+    Text.unlines $ xs <> ["    " <> operator] <> ys
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (Stack, Show a, TextLike txt) => Either txt a -> String -> IO Bool
+left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Text -> IO Bool
 left_like gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success $
-            "Left " ++ to_string msg ++ " =~ Left " ++ expected
+            "Left " <> to_text msg <> " =~ Left " <> to_text expected
         | otherwise ->
-            failure $ "Left " ++ to_string msg ++ " !~ Left " ++ expected
-    Right a -> failure $ "Right (" ++ show a ++ ") !~ Left " ++ expected
+            failure $ "Left " <> to_text msg <> " !~ Left " <> to_text expected
+    Right a ->
+        failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
 
-match :: (Stack, TextLike txt) => txt -> String -> IO Bool
+match :: (Stack, TextLike txt) => txt -> Text -> IO Bool
 match gotten pattern
     | pattern_matches pattern gotten = success $
-        to_string gotten ++ "\n\t=~\n" ++ pattern
-    | otherwise = failure $ to_string gotten ++ "\n\t!~\n" ++ pattern
+        to_text gotten <> "\n\t=~\n" <> to_text pattern
+    | otherwise = failure $ to_text gotten <> "\n\t!~\n" <> to_text pattern
+    -- TODO use fmt_lines
 
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
-pattern_matches :: TextLike txt => String -> txt -> Bool
+pattern_matches :: TextLike txt => Text -> txt -> Bool
 pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
     . to_text
 
-pattern_to_regex :: String -> Regex.Regex
+pattern_to_regex :: Text -> Regex.Regex
 pattern_to_regex =
     Regex.compileOptionsUnsafe "Test.pattern_to_regex" [Regex.DotAll] . mkstar
-        . Regex.escape
+        . Regex.escape . Text.unpack
     where
     mkstar "" = ""
     mkstar ('\\' : '\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
@@ -304,12 +305,12 @@ pattern_to_regex =
 -- | The given pure value should throw an exception that matches the predicate.
 throws :: (Stack, Show a) => a -> String -> IO Bool
 throws val exc_like =
-    (Exception.evaluate val >> failure ("didn't throw: " ++ show val))
+    (Exception.evaluate val >> failure ("didn't throw: " <> showt val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
         if exc_like `List.isInfixOf` show exc
-            then success ("caught exc: " ++ show exc)
-            else failure $
-                "exception <" ++ show exc ++ "> didn't match " ++ show exc_like
+            then success ("caught exc: " <> showt exc)
+            else failure $ "exception <" <> showt exc <> "> didn't match "
+                <> showt exc_like
 
 io_equal :: (Stack, Eq a, Show a) => IO a -> a -> IO Bool
 io_equal io_val expected = do
@@ -326,9 +327,9 @@ io_human expected_msg op = do
     c <- human_get_char
     putChar '\n'
     case c of
-        'y' -> success $ "saw " ++ show expected_msg
+        'y' -> success $ "saw " <> showt expected_msg
         'q' -> error "quit test"
-        _ -> failure $ "didn't see " ++ show expected_msg
+        _ -> failure $ "didn't see " <> showt expected_msg
     return result
 
 pause :: String -> IO ()
@@ -344,7 +345,7 @@ expect_right (Right v) = v
 
 -- | Like 'error', but with the caller's position.
 error_stack :: Stack => String -> a
-error_stack msg = error $ show_stack "" ?stack ++ ": " ++ msg
+error_stack msg = error $ Text.unpack (show_stack "" ?stack) <> ": " <> msg
 
 -- * profiling
 
@@ -388,18 +389,18 @@ pprint val = s `DeepSeq.deepseq` putStr s
 -- stdout, and it's best these appear in context.
 
 -- | Print a msg with a special tag indicating a passing test.
-success :: Stack => String -> IO Bool
+success :: Stack => Text -> IO Bool
 success msg = do
     print_test_line ?stack success_color "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
-failure :: Stack => String -> IO Bool
+failure :: Stack => Text -> IO Bool
 failure msg = do
     print_test_line ?stack failure_color "__-> " msg
     return False
 
-print_test_line :: Stack.CallStack -> ColorCode -> String -> String -> IO ()
+print_test_line :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()
 print_test_line stack color prefix msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
@@ -410,36 +411,36 @@ print_test_line stack color prefix msg = do
             -- I only want colors in tty output.
             | not isatty = strip_colors full_msg
             -- Don't put on a color if it already has some.
-            | vt100_prefix `List.isInfixOf` full_msg = full_msg
+            | vt100_prefix `Text.isInfixOf` full_msg = full_msg
             | otherwise = highlight color full_msg
-    putStrLn highlighted
+    Text.IO.putStrLn highlighted
 
-show_stack :: String -> Stack.CallStack -> String
+show_stack :: String -> Stack.CallStack -> Text
 show_stack test_name =
     maybe "<empty-stack>" show_frame . Seq.last . Stack.getCallStack
     where
     show_frame (_, srcloc) =
-        SrcLoc.srcLocFile srcloc ++ ":" ++ show (SrcLoc.srcLocStartLine srcloc)
-        ++ if null test_name then "" else " [" ++ test_name ++ "]"
+        Text.pack (SrcLoc.srcLocFile srcloc) <> ":"
+        <> showt (SrcLoc.srcLocStartLine srcloc)
+        <> if null test_name then "" else " [" <> Text.pack test_name <> "]"
 
 -- | Highlight the line unless the text already has highlighting in it.
-highlight :: ColorCode -> String -> String
+highlight :: ColorCode -> Text -> Text
 highlight (ColorCode code) text
-    | null text = text
+    | Text.null text = text
     | otherwise = code <> text <> vt100_normal
 
 -- | Remove vt100 color codes.
-strip_colors :: String -> String
-strip_colors text = case Seq.split vt100_prefix text of
-    x : xs -> concat $ x : map (drop 1 . dropWhile (/='m')) xs
-    [] -> ""
+strip_colors :: Text -> Text
+strip_colors = mconcat . map (Text.drop 1 . Text.dropWhile (/='m'))
+    . Text.splitOn vt100_prefix
 
-newtype ColorCode = ColorCode String deriving (Show)
+newtype ColorCode = ColorCode Text deriving (Show)
 
-vt100_prefix :: String
+vt100_prefix :: Text
 vt100_prefix = "\ESC["
 
-vt100_normal :: String
+vt100_normal :: Text
 vt100_normal = "\ESC[m\ESC[m"
 
 -- | These codes should probably come from termcap, but I can't be bothered.
@@ -462,6 +463,11 @@ human_get_char = do
             do { c <- getChar; putChar ' '; return c}
                 `Exception.finally` IO.hSetBuffering IO.stdin mode
 
+showt :: Show a => a -> Text
+showt = Text.pack . show
+
+pshowt :: Show a => a -> Text
+pshowt = Text.pack . PPrint.pshow
 
 -- * filesystem
 

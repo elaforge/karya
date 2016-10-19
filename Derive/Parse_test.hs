@@ -157,14 +157,14 @@ test_parse_val = do
         let res = Parse.parse_val expr
         case (res, expected) of
             (Left err, Just expect) -> void $ failure $
-                untxt err ++ ", expected " ++ show expect
+                err <> ", expected " <> showt expect
             (Right val, Nothing) -> void $ failure $
-                "shouldn't have parsed: " ++ show expr ++ " -> " ++ show val
+                "shouldn't have parsed: " <> showt expr <> " -> " <> showt val
             (Right val, Just expect) -> do
                 equal val expect
                 when invertible $
                     void $ equal (ShowVal.show_val val) expr
-            _ -> void $ success $ show res ++ " == " ++ show expected
+            _ -> void $ success $ showt res <> " == " <> showt expected
 
 test_parse_control_title = do
     let f = Parse.parse_control_title

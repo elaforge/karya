@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Util.Graph
 import Util.Graph (build)
 import Util.Test
+import Global
 
 
 test_toggle_edge = do
@@ -121,10 +122,10 @@ test_move = do
     equal (f 2 1 g) (Just (build [(0, 2), (2, 1)]))
 
 graph_equal graph1 graph2
-    | norm graph1 == norm graph2 = success $ "graph == " ++ show graph1
-    | otherwise = failure $ "graph " ++ show graph1 ++ ":\n"
-        ++ Util.Graph.draw graph1
-        ++ "*** /= " ++ show graph2 ++ " ***\n" ++ Util.Graph.draw graph2
+    | norm graph1 == norm graph2 = success $ "graph == " <> showt graph1
+    | otherwise = failure $ "graph " <> showt graph1 <> ":\n"
+        <> txt (Util.Graph.draw graph1)
+        <> "*** /= " <> showt graph2 <> " ***\n" <> txt (Util.Graph.draw graph2)
     where
     norm = map (\(p, cs) -> (p, List.sort cs)) . filter (not . null . snd)
         . IArray.assocs

@@ -17,7 +17,7 @@ import qualified System.IO as IO
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Util.Test as Test
 
 #include "hsconfig.h"
 #if defined(CORE_MIDI)
@@ -269,7 +269,7 @@ spam interface write_msg n = do
 pitch_bend_range :: WriteMsg -> Double -> IO ()
 pitch_bend_range write_msg semis = do
     let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_sensitivity semis)
-    pprint msgs
+    Test.pprint msgs
     mapM_ (write_msg . (,) 0) msgs
 
 -- * tests
@@ -300,9 +300,9 @@ test_abort interface write_msg read_msg = do
     -- It's been fixed but now it emits pb0, presumably because they can't
     -- be totally sure a pitchbend hasn't been emitted when the abort is
     -- received.
-    equal (filter (not . is_pb0) msgs) []
+    Test.equal (filter (not . is_pb0) msgs) []
     putStrLn "msgs after abort (pitchbend 0 expected on CoreMIDI):"
-    pprint msgs
+    Test.pprint msgs
     where
     is_pb0 msg = case Midi.rmsg_msg msg of
         Midi.ChannelMessage _ (Midi.PitchBend 0) -> True
@@ -322,7 +322,7 @@ test_merge interface write_msg read_msg = do
     write_msg (0, note_on 100)
     sleep 1
     msgs <- read_all read_msg
-    void $ equal (map Midi.rmsg_msg msgs)
+    void $ Test.equal (map Midi.rmsg_msg msgs)
         [note_on 10, note_on 100, note_on 11, note_on 12]
 
 test_sysex :: WriteMsg -> ReadMsg -> IO ()
@@ -338,8 +338,9 @@ test_sysex write_msg read_msg = do
         Just val -> return val
     putStrLn $ show secs ++ " seconds for " ++ show size ++ " bytes"
     let out_msg = Midi.rmsg_msg out
-    void $ if out_msg == msg then success "sysex equal"
-        else failure $ "got sysex: " ++ show out_msg
+    void $ if out_msg == msg
+        then Test.success "sysex equal"
+        else Test.failure $ "got sysex: " <> showt out_msg
 
 
 -- * util
