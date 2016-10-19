@@ -107,15 +107,15 @@ equal a b
     | otherwise = failure $ pretty False
     where pretty = pretty_compare "==" "/=" True a b
 
-right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
-right_equal (Right a) b = equal a b
-right_equal (Left err) _ = failure $ "Left: " <> pshowt err
-
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
     | a == b = failure $ pretty True
     | otherwise = success $ pretty False
     where pretty = pretty_compare "==" "/=" False a b
+
+right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
+right_equal (Right a) b = equal a b
+right_equal (Left err) _ = failure $ "Left: " <> pshowt err
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>
@@ -126,15 +126,15 @@ pretty_compare :: Show a =>
     -> a -> a -> Bool -- ^ True if as are equal
     -> Text
 pretty_compare equal inequal expect_equal a b is_equal
-    -- TODO use fmt_lines
     | is_equal = equal <> " " <> ellipse (showt a)
-    | not big_values = pa <> " " <> inequal <> " " <> pb
-    | otherwise = "\n" <> diff_values color inequal pa pb
+    | otherwise = fmt_lines inequal
+        (Text.lines $ highlight_lines color diff_a pretty_a)
+        (Text.lines $ highlight_lines color diff_b pretty_b)
     where
     color = if expect_equal then failure_color else success_color
-    -- If the values are a bit long, run the diff highlighter on them.
-    big_values = has_newline pa || has_newline pb
-        || Text.length pa + Text.length pb >= 60
+    (diff_a, diff_b) = diff_ranges pretty_a pretty_b
+    pretty_a = Text.strip $ pshowt a
+    pretty_b = Text.strip $ pshowt b
     -- Equal values are usually not interesting, so abbreviate if they're too
     -- long.
     ellipse s
@@ -142,19 +142,8 @@ pretty_compare equal inequal expect_equal a b is_equal
         | otherwise = s
         where len = Text.length s
     maxlen = 200
-    pa = Text.strip $ pshowt a
-    pb = Text.strip $ pshowt b
-    has_newline = ("\n" `Text.isInfixOf`)
 
--- | Diff two strings and highlight the different parts.
-diff_values :: ColorCode -> Text -> Text -> Text -> Text
-diff_values color inequal first second = Text.unlines
-    [ Text.strip $ highlight_lines color firsts first
-    , "\t" <> inequal
-    , Text.strip $ highlight_lines color seconds second
-    ]
-    where (firsts, seconds) = diff first second
-
+-- | Apply color ranges as produced by 'diff_ranges'.
 highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> Text -> Text
 highlight_lines color nums = Text.unlines . zipWith hi [0..] . Text.lines
     where
@@ -179,9 +168,9 @@ split_ranges ranges = go 0 ranges
 
 type CharRange = (Int, Int)
 
-diff :: Text -> Text
+diff_ranges :: Text -> Text
     -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
-diff first second =
+diff_ranges first second =
     to_map $ Seq.partition_paired $ map diff_line $
         Util.Map.pairs first_by_line second_by_line
     where
@@ -260,9 +249,10 @@ strings_like gotten_ expected
     is_both _ = False
 
 -- | Format multiple lines with an operator between them, on a single line if
--- there is only one line.
+-- they fit.
 fmt_lines :: Text -> [Text] -> [Text] -> Text
-fmt_lines operator [x] [y] = x <> " " <> operator <> " " <> y
+fmt_lines operator [x] [y] | Text.length x + Text.length y <= 70 =
+    x <> " " <> operator <> " " <> y
 fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
     Text.unlines $ xs <> ["    " <> operator] <> ys
 
@@ -279,11 +269,12 @@ left_like gotten expected = case gotten of
         failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
 
 match :: (Stack, TextLike txt) => txt -> Text -> IO Bool
-match gotten pattern
-    | pattern_matches pattern gotten = success $
-        to_text gotten <> "\n\t=~\n" <> to_text pattern
-    | otherwise = failure $ to_text gotten <> "\n\t!~\n" <> to_text pattern
-    -- TODO use fmt_lines
+match gotten pattern =
+    (if matches then success else failure) $
+        fmt_lines (if matches then "=~" else "!~")
+            (Text.lines (to_text gotten)) (Text.lines pattern)
+    where
+    matches = pattern_matches pattern gotten
 
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
