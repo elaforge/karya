@@ -191,7 +191,8 @@ c_debug = Derive.transformer Module.prelude "debug" mempty
     $ Sig.callt (Sig.required "tag" "Log msg has this text.")
     $ \tag _ deriver -> do
         events <- deriver
-        Log.debug_data tag (Stream.events_of events :: [Score.Event])
+        Log.write $ Log.with_dyn tag (Stream.events_of events) $
+            Log.msg Log.Debug Nothing "debug call"
         return events
 
 -- ** clip

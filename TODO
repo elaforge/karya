@@ -7,6 +7,8 @@ UNSORTED
   * convert Util.Testing to Text
   - Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
     do Cache.extract_cached_msg.
+  - Util.Log: All the initialized msg stuff like 'make_msg' and
+    'initialized_msg' is confusing.  Can I get rid of initialize?
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
@@ -1309,8 +1311,10 @@ Derive:
           . Of course the other way to do that is just put the exact manual
             sequence in the StrokeMap, but it's a duplication, but minus
             the rests.
-        - put sep argument second, so e.g. 'tri p6 (tang.ga)', this way it
+        / put sep argument second, so e.g. 'tri_ p6 (tang.ga)', this way it
           reads forwards.
+          . Then it's inconsistent with 'trin', and it would be really awkward
+            to put the karvai last for that.
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even

@@ -15,13 +15,15 @@ module Util.Log (
     configure
     -- * msgs
     , Msg(..), msg_string
-    , Data(..), empty_data, has_data, get_data
+    -- ** data
+    , with_int, with_text, with_dyn
+    , lookup_int, lookup_text, lookup_dyn
+    -- ** other types
     , Prio(..), State(..)
     , write_json, write_formatted
     , msg, msg_call_stack, initialized_msg
     , timer, debug, notice, warn, error
     , debug_stack, notice_stack, warn_stack, error_stack
-    , debug_data
     , add_prefix
     , trace_logs
     -- * LogT monad
@@ -51,6 +53,7 @@ import Data.Aeson (parseJSON, toJSON)
 import qualified Data.Aeson.Types as Aeson.Types
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Dynamic as Dynamic
+import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -59,6 +62,7 @@ import qualified Data.Vector as Vector
 
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
+import qualified Numeric
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -84,11 +88,11 @@ data Msg = Msg {
     , msg_stack :: !(Maybe Stack.Stack)
     -- | Free form text for humans.
     , msg_text :: !Text
-    , msg_data :: !Data
+    , msg_data :: !(Map.Map Text Data)
     } deriving (Eq, Show, Read)
 
 instance DeepSeq.NFData Msg where
-    rnf (Msg {}) = ()
+    rnf msg = DeepSeq.rnf (msg_data msg) `seq` msg `seq` ()
 
 msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
@@ -96,50 +100,78 @@ msg_string = Text.unpack . msg_text
 instance Pretty.Pretty Msg where
     pretty = format_msg
 
--- | Attach an arbitrary payload to a log msg.
---
--- Since Dynamic can't preserve its value across (read . show), the Show just
--- has the type, not the value.  To avoid being confused by putting that back
--- into Data as a String, it then becomes StrippedData to make it clear what
--- happened.  Overkill?  Probably.
-data Data = NoData | Data !Dynamic.Dynamic | StrippedData !String
+-- ** data
 
-empty_data :: Data
-empty_data = Data (Dynamic.toDyn ())
+-- | Attach some semi-structured data to a log msg.  Simple data can then be
+-- analyzed without having to parse the text.
+data Data = NoData | Int !Int | Text !Text
+    -- | Sneak out any domain-specific type, probably for debugging.  Since it
+    -- can't be serialized, it will turn into @Text (show dyn)@.
+    | Dynamic !Dynamic.Dynamic
 
-has_data :: Msg -> Bool
-has_data msg = case msg_data msg of
-    NoData -> False
-    _ -> True
-
-get_data :: Dynamic.Typeable a => Msg -> Maybe a
-get_data msg = case msg_data msg of
-    Data d -> Dynamic.fromDynamic d
-    _ -> Nothing
+instance DeepSeq.NFData Data where
+    rnf _ = ()
 
 instance Eq Data where
-    NoData == NoData = True
-    StrippedData t1 == StrippedData t2 = t1 == t2
-    _ == _ = False
+    a == b = case (a, b) of
+        (NoData, NoData) -> True
+        (Int x, Int y) -> x == y
+        (Text x, Text y) -> x == y
+        (Dynamic _, Dynamic _) -> False
+        _ -> False
 
-instance Read.Read Data where readPrec = Read.lift read_data
+with_int :: Text -> Int -> Msg -> Msg
+with_int tag = with_data tag . Int
+
+with_text :: Text -> Text -> Msg -> Msg
+with_text tag = with_data tag . Text
+
+with_dyn :: Dynamic.Typeable a => Text -> a -> Msg -> Msg
+with_dyn tag = with_data tag . Dynamic . Dynamic.toDyn
+
+with_data :: Text -> Data -> Msg -> Msg
+with_data tag val msg = msg { msg_data = Map.insert tag val (msg_data msg) }
+
+lookup_int :: Text -> Msg -> Maybe Int
+lookup_int tag msg = case Map.lookup tag (msg_data msg) of
+    Just (Int v) -> Just v
+    _ -> Nothing
+
+lookup_text :: Text -> Msg -> Maybe Text
+lookup_text tag msg = case Map.lookup tag (msg_data msg) of
+    Just (Text v) -> Just v
+    _ -> Nothing
+
+lookup_dyn :: Dynamic.Typeable a => Text -> Msg -> Maybe a
+lookup_dyn tag msg = case Map.lookup tag (msg_data msg) of
+    Just (Dynamic dyn) -> Dynamic.fromDynamic dyn
+    _ -> Nothing
+
 instance Show Data where
     show NoData = "NoData"
-    show (Data d) =
-        "Data " ++ show (filter (/='"') (show (Dynamic.dynTypeRep d)))
-    show (StrippedData typ) = "StrippedData " ++ show typ
+    -- This omits parens for negative numbers but I don't care much.
+    show (Int int) = "Int " ++ show int
+    show (Text text) = "Text " ++ show text
+    show (Dynamic dyn) =
+        "Dynamic " ++ show (filter (/='"') (show (Dynamic.dynTypeRep dyn)))
+
+instance Read.Read Data where readPrec = Read.lift read_data
 
 read_data :: ReadP.ReadP Data
 read_data = ReadP.choice
     [ ReadP.string "NoData" *> pure NoData
-    , StrippedData <$> (ReadP.string "Data" *> p_string)
-    , StrippedData <$> (ReadP.string "StrippedData" *> p_string)
+    , Int <$> (ReadP.string "Int " *> p_int)
+    , Text . Text.pack <$> (ReadP.string "Text " *> p_text)
+    , Text . Text.pack <$> (ReadP.string "Dynamic " *> p_text)
     ]
     where
-    -- I stripped out "s in Show, so this should be good enough.
-    p_string = ReadP.skipSpaces *>
-        ReadP.between (ReadP.string "\"") (ReadP.string "\"")
-            (ReadP.munch (/='"'))
+    -- This will break if there is \" in there.  Surely there's a function
+    -- to parse a haskell string?
+    p_text = ReadP.between (ReadP.string "\"") (ReadP.string "\"")
+        (ReadP.munch (/='"'))
+    p_int = ReadP.readS_to_P (Numeric.readSigned Numeric.readDec)
+
+-- ** other types
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
@@ -204,7 +236,7 @@ msg = msg_call_stack ?stack
 msg_call_stack :: GHC.Stack.CallStack -> Prio -> Maybe Stack.Stack -> Text
     -> Msg
 msg_call_stack call_stack prio stack text =
-    Msg no_date_yet (CallStack.caller call_stack) prio stack text NoData
+    Msg no_date_yet (CallStack.caller call_stack) prio stack text mempty
 
 -- | Create a msg with the given prio and text.
 initialized_msg :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m Msg
@@ -239,12 +271,6 @@ notice_stack = log_stack Notice
 warn_stack = log_stack Warn
 error_stack = log_stack Error
 
--- | Write a Debug msg with arbitrary data attached to 'msg_data'.
-debug_data :: (CallStack.Stack, LogMonad m, Dynamic.Typeable a) =>
-    Text -> a -> m ()
-debug_data text data_ = write . add_data =<< make_msg Debug Nothing text
-    where add_data msg = msg { msg_data = Data (Dynamic.toDyn data_) }
-
 -- | Prefix msgs with the given string.
 add_prefix :: Text -> [Msg] -> [Msg]
 add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
@@ -270,7 +296,7 @@ class Monad m => LogMonad m where
 instance LogMonad IO where
     -- Never write msgs with data, because the data won't survive the
     -- serialization anyway.
-    write log_msg = unless (has_data log_msg) $ do
+    write log_msg = do
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         MVar.withMVar global_state $ \(State write_msg prio) ->
@@ -341,23 +367,39 @@ instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
 -- readable and can use newlines for records.  Previously I used Show, which is
 -- bulky and slow.  JSON is hopefully faster, and retains the benefits of Show.
 serialize :: Msg -> ByteString.Lazy.ByteString
-serialize (Msg date caller prio stack text _data) =
+serialize (Msg date caller prio stack text data_) =
     Aeson.encode $ Aeson.Array $ Vector.fromList
-        [toJSON date, toJSON caller, toJSON prio, toJSON stack, toJSON text]
+        [ toJSON date, toJSON caller, toJSON prio, toJSON stack, toJSON text
+        , toJSON data_
+        ]
 
 deserialize :: ByteString.Lazy.ByteString -> Either String Msg
 deserialize bytes = case Aeson.decode bytes of
     Just (Aeson.Array a) -> case Vector.toList a of
-        [date, caller, prio, stack, text] ->
+        [date, caller, prio, stack, text, data_] ->
             flip Aeson.Types.parseEither () $ \() ->
                 Msg <$> parseJSON date <*> parseJSON caller
                     <*> parseJSON prio <*> parseJSON stack <*> parseJSON text
-                    <*> return NoData
-        _ -> Left "expected a 5 element array"
+                    <*> parseJSON data_
+        _ -> Left "expected a 6 element array"
     _ -> Left "can't decode json"
 
 instance Aeson.ToJSON Prio
 instance Aeson.FromJSON Prio
+
+instance Aeson.ToJSON Data where
+    toJSON d = case d of
+        NoData -> Aeson.Null
+        Int v -> Aeson.Number (fromIntegral v)
+        Text v -> Aeson.String v
+        Dynamic v -> Aeson.String (Text.pack (show v))
+
+instance Aeson.FromJSON Data where
+    parseJSON json = case json of
+        Aeson.Null -> pure NoData
+        Aeson.Number v -> pure $ Int (floor v)
+        Aeson.String v -> pure $ Text v
+        _ -> fail "expecting null, number, or string"
 
 -- * util
 

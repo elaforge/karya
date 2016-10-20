@@ -236,23 +236,22 @@ root_sel_midi_events = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
+-- | Get logged events with the given tag and instruments.
+extract_insts :: BlockId -> Text -> [Text] -> Cmd.CmdL [(Text, [Score.Event])]
+extract_insts block_id tag insts =
+    map (fmap (with_insts insts . strip_stack)) <$> extract_debug block_id tag
+
 -- | Extract events logged via the @debug@ call.
-extract_debug :: BlockId -> Cmd.CmdL [(Text, [Score.Event])]
-extract_debug block_id = do
+extract_debug :: BlockId -> Text -> Cmd.CmdL [(Text, [Score.Event])]
+    -- ^ logged events by the stack where they were logged
+extract_debug block_id tag = do
     logs <- LEvent.logs_of <$> block_events block_id
     return
-        [ (Log.msg_text log, events)
-        | (log, Just events) <- zip logs (map Log.get_data logs)
+        [ (stack log, events)
+        | (log, Just events) <- zip logs (map (Log.lookup_dyn tag) logs)
         ]
-
-extract_debug_tag :: BlockId -> Text -> Cmd.CmdL [Score.Event]
-extract_debug_tag block_id tag =
-    Cmd.require ("tag not found: " <> tag) . lookup tag
-        =<< extract_debug block_id
-
-extract_insts :: BlockId -> Text -> [Text] -> Cmd.CmdL [Score.Event]
-extract_insts block_id tag insts =
-    with_insts insts . strip_stack <$> extract_debug_tag block_id tag
+    where
+    stack = maybe "" Stack.pretty_ui . Log.msg_stack
 
 control :: Score.Control -> Score.Event -> Maybe Score.TypedVal
 control c e = Score.control_at (Score.event_start e) c e
