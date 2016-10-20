@@ -338,12 +338,11 @@ extract_cache_stats key logs = (rederived, cached)
     extract log = case key log of
         Nothing -> Nothing
         Just block_id
-            | Just because <- Cache.extract_rederived_msg text ->
+            | Just because <- Cache.cache_miss_reason log ->
                 Just (block_id, Left because)
-            | Just vals <- Cache.extract_cached_msg text ->
+            | Just vals <- Cache.cache_hit_events log ->
                 Just (block_id, Right vals)
             | otherwise -> Nothing
-        where text = Log.msg_text log
 
 -- | Get block cache stats.
 get_block_id :: Log.Msg -> Maybe BlockId

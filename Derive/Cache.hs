@@ -8,7 +8,7 @@ module Derive.Cache (
     Cacheable(..)
     , block, track
     , get_control_damage, get_tempo_damage
-    , is_cache_log, extract_cached_msg, extract_rederived_msg
+    , is_cache_log, cache_hit_events, cache_miss_reason
     -- * debugging
     , pretty_cache
 
@@ -17,7 +17,6 @@ module Derive.Cache (
     , _extend_control_damage
 #endif
 ) where
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -25,7 +24,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
-import qualified Util.ParseText as ParseText
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -124,14 +122,14 @@ caching_deriver typ range call = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ make_cached_msg cached
+        Log.write <=< Log.initialize_msg $ cache_hit_msg cached
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
-        Log.debug $ rederived_msg reason
+        Log.write <=< Log.initialize_msg $ cache_miss_msg reason
         serial <- Derive.gets $
             Derive.state_event_serial . Derive.state_threaded
         let key = Derive.CacheKey { key_stack = stack, key_serial = serial }
@@ -245,33 +243,35 @@ make_cache key collect stream = Cache $ Map.singleton key (Cached entry)
 
 -- * logs
 
--- | This is a terrible hack so the log msgs from caching can be treated
--- differently from other log msgs.  Perhaps log msgs should have a general
--- purpose field for tags like this?
 is_cache_log :: Log.Msg -> Bool
-is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
-    where prefix = (`Text.isPrefixOf` Log.msg_text msg)
+is_cache_log msg =
+    Maybe.isJust (cache_hit_events msg) || Maybe.isJust (cache_miss_reason msg)
 
-make_cached_msg :: Stream.Stream a -> Text
-make_cached_msg cached =
-    "using cache, " <> showt events <> " events, " <> showt logs <> " logs"
+cache_hit :: Text
+cache_hit = "cache-hit"
+
+cache_hit_msg :: Stream.Stream a -> Log.Msg
+cache_hit_msg cached =
+    Log.with_int cache_hit events $ Log.msg Log.Debug Nothing $
+        "using cache, " <> showt events <> " events, " <> showt logs <> " logs"
     where
     (events, logs) = List.foldl' count (0, 0) (Stream.to_list cached)
     count (!es, !ms) e = if LEvent.is_event e then (es+1, ms) else (es, ms+1)
 
--- | Get the number of cached values from a 'make_cached_msg'.
---
--- TODO this is grody, I should just put some structured data in Log.Msg.
-extract_cached_msg :: Text -> Maybe Int
-extract_cached_msg = extract <=< Text.stripPrefix "using cache, "
-    where extract = ParseText.int . Text.takeWhile Char.isDigit
+-- | Get the number of cached events from a 'cache_hit_msg'.
+cache_hit_events :: Log.Msg -> Maybe Int
+cache_hit_events = Log.lookup_int cache_hit
 
-rederived_msg :: Text -> Text
-rederived_msg reason = "rederived generator because of " <> reason
+cache_miss :: Text
+cache_miss = "cache-miss"
 
--- | Get the reason from a 'rederived_msg'.
-extract_rederived_msg :: Text -> Maybe Text
-extract_rederived_msg = Text.stripPrefix "rederived generator because of "
+cache_miss_msg :: Text -> Log.Msg
+cache_miss_msg reason = Log.with_text cache_miss reason $
+    Log.msg Log.Debug Nothing $ "rederived generator because of " <> reason
+
+-- | Get the reason from a 'cache_miss_msg'.
+cache_miss_reason :: Log.Msg -> Maybe Text
+cache_miss_reason = Log.lookup_text cache_miss
 
 -- * debugging
 

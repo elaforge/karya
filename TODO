@@ -5,10 +5,11 @@ LEGEND
 UNSORTED
   * remove fm8/pressure and use local config instead
   * convert Util.Testing to Text
-  - Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
+  * Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
     do Cache.extract_cached_msg.
   - Util.Log: All the initialized msg stuff like 'make_msg' and
     'initialized_msg' is confusing.  Can I get rid of initialize?
+    . Actually I do use it, for the stack, but can I build it into Log.write?
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
