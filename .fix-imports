@@ -9,4 +9,4 @@ language: OverloadedStrings DisambiguateRecordFields FlexibleContexts
     TupleSections GeneralizedNewtypeDeriving
     -- Otherwise haskell-src-exts doesn't understand ConstraintKinds.
     -- But why doesn't ghc require LANGUAGE ConstraintKinds?
-    MultiParamTypeClasses
+    MultiParamTypeClasses BangPatterns

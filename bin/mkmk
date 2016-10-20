@@ -8,4 +8,5 @@ touch build/shake.database # Needed for my shake.database locking hack.
 # "boot" modules need explicit LANGUAGE pragmas.  I could fix it by putting
 # them in a separate file, but I'm not super motivated because the boot
 # modules are few and rarely modified.
+# Also .fix-imports needs the list.
 exec runghc Shake/Shakefile.hs "$@" build/opt/shakefile
