@@ -137,7 +137,7 @@ derive_control_tree block_range tree = do
     where
     -- Or I could throw, but this way any other logs the block emitted will
     -- also be visible, and they might have something interesting.
-    complain events = Log.initialized_msg Log.Warn $
+    complain events = Derive.initialize_log_msg $ Log.msg Log.Warn Nothing $
         "control call should have emitted a single call to "
         <> ShowVal.show_val capture_null_control
         <> " which produces a single event, but got events: " <> showt events

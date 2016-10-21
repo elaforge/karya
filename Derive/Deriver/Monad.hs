@@ -31,6 +31,7 @@ module Derive.Deriver.Monad (
     -- * Deriver
     Deriver, RunResult
     , modify, get, gets, put, run
+    , initialize_log_msg
 
     -- * error
     , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..), EvalSource(..)
@@ -175,12 +176,15 @@ type Deriver = DeriveM.Deriver State Error
 type RunResult a = DeriveM.RunResult State Error a
 
 instance Log.LogMonad Deriver where
-    write = DeriveM.write
-    initialize_msg msg = do
-        -- If the msg was created explicitly, it may already have a stack.
-        stack <- maybe (gets (state_stack . state_dynamic)) return
-            (Log.msg_stack msg)
-        return $ msg { Log.msg_stack = Just stack }
+    write = DeriveM.write <=< initialize_log_msg
+
+initialize_log_msg :: Log.Msg -> Deriver Log.Msg
+initialize_log_msg msg = case Log.msg_stack msg of
+    -- If the msg was created explicitly, it may already have a stack.
+    Just _ -> return msg
+    Nothing -> do
+        stack <- gets (state_stack . state_dynamic)
+        return $! msg { Log.msg_stack = Just stack }
 
 -- * error
 

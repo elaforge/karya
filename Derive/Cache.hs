@@ -122,14 +122,14 @@ caching_deriver typ range call = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.write <=< Log.initialize_msg $ cache_hit_msg cached
+        Log.write $ cache_hit_msg cached
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
-        Log.write <=< Log.initialize_msg $ cache_miss_msg reason
+        Log.write $ cache_miss_msg reason
         serial <- Derive.gets $
             Derive.state_event_serial . Derive.state_threaded
         let key = Derive.CacheKey { key_stack = stack, key_serial = serial }

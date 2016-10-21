@@ -86,14 +86,13 @@ open filename seek = do
 tail :: Handle -> IO (Log.Msg, Handle)
 tail hdl = do
     (line, hdl) <- read_line hdl
-    msg <- deserialize_line line
-    return (msg, hdl)
+    return (deserialize_line line, hdl)
 
-deserialize_line :: ByteString.ByteString -> IO Log.Msg
+deserialize_line :: ByteString.ByteString -> Log.Msg
 deserialize_line line = case Log.deserialize (Lazy.fromStrict line) of
-    Left err -> Log.initialized_msg Log.Error $ "error parsing "
-        <> showt line <> ": " <> txt err
-    Right msg -> return msg
+    Left err -> Log.msg Log.Error Nothing $ "error parsing " <> showt line
+        <> ": " <> txt err
+    Right msg -> msg
 
 -- | (handle, file size)
 type TailState = (IO.Handle, Integer)

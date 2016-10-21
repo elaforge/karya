@@ -21,7 +21,7 @@ module Util.Log (
     -- ** other types
     , Prio(..), State(..)
     , write_json, write_formatted
-    , msg, msg_call_stack, initialized_msg
+    , msg, msg_call_stack
     , timer, debug, notice, warn, error
     , debug_stack, notice_stack, warn_stack, error_stack
     , add_prefix
@@ -214,16 +214,17 @@ data Prio =
     -- a performance problem.  Use "LogView.ShowTimers" to show the time
     -- elapsed between Timer logs.
     Timer
-    -- | Lots of msgs produced by code level.  Users don't look at this during
-    -- normal use, but can be useful for debugging.
+    -- | Users don't look at this during normal use, but can be useful for
+    -- debugging.
     | Debug
-    -- | Informational msgs that the user will want to see.  Progress messages
+    -- | Informational msgs that the user might want to see.  Progress messages
     -- in e.g. derivation and play status are included here.
     | Notice
-    -- | Something went wrong in e.g. derivation.  User definitely wants to see
-    -- this.
+    -- | Something went wrong in e.g. derivation.  The user definitely wants to
+    -- see this.
     | Warn
-    -- | Code error in the app, which may quit after printing this.
+    -- | Unexpected error in the app, which may quit.  This is probably due to
+    -- a bug.
     | Error
     deriving (Bounded, Enum, Show, Read, Eq, Ord, Generics.Generic)
 
@@ -238,21 +239,12 @@ msg_call_stack :: GHC.Stack.CallStack -> Prio -> Maybe Stack.Stack -> Text
 msg_call_stack call_stack prio stack text =
     Msg no_date_yet (CallStack.caller call_stack) prio stack text mempty
 
--- | Create a msg with the given prio and text.
-initialized_msg :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m Msg
-initialized_msg prio = make_msg prio Nothing
-
--- | This is the main way to construct a Msg since 'initialize_msg' is called.
-make_msg :: (CallStack.Stack, LogMonad m) => Prio -> Maybe Stack.Stack -> Text
-    -> m Msg
-make_msg prio stack text = initialize_msg (msg prio stack text)
-
 log :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m ()
-log prio text = write =<< make_msg prio Nothing text
+log prio text = write $ msg prio Nothing text
 
 log_stack :: (CallStack.Stack, LogMonad m) => Prio -> Stack.Stack -> Text
     -> m ()
-log_stack prio stack text = write =<< make_msg prio (Just stack) text
+log_stack prio stack text = write $ msg prio (Just stack) text
 
 timer, debug, notice, warn, error
     :: (CallStack.Stack, LogMonad m) => Text -> m ()
@@ -285,13 +277,14 @@ trace_logs logs val
 
 -- * LogT
 
+-- | Previously there was an initialize_msg method, which could use the
+-- LogMonad to fill in fields, e.g. 'add_time'.  Those things can happen in
+-- 'write' too, but the msg could be created in a different context from the
+-- call to 'write'.  In practice, though, I don't do that very much, and when
+-- I did it was usually because I wasn't in a LogMonad at all, so I used the
+-- pure 'msg' function.
 class Monad m => LogMonad m where
     write :: Msg -> m ()
-
-    -- | An instance for whatever monad you're using can use this to add some
-    -- custom data, like stack information.
-    initialize_msg :: Msg -> m Msg
-    initialize_msg = return
 
 instance LogMonad IO where
     -- Never write msgs with data, because the data won't survive the
@@ -305,8 +298,6 @@ instance LogMonad IO where
         when (msg_priority log_msg >= Error) $ do
             log_msg <- add_time log_msg
             Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
-
-    initialize_msg = add_time
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
