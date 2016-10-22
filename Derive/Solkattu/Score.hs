@@ -28,24 +28,24 @@ Mridangam.Strokes {..} = Mridangam.strokes
 
 c1s :: [Korvai]
 c1s = korvais (adi 4) (mridangam <> kendang)
-    [            theme 2 0 . p5
-      . dropM 2 (theme 2 1) . p6 . p6
-      . dropM 4 (theme 2 2) . tri p7 . tri p6 . tri p5
+    [            theme 2 1 . p5
+      . dropM 2 (theme 2 2) . p6 . p6
+      . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
 
-    , let tadin_ = ta.__.din.__.__ in
-                 theme 3 0 . p5 . tadin_
-      . dropM 3 (theme 3 1) . p6 . p6 . tadin_
-      . dropM 6 (theme 3 2) . trin tadin_ (tri p7) (tri p6) (tri p5)
+    , let ta_din__ = ta.__.din.__.__ in
+                 theme 3 1 . p5 . ta_din__
+      . dropM 3 (theme 3 2) . p6 . p6 . ta_din__
+      . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
 
-    ,            theme 4 0 . pat7 . dheem ! (u <+> K.u) . __4
-      . dropM 4 (theme 4 1) . repeat 2 pat8 . dheem ! (u <+> K.u) . __4
-      . dropM 8 (theme 4 2)
+    ,            theme 4 1 . pat7 . dheem ! (u <+> K.u) . __4
+      . dropM 4 (theme 4 2) . repeat 2 pat8 . dheem ! (u <+> K.u) . __4
+      . dropM 8 (theme 4 3)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
 
     ]
     where
     theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . ta.ka.din.na.din
-        . tri (ta . __n (gap2+1) . din . __n gap1)
+        . tri (ta . __n gap2 . din . __n gap1)
     mridangam = make_mridangam
         [ (ta.dit, [k, t])
         , (dit, [k])
