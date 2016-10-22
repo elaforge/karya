@@ -66,8 +66,7 @@ pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
 dur_arg :: Sig.Parser ScoreTime
-dur_arg = Typecheck.non_negative <$> Sig.defaulted_env_quoted "dur" Sig.Both
-    (BaseTypes.quoted "ts" [BaseTypes.str "e"])
+dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
     "Duration for each letter in the pattern. If 0, the pattern will\
     \ stretch to the event's duration."
 
@@ -108,15 +107,25 @@ c_pattern :: Derive.Generator Derive.Note
 c_pattern = Derive.generator module_ "pattern" Tags.inst
     "Like `seq`, but pick a standard pattern."
     $ Sig.call ((,,)
-    <$> (Typecheck.positive <$> Sig.required "n" "Number of strokes.")
+    <$> (fmap Typecheck.positive
+        <$> Sig.required "n" "Number of strokes. If not given, and dur > 0,\
+            \ then infer the number of strokes as the event_duration / dur.")
     <*> variation_arg <*> dur_arg
-    ) $ \(strokes, variation, dur) -> Sub.inverting $ \args -> do
+    ) $ \(maybe_strokes, variation, dur) -> Sub.inverting $ \args -> do
+        strokes <- maybe (infer_strokes dur (Args.duration args)) return
+            maybe_strokes
         (speed, pattern) <- Derive.require_right id $
             infer_pattern strokes variation
         let seq = realize_sequence (Args.context args) pattern
         let factor = ScoreTime.double $ Solkattu.speed_factor speed
         m_sequence seq (dur / factor) (Args.range args)
             (Args.orientation args)
+
+infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
+infer_strokes dur event_dur
+    | dur > 0 = return $ floor (event_dur / dur)
+    | otherwise = Derive.throw "can't infer both number of strokes and\
+        \ duration of strokes simultaneously"
 
 -- * c_infer_pattern
 

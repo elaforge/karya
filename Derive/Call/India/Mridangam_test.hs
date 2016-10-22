@@ -47,6 +47,11 @@ test_pattern = do
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ki"), (5.5, "+ta"),
             (6, "+thom")], [])
 
+    -- infer
+    strings_like (snd $ run [(0, 5, "p _")]) ["can't infer"]
+    equal (run [(0, 5, "dur=1 | p _")]) (zip (Seq.range_ 0 1) ktkno, [])
+    equal (run [(0, 6, "dur=1 | p _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
+
 test_infer_pattern = do
     let run title = DeriveTest.extract extract . derive_tracks title
         extract e = (Score.event_start e, DeriveTest.e_attributes e)

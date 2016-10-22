@@ -3,8 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - It seems like 0 dur might be a more useful default for mridingam calls.
-  - Also, what about bringing back infer from duration?
+  * It seems like 0 dur might be a more useful default for mridingam calls.
+  * Also, what about bringing back infer from duration?
   * make LPitch.simplify_harmonics work on all scales
   - switch from parsec to megaparsec?
   * remove fm8/pressure and use local config instead
