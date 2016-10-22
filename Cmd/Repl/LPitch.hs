@@ -17,13 +17,13 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import Global
-import Types
 
 
 -- | Turn an nn back to a human-readable note name.
@@ -62,32 +62,33 @@ transpose transposition octs steps =
 
 modify_pitch :: Cmd.M m => (Pitch.Pitch -> Pitch.Pitch)
     -> ModifyEvents.Track m
-modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
-    pitch <- first pretty $ Scale.scale_read scale key note
-    first pretty $ Scale.scale_show scale key $ modify pitch
+modify_pitch modify = PitchTrack.pitch_tracks $ \scale env note -> do
+    pitch <- first pretty $ Scale.scale_read scale env note
+    first pretty $ Scale.scale_show scale env $ modify pitch
 
 -- | Change notes from one scale to another.  This only makes sense if the
 -- scales have the same number of notes per octave.
 --
 -- TODO it would be nice to change the track title too, but ModifyEvents.Track
--- doesn't support that.
+-- doesn't support that.  Of course, maybe I want the scale in the block or
+-- global transform.
 change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
 change_scale to_scale_id = do
     track <- Selection.track
     to_scale <- Cmd.require "scale not found"
         =<< Perf.lookup_scale track to_scale_id
-    return $ PitchTrack.pitch_tracks $ \from_scale key note -> do
-        pitch <- first pretty $ Scale.scale_read from_scale key note
-        first pretty $ Scale.scale_show to_scale key pitch
+    return $ PitchTrack.pitch_tracks $ \from_scale env note -> do
+        pitch <- first pretty $ Scale.scale_read from_scale env note
+        first pretty $ Scale.scale_show to_scale env pitch
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
 --
 -- TODO as above, would be nice to set thet track title.
 to_relative :: Cmd.M m => Bool -> Pitch.Note -> ModifyEvents.Track m
-to_relative diatonic base = PitchTrack.pitch_tracks $ \scale key note -> do
-    base <- first pretty $ Scale.scale_read scale key base
-    pitch <- first pretty $ Scale.scale_read scale key note
+to_relative diatonic base = PitchTrack.pitch_tracks $ \scale env note -> do
+    base <- first pretty $ Scale.scale_read scale env base
+    pitch <- first pretty $ Scale.scale_read scale env note
     let layout = Scale.scale_layout scale
     let d = if diatonic then Scale.diatonic_difference layout pitch base
             else Scale.chromatic_difference layout pitch base
@@ -96,21 +97,14 @@ to_relative diatonic base = PitchTrack.pitch_tracks $ \scale key note -> do
 
 -- * enharmonics
 
-simplify_block_enharmonics :: BlockId -> Cmd.CmdL ()
-simplify_block_enharmonics block_id =
-    ModifyEvents.block block_id simplify_enharmonics
+respell :: Cmd.M m => ModifyEvents.Track m
+respell =
+    PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
+        pitch <- Scale.scale_read scale env note
+        Scale.scale_input_to_note scale env (to_piano_input pitch)
 
--- | This only works for *twelve at the moment.  For it to work for any scale
--- I need a way to parse to Pitch.Pitch.  Can't use scale_enharmonics because
--- I don't want to mess with ones that are already simple.
---
--- TODO I have scale_read now, a generic implementation should be possible
-simplify_enharmonics :: Cmd.M m => ModifyEvents.Track m
-simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
-    case Twelve.read_absolute_pitch note of
-        Nothing -> Right note
-        Just pitch
-            | abs (Pitch.pitch_accidentals pitch) < 2 -> Right note
-            | otherwise -> case Scale.scale_enharmonics scale key note of
-                Right (simpler : _) -> Right simpler
-                _ -> Right note
+to_piano_input :: Pitch.Pitch -> Pitch.Input
+to_piano_input pitch = Pitch.Input Pitch.PianoKbd (to_sharps pitch) 0
+    where
+    to_sharps = Theory.semis_to_pitch_sharps Theory.piano_layout
+        . Theory.pitch_to_semis Theory.piano_layout

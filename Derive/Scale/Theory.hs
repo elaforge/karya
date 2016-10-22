@@ -215,9 +215,10 @@ nn_to_semis = subtract 12
 -- repeatedly pick the first one you'll cycle through them all.
 enharmonics_of :: Layout -> Pitch.Pitch -> [Pitch.Pitch]
 enharmonics_of layout pitch =
-    [Pitch.Pitch (Pitch.pitch_octave pitch + oct) n | (oct, n) <- ens]
-    where
-    ens = get_enharmonics (layout_intervals layout) (Pitch.pitch_degree pitch)
+    [ Pitch.Pitch (Pitch.pitch_octave pitch + oct) n
+    | (oct, n) <-
+        get_enharmonics (layout_intervals layout) (Pitch.pitch_degree pitch)
+    ]
 
 -- * step
 
@@ -374,8 +375,10 @@ layout intervals = Layout
     }
     where
     vec = Vector.fromList intervals
-    notes = [Pitch.Degree pc accs | (pc, int) <- zip [0..] intervals,
-        accs <- [0..int-1]]
+    notes =
+        [ Pitch.Degree pc accs
+        | (pc, int) <- zip [0..] intervals, accs <- [0..int-1]
+        ]
 
 -- | Enharmonics of a note, along with an octave offset if the enharmonic
 -- wrapped an octave boundary.

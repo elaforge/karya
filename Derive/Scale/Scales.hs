@@ -315,18 +315,19 @@ lookup_kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
     Pitch.PianoKbd -> piano_kbd_pitch tonic pc_per_octave pitch
     Pitch.AsciiKbd -> Just $ ascii_kbd_pitch pc_per_octave pitch
 
--- Scale octave doesn't match the kbd octave, but is absolute:
---
---    C D E F G A B|C D E F G A B
--- C  1 2 3 4 5 - - 1 2 3 4 5 - -
--- D  - 1 2 3 4 5 - - 1 2 3 4 5 -
--- E  - - 1 2 3 4 5 - - 1 2 3 4 5
---
--- Piano:
---    0 1 2 3 4 5 6 0 1 2 3 4 5 6 0
---    C D E F G A B|C D E F G A B|C
---    0 1 2 3 4 - - 0
---    0 1 2 3 4 5 6 7 8 - - - - - 0
+{- Scale octave doesn't match the kbd octave, but is absolute:
+
+       C D E F G A B|C D E F G A B
+    C  1 2 3 4 5 - - 1 2 3 4 5 - -
+    D  - 1 2 3 4 5 - - 1 2 3 4 5 -
+    E  - - 1 2 3 4 5 - - 1 2 3 4 5
+
+    Piano:
+       0 1 2 3 4 5 6 0 1 2 3 4 5 6 0
+       C D E F G A B|C D E F G A B|C
+       0 1 2 3 4 - - 0
+       0 1 2 3 4 5 6 7 8 - - - - - 0
+-}
 
 -- | The MIDI kbd is absolute.  This means that relative scales start on
 -- different keys rather than all starting on C.  For example, in C major
