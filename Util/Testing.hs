@@ -250,6 +250,8 @@ strings_like gotten_ expected
 fmt_lines :: Text -> [Text] -> [Text] -> Text
 fmt_lines operator [x] [y] | Text.length x + Text.length y <= 70 =
     x <> " " <> operator <> " " <> y
+fmt_lines operator [] [y] = "<empty> " <> operator <> " " <> y
+fmt_lines operator [x] [] = x <> " " <> operator <> " <empty>"
 fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
     Text.unlines $ xs <> ["    " <> operator] <> ys
 
