@@ -22,7 +22,6 @@ module Cmd.Repl (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Network
 
 import qualified System.Directory as Directory
@@ -45,7 +44,7 @@ import qualified Cmd.ReplStub as ReplImpl
 
 import qualified Derive.Parse as Parse
 import qualified App.Config as Config
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
@@ -84,20 +83,25 @@ interpreter = ReplImpl.interpreter
 
 repl :: Session -> Msg.Msg -> Cmd.CmdIO
 repl session msg = do
-    (response_hdl, text) <- case msg of
+    (response_hdl, query) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    ns <- State.get_namespace
-    text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
-    Log.debug $ "repl input: " <> showt text
+    case query of
+        ReplProtocol.QCommand cmd -> command session response_hdl cmd
 
-    cmd <- case Fast.fast_interpret (untxt text) of
+command :: ReplImpl.Session -> IO.Handle -> Text -> Cmd.CmdT IO Cmd.Status
+command session response_hdl cmd_text = do
+    ns <- State.get_namespace
+    cmd_text <- Cmd.require_right ("expand_macros: "<>) $
+        expand_macros ns cmd_text
+    Log.debug $ "repl input: " <> showt cmd_text
+
+    cmd <- case Fast.fast_interpret (untxt cmd_text) of
         Just cmd -> return cmd
-        Nothing -> liftIO $ ReplImpl.interpret session text
-    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> text) cmd
+        Nothing -> liftIO $ ReplImpl.interpret session cmd_text
+    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> cmd_text) cmd
     liftIO $ catch_io_errors $ do
-        ByteString.Char8.hPutStrLn response_hdl $
-            ReplUtil.encode_response response
+        ReplProtocol.server_send response_hdl (ReplProtocol.RCommand response)
         IO.hClose response_hdl
     return status
     where
@@ -112,15 +116,15 @@ expand_macros namespace expr = Parse.expand_macros replace expr
         <> showt ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO ReplUtil.Response
-    -> Cmd.CmdT IO (ReplUtil.Response, Cmd.Status)
+run_cmdio :: Cmd.CmdT IO ReplProtocol.CmdResult
+    -> Cmd.CmdT IO (ReplProtocol.CmdResult, Cmd.Status)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
     run_result <- liftIO $ Exception.try $ do
-        let aborted = ReplUtil.raw "<aborted>"
-        (cmd_state, midi, logs, cmd_result) <- Cmd.run aborted ui_state
-            (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
+        (cmd_state, midi, logs, cmd_result) <-
+            Cmd.run (ReplProtocol.raw "<aborted>") ui_state
+                (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
         case cmd_result of
             Left _ -> return ()
             -- Try to force out any async exceptions.  UI state may also have
@@ -131,17 +135,18 @@ run_cmdio cmd = do
         return (cmd_state, midi, cmd_result, logs)
     case run_result of
         Left (exc :: Exception.SomeException) -> return
-            (ReplUtil.raw $ "IO exception: " <> showt exc, Cmd.Done)
+            (ReplProtocol.raw $ "IO exception: " <> showt exc, Cmd.Done)
         Right (cmd_state, midi, cmd_result, logs) -> case cmd_result of
             Left err -> return
-                (ReplUtil.raw $ "State error: " <> pretty err, Cmd.Done)
-            Right ((response, eval_logs), ui_state, updates) -> do
+                (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
+            Right (ReplProtocol.CmdResult response eval_logs, ui_state,
+                    updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state
                 mapM_ State.update updates
                 return
-                    ( (response, eval_logs ++ map pretty logs)
+                    ( ReplProtocol.CmdResult response (eval_logs ++ logs)
                     , Cmd.state_repl_status cmd_state
                     )

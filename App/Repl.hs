@@ -24,8 +24,7 @@ import qualified Util.Thread as Thread
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 import qualified App.Config as Config
-import qualified App.ReplUtil as ReplUtil
-import qualified App.SendCmd as SendCmd
+import qualified App.ReplProtocol as ReplProtocol
 
 import Global
 
@@ -48,7 +47,7 @@ initial_settings = Haskeline.defaultSettings
 type CurrentHistory = MVar.MVar (Maybe FilePath)
 
 main :: IO ()
-main = SendCmd.initialize $ do
+main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     socket <- case args of
         [] -> return Config.repl_port
@@ -113,13 +112,16 @@ repl socket settings = Exception.mask (loop settings)
             | null input -> return $ Continue Nothing
             | otherwise -> do
                 response <- liftIO $ Exception.handle catch_all $
-                    ReplUtil.format_response <$>
-                        SendCmd.send socket (Text.pack input)
-                unless (Text.null response) $
-                    liftIO $ Text.IO.putStrLn response
+                    ReplProtocol.query socket $ ReplProtocol.QCommand $
+                        Text.strip $ Text.pack input
+                case response of
+                    ReplProtocol.RCommand result ->
+                        unless (Text.null txt) $ liftIO $ Text.IO.putStrLn txt
+                        where txt = ReplProtocol.format_result result
                 return $ Continue Nothing
-    catch_all :: Exception.SomeException -> IO Text.Text
-    catch_all exc = return $ "error: " <> Text.pack (show exc)
+    catch_all :: Exception.SomeException -> IO ReplProtocol.Response
+    catch_all exc = return $ ReplProtocol.RCommand $
+        ReplProtocol.raw $ "error: " <> Text.pack (show exc)
 
 get_input :: Maybe FilePath -> Input (Maybe String)
 get_input maybe_fname =

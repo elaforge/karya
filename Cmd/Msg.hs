@@ -22,6 +22,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Transport as Transport
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 import Types
 
@@ -44,7 +45,7 @@ data Msg =
     -- | Message from the REPL socket, includes the socket handle than can be
     -- used to write a response.  Whoever responds to it should close the
     -- handle.
-    | Socket IO.Handle Text
+    | Socket IO.Handle ReplProtocol.Query
     deriving (Show)
 
 instance Pretty.Pretty Msg where

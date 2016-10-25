@@ -58,12 +58,12 @@ import qualified Instrument.Tag as Tag
 
 import qualified Local.Instrument
 import qualified App.Config as Config
-import qualified App.SendCmd as SendCmd
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
 main :: IO ()
-main = SendCmd.initialize $ do
+main = ReplProtocol.initialize $ do
     db <- Local.Instrument.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
     win <- Fltk.run_action $ BrowserC.create 50 50 550 600
@@ -254,10 +254,7 @@ choose_instrument :: InstTypes.Qualified -> IO ()
 choose_instrument qualified = do
     let cmd = "change_instrument " <> showt (InstTypes.show_qualified qualified)
     Text.IO.putStrLn $ "send: " <> cmd
-    (response, logs) <- SendCmd.send Config.repl_port cmd
-        `Exception.catch` \(exc :: Exception.SomeException) ->
-            return ("error: " <> showt exc, [])
-    mapM_ Text.IO.putStrLn logs
+    response <- ReplProtocol.query_cmd cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
 

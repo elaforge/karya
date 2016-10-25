@@ -74,6 +74,8 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
+import Util.Serialize (get, put, get_tag, put_tag)
 
 import qualified Derive.Stack as Stack
 import Global
@@ -391,6 +393,25 @@ instance Aeson.FromJSON Data where
         Aeson.Number v -> pure $ Int (floor v)
         Aeson.String v -> pure $ Text v
         _ -> fail "expecting null, number, or string"
+
+instance Serialize.Serialize Msg where
+    put (Msg a b c d e f) = put a >> put b >> put c >> put d >> put e >> put f
+    get = Msg <$> get <*> get <*> get <*> get <*> get <*> get
+
+instance Serialize.Serialize Prio where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
+
+instance Serialize.Serialize Data where
+    put NoData = put_tag 0
+    put (Int a) = put_tag 1 >> put a
+    put (Text a) = put_tag 2 >> put a
+    put (Dynamic a) = put (Text (showt a))
+    get = get_tag >>= \tag -> case tag of
+        0 -> return NoData
+        1 -> Int <$> get
+        2 -> Text <$> get
+        _ -> Serialize.bad_tag "Data" tag
 
 -- * util
 

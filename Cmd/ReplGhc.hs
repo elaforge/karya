@@ -35,7 +35,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import Global hiding (liftIO)
 
 
@@ -49,14 +49,14 @@ ghci_flags = build_dir </> "ghci-flags"
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
 newtype Session = Session (Chan.Chan (Text, MVar.MVar Cmd))
-type Cmd = Cmd.CmdL ReplUtil.Response
+type Cmd = Cmd.CmdL ReplProtocol.CmdResult
 
 type Ghc a = GHC.GhcT IO a
 
 make_session :: IO Session
 make_session = Session <$> Chan.newChan
 
-interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
+interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplProtocol.CmdResult)
 interpret (Session chan) expr = do
     mvar <- MVar.newEmptyMVar
     Chan.writeChan chan (expr, mvar)
@@ -110,8 +110,8 @@ interpreter (Session chan) = do
                 _ -> normal_cmd (untxt expr)
                     `GHC.gcatch` \(exc :: Exception.SomeException) ->
                         -- set_context throws if the reload failed.
-                        return $ return $
-                            ReplUtil.raw $ "Exception: " <> showt exc
+                        return $ return $ ReplProtocol.error_result $
+                            "Exception: " <> showt exc
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
@@ -125,15 +125,19 @@ interpreter (Session chan) = do
     colon_cmd "r" = make_response <$> reload
     colon_cmd "R" = make_response <$> reload
     colon_cmd colon = return $ return $
-        ReplUtil.raw $ "Unknown colon command: " <> showt colon
+        ReplProtocol.error_result $ "Unknown colon command: " <> showt colon
 
 make_response :: Result (Cmd.CmdL String) -> Cmd
 make_response (val, logs, warns) = case val of
-    Left err -> return (ReplUtil.Raw ("compile error: " <> txt err), all_logs)
+    Left err -> return $ ReplProtocol.CmdResult
+        (ReplProtocol.Raw ("compile error: " <> txt err)) all_logs
     Right cmd -> do
         result <- cmd
-        return (ReplUtil.Format (txt result), all_logs)
-    where all_logs = map txt (logs ++ warns)
+        return $ ReplProtocol.CmdResult (ReplProtocol.Format (txt result))
+            all_logs
+    where
+    all_logs = map (Log.msg Log.Notice Nothing . txt) logs
+        ++ map (Log.msg Log.Warn Nothing . txt) warns
 
 -- * implementation
 

@@ -13,7 +13,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ReplGhc as ReplGhc
 
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
@@ -39,15 +39,14 @@ test_repl_ghc = do
             Right val -> putStrLn $ "---> val: " ++ untxt val
         go chan
 
-run_io :: Cmd.CmdT IO ReplUtil.Response -> IO (Either String Text)
+run_io :: Cmd.CmdT IO ReplProtocol.CmdResult -> IO (Either String Text)
 run_io cmd = do
     (_cstate, _midi, _logs, result) <-
-        Cmd.run (ReplUtil.raw "") ui_state cmd_state cmd
+        Cmd.run (ReplProtocol.raw "") ui_state cmd_state cmd
     return $ case result of
         Left err -> Left (prettys err)
-        Right (val, _ustate, _updates) ->
-            Right $ ReplUtil.format_response $ ReplUtil.decode_response $
-                ReplUtil.encode_response val
+        Right (cmd_result, _ustate, _updates) ->
+            Right $ ReplProtocol.format_result cmd_result
     where
     ui_state = State.empty
     cmd_state = CmdTest.default_cmd_state

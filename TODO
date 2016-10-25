@@ -7,6 +7,7 @@ UNSORTED
   * Also, what about bringing back infer from duration?
   * make LPitch.simplify_harmonics work on all scales
   - switch from parsec to megaparsec?
+    . Save it for a big ghc upgrade, since it requires a newer semigroups.
   * remove fm8/pressure and use local config instead
   * convert Util.Testing to Text
   * Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
@@ -788,6 +789,8 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - FloatingInput on linux doesn't interact well with a tiling window manager.
+    The new window probably needs to be marked transient.
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
     . I'd need to pass a haskell callback.  Worth it?
@@ -801,16 +804,15 @@ fltk:
       I ever use those, but I'd have to make it wider.
   - Do I want to support set_ruler for Scrollbar?
   - linux fltk drawing: event ears draw as a solid bar
-    - Drag on an event track title doesn't work, because the new FloatingInput
-      doesn't realize that a drag has started.
-      . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
-        something similar could?
-    - It gets a few extra focus/unfocus pairs before show, why?
-      . I hacked around with FloatingInput::ready.
-    / Remove strip feature from WrappedInput
-    - Also, it seems resize on a window which is a child of another window
-      goes into endless recursion.  What is a child window supposed to mean
-      anyway?
+  - Drag on an event track title doesn't work, because the new FloatingInput
+    doesn't realize that a drag has started.
+    . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
+      something similar could?
+  - It gets a few extra focus/unfocus pairs before show, why?
+    . I hacked around with FloatingInput::ready.
+  - Also, it seems resize on a window which is a child of another window
+    goes into endless recursion.  What is a child window supposed to mean
+    anyway?
   - Manually fiddling with track widths is annoying.  It seems like I could
     ask the UI about text extents to resize them automatically.
   - I never wound up using rank > 1, so presumably I could simplify things by
@@ -1002,13 +1004,14 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
-  - repl now has no history when it doesn't know the filename.
+  + repl now has no history when it doesn't know the filename.
     Maybe I should have it ask for the filename.  I'll need a protocol anyway
     to ask for tab-completion.
       data Query = QUpdate | QCommand Text
-      data Response = RUpdate FilePath [Text] | RCommend Result [Log]
+      data Response = RUpdate FilePath [Text] | RCommand Result [Log]
       type Log = Text
       data Result = Raw !Text | Format !Text
+    - Implement QSaveFile
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - is Cmd.Lang.Fast now obsolete?
@@ -1017,6 +1020,7 @@ REPL: repl:
   - tab completion for symbols like in ghci
     I'll need a list symbols cmd which the repl automatically sends on tab
     completion.
+    . Add 'QCompletions Prefix' and 'RCompletions [Symbol]'.
   - :compile cmd that turns on compilation for everything except Environ
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I

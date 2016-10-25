@@ -53,9 +53,7 @@ import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 
-import qualified App.Config as Config
-import qualified App.ReplUtil as ReplUtil
-import qualified App.SendCmd as SendCmd
+import qualified App.ReplProtocol as ReplProtocol
 
 import Global
 
@@ -237,12 +235,8 @@ send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
 send_action chan = liftIO . Fltk.send_action chan
 
 send_to_app :: Text -> IO ()
-send_to_app cmd = do
-    response <- (ReplUtil.format_response <$> SendCmd.send Config.repl_port cmd)
-        `Exception.catch` \(exc :: Exception.SomeException) ->
-            return ("error: " <> showt exc)
-    unless (Text.null response) $
-        Text.IO.putStrLn $ "response: " <> response
+send_to_app cmd =
+    Text.IO.putStrLn . ("response: "<>) =<< ReplProtocol.query_cmd cmd
 
 get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $

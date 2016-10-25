@@ -19,8 +19,7 @@ import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
-import qualified App.Config as Config
-import qualified App.SendCmd as SendCmd
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
@@ -33,7 +32,7 @@ options =
     ]
 
 main :: IO ()
-main = SendCmd.initialize $ do
+main = ReplProtocol.initialize $ do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
@@ -44,14 +43,10 @@ main = SendCmd.initialize $ do
     forM_ msgs $ \msg -> do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
-            ((response, logs), time) <- timed $
-                SendCmd.send Config.repl_port (Text.pack msg)
-            printLogs logs
+            (response, time) <- timed $ ReplProtocol.query_cmd (Text.pack msg)
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            (response, logs) <-
-                SendCmd.send Config.repl_port (Text.pack msg <> "\n")
-            printLogs logs
+            response <- ReplProtocol.query_cmd (Text.pack msg <> "\n")
             unless (Text.null response) $
                 Text.IO.putStrLn response
 

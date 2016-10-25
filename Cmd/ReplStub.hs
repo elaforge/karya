@@ -12,7 +12,7 @@ import Control.Monad
 
 import qualified Util.Thread as Thread
 import qualified Cmd.Cmd as Cmd
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 type Session = ()
@@ -23,6 +23,6 @@ make_session = return ()
 interpreter :: Session -> IO ()
 interpreter () = forever $ Thread.delay 10
 
-interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
+interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplProtocol.CmdResult)
 interpret () text =
-    return $ return (ReplUtil.Raw $ "repl not linked in: " <> showt text, [])
+    return $ return $ ReplProtocol.raw $ "repl not linked in: " <> showt text

@@ -293,6 +293,14 @@ instance (Serialize a, Foreign.Storable a) =>
         Vector.Storable.replicateM len get
 
 
+instance Serialize CallStack.Caller where
+    put (CallStack.Caller a b) = put_tag 0 >> put a >> put b
+    put CallStack.NoCaller = put_tag 1
+    get = get_tag >>= \tag -> case tag of
+        0 -> CallStack.Caller <$> get <*> get
+        1 -> return CallStack.NoCaller
+        _ -> bad_tag "Caller" tag
+
 -- * versions
 
 put_version :: Word.Word8 -> Put

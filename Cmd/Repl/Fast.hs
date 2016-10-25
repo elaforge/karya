@@ -15,17 +15,18 @@ import qualified Cmd.Repl.Global as Global
 import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LState as LState
 
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a
 -- few common commands so they happen quickly.
-fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplUtil.Response)
+fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
 fast_interpret text = case lex_all text of
     Nothing -> Nothing
     Just toks -> fmap (fmap response) (interpret toks)
-    where response result = (ReplUtil.Format result, [])
+    where
+    response result = ReplProtocol.CmdResult (ReplProtocol.Format result) []
 
 interpret :: [String] -> Maybe (Cmd.CmdT IO Text)
 interpret toks = case toks of

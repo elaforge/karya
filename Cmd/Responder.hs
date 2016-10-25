@@ -31,7 +31,6 @@ import Control.Monad
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
 
-import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Map as Map
 import qualified Network
 import qualified System.IO as IO
@@ -68,7 +67,7 @@ import qualified Cmd.Undo as Undo
 
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
-import qualified App.ReplUtil as ReplUtil
+import qualified App.ReplProtocol as ReplProtocol
 import qualified App.StaticConfig as StaticConfig
 
 import Global
@@ -186,7 +185,8 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
 -- responsibility to close the handle after it uses it to reply.
-accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, Text) -> IO ()
+accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, ReplProtocol.Query)
+    -> IO ()
 accept_loop socket output_chan = forever $ catch_io_errors $ do
     (hdl, _host, _port) <- Network.accept socket
     -- Make sure subprocesses don't inherit this.
@@ -194,9 +194,8 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
     Posix.IO.setFdOption fd Posix.IO.CloseOnExec True
     hdl <- Posix.IO.fdToHandle fd
     IO.hSetBuffering hdl IO.NoBuffering
-    msg <- ByteString.Char8.hGetLine hdl
-    STM.atomically $ TChan.writeTChan output_chan
-        (hdl, ReplUtil.decode_request msg)
+    msg <- ReplProtocol.server_receive hdl
+    STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket read: " <> showt exc

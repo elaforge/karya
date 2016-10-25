@@ -52,7 +52,9 @@ import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
 import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
 import qualified App.StaticConfig as StaticConfig
+
 import Global
 import Types
 
@@ -212,9 +214,9 @@ respond_cmd states cmd =
     mkcmd cmd msg
         | is_magic msg = cmd >> return Cmd.Done
         | otherwise = return Cmd.Continue
-    is_magic (Msg.Socket _ "MAGIC!!") = True
+    is_magic (Msg.Socket _ (ReplProtocol.QCommand "MAGIC!!")) = True
     is_magic _ = False
-    magic = Msg.Socket IO.stdout "MAGIC!!"
+    magic = Msg.Socket IO.stdout (ReplProtocol.QCommand "MAGIC!!")
 
 -- | Respond to a cmd, using the state from the result of the last cmd.
 next :: Result -> Cmd.CmdT IO a -> IO Result
