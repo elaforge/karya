@@ -5,27 +5,18 @@
 {-# LANGUAGE LambdaCase #-}
 -- | Simple repl to talk to seq.
 module App.Repl where
-import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.Thread as Thread
-
-import qualified LogView.Process as Process
-import qualified LogView.Tail as Tail
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
-
 import Global
 
 
@@ -56,29 +47,7 @@ main = ReplProtocol.initialize $ do
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
     liftIO $ putStrLn "^D to quit"
-    log_fname <- Tail.log_filename
-    done <- MVar.newEmptyMVar
-    repl_thread <- Thread.start_logged "repl" $ do
-        repl socket initial_settings
-        MVar.putMVar done ()
-    Thread.start_logged "watch_log" $
-        watch_log repl_thread Nothing =<< Tail.open log_fname (Just 0)
-    MVar.takeMVar done
-    Thread.delay 0.15 -- give threads time to print an exit msg
-
--- | Watch the log handle.  When it indicates a new save dir, put it in
--- the given MVar and throw a 'SaveFileChanged' to the repl thread to
--- interrupt it.
-watch_log :: Concurrent.ThreadId -> Maybe FilePath -> Tail.Handle -> IO ()
-watch_log repl_thread = go
-    where
-    go current hdl = do
-        (msg, hdl) <- Tail.tail hdl
-        case save_dir_of (Log.msg_text msg) of
-            Just dir | Just dir /= current -> do
-                Concurrent.throwTo repl_thread (SaveFileChanged dir)
-                go (Just dir) hdl
-            _ -> go current hdl
+    repl socket initial_settings
 
 data SaveFileChanged = SaveFileChanged FilePath deriving (Show)
 instance Exception.Exception SaveFileChanged
@@ -87,52 +56,37 @@ instance Exception.Exception SaveFileChanged
 repl :: FilePath -> Haskeline.Settings IO -> IO ()
 repl socket settings = Exception.mask (loop settings)
     where
-    loop settings restore = do
-        status <- restore (Haskeline.runInputT settings
-            (Haskeline.withInterrupt
-                (read_eval_print (Haskeline.historyFile settings))))
-            `Exception.catches`
-             [ Exception.Handler $ \(SaveFileChanged save_fname) -> do
-                putStrLn $ "save file changed: " ++ save_fname
-                return $ Continue (Just save_fname)
-             , Exception.Handler $ \Haskeline.Interrupt -> do
+    loop old_settings restore = do
+        let catch Haskeline.Interrupt = do
                 putStrLn "interrupted"
-                return $ Continue Nothing
-             ]
+                return Continue
+        maybe_save_fname <- ReplProtocol.query_save_file socket
+        let settings = case maybe_save_fname of
+                Nothing -> old_settings
+                Just fname -> old_settings { Haskeline.historyFile = fname }
+        status <- Exception.handle catch $ restore $
+            Haskeline.runInputT settings $ Haskeline.withInterrupt
+                (read_eval_print (Haskeline.historyFile settings))
         case status of
-            Continue Nothing -> loop settings restore
-            Continue (Just save_fname) -> loop
-                (settings { Haskeline.historyFile = Just save_fname })
-                restore
+            Continue -> loop settings restore
             Quit -> return ()
-
     read_eval_print maybe_save = get_input maybe_save >>= \case
         Nothing -> return Quit
         Just input
-            | null input -> return $ Continue Nothing
+            | null input -> return Continue
             | otherwise -> do
-                response <- liftIO $ Exception.handle catch_all $
-                    ReplProtocol.query socket $ ReplProtocol.QCommand $
-                        Text.strip $ Text.pack input
-                case response of
-                    ReplProtocol.RCommand result ->
-                        unless (Text.null txt) $ liftIO $ Text.IO.putStrLn txt
-                        where txt = ReplProtocol.format_result result
-                return $ Continue Nothing
-    catch_all :: Exception.SomeException -> IO ReplProtocol.Response
-    catch_all exc = return $ ReplProtocol.RCommand $
-        ReplProtocol.raw $ "error: " <> Text.pack (show exc)
+                result <- liftIO $ ReplProtocol.query_cmd socket $
+                    Text.strip $ Text.pack input
+                let text = ReplProtocol.format_result result
+                unless (Text.null text) $
+                    liftIO $ Text.IO.putStrLn text
+                return Continue
 
 get_input :: Maybe FilePath -> Input (Maybe String)
 get_input maybe_fname =
     fmap Seq.strip <$> Haskeline.getInputLine (prompt maybe_fname)
 
-data Status = Continue (Maybe FilePath) | Quit deriving (Show)
-
-save_dir_of :: Text -> Maybe FilePath
-save_dir_of msg =
-    flip FilePath.replaceExtension "repl" . untxt <$> Map.lookup "save" status
-    where status = Process.match_pattern Process.global_status_pattern msg
+data Status = Continue | Quit deriving (Show)
 
 -- | Colorize the prompt to make it stand out.
 prompt :: Maybe FilePath -> String

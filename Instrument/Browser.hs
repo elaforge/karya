@@ -254,9 +254,13 @@ choose_instrument :: InstTypes.Qualified -> IO ()
 choose_instrument qualified = do
     let cmd = "change_instrument " <> showt (InstTypes.show_qualified qualified)
     Text.IO.putStrLn $ "send: " <> cmd
-    response <- ReplProtocol.query_cmd cmd
+    response <- query cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
+
+query :: Text -> IO Text
+query = fmap ReplProtocol.format_result
+    . ReplProtocol.query_cmd Config.repl_port
 
 -- | Find instruments that match the query, and update the UI incrementally.
 process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstTypes.Qualified]

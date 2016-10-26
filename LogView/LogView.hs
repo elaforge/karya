@@ -53,8 +53,8 @@ import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 
+import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
-
 import Global
 
 
@@ -236,7 +236,8 @@ send_action chan = liftIO . Fltk.send_action chan
 
 send_to_app :: Text -> IO ()
 send_to_app cmd =
-    Text.IO.putStrLn . ("response: "<>) =<< ReplProtocol.query_cmd cmd
+    Text.IO.putStrLn . ("response: "<>) . ReplProtocol.format_result
+        =<< ReplProtocol.query_cmd Config.repl_port cmd
 
 get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $

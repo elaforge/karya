@@ -6,8 +6,6 @@ UNSORTED
   * It seems like 0 dur might be a more useful default for mridingam calls.
   * Also, what about bringing back infer from duration?
   * make LPitch.simplify_harmonics work on all scales
-  - switch from parsec to megaparsec?
-    . Save it for a big ghc upgrade, since it requires a newer semigroups.
   * remove fm8/pressure and use local config instead
   * convert Util.Testing to Text
   * Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
@@ -22,51 +20,9 @@ UNSORTED
     require_right.
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
-  - If State.allocations is so read-only, why not make it a plain function?
-    . Tests use it to write...
   - do a renaming pass on all the prev/next pitch function names in
     Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
-  . Could I simplify slicing and inversion by making it into a score
-    preprocessing step?  It would annotate UI Events with children, so the
-    sub tracks would be in Event, not in Context.
-    . If I could get rid of the ctx_sub_events / ctx_sub_tracks thing too that
-      would be nice.
-    . Could I also somehow make inversion universal?  The idea is to
-      eliminate the thing where I forget to add Sub.inverting.
-    . I could also take evaluation control away from the event, effectively it
-      would mean the Sub.notes bit would be hardcoded and events would get
-      [[Sub.Note]] instead of a TrackTree.  I'd lose power, but what are the
-      advantages?
-  . Things I don't like about evaluation:
-    . All that stuff in Context.  The presence of sub_tracks can cause
-      unexpected further inversion.  An example is that when I inherited
-      the Context for Call.note_here, it also inherited the sub_tracks,
-      which caused Call.with_pitch to be overridden.
-    . It's also dumb how Context has the event (start, dur) duplicated
-      in the 'event' field.  It's not duplicate info for track events
-      because they have TrackTime, which is otherwise unavailable.
-      This I think is ultimately due to events being in TrackTime
-      context instead of (0, 1) normalized.
-    . Maybe the problem is inheriting Context?  Or maybe it's awkward
-      how it's effectively a manually passed packet of data, while the
-      stuff in Dynamic is dynamically scoped.  Events wanting to know
-      about their neighbors really does complicate things.
-    simplify Context
-      . Maybe I should explicitly provide specific bits of context, e.g.
-        . prev, cur, and next event TrackTime
-        . prev and next logical pitch
-      . Say I do that, and put them in Dynamic.  How can I then get rid of
-        sub_tracks?
-      . I still need prev_val
-      . There's nothing intrinsically wrong with Context, ultimately it's
-        just an argument, like passed_vals.  I guess it's easy to remember
-        passed_vals as just the arguments and understand how they work,
-        while that sub_tracks stuff was confusing.
-      . Maybe it's just the presence of sub_tracks in Context?  How can
-        I get that out?
-    . That 'collect' arg in Eval.eval_expr.  Why False for Eval.reapply
-      but other functions make the caller decide?
 
   - have an easier way to use MeterConfig to take e.g. r_section out of
     unlabeled_ranks so I can have a absolute gong count.
@@ -151,45 +107,9 @@ UNSORTED
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-  - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
-    conventions like get_ vs. lookup_, but what about it actually being in the
-    type signature?  I could try the "lightweight checked exceptions" in:
-      http://www.well-typed.com/blog/2015/07/checked-exceptions/
-      https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
-    . Or an easier way would be to put 'throw' in a subclass.
-    . I have this implemented in the p-monad branch, but it didn't seem
-      terribly compelling.  I think the reason is that it turns out most
-      functions can throw.  It doesn't replace get_ vs. lookup_ because they
-      are likely to call something else which can throw.
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
-  - pitch transpose
-    . It's confusing how sometimes the environ is applied to the pitch during
-      derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
-      to do it.  Do I really need both?
-    . Post.set_instrument needs to set because I need the environ from the new
-      inst.  Could I instead overlay the environ into the event environ?
-    . It's error prone because there's nothing that enforces that you set
-      instrument with Post.set_instrument, and if you don't, it will work until
-      you use a scale with e.g. tuning, and then it will be slightly off.
-    . Originally added in the patch 'add interpolate scale':
-      The bigger problem was that since pitches got the Environ at conversion
-      time, the interpolate scale couldn't substitute `key-from` and `key-to`
-      because any environ values it set before evaluating the pitch wouldn't
-      "stick".
-
-      So I switched to applying the environ when the pitch is created, but this
-      broke the case that made me switch to applying environ at the end in the
-      first place, which is when switching instruments in a postproc I want the
-      new instrument's environ, specifically Environ.tuning, to apply to the new
-      event's pitches.  So now when I switch instruments I have to explicitly
-      apply the environ from the new instrument, via Post.set_instrument.
-    . Also error prone: I applied octave transpositions via Call.add_constant,
-      but then realize-ngoret uses transposed nn to infer, and untransposed
-      pitch for the final pitch, so I get a confusingly wrong result.  The
-      solution is to apply via Pitches.transpose, but I shouldn't have to make
-      complicated decisions like that.
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
@@ -501,6 +421,84 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - switch from parsec to megaparsec?
+    . Save it for a big ghc upgrade, since it requires a newer semigroups.
+  - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
+    conventions like get_ vs. lookup_, but what about it actually being in the
+    type signature?  I could try the "lightweight checked exceptions" in:
+      http://www.well-typed.com/blog/2015/07/checked-exceptions/
+      https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
+    . Or an easier way would be to put 'throw' in a subclass.
+    . I have this implemented in the p-monad branch, but it didn't seem
+      terribly compelling.  I think the reason is that it turns out most
+      functions can throw.  It doesn't replace get_ vs. lookup_ because they
+      are likely to call something else which can throw.
+  . Could I simplify slicing and inversion by making it into a score
+    preprocessing step?  It would annotate UI Events with children, so the
+    sub tracks would be in Event, not in Context.
+    . If I could get rid of the ctx_sub_events / ctx_sub_tracks thing too that
+      would be nice.
+    . Could I also somehow make inversion universal?  The idea is to
+      eliminate the thing where I forget to add Sub.inverting.
+    . I could also take evaluation control away from the event, effectively it
+      would mean the Sub.notes bit would be hardcoded and events would get
+      [[Sub.Note]] instead of a TrackTree.  I'd lose power, but what are the
+      advantages?
+  . Things I don't like about evaluation:
+    . All that stuff in Context.  The presence of sub_tracks can cause
+      unexpected further inversion.  An example is that when I inherited
+      the Context for Call.note_here, it also inherited the sub_tracks,
+      which caused Call.with_pitch to be overridden.
+    . It's also dumb how Context has the event (start, dur) duplicated
+      in the 'event' field.  It's not duplicate info for track events
+      because they have TrackTime, which is otherwise unavailable.
+      This I think is ultimately due to events being in TrackTime
+      context instead of (0, 1) normalized.
+    . Maybe the problem is inheriting Context?  Or maybe it's awkward
+      how it's effectively a manually passed packet of data, while the
+      stuff in Dynamic is dynamically scoped.  Events wanting to know
+      about their neighbors really does complicate things.
+    simplify Context
+      . Maybe I should explicitly provide specific bits of context, e.g.
+        . prev, cur, and next event TrackTime
+        . prev and next logical pitch
+      . Say I do that, and put them in Dynamic.  How can I then get rid of
+        sub_tracks?
+      . I still need prev_val
+      . There's nothing intrinsically wrong with Context, ultimately it's
+        just an argument, like passed_vals.  I guess it's easy to remember
+        passed_vals as just the arguments and understand how they work,
+        while that sub_tracks stuff was confusing.
+      . Maybe it's just the presence of sub_tracks in Context?  How can
+        I get that out?
+    . That 'collect' arg in Eval.eval_expr.  Why False for Eval.reapply
+      but other functions make the caller decide?
+  - pitch transpose
+    . It's confusing how sometimes the environ is applied to the pitch during
+      derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
+      to do it.  Do I really need both?
+    . Post.set_instrument needs to set because I need the environ from the new
+      inst.  Could I instead overlay the environ into the event environ?
+    . It's error prone because there's nothing that enforces that you set
+      instrument with Post.set_instrument, and if you don't, it will work until
+      you use a scale with e.g. tuning, and then it will be slightly off.
+    . Originally added in the patch 'add interpolate scale':
+      The bigger problem was that since pitches got the Environ at conversion
+      time, the interpolate scale couldn't substitute `key-from` and `key-to`
+      because any environ values it set before evaluating the pitch wouldn't
+      "stick".
+
+      So I switched to applying the environ when the pitch is created, but this
+      broke the case that made me switch to applying environ at the end in the
+      first place, which is when switching instruments in a postproc I want the
+      new instrument's environ, specifically Environ.tuning, to apply to the new
+      event's pitches.  So now when I switch instruments I have to explicitly
+      apply the environ from the new instrument, via Post.set_instrument.
+    . Also error prone: I applied octave transpositions via Call.add_constant,
+      but then realize-ngoret uses transposed nn to infer, and untransposed
+      pitch for the final pitch, so I get a confusingly wrong result.  The
+      solution is to apply via Pitches.transpose, but I shouldn't have to make
+      complicated decisions like that.
   - It seems I get slicing on an already sliced track if I have an
     intermediate empty note track, e.g.:
       [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])]
@@ -527,6 +525,8 @@ cleanup:
       wait to see if it's actually a problem before worrying about it.
     . I guess it already has been a bit of a problem, in that the test had
       a bug where it put on the wrong backend.
+    - If State.allocations is so read-only, why not make it a plain function?
+      . Tests use it to write...
   - Why re-export StateConfig from Ui.State?  Why not directly reference
     StateConfig?
   - Can I make prev val or {Note,Control,Pitch}Deriver return values more
@@ -1004,14 +1004,14 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
-  + repl now has no history when it doesn't know the filename.
+  * repl now has no history when it doesn't know the filename.
     Maybe I should have it ask for the filename.  I'll need a protocol anyway
     to ask for tab-completion.
       data Query = QUpdate | QCommand Text
       data Response = RUpdate FilePath [Text] | RCommand Result [Log]
       type Log = Text
       data Result = Raw !Text | Format !Text
-    - Implement QSaveFile
+    * Implement QSaveFile
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - is Cmd.Lang.Fast now obsolete?

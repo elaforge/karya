@@ -19,6 +19,7 @@ import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
+import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 import Global
 
@@ -43,12 +44,16 @@ main = ReplProtocol.initialize $ do
     forM_ msgs $ \msg -> do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
-            (response, time) <- timed $ ReplProtocol.query_cmd (Text.pack msg)
+            (response, time) <- timed $ query (Text.pack msg)
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            response <- ReplProtocol.query_cmd (Text.pack msg <> "\n")
+            response <- query (Text.pack msg <> "\n")
             unless (Text.null response) $
                 Text.IO.putStrLn response
+
+query :: Text -> IO Text
+query = fmap ReplProtocol.format_result
+    . ReplProtocol.query_cmd Config.repl_port
 
 printLogs :: [Text] -> IO ()
 printLogs [] = return ()

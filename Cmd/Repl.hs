@@ -81,13 +81,21 @@ make_session = ReplImpl.make_session
 interpreter :: Session -> IO ()
 interpreter = ReplImpl.interpreter
 
-repl :: Session -> Msg.Msg -> Cmd.CmdIO
+repl :: Session -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 repl session msg = do
     (response_hdl, query) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     case query of
         ReplProtocol.QCommand cmd -> command session response_hdl cmd
+        ReplProtocol.QSaveFile -> do
+            save_file <- Cmd.gets Cmd.state_save_file
+            liftIO $ ReplProtocol.server_send response_hdl $
+                ReplProtocol.RSaveFile $ name_of . snd <$> save_file
+            return Cmd.Done
+    where
+    name_of (Cmd.SaveState fname) = fname
+    name_of (Cmd.SaveRepo fname) = fname
 
 command :: ReplImpl.Session -> IO.Handle -> Text -> Cmd.CmdT IO Cmd.Status
 command session response_hdl cmd_text = do

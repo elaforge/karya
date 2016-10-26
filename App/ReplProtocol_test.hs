@@ -14,7 +14,7 @@ test_serialize = do
     let f a expected = (expected a, round_trip a)
     uncurry equal (f ReplProtocol.QSaveFile Right)
     uncurry equal (f (ReplProtocol.QCommand "hi") Right)
-    uncurry equal (f (ReplProtocol.RSaveFile "path") Right)
+    uncurry equal (f (ReplProtocol.RSaveFile (Just "path")) Right)
 
     let cmd result logs =
             ReplProtocol.RCommand (ReplProtocol.CmdResult result logs)

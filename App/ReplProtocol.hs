@@ -10,7 +10,7 @@ module App.ReplProtocol (
     , empty_result, error_result, raw
     -- * protocol
     , initialize
-    , query, query_cmd
+    , query_cmd, query_save_file
     , server_receive, server_send
     -- * format
     , format_result
@@ -19,9 +19,9 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Text as Text
-
 import qualified Network
 import qualified System.IO as IO
+import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 
 import qualified Util.Log as Log
@@ -30,7 +30,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put, get_tag, put_tag)
 
-import qualified App.Config as Config
 import Global
 
 
@@ -40,8 +39,8 @@ data Query = QSaveFile -- ^ ask for a RSaveFile
     deriving (Eq, Show)
 
 data Response =
-    RSaveFile FilePath -- ^ current save file
-    | RCommand CmdResult
+    RSaveFile !(Maybe FilePath) -- ^ current save file
+    | RCommand !CmdResult
     deriving (Eq, Show)
 
 data CmdResult = CmdResult !Result ![Log.Msg]
@@ -72,22 +71,31 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | Client send and receive.
-query :: FilePath -> Query -> IO Response
-query socket query = do
+query :: FilePath -> Query -> IO (Either Exception.IOException Response)
+query socket query = Exception.try $ do
     hdl <- Network.connectTo "localhost" (Network.UnixSocket socket)
     send hdl query
     IO.hFlush hdl
     receive hdl
 
 -- | Specialized 'query'.
-query_cmd :: Text -> IO Text
-query_cmd cmd = do
-    response <- query Config.repl_port (QCommand cmd)
-        `Exception.catch` \(exc :: Exception.SomeException) ->
-            return $ RCommand $ raw $ "error: " <> Text.pack (show exc)
+query_cmd :: FilePath -> Text -> IO CmdResult
+query_cmd socket cmd = do
+    response <- query socket (QCommand cmd)
     return $ case response of
-        RCommand result -> format_result result
-        _ -> "unexpected response: " <> showt response
+        Right (RCommand result) -> result
+        Right response -> raw $ "unexpected response: " <> showt response
+        Left exc -> raw $ "exception: " <> showt exc
+
+query_save_file :: FilePath -> IO (Maybe (Maybe FilePath))
+query_save_file socket = do
+    response <- query socket QSaveFile
+    case response of
+        Right (RSaveFile fname) -> return (Just fname)
+        Left exc | IO.Error.isDoesNotExistError exc -> return (Just Nothing)
+        _ -> do
+            Log.error $ "unexpected response to QSaveFile: " <> showt response
+            return Nothing
 
 server_receive :: IO.Handle -> IO Query
 server_receive = receive
