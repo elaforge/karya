@@ -66,7 +66,7 @@ get_midi_config db = do
           Log.warn $ "no midi configuration for host: " <> showt host
           return StaticConfig.empty_midi
 
-parse_args :: [String] -> Cmd.CmdIO
+parse_args :: [String] -> Cmd.CmdT IO Cmd.Status
 parse_args argv = case argv of
     [] -> Save.load_template "save/default" >> return Cmd.Done
     -- Load a template.

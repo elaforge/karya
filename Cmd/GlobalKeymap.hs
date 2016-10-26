@@ -84,7 +84,7 @@ pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
 
 -- | Cmds that use IO.  This should be a limited to the small set of cmds that
 -- need it.
-io_cmds :: [Msg.Msg -> Cmd.CmdIO]
+io_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
 
 -- | This is not useful for execution since the cmds themselves have been

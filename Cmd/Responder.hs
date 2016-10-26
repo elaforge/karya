@@ -109,7 +109,8 @@ type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> Ui.Channel -> MsgReader
-    -> Interface.Interface -> Cmd.CmdIO -> Repl.Session -> Loopback -> IO ()
+    -> Interface.Interface -> Cmd.CmdT IO Cmd.Status -> Repl.Session
+    -> Loopback -> IO ()
 responder config ui_chan msg_reader midi_interface setup_cmd repl_session
         loopback = do
     Log.debug "start responder"
@@ -145,7 +146,7 @@ setup_state state = state
     }
 
 -- | A special run-and-sync that runs before the respond loop gets started.
-run_setup_cmd :: Cmd.CmdIO -> State -> IO State
+run_setup_cmd :: Cmd.CmdT IO Cmd.Status -> State -> IO State
 run_setup_cmd cmd state = fmap snd $ run_responder state $ do
     result <- run_continue "initial setup" $ Right $ do
         cmd
@@ -415,7 +416,8 @@ hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
 -- | These are the only commands that run in IO.
-hardcoded_io_cmds :: Ui.Channel -> Repl.Session -> [Msg.Msg -> Cmd.CmdIO]
+hardcoded_io_cmds :: Ui.Channel -> Repl.Session
+    -> [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 hardcoded_io_cmds ui_chan repl_session =
     [ Repl.repl repl_session
     , Integrate.cmd_integrate
@@ -424,7 +426,7 @@ hardcoded_io_cmds ui_chan repl_session =
 
 -- ** run cmds
 
-type EitherCmd = Either (Cmd.CmdId Cmd.Status) Cmd.CmdIO
+type EitherCmd = Either (Cmd.CmdId Cmd.Status) (Cmd.CmdT IO Cmd.Status)
 type ErrorResponderM = Except.ExceptT Done ResponderM
 
 -- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't

@@ -131,7 +131,7 @@ cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
             then StepPlay.cmd_clear >> return True
             else Cmd.all_notes_off >> return False
 
-cmd_stop :: Cmd.CmdIO
+cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
     maybe_ctl <- gets Cmd.state_play_control
     whenJust maybe_ctl (void . liftIO . Transport.stop_player)

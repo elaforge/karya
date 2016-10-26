@@ -49,7 +49,7 @@ import Types
 -- * cmd_play_msg
 
 -- | Respond to msgs about derivation and playing status.
-cmd_play_msg :: Ui.Channel -> Msg.Msg -> Cmd.CmdIO
+cmd_play_msg :: Ui.Channel -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 cmd_play_msg ui_chan msg = do
     case msg of
         Msg.Transport status -> transport_msg status

@@ -105,9 +105,6 @@ import Types
 
 
 type CmdId = CmdT Identity.Identity
--- | Yes this is inconsistent with CmdId, but since IO is in the Prelude a type
--- alias wouldn't help much.
-type CmdIO = CmdT IO Status
 
 -- | Cmds used by the REPL, which all run in IO.
 type CmdL a = CmdT IO a

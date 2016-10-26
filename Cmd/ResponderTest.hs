@@ -225,7 +225,7 @@ next = respond_cmd . result_states
 respond_msg :: States -> Msg.Msg -> IO Result
 respond_msg states = respond1 Nothing states Nothing
 
-type CmdIO = Msg.Msg -> Cmd.CmdIO
+type CmdIO = Msg.Msg -> Cmd.CmdT IO Cmd.Status
 
 respond1 :: Maybe (Chan.Chan Msg.Msg) -> States -> Maybe CmdIO
     -- ^ if given, this Cmd will get the Msg, otherwise whoever would normally

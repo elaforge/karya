@@ -24,7 +24,7 @@ data StaticConfig = StaticConfig {
     instrument_db :: Cmd.InstrumentDb
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
-    , global_cmds :: [Msg.Msg -> Cmd.CmdIO]
+    , global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 
     -- | Default global namespace for deriver calls.
     , library :: Derive.Library
@@ -33,7 +33,7 @@ data StaticConfig = StaticConfig {
     -- block, load a given file, or do nothing.
     -- Remember that no block is focused when this is run, so cmds that need
     -- a focused block will abort.
-    , setup_cmd :: [String] -> Cmd.CmdIO
+    , setup_cmd :: [String] -> Cmd.CmdT IO Cmd.Status
     , midi :: Midi
     , highlight_colors :: Map.Map Color.Highlight Color.Color
     }

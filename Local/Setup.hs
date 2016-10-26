@@ -21,7 +21,7 @@ import qualified Cmd.RulerUtil as RulerUtil
 import Global
 
 
-load_mod :: FilePath -> Cmd.CmdIO
+load_mod :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_mod fn = do
     blocks <- either Cmd.throw return =<< Trans.liftIO (Load.Mod.parse fn)
     let blocks2 = map
@@ -30,7 +30,7 @@ load_mod fn = do
         (Load.Mod.convert_blocks 0.25 blocks2)
     return Cmd.Done
 
-load_midi :: FilePath -> Cmd.CmdIO
+load_midi :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_midi fn = do
     block_id <- Load.Midi.load fn
     Create.unfitted_view block_id
