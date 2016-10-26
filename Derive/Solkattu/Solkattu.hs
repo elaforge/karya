@@ -248,11 +248,16 @@ reduceTo by to seq
     | otherwise = mconcat $ takeWhile ((>=to) . duration_of) $
         iterate (dropM by) seq
 
+-- | Reduce by dropping the end.
 reduceR :: Matras -> Sequence stroke -> [Sequence stroke]
 reduceR n = iterate (rdropM n)
 
 reduceR3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
-reduceR3 n sep = List.intercalate sep . take 3 . reduceR n
+reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
+
+-- | Start fully reduced, and expand to the given sequence.
+expand :: Int -> Matras -> Sequence stroke -> [Sequence stroke]
+expand times dur = reverse . take times . iterate (dropM dur)
 
 -- ** vary
 

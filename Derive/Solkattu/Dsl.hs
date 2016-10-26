@@ -47,7 +47,7 @@ import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu
        (Matras, check, duration_of, dropM, takeM, rdropM, reduce3, reduceTo,
-        reduceR3)
+        reduceR3, expand)
 
 import Global
 

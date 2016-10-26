@@ -364,6 +364,30 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
         , (dinga, [od, p])
         ]
 
+t5s :: [Korvai]
+t5s = korvais (adi 6) mridangam $ map (purvangam.)
+    [ t123 p6 (tat.__6.din.__6)
+    , t123 p7 (tat.__.ka.din.__.ta.din.__.ka)
+    , t123 (ta.din.__2.p5) (tat.__3.din.__3)
+    , t123 (tat.__.din.__.p5) (tang.__.ga)
+    , let tadin = ta.din.__.ta.thom.__
+        in trin (tang.__.ga) (tadin.p6) (tadin.p6.p6) (tadin.p6.p6.p6)
+    ]
+    where
+    purvangam = mconcat $ expand 3 3 (tat.__3.tat.__3.dit.__3.ta.ki.ta.thom.__3)
+    t123 seq sep = trin sep seq (seq.seq) (seq.seq.seq)
+    mridangam = make_mridangam
+        [ (tat, [k])
+        , (dit, [k])
+        , (tat.dit, [k, t])
+        , (ta.ki.ta.thom, [k, p, k, od])
+        , (din, [od])
+        , (tat.ka.din.ta.din.ka, [k, o, od, k, d, p])
+        , (ta.din, [k, od])
+        , (tang.ga, [u, p])
+        , (ta.din.ta.thom, [k, p, k, od])
+        ]
+
 tisrams :: [Korvai]
 tisrams = concat
     [ t1s, t2s, t3s
