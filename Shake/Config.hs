@@ -23,7 +23,7 @@ enableEventLog = False
 
 -- | If True, compile the VST-using synthesizer from the Synth hierarchy.
 enableSynth :: Bool
-enableSynth = True
+enableSynth = False
 
 
 -- * paths
@@ -31,8 +31,7 @@ enableSynth = True
 -- | Path to the fltk installation.  If you @make install@ then it'll probably
 -- be in /usr/local/bin.
 fltkConfig :: FilePath
--- fltkConfig = "/usr/local/bin/fltk-config"
-fltkConfig = "/usr/local/src/fltk/head/fltk-config"
+fltkConfig = "/usr/local/bin/fltk-config"
 
 -- | Extra -I flags that all compiles get, including haskell cpp and hsc2hs.
 globalIncludes :: [Flag]
