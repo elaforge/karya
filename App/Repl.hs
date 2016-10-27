@@ -23,17 +23,30 @@ import Global
 type Input a = Haskeline.InputT IO a
 
 initial_settings :: Haskeline.Settings IO
-initial_settings = Haskeline.defaultSettings
+initial_settings = Haskeline.setComplete complete $ Haskeline.defaultSettings
     { Haskeline.historyFile = Nothing
     , Haskeline.autoAddHistory = True
     }
 
--- Getting the REPL to read a new history when the save file changes was more
--- of a hassle than I expected.  A separate thread tails the log file.  When it
--- sees a log line indicating a new save file, it puts it in an exception and
--- throws it to the REPL thread, which is otherwise blocked on user input.
--- When the REPL thread gets the exception, it restarts runInputT with the new
--- historyFile.
+complete :: (String, String) -> IO (String, [Haskeline.Completion])
+complete =
+    Haskeline.completeQuotedWord (Just '\\') "\"" Haskeline.listFiles
+        complete_identefier
+    -- Like ghci, complete filenames within quotes.
+    -- TODO or just disable completion?
+
+complete_identefier :: Haskeline.CompletionFunc IO
+complete_identefier = Haskeline.completeWord Nothing word_break_chars complete
+    where
+    complete prefix = do
+        words <- ReplProtocol.query_completion Config.repl_port (txt prefix)
+        return $ map (Haskeline.simpleCompletion . untxt) words
+
+word_break_chars :: String
+word_break_chars =
+    " \t\n\
+    \(),;[]`{}\
+    \!#$%&*+/<=>?@\\^|-~"
 
 type CurrentHistory = MVar.MVar (Maybe FilePath)
 

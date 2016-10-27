@@ -18,7 +18,7 @@
 -}
 module Cmd.Repl (
     with_socket
-    , Session, make_session, interpreter, repl
+    , Session, make_session, interpreter, respond
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -81,40 +81,40 @@ make_session = ReplImpl.make_session
 interpreter :: Session -> IO ()
 interpreter = ReplImpl.interpreter
 
-repl :: Session -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
-repl session msg = do
+respond :: Session -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+respond session msg = do
     (response_hdl, query) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    case query of
-        ReplProtocol.QCommand cmd -> command session response_hdl cmd
+    (response, status) <- case query of
         ReplProtocol.QSaveFile -> do
-            save_file <- Cmd.gets Cmd.state_save_file
-            liftIO $ ReplProtocol.server_send response_hdl $
-                ReplProtocol.RSaveFile $ name_of . snd <$> save_file
-            return Cmd.Done
-    where
-    name_of (Cmd.SaveState fname) = fname
-    name_of (Cmd.SaveRepo fname) = fname
-
-command :: ReplImpl.Session -> IO.Handle -> Text -> Cmd.CmdT IO Cmd.Status
-command session response_hdl cmd_text = do
-    ns <- State.get_namespace
-    cmd_text <- Cmd.require_right ("expand_macros: "<>) $
-        expand_macros ns cmd_text
-    Log.debug $ "repl input: " <> showt cmd_text
-
-    cmd <- case Fast.fast_interpret (untxt cmd_text) of
-        Just cmd -> return cmd
-        Nothing -> liftIO $ ReplImpl.interpret session cmd_text
-    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> cmd_text) cmd
-    liftIO $ catch_io_errors $ do
-        ReplProtocol.server_send response_hdl (ReplProtocol.RCommand response)
+            save_file <- fmap (name_of . snd) <$> Cmd.gets Cmd.state_save_file
+            return (ReplProtocol.RSaveFile save_file, Cmd.Done)
+        ReplProtocol.QCommand expr -> command session expr
+        ReplProtocol.QCompletion prefix -> do
+            words <- liftIO $ ReplImpl.complete session prefix
+            return (ReplProtocol.RCompletion words, Cmd.Done)
+    liftIO $ Exception.handle warn_io_errors $ do
+        ReplProtocol.server_send response_hdl response
         IO.hClose response_hdl
     return status
     where
-    catch_io_errors = Exception.handle $ \(exc :: IOError) ->
+    name_of (Cmd.SaveState fname) = fname
+    name_of (Cmd.SaveRepo fname) = fname
+    warn_io_errors (exc :: IOError) =
         Log.warn $ "caught exception from socket write: " <> showt exc
+
+command :: ReplImpl.Session -> Text
+    -> Cmd.CmdT IO (ReplProtocol.Response, Cmd.Status)
+command session expr = do
+    ns <- State.get_namespace
+    expr <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns expr
+    Log.debug $ "repl input: " <> showt expr
+    cmd <- case Fast.fast_interpret (untxt expr) of
+        Just cmd -> return cmd
+        Nothing -> liftIO $ ReplImpl.interpret session expr
+    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> expr) cmd
+    return (ReplProtocol.RCommand response, status)
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> Text -> Either Text Text

@@ -9,7 +9,7 @@
 -- Supported versions: 74, 78
 module Cmd.ReplGhc (
     Session(..), make_session
-    , interpreter, interpret
+    , interpreter, interpret, complete
 ) where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
@@ -48,20 +48,37 @@ ghci_flags = build_dir </> "ghci-flags"
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
-newtype Session = Session (Chan.Chan (Text, MVar.MVar Cmd))
-type Cmd = Cmd.CmdL ReplProtocol.CmdResult
+newtype Session = Session (Chan.Chan (Query, MVar.MVar Response))
+
+data Query = QCommand !Text | QCompletion !Text
+    deriving (Show)
+data Response = RCommand !Cmd | RCompletion ![Text]
+type Cmd = Cmd.CmdT IO ReplProtocol.CmdResult
 
 type Ghc a = GHC.GhcT IO a
 
 make_session :: IO Session
 make_session = Session <$> Chan.newChan
 
-interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplProtocol.CmdResult)
+interpret :: Session -> Text -> IO Cmd
 interpret (Session chan) expr = do
     mvar <- MVar.newEmptyMVar
-    Chan.writeChan chan (expr, mvar)
-    MVar.takeMVar mvar
+    Chan.writeChan chan (QCommand expr, mvar)
+    response <- MVar.takeMVar mvar
+    case response of
+        RCommand cmd -> return cmd
+        _ -> errorIO "unexpected response to QCommand"
 
+complete :: Session -> Text -> IO [Text]
+complete (Session chan) prefix = do
+    mvar <- MVar.newEmptyMVar
+    Chan.writeChan chan (QCompletion prefix, mvar)
+    response <- MVar.takeMVar mvar
+    case response of
+        RCompletion words -> return words
+        _ -> errorIO "unexpected response to QCompletion"
+
+-- | Start the interpreter thread.
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags [] -- not sure if this is necessary
@@ -80,7 +97,7 @@ interpreter (Session chan) = do
         -- Cannot add module Cmd.Repl.Environ to context: not interpreted
         GHC.setTargets $ map (make_target False) toplevel_modules
         ((result, logs, warns), time) <-
-            Log.format_time <$> Log.time_eval reload
+            Log.format_time <$> Log.time_eval (reload toplevel_modules)
         let expected = map ((++ ".hs, interpreted") . Seq.replace1 '.' "/")
                 toplevel_modules
         logs <- return $ filter
@@ -104,28 +121,32 @@ interpreter (Session chan) = do
                 Left err -> Log.warn $ "error loading REPL modules: " <> txt err
                 _ -> return ()
         forever $ do
-            (expr, return_mvar) <- liftIO $ Chan.readChan chan
-            result <- case untxt expr of
-                ':' : colon -> colon_cmd colon
-                _ -> normal_cmd (untxt expr)
-                    `GHC.gcatch` \(exc :: Exception.SomeException) ->
-                        -- set_context throws if the reload failed.
-                        return $ return $ ReplProtocol.error_result $
-                            "Exception: " <> showt exc
+            (query, return_mvar) <- liftIO $ Chan.readChan chan
+            result <- respond toplevel_modules query
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
 
-    normal_cmd :: String -> Ghc Cmd
-    normal_cmd expr = do
-        set_context toplevel_modules
-        make_response <$> compile expr
 
+respond :: [String] -> Query -> GHC.GhcT IO Response
+respond toplevel_modules (QCommand e) = RCommand <$> case untxt e of
+    ':' : colon -> colon_cmd colon
+    expr -> (`GHC.gcatch` catch) $ make_response <$> compile expr
+    where
+    catch (exc :: Exception.SomeException) =
+        return $ return $ ReplProtocol.error_result $ "Exception: " <> showt exc
     colon_cmd :: String -> Ghc Cmd
-    colon_cmd "r" = make_response <$> reload
-    colon_cmd "R" = make_response <$> reload
+    colon_cmd "r" = make_response <$> reload toplevel_modules
+    colon_cmd "R" = make_response <$> reload toplevel_modules
     colon_cmd colon = return $ return $
         ReplProtocol.error_result $ "Unknown colon command: " <> showt colon
+respond _ (QCompletion prefix) = RCompletion <$>
+    -- Don't bother with 50 zillion completions.
+    if prefix == "" then return [] else do
+        rdrs <- GHC.getRdrNamesInScope
+        dflags <- GHC.getSessionDynFlags
+        return $ filter (prefix `Text.isPrefixOf`) $
+            map (txt . Outputable.showPpr dflags) rdrs
 
 make_response :: Result (Cmd.CmdL String) -> Cmd
 make_response (val, logs, warns) = case val of
@@ -145,9 +166,10 @@ make_response (val, logs, warns) = case val of
 type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
-reload :: Ghc (Result (Cmd.CmdL String))
-reload = do
-    (result, logs, warns) <- collect_logs $ GHC.load GHC.LoadAllTargets
+reload :: [String] -> Ghc (Result (Cmd.CmdL String))
+reload toplevel_modules = do
+    (result, logs, warns) <- collect_logs $
+        GHC.load GHC.LoadAllTargets <* set_context toplevel_modules
     return (mkcmd result, logs, warns)
     where
     mkcmd (Right ok)

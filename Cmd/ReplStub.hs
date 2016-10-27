@@ -6,7 +6,7 @@
 -- a great job at linking quickly.
 module Cmd.ReplStub (
     Session, make_session
-    , interpreter, interpret
+    , interpreter, interpret, complete
 ) where
 import Control.Monad
 
@@ -23,6 +23,11 @@ make_session = return ()
 interpreter :: Session -> IO ()
 interpreter () = forever $ Thread.delay 10
 
-interpret :: Session -> Text -> IO (Cmd.CmdT IO ReplProtocol.CmdResult)
-interpret () text =
-    return $ return $ ReplProtocol.raw $ "repl not linked in: " <> showt text
+type Cmd = Cmd.CmdT IO ReplProtocol.CmdResult
+
+interpret :: Session -> Text -> IO Cmd
+interpret () expr =
+    return $ return $ ReplProtocol.raw $ "repl not linked in: " <> showt expr
+
+complete :: Session -> Text -> IO [Text]
+complete () _ = return []

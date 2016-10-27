@@ -546,10 +546,9 @@ unique_on f xs = go Set.empty xs
         | otherwise = x : go (Set.insert k set) xs
         where k = f x
 
--- | Like 'unique', but doesn't preserve the order and should be more
--- efficient.
-unique_unordered :: Ord a => [a] -> [a]
-unique_unordered = Set.toList . Set.fromList
+-- | Like 'unique', but sort the list, and should be more efficient.
+unique_sort :: Ord a => [a] -> [a]
+unique_sort = Set.toList . Set.fromList
 
 rtake :: Int -> [a] -> [a]
 rtake n = snd . foldr go (n, [])

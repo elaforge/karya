@@ -10,7 +10,7 @@ module App.ReplProtocol (
     , empty_result, error_result, raw
     -- * protocol
     , initialize
-    , query_cmd, query_save_file
+    , query_cmd, query_save_file, query_completion
     , server_receive, server_send
     -- * format
     , format_result
@@ -34,13 +34,13 @@ import Global
 
 
 -- | This is a simple RPC mechanism.
-data Query = QSaveFile -- ^ ask for a RSaveFile
-    | QCommand Text -- ^ send a cmd, expect a RCommand
+data Query = QSaveFile | QCommand !Text | QCompletion !Text
     deriving (Eq, Show)
 
 data Response =
     RSaveFile !(Maybe FilePath) -- ^ current save file
     | RCommand !CmdResult
+    | RCompletion ![Text] -- ^ possible completions for the prefix
     deriving (Eq, Show)
 
 data CmdResult = CmdResult !Result ![Log.Msg]
@@ -96,6 +96,16 @@ query_save_file socket = do
         _ -> do
             Log.error $ "unexpected response to QSaveFile: " <> showt response
             return Nothing
+
+query_completion :: FilePath -> Text -> IO [Text]
+query_completion socket prefix = do
+    response <- query socket (QCompletion prefix)
+    case response of
+        Right (RCompletion words) -> return words
+        Left exc | IO.Error.isDoesNotExistError exc -> return []
+        _ -> do
+            Log.error $ "unexpected response to QCompletion: " <> showt response
+            return []
 
 server_receive :: IO.Handle -> IO Query
 server_receive = receive
@@ -153,17 +163,21 @@ abbreviate_logs logs = loaded ++ filter (not . package_log) logs
 instance Serialize.Serialize Query where
     put QSaveFile = put_tag 0
     put (QCommand a) = put_tag 1 >> put a
+    put (QCompletion a) = put_tag 2 >> put a
     get = get_tag >>= \tag -> case tag of
         0 -> return QSaveFile
         1 -> QCommand <$> get
+        2 -> QCompletion <$> get
         _ -> Serialize.bad_tag "Query" tag
 
 instance Serialize.Serialize Response where
     put (RSaveFile a) = put_tag 0 >> put a
     put (RCommand a) = put_tag 1 >> put a
+    put (RCompletion a) = put_tag 2 >> put a
     get = get_tag >>= \tag -> case tag of
         0 -> RSaveFile <$> get
         1 -> RCommand <$> get
+        2 -> RCompletion <$> get
         _ -> Serialize.bad_tag "Response" tag
 
 instance Serialize.Serialize CmdResult where

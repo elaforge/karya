@@ -4,8 +4,6 @@
 
 module Cmd.ReplGhc_test where
 import qualified Control.Concurrent as Concurrent
-import qualified Control.Concurrent.Chan as Chan
-import qualified Control.Concurrent.MVar as MVar
 
 import Util.Test
 import qualified Ui.State as State
@@ -23,21 +21,19 @@ test_repl_ghc = do
     -- Get generate_run_tests.py to recognize this as interactive.
     -- TODO need a better way
     io_human "Ready?" (return ())
-    sess@(ReplGhc.Session chan) <- ReplGhc.make_session
-    Concurrent.forkIO $ ReplGhc.interpreter sess
-    go chan
+    session <- ReplGhc.make_session
+    Concurrent.forkIO $ ReplGhc.interpreter session
+    go session
     where
-    go chan = do
-        line <- getLine
-        if line == "quit" then return () else do
-        mvar <- MVar.newEmptyMVar
-        Chan.writeChan chan (txt line, mvar)
-        cmd <- MVar.takeMVar mvar
-        result <- run_io cmd
-        case result of
-            Left err -> putStrLn $ "---> err: " ++ err
-            Right val -> putStrLn $ "---> val: " ++ untxt val
-        go chan
+    go session = do
+        expr <- getLine
+        if expr == "quit" then return () else do
+            cmd <- ReplGhc.interpret session (txt expr)
+            result <- run_io cmd
+            case result of
+                Left err -> putStrLn $ "---> err: " ++ err
+                Right val -> putStrLn $ "---> val: " ++ untxt val
+            go session
 
 run_io :: Cmd.CmdT IO ReplProtocol.CmdResult -> IO (Either String Text)
 run_io cmd = do

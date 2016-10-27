@@ -89,7 +89,7 @@ unsignal = TimeVector.unsignal . sig_vec
 to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])
 to_nn = extract . Either.partitionEithers . map eval . unsignal
     where
-    extract (errs, nns) = (Signal.signal nns, Seq.unique_unordered errs)
+    extract (errs, nns) = (Signal.signal nns, Seq.unique_sort errs)
     eval (x, pitch) = case pitch_nn (coerce pitch) of
         Left err -> Left err
         Right (Pitch.NoteNumber nn) -> Right (x, nn)

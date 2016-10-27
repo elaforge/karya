@@ -419,7 +419,7 @@ hardcoded_cmds =
 hardcoded_io_cmds :: Ui.Channel -> Repl.Session
     -> [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 hardcoded_io_cmds ui_chan repl_session =
-    [ Repl.repl repl_session
+    [ Repl.respond repl_session
     , Integrate.cmd_integrate
     , PlayC.cmd_play_msg ui_chan
     ] ++ GlobalKeymap.io_cmds

@@ -20,8 +20,7 @@ UNSORTED
     require_right.
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
-  - do a renaming pass on all the prev/next pitch function names in
-    Derive.Args.
+  - do a renaming pass on all the prev/next pitch function names in Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
 
   - have an easier way to use MeterConfig to take e.g. r_section out of
@@ -204,7 +203,7 @@ documentation:
           onclick="toggleSection('n.1')">Title</span>
         <ul id='section.n.1' class='show'> ...
     / put anchors on calls and make single quotes link to calls
-      . It's not quite so simple because there is module, and then namespace.
+      . It's not quite so simple because there is module, and then call type.
         So the linkifier would have to understand that structure and search
         for one, or have some javascript, and then it would have to choose
         if there is >1 match.  Too complicated.
@@ -1004,6 +1003,7 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - I don't really use ReplStub, can I get rid of the awkward #ifdef then?
   * repl now has no history when it doesn't know the filename.
     Maybe I should have it ask for the filename.  I'll need a protocol anyway
     to ask for tab-completion.
@@ -1017,7 +1017,7 @@ REPL: repl:
   - is Cmd.Lang.Fast now obsolete?
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
-  - tab completion for symbols like in ghci
+  * tab completion for symbols like in ghci
     I'll need a list symbols cmd which the repl automatically sends on tab
     completion.
     . Add 'QCompletions Prefix' and 'RCompletions [Symbol]'.
@@ -1240,6 +1240,7 @@ Derive:
         partially applied functions, or just write 'switch<'.
     - replace VAttributes with a general purpose VSet.
     - maybe use {} for quoted, it's a bit shorter than "()
+      . Also wouldn't confuse haskell syntax highlighting.
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some
