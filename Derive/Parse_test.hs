@@ -88,71 +88,79 @@ test_unparsed_call = do
     -- But comments are still comments.
     equal (f "!'a' -- b") $ Right [call "!" [vsym "'a'"]]
 
+-- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
+invertible_vals :: [(Text, Maybe Val)]
+invertible_vals =
+    [ (">", Just $ VInstrument (Score.Instrument ""))
+    , (">name-b", Just $ VInstrument (Score.Instrument "name-b"))
+    , (">no/slash", Nothing)
+    , (">fu/nny^*", Nothing)
+
+    , ("0", Just (VNum (Score.untyped 0)))
+    , ("0.", Nothing)
+    , (".2", Just (VNum (Score.untyped 0.2)))
+    , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
+    , ("-1d", Just (VNum (Score.Typed Score.Diatonic (-1))))
+    , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
+    , ("42nn", Just (VNum (Score.Typed Score.Nn 42)))
+    , ("1q", Nothing)
+
+    , ("+", attrs [])
+    , ("+a", attrs ["a"])
+    , ("+a+b", attrs ["a", "b"])
+
+    , ("sym", sym "sym")
+    , ("-sym", sym "-sym")
+    , ("-", sym "-")
+    , ("'space sym'", sym "space sym")
+    , ("'23'", sym "23")
+    , ("'quinn''s hat'", sym "quinn's hat")
+    , ("s!$_", sym "s!$_")
+    , ("'bad string", Nothing)
+
+    , ("%", Just $ VControlRef $ LiteralControl "")
+    , ("%sig", Just $ VControlRef $ LiteralControl "sig")
+    , ("%sig,0", Just $ VControlRef $
+        DefaultedControl "sig" (Score.untyped (Signal.constant 0)))
+    , ("%sig,4s", Just $ VControlRef $
+        DefaultedControl "sig"
+        (Score.Typed Score.Real (Signal.constant 4)))
+    , ("%sig,4q", Nothing)
+    , ("%sig,", Nothing)
+
+    , ("#", Just $ VPControlRef $ LiteralControl "")
+    , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
+
+    , ("{a b}", Just $ VQuoted $ BaseTypes.Quoted $
+        Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])
+    , ("{}", Just $ VQuoted $ BaseTypes.Quoted $
+        Call (Symbol "") [] :| [])
+    , ("{a |}", Just $ VQuoted $ BaseTypes.Quoted $
+        Call (Symbol "a") [] :| [Call (Symbol "") []])
+
+    , ("$bad", Nothing)
+    , ("_", Just VNotGiven)
+    , (";", Just VSeparator)
+    ]
+    where
+    attrs = Just . VAttributes . Attrs.attrs
+    sym = Just . VSymbol
+
+-- | Vals whose 'ShowVal.show_val' doesn't reproduce the parsed val.
+noninvertible_vals :: [(Text, Maybe Val)]
+noninvertible_vals =
+    [ ("3/2", num (Score.untyped 1.5))
+    , ("-3/2", num (Score.untyped (-1.5)))
+    , ("3/2d", num (Score.Typed Score.Diatonic 1.5))
+    , ("0x00", num (Score.untyped 0))
+    , ("0xff", num (Score.untyped 1))
+    , ("-0xff", num (Score.untyped (-1)))
+    ]
+    where num = Just . VNum
+
 test_parse_val = do
-    let attrs = Just . VAttributes . Attrs.attrs
-        sym = Just . VSymbol
-    let invertible =
-            [ (">", Just $ VInstrument (Score.Instrument ""))
-            , (">name-b", Just $ VInstrument (Score.Instrument "name-b"))
-            , (">no/slash", Nothing)
-            , (">fu/nny^*", Nothing)
-
-            , ("0", Just (VNum (Score.untyped 0)))
-            , ("0.", Nothing)
-            , (".2", Just (VNum (Score.untyped 0.2)))
-            , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
-            , ("-1d", Just (VNum (Score.Typed Score.Diatonic (-1))))
-            , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
-            , ("42nn", Just (VNum (Score.Typed Score.Nn 42)))
-            , ("1q", Nothing)
-
-            , ("+", attrs [])
-            , ("+a", attrs ["a"])
-            , ("+a+b", attrs ["a", "b"])
-
-            , ("sym", sym "sym")
-            , ("-sym", sym "-sym")
-            , ("-", sym "-")
-            , ("'space sym'", sym "space sym")
-            , ("'23'", sym "23")
-            , ("'quinn''s hat'", sym "quinn's hat")
-            , ("s!$_", sym "s!$_")
-            , ("'bad string", Nothing)
-
-            , ("%", Just $ VControlRef $ LiteralControl "")
-            , ("%sig", Just $ VControlRef $ LiteralControl "sig")
-            , ("%sig,0", Just $ VControlRef $
-                DefaultedControl "sig" (Score.untyped (Signal.constant 0)))
-            , ("%sig,4s", Just $ VControlRef $
-                DefaultedControl "sig"
-                (Score.Typed Score.Real (Signal.constant 4)))
-            , ("%sig,4q", Nothing)
-            , ("%sig,", Nothing)
-
-            , ("#", Just $ VPControlRef $ LiteralControl "")
-            , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
-
-            , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
-                Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])
-            , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
-                Call (Symbol "") [] :| [])
-            , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
-                Call (Symbol "a") [] :| [Call (Symbol "") []])
-
-            , ("$bad", Nothing)
-            , ("_", Just VNotGiven)
-            , (";", Just VSeparator)
-            ]
-    let num = Just . VNum
-    let noninvertible =
-            [ ("3/2", num (Score.untyped 1.5))
-            , ("-3/2", num (Score.untyped (-1.5)))
-            , ("3/2d", num (Score.Typed Score.Diatonic 1.5))
-            , ("0x00", num (Score.untyped 0))
-            , ("0xff", num (Score.untyped 1))
-            , ("-0xff", num (Score.untyped (-1)))
-            ]
-    let exprs = map ((,) True) invertible ++ map ((,) False) noninvertible
+    let exprs = map ((,) True) invertible_vals
+            ++ map ((,) False) noninvertible_vals
     forM_ exprs $ \(invertible, (expr, expected)) -> do
         let res = Parse.parse_val expr
         case (res, expected) of

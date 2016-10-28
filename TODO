@@ -1239,8 +1239,9 @@ Derive:
         cond I'd actually want a 'switch %cont' and then I need either
         partially applied functions, or just write 'switch<'.
     - replace VAttributes with a general purpose VSet.
-    - maybe use {} for quoted, it's a bit shorter than "()
-      . Also wouldn't confuse haskell syntax highlighting.
+      . No users though?
+    / maybe use {} for quoted, it's a bit shorter than "()
+      . The advantage of "() is that I already have to stop parsing on ).
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some

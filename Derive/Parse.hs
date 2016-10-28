@@ -326,7 +326,7 @@ p_pcontrol_ref = do
     <?> "pitch control"
 
 p_quoted :: A.Parser BaseTypes.Quoted
-p_quoted = A.string "\"(" *> (BaseTypes.Quoted <$> p_expr False) <* A.char ')'
+p_quoted = ParseText.between "\"(" ")" (BaseTypes.Quoted <$> p_expr False)
 
 -- | This is special syntax that's only allowed in control track titles.
 p_scale_id :: A.Parser BaseTypes.Symbol
