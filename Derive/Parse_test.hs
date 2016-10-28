@@ -295,11 +295,11 @@ test_parse_ky = do
     left_like (f fst "blort x\nimport y\n") "expected eof"
 
     let aliases = Parse.def_aliases . snd
-    left_like (f aliases "instrument alias:\na = b\n")
+    left_like (f aliases "alias:\na = b\n")
         "alias on lhs should start with >"
-    left_like (f aliases "instrument alias:\n>a = b\n")
+    left_like (f aliases "alias:\n>a = b\n")
         "alias on rhs should start with >"
-    equal (f aliases "instrument alias:\n>a = >b\n")
+    equal (f aliases "alias:\n>a = >b\n")
         (Right [(Score.Instrument "a", Score.Instrument "b")])
 
 test_split_sections = do

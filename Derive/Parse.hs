@@ -402,10 +402,10 @@ p_null_word = A.takeWhile is_word_char
 is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
     && c /= ';' -- This is so the ; separator can appear anywhere.
+    -- TODO remove it when I remove VSeparator
 
 is_word_char :: Char -> Bool
-is_word_char c = is_toplevel_word_char c && c /= ')' && c /= ']'
-    -- TODO why do I have to omit ]?  try removing and see what happens
+is_word_char c = is_toplevel_word_char c && c /= ')'
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces
@@ -554,7 +554,7 @@ parse_ky filename text = do
     pitch = "pitch"
     generator = "generator"
     transformer = "transformer"
-    alias = "instrument alias"
+    alias = "alias"
     valid_headers = val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
