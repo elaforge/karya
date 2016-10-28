@@ -3,16 +3,29 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-'''Update all the saved scores with build/opt/update.'''
+'''Update all the saved scores with build/opt/update.
 
-import os, subprocess, shutil, gzip
+This will backup save, and copy everything from save to save.new.
+'''
+
+import sys, os, subprocess, shutil, gzip
 
 dry_run = True
 
+update = 'build/opt/update'
+backup = '../save-backup/backup'
 
 def main():
-    if dry_run:
+    global dry_run
+    if sys.argv[1:] == ['for-real']:
+        dry_run = False
+    elif sys.argv[1:] == ['dry-run']:
         print 'DRY RUN'
+    else:
+        print 'usage: %s [ dry-run | for-real ]' % (sys.argv[0],)
+        return
+    run('bin/mk', update)
+    run(backup)
     update_dir('save', 'save.new')
     os.path.walk('save.new', rename_git, None)
 
@@ -51,13 +64,13 @@ def update_file(source, dest):
         print source, '->', dest
     if source.endswith('.git'):
         dest = dest[:-3] + ex_git
-        update(source, dest)
+        run(update, source, dest)
     elif os.path.basename(source) == 'ly':
         copytree(source, dest)
     elif os.path.isdir(source):
         update_dir(source, dest)
     elif is_score(source):
-        update(source, dest)
+        run(update, source, dest)
     else:
         copy(source, dest)
 
@@ -73,10 +86,10 @@ def copytree(source, dest):
     else:
         shutil.copytree(source, dest)
 
-def update(source, dest):
-    print 'build/opt/update', source, dest
+def run(bin, *args):
+    print bin, ' '.join(args)
     if not dry_run:
-        code = subprocess.call(['build/opt/update', source, dest])
+        code = subprocess.call([bin] + args)
         if code != 0:
             raise ValueError(code)
 
