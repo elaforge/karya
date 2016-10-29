@@ -12,7 +12,7 @@
 // Simple scrollbar.
 class Scrollbar : public Fl_Group {
 public:
-    Scrollbar(int X, int Y, int W, int H, Color bg, Color fg);
+    Scrollbar(int x, int y, int w, int h, Color bg, Color fg);
     void resize(int x, int y, int w, int h) override;
 
     enum Orientation { horizontal, vertical };

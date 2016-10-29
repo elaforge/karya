@@ -9,12 +9,12 @@
 
 
 void
-SimpleScroll::resize(int X, int Y, int W, int H)
+SimpleScroll::resize(int x, int y, int w, int h)
 {
-    IPoint diff(W - w(), H - h());
+    IPoint diff(w - this->w(), h - this->h());
     Fl_Widget *c = child(0);
-    c->resize(X + offset.x, Y + offset.y, c->w() + diff.x, c->h() + diff.y);
-    Fl_Widget::resize(X, Y, W, H);
+    c->resize(x + offset.x, y + offset.y, c->w() + diff.x, c->h() + diff.y);
+    Fl_Widget::resize(x, y, w, h);
 }
 
 void

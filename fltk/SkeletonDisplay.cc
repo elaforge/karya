@@ -14,8 +14,8 @@
 #include "SkeletonDisplay.h"
 
 
-SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H) :
-    Fl_Box(X, Y, W, H)
+SkeletonDisplay::SkeletonDisplay(int x, int y, int w, int h) :
+    Fl_Box(x, y, w, h)
 {
     box(FL_FLAT_BOX);
 }

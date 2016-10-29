@@ -8,9 +8,9 @@
 #include "Scrollbar.h"
 
 
-Scrollbar::Scrollbar(int X, int Y, int W, int H, Color bg, Color fg) :
-    Fl_Group(X, Y, W, H), orientation(Scrollbar::vertical), min_size(4),
-    scrollbox(X, Y, W, H)
+Scrollbar::Scrollbar(int x, int y, int w, int h, Color bg, Color fg) :
+    Fl_Group(x, y, w, h), orientation(Scrollbar::vertical), min_size(4),
+    scrollbox(x, y, w, h)
 {
     box(FL_FLAT_BOX);
     color(bg.fl());

@@ -34,9 +34,9 @@ static const int min_height =
 static const int min_width = Config::Block::sb_size + 10;
 
 
-Block::Block(int X, int Y, int W, int H,
+Block::Block(int x, int y, int w, int h,
         const BlockConfig &config, const char *window_title) :
-    Fl_Group(X, Y, W, H),
+    Fl_Group(x, y, w, h),
 
     title(0, 0, 1, 1, true),
     status_line(0, 0, 1, 1),
@@ -743,12 +743,12 @@ block_view_window_cb(Fl_Window *win, void *p)
 
 
 BlockWindow::BlockWindow(
-        int X, int Y, int W, int H,
+        int x, int y, int w, int h,
         const char *label,
         const BlockConfig &config) :
     Fl_Double_Window(
-        X, Y, std::max(min_width, W), std::max(min_height, H), label),
-    block(X, Y, std::max(min_width, W), std::max(min_height, H), config,
+        x, y, std::max(min_width, w), std::max(min_height, h), label),
+    block(x, y, std::max(min_width, w), std::max(min_height, h), config,
         label),
     testing(false)
 {
@@ -770,14 +770,14 @@ BlockWindow::BlockWindow(
 
 
 void
-BlockWindow::resize(int X, int Y, int W, int H)
+BlockWindow::resize(int x, int y, int w, int h)
 {
     int sx, sy, sw, sh;
-    Fl::screen_work_area(sx, sy, sw, sh, X, Y);
+    Fl::screen_work_area(sx, sy, sw, sh, x, y);
     int titlebar = this->decorated_h() - this->h();
     // Don't make the window taller than will fit on the screen.
-    H = std::min(H, sh - titlebar);
-    Fl_Window::resize(X, Y, W, H);
+    h = std::min(h, sh - titlebar);
+    Fl_Window::resize(x, y, w, h);
     // This sends tons of resize msgs, and I'd rather just send one on
     // mouse up.
     MsgCollector::get()->view(UiMsg::msg_resize, this);

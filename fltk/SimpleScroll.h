@@ -22,10 +22,10 @@ Actualy, for now it's just Fl_Scroll that modifies resize();
 // that.
 class SimpleScroll : public Fl_Group {
 public:
-    SimpleScroll(int X, int Y, int W, int H) :
-        Fl_Group(X, Y, W, H), offset(0, 0)
+    SimpleScroll(int x, int y, int w, int h) :
+        Fl_Group(x, y, w, h), offset(0, 0)
     {}
-    void resize(int X, int Y, int W, int H) override;
+    void resize(int x, int y, int w, int h) override;
 
     IPoint get_offset() const { return offset; }
     void set_offset(IPoint offset);

@@ -87,12 +87,12 @@ struct DisplayTrack {
 // insert_track.
 class Block : public Fl_Group {
 public:
-    Block(int X, int Y, int W, int H,
+    Block(int x, int y, int w, int h,
         const BlockConfig &config, const char *window_title);
     virtual ~Block();
 
     int handle(int evt) override;
-    void resize(int X, int Y, int W, int H) override;
+    void resize(int x, int y, int w, int h) override;
 private:
     void set_widget_sizes();
 public:
@@ -213,9 +213,9 @@ private:
 
 class BlockWindow : public Fl_Double_Window {
 public:
-    BlockWindow(int X, int Y, int W, int H,
+    BlockWindow(int x, int y, int w, int h,
         const char *label, const BlockConfig &config);
-    void resize(int X, int Y, int W, int H) override;
+    void resize(int x, int y, int w, int h) override;
     Block block;
 
     // If true, this is running from c++, not haskell.

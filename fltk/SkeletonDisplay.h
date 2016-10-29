@@ -59,7 +59,7 @@ struct SkeletonConfig {
 // out of range tracknums.
 class SkeletonDisplay : public Fl_Box {
 public:
-    SkeletonDisplay(int X, int Y, int W, int H);
+    SkeletonDisplay(int x, int y, int w, int h);
     // This does not reject configs with tracks out of range because fltk
     // should do what haskell says or it gets out of sync.  But draw() will
     // complain about them.

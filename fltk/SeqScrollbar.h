@@ -14,8 +14,8 @@
 
 class SeqScrollbar : public Scrollbar {
 public:
-    SeqScrollbar(int X, int Y, int W, int H) :
-        Scrollbar(X, Y, W, H, Color(255, 255, 200), Color(127, 100, 50))
+    SeqScrollbar(int x, int y, int w, int h) :
+        Scrollbar(x, y, w, h, Color(255, 255, 200), Color(127, 100, 50))
     {
     }
 
@@ -25,8 +25,8 @@ public:
 
 class FlSeqScrollbar : public Fl_Scrollbar {
 public:
-    FlSeqScrollbar(int X, int Y, int W, int H) :
-        Fl_Scrollbar(X, Y, W, H)
+    FlSeqScrollbar(int x, int y, int w, int h) :
+        Fl_Scrollbar(x, y, w, h)
     {}
     int handle(int evt) override {
         if (evt == FL_RELEASE)

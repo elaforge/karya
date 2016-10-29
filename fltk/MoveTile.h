@@ -38,14 +38,14 @@ public:
     // 'move_positive. is the other way around.
     enum MoveDirection { no_move, move_negative, move_positive };
 
-    MoveTile(int X, int Y, int W, int H, char *label = 0) :
-        Fl_Group(X, Y, W, H, label),
+    MoveTile(int x, int y, int w, int h, char *label = 0) :
+        Fl_Group(x, y, w, h, label),
         minimum_size(10, 10),
         dragged_child(-1),
         grab_area(3)
     {}
 
-    void resize(int X, int Y, int W, int H) override;
+    void resize(int x, int y, int w, int h) override;
     // remove and insert aren't virtual, so use these to manage children.
     virtual void remove_child(Fl_Widget *w);
     virtual void insert_child(Fl_Widget &w, int c);
