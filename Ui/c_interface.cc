@@ -57,9 +57,9 @@ clear_ui_msgs()
 BlockWindow *
 create(int x, int y, int w, int h, const char *label, BlockConfig *config)
 {
-    BlockWindow *win = new BlockWindow(x, y, w, h, label, *config);
-    win->show();
-    return win;
+    BlockWindow *view = new BlockWindow(x, y, w, h, strdup(label), *config);
+    view->show();
+    return view;
 }
 
 void
