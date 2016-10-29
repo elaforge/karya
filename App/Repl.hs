@@ -65,7 +65,6 @@ main = ReplProtocol.initialize $ do
 data SaveFileChanged = SaveFileChanged FilePath deriving (Show)
 instance Exception.Exception SaveFileChanged
 
-
 repl :: FilePath -> Haskeline.Settings IO -> IO ()
 repl socket settings = Exception.mask (loop settings)
     where
@@ -76,7 +75,8 @@ repl socket settings = Exception.mask (loop settings)
         maybe_save_fname <- ReplProtocol.query_save_file socket
         let settings = case maybe_save_fname of
                 Nothing -> old_settings
-                Just fname -> old_settings { Haskeline.historyFile = fname }
+                Just fname -> old_settings
+                    { Haskeline.historyFile = (<>".repl") <$> fname }
         status <- Exception.handle catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt
                 (read_eval_print (Haskeline.historyFile settings))
