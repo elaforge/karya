@@ -7,6 +7,7 @@
 -}
 module Util.File where
 import qualified Codec.Compression.GZip as GZip
+import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
 import Control.Monad (void, guard)
 import Control.Monad.Extra (whenM, orM)
@@ -25,8 +26,14 @@ import qualified System.Process as Process
 
 
 -- | Read and decompress a gzipped file.
-readGz :: FilePath -> IO ByteString.ByteString
-readGz fn = Lazy.toStrict . GZip.decompress <$> Lazy.readFile fn
+readGz :: FilePath -> IO (Either String ByteString.ByteString)
+readGz fn = decompress =<< Lazy.readFile fn
+
+decompress :: Lazy.ByteString -> IO (Either String ByteString.ByteString)
+decompress bytes =
+    Exception.handle (return . handle) $
+        Right <$> Exception.evaluate (Lazy.toStrict (GZip.decompress bytes))
+    where handle (exc :: Zlib.Internal.DecompressError) = Left (show exc)
 
 -- | Write a gzipped file.  Try to do so atomically by writing to @fn.write@
 -- first and renaming it.

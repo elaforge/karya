@@ -90,7 +90,8 @@ data UnserializeError = BadMagic ByteString ByteString
 unserialize :: Serialize a => Magic a -> FilePath
     -> IO (Either UnserializeError a)
 unserialize magic fname = catch $ do
-    bytes <- File.readGz fname
+    bytes <- either (Exception.throw . IO.Error.userError) return
+        =<< File.readGz fname
     let (file_magic, rest) = ByteString.splitAt magicLength bytes
     if file_magic /= magicBytes magic
         then return $ Left $ BadMagic (magicBytes magic) file_magic
