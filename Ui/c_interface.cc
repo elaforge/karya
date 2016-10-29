@@ -239,7 +239,9 @@ update_track(BlockWindow *view, int tracknum,
 void
 set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig)
 {
-    tsig->calculate_val_bounds();
+    std::string name = "'" + std::string(view->label()) + "':"
+        + std::to_string(tracknum);
+    tsig->calculate_val_bounds(name.c_str());
     view->block.set_track_signal(tracknum, *tsig);
 }
 

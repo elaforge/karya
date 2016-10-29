@@ -204,17 +204,13 @@ timeout_func(void *unused)
     static int n;
 
     std::cout << n << "------------\n";
-    switch (n) {
-    case 0: {
-        // Block &block = windows[0]->block;
+    if (n == 0) {
+        // Block *block = windows[0]->block;
         // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
         return;
-        break;
-    } case 1:
-        break;
-    case 2:
-        break;
-    default:
+    } else if (n == 1) {
+    } else if (n == 2) {
+    } else {
         return;
     }
     n++;
@@ -275,7 +271,7 @@ control_track_signal()
     ts->length = length;
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
-    ts->calculate_val_bounds();
+    ts->calculate_val_bounds("test");
     return ts;
 }
 

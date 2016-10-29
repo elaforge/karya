@@ -106,7 +106,7 @@ TrackSignal::pixel_time_at(const ZoomInfo &zoom, int i) const
 
 
 void
-TrackSignal::calculate_val_bounds()
+TrackSignal::calculate_val_bounds(const char *track_name)
 {
     RealTime last_time = -9999;
     val_min = 9999;
@@ -117,8 +117,8 @@ TrackSignal::calculate_val_bounds()
         // Since I'm iterating over the signal I might as well check this.
         // Unsorted samples will cause drawing glitches.
         if (s->time <= last_time) {
-            DEBUG("sample time didn't increase: " << s->time << " <= "
-                << last_time);
+            DEBUG("track " << track_name << ": sample time didn't increase: "
+                << s->time << " <= " << last_time);
         }
         last_time = s->time;
     }

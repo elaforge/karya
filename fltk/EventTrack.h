@@ -71,7 +71,7 @@ public:
     // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have
     // one of those.
-    void calculate_val_bounds();
+    void calculate_val_bounds(const char *track_name);
 };
 
 std::ostream &operator<<(std::ostream &os, const TrackSignal &sig);
