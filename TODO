@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * It seems like 0 dur might be a more useful default for mridingam calls.
   * Also, what about bringing back infer from duration?
-  * make LPitch.simplify_harmonics work on all scales
+  * make LPitch.simplify_enharmonics work on all scales
   * remove fm8/pressure and use local config instead
   * convert Util.Testing to Text
   * Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
@@ -1398,7 +1398,8 @@ Derive:
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.
-        ? is zero dur also mute for reyong?  I keep forgetting!
+        * is zero dur also mute for reyong?  I keep forgetting!
+          . Yes, and should be for all bali instruments.
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
@@ -1427,6 +1428,7 @@ Derive:
           in between depending on %mute.
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
+          . Reapply the 'm' call instead, and override that as appropriate.
         - control for noltol +mute dyn
         / gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,

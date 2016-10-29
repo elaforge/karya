@@ -4,6 +4,7 @@
 
 -- | Calls for Balinese instruments.
 module Cmd.Instrument.Bali where
+import qualified Util.Doc as Doc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -56,11 +57,13 @@ pasang_thru msg = do
 
 zero_dur_mute :: MidiInst.Code
 zero_dur_mute = zero_dur_reapply Articulation.mute_call
+    " By default, this will emit a muted note, but the instrument can override\
+    \ it as appropriate."
 
-zero_dur_reapply :: BaseTypes.Symbol -> MidiInst.Code
-zero_dur_reapply mute_call = MidiInst.note_calls $ MidiInst.null_call $
+zero_dur_reapply :: BaseTypes.Symbol -> Doc.Doc -> MidiInst.Code
+zero_dur_reapply mute_call doc = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "note"
     ("When the event has zero duration, dispatch to the "
-        <> ShowVal.doc mute_call <> " call.")
+        <> ShowVal.doc mute_call <> " call." <> doc)
     (\args -> Eval.reapply_call (Args.context args) mute_call [])
     (Sub.inverting $ Note.default_note Note.use_attributes)
