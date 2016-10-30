@@ -89,7 +89,7 @@ def copytree(source, dest):
 def run(bin, *args):
     print bin, ' '.join(args)
     if not dry_run:
-        code = subprocess.call([bin] + args)
+        code = subprocess.call([bin] + list(args))
         if code != 0:
             raise ValueError(code)
 
