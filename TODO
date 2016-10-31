@@ -3,6 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
+  - It seems the sangsih at the end of the nyogcag in kebyar-duduk @b1 changes
+    pitch at the end, even though it's ConstantPitch.
+  - nyog has an argument for sangsih or polos first, infers based on whether
+    it's on a major ruler division.
+  - tools/update_all.py doesn't handle symlinks properly
+  - sometimes enter or slash doesn't want to go back before a certain point
+  - Editing the .ky file still seems a little heavyweight.  Since it isn't
+    saved and tracked with the score, it seems more appropriate for library
+    type stuff.  With .git the obvious thing is to track in git, and then have
+    an easy way to get the path, so I can do 'vi $(bin/ky)'.
+    . E.g. I wanted to add a 'lh = alt lh-1 lh-2', but wound up putting
+      it the global transform.  But that gets awkward when it gets too big.
+      Also the .ky syntax is more convenient.
   * It seems like 0 dur might be a more useful default for mridingam calls.
   * Also, what about bringing back infer from duration?
   * make LPitch.simplify_enharmonics work on all scales
@@ -1422,6 +1436,7 @@ Derive:
               a given destination, with some constraints like playability from
               the previous pattern (no fast jumps), above vs. below, telu vs.
               empat.
+            . Then do that to make a random kotekan for ngubeng and majalan.
         - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
           limit the start
         - inst postproc can interpret +mute as either just a mute, or open, or

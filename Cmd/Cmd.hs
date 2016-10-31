@@ -1096,16 +1096,18 @@ midi_instrument inst = case inst_backend inst of
     Just (Midi patch config) -> Just (patch, config)
     _ -> Nothing
 
-get_midi_instrument :: M m => Score.Instrument -> m (Patch.Patch, Patch.Config)
+get_midi_instrument :: (CallStack.Stack, M m) => Score.Instrument
+    -> m (Patch.Patch, Patch.Config)
 get_midi_instrument inst =
     require ("not a midi instrument: " <> pretty inst) . midi_instrument
         =<< get_instrument inst
 
-lookup_midi_config :: M m => Score.Instrument -> m (Maybe Patch.Config)
+lookup_midi_config :: (CallStack.Stack, M m) => Score.Instrument
+    -> m (Maybe Patch.Config)
 lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved -> do
     case inst_backend resolved of
         Just (Midi _ config) -> return $ Just config
-        _ -> throw $ "not a midi instrument: " <> pretty inst
+        _ -> return Nothing
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
@@ -1120,7 +1122,8 @@ lookup_instrument inst = do
                 return Nothing
             Right val -> return (Just val)
 
-get_instrument :: M m => Score.Instrument -> m ResolvedInstrument
+get_instrument :: (CallStack.Stack, M m) => Score.Instrument
+    -> m ResolvedInstrument
 get_instrument inst = require ("instrument not found: " <> pretty inst)
     =<< lookup_instrument inst
 
