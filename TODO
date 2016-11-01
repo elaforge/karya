@@ -3,7 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
+  - load wayang/merta1, then load p1, I get:
+    . assertion failed at fltk/Track.h:125 update(): '!(track.track
+      || track.ruler)': updated a divider with a non-divider config
+    . Also I got a plain segfault after starting with p1, then load p4
+  - shakefile: I can turn off Synth, but haddock still wants to build for it
+    also tests probably
+  - norot -> nyog transition is buggy
+  * cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
   - It seems the sangsih at the end of the nyogcag in kebyar-duduk @b1 changes
     pitch at the end, even though it's ConstantPitch.
   - nyog has an argument for sangsih or polos first, infers based on whether

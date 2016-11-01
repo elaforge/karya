@@ -434,6 +434,8 @@ MsgCollector::event_handler(int evt)
     case FL_NO_EVENT:
         // For some reason fltk sends these to the Fl::add_handler on linux.
         return 1;
+    case FL_SHORTCUT:
+        return 1;
     default:
         DEBUG("unknown event: " << f_util::show_event(evt));
     }
