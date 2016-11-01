@@ -28,7 +28,7 @@ UNSORTED
   * cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
   - nyog has an argument for sangsih or polos first, infers based on whether
     it's on a major ruler division.
-  - tools/update_all.py doesn't handle symlinks properly
+  * tools/update_all.py doesn't handle symlinks properly
   - sometimes enter or slash doesn't want to go back before a certain point
   - Editing the .ky file still seems a little heavyweight.  Since it isn't
     saved and tracked with the score, it seems more appropriate for library

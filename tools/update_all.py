@@ -8,7 +8,7 @@
 This will backup save, and copy everything from save to save.new.
 '''
 
-import sys, os, subprocess, shutil, gzip
+import sys, os, subprocess, gzip
 
 dry_run = True
 
@@ -66,25 +66,13 @@ def update_file(source, dest):
         dest = dest[:-3] + ex_git
         run(update, source, dest)
     elif os.path.basename(source) == 'ly':
-        copytree(source, dest)
+        run('cp', '-R', source, dest)
     elif os.path.isdir(source):
         update_dir(source, dest)
     elif is_score(source):
         run(update, source, dest)
     else:
-        copy(source, dest)
-
-def copy(source, dest):
-    if dry_run:
-        print 'copy', source, dest
-    else:
-        shutil.copy(source, dest)
-
-def copytree(source, dest):
-    if dry_run:
-        print 'copytree', source, dest
-    else:
-        shutil.copytree(source, dest)
+        run('cp', '-R', source, dest)
 
 def run(bin, *args):
     print bin, ' '.join(args)
