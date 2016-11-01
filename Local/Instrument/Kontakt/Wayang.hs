@@ -91,10 +91,10 @@ allocations dev_ = MidiInst.allocations
         StateConfig.Dummy)
     , ("k", "kontakt/wayang-kantilan", pasang "k-umbang" "k-isep",
         StateConfig.Dummy)
-    , ("p-isep", "kontakt/wayang-isep", id, midi_channel 0)
-    , ("p-umbang", "kontakt/wayang-umbang", id, midi_channel 1)
-    , ("k-isep", "kontakt/wayang-isep", id, midi_channel 2)
-    , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 3)
+    , ("p-umbang", "kontakt/wayang-umbang", id, midi_channel 0)
+    , ("p-isep", "kontakt/wayang-isep", id, midi_channel 1)
+    , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 2)
+    , ("k-isep", "kontakt/wayang-isep", id, midi_channel 3)
     ]
     where
     midi_channel chan = StateConfig.Midi (MidiInst.config1 dev chan)
