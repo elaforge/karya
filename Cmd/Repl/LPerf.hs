@@ -16,6 +16,7 @@ import qualified Data.Vector as Vector
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
@@ -34,6 +35,7 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -275,6 +277,21 @@ with_insts instruments = filter ((`elem` is) . Score.event_instrument)
 strip_stack :: [Score.Event] -> [Score.Event]
 strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 
+strip_env :: [Score.Event] -> [Score.Event]
+strip_env = map $ \event -> event { Score.event_environ = mempty }
+
+e_start_dur e = pretty (Score.event_start e, Score.event_duration e)
+e_start = pretty . Score.event_start
+e_pitch = maybe "?" PSignal.symbolic_pitch . Score.initial_pitch
+e_attr = pretty . Score.event_attributes
+e_inst = pretty . Score.event_instrument
+e_env key = pretty . Env.lookup key . Score.event_environ
+
+-- | Pretty-print events, presumably from 'sel_events'.  Extract the given
+-- fields, and format them in columns.
+e :: [Score.Event -> Text] -> [Score.Event] -> Text
+e extract = Text.unlines
+    . TextUtil.formatColumns 1 . map (\event -> map ($event) extract)
 
 -- * play from
 

@@ -19,7 +19,9 @@ module Derive.PSignal (
     , Sample(..)
     -- * Pitch
     , Transposed, Pitch
-    , RawPitch, PitchConfig(..), pitch_scale_id, pitch_transposers
+    , RawPitch, PitchConfig(..)
+    , symbolic_pitch
+    , pitch_scale_id, pitch_transposers
     , pitch_scale, pitch_eval_nn, pitch_eval_note, pitch_config, pitch_controls
     , PitchError(..)
     , pitch, coerce
@@ -213,6 +215,10 @@ prepend :: PSignal -> PSignal -> PSignal
 prepend s1 s2 = PSignal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 -- * Pitch
+
+-- | This is like pretty for pitch, but just shows the symbolic note name.
+symbolic_pitch :: RawPitch a -> Text
+symbolic_pitch = either showt Pitch.note_text . pitch_note . coerce
 
 pitch_scale_id :: RawPitch a -> Pitch.ScaleId
 pitch_scale_id = pscale_scale_id . pitch_scale
