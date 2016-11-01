@@ -111,6 +111,8 @@ note_calls = Derive.call_maps
         "Kotekan calls will emit a note on the initial beat.")
     , ("i-", Make.with_environ_val module_ "i-" "initial" False
         "Kotekan calls won't emit a note on the initial beat.")
+    , ("f-", Make.with_environ_val module_ "f-" "final" False
+        "Kotekan calls won't emit a final note at the end time.")
     , ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
@@ -565,6 +567,7 @@ realize_kotekan_pattern initial_final (start, end) orientation dur pitch
         -- TODO the kind of muting should be configurable.  Or, rather I should
         -- dispatch to a zero dur note call, which will pick up whatever form
         -- of mute is configured.
+        -- TODO I'm using 'm' for that now, right?
         (if muted then Call.add_attributes Attrs.mute else id) $
         Call.pitched_note (Pitches.transpose_d steps pitch)
     -- TODO It should no longer be necessary to strip flags from
@@ -909,17 +912,20 @@ c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
     "Nyog cag style. Split a single part into polos and sangsih parts by\
     \ assigning polos and sangsih to alternating notes."
-    $ Sig.callt pasang_env $ \pasang _args deriver ->
-        snd . Post.emap_asc (nyogcag pasang) True <$> deriver
+    $ Sig.callt ((,)
+    <$> Sig.defaulted "polos-first" True "First note is polos."
+    <*> pasang_env
+    ) $ \(polos_first, pasang) _args deriver -> do
+        pasang <- Pasang <$> Derive.get_instrument (polos pasang)
+            <*> Derive.get_instrument (sangsih pasang)
+        snd . Post.emap_asc (nyogcag pasang) polos_first <$> deriver
 
-nyogcag :: Pasang Score.Instrument -> Bool -> Score.Event
+nyogcag :: Pasang (Score.Instrument, Derive.Instrument) -> Bool -> Score.Event
     -> (Bool, [Score.Event])
-nyogcag pasang is_polos event = (not is_polos, [with_inst])
+nyogcag pasang is_polos event = (not is_polos, [with_inst event])
     where
-    with_inst = event
-        { Score.event_instrument =
-            if is_polos then polos pasang else sangsih pasang
-        }
+    with_inst =
+        Post.set_instrument (if is_polos then polos pasang else sangsih pasang)
 
 -- * realize calls
 

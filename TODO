@@ -3,16 +3,29 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - make gangsa and reyong norot and noltol dispatch to 'm' instead of
+    directly applying +mute.  Or should I have a call for a weak note, and
+    leave 'm' for an explicitly muted note?
   - load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4
   - shakefile: I can turn off Synth, but haddock still wants to build for it
     also tests probably
-  - norot -> nyog transition is buggy
+  - in norot -> nyog transition, the last norot note cancels the first nyog
+    note.
+    . sangsih 6i cancels out the explicit 5e
+    . Since {final} cancels normal notes, this is working as intended, and
+      I can fix with final=f or 'strong', but it's surprising.  Maybe I should
+      only have a final for negative events?
+  * When I don't use final=f, the the sangsih at the end of the nyogcag in
+    kebyar-duduk @b1 changes pitch at the end, even though it's ConstantPitch.
+    In fact all the pitches in the second time are messed up, what's going on?
+    . >pemade-isep: tuning=isep, scale=isep, 79.486nn,5u(*legong)
+      Looks like it's all right, why is it sending pitch bend for that note?
+    . Turns out I forgot to use Post.set_instrument.  See TODO below about
+      Post.set_instrument.
   * cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
-  - It seems the sangsih at the end of the nyogcag in kebyar-duduk @b1 changes
-    pitch at the end, even though it's ConstantPitch.
   - nyog has an argument for sangsih or polos first, infers based on whether
     it's on a major ruler division.
   - tools/update_all.py doesn't handle symlinks properly
@@ -24,6 +37,20 @@ UNSORTED
     . E.g. I wanted to add a 'lh = alt lh-1 lh-2', but wound up putting
       it the global transform.  But that gets awkward when it gets too big.
       Also the .ky syntax is more convenient.
+    . Could I get the repl to do vi editing?  Write to a file, invoke vi,
+      then write back the result.
+      . The problem is I don't have any answer cmds.  I'd need a new protocol
+        msg, e.g. REdit Text, which then expects a QEdit Text, but that means
+        the repl side has to keep state.
+      - I could also do "LState.set_transform :e", and if the repl sees a :e,
+        it runs the editor and replaces the contents with its output.
+      - Then I can switch global transform to use ky syntax and now I have
+        a local .ky file.
+    - I could also have a cmd key to edit the current cmdline.  Or maybe
+      load the history, use ? etc. to find the line I want, edit, and then
+      have some way to return the line with the cursor on it.
+      . For the latter I'd need a vim binding, say override ZZ to delete all
+        but the current line.
   * It seems like 0 dur might be a more useful default for mridingam calls.
   * Also, what about bringing back infer from duration?
   * make LPitch.simplify_enharmonics work on all scales
@@ -502,6 +529,8 @@ cleanup:
     . It's error prone because there's nothing that enforces that you set
       instrument with Post.set_instrument, and if you don't, it will work until
       you use a scale with e.g. tuning, and then it will be slightly off.
+    - Maybe I should at least not export Score.Event(..) so I can't directly
+      modify its fields?
     . Originally added in the patch 'add interpolate scale':
       The bigger problem was that since pitches got the Environ at conversion
       time, the interpolate scale couldn't substitute `key-from` and `key-to`

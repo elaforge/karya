@@ -97,8 +97,8 @@ test_norot_cancel = do
 
     -- Canceled by a note at the end of the block.
     let run_block notes = e_pattern 0 $
-            DeriveTest.derive_blocks [("b1=ruler -- import bali.gangsa",
-                UiTest.note_spec (inst_title <> title, notes, []))]
+            DeriveTest.derive_blocks [("b1=ruler -- " <> block_title,
+                UiTest.note_spec (title, notes, []))]
     equal (run_block [(0, 8, "norot -- 4c"), (8, 0, "4d")])
         ([(pasang, "121212232")], [])
 
@@ -258,8 +258,7 @@ test_unison_tuning = do
             . DeriveTest.derive_tracks_setup (DeriveTest.with_ui config_inst)
                 title
             . UiTest.note_track
-        title = "import bali.gangsa | inst = >" <> inst_title
-            <> " | scale=wayang | unison"
+        title = block_title <> " | scale=wayang | unison"
         extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
@@ -284,10 +283,36 @@ test_kempyung = do
         ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
 
 test_nyogcag = do
-    let run = DeriveTest.extract extract . derive " | nyog"
-        extract e = (Score.event_start e, DeriveTest.e_instrument e)
+    let run title = DeriveTest.extract extract . derive title
+        extract e = (Score.event_start e, Score.event_instrument e)
     let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
-    equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
+    equal (run " | nyog" notes) ([(0, polos), (1, sangsih), (2, polos)], [])
+    equal (run " | nyog f" notes)
+        ([(0, sangsih), (1, polos), (2, sangsih)], [])
+
+test_nyogcag_norot = do
+    let run parent notes = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_linear (block_title <> ngotek True) $
+            (">", parent) : UiTest.note_track notes
+        extract e = (Score.event_start e, Score.event_instrument e,
+            DeriveTest.e_pitch e)
+    equal (run
+        [(0, 4, "nyog | ap")]
+        [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")])
+        ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
+    -- TODO I have to explicitly turn off the final norot note with 'f-', it
+    -- seems like that should happen for me.
+    equal (run
+        [(3, 4, "nyog f | ap")]
+        [ (0, 3, "f- | nt f -- 4d")
+        , (3, 1, "4c"), (4, 1, "4d"), (5, 1, "4e"), (6, 1, "4f")
+        ])
+        ( [ (0, polos, "4d"), (1, sangsih, "4e"), (2, polos, "4d")
+          , (3, sangsih, "4c"), (4, polos, "4d"), (5, sangsih, "4e")
+          , (6, polos, "4f")
+          ]
+        , []
+        )
 
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
@@ -375,11 +400,10 @@ derive_polos extract title = first (fromMaybe [] . lookup polos)
     . e_by_inst extract . derive title
 
 derive :: String -> [UiTest.EventSpec] -> Derive.Result
-derive title notes = derive_tracks $
-    UiTest.note_spec (inst_title <> title, notes, [])
+derive title notes = derive_tracks $ UiTest.note_spec (title, notes, [])
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import bali.gangsa"
+derive_tracks = DeriveTest.derive_tracks block_title
 
 -- * extract
 
@@ -428,8 +452,9 @@ pitch_digit p = case p of
     "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
     _ -> "unknown pitch: " <> show p
 
-inst_title :: String
-inst_title = "i3 | inst-polos = >i1 | inst-sangsih = >i2"
+block_title :: String
+block_title =
+    "import bali.gangsa | inst = >i3 | inst-polos = >i1 | inst-sangsih = >i2"
 
 polos :: Score.Instrument
 polos = Score.Instrument "i1"

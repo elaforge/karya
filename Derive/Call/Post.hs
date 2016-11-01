@@ -342,6 +342,9 @@ add_environ name val = Score.modify_environ $ Env.insert_val name val
 
 -- | Set the instrument on an event, and also update its pitches based on
 -- the instrument's environ.
+--
+-- TODO it's really awkward how I have to do this, can't I do this at convert
+-- time or something?
 set_instrument :: (Score.Instrument, Derive.Instrument)
     -- ^ unaliased instrument name, this should come from Derive.get_instrument
     -> Score.Event -> Score.Event
