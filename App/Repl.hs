@@ -119,7 +119,15 @@ repl socket settings = Exception.mask (loop settings)
                     Quit -> return ()
             Quit -> return ()
     read_eval_print socket history =
-        maybe (return Quit) (liftIO . send_command socket) =<< get_input history
+        maybe (return Quit) (liftIO . eval socket history) =<< get_input history
+
+eval :: Network.PortID -> Maybe FilePath -> Text -> IO Status
+eval socket maybe_history expr
+    | Text.strip expr `elem` [":h", ":H"] = case maybe_history of
+        Nothing -> putStrLn "no history to edit" >> return Continue
+        Just history ->
+            maybe (return Continue) (send_command socket) =<< edit_line history
+    | otherwise = send_command socket expr
 
 send_command :: Network.PortID -> Text -> IO Status
 send_command socket expr
@@ -176,24 +184,44 @@ cyan_bg = "\ESC[46m\STX"
 plain_bg :: String
 plain_bg = "\ESC[39;49m\STX"
 
+
 -- * editor
 
 -- | Open an editor on the given text, and return what it saves.
 -- TODO maybe use $EDITOR instead of hardcoding vi.
 edit :: Text -> IO (Maybe Text)
-edit text = do
-    (path, hdl) <- Posix.Temp.mkstemp "repl"
-    Text.IO.hPutStr hdl text
+edit text = edit_temp_file "repl-" text "vi" (\tmp -> [tmp])
+
+-- | Open the given file, and return the selected line.
+edit_line :: FilePath -> IO (Maybe Text)
+edit_line fname = edit_temp_file "repl-edit-history-" "" "vi" cmdline
+    where
+    -- Unfortunately, 'set readonly' causes an annoying
+    cmdline tmp =
+        [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
+        , "-c", "set nowrite"
+        , fname
+        ]
+
+edit_temp_file :: FilePath -> Text -> FilePath -> (FilePath -> [String])
+    -> IO (Maybe Text)
+edit_temp_file prefix contents cmd args = do
+    (path, hdl) <- Posix.Temp.mkstemp prefix
+    Text.IO.hPutStr hdl contents
     Text.IO.hPutStr hdl "\n" -- otherwise vim doesn't like no final newline
     IO.hClose hdl
-    pid <- Process.spawnProcess "vi" [path]
-    code <- Process.waitForProcess pid
-    case code of
-        Exit.ExitSuccess -> do
-            edited <- Text.IO.readFile path
-            File.ignoreEnoent $ Directory.removeFile path
-            -- vim will add a final newline.
-            return $ Just (Text.stripEnd edited)
-        Exit.ExitFailure code -> do
-            Log.warn $ "non-zero exit code from editor: " <> showt code
-            return Nothing
+    action path
+        `Exception.finally` File.ignoreEnoent (Directory.removeFile path)
+    where
+    action path = do
+        pid <- Process.spawnProcess cmd (args path)
+        code <- Process.waitForProcess pid
+        case code of
+            Exit.ExitSuccess -> do
+                edited <- Text.IO.readFile path
+                -- vim will add a final newline.
+                return $ Just (Text.stripEnd edited)
+            Exit.ExitFailure code -> do
+                Log.warn $ "non-zero exit code from editor "
+                    <> showt (cmd : args path) <> ": " <> showt code
+                return Nothing

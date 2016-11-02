@@ -58,7 +58,7 @@ UNSORTED
         . I could implicitly wrap everything in global, and then expect the
           global transform to contain a "note transformer: global = ...".
         . The only thing is that this doesn't display so compactly in logview.
-    - I could also have a cmd key to edit the current cmdline.  Or maybe
+    * I could also have a cmd key to edit the current cmdline.  Or maybe
       load the history, use ? etc. to find the line I want, edit, and then
       have some way to return the line with the cursor on it.
       . For the latter I'd need a vim binding, say override ZZ to delete all
