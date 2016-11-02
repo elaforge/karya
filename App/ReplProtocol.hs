@@ -59,7 +59,6 @@ error_result msg = CmdResult empty_result [Log.msg Log.Error Nothing msg]
 raw :: Text -> CmdResult
 raw msg = CmdResult (Raw msg) []
 
-
 -- * protocol
 
 initialize :: IO a -> IO a
@@ -71,15 +70,15 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | Client send and receive.
-query :: FilePath -> Query -> IO (Either Exception.IOException Response)
+query :: Network.PortID -> Query -> IO (Either Exception.IOException Response)
 query socket query = Exception.try $ do
-    hdl <- Network.connectTo "localhost" (Network.UnixSocket socket)
+    hdl <- Network.connectTo "localhost" socket
     send hdl query
     IO.hFlush hdl
     receive hdl
 
 -- | Specialized 'query'.
-query_cmd :: FilePath -> Text -> IO CmdResult
+query_cmd :: Network.PortID -> Text -> IO CmdResult
 query_cmd socket cmd = do
     response <- query socket (QCommand cmd)
     return $ case response of
@@ -87,7 +86,7 @@ query_cmd socket cmd = do
         Right response -> raw $ "unexpected response: " <> showt response
         Left exc -> raw $ "exception: " <> showt exc
 
-query_save_file :: FilePath -> IO (Maybe (Maybe FilePath))
+query_save_file :: Network.PortID -> IO (Maybe (Maybe FilePath))
 query_save_file socket = do
     response <- query socket QSaveFile
     case response of
@@ -97,7 +96,7 @@ query_save_file socket = do
             Log.error $ "unexpected response to QSaveFile: " <> showt response
             return Nothing
 
-query_completion :: FilePath -> Text -> IO [Text]
+query_completion :: Network.PortID -> Text -> IO [Text]
 query_completion socket prefix = do
     response <- query socket (QCompletion prefix)
     case response of

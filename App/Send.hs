@@ -53,7 +53,7 @@ main = ReplProtocol.initialize $ do
 
 query :: Text -> IO Text
 query = fmap ReplProtocol.format_result
-    . ReplProtocol.query_cmd Config.repl_port
+    . ReplProtocol.query_cmd Config.repl_socket
 
 printLogs :: [Text] -> IO ()
 printLogs [] = return ()

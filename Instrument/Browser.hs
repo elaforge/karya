@@ -260,7 +260,7 @@ choose_instrument qualified = do
 
 query :: Text -> IO Text
 query = fmap ReplProtocol.format_result
-    . ReplProtocol.query_cmd Config.repl_port
+    . ReplProtocol.query_cmd Config.repl_socket
 
 -- | Find instruments that match the query, and update the UI incrementally.
 process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstTypes.Qualified]

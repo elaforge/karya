@@ -9,6 +9,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Network
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Environment
 import qualified System.FilePath as FilePath
@@ -23,23 +24,25 @@ import Global
 type Input a = Haskeline.InputT IO a
 
 initial_settings :: Haskeline.Settings IO
-initial_settings = Haskeline.setComplete complete $ Haskeline.defaultSettings
+initial_settings = Haskeline.defaultSettings
     { Haskeline.historyFile = Nothing
     , Haskeline.autoAddHistory = True
     }
 
-complete :: (String, String) -> IO (String, [Haskeline.Completion])
-complete =
+complete :: Network.PortID -> (String, String)
+    -> IO (String, [Haskeline.Completion])
+complete socket =
     Haskeline.completeQuotedWord (Just '\\') "\"" Haskeline.listFiles
-        complete_identefier
+        (complete_identefier socket)
     -- Like ghci, complete filenames within quotes.
     -- TODO or just disable completion?
 
-complete_identefier :: Haskeline.CompletionFunc IO
-complete_identefier = Haskeline.completeWord Nothing word_break_chars complete
+complete_identefier :: Network.PortID -> Haskeline.CompletionFunc IO
+complete_identefier socket =
+    Haskeline.completeWord Nothing word_break_chars complete
     where
     complete prefix = do
-        words <- ReplProtocol.query_completion Config.repl_port (txt prefix)
+        words <- ReplProtocol.query_completion socket (txt prefix)
         return $ map (Haskeline.simpleCompletion . untxt) words
 
 word_break_chars :: String
@@ -54,18 +57,18 @@ main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     socket <- case args of
-        [] -> return Config.repl_port
-        [fn] -> return fn
+        [] -> return Config.repl_socket
+        [fn] -> return $ Network.UnixSocket fn
         _ -> errorIO $ "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
     liftIO $ putStrLn "^D to quit"
-    repl socket initial_settings
+    repl socket $ Haskeline.setComplete (complete socket) initial_settings
 
 data SaveFileChanged = SaveFileChanged FilePath deriving (Show)
 instance Exception.Exception SaveFileChanged
 
-repl :: FilePath -> Haskeline.Settings IO -> IO ()
+repl :: Network.PortID -> Haskeline.Settings IO -> IO ()
 repl socket settings = Exception.mask (loop settings)
     where
     loop old_settings restore = do

@@ -237,7 +237,7 @@ send_action chan = liftIO . Fltk.send_action chan
 send_to_app :: Text -> IO ()
 send_to_app cmd =
     Text.IO.putStrLn . ("response: "<>) . ReplProtocol.format_result
-        =<< ReplProtocol.query_cmd Config.repl_port cmd
+        =<< ReplProtocol.query_cmd Config.repl_socket cmd
 
 get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $

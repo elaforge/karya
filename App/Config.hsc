@@ -8,6 +8,7 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
 import qualified Data.String as String
+import qualified Network
 import qualified System.Info
 import qualified System.FilePath as FilePath
 
@@ -148,9 +149,14 @@ status_integrate_source = (8, "src")
 
 -- * repl
 
--- | Port to listen on for repl requests.
+-- | Unix socket to listen on for repl requests.
 repl_port :: FilePath
 repl_port = "seq-repl"
+
+-- | PortID version of 'repl_port'.  The clients use filenames so they rely on
+-- this being a unix socket.
+repl_socket :: Network.PortID
+repl_socket = Network.UnixSocket repl_port
 
 -- * input
 
