@@ -42,6 +42,7 @@ import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 import qualified Shake.SourceControl as SourceControl
 import Types
@@ -91,6 +92,11 @@ set_transform = State.modify_config . (State.global_transform #=)
 
 get_transform :: Cmd.CmdL Text
 get_transform = State.config#State.global_transform <#> State.get
+
+edit_transform :: Cmd.CmdL ReplProtocol.Result
+edit_transform = do
+    expr <- get_transform
+    return $ ReplProtocol.Edit expr "LState.set_transform"
 
 transform :: (Text -> Text) -> Cmd.CmdL ()
 transform = State.modify_config . (State.global_transform %=)

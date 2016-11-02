@@ -100,5 +100,6 @@ import qualified Perform.RealTime as RealTime
 import Cmd.Repl.Global
 
 import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
 import Types
 import Global

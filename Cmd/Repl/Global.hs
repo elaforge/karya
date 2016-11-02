@@ -16,18 +16,11 @@
     types like strings, or get their block from the current focus, so they're
     easier to type.
 
-    The various show_* functions print out state generally in a 'show' format,
-    but not necessarily.  It's designed to be for human reading and may leave
-    out relatively uninteresting data.
-
-    TODO Can I use Language.Haskell.Parser or haddock to generate a list of
-    toplevel names along with their documentation to give the REPL for
-    completion and interactive documentation?
-
     To keep this module from getting huge, only general purpose and common cmds
     should go here.  Cmds which are meant to be used from the REPL but may be
     more specialized can go in Cmd.Repl.L* modules.
 -}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 module Cmd.Repl.Global (
     module Cmd.Repl.Global, module Cmd.ModifyEvents
 ) where
@@ -35,7 +28,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 -- Just make sure these are compiled.
 import Midi.Synth ()
 import qualified Ui.Block as Block
@@ -46,6 +38,8 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Info as Info
+-- These are used to write patterns for 'ModifyEvents.substitute'.
+import Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
 import Cmd.Repl.LEvent ()
 import qualified Cmd.Repl.LInst as LInst
 import Cmd.Repl.LPerf ()
@@ -57,11 +51,9 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 import Types
-
--- These are used to write patterns for 'ModifyEvents.substitute'.
-import Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
 
 
 -- | Take a string and automatically figure out what kind of ID is expected and
@@ -256,7 +248,19 @@ collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
 expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
 
-
 -- | Called from the browser.
 change_instrument :: Text -> Cmd.CmdL ()
 change_instrument = LInst.change_instrument
+
+-- | The result of a REPL Cmd is converted to a 'ReplProtocol.Result' with
+-- this method.
+class Return a where
+    _to_result :: a -> ReplProtocol.Result
+instance {-# OVERLAPPABLE #-} Show a => Return a where
+    _to_result = ReplProtocol.Format . showt
+instance Return ReplProtocol.Result where
+    _to_result = id
+instance Return Text where
+    _to_result = ReplProtocol.Raw
+instance Return String where
+    _to_result = ReplProtocol.Raw . txt

@@ -14,6 +14,7 @@ module App.ReplProtocol (
     , server_receive, server_send
     -- * format
     , format_result
+    , abbreviate_logs
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -46,8 +47,15 @@ data Response =
 data CmdResult = CmdResult !Result ![Log.Msg]
     deriving (Eq, Show)
 
-data Result = Raw !Text -- ^ print this text directly, without formatting it
-    | Format !Text -- ^ format and print
+data Result =
+    -- | Print this text directly, without formatting it.
+    Raw !Text
+    -- | Format and print.
+    | Format !Text
+    -- | Open an editor on the first text, then prefix the second and send it
+    -- back in a QCommand.  E.g. @Edit "hi" "report"@ would edit "hi", then
+    -- @QCommand "report \\\"edited hi\\\""@.
+    | Edit !Text !Text
     deriving (Eq, Show)
 
 empty_result :: Result
@@ -143,6 +151,7 @@ format_result (CmdResult response logs_) =
 format :: Result -> Text
 format (Raw val) = val
 format (Format val) = txt $ PPrint.format_str $ untxt val
+format (Edit text _) = "Edit: " <> text
 
 abbreviate_logs :: [Log.Msg] -> [Log.Msg]
 abbreviate_logs logs = loaded ++ filter (not . package_log) logs
@@ -186,9 +195,11 @@ instance Serialize.Serialize CmdResult where
 instance Serialize.Serialize Result where
     put (Raw a) = put_tag 0 >> put a
     put (Format a) = put_tag 1 >> put a
+    put (Edit a b) = put_tag 2 >> put a >> put b
     get = get_tag >>= \tag -> case tag of
         0 -> Raw <$> get
         1 -> Format <$> get
+        2 -> Edit <$> get <*> get
         _ -> Serialize.bad_tag "Result" tag
 
 instance DeepSeq.NFData CmdResult where

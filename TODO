@@ -30,7 +30,7 @@ UNSORTED
     it's on a major ruler division.
   * tools/update_all.py doesn't handle symlinks properly
   - sometimes enter or slash doesn't want to go back before a certain point
-  - Editing the .ky file still seems a little heavyweight.  Since it isn't
+  . Editing the .ky file still seems a little heavyweight.  Since it isn't
     saved and tracked with the score, it seems more appropriate for library
     type stuff.  With .git the obvious thing is to track in git, and then have
     an easy way to get the path, so I can do 'vi $(bin/ky)'.
@@ -42,10 +42,22 @@ UNSORTED
       . The problem is I don't have any answer cmds.  I'd need a new protocol
         msg, e.g. REdit Text, which then expects a QEdit Text, but that means
         the repl side has to keep state.
-      - I could also do "LState.set_transform :e", and if the repl sees a :e,
+      . I could also do "LState.set_transform :e", and if the repl sees a :e,
         it runs the editor and replaces the contents with its output.
+        . Wait, but I want to edit an existing thing, so it needs to send
+          a string to edit.
+      * Ok, then REdit Text ReturnPrefix
+        Edit the text, then prepend the prefix and send it back.
+        . How to return an Edit from a Cmd?
+          . Using show means I can return anything showable, if I return
+            a Result then I lose that.
+          . I could try to parse back to Result from the string, or maybe
+            overlapping instances could do it.
       - Then I can switch global transform to use ky syntax and now I have
         a local .ky file.
+        . I could implicitly wrap everything in global, and then expect the
+          global transform to contain a "note transformer: global = ...".
+        . The only thing is that this doesn't display so compactly in logview.
     - I could also have a cmd key to edit the current cmdline.  Or maybe
       load the history, use ? etc. to find the line I want, edit, and then
       have some way to return the line with the cursor on it.

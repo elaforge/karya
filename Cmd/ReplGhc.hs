@@ -6,7 +6,7 @@
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
 -- | REPL implementation that directly uses the GHC API.
 --
--- Supported versions: 74, 78
+-- Supported versions: 7.10
 module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret, complete
@@ -148,14 +148,13 @@ respond _ (QCompletion prefix) = RCompletion <$>
         return $ filter (prefix `Text.isPrefixOf`) $
             map (txt . Outputable.showPpr dflags) rdrs
 
-make_response :: Result (Cmd.CmdL String) -> Cmd
+make_response :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
 make_response (val, logs, warns) = case val of
     Left err -> return $ ReplProtocol.CmdResult
         (ReplProtocol.Raw ("compile error: " <> txt err)) all_logs
     Right cmd -> do
         result <- cmd
-        return $ ReplProtocol.CmdResult (ReplProtocol.Format (txt result))
-            all_logs
+        return $ ReplProtocol.CmdResult result all_logs
     where
     all_logs = map (Log.msg Log.Notice Nothing . txt) logs
         ++ map (Log.msg Log.Warn Nothing . txt) warns
@@ -166,14 +165,14 @@ make_response (val, logs, warns) = case val of
 type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
-reload :: [String] -> Ghc (Result (Cmd.CmdL String))
+reload :: [String] -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
 reload toplevel_modules = do
     (result, logs, warns) <- collect_logs $
         GHC.load GHC.LoadAllTargets <* set_context toplevel_modules
     return (mkcmd result, logs, warns)
     where
     mkcmd (Right ok)
-        | GHC.succeeded ok = Right (return "reloaded")
+        | GHC.succeeded ok = Right (return $ ReplProtocol.Raw "reloaded")
         | otherwise = Left "reload failed"
     mkcmd (Left err) = Left err
     -- Set the module loaded callback to print out modules as they are loaded.
@@ -185,14 +184,16 @@ reload toplevel_modules = do
     -- show_ppr :: (Outputable.Outputable a) => a -> String
     -- show_ppr = Outputable.showSDoc . Outputable.ppr
 
-compile :: String -> Ghc (Result (Cmd.CmdL String))
+compile :: String -> Ghc (Result (Cmd.CmdL ReplProtocol.Result))
 compile expr = do
     (hval, logs, warns) <- collect_logs $ GHC.compileExpr typed_expr
     return (fmap coerce hval, logs, warns)
     where
-    typed_expr = "fmap show (" ++ expr ++ ") :: Cmd.CmdL String"
+    -- The _to_result method is defined in "Cmd.Repl.Global".
+    typed_expr =
+        "fmap _to_result (" ++ expr ++ ") :: Cmd.CmdL ReplProtocol.Result"
     -- This should be safe because I just asserted the the type above.
-    coerce val = GHC.Exts.unsafeCoerce# val :: Cmd.CmdL String
+    coerce val = GHC.Exts.unsafeCoerce# val :: Cmd.CmdL ReplProtocol.Result
 
 set_context :: [String] -> Ghc ()
 set_context mod_names = do
