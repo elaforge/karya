@@ -50,9 +50,8 @@ readProcessWithExitCode env cmd args stdin = do
 
 -- | Start a subprocess in the background, and kill it if an exception is
 -- raised.
-supervisedProcess :: Process.CreateProcess -> (Process.ProcessHandle -> IO a)
-    -> IO a
-supervisedProcess create action = Exception.mask $ \restore -> do
+supervised :: Process.CreateProcess -> (Process.ProcessHandle -> IO a) -> IO a
+supervised create action = Exception.mask $ \restore -> do
     -- I hope this mask means that I can't get killed after starting the
     -- process but before installing the exception handler.
     (_, _, _, hdl) <- logged create

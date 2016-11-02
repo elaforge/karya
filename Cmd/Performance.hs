@@ -254,7 +254,7 @@ evaluate_im maybe_im_config lookup_inst events action
     | Just im_config <- maybe_im_config, not (null im_events) = do
         Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events
         let proc = Process.proc (Cmd.im_binary im_config) []
-        Util.Process.supervisedProcess proc $ \pid ->
+        Util.Process.supervised proc $ \pid ->
             action rest_events (Just pid)
     | otherwise = action events Nothing
     where

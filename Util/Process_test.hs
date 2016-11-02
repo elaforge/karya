@@ -12,8 +12,8 @@ import qualified Util.Thread as Thread
 
 -- It's kind of annoying to test this automatically, so just make sure it looks
 -- right when run by hand.
-manual_test_supervisedProcess = do
-    let f cmd = Process.supervisedProcess (System.Process.shell cmd)
+manual_test_supervised = do
+    let f cmd = Process.supervised (System.Process.shell cmd)
     tid <- Concurrent.forkIO $ f "sleep 1; echo sub done" $ \_ -> do
         Thread.delay 1
         putStrLn "thread done"
