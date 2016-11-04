@@ -81,9 +81,8 @@ patches = map add_doc $
         , (n 'v' "+3"   (kempli <> Attrs.v3),   Key2.a3)
         , (n 'b' "b"    bebende,                Key2.d4)
         , (n 'g' "B"    (bebende <> open),      Key2.ds4)
-        -- TODO make sure these names are the same as the corresponding kendang
         , (n 'q' "o"    kajar,                  Key2.f4)
-        , (n 'w' "T"    (kajar <> Attrs.rim <> open), Key2.fs4)
+        , (n 'w' "+"    (kajar <> Attrs.rim <> open), Key2.fs4)
         -- The Sonic Couture kajar doesn't have this.
         , (n 'e' "P"    (kajar <> Attrs.rim),   Key2.g4)
         -- Soniccouture also has a low kajar variant.

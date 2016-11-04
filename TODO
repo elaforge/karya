@@ -3,21 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - make gangsa and reyong norot and noltol dispatch to 'm' instead of
-    directly applying +mute.  Or should I have a call for a weak note, and
-    leave 'm' for an explicitly muted note?
   - load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4
   - shakefile: I can turn off Synth, but haddock still wants to build for it
     also tests probably
-  - in norot -> nyog transition, the last norot note cancels the first nyog
-    note.
-    . sangsih 6i cancels out the explicit 5e
-    . Since {final} cancels normal notes, this is working as intended, and
-      I can fix with final=f or 'strong', but it's surprising.  Maybe I should
-      only have a final for negative events?
   * When I don't use final=f, the the sangsih at the end of the nyogcag in
     kebyar-duduk @b1 changes pitch at the end, even though it's ConstantPitch.
     In fact all the pitches in the second time are messed up, what's going on?
@@ -30,6 +21,8 @@ UNSORTED
     it's on a major ruler division.
   * tools/update_all.py doesn't handle symlinks properly
   - sometimes enter or slash doesn't want to go back before a certain point
+    . Next time it happens, see what Play.top_of_block returns.
+    . save/bali/lelambatan/sekatian-old doesn't start at the beginning
   . Editing the .ky file still seems a little heavyweight.  Since it isn't
     saved and tracked with the score, it seems more appropriate for library
     type stuff.  With .git the obvious thing is to track in git, and then have
@@ -1457,6 +1450,15 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - in norot -> nyog transition, the last norot note cancels the first
+          nyog note.
+          . sangsih 6i cancels out the explicit 5e
+          . Since {final} cancels normal notes, this is working as intended, and
+            I can fix with final=f or 'strong', but it's surprising.  Maybe
+            I should only have a final for negative events?
+        - make gangsa and reyong norot and noltol dispatch to 'm' instead of
+          directly applying +mute.  Or should I have a call for a weak note, and
+          leave 'm' for an explicitly muted note?
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.

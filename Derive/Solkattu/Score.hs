@@ -390,7 +390,7 @@ t5s = korvais (adi 6) mridangam $ map (purvangam.)
 
 tisrams :: [Korvai]
 tisrams = concat
-    [ t1s, t2s, t3s
+    [ t1s, t2s, t3s, t4s, t5s
     ]
 
 -- * vary

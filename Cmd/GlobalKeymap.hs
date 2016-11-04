@@ -106,7 +106,7 @@ cmd_map_errors :: [Text]
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
-    -- This actually belongs in 'player_bindings', but needs to be in IO.
+    -- This actually belongs in 'play_bindings', but needs to be in IO.
     , plain_char ' ' "stop, selection to point" context_stop
     ]
 
@@ -140,7 +140,7 @@ quit_bindings =
 
 pure_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
 pure_bindings = concat
-    [ player_bindings, mouse_bindings, selection_bindings, step_play_bindings
+    [ play_bindings, mouse_bindings, selection_bindings, step_play_bindings
     , view_config_bindings, block_config_bindings, edit_state_bindings
     , event_bindings, pitch_bindings, create_bindings, clip_bindings
     -- TODO use this to catch the focus bug
@@ -148,8 +148,8 @@ pure_bindings = concat
         (Cmd.modify $ \st -> st { Cmd.state_debug_ui_msgs = True })
     ]
 
-player_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
-player_bindings = concat
+play_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
+play_bindings = concat
     -- The pattern is that the modifiers select where to start playing, and
     -- the key says whether it's the local block or from the root block.
     [ bind block local "play local block" Play.local_block

@@ -167,8 +167,7 @@ input_to_nn inst attr_map patch_scale scale attrs inote = case inote of
             return $ Just (InputNote.PitchChange note_id nn, [])
     InputNote.NoteOff note_id vel ->
         return $ Just (InputNote.NoteOff note_id vel, ks)
-        where
-        ks = maybe [] fst $ Common.lookup_attributes attrs attr_map
+        where ks = maybe [] fst $ Common.lookup_attributes attrs attr_map
     InputNote.Control note_id control val ->
         return $ Just (InputNote.Control note_id control val, [])
     where
@@ -218,8 +217,10 @@ convert_pitch :: Patch.AttributeMap -> Maybe Patch.Scale -> Attrs.Attributes
 convert_pitch attr_map patch_scale attrs nn =
     case Common.lookup_attributes attrs attr_map of
         Nothing -> ((, []) <$> maybe_pitch, attrs /= mempty)
-        Just (keyswitches, maybe_keymap) -> ((, keyswitches) <$>
-            maybe maybe_pitch set_keymap maybe_keymap, False)
+        Just (keyswitches, maybe_keymap) ->
+            ( (, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap
+            , False
+            )
     where
     maybe_pitch = apply_patch_scale nn
     apply_patch_scale = maybe Just Patch.convert_scale patch_scale

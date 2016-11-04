@@ -8,6 +8,7 @@
 module Local.Repl where
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
+import qualified Local.Instrument.Kontakt.ScGamelan as Kontakt.ScGamelan
 import qualified Local.Instrument.Kontakt.Wayang as Kontakt.Wayang
 
 
@@ -16,3 +17,4 @@ test_cmd = Log.notice "test command"
 
 
 wayang_allocations = Kontakt.Wayang.allocations
+sc_gamelan_allocations = Kontakt.ScGamelan.kebyar_allocations
