@@ -3,6 +3,8 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include "config.h"
+#include "geom.h"
+#include "types.h"
 #include "MsgCollector.h"
 #include "SymbolTable.h"
 #include "Block.h"
@@ -31,6 +33,9 @@ void clear_ui_msgs();
 BlockWindow *create(int x, int y, int w, int h, const char *label,
     BlockConfig *config);
 void destroy(BlockWindow *view);
+void get_view_status(
+    BlockWindow *view, IRect *rect, Zoom *zoom,
+    int *time_padding, int *track_padding);
 
 void set_size(BlockWindow *view, int x, int y, int w, int h);
 void get_size(BlockWindow *view, int *sz);

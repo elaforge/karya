@@ -33,7 +33,7 @@
 -}
 module Ui.BlockC (
     -- * view creation
-    create_view, destroy_view
+    create_view, destroy_view, get_view_status
     -- ** set other attributes
     , set_size
     , set_zoom
@@ -115,6 +115,24 @@ destroy_view view_id = fltk $ exc "destroy_view" $ do
         c_destroy viewp
         return $ Map.delete view_id ptr_map
 foreign import ccall "destroy" c_destroy :: Ptr CView -> IO ()
+
+-- | Get various position metrics of the window.
+--
+-- This is unused because I sync this with UI msgs, but if they prove
+-- unreliable I could use this to verify or just replace them.
+get_view_status :: ViewId -> Fltk (Rect.Rect, Types.Zoom, Int, Int)
+    -- ^ (rect, zoom, time_padding, track_padding)
+get_view_status view_id = fltk $ exc "get_view_status" $ do
+    viewp <- PtrMap.get view_id
+    alloca $ \rectp -> alloca $ \zoomp ->
+        alloca $ \timep -> alloca $ \trackp -> do
+            c_get_view_status viewp rectp zoomp timep trackp
+            (,,,) <$> peek rectp <*> peek zoomp
+                <*> (fromIntegral <$> peek timep)
+                <*> (fromIntegral <$> peek trackp)
+foreign import ccall "get_view_status"
+    c_get_view_status :: Ptr CView -> Ptr Rect.Rect -> Ptr Types.Zoom
+        -> Ptr CInt -> Ptr CInt -> IO ()
 
 -- ** Set other attributes
 
