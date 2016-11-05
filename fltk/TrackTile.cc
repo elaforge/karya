@@ -64,7 +64,7 @@ TrackTile::handle(int evt)
 
 
 void
-TrackTile::set_zoom(const ZoomInfo &zoom)
+TrackTile::set_zoom(const Zoom &zoom)
 {
     this->zoom = zoom;
     for (int i = 0; i < this->tracks(); i++)

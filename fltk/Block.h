@@ -101,8 +101,8 @@ public:
     void set_skeleton_display_bg(const Color &color);
 
     // Set the zoom, which is the view rectangle in the timewise direction.
-    const ZoomInfo &get_zoom() const { return zoom; }
-    void set_zoom(const ZoomInfo &zoom);
+    const Zoom &get_zoom() const { return zoom; }
+    void set_zoom(const Zoom &zoom);
     // Get and set trackwise scrolling, in pixels.
     int get_track_scroll() const;
     void set_track_scroll(int offset);
@@ -174,7 +174,7 @@ public:
     }
 private:
     BlockConfig config;
-    ZoomInfo zoom;
+    Zoom zoom;
     // The ruler track gets this when there's "nothing" in it.
     Track *no_ruler;
 
@@ -199,7 +199,7 @@ private:
             SimpleScroll track_scroll;
                 TrackTile track_tile;
 
-    void set_zoom_attr(const ZoomInfo &zoom);
+    void set_zoom_attr(const Zoom &zoom);
     void set_ruler_width(int width);
     void update_scrollbars();
 

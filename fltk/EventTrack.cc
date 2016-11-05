@@ -98,7 +98,7 @@ TrackSignal::time_at(int i) const
 
 
 int
-TrackSignal::pixel_time_at(const ZoomInfo &zoom, int i) const
+TrackSignal::pixel_time_at(const Zoom &zoom, int i) const
 {
     ASSERT_MSG(signal, "pixel_time_at on empty track signal");
     return zoom.to_pixels(from_real(signal[i].time) - zoom.offset);
@@ -257,7 +257,7 @@ EventTrack::unfocus_title()
 /////////////////////////
 
 void
-EventTrack::set_zoom(const ZoomInfo &new_zoom)
+EventTrack::set_zoom(const Zoom &new_zoom)
 {
     if (new_zoom == this->zoom)
         return;

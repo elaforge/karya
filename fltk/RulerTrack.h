@@ -105,7 +105,7 @@ public:
 class OverlayRuler : public Fl_Widget {
 public:
     explicit OverlayRuler(const RulerConfig &config, bool is_ruler_track);
-    void set_zoom(const ZoomInfo &new_zoom) { zoom = new_zoom; }
+    void set_zoom(const Zoom &new_zoom) { zoom = new_zoom; }
     void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels);
     ScoreTime time_end() const { return config.last_mark_pos; }
@@ -125,7 +125,7 @@ public:
 
     // Remember how much I've scrolled, to do fl_scroll() optimization.
     ScoreTime last_offset;
-    ZoomInfo zoom;
+    Zoom zoom;
 protected:
     void draw() override;
 
@@ -144,7 +144,7 @@ class RulerTrack : public Track {
 public:
     explicit RulerTrack(const RulerConfig &config);
     virtual Fl_Box &title_widget() override;
-    virtual void set_zoom(const ZoomInfo &zoom) override;
+    virtual void set_zoom(const Zoom &zoom) override;
     virtual void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels) override {
         ruler.set_selection(selnum, tracknum, sels);

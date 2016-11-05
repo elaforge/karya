@@ -16,7 +16,7 @@ operator<<(std::ostream &os, const ScoreTime &pos)
 }
 
 std::ostream &
-operator<<(std::ostream &os, const ZoomInfo &z)
+operator<<(std::ostream &os, const Zoom &z)
 {
-    return os << "ZoomInfo(" << z.offset << ", " << z.factor << ")";
+    return os << "Zoom(" << z.offset << ", " << z.factor << ")";
 }

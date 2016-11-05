@@ -121,7 +121,7 @@ Block::handle(int evt)
             ScoreTime scroll = this->zoom.to_time(
                 Fl::event_dy() * mousewheel_time_scale);
             ScoreTime old = this->zoom.offset;
-            set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
+            set_zoom(Zoom(this->zoom.offset + scroll, this->zoom.factor));
             if (this->zoom.offset != old)
                 MsgCollector::get()->block(UiMsg::msg_time_scroll, this);
         }
@@ -309,7 +309,7 @@ Block::set_skeleton_display_bg(const Color &color)
 
 
 void
-Block::set_zoom(const ZoomInfo &zoom)
+Block::set_zoom(const Zoom &zoom)
 {
     // This function, and hence set_zoom_attr below, is called from the outside
     // to set the zoom.  Therefore, no msg should be sent back out, since I
@@ -320,9 +320,9 @@ Block::set_zoom(const ZoomInfo &zoom)
 
 
 void
-Block::set_zoom_attr(const ZoomInfo &new_zoom)
+Block::set_zoom_attr(const Zoom &new_zoom)
 {
-    ZoomInfo clamped = new_zoom;
+    Zoom clamped = new_zoom;
     // Clip offset to be positive, and quantize it to conform exactly to
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
@@ -610,7 +610,7 @@ Block::update_scrollbars()
     this->track_sb.set_scroll_zoom(
         track_tile.track_end(), get_track_scroll(), track_scroll.w());
 
-    const ZoomInfo &zoom = this->get_zoom();
+    const Zoom &zoom = this->get_zoom();
     // The scale(1)s just convert a ScoreTime to a double.
     this->time_sb.set_scroll_zoom(
         track_tile.time_end().scale(1),
@@ -631,8 +631,7 @@ Block::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ScoreTime end = self->track_tile.time_end();
     // This does the same stuff as Block::set_zoom, but doesn't call
     // update_scrollbars and collects the msg.
-    ZoomInfo new_zoom(
-        ScoreTime(end.scale(time_offset)), self->get_zoom().factor);
+    Zoom new_zoom(ScoreTime(end.scale(time_offset)), self->get_zoom().factor);
     if (new_zoom.offset != self->get_zoom().offset) {
         MsgCollector::get()->block(UiMsg::msg_time_scroll, self);
         self->set_zoom_attr(new_zoom);

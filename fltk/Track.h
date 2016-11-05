@@ -81,7 +81,7 @@ public:
     }
     int handle(int evt) override;
 
-    virtual void set_zoom(const ZoomInfo &zoom) {}
+    virtual void set_zoom(const Zoom &zoom) {}
     virtual void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels)
     {}

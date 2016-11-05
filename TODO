@@ -23,6 +23,18 @@ UNSORTED
   - sometimes enter or slash doesn't want to go back before a certain point
     . Next time it happens, see what Play.top_of_block returns.
     . save/bali/lelambatan/sekatian-old doesn't start at the beginning
+    . Likely due to Block.view_zoom getting out of sync.
+    . That means it scrolled without emitting UpdateTimeScroll.  Or possibly
+      I got a wrong or out of order UpdateTimeScroll.  How can I catch that?
+    . The other way would be to poll instead of waiting for msgs.  So each
+      respond could get an update to see if anything changed.  It might also
+      solve the focus problem.
+    . I think the way to debug it would basically be the same thing, only use
+      it as a check to catch it.  But if I'm going to do it anyway, and it's
+      cheap, why not just always do it that way?
+    . On the other hand, polling would be work done on each respond for each
+      window when the vast majority of times nothing has changed, and I do
+      want to be careful about respond overhead.
   . Editing the .ky file still seems a little heavyweight.  Since it isn't
     saved and tracked with the score, it seems more appropriate for library
     type stuff.  With .git the obvious thing is to track in git, and then have

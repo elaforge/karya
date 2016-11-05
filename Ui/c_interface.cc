@@ -87,7 +87,7 @@ get_size(BlockWindow *view, int *sz)
 }
 
 void
-set_zoom(BlockWindow *view, const ZoomInfo *zoom)
+set_zoom(BlockWindow *view, const Zoom *zoom)
 {
     view->block.set_zoom(*zoom);
 }

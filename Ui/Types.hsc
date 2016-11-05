@@ -51,8 +51,8 @@ instance CStorable Rect.Rect where
 
 -- | View zoom and time scroll offset.
 data Zoom = Zoom {
-    zoom_offset :: TrackTime
-    , zoom_factor :: Double
+    zoom_offset :: !TrackTime
+    , zoom_factor :: !Double
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Zoom where
@@ -60,15 +60,15 @@ instance Pretty.Pretty Zoom where
         "+" <> pretty offset <> "*" <> Num.showFloat 1 factor
 
 instance CStorable Zoom where
-    sizeOf _ = #size ZoomInfo
+    sizeOf _ = #size Zoom
     alignment _ = alignment (0 :: CDouble)
     peek zoomp = do
-        offset <- (#peek ZoomInfo, offset) zoomp
-        factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble
+        offset <- (#peek Zoom, offset) zoomp
+        factor <- (#peek Zoom, factor) zoomp :: IO CDouble
         return $ Zoom offset (Util.hs_double factor)
     poke zoomp (Zoom offset factor) = do
-        (#poke ZoomInfo, offset) zoomp offset
-        (#poke ZoomInfo, factor) zoomp (Util.c_double factor)
+        (#poke Zoom, offset) zoomp offset
+        (#poke Zoom, factor) zoomp (Util.c_double factor)
 
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.

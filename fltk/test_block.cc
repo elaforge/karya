@@ -462,7 +462,7 @@ main(int argc, char **argv)
 
     Fl::add_timeout(1, timeout_func, nullptr);
 
-    view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
+    view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
 
     std::vector<Selection> sels;
     sels.push_back(

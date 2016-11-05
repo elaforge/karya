@@ -66,7 +66,7 @@ public:
     RealTime time_at(int i) const;
     // Get the time pixel at the given index, taking shift, stretch, and the
     // given zoom into account.
-    int pixel_time_at(const ZoomInfo &zoom, int i) const;
+    int pixel_time_at(const Zoom &zoom, int i) const;
 
     // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have
@@ -127,7 +127,7 @@ public:
     }
     virtual void set_title(const char *title) override;
     virtual void set_title_focus() override;
-    void set_zoom(const ZoomInfo &new_zoom) override;
+    void set_zoom(const Zoom &new_zoom) override;
     virtual void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels) override {
         overlay_ruler.set_selection(selnum, tracknum, sels);
@@ -170,7 +170,7 @@ private:
     void unfocus_title();
 
     EventTrackConfig config;
-    ZoomInfo zoom;
+    Zoom zoom;
     // Remember how much I've scrolled, to do fl_scroll() optimization.
     // TODO but not anymore
     ScoreTime last_offset;

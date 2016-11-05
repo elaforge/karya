@@ -118,7 +118,7 @@ struct UiMsg {
     // Union members can't have constructors, so make extra sure all fields
     // are initialized.
     //
-    // I'd rather pass IRect and ZoomInfo by value, but once again, no
+    // I'd rather pass IRect and Zoom by value, but once again, no
     // constructors.  And it's not worth making one-off structs.
 
     // Fields from the various fltk event_*() functions, used for 'msg_event'.

@@ -34,7 +34,7 @@ void destroy(BlockWindow *view);
 
 void set_size(BlockWindow *view, int x, int y, int w, int h);
 void get_size(BlockWindow *view, int *sz);
-void set_zoom(BlockWindow *view, const ZoomInfo *zoom);
+void set_zoom(BlockWindow *view, const Zoom *zoom);
 void set_track_scroll(BlockWindow *view, int pixels);
 void set_selection(BlockWindow *view, int selnum, int tracknum,
     Selection *sels, int nsels);

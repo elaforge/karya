@@ -69,20 +69,20 @@ std::ostream &operator<<(std::ostream &os, const ScoreTime &pos);
 // You divide by factor to go from ScoreTime -> pixels, so it can't be 0.
 #define MINIMUM_FACTOR .0001
 
-struct ZoomInfo {
+struct Zoom {
     // ScoreTime are bigger than ints, so they have to be clipped.  If they
     // are clipped to INT_MIN/INT_MAX, overflow happens easily when they have
     // pixel offsets added to them.  So make it something with plenty of room
     // but still probably bigger than your monitor.
     enum { max_pixels = INT_MAX / 2 };
-    ZoomInfo() : offset(0), factor(1) {}
-    ZoomInfo(ScoreTime offset, double factor) :
+    Zoom() : offset(0), factor(1) {}
+    Zoom(ScoreTime offset, double factor) :
         offset(offset), factor(std::max(MINIMUM_FACTOR, factor))
     {}
-    bool operator==(const ZoomInfo &o) const {
+    bool operator==(const Zoom &o) const {
         return offset == o.offset && factor == o.factor;
     }
-    bool operator!=(const ZoomInfo &o) const { return !(*this == o); }
+    bool operator!=(const Zoom &o) const { return !(*this == o); }
 
     // How many pixels is the given pos at, at this zoom?  This doesn't take
     // the zoom offset into account, so you'll have to subtract that from 'pos'
@@ -107,6 +107,6 @@ struct ZoomInfo {
     double factor;
 };
 
-std::ostream &operator<<(std::ostream &os, const ZoomInfo &z);
+std::ostream &operator<<(std::ostream &os, const Zoom &z);
 
 #endif

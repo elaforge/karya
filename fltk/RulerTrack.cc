@@ -352,7 +352,7 @@ RulerTrack::title_widget()
 
 
 void
-RulerTrack::set_zoom(const ZoomInfo &new_zoom)
+RulerTrack::set_zoom(const Zoom &new_zoom)
 {
     // duplicated, like the scroll in ::draw, with EventTrack
     if (new_zoom == ruler.zoom)

@@ -200,7 +200,7 @@ set_event_context(UiMsg::Context &c, BlockWindow *view, bool track_drag)
     if (t && track_drag) {
         int y = Fl::event_y() - t->y();
         c.has_pos = true;
-        const ZoomInfo &zoom = c.focus->block.get_zoom();
+        const Zoom &zoom = c.focus->block.get_zoom();
         c.pos = zoom.to_time(y) + zoom.offset;
     }
 }
