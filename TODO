@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - it's practically impossible to see a point selection on top of
+    a negative+positive event pair: --||--
+  - entering negative events is awkward
+    . If I enter a long note and shorten it, I lose the pitch?
+    . I think I lose the pitch when I enter a positive note afterwards, or
+      delete one.
+    . It's confusing how entry is at the beginning, and appears in the wrong
+      place.
   - load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
@@ -20,7 +28,7 @@ UNSORTED
   - nyog has an argument for sangsih or polos first, infers based on whether
     it's on a major ruler division.
   * tools/update_all.py doesn't handle symlinks properly
-  - sometimes enter or slash doesn't want to go back before a certain point
+  * sometimes enter or slash doesn't want to go back before a certain point
     . Next time it happens, see what Play.top_of_block returns.
     . save/bali/lelambatan/sekatian-old doesn't start at the beginning
     . Likely due to Block.view_zoom getting out of sync.
@@ -35,6 +43,14 @@ UNSORTED
     . On the other hand, polling would be work done on each respond for each
       window when the vast majority of times nothing has changed, and I do
       want to be careful about respond overhead.
+    . Seems to happen when I created a new view, via Factor.selection.
+      Something about create, then add a track, then backslash?
+      No, but it happens sometime during the editing.
+      Happens when entering the bottom note, and not in Cmd.Internal
+    . It's Selection.auto_scroll, it sets offset but doesn't ask fltk what
+      actually happened.
+    . first, have fltk report after a set if it had to clip it
+    . second, make Selection.auto-time_scroll not try to scroll past the end.
   . Editing the .ky file still seems a little heavyweight.  Since it isn't
     saved and tracked with the score, it seems more appropriate for library
     type stuff.  With .git the obvious thing is to track in git, and then have

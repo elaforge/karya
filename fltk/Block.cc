@@ -311,11 +311,12 @@ Block::set_skeleton_display_bg(const Color &color)
 void
 Block::set_zoom(const Zoom &zoom)
 {
-    // This function, and hence set_zoom_attr below, is called from the outside
-    // to set the zoom.  Therefore, no msg should be sent back out, since I
-    // don't need to tell the outside what it already knows.
     this->set_zoom_attr(zoom);
     this->update_scrollbars();
+    // If the requested zoom was changed due to clamping, I need to tell
+    // haskell what it is now.  Otherwise, no need.
+    if (this->zoom != zoom)
+        MsgCollector::get()->block(UiMsg::msg_time_scroll, this);
 }
 
 

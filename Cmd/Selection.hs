@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
@@ -392,8 +393,9 @@ auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
 auto_scroll view_id old new = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    let time_offset = auto_time_scroll view
-            (Sel.cur_pos <$> old) (Sel.cur_pos new)
+    end <- State.block_end (Block.view_block view)
+    let time_offset = Num.clamp 0 (end - Block.visible_time view) $
+            auto_time_scroll view (Sel.cur_pos <$> old) (Sel.cur_pos new)
         track_offset = auto_track_scroll block view new
     State.modify_zoom view_id $ \zoom ->
         zoom { Types.zoom_offset = time_offset }
@@ -413,8 +415,8 @@ auto_time_scroll view prev_pos pos
     visible = Block.visible_time view
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
-    space = ScoreTime.double
-        (visible_pixels / Types.zoom_factor (Block.view_zoom view))
+    space = ScoreTime.double $
+        visible_pixels / Types.zoom_factor (Block.view_zoom view)
     visible_pixels = 30
 
 -- | Find the track scroll that would put the given selection into view.
