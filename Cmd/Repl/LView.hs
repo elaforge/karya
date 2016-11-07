@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
 module Cmd.Repl.LView where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -19,6 +18,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.ViewConfig as ViewConfig
 
 import Global
+import Types
 
 
 -- * create
@@ -30,6 +30,9 @@ create name = do
     caller <- Cmd.get_focused_block
     whenJust (NoteTrack.to_block_id blocks ns (Just caller) name) $
         void . Create.view
+
+cover :: Cmd.M m => ViewId -> m [ViewId]
+cover = ViewConfig.views_covering
 
 -- * arrange
 

@@ -164,12 +164,12 @@ realize_tumpuk :: Maybe RealTime -> RealTime -> RealTime -> Double
     -> Derive.NoteDeriver
 realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
         notes =
-    mconcatMap realize_note $ filter ((>0) . note_dyn . fst) $ zip notes extents
+    mconcatMap realize $ filter ((>0) . note_dyn . fst) $ zip notes extents
     where
     extents = Grace.fit_grace_durs (RealTime.seconds place)
         prev event_start event_end (length notes) dur
     note_dyn (_, _, dyn) = dyn
-    realize_note ((tpitch, attrs, dyn), (real_start, dur)) = do
+    realize ((tpitch, attrs, dyn), (real_start, dur)) = do
         start <- Derive.score real_start
         end <- Derive.score (real_start + dur)
         pitch <- case tpitch of
@@ -273,13 +273,11 @@ c_pitches :: [Pitch.Pitch] -> Derive.Generator Derive.Note
 c_pitches pitches = Derive.generator module_ "pitches" Tags.inst
     ("Play notes for each pitch: " <> ShowVal.doc pitches
         <> ". Really only for `4e` and `5i` for the penyorog.")
-    $ Sig.call0 $ Sub.inverting $ \args -> do
-        (_, show_pitch, _) <- Call.get_pitch_functions
-        let realize pitch = do
-                note <- Derive.require ("unshowable pitch: " <> pretty pitch)
-                    (show_pitch pitch)
-                Call.pitched_note =<< Call.eval_note (Args.start args) note
-        mconcatMap (Call.place args . realize) pitches
+    $ Sig.call0 $ Sub.inverting $ \args ->
+        mconcatMap (Call.place args . realize (Args.start args)) pitches
+    where
+    realize start pitch =
+        Call.transposed_pitched_note =<< Call.eval_pitch_ start pitch
 
 -- * cancel
 
@@ -473,10 +471,10 @@ type Voice = Int
 realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
 realize_note show_pitch voice start (pitch, attrs) =
-    Call.add_attributes attrs $ Derive.with_val EnvKey.voice voice $ do
-        note <- Derive.require ("unshowable pitch: " <> pretty pitch)
-            (show_pitch pitch)
-        Call.pitched_note =<< Call.eval_note start note
+    -- TODO I could maybe get rid of all the show_pitch args by using
+    -- Call.eval_pitch_, but would that be inefficient?
+    Call.add_attributes attrs $ Derive.with_val EnvKey.voice voice $
+        Call.transposed_pitched_note =<< Call.eval_pitch show_pitch start pitch
 
 
 -- * kotekan

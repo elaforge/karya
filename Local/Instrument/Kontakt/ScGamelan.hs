@@ -36,25 +36,29 @@ patches :: [MidiInst.Patch]
 patches = map add_doc $
     CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
     : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
+    : reyong_ks (ranged_patch Legong.reyong_range "reyong")
+    : ranged_patch Legong.trompong_range "trompong"
     : concat
-    [ gangsa True (range_of Legong.jegog) "jegog"
-    , gangsa True (range_of Legong.calung) "calung"
-    , gangsa True (range_of Legong.penyacah) "penyacah"
-    , gangsa False Legong.ugal_range "ugal"
-    , gangsa True (range_of Legong.pemade) "pemade"
-    , gangsa True (range_of Legong.kantilan) "kantilan"
-    ] ++
-    [ reyong_ks $ ranged_patch Legong.reyong_range "reyong"
-    , ranged_patch Legong.trompong_range "trompong"
+    [ pasang True (range_of Legong.jegog) "jegog"
+    , pasang True (range_of Legong.calung) "calung"
+    , pasang True (range_of Legong.penyacah) "penyacah"
+    , tunggal False Legong.ugal_range "ugal"
+    , pasang False (range_of Legong.pemade) "pemade"
+    , pasang False (range_of Legong.kantilan) "kantilan"
     ]
     where
-    gangsa with_pasang range name =
-        [ MidiInst.code #= Bali.zero_dur_mute $ gangsa_ks $
-            ranged_patch range name
-        ] ++ if not with_pasang then [] else
-            [ MidiInst.code #= Bali.pasang_code $
-                  ranged_patch range (name <> "-pasang")
-            ]
+    pasang wrap_octaves range name =
+        tunggal wrap_octaves range name ++
+        [ MidiInst.code #= (Bali.pasang_code <> Bali.gangsa_note wrap) $
+            ranged_patch range (name <> "-pasang")
+        ]
+        where wrap = if wrap_octaves then Just range else Nothing
+    tunggal wrap_octaves range name =
+        [ MidiInst.code #= Bali.gangsa_note wrap $
+            gangsa_ks $ ranged_patch range name
+        ]
+        where wrap = if wrap_octaves then Just range else Nothing
+
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =

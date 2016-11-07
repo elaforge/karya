@@ -265,17 +265,17 @@ c_set_pitch_sargam = transformer "set-pitch-sargam"
         Sig.defaulted "pitch" (Right (Left (Pitch.pitch 0 0))) "Pitch."
     ) $ \pitch args deriver -> do
         pitch <- sargam_pitch (Args.start args) pitch
-        Derive.with_constant_pitch pitch deriver
+        Call.with_transposed_pitch pitch deriver
 
 sargam_pitch :: ScoreTime -> Either Text (Either Pitch.Pitch PSignal.Pitch)
-    -> Derive.Deriver PSignal.Pitch
+    -> Derive.Deriver PSignal.Transposed
 sargam_pitch start p = case p of
     Left sargam -> do
         pitch <- Derive.require ("can't parse sargam: " <> sargam) $
             parse_sargam sargam
-        Call.eval_pitch start pitch
-    Right (Left pitch) -> Call.eval_pitch start pitch
-    Right (Right pitch) -> return pitch
+        Call.eval_pitch_ start pitch
+    Right (Left pitch) -> Call.eval_pitch_ start pitch
+    Right (Right pitch) -> return $ PSignal.coerce pitch
 
 -- | TODO: write and use Parse.p_int for negative octave
 parse_sargam :: Text -> Maybe Pitch.Pitch
@@ -300,6 +300,6 @@ with_default_pitch start default_pitch deriver = do
         Just _ -> deriver
         Nothing -> case default_pitch of
             Left pitch -> do
-                pitch <- Call.eval_pitch start pitch
-                Derive.with_constant_pitch pitch deriver
+                pitch <- Call.eval_pitch_ start pitch
+                Call.with_transposed_pitch pitch deriver
             Right pitch -> Derive.with_constant_pitch pitch deriver

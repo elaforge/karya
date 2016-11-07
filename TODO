@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - OutOfRange pitch error should show the pre-transposition pitch.
+    . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
+      with information about the pitch.
+  - fltk: If I solo a track, then delete a track before it, the solo placement
+    gets messed up.
+  - Pitch.Note is misnamed, it should really be SymbolicPitch or PCall or
+    something.  Pitch.Symbolic?
+    . I already have BaseTypes.PitchCall, but it's a Call, so it has args
+      and everything.
+    . Also it's dumb how I have PSignal.Pitch and Pitch.Pitch.
   - it's practically impossible to see a point selection on top of
     a negative+positive event pair: --||--
   - entering negative events is awkward
@@ -11,6 +21,7 @@ UNSORTED
       delete one.
     . It's confusing how entry is at the beginning, and appears in the wrong
       place.
+    . Non-point select should not get -0 at its start.
   - load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
@@ -1468,6 +1479,10 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      * transpose on calung and jegog should wrap around
+        - It still doesn't work for 3i, because evaluating the pitch itself
+          throws before I can wrap it.  Maybe I shouldn't have an OutOfRange,
+          or at least save it until backend convert?
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -1478,6 +1493,9 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - shorter notation for kempyung |?  Also for polos-only and
+          sangsih-only.
+        - nyog shouldn't need ap
         - in norot -> nyog transition, the last norot note cancels the first
           nyog note.
           . sangsih 6i cancels out the explicit 5e

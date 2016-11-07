@@ -4,6 +4,8 @@
 
 -- | Calls for Balinese instruments.
 module Cmd.Instrument.Bali where
+import qualified Data.List as List
+
 import qualified Util.Doc as Doc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -16,15 +18,20 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Pitch as Pitch
 import Global
+import Types
 
 
 -- | Emit events for both polos and sangsih.
@@ -57,13 +64,48 @@ pasang_thru msg = do
 
 zero_dur_mute :: MidiInst.Code
 zero_dur_mute = zero_dur_reapply Articulation.mute_call
+    zero_dur_mute_doc (Note.default_note Note.use_attributes)
+
+gangsa_note :: Maybe Scale.Range -> MidiInst.Code
+gangsa_note maybe_range = zero_dur_reapply Articulation.mute_call
+    (zero_dur_mute_doc <> doc maybe_range)
+    $ \args -> maybe id (\top -> wrap top (Args.start args)) maybe_range $
+        Note.default_note Note.use_attributes args
+    where
+    doc Nothing = ""
+    doc (Just (Scale.Range bottom top)) =
+        " Any pitch below " <> Doc.pretty bottom <> " or above "
+        <> Doc.pretty top <> " will be transposed down by octaves until it\
+        \ fits in the instrument's range."
+
+zero_dur_mute_doc :: Doc.Doc
+zero_dur_mute_doc =
     " By default, this will emit a muted note, but the instrument can override\
     \ it as appropriate."
 
-zero_dur_reapply :: BaseTypes.Symbol -> Doc.Doc -> MidiInst.Code
-zero_dur_reapply mute_call doc = MidiInst.note_calls $ MidiInst.null_call $
+zero_dur_reapply :: BaseTypes.Symbol -> Doc.Doc
+    -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
+zero_dur_reapply mute_call doc note = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "note"
-    ("When the event has zero duration, dispatch to the "
-        <> ShowVal.doc mute_call <> " call." <> doc)
-    (\args -> Eval.reapply_call (Args.context args) mute_call [])
-    (Sub.inverting $ Note.default_note Note.use_attributes)
+        ("When the event has zero duration, dispatch to the "
+            <> ShowVal.doc mute_call <> " call." <> doc)
+        (\args -> Eval.reapply_call (Args.context args) mute_call [])
+        (Sub.inverting note)
+
+wrap :: Scale.Range -> ScoreTime -> Derive.Deriver a -> Derive.Deriver a
+wrap range start deriver = do
+    (parse_p, show_p, _) <- Call.get_pitch_functions
+    from_pitch <- Call.get_parsed_pitch parse_p =<< Derive.real start
+    to_pitch <- Call.eval_pitch show_p start (wrap_octaves range from_pitch)
+    Call.with_transposed_pitch to_pitch deriver
+
+wrap_octaves :: Scale.Range -> Pitch.Pitch -> Pitch.Pitch
+wrap_octaves (Scale.Range bottom top) pitch
+    | pitch > top = try [octave top, octave top - 1]
+    | pitch < bottom = try [octave bottom, octave bottom + 1]
+    | otherwise = pitch
+    where
+    try = fromMaybe pitch . List.find in_range
+        . map (\oct -> pitch { Pitch.pitch_octave = oct })
+    octave = Pitch.pitch_octave
+    in_range p = bottom <= p && p <= top

@@ -347,11 +347,14 @@ reapply_call :: Derive.Callable d => Derive.Context d -> BaseTypes.Symbol
 reapply_call ctx call_id call_args =
     reapply ctx (BaseTypes.call call_id call_args :| [])
 
--- | A version of 'eval' specialized to evaluate pitch calls.
-eval_pitch :: ScoreTime -> BaseTypes.PitchCall -> Derive.Deriver PSignal.Pitch
-eval_pitch pos call =
-    Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
+-- | A version of 'eval' specialized to evaluate pitch calls.  It's unknown if
+-- this pitch has been transposed or not.
+eval_pitch :: ScoreTime -> BaseTypes.PitchCall
+    -> Derive.Deriver (PSignal.RawPitch a)
+eval_pitch pos call = do
+    pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
         =<< eval ctx (BaseTypes.ValCall call)
+    return $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
     ctx :: Derive.Context Derive.Pitch
     ctx = Derive.dummy_context pos 0 "<eval_pitch>"
@@ -366,6 +369,8 @@ eval_note scale note = case Derive.scale_note_to_call scale note of
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
+--
+-- TODO shouldn't this typecheck to a Pitch like 'eval_pitch'?
 apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver BaseTypes.Val
 apply_pitch pos call = apply ctx call []
     where ctx = Derive.dummy_context pos 0 "<apply_pitch>"

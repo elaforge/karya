@@ -39,6 +39,8 @@ test_articulation = do
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "4u"), (1, "4e"), (1, "4a"), (2, "4e"), (2, "4a")], [])
     equal (run [(0, 0, "XX --")]) (Just [(0, "4u"), (0, "4u")], [])
+    -- Not affected by transposition.
+    equal (run [(0, 0, "%t-dia=1 | O --")]) (Just [(0, "4e"), (0, "4a")], [])
 
 test_norot = do
     let run = first (lookup 2) . e_pattern 0

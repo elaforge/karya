@@ -198,6 +198,9 @@ get_pitch :: RealTime -> Derive.Deriver PSignal.Pitch
 get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
+-- | Get the symbolic version of the transposed pitch.  Since it's transposed,
+-- if you turn it back to a 'PSignal.Pitch', you should use
+-- 'with_transposed_pitch'.
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch)
     -- ^ Parse pitch function, as returned by 'get_pitch_functions'.
     -- It's passed separately to avoid the overhead of calling
@@ -211,6 +214,14 @@ dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
 
 with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch = Derive.with_constant_pitch
+
+with_transposed_pitch :: PSignal.Transposed -> Derive.Deriver a
+    -> Derive.Deriver a
+with_transposed_pitch pitch =
+    without_transpose . with_pitch (PSignal.coerce pitch)
+
+without_transpose :: Derive.Deriver a -> Derive.Deriver a
+without_transpose = Derive.remove_controls Controls.transposers
 
 with_symbolic_pitch :: BaseTypes.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
@@ -299,16 +310,24 @@ parse_pitch parse pitch = do
 
 -- * note
 
--- | Evaluate a 'Pitch.Pitch'.
-eval_pitch :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Pitch
-eval_pitch start pitch = do
-    (_, to_note, _) <- get_pitch_functions
+eval_pitch_ :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Transposed
+eval_pitch_ start pitch = do
+    (_, show_pitch, _) <- get_pitch_functions
+    eval_pitch show_pitch start pitch
+
+-- | Evaluate a 'Pitch.Pitch'.  It returns a transposed pitch since
+-- a 'Pitch.Pitch' is assumed to have been transposed (e.g. 'get_parsed_pitch'
+-- uses a transposed pitch so range calculation works).
+eval_pitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
+    -> Derive.Deriver PSignal.Transposed
+eval_pitch show_pitch start pitch = do
     note <- Derive.require ("scale doesn't have pitch: " <> pretty pitch)
-        (to_note pitch)
+        (show_pitch pitch)
     eval_note start note
 
--- | Evaluate a symbolic pitch.
-eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
+-- | Evaluate a symbolic pitch.  Like 'eval_pitch', I assume the Note was
+-- Transposed, or at least should be an absolute pitch.
+eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Transposed
 eval_note pos note = Eval.eval_pitch pos $
     BaseTypes.call (BaseTypes.Symbol (Pitch.note_text note)) []
 
@@ -329,6 +348,9 @@ reapply_note args = Eval.reapply_call (Args.context args) "" []
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
 pitched_note pitch = with_pitch pitch note
+
+transposed_pitched_note :: PSignal.Transposed -> Derive.NoteDeriver
+transposed_pitched_note pitch = with_transposed_pitch pitch note
 
 -- | Add an attribute and generate a single note.
 attribute_note :: Attrs.Attributes -> Derive.NoteDeriver

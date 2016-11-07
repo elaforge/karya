@@ -98,6 +98,12 @@ release_velocity = "release-vel"
 
 -- ** transposition
 
+-- | The common transpose controls.  A scale with special needs could still
+-- have its own unique transposers, but most all scales should respond to
+-- these.
+transposers :: [Control]
+transposers = [octave, diatonic, chromatic, nn, hz]
+
 transpose_control :: Pitch.Transpose -> (Double, Control)
 transpose_control t = case t of
     Pitch.Diatonic d -> (d, diatonic)
