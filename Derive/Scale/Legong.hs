@@ -85,7 +85,7 @@ scale_map fmt =
 
 jegog, calung, penyacah :: BaliScales.ScaleMap
 jegog = inst_scale_map 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
-calung = inst_scale_map 2 (Pitch.pitch 4 I) (Pitch.pitch 5 As)
+calung = inst_scale_map 2 (Pitch.pitch 4 I) (Pitch.pitch 4 As)
 penyacah = inst_scale_map 3 (Pitch.pitch 5 0) (Pitch.pitch 5 As)
 
 pemade, pemade_b :: BaliScales.ScaleMap
