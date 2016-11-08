@@ -51,12 +51,12 @@ transpose_c = transpose . Pitch.Chromatic . fromIntegral
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.
 pitch_nn :: PSignal.Transposed -> Derive.Deriver Pitch.NoteNumber
-pitch_nn = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
+pitch_nn = either (Derive.throw . ("evaluating pitch nn: " <>) . pretty)
     return . PSignal.pitch_nn
 
 -- | Like 'pitch_nn', but return the Note.
 pitch_note :: PSignal.Transposed -> Derive.Deriver Pitch.Note
-pitch_note = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
+pitch_note = either (Derive.throw . ("evaluating symbolic pitch: " <>) . pretty)
     return . PSignal.pitch_note
 
 -- | Modify a pitch by hz.  Its symbolic pitch will remain the same.

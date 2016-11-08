@@ -246,13 +246,13 @@ key_tonic = Pitch.degree_pc . Theory.key_tonic
 
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
     -> Either BaseTypes.PitchError Pitch.Note
-show_pitch smap key pitch
-    | bottom <= semis && semis <= top =
-        Right $ TheoryFormat.show_pitch (smap_fmt smap) key pitch
-    | otherwise = Left BaseTypes.out_of_range
-    where
-    (bottom, top) = smap_range smap
-    semis = Theory.pitch_to_semis (smap_layout smap) pitch
+show_pitch smap key = Right . TheoryFormat.show_pitch (smap_fmt smap) key
+    -- Previously this would check for OutOfRange, but it meant I couldn't
+    -- transpose a pitch to out of range even if I was going to later transpose
+    -- it back in range (say via octave wrapping).  Since the range is
+    -- ultimately which degrees can be mapped to frequencies, it seems it
+    -- doesn't hurt anything for the symbolic pitch to be theoretically
+    -- boundless.
 
 read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
     -> Either BaseTypes.PitchError Pitch.Pitch

@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
+    to lead to surprising double applications.  If I use 'set' then I ignore
+    the environment.  What I really want is a transformation for every "" call
+    by instrument.
+    . Don't I have sort of that in Patch Config controls?
+  - Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
+  - should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
       with information about the pitch.
@@ -1480,9 +1487,11 @@ Derive:
       - Add an input mode for bols.
     bali:
       * transpose on calung and jegog should wrap around
-        - It still doesn't work for 3i, because evaluating the pitch itself
-          throws before I can wrap it.  Maybe I shouldn't have an OutOfRange,
-          or at least save it until backend convert?
+      * Wrap still doesn't work for 3i, because evaluating the pitch itself
+        throws before I can wrap it.  Maybe I shouldn't have an OutOfRange,
+        or at least save it until backend convert?
+        . It's from Pitches.pitch_note.  Symbolic pitch shouldn't need to
+          throw OutOfRange.
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe

@@ -21,6 +21,7 @@ import Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.ParseText as ParseText
+import qualified Util.Pretty as Pretty
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
@@ -74,6 +75,10 @@ type ParseKey key = Maybe Pitch.Key -> Either BaseTypes.PitchError key
 data RelativePitch =
     RelativePitch !Pitch.Octave !Pitch.PitchClass !(Maybe Pitch.Accidentals)
     deriving (Show)
+
+instance Pretty.Pretty RelativePitch where
+    pretty (RelativePitch oct pc accs) = "relative:"
+        <> pretty (Pitch.Pitch oct (Pitch.Degree pc (fromMaybe 0 accs)))
 
 relative_to_absolute :: RelativePitch -> Pitch.Pitch
 relative_to_absolute (RelativePitch oct pc acc) =
