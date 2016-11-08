@@ -251,6 +251,12 @@ test_kotekan_strange_length = do
     equal (run 0 True [(0, 12, "k '-12-21' -- 4c")])
         ([(polos, "1-12-21-12-21"), (sangsih, "-3-232-3-232-")], [])
 
+test_unison = do
+    let run = DeriveTest.extract extract . derive " | unison"
+        extract e = (Score.event_instrument e, DeriveTest.e_pitch e)
+    equal (run [(0, 1, "4c")]) ([(polos, "4c"), (sangsih, "4c")], [])
+    equal (run [(0, 1, "p+ | -- 4c")]) ([(polos, "4c")], [])
+
 test_unison_tuning = do
     -- This is not so much testing the 'unison' call as making sure the
     -- instrument and tuning are properly set.

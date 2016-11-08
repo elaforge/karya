@@ -46,7 +46,7 @@ c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
             NonEmpty.toList flags
 
 c_hold :: Derive.Taggable d => Derive.Transformer d
-c_hold = Make.with_environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
+c_hold = Make.environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
     (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
     Typecheck._real
 

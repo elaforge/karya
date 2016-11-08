@@ -1502,7 +1502,7 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
-        - shorter notation for kempyung |?  Also for polos-only and
+        * shorter notation for kempyung |?  Also for polos-only and
           sangsih-only.
         - nyog shouldn't need ap
         - in norot -> nyog transition, the last norot note cancels the first

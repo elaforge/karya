@@ -107,12 +107,17 @@ note_calls = Derive.call_maps
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
-    [ ("i+", Make.with_environ_val module_ "i+" "initial" True
+    [ ("i+", Make.environ_val module_ "i+" "initial" True
         "Kotekan calls will emit a note on the initial beat.")
-    , ("i-", Make.with_environ_val module_ "i-" "initial" False
+    , ("i-", Make.environ_val module_ "i-" "initial" False
         "Kotekan calls won't emit a note on the initial beat.")
-    , ("f-", Make.with_environ_val module_ "f-" "final" False
+    , ("f-", Make.environ_val module_ "f-" "final" False
         "Kotekan calls won't emit a final note at the end time.")
+    , ("k+", c_kempyung) -- short version for single notes
+    , ("p+", Make.environ_val module_ "p+" "unison-only" ("polos" :: Text)
+        "Tell `unison` to only emit polos.")
+    , ("s+", Make.environ_val module_ "s+" "unison-only" ("sangsih" :: Text)
+        "Tell `unison` to only emit sangsih.")
     , ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
@@ -853,7 +858,8 @@ instance Typecheck.TypecheckSymbol KotekanStyle
 
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer module_ "unison" Tags.postproc
-    "Split part into unison polos and sangsih."
+    "Split part into unison polos and sangsih. Emit only polos if\
+    \ `unison-only=polos` and only sangsih if `unison-only=sangsih`."
     $ Sig.callt pasang_env $ \pasang _args deriver -> do
         inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
@@ -862,11 +868,14 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
     where
     unison inst pasang event
         | Score.event_instrument event == inst =
-            [ Score.add_log msg $ Post.set_instrument (polos pasang) event
-            , Score.add_log msg $ Post.set_instrument (sangsih pasang) event
-            ]
+            case Env.maybe_val "unison-only" (Score.event_environ event) of
+                Nothing -> [set polos, set sangsih]
+                Just Polos -> [set polos]
+                Just Sangsih -> [set sangsih]
         | otherwise = [event]
-        where msg = "unison from " <> pretty inst
+        where
+        msg = "unison from " <> pretty inst
+        set role = Score.add_log msg $ Post.set_instrument (role pasang) event
 
 -- | I could do this in two different ways:  Eval normally, then eval with
 -- +kempyung, and make instrument note call understand it.  Or, postproc,

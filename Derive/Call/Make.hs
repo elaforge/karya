@@ -84,22 +84,22 @@ transform_notes module_ name tags transform_doc sig transform =
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
-with_environ ::
+environ ::
     (Typecheck.Typecheck val, Typecheck.ToVal val, Derive.Taggable d) =>
     Module.Module -> BaseTypes.Key -> Doc.Doc -> Sig.Parser a
     -> (a -> val) -> Derive.Transformer d
-with_environ module_ key key_doc sig extract =
+environ module_ key key_doc sig extract =
     Derive.transformer module_ (Derive.sym_to_call_name key) mempty
         ("Set the " <> key_doc <> " environ variable.")
     $ Sig.callt sig $ \val _args ->
         Derive.with_val key (extract val)
 
 -- | Make a call that sets an environ key to a specific value.
-with_environ_val :: (ShowVal.ShowVal a, Typecheck.Typecheck a,
+environ_val :: (ShowVal.ShowVal a, Typecheck.Typecheck a,
         Typecheck.ToVal a, Derive.Taggable d) =>
     Module.Module -> Derive.CallName -> Env.Key -> a -> Doc.Doc
     -> Derive.Transformer d
-with_environ_val module_ name key val extra_doc =
+environ_val module_ name key val extra_doc =
     Derive.transformer module_ name mempty (TextUtil.join2 doc extra_doc) $
         Sig.call0t $ \_args -> Derive.with_val key val
     where
