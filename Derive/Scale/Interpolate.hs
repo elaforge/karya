@@ -19,7 +19,6 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -95,14 +94,12 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
         n <- fromMaybe 0 <$> Derive.untyped_control_at scale_at start
         let apply key = rename_environ key EnvKey.key
                 . Eval.apply_pitch (Args.start args)
-        let typecheck = Typecheck.typecheck "interpolated_degree"
-                (Args.start args)
         if n <= 0 then apply key_from from
             else if n >= 1 then apply key_to to
             else do
-                p1 <- typecheck =<< apply key_from from
-                p2 <- typecheck =<< apply key_to to
-                return $ Typecheck.to_val $ Pitches.interpolated p1 p2 n
+                p1 <- apply key_from from
+                p2 <- apply key_to to
+                return $ Pitches.interpolated p1 p2 n
     where
     doc :: ShowVal.ShowVal a => a -> Doc.Doc
     doc = ShowVal.doc

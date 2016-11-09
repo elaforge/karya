@@ -359,21 +359,23 @@ eval_pitch pos call = do
     ctx :: Derive.Context Derive.Pitch
     ctx = Derive.dummy_context pos 0 "<eval_pitch>"
 
--- | Get a Pitch from in a given scale.
-eval_note :: Derive.Scale -> Pitch.Note -> Derive.Deriver PSignal.Pitch
+-- | Get a Pitch from in a given scale.  Like 'eval_pitch', it's unknown if
+-- this pitch has been transposed or not.
+eval_note :: Derive.Scale -> Pitch.Note -> Derive.Deriver (PSignal.RawPitch a)
 eval_note scale note = case Derive.scale_note_to_call scale note of
     Nothing -> Derive.throw $ pretty scale <> " has no note " <> pretty note
-    Just vcall -> do
-        val <- apply_pitch 0 vcall
-        Typecheck.typecheck "eval_note" 0 val
+    Just vcall -> apply_pitch 0 vcall
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
---
--- TODO shouldn't this typecheck to a Pitch like 'eval_pitch'?
-apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver BaseTypes.Val
-apply_pitch pos call = apply ctx call []
-    where ctx = Derive.dummy_context pos 0 "<apply_pitch>"
+apply_pitch :: ScoreTime -> Derive.ValCall
+    -> Derive.Deriver (PSignal.RawPitch a)
+apply_pitch pos call = do
+    pitch <- Typecheck.typecheck msg pos =<< apply ctx call []
+    return $ PSignal.coerce (pitch :: PSignal.Pitch)
+    where
+    msg = "apply pitch: " <> showt (Derive.vcall_name call)
+    ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'

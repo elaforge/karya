@@ -12,12 +12,13 @@ UNSORTED
       E.g. I want %t-dia += n, but only do it once.
     . I think I can move controls application to the default note deriver.
   - Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
-  - should Eval.apply_pitch typecheck a pitch?
+  * should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
       with information about the pitch.
-  - fltk: If I solo a track, then delete a track before it, the solo placement
+  / fltk: If I solo a track, then delete a track before it, the solo placement
     gets messed up.
+    . Can't reproduce it now.
   - Pitch.Note is misnamed, it should really be SymbolicPitch or PCall or
     something.  Pitch.Symbolic?
     . I already have BaseTypes.PitchCall, but it's a Call, so it has args

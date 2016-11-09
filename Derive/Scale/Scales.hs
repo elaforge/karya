@@ -258,15 +258,13 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     env <- Internal.get_environ
     case get_call env of
         Left err -> return $ Left err
-        Right call -> Eval.apply_pitch pos call >>= \val -> case val of
-            BaseTypes.VPitch pitch -> do
-                controls <- Derive.controls_at =<< Derive.real pos
-                nn <- Derive.require_right (("evaluating pich: "<>) . pretty) $
-                    PSignal.pitch_nn $ PSignal.coerce $
-                    PSignal.config (PSignal.PitchConfig env controls)
-                        pitch
-                return $ Right nn
-            _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
+        Right call -> do
+            pitch <- Eval.apply_pitch pos call
+            controls <- Derive.controls_at =<< Derive.real pos
+            nn <- Derive.require_right (("evaluating pich: "<>) . pretty) $
+                PSignal.pitch_nn $
+                PSignal.config (PSignal.PitchConfig env controls) pitch
+            return $ Right nn
     where
     get_call env = do
         note <- input_to_note env input
