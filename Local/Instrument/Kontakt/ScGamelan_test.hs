@@ -15,8 +15,7 @@ import Global
 
 test_wrap_octaves = do
     let run extract title = DeriveTest.extract extract
-            . derive ("scale=legong" <> title)
-            . UiTest.note_track1
+            . derive ("scale=legong" <> title) . UiTest.note_track1
     equal (run DeriveTest.e_pitch " | inst=>calung-p" ["3u", "4i", "4u", "5i"])
         (["4u", "4i", "4u", "4i"], [])
     -- Ensure transposition isn't applied twice.

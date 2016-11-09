@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -279,6 +280,11 @@ set_addr inst wdev chans = modify_midi_config inst $
 set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
     Common.controls #= Map.fromList controls
+
+set_control :: State.M m => Instrument -> Score.Control -> Maybe Signal.Y
+    -> m ()
+set_control inst control val = modify_common_config_ inst $
+    Common.controls # Lens.map control #= val
 
 set_tuning_scale :: State.M m => Instrument -> Text -> Patch.Scale -> m ()
 set_tuning_scale inst tuning scale = do

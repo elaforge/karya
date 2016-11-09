@@ -3,11 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
+  * putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
     to lead to surprising double applications.  If I use 'set' then I ignore
     the environment.  What I really want is a transformation for every "" call
     by instrument.
-    . Don't I have sort of that in Patch Config controls?
+    . I have sort of that in Common.Config.config_controls?
+    . Wait, doesn't it have the same problem if the merge is not idempotent?
+      E.g. I want %t-dia += n, but only do it once.
+    . I think I can move controls application to the default note deriver.
   - Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
   - should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
@@ -20,8 +23,18 @@ UNSORTED
     . I already have BaseTypes.PitchCall, but it's a Call, so it has args
       and everything.
     . Also it's dumb how I have PSignal.Pitch and Pitch.Pitch.
+    . PSignal.Pitch : abstract transposable pitch
+      Pitch.Pitch : generic (octave, pc, accs)
+      Pitch.Note : symbolic text
+    . Still, I should be able to unify with Pitch.Note by just using [] args.
+      However, no args is actually a property I rely on, e.g. I can't parse
+      it to a Pitch unless I just ignore the args.  Also PitchCall is almost
+      completely unused.  So maybe I just need better names.
+    . Pitch.Parsed, Pitch.Symbolic?
+      Then what, parsed_octave, parsed_degree?
   - it's practically impossible to see a point selection on top of
     a negative+positive event pair: --||--
+    . Put the ears on the right side only, and eliminate for align_right?
   - entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or

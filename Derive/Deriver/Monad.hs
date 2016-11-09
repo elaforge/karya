@@ -1256,12 +1256,18 @@ instance Show (Call derived) where
 instance Pretty.Pretty (Call derived) where
     pretty (Call (CallName name) _ _) = name
 
--- | Each call has an intrinsic name.  Since call IDs may be rebound
--- dynamically, each call has its own name so that error msgs are unambiguous.
--- It's also used along with 'ArgName' for argument defaulting, so if you want
--- that to work it should be short and parseable by 'Derive.Parse.p_symbol'.
--- The name is not necessarily unique, and in fact may be intentionally
--- non-unique to share defaults with another.
+{- | Each call has an intrinsic name.  Since call IDs may be rebound
+    dynamically, each call has its own name so that error msgs are unambiguous.
+    It's also used along with 'ArgName' for argument defaulting, so if you want
+    that to work it should be short and parseable by 'Derive.Parse.p_symbol'.
+    The name is not necessarily unique, and in fact may be intentionally
+    non-unique to share defaults with another.
+
+    The documentation for all calls that differ only in name are grouped
+    together, so it's easier to read if small modifications are reflected in
+    the name only.  If you put invalid identifiers in the name, it can't be
+    used to set default arguments.
+-}
 newtype CallName = CallName Text
     deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
 

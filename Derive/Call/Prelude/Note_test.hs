@@ -3,11 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Note_test where
+import qualified Data.Map as Map
+
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
+
+import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Common as Common
+import Global
 
 
 test_note_track_call = do
@@ -48,3 +55,20 @@ test_transpose = do
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
             ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
+
+test_apply_instrument_controls = do
+    let run title controls = DeriveTest.extract DeriveTest.e_pitch $
+            DeriveTest.derive_tracks_setup (with_config controls) title
+                [(">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
+        with_config controls = DeriveTest.with_midi_config "i1" "s/1"
+            (Common.controls #= controls $ Common.empty_config)
+            (Patch.config mempty [])
+    -- This doesn't test the controls directly, but rather that the
+    -- transposition is applied as expected.
+    equal (run "" mempty) (["4c"], [])
+    let octave_up = Map.fromList [(Controls.octave, 1)]
+    equal (run "" octave_up) (["5c"], [])
+    -- Controls are merged with their default mergers.
+    equal (run "%t-oct=1" octave_up) (["6c"], [])
+    -- Controls don't get applied multiple times.
+    equal (run "inst = >i1" octave_up) (["5c"], [])

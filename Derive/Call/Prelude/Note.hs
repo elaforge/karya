@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 -- | Basic calls for note tracks.
 module Derive.Call.Prelude.Note (
     note_calls
@@ -75,37 +76,44 @@ transformed_note prepend_doc tags transform =
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
 -- receives the usual instrument and attribute transform.
-note_call :: Derive.CallName
-    -- ^ Call name.  The documentation for all calls that differ only in name
-    -- can be grouped together, so it's easier to read if small modifications
-    -- are reflected in the name only.  If you put invalid identifiers in the
-    -- name, it can't be used to set default arguments.  That's not really
-    -- a big deal for the note call, though.
-    -> Doc.Doc -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
+note_call :: Derive.CallName -> Doc.Doc -> Tags.Tags -> GenerateNote
+    -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
     Sig.call (Sig.many "attribute" "Change the instrument or attributes.") $
-    \vals -> Sub.inverting (transform_note vals . generate)
+    \vals -> Sub.inverting
+        (apply_instrument_controls . transform_note vals . generate)
     where
     prepended
         | prepend_doc == "" = generator_doc
         | otherwise = "Modified note call: " <> prepend_doc <> "\n"
             <> generator_doc
     generator_doc =
-        "The note call is the main note generator, and will emit a single"
-        <> " score event. It interprets `>inst` and `+attr` args by"
-        <> " setting those fields of the event.  This is bound to the"
-        <> " null call, \"\", but any potential arguments would wind up"
-        <> " looking like a different call, so it's bound to `n` as well."
+        "The note call is the main note generator, and will emit a single\
+        \ score event. It interprets `>inst` and `+attr` args by\
+        \ setting those fields of the event.  This is bound to the\
+        \ null call, \"\", but any potential arguments would wind up\
+        \ looking like a different call, so it's bound to `n` as well."
+
+-- | Apply the 'Instrument.Common.config_controls' field.  It happens in the
+-- note call to make sure it happens only once per note.
+apply_instrument_controls :: Derive.Deriver a -> Derive.Deriver a
+apply_instrument_controls deriver = Call.lookup_instrument >>= \case
+    Nothing -> deriver
+    Just inst -> do
+        (_inst, derive_inst) <- Derive.get_instrument inst
+        let controls = Score.untyped . Signal.constant <$>
+                Derive.inst_controls derive_inst
+        Derive.with_merged_controls (Map.toList controls) deriver
 
 c_note_track :: Derive.Transformer Derive.Note
 c_note_track = Derive.transformer Module.prelude "note-track" mempty
-    ("This is the implicit call at the top of every note track. It expects a"
-    <> " instrument as its first argument, since note tracks all start with"
-    <> " `>`. If there is a note transformer of the same name as the"
-    <> " instrument, starting with `>`, it will be called after setting the"
-    <> " instrument. This way, you can set instrument-specific variables or"
-    <> " transformations.")
+    ("This is the implicit call at the top of every note track. It expects a\
+    \ instrument as its first argument, since note tracks all start with\
+    \ `>`. If there is a note transformer of the same name as the\
+    \ instrument, starting with `>`, it will be called after setting the\
+    \ instrument. This way, you can set instrument-specific variables or\
+    \ transformations.")
     $ Sig.callt ((,)
     <$> Sig.required_env "inst" Derive.None
         ("Set this instrument, and run a transformer with the same name, if it"
@@ -139,8 +147,8 @@ call_transformer ctx call deriver =
 c_note_attributes :: Derive.Transformer Derive.Note
 c_note_attributes = Derive.transformer Module.prelude "note-attributes"
     mempty
-    ("This is similar to to `=`, but it takes any number of `>inst` and"
-        <> " `+attr` args and sets the `inst` or `attr` environ.")
+    ("This is similar to to `=`, but it takes any number of `>inst` and\
+    \ `+attr` args and sets the `inst` or `attr` environ.")
     $ Sig.callt (Sig.many "attribute" "Set instrument or attributes.")
     $ \inst_attrs _args -> transform_note inst_attrs
 

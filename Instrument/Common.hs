@@ -132,9 +132,14 @@ data Config = Config {
     -- | This is a local version of 'common_environ'.
     config_environ :: !RestrictedEnviron.Environ
     -- | This is the control equivalent to 'config_environ'.  These
-    -- controls are merged when the instrument comes into scope.  They can be
-    -- useful for setting default transposition, e.g. if an instrument sounds
-    -- in the wrong octave.
+    -- controls are merged using their default mergers in the note call.
+    -- Being in the note call means that the merge should only happen once.
+    -- 'config_environ', on the other hand, is applied when the instrument
+    -- comes into scope, which should be safe, since merging the environ is
+    -- idempotent.
+    --
+    -- This can be useful to set a per-instrument transposition, or dynamic
+    -- level.
     , config_controls :: !ScoreTypes.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
