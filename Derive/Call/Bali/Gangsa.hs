@@ -113,19 +113,21 @@ note_calls = Derive.call_maps
         "Kotekan calls won't emit a note on the initial beat.")
     , ("f-", Make.environ_val module_ "f-" "final" False
         "Kotekan calls won't emit a final note at the end time.")
-    , ("k+", c_kempyung) -- short version for single notes
     , ("p+", Make.environ_val module_ "p+" "unison-only" ("polos" :: Text)
         "Tell `unison` to only emit polos.")
     , ("s+", Make.environ_val module_ "s+" "unison-only" ("sangsih" :: Text)
         "Tell `unison` to only emit sangsih.")
-    , ("nyog", c_nyogcag)
     , ("unison", c_unison)
-    , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     , ("realize-gangsa", c_realize_gangsa)
     , ("realize-noltol", c_realize_noltol)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("cancel-pasang", c_cancel_pasang)
+    ]
+    <> Make.call_maps
+    [ ("nyog", c_nyogcag)
+    , ("kempyung", c_kempyung)
+    , ("k+", c_kempyung) -- short version for single notes
     ]
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
@@ -885,13 +887,13 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
 -- second seems a little simpler since it doesn't need a cooperating note call.
 --
 -- So postproc it is.
-c_kempyung :: Derive.Transformer Derive.Note
-c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
+c_kempyung :: Make.Calls Derive.Note
+c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
     \ above. If the sangsih would go out of range, it's forced into unison."
-    $ Sig.callt ((,)
+    ((,)
     <$> instrument_top_env <*> pasang_env
-    ) $ \(maybe_top, pasang) _args deriver -> do
+    ) $ \(maybe_top, pasang) deriver -> do
         inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
             <*> Derive.get_instrument (sangsih pasang)
@@ -917,14 +919,14 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
                     (Score.event_untransformed_pitch event)
             }
 
-c_nyogcag :: Derive.Transformer Derive.Note
-c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
+c_nyogcag :: Make.Calls Derive.Note
+c_nyogcag = Make.transform_notes module_ "nyog" Tags.postproc
     "Nyog cag style. Split a single part into polos and sangsih parts by\
     \ assigning polos and sangsih to alternating notes."
-    $ Sig.callt ((,)
+    ((,)
     <$> Sig.defaulted "polos-first" True "First note is polos."
     <*> pasang_env
-    ) $ \(polos_first, pasang) _args deriver -> do
+    ) $ \(polos_first, pasang) deriver -> do
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
             <*> Derive.get_instrument (sangsih pasang)
         snd . Post.emap_asc (nyogcag pasang) polos_first <$> deriver
