@@ -1516,9 +1516,31 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - kotekan can be hard to use for irregular sections like:
+          . |       |       |
+             3-23-3-23-23-23-5
+            2-12-2-12-12-1234-34-4-3
+            |       |       |
+            -3-23-3-23-23-21-
+            2-12-2-12-12-1-10
+            |
+          . 4-3-4-3-44
+            12-212-211
+          . Maybe just a literal "once" kotekan call?
+            Start at 0.
+          . Maybe it's not "once" but "normal alignment", where 
+        * Have a character for "no note".
+        - Maybe have a character extend previous note.
+        - Another option is to write the polos notes directly, and then
+          a parent call that infers sangsih.  This avoids the problem where
+          I have to figure out how many little numbers.
+          . But if I'm going to do that, why not just use +p, +s, and +k to
+            write the whole thing explicitly?
         * shorter notation for kempyung |?  Also for polos-only and
           sangsih-only.
         * nyog shouldn't need ap
+        - But then it doesn't work, because each note is treated separately,
+          which makes it into all polos.
         - in norot -> nyog transition, the last norot note cancels the first
           nyog note.
           . sangsih 6i cancels out the explicit 5e
@@ -1548,14 +1570,13 @@ Derive:
           . Or just remove the event, but keep the pitch.
         norot:
           - I only use Once for norot prepare, can I get rid of it?
-        kotekan kernel:
-          - generate all possible kernels following some playability rules,
-            e.g. no more than 2 notes in a row, only one rest
-            . I could then use that to automatically select a pattern for
-              a given destination, with some constraints like playability from
-              the previous pattern (no fast jumps), above vs. below, telu vs.
-              empat.
-            . Then do that to make a random kotekan for ngubeng and majalan.
+        - generate all possible kernels following some playability rules,
+          e.g. no more than 2 notes in a row, only one rest
+          . I could then use that to automatically select a pattern for
+            a given destination, with some constraints like playability from
+            the previous pattern (no fast jumps), above vs. below, telu vs.
+            empat.
+          . Then do that to make a random kotekan for ngubeng and majalan.
         - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
           limit the start
         - inst postproc can interpret +mute as either just a mute, or open, or
@@ -1563,7 +1584,6 @@ Derive:
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
           . Reapply the 'm' call instead, and override that as appropriate.
-        - control for noltol +mute dyn
         / gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-

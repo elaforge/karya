@@ -186,8 +186,8 @@ test_kotekan_irregular = do
 test_kotekan_regular = do
     let run kotekan = e_pattern 2 . derive (ngotek kotekan)
     -- Start at 2 to avoid accidentally working from 0.
-    equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
-        ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
+    equal (run True [(2, 8, "k k-12_1-21 -- 4c")])
+        ([(polos, "1-12-1-21"), (sangsih, "-3-2--32-")], [])
     equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
         ([(pasang, "131231321")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
@@ -419,8 +419,7 @@ e_by_inst extract = first Seq.group_fst
     . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
 e_pattern :: RealTime -- ^ expect the first note at this time
-    -> Derive.Result
-    -> ([(Score.Instrument, String)], [String])
+    -> Derive.Result -> ([(Score.Instrument, String)], [String])
 e_pattern start = first (convert_to_pattern pitch_digit start)
     . e_by_inst DeriveTest.e_start_note
 

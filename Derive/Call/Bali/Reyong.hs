@@ -417,18 +417,21 @@ kernel_to_pattern direction kernel = do
             }
     where
     to_steps a = case a of
+        Gangsa.Gap -> Nothing
+        Gangsa.Rest -> Nothing
         Gangsa.Low -> Just 0
         Gangsa.High -> Just 1
-        Gangsa.Rest -> Nothing
     infer_sangsih a = case direction of
         Call.Up -> case a of
+            Gangsa.Gap -> Nothing
+            Gangsa.Rest -> Just 2
             Gangsa.Low -> Just 3
             Gangsa.High -> Nothing
-            Gangsa.Rest -> Just 2
         Call.Down -> case a of
+            Gangsa.Gap -> Nothing
+            Gangsa.Rest -> Just (-1)
             Gangsa.Low -> Nothing
             Gangsa.High -> Just (-2)
-            Gangsa.Rest -> Just (-1)
 
 -- | Like 'Gangsa.get_pitch', but get the symbolic pitch.
 get_parsed_pitch :: Derive.PassedArgs a

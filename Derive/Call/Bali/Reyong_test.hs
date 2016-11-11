@@ -78,8 +78,8 @@ test_kilitan_random_start = do
 test_kotekan_regular = do
     let run voice = first (lookup voice) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
-    equal (run 1 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "ueu-eue-u", [])
-    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "i-io-i-oi", [])
+    equal (run 1 [(0, 8, "k k-12_1-21 -- 4i")]) (Just "ueu--ue-u", [])
+    equal (run 2 [(0, 8, "k k-12_1-21 -- 4i")]) (Just "i-io-i-oi", [])
     equal (run 1 [(0, 8, "k// -- 4e")]) (Just "e-eu-eu-e", [])
     equal (run 2 [(0, 8, "k// -- 4e")]) (Just "-o-io-io-", [])
 

@@ -529,10 +529,8 @@ c_kotekan_regular maybe_kernel =
             dur pitch under_threshold Repeat cycle
     where
     infer_sangsih kernel = case Seq.last kernel of
-        Nothing -> Call.Up
-        Just Rest -> Call.Up
-        Just Low -> Call.Up
         Just High -> Call.Down
+        _ -> Call.Up
 
 kernel_doc :: Doc.Doc
 kernel_doc = "Polos part in transposition steps.\
@@ -584,7 +582,10 @@ realize_kotekan_pattern initial_final (start, end) orientation dur pitch
     -- things like that.
 
 type Kernel = [Atom]
-data Atom = Rest | Low | High deriving (Eq, Ord, Show)
+data Atom = Gap -- ^ a gap in the kotekan pattern
+    | Rest -- ^ a rest will be filled in by the other part
+    | Low | High
+    deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Atom where
     format = Pretty.char . to_char
@@ -600,13 +601,16 @@ make_kernel ('k':cs)
 make_kernel cs = mapM from_char cs
 
 from_char :: Char -> Either Text Atom
-from_char '-' = Right Rest
-from_char '1' = Right Low
-from_char '2' = Right High
-from_char c = Left $ "kernel must be `-`, `1` or `2`, but got " <> showt c
+from_char c = case c of
+    '_' -> Right Gap
+    '-' -> Right Rest
+    '1' -> Right Low
+    '2' -> Right High
+    _ -> Left $ "kernel must be one of `_-12`, but got " <> showt c
 
 to_char :: Atom -> Char
 to_char c = case c of
+    Gap -> '_'
     Rest -> '-'
     Low -> '1'
     High -> '2'
@@ -634,35 +638,43 @@ kernel_to_pattern kernel sangsih_above kotekan_style pasang = Realization
     where
     interlock atom = case (sangsih_above, kotekan_style) of
         (Call.Up, Telu) -> case atom of
+            Gap -> []
             Rest -> [s 2]
             Low -> [p 0]
             High -> [p 1, s 1]
         (Call.Up, Pat) -> case atom of
+            Gap -> []
             Rest -> [s 2]
             Low -> [p 0, s 3]
             High -> [p 1]
         (Call.Down, Telu) -> case atom of
+            Gap -> []
             Rest -> [s (-1)]
             Low -> [p 0, s 0]
             High -> [p 1]
         (Call.Down, Pat) -> case atom of
+            Gap -> []
             Rest -> [s (-1)]
             Low -> [p 0]
             High -> [p 1, s (-2)]
     non_interlock atom = case (sangsih_above, kotekan_style) of
         (Call.Up, Telu) -> case atom of
+            Gap -> []
             Rest -> [both 2]
             Low -> [both 0]
             High -> [both 1]
         (Call.Up, Pat) -> case atom of
+            Gap -> []
             Rest -> [p 2, s 2]
             Low -> [p 0, s 3]
             High -> [p 1, s 1]
         (Call.Down, Telu) -> case atom of
+            Gap -> []
             Rest -> [both (-1)]
             Low -> [both 0]
             High -> [both 1]
         (Call.Down, Pat) -> case atom of
+            Gap -> []
             Rest -> [p (-1), s (-1)]
             Low -> [p 0, s 0]
             High -> [p 1, s (-2)]
@@ -685,6 +697,7 @@ rotations xs = xs : go xs (reverse xs)
 
 invert :: Kernel -> Kernel
 invert = map $ \x -> case x of
+    Gap -> Gap
     Rest -> Rest
     High -> Low
     Low -> High
