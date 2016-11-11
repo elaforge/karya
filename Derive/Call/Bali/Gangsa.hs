@@ -113,9 +113,9 @@ note_calls = Derive.call_maps
         "Kotekan calls won't emit a note on the initial beat.")
     , ("f-", Make.environ_val module_ "f-" "final" False
         "Kotekan calls won't emit a final note at the end time.")
-    , ("p+", Make.environ_val module_ "p+" "unison-only" ("polos" :: Text)
+    , ("p+", Make.environ_val module_ "p+" only_key ("polos" :: Text)
         "Tell `unison` to only emit polos.")
-    , ("s+", Make.environ_val module_ "s+" "unison-only" ("sangsih" :: Text)
+    , ("s+", Make.environ_val module_ "s+" only_key ("sangsih" :: Text)
         "Tell `unison` to only emit sangsih.")
     , ("unison", c_unison)
     , ("noltol", c_noltol)
@@ -871,10 +871,15 @@ instance Typecheck.TypecheckSymbol KotekanStyle
 
 -- * postproc
 
+-- | Set to a 'Polos' or 'Sangsih' to make various calls emit only polos or
+-- sangsih instead of both.
+only_key :: Env.Key
+only_key = "only"
+
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih. Emit only polos if\
-    \ `unison-only=polos` and only sangsih if `unison-only=sangsih`."
+    \ `only=polos` and only sangsih if `only=sangsih`."
     $ Sig.callt pasang_env $ \pasang _args deriver -> do
         inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
@@ -883,7 +888,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
     where
     unison inst pasang event
         | Score.event_instrument event == inst =
-            case Env.maybe_val "unison-only" (Score.event_environ event) of
+            case Env.maybe_val only_key (Score.event_environ event) of
                 Nothing -> [set polos, set sangsih]
                 Just Polos -> [set polos]
                 Just Sangsih -> [set sangsih]
@@ -903,7 +908,8 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
 c_kempyung :: Make.Calls Derive.Note
 c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
-    \ above. If the sangsih would go out of range, it's forced into unison."
+    \ above. If the sangsih would go out of range, it's forced into unison.\
+    \ Like `unison`, this is overridden by `only`."
     ((,)
     <$> instrument_top_env <*> pasang_env
     ) $ \(maybe_top, pasang) deriver -> do
@@ -916,12 +922,18 @@ c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
     where
     kempyung too_high inst pasang event
         | Score.event_instrument event == inst =
-            [ Score.add_log ("low kempyung from " <> pretty inst) $
-                Post.set_instrument (polos pasang) event
-            , Score.add_log ("high kempyung from " <> pretty inst) $
-                transpose too_high $ Post.set_instrument (sangsih pasang) event
-            ]
+            case Env.maybe_val only_key (Score.event_environ event) of
+                Nothing ->
+                    [ set ("low kempyung from " <> pretty inst) polos
+                    , transpose too_high $
+                        set ("high kempyung from " <> pretty inst) sangsih
+                    ]
+                Just Polos -> [set "polos only" polos]
+                Just Sangsih -> [set "sangsih only" sangsih]
         | otherwise = [event]
+        where
+        set msg role =
+            Score.add_log msg $ Post.set_instrument (role pasang) event
     transpose too_high event
         | too_high transposed = event
         | otherwise = transposed
