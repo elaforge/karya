@@ -422,7 +422,7 @@ highlight (ColorCode code) text
 
 -- | Remove vt100 color codes.
 strip_colors :: Text -> Text
-strip_colors = mconcat . map (Text.drop 1 . Text.dropWhile (/='m'))
+strip_colors = mconcat . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m'))
     . Text.splitOn vt100_prefix
 
 newtype ColorCode = ColorCode Text deriving (Show)
