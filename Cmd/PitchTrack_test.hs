@@ -92,7 +92,10 @@ test_transpose_selection = do
         [("*", [(0, 0, "5c"), (1, 0, "6e")])]
     equal (run [(0, 0, "i (4c 5)")] 0 0 (f 0 1)) $ Right
         [("*", [(0, 0, "i (4c# 5)")])]
-    left_like (run [(0, 0, "4c")] 0 0 (f 20 1)) "transformation failed"
+    -- Symbolic transposition is not limited, because it may ultimately be
+    -- transposed back into a reasonable range.
+    equal (run [(0, 0, "4c")] 0 0 (f 20 1))
+        (Right [("*", [(0, 0, "24c#")])])
 
 
 run_tracks :: [UiTest.TrackSpec] -> ScoreTime -> ScoreTime -> Cmd.CmdId a

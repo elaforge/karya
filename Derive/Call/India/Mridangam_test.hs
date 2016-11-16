@@ -24,16 +24,16 @@ test_sequence = do
         ([(2, "+ki"), (4, "+thom"), (4, "+din"), (6, "+ta")], [])
 
     -- Positive means clip the end.
-    equal (run [(2, 3, "seq ktkno")])
+    equal (run [(2, 3, "seq ktkno 1")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki")], [])
     -- Negative means clip the beginning.
-    equal (run [(5, -3, "seq ktkno")])
+    equal (run [(5, -3, "seq ktkno 1")])
         ([(2, "+ta"), (3, "+ki"), (4, "+nam"), (5, "+thom")], [])
     -- Cycle if longer than needed.
-    equal (run [(2, 10, "seq ktkno")])
+    equal (run [(2, 10, "seq ktkno 1")])
         (zip (Seq.range_ 2 1) (ktkno ++ ktkno), [])
     -- Otherwise dur 0 means stretch.
-    equal (run [(2, 10, "dur=0 | seq ktkno")])
+    equal (run [(2, 10, "seq ktkno 0")])
         (zip (Seq.range_ 2 2) ktkno, [])
 
     -- hardcoded pattern

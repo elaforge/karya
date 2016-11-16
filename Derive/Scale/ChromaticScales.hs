@@ -168,7 +168,8 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     let intervals = if is_relative
             then Theory.key_intervals key
             else Theory.layout_intervals (smap_layout smap)
-    unless (Theory.contains_degree intervals (Pitch.pitch_degree pitch)) $
+    unless (Theory.contains_degree intervals (Pitch.pitch_degree pitch)
+            && in_range smap pitch) $
         Left BaseTypes.InvalidInput
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
@@ -188,6 +189,12 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     -- empty score!
     key = fromMaybe (smap_default_key smap) $
         flip Map.lookup (smap_keys smap) =<< Scales.environ_key env
+
+in_range :: ScaleMap -> Pitch.Pitch -> Bool
+in_range smap pitch = bottom <= semis && semis <= top
+    where
+    (bottom, top) = smap_range smap
+    semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
 call_doc :: Set.Set Score.Control -> ScaleMap -> Doc.Doc
     -> Derive.DocumentedCall

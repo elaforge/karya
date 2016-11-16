@@ -131,11 +131,11 @@ invertible_vals =
     , ("#", Just $ VPControlRef $ LiteralControl "")
     , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
-    , ("{a b}", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
         Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])
-    , ("{}", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
         Call (Symbol "") [] :| [])
-    , ("{a |}", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
         Call (Symbol "a") [] :| [Call (Symbol "") []])
 
     , ("$bad", Nothing)
