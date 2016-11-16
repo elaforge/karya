@@ -53,9 +53,12 @@ type Input a = Haskeline.InputT IO a
 
 initial_settings :: Haskeline.Settings IO
 initial_settings = Haskeline.defaultSettings
-    { Haskeline.historyFile = Nothing
+    { Haskeline.historyFile = Just history_suffix
     , Haskeline.autoAddHistory = True
     }
+
+history_suffix :: FilePath
+history_suffix = ".repl"
 
 complete :: Network.PortID -> (String, String)
     -> IO (String, [Haskeline.Completion])
@@ -102,7 +105,9 @@ repl socket settings = Exception.mask (loop settings)
         let settings = case maybe_save_fname of
                 Nothing -> old_settings
                 Just fname -> old_settings
-                    { Haskeline.historyFile = (<>".repl") <$> fname }
+                    { Haskeline.historyFile =
+                        Just $ fromMaybe "" fname <> history_suffix
+                    }
         status <- Exception.handle catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt
                 (read_eval_print socket (Haskeline.historyFile settings))
