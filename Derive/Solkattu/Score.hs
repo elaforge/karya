@@ -364,6 +364,29 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
         , (dinga, [od, p])
         ]
 
+t4s2 :: [Korvai]
+t4s2 = korvais (adi 6) mridangam $ map (purvangam.)
+    [ tri (ta.din.__.p5)
+    -- prefix [ta.ka, ta.din.__, ta.ka.din.__] (repeat 3 p5)
+    , ta.ka.p5 . ta.din.__ . p5 . ta.ka.din.__ . p5
+    ]
+    where
+    purvangam =
+        ta_katakita . takita . tam.__6
+        . ta_katakita . repeat 2 (takita) . tam.__6
+        . ta_katakita . repeat 3 (takita) . tam.__6
+    ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
+    takita = ta.ki.ta
+    mridangam = make_mridangam
+        [ (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ta.ki.ta, [o&n, p, k])
+        , (tam, [od])
+        , (ta.din, [k, od])
+        , (ta.ka, [k, p])
+        , (ta.ka.din, [k, o, od])
+        ]
+
 t5s :: [Korvai]
 t5s = korvais (adi 6) mridangam $ map (purvangam.)
     [ t123 p6 (tat.__6.din.__6)
@@ -372,9 +395,17 @@ t5s = korvais (adi 6) mridangam $ map (purvangam.)
     , t123 (tat.__.din.__.p5) (tang.__.ga)
     , let tadin = ta.din.__.ta.thom.__
         in trin (tang.__.ga) (tadin.p6) (tadin.p6.p6) (tadin.p6.p6.p6)
+    , trin (tang.__)
+        (ta.ka.ta.din.__ . p5)
+        (ta.ka.__.ta.din.__ . p6.p6)
+        (ta.__.ka.__.ta.din.__ . p7.p7.p7)
+    , trin (tang.__4)
+        (ta.__.ka.__.ta.din.__ . p7)
+        (ta.ka.__.ta.din.__ . p6.p6)
+        (ta.ka.ta.din.__ . p5.p5.p5)
     ]
     where
-    purvangam = mconcat $ expand 3 3 (tat.__3.tat.__3.dit.__3.ta.ki.ta.thom.__3)
+    purvangam = mconcat $ expand 3 3 (tat.__3.dit.__3.tat.__3.ta.ki.ta.thom.__3)
     t123 seq sep = trin sep seq (seq.seq) (seq.seq.seq)
     mridangam = make_mridangam
         [ (tat, [k])
@@ -386,11 +417,13 @@ t5s = korvais (adi 6) mridangam $ map (purvangam.)
         , (ta.din, [k, od])
         , (tang.ga, [u, p])
         , (ta.din.ta.thom, [k, p, k, od])
+
+        , (ta.ka.ta, [k, p, k])
         ]
 
 tisrams :: [Korvai]
 tisrams = concat
-    [ t1s, t2s, t3s, t4s, t5s
+    [ t1s, t2s, t3s, t4s, t4s2, t5s
     ]
 
 -- * vary
