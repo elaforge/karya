@@ -149,6 +149,7 @@ inst_tags (Inst.Midi patch) = concat
         _ -> []
     ]
 inst_tags (Inst.Im _patch) = [(Tag.backend, "im")]
+inst_tags Inst.Dummy = []
 
 normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =

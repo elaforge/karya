@@ -3,6 +3,29 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Lilypond derive has to add a dummy allocation for >ly-global.
+    . It turns out StateConfig.allocate silently throws away non-Common
+      data for a Dummy allocation.  It's because there's no Dummy
+      Inst.Backend, so it has to be something, and in practice is Midi.
+    . Since MidiInst.Patch contains a MIDI patch, synth declarations can't
+      define Dummy instruments without giving a bogus Patch.
+    . I can make it Maybe Patch, but then modifiers like MidiInst.pressure are
+      partial.
+    . Or make Patch a, where Patch.Patch modifications require
+      (Patch Patch.Patch).  But then I can't put both types in a list, I
+      have to promote each one to Maybe Patch.Patch.  It wouldn't be so bad
+      if the usual 'synths' expected Patch.Patch, and there was some other
+      mechanism to append Patch () ones.
+    . After all this, is it really worth it?  Maybe it's not so bad to reuse
+      a MIDI patch as a Dummy.
+  - Also, despite the fact that Patch.patch_name says it's just for
+    documentation, in fact MidiInst uses it for the instrument name.  I should
+    give an explicit name.
+  - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
+    climbs steadily, e.g. at 400mb after 5 minutes or so.
+    . It mostly seems to climb when doing entry, but steadily inches upwards
+      when idle, stopping when I play.  What is that?
+  - No thru when I'm entering in the pitch track is annoying.
   * putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
     to lead to surprising double applications.  If I use 'set' then I ignore
     the environment.  What I really want is a transformation for every "" call
@@ -12,6 +35,7 @@ UNSORTED
       E.g. I want %t-dia += n, but only do it once.
     . I think I can move controls application to the default note deriver.
   - Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
+    Or should <= be merge, and = is set?
   * should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
@@ -1500,6 +1524,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - abstract kajar parts, and gong cycles
       * transpose on calung and jegog should wrap around
       * Wrap still doesn't work for 3i, because evaluating the pitch itself
         throws before I can wrap it.  Maybe I shouldn't have an OutOfRange,
@@ -1516,7 +1541,11 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
-        - kotekan can be hard to use for irregular sections like:
+        - I still need a separate norot prepare
+        - default for kotekan should be "(ts s) instead of 'e'
+        - p+ and s+ should also be generators
+        - version of k_\ without the gap, maybe k-\
+        - The kotekan call can be hard to use for irregular sections like:
           . |       |       |
              3-23-3-23-23-23-5
             2-12-2-12-12-1234-34-4-3
@@ -1528,7 +1557,22 @@ Derive:
             12-212-211
           . Maybe just a literal "once" kotekan call?
             Start at 0.
-          . Maybe it's not "once" but "normal alignment", where 
+          . Maybe it's not "once" but "normal alignment", so maybe I can unify
+            this with orientation.  But I think I need an explicit Positive
+            orientation call like 'ko', rather than using event orientation.
+          . For end orientation I still want to align to the end, but can I
+            do that just by rotating the kernel?
+          . I could say rotate or not based on the leading 'k'.
+            (1)-12-1-21
+          . Actually, maybe rotation isn't the problem.  Instead I have places
+            where the inference rules don't work because the pitch is moving:
+                 3-23-21
+              (2)-12-1-10
+            . Can I infer?  (2)-12-1-10  -> ... not sure
+            . Or write both? ke '-12-1-10' '3-23-21-'
+            . I can, but it still takes longer than just writing it out.  And
+              if it's not pitch-independent, there's not much benefit to the
+              specialized kotekan notation.
         * Have a character for "no note".
         - Maybe have a character extend previous note.
         - Another option is to write the polos notes directly, and then

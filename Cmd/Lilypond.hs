@@ -23,6 +23,7 @@ import qualified System.Process as Process
 import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -38,6 +39,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond as Lilypond
+import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Pitch as Pitch
 
@@ -59,7 +61,8 @@ derive_block block_id = do
 derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
-    constant <- PlayUtil.get_constant mempty mempty
+    ui_state <- State.get
+    constant <- PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
     return $ Derive.extract_result $
         Derive.derive (set_tempo constant)
             (set_mode config PlayUtil.initial_dynamic)
@@ -70,6 +73,10 @@ derive deriver = do
             Derive.state_ui state
         }
     set_mode config state = state { Derive.state_mode = Derive.Lilypond config }
+    add_ly_global = State.config#StateConfig.allocations_map
+        %= Map.insert Lilypond.Constants.ly_global allocation
+    allocation = StateConfig.allocation Lilypond.Constants.ly_qualified
+        StateConfig.Dummy
 
 -- | Override a few calls with lilypond versions.
 lilypond_scope :: Derive.Scopes -> Derive.Scopes

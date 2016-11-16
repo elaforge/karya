@@ -130,9 +130,11 @@ verify_allocation backend instrument alloc =
     fmap (prefix<>) $ case (alloc_backend alloc, backend) of
         (Midi {}, Inst.Midi {}) -> Nothing
         (Im, Inst.Im {}) -> Nothing
-        -- TODO Dummy should perhaps only match with a Dummy backend, but I'd
-        -- need to move some fields from Patch.Config to a Common record so
-        -- they can still have environ.
+        -- I can make any patch into a dummy allocation by tossing the
+        -- non-common data.  This could be confusing since it does so silently,
+        -- but I tried to add an explicit Dummy Inst.Backend, but modifying
+        -- Cmd.Instrument.MidiInst to support declaring them got really
+        -- involved and I decided it was too complicated.
         (Dummy, _) -> Nothing
         (_, backend) -> Just $ "allocation type " <> allocation_type
             <> " /= instrument type " <> backend_type backend
@@ -144,6 +146,7 @@ verify_allocation backend instrument alloc =
         Im -> "im"
         Dummy -> "dummy"
     backend_type backend = case backend of
+        Inst.Dummy -> "dummy"
         Inst.Midi {} -> "midi"
         Inst.Im {} -> "im"
 

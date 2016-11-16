@@ -70,7 +70,8 @@ data Result = Result {
 derive :: Constant -> Dynamic -> Deriver a -> RunResult a
 derive constant dynamic = run (initial_state constant dynamic)
     . with_initial_instrument_aliases
-    . with_initial_scope (state_environ dynamic) . with_default_imported
+    . with_initial_scope (state_environ dynamic)
+    . with_default_imported
 
 extract_result :: RunResult (Stream.Stream Score.Event) -> Result
 extract_result (result, state, logs) = Result

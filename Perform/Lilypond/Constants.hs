@@ -5,13 +5,29 @@
 module Perform.Lilypond.Constants where
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import Global
 
+
+-- * ly-global instrument
 
 -- | This is a pseudo-instrument used to mark notes which are actually global
 -- lilypond directives.  E.g., meter changes, page breaks, movement titles.
 ly_global :: Score.Instrument
 ly_global = Score.Instrument "ly-global"
+
+ly_qualified :: InstTypes.Qualified
+ly_qualified = InstTypes.Qualified "ly" "global"
+
+ly_synth :: code -> Inst.SynthDecl code
+ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
+    [("global", Inst.Inst Inst.Dummy (Common.doc #= doc $ Common.common code))]
+    where
+    doc = "The lilypond deriver will automatically allocate `>ly-global`, and\
+        \ instruments with global lilypond directives will get this instrument."
 
 -- * code fragments
 

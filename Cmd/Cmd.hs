@@ -1131,11 +1131,7 @@ get_lookup_instrument :: M m => m (Score.Instrument -> Maybe ResolvedInstrument)
 get_lookup_instrument = do
     ui_state <- State.get
     cmd_state <- get
-    return $ \inst -> do
-        alloc <- State.allocation inst #$ ui_state
-        either (const Nothing) Just $
-            resolve_instrument (config_instrument_db (state_config cmd_state))
-                alloc
+    return $ state_resolve_instrument ui_state cmd_state
 
 state_resolve_instrument :: State.State -> State -> Score.Instrument
     -> Maybe ResolvedInstrument

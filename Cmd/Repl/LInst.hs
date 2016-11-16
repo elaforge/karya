@@ -189,9 +189,12 @@ add_im inst qualified = do
     allocate (Util.instrument inst) $
         StateConfig.allocation qualified StateConfig.Im
 
--- | Create a dummy instrument .  This is used for instruments which are
+-- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
 -- instance, pasang instruments are stand-ins for polos sangsih pairs.
+--
+-- The qualified name still has to name a valid patch.  Its common config
+-- will be used for the allocation, and MIDI-specific fields discarded.
 add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
 add_dummy inst qualified = do
     qualified <- parse_qualified qualified

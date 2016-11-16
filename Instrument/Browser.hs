@@ -115,6 +115,7 @@ show_info chan win db qualified =
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
         let synth_doc = Inst.synth_doc synth <> " -- "
                 <> case Inst.inst_backend inst of
+                    Inst.Dummy -> "dummy"
                     Inst.Midi {} -> "MIDI"
                     Inst.Im {} -> "音"
         return $ info_of synth_name inst_name synth_doc inst tags
@@ -128,6 +129,7 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     where
     body = format_fields $ common_fields tags common ++ backend_fields
     backend_fields = case backend of
+        Inst.Dummy -> []
         Inst.Midi inst -> instrument_fields name inst
         Inst.Im patch -> patch_fields patch
 

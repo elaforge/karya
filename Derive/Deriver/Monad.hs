@@ -763,9 +763,11 @@ instance Pretty.Pretty Mode where
 
 -- * Constant
 
+-- | Values that don't change during one derive run.
 data Constant = Constant {
     state_ui :: !State.State
     , state_library :: !Library
+    -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map.Map BaseTypes.CallId (Merger Signal.Control))
     , state_pitch_mergers ::
         !(Map.Map BaseTypes.CallId (Merger PSignal.PSignal))

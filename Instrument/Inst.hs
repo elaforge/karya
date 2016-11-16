@@ -71,10 +71,11 @@ instance Pretty.Pretty code => Pretty.Pretty (Inst code) where
         , ("common", Pretty.format common)
         ]
 
-data Backend = Midi !Midi.Patch.Patch | Im Im.Patch.Patch
+data Backend = Dummy | Midi !Midi.Patch.Patch | Im Im.Patch.Patch
     deriving (Show)
 
 instance Pretty.Pretty Backend where
+    format Dummy = "Dummy"
     format (Midi inst) = Pretty.format inst
     format (Im inst) = Pretty.format inst
 
@@ -85,6 +86,7 @@ inst_midi inst = case inst_backend inst of
 
 inst_attributes :: Inst code -> [Attrs.Attributes]
 inst_attributes inst = case inst_backend inst of
+    Dummy -> []
     Midi patch -> Common.mapped_attributes $
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.mapped_attributes $
@@ -162,6 +164,7 @@ db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
 -- | Return any errors found in the Inst.
 validate :: Inst code -> [Text]
 validate inst = case inst_backend inst of
+    Dummy -> []
     Midi patch -> Common.overlapping_attributes $
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.overlapping_attributes $

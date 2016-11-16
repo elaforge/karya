@@ -182,7 +182,8 @@ instance Pretty.Pretty Patch where
         , ("common", Pretty.format common)
         ]
 
--- | Make a patch.
+-- | Make a patch.  Get the name from Patch.patch_name.
+-- TODO: pass the name independently
 make_patch :: Patch.Patch -> Patch
 make_patch p = Patch
     { patch_patch = p
@@ -191,8 +192,8 @@ make_patch p = Patch
 
 -- | Convert patches as emitted by 'Patch.Sysex.Patch'.
 patch_from_pair :: (Patch.Patch, Common.Common ()) -> Patch
-patch_from_pair (patch, common) =
-    Patch patch (common { Common.common_code = mempty })
+patch_from_pair (patch, common) = (make_patch patch)
+    { patch_common = common { Common.common_code = mempty } }
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 -- Controls come last because they are often a long list.

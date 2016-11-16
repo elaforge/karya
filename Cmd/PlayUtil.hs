@@ -94,7 +94,8 @@ is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text
 run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run cache damage deriver = do
-    constant <- get_constant cache damage
+    ui_state <- State.get
+    constant <- get_constant ui_state cache damage
     return $ Derive.derive constant initial_dynamic deriver
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
@@ -102,7 +103,8 @@ run cache damage deriver = do
 run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run_with_dynamic dynamic deriver = do
-    constant <- get_constant mempty mempty
+    ui_state <- State.get
+    constant <- get_constant ui_state mempty mempty
     let state = Derive.State
             { state_threaded = Derive.initial_threaded
             , state_dynamic = dynamic
@@ -113,12 +115,12 @@ run_with_dynamic dynamic deriver = do
 
 -- | Create deriver configuration.  This is the main place where Cmd level
 -- configuration is adapted to the deriver.
-get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
+get_constant :: Cmd.M m => State.State -> Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
-get_constant cache damage = do
-    ui_state <- State.get
+get_constant ui_state cache damage = do
     lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
-    lookup_inst <- Cmd.get_lookup_instrument
+    cmd_state <- Cmd.get
+    let lookup_inst = Cmd.state_resolve_instrument ui_state cmd_state
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     defs_library <- get_library
     return $ Derive.initial_constant ui_state (defs_library <> library)

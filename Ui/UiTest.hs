@@ -540,7 +540,11 @@ wdev_name = "wdev"
 -- * instrument db
 
 default_db :: Cmd.InstrumentDb
-default_db = make_db [("s", map make_patch ["1", "2", "3"])]
+default_db = make_db
+    [ ("s", map make_patch ["1", "2", "3"])
+    -- Lilypond.Constants.ly_synth
+    , ("ly", [make_patch "global"])
+    ]
 
 make_patch :: InstTypes.Name -> Patch.Patch
 make_patch name = Patch.patch (-2, 2) name

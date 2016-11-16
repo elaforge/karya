@@ -20,6 +20,7 @@ import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Perform.Im.Play
+import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
@@ -71,6 +72,9 @@ midi_synths =
 im_synths :: [MidiInst.Synth]
 im_synths = [Perform.Im.Play.play_cache_synth, Sampler.PatchDb.synth]
 
+internal_synths :: [MidiInst.Synth]
+internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
+
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
 all_loads :: [(InstTypes.SynthName, (MakeDb, Load))]
@@ -85,7 +89,7 @@ load app_dir = do
     loaded <- mapMaybeM
         (($ Config.make_path app_dir Config.instrument_dir) . snd . snd)
         all_loads
-    let synths = im_synths ++ loaded ++ midi_synths
+    let synths = im_synths ++ loaded ++ midi_synths ++ internal_synths
     let annot_fn = Config.make_path app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
