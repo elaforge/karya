@@ -38,7 +38,7 @@ module Ui.State (
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafe_put, update, get_updates
-    , throw_call_stack, throw
+    , throw_error, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
     , gets, unsafe_modify, put, modify
     -- ** errors
@@ -314,18 +314,17 @@ class (Applicative.Applicative m, Monad m) => M m where
     unsafe_put :: State -> m ()
     update :: Update.CmdUpdate -> m ()
     get_updates :: m [Update.CmdUpdate]
-    throw_call_stack :: GHC.Stack.CallStack -> Text -> m a
+    throw_error :: Error -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     unsafe_put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
-    throw_call_stack call_stack msg =
-        (StateT . lift . lift) (Except.throwError (Error call_stack msg))
+    throw_error = StateT . lift . lift . Except.throwError
 
 throw :: (CallStack.Stack, M m) => Text -> m a
-throw = throw_call_stack ?stack
+throw msg = throw_error $ Error ?stack msg
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get
@@ -406,10 +405,10 @@ instance Pretty.Pretty Error where
     pretty Abort = "(abort)"
 
 require :: (CallStack.Stack, M m) => Text -> Maybe a -> m a
-require err = maybe (throw_call_stack ?stack err) return
+require err = maybe (throw err) return
 
 require_right :: (CallStack.Stack, M m) => (err -> Text) -> Either err a -> m a
-require_right fmt_err = either (throw_call_stack ?stack . fmt_err) return
+require_right fmt_err = either (throw . fmt_err) return
 
 -- * config
 

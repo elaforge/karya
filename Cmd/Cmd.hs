@@ -184,6 +184,23 @@ run_id_io ui_state cmd_state cmd =
 run_io :: RunCmd IO IO Status
 run_io = run Continue
 
+-- | Promote a CmdId to a generic cmd, which can also run as a CmdT IO.
+-- TODO: shouldn't it be possible to do this for free?
+lift_id :: M m => CmdId a -> m a
+lift_id cmd = do
+    (cmd_state, thru, logs, result) <- run_id <$> State.get <*> get <*> pure cmd
+    mapM_ Log.write logs
+    case result of
+        Left err -> State.throw_error err
+        Right (val, ui_state, updates) -> case val of
+            Nothing -> abort
+            Just val -> do
+                put cmd_state
+                mapM_ write_midi thru
+                mapM_ State.update updates
+                State.unsafe_put ui_state
+                return val
+
 -- | Run the Cmd in Identity, returning Nothing if it aborted.
 run_id :: State.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
 run_id ui_state cmd_state cmd =
@@ -269,7 +286,7 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     unsafe_put st = CmdT (State.unsafe_put st)
     update upd = CmdT (State.update upd)
     get_updates = CmdT State.get_updates
-    throw_call_stack stack msg = CmdT (State.throw_call_stack stack msg)
+    throw_error msg = CmdT (State.throw_error msg)
 
 -- ** exceptions
 
