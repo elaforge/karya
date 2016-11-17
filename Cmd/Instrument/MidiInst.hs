@@ -10,7 +10,7 @@ module Cmd.Instrument.MidiInst (
     , Code(..), Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, null_call
-    , postproc, cmd
+    , postproc, cmd, thru
 
     -- * Patch
     , Patch(..), patch, common
@@ -86,11 +86,13 @@ make_inst (Patch patch common) = Inst.Inst
     }
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer val postproc cmds) = Cmd.InstrumentCode
-    { Cmd.inst_calls = Derive.InstrumentCalls generator transformer val
-    , Cmd.inst_postproc = postproc
-    , Cmd.inst_cmds = cmds
-    }
+make_code (Code generator transformer val postproc cmds thru) =
+    Cmd.InstrumentCode
+        { inst_calls = Derive.InstrumentCalls generator transformer val
+        , inst_postproc = postproc
+        , inst_cmds = cmds
+        , inst_thru = thru
+        }
 
 -- * code
 
@@ -103,21 +105,25 @@ data Code = Code {
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
     , code_postproc :: Cmd.InstrumentPostproc
     , code_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
+    , code_thru :: Maybe Cmd.ThruFunction
     }
 
 instance Pretty.Pretty Code where
-    format (Code note_gens note_trans val_calls _postproc cmds) =
+    format (Code note_gens note_trans val_calls _postproc cmds thru) =
         Pretty.record "Code"
             [ ("note_generators", Pretty.format $ length note_gens)
             , ("note_transformers", Pretty.format $ length note_trans)
             , ("val_calls", Pretty.format $ length val_calls)
             , ("cmds", Pretty.format $ length cmds)
+            , ("thru", Pretty.format thru)
             ]
 
 instance Monoid Code where
-    mempty = Code [] [] mempty id []
-    mappend (Code g1 t1 v1 post1 cmds1) (Code g2 t2 v2 post2 cmds2) =
+    mempty = Code [] [] mempty id [] Nothing
+    mappend (Code g1 t1 v1 post1 cmds1 thru1)
+            (Code g2 t2 v2 post2 cmds2 thru2) =
         Code (g1<>g2) (t1<>t2) (v1<>v2) (post1 . post2) (cmds1<>cmds2)
+            (thru1<|>thru2)
 
 -- ** code constructors
 
@@ -164,6 +170,9 @@ postproc post = mempty { code_postproc = post }
 
 cmd :: (Msg.Msg -> Cmd.CmdId Cmd.Status) -> Code
 cmd c = mempty { code_cmds = [c] }
+
+thru :: Cmd.ThruFunction -> Code
+thru f = mempty { code_thru = Just f }
 
 -- * Patch
 

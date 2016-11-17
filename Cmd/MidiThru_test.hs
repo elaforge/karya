@@ -127,7 +127,8 @@ run_thru cmd_state title setup (attrs, input) =
     CmdTest.run_with_performance (CmdTest.make_tracks tracks) cmd_state $ do
         CmdTest.set_point_sel 1 0
         setup
-        MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
+        Cmd.lift_id $
+            MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
     where tracks = [(">i1" <> title, [])]
 
 e_midi :: CmdTest.Result a -> ([Midi.Message], [String])

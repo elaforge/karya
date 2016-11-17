@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
+    seem to have any advantage over inst=x.
   * Lilypond derive has to add a dummy allocation for >ly-global.
     . It turns out StateConfig.allocate silently throws away non-Common
       data for a Dummy allocation.  It's because there's no Dummy
@@ -25,7 +27,16 @@ UNSORTED
     climbs steadily, e.g. at 400mb after 5 minutes or so.
     . It mostly seems to climb when doing entry, but steadily inches upwards
       when idle, stopping when I play.  What is that?
-  - No thru when I'm entering in the pitch track is annoying.
+  * No thru when I'm entering in the pitch track is annoying.
+    . Only happens for pasang instruments.
+    . It's because inst calls only happen in the note track, not its pitch
+      track.  How can I configure cmds for the pitch track?
+    . I would have to know this is a thru cmd, and make pitch tracks also
+      get any thru cmds from the inst track.
+    . Or is there another way to do pasang thru?
+    . Instead of having the instrument supersede thru, I could have the thru
+      cmd itself check the instrument for a special "thru slot".
+      MidiInst.code_thru :: Maybe (InputNote.Input -> Cmd.CmdId ())
   * putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
     to lead to surprising double applications.  If I use 'set' then I ignore
     the environment.  What I really want is a transformation for every "" call
@@ -81,8 +92,6 @@ UNSORTED
     . Turns out I forgot to use Post.set_instrument.  See TODO below about
       Post.set_instrument.
   * cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
-  - nyog has an argument for sangsih or polos first, infers based on whether
-    it's on a major ruler division.
   * tools/update_all.py doesn't handle symlinks properly
   * sometimes enter or slash doesn't want to go back before a certain point
     . Next time it happens, see what Play.top_of_block returns.
@@ -1541,6 +1550,8 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        - nyog polos first can be inferred based on whether it's a major ruler
+          division.
         - I still need a separate norot prepare
         - default for kotekan should be "(ts s) instead of 'e'
         - p+ and s+ should also be generators

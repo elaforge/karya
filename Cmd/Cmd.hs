@@ -787,7 +787,13 @@ data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
     , inst_postproc :: !InstrumentPostproc
     , inst_cmds :: ![Msg.Msg -> CmdId Status]
+    -- | An optional specialized cmd to write MIDI thru.  This is separate
+    -- from 'inst_cmds' so it can be run wherever the instrument needs MIDI
+    -- thru, not just in the instrument's note track.  This way custom thru
+    -- works in the pitch track too.
+    , inst_thru :: !(Maybe ThruFunction)
     }
+type ThruFunction = Attrs.Attributes -> InputNote.Input -> CmdId ()
 
 -- | Process each event before conversion.  This is like a postproc call,
 -- but it can only map events 1:1 and you don't have to explicitly call it.
@@ -802,9 +808,10 @@ type InstrumentPostproc = Score.Event -> Score.Event
 
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
 instance Pretty.Pretty InstrumentCode where
-    format (InstrumentCode calls _ cmds) = Pretty.record "InstrumentCode"
+    format (InstrumentCode calls _ cmds thru) = Pretty.record "InstrumentCode"
         [ ("calls", Pretty.format calls)
         , ("cmds", Pretty.format cmds)
+        , ("thru", Pretty.format thru)
         ]
 
 make_derive_instrument :: ResolvedInstrument -> Derive.Instrument
@@ -821,6 +828,7 @@ empty_code = InstrumentCode
     { inst_calls = Derive.InstrumentCalls [] [] []
     , inst_postproc = id
     , inst_cmds = []
+    , inst_thru = Nothing
     }
 
 -- | Instantiate 'Inst.Db' with the code type.  The only reason the Db has the

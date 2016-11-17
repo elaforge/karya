@@ -11,7 +11,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.Bali as Bali
-import qualified Cmd.Msg as Msg
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Pitch as Pitch
@@ -46,7 +45,8 @@ run_pasang :: InputNote.Input -> IO (CmdTest.Result Cmd.Status)
 run_pasang input =
     CmdTest.run_with_performance ui_state cmd_state $ do
         CmdTest.set_point_sel 1 0
-        Bali.pasang_thru (Msg.InputNote input)
+        Cmd.lift_id $ Bali.pasang_thru mempty input
+        return Cmd.Continue
     where
     cmd_state = DeriveTest.setup_cmd setup CmdTest.default_cmd_state
     ui_state = DeriveTest.setup_ui setup $

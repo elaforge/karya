@@ -41,8 +41,6 @@ import qualified Util.Seq as Seq
 
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Perform.Im.Patch as Im.Patch
@@ -137,7 +135,7 @@ common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
 common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
     [ ("Environ", if env == mempty then "" else pretty env)
     -- code
-    , ("Cmds", show_cmds (Cmd.inst_cmds code))
+    , ("Cmds", show_cmds code)
     , ("Note generators", show_calls CallDoc.GeneratorCall
         (map CallDoc.convert_call note_generators))
     , ("Note transformers", show_calls CallDoc.TransformerCall
@@ -222,9 +220,16 @@ show_control_map cmap =
     Text.intercalate ", " [Score.control_name cont <> " (" <> showt num <> ")"
         | (cont, num) <- Map.toList cmap]
 
-show_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status] -> Text
-show_cmds [] = ""
-show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
+    -- , ("Cmds", show_cmds (Cmd.inst_cmds code))
+show_cmds :: Cmd.InstrumentCode -> Text
+show_cmds code = Text.unwords $ filter (not . Text.null)
+    [ if null cmds then ""
+        else showt (length cmds) <> " cmds (cmds can't be introspected yet)"
+    , case Cmd.inst_thru code of
+        Nothing -> ""
+        Just {} -> "[custom thru]"
+    ]
+    where cmds = Cmd.inst_cmds code
 
 show_calls :: CallDoc.CallType -> [CallDoc.LookupCall] -> Text
 show_calls ctype lookups =

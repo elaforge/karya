@@ -99,11 +99,12 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 
 
 -- | Send midi thru, addressing it to the given Instrument.
-cmd_midi_thru :: Cmd.M m => Msg.Msg -> m Cmd.Status
+cmd_midi_thru :: Msg.Msg -> Cmd.CmdId Cmd.Status
 cmd_midi_thru msg = do
     input <- case msg of
         Msg.InputNote input -> return input
@@ -113,12 +114,17 @@ cmd_midi_thru msg = do
     midi_thru_instrument score_inst attrs input
     return Cmd.Continue
 
-midi_thru_instrument :: Cmd.M m => Score.Instrument -> Attrs.Attributes
-    -> InputNote.Input -> m ()
+midi_thru_instrument :: Score.Instrument -> Attrs.Attributes
+    -> InputNote.Input -> Cmd.CmdId ()
 midi_thru_instrument score_inst attrs input = do
     resolved <- Cmd.get_instrument score_inst
-    -- If you want thru for a Dummy or non-MIDI instrument, then it should
-    -- install its own thru cmd.
+    let code_of = Common.common_code . Inst.inst_common . Cmd.inst_instrument
+    case Cmd.inst_thru (code_of resolved) of
+        Nothing -> default_thru resolved score_inst attrs input
+        Just thru -> thru attrs input
+
+default_thru :: Cmd.ResolvedInstrument -> Score.Instrument -> Cmd.ThruFunction
+default_thru resolved score_inst attrs input = do
     (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
     let addrs = Patch.config_addrs config
     unless (null addrs) $ do
