@@ -206,6 +206,11 @@ test_kotekan_regular = do
     equal (run False [(2, 12, "k k-12-1-21 -- 4c")])
         ([(pasang, "1312313213123")], [])
 
+test_kotekan_explicit = do
+    let run = e_pattern 2 . derive ""
+    equal (run [(2, 4, "ke k-21- k32-0 -- 4c")])
+        ([(polos, "--32-"), (sangsih, "-43-1")], [])
+
 test_kotekan_alignment = do
     let run = e_pattern 0 . derive (ngotek False)
     equal (run [(0, 8, "k k-12-1-21 -- 4c")]) ([(pasang, "131231321")], [])

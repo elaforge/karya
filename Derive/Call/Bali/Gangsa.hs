@@ -28,6 +28,7 @@
 module Derive.Call.Bali.Gangsa where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
@@ -101,6 +102,7 @@ note_calls = Derive.call_maps
 
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_regular Nothing)
+    , ("ke", c_kotekan_explicit)
 
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
@@ -487,7 +489,7 @@ c_kotekan_kernel =
     $ Sig.call ((,,,,,,,,)
     <$> Sig.defaulted "rotation" 0 "Rotate kernel to make a different pattern."
     <*> style_arg Telu
-    <*> Sig.defaulted "sangsih" Call.Up
+    <*> Sig.defaulted_env "sangsih" Sig.Both Call.Up
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
@@ -513,15 +515,14 @@ c_kotekan_regular maybe_kernel =
     $ Sig.call ((,,,,,,)
     <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
     <*> style_arg Telu
-    <*> Sig.defaulted "sangsih" Nothing
+    <*> Sig.defaulted_env "sangsih" Sig.Both Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
     <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
-    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang,
-        initial_final
-    ) -> Sub.inverting $ \args -> do
+    ) $ \(kernel_s, style, sangsih_dir, dur, kotekan, pasang, initial_final) ->
+    Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
-        let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
+        let sangsih_above = fromMaybe (infer_sangsih kernel) sangsih_dir
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         let cycle = realize_kernel False sangsih_above style pasang kernel
@@ -531,6 +532,50 @@ c_kotekan_regular maybe_kernel =
     infer_sangsih kernel = case Seq.last kernel of
         Just High -> Call.Down
         _ -> Call.Up
+
+c_kotekan_explicit :: Derive.Generator Derive.Note
+c_kotekan_explicit =
+    Derive.generator module_ "kotekan" Tags.inst
+    "Render a kotekan pattern from explicit polos and sangsih parts."
+    $ Sig.call ((,,,)
+    <$> Sig.required "polos" "Polos part."
+    <*> Sig.required "sangsih" "Sangsih part."
+    <*> dur_env <*> pasang_env
+    ) $ \(polos_s, sangsih_s, dur, pasang) -> Sub.inverting $ \args -> do
+        let (expected, frac) = properFraction (Args.duration args / dur)
+        when (frac /= 0) $ Derive.throw $ "event " <> showt (Args.duration args)
+            <> " not evenly divisble by kotekan dur " <> showt dur
+        polos_steps <- parse "polos" expected polos_s
+        sangsih_steps <- parse "sangsih" expected sangsih_s
+        pitch <- get_pitch args
+        let realize = realize_explicit (Args.start args) (Args.end args) dur
+                pitch
+        realize polos_steps (polos pasang)
+            <> realize sangsih_steps (sangsih pasang)
+    where
+    parse name expected part_
+        | Text.length part /= expected =
+            Derive.throw $ name <> ": expected length of " <> showt expected
+                <> " but was " <> showt (Text.length part)
+        | otherwise = Derive.require_right ((part <> ":")<>) $
+            mapM parse1 (untxt part)
+        where part = Text.dropWhile (=='k') part_
+    parse1 '-' = Right Nothing
+    parse1 c = maybe (Left $ "expected digit or '-': " <> showt c)
+        (Right . Just) (Num.readDigit c)
+
+realize_explicit :: ScoreTime -> ScoreTime -> ScoreTime -> PSignal.Pitch
+    -> [Maybe Pitch.Step] -> Score.Instrument -> Derive.NoteDeriver
+realize_explicit start end dur pitch notes inst = mconcat
+    [ Derive.place t dur (note t transpose)
+    | (t, Just transpose) <- zip (tail (Seq.range_ start dur)) notes
+    ]
+    where
+    note t transpose =
+        (if t >= end then Call.add_flags (Flags.infer_duration <> final_flag)
+            else id) $
+        Derive.with_instrument inst $
+        Call.pitched_note (Pitches.transpose_d transpose pitch)
 
 kernel_doc :: Doc.Doc
 kernel_doc = "Polos part in transposition steps.\
@@ -819,6 +864,7 @@ realize_pattern repeat orientation (initial, final) start end dur get_cycle =
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
 
+-- | Get elements from the function for each @t@.
 cycles :: (t -> [a]) -> [t] -> [(t, a)]
 cycles get_cycle = go
     where
@@ -828,6 +874,8 @@ cycles get_cycle = go
         Right _ -> pairs
         where (pairs, rest) = Seq.zip_remainder (t:ts) (get_cycle t)
 
+-- | This is like 'cycles', but the last cycle is aligned to the end of the
+-- @t@s, chopping off the front of the cycle if necessary.
 cycles_end :: (t -> [a]) -> [t] -> [(t, a)]
 cycles_end get_cycle = shift . go
     where
