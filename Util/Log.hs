@@ -289,17 +289,13 @@ class Monad m => LogMonad m where
     write :: Msg -> m ()
 
 instance LogMonad IO where
-    -- Never write msgs with data, because the data won't survive the
-    -- serialization anyway.
-    write log_msg = do
-        -- This is also done by 'initialize_msg', but if the msg was created
-        -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
-        MVar.withMVar global_state $ \(State write_msg prio) ->
-            when (prio <= msg_priority log_msg) $
-                write_msg =<< add_time log_msg
-        when (msg_priority log_msg >= Error) $ do
+    write log_msg = MVar.withMVar global_state $ \(State write_msg prio) ->
+        -- global_state also acts as a lock.
+        when (prio <= msg_priority log_msg) $ do
             log_msg <- add_time log_msg
-            Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
+            write_msg log_msg
+            when (msg_priority log_msg >= Error) $
+                Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
@@ -315,14 +311,13 @@ format_msg (Msg _date caller prio stack text _data) =
         , text
         ]
 
--- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
--- outside of IO, so they don't get a date until they are written.
+-- | Add a time to the msg if it doesn't already have one.
 add_time :: Msg -> IO Msg
 add_time log_msg
     | msg_date log_msg == no_date_yet = do
         utc <- Time.getCurrentTime
         return $! log_msg { msg_date = utc }
-    | otherwise = return log_msg
+    | otherwise = return $! log_msg
 
 instance Monad m => LogMonad (LogT m) where
     write = write_msg
