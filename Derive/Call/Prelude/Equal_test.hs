@@ -36,7 +36,7 @@ test_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
         ([(0, "i"), (1, "")], [])
 
-test_equal_modify = do
+test_equal_merge = do
     let run control evts = DeriveTest.extract (DeriveTest.e_control control) $
             DeriveTest.derive_tracks "" [(">", evts)]
     strings_like (snd $ run "c" [(0, 1, "c = .5 add |")])
@@ -45,6 +45,15 @@ test_equal_modify = do
     -- Default is multiply.
     equal (run "c" [(0, 1, "%c = .5 | %c = .25 default |")])
         ([[(0, 0.5 * 0.25)]], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c =+ .5 |")]) ([[(0, 1)]], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c =* .5 |")]) ([[(0, 0.25)]], [])
+    equal (run "c" [(0, 1, "%c=5 | %c =- 2 |")]) ([[(0, 3)]], [])
+    equal (run "c" [(0, 1, "%c =- 2 |")]) ([[(0, -2)]], [])
+
+    equal (run "c" [(0, 1, "%c = 2 sub |")]) ([[(0, -2)]], [])
+    -- =-1 is parsed as =- 1.
+    equal (run "c" [(0, 1, "%c = 2 | %c=-1 |")]) ([[(0, 1)]], [])
+
     -- Transposers default to add.
     equal (run "t-dia" [(0, 1, "%t-dia = 1 | %t-dia = 1 default |")])
         ([[(0, 2)]], [])

@@ -199,19 +199,18 @@ unparsed_call = "!"
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
 
-p_equal_lhs :: A.Parser (BaseTypes.CallId, BaseTypes.Val)
-p_equal_lhs = do
+p_equal :: A.Parser BaseTypes.Call
+p_equal = do
     lhs <- p_string <|> p_call_symbol True
     spaces
     A.char '='
+    sym <- A.option Nothing $ Just . BaseTypes.Symbol . Text.singleton
+        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
-    return (BaseTypes.c_equal, BaseTypes.VSymbol lhs)
-
-p_equal :: A.Parser BaseTypes.Call
-p_equal = do
-    (call_id, lhs) <- p_equal_lhs
     rhs <- A.many1 p_term
-    return $ BaseTypes.Call call_id $ BaseTypes.Literal lhs : rhs
+    let mksym = BaseTypes.Literal . BaseTypes.VSymbol
+    return $ BaseTypes.Call BaseTypes.c_equal $
+        mksym lhs : rhs ++ maybe [] (:[]) (mksym <$> sym)
 
 p_call :: Bool -> A.Parser BaseTypes.Call
 p_call toplevel =
@@ -668,9 +667,12 @@ p_toplevel_call_ky = call_to_ky <$> p_unparsed_expr
 
 p_equal_ky :: A.Parser Call
 p_equal_ky = do
-    (call_id, lhs) <- p_equal_lhs
+    lhs <- BaseTypes.VSymbol <$> (p_string <|> p_call_symbol True)
+    spaces
+    A.char '='
+    spaces
     rhs <- A.many1 p_term_ky
-    return $ Call call_id (Literal lhs : rhs)
+    return $ Call BaseTypes.c_equal (Literal lhs : rhs)
 
 call_to_ky :: BaseTypes.Call -> Call
 call_to_ky (BaseTypes.Call call_id args) = Call call_id (map convert args)

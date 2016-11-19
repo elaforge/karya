@@ -117,6 +117,8 @@ merge_doc = "Merge operator. This can be `default` to use the default for the\
     \ control, `set` to replace the old signal, or one of the operators from\
     \ 'Derive.Deriver.Monad.mergers': "
     <> Doc.commas (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
+    <> " There are also symbolic aliases, to support `=+` syntax: "
+    <> Doc.pretty symbol_to_merge
 
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 
@@ -129,7 +131,15 @@ parse_merge :: BaseTypes.CallId -> Merge
 parse_merge name
     | name == "set" = Set
     | name == "default" = Default
-    | otherwise = Merge name
+    | otherwise = Merge $ Map.findWithDefault name name symbol_to_merge
+
+symbol_to_merge :: Map.Map BaseTypes.CallId BaseTypes.CallId
+symbol_to_merge = Map.fromList
+    [ ("+", "add")
+    , ("-", "sub")
+    , ("*", "mul")
+    , ("@", "scale")
+    ]
 
 equal_doc :: Doc.Doc
 equal_doc =
@@ -158,11 +168,16 @@ equal_doc =
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal.\
     \ You can rename a signal via `%a = %b` or `#x = #y`. Control signal\
-    \ assignment also supports the same merge operators as the control track:\
-    \ `%a = add .5` or `%a = add %b`.  However, the second example throws an\
-    \ error if `%b` is a ControlFunction. `%a = _ .5` will combine with `a`'s\
-    \ default merge operator. Assigning to `_` unsets the control, and any\
-    \ control function."
+    \ assignment also supports the same merge functions as the control track:\
+    \ `%a = .5 add` or `%a = %b add`.  However, the second example throws an\
+    \ error if `%b` is a ControlFunction. `%a = .5 default` will combine with\
+    \ `a`'s default merge function. Assigning to `_` unsets the control, and\
+    \ any ControlFunction.\n\
+    \ The `=` operator can be suffixed with symbol, which will become the last\
+    \ argument, so `%x=+1` becomes `%x = 1 '+'`.  Note that the order\
+    \ is backwards from the usual `+=`, which is ultimately because the first\
+    \ word can have almost any character except space and `=`. Also, `x=-1` is\
+    \ ambiguous, and parsed as `x =- 1`."
     -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 

@@ -187,22 +187,24 @@ test_parse_num = do
     left_like (f "`0x`000") "parse error"
 
 test_p_equal = do
-    let eq a b = Right (Call "=" [Literal a, b])
+    let eq a b = Right (Call "=" [Literal (VSymbol a), b])
         num = Literal . VNum . Score.untyped
     let f = ParseText.parse Parse.p_equal
-    equal (f "a = b") (eq (VSymbol "a") (Literal (VSymbol "b")))
-    equal (f "a=b") (eq (VSymbol "a") (Literal (VSymbol "b")))
-    equal (f "a = 10") (eq (VSymbol "a") (num 10))
-    equal (f "a = (b c)") (eq (VSymbol "a")
-        (val_call "b" [Literal (VSymbol "c")]))
-    equal (f "a] = 1") (eq (VSymbol "a]") (num 1))
-    equal (f "a) = 1") (eq (VSymbol "a)") (num 1))
-    equal (f ">a = 1") (eq (VSymbol ">a") (num 1))
-    equal (f "a = b c") $
-        Right $ Call "=" $ map (Literal . VSymbol) ["a", "b", "c"]
+    equal (f "a = b") (eq "a" (Literal (VSymbol "b")))
+    equal (f "a=b") (eq "a" (Literal (VSymbol "b")))
+    equal (f "a = 10") (eq "a" (num 10))
+    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (VSymbol "c")]))
+    equal (f "a] = 1") (eq "a]" (num 1))
+    equal (f "a) = 1") (eq "a)" (num 1))
+    equal (f ">a = 1") (eq ">a" (num 1))
     -- Quotes let you put '=' in the assignee.
-    equal (f "'=>' = 1") (eq (VSymbol "=>") (num 1))
-    equal (f ".-i = t") (eq (VSymbol ".-i") (Literal (VSymbol "t")))
+    equal (f "'=>' = 1") (eq "=>" (num 1))
+    equal (f ".-i = t") (eq ".-i" (Literal (VSymbol "t")))
+
+    let eq_syms = Call "=" . map (Literal . VSymbol)
+    equal (f "a = b c") $ Right (eq_syms ["a", "b", "c"])
+    equal (f "i=+a") $ Right (eq_syms ["i", "a", "+"])
+    equal (f "i =< a b") $ Right (eq_syms ["i", "a", "b", "<"])
 
     left_like (f "a = ()") "parse error"
     left_like (f "a=") "not enough input"

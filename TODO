@@ -45,8 +45,22 @@ UNSORTED
     . Wait, doesn't it have the same problem if the merge is not idempotent?
       E.g. I want %t-dia += n, but only do it once.
     . I think I can move controls application to the default note deriver.
-  - Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
+  * Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
     Or should <= be merge, and = is set?
+    . '=' is one of the few non-symbol characters so x=y works.  So += would
+      have to extend that set with all the symbols.  =+ doesn't have the
+      problem, though it's non-standard.
+    . It does have ambiguity with x=-5... but maybe it's not so bad to require
+      a space?
+    . On the other hand, %x=-1 gets the same meaning if 'x' is additive.
+      I'm not sure if that's good or bad.
+      . Wait, no it doesn't, '=' is set by default.
+    . Haskell doesn't have the problem because '-' is not a part of numbers.
+      Other languages don't have the problem because they use -=, and limit
+      valid symbol characters.
+    . Technically I don't need =-, I could use =+-1... but ugh.
+    . I could avoid all the problems with prefix: -= x 1
+    . Or use =~ for subtract.
   * should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
