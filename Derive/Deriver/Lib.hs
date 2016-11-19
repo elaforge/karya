@@ -646,20 +646,21 @@ get_default_merger control = do
     where
     default_merge = merge_mul
 
--- | Combine two signals with a Merger.
+-- | Combine two signals with a Merger.  If there was no old signal, use
+-- merger-defined identity value.
 --
--- This has an irregularity in that if there is no existing control then it
--- acts like a 'Set'.  Otherwise, if you ask to multiply a control by 1, and
--- there is no control, then there will still be no control.  This would make
--- it hard to set a control to 1 if it has mul for default merge.  Ultimately
--- this is because no control is not the same as a constant 0 or 1 control
+-- Since the default merge for control tracks is multiplication, whose identity
+-- is 1, this means the first control track will set the value, instead of
+-- being multiplied to 0.
 merge :: Merger Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
-merge _ Nothing new = new
-merge Set (Just _) new = new
-merge (Merger _ merger _) (Just old) new =
+merge Set _ new = new
+merge (Merger _ merger ident) maybe_old new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (merger (Score.typed_val old) (Score.typed_val new))
+    where old = fromMaybe (Score.untyped ident) maybe_old
+    -- Using ident is *not* the same as just emitting the 'new' signal for
+    -- subtraction!
 
 merge_vals :: Merger Signal.Control -> Signal.Y -> Signal.Y -> Signal.Y
 merge_vals merger old new = case merger of
