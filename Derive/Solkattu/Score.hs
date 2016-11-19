@@ -7,15 +7,14 @@
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Pretty as Pretty
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
-import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
