@@ -75,7 +75,7 @@ transform_notes module_ name tags transform_doc sig transform =
         (transform_doc <> "\n" <> generator_doc)
         $ Sig.call sig $ \params args -> Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Call.placed_note args
-            subs -> Sub.derive $ map (fmap (transform params)) (concat subs)
+            subs -> mconcat $ map (transform params . Sub.derive) subs
     generator_doc = "If there are notes in child tracks, apply the\
         \ transformation to them. Otherwise apply the transformation to the\
         \ null note call."

@@ -295,11 +295,19 @@ test_kempyung = do
 
 test_nyogcag = do
     let run title = DeriveTest.extract extract . derive title
-        extract e = (Score.event_start e, Score.event_instrument e)
+        extract e = (Score.event_start e, Score.event_instrument e,
+            DeriveTest.e_pitch e)
     let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
-    equal (run " | nyog" notes) ([(0, polos), (1, sangsih), (2, polos)], [])
+    equal (run " | nyog" notes)
+        ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
     equal (run " | nyog f" notes)
-        ([(0, sangsih), (1, polos), (2, sangsih)], [])
+        ([(0, sangsih, "4c"), (1, polos, "4d"), (2, sangsih, "4e")], [])
+
+    let runl = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_linear block_title
+    equal (runl
+            ((">i3", [(0, 3, "nyog")]) : UiTest.note_track1 ["4c", "4d", "4e"]))
+        ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
 
 test_nyogcag_norot = do
     let run parent notes = DeriveTest.extract extract $

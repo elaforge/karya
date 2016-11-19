@@ -1576,10 +1576,11 @@ Derive:
         - nyog polos first can be inferred based on whether it's a major ruler
           division.
         - I still need a separate norot prepare
-        - default for kotekan should be "(ts s) instead of 'e'
+        - default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
+          "measure" seems more natural.
         - p+ and s+ should also be generators
         - version of k_\ without the gap, maybe k-\
-        - The kotekan call can be hard to use for irregular sections like:
+        * The kotekan call can be hard to use for irregular sections like:
           . |       |       |
              3-23-3-23-23-23-5
             2-12-2-12-12-1234-34-4-3
@@ -1617,7 +1618,7 @@ Derive:
         * shorter notation for kempyung |?  Also for polos-only and
           sangsih-only.
         * nyog shouldn't need ap
-        - But then it doesn't work, because each note is treated separately,
+        * But then it doesn't work, because each note is treated separately,
           which makes it into all polos.
         - in norot -> nyog transition, the last norot note cancels the first
           nyog note.
