@@ -18,7 +18,7 @@ data Stroke =
     Plak -- both
     | Pak | Pang | TutL | DagL -- left
     | Ka | Tut | Dag -- right
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)

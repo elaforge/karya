@@ -97,7 +97,7 @@ instance Pretty.Pretty Instruments where
 data Stroke = Stroke {
     s_mridangam :: !(Maybe Mridangam.Stroke)
     , s_kendang_tunggal :: !(Maybe KendangTunggal.Stroke)
-    } deriving (Show)
+    } deriving (Eq, Ord, Show)
 
 instance Monoid Stroke where
     mempty = Stroke Nothing Nothing

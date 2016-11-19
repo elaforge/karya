@@ -1463,6 +1463,7 @@ Derive:
     mridangam:
       - Perhaps mridangam should automatically transpose the octave to be within
         its range.
+        . I can use something like Cmd.Instrument.Bali.wrap
       - tha is too loud... I can compensate by using -, but maybe the scale is
         off.  Velocity should be logical, so if you play all at the same
         velocity it's like the same dynamic for all strokes.
@@ -1472,6 +1473,14 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        * Notation for just strokes, in case I don't want to bother to have
+          intervening sollus.
+          . But I want to be able to reuse all the Dsl combinators, so it
+            has to ba a Sequence, which is hardcoded to sollus.
+          . I could just make a 1:1 map from sollus to strokes, and then
+            a record namespace that maps those symbols to k, n, d, etc.
+          . But I still want to be able to combine with &... I can do that
+            with !, but I'd need to also replace the (&) operator.
         - Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
         - explicit strokes via (!) should not require a valid entry in the

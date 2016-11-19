@@ -30,13 +30,16 @@ module Derive.Solkattu.Dsl (
     -- * transform
     , module Derive.Solkattu.Solkattu
     -- * mridangam
-    , (&)
+    , stroke, (&)
     -- * misc
     , pprint
+    -- * realize
+    , realize_instrument, many
 ) where
-import Prelude hiding ((.), (^), repeat)
+import Prelude hiding ((.), (^), repeat, sequence)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
@@ -59,8 +62,8 @@ type Sequence = S.Sequence Korvai.Stroke
 (.) = (Monoid.<>)
 infixr 6 . -- same as <>
 
-sq :: S.Note stroke -> S.Sequence stroke
-sq = (:[])
+sequence :: S.Note stroke -> S.Sequence stroke
+sequence = (:[])
 
 sollu :: S.Sollu -> S.Sequence stroke
 sollu s = [S.Sollu s Nothing]
@@ -68,7 +71,7 @@ sollu s = [S.Sollu s Nothing]
 -- ** sollus
 
 class Rest a where __ :: a
-instance Rest (S.Sequence stroke) where __ = sq S.Rest
+instance Rest (S.Sequence stroke) where __ = sequence S.Rest
 instance Rest (Realize.Note stroke) where __ = Realize.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
@@ -127,16 +130,16 @@ s2 seq = speed S.S2 <> seq <> speed S.S1
 
 -- | Align at sam or the arudi.
 at0, atX :: S.Sequence stroke
-at0 = sq $ S.Alignment (S.Akshara 0)
-atX = sq $ S.Alignment S.Arudi
+at0 = sequence $ S.Alignment (S.Akshara 0)
+atX = sequence $ S.Alignment S.Arudi
 
 -- | Align at the given akshara.
 (^) :: S.Sequence stroke -> S.Aksharas -> S.Sequence stroke
-seq ^ n = sq (S.Alignment (S.Akshara n)) <> seq
+seq ^ n = sequence (S.Alignment (S.Akshara n)) <> seq
 infix 9 ^
 
 pat :: Matras -> S.Sequence stroke
-pat d = sq $ S.Pattern d
+pat d = sequence $ S.Pattern d
 
 -- ** strokes
 
@@ -192,3 +195,16 @@ repeat n p = mconcat (replicate n p)
 
 join :: S.Sequence stroke -> [S.Sequence stroke] -> S.Sequence stroke
 join = List.intercalate
+
+-- * realize
+
+realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
+    -> Bool -> Korvai.Korvai -> IO ()
+realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
+    case Korvai.realize instrument realize_patterns korvai of
+        Left err -> "ERROR:\n" <> err
+        Right notes -> Realize.format (Korvai.korvai_tala korvai) notes
+
+many :: (a -> IO ()) -> [a] -> IO ()
+many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)
+    where put (i, x) = putStrLn ("---- " ++ show i) >> f x

@@ -18,11 +18,11 @@ import Global
 type Note = Realize.Note Stroke
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 data Thoppi = Tha | Thom
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta | Nam | Din | Chapu | Dheem
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
@@ -81,14 +81,14 @@ stroke_to_call s = case s of
         Tha -> "+"
 
 data Strokes a = Strokes {
-    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a, o :: a, p :: a
+    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a, p :: a, o :: a
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
     -- that's because score uses + for tha, and +o is an attr, while o+ is
     -- a bareword.  But perhaps I should change + to p in the score, and then
     -- the left hand can go on the left side?
     , od :: a
     -- Less common combinations can use (&).
-    }
+    } deriving (Show)
 
 strokes :: Strokes Note
 strokes = Strokes
@@ -98,8 +98,8 @@ strokes = Strokes
     , d = Realize.Note $ Valantalai Din
     , u = Realize.Note $ Valantalai Chapu
     , i = Realize.Note $ Valantalai Dheem
-    , o = Realize.Note $ Thoppi Thom
     , p = Realize.Note $ Thoppi Tha
+    , o = Realize.Note $ Thoppi Thom
     , od = Realize.Note $ Both Thom Din
     }
 

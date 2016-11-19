@@ -7,7 +7,6 @@
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
@@ -462,10 +461,6 @@ korvai = Korvai.korvai
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
 
-many :: (a -> IO ()) -> [a] -> IO ()
-many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)
-    where put (i, x) = putStrLn ("---- " ++ show i) >> f x
-
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realize_ True
 realizep = realize_ False
@@ -475,10 +470,3 @@ realize_ = realize_instrument Korvai.mridangam
 
 realize_k1 :: Bool -> Korvai.Korvai -> IO ()
 realize_k1 = realize_instrument Korvai.kendang_tunggal
-
-realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
-    -> Bool -> Korvai.Korvai -> IO ()
-realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
-    case Korvai.realize instrument realize_patterns korvai of
-        Left err -> "ERROR:\n" <> err
-        Right notes -> Realize.format (Korvai.korvai_tala korvai) notes

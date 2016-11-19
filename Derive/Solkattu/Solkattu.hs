@@ -33,7 +33,7 @@ data Note stroke =
     | Pattern Matras
     | Alignment Alignment
     | TimeChange TimeChange
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 map_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
 map_stroke f n = case n of
@@ -44,10 +44,10 @@ map_stroke f n = case n of
     TimeChange a -> TimeChange a
 
 data Alignment = Akshara Aksharas | Arudi
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data TimeChange = Speed Speed | Nadai Matras
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 -- | Each speed increase doubles the number of 'Matras' per akshara.  As
 -- documented in 'Matras', this is a nonstandard use of the term.
