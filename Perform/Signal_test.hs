@@ -183,6 +183,11 @@ test_sig_add = do
     -- An identity signal means the other signal is returned directly.
     equal (f [(1, 2)] [(0, 0)]) [(1, 2)]
 
+test_sig_subtract = do
+    let f s1 s2 = unsignal $ Signal.sig_subtract (signal s1) (signal s2)
+    equal (f [(0, 0)] [(0, 2)]) [(0, -2)]
+    equal (f [(0, 1)] [(0, 2)]) [(0, -1)]
+
 -- * comparison
 
 test_pitches_share = do

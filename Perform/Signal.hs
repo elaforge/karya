@@ -353,10 +353,16 @@ interleave sig1 sig2 = Signal $
 prepend :: Signal y -> Signal y -> Signal y
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
-sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
+sig_add, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (Just 0) (+)
-sig_subtract = sig_op (Just 0) (-)
 sig_multiply = sig_op (Just 1) (*)
+
+sig_subtract :: Control -> Control -> Control
+sig_subtract sig1 sig2
+    -- It turns out subtraction has an identity, but isn't commutative.
+    -- Who knew?
+    | Just v <- constant_val sig2, v == 0 = sig1
+    | otherwise = sig_op Nothing (-) sig1 sig2
 
 sig_scale :: Control -> Control -> Control
 sig_scale = sig_op (Just 1) scale
