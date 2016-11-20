@@ -205,7 +205,8 @@ p_equal = do
     spaces
     A.char '='
     sym <- A.option Nothing $ Just . BaseTypes.Symbol . Text.singleton
-        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
+        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<")
+        -- TODO add > back if I remove VInstrument
     spaces
     rhs <- A.many1 p_term
     let mksym = BaseTypes.Literal . BaseTypes.VSymbol

@@ -31,6 +31,7 @@ test_equal = do
         ([(0, "i"), (1, "i2"), (2, "i1")], [])
     equal (run ">" [(0, 1, "inst = >nonexistent |")])
         ([], ["Error: no instrument found for >nonexistent"])
+    equal (run "> | inst=>i2" [(0, 1, "")]) ([(0, "i2")], [])
 
     -- Unset a val.
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
