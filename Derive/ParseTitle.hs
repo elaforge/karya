@@ -203,17 +203,19 @@ is_tempo_track title = case parse_control title of
 
 -- ** note
 
--- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
+-- | Parse a note track like @>inst@ as @note-track inst@.  Other than
 -- this, note track titles are normal expressions.
 parse_note :: Text -> Either Text BaseTypes.Expr
-parse_note = Parse.parse_expr . (prefix <>)
-    where prefix = BaseTypes.unsym note_track_symbol <> " "
+parse_note title = case Text.uncons title of
+    Just ('>', rest) -> Parse.parse_expr (prefix <> rest)
+        where prefix = BaseTypes.unsym note_track_symbol <> " "
+    _ -> Left $ "note track title should start with >: " <> showt title
 
 unparse_note :: BaseTypes.Expr -> Text
 unparse_note = strip . ShowVal.show_val
     where
-    strip t = fromMaybe t $ Text.stripPrefix prefix t
-    prefix = BaseTypes.unsym note_track_symbol <> " "
+    strip t = maybe t ((">"<>) . Text.stripStart) $
+        Text.stripPrefix (BaseTypes.unsym note_track_symbol) t
 
 note_track_symbol :: BaseTypes.Symbol
 note_track_symbol = "note-track"
@@ -229,7 +231,7 @@ title_to_instrument title = case Text.uncons title of
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> Text
-instrument_to_title = ShowVal.show_val
+instrument_to_title (Score.Instrument a) = ">" <> a
 
 is_note_track :: Text -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

@@ -73,10 +73,7 @@ make_subs start dur call =
 test_multiple = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_instrument e)
-    equal (run
-            [("> | multiple \"(inst = >i1) \"(inst = >i2)", [(0, 1, "")])])
-        ([(0, "i1"), (0, "i2")], [])
-    equal (run [("> | multiple >i1 >i2", [(0, 1, "")])])
+    equal (run [("> | multiple \"(inst=i1) \"(inst=i2)", [(0, 1, "")])])
         ([(0, "i1"), (0, "i2")], [])
 
 test_clip = do

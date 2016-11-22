@@ -15,6 +15,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -105,7 +106,8 @@ c_solo = Derive.transformer Module.prelude "solo" mempty
     \ version of `when-e`."
     $ Sig.callt (Sig.required "inst" "Instrument.")
     $ \inst _args deriver ->
-        ifM (has_environ EnvKey.instrument (Just (BaseTypes.VInstrument inst)))
+        ifM (has_environ EnvKey.instrument
+                (Just (Typecheck.to_val (inst :: Score.Instrument))))
             deriver mempty
 
 c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d

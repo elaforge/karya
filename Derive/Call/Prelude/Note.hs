@@ -56,7 +56,7 @@ note_calls = Derive.call_maps
     ]
     [ ("n", c_note_attributes)
     -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
-    -- 'note-track >foo +bar'.
+    -- 'note-track foo +bar'.
     , (ParseTitle.note_track_symbol, c_note_track)
     ]
 
@@ -108,29 +108,28 @@ apply_instrument_controls deriver = Call.lookup_instrument >>= \case
 
 c_note_track :: Derive.Transformer Derive.Note
 c_note_track = Derive.transformer Module.prelude "note-track" mempty
-    ("This is the implicit call at the top of every note track. It expects a\
-    \ instrument as its first argument, since note tracks all start with\
-    \ `>`. If there is a note transformer of the same name as the\
+    ("This is the implicit call at the top of every note track. The first\
+    \ argument is the instrument named after the note track's `>`.\
+    \ If there is a note transformer of the same name as the\
     \ instrument, starting with `>`, it will be called after setting the\
     \ instrument. This way, you can set instrument-specific variables or\
     \ transformations.")
     $ Sig.callt ((,)
-    <$> Sig.required_env "inst" Derive.None
-        ("Set this instrument, and run a transformer with the same name, if it"
-        <> " exists.")
+    <$> Sig.defaulted_env "inst" Derive.None Nothing
+        "Set this instrument, and run a transformer with the same name, if it\
+        \ exists."
     <*> Sig.many "attribute" "Add attributes."
     ) $ \(inst, attrs) args deriver ->
         note_track (Derive.passed_ctx args) inst attrs deriver
 
-note_track :: Derive.Context Derive.Note -> Score.Instrument
+note_track :: Derive.Context Derive.Note -> Maybe Score.Instrument
     -> [Attrs.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst attrs deriver = do
-    let call_id = BaseTypes.Symbol $ ">" <> Score.instrument_name inst
+    let call_id = BaseTypes.Symbol $ ">" <> maybe "" Score.instrument_name inst
     maybe_call <- Derive.lookup_transformer call_id
     let transform = maybe id (call_transformer ctx) maybe_call
-        with_inst = if inst == Score.empty_instrument then id
-            else Derive.with_instrument inst
-    with_inst $ Call.add_attributes (mconcat attrs) $ transform deriver
+    maybe id Derive.with_instrument inst $
+        Call.add_attributes (mconcat attrs) $ transform deriver
 
 call_transformer :: Derive.Context d -> Derive.Transformer d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)

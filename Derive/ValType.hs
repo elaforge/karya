@@ -20,7 +20,6 @@ import Global
 data Type =
     TNum NumType NumValue
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
-    | TInstrument
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text]) | TControl | TPControl
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type
@@ -160,7 +159,6 @@ infer_type_of specific val = case val of
     VPControlRef {} -> TPControlRef
     VPitch {} -> TPitch
     VNotePitch {} -> TNotePitch
-    VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol Nothing
     VQuoted {} -> TQuoted
     VControlFunction {} -> TControlFunction

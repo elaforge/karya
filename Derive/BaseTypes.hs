@@ -340,11 +340,6 @@ data Val =
     --
     -- Literal: @(pitch 4 0 1)@ -> 4c#.
     | VNotePitch !Pitch.Pitch
-    -- | Sets the instrument in scope for a note.  An empty instrument doesn't
-    -- set the instrument, but can be used to mark a track as a note track.
-    --
-    -- Literal: @>@, @>inst@
-    | VInstrument !ScoreTypes.Instrument
 
     -- | A string, which is interpreted as a call if it's at the front of an
     -- expression.  Parsing a symbol is somewhat complicated.  If it occurs
@@ -395,7 +390,6 @@ vals_equal x y = case (x, y) of
     (VPControlRef _, VPControlRef _) -> Nothing
     (VPitch a, VPitch b) -> Just $ pitches_equal a b
     (VNotePitch a, VNotePitch b) -> Just $ a == b
-    (VInstrument a, VInstrument b) -> Just $ a == b
     (VSymbol a, VSymbol b) -> Just $ a == b
     (VQuoted (Quoted a), VQuoted (Quoted b)) ->
         lists_equal calls_equal (NonEmpty.toList a) (NonEmpty.toList b)
@@ -425,7 +419,6 @@ instance ShowVal.ShowVal Val where
         VPControlRef control -> ShowVal.show_val control
         VPitch pitch -> ShowVal.show_val pitch
         VNotePitch pitch -> ShowVal.show_val pitch
-        VInstrument inst -> ShowVal.show_val inst
         VSymbol sym -> ShowVal.show_val sym
         VQuoted quoted -> ShowVal.show_val quoted
         VControlFunction f -> ShowVal.show_val f
@@ -647,9 +640,6 @@ call0 sym = Call sym []
 
 literal_call :: Symbol -> [Val] -> Call
 literal_call sym args = call sym (map Literal args)
-
-inst :: Text -> Term
-inst = Literal . VInstrument . ScoreTypes.Instrument
 
 val_call :: Symbol -> [Val] -> Term
 val_call sym args = ValCall (literal_call sym args)

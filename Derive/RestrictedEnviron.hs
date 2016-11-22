@@ -42,7 +42,6 @@ data Val =
     | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VNotePitch !Pitch.Pitch
-    | VInstrument !ScoreTypes.Instrument
     | VSymbol !BaseTypes.Symbol
     | VQuoted !Expr
     | VList ![Val]
@@ -54,7 +53,6 @@ convert_val val = case val of
     VAttributes v -> BaseTypes.VAttributes v
     VControlRef v -> BaseTypes.VControlRef v
     VNotePitch v -> BaseTypes.VNotePitch v
-    VInstrument v -> BaseTypes.VInstrument v
     VSymbol v -> BaseTypes.VSymbol v
     VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $ convert_expr v
     VList v -> BaseTypes.VList $ map convert_val v
@@ -94,7 +92,8 @@ instance ToVal RealTime where
 instance ToVal Attrs.Attributes where to_val = VAttributes
 instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
-instance ToVal ScoreTypes.Instrument where to_val = VInstrument
+instance ToVal ScoreTypes.Instrument where
+    to_val (ScoreTypes.Instrument a) = VSymbol (BaseTypes.Symbol a)
 instance ToVal BaseTypes.Symbol where to_val = VSymbol
 instance ToVal Text where to_val = VSymbol . BaseTypes.Symbol
 instance ToVal Expr where to_val = VQuoted
@@ -122,7 +121,7 @@ instance Serialize.Serialize Val where
         VAttributes v -> Serialize.put_tag 1 >> put v
         VControlRef v -> Serialize.put_tag 2 >> put v
         VNotePitch v -> Serialize.put_tag 3 >> put v
-        VInstrument v -> Serialize.put_tag 4 >> put v
+        -- tag 4 was VInstrument
         VSymbol v -> Serialize.put_tag 5 >> put v
         VQuoted v -> Serialize.put_tag 6 >> put v
         VList v -> Serialize.put_tag 7 >> put v
@@ -133,7 +132,7 @@ instance Serialize.Serialize Val where
             1 -> VAttributes <$> get
             2 -> VControlRef <$> get
             3 -> VNotePitch <$> get
-            4 -> VInstrument <$> get
+            4 -> VSymbol <$> get -- tag 4 was VInstrument
             5 -> VSymbol <$> get
             6 -> VQuoted <$> get
             7 -> VList <$> get

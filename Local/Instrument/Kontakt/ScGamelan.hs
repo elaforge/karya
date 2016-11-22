@@ -151,12 +151,11 @@ kebyar_allocations dev_ = make_config $ concat
         ]
     sc_qualified name = synth_name <> "/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ make_inst $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ make_inst $ name <> "-s")
+        [ (Gangsa.inst_polos, to_val $ Score.instrument $ name <> "-p")
+        , (Gangsa.inst_sangsih, to_val $ Score.instrument $ name <> "-s")
         ]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
-    make_inst = Score.instrument
     umbang_patch name patch =
         ( name, sc_qualified patch, True
         , tuning BaliScales.Umbang

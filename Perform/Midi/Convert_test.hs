@@ -47,7 +47,7 @@ test_convert = do
         good n = mkevent n "4c" "i1"
 
     equal (run [noinst 0, nopitch 1, good 2])
-        [ Right $ "instrument not found: >noinst"
+        [ Right $ "instrument not found: noinst"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
         , Left (2, [(2, NN.c4)])
@@ -162,7 +162,7 @@ test_convert_dynamic = do
 
 test_release_velocity = do
     let run = first (convert DeriveTest.default_convert_lookup extract)
-            . DeriveTest.extract id . DeriveTest.derive_tracks "inst = >i1"
+            . DeriveTest.extract id . DeriveTest.derive_tracks "inst=i1"
             . UiTest.note_track
         extract e =
             (Types.event_start_velocity e, Types.event_end_velocity e)

@@ -15,23 +15,23 @@ test_equal = do
     -- eval in general.
     let run title evts = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks "" [(title, evts)]
-    strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
-        ["expected *, but got Instrument"]
+    strings_like (snd $ run ">" [(0, 1, "%c = i |")])
+        ["expected *, but got Symbol"]
     -- log stack should be at the track level
-    let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
+    let (evts, logs) = run "> | inst = 42" [(0, 1, "")]
     equal evts []
-    strings_like logs ["expected Instrument"]
+    strings_like logs ["expected Symbol"]
 
     -- only the event with the error is omitted
-    let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
+    let (evts, logs) = run ">" [(0, 1, "inst = 42 |"), (1, 1, "")]
     equal evts [(1, "")]
-    strings_like logs ["expected Instrument"]
+    strings_like logs ["expected Symbol"]
 
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i1 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = i2 |"), (2, 1, "n i1 |")])
         ([(0, "i"), (1, "i2"), (2, "i1")], [])
-    equal (run ">" [(0, 1, "inst = >nonexistent |")])
-        ([], ["Error: no instrument found for >nonexistent"])
-    equal (run "> | inst=>i2" [(0, 1, "")]) ([(0, "i2")], [])
+    equal (run ">" [(0, 1, "inst = nonexistent |")])
+        ([], ["Error: no instrument named 'nonexistent'"])
+    equal (run "> | inst=i2" [(0, 1, "")]) ([(0, "i2")], [])
 
     -- Unset a val.
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
@@ -63,10 +63,10 @@ test_equal_inst_alias = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
             DeriveTest.derive_tracks_setup with_ui title
                 [(track, [(0, 1, "")])]
-    strings_like (snd $ run mempty ">new = hi" ">new")
+    strings_like (snd $ run mempty ">new = 42" ">new")
         ["expected an instrument"]
-    equal (run mempty ">new = >i1" ">new") (["i1"], [])
-    equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
+    equal (run mempty ">new = i1" ">new") (["i1"], [])
+    equal (run mempty ">new = i1 | >newer = new" ">newer") (["i1"], [])
 
 test_equal_note_transformer = do
     let run events = DeriveTest.extract e_instrument $
@@ -75,9 +75,9 @@ test_equal_note_transformer = do
                 , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
                 ]
     equal (run []) ([(0, ""), (1, ""), (2, "")], [])
-    equal (run [(0, 2, "inst = >i")]) ([(0, "i"), (1, "i"), (2, "")], [])
-    equal (run [(0, 3, "inst = >i")]) ([(0, "i"), (1, "i"), (2, "i")], [])
-    equal (run [(0, 1, "inst = >i1"), (1, 1, "inst = >i2")])
+    equal (run [(0, 2, "inst = i")]) ([(0, "i"), (1, "i"), (2, "")], [])
+    equal (run [(0, 3, "inst = i")]) ([(0, "i"), (1, "i"), (2, "i")], [])
+    equal (run [(0, 1, "inst = i1"), (1, 1, "inst = i2")])
         ([(0, "i1"), (1, "i2"), (2, "")], [])
 
 test_equal_call = do

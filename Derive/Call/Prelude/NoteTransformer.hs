@@ -9,16 +9,15 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -175,13 +174,7 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
             (NonEmpty.toList transformers)
     where
     apply ctx deriver trans =
-        Eval.eval_transformers ctx (to_transformer trans) deriver
-
-to_transformer :: Either Score.Instrument BaseTypes.Quoted -> [BaseTypes.Call]
-to_transformer val = case val of
-    Left inst -> [BaseTypes.literal_call ParseTitle.note_track_symbol
-        [Typecheck.to_val inst]]
-    Right (BaseTypes.Quoted expr) -> NonEmpty.toList expr
+        Eval.eval_quoted_transformers ctx trans deriver
 
 c_debug :: Derive.Transformer Derive.Note
 c_debug = Derive.transformer Module.prelude "debug" mempty

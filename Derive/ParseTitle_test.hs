@@ -29,7 +29,6 @@ test_parse_unparse_control = do
     left_like (f "$ bad") "parse error"
     left_like (f "a b c") "control track must be one of"
 
-
 test_parse_unparse_note = do
     let f = fmap ParseTitle.unparse_note . ParseTitle.parse_note
     equal (f ">") (Right ">")

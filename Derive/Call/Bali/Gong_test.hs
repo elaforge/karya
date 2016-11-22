@@ -11,7 +11,7 @@ import Global
 
 
 test_jegog = do
-    let title = "import bali.gong | jegog-insts = (list >i1) | scale=legong"
+    let title = "import bali.gong | jegog-insts = (list i1) | scale=legong"
             <> " | cancel"
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks title . UiTest.note_track

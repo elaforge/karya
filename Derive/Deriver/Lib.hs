@@ -461,8 +461,8 @@ get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument score_inst = do
     (real_inst, result) <- lookup_instrument score_inst
     case result of
-        Nothing -> throw $ "no instrument found for "
-            <> ShowVal.show_val real_inst
+        Nothing -> throw $ "no instrument named "
+            <> "'" <> ShowVal.show_val real_inst <> "'"
             <> if real_inst == score_inst then ""
                 else " (aliased from " <> ShowVal.show_val score_inst <> ")"
         Just inst -> return (real_inst, inst)

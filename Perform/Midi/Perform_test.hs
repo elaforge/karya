@@ -799,7 +799,7 @@ test_allot_warn = do
     equal (f [((patch1, "a", 0, 1, []), 0)])
         [Left ("patch1", "dev1", 0)]
     equal (f [((no_patch, "a", 0, 1, []), 0), ((no_patch, "b", 1, 2, []), 0)])
-        (replicate 2 $ Right "no allocation for >no_patch")
+        (replicate 2 $ Right "no allocation for no_patch")
 
 allot :: Perform.InstAddrs -> [(Types.Event, Perform.Channel)]
     -> [LEvent.LEvent (Types.Event, Patch.Addr)]

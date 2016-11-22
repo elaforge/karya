@@ -263,9 +263,9 @@ test_track_dynamic = do
             ]
     equal (e_track_dynamic e_scale_inst res)
         [ ((UiTest.bid "b", 1), ("legong", "Nothing"))
-        , ((UiTest.bid "b", 2), ("legong", ">i1"))
-        , ((UiTest.bid "sub", 1), ("legong", ">i1"))
-        , ((UiTest.bid "sub", 2), ("legong", ">i1"))
+        , ((UiTest.bid "b", 2), ("legong", "i1"))
+        , ((UiTest.bid "sub", 1), ("legong", "i1"))
+        , ((UiTest.bid "sub", 2), ("legong", "i1"))
         ]
 
     -- I get TrackDynamics from the *legong track even when there are 0 events
@@ -273,8 +273,8 @@ test_track_dynamic = do
     let res = DeriveTest.derive_tracks ""
             [(">i1", [(0, 1, "")]), ("*legong", [])]
     equal (e_track_dynamic e_scale_inst res)
-        [ ((block_id, 1), ("legong", ">i1"))
-        , ((block_id, 2), ("legong", ">i1"))
+        [ ((block_id, 1), ("legong", "i1"))
+        , ((block_id, 2), ("legong", "i1"))
         ]
 
     -- Controls for the note track come from the uninverted version, env from
@@ -355,8 +355,8 @@ test_track_dynamic_invert = do
         lookup val = prettys . Env.lookup val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, 1), (">i", "legong"))
-        , ((UiTest.default_block_id, 2), (">i", "legong"))
+        [ ((UiTest.default_block_id, 1), ("i", "legong"))
+        , ((UiTest.default_block_id, 2), ("i", "legong"))
         ]
 
 test_note_end = do

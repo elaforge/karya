@@ -81,7 +81,7 @@ hardcoded_types = Map.fromList
     [ (EnvKey.attributes,  ValType.TAttributes)
     , (EnvKey.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)
     , (EnvKey.control,     ValType.TSymbol Nothing)
-    , (EnvKey.instrument,  ValType.TInstrument)
+    , (EnvKey.instrument,  ValType.TSymbol Nothing)
     , (EnvKey.key,         ValType.TSymbol Nothing)
     , (EnvKey.merge,       ValType.TSymbol Nothing)
     , (EnvKey.scale,       ValType.TSymbol Nothing)

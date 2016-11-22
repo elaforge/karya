@@ -205,8 +205,7 @@ p_equal = do
     spaces
     A.char '='
     sym <- A.option Nothing $ Just . BaseTypes.Symbol . Text.singleton
-        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<")
-        -- TODO add > back if I remove VInstrument
+        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
     rhs <- A.many1 p_term
     let mksym = BaseTypes.Literal . BaseTypes.VSymbol
@@ -236,8 +235,7 @@ p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
 p_val :: A.Parser BaseTypes.Val
 p_val =
-    BaseTypes.VInstrument <$> p_instrument
-    <|> BaseTypes.VAttributes <$> p_attributes
+    BaseTypes.VAttributes <$> p_attributes
     <|> BaseTypes.VNum . Score.untyped <$> p_hex
     <|> BaseTypes.VNum <$> p_num
     <|> BaseTypes.VSymbol <$> p_string
@@ -334,10 +332,6 @@ p_scale_id = do
     A.char '*'
     BaseTypes.Symbol . Text.cons '*' <$> A.option "" (p_identifier False "")
     <?> "scale id"
-
-p_instrument :: A.Parser Score.Instrument
-p_instrument =
-    A.char '>' >> Score.Instrument <$> p_identifier True "" <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
@@ -565,26 +559,13 @@ parse_ky filename text = do
             Text.unlines (line0 : map snd lines)
     strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
 
--- | The alias section allows only @>inst = >inst@ definitions.
+-- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (BaseTypes.CallId, Expr)
     -> Either Text (Score.Instrument, Score.Instrument)
-parse_alias (BaseTypes.Symbol sym, expr) = do
-    lhs <- parse_instrument "lhs" sym
-    rhs <- case expr of
-        Expr (Call (BaseTypes.Symbol sym) [] :| []) ->
-            parse_instrument "rhs" sym
-        _ -> Left $ "rhs of alias should just be a single >inst: "
-            <> ShowVal.show_val expr
-    return (lhs, rhs)
-
-parse_instrument :: Text -> Text -> Either Text Score.Instrument
-parse_instrument side sym = do
-    let prefix = "instrument alias on " <> side
-    sym <- justErr (prefix <> " should start with >: " <> showt sym)
-        (Text.stripPrefix ">" sym)
-    if not (Text.all (`elem` Score.instrument_valid_chars) sym)
-        then Left $ prefix <> " has invalid chars: " <> showt sym
-        else Right (Score.instrument sym)
+parse_alias (lhs, Expr (Call rhs [] :| [])) = Right (convert lhs, convert rhs)
+    where convert (BaseTypes.Symbol a) = Score.Instrument a
+parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
+    <> ShowVal.show_val expr
 
 split_sections :: [Text] -> (Text, Map.Map Text [(LineNumber, Text)])
 split_sections =

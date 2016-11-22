@@ -45,11 +45,11 @@ test_parse_expr = do
     equal (f "a 42") $ Right [Call (Symbol "a") [Literal (vnum 42)]]
     equal (f "a | ") $ Right [Call (Symbol "a") [], Call (Symbol "") []]
 
-    equal (f "a | b = 4 | . >inst %sig") $ Right
+    equal (f "a | b = 4 | . sym %sig") $ Right
         [ Call (Symbol "a") []
         , Call (Symbol "=") (map Literal [VSymbol "b", vnum 4])
         , Call (Symbol ".") (map Literal
-            [VInstrument (Score.Instrument "inst"),
+            [VSymbol (BaseTypes.Symbol "sym"),
                 VControlRef (LiteralControl "sig")])
         ]
 
@@ -91,12 +91,7 @@ test_unparsed_call = do
 -- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
 invertible_vals :: [(Text, Maybe Val)]
 invertible_vals =
-    [ (">", Just $ VInstrument (Score.Instrument ""))
-    , (">name-b", Just $ VInstrument (Score.Instrument "name-b"))
-    , (">no/slash", Nothing)
-    , (">fu/nny^*", Nothing)
-
-    , ("0", Just (VNum (Score.untyped 0)))
+    [ ("0", Just (VNum (Score.untyped 0)))
     , ("0.", Nothing)
     , (".2", Just (VNum (Score.untyped 0.2)))
     , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
@@ -297,11 +292,7 @@ test_parse_ky = do
     left_like (f fst "blort x\nimport y\n") "expected eof"
 
     let aliases = Parse.def_aliases . snd
-    left_like (f aliases "alias:\na = b\n")
-        "alias on lhs should start with >"
-    left_like (f aliases "alias:\n>a = b\n")
-        "alias on rhs should start with >"
-    equal (f aliases "alias:\n>a = >b\n")
+    equal (f aliases "alias:\na = b\n")
         (Right [(Score.Instrument "a", Score.Instrument "b")])
 
 test_split_sections = do

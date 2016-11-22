@@ -71,4 +71,4 @@ test_apply_instrument_controls = do
     -- Controls are merged with their default mergers.
     equal (run "%t-oct=1" octave_up) (["6c"], [])
     -- Controls don't get applied multiple times.
-    equal (run "inst = >i1" octave_up) (["5c"], [])
+    equal (run "inst = i1" octave_up) (["5c"], [])

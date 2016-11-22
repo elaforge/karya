@@ -48,8 +48,8 @@ module Derive.Score (
     , warp_to_signal
 
     -- * instrument
-    , instrument_valid_chars
-    , instrument_name, empty_instrument, instrument, split_instrument
+    , instrument
+    , instrument_name, empty_instrument
 
     -- * util
     , control, unchecked_control
@@ -584,22 +584,14 @@ warp_to_signal (Warp sig shift stretch)
 
 -- * instrument
 
--- | Set of characters allowed in an instrument name.
-instrument_valid_chars :: [Char]
-instrument_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
+instrument :: Text -> Instrument
+instrument = Instrument
 
 instrument_name :: Instrument -> Text
 instrument_name (Instrument s) = s
 
 empty_instrument :: Instrument
 empty_instrument = Instrument ""
-
-instrument :: Text -> Instrument
-instrument = Instrument
-
-split_instrument :: Instrument -> (Text, Text)
-split_instrument (Instrument inst) = (synth, Text.drop 1 name)
-    where (synth, name) = Text.break (=='/') inst
 
 -- * util
 

@@ -3,8 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
+  * Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
     seem to have any advantage over inst=x.
+  - Get rid of `note-track`s attribute arguments.
+  - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   * Lilypond derive has to add a dummy allocation for >ly-global.
     . It turns out StateConfig.allocate silently throws away non-Common
       data for a Dummy allocation.  It's because there's no Dummy
@@ -1692,6 +1694,13 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
+        - Damp level is way too high, I have to put %damp=.2 everywhere.
+        - I'd like to write two parts, and have the upper octaves automatic.
+          . I can put them in a sub-block and wrap with 'upper', but it won't
+            get the voices right.  But if I put the track voices as v=+1 and
+            v=+2 then they would be right.
+          . There's also UI track integration, but I'd want it to happen only
+            for individual notes.
         - remove kilit, isn't it just norot now?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
@@ -1708,12 +1717,12 @@ Derive:
           to +cek.  Or I could always damp closed if that sounds good.
           Or I could infer it based on speed.  Otherwise, I can change the
           attr to +loose-mute or +tight-mute to explicitly configure.
-        - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
-          I draw symbols reversed? 入 兩
-          . There are several ngembat variations: fast:
+        - split to ngembat
+          . There are several ngembat variations:
+            . fast:
               5 61    35 61
                  1        1
-            slow:
+            . slow:
               561   53561
                21      21
         - kbd entry for /, X, O, + etc.?

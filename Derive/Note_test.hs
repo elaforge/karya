@@ -117,7 +117,7 @@ test_c_note = do
 
     let (evts, logs) = run ">i" [(0, 1, "n +a 42")]
     equal evts []
-    strings_like logs ["expected Instrument or Attributes"]
+    strings_like logs ["expected Symbol or Attributes"]
 
     let (evts, logs) = run ">i" [(0, 1, "x (")]
     equal evts []
@@ -130,16 +130,16 @@ test_c_note = do
 
     -- comment only event is filtered out
     equal (run ">i" [(0, 1, "--")]) ([], [])
-    equal (run ">" [(0, 1, "n >i +a")])
-        ([(0, 1, "n >i +a", inst, ["a"])], [])
+    equal (run ">" [(0, 1, "n i +a")])
+        ([(0, 1, "n i +a", inst, ["a"])], [])
     equal (run ">i +a" [(0, 1, "")])
         ([(0, 1, "", inst, ["a"])], [])
 
     -- event overrides attrs
-    equal (run "> +a" [(0, 1, "n +b")])
+    equal (run "> | +a" [(0, 1, "n +b")])
         ([ (0, 1, "n +b", "", ["a", "b"])], [])
     -- alternate syntax
-    equal (run ">i" [(0, 1, ""), (1, 1, "n >i2 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "n i2 |")])
         ([ (0, 1, "", inst, [])
-        , (1, 1, "n >i2 |", "i2", [])
+        , (1, 1, "n i2 |", "i2", [])
         ], [])

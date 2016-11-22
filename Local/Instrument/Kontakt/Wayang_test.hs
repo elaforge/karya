@@ -30,7 +30,7 @@ test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks_setup
                 (KontaktTest.with_synth allocations)
-        top = "top -- inst = >u | cancel"
+        top = "top -- inst = u | cancel"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
     -- should be muted, since it's 0 dur and not the end
@@ -97,5 +97,4 @@ make_allocations suffix =
     ]
 
 wayang_title :: String
-wayang_title =
-    " | scale = wayang | n >w | inst-polos = >u  | inst-sangsih = >i"
+wayang_title = " | scale = wayang | n w | inst-polos = u  | inst-sangsih = i"

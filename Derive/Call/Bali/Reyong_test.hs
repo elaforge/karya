@@ -22,16 +22,16 @@ import Types
 
 
 title :: String
-title = "import bali.reyong | scale=legong | inst = >i1"
+title = "import bali.reyong | scale=legong | inst = i1"
 
 title_cancel :: String
 title_cancel = title <> " | cancel-kotekan 5"
 
 title_damp :: Double -> String
-title_damp dur = title_cancel <> " | infer-damp >i1 " <> show dur
+title_damp dur = title_cancel <> " | infer-damp i1 " <> show dur
 
 title_realize :: String
-title_realize = title <> " | realize-reyong >i1"
+title_realize = title <> " | realize-reyong i1"
 
 test_articulation = do
     let run = e_voice 1 DeriveTest.e_start_note

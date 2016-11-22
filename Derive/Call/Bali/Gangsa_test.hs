@@ -275,7 +275,7 @@ test_unison_tuning = do
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_config inst $
             Common.add_environ EnvKey.tuning tuning
-    equal (run [(0, 1, "4i")]) ([(">i1", Just 62.95), (">i2", Just 62.5)], [])
+    equal (run [(0, 1, "4i")]) ([("i1", Just 62.95), ("i2", Just 62.5)], [])
 
 modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
     -> State.State -> State.State
@@ -336,8 +336,8 @@ test_nyogcag_norot = do
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
         extract e = (Score.event_start e, e_digit_mute e)
-    let notes = [(0, 1, "n >i1 -- 4c"), (1, 1, "n >i2 -- 4d"),
-            (2, 1, "n >i1 -- 4e")]
+    let notes = [(0, 1, "n i1 -- 4c"), (1, 1, "n i2 -- 4d"),
+            (2, 1, "n i1 -- 4e")]
     -- 1s of free time between i1
     equal (run "noltol 1.1" notes)
         ([ (polos, [(0, "1"), (2, "3"), (3, "3+")])
@@ -472,7 +472,7 @@ pitch_digit p = case p of
 
 block_title :: String
 block_title =
-    "import bali.gangsa | inst = >i3 | inst-polos = >i1 | inst-sangsih = >i2"
+    "import bali.gangsa | inst = i3 | inst-polos = i1 | inst-sangsih = i2"
 
 polos :: Score.Instrument
 polos = Score.Instrument "i1"

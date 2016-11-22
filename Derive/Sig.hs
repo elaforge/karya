@@ -210,7 +210,7 @@ required_env :: forall a. Typecheck.Typecheck a => ArgName
 required_env name env_default doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> Left $ Derive.ArgError $
-            "expected another argument at: " <> showt name
+            "expected another argument at argument " <> pretty name
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where

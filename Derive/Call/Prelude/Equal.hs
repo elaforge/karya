@@ -204,8 +204,9 @@ parse_equal Set (BaseTypes.Symbol lhs) rhs
 parse_equal Set (BaseTypes.Symbol lhs) rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
-        BaseTypes.VInstrument inst -> Right $
-            Derive.with_instrument_alias (Score.Instrument new) inst
+        BaseTypes.VSymbol (BaseTypes.Symbol inst) -> Right $
+            Derive.with_instrument_alias (Score.Instrument new)
+                (Score.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (ValType.type_of rhs)
 parse_equal merge lhs rhs

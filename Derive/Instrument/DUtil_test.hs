@@ -19,7 +19,7 @@ test_composite = do
             DeriveTest.e_control "c1" e, DeriveTest.e_control "c2" e)
         with = CallTest.with_note_generator "a" $ DUtil.redirect_pitch "redir"
             "+pitch" (Just (Set.fromList ["c1"])) "+nopitch" Nothing
-        title = "> | redir-pitched = >i1 | redir-unpitched = >i2"
+        title = "> | redir-pitched = i1 | redir-unpitched = i2"
     let (result, logs) = run
             [ (title, [(0, 1, "a")])
             , ("*", [(0, 0, "4c")])

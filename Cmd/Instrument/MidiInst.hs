@@ -403,7 +403,7 @@ clean_name :: Text -> InstTypes.Name
 clean_name =
     Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
         . strip_dups
-        . Text.filter (`elem` Score.instrument_valid_chars) . Text.map replace
+        . Text.filter (`elem` valid_instrument_chars) . Text.map replace
         . Text.toLower
     where
     strip_dups = Text.intercalate "-" . filter (not . Text.null)
@@ -411,3 +411,6 @@ clean_name =
     replace c
         | c `elem` (" _/" :: [Char]) = '-'
         | otherwise = c
+
+valid_instrument_chars :: [Char]
+valid_instrument_chars = '-' : ['0'..'9'] ++ ['a'..'z']

@@ -572,10 +572,11 @@ instance Typecheck Pitch.Pitch where
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 
 instance Typecheck Score.Instrument where
-    from_val (VInstrument a) = Val $ Just a
+    from_val (VSymbol (BaseTypes.Symbol a)) = Val $ Just (Score.Instrument a)
     from_val _ = Val Nothing
-    to_type _ = ValType.TInstrument
-instance ToVal Score.Instrument where to_val = VInstrument
+    to_type _ = ValType.TSymbol Nothing
+instance ToVal Score.Instrument where
+    to_val (Score.Instrument a) = VSymbol (BaseTypes.Symbol a)
 
 instance Typecheck BaseTypes.ControlFunction where
     from_val (VControlFunction a) = Val $ Just a

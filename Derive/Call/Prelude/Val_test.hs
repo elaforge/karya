@@ -66,7 +66,7 @@ test_linear_next = do
     strings_like
         (snd $ f DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
         ["arg 2/bp: expected Num but got Pitch"]
-    strings_like (snd $ f DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> >hi)")]))
+    strings_like (snd $ f DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
         ["arg 1/bp: expected Num or Pitch"]
 
 test_timestep = do

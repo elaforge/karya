@@ -53,4 +53,4 @@ derive = KontaktTest.derive allocs ""
         ]
 
 inst_title :: String
-inst_title = " | wadon = >w | lanang = >l"
+inst_title = " | wadon = w | lanang = l"

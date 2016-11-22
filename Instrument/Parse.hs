@@ -13,7 +13,7 @@ import Text.Parsec ((<?>))
 
 import qualified Util.Parse as Parse
 import qualified Midi.Midi as Midi
-import qualified Derive.Score as Score
+import qualified Ui.Id as Id
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
@@ -52,8 +52,7 @@ p_annotation_line =
 p_qualified :: Parser st InstTypes.Qualified
 p_qualified =
     InstTypes.Qualified <$> chars <*> (Parsec.char '/' *> chars) <?> "qualified"
-    where
-    chars = txt <$> Parsec.many1 (Parsec.oneOf Score.instrument_valid_chars)
+    where chars = txt <$> Parsec.many1 (Parsec.satisfy Id.is_id_char)
 
 p_tag :: Parser st Tag.Tag
 p_tag = (,) <$> (txt <$> Parsec.many1 tag_char)
