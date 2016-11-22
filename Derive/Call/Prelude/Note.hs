@@ -114,22 +114,17 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
     \ instrument, starting with `>`, it will be called after setting the\
     \ instrument. This way, you can set instrument-specific variables or\
     \ transformations.")
-    $ Sig.callt ((,)
-    <$> Sig.defaulted_env "inst" Derive.None Nothing
-        "Set this instrument, and run a transformer with the same name, if it\
-        \ exists."
-    <*> Sig.many "attribute" "Add attributes."
-    ) $ \(inst, attrs) args deriver ->
-        note_track (Derive.passed_ctx args) inst attrs deriver
+    $ Sig.callt (Sig.defaulted_env "inst" Derive.None Nothing
+        "Set this instrument and run the transformer, if it exists."
+    ) $ \inst args deriver -> note_track (Derive.passed_ctx args) inst deriver
 
 note_track :: Derive.Context Derive.Note -> Maybe Score.Instrument
-    -> [Attrs.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
-note_track ctx inst attrs deriver = do
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
+note_track ctx inst deriver = do
     let call_id = BaseTypes.Symbol $ ">" <> maybe "" Score.instrument_name inst
     maybe_call <- Derive.lookup_transformer call_id
     let transform = maybe id (call_transformer ctx) maybe_call
-    maybe id Derive.with_instrument inst $
-        Call.add_attributes (mconcat attrs) $ transform deriver
+    maybe id Derive.with_instrument inst $ transform deriver
 
 call_transformer :: Derive.Context d -> Derive.Transformer d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)

@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
     seem to have any advantage over inst=x.
-  - Get rid of `note-track`s attribute arguments.
+  * Get rid of `note-track`s attribute arguments.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   * Lilypond derive has to add a dummy allocation for >ly-global.
     . It turns out StateConfig.allocate silently throws away non-Common

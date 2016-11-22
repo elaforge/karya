@@ -110,7 +110,7 @@ test_attributes = do
         attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
             (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""
-            [ (">i1 +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
+            [ (">i1 | +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
         (_, mmsgs, logs) = DeriveTest.perform convert_lookup
