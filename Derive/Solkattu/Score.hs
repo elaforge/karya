@@ -6,8 +6,6 @@
 -- | Korvais expressed in "Derive.Solkattu.Dsl".
 module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
-import qualified Data.List as List
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
