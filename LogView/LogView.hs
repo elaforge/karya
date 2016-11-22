@@ -235,9 +235,11 @@ send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
 send_action chan = liftIO . Fltk.send_action chan
 
 send_to_app :: Text -> IO ()
-send_to_app cmd =
-    Text.IO.putStrLn . ("response: "<>) . ReplProtocol.format_result
-        =<< ReplProtocol.query_cmd Config.repl_socket cmd
+send_to_app cmd = do
+    response <- ReplProtocol.format_result <$>
+        ReplProtocol.query_cmd Config.repl_socket cmd
+    unless (Text.null response) $
+        Text.IO.putStrLn $ "response: " <> response
 
 get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $
