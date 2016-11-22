@@ -5,7 +5,7 @@
 -- | Calls for reyong and trompong techniques.
 --
 -- >  /-------\/----\/-------\/----\--\
--- > 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u
+-- > 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u
 -- > 3  5  6  1  2  3  5  6  1  2  3  5
 module Derive.Call.Bali.Reyong where
 import qualified Data.Char as Char
@@ -845,9 +845,9 @@ c_upper_voice :: Derive.Transformer Derive.Note
 c_upper_voice = Derive.transformer module_ "upper-voice" mempty
     ("Double a part with " <> ShowVal.doc Controls.octave
         <> " + 1 and increment the voice.")
-    $ Sig.callt (Sig.defaulted "increment" (2 :: Int)
+    $ Sig.callt (Sig.defaulted "voice" (2 :: Int)
         ("Increment " <> ShowVal.doc EnvKey.voice <> " by this."))
-    $ \increment _args deriver -> do
+    $ \voice_increment _args deriver -> do
         voice <- Derive.get_val EnvKey.voice
         deriver <> Call.add_constant Controls.octave 1
-            (Derive.with_val EnvKey.voice (voice + increment) deriver)
+            (Derive.with_val EnvKey.voice (voice + voice_increment) deriver)
