@@ -10,7 +10,7 @@ module Derive.Solkattu.Dsl (
     Sequence, Korvai
     -- ** sollus
     , (.)
-    , __, __2, __3, __4, __5, __6, __n
+    , __, __2, __3, __4, __5, __6, __7, __n
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
     , ku, mi, na, nam, ri, ta, tam, tat, tha, thom, ti
@@ -77,12 +77,13 @@ instance Rest (Realize.Note stroke) where __ = Realize.Rest
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__2, __3, __4, __5, __6 :: S.Sequence stroke
+__2, __3, __4, __5, __6, __7 :: S.Sequence stroke
 __2 = __
 __3 = __n 3
 __4 = __n 4
 __5 = __n 5
 __6 = __n 6
+__7 = __n 7
 
 -- | 'Realize.Note' is not a monoid like 'S.Sequence', so this can't emit
 -- a Rest.

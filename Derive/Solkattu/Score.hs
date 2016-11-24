@@ -346,11 +346,8 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
     where
     p123 p sep = trin sep p (p.p) (p.p.p)
     purvangam = tri (ta_katakita . din.__6)
-    ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
-    mridangam = make_mridangam
+    mridangam = make_mridangam $
         [ (ta.din.gin.na.thom, [k, t, k, n, o])
-        , (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
-        , (ta.ka.din.na, [k, o, o, k])
         , (ta.din, [k, od])
         , (dheem, [u])
         , (din, [od])
@@ -358,7 +355,7 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
         , (ta.ka.ti.ku, [k, p, n, p])
         , (ta.ka, [k, p])
         , (dinga, [od, p])
-        ]
+        ] ++ m_ta_katakita
 
 t4s2 :: [Korvai]
 t4s2 = korvais (adi 6) mridangam $ map (purvangam.)
@@ -371,17 +368,38 @@ t4s2 = korvais (adi 6) mridangam $ map (purvangam.)
         ta_katakita . takita . tam.__6
         . ta_katakita . repeat 2 (takita) . tam.__6
         . ta_katakita . repeat 3 (takita) . tam.__6
-    ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
     takita = ta.ki.ta
-    mridangam = make_mridangam
-        [ (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
-        , (ta.ka.din.na, [k, o, o, k])
-        , (ta.ki.ta, [o&n, p, k])
+    mridangam = make_mridangam $
+        [ (ta.ki.ta, [o&n, p, k])
         , (tam, [od])
         , (ta.din, [k, od])
         , (ta.ka, [k, p])
         , (ta.ka.din, [k, o, od])
-        ]
+        ] ++ m_ta_katakita
+
+t4s3 :: [Korvai]
+t4s3 = korvais (adi 6) mridangam
+    [ ta_katakita . tri (tat.__3.din.__3) . __7
+        . ta_katakita . tri (tat.__.din.__3) . __7
+        . ta_katakita . tri (tat.din.__3) . __7
+    . trin (lang.__6)
+        (tri (tat.__3.din.__.p5))
+        (tri (tat.__.din.__.p5))
+        (tri (tat.din.__.p5))
+    ]
+    where
+    mridangam = make_mridangam $
+        [ (tat.din, [k, od])
+        ] ++ m_ta_katakita
+
+ta_katakita :: Sequence
+ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
+
+m_ta_katakita :: MStrokes
+m_ta_katakita =
+    [ (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
+    , (ta.ka.din.na, [k, o, o, k])
+    ]
 
 t5s :: [Korvai]
 t5s = korvais (adi 6) mridangam $ map (purvangam.)
@@ -419,7 +437,7 @@ t5s = korvais (adi 6) mridangam $ map (purvangam.)
 
 tisrams :: [Korvai]
 tisrams = concat
-    [ t1s, t2s, t3s, t4s, t4s2, t5s
+    [ t1s, t2s, t3s, t4s, t4s2, t4s3, t5s
     ]
 
 -- * vary
@@ -432,9 +450,9 @@ set_nadai tala korvai = korvai { Korvai.korvai_tala = tala }
 
 -- * realize
 
-make_mridangam :: CallStack.Stack =>
-    [(Solkattu.Sequence Mridangam.Stroke, [Mridangam.Note])]
-    -> Korvai.Instruments
+type MStrokes = [(Solkattu.Sequence Mridangam.Stroke, [Mridangam.Note])]
+
+make_mridangam :: CallStack.Stack => MStrokes -> Korvai.Instruments
 make_mridangam strokes = mempty
     { Korvai.inst_mridangam =
         check $ Mridangam.instrument strokes Mridangam.defaults
