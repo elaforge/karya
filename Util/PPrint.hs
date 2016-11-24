@@ -42,6 +42,10 @@ format = parse format_parsed
 
 -- | Pretty up haskell value, unless it's a string, in which case return it
 -- directly.
+--
+-- Previously I needed this in the REPL since it didn't have a way to say text
+-- should be unformatted.  I don't need it any more, but it doesn't seem to be
+-- hurting so I'll leave it here for now.
 format_str :: String -> String
 format_str = parse format_nonstr
     where
@@ -49,7 +53,6 @@ format_str = parse format_nonstr
     is_str (HsModule _ _ _ _ [HsPatBind _ _ (HsUnGuardedRhs rhs) _]) =
         case rhs of
             HsLit (HsString s) -> Just s
-            HsCon (Special HsUnitCon) -> Just ""
             _ -> Nothing
     is_str _ = Nothing
 

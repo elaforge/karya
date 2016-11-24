@@ -264,3 +264,5 @@ instance Return Text where
     _to_result = ReplProtocol.Raw
 instance Return String where
     _to_result = ReplProtocol.Raw . txt
+instance Return () where
+    _to_result () = ReplProtocol.Raw ""
