@@ -122,7 +122,7 @@ c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False (pure (BaseTypes.constant_control 0))
 
 voices_env :: Sig.Parser [Voice]
-voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
+voices_env = Sig.environ "voices" Sig.Both []
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
 
 -- * tumpuk

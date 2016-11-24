@@ -79,10 +79,8 @@ note_calls = Derive.call_maps
     , ("nt>", c_norot (Just True))
     , ("nt-", c_norot (Just False))
     , ("gnorot", c_gender_norot)
-    , ("k_\\", c_kotekan_irregular Pat $ irregular_pattern
-        "-11-1321" "-44-4324"
-        "-11-1-21"
-        "3-32-32-" "-44-43-4")
+    , ("k_\\", c_kotekan_regular (Just "_11_1-21") Pat)
+    , ("k-\\", c_kotekan_regular (Just "211_1-21") Pat)
     , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern
         "-123123213213123" "-423423243243423"
         "-12-12-21-21-12-"
@@ -97,11 +95,11 @@ note_calls = Derive.call_maps
         "23123123" "20120120"
         "-3-23-23"
         "2-12-12-" "-01-01-0")
-    , ("k\\\\2", c_kotekan_regular (Just "-1-21-21"))
-    , ("k//2",   c_kotekan_regular (Just "-2-12-12"))
+    , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
+    , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
 
     , ("kotekan", c_kotekan_kernel)
-    , ("k", c_kotekan_regular Nothing)
+    , ("k", c_kotekan_regular Nothing Telu)
     , ("ke", c_kotekan_explicit)
 
     , ("'", c_ngoret $ pure Nothing)
@@ -507,14 +505,14 @@ c_kotekan_kernel =
 
 -- | For regular kotekan, the sangsih can be automatically derived from the
 -- polos.
-c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
-c_kotekan_regular maybe_kernel =
+c_kotekan_regular :: Maybe Text -> KotekanStyle -> Derive.Generator Derive.Note
+c_kotekan_regular maybe_kernel default_style =
     Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)
     <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
-    <*> style_arg Telu
+    <*> style_arg default_style
     <*> Sig.defaulted_env "sangsih" Sig.Both Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."

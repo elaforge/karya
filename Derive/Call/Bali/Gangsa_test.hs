@@ -165,11 +165,13 @@ test_kotekan_infer_duration = do
     equal (run [(0, 4, "k k-121 -- 4c"), (8, 2, "4f")])
         ([(0, 1, "1"), (2, 1, "1"), (3, 1, "2"), (4, 4, "1"), (8, 2, "4")], [])
 
-test_kotekan_irregular = do
+test_kotekan_special = do
     let run kotekan = e_pattern 0
             . derive (ngotek kotekan <> " | cancel-pasang 2")
     equal (run True [(0, 8, "k_\\ -- 4c")])
         ([(polos, "1-11-1-21"), (sangsih, "4-44-43-4")], [])
+    equal (run True [(0, 8, "k-\\ -- 4c")])
+        ([(polos, "1211-1-21"), (sangsih, "4-44-43-4")], [])
     equal (run False [(0, 8, "style=telu | k_\\ -- 4c")])
         ([(pasang, "1-11-1321")], [])
     equal (run False [(16, -16, "k//\\\\ -- 4e")])
