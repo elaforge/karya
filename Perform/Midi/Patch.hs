@@ -211,7 +211,7 @@ data Patch = Patch {
     -- | This is the name of the instrument on the synthesizer, and likely has
     -- all sorts of wacky characters in it, and may not be unique, even on
     -- a single synth.  This is just for documentation, and is not actually
-    -- used by anyone.
+    -- used by anyone, though the unique name may be derived from this one.
     --
     -- The patch's unique name, as used by 'InstTypes.Qualified' to look up
     -- the patch, is in 'Instrument.Inst.synth_insts'.

@@ -85,7 +85,7 @@ query socket query = Exception.try $ do
     IO.hFlush hdl
     receive hdl
 
--- | Specialized 'query'.
+-- | Send a 'QCommand'.
 query_cmd :: Network.PortID -> Text -> IO CmdResult
 query_cmd socket cmd = do
     response <- query socket (QCommand cmd)
@@ -131,12 +131,19 @@ send hdl msg = do
 
 receive :: Serialize.Serialize a => IO.Handle -> IO a
 receive hdl = do
-    size <- either (errorIO . txt) return . Serialize.decode
-        =<< ByteString.hGet hdl int_bytes
+    let int_bytes = ByteString.length (Serialize.encode (0 :: Int))
+    size <- ByteString.hGet hdl int_bytes
+    -- If the app just quit, say because it got a 'quit' cmd, the accept loop
+    -- will continue to live long enough to accept another query, but then
+    -- close the socket.  A proper fix might be to block the accept loop while
+    -- it handles a cmd, but it's a tiny corner case and this seems to do just
+    -- as well.
+    when (size == "") $
+        Exception.throwIO $ IO.Error.mkIOError IO.Error.doesNotExistErrorType
+            "client closed handle" Nothing Nothing
+    size <- either (errorIO . txt) return (Serialize.decode size)
     either (errorIO . txt) return . Serialize.decode
         =<< ByteString.hGet hdl size
-    where
-    int_bytes = ByteString.length (Serialize.encode (0 :: Int))
 
 -- * format
 

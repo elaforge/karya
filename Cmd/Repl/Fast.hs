@@ -16,7 +16,6 @@ import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LState as LState
 
 import qualified App.ReplProtocol as ReplProtocol
-import Global
 
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a
@@ -24,12 +23,10 @@ import Global
 fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
 fast_interpret text = case lex_all text of
     Nothing -> Nothing
-    Just toks -> fmap (fmap response) (interpret toks)
-    where
-    response result = ReplProtocol.CmdResult (ReplProtocol.Format result) []
+    Just tokens -> interpret tokens
 
-interpret :: [String] -> Maybe (Cmd.CmdT IO Text)
-interpret toks = case toks of
+interpret :: [String] -> Maybe (Cmd.CmdT IO ReplProtocol.CmdResult)
+interpret tokens = case tokens of
         -- Called by logview.
         ["s", str] | Just arg <- val str -> action $ Global.s arg
         ["unerror"] -> action Global.unerror
@@ -59,12 +56,13 @@ interpret toks = case toks of
         ["load", str] | Just arg <- val str -> action $ Global.load arg
 
         -- State
-        ["State.lookup_root_id"] -> Just $ fmap showt State.lookup_root_id
+        ["State.lookup_root_id"] -> action State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             action $ State.set_root_id arg
         _ -> Nothing
     where
-    action c = Just (fmap showt c)
+    action c = Just (fmap (cmd_result . Global._to_result) c)
+    cmd_result result = ReplProtocol.CmdResult result []
 
 val :: Read a => String -> Maybe a
 val text = case reads text of

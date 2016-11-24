@@ -75,6 +75,7 @@ fltk_event_loop ui_chan msg_chan = do
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
+    -- I have used the handled names for debugging, and may again some day.
     _handled <- handle_actions ui_chan
     ui_msgs <- UiMsgC.get_ui_msgs
     -- TODO
@@ -89,7 +90,8 @@ fltk_event_loop ui_chan msg_chan = do
     -- effects should be fairly benign, and fixed as soon as there is any
     -- scrolling or zooming.  It would look like e.g. play from the top of
     -- the view playing from the wrong point.
-    STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
+    unless (null ui_msgs) $
+        STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
 
 -- | Synchronously take actions out of the 'Channel' and run them.  This could
 -- be asynchronous, but this way if the FLTK event loop wedges up then the UI

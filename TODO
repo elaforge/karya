@@ -3,6 +3,52 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * quit in repl crashes the repl
+  - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
+    climbs steadily, e.g. at 400mb after 5 minutes or so.
+    . It grows on every rederive by about the same amount, so probably the old
+      derivation doesn't get GCed.
+  - Allocation when idle: about 300kb/sec
+    . What triggers this?  Nothing, it's basically always happening.
+      No, the allocation is always happening, but usually it doesn't get
+      retained.
+    ? What who is running?
+      . Threads:
+        / main - Ui.event_loop - should be blocked in Fl::wait,
+          though it comes back on every cursor move.  But still allocates even
+          when it doesn't have focus.
+        . responder - Respond.responder - Should be blocked in STM.atomically
+          block.
+        / Midi.CoreMidi.initialize forkOS - goes into CFRunLoopRun
+        / interpreter
+        / Responder accept repl socket
+        . Cmd.Performance: eval performance
+        . Cmd.PlayC.play - updates the playback
+        . Perform.Midi.Play render midi
+      . Could it be EKG?
+    . It stops during play.
+  * Even 200mb for an empty score seems excessive.  Where does it go?
+    . With inst db: 197, without sysex: 190, without vsl: 187.4
+    . Without repl: 12mb
+    . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
+    . Loaded modules:
+      [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
+      [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs, interpreted
+      . with verbosity=2:
+        . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
+        . log: Ready for upsweep
+          [NONREC
+                ModSummary {
+            { ... imports of every module }
+        . compile: input file ./Ui/ScoreTime.hs
+          *** Checking old interface for Ui.ScoreTime:
+          [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs, build/opt/obj/Ui/ScoreTime.hs.o )
+          *** Deleting temp files:
+          Warning: deleting non-existent /var/folders/6j/c20yyq9x51l0zncxstg1n4n4000_0_/T/ghc13456_0/ghc_62.hs.o
+        . bypecode compile for last two modules
+    . Does it grow with the repl off?
+      . Yes, so it's not the repl.
+
   * Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
     seem to have any advantage over inst=x.
   * Get rid of `note-track`s attribute arguments.
@@ -22,13 +68,10 @@ UNSORTED
       mechanism to append Patch () ones.
     . After all this, is it really worth it?  Maybe it's not so bad to reuse
       a MIDI patch as a Dummy.
-  - Also, despite the fact that Patch.patch_name says it's just for
+  / Also, despite the fact that Patch.patch_name says it's just for
     documentation, in fact MidiInst uses it for the instrument name.  I should
     give an explicit name.
-  - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
-    climbs steadily, e.g. at 400mb after 5 minutes or so.
-    . It mostly seems to climb when doing entry, but steadily inches upwards
-      when idle, stopping when I play.  What is that?
+    . Eh, it seems fine to derive from the patch name.
   * No thru when I'm entering in the pitch track is annoying.
     . Only happens for pasang instruments.
     . It's because inst calls only happen in the note track, not its pitch
@@ -70,7 +113,7 @@ UNSORTED
   / fltk: If I solo a track, then delete a track before it, the solo placement
     gets messed up.
     . Can't reproduce it now.
-  - Pitch.Note is misnamed, it should really be SymbolicPitch or PCall or
+  / Pitch.Note is misnamed, it should really be SymbolicPitch or PCall or
     something.  Pitch.Symbolic?
     . I already have BaseTypes.PitchCall, but it's a Call, so it has args
       and everything.
@@ -84,6 +127,10 @@ UNSORTED
       completely unused.  So maybe I just need better names.
     . Pitch.Parsed, Pitch.Symbolic?
       Then what, parsed_octave, parsed_degree?
+    . I tried Symbolic but gave up.  It's a lot of work to rename everything,
+      and not really clear it's better.  Adn "scale's notes" sounds a lot
+      better than "scale's symbolics" and "scale's symbolic pitches" is too
+      long.
   - it's practically impossible to see a point selection on top of
     a negative+positive event pair: --||--
     . Put the ears on the right side only, and eliminate for align_right?

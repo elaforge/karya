@@ -179,7 +179,7 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    th <- liftIO $ Thread.start $ do
+    thread_id <- liftIO $ Thread.start $ do
         let im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let allocs = State.config#State.allocations #$ ui_state
         evaluate_performance
@@ -188,7 +188,7 @@ generate_performance ui_state wait send_status block_id = do
             wait send_status block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
-            th (Cmd.state_performance_threads st)
+            thread_id (Cmd.state_performance_threads st)
         , Cmd.state_current_performance = Map.insert block_id
             perf (Cmd.state_current_performance st)
         }

@@ -78,7 +78,7 @@ complete (Session chan) prefix = do
         RCompletion words -> return words
         _ -> errorIO "unexpected response to QCompletion"
 
--- | Start the interpreter thread.
+-- | Initialize the GHC API and run the interpreter loop.
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags [] -- not sure if this is necessary
