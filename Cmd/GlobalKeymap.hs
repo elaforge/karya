@@ -347,10 +347,11 @@ edit_state_bindings = concat
     , bind_key [really_control] (Key.Char '[') "toggle val edit"
         Edit.cmd_toggle_val_edit
     , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
-    , bind_key [Shift] Key.Escape "toggle kbd entry mode"
-        Edit.cmd_toggle_kbd_entry
     , bind_key [really_control] (Key.Char ']') "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
+    , bind_key [really_control, Shift] (Key.Char '[')
+        "toogle val edit and kbd entry"
+        Edit.cmd_toggle_val_edit_kbd_entry
 
     , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step
     , uncurry (command_char '1') (step_rank Meter.r_section)

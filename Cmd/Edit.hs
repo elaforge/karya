@@ -60,6 +60,18 @@ cmd_toggle_kbd_entry :: Cmd.M m => m ()
 cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
 
+cmd_toggle_val_edit_kbd_entry :: Cmd.M m => m ()
+cmd_toggle_val_edit_kbd_entry = Cmd.modify_edit_state $ \st ->
+    if Cmd.state_edit_mode st == Cmd.ValEdit
+        then st
+            { Cmd.state_edit_mode = Cmd.NoEdit
+            , Cmd.state_kbd_entry = False
+            }
+        else st
+            { Cmd.state_edit_mode = Cmd.ValEdit
+            , Cmd.state_kbd_entry = True
+            }
+
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
 -- set it to the deflt.  This means the marklist names are sticky, so if you
 -- set it manually the default bindings won't mess it up.
