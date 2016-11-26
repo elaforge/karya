@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - text on the last event of a track should go above
+    I used to have that feature, but it got lost in the text refactor.
   * quit in repl crashes the repl
   - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
     climbs steadily, e.g. at 400mb after 5 minutes or so.
@@ -134,6 +136,29 @@ UNSORTED
   - it's practically impossible to see a point selection on top of
     a negative+positive event pair: --||--
     . Put the ears on the right side only, and eliminate for align_right?
+  - Also it's hard to see the selection at the top of the block if there's an
+    event there.
+    . If I make the selection arrow not red?
+    . And it should draw on top of the event trigger.
+      . It's hard to do that because selection and ruler and integrated.
+        Maybe I can split out Selection?
+      . The way track range damage is handled by the ruler overlay is weird.
+        Track: keep track of damage range, set clipping, draw children.
+        . RulerOverlay child
+        . SelectionOverlay child
+      . It actually looks kind of ok to also draw the ruler overlay on top.
+        I think because event triggers have ears now.  I still think having
+        them on top is better for readability.
+      . Actually, text doesn't matter since it's black anyway, I just want the
+        trigger on top:
+        bg -> events -> ruler -> text -> trigger -> selection
+        bg ->           ruler ->                    selection
+      . Or pass a function to draw the in between stuff?  But I have to pass
+        it via mutable variable.
+    * Move damage range tracking to Track.
+    - Move selection drawing to SelectionOverlay.
+    - Make RulerOverlay and SelectionOverlay plain objects, not Fl_Widget.
+    - Move RulerOverlay to its own file.
   - entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or

@@ -81,10 +81,10 @@ public:
     }
     int handle(int evt) override;
 
-    virtual void set_zoom(const Zoom &zoom) {}
     virtual void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels)
     {}
+    virtual void set_zoom(const Zoom &new_zoom);
     virtual bool track_resizable() const { return true; }
     virtual void set_event_brightness(double d) {}
 
@@ -111,6 +111,15 @@ public:
 
     virtual void set_title(const char *title) {}
     virtual void set_title_focus() {}
+
+protected:
+    // Mark a segment of the track as needing to be redrawn.
+    void damage_range(ScoreTime start, ScoreTime end, bool selection);
+
+    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
+    // This area needs to be redrawn.
+    IRect damaged_area;
+    Zoom zoom;
 };
 
 

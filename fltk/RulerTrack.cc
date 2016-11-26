@@ -55,7 +55,7 @@ Marklist::decref()
 // OverlayRuler
 
 OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
-    Fl_Widget(0, 0, 1, 1), damaged_area(), config(config), zoom()
+    Fl_Widget(0, 0, 1, 1), config(config)
 {
     // No matter what the config, ruler tracks always have these settings.
     // This means that event tracks can look like ruler tracks if they want
@@ -66,19 +66,6 @@ OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
         this->config.use_alpha = false;
         this->config.full_width = false;
     }
-}
-
-
-void
-OverlayRuler::set_selection(
-    int selnum, int tracknum, const std::vector<Selection> &news)
-{
-    this->selections.resize(std::max(int(selections.size()), selnum + 1));
-    for (auto &sel : selections[selnum])
-        damage_range(sel.low(), sel.high(), true);
-    for (auto &sel : news)
-        damage_range(sel.low(), sel.high(), true);
-    this->selections[selnum] = news;
 }
 
 
@@ -94,7 +81,6 @@ OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
         this->config.use_alpha = false;
         this->config.full_width = false;
     }
-    this->damage_range(start, end, false);
 }
 
 void
@@ -108,49 +94,8 @@ OverlayRuler::delete_config()
 void
 OverlayRuler::draw()
 {
-    // This relies on the parent having clipped out bits like the bevel.
-    bool clip = false;
-    // DEBUG("ruler damage " << show_damage(damage()));
-    if (damage() == OverlayRuler::DAMAGE_RANGE) {
-        IRect c = f_util::rect(this).intersect(this->damaged_area);
-        fl_push_clip(c.x, c.y, c.w, c.h);
-        // DEBUG("draw range " << c << ": " << c.height_range());
-        clip = true;
-    } else {
-        // DEBUG("draw all");
-    }
     this->draw_marklists();
     this->draw_selections();
-    this->damaged_area.w = this->damaged_area.h = 0;
-    this->last_offset = this->zoom.offset;
-    if (clip)
-        fl_pop_clip();
-}
-
-
-void
-OverlayRuler::damage_range(ScoreTime start, ScoreTime end, bool selection)
-{
-    IRect r = f_util::rect(this);
-    if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
-        ; // leave it covering the whole widget
-    } else {
-        r.y += this->zoom.to_pixels(start - this->zoom.offset);
-        r.h = this->zoom.to_pixels(end - start);
-        if (selection) {
-            // Extend the damage area to cover the bevel arrow thing in
-            // draw_selections().
-            r.y -= selection_point_size;
-            // +2, otherwise retina displays get a hanging pixel.
-            r.h += selection_point_size * 2 + 2;
-        }
-    }
-
-    // DEBUG("damage_range(" << start << ", " << end << "): "
-    //     << SHOW_RANGE(damaged_area) << " + " << SHOW_RANGE(r)
-    //     << " = " << SHOW_RANGE(damaged_area.union_(r)));
-    this->damaged_area = this->damaged_area.union_(r);
-    this->damage(OverlayRuler::DAMAGE_RANGE);
 }
 
 
@@ -352,24 +297,12 @@ RulerTrack::title_widget()
 
 
 void
-RulerTrack::set_zoom(const Zoom &new_zoom)
-{
-    // duplicated, like the scroll in ::draw, with EventTrack
-    if (new_zoom == ruler.zoom)
-        return;
-    if (ruler.zoom.factor == new_zoom.factor)
-        this->damage(FL_DAMAGE_SCROLL);
-    else
-        this->damage(FL_DAMAGE_ALL);
-    ruler.set_zoom(new_zoom);
-}
-
-
-void
 RulerTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
+    this->damage_range(start, end, false);
+
     this->ruler.set_config(true, *track.ruler, start, end);
     if (track.ruler->bg.fl() != bg_box.color()) {
         bg_box.color(track.ruler->bg.fl());
@@ -387,6 +320,7 @@ RulerTrack::finalize_callbacks()
     ruler.delete_config();
 }
 
+// TODO: parts of this are the same as EventTrack::draw
 void
 RulerTrack::draw()
 {
@@ -395,17 +329,21 @@ RulerTrack::draw()
     // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
     // blit, but it was too hard to get right.  The biggest problem is that
     // events are at floats which are then rounded to ints for pixel positions.
-    if (damage() == FL_DAMAGE_CHILD) {
+    // DEBUG("damage: " << f_util::show_damage(damage()));
+    if (damage() == FL_DAMAGE_CHILD || damage() == Track::DAMAGE_RANGE) {
         // Only CHILD damage means a selection was set.  But since I overlap
         // with the child, I have to draw too.
         // DEBUG("intersection with child: "
         //     << SHOW_RANGE(draw_area) << " + "
-        //     << SHOW_RANGE(ruler.damaged_area) << " = "
-        //     << SHOW_RANGE(draw_area.intersect(ruler.damaged_area)));
-        draw_area = draw_area.intersect(this->ruler.damaged_area);
+        //     << SHOW_RANGE(damaged_area) << " = "
+        //     << SHOW_RANGE(draw_area.intersect(damaged_area)));
+        draw_area = draw_area.intersect(this->damaged_area);
     } else {
         this->damage(FL_DAMAGE_ALL);
     }
+    if (draw_area.w <= 0 || draw_area.h <= 0)
+        return;
+
     // Prevent marks at the top and bottom from drawing outside the ruler.
     f_util::ClipArea clip_area(draw_area);
     this->draw_child(this->bg_box);
@@ -417,10 +355,26 @@ RulerTrack::draw()
     inside_bevel.y += 2; inside_bevel.h -= 3;
     f_util::ClipArea clip_area2(inside_bevel);
 
-    if (damage() & FL_DAMAGE_ALL)
-        this->draw_child(this->ruler);
-    else
-        this->update_child(this->ruler);
+    // draw_child() forces a draw, update_child() only draws if it has damage.
+    // FL_DAMAGE_ALL implies the children should be redrawn even if they don't
+    // have damage.
+    // I don't track child damage, and I'm already clipping, so draw
+    // unconditionally.
+    this->draw_child(this->ruler);
+    this->damaged_area.w = this->damaged_area.h = 0;
+}
+
+
+void
+RulerTrack::set_selection(
+    int selnum, int tracknum, const std::vector<Selection> &news)
+{
+    ruler.selections.resize(std::max(int(ruler.selections.size()), selnum + 1));
+    for (auto &sel : ruler.selections[selnum])
+        damage_range(sel.low(), sel.high(), true);
+    for (auto &sel : news)
+        damage_range(sel.low(), sel.high(), true);
+    ruler.selections[selnum] = news;
 }
 
 std::string

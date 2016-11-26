@@ -154,7 +154,7 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 EventTrack::EventTrack(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     Track("events"),
-    config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
+    config(config), brightness(1), bg_color(config.bg_color),
     title_input(0, 0, 1, 1),
     bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config, false),
@@ -196,6 +196,21 @@ void
 EventTrack::set_title_focus()
 {
     focus_title();
+}
+
+
+// TODO: duplicated with RulerTrack, move this into Track?
+void
+EventTrack::set_selection(
+    int selnum, int tracknum, const std::vector<Selection> &news)
+{
+    overlay_ruler.selections.resize(
+        std::max(int(overlay_ruler.selections.size()), selnum + 1));
+    for (auto &sel : overlay_ruler.selections[selnum])
+        damage_range(sel.low(), sel.high(), true);
+    for (auto &sel : news)
+        damage_range(sel.low(), sel.high(), true);
+    overlay_ruler.selections[selnum] = news;
 }
 
 
@@ -256,19 +271,6 @@ EventTrack::unfocus_title()
 
 /////////////////////////
 
-void
-EventTrack::set_zoom(const Zoom &new_zoom)
-{
-    if (new_zoom == this->zoom)
-        return;
-    if (this->zoom.factor == new_zoom.factor)
-        this->damage(FL_DAMAGE_SCROLL);
-    else
-        this->damage(FL_DAMAGE_ALL);
-    this->zoom = new_zoom;
-    this->overlay_ruler.set_zoom(new_zoom);
-}
-
 
 void
 EventTrack::set_event_brightness(double d)
@@ -290,6 +292,8 @@ void
 EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.track, "updated an event track with a non-event config");
+    this->damage_range(start, end, false);
+
     if (track.ruler)
         this->overlay_ruler.set_config(false, *track.ruler, start, end);
     if (this->config.bg_color != track.track->bg_color) {
@@ -304,9 +308,6 @@ EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
     // Copy the previous track signal over even though it might be out of date
     // now.  At the least I can't forget the pointers or there's a leak.
     this->config.track_signal = tsig;
-
-    // Use ruler's damage range since both have to be updated at the same time.
-    this->damage(OverlayRuler::DAMAGE_RANGE);
 }
 
 void
@@ -333,51 +334,50 @@ EventTrack::finalize_callbacks()
 }
 
 
+// TODO: parts of this are the same as RulerTrack::draw
 void
 EventTrack::draw()
 {
     IRect draw_area = f_util::rect(this);
+    // DEBUG("damage: " << f_util::show_damage(damage()));
 
     // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
     // blit, but it was too hard to get right.  The biggest problem is that
     // events are at floats which are then rounded to ints for pixel positions.
-    if (this->damage() == FL_DAMAGE_CHILD) {
-        // Only CHILD damage means a selection was set.  But since I overlap
-        // with the child, I have to draw too.
-        // DEBUG("intersection with child: "
-        //     << SHOW_RANGE(draw_area) << " + "
-        //     << SHOW_RANGE(overlay_ruler.damaged_area) << " = "
-        //     << SHOW_RANGE(draw_area.intersect(overlay_ruler.damaged_area)));
-        draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
+    if (damage() == Track::DAMAGE_RANGE) {
+        // DEBUG("intersection draw_area with damaged_area: "
+        //     << SHOW_RANGE(draw_area) << " \\/ "
+        //     << SHOW_RANGE(damaged_area) << " = "
+        //     << SHOW_RANGE(draw_area.intersect(damaged_area)));
+        draw_area = draw_area.intersect(this->damaged_area);
     } else {
         // I could technically handle SCROLL | CHILD, but I'd have to tweak
         // the ruler's damaged_area to account for the scroll and that's too
         // much bother right now.
         this->damage(FL_DAMAGE_ALL);
     }
+    if (draw_area.w <= 0 || draw_area.h <= 0)
+        return;
 
-    if (draw_area.w > 0  && draw_area.h > 0) {
-        // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
-        // When overlay_ruler.draw() is called it will redundantly clip again
-        // on damage_range, but that's ok because it needs the clip when called
-        // from RulerTrack::draw().
-        f_util::ClipArea clip_area(draw_area);
+    // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
+    // When overlay_ruler.draw() is called it will redundantly clip again
+    // on damage_range, but that's ok because it needs the clip when called
+    // from RulerTrack::draw().
+    f_util::ClipArea clip_area(draw_area);
 
-        // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
-        // and fl_draw_box myself.  But this draws the all-mighty bevel too.
-        this->draw_child(this->bg_box);
+    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
+    // and fl_draw_box myself.  But this draws the all-mighty bevel too.
+    this->draw_child(this->bg_box);
 
-        // This is more than one pixel, but otherwise I draw on top of the
-        // bevel on retina displays.
-        IRect inside_bevel = f_util::rect(this);
-        inside_bevel.x += 2; inside_bevel.w -= 3;
-        inside_bevel.y += 2; inside_bevel.h -= 3;
-        f_util::ClipArea clip_area2(inside_bevel);
+    // This is more than one pixel, but otherwise I draw on top of the
+    // bevel on retina displays.
+    IRect inside_bevel = f_util::rect(this);
+    inside_bevel.x += 2; inside_bevel.w -= 3;
+    inside_bevel.y += 2; inside_bevel.h -= 3;
+    f_util::ClipArea clip_area2(inside_bevel);
 
-        this->draw_area();
-        overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
-        this->last_offset = this->zoom.offset;
-    }
+    this->draw_area();
+    damaged_area.w = damaged_area.h = 0;
 }
 
 
@@ -487,11 +487,11 @@ EventTrack::draw_area()
 
     this->draw_event_boxes(events, ranks, count, triggers);
     this->draw_signal(clip.y, clip.b(), start);
-    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
-    if (damage() & FL_DAMAGE_ALL)
-        this->draw_child(this->overlay_ruler);
-    else
-        this->update_child(this->overlay_ruler);
+
+    // I don't track child damage, and I'm already clipping, so draw
+    // unconditionally.
+    this->draw_child(this->overlay_ruler);
+
     for (int i = 0; i < count; i++) {
         Align align = ranks[i] > 0 ? Right : Left;
         draw_upper_layer(i, events, align, boxes, triggers);

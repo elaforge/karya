@@ -105,38 +105,32 @@ public:
 class OverlayRuler : public Fl_Widget {
 public:
     explicit OverlayRuler(const RulerConfig &config, bool is_ruler_track);
-    void set_zoom(const Zoom &new_zoom) { zoom = new_zoom; }
-    void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels);
     ScoreTime time_end() const { return config.last_mark_pos; }
     void set_config(bool is_ruler_track, const RulerConfig &config,
         ScoreTime start, ScoreTime end);
     // Deallocate marklist memory.
     void delete_config();
+    void set_zoom(const Zoom &zoom) { this->zoom = zoom; }
 
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
     int track_start() { return y() + 2; }
 
-    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
-    // This area needs to be redrawn.
-    IRect damaged_area;
     RulerConfig config;
 
-    // Remember how much I've scrolled, to do fl_scroll() optimization.
-    ScoreTime last_offset;
-    Zoom zoom;
+    // Selections indexed by selnum.
+    // Public since Ruler::set_selection manages this.  Later move to its own
+    // object.
+    std::vector<std::vector<Selection>> selections;
 protected:
     void draw() override;
 
 private:
-    // Mark a segment of the track as needing to be redrawn.
-    void damage_range(ScoreTime start, ScoreTime end, bool selection);
     void draw_marklists();
     bool draw_mark(bool at_zero, int offset, const Mark &mark);
     void draw_selections();
-    // Selections indexed by selnum.
-    std::vector<std::vector<Selection> > selections;
+
+    Zoom zoom;
 };
 
 
@@ -144,16 +138,17 @@ class RulerTrack : public Track {
 public:
     explicit RulerTrack(const RulerConfig &config);
     virtual Fl_Box &title_widget() override;
-    virtual void set_zoom(const Zoom &zoom) override;
     virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels) override {
-        ruler.set_selection(selnum, tracknum, sels);
-    }
+        int selnum, int tracknum, const std::vector<Selection> &sels) override;
     virtual ScoreTime time_end() const override { return ruler.time_end(); }
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
         override;
     virtual void set_track_signal(const TrackSignal &tsig) override {
         DEBUG("WARNING: got a track signal on a ruler track!");
+    }
+    virtual void set_zoom(const Zoom &zoom) override {
+        Track::set_zoom(zoom);
+        ruler.set_zoom(zoom);
     }
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;

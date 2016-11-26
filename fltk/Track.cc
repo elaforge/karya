@@ -10,6 +10,8 @@
 #include "Track.h"
 
 
+#define SHOW_RANGE(r) (r).y << "--" << (r).b()
+
 int
 Track::handle(int evt)
 {
@@ -22,6 +24,48 @@ Track::handle(int evt)
         return 1;
     }
     return Fl_Group::handle(evt);
+}
+
+
+void
+Track::set_zoom(const Zoom &new_zoom)
+{
+    if (new_zoom == this->zoom)
+        return;
+    if (this->zoom.factor == new_zoom.factor)
+        this->damage(FL_DAMAGE_SCROLL);
+    else
+        this->damage(FL_DAMAGE_ALL);
+    this->zoom = new_zoom;
+}
+
+
+void
+Track::damage_range(ScoreTime start, ScoreTime end, bool selection)
+{
+    IRect r = f_util::rect(this);
+    if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
+        ; // leave it covering the whole widget
+    } else {
+        r.y += this->zoom.to_pixels(start - this->zoom.offset);
+        r.h = this->zoom.to_pixels(end - start);
+        // TODO: duplicated in RulerTrack, move both to SelectionOverlay
+        const static int selection_point_size = 6;
+        if (selection) {
+            // Extend the damage area to cover the bevel arrow thing in
+            // draw_selections().
+            r.y -= selection_point_size;
+            // +2, otherwise retina displays get a hanging pixel.
+            r.h += selection_point_size * 2 + 2;
+        }
+    }
+
+    // DEBUG("damage_range(" << start << ", " << end << "): "
+    //     << SHOW_RANGE(damaged_area) << " + " << SHOW_RANGE(r)
+    //     << " = " << SHOW_RANGE(damaged_area.union_(r)));
+    this->damaged_area = this->damaged_area.union_(r);
+    // Ensure that the next draw() call redraws the damaged_area.
+    this->damage(Track::DAMAGE_RANGE);
 }
 
 

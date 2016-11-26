@@ -127,17 +127,18 @@ public:
     }
     virtual void set_title(const char *title) override;
     virtual void set_title_focus() override;
-    void set_zoom(const Zoom &new_zoom) override;
     virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels) override {
-        overlay_ruler.set_selection(selnum, tracknum, sels);
-    }
+        int selnum, int tracknum, const std::vector<Selection> &sels) override;
     virtual void set_event_brightness(double d) override;
     virtual ScoreTime time_end() const override;
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
         override;
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig) override;
+    virtual void set_zoom(const Zoom &zoom) override {
+        Track::set_zoom(zoom);
+        overlay_ruler.set_zoom(zoom);
+    }
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 
@@ -170,10 +171,6 @@ private:
     void unfocus_title();
 
     EventTrackConfig config;
-    Zoom zoom;
-    // Remember how much I've scrolled, to do fl_scroll() optimization.
-    // TODO but not anymore
-    ScoreTime last_offset;
     double brightness;
     Color bg_color;
 
