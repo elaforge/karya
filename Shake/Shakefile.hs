@@ -413,6 +413,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "RulerTrack.cc"
     , "Scrollbar.cc"
     , "Selection.cc"
+    , "SelectionOverlay.cc"
     , "SimpleScroll.cc"
     , "SkeletonDisplay.cc"
     , "StyleTable.cc"
@@ -734,7 +735,7 @@ dispatch modeConfig targets = do
         -- I should probably run this in staunch mode, -k.
         "validate" -> action $ do
             -- Unfortunately, verify_performance is the only binary in
-            -- opt, which most of the opt tree to build.  I could build
+            -- opt, which causes most of the opt tree to build.  I could build
             -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
             needEverything [opt "verify_performance"]

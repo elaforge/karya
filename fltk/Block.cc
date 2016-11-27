@@ -387,9 +387,9 @@ Block::set_selection(
         return;
     }
     if (tracknum == 0) {
-        track_at(0)->set_selection(selnum, 0, sels);
+        track_at(0)->set_selection(selnum, sels);
     } else {
-        track_at(tracknum)->set_selection(selnum, tracknum-1, sels);
+        track_at(tracknum)->set_selection(selnum, sels);
     }
     // Since the selection counts toward time_end.
     this->update_scrollbars();

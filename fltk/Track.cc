@@ -8,6 +8,7 @@
 #include "MsgCollector.h"
 
 #include "Track.h"
+#include "SelectionOverlay.h" // for selection_point_size
 
 
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
@@ -49,14 +50,12 @@ Track::damage_range(ScoreTime start, ScoreTime end, bool selection)
     } else {
         r.y += this->zoom.to_pixels(start - this->zoom.offset);
         r.h = this->zoom.to_pixels(end - start);
-        // TODO: duplicated in RulerTrack, move both to SelectionOverlay
-        const static int selection_point_size = 6;
         if (selection) {
             // Extend the damage area to cover the bevel arrow thing in
             // draw_selections().
-            r.y -= selection_point_size;
+            r.y -= SelectionOverlay::selection_point_size;
             // +2, otherwise retina displays get a hanging pixel.
-            r.h += selection_point_size * 2 + 2;
+            r.h += SelectionOverlay::selection_point_size * 2 + 2;
         }
     }
 

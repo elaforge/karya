@@ -118,17 +118,14 @@ class EventTrack : public Track {
 public:
     EventTrack(const EventTrackConfig &config, const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h) override;
-    // Y position of the track start.  Use this instead of y() to avoid
-    // colliding with the track bevel.
-    int track_start() { return overlay_ruler.track_start(); }
     virtual Fl_Widget &title_widget() override { return title_input; }
     virtual const char *get_title() const override {
         return title_input.value();
     }
     virtual void set_title(const char *title) override;
     virtual void set_title_focus() override;
-    virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels) override;
+    virtual void set_selection(int selnum, const std::vector<Selection> &sels)
+        override;
     virtual void set_event_brightness(double d) override;
     virtual ScoreTime time_end() const override;
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
@@ -179,6 +176,7 @@ private:
     AbbreviatedInput title_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
+    SelectionOverlay selection_overlay;
     FloatingInput *floating_input;
 };
 

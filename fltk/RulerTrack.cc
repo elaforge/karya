@@ -14,12 +14,6 @@
 #include "SymbolTable.h"
 
 
-// Height in pixels both above and below  of the special indicator that is
-// drawn on a 0 size selection.
-const static int selection_point_size = 6;
-// Selections are always at least this many pixels.
-const static int selection_min_size = 2;
-
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
@@ -95,7 +89,6 @@ void
 OverlayRuler::draw()
 {
     this->draw_marklists();
-    this->draw_selections();
 }
 
 
@@ -143,7 +136,7 @@ OverlayRuler::draw_marklists()
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
-    int y = this->track_start();
+    int y = this->y() + 2; // TODO track_start()
 
     ScoreTime start = this->zoom.to_time(clip.y - y);
     ScoreTime end = start + this->zoom.to_time(clip.h);
@@ -217,54 +210,6 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
 }
 
 
-void
-OverlayRuler::draw_selections()
-{
-    IRect sel_rect;
-    int y = this->track_start();
-    for (const std::vector<Selection> &sels : selections) {
-        for (const Selection &sel : sels) {
-            if (sel.empty())
-                continue;
-            int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
-            int height = std::max(selection_min_size,
-                this->zoom.to_pixels(sel.high() - sel.low()));
-            // IRect intersection is half-open ranges, but rect drawing is
-            // inclusive pixel ranges.  So add one to ensure that if I share a
-            // pixel border with the clip rect, I'll still draw that pixel
-            // line.
-            sel_rect = f_util::clip_rect(IRect(x(), start, w(), height + 1));
-            fl_line_style(FL_SOLID, 0);
-            alpha_rectf(sel_rect, sel.color);
-
-            // Darken the the cur pos a bit, and make it non-transparent.
-            fl_color(sel.color.brightness(0.5).fl());
-            int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
-            fl_line(x() + 2, cur, x() + w() - 2, cur);
-            if (sel.is_point() || sel.draw_arrow) {
-                // Draw a little arrow bevel thingy, so you can see a point
-                // selection, or see the cur track for a non-point selection.
-                // 'damage_range' will extend the damage a bit to cover this.
-                const int sz = selection_point_size;
-                if (sel.draw_arrow) {
-                    fl_color(FL_RED);
-                    fl_polygon(
-                        x(), cur - sz,
-                        x() + sz, cur,
-                        x(), cur + sz);
-                } else {
-                    fl_color(sel.color.fl());
-                    fl_polygon(
-                        x(), cur - sz,
-                        x() + sz, cur,
-                        x(), cur);
-                }
-            }
-        }
-    }
-}
-
-
 // RulerTrack
 
 RulerTrack::RulerTrack(const RulerConfig &config) :
@@ -321,6 +266,9 @@ RulerTrack::finalize_callbacks()
 }
 
 // TODO: parts of this are the same as EventTrack::draw
+// Drawing order:
+// EventTrack: bg -> events -> ruler -> text -> trigger -> selection
+// RulerTrack: bg ->           ruler ->                    selection
 void
 RulerTrack::draw()
 {
@@ -361,21 +309,22 @@ RulerTrack::draw()
     // I don't track child damage, and I'm already clipping, so draw
     // unconditionally.
     this->draw_child(this->ruler);
+    selection_overlay.draw(x(), track_start(), w(), zoom);
     this->damaged_area.w = this->damaged_area.h = 0;
 }
 
 
+// TODO: duplicated with EventTrack, move this into Track?
 void
-RulerTrack::set_selection(
-    int selnum, int tracknum, const std::vector<Selection> &news)
+RulerTrack::set_selection(int selnum, const std::vector<Selection> &news)
 {
-    ruler.selections.resize(std::max(int(ruler.selections.size()), selnum + 1));
-    for (auto &sel : ruler.selections[selnum])
+    for (auto &sel : selection_overlay.get(selnum))
         damage_range(sel.low(), sel.high(), true);
+    selection_overlay.set(selnum, news);
     for (auto &sel : news)
         damage_range(sel.low(), sel.high(), true);
-    ruler.selections[selnum] = news;
 }
+
 
 std::string
 RulerTrack::dump() const

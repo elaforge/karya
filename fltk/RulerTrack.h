@@ -20,6 +20,7 @@
 
 #include "Color.h"
 #include "Selection.h"
+#include "SelectionOverlay.h"
 #include "Track.h"
 #include "config.h"
 #include "types.h"
@@ -112,23 +113,14 @@ public:
     void delete_config();
     void set_zoom(const Zoom &zoom) { this->zoom = zoom; }
 
-    // Y position of the track start.  Use this instead of y() to avoid
-    // colliding with the track bevel.
-    int track_start() { return y() + 2; }
-
     RulerConfig config;
 
-    // Selections indexed by selnum.
-    // Public since Ruler::set_selection manages this.  Later move to its own
-    // object.
-    std::vector<std::vector<Selection>> selections;
 protected:
     void draw() override;
 
 private:
     void draw_marklists();
     bool draw_mark(bool at_zero, int offset, const Mark &mark);
-    void draw_selections();
 
     Zoom zoom;
 };
@@ -138,8 +130,8 @@ class RulerTrack : public Track {
 public:
     explicit RulerTrack(const RulerConfig &config);
     virtual Fl_Box &title_widget() override;
-    virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels) override;
+    virtual void set_selection(int selnum, const std::vector<Selection> &sels)
+        override;
     virtual ScoreTime time_end() const override { return ruler.time_end(); }
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
         override;
@@ -161,6 +153,7 @@ private:
     Fl_Box *title_box;
     Fl_Box bg_box;
     OverlayRuler ruler;
+    SelectionOverlay selection_overlay;
 };
 
 #endif

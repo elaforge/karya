@@ -201,16 +201,13 @@ EventTrack::set_title_focus()
 
 // TODO: duplicated with RulerTrack, move this into Track?
 void
-EventTrack::set_selection(
-    int selnum, int tracknum, const std::vector<Selection> &news)
+EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
 {
-    overlay_ruler.selections.resize(
-        std::max(int(overlay_ruler.selections.size()), selnum + 1));
-    for (auto &sel : overlay_ruler.selections[selnum])
+    for (auto &sel : selection_overlay.get(selnum))
         damage_range(sel.low(), sel.high(), true);
+    selection_overlay.set(selnum, news);
     for (auto &sel : news)
         damage_range(sel.low(), sel.high(), true);
-    overlay_ruler.selections[selnum] = news;
 }
 
 
@@ -335,6 +332,9 @@ EventTrack::finalize_callbacks()
 
 
 // TODO: parts of this are the same as RulerTrack::draw
+// Drawing order:
+// EventTrack: bg -> events -> ruler -> text -> trigger -> selection
+// RulerTrack: bg ->           ruler ->                    selection
 void
 EventTrack::draw()
 {
@@ -496,6 +496,7 @@ EventTrack::draw_area()
         Align align = ranks[i] > 0 ? Right : Left;
         draw_upper_layer(i, events, align, boxes, triggers);
     }
+    selection_overlay.draw(x(), track_start(), w(), zoom);
 
     // Free text, allocated on the haskell side.
     if (count) {

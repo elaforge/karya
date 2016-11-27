@@ -80,9 +80,11 @@ public:
         // DEBUG("deleted track " << this);
     }
     int handle(int evt) override;
+    // Y position of the track start.  Use this instead of y() to avoid
+    // colliding with the track bevel.
+    int track_start() { return y() + 2; }
 
-    virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels)
+    virtual void set_selection(int selnum, const std::vector<Selection> &sels)
     {}
     virtual void set_zoom(const Zoom &new_zoom);
     virtual bool track_resizable() const { return true; }

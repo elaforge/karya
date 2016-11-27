@@ -156,9 +156,12 @@ UNSORTED
       . Or pass a function to draw the in between stuff?  But I have to pass
         it via mutable variable.
     * Move damage range tracking to Track.
-    - Move selection drawing to SelectionOverlay.
-    - Make RulerOverlay and SelectionOverlay plain objects, not Fl_Widget.
-    - Move RulerOverlay to its own file.
+    * Move selection drawing to SelectionOverlay.
+      . The problem is that I want set_selection to be in there, but it mostly
+        sets damage, so it can't.
+      . Or, I could implement EventTrack and RulerTrack as the same, just
+        with a switch?  I actually like them separate, seems less cluttered.
+    - Make RulerOverlay a plain object, not Fl_Widget.
   - entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or
