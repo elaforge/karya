@@ -2,13 +2,14 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <string>
+#include <utility>
+#include <vector>
 #include <sstream>
 #include <math.h>
 
 #include "FloatingInput.h"
-#include "MsgCollector.h"
 #include "SymbolTable.h"
-#include "alpha_draw.h"
 #include "config.h"
 #include "f_util.h"
 #include "util.h"
@@ -157,13 +158,12 @@ EventTrack::EventTrack(const EventTrackConfig &config,
     config(config), brightness(1), bg_color(config.bg_color),
     title_input(0, 0, 1, 1),
     bg_box(0, 0, 1, 1),
-    overlay_ruler(ruler_config, false),
+    ruler_overlay(ruler_config, false),
     floating_input(nullptr)
 {
     // this->resizable(0); // don't resize children
     end(); // make sure no one else falls in
     this->add(bg_box);
-    this->add(this->overlay_ruler);
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(config.bg_color.brightness(this->brightness).fl());
@@ -176,8 +176,8 @@ void
 EventTrack::resize(int x, int y, int w, int h)
 {
     // Don't call Fl_Group::resize because I just did the sizes myself.
+    // TODO wait, what?
     Fl_Widget::resize(x, y, w, h);
-    this->overlay_ruler.resize(x, y, w, h);
     this->bg_box.resize(x, y, w, h);
 }
 
@@ -281,7 +281,7 @@ EventTrack::set_event_brightness(double d)
 ScoreTime
 EventTrack::time_end() const
 {
-    return std::max(this->config.time_end, this->overlay_ruler.time_end());
+    return std::max(this->config.time_end, this->ruler_overlay.time_end());
 }
 
 
@@ -292,7 +292,7 @@ EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
     this->damage_range(start, end, false);
 
     if (track.ruler)
-        this->overlay_ruler.set_config(false, *track.ruler, start, end);
+        this->ruler_overlay.set_config(false, *track.ruler, start, end);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_color = track.track->bg_color;
         this->set_event_brightness(this->brightness);
@@ -327,7 +327,7 @@ EventTrack::finalize_callbacks()
     Config::free_haskell_fun_ptr(
         reinterpret_cast<void *>(this->config.find_events));
     this->config.track_signal.free_signals();
-    this->overlay_ruler.delete_config();
+    this->ruler_overlay.delete_config();
 }
 
 
@@ -360,7 +360,7 @@ EventTrack::draw()
         return;
 
     // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
-    // When overlay_ruler.draw() is called it will redundantly clip again
+    // When ruler_overlay.draw() is called it will redundantly clip again
     // on damage_range, but that's ok because it needs the clip when called
     // from RulerTrack::draw().
     f_util::ClipArea clip_area(draw_area);
@@ -488,9 +488,8 @@ EventTrack::draw_area()
     this->draw_event_boxes(events, ranks, count, triggers);
     this->draw_signal(clip.y, clip.b(), start);
 
-    // I don't track child damage, and I'm already clipping, so draw
-    // unconditionally.
-    this->draw_child(this->overlay_ruler);
+    IRect box(x(), track_start(), w(), h() - (y()-track_start()));
+    this->ruler_overlay.draw(box, zoom, clip);
 
     for (int i = 0; i < count; i++) {
         Align align = ranks[i] > 0 ? Right : Left;

@@ -133,10 +133,10 @@ UNSORTED
       and not really clear it's better.  Adn "scale's notes" sounds a lot
       better than "scale's symbolics" and "scale's symbolic pitches" is too
       long.
-  - it's practically impossible to see a point selection on top of
+  * it's practically impossible to see a point selection on top of
     a negative+positive event pair: --||--
     . Put the ears on the right side only, and eliminate for align_right?
-  - Also it's hard to see the selection at the top of the block if there's an
+  * Also it's hard to see the selection at the top of the block if there's an
     event there.
     . If I make the selection arrow not red?
     . And it should draw on top of the event trigger.
@@ -161,7 +161,7 @@ UNSORTED
         sets damage, so it can't.
       . Or, I could implement EventTrack and RulerTrack as the same, just
         with a switch?  I actually like them separate, seems less cluttered.
-    - Make RulerOverlay a plain object, not Fl_Widget.
+    * Make RulerOverlay a plain object, not Fl_Widget.
   - entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or

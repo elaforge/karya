@@ -16,9 +16,9 @@
 #include "AbbreviatedInput.h"
 #include "Event.h"
 #include "FloatingInput.h"
-#include "RulerTrack.h"
-#include "SymbolTable.h"
 #include "Track.h"
+#include "RulerOverlay.h"
+#include "SelectionOverlay.h"
 #include "types.h"
 
 
@@ -132,10 +132,6 @@ public:
         override;
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig) override;
-    virtual void set_zoom(const Zoom &zoom) override {
-        Track::set_zoom(zoom);
-        overlay_ruler.set_zoom(zoom);
-    }
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 
@@ -175,7 +171,7 @@ private:
     // it, 'floating_input' will pop up in front.
     AbbreviatedInput title_input;
     Fl_Box bg_box;
-    OverlayRuler overlay_ruler;
+    RulerOverlay ruler_overlay;
     SelectionOverlay selection_overlay;
     FloatingInput *floating_input;
 };

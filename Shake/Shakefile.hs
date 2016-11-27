@@ -410,6 +410,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "FloatingInput.cc"
     , "MoveTile.cc"
     , "MsgCollector.cc"
+    , "RulerOverlay.cc"
     , "RulerTrack.cc"
     , "Scrollbar.cc"
     , "Selection.cc"
