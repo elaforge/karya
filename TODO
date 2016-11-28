@@ -5,7 +5,6 @@ LEGEND
 UNSORTED
   - text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
-  * quit in repl crashes the repl
   - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
     climbs steadily, e.g. at 400mb after 5 minutes or so.
     . It grows on every rederive by about the same amount, so probably the old
@@ -51,117 +50,10 @@ UNSORTED
     . Does it grow with the repl off?
       . Yes, so it's not the repl.
 
-  * Get rid of the VInstrument type?  Why not use symbol?  inst=>x doesn't
-    seem to have any advantage over inst=x.
-  * Get rid of `note-track`s attribute arguments.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
-  * Lilypond derive has to add a dummy allocation for >ly-global.
-    . It turns out StateConfig.allocate silently throws away non-Common
-      data for a Dummy allocation.  It's because there's no Dummy
-      Inst.Backend, so it has to be something, and in practice is Midi.
-    . Since MidiInst.Patch contains a MIDI patch, synth declarations can't
-      define Dummy instruments without giving a bogus Patch.
-    . I can make it Maybe Patch, but then modifiers like MidiInst.pressure are
-      partial.
-    . Or make Patch a, where Patch.Patch modifications require
-      (Patch Patch.Patch).  But then I can't put both types in a list, I
-      have to promote each one to Maybe Patch.Patch.  It wouldn't be so bad
-      if the usual 'synths' expected Patch.Patch, and there was some other
-      mechanism to append Patch () ones.
-    . After all this, is it really worth it?  Maybe it's not so bad to reuse
-      a MIDI patch as a Dummy.
-  / Also, despite the fact that Patch.patch_name says it's just for
-    documentation, in fact MidiInst uses it for the instrument name.  I should
-    give an explicit name.
-    . Eh, it seems fine to derive from the patch name.
-  * No thru when I'm entering in the pitch track is annoying.
-    . Only happens for pasang instruments.
-    . It's because inst calls only happen in the note track, not its pitch
-      track.  How can I configure cmds for the pitch track?
-    . I would have to know this is a thru cmd, and make pitch tracks also
-      get any thru cmds from the inst track.
-    . Or is there another way to do pasang thru?
-    . Instead of having the instrument supersede thru, I could have the thru
-      cmd itself check the instrument for a special "thru slot".
-      MidiInst.code_thru :: Maybe (InputNote.Input -> Cmd.CmdId ())
-  * putting dyn on an instrument like '>jegogan = >jegogan | %dyn=.35' tends
-    to lead to surprising double applications.  If I use 'set' then I ignore
-    the environment.  What I really want is a transformation for every "" call
-    by instrument.
-    . I have sort of that in Common.Config.config_controls?
-    . Wait, doesn't it have the same problem if the merge is not idempotent?
-      E.g. I want %t-dia += n, but only do it once.
-    . I think I can move controls application to the default note deriver.
-  * Extend '=' to '+=' or ':=' (set) or other symbols for mergers?
-    Or should <= be merge, and = is set?
-    . '=' is one of the few non-symbol characters so x=y works.  So += would
-      have to extend that set with all the symbols.  =+ doesn't have the
-      problem, though it's non-standard.
-    . It does have ambiguity with x=-5... but maybe it's not so bad to require
-      a space?
-    . On the other hand, %x=-1 gets the same meaning if 'x' is additive.
-      I'm not sure if that's good or bad.
-      . Wait, no it doesn't, '=' is set by default.
-    . Haskell doesn't have the problem because '-' is not a part of numbers.
-      Other languages don't have the problem because they use -=, and limit
-      valid symbol characters.
-    . Technically I don't need =-, I could use =+-1... but ugh.
-    . I could avoid all the problems with prefix: -= x 1
-    . Or use =~ for subtract.
-  * should Eval.apply_pitch typecheck a pitch?
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
       with information about the pitch.
-  / fltk: If I solo a track, then delete a track before it, the solo placement
-    gets messed up.
-    . Can't reproduce it now.
-  / Pitch.Note is misnamed, it should really be SymbolicPitch or PCall or
-    something.  Pitch.Symbolic?
-    . I already have BaseTypes.PitchCall, but it's a Call, so it has args
-      and everything.
-    . Also it's dumb how I have PSignal.Pitch and Pitch.Pitch.
-    . PSignal.Pitch : abstract transposable pitch
-      Pitch.Pitch : generic (octave, pc, accs)
-      Pitch.Note : symbolic text
-    . Still, I should be able to unify with Pitch.Note by just using [] args.
-      However, no args is actually a property I rely on, e.g. I can't parse
-      it to a Pitch unless I just ignore the args.  Also PitchCall is almost
-      completely unused.  So maybe I just need better names.
-    . Pitch.Parsed, Pitch.Symbolic?
-      Then what, parsed_octave, parsed_degree?
-    . I tried Symbolic but gave up.  It's a lot of work to rename everything,
-      and not really clear it's better.  Adn "scale's notes" sounds a lot
-      better than "scale's symbolics" and "scale's symbolic pitches" is too
-      long.
-  * it's practically impossible to see a point selection on top of
-    a negative+positive event pair: --||--
-    . Put the ears on the right side only, and eliminate for align_right?
-  * Also it's hard to see the selection at the top of the block if there's an
-    event there.
-    . If I make the selection arrow not red?
-    . And it should draw on top of the event trigger.
-      . It's hard to do that because selection and ruler and integrated.
-        Maybe I can split out Selection?
-      . The way track range damage is handled by the ruler overlay is weird.
-        Track: keep track of damage range, set clipping, draw children.
-        . RulerOverlay child
-        . SelectionOverlay child
-      . It actually looks kind of ok to also draw the ruler overlay on top.
-        I think because event triggers have ears now.  I still think having
-        them on top is better for readability.
-      . Actually, text doesn't matter since it's black anyway, I just want the
-        trigger on top:
-        bg -> events -> ruler -> text -> trigger -> selection
-        bg ->           ruler ->                    selection
-      . Or pass a function to draw the in between stuff?  But I have to pass
-        it via mutable variable.
-    * Move damage range tracking to Track.
-    * Move selection drawing to SelectionOverlay.
-      . The problem is that I want set_selection to be in there, but it mostly
-        sets damage, so it can't.
-      . Or, I could implement EventTrack and RulerTrack as the same, just
-        with a switch?  I actually like them separate, seems less cluttered.
-    * Make RulerOverlay a plain object, not Fl_Widget.
   - entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or
@@ -175,81 +67,10 @@ UNSORTED
     . Also I got a plain segfault after starting with p1, then load p4
   - shakefile: I can turn off Synth, but haddock still wants to build for it
     also tests probably
-  * When I don't use final=f, the the sangsih at the end of the nyogcag in
-    kebyar-duduk @b1 changes pitch at the end, even though it's ConstantPitch.
-    In fact all the pitches in the second time are messed up, what's going on?
-    . >pemade-isep: tuning=isep, scale=isep, 79.486nn,5u(*legong)
-      Looks like it's all right, why is it sending pitch bend for that note?
-    . Turns out I forgot to use Post.set_instrument.  See TODO below about
-      Post.set_instrument.
-  * cmd key causes: 'fltk/MsgCollector.cc:438 unknown event: shortcut'
-  * tools/update_all.py doesn't handle symlinks properly
-  * sometimes enter or slash doesn't want to go back before a certain point
-    . Next time it happens, see what Play.top_of_block returns.
-    . save/bali/lelambatan/sekatian-old doesn't start at the beginning
-    . Likely due to Block.view_zoom getting out of sync.
-    . That means it scrolled without emitting UpdateTimeScroll.  Or possibly
-      I got a wrong or out of order UpdateTimeScroll.  How can I catch that?
-    . The other way would be to poll instead of waiting for msgs.  So each
-      respond could get an update to see if anything changed.  It might also
-      solve the focus problem.
-    . I think the way to debug it would basically be the same thing, only use
-      it as a check to catch it.  But if I'm going to do it anyway, and it's
-      cheap, why not just always do it that way?
-    . On the other hand, polling would be work done on each respond for each
-      window when the vast majority of times nothing has changed, and I do
-      want to be careful about respond overhead.
-    . Seems to happen when I created a new view, via Factor.selection.
-      Something about create, then add a track, then backslash?
-      No, but it happens sometime during the editing.
-      Happens when entering the bottom note, and not in Cmd.Internal
-    . It's Selection.auto_scroll, it sets offset but doesn't ask fltk what
-      actually happened.
-    . first, have fltk report after a set if it had to clip it
-    . second, make Selection.auto-time_scroll not try to scroll past the end.
-  . Editing the .ky file still seems a little heavyweight.  Since it isn't
-    saved and tracked with the score, it seems more appropriate for library
-    type stuff.  With .git the obvious thing is to track in git, and then have
-    an easy way to get the path, so I can do 'vi $(bin/ky)'.
-    . E.g. I wanted to add a 'lh = alt lh-1 lh-2', but wound up putting
-      it the global transform.  But that gets awkward when it gets too big.
-      Also the .ky syntax is more convenient.
-    . Could I get the repl to do vi editing?  Write to a file, invoke vi,
-      then write back the result.
-      . The problem is I don't have any answer cmds.  I'd need a new protocol
-        msg, e.g. REdit Text, which then expects a QEdit Text, but that means
-        the repl side has to keep state.
-      . I could also do "LState.set_transform :e", and if the repl sees a :e,
-        it runs the editor and replaces the contents with its output.
-        . Wait, but I want to edit an existing thing, so it needs to send
-          a string to edit.
-      * Ok, then REdit Text ReturnPrefix
-        Edit the text, then prepend the prefix and send it back.
-        . How to return an Edit from a Cmd?
-          . Using show means I can return anything showable, if I return
-            a Result then I lose that.
-          . I could try to parse back to Result from the string, or maybe
-            overlapping instances could do it.
-      - Then I can switch global transform to use ky syntax and now I have
-        a local .ky file.
-        . I could implicitly wrap everything in global, and then expect the
-          global transform to contain a "note transformer: global = ...".
-        . The only thing is that this doesn't display so compactly in logview.
-    * I could also have a cmd key to edit the current cmdline.  Or maybe
-      load the history, use ? etc. to find the line I want, edit, and then
-      have some way to return the line with the cursor on it.
-      . For the latter I'd need a vim binding, say override ZZ to delete all
-        but the current line.
-  * It seems like 0 dur might be a more useful default for mridingam calls.
-  * Also, what about bringing back infer from duration?
-  * make LPitch.simplify_enharmonics work on all scales
-  * remove fm8/pressure and use local config instead
-  * convert Util.Testing to Text
-  * Put tags in Log.Msg like Map Text (Nothing | Text | Int), so I don't have to
-    do Cache.extract_cached_msg.
-  * Util.Log: All the initialized msg stuff like 'make_msg' and
-    'initialized_msg' is confusing.  Can I get rid of initialize?
-    . Actually I do use it, for the stack, but can I build it into Log.write?
+  - I can switch global transform to use ky syntax and now I have a local .ky.
+    . I could implicitly wrap everything in global, and then expect the
+      global transform to contain a "note transformer: global = ...".
+    . The only thing is that this doesn't display so compactly in logview.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
@@ -1242,24 +1063,15 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - Now that save file is a poll instead of being pushed, it takes a return
+    to notice a change.  Can I restore the notification thing?  Or maybe it's
+    enough to make sure I write the history to the new name?
   - I don't really use ReplStub, can I get rid of the awkward #ifdef then?
-  * repl now has no history when it doesn't know the filename.
-    Maybe I should have it ask for the filename.  I'll need a protocol anyway
-    to ask for tab-completion.
-      data Query = QUpdate | QCommand Text
-      data Response = RUpdate FilePath [Text] | RCommand Result [Log]
-      type Log = Text
-      data Result = Raw !Text | Format !Text
-    * Implement QSaveFile
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - is Cmd.Lang.Fast now obsolete?
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
-  * tab completion for symbols like in ghci
-    I'll need a list symbols cmd which the repl automatically sends on tab
-    completion.
-    . Add 'QCompletions Prefix' and 'RCompletions [Symbol]'.
   - :compile cmd that turns on compilation for everything except Environ
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
@@ -1550,14 +1362,6 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        * Notation for just strokes, in case I don't want to bother to have
-          intervening sollus.
-          . But I want to be able to reuse all the Dsl combinators, so it
-            has to ba a Sequence, which is hardcoded to sollus.
-          . I could just make a 1:1 map from sollus to strokes, and then
-            a record namespace that maps those symbols to k, n, d, etc.
-          . But I still want to be able to combine with &... I can do that
-            with !, but I'd need to also replace the (&) operator.
         - Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
         - explicit strokes via (!) should not require a valid entry in the
@@ -1634,12 +1438,6 @@ Derive:
       - Add an input mode for bols.
     bali:
       - abstract kajar parts, and gong cycles
-      * transpose on calung and jegog should wrap around
-      * Wrap still doesn't work for 3i, because evaluating the pitch itself
-        throws before I can wrap it.  Maybe I shouldn't have an OutOfRange,
-        or at least save it until backend convert?
-        . It's from Pitches.pitch_note.  Symbolic pitch shouldn't need to
-          throw OutOfRange.
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -1685,18 +1483,12 @@ Derive:
             . I can, but it still takes longer than just writing it out.  And
               if it's not pitch-independent, there's not much benefit to the
               specialized kotekan notation.
-        * Have a character for "no note".
         - Maybe have a character extend previous note.
         - Another option is to write the polos notes directly, and then
           a parent call that infers sangsih.  This avoids the problem where
           I have to figure out how many little numbers.
           . But if I'm going to do that, why not just use +p, +s, and +k to
             write the whole thing explicitly?
-        * shorter notation for kempyung |?  Also for polos-only and
-          sangsih-only.
-        * nyog shouldn't need ap
-        * But then it doesn't work, because each note is treated separately,
-          which makes it into all polos.
         - in norot -> nyog transition, the last norot note cancels the first
           nyog note.
           . sangsih 6i cancels out the explicit 5e
@@ -1709,8 +1501,6 @@ Derive:
         - gangsa zero dur mutes too loud
           . Really I need loose and tight mute, but I'll have to do my own
             samples, or maybe add a loose mute as open with just envelope.
-        * is zero dur also mute for reyong?  I keep forgetting!
-          . Yes, and should be for all bali instruments.
         - noltol puts a mute stroke after a final note.
           . It's becasue it has a lower threshold, but not an upper one.
             But really it's not the threshold, but the form, noltol should be
