@@ -46,7 +46,7 @@ Marklist *m44_set(ScoreTime *last_pos)
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
 
-    int length = 200;
+    int length = 64;
     PosMark *marks = (PosMark *) calloc(sizeof(PosMark), length);
     for (int i = 0; i < length; i++) {
         ScoreTime t = ScoreTime(i*8);
@@ -144,6 +144,8 @@ void t1_set()
         // doesn't overlap rank 0
         e.push_back(EventInfo(0,
             Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(64*8), ScoreTime(0), "end", style)));
         break;
      } }
 }

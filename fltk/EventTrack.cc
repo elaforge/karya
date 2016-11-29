@@ -161,7 +161,6 @@ EventTrack::EventTrack(const EventTrackConfig &config,
     ruler_overlay(ruler_config, false),
     floating_input(nullptr)
 {
-    // this->resizable(0); // don't resize children
     end(); // make sure no one else falls in
     this->add(bg_box);
     // create event widgets
@@ -423,7 +422,8 @@ wrap_text(const Event &event, int width)
 static EventTrack::TextBox
 compute_text_box(
     const Event &event, const SymbolTable::Wrapped &wrapped,
-    int x, int y, int width, EventTrack::Align align)
+    int x, int y, int width, EventTrack::Align align,
+    int track_min, int track_max)
 {
     vector<pair<string, IRect>> lines;
     lines.reserve(wrapped.size());
@@ -441,6 +441,26 @@ compute_text_box(
         IRect box(tx, y, ceil(line.second.x), ceil(line.second.y));
         lines.push_back(std::make_pair(line.first, box));
         y += ceil(line.second.y) + 1;
+    }
+    // Avoid putting text past the unscrollable start and end of the track.
+    if (!lines.empty()) {
+        if (event.is_negative()) {
+            int offset = track_min - lines.begin()->second.y;
+            if (offset > 0) {
+                // DEBUG("+line " << *lines.begin() << " offset: " << offset);
+                for (auto &line : lines) {
+                    line.second.translate(IPoint(0, offset));
+                }
+            }
+        } else {
+            int offset = lines.rbegin()->second.b() - track_max;
+            if (offset > 0) {
+                // DEBUG("-line " << *lines.rbegin() << " offset: " << offset);
+                for (auto &line : lines) {
+                    line.second.translate(IPoint(0, -offset));
+                }
+            }
+        }
     }
     return EventTrack::TextBox(lines, align);
 }
@@ -474,13 +494,17 @@ EventTrack::draw_area()
 
     vector<TextBox> boxes(count);
     vector<int> triggers(count);
+
+    const int track_min = track_start() - zoom.to_pixels(zoom.offset);
+    const int track_max = track_min + zoom.to_pixels(time_end());
     for (int i = 0; i < count; i++) {
         triggers[i] = y_start
             + this->zoom.to_pixels(events[i].start - this->zoom.offset);
         const SymbolTable::Wrapped wrapped = wrap_text(events[i], wrap_width);
         Align align = ranks[i] > 0 ? Right : Left;
         boxes[i] = compute_text_box(
-            events[i], wrapped, x(), triggers[i], wrap_width, align);
+            events[i], wrapped, x(), triggers[i], wrap_width, align,
+            track_min, track_max);
     }
 
     // Actually start drawing.
@@ -732,7 +756,7 @@ EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
 // ones, but it's ok because they coincide.
 static void
 draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
-    EventTrack::Align align, int prev_limit)
+    EventTrack::Align align, int prev_limit, int next_limit)
 {
     Color color = draw_text || !event.text
         ? Config::event_trigger_color : Config::abbreviation_color;
@@ -751,6 +775,11 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
         // see what it is.
         if (align == EventTrack::Left) {
             y = std::max(y, prev_limit + 3.0);
+        }
+    } else {
+        // Same story as the negative event at 0.
+        if (align == EventTrack::Left) {
+            y = std::min(y, next_limit - 3.0);
         }
     }
 
@@ -917,7 +946,8 @@ drawable_pixels(
 
 
 static void
-draw_line(const string &line, const IRect &box, const SymbolTable::Style &style)
+draw_text_line(
+    const string &line, const IRect &box, const SymbolTable::Style &style)
 {
     // Drawing text that touches the bottom of a box means drawing one
     // above the bottom.  I don't totally understand this.
@@ -968,11 +998,14 @@ EventTrack::draw_upper_layer(
     const int drawable = drawable_pixels(index, events, boxes);
     TEXT("drawable pixels for " << events[index] << ": " << drawable);
 
+    const int track_min = this->track_start() - zoom.to_pixels(zoom.offset);
+    const int track_max = track_min + zoom.to_pixels(time_end());
+
     // Don't draw above 0 since I can't scroll further up to see it.  Also
     // don't draw on top of the previous trigger line of a Left event.  Since
     // the limit only applies to negative events, which draw upwards, this
     // prevents an overlap for [-(0, 1), -(1, 0)].
-    int prev_limit = this->track_start() - zoom.to_pixels(zoom.offset);
+    int prev_limit = track_min;
     for (int i = index - 1; i >= 0; i--) {
         if (boxes[i].align == EventTrack::Left) {
             prev_limit = std::max(prev_limit, triggers[i]);
@@ -983,7 +1016,8 @@ EventTrack::draw_upper_layer(
     // the Right event comes after its conincident Left one.  The haskell side
     // does this for merged tracks.
     draw_trigger(
-        drawable > 0, x()+1, triggers[index], w()-2, event, align, prev_limit);
+        drawable > 0, x()+1, triggers[index], w()-2, event, align,
+        prev_limit, track_max);
 
     // for (int i = 0; i < boxes[index].lines.size(); i++) {
     //     TEXT("text box: " << i << ": " << boxes[index].lines[i]);
@@ -1015,7 +1049,7 @@ EventTrack::draw_upper_layer(
             const auto &box = line->second;
             TEXT("NEGATIVE: " << box << ": " << line->first << " left "
                 << remaining << " - " << box.h);
-            draw_line(line->first, box, style);
+            draw_text_line(line->first, box, style);
             // f_util::draw_rect(box, Color(0, 0xff, 0xff));
             if (remaining < box.h) {
                 f_util::draw_rectf(
@@ -1034,7 +1068,7 @@ EventTrack::draw_upper_layer(
             const auto &box = line->second;
             TEXT("POSITIVE: " << box << ": " << line->first << " left "
                 << remaining << " - " << box.h);
-            draw_line(line->first, box, style);
+            draw_text_line(line->first, box, style);
             // f_util::draw_rect(box, Color(0, 0xff, 0xff));
             if (remaining < box.h) {
                 f_util::draw_rectf(

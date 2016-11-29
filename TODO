@@ -3,17 +3,21 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - text on the last event of a track should go above
+  * fltk: text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
   - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
     climbs steadily, e.g. at 400mb after 5 minutes or so.
     . It grows on every rederive by about the same amount, so probably the old
       derivation doesn't get GCed.
+    - Write a test that uses GHC.Stats for it.  Later I can make sure it
+      doesn't regress.
+      . Make a big score, then do a couple of modify respond cycles, and
+        check if total allocation is increasing each time.
   - Allocation when idle: about 300kb/sec
     . What triggers this?  Nothing, it's basically always happening.
       No, the allocation is always happening, but usually it doesn't get
       retained.
-    ? What who is running?
+    ? Who is running?
       . Threads:
         / main - Ui.event_loop - should be blocked in Fl::wait,
           though it comes back on every cursor move.  But still allocates even
@@ -28,7 +32,7 @@ UNSORTED
         . Perform.Midi.Play render midi
       . Could it be EKG?
     . It stops during play.
-  * Even 200mb for an empty score seems excessive.  Where does it go?
+  * 200mb for an empty score seems excessive.  Where does it go?
     . With inst db: 197, without sysex: 190, without vsl: 187.4
     . Without repl: 12mb
     . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
