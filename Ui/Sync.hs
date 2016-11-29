@@ -118,14 +118,7 @@ set_track_signals ui_chan tracks =
             set_track_signal view_id tracknum tsig
 
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Ui.Fltk ()
-#ifdef TESTING
--- ResponderTest using tests wind up calling this via set_track_signals, which
--- is out of band so it bypasses Responder.state_sync, and winds up segfaulting
--- on OS X.
-set_track_signal _ _ _ = return ()
-#else
 set_track_signal = BlockC.set_track_signal
-#endif
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
 -- stuff for a direct write to the UI.

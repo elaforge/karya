@@ -2,11 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | This has the FLTK event thread, and communication with it.
 module Ui.Ui (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
+#ifdef TESTING
+import Ui.UiStub
+#else
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
@@ -114,3 +118,5 @@ foreign import ccall "initialize"
     c_initialize :: Foreign.FunPtr (FunPtrFinalizer a) -> IO ()
 foreign import ccall "ui_wait" wait :: IO ()
 foreign import ccall "ui_awake" awake :: IO ()
+
+#endif

@@ -31,6 +31,7 @@
     scheme like ruler marklists, but they're rarely shared so it's probably not
     worth it.
 -}
+{-# LANGUAGE CPP #-}
 module Ui.BlockC (
     -- * view creation
     create_view, destroy_view, get_view_status
@@ -56,6 +57,11 @@ module Ui.BlockC (
     -- * debugging
     , show_children, dump
 ) where
+-- The double hashes quote them for hsc2hs.  I have to delay the CPP since
+-- hsc2hs never has TESTING defined.
+##ifdef TESTING
+import Ui.BlockCStub
+##else
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 
@@ -514,3 +520,5 @@ instance CStorable Selection where
 exc :: String -> IO a -> IO a
 exc name action = Exception.catch action $ \(PtrMap.FltkException exc) ->
     Exception.throwIO $ PtrMap.FltkException $ name <> ": " <> exc
+
+##endif
