@@ -113,7 +113,7 @@ derive_tracks_ruler title tracks =
 
 test_cancel_kotekan = do
     let run = e_pattern 0
-            . DeriveTest.derive_tracks (title_cancel <> " | reyong-voices=2")
+            . DeriveTest.derive_tracks (title_cancel <> " | voices=2")
             . UiTest.note_track
     equal (run [(0, 8, "k k-12-1-21 -- 4i")]) ([(2, "i-io-i-oi")], [])
     equal (run [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
