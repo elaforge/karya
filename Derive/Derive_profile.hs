@@ -52,8 +52,8 @@ make_simple size =
 -- profile channelize control sharing.
 profile_shared = derive_profile "shared" $ make_shared_control 2000
 
-make_shared_control size = mkblock $
-        make_tempo size
+make_shared_control size =
+    mkblock $ make_tempo size
         : track_take size mod_track
         : track_set 0 ++ track_set 2 -- ++ track_set 4
     where
@@ -68,11 +68,11 @@ make_shared_control size = mkblock $
 profile_nontempered = derive_profile "nontempered" $ make_nontempered 1000
     where
     make_nontempered size = mkblock $ map (track_until size)
-            [ make_tempo (floor (ScoreTime.to_double size))
-            , nontempered_pitch_track
-            , vel_track
-            , note_track inst1
-            ]
+        [ make_tempo (floor (ScoreTime.to_double size))
+        , nontempered_pitch_track
+        , vel_track
+        , note_track inst1
+        ]
 
 -- | Giant control track with lots of samples.  Intended to profile control
 -- track derivation.
@@ -215,7 +215,7 @@ run_profile fname maybe_lookup ui_state = do
     let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
         Testing.force events
-        Testing.prettyp events
+        Testing.prettyp (take 20 events)
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
@@ -260,7 +260,7 @@ mod_track = ctrack0 1 "cc1 | srate = .02" ["1", "i 0", "e 1", "i .5", "i 0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =
-    ctrack0 1 "*legong" ["1", "2", "3", "5", "6", "`1^`", "`6.`"]
+    ctrack0 1 "*legong" ["4i", "4o", "4e", "4u", "4a", "5i", "5o"]
 vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
 ctrack0 :: ScoreTime -> String -> [String] -> UiTest.TrackSpec
