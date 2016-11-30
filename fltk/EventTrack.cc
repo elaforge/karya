@@ -309,6 +309,8 @@ EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 void
 EventTrack::set_track_signal(const TrackSignal &tsig)
 {
+    if (this->config.track_signal.empty() && tsig.empty())
+        return;
     this->config.track_signal.free_signals();
     // Copy over the pointers, I'm taking ownership now.
     this->config.track_signal = tsig;
@@ -350,15 +352,16 @@ EventTrack::draw()
         //     << SHOW_RANGE(draw_area.intersect(damaged_area)));
         draw_area = draw_area.intersect(this->damaged_area);
     } else {
-        // I could technically handle SCROLL | CHILD, but I'd have to tweak
-        // the ruler's damaged_area to account for the scroll and that's too
-        // much bother right now.
+        // I could technically handle SCROLL, but I'd have to tweak the ruler's
+        // damaged_area to account for the scroll and that's too much bother
+        // right now.
         this->damage(FL_DAMAGE_ALL);
     }
     if (draw_area.w <= 0 || draw_area.h <= 0)
         return;
 
-    // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
+    // DEBUG("draw " << get_title() << ": " << f_util::show_damage(damage())
+    //     << ": " << draw_area << " " << SHOW_RANGE(draw_area));
     // When ruler_overlay.draw() is called it will redundantly clip again
     // on damage_range, but that's ok because it needs the clip when called
     // from RulerTrack::draw().

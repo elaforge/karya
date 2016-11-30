@@ -221,7 +221,7 @@ data Box = Box { box_color :: !Color.Color, box_char :: !Char }
 
 instance Pretty.Pretty Box where
     pretty (Box color c) =
-        pretty color <> if c == ' ' then "" else Text.singleton c
+        pretty color <> if c == ' ' then "" else " '" <> Text.singleton c <> "'"
 
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.

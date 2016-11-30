@@ -23,8 +23,7 @@ UNSORTED
         parent.  Not sure how the parent gets it though.
     . There's an extra DAMAGE_ALL draw of all tracks when the derive completes
       which is what makes the other track update after all.  What causes that?
-      Status box color update?
-
+      . Set track signal redraws everything.
   * fltk: text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
   - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
