@@ -55,8 +55,7 @@ RulerOverlay::RulerOverlay(const RulerConfig &config, bool is_ruler_track) :
 
 
 void
-RulerOverlay::set_config(bool is_ruler_track, const RulerConfig &config,
-    ScoreTime start, ScoreTime end)
+RulerOverlay::set_config(bool is_ruler_track, const RulerConfig &config)
 {
     this->delete_config();
     this->config = config;

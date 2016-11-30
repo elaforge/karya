@@ -92,8 +92,7 @@ class RulerOverlay {
 public:
     explicit RulerOverlay(const RulerConfig &config, bool is_ruler_track);
     ScoreTime time_end() const { return config.last_mark_pos; }
-    void set_config(bool is_ruler_track, const RulerConfig &config,
-        ScoreTime start, ScoreTime end);
+    void set_config(bool is_ruler_track, const RulerConfig &config);
     // Deallocate marklist memory.
     void delete_config();
     void draw(const IRect &box, const Zoom &zoom, const IRect &clip);

@@ -291,7 +291,7 @@ EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
     this->damage_range(start, end, false);
 
     if (track.ruler)
-        this->ruler_overlay.set_config(false, *track.ruler, start, end);
+        this->ruler_overlay.set_config(false, *track.ruler);
     if (this->config.bg_color != track.track->bg_color) {
         this->bg_color = track.track->bg_color;
         this->set_event_brightness(this->brightness);

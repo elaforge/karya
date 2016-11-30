@@ -51,7 +51,7 @@ RulerTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
         "updated a ruler track with an event track config");
     this->damage_range(start, end, false);
 
-    this->ruler_overlay.set_config(true, *track.ruler, start, end);
+    this->ruler_overlay.set_config(true, *track.ruler);
     if (track.ruler->bg.fl() != bg_box.color()) {
         bg_box.color(track.ruler->bg.fl());
         bg_box.redraw();
