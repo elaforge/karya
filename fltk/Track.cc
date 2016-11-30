@@ -45,21 +45,27 @@ void
 Track::damage_range(ScoreTime start, ScoreTime end, bool selection)
 {
     IRect r = f_util::rect(this);
-    if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
+    // If selection==false, then it's an event update, and redraw everything.
+    // I don't know the extent of the text of the event, and I don't really
+    // need to optimize this anyway since it's uncommon.
+    //
+    // Selection update optimization may not matter either, in which case I
+    // could totally get rid of damage range, but as long as it seems to work
+    // I'll keep it, and selections update frequently due to playback anyway.
+    if (!selection || (start == ScoreTime(-1) && end == ScoreTime(-1))) {
         ; // leave it covering the whole widget
     } else {
         r.y += this->zoom.to_pixels(start - this->zoom.offset);
         r.h = this->zoom.to_pixels(end - start);
-        if (selection) {
-            // Extend the damage area to cover the bevel arrow thing in
-            // draw_selections().
-            r.y -= SelectionOverlay::selection_point_size;
-            // +2, otherwise retina displays get a hanging pixel.
-            r.h += SelectionOverlay::selection_point_size * 2 + 2;
-        }
+        // Extend the damage area to cover the bevel arrow thing in
+        // draw_selections().
+        r.y -= SelectionOverlay::selection_point_size;
+        // +2, otherwise retina displays get a hanging pixel.
+        r.h += SelectionOverlay::selection_point_size * 2 + 2;
     }
 
-    // DEBUG("damage_range(" << start << ", " << end << "): "
+    // DEBUG("zoom " << zoom << ": " << start << " - " << zoom.offset);
+    // DEBUG("damage_range(" << start << ", " << end << ", " << selection<<"): "
     //     << SHOW_RANGE(damaged_area) << " + " << SHOW_RANGE(r)
     //     << " = " << SHOW_RANGE(damaged_area.union_(r)));
     this->damaged_area = this->damaged_area.union_(r);

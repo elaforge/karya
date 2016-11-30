@@ -3,6 +3,28 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - When I expand a collapsed track it doesn't get the track signal at first.
+  * The recent fltk refactor broke update for the pitch track, it only redraws
+    when the track signal updates.
+    . Not dependent on track signal, but happens when derive completes.
+    . Damage:
+      old: damage_range(4t, 4t, 1): 65--65 + 370--384 = 370--384
+      new: damage_range(4t, 4t, 0): 67--67 + 376--376 = 67--67
+           damage_range(4t, 4t, 1): 376--1304 + 370--384 = 370--1304
+      . Where did that 370-384 come from?
+      . And is it a bug that 67--67 counts for nothing?  Shouldn't I add
+        1 pixel?  Or maybe the caller shouldn't give a point range if it means
+        empty.
+      . And what's with 65 vs. 67?  That's just the old damage.
+    . In fact, the old code seems to be buggy, it didn't cause damage for
+      an EventTrack update if it didn't modify the ruler config.  Then why
+      does it work?
+      . I think because it's a child object, so it gets ALL damage from its
+        parent.  Not sure how the parent gets it though.
+    . There's an extra DAMAGE_ALL draw of all tracks when the derive completes
+      which is what makes the other track update after all.  What causes that?
+      Status box color update?
+
   * fltk: text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
   - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
