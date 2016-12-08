@@ -330,7 +330,7 @@ test_clip_warns = do
         -- why it changed when RealTime became integral
         , "%vol clipped: (4s, 4s)"
         ]
-    check (all_msgs_valid msgs)
+    check ("valid: " <> pretty msgs) (all_msgs_valid msgs)
 
 test_keyswitch_share_chan = do
     let f evts = first extract $ perform inst_addrs1 (map make evts)
@@ -610,7 +610,8 @@ test_perform_control = do
             (secs 0) (secs 0) (Just $ secs 4) 42 sig
 
     -- controls are not emitted after they reach steady values
-    check $ all Midi.valid_chan_msg (map snd msgs)
+    check ("valid: " <> pretty (map snd msgs)) $
+        all Midi.valid_chan_msg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
 

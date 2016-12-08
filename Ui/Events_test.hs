@@ -160,7 +160,8 @@ extract_event e = (s, d, Event.text e)
     where (s, d) = Event.orientation_as_duration e
 
 no_overlaps :: Events.Events -> IO Bool
-no_overlaps = check . not . events_overlap
+no_overlaps events = check ("no overlaps: " <> pretty events) $
+    not (events_overlap events)
 
 events_overlap :: Events.Events -> Bool
 events_overlap events = any (uncurry overlaps)

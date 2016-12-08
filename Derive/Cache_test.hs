@@ -93,7 +93,7 @@ test_no_damage = do
     -- should not have rederived sub
     strings_like (r_cache_logs cached) ["using cache"]
     -- make sure there's stuff in the cache now
-    check (not (null (r_cache_stacks cached)))
+    not_equal (r_cache_stacks cached) []
 
 test_cached_track = do
     -- If one track is damaged, it rederives and the other is cached.

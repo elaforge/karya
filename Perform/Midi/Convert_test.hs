@@ -67,8 +67,8 @@ test_rnd_vel = do
     equal (run ".5" 1) ([64], [])
     let (vels, logs) = run "(cf-rnd 0 1)" 10
     equal logs []
-    check $ not (all (== head vels) vels)
-    check $ all (Num.inRange 40 90) vels
+    check ("not all equal: " <> pretty vels) $ not (all (== head vels) vels)
+    check ("in range 40--90: " <> pretty vels) $ all (Num.inRange 40 90) vels
 
 test_convert_pitch = do
     let run = convert DeriveTest.default_convert_lookup e_pitch

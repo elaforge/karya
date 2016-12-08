@@ -16,6 +16,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_note_trill = do
@@ -32,7 +33,7 @@ test_note_trill = do
     let (notes, logs) = run 1.75
             [(7, 1, "tr"), (8, 1, "")] [(7, 0, "5b"), (8, 0, "3c")]
     equal logs []
-    check $ all (>0.05) [d | (_, d, _) <- notes]
+    check ("dur > 0.05 " <> pretty notes) $ all (>0.05) [d | (_, d, _) <- notes]
 
 test_tremolo = do
     let run tempo notes = extract $ derive_tracks

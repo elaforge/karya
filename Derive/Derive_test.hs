@@ -500,7 +500,8 @@ test_control = do
     equal (length perf_events) 2
 
     -- Just make sure it did in fact emit ccs.
-    check $ any Midi.is_cc (map Midi.wmsg_msg mmsgs)
+    check ("has cc: " <> pretty mmsgs) $
+        any Midi.is_cc (map Midi.wmsg_msg mmsgs)
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.

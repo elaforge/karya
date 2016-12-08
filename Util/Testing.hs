@@ -92,9 +92,9 @@ data Config = Config {
     , config_skip_human :: !Bool
     } deriving (Show)
 
-check :: Stack => Bool -> IO Bool
-check False = failure "assertion false"
-check True = success "assertion true"
+check :: Stack => Text -> Bool -> IO Bool
+check msg False = failure ("failed: " <> msg)
+check msg True = success msg
 
 -- * equal and diff
 

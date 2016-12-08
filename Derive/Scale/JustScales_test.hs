@@ -73,7 +73,7 @@ test_transpose_smooth = do
         diffs = zipWith (-) (drop 1 nns) nns
     -- Diatonic transpose changes pitch smoothly.  This tests the bug fixed
     -- by split_fraction.
-    check $ all (>0) diffs
+    check ("all >0: " <> pretty diffs) $ all (>0) diffs
 
 test_note_to_call_relative = do
     let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""

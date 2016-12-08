@@ -12,7 +12,7 @@ import qualified Derive.Scale.All as Scale.All
 test_doc_html = do
     -- Mostly this just makes HPC coverage for all the documentation.
     let hstate = ("haddock", mempty)
-    check $ CallDoc.doc_html hstate (CallDoc.library Call.All.library)
-        /= mempty
-    check $ CallDoc.scales_html hstate (CallDoc.scale_docs Scale.All.docs)
-        /= mempty
+    not_equal (CallDoc.doc_html hstate (CallDoc.library Call.All.library))
+        mempty
+    not_equal (CallDoc.scales_html hstate (CallDoc.scale_docs Scale.All.docs))
+        mempty

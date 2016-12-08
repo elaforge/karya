@@ -24,7 +24,7 @@ test_random = do
     -- Different calls to the same block are differently random.
     let ([[(_, v1)], [(_, v2)]], logs) = f ""
     equal logs []
-    check $ v1 /= v2
+    not_equal v1 v2
 
     -- Unless overridden.  Note that the seed is set after the difference in
     -- position, so these calls should be the same.

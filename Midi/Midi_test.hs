@@ -9,13 +9,14 @@ import Data.Word (Word8)
 import Util.Test
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
+import Global
 
 
 test_generate_mtc = do
     let f rate = Midi.generate_mtc rate . Midi.seconds_to_frame rate
         one_sec fps = floor $ fps * 4
     let msgs = take (one_sec 30 + 1) (f Midi.Frame30 2)
-    check (is_sorted $ map fst msgs)
+    check ("sorted: " <> pretty msgs) $ is_sorted (map fst msgs)
     equal (fst (last msgs)) 3
     -- pprint msgs
 

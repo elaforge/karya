@@ -34,7 +34,7 @@ regenerate_performance score = do
     DiffPerformance.save_midi (score <> "-perf") (Vector.fromList msgs)
 
 run :: FilePath -> IO Bool
-run score = check =<< compare_performance (score <> "-perf") score
+run score = check (showt score) =<< compare_performance (score <> "-perf") score
 
 large_test_bloom = run bloom
 large_test_pnovla = run pnovla
