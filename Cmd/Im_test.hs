@@ -56,4 +56,5 @@ test_respond = do
 
 until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]
-until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete
+until_complete =
+    ResponderTest.respond_until ResponderTest.is_derive_complete 2

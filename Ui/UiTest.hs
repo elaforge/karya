@@ -331,8 +331,8 @@ note_track1 :: [String] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
 
 regular_notes :: Int -> [TrackSpec]
-regular_notes n = note_track $ take n
-    [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
+regular_notes n = note_track $
+    take n [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
     where pitches = [o:p:"" | o <- "34567", p <- "cdefgab"]
 
 -- | Parse a TrackSpec back out to a NoteSpec.

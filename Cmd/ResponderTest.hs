@@ -12,14 +12,14 @@
 module Cmd.ResponderTest (
     -- * States
     States
-    , mkstates, mk_cmd_state
+    , mkstates, mkstates_blocks, mk_cmd_state
     -- * Result
     , Result(..), print_results, result_states, result_ui_state
     , result_cmd_state
     , result_perf
     -- * run
-    , respond_cmd, next, respond_until, continue_until
-    , is_derive_complete
+    , respond_cmd, respond_until, continue_until
+    , is_derive_complete, is_block_derive_complete
     , thread, thread_delay
 ) where
 import qualified Control.Concurrent.Chan as Chan
@@ -28,6 +28,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 
 import qualified Data.Map as Map
+import qualified Data.Text.IO as Text.IO
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
@@ -66,11 +67,16 @@ type States = (State.State, Cmd.State)
 -- | Make a UI state with one block with the given tracks, and a standard cmd
 -- state.
 mkstates :: [UiTest.TrackSpec] -> States
-mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
+mkstates tracks = mkstates_blocks [(UiTest.default_block_name, tracks)]
+
+mkstates_blocks :: [UiTest.BlockSpec] -> (State.State, Cmd.State)
+mkstates_blocks blocks =
+    (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
-        UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        State.set_selection UiTest.default_view_id Config.insert_selnum $
+        root_id : _ <- UiTest.mkblocks blocks
+        view_id <- UiTest.mkview root_id
+        State.set_selection view_id Config.insert_selnum $
             Just $ Sel.selection 1 0 1 0
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
@@ -128,37 +134,40 @@ result_ui_state = CmdTest.result_ui_state . result_cmd
 
 -- | Wait for a DeriveComplete and get the performance from it.
 --
--- TODO error-prone because if you call this on a Result that didn't
--- regenerate the performance this will hang forever
+-- This is error-prone because if you call this on a Result that didn't
+-- regenerate the performance this will hang until 'read_msg' gives up.
 result_perf :: Result -> IO (BlockId, Cmd.Performance)
 result_perf = get_perf . result_loopback
 
 get_perf :: Chan.Chan Msg.Msg -> IO (BlockId, Cmd.Performance)
 get_perf chan = do
-    msg <- read_msg chan
+    msg <- read_msg 3 chan
     case msg of
-        Nothing -> error "get_perf: time out reading chan"
+        Nothing -> errorIO "get_perf: time out reading chan"
         Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) ->
             return (block_id, perf)
         Just _ -> get_perf chan
 
--- | Feed msgs back into the responder until and including the matching Msg
--- or a timeout.  The Msg is responded to and all Results returned.
-respond_until :: (Msg.Msg -> Bool) -> States -> Cmd.CmdT IO a -> IO [Result]
-respond_until is_complete states cmd = do
+-- | Run a cmd, and then 'continue_until'.
+respond_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> States -> Cmd.CmdT IO a
+    -> IO [Result]
+respond_until is_complete timeout states cmd = do
     putStrLn "---------- new cmd"
     result <- respond_cmd states cmd
-    continue_until is_complete result
+    continue_until is_complete timeout result
 
--- | Continue feeding loopback msgs into the responder, or until I time out
--- reading from the loopback channel.
-continue_until :: (Msg.Msg -> Bool) -> Result -> IO [Result]
-continue_until is_complete result = reverse <$> go [] (result_states result)
+-- | Continue feeding loopback msgs into the responder until the function
+-- matches, or until I time out reading from the loopback channel.  The
+-- matching Msg is responded to and all Results returned.
+continue_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> Result -> IO [Result]
+continue_until is_complete timeout result =
+    reverse <$> go [] (result_states result)
     where
     chan = result_loopback result
     go accum states = do
-        maybe_msg <- read_msg chan
-        putStrLn $ "ResponderTest.continue_until: " <> prettys maybe_msg
+        maybe_msg <- read_msg timeout chan
+        Text.IO.putStrLn $ "ResponderTest.continue_until: "
+            <> maybe "timed out!" pretty maybe_msg
         case maybe_msg of
             Nothing -> return accum
             Just msg -> do
@@ -167,12 +176,17 @@ continue_until is_complete result = reverse <$> go [] (result_states result)
                     then return (result : accum)
                     else go (result : accum) (result_states result)
 
-read_msg :: Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
-read_msg = Thread.timeout 7 . Chan.readChan
+read_msg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
+read_msg timeout = Thread.timeout timeout . Chan.readChan
 
 is_derive_complete :: Msg.Msg -> Bool
 is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
 is_derive_complete _ = False
+
+is_block_derive_complete :: BlockId -> Msg.Msg -> Bool
+is_block_derive_complete block_id (Msg.DeriveStatus bid (Msg.DeriveComplete {}))
+    = block_id == bid
+is_block_derive_complete _ _ = False
 
 -- * thread
 
@@ -217,10 +231,6 @@ respond_cmd states cmd =
     is_magic (Msg.Socket _ (ReplProtocol.QCommand "MAGIC!!")) = True
     is_magic _ = False
     magic = Msg.Socket IO.stdout (ReplProtocol.QCommand "MAGIC!!")
-
--- | Respond to a cmd, using the state from the result of the last cmd.
-next :: Result -> Cmd.CmdT IO a -> IO Result
-next = respond_cmd . result_states
 
 respond_msg :: States -> Msg.Msg -> IO Result
 respond_msg states = respond1 Nothing states Nothing

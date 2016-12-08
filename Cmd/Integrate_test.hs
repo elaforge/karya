@@ -67,11 +67,13 @@ test_block_integrate = do
     let get_index = Block.block_integrated . (!!1) . Map.elems
             . State.state_blocks . ResponderTest.result_ui_state
     prettyp (get_index (last reses))
+
     equal (last (e_tracks (last reses)))
         (UiTest.bid "b2",
             [ (">i1", [(0, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
+
     -- flaky: sometimes is 'e c', instead of 'f c'
     -- ((bid "test/b2"),
     --  [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
@@ -320,7 +322,7 @@ start states action = last <$> until_complete states action
 -- | Keep on getting results, until there's another DeriveComplete.
 continue :: ResponderTest.Result -> IO ResponderTest.Result
 continue =
-    fmap last . ResponderTest.continue_until ResponderTest.is_derive_complete
+    fmap last . ResponderTest.continue_until ResponderTest.is_derive_complete 1
 
 -- | Run another cmd on the state returned from a previous one.
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
@@ -331,7 +333,7 @@ nexts = until_complete . ResponderTest.result_states
 
 until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]
-until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete
+until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete 1
 
 e_tracks :: ResponderTest.Result -> [(BlockId, [UiTest.TrackSpec])]
 e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state

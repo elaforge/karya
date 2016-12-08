@@ -34,10 +34,10 @@ profile_file = do
 perform :: Cmd.Config -> FilePath -> IO [ResponderTest.Result]
 perform cmd_config fname = do
     let states = (State.empty, Cmd.initial_state cmd_config)
+    let continue = ResponderTest.continue_until ResponderTest.is_derive_complete
+            8
     result <- ResponderTest.respond_cmd states $ Save.load fname
-    results1 <- ResponderTest.continue_until
-        ResponderTest.is_derive_complete result
+    results1 <- continue result
     -- The first one is cancelled because of loading the defs file.
-    results2 <- ResponderTest.continue_until
-        ResponderTest.is_derive_complete (last results1)
+    results2 <- continue (last results1)
     return $ results1 ++ results2

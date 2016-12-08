@@ -23,7 +23,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ResponderTest as ResponderTest
-import Cmd.ResponderTest (next)
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
@@ -246,6 +245,9 @@ get_repo :: IO SaveGit.Repo
 get_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
 
 -- * implementation
+
+next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
+next = ResponderTest.respond_cmd . ResponderTest.result_states
 
 insert_event :: State.M m => ScoreTime -> String -> m ()
 insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
