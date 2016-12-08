@@ -135,6 +135,7 @@ get_library = do
         Nothing -> return mempty
         Just (Cmd.KyCache (Left err) _) -> Cmd.throw $ "get_library: " <> err
         Just (Cmd.KyCache (Right library) _) -> return library
+        Just (Cmd.PermanentKy library) -> return library
 
 initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ

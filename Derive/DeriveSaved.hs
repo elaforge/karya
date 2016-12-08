@@ -42,21 +42,15 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (ui_state, library) <- either errorIO return
-        =<< load_score (Cmd.config_instrument_db cmd_config) fname
-    block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
+    (ui_state, cmd_state) <- load_score_states cmd_config fname
+    root_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         State.config#State.root #$ ui_state
-    let cmd_state = add_library library (Cmd.initial_state cmd_config)
-    (events, logs) <- timed_derive fname ui_state cmd_state block_id
+    (events, logs) <- timed_derive fname ui_state cmd_state root_id
     mapM_ Log.write logs
     (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) ui_state
         events
     mapM_ Log.write logs
     return msgs
-
-add_library :: Derive.Library -> Cmd.State -> Cmd.State
-add_library lib state = state
-    { Cmd.state_ky_cache = Just $ Cmd.KyCache (Right lib) mempty }
 
 timed_perform :: Cmd.State -> FilePath -> State.State
     -> Vector.Vector Score.Event -> IO ([Midi.WriteMessage], [Log.Msg])
@@ -142,6 +136,16 @@ perform cmd_state ui_state events =
     extract (Left err) = ([], [Log.msg Log.Error Nothing err])
     extract (Right (levents, logs)) = (events, logs ++ perf_logs)
         where (events, perf_logs) = LEvent.partition levents
+
+load_score_states :: Cmd.Config -> FilePath -> IO (State.State, Cmd.State)
+load_score_states cmd_config fname = do
+    (ui_state, library) <- either errorIO return
+        =<< load_score (Cmd.config_instrument_db cmd_config) fname
+    return (ui_state, add_library library (Cmd.initial_state cmd_config))
+
+add_library :: Derive.Library -> Cmd.State -> Cmd.State
+add_library lib state =
+    state { Cmd.state_ky_cache = Just $ Cmd.PermanentKy lib }
 
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: Cmd.InstrumentDb -> FilePath

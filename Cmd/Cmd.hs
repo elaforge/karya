@@ -409,6 +409,9 @@ state_save_dir state = path state . Config.RelativePath <$>
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache =
     KyCache !(Either Text Derive.Library) !(Map.Map FilePath Time.UTCTime)
+    -- | This disables the cache mechanism.  Tests use this to avoid having
+    -- to set SaveFile.
+    | PermanentKy !Derive.Library
     deriving (Show)
 
 initial_state :: Config -> State

@@ -61,17 +61,19 @@ update_cache ui_state cmd_state = case ky_file of
 -- is up to date.
 cached_load :: Cmd.State -> FilePath
     -> IO (Maybe (Either Text Derive.Library, Map.Map FilePath Time.UTCTime))
-cached_load state fname = run $ do
-    dir <- require ("need a SaveFile to find " <> showt fname) $
-        Cmd.state_save_dir state
-    let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
-    current_timestamps <- require_right
-        =<< liftIO (get_timestamps (Map.keys cached_timestamps))
-    let fresh = not (Map.null cached_timestamps)
-            && current_timestamps == cached_timestamps
-    if fresh then return Nothing else do
-        (lib, timestamps) <- require_right =<< liftIO (load paths fname)
-        return $ Just (Right lib, timestamps)
+cached_load state fname = run $ case Cmd.state_ky_cache state of
+    Just (Cmd.PermanentKy _) -> return Nothing
+    _ -> do
+        dir <- require ("need a SaveFile to find " <> showt fname) $
+            Cmd.state_save_dir state
+        let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
+        current_timestamps <- require_right
+            =<< liftIO (get_timestamps (Map.keys cached_timestamps))
+        let fresh = not (Map.null cached_timestamps)
+                && current_timestamps == cached_timestamps
+        if fresh then return Nothing else do
+            (lib, timestamps) <- require_right =<< liftIO (load paths fname)
+            return $ Just (Right lib, timestamps)
     where
     run = fmap map_error . Except.runExceptT
     map_error (Left msg) = case Cmd.state_ky_cache state of
@@ -84,8 +86,8 @@ cached_load state fname = run $ do
     require msg = maybe (Except.throwError msg) return
     require_right = either Except.throwError return
     cached_timestamps = case Cmd.state_ky_cache state of
-        Nothing -> mempty
         Just (Cmd.KyCache _ timestamps) -> timestamps
+        _ -> mempty
 
 get_timestamps :: [FilePath] -> IO (Either Text (Map.Map FilePath Time.UTCTime))
 get_timestamps fns = fmap map_error . File.tryIO $ do

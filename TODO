@@ -34,6 +34,35 @@ UNSORTED
       doesn't regress.
       . Make a big score, then do a couple of modify respond cycles, and
         check if total allocation is increasing each time.
+      - It does increase, but by a tiny amount.  A real score must grow by
+        a lot more.  Try loading a real score.
+        . Interactive with putu-kreasi-galungan, each edit adds 6mb
+  - Reduce memory used by REPL.
+    . About 200mb.
+    Try -fignore-interface-pragmas
+      . From ghci: 210mb vs. 1552mb
+      . But from REPL seems to make no difference.
+    . 200mb for an empty score seems excessive.  Where does it go?
+      . With inst db: 197, without sysex: 190, without vsl: 187.4
+      . Without repl: 12mb
+      . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
+      . Loaded modules:
+        [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
+        [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs, interpreted
+        . with verbosity=2:
+          . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
+          . log: Ready for upsweep
+            [NONREC
+                  ModSummary {
+              { ... imports of every module }
+          . compile: input file ./Ui/ScoreTime.hs
+            *** Checking old interface for Ui.ScoreTime:
+            [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs, build/opt/obj/Ui/ScoreTime.hs.o )
+            *** Deleting temp files:
+            Warning: deleting non-existent /var/folders/6j/c20yyq9x51l0zncxstg1n4n4000_0_/T/ghc13456_0/ghc_62.hs.o
+          . bypecode compile for last two modules
+      . Does it grow with the repl off?
+        . Yes, so it's not the repl.
   - Allocation when idle: about 300kb/sec
     . What triggers this?  Nothing, it's basically always happening.
       No, the allocation is always happening, but usually it doesn't get
@@ -53,27 +82,6 @@ UNSORTED
         . Perform.Midi.Play render midi
       . Could it be EKG?
     . It stops during play.
-  * 200mb for an empty score seems excessive.  Where does it go?
-    . With inst db: 197, without sysex: 190, without vsl: 187.4
-    . Without repl: 12mb
-    . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
-    . Loaded modules:
-      [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
-      [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs, interpreted
-      . with verbosity=2:
-        . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
-        . log: Ready for upsweep
-          [NONREC
-                ModSummary {
-            { ... imports of every module }
-        . compile: input file ./Ui/ScoreTime.hs
-          *** Checking old interface for Ui.ScoreTime:
-          [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs, build/opt/obj/Ui/ScoreTime.hs.o )
-          *** Deleting temp files:
-          Warning: deleting non-existent /var/folders/6j/c20yyq9x51l0zncxstg1n4n4000_0_/T/ghc13456_0/ghc_62.hs.o
-        . bypecode compile for last two modules
-    . Does it grow with the repl off?
-      . Yes, so it's not the repl.
 
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
@@ -1047,6 +1055,8 @@ test:
 
     . So it looks like the first OutOfDate gets interrupted by another.a What
       is the expected sequence?
+    . ResponderTest.continue_until has a timeout, what happens if it expires?
+      It's unlikely, because it was 7 seconds before.
 
 
   criterion
