@@ -6,7 +6,7 @@
 module Derive.Solkattu.MridangamDsl (
     (&)
     , korvai
-    , k, t, n, d, u, i, p, o, od
+    , k, t, n, d, u, i, y, j, p, o, od
 ) where
 import qualified Data.Map as Map
 
@@ -45,9 +45,11 @@ mridangam_strokes :: Mridangam.Strokes Dsl.Sequence
 mridangam_strokes = Mridangam.Strokes
     { k = Dsl.ki, t = Dsl.ta, n = Dsl.nam, d = Dsl.din
     , u = Dsl.lang, i = Dsl.dheem
+    , y = Dsl.ku, j = Dsl.gin
     , p = Dsl.tha, o = Dsl.thom
     , od = Dsl.tam
     }
+    -- The exact sollus are arbitrary, but they should be unique.
     where
     Mridangam.Strokes {..} = Mridangam.strokes
 
@@ -57,6 +59,7 @@ stroke_map :: Map.Map (Solkattu.Sequence Mridangam.Stroke) Mridangam.Note
 stroke_map = Map.fromList
     [ (Dsl.ki, k), (Dsl.ta, t), (Dsl.nam, n), (Dsl.din, d)
     , (Dsl.lang, u), (Dsl.dheem, i)
+    , (Dsl.ku, y), (Dsl.gin, j)
     , (Dsl.tha, p), (Dsl.thom, o)
     , (Dsl.tam, od)
     ]

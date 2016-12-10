@@ -22,6 +22,8 @@ data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
 data Thoppi = Tha | Thom
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta | Nam | Din | Chapu | Dheem
+    | Kin -- ^ ki on meetu
+    | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
 instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
@@ -50,6 +52,8 @@ instance Pretty.Pretty Stroke where
             Din -> "O"
             Chapu -> "pu" -- These are pretty rare.
             Dheem -> "pi"
+            Kin -> "p,"
+            Tan -> "p^"
         Thom -> Text.toUpper (pretty v)
 
 instance Pretty.Pretty Thoppi where
@@ -65,6 +69,8 @@ instance Pretty.Pretty Valantalai where
         Din -> "d"
         Chapu -> "u"
         Dheem -> "i"
+        Kin -> ","
+        Tan -> "^"
 
 -- | Pretty reproduces the SolkattuScore syntax, which has to be haskell
 -- syntax, so it can't use +, and I have to put thoppi first to avoid the
@@ -81,7 +87,9 @@ stroke_to_call s = case s of
         Tha -> "+"
 
 data Strokes a = Strokes {
-    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a, p :: a, o :: a
+    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a
+    , y :: a, j :: a
+    , p :: a, o :: a
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
     -- that's because score uses + for tha, and +o is an attr, while o+ is
     -- a bareword.  But perhaps I should change + to p in the score, and then
@@ -98,6 +106,8 @@ strokes = Strokes
     , d = Realize.Note $ Valantalai Din
     , u = Realize.Note $ Valantalai Chapu
     , i = Realize.Note $ Valantalai Dheem
+    , y = Realize.Note $ Valantalai Kin
+    , j = Realize.Note $ Valantalai Tan
     , p = Realize.Note $ Thoppi Tha
     , o = Realize.Note $ Thoppi Thom
     , od = Realize.Note $ Both Thom Din
