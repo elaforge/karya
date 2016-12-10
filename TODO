@@ -37,7 +37,7 @@ UNSORTED
         check if total allocation is increasing each time.
       . It does increase, but by a tiny amount.  A real score must grow by
         a lot more.  Try loading a real score.
-    - Extend test infrastructure to run MemoryLeak_profile.test_putu as a test.
+    * Extend test infrastructure to run MemoryLeak_profile as a test.
     Find the leak:
       . Does it stay around if I wipe the performances?  No.
       . But if I wipe the cache but keep the performances, goes from 4.3mb to

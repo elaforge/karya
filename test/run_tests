@@ -11,13 +11,14 @@
 # TODO: display warn and error log msgs
 
 # If set, then exclude the test modules from the hpc results.
-hpc_exclude_test=${hpc_exclude_test-}
-    # Does nothing, but add 't' to default true.
+hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.
 
-run_tests=$1
-shift
-if [[ -z $run_tests ]]; then
-    echo "usage: $0 build/test/RunTests [ prefixes ...]"
+while [[ $1 = */* ]]; do
+    binaries=($binaries $1)
+    shift
+done
+if [[ ${#binaries} -eq 0 ]]; then
+    echo "usage: $0 build/test/RunTests [ build/profile/Run ...] [ prefix ...]"
     exit 1
 fi
 
@@ -26,18 +27,17 @@ prefixes=("$@")
 # Default to parallel, but you can turn it off with parallel=
 parallel=${parallel-t}
 
-# This is appended to.  It should be reset along with the coverage data every
-# time test_obj/RunTests is built.
+# Write test stdout to here.
 test_output=build/test/output
 
 function run {
-    echo start "$@" >&2 # In case the test itself writes to stderr.
+    echo '->start' "$@" >&2 # In case the test itself writes to stderr.
     "$@" 2>&1
     local r=$?
     if [[ $r -ne 0 ]]; then
         echo '__->' cmd returned $r: "$@"
     fi
-    echo complete "$@" >&2
+    echo '<-complete' "$@" >&2
 }
 
 # Tests will recreate this if they need to.
@@ -49,11 +49,15 @@ rm -f *.tix(N)
 time (
 if [[ -n $parallel && -z $prefixes ]]; then
     # Only run in parallel if no explicit prefixes were given.
-    for test in $($run_tests --list '^large-'); do
-        ln $run_tests $tmp/RunTests.$test
-        run $tmp/RunTests.$test $test >$tmp/output.$test &
+    for bin in $binaries; do
+        for test in $($bin --list '^large-'); do
+            ln $bin $tmp/RunTests.$test
+            run $tmp/RunTests.$test $test >$tmp/output.$test &
+        done
     done
-    run $run_tests '^normal-' >$test_output &
+    for bin in $binaries; do
+        run $bin '^normal-' >>$test_output
+    done
     wait
     mv *.tix $tmp
     cat $tmp/output.* >>$test_output
@@ -63,7 +67,9 @@ else
     if [[ -z $prefixes ]]; then
         prefixes=('^normal-')
     fi
-    run $run_tests --noninteractive $prefixes >$test_output
+    for bin in $binaries; do
+        run $bin --noninteractive $prefixes >>$test_output
+    done
 fi
 )
 

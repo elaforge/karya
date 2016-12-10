@@ -274,6 +274,11 @@ hsBinaries =
 runProfile :: FilePath
 runProfile = modeToDir Profile </> "RunProfile"
 
+-- | This is run as a test, but must be compiled with optimization like
+-- a profile.
+runProfileTest :: FilePath
+runProfileTest = modeToDir Profile </> "RunProfile-MemoryLeak"
+
 runTests :: FilePath
 runTests = modeToDir Test </> "RunTests"
 
@@ -739,8 +744,8 @@ dispatch modeConfig targets = do
             -- opt, which causes most of the opt tree to build.  I could build
             -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
-            needEverything [opt "verify_performance"]
-            Util.system "test/run_tests" [runTests]
+            needEverything [opt "verify_performance", runProfileTest]
+            Util.system "test/run_tests" [runTests, runProfileTest]
             Util.system "mkdir" ["-p", build </> "verify"]
             Util.shell $ opt "verify_performance --out=build/verify"
                 <> " save/complete/*"
@@ -767,8 +772,8 @@ dispatch modeConfig targets = do
         "show-debug" -> action $ liftIO $ PPrint.pprint (modeConfig Debug)
         "show-opt" -> action $ liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
-            need [runTests]
-            Util.system "test/run_tests" [runTests]
+            need [runTests, runProfileTest]
+            Util.system "test/run_tests" [runTests, runProfileTest]
         "tests-normal" -> action $ do
             need [runTests]
             Util.system "test/run_tests" [runTests, "^normal-"]
