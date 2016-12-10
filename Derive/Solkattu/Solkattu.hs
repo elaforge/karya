@@ -235,6 +235,7 @@ takeM matras (n:ns) = case n of
 rdropM :: Matras -> Sequence stroke -> Sequence stroke
 rdropM matras = reverse . dropM matras . reverse
 
+-- | Reduce three times, with a separator.
 reduce3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 

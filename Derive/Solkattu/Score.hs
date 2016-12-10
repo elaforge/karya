@@ -329,11 +329,8 @@ t3s = korvais (adi 6) mridangam
 
 t4s :: [Korvai]
 t4s = korvais (adi 6) mridangam $ map (purvangam.)
-    [ let tdgnt = [ta, din, gin, na, thom] in
-        mconcatMap (.__3) tdgnt . mconcatMap (.__) tdgnt
-        . tri_ __ (mconcat tdgnt)
-    , mconcatMap (.__3) [ta, din, gin, na, thom]
-        . tri (ta.__.din.__.gin.__.na.__.thom)
+    [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+    , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
     , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
     , tri_ (dheem.__3) (p5.ta.__.din.__.ta.din.__)
     , p123 p6 (dheem.__3)
@@ -344,6 +341,7 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
     , tri (tat.dinga . tat.__.dinga.p5)
     ]
     where
+    tdgnt = ta.din.gin.na.thom
     p123 p sep = trin sep p (p.p) (p.p.p)
     purvangam = tri (ta_katakita . din.__6)
     mridangam = make_mridangam $
@@ -358,16 +356,20 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
         ] ++ m_ta_katakita
 
 t4s2 :: [Korvai]
-t4s2 = korvais (adi 6) mridangam $ map (purvangam.)
-    [ tri (ta.din.__.p5)
-    -- prefix [ta.ka, ta.din.__, ta.ka.din.__] (repeat 3 p5)
-    , ta.ka.p5 . ta.din.__ . p5 . ta.ka.din.__ . p5
+t4s2 = korvais (adi 6) mridangam
+    [ purvangam1 . tri (ta.din.__.p5)
+    , purvangam1 . ta.ka.p5 . ta.din.__.p5 . ta.ka.din.__.p5
+
+    , purvangam2 6 . tri (ta.ka.ta.din.__.p5)
+    , purvangam2 4 . tri (tat.__4.ta.din.__.p5)
+    , purvangam2 2 . tri (ta.__.ga.din.__.ga.p8)
     ]
     where
-    purvangam =
+    purvangam1 =
         ta_katakita . takita . tam.__6
         . ta_katakita . repeat 2 (takita) . tam.__6
         . ta_katakita . repeat 3 (takita) . tam.__6
+    purvangam2 gap = tri (ta_katakita . takita.__2 . tam.__n gap)
     takita = ta.ki.ta
     mridangam = make_mridangam $
         [ (ta.ki.ta, [o&n, p, k])
@@ -375,6 +377,8 @@ t4s2 = korvais (adi 6) mridangam $ map (purvangam.)
         , (ta.din, [k, od])
         , (ta.ka, [k, p])
         , (ta.ka.din, [k, o, od])
+        , (tat, [k])
+        , (ta.ga.din.ga, [k, p, t, p])
         ] ++ m_ta_katakita
 
 t4s3 :: [Korvai]

@@ -10,7 +10,7 @@ module Derive.Solkattu.Dsl (
     Sequence, Korvai
     -- ** sollus
     , (.)
-    , __, __2, __3, __4, __5, __6, __7, __n
+    , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
     , ku, mi, na, nam, ri, ta, tam, tat, tha, thom, ti
@@ -26,7 +26,7 @@ module Derive.Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- ** combinators
     , tri, tri_, trin
-    , join, repeat
+    , join, repeat, inter, spread
     -- * transform
     , module Derive.Solkattu.Solkattu
     -- * mridangam
@@ -49,8 +49,8 @@ import Derive.Solkattu.Mridangam ((&))
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu
-       (Matras, check, duration_of, dropM, takeM, rdropM, reduce3, reduceTo,
-        reduceR3, expand)
+       (Aksharas, Matras, check, duration_of, dropM, takeM, rdropM, reduce3,
+        reduceTo, reduceR3, expand)
 
 import Global
 
@@ -77,17 +77,19 @@ instance Rest (Realize.Note stroke) where __ = Realize.Rest
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__2, __3, __4, __5, __6, __7 :: S.Sequence stroke
+__2, __3, __4, __5, __6, __7, __8, __9 :: S.Sequence stroke
 __2 = __
 __3 = __n 3
 __4 = __n 4
 __5 = __n 5
 __6 = __n 6
 __7 = __n 7
+__8 = __n 8
+__9 = __n 9
 
 -- | 'Realize.Note' is not a monoid like 'S.Sequence', so this can't emit
 -- a Rest.
-__n :: Int -> S.Sequence stroke
+__n :: Matras -> S.Sequence stroke
 __n n = repeat (n-1) __
 
 dheem = sollu S.Dheem
@@ -135,7 +137,7 @@ at0 = sequence $ S.Alignment (S.Akshara 0)
 atX = sequence $ S.Alignment S.Arudi
 
 -- | Align at the given akshara.
-(^) :: S.Sequence stroke -> S.Aksharas -> S.Sequence stroke
+(^) :: S.Sequence stroke -> Aksharas -> S.Sequence stroke
 seq ^ n = sequence (S.Alignment (S.Akshara n)) <> seq
 infix 9 ^
 
@@ -196,6 +198,14 @@ repeat n p = mconcat (replicate n p)
 
 join :: S.Sequence stroke -> [S.Sequence stroke] -> S.Sequence stroke
 join = List.intercalate
+
+-- | Intersperse between each stroke.
+inter :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
+inter _ [] = []
+inter sep (x:xs) = x : sep ++ inter sep xs
+
+spread :: Matras -> S.Sequence stroke -> S.Sequence stroke
+spread n = inter (__n n)
 
 -- * realize
 
