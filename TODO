@@ -110,6 +110,7 @@ UNSORTED
         . Perform.Midi.Play render midi
       . Could it be EKG?
     . It stops during play.
+    . Try disabling ekg and use LDebug.memory and see if it's still there.
 
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
@@ -1437,6 +1438,21 @@ Derive:
           . Of course the other way to do that is just put the exact manual
             sequence in the StrokeMap, but it's a duplication, but minus
             the rests.
+        - Apply common variation patterns.
+            transformations:
+              . karvai u u u -> u i u
+              . X X X -> gap X, gap-1 kpX, gap-2 kpnpX
+              . X X X -> gap X, gap-2 oktpX, gap-4 ktktoktpX
+              . alternate realization for 3rd repeat: 345 345 3333
+              . __3 -> __2.p or __2.o if o follows
+              . variation for a phrase prefix, usually on its repeat:
+                k_k -> kpk, or k_p -> kpt
+              . stroke substitution in a transformation, e.g. reduce or expand:
+                pk -> kk, e.g. k_kto, k_k_kto, k_t_k_kto.
+            . If I can apply them as a postproc, then I can get even random
+              variations.
+            . Or maybe I should write them explicitly, but make them easier to
+              write?
         / put sep argument second, so e.g. 'tri_ p6 (tang.ga)', this way it
           reads forwards.
           . Then it's inconsistent with 'trin', and it would be really awkward
