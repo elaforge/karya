@@ -26,7 +26,7 @@ UNSORTED
       . Set track signal redraws everything.
   * fltk: text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
-  - Memory leak when rederiving a score.
+  * Memory leak when rederiving a score.
     . Note entry gets progressively laggy.  EKG shows memory starts at 220mb
       and climbs steadily, e.g. at 400mb after 5 minutes or so.
     . It grows on every rederive by about the same amount, so probably the old

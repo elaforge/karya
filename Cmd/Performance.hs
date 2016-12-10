@@ -291,16 +291,23 @@ broken_performance msg = Cmd.Performance
 performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance
     { perf_derive_cache = Derive.r_cache result
-    , perf_events = Vector.fromList events
+    , perf_events = events_v
     , perf_logs = logs
     , perf_logs_written = False
-    , perf_track_dynamic = Derive.r_track_dynamic result
+    , perf_track_dynamic = dyn
     , perf_integrated = Derive.r_integrated result
     , perf_damage = mempty
     , perf_warps = Derive.r_track_warps result
     , perf_track_signals = Derive.r_track_signals result
     }
-    where (events, logs) = Stream.partition (Derive.r_events result)
+    where
+    (events, logs) = Stream.partition (Derive.r_events result)
+    !events_v = Vector.fromList events
+    -- Performance is special in that it has lazy fields.  So I need to be
+    -- careful to force this.  TrackDynamic matters because the Derive.Result
+    -- will have called 'Derive.strip_dynamic' and I have to make sure that
+    -- actually happens.
+    !dyn = Derive.r_track_dynamic result
 
 modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
 modify_play_state modify state =

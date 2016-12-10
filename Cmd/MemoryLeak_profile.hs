@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | This actually has tests, but they test memory usage, so this should be
+-- compiled with optimization, like profiles.
 module Cmd.MemoryLeak_profile where
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as Text.IO
@@ -90,9 +92,9 @@ thread _ [] = return []
 -- some day.
 
 strip_states :: ResponderTest.States -> ResponderTest.States
-strip_states = id -- second strip
+strip_states = id -- second strip_cmd
     where
-    strip state = state
+    strip_cmd state = state
         { Cmd.state_play = play
             -- { Cmd.state_performance = mempty
             -- , Cmd.state_current_performance = mempty

@@ -47,7 +47,7 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
-    , Dynamic(..), Inversion(..), initial_dynamic
+    , Dynamic(..), Inversion(..), initial_dynamic, strip_dynamic
     , initial_controls, default_dynamic
 
     -- ** scope
@@ -508,6 +508,17 @@ initial_dynamic environ = Dynamic
     , state_note_track = Nothing
     , state_stack = Stack.empty
     , state_mode = Normal
+    }
+
+-- | Strip out fields that I don't need to remember in a TrackDynamic.
+--
+-- If I don't do this, I get a memory leak.  Presumably the cause is that
+-- 'state_pitch_map' has an unevaluated pitch derivation, which in turn
+-- somehow retains the previous derivation, and then the previous, and so on.
+-- This makes each derivation leak more space.
+strip_dynamic :: Dynamic -> Dynamic
+strip_dynamic dyn = dyn
+    { state_pitch_map = Nothing
     }
 
 -- | Initial control environment.

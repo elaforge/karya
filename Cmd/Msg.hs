@@ -95,8 +95,8 @@ data Performance = Performance {
     , perf_warps :: [TrackWarp.Collection]
     , perf_track_signals :: Track.TrackSignals
     }
-    -- The fields are intentionally not strict, since I need to modify
-    -- 'perf_damage' without forcing any of the others.
+    -- The fields are intentionally lazy, since I need to modify 'perf_damage'
+    -- without forcing any of the others.
 
 -- | Force a Performance so that it can be used without a lag.
 force_performance :: Performance -> ()

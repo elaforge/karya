@@ -9,7 +9,7 @@
 -}
 module Derive.Deriver.Lib where
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
@@ -103,7 +103,7 @@ extract_result (result, state, logs) = Result
 -- See 'Collect' and 'TrackDynamic' for why.
 extract_track_dynamic :: Collect -> TrackDynamic
 extract_track_dynamic collect =
-    Map.fromList $ map extract $ Util.Map.pairs
+    Map.fromList $ map (second strip_dynamic . extract) $ Util.Map.pairs
         (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
     where
     extract (k, Seq.First dyn) = (k, dyn)
@@ -112,9 +112,8 @@ extract_track_dynamic collect =
     merge normal inverted = normal
         { state_environ = keep (state_environ inverted) <> state_environ normal
         }
-    keep env = maybe mempty
-        (Env.from_list . (:[]) . (,) EnvKey.scale) $
-            Env.lookup EnvKey.scale env
+    keep env = maybe mempty (Env.from_list . (:[]) . (,) EnvKey.scale) $
+        Env.lookup EnvKey.scale env
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: Env.Environ -> Deriver d -> Deriver d

@@ -229,6 +229,12 @@ make_cache key collect stream = Cache $ Map.singleton key (Cached entry)
         -- integration shouldn't happen if the cache is reused, since that
         -- means nothing changed.  So this reduces unnecessary reintegration.
         , Derive.collect_integrated = []
+        -- Use Map.map instead of fmap, since fmap is lazy.
+        , Derive.collect_track_dynamic =
+            Map.map Derive.strip_dynamic (Derive.collect_track_dynamic collect)
+        , Derive.collect_track_dynamic_inverted =
+            Map.map Derive.strip_dynamic
+                (Derive.collect_track_dynamic_inverted collect)
         }
     entry = to_cache_entry $ Derive.CallType stripped $
         Stream.from_sorted_list $ filter (not . cache_log) $
