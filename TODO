@@ -26,17 +26,45 @@ UNSORTED
       . Set track signal redraws everything.
   * fltk: text on the last event of a track should go above
     I used to have that feature, but it got lost in the text refactor.
-  - Note entry gets progressively laggy.  EKG shows memory starts at 220mb and
-    climbs steadily, e.g. at 400mb after 5 minutes or so.
+  - Memory leak when rederiving a score.
+    . Note entry gets progressively laggy.  EKG shows memory starts at 220mb
+      and climbs steadily, e.g. at 400mb after 5 minutes or so.
     . It grows on every rederive by about the same amount, so probably the old
       derivation doesn't get GCed.
-    - Write a test that uses GHC.Stats for it.  Later I can make sure it
+    * Write a test that uses GHC.Stats for it.  Later I can make sure it
       doesn't regress.
       . Make a big score, then do a couple of modify respond cycles, and
         check if total allocation is increasing each time.
-      - It does increase, but by a tiny amount.  A real score must grow by
+      . It does increase, but by a tiny amount.  A real score must grow by
         a lot more.  Try loading a real score.
-        . Interactive with putu-kreasi-galungan, each edit adds 6mb
+    - Extend test infrastructure to run MemoryLeak_profile.test_putu as a test.
+    Find the leak:
+      . Does it stay around if I wipe the performances?  No.
+      . But if I wipe the cache but keep the performances, goes from 4.3mb to
+        38.6mb!  What?  Maybe it's not the cache, and the rederive causes
+        even more garbage?
+      . Strip other Performance fields: 4.3 -> 3.3
+      . Strip events but not cache and it's down to 1.5mb.  So:
+        . cache, events -> 3.9
+        . no cache, events -> 32, 0, 0
+        . cache, no events -> 1.4
+        . no cache, no events -> 0
+        . invalid cache, events -> 37.62
+        . invalid cache, no events -> 35.68... wtf?
+          How can this be different from an empty cache?  Even if I force
+          it by printing, it's the same.
+          . rnf on the stripped cache makes memory go to 0, so it's just the
+            test code not being strict enough.  Map.Strict.map also fixes it.
+        -> total 4.3 (probably some sharing so it doesn't add up)
+      . It's collect_track_dynamic and collect_track_dynamic_inverted in the
+        cached collect.
+      . And then state_pitch_map in the TrackDynamics.  This is a lazy Just
+        with a whole eval in it, which presumably holds on to everything
+        somehow.  But I'm pretty sure Id on't need to keep it in TrackDynamic.
+
+      . Before I think the leak was the environ in the pitch.  I can strip
+        pitches to test.
+
   - Reduce memory used by REPL.
     . About 200mb.
     Try -fignore-interface-pragmas
