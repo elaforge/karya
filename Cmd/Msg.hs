@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Msg where
-import qualified Control.DeepSeq as DeepSeq
+import Control.DeepSeq (deepseq)
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -69,13 +69,19 @@ instance Pretty.Pretty DeriveStatus where pretty = showt
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 
--- | This holds the final performance for a given block.  It is used to
--- actually play music, and poked and prodded in a separate thread to control
--- its evaluation.
---
--- This is basically the same as 'Derive.Result'.  I could make them be the
--- same, but Performance wasn't always the same and may not be the same in the
--- future.
+{- | This holds the final performance for a given block.  It is used to
+    actually play music, and poked and prodded in a separate thread to control
+    its evaluation.
+
+    This is basically the same as 'Derive.Result'.  I could make them be the
+    same, but Performance wasn't always the same and may not be the same in the
+    future.
+
+    Unlike other records, the fields here are all lazy.  This is because I need
+    to put an unevaluated Performance into Cmd.state_current_performances, and
+    then force the fields in a separate thread.  Also I need to modify
+    'perf_damage' without forcing any of the others.
+-}
 data Performance = Performance {
     perf_derive_cache :: Derive.Cache
     -- | This is the forced result of a derivation.
@@ -95,14 +101,13 @@ data Performance = Performance {
     , perf_warps :: [TrackWarp.Collection]
     , perf_track_signals :: Track.TrackSignals
     }
-    -- The fields are intentionally lazy, since I need to modify 'perf_damage'
-    -- without forcing any of the others.
 
 -- | Force a Performance so that it can be used without a lag.
 force_performance :: Performance -> ()
-force_performance perf = perf_logs perf `DeepSeq.deepseq` perf_events perf
-    `DeepSeq.deepseq` perf_warps perf `DeepSeq.deepseq` perf_track_dynamic
-    `DeepSeq.deepseq` ()
+force_performance (Performance _cache events logs _logs_written track_dyn
+        _integrated _damage warps track_sigs) =
+    logs `deepseq` events `deepseq` warps `deepseq` track_dyn
+        `deepseq` track_sigs `deepseq` ()
 
 instance Show Performance where
     show perf = "((Performance " <> show (Vector.length (perf_events perf))
