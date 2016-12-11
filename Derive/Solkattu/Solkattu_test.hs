@@ -15,8 +15,7 @@ import Global
 
 
 test_verify_alignment = do
-    let f (notes :: [Solkattu.Note ()]) = first (Text.intercalate "; ") $
-            Solkattu.verify_alignment (Solkattu.Tala 4 2 2) notes
+    let f = verify_alignment (Solkattu.Tala 4 2 2)
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right [])
     left_like (f ta) "expected Akshara 0"
@@ -24,6 +23,13 @@ test_verify_alignment = do
     equal (f (take 8 tdkt)) (Right (take 8 tdkt))
     equal (f (take 4 tdkt <> Dsl.atX <> take 4 tdkt)) (Right (take 8 tdkt))
     left_like (f (take 3 tdkt <> Dsl.atX <> take 4 tdkt)) "expected Arudi"
+
+verify_alignment :: Solkattu.Tala -> [Solkattu.Note ()]
+    -> Either Text [Solkattu.Note ()]
+verify_alignment tala notes
+    | null errs = Right rnotes
+    | otherwise = Left (Text.intercalate "; " errs)
+    where (rnotes, errs) = Solkattu.verify_alignment tala notes
 
 test_vary = do
     let f (notes :: [Solkattu.Note ()]) = map (Text.unwords . map pretty) $

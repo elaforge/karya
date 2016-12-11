@@ -8,6 +8,8 @@ module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Derive.Solkattu.Score
 ) where
+import qualified Data.Text as Text
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
@@ -21,6 +23,7 @@ import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
+import Global
 import Types
 
 
@@ -46,8 +49,9 @@ realize_korvai :: (Pretty.Pretty stroke, State.M m) =>
     Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai
     -> m Events.Events
 realize_korvai instrument realize_patterns stroke_dur korvai = do
-    strokes <- State.require_right id $
+    (strokes, warning) <- State.require_right id $
         Korvai.realize instrument realize_patterns korvai
+    unless (Text.null warning) $ State.throw warning
     return $ Events.from_list
         [ Event.event start 0 (Korvai.get_stroke_to_call instrument stroke)
         | (start, Realize.Note stroke) <- zip (Seq.range_ 0 stroke_dur) strokes

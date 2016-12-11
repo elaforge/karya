@@ -39,6 +39,7 @@ module Derive.Solkattu.Dsl (
 import Prelude hiding ((.), (^), repeat, sequence)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Pretty as Pretty
@@ -214,7 +215,9 @@ realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
 realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize instrument realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
-        Right notes -> Realize.format (Korvai.korvai_tala korvai) notes
+        Right (notes, warning) ->
+            Realize.format (Korvai.korvai_tala korvai) notes
+            <> if Text.null warning then "" else "\n" <> warning
 
 many :: (a -> IO ()) -> [a] -> IO ()
 many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)

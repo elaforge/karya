@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Solkattu.Score_test where
+import qualified Data.Text as Text
+
 import Util.Test
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
@@ -21,4 +23,6 @@ test_kandams = do
     equal [err | Left err <- map realize Score.kandams] []
 
 realize :: Korvai.Korvai -> Either Text [Mridangam.Note]
-realize = Korvai.realize Korvai.mridangam True
+realize korvai = do
+    (notes, warning) <- Korvai.realize Korvai.mridangam True korvai
+    if Text.null warning then Right notes else Left warning

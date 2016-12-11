@@ -62,14 +62,14 @@ kendang_tunggal = GetInstrument
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
-    -> Either Text [Realize.Note stroke]
-realize get realize_patterns korvai =
-    first Text.unlines $ do
-        rnotes <- Solkattu.verify_alignment (korvai_tala korvai)
+    -> Either Text ([Realize.Note stroke], Text)
+realize get realize_patterns korvai = do
+    let (rnotes, align_warning) = Solkattu.verify_alignment (korvai_tala korvai)
             (korvai_sequence korvai)
-        Realize.realize realize_patterns
-            (get_realization get (korvai_instruments korvai))
-            (map (Solkattu.map_stroke (get_stroke get =<<)) rnotes)
+    realized <- first Text.unlines $ Realize.realize realize_patterns
+        (get_realization get (korvai_instruments korvai))
+        (map (Solkattu.map_stroke (get_stroke get =<<)) rnotes)
+    return (realized, Text.unlines align_warning)
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =

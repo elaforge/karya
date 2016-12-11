@@ -61,10 +61,6 @@ UNSORTED
       . And then state_pitch_map in the TrackDynamics.  This is a lazy Just
         with a whole eval in it, which presumably holds on to everything
         somehow.  But I'm pretty sure Id on't need to keep it in TrackDynamic.
-
-      . Before I think the leak was the environ in the pitch.  I can strip
-        pitches to test.
-
   - Reduce memory used by REPL.
     . About 200mb.
     Try -fignore-interface-pragmas

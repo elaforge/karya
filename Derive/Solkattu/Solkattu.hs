@@ -149,24 +149,28 @@ initial_state tala = State 0 0 0 S1 (tala_nadai tala)
 -- | Verify that the notes start and end at Sam, and the given Alignments
 -- fall where expected.
 verify_alignment :: Pretty.Pretty stroke => Tala -> [Note stroke]
-    -> Either [Text] [Note stroke]
+    -> ([Note stroke], [Text])
+    -- ^ Return warnings in addition to notes, rather than just failing with
+    -- a Left.  This is because the misaligned notes are easier to read if I
+    -- realize them down to strokes.
 verify_alignment tala =
-    verify_result . filter not_empty . map_time tala verify
+    verify_result . map_time tala verify
         . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
     where
-    not_empty (Left err) | Text.null err = False
-    not_empty _ = True
     verify state note = second (:[]) $ case note of
         Sollu {} -> (Right 1, Right note)
         Rest -> (Right 1, Right note)
         Pattern matras -> (Right (fromIntegral matras), Right note)
         Alignment align -> (Right 0, verify_align state align)
         TimeChange change -> (Left change, Right note)
-    verify_result vals
-        | null errs = Right ok
-        | otherwise = Left $
-            map (either id (Text.unwords . map pretty)) (group_rights vals)
-        where (errs, ok) = Either.partitionEithers vals
+    verify_result vals = (ok, errs_with_context)
+        where
+        (errs, ok) = first (filter (not . Text.null)) $
+            Either.partitionEithers vals
+        errs_with_context
+            | any (not . Text.null) errs =
+                map (either id (Text.unwords . map pretty)) (group_rights vals)
+            | otherwise = []
     verify_align state align
         | state_akshara state == expected && state_matra state == 0 = Left ""
         | otherwise = Left $ "expected " <> showt align
