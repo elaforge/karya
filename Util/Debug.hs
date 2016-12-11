@@ -144,9 +144,10 @@ putp msg = writeIO . with_msg msg . Pretty.formatted
 
 -- * implementation
 
+{-# NOINLINE write #-}
 write :: Text -> a -> a
-write msg val = msg `DeepSeq.deepseq` Unsafe.unsafePerformIO
-    (writeIO msg >> return val)
+write msg val = msg `DeepSeq.deepseq`
+    Unsafe.unsafePerformIO (writeIO msg >> return val)
     -- deepseq to prevent debug msgs from being interleaved.
 
 writeIO :: Trans.MonadIO m => Text -> m ()
