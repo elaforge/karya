@@ -231,33 +231,31 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
         Log.notice $ "derived " <> showt block_id <> " in "
             <> pretty (RealTime.seconds cpu_secs) <> " cpu, "
             <> pretty (RealTime.seconds wall_secs) <> " wall"
-    -- TODO clean this up
-    evaluate_im im_config lookup_inst (Cmd.perf_events perf) $
-        \events maybe_pid -> do
+    im <- evaluate_im im_config lookup_inst (Cmd.perf_events perf)
+    case im of
+        Nothing -> send_status block_id $ Msg.DeriveComplete perf
+        Just (proc, rest_events) -> Util.Process.supervised proc $ \pid -> do
             send_status block_id $ Msg.DeriveComplete $
-                perf { Cmd.perf_events = events }
-            whenJust maybe_pid $ \pid ->
-                Exception.catch (void $ Process.waitForProcess pid) catch
+                perf { Cmd.perf_events = rest_events }
+            Exception.catch (void $ Process.waitForProcess pid) catch
     where
     catch :: Exception.IOException -> IO ()
     catch exc
         | IO.Error.isDoesNotExistError exc = return ()
         | otherwise = Log.warn $ "waiting for im process: " <> showt exc
 
--- | Convert Im events, serialize them, and start 'Cmd.im_binary' to render
--- them.
+-- | If there are Im events, serialize them and return a CreateProcess to
+-- render them, and the non-Im events.
 evaluate_im :: Maybe Cmd.ImConfig
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event
-    -> (Vector.Vector Score.Event -> Maybe Process.ProcessHandle -> IO a)
-    -> IO a
-evaluate_im maybe_im_config lookup_inst events action
+    -> IO (Maybe (Process.CreateProcess, Vector.Vector Score.Event))
+evaluate_im maybe_im_config lookup_inst events
     | Just im_config <- maybe_im_config, not (null im_events) = do
         Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events
         let proc = Process.proc (Cmd.im_binary im_config) []
-        Util.Process.supervised proc $ \pid ->
-            action rest_events (Just pid)
-    | otherwise = action events Nothing
+        return $ Just (proc, rest_events)
+    | otherwise = return Nothing
     where
     (im_events, rest_events) =
         Vector.partition (is_im . Score.event_instrument) events
