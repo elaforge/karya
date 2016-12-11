@@ -120,7 +120,7 @@ data Tala = Tala {
     tala_aksharas :: !Aksharas
     , tala_arudi :: !Aksharas
     , tala_nadai :: !Matras
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Pretty.Pretty Tala where
     format (Tala aksharas arudi nadai) = Pretty.record "Tala"

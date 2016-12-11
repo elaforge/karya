@@ -34,7 +34,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
 -- should be an integral multiple of the length of the list.  This is enforced
 -- in the constructor 'patterns'.
 newtype Patterns stroke = Patterns (Map.Map S.Matras (S.Speed, [Maybe stroke]))
-    deriving (Show, Pretty.Pretty, Monoid)
+    deriving (Eq, Show, Pretty.Pretty, Monoid)
 
 patterns :: Pretty.Pretty stroke =>
     [(S.Matras, [Note stroke])] -> Either Text (Patterns stroke)
@@ -76,7 +76,7 @@ realize_pattern (speed, strokes) = case speed of
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
 newtype StrokeMap stroke = StrokeMap (Map.Map [S.Sollu] [Maybe stroke])
-    deriving (Show, Pretty.Pretty, Monoid)
+    deriving (Eq, Show, Pretty.Pretty, Monoid)
 
 stroke_map :: Pretty.Pretty stroke => [(S.Sequence stroke, [Note stroke])]
     -> Either Text (StrokeMap stroke)
@@ -106,7 +106,7 @@ stroke_map = unique <=< mapM verify
 data Instrument stroke = Instrument {
     inst_stroke_map :: StrokeMap stroke
     , inst_patterns :: Patterns stroke
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Monoid (Instrument stroke) where
     mempty = Instrument mempty mempty

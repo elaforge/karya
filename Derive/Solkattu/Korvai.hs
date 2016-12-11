@@ -24,7 +24,7 @@ data Korvai = Korvai {
     korvai_sequence :: Sequence
     , korvai_instruments :: Instruments
     , korvai_tala :: Solkattu.Tala
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Pretty.Pretty Korvai where
     format (Korvai sequence instruments tala) = Pretty.record "Korvai"
@@ -80,7 +80,7 @@ vary modify korvai =
 data Instruments = Instruments {
     inst_mridangam :: Realize.Instrument Mridangam.Stroke
     , inst_kendang_tunggal :: Realize.Instrument KendangTunggal.Stroke
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Monoid Instruments where
     mempty = Instruments mempty mempty

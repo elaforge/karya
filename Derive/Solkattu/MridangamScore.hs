@@ -58,7 +58,7 @@ nakanadin = korvais (beats 2 8)
 -- * korvais
 
 p16_12_06_sriram1 :: Korvai
-p16_12_06_sriram1 = korvai (adi 4) $
+p16_12_06_sriram1 = korvai (adi 8) $
     p&k.__4.p&t.__4.kitakina . tri (okto . n.o.o.k)
         . od.__.od.__4 . p&u.__.p&u.__4 . od.__4
     . p&t.__4.kitakina . tri okto . od.__4 . p&k.__4 . od.__4
@@ -101,6 +101,52 @@ p16_12_06_janahan2 = korvai (adi 8) $
     where
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
+
+-- * farans
+
+farans :: [Korvai]
+farans = korvais (adi 8) $ concat
+    [ map (make (p.n.p.k) (p.n.p.k . t.k))
+        [ k.t.k.n.p.k.t.k
+        , o.o.k.n.p.k.t.k
+        , o.o.n.n.p.k.t.k
+        , o.t.k.n.p.k.t.k
+        , od.__.od.n.p.k.t.k
+        , o.d.o.n.p.k.t.k
+        , p.k.p.n.p.k.t.k
+        , o&t.k.o.n.p.k.t.k
+        , p.u.__.n.p.k.t.k
+        , o.u.__.n.p.k.t.k
+        ]
+    , map (make (o.u.__.k) (o.u.__.k . t.k))
+        [ o.u.__.k.k.o.o.k -- 11
+        , o.u.p.k.k.o.o.k
+        , o.k.o.u.__.k.t.k
+        , o.k.o.u.p.k.t.k -- 14
+        ]
+    , map (make (o.__.k.__) (o.k.p.k . t.k))
+        [ o.k.o.o.k.o.o.k
+        , o.__.k.o.k.o.o&t.k
+        , o.o.k.o.k.o.o&t.k
+        , o.__.k.t.k.o.o&t.k
+        , o.o.k.t.k.o.o&t.k
+        , k.__.k.t.k.o.o&t.k
+        , k.p.k.t.k.o.o&t.k
+        , n.k.p.p.k.o.o.k
+        ]
+    , [ make (o.o.k.t) (p.k.p.k . t.k) (p.k.o.o.k.t.p.k)
+      , make (n.o.o&k.__) (o&k.__.u.__ . p.k) (n.o.o&k.__.u.__.p.k)
+      ]
+    ]
+    where
+    make fill1 fill2 pattern =
+        long . long
+        . pattern . pattern . long
+        . repeat 2 short . fill1 . long
+        . repeat 3 short . fill2 . tari
+        where
+        long = pattern . tari
+        short = takeM 6 pattern
 
 -- * fragments
 
