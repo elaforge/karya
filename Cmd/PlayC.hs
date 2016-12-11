@@ -16,7 +16,7 @@
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
@@ -71,17 +71,25 @@ cmd_play_msg ui_chan msg = do
         Transport.Died err_msg -> Log.warn $ "player died: " <> txt err_msg
     derive_status_msg block_id status = do
         whenJust (derive_status_color status) (State.set_play_box block_id)
+        -- When I get word that a performance is complete, I promote it from
+        -- state_current_performance to state_performance.  Previously I used
+        -- the performance in the DeriveComplete, but Play may have flipped
+        -- the 'Cmd.perf_logs_written' bit.  More subtle, I don't want to
+        -- have different versions of the same Performance kicking around
+        -- because it has lazy fields, and a less-forced version could keep
+        -- data alive.
         case status of
-            Msg.DeriveComplete perf -> do
-                Cmd.modify_play_state $ \st -> st
-                    { Cmd.state_performance = Map.insert block_id
-                         perf (Cmd.state_performance st)
-                    }
-                    -- Don't mess with state_current_performance because Play
-                    -- may have flipped the 'Cmd.perf_logs_written' bit.
-                update_track_signals ui_chan block_id
-                    (Cmd.perf_track_signals perf)
-                update_highlights ui_chan block_id (Cmd.perf_events perf)
+            Msg.DeriveComplete _ -> do
+                current <- Cmd.gets $
+                    Cmd.state_current_performance . Cmd.state_play
+                whenJust (Map.lookup block_id current) $ \perf -> do
+                    Cmd.modify_play_state $ \st -> st
+                        { Cmd.state_performance = Map.insert block_id
+                            perf (Cmd.state_performance st)
+                        }
+                    update_track_signals ui_chan block_id
+                        (Cmd.perf_track_signals perf)
+                    update_highlights ui_chan block_id (Cmd.perf_events perf)
             _ -> return ()
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
