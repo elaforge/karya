@@ -310,14 +310,21 @@ test_lower_octave_note = do
     equal (run [(0, 1, "4i"), (1, 1, "vv | ' .5 -- 4e")])
         ([(0, 1, "4i"), (0.5, 0.5, "4o"), (1, 1, "4e"), (1, 1, "3e")], [])
 
-test_upper_voice = do
-    let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks (title <> " | v=1 | upper")
-            . UiTest.note_track
-        extract e = (DeriveTest.e_note e, DeriveTest.e_environ EnvKey.voice e)
-    equal (run [(0, 1, "3i"), (1, 1, "3o")])
-        ( [ ((0, 1, "3i"), Just "1"), ((0, 1, "4i"), Just "3")
-          , ((1, 1, "3o"), Just "1"), ((1, 1, "4o"), Just "3")
+test_upper = do
+    let run tracks skel = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) title
+                tracks
+        extract e = (DeriveTest.e_note e,
+            fromMaybe "" $ DeriveTest.e_environ EnvKey.voice e)
+    equal (run
+            [ (">", [(0, 2, "upper")])
+            , ("> | v=+1", [(0, 1, "")]), ("*", [(0, 0, "4i")])
+            , ("> | v=+2", [(0, 1, ""), (1, 1, "")])
+            ,        ("*", [(0, 0, "4o"), (1, 0, "4e")])
+            ] [(1, 2), (1, 4), (2, 3), (4, 5)])
+        ( [ ((0, 1, "4i"), "1"), ((0, 1, "5i"), "3")
+          , ((0, 1, "4o"), "2"), ((0, 1, "5o"), "4")
+          , ((1, 1, "4e"), "2"), ((1, 1, "5e"), "4")
           ]
         , []
         )

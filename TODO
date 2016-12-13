@@ -1668,7 +1668,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        - How to write bottom two parts and infer the top ones?
+        * How to write bottom two parts and infer the top ones?
           . 'upper' seems inconvenient.
           . Maybe an 'upper' postproc that only makes upper voices if they
             don't already exist?  But how is it supposed to know if they exist?

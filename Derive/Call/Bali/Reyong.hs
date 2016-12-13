@@ -107,9 +107,11 @@ note_calls = Derive.call_maps
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("realize-reyong", c_realize_reyong)
     , ("vv", c_lower_octave_note)
-    , ("upper", c_upper_voice)
     ]
-    <> Make.call_maps [("lv", Make.attributed_note module_ undamped)]
+    <> Make.call_maps
+    [ ("lv", Make.attributed_note module_ undamped)
+    , ("upper", c_upper)
+    ]
     where articulation = make_articulation reyong_positions
 
 cek :: Attrs.Attributes
@@ -841,13 +843,12 @@ c_lower_octave_note = Derive.transformer module_ "lower-octave-note"
         -- unsatisfying, but works.
         deriver <> note
 
-c_upper_voice :: Derive.Transformer Derive.Note
-c_upper_voice = Derive.transformer module_ "upper-voice" mempty
-    ("Double a part with " <> ShowVal.doc Controls.octave
-        <> " + 1 and increment the voice.")
-    $ Sig.callt (Sig.defaulted "voice" (2 :: Int)
-        ("Increment " <> ShowVal.doc EnvKey.voice <> " by this."))
-    $ \voice_increment _args deriver -> do
-        voice <- Derive.get_val EnvKey.voice
+c_upper :: Make.Calls Derive.Note
+c_upper = Make.transform_notes module_ "upper"  Tags.inst
+    ("Double a part with `" <> Doc.pretty Controls.octave
+        <> "=+1` and `" <> Doc.pretty EnvKey.voice
+        <> "=2`. If reyong subtracks have `v=+1` and `v=+2` respectively,\
+        \ they'll wind up with the right voices.")
+    (pure ()) $ \() deriver ->
         deriver <> Call.add_constant Controls.octave 1
-            (Derive.with_val EnvKey.voice (voice + voice_increment) deriver)
+            (Derive.with_val EnvKey.voice (2 :: Int) deriver)
