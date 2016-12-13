@@ -12,6 +12,10 @@
     returns a special 'Cmd.PlayMidi' value which contains the arguments for the
     play monitor thread.  The responder treats it as a Done but will call
     'play' with the given args.
+
+    Actually since I have *Stub modules now I think this hack is no longer
+    needed.  But I'll leave it in place for now since it doesn't seem to
+    be hurting anything and it's nice to divide play into low and high level.
 -}
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar

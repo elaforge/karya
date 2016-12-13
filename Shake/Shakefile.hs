@@ -518,10 +518,12 @@ configure midi = do
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
         , hLinkFlags = ["-rtsopts", "-threaded"]
+            -- Enable GC stats.  It's pretty cheap and allows EKG and
+            -- MemoryLeak_test and LDebug.memory.
+            ++ ["-with-rtsopts=-T"]
             ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
-            ++ ["-with-rtsopts=-T" | Config.enableEkg]
         , sandboxFlags = case sandbox of
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
