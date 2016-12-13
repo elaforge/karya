@@ -36,7 +36,8 @@ note_calls = Derive.generator_call_map
     , ("p", c_pattern)
 
     -- standard patterns
-    , ("tari", c_sequence (pure tari))
+    -- There are various other ways to play this.
+    , ("tari", c_sequence (pure "n+u+kt+k")) -- naka tiku tari kita
     , ("tk", c_sequence (pure "k+"))
     , ("tknk", c_sequence (pure "k+n+"))
     ]
@@ -168,55 +169,3 @@ convert_patterns :: Mridangam.Patterns -> Patterns
 convert_patterns (Solkattu.Realize.Patterns pmap) =
     IntMap.fromAscList (Map.toAscList (convert <$> pmap))
     where convert = second $ mconcatMap (maybe "_" Mridangam.stroke_to_call)
-
--- These are not exposed in any way, and I'm not even sure how they should be
--- exposed.
-
-tari :: Text
-tari = "n+u+kt+k" -- naka tiku tari kita
-
-farans :: [[Text]]
-farans = concat
-    [ map (make "+n+k" "+n+k")
-        [ "ktkn+ktk"
-        , "ookn+ktk"
-        , "oonn+ktk"
-        , "otkn+ktk"
-        , "D Dn+ktk"
-        , "odon+ktk"
-        , "Tkon+ktk"
-        , "+u n+ktk"
-        , "ou n+ktk"
-        ]
-    , map (make "ou k" "ou k")
-        [ "ou kkook"
-        , "ou+kkook"
-        , "okou ktk"
-        , "okou+ktk"
-        ]
-    , map (make "o k " "ok+ktk")
-        [ "okookook"
-        , "o kokoTk"
-        , "ookokoTk"
-        , "o ktkoTk"
-        , "ooktkoTk"
-        , "k ktkoTk"
-        , "k+ktkoTk"
-        ]
-    , [ make "ookt" "ookt" "+kookt+k"
-      , make "o k " "ok+kt" "nk++kook"
-      , make "noK " "K u " "noK u +k"
-      ]
-    ]
-    where
-    make fill1 fill2 start =
-        [ pattern <> pattern
-        , start <> start <> pattern
-        , short <> short <> fill1 <> pattern
-        , short <> short <> short <> fill2
-            <> Text.drop (Text.length pattern - rest) pattern
-        ]
-        where
-        rest = 32 - Text.length short * 3 - Text.length fill2
-        pattern = start <> tari
-        short = Text.take 6 start

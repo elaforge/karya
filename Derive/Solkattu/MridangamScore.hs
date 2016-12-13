@@ -113,7 +113,7 @@ farans = korvais (adi 8) $ concat
         , o.t.k.n.p.k.t.k
         , od.__.od.n.p.k.t.k
         , o.d.o.n.p.k.t.k
-        , p.k.p.n.p.k.t.k
+        , o.k.o.n.p.k.t.k
         , o&t.k.o.n.p.k.t.k
         , p.u.__.n.p.k.t.k
         , o.u.__.n.p.k.t.k

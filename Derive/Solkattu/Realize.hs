@@ -86,7 +86,7 @@ stroke_map = unique <=< mapM verify
         let throw = Left
                 . (("stroke map " <> pretty (sollus, strokes) <> ": ") <>)
         sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
-            S.Sollu s _ -> Right (Just s)
+            S.Sollu s _ _ -> Right (Just s)
             S.Rest -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
@@ -145,7 +145,7 @@ realize realize_patterns (Instrument smap (Patterns patterns)) =
                 Just strokes -> first (realize_pattern strokes :) (go ns)
             | otherwise -> first ([Pattern dur] :) (go ns)
         S.Rest -> first ([Rest] :) (go ns)
-        S.Sollu sollu stroke ->
+        S.Sollu sollu _ stroke ->
             case find_sequence smap sollu stroke ns of
                 Right (strokes, rest) -> first (strokes:) (go rest)
                 Left err -> ([], Just (err, n:ns))
@@ -168,12 +168,12 @@ find_sequence :: StrokeMap stroke -> S.Sollu -> Maybe stroke -> [S.Note stroke]
 find_sequence (StrokeMap smap) sollu stroke notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
-        Just strokes ->
-            Right $ replace_strokes strokes (S.Sollu sollu stroke : notes)
+        Just strokes -> Right $
+            replace_strokes strokes (S.Sollu sollu S.NotKarvai stroke : notes)
     where
     -- Collect only sollus and rests, and strip the rests.
     sollus = Maybe.catMaybes $ fst $ Seq.span_while is_sollu notes
-    is_sollu (S.Sollu s _) = Just (Just s)
+    is_sollu (S.Sollu s _ _) = Just (Just s)
     is_sollu (S.Rest {}) = Just Nothing
     is_sollu _ = Nothing
     longest_match = Seq.head . mapMaybe (flip Map.lookup smap) . reverse
@@ -186,7 +186,7 @@ replace_strokes :: [Maybe stroke] -> [S.Note stroke]
 replace_strokes [] ns = ([], ns)
 replace_strokes (stroke : strokes) (n : ns) = case n of
     S.Rest -> first (Rest :) skip
-    S.Sollu _ explicit_stroke ->
+    S.Sollu _ _ explicit_stroke ->
         first (maybe (maybe Rest Note stroke) Note explicit_stroke :) $
             replace_strokes strokes ns
     -- These shouldn't happen because the strokes are from the result of

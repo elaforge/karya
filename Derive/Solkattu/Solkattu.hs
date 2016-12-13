@@ -27,7 +27,7 @@ data Note stroke =
     -- | A Sollu can carry an explicit stroke, for exceptions to the usual
     -- inference.  The concrete stroke type depends on the instrument it's
     -- being realized on.
-    Sollu Sollu (Maybe stroke)
+    Sollu Sollu Karvai (Maybe stroke)
     | Rest
     -- | Set pattern with the given duration.
     | Pattern Matras
@@ -35,9 +35,13 @@ data Note stroke =
     | TimeChange TimeChange
     deriving (Eq, Ord, Show)
 
+-- | If it's a karvai stroke, and it's followed by a rest, it will replace the
+-- rest.  Otherwise, it will be replaced by a note.
+data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
+
 map_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
 map_stroke f n = case n of
-    Sollu sollu stroke -> Sollu sollu (f stroke)
+    Sollu sollu karvai stroke -> Sollu sollu karvai (f stroke)
     Rest -> Rest
     Pattern a -> Pattern a
     Alignment a -> Alignment a
@@ -72,8 +76,11 @@ factor_speed n = case n of
 
 instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
     pretty n = case n of
-        Sollu s stroke -> maybe (pretty s)
-            (\stroke -> (pretty s <> "!" <> pretty stroke)) stroke
+        Sollu sollu karvai stroke -> mconcat $ filter (not . Text.null)
+            [ pretty sollu
+            , if karvai == Karvai then "(k)" else ""
+            , maybe "" (("!"<>) . pretty) stroke
+            ]
         Rest -> "__"
         Pattern d -> "p" <> showt d
         Alignment (Akshara n) -> "@" <> showt n
@@ -145,6 +152,24 @@ data State = State {
 
 initial_state :: Tala -> State
 initial_state tala = State 0 0 0 S1 (tala_nadai tala)
+
+-- | A Karvai Sollu followed by a Rest will replace the rest, if followed by
+-- a Sollu, the Karvai will be dropped.
+cancel_karvai :: [Note stroke] -> [Note stroke]
+cancel_karvai = go
+    where
+    go (Sollu sollu Karvai stroke : rest) = case drop_next_rest rest of
+        (True, rest) -> Sollu sollu Karvai stroke : go rest
+        (False, rest) -> go rest
+    go (n:ns) = n : go ns
+    go [] = []
+
+drop_next_rest :: [Note stroke] -> (Bool, [Note stroke])
+drop_next_rest (n:ns) = case n of
+    Rest -> (True, ns)
+    Sollu {} -> (False, n:ns)
+    _ -> (n:) <$> drop_next_rest ns
+drop_next_rest [] = (False, [])
 
 -- | Verify that the notes start and end at Sam, and the given Alignments
 -- fall where expected.

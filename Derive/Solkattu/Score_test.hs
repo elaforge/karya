@@ -22,6 +22,9 @@ test_chatusrams = do
 test_kandams = do
     equal [err | Left err <- map realize Score.kandams] []
 
+test_koraippus = do
+    equal [err | Left err <- map realize Score.koraippus] []
+
 realize :: Korvai.Korvai -> Either Text [Mridangam.Note]
 realize korvai = do
     (notes, warning) <- Korvai.realize Korvai.mridangam True korvai

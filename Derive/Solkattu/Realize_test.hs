@@ -21,6 +21,7 @@ import Global
 test_realize = do
     let f = (Text.unlines *** show_strokes)
             . Realize.realize True mridangam
+        sollu s = Sollu s Solkattu.NotKarvai Nothing
         mridangam = Realize.Instrument smap M.defaults
         smap = Realize.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])
@@ -32,17 +33,16 @@ test_realize = do
         t = M.Valantalai M.Ta
         od = M.Both M.Thom M.Din
         n = M.Valantalai M.Nam
-    equal (f [Rest, Sollu Ta Nothing, Rest, Rest, Sollu Din Nothing])
-        (Right "__ k __ __ D")
-    equal (f [Pattern 5, Rest, Sollu Ta Nothing, Sollu Din Nothing])
-        (Right "k t k n o __ k D")
-    equal (f [Sollu Ta Nothing, Sollu Ta Nothing]) (Right "t t")
-    equal (f [Sollu Din Nothing, Sollu Ga Nothing]) (Right "D __")
-    equal (f [Sollu Din Nothing, Rest, Sollu Ga Nothing]) (Right "D __ __")
-    left_like (f [Sollu Din Nothing, Sollu Din Nothing]) "sequence not found"
+    equal (f [Rest, sollu Ta, Rest, Rest, sollu Din]) (Right "__ k __ __ D")
+    equal (f [Pattern 5, Rest, sollu Ta, sollu Din]) (Right "k t k n o __ k D")
+    equal (f [sollu Ta, sollu Ta]) (Right "t t")
+    equal (f [sollu Din, sollu Ga]) (Right "D __")
+    equal (f [sollu Din, Rest, sollu Ga]) (Right "D __ __")
+    left_like (f [sollu Din, sollu Din]) "sequence not found"
 
     -- An explicit stroke will replace just that stroke.
-    equal (f [Sollu Na Nothing, Sollu Din (Just (M.Valantalai M.Chapu))])
+    equal (f [sollu Na,
+            Sollu Din Solkattu.NotKarvai (Just (M.Valantalai M.Chapu))])
         (Right "n u")
 
 test_realize_pattern = do

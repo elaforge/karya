@@ -11,6 +11,7 @@ module Derive.Solkattu.Dsl (
     -- ** sollus
     , (.)
     , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
+    , karv
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
     , ku, mi, na, nam, ri, ta, tam, tat, tha, thom, ti
@@ -42,8 +43,10 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
+
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai)
 import Derive.Solkattu.Mridangam ((&))
@@ -67,7 +70,7 @@ sequence :: S.Note stroke -> S.Sequence stroke
 sequence = (:[])
 
 sollu :: S.Sollu -> S.Sequence stroke
-sollu s = [S.Sollu s Nothing]
+sollu s = [S.Sollu s S.NotKarvai Nothing]
 
 -- ** sollus
 
@@ -92,6 +95,12 @@ __9 = __n 9
 -- a Rest.
 __n :: Matras -> S.Sequence stroke
 __n n = repeat (n-1) __
+
+-- | Make a single sollu 'S.Karvai'.
+karv :: (CallStack.Stack, Pretty.Pretty stroke) =>
+    S.Sequence stroke -> S.Sequence stroke
+karv [S.Sollu s _ stroke] = [S.Sollu s S.Karvai stroke]
+karv ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
 
 dheem = sollu S.Dheem
 dhom = sollu S.Dhom
@@ -148,11 +157,11 @@ pat d = sequence $ S.Pattern d
 -- ** strokes
 
 -- | Add a specific stroke annotation to a sollu.
-stroke :: (Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
+stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence -> Sequence
 stroke _ [] = errorStack $ "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
-    S.Sollu s _ -> S.Sollu s (Just (Korvai.to_stroke stroke)) : ns
+    S.Sollu s karvai _ -> S.Sollu s karvai (Just (Korvai.to_stroke stroke)) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
 
 -- | Add a specific stroke annotation to a sollu.

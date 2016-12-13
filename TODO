@@ -132,6 +132,12 @@ UNSORTED
       . Could it be EKG?
     . It stops during play.
     . Try disabling ekg and use LDebug.memory and see if it's still there.
+    . It still grows without ekg.  Well, the second time it seems like it
+      moves but doesn't grow.
+    . Is there some way to instrument allocation so I can see which thread is
+      doing it?
+    . Actually it seems like ghci does it all by itself.  So it's either
+      inherent to the GHC API or ghc runtime in general.
 
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
@@ -733,9 +739,10 @@ cleanup:
 performance:
   - input lag, debug with Trace.traceEventIO
     . http://www.yesodweb.com/blog/2012/10/future-work-warp
-    . Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
+    / Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
       disabling a track with 'D' is laggy.
-    . But not always.  Maybe only after editing for a while?
+      . But not always.  Maybe only after editing for a while?
+      . I think fixed when I fixed the memory leak.
     . Can I use custom events to see lags in threadscope?
       . Yes, but hard to visualize with everything there.
         I can get labels with View -> Event labels, but often they are jammed
@@ -1447,6 +1454,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - extend Karvai to take a minimum number of Rests before it applies.
+          Default to 2, but a chapu might require 3.
         - Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
         - explicit strokes via (!) should not require a valid entry in the
@@ -1659,6 +1668,15 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
+        - How to write bottom two parts and infer the top ones?
+          . 'upper' seems inconvenient.
+          . Maybe an 'upper' postproc that only makes upper voices if they
+            don't already exist?  But how is it supposed to know if they exist?
+          . Or make 'upper' a parent call that adds voice number based on the
+            child track order. (v=1, v=3; v=2, v=4).  The tracks would have to
+            be '> | v=+1' for it to work though.
+          . Except of course 'v' is an env var, and =+ is only for controls.
+            But can't I define it for numeric env vars too?
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - I'd like to write two parts, and have the upper octaves automatic.
           . I can put them in a sub-block and wrap with 'upper', but it won't
@@ -1677,6 +1695,8 @@ Derive:
             . But CCs are global, so no good.
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
+          . Also longer note is a quieter damp, or just say if the length is
+            over a threshold don't damp at all.
         - How to configure open and closed damping?  I can currently do it
           by adding +open, but that might be too broad because it also applies
           to +cek.  Or I could always damp closed if that sounds good.

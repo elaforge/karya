@@ -65,7 +65,7 @@ realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
     -> Either Text ([Realize.Note stroke], Text)
 realize get realize_patterns korvai = do
     let (rnotes, align_warning) = Solkattu.verify_alignment (korvai_tala korvai)
-            (korvai_sequence korvai)
+            (Solkattu.cancel_karvai (korvai_sequence korvai))
     realized <- first Text.unlines $ Realize.realize realize_patterns
         (get_realization get (korvai_instruments korvai))
         (map (Solkattu.map_stroke (get_stroke get =<<)) rnotes)

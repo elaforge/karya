@@ -444,6 +444,42 @@ tisrams = concat
     [ t1s, t2s, t3s, t4s, t4s2, t4s3, t5s
     ]
 
+-- * koraippu
+
+misra_koraippu :: [Korvai]
+misra_koraippu = korvais (adi 8) mridangam $ concat
+    [ map long [1..7]
+    , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]]
+    ]
+    where
+    -- 8 + 8*7 (3+2 + 3)
+    long n = __.__8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
+    -- 4 + 4*7 (1 + 3)
+    short n = __.__4 . tan7 . tri (fill n)
+    fill n = fills !! (n-1) . karv din
+    fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
+        [ ta
+        , ta.ka
+        , ta.din.na
+        , ta.ka.din.na
+        , p5
+        , p6
+        , p7
+        ]
+    tan7 = tang.__.ga.din.__.ga.din
+    mridangam = make_mridangam
+        [ (tang.ga, [o&n, k])
+        , (din.ga, [od, k])
+        , (din, [od])
+        , (ta, [k])
+        , (ta.ka, [p, k])
+        , (ta.din.na, [o&n, o&n, k])
+        , (ta.ka.din.na, [k, o, o, k])
+        ]
+
+koraippus :: [Korvai]
+koraippus = concat [misra_koraippu]
+
 -- * vary
 
 vary :: Korvai -> [Korvai]
