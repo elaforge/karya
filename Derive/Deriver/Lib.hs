@@ -324,13 +324,13 @@ get_val name = do
 -- and instrument are.
 with_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key -> val
     -> Deriver a -> Deriver a
-with_val name val deriver
-    | name == EnvKey.scale, Just scale_id <- BaseTypes.to_scale_id v = do
+with_val key val deriver
+    | key == EnvKey.scale, Just scale_id <- BaseTypes.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
-    | name == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
+    | key == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
         with_instrument inst deriver
-    | otherwise = with_val_raw name val deriver
+    | otherwise = with_val_raw key val deriver
     where v = Typecheck.to_val val
 
 -- | Like 'with_val', but should be slightly more efficient for setting
@@ -351,24 +351,46 @@ with_vals vals deriver
 -- | Like 'with_val', but don't set scopes for instrument and scale.
 with_val_raw :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> val -> Deriver a -> Deriver a
-with_val_raw name val = Internal.localm $ \state -> do
-    environ <- insert_environ name val (state_environ state)
+with_val_raw key val = Internal.localm $ \state -> do
+    environ <- insert_environ key val (state_environ state)
     environ `seq` return $! state { state_environ = environ }
-    where
-    insert_environ name val =
-        either throw return . Env.put_val_error name val
+    where insert_environ key val = require_right id . Env.put_val_error key val
 
 delete_val :: Env.Key -> Deriver a -> Deriver a
-delete_val name = Internal.local $ \state ->
-    state { state_environ = Env.delete name $ state_environ state }
+delete_val key = Internal.local $ \state ->
+    state { state_environ = Env.delete key $ state_environ state }
+
+-- | This is the Env version of with_merged_control.  It only works on
+-- numeric env vals.
+with_merged_numeric_val :: Merger Signal.Control -> Env.Key
+    -> Signal.Y -> Deriver a -> Deriver a
+with_merged_numeric_val Set key val = with_val key val
+with_merged_numeric_val (Merger name merge ident) key val = Internal.localm $
+    \state -> do
+        (typ, old) <- case Env.checked_val2 key (state_environ state) of
+            Nothing -> return (Score.Untyped, ident)
+            Just (Right (Score.Typed typ old)) ->
+                return (typ, Signal.constant old)
+            Just (Left err) -> throw err
+        -- This is a hack to reuse Merger, which is defined on Signal, not Y.
+        -- TODO it could be defined on Y, but I'd lose interleave... but I only
+        -- use that for pitches and it's kind of sketchy anyway.
+        new <- require ("merger " <> name <> " produced an empty signal") $
+            Signal.constant_val (merge old (Signal.constant val))
+        return $! insert_env key (Score.Typed typ new) state
 
 modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> (Maybe val -> val) -> Deriver a -> Deriver a
-modify_val name modify = Internal.localm $ \state -> do
-    let env = state_environ state
-    val <- modify <$> either throw return (Env.checked_val name env)
-    return $! state { state_environ =
-        Env.insert_val name (Typecheck.to_val val) env }
+modify_val key modify = Internal.localm $ \state -> do
+    val <- modify <$>
+        require_right id (Env.checked_val key (state_environ state))
+    return $! insert_env key val state
+
+insert_env :: Typecheck.ToVal val => Env.Key -> val -> Dynamic -> Dynamic
+insert_env key val state = state
+    { state_environ =
+        Env.insert_val key (Typecheck.to_val val) (state_environ state)
+    }
 
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =

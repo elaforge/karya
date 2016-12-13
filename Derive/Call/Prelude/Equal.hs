@@ -254,11 +254,15 @@ parse_equal merge lhs rhs
     is_pitch (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal Set lhs val = Right $ Derive.with_val lhs val
+parse_equal (Merge merge) lhs (BaseTypes.VNum (Score.Typed Score.Untyped val)) =
+    Right $ \deriver -> do
+        merger <- Derive.get_control_merge merge
+        Derive.with_merged_numeric_val merger lhs val deriver
 parse_equal merge _ _ = Left $ merge_error merge
 
 merge_error :: Merge -> Text
-merge_error merge = "merge is only supported when assigning to a control: "
-    <> ShowVal.show_val merge
+merge_error merge = "merge is only supported when assigning to a control or\
+    \ untyped numeric env: " <> ShowVal.show_val merge
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
 get_merger :: Score.Control -> Merge

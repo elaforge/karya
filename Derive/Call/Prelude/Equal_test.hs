@@ -37,11 +37,20 @@ test_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
         ([(0, "i"), (1, "")], [])
 
-test_equal_merge = do
+test_equal_merge_env = do
+    let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.e_environ "k")
+            (DeriveTest.derive_tracks "" [(">", [(0, 1, evt)])])
+    equal (run "k=1 | k=+1 |") (["2"], [])
+    strings_like (snd $ run "k=c | k=+1 |") ["expected Num"]
+    strings_like (snd $ run "k=1 | k=+c |") ["merge is only supported when"]
+    strings_like (snd $ run "k=1 | k =+ 1c |") ["merge is only supported when"]
+    -- Types are preserved.
+    equal (run "k=1c | k=+1 |") (["2c"], [])
+
+
+test_equal_merge_control = do
     let run control evts = DeriveTest.extract (DeriveTest.e_control control) $
             DeriveTest.derive_tracks "" [(">", evts)]
-    strings_like (snd $ run "c" [(0, 1, "c = .5 add |")])
-        ["merge is only supported when"]
     equal (run "c" [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
     -- Default is multiply.
     equal (run "c" [(0, 1, "%c = .5 | %c = .25 default |")])
