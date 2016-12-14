@@ -8,13 +8,13 @@ It's not oriented around realtime use, or recording realtime input.
 
 It uses its own score format.  One way to look at it is a 2D language for
 expressing music along with an editor for that language.  The score language
-has a large built-in library of notation and has basic means for defining new
+has a built-in library of notation and has basic means for defining new
 notation, but more complicated notation is defined in haskell.  The idea is to
-have a large standard library, but also be able to define notation specific to
-your score.  The editor is graphical but also uses a haskell REPL for
-configuration, automation, and extension.  If you're familiar with Amiga-style
-trackers, it looks somewhat similar, but fundamentally it's much closer to a
-programming language and aims at a higher level of expression.
+have a standard library, but also be able to define notation specific to your
+score.  The editor is graphical but also uses a haskell REPL for configuration,
+automation, and extension.  If you're familiar with Amiga-style trackers, it
+looks somewhat similar, but fundamentally it's closer to a programming language
+and aims at a higher level of expression.
 
 The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
@@ -142,20 +142,19 @@ perform operations, it will probably never be usable by non-programmers.
 score together in a way that defeats caching it will start taking a long time
 to rederive a score.  Fortunately it's relatively easy to work with the cache
 system, and you get notified about cache misses so you should notice when
-something goes wrong.  But the cache, as usual, is a rich source of its own
-bugs.
+something goes wrong.  But the cache, as usual, is a source of bugs.
 
 - Greedy.  What with the various caches, an internal focus on simplicity over
 efficiency, and plenty of unoptimized bits, it demands quite a lot of memory
 and CPU for a program that doesn't actually handle audio.  This could probably
-be greatly improved with some optimization work, especially fixing space leaks.
+be greatly improved with some optimization work.
 
 - Non-realtime.  While you should be able to play back a score soon after
-making changes, it's still very much oriented around non-realtime
-score-writing.  You cannot change a playback in progress.  Support for
-recording MIDI is not a focus, partially because it's hard to integrate a
-low-level recorded performance with a high-level handwritten score, but
-mostly because I don't work that way.
+making changes, it's still oriented around non-realtime score-writing.  You
+cannot change a playback in progress.  Support for recording MIDI is not a
+focus, partially because it's hard to integrate a low-level recorded
+performance with a high-level handwritten score, but mostly because I don't
+work that way.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
@@ -187,23 +186,23 @@ can display vertical structure (chords and harmony) and binary rhythms very
 compactly, but falls apart with different scales or additive rhythms.
 Similarly, since time is explicit and spatial, it's less efficient than
 notation which can make assumptions about the rhythmic conventions, such as
-written konnakol or Javanese kepatihan.
+written konnakol or Javanese kepatihan.  To deal with that, I have
+sub-languages for things like konnakol which output score notation.
 
 - At the moment it's still early in development, and has many underdocumented
 and buggy parts.  It's also changing rapidly, and code written against internal
-interfaces is likely to be broken by changes down the line.  And there's no
-defined external interface yet, so effectively everything is an internal
-interface.
+interfaces may be broken by changes down the line.  And there's no defined
+external interface yet, so effectively everything is an internal interface.
 
 ## Documentation
 
 Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
 [source](../hscolour/).  Since using karya probably involves writing code that
-interacts with the internal APIs, you'll need to be familiar with the code.
-Sometimes the documentation isn't exported as haddock, so if the haddock seems
-sparse try the "source" link.  Whenever possible, I try to keep documentation
-in the haddock, since it's easier to keep up to date if it's next to the code
-that implements it.
+interacts with the internal APIs, you'll need to be familiar with at least some
+of the code.  Sometimes the documentation isn't exported as haddock, so if the
+haddock seems sparse try the "source" link.  Whenever possible, I try to keep
+documentation in the haddock, since it's easier to keep up to date if it's next
+to the code that implements it.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
 development.  It's mostly just notes to myself.

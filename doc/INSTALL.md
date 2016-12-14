@@ -49,10 +49,10 @@ you can get it compiled and installed is fine.
 
 ## INSTALLED SEPARATELY
 
-- fltk-1.3, from <http://fltk.org/>.  Install the latest version from SVN
-for bugfixes and better rendering on retina macs.  `Shake/Config.hs` needs
-the path to the `fltk-config` script, which is normally going to be
-`/usr/local/bin` if you did a `make install`.
+- The latest fltk, from <http://fltk.org/>.  Install version from SVN for
+bugfixes and better rendering on retina macs.  `Shake/Config.hs` needs the path
+to the `fltk-config` script, which is normally going to be `/usr/local/bin` if
+you did a `make install`.
 
 - libpcre library from <http://www.pcre.org>.
 
