@@ -25,7 +25,7 @@ UNSORTED
         leak.
       . Try making the perf_track_dynamic strict again, to make sure that's it.
         Yes, that fixes it, but it puts the lag back in, just like the !.
-  - Add a test to make sure the performance isn't forced in the event loop.
+  * Add a test to make sure the performance isn't forced in the event loop.
     Presumably I could put it in MemoryLeak, and assert that the event loop
     comes back quickly even when initially evaluating the score.
   - When I expand a collapsed track it doesn't get the track signal at first.
@@ -89,6 +89,7 @@ UNSORTED
   - Reduce memory used by REPL.
     . About 200mb.
     Try -fignore-interface-pragmas
+      . Now: without: Bytes 150308240 Bytes 150326920
       . From ghci: 210mb vs. 1552mb
       . But from REPL seems to make no difference.
     . 200mb for an empty score seems excessive.  Where does it go?

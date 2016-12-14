@@ -5,6 +5,7 @@
 -- | This actually has tests, but they test memory usage, so this should be
 -- compiled with optimization, like profiles.
 module Cmd.MemoryLeak_profile where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
@@ -30,42 +31,63 @@ import qualified Derive.Score as Score
 import Global
 
 
+-- | Don't leak more than this much on each run.
+max_memory_growth :: Bytes
+max_memory_growth = megabyte 1
+
+-- | No cmd should take more than this many seconds.
+max_cmd_latency :: Double
+max_cmd_latency = 0.05
+
 test_generated_score = do
-    Log.configure $ \st -> st { Log.state_log_level = Log.Notice }
     let times = 5
     let states = ResponderTest.mkstates_blocks (score 64 256)
     let pitches = ["5c", "5d", "5e", "5f"]
         mods = [UiTest.insert_event_in "sub3" 2 (1, 1, p) | p <- cycle pitches]
-    mems <- thread states (take times mods)
-    let diffs = zipWith (-) (drop 1 mems) mems
-    Text.IO.putStrLn $ "diffs: " <> pretty diffs
-    -- The first run takes extra memory for some reason, but it seems to
-    -- stabilize after that.  TODO maybe track that one down too some day.
-    diffs <- return $ drop 1 diffs
-    check ("< 1mb: " <> pretty diffs) $ all ((<1) . megabytes) diffs
+    check_results times states mods
 
 _test_putu_kreasi = do
     let fname = "save/bali/putu-kreasi-galungan"
-    Log.configure $ \st -> st { Log.state_log_level = Log.Notice }
     let times = 4
     let pitches = ["5i", "5o", "5e", "5u"]
         mods =
             [ UiTest.insert_event_in "untitled/b3" 12 (1.25, 0.25, p)
             | p <- cycle pitches
             ]
-    diffs <- memory_leak_file fname (take times mods)
+    states <- load_file fname
+    check_results times states mods
+
+check_results :: Int -> ResponderTest.States -> [Cmd.CmdT IO ()] -> IO ()
+check_results times states mods = do
+    (latency, mems) <- unzip <$> thread states (take times mods)
+    let diffs = zipWith (-) (drop 1 mems) mems
+    Text.IO.putStrLn $ "diffs: " <> pretty diffs
+    -- The first run takes extra memory for some reason, but it seems to
+    -- stabilize after that.  TODO maybe track that one down too some day.
+    diffs <- return $ drop 1 diffs
+    -- If it's too lazy, memory will leak.
+    equal (filter (>= max_memory_growth) diffs) []
     check ("< 1mb: " <> pretty diffs) $ all ((<1) . megabytes) diffs
 
-memory_leak_file :: FilePath -> [Cmd.CmdT IO ()] -> IO [Bytes]
-memory_leak_file fname mods = do
+    -- If it's too strict, the UI will get laggy.
+    putStrLn "cmd lacency:"
+    let show_latency (msg, secs) = msg <> ": " <> pretty secs
+    mapM_ Text.IO.putStrLn (map show_latency (concat latency))
+    equal [show_latency (msg, secs) | (msg, secs) <- concat latency,
+            secs >= max_cmd_latency]
+        []
+    return ()
+
+load_file :: FilePath -> IO ResponderTest.States
+load_file fname = do
     cmd_config <- DeriveSaved.load_cmd_config
-    states <- DeriveSaved.load_score_states cmd_config fname
-    mems <- thread (only_derive_root states) mods
-    Text.IO.putStrLn $ "mem: " <> pretty mems
-    return $ zipWith (-) (drop 1 mems) mems
+    only_derive_root <$> DeriveSaved.load_score_states cmd_config fname
 
 newtype Bytes = Bytes Int
-    deriving (Show, Num)
+    deriving (Eq, Ord, Show, Num)
+
+megabyte :: Int -> Bytes
+megabyte n = Bytes (n * 1024^2)
 
 instance Pretty.Pretty Bytes where
     pretty = (<>"mb") . Num.showFloat 2 . megabytes
@@ -73,23 +95,35 @@ instance Pretty.Pretty Bytes where
 megabytes :: Bytes -> Double
 megabytes (Bytes b) = fromIntegral b / 1024^2
 
-thread :: ResponderTest.States -> [Cmd.CmdT IO ()] -> IO [Bytes]
+-- | (msg, latency)
+type Latency = (Text, ResponderTest.Seconds)
+
+thread :: ResponderTest.States -> [Cmd.CmdT IO ()] -> IO [([Latency], Bytes)]
 thread states (mod:mods) = do
     root_id <- maybe (errorIO "no root block") return $
         State.config#State.root #$ fst states
     states <- return $ strip_states states
-    res <- ResponderTest.respond_until (is_complete root_id) timeout states mod
-    force_performances (last res)
+    (latency, result) <- strip_results <$>
+        ResponderTest.respond_until (is_complete root_id) timeout states mod
+    force_performances result
     mem <- memory_used
-    (mem:) <$> thread (ResponderTest.result_states (last res)) mods
+    ((latency, mem):) <$> thread (ResponderTest.result_states result) mods
     where
     timeout = 64
     is_complete = ResponderTest.is_block_derive_complete
 thread _ [] = return []
 
--- This still has the (commented out) code to strip out various bits of state
--- to try to find a leak.  I'll leave it in here in case I need to do it again
--- some day.
+-- | Get rid of intermediate Results, otherwise I get the memory leak right
+-- here!
+strip_results :: [ResponderTest.Result]
+    -> ([Latency], ResponderTest.Result)
+strip_results results = latency `DeepSeq.deepseq` (latency, last results)
+    where
+    latency = map strip results
+    strip r = (pretty (ResponderTest.result_msg r), ResponderTest.result_time r)
+
+-- The commented out strips out various bits of state to try to find a leak.
+-- I'll leave it in here in case I need to do it again some day.
 
 strip_states :: ResponderTest.States -> ResponderTest.States
 strip_states = id -- second strip_cmd

@@ -14,7 +14,7 @@ module Cmd.ResponderTest (
     States
     , mkstates, mkstates_blocks, mk_cmd_state
     -- * Result
-    , Result(..), print_results, result_states, result_ui_state
+    , Result(..), Seconds, print_results, result_states, result_ui_state
     , result_cmd_state
     , result_perf
     -- * run
@@ -104,7 +104,12 @@ data Result = Result {
     -- are those collected during the cmd.
     , result_updates :: [Update.DisplayUpdate]
     , result_loopback :: Chan.Chan Msg.Msg
+    -- | CPU seconds it took for this Result to come back.  This doesn't
+    -- include waiting for the Msg.
+    , result_time :: Seconds
     }
+
+type Seconds = Double
 
 instance Pretty.Pretty Result where
     format result = Pretty.format (result_msg result) <> " -> "
@@ -154,16 +159,16 @@ respond_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> States -> Cmd.CmdT IO a
 respond_until is_complete timeout states cmd = do
     putStrLn "---------- new cmd"
     result <- respond_cmd states cmd
-    continue_until is_complete timeout result
+    (result:) <$> continue_until is_complete timeout result
 
 -- | Continue feeding loopback msgs into the responder until the function
 -- matches, or until I time out reading from the loopback channel.  The
 -- matching Msg is responded to and all Results returned.
 continue_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> Result -> IO [Result]
-continue_until is_complete timeout result =
-    reverse <$> go [] (result_states result)
+continue_until is_complete timeout last_result =
+    reverse <$> go [] (result_states last_result)
     where
-    chan = result_loopback result
+    chan = result_loopback last_result
     go accum states = do
         maybe_msg <- read_msg timeout chan
         Text.IO.putStrLn $ "ResponderTest.continue_until: "
@@ -203,9 +208,9 @@ thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay) : msgs) = do
     Printf.printf "thread msg: %s\n" (prettys msg)
-    (result, cpu_secs, _secs) <- Testing.timer $ respond_msg states msg
+    result <- respond_msg states msg
     when print_timing $
-        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) cpu_secs
+        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) (result_time result)
     Thread.delay delay
     (result:) <$> thread_delay print_timing (result_states result) msgs
 
@@ -214,7 +219,10 @@ thread_delay print_timing states ((msg, delay) : msgs) = do
 configure_logging :: IO ()
 configure_logging = do
     Log.configure $ \state -> state
-        { Log.state_write_msg = Log.write_formatted IO.stdout }
+        { Log.state_write_msg = Log.write_formatted IO.stdout
+        -- Otherwise the status updates get spammy.
+        , Log.state_log_level = Log.Notice
+        }
     return ()
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
@@ -248,14 +256,16 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     ui_chan <- MVar.newMVar []
     let rstate = make_rstate ui_chan update_chan loopback_chan
             ui_state (set_cmd_state interface) maybe_cmd
-    (_quit, rstate) <- Responder.respond rstate msg
+    ((rstate, midi, updates), cpu_secs, _secs) <- Testing.timer $ do
+        (_quit, rstate) <- Responder.respond rstate msg
+        midi <- get_vals midi_chan
+        Testing.force midi
+        updates <- concat <$> get_vals update_chan
+        Testing.force updates
+        return (rstate, midi, updates)
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
     -- a difference.
-    midi <- get_vals midi_chan
-    Testing.force midi
-    updates <- concat <$> get_vals update_chan
-    Testing.force updates
     let cmd_result = CmdTest.Result
             { CmdTest.result_val = Right Nothing
             , CmdTest.result_cmd_state = Responder.state_cmd rstate
@@ -269,6 +279,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         , result_cmd = cmd_result
         , result_updates = updates
         , result_loopback = loopback_chan
+        , result_time = cpu_secs
         }
     where
     set_cmd_state interface = cmd_state
