@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - fltk: If I open a floating input when the event trigger is off the top of
+  * fltk: If I open a floating input when the event trigger is off the top of
     the block, the input appears above the window.  I should make it min at
     the track start.
   * Memory isn't leaking anymore, but editing is still clunky.  Can

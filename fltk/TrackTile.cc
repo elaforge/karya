@@ -88,6 +88,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     this->floating_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
+    ypos = std::max(0, std::min(h(), ypos));
     int xpos = tracks() == 0 ? x() : track_at(std::max(0, tracknum - 1))->x();
     // The OS will make sure the window doesn't go off the right edge.
     const int width = std::max(
