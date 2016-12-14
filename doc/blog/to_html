@@ -1,0 +1,4 @@
+mkdir -p html
+for f in *.md; do
+    pandoc -f markdown -t html $f >html/$f.html
+done
