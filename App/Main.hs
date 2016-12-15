@@ -14,6 +14,7 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text.IO as Text.IO
 import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
@@ -99,10 +100,9 @@ main = initialize $ \midi_interface repl_socket -> do
             <> showt (Inst.size (StaticConfig.instrument_db static_config))
             <> " instruments"
     Log.notice loaded_msg
-    putStrLn $ untxt loaded_msg
+    Text.IO.putStrLn loaded_msg
 
-    let _x = _x
-    -- satellites are out tonight
+    let _x = _x -- satellites are out tonight
 
     let open_read = StaticConfig.read_devices (StaticConfig.midi static_config)
     rdevs <- Interface.read_devices midi_interface

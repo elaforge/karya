@@ -495,6 +495,7 @@ configure midi = do
     setConfigFlags sandbox fltkCs fltkLds mode ghcVersion flags = flags
         { define = (define osFlags ++) $ concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
+            , ["-DSTUB_OUT_FLTK" | mode == Test]
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             , ["-DGHC_VERSION=" ++ ghcVersion]
             ]

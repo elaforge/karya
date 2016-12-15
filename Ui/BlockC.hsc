@@ -58,8 +58,8 @@ module Ui.BlockC (
     , show_children, dump
 ) where
 -- The double hashes quote them for hsc2hs.  I have to delay the CPP since
--- hsc2hs never has TESTING defined.
-##ifdef TESTING
+-- hsc2hs never has STUB_OUT_FLTK defined.
+##ifdef STUB_OUT_FLTK
 import Ui.BlockCStub
 ##else
 import qualified Control.Exception as Exception

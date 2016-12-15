@@ -8,7 +8,7 @@
 module Ui.Ui (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
-#ifdef TESTING
+#ifdef STUB_OUT_FLTK
 import Ui.UiStub
 #else
 import qualified Control.Applicative as Applicative
