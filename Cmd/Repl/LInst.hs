@@ -98,6 +98,8 @@ pretty_alloc maybe_patch inst alloc =
             Info.show_addrs (Patch.config_addrs config)
         StateConfig.Im -> "音"
         StateConfig.Dummy -> "(dummy)"
+    -- Put flags in their own column to make them obvious.
+    , show_flags (StateConfig.alloc_config alloc)
     , join
         [ show_common_config (StateConfig.alloc_config alloc)
         , case StateConfig.alloc_backend alloc of
@@ -109,7 +111,6 @@ pretty_alloc maybe_patch inst alloc =
     show_common_config config = join
         [ show_environ (Common.config_environ config)
         , show_controls "" (Common.config_controls config)
-        , show_flags config
         ]
     show_environ environ
         | environ == mempty = ""
