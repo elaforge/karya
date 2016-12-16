@@ -79,8 +79,14 @@ note_calls = Derive.call_maps
     , ("nt>", c_norot (Just True))
     , ("nt-", c_norot (Just False))
     , ("gnorot", c_gender_norot)
-    , ("k_\\", c_kotekan_regular (Just "_11_1-21") Pat)
-    , ("k-\\", c_kotekan_regular (Just "211_1-21") Pat)
+    , ("k_\\", c_kotekan_irregular  Pat $ irregular_pattern
+        "-11-1321" "-44-43-4"
+        "-11-1-21"
+        "3-32-32-" "-44-43-4")
+    , ("k-\\", c_kotekan_irregular  Pat $ irregular_pattern
+        "211-1321" "-44-43-4"
+        "211-1-21"
+        "3-32-32-" "-44-43-4")
     , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern
         "-123123213213123" "-423423243243423"
         "-12-12-21-21-12-"
@@ -211,13 +217,14 @@ data Realization a = Realization {
 
 irregular_pattern :: CallStack.Stack => [Char] -> [Char]
     -> [Char] -> [Char] -> [Char] -> KotekanPattern
-irregular_pattern polos sangsih4 polos_i sangsih_i3 sangsih_i4 = KotekanPattern
+irregular_pattern polos sangsih_pat polos_i sangsih_i_telu sangsih_i_pat =
+    KotekanPattern
     { kotekan_telu = parse1 polos
-    , kotekan_pat = parse1 sangsih4
+    , kotekan_pat = parse1 sangsih_pat
     , kotekan_interlock_telu =
-        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i3 }
+        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i_telu }
     , kotekan_interlock_pat =
-        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i4 }
+        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i_pat }
     }
     where
     -- TODO the CallStack.Stack doesn't actually work because all these
