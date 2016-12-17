@@ -273,8 +273,8 @@ monitor_loop state = do
             >> return []
     ui_state <- MVar.readMVar (monitor_ui_state state)
     let block_pos = monitor_inv_tempo_func state now
-    play_pos <- either fail return $ State.eval ui_state $
-        Perf.block_pos_to_play_pos block_pos
+    play_pos <- fmap extend_to_track_0 $ either fail return $
+        State.eval ui_state $ Perf.block_pos_to_play_pos block_pos
     Sync.set_play_position (monitor_ui_channel state) play_pos
 
     let active_sels = Set.fromList
@@ -301,3 +301,14 @@ monitor_loop state = do
         Thread.delay 0.1
         stopped <- ctl
         unless stopped $ wait_for_stop ctl
+
+-- | If there's a playback on track 1 but not on track 0, then track 0 is
+-- probably a ruler.  If I put a playback there too, then the playback position
+-- will be more obvious on a narrow block.
+extend_to_track_0 :: [(ViewId, [(TrackNum, ScoreTime)])]
+    -> [(ViewId, [(TrackNum, ScoreTime)])]
+extend_to_track_0 = map (second extend)
+    where
+    extend ((tracknum, t) : tracks)
+        | tracknum == 1 = (0, t) : (1, t) : tracks
+    extend tracks = tracks

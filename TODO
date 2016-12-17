@@ -3,6 +3,24 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The block name restrictions can be annoying when I want blocks reminiscent
+    of angsels.  Doesn't it go against the point of anything in a call name?
+    . Still I can't have /, since it would make the ns/id convention
+      ambiguous.
+    . But I'd need a way to write them, e.g. (mkid "!@#").  I use @-macros
+      to get the namespace, but can I instead emit a partial Id, and have the
+      callee complete it?
+    . That would mean all functions that take BlockId would need to take
+      something else and convert it, so no for that.  But if IDs themselves
+      are partial, then it would be on the lookup function to know the
+      namespace.
+    . That means I'd have to use 'State.lookup_block block_id state', and
+      directly looking at State.state_blocks no longer works.  That could be
+      a hassle.
+    * Ok, so maybe less of a hassle to extend @ notation with quotes.
+  - The ruler is too small for e.g. bali/legong/semara-dana.  It should be
+    one section per gong.
+  * The playback selection should go in the ruler track to make it more visible.
   * fltk: If I open a floating input when the event trigger is off the top of
     the block, the input appears above the window.  I should make it min at
     the track start.
@@ -758,13 +776,24 @@ performance:
     . Moving the selection gets really laggy on save/transcribe/bali/gabor
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
-  - experiment with GC flags, e.g. -H.
-    . Try compiling with a larger generation 0: +RTS -A128m -RTS
-    . Profile seq with larger gen 0 and separate arenas for different cores:
-      +RTS -A128m -n2m -RTS
-    . What about -I0 to turn of idle GC?  Or maybe -I1?  I want to avoid it
-      running in the tiny gaps between entering notes, but do want it to run
-      if I make a longer pause.
+  - experiment with GC flags
+    memory usage:
+      . 200 mb -> 350 rss
+      . 250 by LDebug.memory and ekg, 500mb by system viewer.
+      . I think I have a very large proportion of static data in the GHC API
+        loaded .hi files, so that should avoid GC as much as possible.
+        Increase the generation count?
+        . In the future can I put that in static memory regions?
+      . Then I have a lot of short lived garbage generated on each derivation.
+      . Then the rest is medium life: score data, Performances.
+    . -A8m - larger generation 0 means fewer collections, good if lots of
+      garbage is generated.
+    . H - Suggested heap size.  I don't really understand this.
+    . -qg - turn off parallel gc
+    . -n2m - divide -A into chunks, so the first thread to run out doesn't
+      trigger a GC for all of them.  Good for unbalanced allocation?
+    . -I0 to turn off idle GC.  But it's designed to be good for interactive
+      use, and maybe I do pause for >.3s.  Or turn it up to 1sec?
   - find space leaks with nmitchell's stack limit technique:
     . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
         p/cerucuk-punyah.state
