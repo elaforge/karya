@@ -213,7 +213,6 @@ EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
 void
 EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
 {
-    // focus_title() will turn change Fl::event() to FL_FOCUS.
     int evt = Fl::event();
     EventTrack *self = static_cast<EventTrack *>(arg);
     self->focus_title();
@@ -223,6 +222,7 @@ EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
         int p = self->title_input.mouse_position();
         // TODO Because I create a new window, it doesn't notice that the mouse
         // button is down, so a drag will be lost.
+        // Unfortunately it seems giving it a push doesn't work.
         // self->floating_input->handle(FL_PUSH);
         self->floating_input->cursor_position(p, p);
     }
@@ -240,7 +240,8 @@ EventTrack::floating_input_done_cb(Fl_Widget *_w, void *arg)
 void
 EventTrack::focus_title()
 {
-    ASSERT(floating_input == nullptr);
+    if (floating_input)
+        return;
     Fl_Window *w = window();
     this->floating_input = new FloatingInput(
         w->x() + title_input.x(), w->y() + title_input.y(),

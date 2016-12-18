@@ -3,6 +3,26 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Assertion failed when double clicking on track title:
+    . traceback:
+      assertion: assertion failed at fltk/EventTrack.cc:243 focus_title():
+        'floating_input == nullptr'
+      0   _ZN10EventTrack11focus_titleEv + 402
+      1   _ZN10EventTrack20title_input_focus_cbEP9Fl_WidgetPv + 28
+      2   _ZN9Fl_Widget11do_callbackEPS_Pv + 47
+      3   _ZN16AbbreviatedInput6handleEi + 26
+      4   _ZN8Fl_Group6handleEi + 600
+      5   _ZN8MoveTile6handleEi + 328
+      6   _ZN8Fl_Group6handleEi + 600
+
+  - Play from root is wrong.
+    . The problem was that it has tons of TrackWarps, which was because the
+      "d" block shadowed the mridangam "d" stroke.
+    . It feels like instrument strokes should shadow blocks, but I think
+      I reversed this intentionally a while back when I wanted to replace
+      a stroke with a block.
+    . Maybe if I still want to shadow instrument with a block, I could have
+      some way to explicitly mark its priority.
   - The block name restrictions can be annoying when I want blocks reminiscent
     of angsels.  Doesn't it go against the point of anything in a call name?
     . Still I can't have /, since it would make the ns/id convention
@@ -1484,6 +1504,10 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Doesn't seem to understand when the nadai changes in the middle of
+          an akshara, e.g. in the final avartanam of misra_koraippu, it should
+          have 1/2 adi 8 1/2 adi 6, so 4+3 = 7 matras, but it has 6
+        - Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.
           Default to 2, but a chapu might require 3.
         - Why does format make the S2 sequence in
