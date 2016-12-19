@@ -296,11 +296,13 @@ override_call lhs rhs name generator transformer deriver
         =<< resolve_source (name <> " generator") generator
             quoted_generator rhs
     where
-    override_generator_scope call = Derive.with_scopes modify deriver
-        where modify = generator#Derive.s_override %= (single_lookup lhs call :)
+    override_generator_scope call = Derive.with_scopes add deriver
+        where
+        add = generator
+            %= Derive.add_priority Derive.PrioOverride (single_lookup lhs call)
 
 -- | Make an expression into a transformer and stick it into the
--- 'Derive.s_override' slot.
+-- 'Derive.PrioOverride' slot.
 override_transformer :: Derive.Callable d => Text -> BaseTypes.Val -> Text
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d))
     -> Derive.Deriver a -> Derive.Deriver a
@@ -309,7 +311,9 @@ override_transformer lhs rhs name transformer deriver =
             quoted_transformer rhs
     where
     override_scope call = Derive.with_scopes
-        (transformer#Derive.s_override %= (single_lookup lhs call :)) deriver
+        (transformer
+            %= Derive.add_priority Derive.PrioOverride (single_lookup lhs call))
+        deriver
 
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
 -- everything else is turned into a Symbol via ShowVal.  This will cause
@@ -325,9 +329,9 @@ override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source "val" Derive.s_val quoted_val_call rhs
-    let modify = Derive.s_val#Derive.s_override
-            %= (single_val_lookup lhs call :)
-    Derive.with_scopes modify deriver
+    let add = Derive.s_val %= Derive.add_priority Derive.PrioOverride
+            (single_val_lookup lhs call)
+    Derive.with_scopes add deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
     -> BaseTypes.CallId -> Derive.Deriver call

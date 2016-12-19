@@ -55,7 +55,8 @@ module Derive.Deriver.Monad (
     , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
-    , ScopePriority(..), s_override, s_instrument, s_scale, s_library
+    , ScopePriority(..), CallPriority(..)
+    , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
     , LookupCall(..)
     , extract_doc, extract_val_doc
@@ -138,6 +139,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
+import qualified Util.Map
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -613,7 +615,7 @@ data Scopes = Scopes {
     scopes_generator :: !GeneratorScope
     , scopes_transformer :: !TransformerScope
     , scopes_val :: !(ScopePriority ValCall)
-    } deriving (Show)
+    }
 
 empty_scopes :: Scopes
 empty_scopes = Scopes empty_scope empty_scope mempty
@@ -641,7 +643,7 @@ data Scope note control pitch = Scope {
     scope_note :: !(ScopePriority note)
     , scope_control :: !(ScopePriority control)
     , scope_pitch :: !(ScopePriority pitch)
-    } deriving (Show)
+    }
 
 s_note = Lens.lens scope_note
     (\f r -> r { scope_note = f (scope_note r) })
@@ -676,44 +678,47 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
     each category separate.  Also, this way I can import the ky file once at
     the toplevel, and it will still override library imported calls.
 -}
-data ScopePriority call = ScopePriority {
+newtype ScopePriority call =
+    ScopePriority (Map.Map CallPriority [LookupCall call])
+    deriving (Pretty.Pretty)
+
+instance Monoid (ScopePriority call) where
+    mempty = ScopePriority mempty
+    mappend (ScopePriority a) (ScopePriority b) =
+        ScopePriority (Util.Map.mappend a b)
+
+data CallPriority =
     -- | Override calls shadow all others.  They're useful when you want to
     -- prevent instruments from overriding calls, which the lilypond deriver
     -- needs to do.
-    prio_override :: ![LookupCall call]
+    PrioOverride
     -- | These are instrument-specific calls implicitly imported by note
     -- tracks.
-    , prio_instrument :: ![LookupCall call]
+    | PrioInstrument
     -- | This is for value calls introduced by a scale.  They are implicitly
     -- imported by pitch tracks.
-    , prio_scale :: ![LookupCall call]
-    -- | Imported from the 'Library'.
-    , prio_library :: ![LookupCall call]
-    }
+    | PrioScale
+    -- | Calls imported from the 'Library'.
+    | PrioLibrary
+    deriving (Show, Eq, Ord)
 
-s_override = Lens.lens prio_override
-    (\f r -> r { prio_override = f (prio_override r) })
-s_instrument = Lens.lens prio_instrument
-    (\f r -> r { prio_instrument = f (prio_instrument r) })
-s_scale = Lens.lens prio_scale
-    (\f r -> r { prio_scale = f (prio_scale r) })
-s_library = Lens.lens prio_library
-    (\f r -> r { prio_library = f (prio_library r) })
+instance Pretty.Pretty CallPriority where pretty = showt
 
-instance Monoid (ScopePriority call) where
-    mempty = ScopePriority [] [] [] []
-    mappend (ScopePriority a1 b1 c1 d1) (ScopePriority a2 b2 c2 d2) =
-        ScopePriority (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
+scope_priority :: [(CallPriority, [LookupCall call])] -> ScopePriority call
+scope_priority = ScopePriority . Map.fromList
 
-instance Show (ScopePriority call) where show = prettys
-instance Pretty.Pretty (ScopePriority call) where
-    format (ScopePriority override inst scale library) =
-        Pretty.record "ScopePriority"
-            [ ("override", Pretty.format override)
-            , ("inst", Pretty.format inst)
-            , ("scale", Pretty.format scale)
-            , ("library", Pretty.format library)
-            ]
+lookup_priority :: CallPriority -> ScopePriority call -> [LookupCall call]
+lookup_priority prio (ScopePriority scopes) = Map.findWithDefault [] prio scopes
+
+add_priority :: CallPriority -> LookupCall call -> ScopePriority call
+    -> ScopePriority call
+add_priority prio call (ScopePriority scopes) =
+    ScopePriority $ Map.alter (Just . maybe [call] (call:)) prio scopes
+
+replace_priority :: CallPriority -> [LookupCall call] -> ScopePriority call
+    -> ScopePriority call
+replace_priority prio calls (ScopePriority scopes) =
+    ScopePriority $ Map.insert prio calls scopes
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
 data DocumentedCall = DocumentedCall !CallName !CallDoc
@@ -737,9 +742,8 @@ lookup_with get call_id = do
 
 get_scopes :: (Scopes -> ScopePriority call) -> Deriver [LookupCall call]
 get_scopes get = do
-    ScopePriority override inst scale library <-
-        gets $ get . state_scopes . state_dynamic
-    return $ override ++ inst ++ scale ++ library
+    ScopePriority scopes <- gets $ get . state_scopes . state_dynamic
+    return $ concat $ Map.elems scopes
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.

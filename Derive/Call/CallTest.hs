@@ -71,36 +71,37 @@ run_control_dur events = extract $
 with_note_generator :: BaseTypes.CallId -> Derive.Generator Derive.Note
     -> DeriveTest.SetupA a
 with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_note#Derive.s_override
-        %= (single_lookup name call :)
+    Derive.s_generator#Derive.s_note %= override (single_lookup name call)
 
 with_pitch_generator :: BaseTypes.CallId -> Derive.Generator Derive.Pitch
     -> DeriveTest.SetupA a
 with_pitch_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_pitch#Derive.s_override
-        %= (single_lookup name call :)
+    Derive.s_generator#Derive.s_pitch %= override (single_lookup name call)
 
 with_control_generator :: BaseTypes.CallId -> Derive.Generator Derive.Control
     -> DeriveTest.SetupA a
 with_control_generator name call =
     DeriveTest.with_deriver $ Derive.with_scopes $
-        Derive.s_generator#Derive.s_control#Derive.s_override
-            %= (single_lookup name call :)
+        Derive.s_generator#Derive.s_control
+            %= override (single_lookup name call)
 
 with_note_generators :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
     -> DeriveTest.SetupA a
 with_note_generators calls = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_note#Derive.s_override %= (lookup_map calls :)
+    Derive.s_generator#Derive.s_note %= override (lookup_map calls)
 
 with_note_transformer :: BaseTypes.CallId -> Derive.Transformer Derive.Note
     -> DeriveTest.SetupA a
 with_note_transformer name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_transformer#Derive.s_note#Derive.s_override
-        %= (single_lookup name call :)
+    Derive.s_transformer#Derive.s_note %= override (single_lookup name call)
 
 with_val_call :: BaseTypes.CallId -> Derive.ValCall -> DeriveTest.SetupA a
 with_val_call name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_val#Derive.s_override %= (single_lookup name call :)
+    Derive.s_val %= override (single_lookup name call)
+
+override :: Derive.LookupCall call -> Derive.ScopePriority call
+    -> Derive.ScopePriority call
+override = Derive.add_priority Derive.PrioOverride
 
 single_lookup :: BaseTypes.CallId -> call -> Derive.LookupCall call
 single_lookup name = Derive.LookupMap . Map.singleton name

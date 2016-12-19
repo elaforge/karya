@@ -14,7 +14,6 @@ UNSORTED
       4   _ZN8Fl_Group6handleEi + 600
       5   _ZN8MoveTile6handleEi + 328
       6   _ZN8Fl_Group6handleEi + 600
-
   - Play from root is wrong.
     . The problem was that it has tons of TrackWarps, which was because the
       "d" block shadowed the mridangam "d" stroke.
@@ -39,7 +38,8 @@ UNSORTED
       a hassle.
     * Ok, so maybe less of a hassle to extend @ notation with quotes.
   - The ruler is too small for e.g. bali/legong/semara-dana.  It should be
-    one section per gong.
+    one section per gong.  Maybe kotekan default should be "(ts s) instead of
+    "(ts e).
   * The playback selection should go in the ruler track to make it more visible.
   * fltk: If I open a floating input when the event trigger is off the top of
     the block, the input appears above the window.  I should make it min at

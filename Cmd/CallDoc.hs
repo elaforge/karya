@@ -147,11 +147,11 @@ doc_html hstate = (html_header hstate <>) . mconcatMap section
     section (call_kind, scope_docs) =
         Doc.tag_class "div" "call-kind" $ tag "h2" (html call_kind)
             <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
-    scope_doc call_kind (source, call_bindings) = case source of
+    scope_doc call_kind (maybe_source, call_bindings) = case maybe_source of
         -- 'imported_scope_doc' does this since Library doesn't have source
         -- types.
-        IrrelevantSource -> doc
-        _ -> Doc.tag_class "div" "call-source" $
+        Nothing -> doc
+        Just source -> Doc.tag_class "div" "call-source" $
             tag "h3" ("from " <> html (pretty source)) <> "\n\n" <> doc
         where
         doc = "<dl class=main-dl>\n"
@@ -396,11 +396,8 @@ type CallKind = Text
 -- | Documentation for one type of scope.
 type ScopeDoc = (ScopeSource, [CallBindings])
 
--- | From the fields of 'Derive.ScopePriority'.  These sort by the override
--- priority, so an Override binding will shadow an Instrument binding.
-data ScopeSource = Override | Instrument | Scale | Library | IrrelevantSource
-    deriving (Eq, Ord, Show)
-instance Pretty.Pretty ScopeSource where pretty = Text.toLower . showt
+-- | Nothing is when the source is irrelevant, so don't put it in the docs.
+type ScopeSource = Maybe Derive.CallPriority
 
 -- | Multiple bound symbols with the same DocumentedCall are grouped together:
 type CallBindings = ([Binding], CallType, Derive.CallDoc)
@@ -490,9 +487,10 @@ call_maps (Derive.CallMaps generator transformer) = merge_scope_docs $
 -- | Get docs for the calls introduced by an instrument.
 instrument_calls :: Derive.InstrumentCalls -> Document
 instrument_calls (Derive.InstrumentCalls gs ts vals) =
-    [ ("note", [(Instrument,
+    [ ("note", [(Just Derive.PrioInstrument,
         lookup GeneratorCall gs ++ lookup TransformerCall ts)])
-    , ("val", [(Instrument, lookup_calls ValCall (map convert_val_call vals))])
+    , ("val", [(Just Derive.PrioInstrument,
+        lookup_calls ValCall (map convert_val_call vals))])
     ]
     where lookup ctype = lookup_calls ctype . map convert_call
 
@@ -526,9 +524,8 @@ track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
 
 convert_scope :: (Derive.LookupCall call -> LookupCall)
     -> Derive.ScopePriority call -> Derive.ScopePriority Derive.DocumentedCall
-convert_scope convert (Derive.ScopePriority override inst scale library) =
-    Derive.ScopePriority (map convert override) (map convert inst)
-        (map convert scale) (map convert library)
+convert_scope convert (Derive.ScopePriority prio_map) =
+    Derive.ScopePriority (map convert <$> prio_map)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 merged_scope_docs :: Derive.ScopePriority Derive.DocumentedCall
@@ -549,17 +546,13 @@ sort_calls = Seq.sort_on $ \(binds, _, _) ->
 -- sources.
 imported_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
 imported_scope_doc ctype lookups =
-    [(IrrelevantSource, lookup_calls ctype lookups)]
+    [(Nothing, lookup_calls ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopePriority Derive.DocumentedCall
     -> [ScopeDoc]
-scope_type ctype (Derive.ScopePriority override inst scale library) =
-    filter (not . null . snd)
-    [ (Override, lookup_calls ctype override)
-    , (Instrument, lookup_calls ctype inst)
-    , (Scale, lookup_calls ctype scale)
-    , (Library, lookup_calls ctype library)
-    ]
+scope_type ctype (Derive.ScopePriority call_map) =
+    map (first Just) $ filter (not . null . snd) $ Map.toDescList $
+        lookup_calls ctype <$> call_map
 
 lookup_calls :: CallType -> [LookupCall] -> [CallBindings]
 lookup_calls ctype = group . map (extract . go) . concatMap flatten

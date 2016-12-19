@@ -80,7 +80,9 @@ derive deriver = do
 
 -- | Override a few calls with lilypond versions.
 lilypond_scope :: Derive.Scopes -> Derive.Scopes
-lilypond_scope = Derive.s_generator#Derive.s_note#Derive.s_override %= (lookup:)
+lilypond_scope =
+    Derive.s_generator#Derive.s_note
+        %= Derive.add_priority Derive.PrioOverride lookup
     where
     lookup = Derive.LookupMap $ Map.fromList
         [ ("", note), ("n", note)

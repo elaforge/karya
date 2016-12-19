@@ -489,7 +489,7 @@ trill_env start_dir end_dir =
 hold_env :: Sig.Parser BaseTypes.Duration
 hold_env = Typecheck._real <$>
     Sig.environ (Derive.sym_to_arg_name EnvKey.hold) Sig.Both
-        (Typecheck.real 0) "Time to hold the first pitch."
+        (Typecheck.real 0) "Time to hold the first note."
 
 trill_variations :: [(BaseTypes.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =

@@ -256,10 +256,10 @@ import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
     gen_of (CallMaps gs _) = gs
     trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
-    imported lookups = mempty
-        { prio_library = normal
-        , prio_override = overrides
-        }
+    imported lookups = scope_priority
+        [ (PrioOverride, overrides)
+        , (PrioLibrary, normal)
+        ]
         where (overrides, normal) = List.partition is_override_call lookups
 
 -- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
@@ -395,10 +395,11 @@ insert_env key val state = state
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
     with_val_raw EnvKey.scale (BaseTypes.scale_id_to_sym (scale_id scale))
-    . with_scopes (val . pitch)
+        . with_scopes (val . pitch)
     where
-    pitch = s_generator#s_pitch#s_scale #= [scale_to_lookup scale val_to_pitch]
-    val = s_val#s_scale #= [scale_to_lookup scale id]
+    pitch = s_generator#s_pitch %= add (scale_to_lookup scale val_to_pitch)
+    val = s_val %= add (scale_to_lookup scale id)
+    add = add_priority PrioScale
 
 scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
 scale_to_lookup scale convert =
@@ -447,13 +448,11 @@ with_instrument inst deriver = do
     set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
             (Scopes gen trans val) =
         Scopes
-            { scopes_generator = set_note inst_gen gen
-            , scopes_transformer = set_note inst_trans trans
-            , scopes_val = set_inst inst_val val
+            { scopes_generator = (s_note %= replace inst_gen) gen
+            , scopes_transformer = (s_note %= replace inst_trans) trans
+            , scopes_val = replace inst_val val
             }
-    set_note lookups scope =
-        scope { scope_note = set_inst lookups (scope_note scope) }
-    set_inst lookups stype = stype { prio_instrument = lookups }
+    replace = replace_priority PrioInstrument
 
 with_instrument_alias :: Score.Instrument -> Score.Instrument
     -> Deriver a -> Deriver a
