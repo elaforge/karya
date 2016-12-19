@@ -130,6 +130,8 @@ p_lex1 = (str <|> parens <|> word) >> spaces
 
 -- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
+--
+-- A macro looks like either \@valid-id-chars or \@"any chars".
 expand_macros :: (Text -> Text) -> Text -> Either Text Text
 expand_macros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
@@ -137,7 +139,8 @@ expand_macros replacement text
 
 p_macros :: (Text -> Text) -> A.Parser Text
 p_macros replace = do
-    chunks <- A.many1 $ p_macro replace <|> p_chunk <|> p_hs_string
+    chunks <- A.many1 $ p_macro replace <|> p_chunk
+        <|> (("\""<>) . (<>"\"") <$> p_hs_string)
     return $ mconcat chunks
     where
     p_chunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
@@ -145,10 +148,22 @@ p_macros replace = do
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = do
     A.char '@'
-    replacement <$> A.takeWhile1 (\c -> Id.is_id_char c || c == '/')
+    replacement <$> (unbackslash <$> p_hs_string <|> bare_string)
+    where
+    -- Strip escaped quotes, because 'show' will turn it back into haskell
+    -- and re-add them.  This will mess up all the other zillion backslash
+    -- features in haskell strings, but I probably won't use those.  'p_string'
+    -- would be simpler, but since it's for the REPL, I feel like haskell-ish
+    -- strings will be less error-prone.
+    unbackslash = txt . strip . untxt
+        where
+        strip ('\\':c:cs) = c : strip cs
+        strip (c:cs) = c : strip cs
+        strip [] = []
+    bare_string = A.takeWhile1 (\c -> Id.is_id_char c || c == '/')
 
 p_hs_string :: A.Parser Text
-p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
+p_hs_string =
     ParseText.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
     where
     chunk = (A.char '\\' >> Text.cons '\\' <$> A.take 1)

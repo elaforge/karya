@@ -230,6 +230,11 @@ test_expand_macros = do
     -- Doesn't substitute macros inside quotes.
     equal (f "hi \"@a\" there") (Right "hi \"@a\" there")
 
+    -- Quoted macros.
+    equal (f "hi @\"a b\" there") (Right "hi (a b) there")
+    -- It strips the \, because 'show' will later add it back.
+    equal (f "hi @\"a\\\"b\" there") (Right "hi (a\"b) there")
+
 
 -- * ky file
 

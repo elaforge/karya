@@ -18,18 +18,19 @@ you're wondering about the L prefix, it's because the directory used to be
 called Lang, and I got used to the L.  And there has to be some prefix,
 otherwise all those module names clash with other module names.
 
-The REPL will load all the modules the first time you use it.  Like ghci, if
-the `.o` files are missing or out of date, it will load modules as bytecode.
-This is fine if it's a few modules in `Cmd/Repl`, but if some low level module
-has been touched it will want to byte-compile everything, and usually crash on
-the spot.  Not sure why.  Anyway, make sure you did a fresh build.  If you just
-modified high-level modules like the ones in `Cmd/Repl`, you can type `:r` in
-the REPL and it will reload them.
+The REPL will load all the modules when the app starts.  Like ghci, if the `.o`
+files are missing or out of date, it will load modules as bytecode.  This is
+fine if it's a few modules in `Cmd/Repl`, but if some low level module has been
+touched it will want to byte-compile everything, and usually crash on the spot.
+Not sure why.  Anyway, make sure you did a fresh build.  If you just modified
+high-level modules like the ones in `Cmd/Repl`, you can type `:r` in the REPL
+and it will reload them.
 
 The REPL also has a simple macro feature to make it easier to write IDs.
 `@name` will become `(*Id "ns/name")` where `*` is BlockId, RulerId, TrackId,
 or ViewId, whatever is appropriate, and `ns` is the
-'Ui.State.config_namespace'.
+'Ui.State.config_namespace'.  `@"a b c"` will let you put spaces or symbols or
+other non-letter non-dash letters in.
 
 You can do tons of stuff from the REPL, and in fact most operations can only be
 done from the REPL.  Read through the `Cmd/Repl` directory to get some ideas.
