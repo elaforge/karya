@@ -382,8 +382,8 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
         if scale_id == Scale.scale_id scale then Just (Right scale)
             else old env look scale_id
 
--- | Derive with a bit of the real instrument db.  Useful for testing
--- instrument calls.
+-- | Derive with a bit of a real instrument db.  Useful for testing instrument
+-- calls.
 with_synths :: StateConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
 
@@ -405,6 +405,14 @@ with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
 with_synths_simple allocs synths =
     with_instrument_db (simple_allocs_from_db db allocs) db
     where db = synths_to_db synths
+
+-- | Add a single instrument with a MIDI patch.
+with_patch :: (MidiInst.Patch -> MidiInst.Patch) -> Text -> Setup
+with_patch configure_patch name =
+    with_synths_simple [(name, name <> "/")] [synth]
+    where
+    synth = UiTest.make_synth name [patch]
+    patch = configure_patch $ MidiInst.make_patch $ UiTest.make_patch ""
 
 with_instrument_db :: StateConfig.Allocations -> Cmd.InstrumentDb -> Setup
 with_instrument_db allocs db = with_allocations allocs <> with_db

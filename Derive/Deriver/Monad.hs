@@ -695,6 +695,12 @@ data CallPriority =
     -- | These are instrument-specific calls implicitly imported by note
     -- tracks.
     | PrioInstrument
+    -- | Block calls are local definitions, so they should override library
+    -- calls, but are still below instrument calls.  Otherwise, it's easy to
+    -- define a block that shadows a drum stroke and get confused.
+    -- TODO there could be a mechanism to set PrioOverride in case I actually
+    -- do want to shadow an instrument call.
+    | PrioBlock
     -- | This is for value calls introduced by a scale.  They are implicitly
     -- imported by pitch tracks.
     | PrioScale

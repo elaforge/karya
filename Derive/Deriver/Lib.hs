@@ -257,10 +257,12 @@ import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
     trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
     imported lookups = scope_priority
-        [ (PrioOverride, overrides)
+        [ (PrioBlock, prio_block)
         , (PrioLibrary, normal)
         ]
-        where (overrides, normal) = List.partition is_override_call lookups
+        where
+        (prio_block, normal) = List.partition
+            (lookup_pattern_has_tag Tags.prio_block) lookups
 
 -- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
 -- If there are collisions, the first one wins.
@@ -268,13 +270,12 @@ merge_lookups :: [LookupCall call] -> [LookupCall call]
 merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
     where calls = Map.unions [calls | LookupMap calls <- lookups]
 
--- | True if this is a LookupPattern with 'Tags.override'.  This doesn't
--- support LookupMap but doesn't need to because 'Tags.override' is only
--- for the block lookup call.
-is_override_call :: LookupCall a -> Bool
-is_override_call lookup = case lookup of
+-- | Check if the call has a tag.  This doesn't support LookupMap, but doesn't
+-- need to because I only use it for the block lookup call.
+lookup_pattern_has_tag :: Tags.Tags -> LookupCall call -> Bool
+lookup_pattern_has_tag tag lookup = case lookup of
     LookupPattern _ (DocumentedCall _ doc) _ ->
-        cdoc_tags doc `Tags.contains` Tags.override
+        cdoc_tags doc `Tags.contains` tag
     LookupMap {} -> False
 
 -- ** scale

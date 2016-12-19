@@ -69,7 +69,7 @@ c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.with_score_duration get_score_duration $
     Derive.with_real_duration (const $ get_real_duration block_id) $
     Derive.generator Module.prelude
-        (Derive.CallName $ "block " <> showt block_id) Tags.override
+        (Derive.CallName $ "block " <> showt block_id) Tags.prio_block
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\

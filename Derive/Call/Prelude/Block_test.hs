@@ -7,9 +7,12 @@ import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -45,6 +48,18 @@ test_block_call_overrides_other_calls = do
         sub = UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")]
     equal (run "xyz" [(0, 2, "o")]) ([(0, "+harm")], [])
     equal (run "o" [(0, 2, "o")]) ([(0, "+"), (1, "+")], [])
+
+test_block_call_overridden_by_instrument_call = do
+    let run sub_name evts = DeriveTest.extract DeriveTest.e_attributes $
+            DeriveTest.derive_blocks_setup (DeriveTest.with_patch set_code "x")
+                [ ("b1", [(">x", evts)])
+                , (sub_name <> "=ruler", [(">", [(0, 1, "+block")])])
+                ]
+        set_code = MidiInst.code #= MidiInst.note_generators
+            [("inst", DUtil.attributes_note Attrs.mute)]
+    equal (run "sub" [(0, 1, "sub")]) (["+block"], [])
+    -- Even though the block is named inst, the inst call still happens.
+    equal (run "inst" [(0, 1, "inst")]) (["+mute"], [])
 
 test_block_logical_range = do
     let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $

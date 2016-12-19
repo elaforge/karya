@@ -14,7 +14,7 @@ UNSORTED
       4   _ZN8Fl_Group6handleEi + 600
       5   _ZN8MoveTile6handleEi + 328
       6   _ZN8Fl_Group6handleEi + 600
-  - Play from root is wrong.
+  * Play from root is wrong.
     . The problem was that it has tons of TrackWarps, which was because the
       "d" block shadowed the mridangam "d" stroke.
     . It feels like instrument strokes should shadow blocks, but I think

@@ -25,7 +25,7 @@ untag = map (\(Tag t) -> t) . Set.toList
 contains :: Tags -> Tags -> Bool
 contains super sub = Set.isSubsetOf sub super
 
--- * normal
+-- * documentation
 
 -- | Adds (or removes) attributes from notes.
 attr :: Tags
@@ -101,12 +101,12 @@ delayed = tag "delayed"
 realize_delayed :: Tags
 realize_delayed = tag "realize-delayed"
 
--- | When imported, this call will go into the
--- 'Derive.Deriver.Monad.prio_override' scope priority level.  This is really
--- just for the block lookup.  Since blocks are effectively local definitions,
--- they should override library calls.
-override :: Tags
-override = tag "override"
+-- * tags with effects
+
+-- | Give this call Derive.PrioBlock when imported.  This is a special hack
+-- just for the block call.
+prio_block :: Tags
+prio_block = tag "prio-block"
 
 -- * automatically applied
 
