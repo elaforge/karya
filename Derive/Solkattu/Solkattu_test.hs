@@ -8,28 +8,50 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, ki)
+import Derive.Solkattu.Dsl (ta, di, ki, tha, thom, __)
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
 
 
 test_verify_alignment = do
-    let f = verify_alignment (Solkattu.Tala 4 2 2)
+    let f = verify_alignment
         tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f []) (Right [])
-    left_like (f ta) "expected Akshara 0"
-    left_like (f (take 4 tdkt)) "expected Akshara 0"
-    equal (f (take 8 tdkt)) (Right (take 8 tdkt))
-    equal (f (take 4 tdkt <> Dsl.atX <> take 4 tdkt)) (Right (take 8 tdkt))
-    left_like (f (take 3 tdkt <> Dsl.atX <> take 4 tdkt)) "expected Arudi"
+        tala4 = Solkattu.Tala 4 2 2 -- 4 akshara, 2 nadai
+    equal (f tala4 []) []
+    strings_like (f tala4 ta) ["ta", "akshara 0, matra 1"]
+    strings_like (f tala4 (take 4 tdkt)) ["ta di ki ta", "akshara 2, matra 0"]
+    equal (f tala4 (take 8 tdkt)) []
+    equal (f tala4 (take 4 tdkt <> Dsl.atX <> take 4 tdkt)) []
+    strings_like (f tala4 (take 3 tdkt <> Dsl.atX <> take 5 tdkt))
+        [ "ta di ki"
+        , "expected akshara 2, but at avartanam 1, akshara 1, matra 1"
+        ]
 
-verify_alignment :: Solkattu.Tala -> [Solkattu.Note ()]
-    -> Either Text [Solkattu.Note ()]
-verify_alignment tala notes
-    | null errs = Right rnotes
-    | otherwise = Left (Text.intercalate "; " errs)
-    where (rnotes, errs) = Solkattu.verify_alignment tala notes
+    -- Change nadai in the middle of an akshara.
+    let tala8 = Solkattu.Tala 1 0 8
+    equal (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 3 tdkt))
+        []
+    strings_like (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 4 tdkt))
+        ["ta di ki", "avartanam 2, akshara 0, matra 1"]
+
+    -- More complicated example:
+    -- 0 __ Ta __ di __ ki th tm
+    -- 1 Ta __ di __ Ki th tm Ta
+    -- 2 __ di __ ki Th tm Ta __
+    -- 3 di __ ki th Tm Ta __ di
+    -- 4 __ ki th tm Ta __ di
+    --               nadai 6
+    -- 5 -_ ki th Tm ta __
+    -- 6 di __ ki th tm ta
+    -- 7 __ di __ ki th tm
+    let sequence p7 = __ <> Dsl.repeat 5 p7 <> Dsl.nadai 6 <> Dsl.tri p7
+    let adi = Solkattu.adi_tala 8
+    equal (f adi (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom))) []
+    equal (f adi (sequence Dsl.p7)) []
+
+verify_alignment :: Solkattu.Tala -> [Solkattu.Note ()] -> [Text]
+verify_alignment tala = snd . Solkattu.verify_alignment tala
 
 test_vary = do
     let f (notes :: [Solkattu.Note ()]) = map (Text.unwords . map pretty) $
@@ -49,11 +71,6 @@ test_vary = do
 test_split_just = do
     let f = Solkattu.split_just
     equal (f (flip lookup [(2, 'b')]) 'a' [1, 2, 3]) [('a', [1]), ('b', [2, 3])]
-
-test_group_rights = do
-    let f = Solkattu.group_rights
-    equal (f [Left 'a', Right 'b', Right 'c', Left 'd'])
-        [Left 'a', Right "bc", Left 'd']
 
 test_round_up = do
     let f = Solkattu.round_up

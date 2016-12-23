@@ -8,7 +8,6 @@
 -- connection is that its final output can be stroke names for some instrument
 -- and thus easily inserted into a track.
 module Derive.Solkattu.Solkattu where
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 
@@ -136,6 +135,9 @@ instance Pretty.Pretty Tala where
         , ("nadai", Pretty.format nadai)
         ]
 
+tala_matras :: Tala -> Matras
+tala_matras tala = tala_aksharas tala * tala_nadai tala
+
 adi_tala :: Matras -> Tala
 adi_tala = Tala 8 4
 
@@ -143,15 +145,38 @@ adi_tala = Tala 8 4
 data State = State {
     state_avartanam :: !Int
     , state_akshara :: !Aksharas
-    -- | This is not 'Matras' because it's actual fractional matras, rather
-    -- than sollu-durations.
+    -- | Time through this akshara.  This is not 'Matras' because it's actual
+    -- fractional matras, rather than sollu-durations.
     , state_matra :: !Double
+    -- | How many nadai in this akshara.  This is different from 'state_nadai'
+    -- because if nadai changes in the middle of an akshara, that akshara will
+    -- have an irregular number of matra in it.  For instance, if you change
+    -- from nadai 4 to 3 at matra 2, then you have a 2+3 = 5 matra akshara.
+    , state_akshara_nadai :: !Int
     , state_speed :: !Speed
     , state_nadai :: !Int
     } deriving (Show)
 
+instance Pretty.Pretty State where
+    format (State avartanam akshara matra akshara_nadai speed nadai) =
+        Pretty.record "State"
+            [ ("avartanam", Pretty.format avartanam)
+            , ("akshara", Pretty.format akshara)
+            , ("matra", Pretty.format matra)
+            , ("akshara_nadai", Pretty.format akshara_nadai)
+            , ("speed", Pretty.format speed)
+            , ("nadai", Pretty.format nadai)
+            ]
+
 initial_state :: Tala -> State
-initial_state tala = State 0 0 0 S1 (tala_nadai tala)
+initial_state tala = State
+    { state_avartanam = 0
+    , state_akshara = 0
+    , state_matra = 0
+    , state_akshara_nadai = tala_nadai tala
+    , state_speed = S1
+    , state_nadai = tala_nadai tala
+    }
 
 -- | A Karvai Sollu followed by a Rest will replace the rest, if followed by
 -- a Sollu, the Karvai will be dropped.
@@ -179,61 +204,92 @@ verify_alignment :: Pretty.Pretty stroke => Tala -> [Note stroke]
     -- a Left.  This is because the misaligned notes are easier to read if I
     -- realize them down to strokes.
 verify_alignment tala =
-    verify_result . map_time tala verify
+    verify_result . filter (not . is_empty) . map flatten . map_time tala verify
         . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
     where
+    flatten = either Left (either Left Right)
     verify state note = second (:[]) $ case note of
         Sollu {} -> (Right 1, Right note)
         Rest -> (Right 1, Right note)
         Pattern matras -> (Right (fromIntegral matras), Right note)
         Alignment align -> (Right 0, verify_align state align)
         TimeChange change -> (Left change, Right note)
-    verify_result vals = (ok, errs_with_context)
-        where
-        (errs, ok) = first (filter (not . Text.null)) $
-            Either.partitionEithers vals
-        errs_with_context
-            | any (not . Text.null) errs =
-                map (either id (Text.unwords . map pretty)) (group_rights vals)
-            | otherwise = []
+    -- Stop at the first error, since if I'm already wrong then later errors
+    -- are probably just noise.
+    verify_result vals = case right_until_left vals of
+        (notes, Nothing) -> (notes, [])
+        (notes, Just err) -> (notes, [Text.unwords (map pretty notes), err])
+    is_empty (Left err) = Text.null err
+    is_empty _ = False
     verify_align state align
         | state_akshara state == expected && state_matra state == 0 = Left ""
-        | otherwise = Left $ "expected " <> showt align
-            <> ", but at avartanam " <> showt (state_avartanam state + 1)
-            <> ", akshara " <> showt (state_akshara state)
-            <> ", matra " <> showt (state_matra state)
+        | otherwise = Left $ "expected akshara " <> showt expected
+            <> ", but at " <> show_position state
         where
         expected = case align of
             Akshara n -> n
             Arudi -> tala_arudi tala
 
-time_change :: TimeChange -> State -> State
-time_change change state = case change of
-    Speed s -> state { state_speed = s }
-    Nadai s -> state { state_nadai = s }
-
 -- | Map over notes, keeping track of the position in the talam.
 map_time :: Tala -> (State -> a -> (Either TimeChange Double, [b]))
-    -- ^ (either a time change or matras to advance, results)
-    -> [a] -> [b]
+    -- ^ return (either a time change or matras to advance, results)
+    -> [a] -> [Either Text b]
 map_time tala f = concat . snd . List.mapAccumL process (initial_state tala)
     where
-    process state note =
-        (either time_change (advance_state tala) advance state, vals)
+    process state note = case advance of
+        Left change -> case time_change change state of
+            Right state -> (state, map Right vals)
+            Left err -> (state, [Left err])
+        Right advance -> (advance_state tala advance state, map Right vals)
         where (advance, vals) = f state note
+
+time_change :: TimeChange -> State -> Either Text State
+time_change change state = case change of
+    Speed speed -> Right $ state { state_speed = speed }
+    Nadai nadai -> do
+        akshara_nadai <- nadai_change nadai state
+        Right $ state
+            { state_nadai = nadai
+            , state_akshara_nadai = akshara_nadai
+            }
+
+nadai_change :: Matras -> State -> Either Text Int
+nadai_change new_nadai state
+    | frac == 0 = Right nadai
+    | otherwise = Left $ show_position state
+        <> ": can't change nadai " <> showt old_nadai <> "->" <> showt new_nadai
+        <> " at " <> pretty (state_matra state)
+        <> "/" <> showt old_nadai <> " akshara, would be a "
+        <> pretty pre <> " + " <> pretty post
+        <> " = " <> pretty (pre + post) <> " matra akshara"
+    where
+    (nadai, frac) = properFraction (pre + post)
+    pre = (1 - ratio) * fromIntegral new_nadai
+    post = ratio * fromIntegral old_nadai
+    -- Ratio of the way through the akshara.
+    ratio = state_matra state / fromIntegral old_nadai
+    old_nadai = state_nadai state
 
 advance_state :: Tala -> Double -> State -> State
 advance_state tala matras state = state
     { state_avartanam = state_avartanam state + akshara_carry
     , state_akshara = akshara
     , state_matra = matra
+    , state_akshara_nadai = if matra_carry > 0
+        then state_nadai state else state_akshara_nadai state
     }
     where
-    (akshara_carry, akshara) =
-        (state_akshara state + matra_carry) `divMod` tala_aksharas tala
-    (matra_carry, matra) = (state_matra state + matras * factor)
-        `Num.fDivMod` fromIntegral (state_nadai state)
-    factor = 1 / speed_factor (state_speed state)
+    advance = matras * (1 / speed_factor (state_speed state))
+    (matra_carry, matra) = (state_matra state + advance)
+        `Num.fDivMod` fromIntegral (state_akshara_nadai state)
+    (akshara_carry, akshara) = (state_akshara state + matra_carry)
+        `divMod` tala_aksharas tala
+
+show_position :: State -> Text
+show_position state =
+    "avartanam " <> showt (state_avartanam state + 1)
+    <> ", akshara " <> showt (state_akshara state)
+    <> ", matra " <> showt (state_matra state)
 
 -- * transform
 
@@ -378,15 +434,13 @@ split_just f initial xs = go [] initial (zip (map f xs) xs)
         Just b -> (key, reverse accum) : go [a] b rest
     go accum key [] = [(key, reverse accum)]
 
--- | Group consecutive Rights.
-group_rights :: [Either a b] -> [Either a [b]]
-group_rights xs = case rest of
-    [] -> cons []
-    Left x : xs -> cons $ Left x : group_rights xs
-    Right x : xs -> Right [x] : group_rights xs
+-- | Collect Rights until I hit a Left.
+right_until_left :: [Either a b] -> ([b], Maybe a)
+right_until_left = go
     where
-    (rights, rest) = Seq.span_while (either (const Nothing) Just) xs
-    cons = if null rights then id else (Right rights :)
+    go [] = ([], Nothing)
+    go (Left a : _) = ([], Just a)
+    go (Right b : xs) = first (b:) (go xs)
 
 apply_modifications :: (a -> mod -> a) -> [(Int, mod)]
     -- ^ modifications along with their indices, in ascending order

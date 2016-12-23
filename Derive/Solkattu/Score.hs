@@ -8,6 +8,7 @@ module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Seq as Seq
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
@@ -446,16 +447,43 @@ tisrams = concat
 
 -- * koraippu
 
+-- lead to misra:
+-- tisram: tri (ta ka takitataka nakadit thom) spread 3 tdgnt ...
+-- wait 2, repeat until tan7: od.__.p.k.n.o.o.k
+--
+-- wait 2, tri_ (thom.__0) (ta.ka.din.na)
+--      . repeat 2 (ta.__3.ta.ta.ka.din.na)
+
+misra_lead :: Korvai -- but add one akshara, so it lands on 1.
+misra_lead = korvai (adi 8) mridangam $
+    rest 8 . tri_ (tam.__) (ta.ka.din.na)
+     . repeat 2 (ta.__3.ta.ta.ka.din.na)
+     . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
+     where
+     mridangam = make_mridangam
+        [ (ta.ka.din.na, [k, o, o, k])
+        , (ta.ta.ta.ka.din.na, [od, k, n, o, o, k])
+        , (ta.din.na, [o&n, o&n, k])
+        , (tam, [od])
+        ]
+
 misra_koraippu :: [Korvai]
 misra_koraippu = korvais (adi 8) mridangam $ concat
-    [ map long [1..7]
-    , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]]
+    [ map long [1..7] -- 2 avartanam
+    , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
+    , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
+    , [ repeat 8 (__.p7) ]
+    , [ __ . repeat 5 p7 . nadai 6 . tri p7 ]
+    -- to mohra korvai sequence
     ]
+
     where
+    group2 seq = map mconcat (Seq.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
-    long n = __.__8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
+    long n = rest 8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
     -- 4 + 4*7 (1 + 3)
-    short n = __.__4 . tan7 . tri (fill n)
+    short n = rest 4 . tan7 . tri (fill n)
+    half n = rest 2 . tan7 . fill n
     fill n = fills !! (n-1) . karv din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
         [ ta
@@ -479,6 +507,25 @@ misra_koraippu = korvais (adi 8) mridangam $ concat
 
 koraippus :: [Korvai]
 koraippus = concat [misra_koraippu]
+
+-- * kirvanam
+
+kir_18 :: [Korvai]
+kir_18 = korvais (adi 8) mridangam $ map (pad 18 .)
+    [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
+    ]
+    where
+    mridangam = make_mridangam
+        [ (dhom.ka, [o, k])
+        , (ta.lang.ga, [p, u, k])
+        , (din, [od])
+        ]
+
+pad :: Matras -> Solkattu.Sequence stroke
+pad dur = repeat (64 - dur) __
+
+rest :: Matras -> Solkattu.Sequence stroke
+rest dur = repeat dur __
 
 -- * vary
 
@@ -515,6 +562,9 @@ korvai = Korvai.korvai
 
 adi :: Matras -> Solkattu.Tala
 adi = Solkattu.adi_tala
+
+beats :: Aksharas -> Matras -> Solkattu.Tala
+beats aksharas nadai = Solkattu.Tala aksharas 0 nadai
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realize_ True

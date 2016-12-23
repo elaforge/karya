@@ -205,9 +205,15 @@ replace_strokes (_:_) [] = ([], [])
 
 -- | Format the notes according to the tala.
 format :: forall stroke. Pretty.Pretty stroke => S.Tala -> [Note stroke] -> Text
-format tala =
-    Text.strip . mconcat . S.map_time tala per_word . S.map_time tala per_note
+format tala notes =
+    either id (Text.strip . mconcat) $
+        map_time per_word =<< map_time per_note notes
     where
+    map_time f = check . S.map_time tala f
+    check xs = case err of
+        Just err -> Left $ pretty vals <> "\nerror: " <> err
+        Nothing -> Right vals
+        where (vals, err) = S.right_until_left xs
     per_note _ note = case note of
         Rest -> (Right 1, [Right "_"])
         Note n -> (Right 1, [Right (pretty n)])

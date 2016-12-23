@@ -1504,7 +1504,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - Doesn't seem to understand when the nadai changes in the middle of
+        * Doesn't seem to understand when the nadai changes in the middle of
           an akshara, e.g. in the final avartanam of misra_koraippu, it should
           have 1/2 adi 8 1/2 adi 6, so 4+3 = 7 matras, but it has 6
         - Realize.format should be able to fit an adi 4 avartanam on one line.
