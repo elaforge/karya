@@ -87,7 +87,7 @@ p16_12_06_sriram2 = korvai (adi 7) $
 
 p16_12_06_janahan1 :: Korvai
 p16_12_06_janahan1 = korvai (adi 8) $
-    tri (op_od_ . on.p.op_od_ . on.k.o&t.k.op_od_)
+    tri (op_od_ . on.k.op_od_ . on.k.o&t.k.op_od_)
         . trin __ (tri p5) (tri p6) (tri p7)
     where
     op_od_ = on.p.k.od.__.o

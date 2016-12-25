@@ -239,5 +239,9 @@ format tala notes =
             | otherwise = ""
         matra = S.state_matra state
     -- I have to pad first so it doesn't count the control chars.
-    emphasize word = "\ESC[1m" <> pre <> "\ESC[0m" <> post
+    emphasize word
+        -- A bold _ looks the same as a non-bold one, so put a bar to make it
+        -- more obvious.
+        | Text.strip word == "_" = emphasize "_|"
+        | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
         where (pre, post) = Text.break (==' ') word
