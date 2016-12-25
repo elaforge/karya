@@ -304,6 +304,10 @@ view_config_bindings = concat
         (ViewConfig.cmd_zoom_around_insert (*0.8))
     , plain_char ']' "zoom in *1.25"
         (ViewConfig.cmd_zoom_around_insert (*1.25))
+    , plain_char '{' "zoom out *.95"
+        (ViewConfig.cmd_zoom_around_insert (*0.95))
+    , plain_char '}' "zoom out * 1/.95"
+        (ViewConfig.cmd_zoom_around_insert (* (1/0.95)))
     , plain_char '\\' "zoom to ruler or selection"
         ViewConfig.zoom_to_ruler_or_selection
     , command_char 'R' "resize to fit"
@@ -321,6 +325,8 @@ view_config_bindings = concat
     , secondary 'J' "block focus down" $ ViewConfig.move_focus ViewConfig.South
     , secondary 'K' "block focus up" $ ViewConfig.move_focus ViewConfig.North
     , secondary 'L' "block focus right" $ ViewConfig.move_focus ViewConfig.East
+    , secondary 'W' "destroy view"
+        (State.destroy_view =<< Cmd.get_focused_view)
 
     , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
     , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
