@@ -171,8 +171,8 @@ instance Pretty.Pretty t => Pretty.Pretty (Block t) where
             [Pretty.format n]
         InsertTrack n t -> Pretty.constructor "InsertTrack"
             [Pretty.format n, Pretty.format t]
-        BlockTrack n _ -> Pretty.constructor "BlockTrack"
-            [Pretty.format n]
+        BlockTrack n t -> Pretty.constructor "BlockTrack"
+            [Pretty.format n, Pretty.format t]
 
 instance Pretty.Pretty Track where
     format update = case update of

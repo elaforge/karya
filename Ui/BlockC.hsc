@@ -269,10 +269,17 @@ insert_track view_id tracknum tracklike merged set_style width =
             c_insert_track viewp (Util.c_int tracknum) tp
                 (Util.c_int width) mlistp len
 
+foreign import ccall "insert_track"
+    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
+        -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()
+
 remove_track :: ViewId -> TrackNum -> Fltk ()
 remove_track view_id tracknum = fltk $ exc "remove_track" $ do
     viewp <- PtrMap.get view_id
     c_remove_track viewp (Util.c_int tracknum)
+
+foreign import ccall "remove_track"
+    c_remove_track :: Ptr CView -> CInt -> IO ()
 
 update_track :: Bool -- ^ True if the ruler has changed and should be copied
     -- over.  It's a bit of a hack to be a separate flag, but rulers are
@@ -294,11 +301,6 @@ update_entire_track update_ruler view_id tracknum tracklike merged set_style =
     update_track update_ruler view_id tracknum tracklike merged set_style
         (-1) (-1)
 
-foreign import ccall "insert_track"
-    c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
-        -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()
-foreign import ccall "remove_track"
-    c_remove_track :: Ptr CView -> CInt -> IO ()
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
         -> Ptr (Ptr Ruler.Marklist) -> CInt -> CDouble -> CDouble -> IO ()

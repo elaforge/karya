@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:
     . traceback:
       assertion: assertion failed at fltk/EventTrack.cc:243 focus_title():
@@ -40,6 +41,30 @@ UNSORTED
   - The ruler is too small for e.g. bali/legong/semara-dana.  It should be
     one section per gong.  Maybe kotekan default should be "(ts s) instead of
     "(ts e).
+    . Actually 'e' makes sense if you think of 1 measure = one kotekan cycle.
+      But then I only have section as the next level, so no jegog level.  Or
+      I could abandon the half = quarter*2, and say
+        . unlabeled_ranks = [r_section, r_2, r_8, r_32, r_64, r_256]
+        . e = kotekan note                  q/8
+        + q = kotekan cycle / calung note   h/4
+        . h = jegog note                    w/4
+        + w = gong / kemong                 section / 4, mostly
+        . section = gong
+      But it seems like so few divisions could be inconvenient, so:
+        + s = kotekan note                  e/4
+        . e = 4 kotekan note                q/2
+        + q = kotekan cycle / calung note   h/2
+        . h = jegog note                    w/2
+        + w = gong / kemong                 section / 4, mostly
+        . section = gong
+
+        + 8 kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+        + 2 c       c       c       c       c       c       c       c       c
+        . 2 J               J               J               J               J
+        . 4 o                               p                               m
+            0       1       2       3       4       5       6       7       8
+
+
   * The playback selection should go in the ruler track to make it more visible.
   * fltk: If I open a floating input when the event trigger is off the top of
     the block, the input appears above the window.  I should make it min at

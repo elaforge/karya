@@ -231,7 +231,8 @@ diff_block block_id block1 block2 = do
         dtracks2 = Block.block_display_tracks block2
     let int_skel1 = Block.integrate_skeleton block1
         int_skel2 = Block.integrate_skeleton block2
-    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do
+    when (unequal Block.block_skeleton || int_skel1 /= int_skel2
+            || unequal_on (map Block.dtrack_status) dtracks1 dtracks2) $ do
         emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
             (map Block.dtrack_status dtracks2)
         -- Changing the skeleton may change event styles.
