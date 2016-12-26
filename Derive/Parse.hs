@@ -351,14 +351,10 @@ p_scale_id = do
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
 -- ambiguous.
---
--- They can also start with a *.  This is a special hack to support *scale
--- syntax in pitch track titles, but who knows, maybe it'll be useful in other
--- places too.
 p_symbol :: A.Parser BaseTypes.Symbol
 p_symbol = do
     c <- A.satisfy $ \c -> c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
-        || c == '-' || c == '*'
+        || c == '-'
     rest <- p_null_word
     return $ BaseTypes.Symbol $ Text.cons c rest
 

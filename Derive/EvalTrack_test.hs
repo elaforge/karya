@@ -181,7 +181,7 @@ test_call_errors = do
     let run_title title = derive [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call")
         "note transformer not found: no-such-call"
-    left_like (run_title ">i | test-t *bad-arg") "expected ControlRef but got"
+    left_like (run_title ">i | test-t bad-arg") "expected ControlRef but got"
     left_like (run_title ">i | test-t 1 2 3 4") "too many arguments"
     left_like (run_title ">i | test-t") "not found and no default"
     left_like (run_title ">i | test-t _") "not found and no default"
