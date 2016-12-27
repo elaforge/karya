@@ -12,6 +12,7 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Repl.Global as Global
+import qualified Cmd.Repl.LDebug as LDebug
 import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LState as LState
 
@@ -59,6 +60,8 @@ interpret tokens = case tokens of
         ["State.lookup_root_id"] -> action State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             action $ State.set_root_id arg
+
+        ["LDebug.memory"] -> action $ LDebug.memory
         _ -> Nothing
     where
     action c = Just (fmap (cmd_result . Global._to_result) c)

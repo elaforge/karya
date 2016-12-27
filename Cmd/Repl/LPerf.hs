@@ -21,8 +21,6 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
-import qualified Ui.Track as Track
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -63,12 +61,6 @@ get = Cmd.get_performance
 get_current :: Cmd.M m => BlockId -> m Cmd.Performance
 get_current block_id = Cmd.abort_unless =<< Map.lookup block_id <$>
     Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
-
-track_signal :: Cmd.CmdL (Maybe Track.TrackSignal)
-track_signal = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    perf <- get block_id
-    return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
 
 -- * info
 
@@ -169,7 +161,7 @@ compare_cached_events block_id = do
     diff e1 e2 = Seq.diff (==)
         (map Simple.score_event e1) (map Simple.score_event e2)
 
-derive :: BlockId -> Cmd.CmdL Derive.Result
+derive :: Cmd.M m => BlockId -> m Derive.Result
 derive = PlayUtil.cached_derive
 
 uncached_derive :: BlockId -> Cmd.CmdL Derive.Result

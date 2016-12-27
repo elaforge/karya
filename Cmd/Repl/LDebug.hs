@@ -5,9 +5,14 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Debugging utilities.
 module Cmd.Repl.LDebug where
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
+
+import qualified GHC.Stats
 import qualified System.IO as IO
+import qualified System.Mem
 
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
@@ -23,16 +28,31 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl.LPerf as LPerf
+import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.Cache as Cache
+import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Types as Types
 import Global
 import Types
 
+
+memory :: Trans.MonadIO m => m Int
+memory = liftIO $ do
+    System.Mem.performMajorGC
+    stats <- GHC.Stats.getGCStats
+    return $ fromIntegral $ GHC.Stats.currentBytesUsed stats `div` 1024
+
+stats :: Trans.MonadIO m => m GHC.Stats.GCStats
+stats = liftIO $ do
+    System.Mem.performMajorGC
+    GHC.Stats.getGCStats
 
 -- Also see 'LPerf.extract_debug' and similar functions.
 
@@ -91,7 +111,35 @@ show_history = do
     collect <- Pretty.formatted <$> Cmd.gets Cmd.state_history_collect
     return $ Text.unlines $ map Text.strip [save_file, hist, config, collect]
 
--- * cache
+-- * extract from Performance
+
+track_signal :: Cmd.CmdL (Maybe Track.TrackSignal)
+track_signal = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    perf <- LPerf.get block_id
+    return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
+
+-- | Get collected warps of a specific track.
+get_warps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.Collection]
+get_warps block_id track_id = do
+    perf <- LPerf.get_root
+    let track_warps = Cmd.perf_warps perf
+        warps = [tw | tw <- track_warps, TrackWarp.tw_block tw == block_id,
+            Set.member track_id (TrackWarp.tw_tracks tw)]
+    return $ map (\w -> w { TrackWarp.tw_warp = Score.id_warp }) warps
+
+-- | Get all raw uncollected TrackWarps from the root, and strip out the
+-- signals so they don't take up tons of space.
+get_track_warps :: Cmd.M m => m (Map.Map Stack.Stack TrackWarp.TrackWarp)
+get_track_warps = do
+    result <- LPerf.derive =<< State.get_root_id
+    let wmap = Derive.collect_warp_map $ Derive.state_collect $
+            Derive.r_state result
+    let strip (TrackWarp.TrackWarp s e _warp bid tid) =
+            TrackWarp.TrackWarp s e Score.id_warp bid tid
+    return $ strip <$> wmap
+
+-- ** cache
 
 -- | Extract the cache logs, with no summarizing.
 cache_logs :: BlockId -> Cmd.CmdL Text

@@ -128,7 +128,6 @@ ns name
 --      block >>= LPerf.get_midi_cache $> Midi.Cache.cache_chunks
 --              .> (!!1) .> Midi.Cache.chunk_state .> Perform.state_postproc
 -- @
-
 ($>) :: Functor f => f a -> (a -> b) -> f b
 ($>) = flip (<$>)
 infixl 1 $> -- put it above ($) but below everything else

@@ -75,6 +75,7 @@ saved = do
                 (if Just view_id == focused then "*" else "") <> showt view_id)
             (Map.keys views)
 
+-- | Save the current view layout.
 save :: Text -> Cmd.CmdL ()
 save = ViewConfig.save_views
 
