@@ -66,9 +66,9 @@ import Types
 -- (make_id "current-namespace" "xyz")
 make_id :: Id.Ident a => Text -> Text -> a
 make_id ns name
-    | valid = Id.make id
+    | is_valid = Id.make id
     | otherwise = error $ "invalid characters in id: " ++ show name
-    where (id, valid) = Id.read_short_validate (Id.namespace ns) name
+    where (id, is_valid) = Id.read_short_validate (Id.namespace ns) name
 
 vid :: Text -> ViewId
 vid = Id.ViewId . Id.read_id
@@ -116,7 +116,7 @@ root = State.get_root_id
 -- Intended to be used from the REPL, where throwing an IO exception is ok.
 ns :: Text -> Id.Namespace
 ns name
-    | Id.valid name = Id.namespace name
+    | Id.valid_symbol name = Id.namespace name
     | otherwise = error $ "bad namespace: " ++ show name
 
 -- | Some oprators to more conveniently string together monadic and non-monadic

@@ -600,7 +600,7 @@ empty_instrument = Instrument ""
 control :: Text -> Either Text Control
 control name
     | Text.null name = Left "empty control name"
-    | Id.valid name = Right $ ScoreTypes.Control name
+    | Id.valid_symbol name = Right $ ScoreTypes.Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
 
 unchecked_control :: Text -> Control
@@ -610,7 +610,7 @@ unchecked_control = ScoreTypes.Control
 -- can use the IsString instance.
 pcontrol :: Text -> Either Text PControl
 pcontrol name
-    | Text.null name || Id.valid name = Right $ ScoreTypes.PControl name
+    | Text.null name || Id.valid_symbol name = Right $ ScoreTypes.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
 unchecked_pcontrol :: Text -> PControl

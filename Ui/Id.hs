@@ -14,7 +14,7 @@ module Ui.Id (
     , read_id, show_id, read_short, read_short_validate, show_short
 
     -- * validate
-    , valid, valid_description, is_id_char, is_lower_alpha, is_digit
+    , valid_symbol, symbol_description, is_id_char
 
     -- * Ident
     , Ident(..)
@@ -50,8 +50,9 @@ import Global
 data Id = Id !Namespace !Text
     deriving (Eq, Ord, Show, Read)
 
--- | The Namespace should pass 'valid', but is guaranteed to not contain \/s.
--- This is because the git backend uses the namespace for a directory name.
+-- | The Namespace should pass 'valid_symbol', and is guaranteed to not contain
+-- \/s.  This is because the git backend uses the namespace for a directory
+-- name.
 newtype Namespace = Namespace Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32,
         Serialize.Serialize)
@@ -118,12 +119,13 @@ show_id (Id (Namespace ns) ident) = ns <> "/" <> ident
 read_short :: Namespace -> Text -> Id
 read_short default_ns = fst . read_short_validate default_ns
 
--- | 'read_short' but also return if the namespace and ident passed 'valid'.
+-- | 'read_short' but also return if the namespace and ident passed
+-- 'valid_symbol'.
 read_short_validate :: Namespace -> Text -> (Id, Bool)
 read_short_validate default_ns text = case Text.breakOn "/" text of
-    (ident, "") -> (id default_ns ident, valid ident)
+    (ident, "") -> (id default_ns ident, valid_symbol ident)
     (ns, ident) -> (id (namespace ns) (Text.drop 1 ident),
-        valid ns && valid (Text.drop 1 ident))
+        valid_symbol ns && valid_symbol (Text.drop 1 ident))
 
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> Text
@@ -133,11 +135,10 @@ show_short default_ns ident@(Id ns name)
 
 -- * validate
 
-{- | True if this Namespace or Id name is parseable as a tracklang literal.
-    You probably want to insist on this when creating new Ids to ensure they
-    can be easily called from the track.
+{- | True if this Namespace or Id name follows some strict rules, which are
+    a superset of the rules that make it parseable as an unquoted symbol.
 
-    A valid identifier is @[a-z][a-z0-9.-]*@, as in 'valid_description'.
+    A valid identifier is @[a-z][a-z0-9.-]*@, as in 'symbol_description'.
     Hyphens are intended to separate words, and dots intended to separate
     syntactic elements, whatever those may be.  The rules are intentionally
     restrictive, to force standardization on names, and also to keep some
@@ -151,13 +152,13 @@ show_short default_ns ident@(Id ns name)
     Ids (e.g. instrument or control names).  It's easier to remember a single
     rule for a valid name rather than each syntactic form have its own rules.
 -}
-valid :: Text -> Bool
-valid s =
+valid_symbol :: Text -> Bool
+valid_symbol s =
     not (Text.null s) && is_lower_alpha (Text.head s) && Text.all is_id_char s
 
 -- | Describe a valid identifier for docs and error messages.
-valid_description :: Text
-valid_description = "[a-z][a-z0-9.-]*"
+symbol_description :: Text
+symbol_description = "[a-z][a-z0-9.-]*"
 
 -- | This defines the set of valid characters allowed in an ID.
 is_id_char :: Char -> Bool

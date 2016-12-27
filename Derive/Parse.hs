@@ -351,6 +351,10 @@ p_scale_id = do
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
 -- ambiguous.
+--
+-- This should be a superset of what 'p_identifier' will accept, so if IDs use
+-- 'p_identifier' and 'Id.valid_symbol', they will also be parseable without
+-- quotes.
 p_symbol :: A.Parser BaseTypes.Symbol
 p_symbol = do
     c <- A.satisfy $ \c -> c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
@@ -378,9 +382,9 @@ p_identifier null_ok until = do
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
-    unless ((null_ok && Text.null ident) || Id.valid ident) $
+    unless ((null_ok && Text.null ident) || Id.valid_symbol ident) $
         fail $ "invalid chars in identifier, expected "
-            <> untxt Id.valid_description <> ": " <> show ident
+            <> untxt Id.symbol_description <> ": " <> show ident
     return ident
 
 p_word :: Bool -> A.Parser Text

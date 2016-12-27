@@ -29,8 +29,8 @@ import Types
 -- the backend itself, but things at the Derive layer and above don't care
 -- about all that.
 --
--- This should be a valid identifier as defined by 'Ui.Id.valid'.  Otherwise
--- you can't parse it as a tracklang literal.
+-- This should be a valid symbol as defined by 'Ui.Id.valid_symbol'.  This
+-- it can be parsed without quotes.
 newtype Instrument = Instrument Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
@@ -43,7 +43,7 @@ instance ShowVal.ShowVal Instrument where
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
 -- won't be seen by the backend at all.
 --
--- A Control should be a valid identifier as defined by 'Ui.Id.valid'.
+-- A Control should be a valid identifier as defined by 'Ui.Id.valid_symbol'.
 newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
@@ -57,9 +57,9 @@ instance ShowVal.ShowVal Control where show_val (Control c) = Text.cons '%' c
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.
 --
--- A PControl should be a valid identifier as defined by 'Ui.Id.valid', except
--- that its literal tracklang form starts with a @#@, to differentiate from
--- a Control.
+-- A PControl should be a valid identifier as defined by 'Ui.Id.valid_symbol',
+-- except that its literal tracklang form starts with a @#@, to differentiate
+-- from a Control.
 newtype PControl = PControl Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)

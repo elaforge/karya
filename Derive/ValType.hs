@@ -109,8 +109,8 @@ instance Pretty.Pretty Type where
         append_parens "Symbol" $ maybe "" Text.unwords enums
     -- There is no corresponding Val type for these, so I might as well be
     -- clear about what they mean.
-    pretty TControl = append_parens "Control" Id.valid_description
-    pretty TPControl = append_parens "PControl" ("#" <> Id.valid_description)
+    pretty TControl = append_parens "Control" Id.symbol_description
+    pretty TPControl = append_parens "PControl" ("#" <> Id.symbol_description)
     pretty (TList typ) = "list of " <> pretty typ
     pretty (TOther text) = text
     pretty TNotGiven = "_"

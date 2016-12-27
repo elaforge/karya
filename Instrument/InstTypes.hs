@@ -24,11 +24,11 @@ instance Serialize.Serialize Qualified where
     get = Qualified <$> Serialize.get <*> Serialize.get
 
 -- | Short but unabbreviated lowercase name with no spaces.  It should
--- follow 'Ui.Id.valid'.
+-- follow 'Ui.Id.valid_symbol'.
 type SynthName = Text
 
 -- | A name uniquely addresses this instrument within a synth.  It should also
--- follow 'Ui.Id.valid'.
+-- follow 'Ui.Id.valid_symbol'.
 type Name = Text
 
 parse_qualified :: Text -> Qualified

@@ -1682,13 +1682,13 @@ block_event_tracknums block =
 -- the current namespace if it's not present.
 read_id :: (Id.Ident a, M m) => Text -> m a
 read_id name = do
-    unless (Id.valid name) $
+    unless (Id.valid_symbol name) $
         throw $ "invalid characters in id name: " <> showt name
     ns <- get_namespace
     return $ Id.make $ Id.id ns name
 
 namespace :: M m => Text -> m Id.Namespace
 namespace ns = do
-    unless (Id.valid ns) $
+    unless (Id.valid_symbol ns) $
         throw $ "invalid characters in namespace: " <> showt ns
     return $ Id.namespace ns
