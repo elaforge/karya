@@ -94,18 +94,18 @@ set_staves staves
 blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL Text
 blocks title movements = do
     events <- mapM ((LEvent.write_logs <=< derive) . snd) movements
-    explicit_movements title (zip (map fst movements) events)
+    compile_explicit title (zip (map fst movements) events)
 
 -- | Compile the given block as lilypond.  If there are movements, they are
 -- extracted from the events.
 block :: BlockId -> Cmd.CmdL Text
 block block_id = do
     events <- LEvent.write_logs =<< derive block_id
-    extract_movements (block_id_title block_id) events
+    compile_extract (block_id_title block_id) events
 
 block_title :: Lilypond.Title -> BlockId -> Cmd.CmdL Text
 block_title title block_id =
-    extract_movements title =<< LEvent.write_logs =<< derive block_id
+    compile_extract title =<< LEvent.write_logs =<< derive block_id
 
 -- | Compile the current block.
 current :: Cmd.CmdL Text
@@ -127,33 +127,35 @@ view = view_block =<< Cmd.get_focused_block
 from_events :: [Score.Event] -> Cmd.CmdL Text
 from_events events = do
     block_id <- Cmd.get_focused_block
-    extract_movements (block_id_title block_id) events
+    compile_extract (block_id_title block_id) events
 
 -- * compile_ly
 
-explicit_movements :: Lilypond.Title -> [Cmd.Lilypond.Movement]
+-- | Run lilypond with explicit movements.
+compile_explicit :: Lilypond.Title -> [Cmd.Lilypond.Movement]
     -> Cmd.CmdL Text
-explicit_movements title movements = do
+compile_explicit title movements = do
     config <- get_config
     result <- LEvent.write_snd $
         Cmd.Lilypond.explicit_movements config title movements
     case result of
         Left err -> do
-            Log.warn $ "explicit_movements: " <> err
+            Log.warn $ "compile_explicit: " <> err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
             return ""
 
-extract_movements :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL Text
-extract_movements title events = do
+-- | Extract movements from the events and run lilypond.  Return any error.
+compile_extract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL Text
+compile_extract title events = do
     config <- get_config
     result <- LEvent.write_snd $
         Cmd.Lilypond.extract_movements config title events
     case result of
         Left err -> do
-            Log.warn $ "extract_movements: " <> err
+            Log.warn $ "compile_ly: " <> err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
