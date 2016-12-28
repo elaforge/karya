@@ -79,8 +79,7 @@ fltk_event_loop ui_chan msg_chan = do
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
-    -- I have used the handled names for debugging, and may again some day.
-    _handled <- handle_actions ui_chan
+    handle_actions ui_chan
     ui_msgs <- UiMsgC.get_ui_msgs
     -- TODO
     -- when (length handled > 0 && length ui_msgs > 0)
@@ -107,7 +106,8 @@ handle_actions ui_chan = MVar.modifyMVar ui_chan $ \acts -> do
     sequence_ [act | (Fltk act, _) <- reverse acts]
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "exception in event_loop: " <> showt exc
-    return ([], map snd acts)
+    -- I have used the handled names for debugging, and may again some day.
+    return ([], []) -- map snd acts
 
 quit_ui_thread :: QuitRequest -> IO ()
 quit_ui_thread quit_request = do
