@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Meter_test where
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -110,8 +111,7 @@ test_label_meter = do
         meter = Meter.regular_subdivision [2, 2, 2, 4]
         config = Meter.gong_config
             { Meter.config_label_components = Meter.number_components 0 0
-            , Meter.config_unlabeled_ranks =
-                [Meter.r_1, Meter.r_2, Meter.r_8, Meter.r_16, Meter.r_32]
+            , Meter.config_labeled_ranks = Set.fromList [Meter.Section, Meter.Q]
             }
         -- section: gong, 1: gong stroke, 2: jegog, 4: calung, 8: kotekan*2,
         -- 16: kotekan*4, ...

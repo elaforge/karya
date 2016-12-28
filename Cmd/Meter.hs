@@ -26,6 +26,7 @@ import Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
@@ -177,13 +178,13 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 -- rank.  This is convenient because that's how staff notation works.  But then
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
-default_unlabeled_ranks :: [Ruler.Rank]
-default_unlabeled_ranks = [r_section, r_2, r_8, r_32, r_64, r_256]
+default_labeled_ranks :: Set.Set RankName
+default_labeled_ranks = Set.fromList [W, Q, S, T128]
 
-gong_unlabeled_ranks :: [Ruler.Rank]
-gong_unlabeled_ranks = [r_1, r_4, r_8, r_32, r_64, r_256]
-    -- section: gong, 1: gong stroke, 2: jegog, 4: calung, 8: kotekan*2,
-    -- 16: kotekan*4, ...
+gong_labeled_ranks :: Set.Set RankName
+gong_labeled_ranks = Set.fromList [Section, H, S, T128]
+    -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
+    -- S: kotekan*4, ...
 
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
@@ -195,6 +196,9 @@ rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
 
 data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
+
+all_ranks :: [RankName]
+all_ranks = [minBound .. maxBound]
 
 name_to_rank :: RankName -> Ruler.Rank
 name_to_rank = fromEnum
@@ -275,7 +279,7 @@ fit_meter dur meters = make_meter stretch meters
 
 data MeterConfig = MeterConfig {
     -- | Skip labels for these ranks.
-    config_unlabeled_ranks :: ![Ruler.Rank]
+    config_labeled_ranks :: !(Set.Set RankName)
     , config_label_components :: !LabelComponents
     -- | Labels have at least this many sections.  Otherwise, trailing sections
     -- are omitted.
@@ -287,7 +291,7 @@ data MeterConfig = MeterConfig {
 
 default_config :: MeterConfig
 default_config = MeterConfig
-    { config_unlabeled_ranks = default_unlabeled_ranks
+    { config_labeled_ranks = default_labeled_ranks
     , config_label_components = big_number_components 1 1
     , config_min_depth = 1
     , config_strip_depth = 2
@@ -298,7 +302,7 @@ default_config = MeterConfig
 -- more appropriate for Balinese and Javenese music.
 gong_config :: MeterConfig
 gong_config = default_config
-    { config_unlabeled_ranks = gong_unlabeled_ranks
+    { config_labeled_ranks = gong_labeled_ranks
     , config_label_components = big_number_components 0 0
     , config_meter_type = mtype_gong
     }
@@ -321,12 +325,17 @@ label_meter config meter =
     labels = map join_label $ strip_prefixes "" (config_strip_depth config) $
         convert_labels (config_min_depth config)
             (config_label_components config) $
-        collapse_ranks (config_unlabeled_ranks config) ranks
+        collapse_ranks unlabeled ranks
+    unlabeled = labeled_to_unlabeled_ranks (config_labeled_ranks config)
     -- Appending Meters can result in 0 dur marks in the middle.
     drop_0dur [] = []
     drop_0dur ((r, d) : meter)
         | d == 0 && not (null meter) = drop_0dur meter
         | otherwise = (r, d) : drop_0dur meter
+
+labeled_to_unlabeled_ranks :: Set.Set RankName -> [Ruler.Rank]
+labeled_to_unlabeled_ranks labeled =
+    [name_to_rank r | r <- all_ranks, not (r `Set.member` labeled)]
 
 unlabel_meter :: LabeledMeter -> Meter
 unlabel_meter = map (\m -> (m_rank m, m_duration m))

@@ -23,6 +23,7 @@ module Cmd.Tala (
     , Ruler(..), Sections, Avartanams, Nadai
     , make_meter
 ) where
+import qualified Data.Set as Set
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
@@ -124,7 +125,7 @@ make_meter rulers =
 
 meter_config :: Meter.LabelComponents -> Meter.MeterConfig
 meter_config components = Meter.MeterConfig
-    { config_unlabeled_ranks = unlabeled_ranks
+    { config_labeled_ranks = labeled_ranks
     , config_label_components = components
     , config_min_depth = 1
     , config_strip_depth = 2
@@ -132,20 +133,18 @@ meter_config components = Meter.MeterConfig
     }
 
 -- Ranks (* marks labeled ranks):
--- r_section is several avartanam -- sections -- *
--- r_1 avartanam -- avartanams
--- r_2 anga -- based on tala -- *
--- r_4 akshara -- basad on akshara type and jati
--- r_8 nadai / gati -- variable -- *
--- r_16 -- 2 -- *
--- r_32 -- 2
--- r_64 -- 2 -- *
--- r_128 -- 2
--- r_256 -- 2
-
-unlabeled_ranks :: [Ruler.Rank]
-unlabeled_ranks =
-    [Meter.r_section, Meter.r_2, Meter.r_16, Meter.r_64, Meter.r_128]
+-- * r_section is several avartanam -- sections
+-- * r_1 avartanam -- avartanams
+-- * r_2 anga -- based on tala
+-- * r_4 akshara -- basad on akshara type and jati
+-- * r_8 nadai / gati -- variable
+-- . r_16 -- 2
+-- * r_32 -- 2
+-- . r_64 -- 2
+-- * r_128 -- 2
+-- . r_256 -- 2
+labeled_ranks :: Set.Set Meter.RankName
+labeled_ranks = Set.fromList [Meter.W, Meter.Q, Meter.E, Meter.T32, Meter.T128]
 
 ruler_meter :: Ruler -> Meter.Meter
 ruler_meter (Ruler tala sections avartanams nadai dur) =

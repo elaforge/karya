@@ -65,7 +65,7 @@ UNSORTED
         . 2 J               J               J               J               J
         . 4 o                               p                               m
             0       1       2       3       4       5       6       7       8
-    - Invert config_unlabelled_ranks to config_labeled_ranks.
+    * Invert config_unlabelled_ranks to config_labeled_ranks.
     - Can I move gong related ruler stuff to Cmd.Gong?  I need to put
       meter_types in a higher level module then, which means modify_meter also
       needs to move.
