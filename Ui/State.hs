@@ -1680,12 +1680,11 @@ block_event_tracknums block =
 
 -- | Read an ID of the form \"namespace/name\", or just \"name\", filling in
 -- the current namespace if it's not present.
-read_id :: (Id.Ident a, M m) => Text -> m a
+read_id :: (CallStack.Stack, Id.Ident a, M m) => Text -> m a
 read_id name = do
-    unless (Id.valid_symbol name) $
-        throw $ "invalid characters in id name: " <> showt name
     ns <- get_namespace
-    return $ Id.make $ Id.id ns name
+    require ("invalid characters in id name: " <> showt name) $
+        Id.make $ Id.id ns name
 
 namespace :: M m => Text -> m Id.Namespace
 namespace ns = do

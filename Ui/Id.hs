@@ -11,7 +11,7 @@ module Ui.Id (
     , set_name, modify_name
 
     -- * read / show
-    , read_id, show_id, read_short, read_short_validate, show_short
+    , read_id, show_id, read_short, show_short
 
     -- * validate
     , valid_symbol, symbol_description, is_id_char
@@ -117,15 +117,9 @@ show_id (Id (Namespace ns) ident) = ns <> "/" <> ident
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
 read_short :: Namespace -> Text -> Id
-read_short default_ns = fst . read_short_validate default_ns
-
--- | 'read_short' but also return if the namespace and ident passed
--- 'valid_symbol'.
-read_short_validate :: Namespace -> Text -> (Id, Bool)
-read_short_validate default_ns text = case Text.breakOn "/" text of
-    (ident, "") -> (id default_ns ident, valid_symbol ident)
-    (ns, ident) -> (id (namespace ns) (Text.drop 1 ident),
-        valid_symbol ns && valid_symbol (Text.drop 1 ident))
+read_short default_ns text = case Text.breakOn "/" text of
+    (ident, "") -> id default_ns ident
+    (ns, ident) -> id (namespace ns) (Text.drop 1 ident)
 
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> Text
@@ -144,17 +138,30 @@ show_short default_ns ident@(Id ns name)
     restrictive, to force standardization on names, and also to keep some
     syntactic flexibility in case I want to add special syntax.
 
-    TODO I originally used dots for relative calls, but they turn out to be
-    annoying because you can't start a tracklang symbol with one, so now they
-    use a hyphen.  I'm not sure what else remains using dots.
+    I originally used dots for relative calls, but they turn out to be annoying
+    because you can't start a tracklang symbol with one, so now they use
+    a hyphen.  Dots are still used for divisions in automatically generated
+    names, for instance, TrackIds are generated as block.t1.
 
     Several kinds of tracklang names use this definition of validity, not just
     Ids (e.g. instrument or control names).  It's easier to remember a single
     rule for a valid name rather than each syntactic form have its own rules.
 -}
 valid_symbol :: Text -> Bool
-valid_symbol s =
-    not (Text.null s) && is_lower_alpha (Text.head s) && Text.all is_id_char s
+valid_symbol s = not (Text.null s) && ascii_lower_alpha (Text.head s)
+    && Text.all is_id_char s
+
+valid_id :: Id -> Maybe Id
+valid_id (Id (Namespace ns) ident)
+    | valid_symbol ns && valid_symbol ident = Just $ Id (Namespace ns) ident
+    | otherwise = Nothing
+
+-- | 'BlockId's are more lenient.
+valid_block_id :: Id -> Maybe Id
+valid_block_id (Id (Namespace ns) ident)
+    | valid_symbol ns && not (" " `Text.isInfixOf` ident) =
+        Just $ Id (Namespace ns) ident
+    | otherwise = Nothing
 
 -- | Describe a valid identifier for docs and error messages.
 symbol_description :: Text
@@ -162,13 +169,13 @@ symbol_description = "[a-z][a-z0-9.-]*"
 
 -- | This defines the set of valid characters allowed in an ID.
 is_id_char :: Char -> Bool
-is_id_char c = is_lower_alpha c || is_digit c || c == '-' || c == '.'
+is_id_char c = ascii_lower_alpha c || ascii_digit c || c == '-' || c == '.'
 
-is_lower_alpha :: Char -> Bool
-is_lower_alpha c = 'a' <= c && c <= 'z'
+ascii_lower_alpha :: Char -> Bool
+ascii_lower_alpha c = 'a' <= c && c <= 'z'
 
-is_digit :: Char -> Bool
-is_digit c = '0' <= c && c <= '9'
+ascii_digit :: Char -> Bool
+ascii_digit c = '0' <= c && c <= '9'
 
 -- * Ident
 
@@ -178,12 +185,12 @@ is_digit c = '0' <= c && c <= '9'
 class Ident a where
     unpack_id :: a -> Id
     constructor_name :: Proxy a -> String
-    make :: Id -> a
+    make :: Id -> Maybe a
 
 instance Ident Id where
     unpack_id = Prelude.id
     constructor_name _ = "id"
-    make = Prelude.id
+    make = Just . Prelude.id
 
 show_ident :: forall a. Ident a => a -> String
 show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
@@ -191,14 +198,14 @@ show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
     id = unpack_id ident
     con = constructor_name (Proxy :: Proxy a)
 
-read_ident :: forall a. Ident a => ReadPrec.ReadPrec a
+read_ident :: forall a. Ident a => ReadPrec.ReadPrec (Maybe a)
 read_ident = do
     Read.Punc "(" <- Read.lexP
     Read.Ident sym <- Read.lexP
     guard (sym == constructor_name (Proxy :: Proxy a))
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
-    return (make (read_id (txt str)))
+    return $ make (read_id (txt str))
 
 -- | SomethingId -> "ns/name"
 ident_string :: Ident a => a -> String
@@ -232,6 +239,11 @@ global_namespace = namespace ""
 -- The name of a block which is to be created is simply 'Id'.
 --
 -- However, since the constructor is exported, this isn't rigorously enforced.
+--
+-- Unlike other Ids, block names have no restrictions, except no spaces.  This
+-- is because they become note calls, and it's convenient to have arbitrary
+-- names for the same reason it's convenient to allow arbitrary characters in
+-- call names.
 newtype BlockId = BlockId Id
     deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
 
@@ -255,24 +267,27 @@ instance Pretty.Pretty ViewId where pretty = showt
 instance Pretty.Pretty TrackId where pretty = showt
 instance Pretty.Pretty RulerId where pretty = showt
 
-instance Read BlockId where readPrec = read_ident
-instance Read ViewId where readPrec = read_ident
-instance Read TrackId where readPrec = read_ident
-instance Read RulerId where readPrec = read_ident
+instance Read BlockId where readPrec = require read_ident
+instance Read ViewId where readPrec = require read_ident
+instance Read TrackId where readPrec = require read_ident
+instance Read RulerId where readPrec = require read_ident
+
+require :: Read.ReadPrec (Maybe a) -> Read.ReadPrec a
+require = (maybe Read.pfail return =<<)
 
 instance Ident BlockId where
     unpack_id (BlockId a) = a
     constructor_name _ = "bid"
-    make = BlockId
+    make = fmap BlockId . valid_block_id
 instance Ident ViewId where
     unpack_id (ViewId a) = a
     constructor_name _ = "vid"
-    make = ViewId
+    make = fmap ViewId . valid_id
 instance Ident TrackId where
     unpack_id (TrackId a) = a
     constructor_name _ = "tid"
-    make = TrackId
+    make = fmap TrackId . valid_id
 instance Ident RulerId where
     unpack_id (RulerId a) = a
     constructor_name _ = "rid"
-    make = RulerId
+    make = fmap RulerId . valid_id

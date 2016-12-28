@@ -65,10 +65,9 @@ import Types
 -- This is used by the REPL's macro feature, to replace @xyz@ with
 -- (make_id "current-namespace" "xyz")
 make_id :: Id.Ident a => Text -> Text -> a
-make_id ns name
-    | is_valid = Id.make id
-    | otherwise = error $ "invalid characters in id: " ++ show name
-    where (id, is_valid) = Id.read_short_validate (Id.namespace ns) name
+make_id ns name =
+    fromMaybe (error $ "invalid characters in id: " ++ show name) $
+        Id.make $ Id.read_short (Id.namespace ns) name
 
 vid :: Text -> ViewId
 vid = Id.ViewId . Id.read_id

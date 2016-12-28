@@ -23,7 +23,7 @@ UNSORTED
       a stroke with a block.
     . Maybe if I still want to shadow instrument with a block, I could have
       some way to explicitly mark its priority.
-  - The block name restrictions can be annoying when I want blocks reminiscent
+  * The block name restrictions can be annoying when I want blocks reminiscent
     of angsels.  Doesn't it go against the point of anything in a call name?
     . Still I can't have /, since it would make the ns/id convention
       ambiguous.
@@ -38,6 +38,8 @@ UNSORTED
       directly looking at State.state_blocks no longer works.  That could be
       a hassle.
     * Ok, so maybe less of a hassle to extend @ notation with quotes.
+    . Move validation to the Ident class so I can relax it for BlockId but
+      keep it for the other Ids.
   - The ruler is too small for e.g. bali/legong/semara-dana.  It should be
     one section per gong.  Maybe kotekan default should be "(ts s) instead of
     "(ts e).
