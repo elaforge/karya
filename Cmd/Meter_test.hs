@@ -104,6 +104,30 @@ test_strip_prefixes = do
     equal (f 1 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.2.1", "2"]
     equal (f 0 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "1.2", "1.2.1", "2"]
 
+test_label_meter = do
+    let f = map Meter.m_label $
+            Meter.label_meter config (Meter.make_meter 1 [meter])
+        meter = Meter.regular_subdivision [2, 2, 2, 4]
+        config = Meter.gong_config
+            { Meter.config_label_components = Meter.number_components 0 0
+            , Meter.config_unlabeled_ranks =
+                [Meter.r_1, Meter.r_2, Meter.r_8, Meter.r_16, Meter.r_32]
+            }
+        -- section: gong, 1: gong stroke, 2: jegog, 4: calung, 8: kotekan*2,
+        -- 16: kotekan*4, ...
+    -- TODO why is the .0.1 different?
+    equal f
+        [ "0", ".0.1", "..2", "..3"
+        , ".1", "..1", "..2", "..3"
+        , ".2", "..1", "..2", "..3"
+        , ".3", "..1", "..2", "..3"
+        , ".4", "..1", "..2", "..3"
+        , ".5", "..1", "..2", "..3"
+        , ".6", "..1", "..2", "..3"
+        , ".7", "..1", "..2", "..3"
+        , "1"
+        ]
+
 
 config :: Meter.MeterConfig
 config = Meter.default_config

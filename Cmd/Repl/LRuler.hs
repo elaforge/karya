@@ -26,6 +26,10 @@
 
     Examples:
 
+    - 8 gongs with 4 strokes per gong (e.g. p, m, p, o)
+
+        > LRuler.local $ LRuler.gongs 8 4
+
     - Give the current block 6 sections of standard 4/4 meter, with 4 measures
     per section, where each measure gets 1t:
 
@@ -317,10 +321,28 @@ measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> m Modify
 measures meter sections measures =
     ruler $ make_measures Meter.default_config 1 meter sections measures
-measures0 meter sections measures =
-    ruler $ make_measures Meter.default_config0 1 meter sections measures
 
-make_measures :: Meter.MeterConfig -> TrackTime -- ^ duration of one measure
+{- | Create a number of gongs.
+
+    Labels start from 0, where 0 represents the last note, as is usual.  So
+    0, 1, 2, 3, 4, 5, 6, 7 can be read 8, 1, 2, 3, 4, 5, 6, 7, and the 8 will
+    line up as expected.
+
+    There is one section per gong, and each gong is numbered.  Then it's
+    divided into w = variable number of gong strokes, h = 2 jegog,
+    q = 2 calung, e = 2 kotekan groups, s = 8 (4*2) kotekan notes.
+-}
+gongs :: Cmd.M m => Int -- ^ number of gongs
+    -> Int -- ^ number of strokes in one gong
+    -> m Modify
+gongs sections strokes =
+    ruler $ make_measures Meter.gong_config dur meter sections strokes
+    where
+    dur = 4 -- This gives a reasonable kotekan speed at tempo=1.
+    meter = Meter.regular_subdivision [2, 2, 2, 4, 2, 2]
+
+make_measures :: Meter.MeterConfig
+    -> TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter
     -> Int -- ^ sections
     -> Int -- ^ measures per section
