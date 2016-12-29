@@ -4,7 +4,7 @@
 
 -- | Infrastructure for dealing with rulers in a higher level way than as
 -- a 'Ruler.Marklist'.
-module Cmd.RulerUtil where
+module Cmd.Ruler.RulerUtil where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -15,17 +15,19 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import Global
 import Types
 
+
+type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
 
 -- * constructors
 
 -- | Create a ruler with a meter of the given duration.
 meter_ruler :: Meter.MeterConfig -> Meter.Duration -> [Meter.AbstractMeter]
     -> Ruler.Ruler
-meter_ruler config dur meters = Ruler.meter_ruler (Just Meter.mtype_meter) $
+meter_ruler config dur meters = Ruler.meter_ruler (Just Meter.mtype) $
     Meter.meter_marklist config (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
@@ -61,35 +63,34 @@ data Scope =
 
 -- | Modify a ruler or rulers, making copies if they're shared outside of
 -- the Scope.
-local :: State.M m => Scope -> BlockId -> Meter.ModifyRuler -> m [RulerId]
+local :: State.M m => Scope -> BlockId -> ModifyRuler -> m [RulerId]
 local scope block_id modify = case scope of
     Block -> local_block block_id modify
     Section tracknum -> (:[]) <$> local_section block_id tracknum modify
     Tracks tracknums -> local_tracks block_id tracknums modify
 
-local_block :: State.M m => BlockId -> Meter.ModifyRuler -> m [RulerId]
+local_block :: State.M m => BlockId -> ModifyRuler -> m [RulerId]
 local_block block_id modify =
     mapM (\ruler_id -> local_ruler Block block_id ruler_id modify)
         =<< State.rulers_of block_id
 
 local_section :: State.M m => BlockId -> TrackNum
     -- ^ Modify the 'section_ruler_id' of this track.
-    -> Meter.ModifyRuler -> m RulerId
+    -> ModifyRuler -> m RulerId
 local_section block_id tracknum modify = do
     ruler_id <- section_ruler_id block_id tracknum
     local_ruler (Section tracknum) block_id ruler_id modify
 
 -- | Modify the given tracks, making copies if they're shared with other
 -- tracks.
-local_tracks :: State.M m => BlockId -> [TrackNum] -> Meter.ModifyRuler
-    -> m [RulerId]
+local_tracks :: State.M m => BlockId -> [TrackNum] -> ModifyRuler -> m [RulerId]
 local_tracks block_id tracknums modify = do
     ruler_ids <- rulers_of block_id tracknums
     forM ruler_ids $ \ruler_id ->
         local_ruler (Tracks tracknums) block_id ruler_id modify
 
 -- | Modify the given RulerId, making a copy if it's shared with another block.
-local_ruler :: State.M m => Scope -> BlockId -> RulerId -> Meter.ModifyRuler
+local_ruler :: State.M m => Scope -> BlockId -> RulerId -> ModifyRuler
     -> m RulerId
 local_ruler scope block_id ruler_id modify = do
     (in_scope, out_scope) <- rulers_in_scope scope block_id ruler_id
@@ -124,7 +125,7 @@ rulers_in_scope scope block_id ruler_id = do
             (in_track, out_track) = List.partition (`elem` tracknums) in_block
 
 -- | Copy the ruler and modify the copy.
-modify_copy :: State.M m => BlockId -> RulerId -> Meter.ModifyRuler -> m RulerId
+modify_copy :: State.M m => BlockId -> RulerId -> ModifyRuler -> m RulerId
 modify_copy block_id ruler_id modify = do
     -- Try to the ruler the same name as the block, since it's now
     -- local to that block, appending numbers if the name is taken.
@@ -140,21 +141,21 @@ modify_copy block_id ruler_id modify = do
 
 -- | Modify the ruler on the focused block.  Other blocks with the same ruler
 -- will also be modified.
-modify :: State.M m => Scope -> BlockId -> Meter.ModifyRuler -> m ()
+modify :: State.M m => Scope -> BlockId -> ModifyRuler -> m ()
 modify scope block_id modify = case scope of
     Block -> modify_block block_id modify
     Section tracknum -> modify_section block_id tracknum modify
     Tracks tracknums -> modify_tracks block_id tracknums modify
 
 -- | Modify all rulers in the block.
-modify_block :: State.M m => BlockId -> Meter.ModifyRuler -> m ()
+modify_block :: State.M m => BlockId -> ModifyRuler -> m ()
 modify_block block_id modify = do
     tracks <- State.track_count block_id
     mapM_ (\ruler_id -> modify_ruler block_id [0 .. tracks-1] ruler_id modify)
         =<< State.rulers_of block_id
 
 -- | Modify all rulers on the block in this 'section_ruler_id'.
-modify_section :: State.M m => BlockId -> TrackNum -> Meter.ModifyRuler -> m ()
+modify_section :: State.M m => BlockId -> TrackNum -> ModifyRuler -> m ()
 modify_section block_id tracknum modify = do
     ruler_id <- section_ruler_id block_id tracknum
     tracknums <- if ruler_id == State.no_ruler
@@ -162,7 +163,7 @@ modify_section block_id tracknum modify = do
         else return [tracknum]
     modify_ruler block_id tracknums ruler_id modify
 
-modify_tracks :: State.M m => BlockId -> [TrackNum] -> Meter.ModifyRuler -> m ()
+modify_tracks :: State.M m => BlockId -> [TrackNum] -> ModifyRuler -> m ()
 modify_tracks block_id tracknums modify = do
     ruler_ids <- rulers_of block_id tracknums
     forM_ ruler_ids $ \ruler_id ->
@@ -171,7 +172,7 @@ modify_tracks block_id tracknums modify = do
 modify_ruler :: State.M m => BlockId -> [TrackNum]
     -- ^ If given, these are the TrackIds that were intended to be modified.
     -- This is necessary if you try to modify State.no_ruler.
-    -> RulerId -> Meter.ModifyRuler -> m ()
+    -> RulerId -> ModifyRuler -> m ()
 modify_ruler block_id tracknums ruler_id modify
     | ruler_id == State.no_ruler = do
         new_ruler_id <- modify_copy block_id ruler_id modify

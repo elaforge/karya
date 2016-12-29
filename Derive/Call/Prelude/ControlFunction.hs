@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make

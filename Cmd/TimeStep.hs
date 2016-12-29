@@ -41,7 +41,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import Global
 import Types
 

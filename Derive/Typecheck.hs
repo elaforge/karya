@@ -11,7 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Val(..))

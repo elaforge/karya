@@ -54,12 +54,12 @@ import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Ky as Ky
-import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayC as PlayC
 import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track

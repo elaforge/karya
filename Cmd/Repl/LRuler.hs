@@ -88,9 +88,11 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Meter as Meter
 import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.Gong as Gong
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Modify as Ruler.Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import Global
@@ -320,57 +322,26 @@ measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> m Modify
 measures meter sections measures =
-    ruler $ make_measures Meter.default_config 1 meter sections measures
+    ruler $ Meter.make_measures Meter.default_config 1 meter sections measures
 
-{- | Create a number of gongs.
-
-    Labels start from 0, where 0 represents the last note, as is usual.  So
-    0, 1, 2, 3, 4, 5, 6, 7 can be read 8, 1, 2, 3, 4, 5, 6, 7, and the 8 will
-    line up as expected.
-
-    There is one section per gong, and each gong is numbered.  Then it's
-    divided into w = variable number of gong strokes, h = 2 jegog,
-    q = 2 calung, e = 2 kotekan groups, s = 8 (4*2) kotekan notes.
--}
+-- | Create gongs with 'Gong.gongs'.
 gongs :: Cmd.M m => Int -- ^ number of gongs
     -> Int -- ^ number of strokes in one gong
     -> m Modify
-gongs sections strokes =
-    ruler $ make_measures Meter.gong_config dur meter sections strokes
-    where
-    dur = 4 -- This gives a reasonable kotekan speed at tempo=1.
-    meter = Meter.regular_subdivision [2, 2, 2, 4, 2, 2]
-
-make_measures :: Meter.MeterConfig
-    -> TrackTime -- ^ duration of one measure
-    -> Meter.AbstractMeter
-    -> Int -- ^ sections
-    -> Int -- ^ measures per section
-    -> Ruler.Ruler
-make_measures config dur meter sections measures =
-    fit_ruler config (dur * fromIntegral (measures * sections))
-        (replicate sections (Meter.repeat measures meter))
+gongs sections strokes = ruler $ Gong.gongs sections strokes
 
 -- | Create a meter ruler fitted to the end of the last event on the block.
 fit_to_end :: State.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> BlockId -> m Ruler.Ruler
 fit_to_end config meter block_id = do
     end <- State.block_event_end block_id
-    return $ fit_ruler config end meter
+    return $ Meter.fit_ruler config end meter
 
 fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> m Ruler.Ruler
 fit_to_selection config meter = do
     (_, _, _, pos) <- Selection.get_insert
-    return $ fit_ruler config pos meter
-
--- | Make a ruler fit in the given duration.
-fit_ruler :: Meter.MeterConfig -> ScoreTime -> [Meter.AbstractMeter]
-    -> Ruler.Ruler
-fit_ruler config dur meters =
-    Ruler.meter_ruler (Just (Meter.config_meter_type config)) $
-    Meter.meter_marklist config $
-    Meter.fit_meter (Meter.time_to_duration dur) meters
+    return $ Meter.fit_ruler config pos meter
 
 -- | Replace the meter with the concatenation of the rulers of the given
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the
@@ -391,7 +362,7 @@ extract = do
     (block_id, tracknum, track_id, _) <- Selection.get_insert
     all_meters <- extract_meters block_id track_id
     return $ make_modify block_id tracknum $
-        Meter.modify_meter (const all_meters)
+        Ruler.Modify.modify_meter (const all_meters)
 
 extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
 extract_meters block_id track_id = do
@@ -438,16 +409,16 @@ block modify = do
 data Modify = Modify {
     m_block_id :: !BlockId
     , m_scope :: !RulerUtil.Scope
-    , m_modify :: !Meter.ModifyRuler
+    , m_modify :: !RulerUtil.ModifyRuler
     }
 
 modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
     -> m Modify
 modify_selected modify = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum (Meter.modify_meter modify)
+    return $ make_modify block_id tracknum (Ruler.Modify.modify_meter modify)
 
-make_modify :: BlockId -> TrackNum -> Meter.ModifyRuler -> Modify
+make_modify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
 make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
 
 get_block_track :: Cmd.M m => m (BlockId, TrackNum)

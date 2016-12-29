@@ -36,7 +36,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
@@ -197,7 +197,7 @@ mkblock_marklist :: State.M m => Ruler.Marklist -> BlockId -> String
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
     ruler_id <- Create.ruler "r" $
-        Ruler.meter_ruler (Just Meter.mtype_meter)  marklist
+        Ruler.meter_ruler (Just Meter.mtype)  marklist
     mkblock_ruler ruler_id block_id title tracks
 
 mkblocks_skel :: State.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
@@ -474,7 +474,7 @@ mkmarklist = Ruler.marklist . map (second mark)
 ruler_ :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
 ruler_ marklists = Ruler.Ruler
     { Ruler.ruler_marklists =
-        Map.fromList $ map (second ((,) (Just Meter.mtype_meter))) marklists
+        Map.fromList $ map (second ((,) (Just Meter.mtype))) marklists
     , Ruler.ruler_bg = Config.ruler_bg
     , Ruler.ruler_show_names = False
     , Ruler.ruler_align_to_bottom = False

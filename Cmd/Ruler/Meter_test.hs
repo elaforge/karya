@@ -2,15 +2,18 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Meter_test where
+module Cmd.Ruler.Meter_test where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Ruler as Ruler
-import qualified Cmd.Meter as Meter
-import qualified Cmd.Meters as Meters
+import qualified Cmd.Ruler.Gong as Gong
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Meters as Meters
+import qualified Cmd.Ruler.Modify as Modify
+
 import Global
 import Types
 
@@ -56,7 +59,7 @@ test_renumber = do
             Meter.fit_meter 4 [Meter.repeat 4 Meters.m34]
         extract = extract_marklist 20
     equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
-            Meter.modify_meter modify ruler) $
+            Modify.modify_meter modify ruler) $
         Right (zip (Seq.range_ 0 1)
             (map Meter.biggest_label ["1", "2", "3", "4"]))
 
@@ -109,7 +112,7 @@ test_label_meter = do
     let f = map Meter.m_label $
             Meter.label_meter config (Meter.make_meter 1 [meter])
         meter = Meter.regular_subdivision [2, 2, 2, 4]
-        config = Meter.gong_config
+        config = Gong.config
             { Meter.config_label_components = Meter.number_components 0 0
             , Meter.config_labeled_ranks = Set.fromList [Meter.Section, Meter.Q]
             }

@@ -28,9 +28,9 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
-import qualified Cmd.Meter as Meter
-import qualified Cmd.Meters as Meters
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Meters as Meters
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ShowVal as ShowVal

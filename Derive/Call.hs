@@ -20,7 +20,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
 
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs

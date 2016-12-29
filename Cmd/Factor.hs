@@ -20,9 +20,10 @@ import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
-import qualified Cmd.Meter as Meter
 import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Modify as Ruler.Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -319,4 +320,5 @@ block_id_to_call = Id.ident_name
 
 local_block :: State.M m => BlockId
     -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
-local_block block_id = RulerUtil.local_block block_id . Meter.modify_meter
+local_block block_id =
+    RulerUtil.local_block block_id . Ruler.Modify.modify_meter

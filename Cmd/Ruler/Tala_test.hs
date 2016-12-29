@@ -2,15 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Tala_test where
+module Cmd.Ruler.Tala_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Ruler as Ruler
-import qualified Cmd.Meter as Meter
-import qualified Cmd.Tala as Tala
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Tala as Tala
 import Global
 import Types
 

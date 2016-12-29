@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.RulerUtil_test where
+module Cmd.Ruler.RulerUtil_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -14,7 +14,7 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import Global
 
 

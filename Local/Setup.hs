@@ -14,9 +14,9 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Load.Mod as Load.Mod
-import qualified Cmd.Meter as Meter
-import qualified Cmd.Meters as Meters
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Meters as Meters
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import Global
 

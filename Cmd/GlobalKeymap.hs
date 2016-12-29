@@ -60,7 +60,7 @@ import Cmd.Keymap
        (plain_key, plain_char, shift_char, bind_key, bind_key_status,
         bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..),
         really_control)
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play

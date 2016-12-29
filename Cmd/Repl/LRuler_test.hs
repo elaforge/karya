@@ -8,9 +8,9 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
-import qualified Cmd.Meter as Meter
 import qualified Cmd.Repl.LRuler as LRuler
-import qualified Cmd.RulerUtil as RulerUtil
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import Types
 

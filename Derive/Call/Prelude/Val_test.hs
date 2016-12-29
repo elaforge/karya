@@ -5,7 +5,7 @@
 module Derive.Call.Prelude.Val_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score

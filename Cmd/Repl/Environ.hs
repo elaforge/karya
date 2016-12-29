@@ -48,13 +48,12 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Factor as Factor
 import qualified Cmd.Info as Info
-import qualified Cmd.Meter as Meter
-import qualified Cmd.Meters as Meters
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
+
 import qualified Cmd.Repl.LBlock as LBlock
 import qualified Cmd.Repl.LCmd as LCmd
 import qualified Cmd.Repl.LControl as LControl
@@ -74,12 +73,16 @@ import qualified Cmd.Repl.LTala as LTala
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Repl.LTuning as LTuning
 import qualified Cmd.Repl.LView as LView
-import qualified Cmd.RulerUtil as RulerUtil
+
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Meters as Meters
+import qualified Cmd.Ruler.Tala as Tala
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
+
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 import qualified Cmd.StepPlay as StepPlay
-import qualified Cmd.Tala as Tala
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 

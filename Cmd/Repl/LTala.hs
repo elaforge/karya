@@ -10,8 +10,8 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.LEvent as LEvent
 import qualified Cmd.Repl.LRuler as LRuler
+import qualified Cmd.Ruler.Tala as Tala
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Tala as Tala
 
 
 -- | Convert the selection from chatusram nadai to tisram nadai.

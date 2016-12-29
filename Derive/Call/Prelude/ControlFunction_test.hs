@@ -8,7 +8,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Meter as Meter
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import Global

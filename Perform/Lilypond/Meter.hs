@@ -11,8 +11,8 @@ import Data.Vector.Unboxed ((!))
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Cmd.Meter as Meter
-import Cmd.Meter (AbstractMeter(..))
+import qualified Cmd.Ruler.Meter as Meter
+import Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types (Time(..), Duration(..), NoteDuration(..))
 import Global
