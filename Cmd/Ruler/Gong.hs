@@ -10,30 +10,40 @@ import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Meter as Meter
 
 
-{- | Create a number of gongs.
+{- | Create a number of gongs, each divided into a number of jegogan strokes.
 
-    Labels start from 0, where 0 represents the last note, as is usual.  So
-    0, 1, 2, 3, 4, 5, 6, 7 can be read 8, 1, 2, 3, 4, 5, 6, 7, and the 8 will
-    line up as expected.
+    Labels start from 0, where 0 represents the last note.  So 0, 1, 2, 3, 4,
+    5, 6, 7 can be read 8, 1, 2, 3, 4, 5, 6, 7, and in a 16 count cycle the the
+    8 will be on the middle count as expected.
 
-    There is one section per gong, and each gong is numbered.  Then it's
-    divided into w = variable number of gong strokes, h = 2 jegog,
-    q = 2 calung, e = 2 kotekan groups, s = 8 (4*2) kotekan notes.
+    + lines have labels, and 4 jegogan per gong:
+
+    @
+          01234567012345670123456701234567012345670123456701234567012345670
+    + s 2 kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk 1/8t
+    . e 2 k k k k k k k k k k k k k k k k k k k k k k k k k k k k k k k k k
+    . q 2 k   k   k   k   k   k   k   k   k   k   k   k   k   k   k   k   k 1/2t
+    + h 2 c       c       c       c       c       c       c       c       c 1t
+    . w 4 J               J               J               J               J 2t
+    .     o                               p                               o
+    + Sec O                                                               O
+          0       1       2       3       4       5       6       7       8
+          0                                                               1
+    @
 -}
 gongs :: Int -- ^ number of gongs
-    -> Int -- ^ number of strokes in one gong
+    -> Int -- ^ number of jegogan in one gong
     -> Ruler.Ruler
-gongs sections strokes = Meter.make_measures config dur meter sections strokes
+gongs sections jegog =
+    Meter.make_measures config measure_dur meter sections jegog
     where
-    dur = 4 -- This gives a reasonable kotekan speed at tempo=1.
+    measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
 
 meter :: Meter.AbstractMeter
-meter = Meter.regular_subdivision [2, 2, 2, 4, 2, 2]
+meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
 
 labeled_ranks :: Set.Set Meter.RankName
 labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
-    -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
-    -- S: kotekan*4, ...
 
 -- | Gong config starts counting from 0.  This is more appropriate for Balinese
 -- and Javenese music.

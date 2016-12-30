@@ -40,7 +40,7 @@ UNSORTED
     * Ok, so maybe less of a hassle to extend @ notation with quotes.
     . Move validation to the Ident class so I can relax it for BlockId but
       keep it for the other Ids.
-  - The ruler is too small for e.g. bali/legong/semara-dana.  It should be
+  . The ruler is too small for e.g. bali/legong/semara-dana.  It should be
     one section per gong.  Maybe kotekan default should be "(ts s) instead of
     "(ts e).
     . Actually 'e' makes sense if you think of 1 measure = one kotekan cycle.
@@ -240,7 +240,7 @@ UNSORTED
   - do a renaming pass on all the prev/next pitch function names in Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
 
-  - have an easier way to use MeterConfig to take e.g. r_section out of
+  * have an easier way to use MeterConfig to take e.g. r_section out of
     unlabeled_ranks so I can have a absolute gong count.
     . Another option is for r_measure to keep going after each r_section.
   - it looks like special kajar calls like 'oo' mess up track signal.

@@ -326,9 +326,9 @@ measures meter sections measures =
 
 -- | Create gongs with 'Gong.gongs'.
 gongs :: Cmd.M m => Int -- ^ number of gongs
-    -> Int -- ^ number of strokes in one gong
+    -> Int -- ^ number of jegogans in one gong
     -> m Modify
-gongs sections strokes = ruler $ Gong.gongs sections strokes
+gongs sections jegog = ruler $ Gong.gongs sections jegog
 
 -- | Create a meter ruler fitted to the end of the last event on the block.
 fit_to_end :: State.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
