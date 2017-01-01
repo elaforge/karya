@@ -48,7 +48,7 @@ module Ui.State (
     -- * config
     , get_namespace, set_namespace
     , get_default, modify_default, get_root_id, lookup_root_id, set_root_id
-    , modify_config, get_config
+    , modify_config, get_config, with_config
     , allocation
 
     -- * view
@@ -443,6 +443,17 @@ modify_config f = unsafe_modify $ \st ->
 
 get_config :: M m => (Config -> a) -> m a
 get_config f = gets (f . state_config)
+
+-- | Run the action with a modified state, and restore it.
+with_config :: M m => (Config -> Config) -> m a -> m a
+with_config f action = do
+    old <- get_config id
+    modify_config f
+    -- I think this is exception safe because the state is reverted after an
+    -- exception, and there's no way to catch an exception.
+    result <- action
+    modify_config $ const old
+    return result
 
 -- | TODO use this for read only.  If used for write it bypasses
 -- 'StateConfig.allocate'.

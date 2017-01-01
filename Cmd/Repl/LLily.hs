@@ -49,16 +49,19 @@ get_config = State.config#State.lilypond <#> State.get
 modify_config :: State.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
 modify_config modify = State.modify_config $ State.lilypond %= modify
 
+with_config :: Cmd.M m => Lilypond.Config -> m a -> m a
+with_config config = State.with_config (State.lilypond #= config)
+
 make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
 make_config quarter quantize = Lilypond.default_config
     { Lilypond.config_quarter_duration = quarter
     , Lilypond.config_quantize = quantize
     }
 
-toggle_display :: State.M m => Text -> m ()
+toggle_display :: State.M m => Util.Instrument -> m ()
 toggle_display inst = modify_staff inst $ Lilypond.display %= not
 
-modify_staff :: State.M m => Text
+modify_staff :: State.M m => Util.Instrument
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig) -> m ()
 modify_staff inst_ modify = do
     config <- get_config
@@ -99,9 +102,22 @@ blocks title movements = do
 -- | Compile the given block as lilypond.  If there are movements, they are
 -- extracted from the events.
 block :: BlockId -> Cmd.CmdL Text
-block block_id = do
-    events <- LEvent.write_logs =<< derive block_id
-    compile_extract (block_id_title block_id) events
+block block_id = block_title (block_id_title block_id) block_id
+
+-- | Compile the given block, but only with a single instrument.
+block_inst :: Maybe Text -> Util.Instrument -> BlockId -> Cmd.CmdT IO Text
+block_inst maybe_title inst block_id = do
+    config <- get_config
+    let title = fromMaybe (block_id_title block_id) maybe_title
+    with_config (solo_instrument (Util.instrument inst) config) $
+        block_title (title <> " - " <> inst) block_id
+
+solo_instrument :: Score.Instrument -> Lilypond.Config -> Lilypond.Config
+solo_instrument inst = Lilypond.staves %= map solo
+    where
+    solo staff
+        | fst staff == inst = staff
+        | otherwise = second (Lilypond.display %= not) staff
 
 block_title :: Lilypond.Title -> BlockId -> Cmd.CmdL Text
 block_title title block_id =
