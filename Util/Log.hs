@@ -19,7 +19,7 @@ module Util.Log (
     , with_int, with_text, with_dyn
     , lookup_int, lookup_text, lookup_dyn
     -- ** other types
-    , Prio(..), State(..)
+    , Priority(..), State(..)
     , write_json, write_formatted
     , msg, msg_call_stack
     , timer, debug, notice, warn, error
@@ -84,7 +84,7 @@ import Global
 data Msg = Msg {
     msg_date :: !Time.UTCTime
     , msg_caller :: !CallStack.Caller
-    , msg_priority :: !Prio
+    , msg_priority :: !Priority
     -- | Msgs which are logged from the deriver may record the position in the
     -- score the msg was emitted.
     , msg_stack :: !(Maybe Stack.Stack)
@@ -183,7 +183,7 @@ no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 -- | Logging state.  Don't log if a handle is Nothing.
 data State = State {
     state_write_msg :: Msg -> IO ()
-    , state_log_level :: Prio
+    , state_log_level :: Priority
     }
 
 -- | Write logs as JSON to the given handle.
@@ -211,7 +211,7 @@ global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 configure :: (State -> State) -> IO State
 configure f = MVar.modifyMVar global_state $ \old -> return (f old, old)
 
-data Prio =
+data Priority =
     -- | Logs to determine where things are hanging when debugging
     -- a performance problem.  Use "LogView.ShowTimers" to show the time
     -- elapsed between Timer logs.
@@ -232,19 +232,19 @@ data Prio =
 
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: CallStack.Stack => Prio -> Maybe Stack.Stack -> Text -> Msg
+msg :: CallStack.Stack => Priority -> Maybe Stack.Stack -> Text -> Msg
 msg = msg_call_stack ?stack
 
 -- | Like 'msg' but when you already have a CallStack.
-msg_call_stack :: GHC.Stack.CallStack -> Prio -> Maybe Stack.Stack -> Text
+msg_call_stack :: GHC.Stack.CallStack -> Priority -> Maybe Stack.Stack -> Text
     -> Msg
 msg_call_stack call_stack prio stack text =
     Msg no_date_yet (CallStack.caller call_stack) prio stack text mempty
 
-log :: (CallStack.Stack, LogMonad m) => Prio -> Text -> m ()
+log :: (CallStack.Stack, LogMonad m) => Priority -> Text -> m ()
 log prio text = write $ msg prio Nothing text
 
-log_stack :: (CallStack.Stack, LogMonad m) => Prio -> Stack.Stack -> Text
+log_stack :: (CallStack.Stack, LogMonad m) => Priority -> Stack.Stack -> Text
     -> m ()
 log_stack prio stack text = write $ msg prio (Just stack) text
 
@@ -372,8 +372,8 @@ deserialize bytes = case Aeson.decode bytes of
         _ -> Left "expected a 6 element array"
     _ -> Left "can't decode json"
 
-instance Aeson.ToJSON Prio
-instance Aeson.FromJSON Prio
+instance Aeson.ToJSON Priority
+instance Aeson.FromJSON Priority
 
 instance Aeson.ToJSON Data where
     toJSON d = case d of
@@ -393,7 +393,7 @@ instance Serialize.Serialize Msg where
     put (Msg a b c d e f) = put a >> put b >> put c >> put d >> put e >> put f
     get = Msg <$> get <*> get <*> get <*> get <*> get <*> get
 
-instance Serialize.Serialize Prio where
+instance Serialize.Serialize Priority where
     put = Serialize.put_enum
     get = Serialize.get_enum
 

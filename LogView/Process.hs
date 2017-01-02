@@ -216,7 +216,7 @@ eval_filter (Filter _ pred) msg text = pred msg text
 -- | Format and colorize a single Log.Msg.
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
-    let width = fromEnum (maxBound :: Log.Prio)
+    let width = fromEnum (maxBound :: Log.Priority)
     with_style style_fixed $ Text.justifyLeft width ' ' $
         prio_stars (Log.msg_priority msg)
     let style = if Log.msg_priority msg < Log.Warn
