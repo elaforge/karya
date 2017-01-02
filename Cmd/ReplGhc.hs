@@ -23,6 +23,9 @@ import qualified Data.Text as Text
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
+#if GHC_VERSION >= 80000
+import qualified DynFlags
+#endif
 
 -- The liftIO here is not the same one in Control.Monad.Trans!
 -- GHC defines its own MonadIO.
@@ -216,13 +219,26 @@ collect_logs action = do
     where
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }
-    -- log_action :: GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> PprStyle
-    --     -> MsgDoc -> IO ()
-    log_action logs dflags _severity _span style msg =
-        liftIO $ IORef.modifyIORef logs (formatted:)
-        where
-        formatted = Outputable.showSDoc dflags $
-            Outputable.withPprStyle style msg
+
+-- The log_action signature tends to change between GHC versions.
+#if GHC_VERSION < 80000
+-- ghc 8.0:
+-- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
+--      -> PprStyle -> MsgDoc -> IO ()
+log_action :: IORef.IORef [String]
+    -> GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle
+    -> Outputable.SDoc -> IO ()
+log_action logs dflags _severity _span style msg =
+#else
+log_action :: IORef.IORef [String]
+    -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
+    -> GHC.PprStyle -> GHC.MsgDoc -> IO ()
+log_action logs dflags _warn_reason _severity _span style msg =
+#endif
+    liftIO $ IORef.modifyIORef logs (formatted:)
+    where
+    formatted = Outputable.showSDoc dflags $
+        Outputable.withPprStyle style msg
 
 modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
 modify_flags f = do

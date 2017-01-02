@@ -293,7 +293,7 @@ instance (Serialize a, Foreign.Storable a) =>
         len :: Int <- get
         Vector.Storable.replicateM len get
 
-
+-- This has to be here instead of in CallStack to avoid a circular import.
 instance Serialize CallStack.Caller where
     put (CallStack.Caller a b) = put_tag 0 >> put a >> put b
     put CallStack.NoCaller = put_tag 1

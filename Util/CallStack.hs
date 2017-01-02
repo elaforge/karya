@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns, OverloadedStrings #-}
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Utilities for GHC's implicit call stacks feature.
@@ -10,7 +11,9 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
-import qualified GHC.SrcLoc as SrcLoc
+#if GHC_VERSION < 80000
+import qualified GHC.SrcLoc as Stack
+#endif
 import qualified GHC.Stack as Stack
 
 import qualified Data.Aeson as Aeson
@@ -34,8 +37,8 @@ instance Aeson.FromJSON Caller where
 caller :: Stack.CallStack -> Caller
 caller stack = case reverse (Stack.getCallStack stack) of
     (_, srcloc) : _ ->
-        Caller (strip (SrcLoc.srcLocFile srcloc))
-            (SrcLoc.srcLocStartLine srcloc)
+        Caller (strip (Stack.srcLocFile srcloc))
+            (Stack.srcLocStartLine srcloc)
     [] -> NoCaller
     where
     strip ('.':'/':s) = s

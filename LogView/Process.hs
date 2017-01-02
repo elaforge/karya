@@ -223,8 +223,8 @@ format_msg msg = run_formatter $ do
             then style_plain else style_warn
     case Log.msg_caller msg of
         CallStack.NoCaller -> return ()
-        CallStack.Caller fname line ->
-            with_style style_filename $ txt fname <> ":" <> showt line <> " "
+        caller@(CallStack.Caller {}) ->
+            with_style style_filename $ CallStack.showCaller caller <> " "
     whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
     regex_style style msg_text_regexes (Log.msg_text msg)
     with_plain "\n"

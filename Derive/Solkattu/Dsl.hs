@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Provide short names and operators for writing korvais in haskell.
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
