@@ -150,8 +150,7 @@ test_movement = do
             ("> | ly-global", [(0, 0, "movement I"), (4, 0, "movement II")])
             : UiTest.regular_notes 8)]
     equal logs []
-    -- The header titles go after the score.
-    match ly "c4 d4 e4 f4 *piece = \"I\" *g4 a4 b4 c'4 *piece = \"II\""
+    match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * g4 a4 b4 c'4"
 
     -- Not affected by local tempo.
     let (ly, logs) = run
@@ -164,7 +163,7 @@ test_movement = do
             , ("mvt2=ruler", ("tempo", [(0, 0, "2")]) : UiTest.regular_notes 4)
             ]
     equal logs []
-    match ly "c4 d4 e4 f4 *piece = \"I\" *c4 d4 e4 f4 *piece = \"II\""
+    match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * c4 d4 e4 f4"
 
 measures_linear :: [String] -> [UiTest.TrackSpec]
     -> (Either String String, [String])

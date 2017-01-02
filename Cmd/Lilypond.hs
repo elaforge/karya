@@ -151,7 +151,6 @@ convert config score_events =
     where
     (events, logs) = LEvent.partition $ Convert.convert config score_events
 
-
 ly_filename :: Cmd.M m => Lilypond.Title -> m FilePath
 ly_filename title = do
     dir <- Cmd.require "ly_filename: no save dir"

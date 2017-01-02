@@ -50,6 +50,7 @@ paper_config =
 
 type Title = Text
 
+-- | Format a list Movements into a complete lilypond file.
 ly_file :: Types.Config -> Title -> [Movement] -> Lazy.Text
 ly_file config title movements = run_output $ do
     outputs
@@ -66,13 +67,14 @@ ly_file config title movements = run_output $ do
     mapM_ write_movement movements
     where
     write_movement (title, staff_groups) = do
+        output "\\bookpart {\n"
+        unless (Text.null title) $
+            output $ "\\header { piece =" <+> str title <+> "}\n"
         output "\\score {\n"
         output "<<\n"
         mapM_ write_staves $ sort_staves (Types.config_staves config)
             staff_groups
-        output ">>\n"
-        unless (Text.null title) $
-            output $ "\\header { piece =" <+> str title <+> "}\n"
+        output ">>\n}\n"
         output "}\n\n"
     write_staves (StaffGroup _ staves, config)
         | not (Types.staff_display config) = return ()

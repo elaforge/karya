@@ -75,7 +75,8 @@ v_ly_tie_direction = "ly-tie-direction"
 v_meter :: BaseTypes.Key
 v_meter = "meter"
 
--- | Gives the title of a new movement.
+-- | String: Gives the title of a new movement.  An event with 'ly_global'
+-- instrument and this env val will cause a movement break.
 v_movement :: BaseTypes.Key
 v_movement = "movement"
 

@@ -210,9 +210,10 @@ code0_pos pos = case pos of
     SuffixLast -> SuffixAll
     _ -> pos
 
-global_code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-global_code0 start = global . code0 start
+global_code0 :: ScoreTime -> Ly -> Derive.NoteDeriver
+global_code0 start code = global $ code0 start (Prefix, code)
 
+-- | Derive with the 'Constants.ly_global' instrument.
 global :: Derive.Deriver a -> Derive.Deriver a
 global = Derive.with_val_raw EnvKey.instrument Constants.ly_global
 

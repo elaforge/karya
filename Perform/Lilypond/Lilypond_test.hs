@@ -272,27 +272,12 @@ test_voices = do
     match text "voiceOne*voiceTwo*oneVoice"
 
 test_movements = do
-    -- let (text, logs) = make_ly $
-    --         (">", [(4, 0, "movement 'number 2'")])
-    --         : UiTest.regular_notes 8
-    -- equal logs []
-    -- -- The movement with e'4 gets the header.
-    -- match text "score *a'4 *score *e'4 *header *number 2"
-
-    -- let (text, logs) = make_ly $
-    --         [ (">", [(4, 0, "movement 'number 2'")])
-    --         , (">", [(5, 8, "t")])
-    --         ] ++ UiTest.regular_notes 8
-    -- equal logs []
-    -- prettyp text
-
     let (text, logs) = make_ly Types.default_config $
-            [ (">", [(4, 0, "movement 'number 2'")])
-            -- , (">", [(4, 4, "t")])
-            ] ++ UiTest.regular_notes 6
+            (">", [(4, 0, "movement 'number 2'")])
+            : UiTest.regular_notes 6
     equal logs []
-    -- \score, first movement, \score, second movement, movement title
-    match text "score*c4 d4 e4 f4*score*g4 a4 r2*number 2"
+    -- \score, first movement, movement title, \score, second movement
+    match text "score * c4 d4 e4 f4 *number 2*score * g4 a4 r2"
 
 make_ly :: Types.Config -> [UiTest.TrackSpec] -> (String, [String])
 make_ly config = first (LilypondTest.make_ly config)

@@ -405,11 +405,11 @@ global_code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
     make_code_call name doc sig $ \_ val args ->
-        Lily.global (call val (Derive.place (Args.start args) 0 Call.note))
+        Lily.global $ call val (Derive.place (Args.start args) 0 Call.note)
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (Bool -> a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver)
+    -> (Bool -> a -> Derive.NoteArgs -> Derive.NoteDeriver)
     -- ^ First arg is True if this is a transformer call.
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (gen, trans)
