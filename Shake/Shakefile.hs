@@ -569,11 +569,13 @@ packageFlags flags packages =
 
 -- | Parse the GHC version out of the @ghc --print-libdir@ path.  The format is
 -- \"71002\" for \"7.10.2\".  This way it can be compared as a number by CPP.
--- It doesn't have a leading 0 because then CPP thinks its octal.
+-- It doesn't have a leading 0 because then CPP thinks its octal.  It'll break
+-- at ghc-10, but I can fix it when it happens.
 parseGhcVersion :: FilePath -> String
 parseGhcVersion path =
-    check $ dropWhile (=='0') $ concatMap pad0 $ Seq.split "." $ drop 1 $
-        dropWhile (/='-') $ FilePath.takeFileName path
+    -- take 5 to avoid getting confused by versions like 8.0.1.20161213.
+    check $ take 5 $ dropWhile (=='0') $ concatMap pad0 $ Seq.split "." $
+        drop 1 $ dropWhile (/='-') $ FilePath.takeFileName path
     where
     pad0 [c] = '0' : c : []
     pad0 cs = cs
