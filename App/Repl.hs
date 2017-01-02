@@ -157,7 +157,9 @@ handle_result (ReplProtocol.Edit text return_prefix) =
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do
-    let logs = ReplProtocol.abbreviate_logs logs_
+    -- Filter Debug logs, otherwise I get spammed with cache msgs.
+    let logs = filter ((>Log.Debug) . Log.msg_priority) $
+            ReplProtocol.abbreviate_package_loads logs_
     unless (null logs) $ do
         putStrLn "Logs:"
         mapM_ Pretty.pprint logs

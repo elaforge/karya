@@ -14,7 +14,7 @@ module App.ReplProtocol (
     , server_receive, server_send
     -- * format
     , format_result
-    , abbreviate_logs
+    , abbreviate_package_loads
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -153,15 +153,15 @@ format_result (CmdResult response logs_) =
     Text.stripEnd $ Text.unlines $
         (if null logs then [] else "Logs:" : map pretty logs ++ [""])
             ++ [format response]
-    where logs = abbreviate_logs logs_
+    where logs = abbreviate_package_loads logs_
 
 format :: Result -> Text
 format (Raw val) = val
 format (Format val) = txt $ PPrint.format_str $ untxt val
 format (Edit text _) = "Edit: " <> text
 
-abbreviate_logs :: [Log.Msg] -> [Log.Msg]
-abbreviate_logs logs = loaded ++ filter (not . package_log) logs
+abbreviate_package_loads :: [Log.Msg] -> [Log.Msg]
+abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
     where
     loaded =
         [ Log.msg Log.Notice Nothing $
