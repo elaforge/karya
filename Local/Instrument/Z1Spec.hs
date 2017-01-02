@@ -2,6 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+-- In ghc 8 change to:
+-- {-# OPTIONS_GHC -Wno-warn-unused-top-binds #-}
+
+-- | Utilities to encode and generate z1 sysex dumps.
+--
+-- TODO
+-- Basic parsing and modification works, but some fields, like effects, are not
+-- parsed.
 module Local.Instrument.Z1Spec (
     decode, encode, spec_bytes
     , program_dump_header, current_program_dump_header
