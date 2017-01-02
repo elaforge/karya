@@ -1421,8 +1421,8 @@ modify_ruler ruler_id modify = do
     when (ruler_id == no_ruler) $
         throw "can't modify no_ruler"
     ruler <- get_ruler ruler_id
-    modified <- require_right (("modify_ruler " <> pretty ruler_id) <>) $
-        modify ruler
+    let msg = "modify_ruler " <> pretty ruler_id <> ": "
+    modified <- require_right (msg<>) $ modify ruler
     unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id modified (state_rulers st) }
     update $ Update.CmdRuler ruler_id

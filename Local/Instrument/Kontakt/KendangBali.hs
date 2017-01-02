@@ -143,11 +143,11 @@ write_ksp = mapM_ (uncurry Util.write)
 -- | @LInst.merge $ KontaktKendang.allocations ...@
 allocations :: Text -> Text -> StateConfig.Allocations
 allocations name dev_ = MidiInst.allocations
-    [ (name <> "-wadon", "kontakt/kendang-bali", id, midi_channel 0)
-    , (name <> "-lanang", "kontakt/kendang-bali", id, midi_channel 1)
+    [ (name <> "-w", "kontakt/kendang-bali", id, midi_channel 0)
+    , (name <> "-l", "kontakt/kendang-bali", id, midi_channel 1)
     , ( name, "kontakt/kendang-bali-pasang"
-      , Common.add_environ "wadon" (inst $ name <> "-wadon")
-        . Common.add_environ "lanang" (inst $ name <> "-lanang")
+      , Common.add_environ "w" (inst $ name <> "-w")
+        . Common.add_environ "l" (inst $ name <> "-l")
       , StateConfig.Dummy
       )
     ]
@@ -223,7 +223,7 @@ balinese_pasang_calls =
     closed_plak = "᭺"   -- k ka
     closed_pluk = "᭻"   -- P pak
     open_ping = "᭼"     -- Ø pung
-   -- right
+    -- right
     open_dag = "᭵"      -- < dag   + de
     open_dug = "᭴"      -- > dug   o tut
     closed_tak = "᭷"    -- ] tek   u kum
