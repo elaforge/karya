@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
 module Synth.Shared.Control where
 import qualified Data.Aeson as Aeson
-import qualified Data.Map as Map
 import qualified Data.String as String
 
 import qualified Util.Pretty as Pretty
@@ -15,14 +14,8 @@ import Global
 
 newtype Control = Control Text
     deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
+        Aeson.ToJSONKey, Aeson.FromJSONKey,
         Serialize.Serialize, Pretty.Pretty)
-
-instance Aeson.ToJSON a => Aeson.ToJSON (Map.Map Control a) where
-    toJSON = Aeson.toJSON . Map.fromAscList . map (first (\(Control a) -> a))
-        . Map.toAscList
-instance Aeson.FromJSON a => Aeson.FromJSON (Map.Map Control a) where
-    parseJSON = fmap (Map.fromAscList . map (first Control) . Map.toAscList)
-        . Aeson.parseJSON
 
 envelope :: Control
 envelope = "envelope"

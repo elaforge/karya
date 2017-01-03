@@ -27,7 +27,7 @@ library
     build-depends:
         Diff >=0.2,
         QuickCheck,
-        aeson,
+        aeson >=1.1.0.0,
         array,
         attoparsec,
         base >=4.6,
