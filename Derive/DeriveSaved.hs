@@ -167,12 +167,11 @@ load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
                 app_dir <- liftIO Config.get_app_dir
                 let paths = dir
                         : map (Config.make_path app_dir) Config.ky_paths
-                (lib, _) <- either Except.throwError return
-                    =<< liftIO (Ky.load paths ky_fname)
+                (lib, _) <- tryRight =<< liftIO (Ky.load paths ky_fname)
                 return (state, lib)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
-require_right io = either Except.throwError return =<< liftIO io
+require_right io = tryRight =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.
 load_cmd_config :: IO Cmd.Config

@@ -374,7 +374,7 @@ encode_spec config path rmap (name, spec) = case spec of
             Just specs -> return specs
             Nothing -> throw $ "not found in union "
                 <> show (map fst enum_specs) <> ": " <> untxt enum
-        bytes <- either Except.throwError return $ run_encode $
+        bytes <- tryRight $ run_encode $
             mapM_ (encode_spec config (name:path) union_rmap) specs
         Writer.tell $ Builder.byteString $ bytes
             <> B.replicate (nbytes - B.length bytes) 0

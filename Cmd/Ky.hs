@@ -63,16 +63,16 @@ cached_load :: Cmd.State -> FilePath
 cached_load state fname = run $ case Cmd.state_ky_cache state of
     Just (Cmd.PermanentKy _) -> return Nothing
     _ -> do
-        dir <- require ("need a SaveFile to find " <> showt fname) $
+        dir <- tryJust ("need a SaveFile to find " <> showt fname) $
             Cmd.state_save_dir state
         let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
-        new_fprint <- require_right =<< liftIO (get_fingerprint loaded_files)
+        new_fprint <- tryRight =<< liftIO (get_fingerprint loaded_files)
         let fresh = new_fprint == old_fprint
                 && not (null loaded_files)
                 -- If loaded_files = [], then I have to always try to load
                 -- to detect the no ky -> ky transition.
         if fresh then return Nothing else do
-            (lib, fingerprint) <- require_right =<< liftIO (load paths fname)
+            (lib, fingerprint) <- tryRight =<< liftIO (load paths fname)
             return $ Just (Right lib, fingerprint)
     where
     run = fmap map_error . Except.runExceptT
@@ -83,8 +83,6 @@ cached_load state fname = run $ case Cmd.state_ky_cache state of
         Just (Cmd.KyCache (Left _) _) -> Nothing
         _ -> Just (Left msg, mempty)
     map_error (Right val) = val
-    require msg = maybe (Except.throwError msg) return
-    require_right = either Except.throwError return
 
     old_fprint@(Cmd.Fingerprint loaded_files _) =
         case Cmd.state_ky_cache state of

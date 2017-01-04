@@ -126,7 +126,7 @@ run m = do
     return (length errors)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
-require_right io = either Except.throwError return =<< liftIO io
+require_right io = tryRight =<< liftIO io
 
 -- * implementation
 
