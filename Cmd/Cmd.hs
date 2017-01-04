@@ -39,10 +39,12 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 
+import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Time as Time
+import qualified Data.Word as Word
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -408,11 +410,26 @@ state_save_dir state = path state . Config.RelativePath <$>
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache =
-    KyCache !(Either Text Derive.Library) !(Map.Map FilePath Time.UTCTime)
+    KyCache !(Either Text Derive.Library) !Fingerprint
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
     | PermanentKy !Derive.Library
     deriving (Show)
+
+-- | Keep track of loaded files and a fingerprint for their contents.  This is
+-- used to detect when they should be reloaded.
+data Fingerprint = Fingerprint ![FilePath] !Word.Word32
+    deriving (Eq, Show)
+
+instance Monoid Fingerprint where
+    mempty = Fingerprint [] 0
+    mappend (Fingerprint fnames1 fprint1) (Fingerprint fnames2 fprint2) =
+        Fingerprint (fnames1<>fnames2) (CRC32.crc32Update fprint1 fprint2)
+
+fingerprint :: [(FilePath, Text)] -> Fingerprint
+fingerprint files =
+    Fingerprint fnames (List.foldl' CRC32.crc32Update 0 contents)
+    where (fnames, contents) = unzip files
 
 initial_state :: Config -> State
 initial_state config = State

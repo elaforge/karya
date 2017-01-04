@@ -6,6 +6,7 @@ module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -260,14 +261,15 @@ test_load_ky = do
     left_like v "ky file not found: lib2"
 
     writeFile (lib </> "lib2") $ make_ky [] ["lib2-call"]
-    [lib1, lib2, defs] <- mapM Directory.getModificationTime
+    [lib1, lib2, defs] <- mapM Text.IO.readFile
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
-    io_equal load $
-        Right (["defs-call", "lib1-call", "lib2-call"],
-            [ (dir </> "defs", defs)
-            , (lib </> "lib1", lib1)
-            , (lib </> "lib2", lib2)
-            ])
+    io_equal load $ Right
+        ( ["defs-call", "lib1-call", "lib2-call"]
+        , [ (dir </> "defs", defs)
+          , (lib </> "lib1", lib1)
+          , (lib </> "lib2", lib2)
+          ]
+        )
 
 e_expr :: Parse.Expr -> [(BaseTypes.CallId, [Text])]
 e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls

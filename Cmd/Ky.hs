@@ -14,9 +14,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
-import qualified Data.Time as Time
+import qualified Data.Text.IO as Text.IO
 
-import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
@@ -60,20 +59,21 @@ update_cache ui_state cmd_state = case ky_file of
 -- | Load a definition file if the cache is out of date.  Nothing if the cache
 -- is up to date.
 cached_load :: Cmd.State -> FilePath
-    -> IO (Maybe (Either Text Derive.Library, Map.Map FilePath Time.UTCTime))
+    -> IO (Maybe (Either Text Derive.Library, Cmd.Fingerprint))
 cached_load state fname = run $ case Cmd.state_ky_cache state of
     Just (Cmd.PermanentKy _) -> return Nothing
     _ -> do
         dir <- require ("need a SaveFile to find " <> showt fname) $
             Cmd.state_save_dir state
         let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
-        current_timestamps <- require_right
-            =<< liftIO (get_timestamps (Map.keys cached_timestamps))
-        let fresh = not (Map.null cached_timestamps)
-                && current_timestamps == cached_timestamps
+        new_fprint <- require_right =<< liftIO (get_fingerprint loaded_files)
+        let fresh = new_fprint == old_fprint
+                && not (null loaded_files)
+                -- If loaded_files = [], then I have to always try to load
+                -- to detect the no ky -> ky transition.
         if fresh then return Nothing else do
-            (lib, timestamps) <- require_right =<< liftIO (load paths fname)
-            return $ Just (Right lib, timestamps)
+            (lib, fingerprint) <- require_right =<< liftIO (load paths fname)
+            return $ Just (Right lib, fingerprint)
     where
     run = fmap map_error . Except.runExceptT
     map_error (Left msg) = case Cmd.state_ky_cache state of
@@ -85,20 +85,22 @@ cached_load state fname = run $ case Cmd.state_ky_cache state of
     map_error (Right val) = val
     require msg = maybe (Except.throwError msg) return
     require_right = either Except.throwError return
-    cached_timestamps = case Cmd.state_ky_cache state of
-        Just (Cmd.KyCache _ timestamps) -> timestamps
-        _ -> mempty
 
-get_timestamps :: [FilePath] -> IO (Either Text (Map.Map FilePath Time.UTCTime))
-get_timestamps fns = fmap map_error . File.tryIO $ do
-    mtimes <- mapM
-        (liftIO . File.ignoreEnoent . Directory.getModificationTime) fns
-    return $ Map.fromList [(fn, mtime) | (fn, Just mtime) <- zip fns mtimes]
+    old_fprint@(Cmd.Fingerprint loaded_files _) =
+        case Cmd.state_ky_cache state of
+            Just (Cmd.KyCache _ fprint) -> fprint
+            _ -> mempty
+
+get_fingerprint :: [FilePath] -> IO (Either Text Cmd.Fingerprint)
+get_fingerprint fns = fmap map_error . File.tryIO $ do
+    contents <- mapM (liftIO . File.ignoreEnoent . Text.IO.readFile) fns
+    return $
+        Cmd.fingerprint [(fn, content) | (fn, Just content) <- zip fns contents]
     where
-    map_error = first (("get_timestamps: "<>) . showt)
+    map_error = first (("get_fingerprint: "<>) . showt)
 
 load :: [FilePath] -> FilePath
-    -> IO (Either Text (Derive.Library, Map.Map FilePath Time.UTCTime))
+    -> IO (Either Text (Derive.Library, Cmd.Fingerprint))
 load paths fname = Parse.load_ky paths fname >>= \result -> case result of
     Left err -> return $ Left err
     Right (defs, imported) -> do
@@ -109,7 +111,7 @@ load paths fname = Parse.load_ky paths fname >>= \result -> case result of
         forM_ (Library.shadowed lib) $ \((name, _), calls) ->
             Log.warn $ "definitions in " <> showt fname
                 <> " " <> name <> " shadowed: " <> pretty calls
-        return $ Right (lib, Map.fromList imported)
+        return $ Right (lib, Cmd.fingerprint imported)
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val aliases) =

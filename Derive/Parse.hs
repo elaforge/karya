@@ -32,10 +32,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Time as Time
 import qualified Data.Traversable as Traversable
 
-import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.File as File
@@ -449,8 +447,8 @@ is_whitespace c = c == ' ' || c == '\t'
 -- | Load a ky file and all other files it imports.  'parse_ky' describes the
 -- format of the ky file.
 load_ky :: [FilePath] -> FilePath
-    -> IO (Either Text (Definitions, [(FilePath, Time.UTCTime)]))
-    -- ^ (all_definitions, [(import_path, mtime)])
+    -> IO (Either Text (Definitions, [(FilePath, Text)]))
+    -- ^ (all_definitions, [(import_filename, content)])
 load_ky paths fname =
     catch_io (txt fname) $
         fmap annotate . Except.runExceptT $ load Set.empty [fname]
@@ -459,25 +457,24 @@ load_ky paths fname =
     load loaded (lib:libs)
         | lib `Set.member` loaded = return []
         | otherwise = do
-            (fname, timestamp) <- expect_right =<< liftIO (find_ky paths lib)
-            content <- liftIO $ Text.IO.readFile fname
+            (fname, content) <- expect_right =<< liftIO (find_ky paths lib)
             (imports, defs) <- expect_right $ parse_ky fname content
-            ((defs, (fname, timestamp)) :) <$>
+            ((defs, (fname, content)) :) <$>
                 load (Set.insert lib loaded) (libs ++ imports)
     expect_right = either Except.throwError return
     annotate (Left err) = Left $ txt fname <> ": " <> err
     annotate (Right results) = Right (mconcat defs, loaded)
         where (defs, loaded) = unzip results
 
--- | Find the file in the given paths and return its modification time.
-find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Time.UTCTime))
+-- | Find the file in the given paths and return its filename and contents.
+find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Text))
 find_ky paths fname =
     catch_io (txt fname) $ justErr msg <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
     msg = "ky file not found: " <> txt fname <> " (searched "
         <> Text.intercalate ", " (map txt paths) <> ")"
-    get fn = File.ignoreEnoent $ (,) fn <$> Directory.getModificationTime fn
+    get fn = File.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
 
 -- | Catch any IO exceptions and put them in Left.
 catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)

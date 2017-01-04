@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - More things for Global: Data.Map, Data.Set, List.foldl'
   * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:
     . traceback:
@@ -230,6 +231,23 @@ UNSORTED
     . I could implicitly wrap everything in global, and then expect the
       global transform to contain a "note transformer: global = ...".
     . The only thing is that this doesn't display so compactly in logview.
+    . I can also start using this for text-based score, and for nicer
+      integration between textual and graphical score.
+  - Implement local_ky.
+    . Like ky_file, but has the contents instead of a filename, has the text.
+    . It can still import external .ky files, so it needs to be integrated
+      with the cache.
+    * Replace the filename timestamp with a fprint.  I think I just need
+      one with all the loaded files?
+      . It uses all timestamps together, right?
+    . Can I get rid of the Cmd.state_ky_cache=Nothing case by just using an
+      empty fingerprint?
+    . Load everything, with old fprint.  If fprint has changed, then emit the
+      new library plus score damage.  Really the point of the cache is to
+      avoid score damage, not avoid reading files.
+      . Or does it?  Directory.getModificationTime should be a lot faster
+        than reading the whole file, and I do call Ky.update_cache on every
+        respond cycle.  I could still use the fprint of the modification time.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
