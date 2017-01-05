@@ -93,7 +93,9 @@ echo 'Generating hpc markup in the background...'
     else
         nontest=
     fi
-    hpc sum --union --output=RunTests.tix $tmp/*.tix
+    if [[ -n $(echo $tmp/*.tix(N)) ]]; then
+        hpc sum --union --output=RunTests.tix $tmp/*.tix
+    fi
     hpc markup --destdir=build/hpc $nontest RunTests.tix | grep -v Writing
     # I'm more used to typing index.html
     (cd build/hpc && ln -fs hpc_index.html index.html)
