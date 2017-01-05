@@ -7,7 +7,7 @@ import qualified Data.Vector as Vector
 
 import Util.Test
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -24,7 +24,7 @@ import qualified Derive.Score as Score
 -- TODO Do some full-cycle tests.
 
 test_modify_tempo = do
-    let ustate = UiTest.exec State.empty $ do
+    let ustate = UiTest.exec Ui.empty $ do
             UiTest.mkblock_view (UiTest.default_block_name,
                 [ ("tempo", [(0, 0, "1")])
                 , (">i1", [(0, 1, ""), (1, 1, "")])
@@ -33,8 +33,8 @@ test_modify_tempo = do
             rid <- Create.ruler "meter44" $
                 RulerUtil.meter_ruler Meter.default_config 16
                     (replicate 4 Meters.m44_4)
-            ruler <- State.get_ruler rid
-            State.modify_ruler UiTest.default_ruler_id (const (Right ruler))
+            ruler <- Ui.get_ruler rid
+            Ui.modify_ruler UiTest.default_ruler_id (const (Right ruler))
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
     results <- ResponderTest.thread False (ustate, cstate)
         -- Delete the tempo and set it to 2.

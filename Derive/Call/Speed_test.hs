@@ -4,7 +4,7 @@
 
 module Derive.Call.Speed_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -16,7 +16,7 @@ import Types
 
 test_starts = do
     let f speed range include_end =
-            DeriveTest.eval State.empty (Speed.starts speed range include_end)
+            DeriveTest.eval Ui.empty (Speed.starts speed range include_end)
         score_control = BaseTypes.ControlSignal . Score.Typed Score.Score
             . Signal.constant
     equal (f (BaseTypes.constant_control 1) (1 :: RealTime, 4) True)

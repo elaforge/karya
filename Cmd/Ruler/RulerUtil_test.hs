@@ -10,7 +10,7 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
@@ -63,14 +63,14 @@ test_local = do
     equal (f (RulerUtil.Section 1))
         (["s1", "s1", "s2", "s2"], [("s1", xy), unmodified 2])
 
-run :: State.StateId z -> State.StateId a -> (a, State.State)
-run make action = UiTest.run State.empty (make >> action)
+run :: Ui.StateId z -> Ui.StateId a -> (a, Ui.State)
+run make action = UiTest.run Ui.empty (make >> action)
 
 -- | Make a block with two ruler sections.
 -- TODO I also want to make sure only the section ruler id is set.
-make_sections :: State.M m => m ()
+make_sections :: Ui.M m => m ()
 make_sections = do
-    State.set_namespace UiTest.test_ns
+    Ui.set_namespace UiTest.test_ns
     r1 <- Create.ruler "s1" (mk_ruler ["s1"])
     t1 <- mktrack 1
     r2 <- Create.ruler "s2" (mk_ruler ["s2"])
@@ -79,22 +79,22 @@ make_sections = do
         [ Block.RId r1, Block.TId t1 r1
         , Block.RId r2, Block.TId t2 r2
         ]
-    State.set_skeleton block_id =<< UiTest.parse_skeleton block_id
+    Ui.set_skeleton block_id =<< UiTest.parse_skeleton block_id
     where
     block_id = UiTest.default_block_id
-    mktrack n = State.create_track
+    mktrack n = Ui.create_track
         (Id.unpack_id (UiTest.mk_tid_block block_id n))
         (UiTest.empty_track ">")
 
-make_no_ruler :: State.M m => Int -> m ()
+make_no_ruler :: Ui.M m => Int -> m ()
 make_no_ruler ntracks =
-    void $ UiTest.mkblock_ruler State.no_ruler
+    void $ UiTest.mkblock_ruler Ui.no_ruler
         UiTest.default_block_id "" (replicate ntracks (">", []))
 
-run_marks :: Int -> Maybe [Mark] -> State.StateId a -> (a, State.State)
-run_marks ntracks marks action = UiTest.run State.empty $ do
+run_marks :: Int -> Maybe [Mark] -> Ui.StateId a -> (a, Ui.State)
+run_marks ntracks marks action = UiTest.run Ui.empty $ do
     case marks of
-        Nothing -> UiTest.mkblock_ruler State.no_ruler
+        Nothing -> UiTest.mkblock_ruler Ui.no_ruler
             UiTest.default_block_id "" tracks
         Just marks ->
             UiTest.mkblock_marklist (mk_marklist marks)
@@ -104,14 +104,14 @@ run_marks ntracks marks action = UiTest.run State.empty $ do
 
 type Mark = Text
 
-track_rulers :: State.State -> [Text]
+track_rulers :: Ui.State -> [Text]
 track_rulers = map Id.ident_name . Block.ruler_ids_of
     . map Block.tracklike_id . Block.block_tracks . head . Map.elems
-    . State.state_blocks
+    . Ui.state_blocks
 
-extract_rulers :: State.State -> [(Text, (Maybe Ruler.MeterType, [Text]))]
+extract_rulers :: Ui.State -> [(Text, (Maybe Ruler.MeterType, [Text]))]
 extract_rulers =
-    map (Id.ident_name *** extract) . Map.toList . State.state_rulers
+    map (Id.ident_name *** extract) . Map.toList . Ui.state_rulers
     where
     extract ruler =
         (mtype, map (Ruler.mark_name . snd) (Ruler.ascending 0 mlist))

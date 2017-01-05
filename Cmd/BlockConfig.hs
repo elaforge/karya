@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Update as Update
 
@@ -39,7 +39,7 @@ cmd_toggle_edge msg = do
     clicked_tracknum <- Cmd.abort_unless $ clicked_track msg
     -- The click order goes in the arrow direction, parent to child.
     let edge = (sel_tracknum, clicked_tracknum)
-    success <- State.toggle_skeleton_edge False block_id edge
+    success <- Ui.toggle_skeleton_edge False block_id edge
     unless success $
         Log.warn $ "refused to add cycle-creating edge: " <> showt edge
     -- The shift below is incorrect.  Anyway, a common case is to splice
@@ -57,7 +57,7 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 
 -- | Merge all adjacent note/pitch pairs.  If they're already all merged,
 -- unmerge them all.
-toggle_merge_all :: State.M m => BlockId -> m ()
+toggle_merge_all :: Ui.M m => BlockId -> m ()
 toggle_merge_all block_id = toggle_merge block_id =<< Info.block_tracks block_id
 
 toggle_merge_selected :: Cmd.M m => m ()
@@ -65,16 +65,16 @@ toggle_merge_selected = do
     (block_id, tracknums) <- Selection.tracknums
     tracks <- Info.block_tracks block_id
     toggle_merge block_id $ filter
-        ((`elem` tracknums) . State.track_tracknum . Info.track_info) tracks
+        ((`elem` tracknums) . Ui.track_tracknum . Info.track_info) tracks
 
-toggle_merge :: State.M m => BlockId -> [Info.Track] -> m ()
+toggle_merge :: Ui.M m => BlockId -> [Info.Track] -> m ()
 toggle_merge block_id tracks =
     ifM (andM (map (track_merged block_id) tracknums))
-        (mapM_ (State.unmerge_track block_id) tracknums)
+        (mapM_ (Ui.unmerge_track block_id) tracknums)
         (mapM_ (merge_track block_id) tracknums)
     where
     tracknums = no_parents
-        [ State.track_tracknum note
+        [ Ui.track_tracknum note
         | Info.Track note (Info.Note {}) <- tracks
         ]
     -- A note track parent can't merge, so don't count it.
@@ -82,21 +82,21 @@ toggle_merge block_id tracks =
     no_parents (t:ts) = t : no_parents ts
     no_parents [] = []
 
-merge_track :: State.M m => BlockId -> TrackNum -> m ()
+merge_track :: Ui.M m => BlockId -> TrackNum -> m ()
 merge_track block_id tracknum =
     whenM (is_control_or_pitch block_id (tracknum + 1)) $
-        State.merge_track block_id tracknum (tracknum + 1)
+        Ui.merge_track block_id tracknum (tracknum + 1)
 
-track_merged :: State.M m => BlockId -> TrackNum -> m Bool
+track_merged :: Ui.M m => BlockId -> TrackNum -> m Bool
 track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
-    State.get_block_track_at block_id tracknum
+    Ui.get_block_track_at block_id tracknum
 
-is_control_or_pitch :: State.M m => BlockId -> TrackNum -> m Bool
+is_control_or_pitch :: Ui.M m => BlockId -> TrackNum -> m Bool
 is_control_or_pitch block_id tracknum =
-    State.event_track_at block_id tracknum >>= \x -> case x of
+    Ui.event_track_at block_id tracknum >>= \x -> case x of
         Nothing -> return False
         Just track_id -> do
-            ttype <- ParseTitle.track_type <$> State.get_track_title track_id
+            ttype <- ParseTitle.track_type <$> Ui.get_track_title track_id
             return $ ttype
                 `elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]
 
@@ -111,53 +111,53 @@ cmd_open_block = do
 cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()
 cmd_add_block_title _ = do
     view_id <- Cmd.get_focused_view
-    block_id <- Block.view_block <$> State.get_view view_id
-    title <- State.get_block_title block_id
+    block_id <- Block.view_block <$> Ui.get_view view_id
+    title <- Ui.get_block_title block_id
     when (Text.null title) $
-        State.set_block_title block_id " "
-    State.update $ Update.CmdTitleFocus view_id Nothing
+        Ui.set_block_title block_id " "
+    Ui.update $ Update.CmdTitleFocus view_id Nothing
 
 -- * collapse / expand tracks
 
 -- | Collapse all the children of this track.
-collapse_children :: State.M m => BlockId -> TrackId -> m ()
+collapse_children :: Ui.M m => BlockId -> TrackId -> m ()
 collapse_children block_id track_id = do
-    children <- State.require ("no children: " <> showt track_id)
+    children <- Ui.require ("no children: " <> showt track_id)
         =<< TrackTree.children_of block_id track_id
-    forM_ children $ \track -> State.add_track_flag
-        block_id (State.track_tracknum track) Block.Collapse
+    forM_ children $ \track -> Ui.add_track_flag
+        block_id (Ui.track_tracknum track) Block.Collapse
 
 -- | Expand all collapsed children of this track.  Tracks that were merged
 -- when they were collapsed will be left merged.
-expand_children :: State.M m => BlockId -> TrackId -> m ()
+expand_children :: Ui.M m => BlockId -> TrackId -> m ()
 expand_children block_id track_id = do
-    children <- State.require ("no children: " <> showt track_id)
+    children <- Ui.require ("no children: " <> showt track_id)
         =<< TrackTree.children_of block_id track_id
     merged <- mconcatMap Block.track_merged . Block.block_tracks
-        <$> State.get_block block_id
+        <$> Ui.get_block block_id
     forM_ children $ \track ->
-        when (Set.member (State.track_id track) merged) $
-            State.remove_track_flag
-                block_id (State.track_tracknum track) Block.Collapse
+        when (Set.member (Ui.track_id track) merged) $
+            Ui.remove_track_flag
+                block_id (Ui.track_tracknum track) Block.Collapse
 
 -- * merge blocks
 
-append :: State.M m => BlockId -> BlockId -> m ()
+append :: Ui.M m => BlockId -> BlockId -> m ()
 append dest source = do
     -- By convention the first track is just a ruler.
-    tracks <- drop 1 . Block.block_tracks <$> State.get_block source
-    tracknum <- State.track_count dest
+    tracks <- drop 1 . Block.block_tracks <$> Ui.get_block source
+    tracknum <- Ui.track_count dest
     tracknum <- if tracknum <= 1 then return tracknum else do
-        State.insert_track dest tracknum Block.divider
+        Ui.insert_track dest tracknum Block.divider
         return (tracknum + 1)
     forM_ (zip [tracknum..] tracks) $ \(i, track) ->
-        State.insert_track dest i track
-    skel <- State.get_skeleton dest
-    edges <- Skeleton.flatten <$> State.get_skeleton source
+        Ui.insert_track dest i track
+    skel <- Ui.get_skeleton dest
+    edges <- Skeleton.flatten <$> Ui.get_skeleton source
     let offset = tracknum - 1 -- -1 because I dropped the first track.
-    skel <- State.require "couldn't add edges to skel" $
+    skel <- Ui.require "couldn't add edges to skel" $
         Skeleton.add_edges [(s+offset, e+offset) | (s, e) <- edges] skel
-    State.set_skeleton dest skel
+    Ui.set_skeleton dest skel
 
 -- * track
 
@@ -169,17 +169,17 @@ append dest source = do
 cmd_toggle_flag :: Cmd.M m => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    flags <- mapM (State.track_flags block_id) tracknums
+    flags <- mapM (Ui.track_flags block_id) tracknums
     let set = any (Set.member flag) flags
     forM_ tracknums $ \tracknum -> if set
-        then State.remove_track_flag block_id tracknum flag
-        else State.add_track_flag block_id tracknum flag
+        then Ui.remove_track_flag block_id tracknum flag
+        else Ui.add_track_flag block_id tracknum flag
 
 cmd_toggle_flag_clicked :: Cmd.M m => Block.TrackFlag -> Msg.Msg -> m ()
 cmd_toggle_flag_clicked flag msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
-    State.toggle_track_flag block_id tracknum flag
+    Ui.toggle_track_flag block_id tracknum flag
 
 -- | Enable Solo on the track and disable Mute.  It's bound to a double click
 -- so when this cmd fires I have to do undo the results of the single click.
@@ -188,18 +188,18 @@ cmd_set_solo :: Cmd.M m => Msg.Msg -> m ()
 cmd_set_solo msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
-    State.remove_track_flag block_id tracknum Block.Mute
-    State.toggle_track_flag block_id tracknum Block.Solo
+    Ui.remove_track_flag block_id tracknum Block.Mute
+    Ui.toggle_track_flag block_id tracknum Block.Solo
 
 -- | Unset solo if it's set, otherwise toggle the mute flag.
 cmd_mute_or_unsolo :: Cmd.M m => Msg.Msg -> m ()
 cmd_mute_or_unsolo msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless $ clicked_track msg
-    flags <- State.track_flags block_id tracknum
+    flags <- Ui.track_flags block_id tracknum
     if Block.Solo `Set.member` flags
-        then State.remove_track_flag block_id tracknum Block.Solo
-        else State.toggle_track_flag block_id tracknum Block.Mute
+        then Ui.remove_track_flag block_id tracknum Block.Solo
+        else Ui.toggle_track_flag block_id tracknum Block.Mute
 
 cmd_expand_track :: Cmd.M m => Msg.Msg -> m ()
 cmd_expand_track msg = do
@@ -207,14 +207,14 @@ cmd_expand_track msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     expand_or_unmerge block_id tracknum
 
-expand_or_unmerge :: State.M m => BlockId -> TrackNum -> m ()
+expand_or_unmerge :: Ui.M m => BlockId -> TrackNum -> m ()
 expand_or_unmerge block_id tracknum = do
-    track_id <- State.get_event_track_at block_id tracknum
-    btracks <- zip [0..] . Block.block_tracks <$> State.get_block block_id
+    track_id <- Ui.get_event_track_at block_id tracknum
+    btracks <- zip [0..] . Block.block_tracks <$> Ui.get_block block_id
     case List.find (Set.member track_id . Block.track_merged . snd) btracks of
         Just (merged_tracknum, _) ->
-            State.unmerge_track block_id merged_tracknum
-        Nothing -> State.remove_track_flag block_id tracknum Block.Collapse
+            Ui.unmerge_track block_id merged_tracknum
+        Nothing -> Ui.remove_track_flag block_id tracknum Block.Collapse
 
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()
@@ -227,9 +227,9 @@ cmd_move_tracks msg = do
     whenJust (Seq.minimum_on abs $ map (clicked-) tracknums) $
         Selection.shift False Selection.Move
 
-move_tracks :: State.M m => BlockId -> [TrackNum] -> TrackNum -> m ()
+move_tracks :: Ui.M m => BlockId -> [TrackNum] -> TrackNum -> m ()
 move_tracks block_id sources dest =
-    mapM_ (uncurry (State.move_track block_id)) moves
+    mapM_ (uncurry (Ui.move_track block_id)) moves
     where
     moves -- Start at the last source, then insert at the dest counting down.
         | any (<dest) sources =

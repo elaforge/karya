@@ -5,7 +5,7 @@
 module Derive.Scale.BohlenPierce_test where
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -43,7 +43,7 @@ test_input_to_note = do
         ["2h", "2i"] ++ replicate 5 "invalid input"
 
 test_input_to_nn = do
-    let f input = second (first prettys) $ DeriveTest.eval State.empty $
+    let f input = second (first prettys) $ DeriveTest.eval Ui.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
     equalf 0.001 (f (ascii 4 0)) $ Right (Right NN.middle_c)

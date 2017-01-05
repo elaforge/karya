@@ -14,7 +14,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.BaseTypes as BaseTypes
@@ -64,7 +64,7 @@ convert source_block stream = do
     let lookup_call = maybe mempty Patch.patch_call_map
             . (Inst.inst_midi . Cmd.inst_instrument <=< lookup_inst)
     default_scale_id <- Perf.default_scale_id
-    tracknums <- Map.fromList <$> State.tracknums_of source_block
+    tracknums <- Map.fromList <$> Ui.tracknums_of source_block
     let (events, logs) = Stream.partition stream
         (tracks, errs) = integrate (lookup_call, default_scale_id)
             tracknums events

@@ -12,7 +12,7 @@ import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Transform as Transform
 import qualified Ui.Update as Update
 
@@ -93,8 +93,8 @@ undo = do
                 { Cmd.hist_last_commit = Cmd.hist_commit prev }
             }
         -- This should be safe because these are just saved previous states.
-        State.unsafe_modify $ merge_undo_states (Cmd.hist_state prev)
-        mapM_ State.update updates
+        Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state prev)
+        mapM_ Ui.update updates
     load_prev repo = load_history "load_previous_history" $
         SaveGit.load_previous_history repo
 
@@ -126,8 +126,8 @@ redo = do
                 { Cmd.hist_last_commit = Cmd.hist_commit next }
             }
         -- This should be safe because these are just saved previous states.
-        State.unsafe_modify $ merge_undo_states (Cmd.hist_state next)
-        mapM_ State.update (Cmd.hist_updates next)
+        Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state next)
+        mapM_ Ui.update (Cmd.hist_updates next)
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo
 
@@ -136,7 +136,7 @@ hist_name hist = "[" <> Text.intercalate ", " (Cmd.hist_names hist) <> "] "
     <> pretty (Cmd.hist_commit hist)
 
 load_history :: Text
-    -> (State.State -> SaveGit.Commit
+    -> (Ui.State -> SaveGit.Commit
         -> IO (Either Text (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
@@ -156,14 +156,14 @@ load_history name load hist = case Cmd.hist_commit hist of
 -- | There are certain parts of the state that I don't want to undo, so
 -- inherit them from the old state.  It's confusing when undo moves a window,
 -- or a selection, or changes the zoom.
-merge_undo_states :: State.State -> State.State -> State.State
+merge_undo_states :: Ui.State -> Ui.State -> Ui.State
 merge_undo_states new old =
     (Transform.replace_namespace Config.clip_namespace old new)
-    { State.state_views = Map.mapWithKey
-        (merge_view (State.state_views old)) (State.state_views new)
-    , State.state_blocks = Map.mapWithKey
-        (merge_block (State.state_blocks old)) (State.state_blocks new)
-    -- Previously I would keep the old State.state_config.  I don't remember
+    { Ui.state_views = Map.mapWithKey
+        (merge_view (Ui.state_views old)) (Ui.state_views new)
+    , Ui.state_blocks = Map.mapWithKey
+        (merge_block (Ui.state_blocks old)) (Ui.state_blocks new)
+    -- Previously I would keep the old Ui.state_config.  I don't remember
     -- exactly why, but it turned out to be confusing when I couldn't undo
     -- config changes.
     }
@@ -191,8 +191,7 @@ is_clip_update = maybe False ((==Config.clip_namespace) . Id.id_namespace)
 --
 -- It's called by the responder after the Cmds are run and the updates are
 -- available.
-maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
-    -> IO Cmd.State
+maintain_history :: Ui.State -> Cmd.State -> [Update.UiUpdate] -> IO Cmd.State
 maintain_history ui_state cmd_state updates =
     save_history cmd_state hist collect uncommitted
     where
@@ -291,7 +290,7 @@ history_entry commit (SaveGit.SaveHistory state _ updates names) =
 -- | Integrate the latest updates into the history.  This could mean
 -- accumulating them if history record is suppressed, or putting them into
 -- new 'SaveGit.SaveHistory's if it isn't.
-update_history :: [Update.UiUpdate] -> State.State -> Cmd.State
+update_history :: [Update.UiUpdate] -> Ui.State -> Cmd.State
     -> (Cmd.History, Cmd.HistoryCollect, [SaveGit.SaveHistory])
 update_history updates ui_state cmd_state
     | Just (Cmd.Load commit names) <- Cmd.hist_last_cmd hist =
@@ -319,7 +318,7 @@ update_history updates ui_state cmd_state
 -- There may be no saveable history if this cmd doesn't need to be recorded
 -- or was suppressed, and there may be more than one if a suppressed history
 -- must now be recorded.
-record_history :: [Update.UiUpdate] -> State.State -> Cmd.State
+record_history :: [Update.UiUpdate] -> Ui.State -> Cmd.State
     -> ([SaveGit.SaveHistory], Cmd.HistoryCollect)
 record_history updates ui_state cmd_state
     | not is_recordable && Maybe.isNothing suppress =

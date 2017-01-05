@@ -6,7 +6,7 @@ module Cmd.NoteTrack_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
@@ -167,13 +167,13 @@ run :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Either String [UiTest.TrackSpec]
 run track_specs cmd = CmdTest.trace_logs $
     CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 
-type States = (State.State, Cmd.State)
+type States = (Ui.State, Cmd.State)
 
 -- | Thread a bunch of msgs through the command with the selection set to
 -- (1, 0).
 thread :: [String] -> (Cmd.State -> Cmd.State)
     -> (Msg.Msg -> Cmd.CmdId Cmd.Status)
-    -> [Msg.Msg] -> Either String (State.State, Cmd.State)
+    -> [Msg.Msg] -> Either String (Ui.State, Cmd.State)
 thread tracks modify_cmd_state cmd msgs =
     CmdTest.thread_tracks [(t, []) | t <- tracks] modify_cmd_state
         (CmdTest.set_point_sel 1 0 : map cmd msgs)

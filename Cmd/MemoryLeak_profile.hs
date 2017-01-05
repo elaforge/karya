@@ -18,7 +18,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import Util.Testing
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -101,7 +101,7 @@ type Latency = (Text, ResponderTest.Seconds)
 thread :: ResponderTest.States -> [Cmd.CmdT IO ()] -> IO [([Latency], Bytes)]
 thread states (mod:mods) = do
     root_id <- maybe (errorIO "no root block") return $
-        State.config#State.root #$ fst states
+        Ui.config#Ui.root #$ fst states
     states <- return $ strip_states states
     (latency, result) <- strip_results <$>
         ResponderTest.respond_until (is_complete root_id) timeout states mod
@@ -220,7 +220,7 @@ strip_dynamic dyn = dyn
     }
 
 only_derive_root :: ResponderTest.States -> ResponderTest.States
-only_derive_root = first $ State.views #= mempty
+only_derive_root = first $ Ui.views #= mempty
 
 force_performances :: ResponderTest.Result -> IO ()
 force_performances result = do

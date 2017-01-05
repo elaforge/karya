@@ -15,7 +15,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -25,19 +25,19 @@ import Types
 
 
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
-type TrackTree = [Tree.Tree State.TrackInfo]
+type TrackTree = [Tree.Tree Ui.TrackInfo]
 
-tracks_of :: State.M m => BlockId -> m [State.TrackInfo]
+tracks_of :: Ui.M m => BlockId -> m [Ui.TrackInfo]
 tracks_of block_id = do
-    block <- State.get_block block_id
-    state <- State.get
-    return $ track_info block (State.state_tracks state)
+    block <- Ui.get_block block_id
+    state <- Ui.get
+    return $ track_info block (Ui.state_tracks state)
     where
     track_info block tracks = do
         (i, btrack@(Block.Track { Block.tracklike_id = Block.TId tid _}))
             <- zip [0..] (Block.block_tracks block)
         track <- maybe [] (:[]) (Map.lookup tid tracks)
-        return $ State.TrackInfo
+        return $ Ui.TrackInfo
             { track_title = Track.track_title track
             , track_id = tid
             , track_tracknum = i
@@ -45,11 +45,11 @@ tracks_of block_id = do
             }
 
 -- | Return @(parents, self : children)@.
-parents_children_of :: State.M m => BlockId -> TrackId
-    -> m (Maybe ([State.TrackInfo], [State.TrackInfo]))
+parents_children_of :: Ui.M m => BlockId -> TrackId
+    -> m (Maybe ([Ui.TrackInfo], [Ui.TrackInfo]))
 parents_children_of block_id track_id = do
     tree <- track_tree_of block_id
-    case List.find (\(t, _, _) -> State.track_id t == track_id)
+    case List.find (\(t, _, _) -> Ui.track_id t == track_id)
             (Tree.flat_paths tree) of
         Nothing -> return Nothing
         Just (track, parents, children) ->
@@ -57,7 +57,7 @@ parents_children_of block_id track_id = do
 
 -- | This is like 'parents_children_of', but only the children, and it doesn't
 -- include the given TrackId.
-children_of :: State.M m => BlockId -> TrackId -> m (Maybe [State.TrackInfo])
+children_of :: Ui.M m => BlockId -> TrackId -> m (Maybe [Ui.TrackInfo])
 children_of block_id track_id =
     parents_children_of block_id track_id >>= \x -> return $ case x of
         Just (_, _ : children) -> Just children
@@ -70,21 +70,20 @@ children_of block_id track_id =
 -- away.  But that would mean redoing all the "Ui.Skeleton" operations for
 -- trees.  And the reason I didn't do it in the first place was the hassle of
 -- graph operations on a Data.Tree.
-track_tree_of :: State.M m => BlockId -> m TrackTree
+track_tree_of :: Ui.M m => BlockId -> m TrackTree
 track_tree_of block_id = do
-    skel <- State.get_skeleton block_id
+    skel <- Ui.get_skeleton block_id
     tracks <- tracks_of block_id
-    ntracks <- fmap (length . Block.block_tracklike_ids)
-        (State.get_block block_id)
+    ntracks <- fmap (length . Block.block_tracklike_ids) (Ui.get_block block_id)
     let by_tracknum = Map.fromList $
-            zip (map State.track_tracknum tracks) tracks
+            zip (map Ui.track_tracknum tracks) tracks
     let (resolved, missing) = resolve_track_tree by_tracknum
             (Skeleton.to_forest ntracks skel)
     -- Rulers and dividers should show up as missing.  They're ok as long as
     -- they have no edges.
     let really_missing = filter (not . Skeleton.lonely_vertex skel) missing
     unless (null really_missing) $
-        State.throw $ "skeleton of " <> showt block_id
+        Ui.throw $ "skeleton of " <> showt block_id
             <> " names missing tracknums: " <> showt really_missing
     return resolved
 
@@ -103,14 +102,14 @@ resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
         Nothing -> (forest, missing ++ all_missing)
         Just tree -> (tree : forest, missing ++ all_missing)
 
-strip_disabled_tracks :: State.M m => BlockId -> TrackTree -> m TrackTree
+strip_disabled_tracks :: Ui.M m => BlockId -> TrackTree -> m TrackTree
 strip_disabled_tracks block_id = concatMapM strip
     where
     strip (Tree.Node track subs) = ifM (disabled track)
         (concatMapM strip subs)
         ((:[]) . Tree.Node track <$> concatMapM strip subs)
     disabled = fmap (Block.Disable `Set.member`)
-        . State.track_flags block_id . State.track_tracknum
+        . Ui.track_flags block_id . Ui.track_tracknum
 
 type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree Track
@@ -208,20 +207,20 @@ block_track_id track = do
     tid <- track_id track
     return (bid, tid)
 
-events_tree_of :: State.M m => BlockId -> m EventsTree
+events_tree_of :: Ui.M m => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- track_tree_of block_id
-    end <- State.block_ruler_end block_id
+    end <- Ui.block_ruler_end block_id
     events_tree block_id end info_tree
 
-events_tree :: State.M m => BlockId -> ScoreTime -> [Tree.Tree State.TrackInfo]
+events_tree :: Ui.M m => BlockId -> ScoreTime -> [Tree.Tree Ui.TrackInfo]
     -> m EventsTree
 events_tree block_id end = mapM resolve . track_voices
     where
-    resolve (Tree.Node (State.TrackInfo title track_id _ _, voice) subs) =
+    resolve (Tree.Node (Ui.TrackInfo title track_id _ _, voice) subs) =
         Tree.Node <$> make title track_id voice <*> mapM resolve subs
     make title track_id voice = do
-        events <- State.get_events track_id
+        events <- Ui.get_events track_id
         return $ (make_track title events end)
             { track_id = Just track_id
             , track_block_id = Just block_id
@@ -229,15 +228,15 @@ events_tree block_id end = mapM resolve . track_voices
             }
 
 -- | Get the EventsTree of a block.  Strip disabled tracks.
-block_events_tree :: State.M m => BlockId -> m EventsTree
+block_events_tree :: Ui.M m => BlockId -> m EventsTree
 block_events_tree block_id = do
     info_tree <- strip_disabled_tracks block_id =<< track_tree_of block_id
     -- This is the end of the last event or ruler, not
-    -- State.block_logical_range.  The reason is that functions that look at
+    -- Ui.block_logical_range.  The reason is that functions that look at
     -- track_end are expecting the physical end, e.g.
     -- Control.derive_control uses it to put the last sample on the tempo
     -- track.
-    end <- State.block_end block_id
+    end <- Ui.block_end block_id
     events_tree block_id end info_tree
 
 -- | All the children of this EventsNode with TrackIds.
@@ -247,11 +246,11 @@ track_children = List.foldl' (flip Set.insert) Set.empty
 
 -- | Each note track with an instrument gets a count and maximum count, so they
 -- can go in 'Environ.track_voice' and 'Environ.track_voices'.
-track_voices :: [Tree.Tree State.TrackInfo]
-    -> [Tree.Tree (State.TrackInfo, Maybe Int)]
+track_voices :: [Tree.Tree Ui.TrackInfo]
+    -> [Tree.Tree (Ui.TrackInfo, Maybe Int)]
 track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
     where
-    inst_of = not_empty <=< ParseTitle.title_to_instrument . State.track_title
+    inst_of = not_empty <=< ParseTitle.title_to_instrument . Ui.track_title
         where
         not_empty inst = if inst == Score.empty_instrument
             then Nothing else Just inst

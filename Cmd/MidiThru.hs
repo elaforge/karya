@@ -75,7 +75,7 @@ import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -322,7 +322,7 @@ get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst
-    alloc <- State.allocation inst <#> State.get
+    alloc <- Ui.allocation inst <#> Ui.get
     return $ case StateConfig.alloc_backend <$> alloc of
         Just (StateConfig.Midi config) -> Patch.config_addrs config
         _ -> []

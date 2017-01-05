@@ -7,7 +7,7 @@ module Derive.Call.Prelude.Integrate (
 ) where
 import qualified Data.Maybe as Maybe
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
@@ -59,16 +59,16 @@ block_integrate events = do
 -- unwarp the events if the default tempo was applied.
 --
 -- TODO Getting rid of the default tempo entirely is also an option.
-unwarp :: State.M m => BlockId -> Stream.Stream Score.Event
+unwarp :: Ui.M m => BlockId -> Stream.Stream Score.Event
     -> m (Stream.Stream Score.Event)
 unwarp block_id events = ifM (uses_default_tempo block_id)
-    (do tempo <- State.get_default State.default_tempo
+    (do tempo <- Ui.get_default Ui.default_tempo
         return $ move (RealTime.seconds tempo) events)
     (return events)
     where
     move tempo = fmap $ Score.move (*tempo) . Score.duration (*tempo)
 
-uses_default_tempo :: State.M m => BlockId -> m Bool
+uses_default_tempo :: Ui.M m => BlockId -> m Bool
 uses_default_tempo block_id =
     Maybe.isJust . BlockUtil.has_top_tempo_track <$>
         TrackTree.events_tree_of block_id

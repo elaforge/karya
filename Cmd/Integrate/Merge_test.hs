@@ -10,7 +10,7 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
@@ -128,20 +128,20 @@ test_derive_integrate = do
     -- Interacts properly with aded events.
     -- state <- f (mkblock []) [((">a", events "ab"), [])]
 
-mkblock :: [UiTest.TrackSpec] -> State.State
+mkblock :: [UiTest.TrackSpec] -> Ui.State
 mkblock = snd . UiTest.run_mkblock . ((">source", []):)
     -- Add a track that 'derive_integrate' can set as the source since the
     -- integrated track source is required to exist.
 
-derive_integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
-    -> State.State
+derive_integrate :: Ui.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
+    -> Ui.State
 derive_integrate state integrated = UiTest.exec state $ do
-    itracks <- Block.block_integrated_tracks <$> State.get_block block_id
+    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let derive_itracks =
             [dests | (_, Block.DeriveDestinations dests) <- itracks]
     dests <- Merge.merge_tracks block_id (make_convert_tracks integrated)
         (fromMaybe [] $ Seq.head derive_itracks)
-    State.modify_integrated_tracks block_id $
+    Ui.modify_integrated_tracks block_id $
         const [(UiTest.mk_tid 1, Block.DeriveDestinations dests)]
     where block_id = UiTest.default_block_id
 
@@ -162,7 +162,7 @@ test_score_integrate = do
     let f state m = return $ score_integrate 1 (modify m state)
     let events cs = [(n, 1, c:"") | (n, c) <- zip (Seq.range_ 0 2) cs]
         extract = UiTest.extract_tracks
-    state <- f State.empty $ UiTest.mkblock
+    state <- f Ui.empty $ UiTest.mkblock
         (UiTest.default_block_name, [(">", events "ab"), ("c1", events "12")])
     equal (extract state)
         [ (">", events "ab"), ("c1", events "12")
@@ -170,7 +170,7 @@ test_score_integrate = do
         ]
     equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
 
-    equal (map Block.integrate_skeleton (Map.elems (State.state_blocks state)))
+    equal (map Block.integrate_skeleton (Map.elems (Ui.state_blocks state)))
         [[(Config.score_integrate_skeleton, [(1, 3)])]]
 
     -- Ensure a merge is happening.
@@ -190,7 +190,7 @@ test_score_integrate = do
     -- Add a new track.
     state <- f state $ do
         Create.empty_track block_id 2
-        State.splice_skeleton_below block_id 2 1
+        Ui.splice_skeleton_below block_id 2 1
     equal (extract state)
         [ (">", events "ax"), ("", []), ("c1", events "12")
         , (">", events "axz"), ("", []), ("c1", events "12")
@@ -198,26 +198,26 @@ test_score_integrate = do
     equal (UiTest.extract_skeleton state) [(1, 2), (2, 3), (4, 5), (5, 6)]
 
     -- Remove a track.  Generated events are cleared.
-    state <- f state $ State.remove_track block_id 3
+    state <- f state $ Ui.remove_track block_id 3
     equal (extract state)
         [ (">", events "ax"), ("", [])
         , (">", events "axz"), ("", []), ("c1", [])
         ]
     equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
 
-score_integrate :: TrackNum -> State.State -> State.State
+score_integrate :: TrackNum -> Ui.State -> Ui.State
 score_integrate tracknum state = UiTest.exec state $ do
-    itracks <- Block.block_integrated_tracks <$> State.get_block block_id
+    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let score_itracks = [dests | (_, Block.ScoreDestinations dests) <- itracks]
     dests <- Merge.score_merge_tracks block_id (UiTest.mk_tid tracknum)
         (fromMaybe [] $ Seq.head score_itracks)
-    State.modify_integrated_tracks block_id $
+    Ui.modify_integrated_tracks block_id $
         const [(UiTest.mk_tid 1, Block.ScoreDestinations dests)]
     where block_id = UiTest.default_block_id
 
 -- * util
 
-modify :: State.StateId a -> State.State -> State.State
+modify :: Ui.StateId a -> Ui.State -> Ui.State
 modify action state = UiTest.exec state action
 
 mkindex :: [Event] -> Block.EventIndex

@@ -10,7 +10,7 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -65,7 +65,7 @@ test_block_integrate = do
     pprint (map (last . e_tracks) reses)
     -- normally index has fdc
     let get_index = Block.block_integrated . (!!1) . Map.elems
-            . State.state_blocks . ResponderTest.result_ui_state
+            . Ui.state_blocks . ResponderTest.result_ui_state
     prettyp (get_index (last reses))
 
     equal (last (e_tracks (last reses)))
@@ -106,7 +106,7 @@ test_track_integrate = do
             ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
         has_integrated = fmap (not . null) . e_integrated
     -- The first track integrate causes two derives.
-    res <- start states $ State.set_track_title (UiTest.mk_tid 1) ">i1 | <"
+    res <- start states $ Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <"
     equal (e_events res) []
     equal (has_integrated res) (Just True)
     res <- continue res
@@ -162,8 +162,8 @@ test_track_modify = do
 test_block_score_integrate = do
     let states = mkstates "" ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
     res <- start states $ do
-        bid <- Create.block State.no_ruler
-        State.set_integrated_block bid $
+        bid <- Create.block Ui.no_ruler
+        Ui.set_integrated_block bid $
             Just (UiTest.default_block_id, Block.ScoreDestinations [])
     equal (e_tracks res)
         [ (UiTest.bid "b1",
@@ -222,7 +222,7 @@ test_score_integrate_two_tracks = do
 test_derive_integrate_twice = do
     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
     res <- start states $ do
-        State.set_track_title (UiTest.mk_tid 1) ">i1 | <"
+        Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <"
     equal (e_tracks res)
         [ (UiTest.default_block_id,
             [ (">i1 | <", [(0, 1, "")])
@@ -234,7 +234,7 @@ test_derive_integrate_twice = do
         ]]
 
     res <- next res $ do
-        State.modify_integrated_tracks UiTest.default_block_id $
+        Ui.modify_integrated_tracks UiTest.default_block_id $
             ((UiTest.mk_tid 1, Block.DeriveDestinations []) :)
     equal (e_tracks res)
         [ (UiTest.default_block_id,
@@ -253,7 +253,7 @@ test_score_and_derive_integrate = do
             [(">i1", [(0, 1, "")]), (">i2", [(0, 1, "")])]
     res <- start states $ do
         add_integrated_track 1
-        State.set_track_title (UiTest.mk_tid 2) ">i2 | <"
+        Ui.set_track_title (UiTest.mk_tid 2) ">i2 | <"
     equal (e_tracks res)
         [ (UiTest.default_block_id,
             [ (">i1", [(0, 1, "")])
@@ -270,31 +270,31 @@ test_score_and_derive_integrate = do
 test_double_integrate = do
     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
     res <- start states $
-        State.set_track_title (UiTest.mk_tid 1) ">i1 | < | <"
+        Ui.set_track_title (UiTest.mk_tid 1) ">i1 | < | <"
     -- It threw but that winds up being logged.
     equal (e_tracks res)
         [(UiTest.default_block_id, [(">i1 | < | <", [(0, 1, "")])])]
 
-add_integrated_track :: State.M m => TrackNum -> m ()
+add_integrated_track :: Ui.M m => TrackNum -> m ()
 add_integrated_track tracknum =
-    State.modify_integrated_tracks UiTest.default_block_id $
+    Ui.modify_integrated_tracks UiTest.default_block_id $
         ((UiTest.mk_tid tracknum, Block.ScoreDestinations []) :)
 
 e_integrate_skeleton :: ResponderTest.Result
     -> [[(Color.Color, [Skeleton.Edge])]]
 e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
-    . State.state_blocks . ResponderTest.result_ui_state
+    . Ui.state_blocks . ResponderTest.result_ui_state
 
 -- test_cascading_track_score_integrate = do
 --     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
---     res <- start states $ State.set_track_title (UiTest.mk_tid 1) ">i1 | <!"
+--     res <- start states $ Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <!"
 --     equal (e_tracks res)
 --         [ (UiTest.bid "b1",
 --             [ (">i1 | <!", [(0, 1, "")])
 --             , (">i1", [(0, 1, "")])
 --             ])
 --         ]
---     res <- next res $ State.set_track_title (UiTest.mk_tid 2) ">i1 | <!"
+--     res <- next res $ Ui.set_track_title (UiTest.mk_tid 2) ">i1 | <!"
 --     equal (e_tracks res)
 --         [ (UiTest.bid "b1",
 --             [ (">i1 | <!", [(0, 1, "")])
@@ -359,11 +359,11 @@ mkstates_tracks :: String -> [UiTest.TrackSpec] -> ResponderTest.States
 mkstates_tracks title tracks = (UiTest.exec ui_state set_title, cmd_state)
     where
     (ui_state, cmd_state) = ResponderTest.mkstates tracks
-    set_title = State.set_block_title UiTest.default_block_id (txt title)
+    set_title = Ui.set_block_title UiTest.default_block_id (txt title)
 
 run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
 run title tracks = CmdTest.run ustate CmdTest.default_cmd_state
     where
-    ustate = UiTest.exec State.empty $ do
+    ustate = UiTest.exec Ui.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        State.set_block_title UiTest.default_block_id (txt title)
+        Ui.set_block_title UiTest.default_block_id (txt title)

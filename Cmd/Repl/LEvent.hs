@@ -15,7 +15,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
@@ -28,8 +28,8 @@ import Global
 import Types
 
 
-get :: State.M m => TrackId -> m Events.Events
-get = fmap Track.track_events . State.get_track
+get :: Ui.M m => TrackId -> m Events.Events
+get = fmap Track.track_events . Ui.get_track
 
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
@@ -64,16 +64,16 @@ modify_dur = Edit.modify_dur
 
 -- | Find all events containing the given substring.  Call with 'pp' to get
 -- copy-pastable 's' codes.
-find :: Text -> Cmd.CmdL [(State.Range, Text)]
+find :: Text -> Cmd.CmdL [(Ui.Range, Text)]
 find substr = find_f (substr `Text.isInfixOf`)
 
-find_f :: (Text -> Bool) -> Cmd.CmdL [(State.Range, Text)]
-find_f matches = fmap concat . concatMapM search =<< State.all_block_track_ids
+find_f :: (Text -> Bool) -> Cmd.CmdL [(Ui.Range, Text)]
+find_f matches = fmap concat . concatMapM search =<< Ui.all_block_track_ids
     where
     search (block_id, track_ids) = forM track_ids $ \track_id -> do
         events <- Events.ascending . Track.track_events
-            <$> State.get_track track_id
-        let range e = State.Range (Just block_id) track_id
+            <$> Ui.get_track track_id
+        let range e = Ui.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
         return [(range event, Event.text event) |
             event <- events, matches (Event.text event)]
@@ -123,11 +123,11 @@ quantize_sel = ModifyEvents.selection . quantize_timestep Both
 
 -- | Quantize to a TimeStep's duration.  What this does is snap the edges of
 -- the event to the nearest timestep.
-quantize_timestep :: State.M m => Mode -> Text -> ModifyEvents.Track m
+quantize_timestep :: Ui.M m => Mode -> Text -> ModifyEvents.Track m
 quantize_timestep mode step block_id track_id events = do
-    step <- State.require_right ("parsing timestep: "<>) $
+    step <- Ui.require_right ("parsing timestep: "<>) $
         TimeStep.parse_time_step step
-    tracknum <- State.get_tracknum_of block_id track_id
+    tracknum <- Ui.get_tracknum_of block_id track_id
     points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step
     return $ Just $ resolve_conflicts points $
         snd $ List.mapAccumL (quantize_event mode) points events
@@ -182,5 +182,5 @@ quantize points t = case points of
 insert :: Cmd.M m => [(ScoreTime, ScoreTime, Text)] -> m ()
 insert events = do
     (_, _, track_id, pos) <- Selection.get_insert
-    State.insert_events track_id
+    Ui.insert_events track_id
         [Event.event (start + pos) dur text | (start, dur, text) <- events]

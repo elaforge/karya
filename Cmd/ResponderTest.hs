@@ -42,7 +42,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.Fltk as Fltk
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -62,26 +62,26 @@ import Types
 
 -- * setup
 
-type States = (State.State, Cmd.State)
+type States = (Ui.State, Cmd.State)
 
 -- | Make a UI state with one block with the given tracks, and a standard cmd
 -- state.
 mkstates :: [UiTest.TrackSpec] -> States
 mkstates tracks = mkstates_blocks [(UiTest.default_block_name, tracks)]
 
-mkstates_blocks :: [UiTest.BlockSpec] -> (State.State, Cmd.State)
+mkstates_blocks :: [UiTest.BlockSpec] -> (Ui.State, Cmd.State)
 mkstates_blocks blocks =
     (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     where
-    ui_state = UiTest.exec State.empty $ do
+    ui_state = UiTest.exec Ui.empty $ do
         root_id : _ <- UiTest.mkblocks blocks
         view_id <- UiTest.mkview root_id
-        State.set_selection view_id Config.insert_selnum $
+        Ui.set_selection view_id Config.insert_selnum $
             Just $ Sel.selection 1 0 1 0
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
-mk_cmd_state :: State.State -> ViewId -> Cmd.State
+mk_cmd_state :: Ui.State -> ViewId -> Cmd.State
 mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
     { Cmd.state_focused_view = Just view_id
     -- Normally this is created by the setup cmd, so pretend I did one.
@@ -134,7 +134,7 @@ result_states r = (result_ui_state r, result_cmd_state r)
 result_cmd_state :: Result -> Cmd.State
 result_cmd_state = CmdTest.result_cmd_state . result_cmd
 
-result_ui_state :: Result -> State.State
+result_ui_state :: Result -> Ui.State
 result_ui_state = CmdTest.result_ui_state . result_cmd
 
 -- | Wait for a DeriveComplete and get the performance from it.
@@ -285,12 +285,11 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     set_cmd_state interface = cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
             { Cmd.config_midi_interface = interface }
-        , Cmd.state_derive_immediately =
-            Map.keysSet (State.state_blocks ui_state)
+        , Cmd.state_derive_immediately = Map.keysSet (Ui.state_blocks ui_state)
         }
 
 make_rstate :: Fltk.Channel -> TVar.TVar [[Update.DisplayUpdate]]
-    -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
+    -> Chan.Chan Msg.Msg -> Ui.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
 make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =
     Responder.State
@@ -306,7 +305,7 @@ make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =
         , Responder.state_ui_channel = ui_chan
         }
     where
-    play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)
+    play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar Ui.empty)
     config = StaticConfig.empty
         { StaticConfig.global_cmds = maybe [] (:[]) maybe_cmd }
     dummy_sync _ _ _ updates = do

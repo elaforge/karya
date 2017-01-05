@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -31,7 +31,7 @@ import Types
 
 
 transform :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Derive.Result
-transform trans = DeriveTest.derive State.empty $
+transform trans = DeriveTest.derive Ui.empty $
     Derive.with_constant_pitch
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 

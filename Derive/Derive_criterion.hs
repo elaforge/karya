@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -88,14 +88,14 @@ benchmarks = do
             Criterion.bench name $ Criterion.nf id (perform state events)
 
 -- *2 instruments, *16 calls to 'sub'
-make_score :: [UiTest.TrackSpec] -> State.State
+make_score :: [UiTest.TrackSpec] -> Ui.State
 make_score sub = snd $ UiTest.run_mkblocks
     [ ("top", [(">i1", score), (">i2", score)])
     , ("sub=ruler", sub)
     ]
     where score = take 16 [(t, 4, "sub") | t <- Seq.range_ 0 4]
 
-no_invert :: Int -> State.State
+no_invert :: Int -> Ui.State
 no_invert events_per_sub = make_score
     [ ("*", [(t, 0, p) | (t, p) <- zip ts ["3c", "3d", "3e", "3f"]])
     , ("dyn", [(t, 0, p) | (t, p) <- zip ts ["1", ".75", ".5", ".25"]])
@@ -103,7 +103,7 @@ no_invert events_per_sub = make_score
     ]
     where ts = Seq.range' 0 (realToFrac events_per_sub) 1
 
-invert :: Int -> State.State
+invert :: Int -> Ui.State
 invert events_per_sub = make_score
     [ (">", [(t, 1, "") | t <- ts])
     , ("*", [(t, 0, p) | (t, p) <- zip ts ["3c", "3d", "3e", "3f"]])
@@ -111,24 +111,24 @@ invert events_per_sub = make_score
     ]
     where ts = Seq.range' 0 (realToFrac events_per_sub) 1
 
-simple :: Int -> State.State
+simple :: Int -> Ui.State
 simple events = make_score
     [(">", [(t, 1, "") | t <- Seq.range' 0 (realToFrac events) 1])]
 
-cmd_derive :: State.State -> Cmd.Performance
+cmd_derive :: Ui.State -> Cmd.Performance
 cmd_derive state =
     Performance.performance $
         DeriveTest.derive_block_setup setup state (get_root_id state)
-    where setup = DeriveTest.with_tsigs (Map.keys (State.state_tracks state))
+    where setup = DeriveTest.with_tsigs (Map.keys (Ui.state_tracks state))
 
-derive :: State.State -> Stream.Stream Score.Event
+derive :: Ui.State -> Stream.Stream Score.Event
 derive state =
     Derive.r_events $ DeriveTest.derive_block state (get_root_id state)
 
-get_root_id :: State.State -> BlockId
-get_root_id = fromMaybe (error "no root block") . (State.config#State.root #$)
+get_root_id :: Ui.State -> BlockId
+get_root_id = fromMaybe (error "no root block") . (Ui.config#Ui.root #$)
 
-perform :: State.State -> Stream.Stream Score.Event -> Perform.MidiEvents
+perform :: Ui.State -> Stream.Stream Score.Event -> Perform.MidiEvents
 perform state events =
     snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (State.config#State.allocations #$ state) events
+        (Ui.config#Ui.allocations #$ state) events

@@ -47,7 +47,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip
@@ -325,8 +325,7 @@ view_config_bindings = concat
     , secondary 'J' "block focus down" $ ViewConfig.move_focus ViewConfig.South
     , secondary 'K' "block focus up" $ ViewConfig.move_focus ViewConfig.North
     , secondary 'L' "block focus right" $ ViewConfig.move_focus ViewConfig.East
-    , secondary 'W' "destroy view"
-        (State.destroy_view =<< Cmd.get_focused_view)
+    , secondary 'W' "destroy view" (Ui.destroy_view =<< Cmd.get_focused_view)
 
     , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
     , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
@@ -482,10 +481,9 @@ create_bindings = concat
     , command_char 'N' "create view"
         (void $ Create.view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
-    , command_char 'W' "destroy view"
-        (State.destroy_view =<< Cmd.get_focused_view)
+    , command_char 'W' "destroy view" (Ui.destroy_view =<< Cmd.get_focused_view)
     , command_char 'b' "create block"
-        (void $ Create.view =<< Create.block =<< State.block_ruler
+        (void $ Create.view =<< Create.block =<< Ui.block_ruler
             =<< Cmd.get_focused_block)
     , command_char 'B' "create block from template or selection"
         Factor.block_from_template

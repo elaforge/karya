@@ -22,7 +22,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
@@ -64,7 +64,7 @@ find search = do
 -- | Summarize the various types.  Is this really useful?
 summary :: Cmd.CmdL Text
 summary = do
-    State.State views blocks tracks rulers _ <- State.get
+    Ui.State views blocks tracks rulers _ <- Ui.get
     let f fm = PPrint.list (map show (Map.keys fm))
     return $ txt $ PPrint.record
         [ ("views", f views), ("blocks", f blocks)
@@ -73,25 +73,25 @@ summary = do
 
 -- * configure
 
-get_config :: Cmd.CmdL State.Config
-get_config = State.config <#> State.get
+get_config :: Cmd.CmdL Ui.Config
+get_config = Ui.config <#> Ui.get
 
-get_default :: Cmd.CmdL State.Default
-get_default = State.config#State.default_ <#> State.get
+get_default :: Cmd.CmdL Ui.Default
+get_default = Ui.config#Ui.default_ <#> Ui.get
 
 get_default_tempo :: Cmd.CmdL Signal.Y
-get_default_tempo = State.config#State.default_#State.tempo <#> State.get
+get_default_tempo = Ui.config#Ui.default_#Ui.tempo <#> Ui.get
 
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t = State.modify_config $ State.default_#State.tempo #= t
+set_default_tempo t = Ui.modify_config $ Ui.default_#Ui.tempo #= t
 
--- | 'State.config_global_transform' is an expression that's applied to the
+-- | 'Ui.config_global_transform' is an expression that's applied to the
 -- output of derivation.
 set_transform :: Text -> Cmd.CmdL ()
-set_transform = State.modify_config . (State.global_transform #=)
+set_transform = Ui.modify_config . (Ui.global_transform #=)
 
 get_transform :: Cmd.CmdL Text
-get_transform = State.config#State.global_transform <#> State.get
+get_transform = Ui.config#Ui.global_transform <#> Ui.get
 
 transform :: Cmd.CmdL ReplProtocol.Result
 transform = do
@@ -104,45 +104,43 @@ ky = do
     return $ ReplProtocol.Edit ky "LState.set_ky"
 
 get_ky :: Cmd.CmdL Text
-get_ky = State.config#State.ky <#> State.get
+get_ky = Ui.config#Ui.ky <#> Ui.get
 
 set_ky :: Text -> Cmd.CmdL ()
-set_ky = State.modify_config . (State.ky #=)
+set_ky = Ui.modify_config . (Ui.ky #=)
 
 -- ** meta
 
-get_meta :: Cmd.CmdL State.Meta
-get_meta = State.config#State.meta <#> State.get
+get_meta :: Cmd.CmdL Ui.Meta
+get_meta = Ui.config#Ui.meta <#> Ui.get
 
 set_creation_time :: Cmd.CmdL ()
 set_creation_time = do
     now <- liftIO Time.getCurrentTime
-    State.modify_config $ State.meta#State.creation #= now
+    Ui.modify_config $ Ui.meta#Ui.creation #= now
 
 set_notes :: Text -> Cmd.CmdL ()
-set_notes = State.modify_config . (State.meta#State.notes #=)
+set_notes = Ui.modify_config . (Ui.meta#Ui.notes #=)
 
 -- *** midi performance
 
 -- | Save the current root MIDI performance as \"correct\".
 save_midi :: Cmd.CmdL ()
 save_midi = do
-    block_id <- State.get_root_id
+    block_id <- Ui.get_root_id
     midi <- perform_midi block_id
     perf <- make_performance (Vector.fromList midi)
-    State.modify_config $
-        State.meta#State.midi_performances %= Map.insert block_id perf
+    Ui.modify_config $ Ui.meta#Ui.midi_performances %= Map.insert block_id perf
 
-get_midi_performance :: BlockId -> Cmd.CmdL State.MidiPerformance
+get_midi_performance :: BlockId -> Cmd.CmdL Ui.MidiPerformance
 get_midi_performance block_id =
     Cmd.require ("no saved performance for " <> showt block_id)
-        =<< State.get_config
-            (State.meta#State.midi_performances # Lens.map block_id #$)
+        =<< Ui.get_config (Ui.meta#Ui.midi_performances # Lens.map block_id #$)
 
 -- | Compare the current root block performance against the saved one.
 verify_performance :: Cmd.CmdL Text
 verify_performance = do
-    block_id <- State.get_root_id
+    block_id <- Ui.get_root_id
     perf <- get_midi_performance block_id
     midi <- perform_midi block_id
     let name = Id.ident_name block_id
@@ -157,32 +155,32 @@ perform_midi block_id = do
     perf <- Cmd.get_performance block_id
     LEvent.events_of <$> PlayUtil.perform_from 0 perf
 
-make_performance :: a -> Cmd.CmdT IO (State.Performance a)
+make_performance :: a -> Cmd.CmdT IO (Ui.Performance a)
 make_performance perf = do
     time <- liftIO Time.getCurrentTime
     patch <- either (Cmd.throw . txt) (return . txt)
         =<< liftIO SourceControl.currentPatch
-    return $ State.Performance
-        { State.perf_performance = perf
-        , State.perf_creation = time
-        , State.perf_patch = patch
+    return $ Ui.Performance
+        { perf_performance = perf
+        , perf_creation = time
+        , perf_patch = patch
         }
 
 -- *** lilypond performance
 
 save_lilypond :: Cmd.CmdL ()
 save_lilypond = do
-    block_id <- State.get_root_id
+    block_id <- Ui.get_root_id
     lily <- lilypond_performance block_id
     perf <- make_performance lily
-    State.modify_config $
-        State.meta#State.lilypond_performances %= Map.insert block_id perf
+    Ui.modify_config $
+        Ui.meta#Ui.lilypond_performances %= Map.insert block_id perf
 
 lilypond_performance :: Cmd.M m => BlockId -> m Text
 lilypond_performance block_id = do
     events <- Stream.write_logs . Derive.r_events
         =<< Cmd.Lilypond.derive_block block_id
-    config <- State.config#State.lilypond <#> State.get
+    config <- Ui.config#Ui.lilypond <#> Ui.get
     result <- LEvent.write_snd $
         Cmd.Lilypond.extract_movements config "title" events
     Text.Lazy.toStrict <$> Cmd.require_right id result
@@ -243,16 +241,16 @@ load_as = load_as_ . Just . Id.namespace
 load_as_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
 load_as_ maybe_ns open_views fn = do
     (new_state, _) <- Save.read fn
-    new_state <- State.exec_rethrow "strip clip" new_state $ do
+    new_state <- Ui.exec_rethrow "strip clip" new_state $ do
         Transform.destroy_namespace Config.clip_namespace
         whenJust maybe_ns $ Transform.map_namespace . const
         unless open_views $
-            mapM_ State.destroy_view =<< State.all_view_ids
-    state <- State.get
+            mapM_ Ui.destroy_view =<< Ui.all_view_ids
+    state <- Ui.get
     merged <- Cmd.require_right (("merge state: "<>) . pretty) $
         Transform.merge_states state new_state
-    State.put merged
+    Ui.put merged
 
 -- | Destroy the given namespace.
-unload :: State.M m => Text -> m ()
+unload :: Ui.M m => Text -> m ()
 unload = Transform.destroy_namespace . Id.namespace

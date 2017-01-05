@@ -44,7 +44,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.Fltk as Fltk
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -76,7 +76,7 @@ import Types
 
 data State = State {
     state_static_config :: StaticConfig.StaticConfig
-    , state_ui :: State.State
+    , state_ui :: Ui.State
     , state_cmd :: Cmd.State
     -- | Channel to send IO actions to be executed on the FLTK event loop.
     , state_ui_channel :: Fltk.Channel
@@ -90,7 +90,7 @@ data State = State {
 
     -- | Communication channel between the play monitor thread and the player,
     -- passed to 'Transport.info_state'.
-    , state_monitor_state :: MVar.MVar State.State
+    , state_monitor_state :: MVar.MVar Ui.State
     }
 
 state_transport_info :: State -> Transport.Info
@@ -114,7 +114,7 @@ responder :: StaticConfig.StaticConfig -> Fltk.Channel -> MsgReader
 responder config ui_chan msg_reader midi_interface setup_cmd repl_session
         loopback = do
     Log.debug "start responder"
-    ui_state <- State.create
+    ui_state <- Ui.create
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Config.get_app_dir
     let cmd_state = setup_state $ Cmd.initial_state $
@@ -132,7 +132,7 @@ responder config ui_chan msg_reader midi_interface setup_cmd repl_session
     respond_loop state msg_reader
 
 -- | TODO This should probably go in StaticConfig, or better StaticConfig could
--- just directly provide the Cmd.State.  But in needs to take app_dir and
+-- just directly provide the Cmd.Ui.  But in needs to take app_dir and
 -- interface as args, so... too much work for now.
 setup_state :: Cmd.State -> Cmd.State
 setup_state state = state
@@ -221,9 +221,9 @@ data RState = RState {
     rstate_state :: !State
     -- | Pre rollback UI state, revert to this state if an exception is
     -- thrown, and diff from this state.
-    , rstate_ui_from :: !State.State
+    , rstate_ui_from :: !Ui.State
     -- | Post rollback UI state, and diff to this state.
-    , rstate_ui_to :: !State.State
+    , rstate_ui_to :: !Ui.State
     , rstate_cmd_from :: !Cmd.State
     , rstate_cmd_to :: !Cmd.State
     -- | Collect updates from each cmd.
@@ -238,7 +238,7 @@ type ResponderM = Monad.State.StateT RState IO
 
 newtype Done = Done Result
 
-type Result = Either State.Error Cmd.Status
+type Result = Either Ui.Error Cmd.Status
 
 save_updates :: [Update.CmdUpdate] -> ResponderM ()
 save_updates updates = Monad.State.modify $ \st ->
@@ -249,7 +249,7 @@ save_updates updates = Monad.State.modify $ \st ->
 {- | Run one responder cycle.  This is simple in theory: each cmd gets
     a crack at the Msg and the first one to return anything other than
     Continue aborts the sequence.  If a cmd throws an exception the sequence
-    is also aborted, and changes to 'Cmd.State' or 'State.State' are
+    is also aborted, and changes to 'Cmd.State' or 'Ui.State' are
     discarded.  Otherwise, the UI state changes are synced with the UI, and
     the responder goes back to waiting for another msg.
 
@@ -277,7 +277,7 @@ run_responder state action = do
 
 -- | Do all the miscellaneous things that need to be done after a command
 -- completes.  This doesn't happen if the cmd threw an exception.
-post_cmd :: State -> State.State -> State.State -> Cmd.State
+post_cmd :: State -> Ui.State -> Ui.State -> Cmd.State
     -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
 post_cmd state ui_from ui_to cmd_to cmd_updates status = do
     -- Load external definitions and cache them in Cmd.State, so cmds don't
@@ -310,13 +310,13 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
     is_quit Cmd.Quit = True
     is_quit _ = False
     -- | If the focused view is removed, cmd state should stop pointing to it.
-    fix_cmd_state :: State.State -> Cmd.State -> Cmd.State
+    fix_cmd_state :: Ui.State -> Cmd.State -> Cmd.State
     fix_cmd_state ui_state cmd_state = case Cmd.state_focused_view cmd_state of
-        Just focus | focus `Map.notMember` State.state_views ui_state ->
+        Just focus | focus `Map.notMember` Ui.state_views ui_state ->
             cmd_state { Cmd.state_focused_view = Nothing }
         _ -> cmd_state
 
-handle_special_status :: Fltk.Channel -> State.State -> Cmd.State
+handle_special_status :: Fltk.Channel -> Ui.State -> Cmd.State
     -> Transport.Info -> Cmd.Status -> IO Cmd.State
 handle_special_status ui_chan ui_state cmd_state transport_info status =
     case status of
@@ -432,7 +432,7 @@ type ErrorResponderM = Except.ExceptT Done ResponderM
 -- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't
 -- Continue.
 run_continue :: Text -> EitherCmd
-    -> ResponderM (Maybe (Cmd.Status, State.State, Cmd.State))
+    -> ResponderM (Maybe (Cmd.Status, Ui.State, Cmd.State))
 run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
@@ -457,7 +457,7 @@ run_throw cmd = do
                 Except.throwError $ Done (Right status)
 
 run_cmd :: EitherCmd -> ResponderM
-    (Either State.Error (Cmd.Status, State.State), Cmd.State)
+    (Either Ui.Error (Cmd.Status, Ui.State), Cmd.State)
 run_cmd cmd = do
     rstate <- Monad.State.get
     (cmd_state, midi, logs, result) <- liftIO $ case cmd of

@@ -15,7 +15,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -38,7 +38,7 @@ cmd_zoom_around :: Cmd.M m => ViewId -> ScoreTime -> (Double -> Double) -> m ()
 cmd_zoom_around view_id pos f = do
     -- Zoom by the given factor, but try to keep pos in the same place on the
     -- screen.
-    zoom <- State.get_zoom view_id
+    zoom <- Ui.get_zoom view_id
     Views.set_zoom view_id (zoom_around zoom pos f)
 
 zoom_around :: Types.Zoom -> ScoreTime -> (Double -> Double) -> Types.Zoom
@@ -52,7 +52,7 @@ zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
 modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do
-    zoom <- State.get_zoom view_id
+    zoom <- Ui.get_zoom view_id
     Views.set_zoom view_id $
         zoom { Types.zoom_factor = f (Types.zoom_factor zoom) }
 
@@ -77,7 +77,7 @@ zoom_to view_id start end =
 scroll_pages :: Cmd.M m => TrackTime -> m ()
 scroll_pages pages = do
     view_id <- Cmd.get_focused_view
-    view <- State.get_view view_id
+    view <- Ui.get_view view_id
     let visible = Block.visible_time view
         offset = Types.zoom_offset $ Block.view_zoom view
     Views.set_time_offset view_id (offset + pages * visible)
@@ -85,7 +85,7 @@ scroll_pages pages = do
 -- * resize
 
 resize_all :: Cmd.M m => m ()
-resize_all = mapM_ (Views.resize_to_fit False) =<< State.all_view_ids
+resize_all = mapM_ (Views.resize_to_fit False) =<< Ui.all_view_ids
 
 -- * window management
 
@@ -164,18 +164,18 @@ horizontal_tile :: Cmd.M m => m ()
 horizontal_tile = mapM_ (uncurry tile_screen) =<< windows_by_screen
     where
     tile_screen screen view_rects =
-        zipWithM_ State.set_view_rect view_ids $
+        zipWithM_ Ui.set_view_rect view_ids $
             horizontal_tile_rects screen rects
         where (view_ids, rects) = unzip (Seq.sort_on (Rect.rx . snd) view_rects)
 
 windows_by_screen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
 windows_by_screen = do
-    view_rects <- State.gets $
-        map (second Block.view_rect) . Map.toList . State.state_views
+    view_rects <- Ui.gets $
+        map (second Block.view_rect) . Map.toList . Ui.state_views
     screens <- Cmd.gets Cmd.state_screens
     let (screen_views, orphaned) = group_with
             (\s -> Rect.overlaps s . snd) screens view_rects
-    mapM_ (State.destroy_view . fst) orphaned
+    mapM_ (Ui.destroy_view . fst) orphaned
     return screen_views
 
 horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
@@ -200,7 +200,7 @@ group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
 cycle_focus :: Cmd.M m => Bool -> m ()
 cycle_focus forward = do
     focused <- Cmd.get_focused_view
-    view_ids <- (if forward then id else reverse) <$> State.all_view_ids
+    view_ids <- (if forward then id else reverse) <$> Ui.all_view_ids
     case drop 1 $ dropWhile (/=focused) view_ids of
         next : _ -> Cmd.focus next
         [] -> whenJust (Seq.head view_ids) Cmd.focus
@@ -210,9 +210,9 @@ data Direction = North | South | East | West deriving (Show)
 
 move_focus :: Cmd.M m => Direction -> m ()
 move_focus dir = do
-    rects <- State.gets $
-        map (second Block.view_rect) . Map.toList . State.state_views
-    focused <- Block.view_rect <$> (State.get_view =<< Cmd.get_focused_view)
+    rects <- Ui.gets $
+        map (second Block.view_rect) . Map.toList . Ui.state_views
+    focused <- Block.view_rect <$> (Ui.get_view =<< Cmd.get_focused_view)
     let get_rects cmp f = Seq.sort_on snd $ filter ((`cmp` f focused) . snd) $
             map (second f) rects
     let next = case dir of
@@ -228,8 +228,8 @@ move_focus dir = do
 -- score from the current time until the end of the block.
 views_covering :: Cmd.M m => ViewId -> m [ViewId]
 views_covering view_id = do
-    view <- State.get_view view_id
-    block_dur <- State.block_end $ Block.view_block view
+    view <- Ui.get_view view_id
+    block_dur <- Ui.block_end $ Block.view_block view
     forM (views_covering_starts block_dur view) $ \start -> do
         view_id <- Create.view (Block.view_block view)
         Views.modify_zoom view_id $ const $ Types.Zoom
@@ -252,16 +252,16 @@ views_covering_starts block_dur view =
 -- | Save the current views under the given name.
 save_views :: Cmd.M m => Text -> m ()
 save_views name = do
-    views <- State.gets State.state_views
+    views <- Ui.gets Ui.state_views
     focused <- Cmd.lookup_focused_view
-    State.modify_config $ State.saved_views %= Map.insert name (views, focused)
+    Ui.modify_config $ Ui.saved_views %= Map.insert name (views, focused)
 
 -- | Replace the current views with the saved ones.  The current one is first
 -- saved as \"prev\".
 restore_views :: Cmd.M m => Text -> m ()
 restore_views name = do
     (views, focused) <- Cmd.require ("no saved views named: " <> name)
-        =<< State.config#State.saved_views # Lens.map name <#> State.get
+        =<< Ui.config#Ui.saved_views # Lens.map name <#> Ui.get
     save_views "prev"
-    State.put_views views
+    Ui.put_views views
     whenJust focused Cmd.focus

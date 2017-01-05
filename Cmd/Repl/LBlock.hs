@@ -19,7 +19,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -43,25 +43,23 @@ import Types
 -- | All BlockIds, along with the count of views for each one.
 list :: Cmd.CmdL [(BlockId, Int)]
 list = do
-    block_ids <- State.all_block_ids
-    view_blocks <- State.gets $
-        map Block.view_block . Map.elems . State.state_views
+    block_ids <- Ui.all_block_ids
+    view_blocks <- Ui.gets $ map Block.view_block . Map.elems . Ui.state_views
     return
         [ (block_id, Seq.count (==block_id) view_blocks)
         | block_id <- block_ids
         ]
 
 -- | Find BlockIds that match the string.
-find_id :: State.M m => Text -> m [BlockId]
+find_id :: Ui.M m => Text -> m [BlockId]
 find_id match = filter (Util.match_id match) <$>
-    State.gets (Map.keys . State.state_blocks)
+    Ui.gets (Map.keys . Ui.state_blocks)
 
-pretty :: State.M m => BlockId -> m Text
+pretty :: Ui.M m => BlockId -> m Text
 pretty block_id = do
-    block <- State.get_block block_id
-    tracks <- State.gets State.state_tracks
-    view_blocks <- State.gets $
-        map Block.view_block . Map.elems . State.state_views
+    block <- Ui.get_block block_id
+    tracks <- Ui.gets Ui.state_tracks
+    view_blocks <- Ui.gets $ map Block.view_block . Map.elems . Ui.state_views
     return $ Pretty.formatted $
         pretty_tracks view_blocks tracks block_id block
     where
@@ -82,18 +80,18 @@ find substr = find_f (substr `Text.isInfixOf`)
 
 find_f :: (Text -> Bool) -> Cmd.CmdL [(BlockId, Text)]
 find_f match = do
-    block_ids <- State.all_block_ids
-    titles <- mapM State.get_block_title block_ids
+    block_ids <- Ui.all_block_ids
+    titles <- mapM Ui.get_block_title block_ids
     return [(block_id, title) | (block_id, title) <- zip block_ids titles,
         match title]
 
 -- | Transform all block titles.
 map_titles :: (Text -> Text) -> Cmd.CmdL ()
 map_titles modify = do
-    block_ids <- State.all_block_ids
-    titles <- mapM State.get_block_title block_ids
+    block_ids <- Ui.all_block_ids
+    titles <- mapM Ui.get_block_title block_ids
     forM_ (zip block_ids titles) $ \(block_id, title) ->
-        State.set_block_title block_id (modify title)
+        Ui.set_block_title block_id (modify title)
 
 replace_titles :: Text -> Text -> Cmd.CmdL ()
 replace_titles from to = map_titles $ Text.replace from to
@@ -192,7 +190,7 @@ for_event maybe_template = mapM_ make =<< Selection.events
     where
     make (_, events) = mapM_ make1 events
     make1 event = do
-        id <- State.read_id (Event.text event)
+        id <- Ui.read_id (Event.text event)
         maybe named named_from maybe_template id
 
 -- | Copy the current block into a new empty block with the given name.
@@ -211,12 +209,12 @@ copy copy_events name = do
 
 -- * destroy
 
-destroy :: State.M m => [BlockId] -> m ()
+destroy :: Ui.M m => [BlockId] -> m ()
 destroy = mapM_ Create.destroy_block
 
 destroy_except :: [BlockId] -> Cmd.CmdL ()
 destroy_except keep = do
-    block_ids <- State.all_block_ids
+    block_ids <- Ui.all_block_ids
     mapM_ Create.destroy_block (filter (not . (`elem` keep)) block_ids)
 
 -- * dividers
@@ -225,17 +223,17 @@ destroy_except keep = do
 divide :: Cmd.CmdL ()
 divide = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    State.insert_track block_id (tracknum+1) Block.divider
+    Ui.insert_track block_id (tracknum+1) Block.divider
 
 -- | Remove a divider to the right of the selection.  The selection likes to
 -- skip dividers so they can't be deleted normally.
 undivide :: Cmd.CmdL ()
 undivide = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    tracks <- Block.block_tracks <$> State.get_block block_id
+    tracks <- Block.block_tracks <$> Ui.get_block block_id
     let found = List.find ((==Block.divider) . snd)
             (drop tracknum (zip [0..] tracks))
-    whenJust found $ \(n, _) -> State.remove_track block_id n
+    whenJust found $ \(n, _) -> Ui.remove_track block_id n
 
 collapse_children :: Cmd.M m => m ()
 collapse_children = do
@@ -256,7 +254,7 @@ append source = do
 
 create_merged :: Cmd.M m => BlockId -> BlockId -> m ViewId
 create_merged b1 b2 = do
-    ruler_id <- State.block_ruler b1
+    ruler_id <- Ui.block_ruler b1
     new <- Create.block ruler_id
     BlockConfig.append new b1
     BlockConfig.append new b2

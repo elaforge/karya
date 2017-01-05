@@ -28,7 +28,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -51,14 +51,14 @@ import Types
 
 -- | Set the given selection.
 --
--- This is the Cmd level of State.set_selection and should be called by
+-- This is the Cmd level of Ui.set_selection and should be called by
 -- any Cmd that wants to set the selection.
 set :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
 set view_id = set_selnum view_id Config.insert_selnum
 
 set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selnum view_id selnum maybe_sel = do
-    State.set_selection view_id selnum maybe_sel
+    Ui.set_selection view_id selnum maybe_sel
     when (selnum == Config.insert_selnum) $ case maybe_sel of
         Just sel | Sel.is_point sel -> do
             set_subs view_id sel
@@ -68,8 +68,8 @@ set_selnum view_id selnum maybe_sel = do
 
 mmc_goto_sel :: Cmd.M m => ViewId -> Sel.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do
-    block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Sel.cur_track sel)
+    block_id <- Ui.block_id_of view_id
+    maybe_track_id <- Ui.event_track_at block_id (Sel.cur_track sel)
     whenJustM (root_realtime block_id maybe_track_id (Sel.cur_pos sel)) $
         Cmd.midi (Cmd.sync_device sync) . mmc_goto sync
 
@@ -88,25 +88,25 @@ set_current selnum maybe_sel = do
 -- to the sub-block.
 --
 -- TODO if multiple calls overlap, I should draw multiple selections, but
--- State.set_selection doesn't support that, even though the underlying
+-- Ui.set_selection doesn't support that, even though the underlying
 -- BlockC.set_selection does.
 set_subs :: Cmd.M m => ViewId -> Sel.Selection -> m ()
 set_subs view_id sel = do
-    view_ids <- State.all_view_ids
+    view_ids <- Ui.all_view_ids
     forM_ view_ids $ \vid ->
-        State.set_selection vid Config.play_position_selnum Nothing
-    block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Sel.cur_track sel)
+        Ui.set_selection vid Config.play_position_selnum Nothing
+    block_id <- Ui.block_id_of view_id
+    maybe_track_id <- Ui.event_track_at block_id (Sel.cur_track sel)
     whenJust maybe_track_id $ \track_id ->
         mapM_ (uncurry set_block) =<<
             Perf.sub_pos block_id track_id (Sel.cur_pos sel)
 
-set_block :: State.M m => BlockId -> [(TrackId, TrackTime)] -> m ()
+set_block :: Ui.M m => BlockId -> [(TrackId, TrackTime)] -> m ()
 set_block _ [] = return ()
 set_block block_id ((_, pos) : _) = do
-    view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- Map.keys <$> Ui.views_of block_id
     forM_ view_ids $ \view_id ->
-        State.set_selection view_id Config.play_position_selnum
+        Ui.set_selection view_id Config.play_position_selnum
             (Just (Sel.selection 0 pos 999 pos))
 
 -- | Figure out how much to scroll to keep the selection visible and with
@@ -116,7 +116,7 @@ set_block block_id ((_, pos) : _) = do
 -- follow the selection should use this function.
 set_and_scroll :: Cmd.M m => ViewId -> Sel.Num -> Sel.Selection -> m ()
 set_and_scroll view_id selnum sel = do
-    old <- State.get_selection view_id selnum
+    old <- Ui.get_selection view_id selnum
     set_selnum view_id selnum (Just sel)
     auto_scroll view_id old sel
 
@@ -126,8 +126,8 @@ set_and_scroll view_id selnum sel = do
 to_point :: Cmd.M m => m ()
 to_point = do
     (view_id, sel) <- get
-    selectable <- State.selectable_tracks <$>
-        (State.get_block =<< State.block_id_of view_id)
+    selectable <- Ui.selectable_tracks <$>
+        (Ui.get_block =<< Ui.block_id_of view_id)
     let closest = fromMaybe (Sel.cur_track sel) $
             find_at_before (Sel.cur_track sel) selectable
     set view_id $ Just $ sel
@@ -168,7 +168,7 @@ step_with :: Cmd.M m => Int -> Move -> TimeStep.TimeStep -> m ()
 step_with steps move step = do
     view_id <- Cmd.get_focused_view
     old@(Sel.Selection start_track start_pos cur_track cur_pos) <-
-        Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
+        Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = case move of
             Extend -> Sel.selection start_track start_pos cur_track new_pos
@@ -180,7 +180,7 @@ step_with steps move step = do
 -- tracks and collapsed tracks.
 shift :: Cmd.M m => Bool -> Move -> Int -> m ()
 shift skip_unselectable move shift = modify $ \block old ->
-    let new = State.shift_selection skip_unselectable block shift old
+    let new = Ui.shift_selection skip_unselectable block shift old
     in case move of
         Extend -> Sel.merge old new
         Move -> new
@@ -201,8 +201,8 @@ jump_to_track move tracknum = modify $ \_ old ->
 modify :: Cmd.M m => (Block.Block -> Sel.Selection -> Sel.Selection) -> m ()
 modify f = do
     view_id <- Cmd.get_focused_view
-    block <- State.block_of view_id
-    sel <- Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
+    block <- Ui.block_of view_id
+    sel <- Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     set_and_scroll view_id Config.insert_selnum $ f block sel
 
 data Direction = R | L deriving (Eq, Show)
@@ -210,8 +210,8 @@ data Direction = R | L deriving (Eq, Show)
 find_note_track :: Cmd.M m => Direction -> Bool -> m (Maybe TrackNum)
 find_note_track dir one_before  = do
     tracks <- get_tracks_from_selection one_before dir
-    return $ State.track_tracknum <$>
-        find (ParseTitle.is_note_track . State.track_title) tracks
+    return $ Ui.track_tracknum <$>
+        find (ParseTitle.is_note_track . Ui.track_title) tracks
     where
     find f
         | one_before = if dir == R then find_before f else List.find f
@@ -232,18 +232,18 @@ find_before p = go
 -- Unselectable tracks are omitted.
 get_tracks_from_selection :: Cmd.M m => Bool -- ^ If True, start from the R or
     -- L edge of the selection, rather than 'Sel.cur_track'.
-    -> Direction -> m [State.TrackInfo]
+    -> Direction -> m [Ui.TrackInfo]
 get_tracks_from_selection from_edge dir = do
     (view_id, sel) <- get
     let tracknum = if from_edge
             then (if dir == R then snd else fst) (Sel.track_range sel)
             else Sel.cur_track sel
-    block_id <- State.block_id_of view_id
-    tracks <- filter (Block.track_selectable . State.track_block) <$>
+    block_id <- Ui.block_id_of view_id
+    tracks <- filter (Block.track_selectable . Ui.track_block) <$>
         TrackTree.tracks_of block_id
     return $ case dir of
-        R -> dropWhile ((<= tracknum) . State.track_tracknum) tracks
-        L -> dropWhile ((>= tracknum) . State.track_tracknum) (reverse tracks)
+        R -> dropWhile ((<= tracknum) . Ui.track_tracknum) tracks
+        L -> dropWhile ((>= tracknum) . Ui.track_tracknum) (reverse tracks)
 
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
@@ -253,9 +253,9 @@ get_tracks_from_selection from_edge dir = do
 cmd_track_all :: Cmd.M m => m ()
 cmd_track_all = do
     (view_id, sel) <- get
-    block_id <- State.block_id_of view_id
-    block_end <- State.block_end block_id
-    tracks <- State.track_count block_id
+    block_id <- Ui.block_id_of view_id
+    block_end <- Ui.block_end block_id
+    tracks <- Ui.track_count block_id
     set view_id $ Just (select_track_all block_end tracks sel)
 
 select_track_all :: TrackTime -> TrackNum -> Sel.Selection -> Sel.Selection
@@ -273,7 +273,7 @@ select_track_all block_end tracks sel
 cmd_tracks :: Cmd.M m => m ()
 cmd_tracks = do
     (view_id, sel) <- get
-    tracks <- State.track_count =<< State.block_id_of view_id
+    tracks <- Ui.track_count =<< Ui.block_id_of view_id
     set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
 
 -- ** set selection from clicks
@@ -288,7 +288,7 @@ cmd_select_track btn selnum msg = do
 
 select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
 select_tracks selnum view_id from to = do
-    block_end <- State.block_end =<< State.block_id_of view_id
+    block_end <- Ui.block_end =<< Ui.block_id_of view_id
     set_selnum view_id selnum $ Just $ select_until_end block_end $
         Sel.selection from 0 to 0
 
@@ -308,7 +308,7 @@ cmd_mouse_selection btn selnum extend msg = do
     ((down_tracknum, down_pos), (mouse_tracknum, mouse_pos))
         <- mouse_drag_pos btn msg
     view_id <- Cmd.get_focused_view
-    old_sel <- State.get_selection view_id selnum
+    old_sel <- Ui.get_selection view_id selnum
     let (start_tracknum, start_pos) = case (extend, old_sel) of
             (True, Just (Sel.Selection tracknum pos _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
@@ -324,7 +324,7 @@ cmd_snap_selection btn selnum extend msg = do
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
     view_id <- Cmd.get_focused_view
-    old_sel <- State.get_selection view_id selnum
+    old_sel <- Ui.get_selection view_id selnum
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
@@ -340,11 +340,11 @@ cmd_snap_selection btn selnum extend msg = do
     -- If I'm dragging, only snap if I'm close to a snap point.  Otherwise,
     -- it's easy for the selection to jump way off screen while dragging.
     snap_over_threshold view_id block_id pos snap = do
-        zoom <- State.get_zoom view_id
+        zoom <- Ui.get_zoom view_id
         let over = Types.zoom_to_pixels zoom (abs (snap - pos)) > threshold
         -- Don't go past the end of the ruler.  Otherwise it's easy to
         -- accidentally select too much by dragging to the end of the block.
-        end <- State.block_ruler_end block_id
+        end <- Ui.block_ruler_end block_id
         return $ if not (Msg.mouse_down msg) && over && pos < end
             then pos else snap
     threshold = 20
@@ -378,7 +378,7 @@ mouse_drag btn msg = do
     -- case I change my mind again.
     -- -- Clip a drag past the last track to the last track, callers here treat
     -- -- it as the same.
-    -- tracks <- State.track_count =<< Cmd.get_focused_block
+    -- tracks <- Ui.track_count =<< Cmd.get_focused_block
     -- let clamp (tnum, track) = (min (tracks-1) tnum, track)
     -- return (clamp down_at, clamp mouse_at)
     return (down_at, mouse_at)
@@ -391,15 +391,14 @@ mouse_drag btn msg = do
 -- scroll it so that the \"current\" end of the selection is in view.
 auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
 auto_scroll view_id old new = do
-    view <- State.get_view view_id
-    block <- State.get_block (Block.view_block view)
-    end <- State.block_end (Block.view_block view)
+    view <- Ui.get_view view_id
+    block <- Ui.get_block (Block.view_block view)
+    end <- Ui.block_end (Block.view_block view)
     let time_offset = Num.clamp 0 (end - Block.visible_time view) $
             auto_time_scroll view (Sel.cur_pos <$> old) (Sel.cur_pos new)
         track_offset = auto_track_scroll block view new
-    State.modify_zoom view_id $ \zoom ->
-        zoom { Types.zoom_offset = time_offset }
-    State.set_track_scroll view_id track_offset
+    Ui.modify_zoom view_id $ \zoom -> zoom { Types.zoom_offset = time_offset }
+    Ui.set_track_scroll view_id track_offset
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
@@ -459,8 +458,7 @@ step_from :: Cmd.M m => TrackNum -> TrackTime -> Int -> TimeStep.TimeStep
     -> m TrackTime
 step_from tracknum pos steps step = do
     block_id <- Cmd.get_focused_block
-    end <- max <$> State.block_ruler_end block_id
-        <*> State.block_event_end block_id
+    end <- max <$> Ui.block_ruler_end block_id <*> Ui.block_event_end block_id
     next <- TimeStep.step_from steps step block_id tracknum pos
     return $ case next of
         Just next | 0 <= next && next <= end -> next
@@ -534,7 +532,7 @@ lookup_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Point))
 lookup_selnum_insert selnum =
     justm (lookup_any_selnum_insert selnum) $
     \(view_id, (block_id, tracknum, pos)) ->
-    justm (State.event_track_at block_id tracknum) $ \track_id ->
+    justm (Ui.event_track_at block_id tracknum) $ \track_id ->
     return $ Just (view_id, (block_id, tracknum, track_id, pos))
 
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
@@ -549,26 +547,26 @@ lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
-        block_id <- State.block_id_of view_id
+        block_id <- Ui.block_id_of view_id
         return $ Just (view_id, (block_id, point_track sel, point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
 --
 -- I'm not sure how to choose, but the first one seems reasonable for now.
-lookup_block_insert :: State.M m => BlockId -> m (Maybe Point)
+lookup_block_insert :: Ui.M m => BlockId -> m (Maybe Point)
 lookup_block_insert block_id = do
-    view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- Map.keys <$> Ui.views_of block_id
     case view_ids of
         [] -> return Nothing
         view_id : _ ->
-            justm (State.get_selection view_id Config.insert_selnum) $ \sel ->
+            justm (Ui.get_selection view_id Config.insert_selnum) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
             return $ Just (block_id, point_track sel, track_id, point sel)
 
 -- | Get the point track of a selection.
-sel_track :: State.M m => BlockId -> Sel.Selection -> m (Maybe TrackId)
-sel_track block_id sel = State.event_track_at block_id (point_track sel)
+sel_track :: Ui.M m => BlockId -> Sel.Selection -> m (Maybe TrackId)
+sel_track block_id sel = Ui.event_track_at block_id (point_track sel)
 
 -- ** plain Selection
 
@@ -586,7 +584,7 @@ lookup = lookup_selnum Config.insert_selnum
 lookup_selnum :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Sel.Selection))
 lookup_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
-    justm (State.get_selection view_id selnum) $ \sel ->
+    justm (Ui.get_selection view_id selnum) $ \sel ->
     return $ Just (view_id, sel)
 
 range :: Cmd.M m => m (TrackTime, TrackTime)
@@ -599,7 +597,7 @@ range = Sel.range . snd <$> get
 -- to 'local_realtime'.
 realtime :: Cmd.M m => m (BlockId, RealTime, RealTime)
 realtime = do
-    maybe_root_id <- State.lookup_root_id
+    maybe_root_id <- Ui.lookup_root_id
     case maybe_root_id of
         Nothing -> local_realtime
         Just root_id -> do
@@ -611,7 +609,7 @@ realtime = do
 root_realtime :: Cmd.M m => BlockId -> Maybe TrackId -> ScoreTime
     -> m (Maybe RealTime)
 root_realtime block_id maybe_track_id pos =
-    State.get_root_id >>= \root_block ->
+    Ui.get_root_id >>= \root_block ->
     justm (Cmd.lookup_performance root_block) $ \perf ->
     Perf.lookup_realtime perf block_id maybe_track_id pos
 
@@ -620,7 +618,7 @@ root_realtime block_id maybe_track_id pos =
 get_root_insert :: Cmd.M m => m Point
 get_root_insert = maybe get_insert return =<< rootsel
     where
-    rootsel = justm State.lookup_root_id $ \root_id ->
+    rootsel = justm Ui.lookup_root_id $ \root_id ->
         lookup_block_insert root_id
 
 -- | Get the current selection in RealTime relative to another block.
@@ -634,7 +632,7 @@ get_root_insert = maybe get_insert return =<< rootsel
 relative_realtime :: Cmd.M m => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
     (view_id, sel) <- get
-    block_id <- State.block_id_of view_id
+    block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     maybe_root_sel <- lookup_block_insert root_id
     perf <- Cmd.get_performance root_id
@@ -648,7 +646,7 @@ relative_realtime root_id = do
 local_realtime :: Cmd.M m => m (BlockId, RealTime, RealTime)
 local_realtime = do
     (view_id, sel) <- get
-    block_id <- State.block_id_of view_id
+    block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
     let (start, end) = Sel.range sel
@@ -708,14 +706,14 @@ events_around = do
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_tracks :: State.M m => BlockId -> [TrackId] -> TrackTime
+events_around_tracks :: Ui.M m => BlockId -> [TrackId] -> TrackTime
     -> TrackTime -> m SelectedAround
 events_around_tracks block_id track_ids start end = do
-    block_end <- State.block_end block_id
+    block_end <- Ui.block_end block_id
     let extend
             | block_end == end = map until_end
             | otherwise = id
-    extend . zipWith around_track track_ids <$> mapM State.get_events track_ids
+    extend . zipWith around_track track_ids <$> mapM Ui.get_events track_ids
     where
     around_track track_id events = case split_range events of
         (pre:pres, [], posts) -> (track_id, (pres, [pre], posts))
@@ -756,17 +754,17 @@ tracknums = do
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = do
     (view_id, sel) <- get_selnum Config.insert_selnum
-    block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (point_track sel)
+    block_id <- Ui.block_id_of view_id
+    maybe_track_id <- Ui.event_track_at block_id (point_track sel)
     return (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
 tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
 tracks_selnum selnum = do
     (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
-    tracks <- mapM (State.get_block_track_at block_id) tracknums
+    tracks <- mapM (Ui.get_block_track_at block_id) tracknums
     let merged_track_ids = mconcatMap Block.track_merged tracks
-    block <- State.get_block block_id
+    block <- Ui.get_block block_id
     let merged = tracknums_of block (Set.toList merged_track_ids)
     let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
             merged ++ zip tracknums track_ids
@@ -776,10 +774,10 @@ tracks_selnum selnum = do
 strict_tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
-    block_id <- State.block_id_of view_id
-    tracks <- State.track_count block_id
+    block_id <- Ui.block_id_of view_id
+    tracks <- Ui.track_count block_id
     let tracknums = Sel.tracknums tracks sel
-    tracklikes <- mapM (State.track_at block_id) tracknums
+    tracklikes <- mapM (Ui.track_at block_id) tracknums
     (tracknums, track_ids) <- return $ unzip
         [(i, track_id) | (i, Just (Block.TId track_id _))
             <- zip tracknums tracklikes]

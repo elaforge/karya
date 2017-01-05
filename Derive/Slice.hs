@@ -45,7 +45,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -383,7 +383,7 @@ show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> Text
 show_overlap (Nothing, (start, end)) =
     pretty start <> "--" <> pretty end
 show_overlap (Just track_id, (start, end)) =
-    pretty $ State.Range Nothing track_id start end
+    pretty $ Ui.Range Nothing track_id start end
 
 -- * orphans
 

@@ -30,7 +30,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 
 import qualified Cmd.Cmd as Cmd
@@ -81,22 +81,22 @@ type StateM = Monad.State.StateT Cmd.State IO ()
     comes in while it's waiting it'll get killed off, and the out-of-date
     derivation will never happen.  Yay for laziness!
 -}
-update_performance :: SendStatus -> State.State -> Cmd.State
+update_performance :: SendStatus -> Ui.State -> Cmd.State
     -> Derive.ScoreDamage -> IO Cmd.State
 update_performance send_status ui_state cmd_state damage =
     -- The update will be modifying Cmd.State, especially PlayState.
     Monad.State.execStateT (run_update send_status ui_state)
         (insert_damage damage cmd_state)
 
-run_update :: SendStatus -> State.State -> StateM
+run_update :: SendStatus -> Ui.State -> StateM
 run_update send_status ui_state = do
     kill_threads
-    let visible = map Block.view_block $ Map.elems $ State.state_views ui_state
-        root_id = State.config_root (State.state_config ui_state)
+    let visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
+        root_id = Ui.config_root (Ui.state_config ui_state)
         block_ids = Seq.unique $ maybe id (:) root_id visible
     mapM_ (try_generate_performance send_status ui_state) block_ids
 
-try_generate_performance :: SendStatus -> State.State -> BlockId -> StateM
+try_generate_performance :: SendStatus -> Ui.State -> BlockId -> StateM
 try_generate_performance send_status ui_state block_id = do
     state <- Monad.State.get
     when (needs_generate state block_id) $
@@ -173,7 +173,7 @@ needs_generate state block_id = not (Map.member block_id perfs)
 -- thread into 'Cmd.state_performance_threads' and performance into
 -- 'Cmd.state_current_performance'.  It will be promoted to
 -- 'Cmd.state_performance' when 'evaluate_performance' completes.
-generate_performance :: State.State -> Thread.Seconds -> SendStatus -> BlockId
+generate_performance :: Ui.State -> Thread.Seconds -> SendStatus -> BlockId
     -> StateM
 generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
@@ -181,7 +181,7 @@ generate_performance ui_state wait send_status block_id = do
     mapM_ Log.write logs
     thread_id <- liftIO $ Thread.start $ do
         let im_config = Cmd.config_im (Cmd.state_config cmd_state)
-        let allocs = State.config#State.allocations #$ ui_state
+        let allocs = Ui.config#Ui.allocations #$ ui_state
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_resolve_instrument ui_state cmd_state)
@@ -195,7 +195,7 @@ generate_performance ui_state wait send_status block_id = do
     -- If the derivation somehow failed, then the old performance will remain,
     -- and since there is no thread, this will try again the next time around.
 
-derive :: State.State -> Cmd.State -> BlockId -> (Cmd.Performance, [Log.Msg])
+derive :: Ui.State -> Cmd.State -> BlockId -> (Cmd.Performance, [Log.Msg])
 derive ui_state cmd_state block_id = (perf, logs)
     where
     perf = case cmd_result of

@@ -11,7 +11,7 @@ module Cmd.Repl.LSymbol where
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
@@ -27,11 +27,11 @@ import Global
 -- symbol under test.
 make :: Cmd.CmdL ()
 make = do
-    ident <- State.read_id "symbol-test"
-    bid <- Create.named_block ident State.no_ruler
-    Create.track_events bid State.no_ruler 1 100 $
+    ident <- Ui.read_id "symbol-test"
+    bid <- Create.named_block ident Ui.no_ruler
+    Create.track_events bid Ui.no_ruler 1 100 $
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
-    State.set_track_width bid 0 0
+    Ui.set_track_width bid 0 0
     vid <- Create.view bid
     Selection.set vid (Just (Sel.point 1 0))
 
@@ -42,7 +42,7 @@ set sym = do
     unless (null fonts) $
         Cmd.throw $ "Missing fonts: " <> pretty fonts
     (_, _, tid, _) <- Selection.get_insert
-    State.insert_event tid $ Event.event 0 5 ("`" <> Symbol.sym_name sym <> "`")
+    Ui.insert_event tid $ Event.event 0 5 ("`" <> Symbol.sym_name sym <> "`")
 
 get_fonts :: Cmd.CmdL [Symbol.Font]
 get_fonts = liftIO SymbolC.get_fonts

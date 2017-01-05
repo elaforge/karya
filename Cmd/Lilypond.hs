@@ -22,7 +22,7 @@ import qualified System.Process as Process
 
 import qualified Util.Log as Log
 import qualified Util.Process
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -51,17 +51,17 @@ import Types
 
 derive_block :: Cmd.M m => BlockId -> m Derive.Result
 derive_block block_id = do
-    global_transform <- State.config#State.global_transform <#> State.get
+    global_transform <- Ui.config#Ui.global_transform <#> Ui.get
     -- Make sure a bad block id will fail right away.
-    _ <- State.get_block block_id
+    _ <- Ui.get_block block_id
     derive $ Call.Block.eval_root_block global_transform block_id
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
 derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
-    config <- State.config#State.lilypond <#> State.get
-    ui_state <- State.get
+    config <- Ui.config#Ui.lilypond <#> Ui.get
+    ui_state <- Ui.get
     constant <- PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
     return $ Derive.extract_result $
         Derive.derive (set_tempo constant)
@@ -69,11 +69,11 @@ derive deriver = do
             (Derive.with_scopes lilypond_scope deriver)
     where
     set_tempo state = state
-        { Derive.state_ui = State.config#State.default_#State.tempo #= 1 $
+        { Derive.state_ui = Ui.config#Ui.default_#Ui.tempo #= 1 $
             Derive.state_ui state
         }
     set_mode config state = state { Derive.state_mode = Derive.Lilypond config }
-    add_ly_global = State.config#StateConfig.allocations_map
+    add_ly_global = Ui.config#StateConfig.allocations_map
         %= Map.insert Lilypond.Constants.ly_global allocation
     allocation = StateConfig.allocation Lilypond.Constants.ly_qualified
         StateConfig.Dummy

@@ -15,7 +15,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -49,26 +49,26 @@ split_time = do
 -- | Create a new block from template, then copy over all the events below the
 -- given time.  Clear the source track, and trim events that overlap the split
 -- point.  Modify the ruler (locally!) in the old and new blocks.
-split_time_at :: State.M m => BlockId -> ScoreTime -> Id.Id -> m BlockId
+split_time_at :: Ui.M m => BlockId -> ScoreTime -> Id.Id -> m BlockId
 split_time_at from_block_id pos block_name = do
-    tracks <- State.tracknums_of from_block_id
+    tracks <- Ui.tracknums_of from_block_id
     -- Copy over the new events.
     track_events <- forM tracks $ \(track_id, tracknum) -> do
-        events <- Events.at_after pos <$> State.get_events track_id
+        events <- Events.at_after pos <$> Ui.get_events track_id
         let shifted = map (Event.move (subtract pos)) events
         return (tracknum, shifted)
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
-        events <- fst . Events.split pos <$> State.get_events track_id
+        events <- fst . Events.split pos <$> Ui.get_events track_id
         let clipped = Events.from_list $ Events.clip False pos $
                 Events.ascending events
-        State.modify_events track_id (const clipped)
+        Ui.modify_events track_id (const clipped)
     -- Create new block.
     to_block_id <- Create.named_block_from_template False from_block_id
         block_name
     forM_ track_events $ \(tracknum, events) -> do
-        track_id <- State.get_event_track_at to_block_id tracknum
-        State.insert_events track_id events
+        track_id <- Ui.get_event_track_at to_block_id tracknum
+        Ui.insert_events track_id events
     -- Trim rulers on each.
     let dur = Meter.time_to_duration pos
     local_block from_block_id $ Meter.clip 0 dur
@@ -92,19 +92,18 @@ split_track = do
     Create.view to_block_id
     return to_block_id
 
-split_track_at :: State.M m => BlockId -> TrackNum -> Id.Id -> m BlockId
+split_track_at :: Ui.M m => BlockId -> TrackNum -> Id.Id -> m BlockId
 split_track_at from_block_id split_at block_name = do
-    to_block_id <- Create.named_block block_name
-        =<< State.ruler_of from_block_id
-    skeleton <- State.get_skeleton from_block_id
+    to_block_id <- Create.named_block block_name =<< Ui.ruler_of from_block_id
+    skeleton <- Ui.get_skeleton from_block_id
     -- Move tracks.
-    tracks <- zip [0..] . Block.block_tracks <$> State.get_block from_block_id
+    tracks <- zip [0..] . Block.block_tracks <$> Ui.get_block from_block_id
     forM_ (dropWhile ((<split_at) . fst) tracks) $ \(tracknum, track) ->
-        State.insert_track to_block_id (tracknum - split_at + 1) track
+        Ui.insert_track to_block_id (tracknum - split_at + 1) track
     forM_ (takeWhile ((>=split_at) . fst) (reverse tracks)) $
-        \(tracknum, _) -> State.remove_track from_block_id tracknum
+        \(tracknum, _) -> Ui.remove_track from_block_id tracknum
     -- Copy over the skeleton.
-    State.set_skeleton to_block_id $ Skeleton.make
+    Ui.set_skeleton to_block_id $ Skeleton.make
         [ (from-split_at + 1, to-split_at + 1)
         | (from, to) <- Skeleton.flatten skeleton
         , from >= split_at && to >= split_at
@@ -147,7 +146,7 @@ selection_alts relative alts name
         let call = Text.unwords $
                 "alt" : map (Eval.block_id_to_call relative block_id) alts
         whenJust (Seq.head track_ids) $ \track_id ->
-            State.insert_event track_id $ Event.event start (end-start) call
+            Ui.insert_event track_id $ Event.event start (end-start) call
         return alts
     where
     alt_name block_id name =
@@ -167,15 +166,15 @@ make_relative :: BlockId -> Id.Id -> Id.Id
 make_relative caller name =
     Id.set_name (Eval.make_relative caller (Id.id_name name)) name
 
-selection_at :: State.M m => Bool -> Id.Id -> BlockId -> [TrackNum]
+selection_at :: Ui.M m => Bool -> Id.Id -> BlockId -> [TrackNum]
     -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
 selection_at relative name block_id tracknums track_ids start end = do
-    ruler_id <- State.block_ruler block_id
+    ruler_id <- Ui.block_ruler block_id
     to_block_id <- Create.named_block name ruler_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
-        title <- State.get_track_title track_id
+        title <- Ui.get_track_title track_id
         events <- Events.in_range (Events.range Event.Positive start end) <$>
-            State.get_events track_id
+            Ui.get_events track_id
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
             Events.map_events (Event.move (subtract start)) events
@@ -183,7 +182,7 @@ selection_at relative name block_id tracknums track_ids start end = do
     -- Clear selected range and put in a call to the new block.
     Edit.clear_range track_ids (Events.Positive start end)
     whenJust (Seq.head track_ids) $ \track_id ->
-        State.insert_event track_id $ Event.event start (end-start)
+        Ui.insert_event track_id $ Event.event start (end-start)
             (Eval.block_id_to_call relative block_id to_block_id)
     -- It's easier to create all the tracks and then delete the empty ones.
     -- If I tried to just not create those tracks then 'clipped_skeleton' would
@@ -195,12 +194,12 @@ selection_at relative name block_id tracknums track_ids start end = do
     return to_block_id
 
 -- | Update relative calls on a block to a new parent.
-rebase_relative_calls :: State.M m =>
+rebase_relative_calls :: Ui.M m =>
     Bool -- ^ if true, copy the call, otherwise rename it
     -> BlockId -> BlockId -> m ()
 rebase_relative_calls copy from to = do
     let ns = Id.ident_namespace from
-    track_ids <- Block.block_track_ids <$> State.get_block to
+    track_ids <- Block.block_track_ids <$> Ui.get_block to
     called <- Seq.unique . mapMaybe (resolve_relative_call ns from)
         . concat <$> mapM get_block_calls track_ids
     forM_ (zip called (map (rebase_call from) called)) $ \(old, new) ->
@@ -222,9 +221,9 @@ rebase_call caller block_id = Id.id ns name
             caller_name <> Text.dropWhile (/='.') old_name
         | otherwise = old_name
 
-get_block_calls :: State.M m => TrackId -> m [BaseTypes.CallId]
+get_block_calls :: Ui.M m => TrackId -> m [BaseTypes.CallId]
 get_block_calls track_id = do
-    events <- Events.ascending <$> State.get_events track_id
+    events <- Events.ascending <$> Ui.get_events track_id
     return $ map BaseTypes.Symbol $
         concatMap (NoteTrack.possible_block_calls . Event.text) events
 
@@ -245,11 +244,11 @@ block_from_template = do
             =<< Cmd.get_focused_block
         else void block_template_from_selection
 
-delete_empty_tracks :: State.M m => BlockId -> m ()
+delete_empty_tracks :: Ui.M m => BlockId -> m ()
 delete_empty_tracks block_id = do
-    track_ids <- filterM (fmap Events.null . State.get_events)
-        =<< State.track_ids_of block_id
-    mapM_ State.destroy_track track_ids
+    track_ids <- filterM (fmap Events.null . Ui.get_events)
+        =<< Ui.track_ids_of block_id
+    mapM_ Ui.destroy_track track_ids
 
 -- * named block
 
@@ -262,27 +261,27 @@ block_template_from_selection =
 
 -- | Create a new block with the given tracks and ruler clipped to the given
 -- range.
-block_template :: State.M m => BlockId -> [TrackId] -> TrackTime -> TrackTime
+block_template :: Ui.M m => BlockId -> [TrackId] -> TrackTime -> TrackTime
     -> m BlockId
 block_template block_id track_ids start end = do
-    to_block_id <- Create.block =<< State.block_ruler block_id
+    to_block_id <- Create.block =<< Ui.block_ruler block_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
-        title <- State.get_track_title track_id
+        title <- Ui.get_track_title track_id
         Create.track to_block_id tracknum title mempty
     -- Create skeleton.
     clipped_skeleton block_id to_block_id
-        =<< mapM (State.get_tracknum_of block_id) track_ids
+        =<< mapM (Ui.get_tracknum_of block_id) track_ids
     -- Create a clipped ruler.
     local_block to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
-clipped_skeleton :: State.M m => BlockId -> BlockId -> [TrackNum] -> m ()
+clipped_skeleton :: Ui.M m => BlockId -> BlockId -> [TrackNum] -> m ()
 clipped_skeleton from_block to_block tracknums =
     case (Seq.minimum tracknums, Seq.maximum tracknums) of
         (Just low, Just high) -> do
-            edges <- Skeleton.flatten <$> State.get_skeleton from_block
-            State.set_skeleton to_block $ Skeleton.make
+            edges <- Skeleton.flatten <$> Ui.get_skeleton from_block
+            Ui.set_skeleton to_block $ Skeleton.make
                 [ (from-low + 1, to-low + 1) | (from, to) <- edges
                 , Num.inRange low (high+1) from, Num.inRange low (high+1) to
                 ]
@@ -293,7 +292,7 @@ clipped_skeleton from_block to_block tracknums =
 -- | Create a new block containing calls to the given BlockIds.
 order_block :: Cmd.M m => Id.Id -> [BlockId] -> m BlockId
 order_block name block_ids = do
-    block_id <- Create.named_block name State.no_ruler
+    block_id <- Create.named_block name Ui.no_ruler
     order_track block_id block_ids
     Create.view block_id
     return block_id
@@ -302,9 +301,9 @@ order_block name block_ids = do
 -- calling track will have a 1:1 time relationship with the calls, which is
 -- useful for lilypond derivation since it only understands 1:1.  Also
 -- modify the ruler to be the concatenation of the rulers of the sub-blocks.
-order_track :: State.M m => BlockId -> [BlockId] -> m TrackId
+order_track :: Ui.M m => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
-    ruler_ids <- mapM State.ruler_of sub_blocks
+    ruler_ids <- mapM Ui.ruler_of sub_blocks
     meters <- mapM RulerUtil.get_meter ruler_ids
     let durs = map Meter.time_end meters
         starts = scanl (+) 0 durs
@@ -318,7 +317,7 @@ block_id_to_call = Id.ident_name
 
 -- * util
 
-local_block :: State.M m => BlockId
+local_block :: Ui.M m => BlockId
     -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
 local_block block_id =
     RulerUtil.local_block block_id . Ruler.Modify.modify_meter

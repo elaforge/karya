@@ -25,7 +25,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
@@ -91,7 +91,7 @@ signal_interpolate x0 y0 x1 y1 =
 
 -- * run
 
-run :: State.State -> Derive.Deriver a
+run :: Ui.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     where
@@ -100,7 +100,7 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     bid = UiTest.bid "derive-test.run-fakeblock"
 
 -- | Run without a fake stack.
-run_ :: State.State -> Derive.Deriver a
+run_ :: Ui.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
     (Left err, _, _logs) -> Left (prettys err)
@@ -119,7 +119,7 @@ run_events :: (a -> b)
     -> Either String ([b], [String])
 run_events f = extract_run $ extract_levents f
 
-eval :: State.State -> Derive.Deriver a -> Either String a
+eval :: Ui.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
 
 -- * perform
@@ -195,7 +195,7 @@ derive_tracks_setup setup title tracks = derive_blocks_setup setup
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
 derive_blocks = derive_blocks_setup mempty
 
-derive_block :: State.State -> BlockId -> Derive.Result
+derive_block :: Ui.State -> BlockId -> Derive.Result
 derive_block = derive_block_setup mempty
 
 derive_blocks_setup :: Setup -> [UiTest.BlockSpec] -> Derive.Result
@@ -203,16 +203,16 @@ derive_blocks_setup setup block_tracks = derive_block_setup setup ui_state bid
     where (bid : _, ui_state) = UiTest.run_mkblocks block_tracks
 
 -- | Derive a block with the testing environ.
-derive_block_setup :: Setup -> State.State -> BlockId -> Derive.Result
+derive_block_setup :: Setup -> Ui.State -> BlockId -> Derive.Result
 derive_block_setup setup =
     derive_block_standard (with_environ default_environ <> setup)
         default_cmd_state mempty mempty
 
 -- | Like 'derive_block_setup', but exec the StateId.
-derive_block_setup_m :: Setup -> State.StateId a -> BlockId -> Derive.Result
+derive_block_setup_m :: Setup -> Ui.StateId a -> BlockId -> Derive.Result
 derive_block_setup_m setup create =
     derive_block_standard (with_environ default_environ <> setup)
-        default_cmd_state mempty mempty (UiTest.exec State.empty create)
+        default_cmd_state mempty mempty (UiTest.exec Ui.empty create)
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
@@ -221,18 +221,18 @@ derive_dump synths dump@(_, simple_allocs, _) =
     where
     db = synths_to_db synths
     allocs = allocs_from_db db simple_allocs
-    state = UiTest.eval State.empty
+    state = UiTest.eval Ui.empty
         (Simple.load_state (lookup_settings db) dump)
 
 -- | Derive a block in the same way that the app does.
 derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
-    -> Derive.ScoreDamage -> State.State -> BlockId -> Derive.Result
+    -> Derive.ScoreDamage -> Ui.State -> BlockId -> Derive.Result
 derive_block_standard setup cmd_state cache damage ui_state_ block_id =
     run_cmd ui_state (setup_cmd setup cmd_state) cmd
     where
     cmd = Derive.extract_result <$> PlayUtil.run cache damage deriver
     ui_state = setup_ui setup ui_state_
-    global_transform = State.config#State.global_transform #$ ui_state
+    global_transform = Ui.config#Ui.global_transform #$ ui_state
     deriver = setup_deriver setup $
         Prelude.Block.eval_root_block global_transform block_id
 
@@ -245,7 +245,7 @@ perform_dump synths (_, simple_allocs, _) =
     lookup = make_convert_lookup allocs db
     allocs = allocs_from_db db simple_allocs
 
-derive :: State.State -> Derive.NoteDeriver -> Derive.Result
+derive :: Ui.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state mempty mempty)
         default_dynamic deriver
@@ -254,7 +254,7 @@ derive ui_state deriver = Derive.extract_result $
 
 -- | CmdTest also has this, but I can't import it because it imports
 -- DeriveTest.
-run_cmd :: CallStack.Stack => State.State -> Cmd.State -> Cmd.CmdId a -> a
+run_cmd :: CallStack.Stack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
 run_cmd ui_state cmd_state cmd = case result of
     Right (Just result, _, _) -> result
     Right (Nothing, _, _) -> errorStack "DeriveTest.run_cmd: Cmd aborted"
@@ -270,7 +270,7 @@ type Setup = SetupA (Stream.Stream Score.Event)
 -- @with_*@ functions in a polymorphic way, I can use SetupA and pull them back
 -- out with setup_deriver.
 data SetupA a = Setup {
-    setup_ui :: State.State -> State.State
+    setup_ui :: Ui.State -> Ui.State
     , setup_cmd :: Cmd.State -> Cmd.State
     , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
     }
@@ -280,7 +280,7 @@ instance Monoid (SetupA a) where
     mappend (Setup ui1 cmd1 deriver1) (Setup ui2 cmd2 deriver2) =
         Setup (ui1 . ui2) (cmd1 . cmd2) (deriver1 . deriver2)
 
-with_ui :: (State.State -> State.State) -> Setup
+with_ui :: (Ui.State -> Ui.State) -> Setup
 with_ui ui = mempty { setup_ui = ui }
 
 with_cmd :: (Cmd.State -> Cmd.State) -> Setup
@@ -305,18 +305,18 @@ with_linear_block block_id =
     skel state =
         [(x, y) | (x, Just y) <- Seq.zip_next [1 .. ntracks state  - 1]]
     ntracks state = length $ maybe [] Block.block_tracks $
-        Map.lookup block_id (State.state_blocks state)
+        Map.lookup block_id (Ui.state_blocks state)
 
 with_skel :: [Skeleton.Edge] -> Setup
 with_skel = with_skel_block UiTest.default_block_id
 
 with_skel_block :: BlockId -> [Skeleton.Edge] -> Setup
 with_skel_block block_id skel = with_ui $ \state -> UiTest.exec state $
-    State.set_skeleton block_id (Skeleton.make skel)
+    Ui.set_skeleton block_id (Skeleton.make skel)
 
 with_default_ruler :: Ruler.Ruler -> Setup
 with_default_ruler ruler = with_ui $
-    State.rulers %= Map.insert UiTest.default_ruler_id ruler
+    Ui.rulers %= Map.insert UiTest.default_ruler_id ruler
 
 -- | Set the ruler on the given block.
 with_ruler :: BlockId -> Ruler.Ruler -> Setup
@@ -330,7 +330,7 @@ with_tsig_tracknums :: [TrackNum] -> Setup
 with_tsig_tracknums = with_tsigs . map UiTest.mk_tid
 
 with_tsig_sources :: [(TrackId, Maybe Track.RenderSource)] -> Setup
-with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
+with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
     where
     enable track_id track = case lookup track_id track_ids of
         Just source -> track { Track.track_render =
@@ -338,11 +338,11 @@ with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
         Nothing -> track
 
 with_transform :: Text -> Setup
-with_transform = with_ui . (State.config#State.global_transform #=)
+with_transform = with_ui . (Ui.config#Ui.global_transform #=)
 
 with_midi_config :: Text -> Text -> Common.Config -> Patch.Config -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
-    State.config#State.allocations_map %= Map.insert (Score.instrument inst)
+    Ui.config#Ui.allocations_map %= Map.insert (Score.instrument inst)
         (StateConfig.Allocation (InstTypes.parse_qualified qualified)
             common_config (StateConfig.Midi midi_config))
 
@@ -451,7 +451,7 @@ lookup_qualified = flip Inst.lookup
 
 with_allocations :: StateConfig.Allocations -> Setup
 with_allocations allocations =
-    with_ui $ State.config#State.allocations %= (allocations <>)
+    with_ui $ Ui.config#Ui.allocations %= (allocations <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
@@ -488,7 +488,7 @@ default_lookup_scale = Scale.All.lookup_scale
 default_library :: Derive.Library
 default_library = Call.All.library
 
-default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
+default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage = Derive.initial_constant ui_state
     default_library default_lookup_scale (const Nothing) cache damage
@@ -538,7 +538,7 @@ make_convert_lookup_for inst patch_config patch =
 
 make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
-    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state) $
+    run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $
         (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup
     where setup = with_instrument_db allocs db
 
@@ -751,7 +751,7 @@ interesting_midi = filter $ \wmsg -> case Midi.wmsg_msg wmsg of
 
 -- ** ui state
 
-e_state :: Derive.Result -> State.State
+e_state :: Derive.Result -> Ui.State
 e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 
 -- * call
@@ -831,7 +831,7 @@ mkpitch12 :: String -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
 
 mkpitch :: CallStack.Stack => Scale.Scale -> String -> PSignal.Pitch
-mkpitch scale p = case eval State.empty deriver of
+mkpitch scale p = case eval Ui.empty deriver of
     Left err -> errorStack $ "mkpitch " <> showt p <> ": " <> txt err
     Right pitch -> pitch
     where

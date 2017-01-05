@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
@@ -82,7 +82,7 @@ extract_logs = map DeriveTest.show_log . CmdTest.result_logs
 
 run_cmd :: (Msg.Msg -> Cmd.CmdId a) -> [Cmd.Modifier] -> Msg.Msg
     -> CmdTest.Result a
-run_cmd cmd mods msg = CmdTest.run State.empty cstate (cmd msg)
+run_cmd cmd mods msg = CmdTest.run Ui.empty cstate (cmd msg)
     where
     cstate = CmdTest.default_cmd_state { Cmd.state_keys_down = state_mods }
     state_mods = Map.fromList [(m, m) | m <- mods ++ extra_mods]

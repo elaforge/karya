@@ -16,7 +16,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
@@ -143,7 +143,7 @@ modify_record_velocity f = Cmd.modify_edit_state $ \st ->
 insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
 insert_event text dur = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    State.insert_block_events block_id track_id [Event.event pos dur text]
+    Ui.insert_block_events block_id track_id [Event.event pos dur text]
 
 -- | Different from 'cmd_insert_time' and 'cmd_delete_time' since it only
 -- modifies one event.  Move back the next event, or move forward the previous
@@ -169,11 +169,10 @@ move_event :: Cmd.M m =>
 move_event modify = do
     (block_id, _, track_ids, pos, _) <- Selection.tracks
     forM_ track_ids $ \track_id -> do
-        events <- State.get_events track_id
+        events <- Ui.get_events track_id
         whenJust (modify pos events) $ \event -> do
-            State.remove_event track_id (Event.start event)
-            State.insert_block_events block_id track_id
-                [Event.move_to pos event]
+            Ui.remove_event track_id (Event.start event)
+            Ui.insert_block_events block_id track_id [Event.move_to pos event]
 
 
 -- | Extend the events in the selection to either the end of the selection or
@@ -206,13 +205,13 @@ modify_event_near_point modify = do
     prev_or_next pos = do
         (block_id, tracknums, track_ids, _, _) <- Selection.tracks
         forM_ (zip tracknums track_ids) $ \(tracknum, track_id) ->
-            unlessM (State.track_collapsed block_id tracknum) $
+            unlessM (Ui.track_collapsed block_id tracknum) $
                 track_point pos track_id
     track_point pos track_id = do
-        events <- State.get_events track_id
+        events <- Ui.get_events track_id
         whenJust (event_around pos events) $ \event -> do
-            State.remove_event track_id (Event.start event)
-            State.insert_event track_id $ modify (pos, pos) event
+            Ui.remove_event track_id (Event.start event)
+            Ui.insert_event track_id $ modify (pos, pos) event
 
 event_around :: TrackTime -> Events.Events -> Maybe Event.Event
 event_around pos events = case Events.split_lists pos events of
@@ -252,7 +251,7 @@ cmd_toggle_zero_timestep :: Cmd.M m => m ()
 cmd_toggle_zero_timestep = do
     (_, sel) <- Selection.get
     ModifyEvents.selection_expanded $ \block_id track_id events -> do
-        tracknum <- State.get_tracknum_of block_id track_id
+        tracknum <- Ui.get_tracknum_of block_id track_id
         let (start, end) = Sel.range sel
         Just <$> mapM (toggle_zero_timestep block_id tracknum start end) events
 
@@ -291,7 +290,7 @@ cmd_set_start = do
     (_, _, track_ids, _, _) <- Selection.tracks
     let pos = Selection.point sel
     forM_ track_ids $ \track_id -> do
-        (pre, post) <- Events.split_lists pos <$> State.get_events track_id
+        (pre, post) <- Events.split_lists pos <$> Ui.get_events track_id
         let set = set_beginning track_id pos
         case (pre, post) of
             (prev:_, _) | Event.overlaps pos prev -> set prev
@@ -304,8 +303,8 @@ cmd_set_start = do
         let end = (if Event.is_positive event then max else min)
                 (Event.end event) start
             dur = if Event.duration event == 0 then 0 else end - start
-        State.remove_event track_id (Event.start event)
-        State.insert_event track_id $ place start dur event
+        Ui.remove_event track_id (Event.start event)
+        Ui.insert_event track_id $ place start dur event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
@@ -333,21 +332,21 @@ cmd_join_events = mapM_ process =<< Selection.events_around
         case (Event.is_positive evt1, Event.is_positive evt2) of
             (True, True) -> do
                 remove_range track_id evt1 evt2
-                State.insert_event track_id $
+                Ui.insert_event track_id $
                     set_dur (Event.end evt2 - Event.start evt1) evt1
             (False, False) -> do
                 remove_range track_id evt1 evt2
-                State.insert_event track_id $ if Event.duration evt2 == 0
+                Ui.insert_event track_id $ if Event.duration evt2 == 0
                     then evt2
                     else Event.place (Event.start evt1)
                         (Event.end evt2 - Event.start evt1) evt2
             _ -> return () -- no sensible way to join these
     remove_range track_id evt1 evt2 = do
-        State.remove_event_range track_id
+        Ui.remove_event_range track_id
             (Events.Positive (Event.start evt1) (Event.end evt2))
         -- If evt2 is zero dur, the above half-open range won't get it.
         when (Event.duration evt2 == 0) $
-            State.remove_event track_id (Event.start evt2)
+            Ui.remove_event track_id (Event.start evt2)
 
 
 -- | Split the events under the cursor.
@@ -381,12 +380,12 @@ cmd_insert_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
-        events <- State.get_events track_id
+        events <- Ui.get_events track_id
         case Events.split_at_before start events of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                State.remove_from track_id (min (Event.start event) start)
-                State.insert_block_events block_id track_id $
+                Ui.remove_from track_id (min (Event.start event) start)
+                Ui.insert_block_events block_id track_id $
                     map (insert_event_time start (end-start)) events
 
 -- | Modify the event to insert time, lengthening it if the start time falls
@@ -407,22 +406,22 @@ cmd_delete_time = do
         delete_time block_id track_id start (end-start)
 
 -- | Delete the time range for all tracks in the block.
-delete_block_time :: State.M m => BlockId -> TrackTime -> TrackTime -> m ()
+delete_block_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 delete_block_time block_id start dur = do
-    track_ids <- State.track_ids_of block_id
+    track_ids <- Ui.track_ids_of block_id
     forM_ track_ids $ \track_id ->
         delete_time block_id track_id start dur
 
-delete_time :: State.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
+delete_time :: Ui.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
 delete_time block_id track_id start dur = do
     when (dur < 0) $
-        State.throw $ "delete_time: negative dur " <> pretty dur
-    events <- State.get_events track_id
+        Ui.throw $ "delete_time: negative dur " <> pretty dur
+    events <- Ui.get_events track_id
     case Events.split_at_before start events of
         (_, []) -> return ()
         (_, events@(event:_)) -> do
-            State.remove_from track_id (min (Event.start event) start)
-            State.insert_block_events block_id track_id
+            Ui.remove_from track_id (min (Event.start event) start)
+            Ui.insert_block_events block_id track_id
                 (mapMaybe (delete_event_time start dur) events)
 
 -- | Modify the event to delete time, shortening it the start time falls within
@@ -477,9 +476,9 @@ cmd_clear_selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
     clear_range track_ids (Events.range Event.Positive start end)
 
-clear_range :: State.M m => [TrackId] -> Events.Range -> m ()
+clear_range :: Ui.M m => [TrackId] -> Events.Range -> m ()
 clear_range track_ids range =
-    forM_ track_ids $ \track_id -> State.remove_event_range track_id range
+    forM_ track_ids $ \track_id -> Ui.remove_event_range track_id range
 
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
@@ -529,7 +528,7 @@ lookup_call_duration block_id track_id event =
 cmd_invert_orientation :: Cmd.M m => m ()
 cmd_invert_orientation = do
     track_ids <- Selection.track_ids
-    let is_control = fmap ParseTitle.is_control_track . State.get_track_title
+    let is_control = fmap ParseTitle.is_control_track . Ui.get_track_title
     ifM (allM is_control track_ids) invert_events invert_notes
 
 invert_events :: Cmd.M m => m ()
@@ -648,11 +647,11 @@ open_floating selection = do
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)
 
-event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
+event_text_at :: Ui.M m => TrackId -> ScoreTime -> m (Maybe Text)
 event_text_at track_id = fmap (fmap Event.text) . event_at track_id
 
-event_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
-event_at track_id pos = Events.at pos <$> State.get_events track_id
+event_at :: Ui.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
+event_at track_id pos = Events.at pos <$> Ui.get_events track_id
 
 -- ** handle floating input msg
 
@@ -666,7 +665,7 @@ handle_floating_input always_zero_dur msg = do
     text <- Cmd.abort_unless $ floating_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
     track_id <- Cmd.require "handle_floating_input on non-event track"
-        =<< State.event_track_at block_id tracknum
+        =<< Ui.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
     let zero_dur = always_zero_dur || " " `Text.isPrefixOf` text
     EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
@@ -688,7 +687,7 @@ try_set_call_duration block_id track_id pos =
     whenJustM (event_at track_id pos) $ \event ->
         whenJustM (lookup_call_duration block_id track_id event) $ \dur ->
             when (dur /= Event.duration event) $
-                State.insert_event track_id (Event.set_duration dur event)
+                Ui.insert_event track_id (Event.set_duration dur event)
 
 floating_input_msg :: Msg.Msg -> Maybe Text
 floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx

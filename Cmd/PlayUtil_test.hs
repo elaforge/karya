@@ -10,7 +10,7 @@ import qualified Data.Vector as Vector
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -46,7 +46,7 @@ test_events_from = do
     equal (f 2 [(0, 1, i3), (1, 2, i3), (3, 1, i3)]) ([], [(3, 1, i3)])
 
 test_control_defaults = do
-    let make = (State.allocation UiTest.i1 #= Just alloc)
+    let make = (Ui.allocation UiTest.i1 #= Just alloc)
             . CmdTest.make_tracks . UiTest.inst_note_track
         alloc = UiTest.midi_allocation "s/1" $
             Patch.control_defaults #= Map.fromList [("cc17", 0.5)] $
@@ -65,7 +65,7 @@ test_control_defaults = do
         Right [Midi.ControlChange 17 0, Midi.NoteOn Key.c4 127,
             Midi.NoteOff Key.c4 127]
 
-perform_events :: State.State -> BlockId
+perform_events :: Ui.State -> BlockId
     -> (Either String [Midi.WriteMessage], [Text])
 perform_events ui_state block_id =
     (midi, mapMaybe DeriveTest.show_interesting_log all_logs)

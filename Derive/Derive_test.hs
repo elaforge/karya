@@ -18,7 +18,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Attrs as Attrs
@@ -324,7 +324,7 @@ test_tempo_compose = do
     -- TODO test when the subblock has a tempo too
 
 test_warp_ops = do
-    let run op = DeriveTest.eval State.empty (op record)
+    let run op = DeriveTest.eval Ui.empty (op record)
         record = do
             x0 <- Derive.real (0 :: ScoreTime)
             x1 <- Derive.real (2 :: ScoreTime)
@@ -377,7 +377,7 @@ test_warp_ops = do
         Right [1, 17]
 
 test_real_to_score = do
-    let f do_warp pos = DeriveTest.eval State.empty $
+    let f do_warp pos = DeriveTest.eval Ui.empty $
             do_warp (Derive.real_to_score =<< Derive.score_to_real pos)
     equal (f id 1) (Right 1)
     equal (f (Derive.at 5) 1) (Right 1)
@@ -399,7 +399,7 @@ test_shift_control = do
             , Derive.state_pitch = psig
             }
     let run op = DeriveTest.extract_run extract $
-            DeriveTest.run State.empty (set_controls >> op get)
+            DeriveTest.run Ui.empty (set_controls >> op get)
             where
             get = do
                 conts <- Internal.get_dynamic Derive.state_controls
@@ -414,7 +414,7 @@ test_shift_control = do
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
 test_tempo_funcs1 = do
-    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $
+    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run Ui.empty $
             UiTest.mkblock ("b0", tracks)
         tracks =
             [ ("tempo", [(0, 0, "2")])
@@ -433,7 +433,7 @@ test_tempo_funcs1 = do
 
 test_tempo_funcs2 = do
     let ((bid, [t_tid1, tid1, t_tid2, tid2]), ui_state) =
-            UiTest.run State.empty $ UiTest.mkblock $ (,) "b0" $
+            UiTest.run Ui.empty $ UiTest.mkblock $ (,) "b0" $
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
                 , ("tempo", [(0, 0, "1")])
@@ -533,7 +533,7 @@ test_tempo_roundtrip = do
     -- equal (map snd (concatMap snd stimes)) [0..3]
 
 test_named_pitch = do
-    let run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at "psig" 2)
+    let run op = DeriveTest.eval Ui.empty (op $ Derive.named_nn_at "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
         with_const pname = Derive.with_merged_pitch Derive.Set pname
             (PSignal.constant pitch)
@@ -617,7 +617,7 @@ test_regress_event_end2 = do
 derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
 derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
     where
-    state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
+    state = UiTest.exec Ui.empty (UiTest.mkblocks_skel blocks)
     ((block_name, _), _) : _ = blocks
 
 -- * util

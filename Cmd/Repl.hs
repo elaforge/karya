@@ -29,7 +29,7 @@ import qualified System.IO as IO
 import qualified Util.File as File
 import qualified Util.Log as Log
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Id as Id
 import qualified Cmd.Repl.Fast as Fast
 import qualified Cmd.Cmd as Cmd
@@ -107,7 +107,7 @@ respond session msg = do
 command :: ReplImpl.Session -> Text
     -> Cmd.CmdT IO (ReplProtocol.Response, Cmd.Status)
 command session expr = do
-    ns <- State.get_namespace
+    ns <- Ui.get_namespace
     expr <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns expr
     Log.debug $ "repl input: " <> showt expr
     cmd <- case Fast.fast_interpret (untxt expr) of
@@ -127,7 +127,7 @@ expand_macros namespace expr = Parse.expand_macros replace expr
 run_cmdio :: Cmd.CmdT IO ReplProtocol.CmdResult
     -> Cmd.CmdT IO (ReplProtocol.CmdResult, Cmd.Status)
 run_cmdio cmd = do
-    ui_state <- State.get
+    ui_state <- Ui.get
     cmd_state <- Cmd.get
     run_result <- liftIO $ Exception.try $ do
         (cmd_state, midi, logs, cmd_result) <-
@@ -152,8 +152,8 @@ run_cmdio cmd = do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
-                State.unsafe_put ui_state
-                mapM_ State.update updates
+                Ui.unsafe_put ui_state
+                mapM_ Ui.update updates
                 return
                     ( ReplProtocol.CmdResult response (eval_logs ++ logs)
                     , Cmd.state_repl_status cmd_state

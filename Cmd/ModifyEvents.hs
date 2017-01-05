@@ -15,7 +15,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -88,14 +88,14 @@ modify_selected include_collapsed modify selected = do
     let wanted track_id
             | include_collapsed = return True
             | otherwise = do
-                tracknum <- State.get_tracknum_of block_id track_id
-                not <$> State.track_collapsed block_id tracknum
+                tracknum <- Ui.get_tracknum_of block_id track_id
+                not <$> Ui.track_collapsed block_id tracknum
     forM_ selected $ \(track_id, events) ->
         whenM (wanted track_id) $ do
             maybe_new_events <- modify block_id track_id events
             whenJust maybe_new_events $ \new_events -> do
-                State.remove_events track_id (map Event.start events)
-                State.insert_block_events block_id track_id new_events
+                Ui.remove_events track_id (map Event.start events)
+                Ui.insert_block_events block_id track_id new_events
 
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.
@@ -109,16 +109,16 @@ overlapping f = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
     pos <- Selection.point . snd <$> Selection.get
     forM_ track_ids $ \track_id -> do
-        maybe_event <- Events.overlapping pos <$> State.get_events track_id
+        maybe_event <- Events.overlapping pos <$> Ui.get_events track_id
         whenJust maybe_event $ \old_event ->
             whenJustM (f block_id track_id [old_event]) $ \new_events -> do
-                State.remove_event track_id (Event.start old_event)
-                State.insert_block_events block_id track_id new_events
+                Ui.remove_event track_id (Event.start old_event)
+                Ui.insert_block_events block_id track_id new_events
 
 -- | Map over tracks whose name matches the predicate.
 tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> Track m
 tracks_named wanted f = \block_id track_id events ->
-    ifM (wanted <$> State.get_track_title track_id)
+    ifM (wanted <$> Ui.get_track_title track_id)
         (f block_id track_id events) (return Nothing)
 
 selected_note :: Cmd.M m => Track m -> m ()
@@ -136,15 +136,14 @@ selected_pitch = selection . tracks_named ParseTitle.is_pitch_track
 -- | Like 'selection', but maps over an entire block.
 block :: Cmd.M m => BlockId -> Track m -> m ()
 block block_id f = do
-    track_ids <- Block.block_track_ids <$> State.get_block block_id
+    track_ids <- Block.block_track_ids <$> Ui.get_block block_id
     forM_ track_ids $ \track_id -> do
-        events <- Events.ascending <$> State.get_events track_id
-        maybe (return ())
-                (State.modify_events track_id . const . Events.from_list)
+        events <- Events.ascending <$> Ui.get_events track_id
+        maybe (return ()) (Ui.modify_events track_id . const . Events.from_list)
             =<< f block_id track_id events
 
 all_blocks :: Cmd.M m => Track m -> m ()
-all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
+all_blocks f = mapM_ (flip block f) =<< Ui.all_block_ids
 
 all_tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> m ()
 all_tracks_named wanted = all_blocks . tracks_named wanted
@@ -161,10 +160,10 @@ pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
 -- * misc
 
 -- | Move everything at or after @start@ by @shift@.
-move_track_events :: State.M m => ScoreTime -> ScoreTime -> ScoreTime
+move_track_events :: Ui.M m => ScoreTime -> ScoreTime -> ScoreTime
     -> TrackId -> m ()
 move_track_events block_end start shift track_id =
-    State.modify_events track_id $ \events ->
+    Ui.modify_events track_id $ \events ->
         move_events block_end start shift events
 
 -- | All events starting at and after a point to the end are shifted by the

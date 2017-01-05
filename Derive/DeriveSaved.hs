@@ -15,7 +15,7 @@ import qualified Util.Log as Log
 import qualified Util.Testing as Testing
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Ky as Ky
 import qualified Cmd.Lilypond
@@ -44,7 +44,7 @@ perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
     (ui_state, cmd_state) <- load_score_states cmd_config fname
     root_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        State.config#State.root #$ ui_state
+        Ui.config#Ui.root #$ ui_state
     (events, logs) <- timed_derive fname ui_state cmd_state root_id
     mapM_ Log.write logs
     (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) ui_state
@@ -52,7 +52,7 @@ perform_file cmd_config fname = do
     mapM_ Log.write logs
     return msgs
 
-timed_perform :: Cmd.State -> FilePath -> State.State
+timed_perform :: Cmd.State -> FilePath -> Ui.State
     -> Vector.Vector Score.Event -> IO ([Midi.WriteMessage], [Log.Msg])
 timed_perform cmd_state msg state events =
     Testing.print_timer msg (timer_msg (length . fst)) $ do
@@ -60,7 +60,7 @@ timed_perform cmd_state msg state events =
         Testing.force (msgs, logs)
         return (msgs, logs)
 
-timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
+timed_derive :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Vector.Vector Score.Event, [Log.Msg])
 timed_derive name ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
@@ -73,7 +73,7 @@ timed_derive name ui_state cmd_state block_id = do
 -- | This is like 'timed_derive', except that it does more work itself
 -- rather than calling Performance.derive.  This can be more convenient to
 -- look at derivation results.
-timed_derive2 :: FilePath -> State.State -> Cmd.State -> BlockId
+timed_derive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Vector.Vector Score.Event, [Log.Msg])
 timed_derive2 name ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
@@ -87,12 +87,12 @@ timed_derive2 name ui_state cmd_state block_id =
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where
     boring = Cache.is_cache_log
-    derive_block :: State.State -> Cmd.State -> BlockId
+    derive_block :: Ui.State -> Cmd.State -> BlockId
         -> Either Text (Derive.Result, [Log.Msg])
     derive_block ui_state cmd_state block_id =
         run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
 
-timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
+timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])
 timed_lilypond name ui_state cmd_state block_id = case result of
     Left err -> return (Left err, [])
@@ -107,7 +107,7 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     where
     result = run_cmd ui_state cmd_state $
         Derive.r_events <$> Cmd.Lilypond.derive_block block_id
-    config = State.config#State.lilypond #$ ui_state
+    config = Ui.config#Ui.lilypond #$ ui_state
     boring = Cache.is_cache_log
 
 timer_msg :: (a -> Int) -> Double -> Double -> a -> String
@@ -119,8 +119,7 @@ timer_msg len cpu_secs secs events =
     per :: Double -> Int
     per secs = round (fromIntegral events_len / secs)
 
-run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a
-    -> Either Text (a, [Log.Msg])
+run_cmd :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Either Text (a, [Log.Msg])
 run_cmd ui_state cmd_state cmd = case result of
     Left err -> Left $ pretty err
     Right (val, _, _) -> case val of
@@ -128,7 +127,7 @@ run_cmd ui_state cmd_state cmd = case result of
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
-perform :: Cmd.State -> State.State -> Vector.Vector Score.Event
+perform :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> ([Midi.WriteMessage], [Log.Msg])
 perform cmd_state ui_state events =
     extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
@@ -137,7 +136,7 @@ perform cmd_state ui_state events =
     extract (Right (levents, logs)) = (events, logs ++ perf_logs)
         where (events, perf_logs) = LEvent.partition levents
 
-load_score_states :: Cmd.Config -> FilePath -> IO (State.State, Cmd.State)
+load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
 load_score_states cmd_config fname = do
     (ui_state, library) <- either errorIO return
         =<< load_score (Cmd.config_instrument_db cmd_config) fname
@@ -149,7 +148,7 @@ add_library lib state =
 
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: Cmd.InstrumentDb -> FilePath
-    -> IO (Either Text (State.State, Derive.Library))
+    -> IO (Either Text (Ui.State, Derive.Library))
 load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname

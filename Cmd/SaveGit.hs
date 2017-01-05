@@ -48,7 +48,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
@@ -61,7 +61,7 @@ import Types
 
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
 -- diff.
-data LoadHistory = LoadHistory !State.State !Commit ![Update.CmdUpdate] ![Text]
+data LoadHistory = LoadHistory !Ui.State !Commit ![Update.CmdUpdate] ![Text]
     deriving (Show)
 
 is_git :: FilePath -> Bool
@@ -160,7 +160,7 @@ checkpoint repo (SaveHistory state (Just commit) updates names) =
         commit_tree repo tree (Just commit) (unparse_names "checkpoint" names)
 
 -- | Create a new repo, or throw if it already exists.
-save :: Git.Repo -> State.State -> [Text] -> IO Commit
+save :: Git.Repo -> Ui.State -> [Text] -> IO Commit
 save repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
@@ -187,7 +187,7 @@ commit_tree repo tree maybe_parent desc = do
 
 -- | TODO disabled event because loading isn't implemented.  Should probably
 -- just delete it all.
-dump_events :: State.State -> TrackId -> ScoreTime -> ScoreTime
+dump_events :: Ui.State -> TrackId -> ScoreTime -> ScoreTime
     -> Git.Modification
 dump_events state track_id start end =
     Git.Add (events_path track_id start end) $
@@ -195,7 +195,7 @@ dump_events state track_id start end =
     where
     events = maybe Events.empty
         (Events.in_range (Events.Positive start end) . Track.track_events)
-        (Map.lookup track_id (State.state_tracks state))
+        (Map.lookup track_id (Ui.state_tracks state))
 
 -- | Put the range into the filename.  You still have to load all the event
 -- files in the directory, but at least exactly matching ranges will overwrite
@@ -222,7 +222,7 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 -- * load
 
 load :: Git.Repo -> Maybe Commit
-    -> IO (Either Text (State.State, Commit, [Text]))
+    -> IO (Either Text (Ui.State, Commit, [Text]))
     -- ^ (state, commit, name of the cmd this is a checkpoint of)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
@@ -234,10 +234,10 @@ load repo maybe_commit = try_e "load" $ do
     return $ do
         state <- undump dirs
         views <- with_msg "views" either_views
-        return (state { State.state_views = views }, commit, names)
+        return (state { Ui.state_views = views }, commit, names)
 
 -- | Try to go get the previous history entry.
-load_previous_history :: Git.Repo -> State.State -> Commit
+load_previous_history :: Git.Repo -> Ui.State -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
@@ -246,7 +246,7 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
         Just parent -> load_history repo state commit parent
 
 -- | Try to a commits that has this one as a parent.
-load_next_history :: Git.Repo -> State.State -> Commit
+load_next_history :: Git.Repo -> Ui.State -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_next_history repo state commit = try_e "load_next_history" $ do
     -- This won't work if I loaded something off-head.  In that case, I need
@@ -269,7 +269,7 @@ load_next_history repo state commit = try_e "load_next_history" $ do
 -- you save there, the tag will probably keep it alive.  Then the next
 -- history commit will set the HEAD to this branch, and the old HEAD will only
 -- be preserved if it had a ref.
-load_history :: Git.Repo -> State.State -> Commit -> Commit
+load_history :: Git.Repo -> Ui.State -> Commit -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_history repo state from_commit to_commit = do
     names <- parse_names . Git.commit_text
@@ -280,8 +280,8 @@ load_history repo state from_commit to_commit = do
         Right (new_state, cmd_updates) -> return $ Right $ Just
             (LoadHistory new_state to_commit cmd_updates names)
 
-load_from :: Git.Repo -> Commit -> Maybe Commit -> State.State
-    -> IO (Either Text (State.State, [Update.CmdUpdate]))
+load_from :: Git.Repo -> Commit -> Maybe Commit -> Ui.State
+    -> IO (Either Text (Ui.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
@@ -322,8 +322,8 @@ load_views repo = do
 
 -- * dump / undump
 
-dump :: State.State -> [(FilePath, ByteString)]
-dump (State.State _views blocks tracks rulers config) =
+dump :: Ui.State -> [(FilePath, ByteString)]
+dump (Ui.State _views blocks tracks rulers config) =
     dump_map blocks ++ dump_map tracks ++ dump_map rulers
     ++ [("config", Serialize.encode config)]
 
@@ -336,7 +336,7 @@ dump_map m = do
 -- | This will tend to create redundant files, e.g. a block will be written
 -- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
 -- extras.
-dump_diff :: Bool -> State.State -> [Update.UiUpdate]
+dump_diff :: Bool -> Ui.State -> [Update.UiUpdate]
     -> ([Text], [Git.Modification])
     -- ^ warnings for updates to values that no longer exist
 dump_diff track_dir state =
@@ -345,11 +345,11 @@ dump_diff track_dir state =
     where
     mk (Update.View {}) = Left ""
     mk u@(Update.Block block_id _)
-        | Just block <- Map.lookup block_id (State.state_blocks state) =
+        | Just block <- Map.lookup block_id (Ui.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
         | otherwise = Left $ "block_id: " <> pretty u
     mk u@(Update.Track track_id update)
-        | Just track <- Map.lookup track_id (State.state_tracks state) =
+        | Just track <- Map.lookup track_id (Ui.state_tracks state) =
             case update of
                 Update.TrackEvents start end | track_dir ->
                     Right $ dump_events state track_id start end
@@ -357,7 +357,7 @@ dump_diff track_dir state =
                     Git.Add (id_to_path track_id) (Serialize.encode track)
         | otherwise = Left $ "track_id: " <> pretty u
     mk (Update.Ruler ruler_id)
-        | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
+        | Just ruler <- Map.lookup ruler_id (Ui.state_rulers state) =
             Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
         | otherwise = Left $ "ruler_id: " <> pretty ruler_id
     mk (Update.State update) = case update of
@@ -376,13 +376,13 @@ dump_diff track_dir state =
         Update.DestroyRuler ruler_id ->
             Right $ Git.Remove (id_to_path ruler_id)
 
-undump :: Git.Dir -> Either Text State.State
+undump :: Git.Dir -> Either Text Ui.State
 undump dir = do
     blocks <- undump_map Id.BlockId =<< get_dir "blocks"
     tracks <- undump_map Id.TrackId =<< get_dir "tracks"
     rulers <- undump_map Id.RulerId =<< get_dir "rulers"
     config <- decode "config" =<< get_file "config"
-    return $ State.State mempty blocks tracks rulers config
+    return $ Ui.State mempty blocks tracks rulers config
     where
     get_dir name = case Map.lookup name dir of
         Nothing -> return Map.empty
@@ -407,14 +407,14 @@ undump_map mkid dir =
     undump_file ns (name, Git.File bytes) =
         (,) (path_to_id mkid ns name) <$> decode (txt name) bytes
 
-undump_diff :: State.State -> [Git.Modification]
-    -> Either Text (State.State, [Update.CmdUpdate])
+undump_diff :: Ui.State -> [Git.Modification]
+    -> Either Text (Ui.State, [Update.CmdUpdate])
 undump_diff state = foldM apply (state, [])
     where
     apply (state, updates) (Git.Remove path) = case split path of
-        ["blocks", ns, name] -> delete ns name Id.BlockId State.blocks
-        ["tracks", ns, name] -> delete ns name Id.TrackId State.tracks
-        ["rulers", ns, name] -> delete ns name Id.RulerId State.rulers
+        ["blocks", ns, name] -> delete ns name Id.BlockId Ui.blocks
+        ["tracks", ns, name] -> delete ns name Id.TrackId Ui.tracks
+        ["rulers", ns, name] -> delete ns name Id.RulerId Ui.rulers
         _ -> Left $ "unknown file deleted: " <> showt path
         where
         delete ns name mkid lens = do
@@ -422,9 +422,9 @@ undump_diff state = foldM apply (state, [])
             vals <- delete_key ident (lens #$ state)
             return ((lens #= vals) state, updates)
     apply (state, updates) (Git.Add path bytes) = case split path of
-        ["blocks", ns, name] -> add ns name Id.BlockId State.blocks
+        ["blocks", ns, name] -> add ns name Id.BlockId Ui.blocks
         ["tracks", ns, name] -> do
-            (state_to, updates) <- add ns name Id.TrackId State.tracks
+            (state_to, updates) <- add ns name Id.TrackId Ui.tracks
             let tid = path_to_id Id.TrackId ns name
             -- I don't save the CmdUpdates with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
@@ -433,12 +433,12 @@ undump_diff state = foldM apply (state, [])
             let event_updates = Diff.track_diff state state_to tid
             return (state_to, event_updates ++ updates)
         ["rulers", ns, name] -> do
-            (state_to, updates) <- add ns name Id.RulerId State.rulers
+            (state_to, updates) <- add ns name Id.RulerId Ui.rulers
             let rid = path_to_id Id.RulerId ns name
             return (state_to, Update.CmdRuler rid : updates)
         ["config"] -> do
             val <- decode (txt path) bytes
-            return ((State.config #= val) state, updates)
+            return ((Ui.config #= val) state, updates)
         _ -> Left $ "unknown file modified: " <> showt path
         where
         add ns name mkid lens = do

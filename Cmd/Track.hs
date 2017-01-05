@@ -10,7 +10,7 @@ module Cmd.Track (track_cmd, event_and_note_step) where
 import qualified Control.Monad.Except as Except
 
 import qualified Util.Log as Log
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Edit as Edit
@@ -37,8 +37,8 @@ track_cmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
 track_cmd msg = do
     cmds <- get_track_cmds `Except.catchError` \exc -> do
         case exc of
-            State.Abort -> return ()
-            State.Error stack msg ->
+            Ui.Abort -> return ()
+            Ui.Error stack msg ->
                 Log.write $ Log.msg_call_stack stack Log.Warn Nothing
                     ("getting track cmds: " <> msg)
         return []
@@ -51,12 +51,12 @@ get_track_cmds = do
     -- will be no track cmds.
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
-    maybe_track_id <- State.event_track_at block_id tracknum
+    maybe_track_id <- Ui.event_track_at block_id tracknum
     track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
 
     maybe_resolved <- maybe (return Nothing) (lookup_inst block_id)
         maybe_track_id
-    track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
+    track_title <- maybe (return Nothing) (fmap Just . Ui.get_track_title)
         maybe_track_id
     let icmds = case (track_title, maybe_resolved) of
             (Just title, Just resolved) | ParseTitle.is_note_track title ->
@@ -122,7 +122,7 @@ input_cmds edit_mode track = universal ++ case Info.track_type track of
         , NoteEntry.floating_input_insert
         ]
     is_tempo = ParseTitle.is_tempo_track $
-        State.track_title (Info.track_info track)
+        Ui.track_title (Info.track_info track)
 
 -- | Track-specific Cmds.
 track_cmds :: Cmd.EditMode -> Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
@@ -160,7 +160,7 @@ event_and_note_step = do
         Just (Info.Note {}) -> return Nothing
         Just (Info.Pitch Nothing) -> return Nothing
         Just (Info.Pitch (Just note)) ->
-            return $ Just $ State.track_tracknum note
+            return $ Just $ Ui.track_tracknum note
         Just (Info.Control tracks) -> firstJusts (map note_tracknum_of tracks)
     let tracknums = TimeStep.TrackNums $
             [tracknum] ++ maybe [] (:[]) note_tracknum
@@ -168,6 +168,6 @@ event_and_note_step = do
         [TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums]
     where
     note_tracknum_of track = ifM (is_note track)
-        (return (Just (State.track_tracknum track))) (return Nothing)
-    is_note = fmap ParseTitle.is_note_track . State.get_track_title
-        . State.track_id
+        (return (Just (Ui.track_tracknum track))) (return Nothing)
+    is_note = fmap ParseTitle.is_note_track . Ui.get_track_title
+        . Ui.track_id

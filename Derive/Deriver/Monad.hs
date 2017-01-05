@@ -145,7 +145,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 
 import qualified Ui.Event as Event
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -786,7 +786,7 @@ instance Pretty.Pretty Mode where
 
 -- | Values that don't change during one derive run.
 data Constant = Constant {
-    state_ui :: !State.State
+    state_ui :: !Ui.State
     , state_library :: !Library
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map.Map BaseTypes.CallId (Merger Signal.Control))
@@ -801,7 +801,7 @@ data Constant = Constant {
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: State.State -> Library -> LookupScale
+initial_constant :: Ui.State -> Library -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
 initial_constant ui_state library lookup_scale lookup_inst cache score_damage =

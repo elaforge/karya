@@ -15,7 +15,7 @@ import qualified Data.Word as Word
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -141,11 +141,11 @@ add_block_dep block_id = merge_collect $ mempty
 
 -- * ui state
 
-get_ui_state :: (State.State -> a) -> Deriver a
+get_ui_state :: (Ui.State -> a) -> Deriver a
 get_ui_state f = gets (f . state_ui . state_constant)
 
-get_ui_config :: (State.Config -> a) -> Deriver a
-get_ui_config f = get_ui_state (f . State.state_config)
+get_ui_config :: (Ui.Config -> a) -> Deriver a
+get_ui_config f = get_ui_state (f . Ui.state_config)
 
 -- | Because Deriver is not a UiStateMonad.
 --
@@ -153,17 +153,17 @@ get_ui_config f = get_ui_state (f . State.state_config)
 -- a ReadOnlyUiStateMonad.  And I'd have to merge the exceptions.
 -- Or just rethrow, right?
 get_track :: TrackId -> Deriver Track.Track
-get_track track_id = lookup_id track_id =<< get_ui_state State.state_tracks
+get_track track_id = lookup_id track_id =<< get_ui_state Ui.state_tracks
 
 get_block :: BlockId -> Deriver Block.Block
-get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
+get_block block_id = lookup_id block_id =<< get_ui_state Ui.state_blocks
 
--- | Evaluate a State.M computation, rethrowing any errors.
-eval_ui :: Text -> State.StateId a -> Deriver a
+-- | Evaluate a Ui.M computation, rethrowing any errors.
+eval_ui :: Text -> Ui.StateId a -> Deriver a
 eval_ui caller action = do
     ui_state <- get_ui_state id
     let rethrow exc = throw $ caller <> ": " <> pretty exc
-    either rethrow return (State.eval ui_state action)
+    either rethrow return (Ui.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
@@ -192,7 +192,7 @@ lookup_current_tracknum = do
         Nothing -> return Nothing
         Just (block_id, track_id) -> do
             tracknum <- eval_ui "lookup_current_tracknum" $
-                State.get_tracknum_of block_id track_id
+                Ui.get_tracknum_of block_id track_id
             return $ Just (block_id, tracknum)
 
 get_current_tracknum :: Deriver (BlockId, TrackNum)
@@ -353,11 +353,11 @@ add_new_track_warp maybe_track_id = do
 -- duration of the block, which may be shorter or lorger than the end of the
 -- last event, or the ruler.
 block_logical_range :: BlockId -> Deriver (TrackTime, TrackTime)
-block_logical_range = eval_ui "block_logical_range" . State.block_logical_range
+block_logical_range = eval_ui "block_logical_range" . Ui.block_logical_range
 
 -- | Get the duration of the block according to the last event.
 block_event_end :: BlockId -> Deriver ScoreTime
-block_event_end = eval_ui "block_event_end" . State.block_event_end
+block_event_end = eval_ui "block_event_end" . Ui.block_event_end
 
 
 -- * track
@@ -406,10 +406,10 @@ get_ruler = lookup_current_tracknum >>= \x -> case x of
     Nothing -> return mempty
     Just (block_id, tracknum) -> do
         state <- get_ui_state id
-        return $ either (const mempty) id $ State.eval state $ do
-            ruler_id <- fromMaybe State.no_ruler <$>
-                State.ruler_track_at block_id tracknum
-            Ruler.ruler_marklists <$> State.get_ruler ruler_id
+        return $ either (const mempty) id $ Ui.eval state $ do
+            ruler_id <- fromMaybe Ui.no_ruler <$>
+                Ui.ruler_track_at block_id tracknum
+            Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
 
 
 -- * Threaded

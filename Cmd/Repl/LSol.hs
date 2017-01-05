@@ -14,7 +14,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -42,16 +42,16 @@ insert instrument realize_patterns akshara_dur korvai = do
     (_, _, track_id, at) <- Selection.get_insert
     events <- map (Event.move (+at)) . Events.ascending <$>
         realize_korvai instrument realize_patterns stroke_dur korvai
-    State.remove_events track_id (map Event.start events)
-    State.insert_events track_id events
+    Ui.remove_events track_id (map Event.start events)
+    Ui.insert_events track_id events
 
-realize_korvai :: (Pretty.Pretty stroke, State.M m) =>
+realize_korvai :: (Pretty.Pretty stroke, Ui.M m) =>
     Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai
     -> m Events.Events
 realize_korvai instrument realize_patterns stroke_dur korvai = do
-    (strokes, warning) <- State.require_right id $
+    (strokes, warning) <- Ui.require_right id $
         Korvai.realize instrument realize_patterns korvai
-    unless (Text.null warning) $ State.throw warning
+    unless (Text.null warning) $ Ui.throw warning
     return $ Events.from_list
         [ Event.event start 0 (Korvai.get_stroke_to_call instrument stroke)
         | (start, Realize.Note stroke) <- zip (Seq.range_ 0 stroke_dur) strokes

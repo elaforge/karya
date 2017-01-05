@@ -11,7 +11,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.CmdTest as CmdTest
@@ -171,7 +171,7 @@ test_write_tracks = do
         , [(1, 2), (2, 3), (3, 4)]
         )
 
-write_tracks :: State.State -> [TrackNum] -> [ModifyNotes.NoteTrack]
+write_tracks :: Ui.State -> [TrackNum] -> [ModifyNotes.NoteTrack]
     -> ([UiTest.TrackSpec], [Skeleton.Edge])
 write_tracks state tracknums tracks = extract $ UiTest.exec state $
     ModifyNotes.write_tracks UiTest.default_block_id
@@ -209,8 +209,8 @@ mkcontrols = Map.fromList . map mk
             Just ('*', s) -> ModifyNotes.Pitch (Pitch.ScaleId s)
             _ -> ModifyNotes.Control (Score.unchecked_control name)
 
-mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> State.State
-mkstate tracks skel = UiTest.exec State.empty $ do
+mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> Ui.State
+mkstate tracks skel = UiTest.exec Ui.empty $ do
     UiTest.mkblocks_skel [((UiTest.default_block_name, tracks), skel)]
     UiTest.mkview UiTest.default_block_id
     return ()

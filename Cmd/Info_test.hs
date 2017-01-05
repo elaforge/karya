@@ -4,7 +4,7 @@
 
 module Cmd.Info_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Info as Info
@@ -14,11 +14,11 @@ import Global
 
 
 test_block_tracks = do
-    let f skel tracks = UiTest.eval State.empty $ do
+    let f skel tracks = UiTest.eval Ui.empty $ do
             let ts = [(t, []) | t <- tracks]
             UiTest.mkblocks_skel [((UiTest.default_block_name, ts), skel)]
             Info.block_tracks UiTest.default_block_id
-    let track title num = State.TrackInfo title (UiTest.mk_tid num) num
+    let track title num = Ui.TrackInfo title (UiTest.mk_tid num) num
             (UiTest.btrack (UiTest.mk_tid num))
     equal (f [(1, 2)] [">", "*"])
         [ Info.Track (track ">" 1) (Info.Note [track "*" 2] [])
@@ -33,7 +33,7 @@ test_track_status = do
     let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
             (Info.get_track_status UiTest.default_block_id num)
             where
-            ustate = (State.config#State.allocations #= allocs) $
+            ustate = (Ui.config#Ui.allocations #= allocs) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
             allocs = expect_right $ Simple.allocations (const $ Just mempty)
                 [("i", ("s/1", map ("wdev",) [0..3]))]

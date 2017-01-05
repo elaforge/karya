@@ -12,7 +12,7 @@ import qualified Util.Memory as Memory
 import Util.Test
 import qualified Util.Testing as Testing
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Transform as Transform
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
@@ -25,7 +25,7 @@ profile_load = do
     cmd_config <- DeriveSaved.load_cmd_config
     state <- load (Cmd.config_instrument_db cmd_config) "save/bloom"
     let (state2, table) = Transform.intern_text state
-    putStrLn $ "loaded blocks: " ++ show (Map.size (State.state_blocks state))
+    putStrLn $ "loaded blocks: " ++ show (Map.size (Ui.state_blocks state))
     print_memory_diff start_mem =<< Memory.memory_usage
     let (saved, hits) = Transform.intern_stats table
     putStrLn $ "hits: " ++ show hits ++ " saved: " ++ show saved
@@ -35,7 +35,7 @@ profile_load = do
 
 -- Check memory usage after a bunch of changes.
 
-load :: Cmd.InstrumentDb -> FilePath -> IO State.State
+load :: Cmd.InstrumentDb -> FilePath -> IO Ui.State
 load db fname = do
     result <- Testing.print_timer ("unserialize " ++ show fname)
         (\_ _ _ -> "") (Save.read_state_ db fname)

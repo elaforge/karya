@@ -28,7 +28,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.State
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
@@ -69,7 +69,7 @@ set :: Cmd.M m => Bool -- ^ Rewind from the selection pos by the play step.
 set step_back play_selected_tracks = do
     (block_id, tracknum, _, sel_pos) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
-    tracks <- State.track_count block_id
+    tracks <- Ui.track_count block_id
     play_tracks <- if play_selected_tracks
         then Sel.tracknums tracks . snd <$> Selection.get
         else return []
@@ -108,7 +108,7 @@ make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
 initialize :: Cmd.M m => ViewId -> BlockId -> [TrackNum] -> m ()
 initialize view_id block_id play_tracks = do
     play_track_ids <- Set.fromList <$>
-        mapMaybeM (State.event_track_at block_id) play_tracks
+        mapMaybeM (Ui.event_track_at block_id) play_tracks
     perf <- Cmd.get_performance block_id
     let events = filter_tracks play_track_ids $ Cmd.perf_events perf
         reals = group_edges eta events
@@ -164,7 +164,7 @@ from_track track_ids event = any (`Set.member` track_ids) $
 
 cmd_clear :: Cmd.M m => m ()
 cmd_clear = do
-    view_ids <- Map.keys . State.state_views <$> State.get
+    view_ids <- Map.keys . Ui.state_views <$> Ui.get
     forM_ view_ids $ \view_id -> Selection.set_selnum view_id selnum Nothing
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Nothing }
     Cmd.all_notes_off
@@ -182,13 +182,13 @@ move forward = do
             <> " for step play"
     (view_id, prev_state, pos, state) <- Cmd.require msg
         =<< zip_state step_state forward
-    block_id <- State.block_id_of view_id
+    block_id <- Ui.block_id_of view_id
     -- If I want to get accurate playback positions, I need to call
     -- find_play_pos on the RealTime.  However, converting ScoreTime ->
     -- RealTime -> ScoreTime loses information since they are different types,
     -- and the inaccuracy messes up time step.  In any case, I don't support
     -- discontiguous play selections yet, so I don't need to get this right.
-    view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- Map.keys <$> Ui.views_of block_id
     set_selections view_ids pos (Cmd.step_tracknums step_state)
     let msgs = Midi.State.diff prev_state state
     mapM_ (uncurry Cmd.midi) msgs
@@ -203,7 +203,7 @@ move_to block_id pos = do
     (pos, mstate) <- Cmd.abort_unless $ zip_head (before, after)
     put $ Just $
         step_state { Cmd.step_before = before, Cmd.step_after = after }
-    view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- Map.keys <$> Ui.views_of block_id
     set_selections view_ids pos (Cmd.step_tracknums step_state)
     mapM_ (uncurry Cmd.midi) $ Midi.State.diff Midi.State.empty mstate
 

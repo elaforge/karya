@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -157,7 +157,7 @@ test_input_to_nn = do
     let f = DeriveTest.setup_deriver (DeriveTest.with_key "c-maj")
             . Scale.scale_input_to_nn scale 0
         input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
-        run = second (first prettys) . DeriveTest.eval State.empty . f . input
+        run = second (first prettys) . DeriveTest.eval Ui.empty . f . input
     equalf 0.01 (run 0) $ Right (Right NN.middle_c)
     equalf 0.01 (run 1) $ Right $ Right $ Pitch.modify_hz (* (9/8)) NN.middle_c
 

@@ -35,7 +35,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
@@ -232,7 +232,7 @@ require_call is_generator call_id name Nothing = do
     -- realize that the bad call is now valid.
     when is_generator $ do
         caller <- Internal.lookup_current_block_id
-        ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
+        ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config
         whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
     Derive.throw $ unknown_call_id name call_id
 

@@ -33,7 +33,7 @@ import qualified Util.Thread as Thread
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Fltk as Fltk
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
 
@@ -74,7 +74,7 @@ cmd_play_msg ui_chan msg = do
             set_all_play_boxes Config.box_color
         Transport.Died err_msg -> Log.warn $ "player died: " <> txt err_msg
     derive_status_msg block_id status = do
-        whenJust (derive_status_color status) (State.set_play_box block_id)
+        whenJust (derive_status_color status) (Ui.set_play_box block_id)
         -- When I get word that a performance is complete, I promote it from
         -- state_current_performance to state_performance.  Previously I used
         -- the performance in the DeriveComplete, but Play may have flipped
@@ -100,9 +100,9 @@ cmd_play_msg ui_chan msg = do
         Msg.Deriving {} -> Just Config.busy_color
         Msg.DeriveComplete {} -> Just Config.box_color
 
-set_all_play_boxes :: State.M m => Color.Color -> m ()
+set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =
-    mapM_ (flip State.set_play_box color) =<< State.all_block_ids
+    mapM_ (flip Ui.set_play_box color) =<< Ui.all_block_ids
 
 type Range = (TrackTime, TrackTime)
 
@@ -121,11 +121,10 @@ update_track_signals ui_chan block_id tsigs = do
         ]
 
 -- | Get the tracks of this block and whether they want to render a signal.
-rendering_tracks :: State.M m => BlockId
-    -> m [(ViewId, TrackId, TrackNum, Bool)]
+rendering_tracks :: Ui.M m => BlockId -> m [(ViewId, TrackId, TrackNum, Bool)]
 rendering_tracks block_id = do
-    view_ids <- Map.keys <$> State.views_of block_id
-    blocks <- mapM State.block_of view_ids
+    view_ids <- Map.keys <$> Ui.views_of block_id
+    blocks <- mapM Ui.block_of view_ids
     btracks <- mapM get_tracks blocks
     return $ do
         (view_id, tracks) <- zip view_ids btracks
@@ -135,7 +134,7 @@ rendering_tracks block_id = do
         return (view_id, track_id, tracknum,
             Block.track_wants_signal flags track)
     where
-    get_tracks block = zip triples <$> mapM State.get_track track_ids
+    get_tracks block = zip triples <$> mapM Ui.get_track track_ids
         where
         track_ids = [tid | (_, tid, _) <- triples]
         triples =
@@ -152,7 +151,7 @@ update_highlights :: Fltk.Channel -> BlockId -> Vector.Vector Score.Event
     -> Cmd.CmdT IO ()
 update_highlights ui_chan block_id events = do
     sels <- get_event_highlights block_id events
-    view_ids <- Map.keysSet <$> State.views_of block_id
+    view_ids <- Map.keysSet <$> Ui.views_of block_id
     let used_view_ids = Set.fromList [view_id | ((view_id, _), _) <- sels]
     liftIO $ do
         Sync.clear_highlights ui_chan $
@@ -168,13 +167,13 @@ get_event_highlights block_id events = do
     colors <- Cmd.gets $ Cmd.config_highlight_colors . Cmd.state_config
     resolve_tracks $ event_highlights block_id colors events
 
-resolve_tracks :: State.M m => [((BlockId, TrackId), a)]
+resolve_tracks :: Ui.M m => [((BlockId, TrackId), a)]
     -> m [((ViewId, TrackNum), a)]
 resolve_tracks = concatMapM resolve
     where
     resolve ((block_id, track_id), val) = do
-        tracknum <- State.get_tracknum_of block_id track_id
-        view_ids <- Map.keys <$> State.views_of block_id
+        tracknum <- Ui.get_tracknum_of block_id track_id
+        view_ids <- Map.keys <$> Ui.views_of block_id
         return [((view_id, tracknum), val) | view_id <- view_ids]
 
 event_highlights :: BlockId -> Map.Map Color.Highlight Color.Color
@@ -200,7 +199,7 @@ event_highlights derived_block_id colors
 
 -- | This actually kicks off a MIDI play thread, and if an inverse tempo
 -- function is given, a play monitor thread.
-play :: Fltk.Channel -> State.State -> Transport.Info -> Cmd.PlayMidiArgs
+play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
         (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at) = do
@@ -246,8 +245,7 @@ play_monitor_thread ui_chan transport_info ctl inv_tempo_func repeat_at = do
             , monitor_ui_channel = ui_chan
             }
     ui_state <- MVar.readMVar (monitor_ui_state state)
-    Sync.clear_play_position ui_chan $
-        Map.keys $ State.state_views ui_state
+    Sync.clear_play_position ui_chan $ Map.keys $ Ui.state_views ui_state
     Exception.bracket_
         (Transport.info_send_status transport_info Transport.Playing)
         (Transport.info_send_status transport_info Transport.Stopped)
@@ -260,7 +258,7 @@ data UpdaterState = UpdaterState {
     , monitor_get_now :: IO RealTime
     , monitor_inv_tempo_func :: Transport.InverseTempoFunction
     , monitor_active_sels :: Set.Set (ViewId, [TrackNum])
-    , monitor_ui_state :: MVar.MVar State.State
+    , monitor_ui_state :: MVar.MVar Ui.State
     , monitor_repeat_at :: Maybe RealTime
     , monitor_ui_channel :: Fltk.Channel
     }
@@ -274,7 +272,7 @@ monitor_loop state = do
     ui_state <- MVar.readMVar (monitor_ui_state state)
     let block_pos = monitor_inv_tempo_func state now
     play_pos <- fmap extend_to_track_0 $ either fail return $
-        State.eval ui_state $ Perf.block_pos_to_play_pos block_pos
+        Ui.eval ui_state $ Perf.block_pos_to_play_pos block_pos
     Sync.set_play_position (monitor_ui_channel state) play_pos
 
     let active_sels = Set.fromList

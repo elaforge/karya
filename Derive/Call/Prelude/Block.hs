@@ -13,7 +13,7 @@ import qualified Data.Maybe as Maybe
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -150,7 +150,7 @@ constant_controls_at start = Internal.local $ \dyn -> dyn
 
 d_block :: BlockId -> Derive.NoteDeriver
 d_block block_id = do
-    blocks <- Derive.get_ui_state State.state_blocks
+    blocks <- Derive.get_ui_state Ui.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here
     -- I can give more specific error msgs.
     title <- case Map.lookup block_id blocks of
@@ -179,11 +179,11 @@ call_from_block_id block_id =
 call_to_block_id :: BaseTypes.Symbol -> Derive.Deriver (Maybe BlockId)
 call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
-    ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
+    ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config
     case Eval.call_to_block_id ns caller sym of
         Nothing -> return Nothing
         Just block_id -> do
-            blocks <- Derive.get_ui_state State.state_blocks
+            blocks <- Derive.get_ui_state Ui.state_blocks
             return $ if Map.member block_id blocks then Just block_id
                 else Nothing
 
@@ -215,7 +215,7 @@ d_control_block :: BlockId -> Derive.ControlDeriver
 d_control_block block_id = Internal.with_stack_block block_id $ do
     -- Control calls aren't cached, so I can put the block stack in the
     -- convenient place.
-    blocks <- Derive.get_ui_state State.state_blocks
+    blocks <- Derive.get_ui_state Ui.state_blocks
     when (Map.lookup block_id blocks == Nothing) $
         Derive.throw "block_id not found"
     Internal.add_block_dep block_id

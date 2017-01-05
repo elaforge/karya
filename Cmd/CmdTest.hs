@@ -20,7 +20,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
@@ -54,7 +54,7 @@ data Result val = Result {
     -- | A Nothing val means it aborted.
     result_val :: Either String (Maybe val)
     , result_cmd_state :: Cmd.State
-    , result_ui_state :: State.State
+    , result_ui_state :: Ui.State
     , result_updates :: [Update.CmdUpdate]
     , result_logs :: [Log.Msg]
     , result_midi :: [Interface.Message]
@@ -84,23 +84,23 @@ run_tracks_with_performance :: [UiTest.TrackSpec] -> Cmd.CmdT IO a
 run_tracks_with_performance tracks =
     run_with_performance (make_tracks tracks) default_cmd_state
 
-run_with_performance :: State.State -> Cmd.State -> Cmd.CmdT IO a
+run_with_performance :: Ui.State -> Cmd.State -> Cmd.CmdT IO a
     -> IO (Result a)
 run_with_performance ustate cstate cmd = do
-    cstate <- update_performance State.empty ustate cstate []
+    cstate <- update_performance Ui.empty ustate cstate []
     run_io ustate cstate cmd
 
-make_tracks :: [UiTest.TrackSpec] -> State.State
+make_tracks :: [UiTest.TrackSpec] -> Ui.State
 make_tracks = snd . UiTest.run_mkview
 
-make_tracks_ruler :: [UiTest.TrackSpec] -> State.State
+make_tracks_ruler :: [UiTest.TrackSpec] -> Ui.State
 make_tracks_ruler = snd . make
     where
-    make tracks = UiTest.run State.empty $
+    make tracks = UiTest.run Ui.empty $
         UiTest.mkblock_view (UiTest.default_block_name <> "=ruler", tracks)
 
 -- | Run a cmd and return everything you could possibly be interested in.
-run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
+run :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Result a
 run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
@@ -108,7 +108,7 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
         Left err -> (Left (prettys err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
-run_io :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
+run_io :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
 run_io ustate1 cstate1 cmd = do
     (cstate2, midi_msgs, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
@@ -117,14 +117,14 @@ run_io ustate1 cstate1 cmd = do
             Right (v, ustate2, updates) -> (Right v, ustate2, updates)
     return $ Result val cstate2 ustate2 updates logs midi_msgs
 
-run_ui :: State.State -> Cmd.CmdId a -> Result a
+run_ui :: Ui.State -> Cmd.CmdId a -> Result a
 run_ui ustate = run ustate default_cmd_state
 
-run_ui_io :: State.State -> Cmd.CmdT IO a -> IO (Result a)
+run_ui_io :: Ui.State -> Cmd.CmdT IO a -> IO (Result a)
 run_ui_io ustate = run_io ustate default_cmd_state
 
 -- | Run a Cmd and return just the value.
-eval :: State.State -> Cmd.State -> Cmd.CmdId a -> a
+eval :: Ui.State -> Cmd.State -> Cmd.CmdId a -> a
 eval ustate cstate cmd = case result_val (run ustate cstate cmd) of
     Left err -> errorStack $ "eval got StateError: " <> showt err
     Right Nothing -> errorStack "eval: cmd aborted"
@@ -143,7 +143,7 @@ run_again :: Result a -> Cmd.CmdId b -> Result b
 run_again res = run (result_ui_state res) (result_cmd_state res)
 
 -- | Update performances after running a Cmd and getting its Result.
-update_perf :: State.State -> Result val -> IO (Result val)
+update_perf :: Ui.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
         (result_cmd_state res) (result_updates res)
@@ -172,7 +172,7 @@ extract_derive_result res =
 -- | Update the performances based on the UI state change and updates.  This
 -- manually runs that part of the responder, and is needed for tests that rely
 -- on the performances.
-update_performance :: State.State -> State.State -> Cmd.State
+update_performance :: Ui.State -> Ui.State -> Cmd.State
     -> [Update.CmdUpdate] -> IO Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
     let (ui_updates, _) = Diff.diff cmd_updates ui_from ui_to
@@ -190,7 +190,7 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
     where
     -- Get rid of the derive wait to avoid making tests slow.
     set_immediate state = state
-        { Cmd.state_derive_immediately = Map.keysSet (State.state_blocks ui_to)
+        { Cmd.state_derive_immediately = Map.keysSet (Ui.state_blocks ui_to)
         }
     read_perf chan = do
         (block_id, status) <- Chan.readChan chan
@@ -200,8 +200,8 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
 
 -- | Run several cmds, threading the state through.  The first cmd that fails
 -- aborts the whole operation.
-thread :: State.State -> Cmd.State -> [Cmd.CmdId a]
-    -> Either String (State.State, Cmd.State)
+thread :: Ui.State -> Cmd.State -> [Cmd.CmdId a]
+    -> Either String (Ui.State, Cmd.State)
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
@@ -212,7 +212,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
 
 -- | Make some tracks and call 'thread'.
 thread_tracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
-    -> [Cmd.CmdId a] -> Either String (State.State, Cmd.State)
+    -> [Cmd.CmdId a] -> Either String (Ui.State, Cmd.State)
 thread_tracks tracks modify_cmd_state cmds =
     thread ustate (modify_cmd_state default_cmd_state) cmds
     where (_, ustate) = UiTest.run_mkview tracks
@@ -248,25 +248,24 @@ set_sel_on :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
 set_sel_on view_id start_track start_pos cur_track cur_pos = do
     let sel = Sel.selection start_track start_pos cur_track cur_pos
     Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
-    State.set_selection view_id Config.insert_selnum (Just sel)
+    Ui.set_selection view_id Config.insert_selnum (Just sel)
 
-set_point_sel :: State.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
+set_point_sel :: Ui.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
 set_point_sel tracknum pos = do
     set_point_sel_block UiTest.default_block_name tracknum pos
     return Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
-set_point_sel_block :: State.M m => String -> Types.TrackNum -> ScoreTime
-    -> m ()
+set_point_sel_block :: Ui.M m => String -> Types.TrackNum -> ScoreTime -> m ()
 set_point_sel_block block_name tracknum pos =
-    State.set_selection view_id Config.insert_selnum
+    Ui.set_selection view_id Config.insert_selnum
         (Just (Sel.point tracknum pos))
     where view_id = UiTest.mk_vid_name block_name
 
 select_all :: Cmd.M m => m ()
 select_all = do
-    tracks <- State.track_count UiTest.default_block_id
-    end <- State.block_end UiTest.default_block_id
+    tracks <- Ui.track_count UiTest.default_block_id
+    end <- Ui.block_end UiTest.default_block_id
     set_sel_on UiTest.default_view_id 1 0 (tracks - 1) end
 
 
@@ -315,12 +314,12 @@ extract f res = case result_val res of
 
 -- | Get something out of the Result from one of the states.  Like 'extract',
 -- this is meant to be used as the single check on a cmd operation.
-extract_state :: (State.State -> Cmd.State -> e) -> Result val -> Extracted e
+extract_state :: (Ui.State -> Cmd.State -> e) -> Result val -> Extracted e
 extract_state f res = maybe
     (Right (f (result_ui_state res) (result_cmd_state res), e_logs res))
     Left (result_failed res)
 
-extract_ui_state :: (State.State -> e) -> Result val -> Extracted e
+extract_ui_state :: (Ui.State -> e) -> Result val -> Extracted e
 extract_ui_state f = extract_state (\state _ -> f state)
 
 e_tracks :: Result a -> Extracted [UiTest.TrackSpec]
@@ -330,16 +329,16 @@ e_pitch_tracks :: Result a -> Extracted [[UiTest.EventSpec]]
 e_pitch_tracks = extract_ui_state $
     UiTest.to_pitch_spec . UiTest.to_note_spec . UiTest.extract_tracks
 
-extract_ui :: State.StateId e -> Result v -> Extracted e
+extract_ui :: Ui.StateId e -> Result v -> Extracted e
 extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
 set_synths_simple :: [MidiInst.Synth] -> DeriveTest.SimpleAllocations
-    -> State.State -> Cmd.State -> (State.State, Cmd.State)
+    -> Ui.State -> Cmd.State -> (Ui.State, Cmd.State)
 set_synths_simple synths simple_allocs ui_state cmd_state =
-    ( (State.config#State.allocations #= allocs) ui_state
+    ( (Ui.config#Ui.allocations #= allocs) ui_state
     , cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
             { Cmd.config_instrument_db = db }

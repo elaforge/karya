@@ -53,7 +53,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.Transform as Transform
 
@@ -78,7 +78,7 @@ clip_block_id = Id.BlockId $ Id.id clip_namespace Config.clip_block_name
 
 -- | Replace the clipboard with the given state.  This can be used to load
 -- another score and use the clipboard as a staging area.
-state_to_clip :: Cmd.M m => State.State -> m ()
+state_to_clip :: Cmd.M m => Ui.State -> m ()
 state_to_clip state =
     reopen_views clip_namespace $ state_to_namespace state clip_namespace
 
@@ -105,20 +105,20 @@ type Selected = [(Text, Events.Events)]
 
 -- | Destroy the existing clip namespace and replace it with a new block
 -- containing the contents of the Selected.
-selected_to_block :: State.M m => BlockId -> Selected -> m ()
+selected_to_block :: Ui.M m => BlockId -> Selected -> m ()
 selected_to_block block_id selected = do
     let ns = Id.id_namespace (Id.unpack_id block_id)
     Transform.destroy_namespace ns
-    block_id <- State.create_block (Id.unpack_id block_id) ""
-        [Block.track (Block.RId State.no_ruler) 0]
+    block_id <- Ui.create_block (Id.unpack_id block_id) ""
+        [Block.track (Block.RId Ui.no_ruler) 0]
     forM_ (zip [1..] selected) $ \(tracknum, (title, events)) ->
-        Create.track_events block_id State.no_ruler tracknum Config.track_width
+        Create.track_events block_id Ui.no_ruler tracknum Config.track_width
             (Track.track title (Events.map_events Event.strip_stack events))
 
 get_selection :: Cmd.M m => Selection.Tracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do
-    tracks <- mapM State.get_track =<<
-        mapMaybeM (State.event_track_at block_id) tracknums
+    tracks <- mapM Ui.get_track
+        =<< mapMaybeM (Ui.event_track_at block_id) tracknums
     return $ map extract tracks
     where
     extract track = (Track.track_title track,
@@ -142,14 +142,14 @@ cmd_paste_overwrite :: Cmd.M m => m ()
 cmd_paste_overwrite = do
     (start, end, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) -> do
-        State.remove_event_range track_id (Events.Positive start end)
-        State.insert_events track_id events
+        Ui.remove_event_range track_id (Events.Positive start end)
+        Ui.insert_events track_id events
 
 cmd_paste_merge :: Cmd.M m => m ()
 cmd_paste_merge = do
     (_, _, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) ->
-        State.insert_events track_id events
+        Ui.insert_events track_id events
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
 -- existing ones.
@@ -157,8 +157,8 @@ cmd_paste_soft_merge :: Cmd.M m => m ()
 cmd_paste_soft_merge = do
     (_, _, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) -> do
-        track_events <- State.get_events track_id
-        State.insert_events track_id $
+        track_events <- Ui.get_events track_id
+        Ui.insert_events track_id $
             filter (not . overlaps track_events) events
     where
     overlaps events event = Maybe.isJust $
@@ -171,17 +171,17 @@ cmd_paste_insert :: Cmd.M m => m ()
 cmd_paste_insert = do
     (start, end, track_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
-    ruler_end <- State.block_ruler_end =<< Cmd.get_focused_block
+    ruler_end <- Ui.block_ruler_end =<< Cmd.get_focused_block
     mapM_ (ModifyEvents.move_track_events ruler_end start (end-start) . fst)
         track_events
     forM_ track_events $ \(track_id, events) ->
-        State.insert_events track_id events
+        Ui.insert_events track_id events
 
 -- | Paste the clipboard, but stretch or compress it to fit the selection.
 cmd_paste_stretch :: Cmd.M m => m ()
 cmd_paste_stretch = do
     (track_ids, clip_track_ids, start, end, _) <- get_paste_area
-    events <- mapM State.get_events clip_track_ids
+    events <- mapM Ui.get_events clip_track_ids
     let m_clip_s = Seq.minimum $ map Events.time_begin $
             filter (not . Events.null) events
         m_clip_e = Seq.maximum $ map Events.time_end $
@@ -191,8 +191,8 @@ cmd_paste_stretch = do
             let stretched = map (stretch (start, end) (clip_s, clip_e)
                     . Events.ascending) events
             forM_ (zip track_ids stretched) $ \(track_id, stretched) -> do
-                State.remove_event_range track_id (Events.Positive start end)
-                State.insert_events track_id stretched
+                Ui.remove_event_range track_id (Events.Positive start end)
+                Ui.insert_events track_id stretched
         _ -> return ()
 
 stretch :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
@@ -213,21 +213,21 @@ stretch (start, end) (clip_s, clip_e) = map reposition
 --
 -- This means that if the given state has IDs in more than one namespace, they
 -- will be flattened into one.  Any collisions will throw an exception.
-state_to_namespace :: State.M m => State.State -> Id.Namespace -> m ()
+state_to_namespace :: Ui.M m => Ui.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
     state <- set_namespace ns state
     Transform.destroy_namespace ns
-    global_st <- State.get
-    merged <- State.require_right (("merge states: "<>) . showt)
+    global_st <- Ui.get
+    merged <- Ui.require_right (("merge states: "<>) . showt)
         (Transform.merge_states global_st state)
-    State.put merged
+    Ui.put merged
 
-reopen_views :: State.M m => Id.Namespace -> m a -> m a
+reopen_views :: Ui.M m => Id.Namespace -> m a -> m a
 reopen_views ns operation = do
     views <- map snd . filter ((==ns) . Id.ident_namespace . fst) <$>
-        State.gets (Map.toList . State.state_views)
+        Ui.gets (Map.toList . Ui.state_views)
     result <- operation
-    block_ids <- State.all_block_ids
+    block_ids <- Ui.all_block_ids
     let reopen = filter ((`elem` block_ids) . Block.view_block) views
     forM_ reopen $ \view ->
         Create.sized_view (Block.view_block view) (Block.view_rect view)
@@ -236,11 +236,11 @@ reopen_views ns operation = do
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
 -- Collisions will throw.  Rulers are omitted because copy and paste doesn't
 -- mess with rulers.
-set_namespace :: State.M m => Id.Namespace -> State.State -> m State.State
+set_namespace :: Ui.M m => Id.Namespace -> Ui.State -> m Ui.State
 set_namespace ns state = do
-    let state2 = state { State.state_rulers = Map.empty }
-    State.require_right (("set to clip namespace: "<>) . showt) $
-        State.exec state2 $ do
+    let state2 = state { Ui.state_rulers = Map.empty }
+    Ui.require_right (("set to clip namespace: "<>) . showt) $
+        Ui.exec state2 $ do
             Transform.map_view_ids (Id.set_namespace ns)
             Transform.map_block_ids (Id.set_namespace ns)
             Transform.map_track_ids (Id.set_namespace ns)
@@ -254,7 +254,7 @@ set_namespace ns state = do
 paste_info :: Cmd.M m => m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
 paste_info = do
     (track_ids, clip_track_ids, start, sel_end, event_end) <- get_paste_area
-    tracks <- mapM State.get_track clip_track_ids
+    tracks <- mapM Ui.get_track clip_track_ids
     let clip_and_move = map (Event.move (+start))
             . clip_to_selection start event_end
             . Events.ascending . Track.track_events
@@ -278,12 +278,12 @@ get_paste_area :: Cmd.M m =>
     m ([TrackId], [TrackId], ScoreTime, ScoreTime, ScoreTime)
 get_paste_area = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    ruler_end <- State.block_ruler_end block_id
-    clip_block <- State.get_block clip_block_id
+    ruler_end <- Ui.block_ruler_end block_id
+    clip_block <- Ui.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids =
             take (length tracknums) (Block.block_track_ids clip_block)
-    clip_end <- State.block_event_end clip_block_id
+    clip_end <- Ui.block_event_end clip_block_id
     -- If start==end, I have to set the end past the end of the clip in case
     -- the last event has dur 0.
     return (track_ids, clip_track_ids, start,

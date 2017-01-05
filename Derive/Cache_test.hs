@@ -16,7 +16,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
@@ -119,7 +119,7 @@ test_add_remove = do
                 ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.remove_event (UiTest.tid "top.t1") 1
+            Ui.remove_event (UiTest.tid "top.t1") 1
     equal (diff_events cached uncached) []
 
     let (_, cached, uncached) = compare_cached create $
@@ -164,7 +164,7 @@ test_block_damage = do
             ]
     -- A track disable should emit event damage for that block's range.
     let (_, cached, uncached) = compare_cached create $
-            State.add_track_flag (UiTest.bid "sub") 1 Block.Disable
+            Ui.add_track_flag (UiTest.bid "sub") 1 Block.Disable
     equal (diff_events cached uncached) []
 
     -- Plain old event modification works too.
@@ -201,10 +201,10 @@ test_config_damage = do
     equal (diff_events cached uncached) []
     equal (DeriveTest.extract DeriveTest.e_pitch cached) (["5c"], [])
 
-modify_alloc_config :: State.M m => Score.Instrument
+modify_alloc_config :: Ui.M m => Score.Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_alloc_config inst modify =
-    State.modify_config $ State.allocations_map %= Map.alter mod inst
+    Ui.modify_config $ Ui.allocations_map %= Map.alter mod inst
     where
     mod Nothing = error $ "modify_alloc_config: no inst " <> prettys inst
     mod (Just alloc) = Just $ alloc
@@ -281,7 +281,7 @@ test_failed_sub_track = do
         tid = (UiTest.mk_tid_block (UiTest.bid "sub") 1)
     -- From error to non-error.
     let (orig, cached, uncached) = compare_cached (create "> |") $
-            State.set_track_title tid ">"
+            Ui.set_track_title tid ">"
     equal (diff_events cached uncached) []
     -- top has a dep on sub even though sub crashed.
     equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
@@ -292,7 +292,7 @@ test_failed_sub_track = do
 
     -- From non-error to error.
     let (orig, cached, uncached) = compare_cached (create ">") $
-            State.set_track_title tid "> |"
+            Ui.set_track_title tid "> |"
     equal (diff_events cached uncached) []
     equal (r_cache_deps orig) $ map (second (Just . map UiTest.bid))
         [ ("top * *", ["sub", "top"])
@@ -372,7 +372,7 @@ test_collect = do
                 ])
             ]
     let create = blocks
-            <* State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
+            <* Ui.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
     let (root_key, maybe_collect) : _ = r_cache_collect cached
         Just collect = maybe_collect
@@ -636,7 +636,7 @@ test_extend_tempo_damage = do
             , ("modulation", [(0, 1, "0")])
             ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (top_tid 1) (Event.event 1 0 "2")
+            Ui.insert_event (top_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
 test_block_title_damage = do
@@ -646,9 +646,9 @@ test_block_title_damage = do
                 [ ("top", [(">", [(0, 2, "sub")])])
                 , ("sub=ruler", UiTest.regular_notes 2)
                 ]
-            <* State.set_block_title (UiTest.bid "top") "%tempo = 2"
+            <* Ui.set_block_title (UiTest.bid "top") "%tempo = 2"
     let (_, cached, uncached) = compare_cached create $
-            State.set_block_title (UiTest.bid "top") "%tempo = 1"
+            Ui.set_block_title (UiTest.bid "top") "%tempo = 1"
     equal (diff_events cached uncached) []
 
 test_track_cache = do
@@ -658,7 +658,7 @@ test_track_cache = do
             ]
     -- Ensure that a control track above a note track is cached.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (top_tid 2) $ Event.event 1 1 ""
+            Ui.insert_event (top_tid 2) $ Event.event 1 1 ""
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top \\* \\*: rederived"
@@ -668,7 +668,7 @@ test_track_cache = do
 
     -- And invalidated on damage.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (top_tid 1) $ Event.event 0 0 ".75"
+            Ui.insert_event (top_tid 1) $ Event.event 0 0 ".75"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
         [ "top \\* \\*: rederived"
@@ -676,7 +676,7 @@ test_track_cache = do
         , "top top.t2 \\*: rederived"
         ]
 
-    let title = State.set_block_title (UiTest.bid "top")
+    let title = Ui.set_block_title (UiTest.bid "top")
 
     -- Also invalidated on block damage.
     let (_, cached, _) = compare_cached (create <* title "foo = a") $
@@ -704,7 +704,7 @@ test_track_cache2 = do
             ]
     -- Two levels of track caching.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (top_tid 2) $ Event.event 0 0 "1"
+            Ui.insert_event (top_tid 2) $ Event.event 0 0 "1"
     equal (diff_events cached uncached) []
 
 
@@ -733,17 +733,17 @@ toplevel_rederived False = "top *: rederived * sub-block damage"
 mk_block_deps :: [String] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
-mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
+mkblocks :: Ui.M m => [UiTest.BlockSpec] -> m BlockId
 mkblocks blocks = do
     bid : _ <- UiTest.mkblocks blocks
     return bid
 
-mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
+mkblock :: Ui.M m => [UiTest.TrackSpec] -> m BlockId
 mkblock tracks = mkblocks [("top", tracks)]
 
-insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
+insert_event :: Ui.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
 insert_event tid pos dur text =
-    State.insert_event (UiTest.tid tid) (Event.event pos dur text)
+    Ui.insert_event (UiTest.tid tid) (Event.event pos dur text)
 
 -- * extract
 
@@ -806,25 +806,25 @@ uncache (Derive.Cache cache) = cache
 -- * run
 
 -- UiTest.run discards the Updates, which I need.
-run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
+run :: Ui.State -> Ui.StateId a -> (a, Ui.State, [Update.CmdUpdate])
 run state m = case result of
         Left err -> error $ "state error: " <> show err
         Right (val, state', updates) -> (val, state', updates)
-    where result = Identity.runIdentity (State.run state m)
+    where result = Identity.runIdentity (Ui.run state m)
 
 -- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,
 -- uncached).  The pre-modification result is occasionally useful to check
 -- logs.
-compare_cached :: State.StateId BlockId -> State.StateId a
+compare_cached :: Ui.StateId BlockId -> Ui.StateId a
     -> (Derive.Result, Derive.Result, Derive.Result)
 compare_cached = compare_cached_block Nothing
 
-compare_cached_block :: Maybe BlockId -> State.StateId BlockId
-    -> State.StateId a -> (Derive.Result, Derive.Result, Derive.Result)
+compare_cached_block :: Maybe BlockId -> Ui.StateId BlockId
+    -> Ui.StateId a -> (Derive.Result, Derive.Result, Derive.Result)
 compare_cached_block maybe_root_id create modify = (result, cached, uncached)
     where
-    state1 = UiTest.exec State.empty create
+    state1 = UiTest.exec Ui.empty create
     root_id = fromMaybe (get_root_id state1) maybe_root_id
     result = derive_block_cache mempty mempty state1 root_id
     cached = run_cached root_id result state1 modify
@@ -834,7 +834,7 @@ compare_cached_block maybe_root_id create modify = (result, cached, uncached)
 
 -- | Run a derive after some modifications with the cache from a previous
 -- derive.
-run_cached :: BlockId -> Derive.Result -> State.State -> State.StateId a
+run_cached :: BlockId -> Derive.Result -> Ui.State -> Ui.StateId a
     -> Derive.Result
 run_cached root_id result state1 modify =
     derive_block_cache (Derive.r_cache result) damage state2 root_id
@@ -843,18 +843,18 @@ run_cached root_id result state1 modify =
     (updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 updates
 
-derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
+derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> Ui.State
     -> BlockId -> Derive.Result
 derive_block_cache =
     DeriveTest.derive_block_standard mempty DeriveTest.default_cmd_state
 
-get_root_id :: State.State -> BlockId
-get_root_id state = UiTest.eval state State.get_root_id
+get_root_id :: Ui.State -> BlockId
+get_root_id state = UiTest.eval state Ui.get_root_id
 
-score_damage :: State.StateId a -> State.StateId b -> Derive.ScoreDamage
+score_damage :: Ui.StateId a -> Ui.StateId b -> Derive.ScoreDamage
 score_damage create modify = Diff.derive_diff state1 state2 updates
     where
-    (_, state1) = UiTest.run State.empty create
+    (_, state1) = UiTest.run Ui.empty create
     (_, state2, cmd_updates) = run state1 modify
     (updates, _) = Diff.diff cmd_updates state1 state2
 

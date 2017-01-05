@@ -5,7 +5,7 @@
 module Cmd.TimeStep_test where
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.TimeStep as TimeStep
 import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
@@ -108,7 +108,7 @@ test_get_points_from = do
     uncurry equal $
         merged 2 (EventStart (TrackNums [1])) (EventEnd (TrackNums [2]))
 
-ascend_descend :: State.State -> TrackTime -> Step -> ([TrackTime], [TrackTime])
+ascend_descend :: Ui.State -> TrackTime -> Step -> ([TrackTime], [TrackTime])
 ascend_descend state start step = UiTest.eval state $ do
     desc <- TimeStep.descending_points
         UiTest.default_block_id 1 start step
@@ -116,13 +116,13 @@ ascend_descend state start step = UiTest.eval state $ do
         UiTest.default_block_id 1 start step
     return (desc, asc)
 
-default_ui_state :: State.State
-default_ui_state = UiTest.exec State.empty $ do
+default_ui_state :: Ui.State
+default_ui_state = UiTest.exec Ui.empty $ do
     UiTest.mkblock (UiTest.default_block_name,
         [ (">", [(0, 1, "a"), (2, 1, "b")])
         , ("c", [(0, 0, "1"), (5, 0, "2")])
         ])
-    State.modify_ruler UiTest.default_ruler_id $
+    Ui.modify_ruler UiTest.default_ruler_id $
         const $ Right (UiTest.mkruler_44 7 1)
 
 test_drop_before = do

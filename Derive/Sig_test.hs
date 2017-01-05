@@ -4,7 +4,7 @@
 
 module Derive.Sig_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -70,7 +70,7 @@ call = call_with id
 
 call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
     -> [BaseTypes.Val] -> Either String a
-call_with with p vals = DeriveTest.eval State.empty $
+call_with with p vals = DeriveTest.eval Ui.empty $
     with $ run (Sig.call p (\val _args -> return val)) vals
 
 run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [BaseTypes.Val]

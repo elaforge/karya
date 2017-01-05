@@ -6,7 +6,7 @@ module Cmd.Im_test where
 import qualified Data.Map as Map
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
 
@@ -29,7 +29,7 @@ test_respond = do
     let states = (add_allocation *** set_db) $ ResponderTest.mkstates $
             UiTest.note_spec
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
-        add_allocation = State.config#State.allocations #= allocs
+        add_allocation = Ui.config#Ui.allocations #= allocs
         allocs = StateConfig.Allocations $ Map.fromList
             [ (Score.Instrument "im", StateConfig.allocation
                 (InstTypes.Qualified "sampler" "inst") StateConfig.Im)

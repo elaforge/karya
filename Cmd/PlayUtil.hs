@@ -27,7 +27,7 @@ import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.TrackTree as TrackTree
 
@@ -81,7 +81,7 @@ uncached_derive = derive_block mempty mempty
 derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
 derive_block cache damage block_id = do
-    global_transform <- State.config#State.global_transform <#> State.get
+    global_transform <- Ui.config#Ui.global_transform <#> Ui.get
     fmap Derive.extract_result $ run cache damage $ do
         unless (damage == mempty) $
             Log.debug $ "score damage for " <> showt block_id <> ": "
@@ -94,7 +94,7 @@ is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text
 run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run cache damage deriver = do
-    ui_state <- State.get
+    ui_state <- Ui.get
     constant <- get_constant ui_state cache damage
     return $ Derive.derive constant initial_dynamic deriver
 
@@ -103,7 +103,7 @@ run cache damage deriver = do
 run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run_with_dynamic dynamic deriver = do
-    ui_state <- State.get
+    ui_state <- Ui.get
     constant <- get_constant ui_state mempty mempty
     let state = Derive.State
             { state_threaded = Derive.initial_threaded
@@ -115,7 +115,7 @@ run_with_dynamic dynamic deriver = do
 
 -- | Create deriver configuration.  This is the main place where Cmd level
 -- configuration is adapted to the deriver.
-get_constant :: Cmd.M m => State.State -> Derive.Cache -> Derive.ScoreDamage
+get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
 get_constant ui_state cache damage = do
     lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
@@ -142,7 +142,7 @@ initial_dynamic = Derive.initial_dynamic initial_environ
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start perf = do
-    insts <- Map.keys <$> (State.config#State.allocations_map <#> State.get)
+    insts <- Map.keys <$> (Ui.config#Ui.allocations_map <#> Ui.get)
     resume_insts <- Set.fromList <$> filterM (has_flag Patch.ResumePlay) insts
     let (extra, events) = events_from resume_insts start $ Cmd.perf_events perf
     perform_events_list (extra ++ Vector.toList events)
@@ -220,10 +220,10 @@ perform_events = perform_events_list . Vector.toList
 
 perform_events_list :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
 perform_events_list events = do
-    allocs <- State.gets $ State.config_allocations . State.state_config
+    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
     lookup <- get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
-    blocks <- State.gets (Map.toList . State.state_blocks)
+    blocks <- Ui.gets (Map.toList . Ui.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
     let alloc = Patch.config_allocation <$> midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state alloc $
@@ -296,9 +296,9 @@ solo_to_mute tree blocks soloed = Set.fromList
     has_soloed_relatives = Set.fromList (mapMaybe get (Tree.flat_paths tree))
         where
         get (track, parents, children)
-            | any (`Set.member` soloed) (map State.track_id children)
-                    || any (`Set.member` soloed) (map State.track_id parents) =
-                Just (State.track_id track)
+            | any (`Set.member` soloed) (map Ui.track_id children)
+                    || any (`Set.member` soloed) (map Ui.track_id parents) =
+                Just (Ui.track_id track)
             | otherwise = Nothing
     soloed_blocks = Set.fromList
         [ block_id
@@ -321,7 +321,7 @@ midi_config _ = Nothing
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
-    allocs <- State.config#State.allocations_map <#> State.get
+    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
         , lookup_control_defaults = \inst -> case lookup_config inst allocs of

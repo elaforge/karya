@@ -5,7 +5,7 @@
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit
-    'Ui.State.State', or Cmd 'State', but a special subset can also do IO
+    'Ui.Ui.State', or Cmd 'State', but a special subset can also do IO
     actions like saving and loading files.
 
     The Cmd monad has two kinds of exception: abort or throw.  Abort means
@@ -69,9 +69,9 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -156,23 +156,23 @@ data FloatingInput =
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
 type RunCmd cmd_m val_m a =
-    State.State -> State -> CmdT cmd_m a -> val_m (Result a)
+    Ui.State -> State -> CmdT cmd_m a -> val_m (Result a)
 
 -- | The result of running a Cmd.
 type Result a = (State, [MidiThru], [Log.Msg],
-    Either State.Error (a, State.State, [Update.CmdUpdate]))
+    Either Ui.Error (a, Ui.State, [Update.CmdUpdate]))
 
 run :: Monad m => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
     (((ui_result, cstate2), midi), logs) <-
         (Log.run . Logger.run . flip MonadState.runStateT cstate
-            . State.run ustate . (\(CmdT m) -> m))
+            . Ui.run ustate . (\(CmdT m) -> m))
         cmd
     -- Any kind of error rolls back state and discards midi, but not log msgs.
     -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
     -- return Status it can't be.
     return $ case ui_result of
-        Left State.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
+        Left Ui.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
         Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
 
@@ -190,27 +190,27 @@ run_io = run Continue
 -- TODO: shouldn't it be possible to do this for free?
 lift_id :: M m => CmdId a -> m a
 lift_id cmd = do
-    (cmd_state, thru, logs, result) <- run_id <$> State.get <*> get <*> pure cmd
+    (cmd_state, thru, logs, result) <- run_id <$> Ui.get <*> get <*> pure cmd
     mapM_ Log.write logs
     case result of
-        Left err -> State.throw_error err
+        Left err -> Ui.throw_error err
         Right (val, ui_state, updates) -> case val of
             Nothing -> abort
             Just val -> do
                 put cmd_state
                 mapM_ write_midi thru
-                mapM_ State.update updates
-                State.unsafe_put ui_state
+                mapM_ Ui.update updates
+                Ui.unsafe_put ui_state
                 return val
 
 -- | Run the Cmd in Identity, returning Nothing if it aborted.
-run_id :: State.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
+run_id :: Ui.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
 -- | Like 'run', but write logs, and discard MIDI thru and updates.
-run_val :: Log.LogMonad m => State.State -> State -> CmdT m a
-    -> m (Either String (a, State, State.State))
+run_val :: Log.LogMonad m => Ui.State -> State -> CmdT m a
+    -> m (Either String (a, State, Ui.State))
 run_val ui_state cmd_state cmd = do
     (cmd_state, _thru, logs, result) <-
         run Nothing ui_state cmd_state (liftM Just cmd)
@@ -234,7 +234,7 @@ sequence_cmds (cmd:cmds) msg = do
 
 -- * CmdT and operations
 
-type CmdStack m = State.StateT
+type CmdStack m = Ui.StateT
     (MonadState.StateT State
         (Logger.LoggerT MidiThru
             (Log.LogT m)))
@@ -242,11 +242,11 @@ type CmdStack m = State.StateT
 type MidiThru = Midi.Interface.Message
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError State.Error,
+    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Ui.Error,
         Applicative.Applicative)
 
-class (Log.LogMonad m, State.M m) => M m where
-    -- Not in MonadState for the same reasons as 'Ui.State.M'.
+class (Log.LogMonad m, Ui.M m) => M m where
+    -- Not in MonadState for the same reasons as 'Ui.Ui.M'.
     get :: m State
     put :: State -> m ()
     -- | Log some midi to send out.  This is the midi thru mechanism.
@@ -265,10 +265,10 @@ instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
     write_midi msg = (CmdT . lift . lift) (Logger.log msg)
-    abort = Except.throwError State.Abort
+    abort = Except.throwError Ui.Abort
     catch_abort m = Except.catchError (fmap Just m) catch
         where
-        catch State.Abort = return Nothing
+        catch Ui.Abort = return Nothing
         catch err = Except.throwError err
 
 midi :: M m => Midi.WriteDevice -> Midi.Message -> m ()
@@ -283,19 +283,19 @@ instance Monad m => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
 -- | And to the UI state operations.
-instance (Functor m, Monad m) => State.M (CmdT m) where
-    get = CmdT State.get
-    unsafe_put st = CmdT (State.unsafe_put st)
-    update upd = CmdT (State.update upd)
-    get_updates = CmdT State.get_updates
-    throw_error msg = CmdT (State.throw_error msg)
+instance (Functor m, Monad m) => Ui.M (CmdT m) where
+    get = CmdT Ui.get
+    unsafe_put st = CmdT (Ui.unsafe_put st)
+    update upd = CmdT (Ui.update upd)
+    get_updates = CmdT Ui.get_updates
+    throw_error msg = CmdT (Ui.throw_error msg)
 
 -- ** exceptions
 
--- | This is the same as State.throw, but it feels like things in Cmd may not
+-- | This is the same as Ui.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
 throw :: (CallStack.Stack, M m) => Text -> m a
-throw = State.throw
+throw = Ui.throw
 
 -- | Run a subcomputation that is allowed to abort.
 ignore_abort :: M m => m a -> m ()
@@ -323,7 +323,7 @@ require_right fmt_err = either (throw . fmt_err) return
 
 -- * State
 
-{- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
+{- | App global state.  Unlike 'Ui.Ui.State', this is not saved to disk.
     This is normally modified inside a 'CmdT', which is also a 'State.StateT',
     so it can also use the UI state functions.  If an exception is thrown, both
     this state and the UI state will be rolled back.
@@ -341,7 +341,7 @@ require_right fmt_err = either (throw . fmt_err) return
 -}
 data State = State {
     state_config :: !Config
-    -- | If set, the current 'State.State' was loaded from this file.
+    -- | If set, the current 'Ui.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe (Writable, SaveFile))
     -- | Nothing means a state was just loaded, so it counts as saved even if
@@ -428,7 +428,7 @@ instance Monoid Fingerprint where
 
 fingerprint :: [(FilePath, Text)] -> Fingerprint
 fingerprint files =
-    -- 'State.ky' gets "" for the filename.
+    -- 'Ui.ky' gets "" for the filename.
     Fingerprint (filter (not . null) fnames)
         (List.foldl' CRC32.crc32Update 0 contents)
     where (fnames, contents) = unzip files
@@ -443,7 +443,7 @@ initial_state config = State
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
     -- setup cmd needs a State too.
-    , state_history = initial_history (empty_history_entry State.empty)
+    , state_history = initial_history (empty_history_entry Ui.empty)
     , state_history_config = empty_history_config
     , state_history_collect = empty_history_collect
     , state_keys_down = Map.empty
@@ -489,7 +489,7 @@ data Config = Config {
     -- shouldn't be changed at runtime.
     , config_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
     -- | WriteDevices can be score-specific, though, so another map is kept in
-    -- 'State.State', which may override the one here.
+    -- 'Ui.State', which may override the one here.
     , config_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
     , config_instrument_db :: !InstrumentDb
     -- | Library of calls for the deriver.
@@ -927,7 +927,7 @@ empty_history_collect = HistoryCollect
     }
 
 data HistoryEntry = HistoryEntry {
-    hist_state :: !State.State
+    hist_state :: !Ui.State
     -- | Since track event updates are not caught by diff but recorded by
     -- Ui.State, I have to save those too, or else an undo or redo will miss
     -- the event changes.  TODO ugly, can I avoid this?
@@ -945,7 +945,7 @@ data HistoryEntry = HistoryEntry {
     , hist_commit :: !(Maybe GitTypes.Commit)
     } deriving (Show)
 
-empty_history_entry :: State.State -> HistoryEntry
+empty_history_entry :: Ui.State -> HistoryEntry
 empty_history_entry state = HistoryEntry state [] [] Nothing
 
 instance Pretty.Pretty History where
@@ -1038,7 +1038,7 @@ get_performance block_id = abort_unless =<< lookup_performance block_id
 -- It's in IO because it wants to kill any threads still deriving.
 --
 -- TODO I'm not actually sure if this is safe.  A stale DeriveComplete
--- coming in should be ignored, right?  Why not State.update_all_tracks?
+-- coming in should be ignored, right?  Why not Ui.update_all_tracks?
 invalidate_performances :: CmdT IO ()
 invalidate_performances = do
     threads <- gets (Map.elems . state_performance_threads . state_play)
@@ -1056,21 +1056,21 @@ get_focused_view :: M m => m ViewId
 get_focused_view = gets state_focused_view >>= abort_unless
 
 get_focused_block :: M m => m BlockId
-get_focused_block = fmap Block.view_block (get_focused_view >>= State.get_view)
+get_focused_block = fmap Block.view_block (get_focused_view >>= Ui.get_view)
 
 lookup_focused_view :: M m => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view
 
 -- | Request focus.  'state_focused_view' will be updated once fltk reports the
 -- focus change.
-focus :: State.M m => ViewId -> m ()
+focus :: Ui.M m => ViewId -> m ()
 focus view_id = do
-    view <- State.lookup_view view_id
+    view <- Ui.lookup_view view_id
     case view of
         Nothing ->
-            State.throw $ "Cmd.focus on non-existent view: " <> showt view_id
+            Ui.throw $ "Cmd.focus on non-existent view: " <> showt view_id
         _ -> return ()
-    State.update (Update.CmdBringToFront view_id)
+    Ui.update (Update.CmdBringToFront view_id)
 
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: M m => m (Maybe BlockId)
@@ -1078,7 +1078,7 @@ lookup_focused_block = do
     maybe_view_id <- lookup_focused_view
     case maybe_view_id of
         -- It's still an error if the view id doesn't exist.
-        Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)
+        Just view_id -> fmap (Just . Block.view_block) (Ui.get_view view_id)
         Nothing -> return Nothing
 
 get_current_step :: M m => m TimeStep.TimeStep
@@ -1089,13 +1089,13 @@ get_current_step = gets (state_time_step . state_edit)
 get_insert_tracknum :: M m => m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
-    sel <- State.get_selection view_id Config.insert_selnum
+    sel <- Ui.get_selection view_id Config.insert_selnum
     return (fmap Sel.start_track sel)
 
--- | This just calls 'State.set_view_status', but all status setting should
+-- | This just calls 'Ui.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
 set_view_status :: M m => ViewId -> (Int, Text) -> Maybe Text -> m ()
-set_view_status = State.set_view_status
+set_view_status = Ui.set_view_status
 
 -- | Emit a special log msg that will cause log view to put this key and value
 -- in its status bar.  A value of \"\" will cause logview to delete that key.
@@ -1110,7 +1110,7 @@ set_global_status key val = do
 -- | Set a status variable on all views.
 set_status :: M m => (Int, Text) -> Maybe Text -> m ()
 set_status key val = do
-    view_ids <- State.gets (Map.keys . State.state_views)
+    view_ids <- Ui.gets (Map.keys . Ui.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
 -- ** lookup instrument
@@ -1158,9 +1158,9 @@ lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved -> do
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
-    ui_state <- State.get
+    ui_state <- Ui.get
     db <- gets $ config_instrument_db . state_config
-    case State.allocation inst #$ ui_state of
+    case Ui.allocation inst #$ ui_state of
         Nothing -> return Nothing
         Just alloc -> case resolve_instrument db alloc of
             Left err -> do
@@ -1176,14 +1176,14 @@ get_instrument inst = require ("instrument not found: " <> pretty inst)
 
 get_lookup_instrument :: M m => m (Score.Instrument -> Maybe ResolvedInstrument)
 get_lookup_instrument = do
-    ui_state <- State.get
+    ui_state <- Ui.get
     cmd_state <- get
     return $ state_resolve_instrument ui_state cmd_state
 
-state_resolve_instrument :: State.State -> State -> Score.Instrument
+state_resolve_instrument :: Ui.State -> State -> Score.Instrument
     -> Maybe ResolvedInstrument
 state_resolve_instrument ui_state cmd_state = \inst -> do
-    alloc <- State.allocation inst #$ ui_state
+    alloc <- Ui.allocation inst #$ ui_state
     either (const Nothing) Just $
         resolve_instrument (config_instrument_db (state_config cmd_state)) alloc
 
@@ -1275,8 +1275,8 @@ modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }
 set_edit_box :: M m => Block.Box -> Block.Box -> m ()
 set_edit_box skel track = do
     modify_edit_state $ \st -> st { state_edit_box = (skel, track) }
-    block_ids <- State.all_block_ids
-    forM_ block_ids $ \bid -> State.set_edit_box bid skel track
+    block_ids <- Ui.all_block_ids
+    forM_ block_ids $ \bid -> Ui.set_edit_box bid skel track
 
 is_val_edit :: M m => m Bool
 is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)

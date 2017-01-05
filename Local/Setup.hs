@@ -9,7 +9,7 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
@@ -42,6 +42,6 @@ empty_block = do
         RulerUtil.meter_ruler Meter.default_config 16 (replicate 4 Meters.m44_4)
     bid <- Create.block rid
     Create.track bid 1 "" mempty
-    State.set_track_width bid 1 40
+    Ui.set_track_width bid 1 40
     Create.view bid
     return Cmd.Done

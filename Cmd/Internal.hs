@@ -28,7 +28,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -171,26 +171,26 @@ cmd_record_ui_updates msg = do
 
 ui_update :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
 ui_update maybe_tracknum view_id update = case update of
-    UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
-    UiMsg.UpdateTimeScroll offset -> State.modify_zoom view_id $ \zoom ->
+    UiMsg.UpdateTrackScroll hpos -> Ui.set_track_scroll view_id hpos
+    UiMsg.UpdateTimeScroll offset -> Ui.modify_zoom view_id $ \zoom ->
         zoom { Types.zoom_offset = offset }
     UiMsg.UpdateViewResize rect padding -> do
-        view <- State.get_view view_id
-        when (rect /= Block.view_rect view) $ State.set_view_rect view_id rect
+        view <- Ui.get_view view_id
+        when (rect /= Block.view_rect view) $ Ui.set_view_rect view_id rect
         let old_padding =
                 (Block.view_track_padding view, Block.view_time_padding view)
-        when (old_padding /= padding) $ State.set_view_padding view_id padding
+        when (old_padding /= padding) $ Ui.set_view_padding view_id padding
     UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
         Just tracknum -> do
-            block_id <- State.block_id_of view_id
+            block_id <- Ui.block_id_of view_id
             collapsed <- (Block.Collapse `Set.member`) <$>
-                State.track_flags block_id tracknum
+                Ui.track_flags block_id tracknum
             -- fltk shouldn't send widths for collapsed tracks, but it does
             -- anyway because otherwise it would have to cache the track sizes
             -- to know which one changed.  See BlockView::track_tile_cb.
             unless collapsed $
-                State.set_track_width block_id tracknum width
-        Nothing -> State.throw $ "update with no track: " <> showt update
+                Ui.set_track_width block_id tracknum width
+        Nothing -> Ui.throw $ "update with no track: " <> showt update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()
     UiMsg.UpdateInput {} -> return ()
@@ -213,20 +213,20 @@ update_ui_state msg = do
 ui_update_state :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
 ui_update_state maybe_tracknum view_id update = case update of
     UiMsg.UpdateInput (Just text) -> do
-        view <- State.get_view view_id
+        view <- Ui.get_view view_id
         update_input (Block.view_block view) text
     UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
-    UiMsg.UpdateClose -> State.destroy_view view_id
+    UiMsg.UpdateClose -> Ui.destroy_view view_id
     _ -> return ()
     where
     update_input block_id text = case maybe_tracknum of
         Just tracknum -> do
-            track_id <- State.event_track_at block_id tracknum
+            track_id <- Ui.event_track_at block_id tracknum
             case track_id of
-                Just track_id -> State.set_track_title track_id text
-                Nothing -> State.throw $ showt (UiMsg.UpdateInput (Just text))
+                Just track_id -> Ui.set_track_title track_id text
+                Nothing -> Ui.throw $ showt (UiMsg.UpdateInput (Just text))
                     <> " on non-event track " <> showt tracknum
-        Nothing -> State.set_block_title block_id text
+        Nothing -> Ui.set_block_title block_id text
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
@@ -269,10 +269,10 @@ track_bg track
 -- * sync
 
 -- | This is called after every non-failing cmd.
-sync_status :: State.State -> Cmd.State -> Cmd.CmdId Cmd.Status
+sync_status :: Ui.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
-    ui_to <- State.get
-    cmd_updates <- State.get_updates
+    ui_to <- Ui.get
+    cmd_updates <- Ui.get_updates
     Cmd.modify $ update_saved cmd_updates ui_from ui_to
 
     cmd_to <- Cmd.get
@@ -284,10 +284,10 @@ sync_status ui_from cmd_from = do
         sync_edit_state (save_status cmd_to) edit_state
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file $ Cmd.state_save_file cmd_to
-    sync_defaults $ State.config#State.default_ #$ ui_to
+    sync_defaults $ Ui.config#Ui.default_ #$ ui_to
 
-    when (State.state_config ui_from /= State.state_config ui_to) $
-        sync_ui_config (State.state_config ui_to)
+    when (Ui.state_config ui_from /= Ui.state_config ui_to) $
+        sync_ui_config (Ui.state_config ui_to)
     run_selection_hooks (mapMaybe selection_update updates)
     forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
@@ -302,7 +302,7 @@ sync_status ui_from cmd_from = do
 
 -- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
 -- back on after a save.
-update_saved :: [Update.CmdUpdate] -> State.State -> State.State -> Cmd.State
+update_saved :: [Update.CmdUpdate] -> Ui.State -> Ui.State -> Cmd.State
     -> Cmd.State
 update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     Nothing -> cmd_state { Cmd.state_saved = Just True }
@@ -317,7 +317,7 @@ update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     -- don't have to do it after state_saved is already false.
     --
     -- Probably the most reasonable way around this would be to split
-    -- State.unsafe_put into separate functions for views and
+    -- Ui.unsafe_put into separate functions for views and
     -- Block.block_config, and for the rest of the score state.  The second one
     -- can then turn off 'Cmd.state_saved' unconditionally.  Unfortunately it
     -- seems invasive to make this change, especially if I want to enforce it
@@ -338,10 +338,10 @@ can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
     where
     prev = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
-view_updates :: State.State -> State.State -> [Update.UiUpdate]
+view_updates :: Ui.State -> Ui.State -> [Update.UiUpdate]
 view_updates ui_from ui_to = fst $ Diff.run $
     Diff.diff_views ui_from ui_to
-        (State.state_views ui_from) (State.state_views ui_to)
+        (Ui.state_views ui_from) (Ui.state_views ui_to)
 
 -- ** hooks
 
@@ -359,8 +359,8 @@ run_selection_hooks sels = do
     sel_tracks <- forM sels $ \(view_id, maybe_sel) -> case maybe_sel of
         Nothing -> return (view_id, Nothing)
         Just sel -> do
-            block_id <- State.block_id_of view_id
-            maybe_track_id <- State.event_track_at block_id
+            block_id <- Ui.block_id_of view_id
+            maybe_track_id <- Ui.event_track_at block_id
                 (Selection.point_track sel)
             return (view_id, Just (sel, block_id, maybe_track_id))
     hooks <- Cmd.gets (Cmd.hooks_selection . Cmd.state_hooks)
@@ -472,19 +472,19 @@ sync_save_file save = Cmd.set_global_status "save" $ case save of
     name_of (Cmd.SaveState fn) = txt fn
     name_of (Cmd.SaveRepo repo) = txt repo
 
-sync_defaults :: Cmd.M m => State.Default -> m ()
-sync_defaults (State.Default tempo) =
+sync_defaults :: Cmd.M m => Ui.Default -> m ()
+sync_defaults (Ui.Default tempo) =
     Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
 
--- | Sync State.Config changes.
-sync_ui_config :: Cmd.M m => State.Config -> m ()
+-- | Sync Ui.Config changes.
+sync_ui_config :: Cmd.M m => Ui.Config -> m ()
 sync_ui_config config =
-    Cmd.set_global_status "global" $ State.config_global_transform config
+    Cmd.set_global_status "global" $ Ui.config_global_transform config
 
 -- Zoom is actually not very useful.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()
 sync_zoom_status _view_id = return ()
-    -- view <- State.get_view view_id
+    -- view <- Ui.get_view view_id
     -- Cmd.set_view_status view_id Config.status_zoom
     --     (Just (pretty (Block.view_zoom view)))
 
@@ -494,7 +494,7 @@ sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_status view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
     Just (sel, _block_id, maybe_track_id) -> do
-        ns <- State.get_namespace
+        ns <- Ui.get_namespace
         set $ Just $ selection_status ns sel maybe_track_id
         -- This didn't seem too useful, but maybe I'll change my mind?
         -- Info.set_instrument_status block_id (Sel.cur_track sel)
@@ -560,7 +560,7 @@ sync_selection_control view_id _ =
 -- because track dynamics have the callers controls on a control track
 track_control :: Cmd.M m => BlockId -> TrackId -> ScoreTime -> m (Maybe Text)
 track_control block_id track_id pos =
-    justm (parse_title <$> State.get_track_title track_id) $ \ctype ->
+    justm (parse_title <$> Ui.get_track_title track_id) $ \ctype ->
     case ctype of
         -- Since I'm using TrackSignals, I just have numbers, not proper
         -- pitches.  So I could show pitches, but it would just be an NN,

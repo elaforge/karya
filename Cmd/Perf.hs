@@ -20,7 +20,7 @@ import qualified Util.Tree
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -109,10 +109,10 @@ find_track block_id track_id = do
             <> pretty track_id <> " not in " <> pretty block_id) $
         Util.Tree.find ((== Just track_id) . TrackTree.track_id) tree
 
--- | Get the environment established by 'State.config_global_transform'.
+-- | Get the environment established by 'Ui.config_global_transform'.
 global_environ :: Cmd.M m => m Env.Environ
 global_environ = do
-    global_transform <- State.config#State.global_transform <#> State.get
+    global_transform <- Ui.config#Ui.global_transform <#> Ui.get
     (result, _, logs) <- PlayUtil.run mempty mempty $
         Eval.eval_transform_expr "global transform" global_transform
             smuggle_environ
@@ -192,7 +192,7 @@ find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
     lookup_parents = case maybe_track_id of
         Nothing -> return Nothing
         Just track_id -> do
-            parents <- map State.track_id . maybe [] fst <$>
+            parents <- map Ui.track_id . maybe [] fst <$>
                 TrackTree.parents_children_of block_id track_id
             firstJusts $ map (lookup . Just) parents
 
@@ -219,14 +219,13 @@ lookup_scale_env env scale_id = do
         Just (Right scale) -> return $ Just scale
 
 -- | Try to get a scale from the titles of the parents of the given track.
-scale_from_titles :: State.M m => BlockId -> TrackId
-    -> m (Maybe Pitch.ScaleId)
+scale_from_titles :: Ui.M m => BlockId -> TrackId -> m (Maybe Pitch.ScaleId)
 scale_from_titles block_id track_id = do
     tracks <- maybe [] (uncurry (++)) <$>
         TrackTree.parents_children_of block_id track_id
     return $ msum $ map scale_of tracks
     where
-    scale_of track = case ParseTitle.title_to_scale (State.track_title track) of
+    scale_of track = case ParseTitle.title_to_scale (Ui.track_title track) of
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
         _ -> Nothing
 
@@ -245,10 +244,10 @@ lookup_val :: (Cmd.M m, Typecheck.Typecheck a) => Track -> Env.Key
     -> m (Maybe a)
 lookup_val track name = justm (lookup_environ track) $ lookup_environ_val name
 
-lookup_environ_val :: (State.M m, Typecheck.Typecheck a) =>
+lookup_environ_val :: (Ui.M m, Typecheck.Typecheck a) =>
     Env.Key -> Env.Environ -> m (Maybe a)
 lookup_environ_val name env =
-    either (State.throw . ("Perf.lookup_environ_val: "<>)) return
+    either (Ui.throw . ("Perf.lookup_environ_val: "<>)) return
         (Env.checked_val name env)
 
 lookup_environ :: Cmd.M m => Track -> m (Maybe Env.Environ)
@@ -268,7 +267,7 @@ find_dynamic track = do
 
 lookup_root_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
 lookup_root_dynamic track =
-    justm State.lookup_root_id $ \root_id -> lookup_dynamic root_id track
+    justm Ui.lookup_root_id $ \root_id -> lookup_dynamic root_id track
 
 lookup_dynamic :: Cmd.M m => BlockId -> Track -> m (Maybe Derive.Dynamic)
 lookup_dynamic perf_block_id (block_id, maybe_track_id) =
@@ -284,11 +283,11 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 
 -- * default
 
--- | Get defaults set by 'State.config_global_transform'.
+-- | Get defaults set by 'Ui.config_global_transform'.
 lookup_default_environ :: (Typecheck.Typecheck a, Cmd.M m) =>
     Env.Key -> m (Maybe a)
 lookup_default_environ name = do
-    global <- State.config#State.global_transform <#> State.get
+    global <- Ui.config#Ui.global_transform <#> Ui.get
     let apply = Eval.eval_transform_expr caller global
     -- Eval.eval_transform_expr only applies to things in Derived, so I have to
     -- do this gross hack where I stash the result in a Score.Event.
@@ -311,7 +310,7 @@ get_default_environ name =
     Cmd.require ("no default val for " <> pretty name)
         =<< lookup_default_environ name
 
--- | The default scale established by 'State.config_global_transform', or
+-- | The default scale established by 'Ui.config_global_transform', or
 -- 'Config.default_scale_id' if there is none.
 default_scale_id :: Cmd.M m => m Pitch.ScaleId
 default_scale_id =
@@ -335,7 +334,7 @@ get_realtime perf block_id maybe_track_id pos =
 lookup_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m (Maybe RealTime)
 lookup_realtime perf block_id maybe_track_id pos = do
-    track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
+    track_ids <- maybe (Ui.track_ids_of block_id) (return . (:[]))
         maybe_track_id
     return $ msum (map tempo track_ids)
     where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
@@ -348,7 +347,7 @@ get_realtimes perf block_id track_id ps =
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
 -- | Take a RealTime to all the ScoreTimes it corresponds to, if any.
-find_play_pos :: State.M m => Transport.InverseTempoFunction
+find_play_pos :: Ui.M m => Transport.InverseTempoFunction
     -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]
 find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 
@@ -357,15 +356,15 @@ find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 --
 -- This function has to be careful to not throw on non-existent IDs, because
 -- it's called from the monitor_loop.
-block_pos_to_play_pos :: State.M m => [(BlockId, [(TrackId, ScoreTime)])]
+block_pos_to_play_pos :: Ui.M m => [(BlockId, [(TrackId, ScoreTime)])]
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 block_pos_to_play_pos = concatMapM convert
 
-convert :: State.M m => (BlockId, [(TrackId, ScoreTime)])
+convert :: Ui.M m => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 convert (block_id, track_pos) = do
-    view_ids <- Map.keys <$> State.views_of block_id
-    State.lookup_block block_id >>= \x -> return $ case x of
+    view_ids <- Map.keys <$> Ui.views_of block_id
+    Ui.lookup_block block_id >>= \x -> return $ case x of
         Nothing -> []
         Just block ->
             let tracknum_pos = concatMap (tracknums_of block) track_pos
@@ -395,7 +394,7 @@ sub_pos block_id track_id pos = fmap (fromMaybe []) $
 -- * util
 
 lookup_root :: Cmd.M m => m (Maybe Cmd.Performance)
-lookup_root = justm State.lookup_root_id Cmd.lookup_performance
+lookup_root = justm Ui.lookup_root_id Cmd.lookup_performance
 
 get_root :: Cmd.M m => m Cmd.Performance
 get_root = Cmd.require "no root performance" =<< lookup_root

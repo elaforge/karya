@@ -26,7 +26,7 @@ import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
@@ -135,21 +135,21 @@ save :: Cmd.Config -> FilePath -> FilePath -> Error [Text]
 save cmd_config out_dir fname = do
     (state, _defs_lib, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
-    let meta = State.config#State.meta #$ state
+    let meta = Ui.config#Ui.meta #$ state
         look = Map.lookup block_id
-    midi <- case look (State.meta_midi_performances meta) of
+    midi <- case look (Ui.meta_midi_performances meta) of
         Nothing -> return False
         Just perf -> do
             let out = out_dir </> basename fname <> ".midi"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ DiffPerformance.save_midi out (State.perf_performance perf)
+            liftIO $ DiffPerformance.save_midi out (Ui.perf_performance perf)
             return True
-    ly <- case look (State.meta_lilypond_performances meta) of
+    ly <- case look (Ui.meta_lilypond_performances meta) of
         Nothing -> return False
         Just perf -> do
             let out = out_dir </> basename fname <> ".ly"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ Text.IO.writeFile out (State.perf_performance perf)
+            liftIO $ Text.IO.writeFile out (Ui.perf_performance perf)
             return True
     return $ if midi || ly then []
         else [txt fname <> ": no midi or ly performance"]
@@ -177,10 +177,10 @@ verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
 verify_performance out_dir cmd_config fname = do
     (state, library, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
-    let meta = State.config#State.meta #$ state
+    let meta = Ui.config#Ui.meta #$ state
     let cmd_state = make_cmd_state library cmd_config
-    let midi_perf = Map.lookup block_id (State.meta_midi_performances meta)
-        ly_perf = Map.lookup block_id (State.meta_lilypond_performances meta)
+    let midi_perf = Map.lookup block_id (Ui.meta_midi_performances meta)
+        ly_perf = Map.lookup block_id (Ui.meta_lilypond_performances meta)
     midi_err <- maybe (return Nothing)
         (verify_midi out_dir fname cmd_state state block_id) midi_perf
     ly_err <- maybe (return Nothing)
@@ -191,8 +191,8 @@ verify_performance out_dir cmd_config fname = do
 
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
-verify_midi :: FilePath -> FilePath -> Cmd.State -> State.State -> BlockId
-    -> State.MidiPerformance -> Error (Maybe Text)
+verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
+    -> Ui.MidiPerformance -> Error (Maybe Text)
 verify_midi out_dir fname cmd_state state block_id performance = do
     msgs <- perform_block fname cmd_state state block_id
     (maybe_diff, wrote_files) <- liftIO $
@@ -200,7 +200,7 @@ verify_midi out_dir fname cmd_state state block_id performance = do
             out_dir performance msgs
     return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
 
-perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
+perform_block :: FilePath -> Cmd.State -> Ui.State -> BlockId
     -> Error [Midi.WriteMessage]
 perform_block fname cmd_state state block_id = do
     (events, logs) <- liftIO $
@@ -211,8 +211,8 @@ perform_block fname cmd_state state block_id = do
     liftIO $ mapM_ Log.write logs
     return msgs
 
-verify_lilypond :: FilePath -> FilePath -> Cmd.State -> State.State
-    -> BlockId -> State.LilypondPerformance -> Error (Maybe Text)
+verify_lilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
+    -> BlockId -> Ui.LilypondPerformance -> Error (Maybe Text)
 verify_lilypond out_dir fname cmd_state state block_id performance = do
     (result, logs) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
@@ -230,7 +230,7 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 
 -- | Load a score and get its root block id.
 load :: Cmd.InstrumentDb -> FilePath
-    -> Error (State.State, Derive.Library, BlockId)
+    -> Error (Ui.State, Derive.Library, BlockId)
 load db fname = do
      (state, library) <- require_right $ DeriveSaved.load_score db fname
      block_id <- require_right $ return $ get_root state
@@ -240,8 +240,8 @@ make_cmd_state :: Derive.Library -> Cmd.Config -> Cmd.State
 make_cmd_state library cmd_config =
     DeriveSaved.add_library library $ Cmd.initial_state cmd_config
 
-get_root :: State.State -> Either Text BlockId
-get_root state = justErr "no root block" $ State.config#State.root #$ state
+get_root :: Ui.State -> Either Text BlockId
+get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state
 
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')

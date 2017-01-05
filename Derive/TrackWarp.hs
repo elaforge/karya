@@ -21,7 +21,7 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -87,10 +87,10 @@ collections blocks =
     -- There will be a Collection with a null 'tw_tracks' if there are multiple
     -- tempo tracks at the top level.
 
-get_track_trees :: State.M m => m [(BlockId, [Tree.Tree TrackId])]
+get_track_trees :: Ui.M m => m [(BlockId, [Tree.Tree TrackId])]
 get_track_trees = do
-    block_ids <- State.all_block_ids
-    zip block_ids . fmap (fmap (fmap State.track_id)) <$>
+    block_ids <- Ui.all_block_ids
+    zip block_ids . fmap (fmap (fmap Ui.track_id)) <$>
         mapM TrackTree.track_tree_of block_ids
 
 {- | The WarpMap only has TrackWarps for tempo tracks.  But I want to have

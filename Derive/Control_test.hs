@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
@@ -67,7 +67,7 @@ test_track_expression = do
 test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $
-            DeriveTest.run State.empty $ Derive.with_default_imported $
+            DeriveTest.run Ui.empty $ Derive.with_default_imported $
             Control.derive_control False (mktrack 10 events) id
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
@@ -263,8 +263,7 @@ test_stash_signal_default_tempo = do
     let r = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1] <> set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
-        set_tempo = DeriveTest.with_ui $
-            State.config#State.default_#State.tempo #= 2
+        set_tempo = DeriveTest.with_ui $ Ui.config#Ui.default_#Ui.tempo #= 2
     equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
 e_tsig_sigs :: Derive.Result -> [[(RealTime, Signal.Y)]]

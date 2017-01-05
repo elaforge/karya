@@ -11,7 +11,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.NoteTrack as NoteTrack
@@ -25,8 +25,8 @@ import Types
 
 create :: Text -> Cmd.CmdL ()
 create name = do
-    blocks <- State.gets State.state_blocks
-    ns <- State.get_namespace
+    blocks <- Ui.gets Ui.state_blocks
+    ns <- Ui.get_namespace
     caller <- Cmd.get_focused_block
     whenJust (NoteTrack.to_block_id blocks ns (Just caller) name) $
         void . Create.view
@@ -46,9 +46,9 @@ arrange_screen :: (Int, Int) -> Cmd.CmdL ()
 arrange_screen point = do
     screen <- Cmd.get_screen point
     view_rects <- filter (Rect.overlaps screen . snd)
-        . map (second Block.view_rect) . Map.toList . State.state_views
-        <$> State.get
-    mapM_ (uncurry State.set_view_rect) $
+        . map (second Block.view_rect) . Map.toList . Ui.state_views
+        <$> Ui.get
+    mapM_ (uncurry Ui.set_view_rect) $
         compact screen (Seq.sort_on snd view_rects)
 
 compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
@@ -67,7 +67,7 @@ compact screen =
 -- | Show the list of saved views, with a star on the focused one.
 saved :: Cmd.CmdL Text
 saved = do
-    saved <- State.config#State.saved_views <#> State.get
+    saved <- Ui.config#Ui.saved_views <#> Ui.get
     return $ Pretty.formatted $ Map.map pretty saved
     where
     pretty (views, focused) =

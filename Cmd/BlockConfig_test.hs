@@ -4,7 +4,7 @@
 
 module Cmd.BlockConfig_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.BlockConfig as BlockConfig
 
@@ -13,7 +13,7 @@ test_move_tracks = do
     let f ntracks tracks sources dest = extract $
             UiTest.exec (mkstate ntracks tracks) $
             BlockConfig.move_tracks UiTest.default_block_id sources dest
-        mkstate ntracks tracks = UiTest.exec State.empty $
+        mkstate ntracks tracks = UiTest.exec Ui.empty $
             UiTest.mkblocks_skel [((UiTest.default_block_name,
                 [(show n, []) | n <- [1..ntracks]]), tracks)]
         extract st = (concatMap fst $ UiTest.extract_tracks st,

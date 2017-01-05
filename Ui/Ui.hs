@@ -22,7 +22,7 @@
     A higher level interface (e.g. "Cmd.Create") may ease this by automatically
     creating objects with automatically generated IDs.
 -}
-module Ui.State (
+module Ui.Ui (
     State(..), views, blocks, tracks, rulers, config
     , empty, create, clear
     -- * config

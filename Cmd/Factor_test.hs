@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Factor as Factor
@@ -24,7 +24,7 @@ test_selection_alts = do
     let blocks = UiTest.extract_all_tracks (CmdTest.result_ui_state result)
     equal (Seq.head =<< lookup UiTest.default_block_id blocks)
         (Just (">", [(0, 1, ""), (1, 2, "alt -sub1 -sub2 -sub3"), (3, 1, "")]))
-    equal (Map.keys (State.state_views (CmdTest.result_ui_state result)))
+    equal (Map.keys (Ui.state_views (CmdTest.result_ui_state result)))
         (map UiTest.vid ["b1-sub1.v1", "b1-sub2.v1", "b1-sub3.v1", "v.b1"])
 
     let result = run False
@@ -36,7 +36,7 @@ test_selection_alts = do
 
 test_selection_at = do
     let run tracks subs start end = UiTest.extract_all_tracks $
-            UiTest.exec State.empty $ do
+            UiTest.exec Ui.empty $ do
                 UiTest.mkblocks (("b", [(">", tracks)]) : subs)
                 Factor.selection_at False (UiTest.mkid "sub") parent
                     [1] [UiTest.mk_tid_block parent 1] start end

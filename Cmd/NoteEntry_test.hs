@@ -7,7 +7,7 @@ import qualified Util.Log as Log
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
@@ -46,7 +46,7 @@ test_cmds_with_note = do
     let high_c = '\''
         ctrl_key = CmdTest.make_key_mods [Key.Control] UiMsg.KeyDown
         run cstate cmd = CmdTest.extract id $
-            CmdTest.run State.empty cstate cmd
+            CmdTest.run Ui.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])
@@ -89,7 +89,7 @@ test_cmds_with_note = do
 
 with_key :: Msg.Msg -> Cmd.State
 with_key key = CmdTest.result_cmd_state $
-    CmdTest.run State.empty CmdTest.default_cmd_state
+    CmdTest.run Ui.empty CmdTest.default_cmd_state
         (Internal.cmd_record_keys key)
 
 kbd_note_on :: Int -> Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals

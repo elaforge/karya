@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -28,9 +28,9 @@ import Types
 block :: Cmd.M m => m ViewId
 block = do
     source_block <- Cmd.get_focused_block
-    ruler_id <- State.block_ruler source_block
+    ruler_id <- Ui.block_ruler source_block
     dest_block <- Create.block ruler_id
-    State.set_integrated_block dest_block $
+    Ui.set_integrated_block dest_block $
         Just (source_block, Block.DeriveDestinations [])
     Cmd.derive_immediately [source_block]
     Cmd.inflict_block_damage source_block
@@ -41,9 +41,9 @@ block = do
 score_block :: Cmd.M m => m ViewId
 score_block = do
     source_block <- Cmd.get_focused_block
-    ruler_id <- State.block_ruler source_block
+    ruler_id <- Ui.block_ruler source_block
     dest_block <- Create.block ruler_id
-    State.set_integrated_block dest_block $
+    Ui.set_integrated_block dest_block $
         Just (source_block, Block.ScoreDestinations [])
     Cmd.inflict_block_damage source_block
     Create.view dest_block
@@ -53,7 +53,7 @@ score_block = do
 track :: Cmd.M m => m ()
 track = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    State.modify_integrated_tracks block_id
+    Ui.modify_integrated_tracks block_id
         ((track_id, Block.DeriveDestinations []) :)
     Cmd.derive_immediately [block_id]
     Cmd.inflict_track_damage block_id track_id
@@ -63,7 +63,7 @@ track = do
 score_track :: Cmd.M m => m ()
 score_track = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    State.modify_integrated_tracks block_id
+    Ui.modify_integrated_tracks block_id
         ((track_id, Block.ScoreDestinations []) :)
     Cmd.inflict_track_damage block_id track_id
 
@@ -74,11 +74,11 @@ sel_edits = do
 
 edits :: Cmd.M m => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
 edits block_id track_id = do
-    block <- State.get_block block_id
+    block <- Ui.get_block block_id
     index <- Cmd.require "track is not integrated from anywhere" $
         lookup track_id $ indices_of (Block.block_integrated block)
             (Block.block_integrated_tracks block)
-    events <- State.get_events track_id
+    events <- Ui.get_events track_id
     let (deleted, edits) = Merge.diff_events index (Events.ascending events)
     return (Set.toList deleted, filter Merge.is_modified edits)
 

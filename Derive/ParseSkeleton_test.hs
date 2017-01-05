@@ -6,7 +6,7 @@ module Derive.ParseSkeleton_test where
 import qualified Util.Graph_test as Graph_test
 import qualified Util.Seq as Seq
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
@@ -43,8 +43,8 @@ test_parse = do
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
         Graph_test.graph_equal g1 g2
 
-mk_track_info :: Text -> TrackNum -> State.TrackInfo
-mk_track_info title tracknum = State.TrackInfo
+mk_track_info :: Text -> TrackNum -> Ui.TrackInfo
+mk_track_info title tracknum = Ui.TrackInfo
     { track_title = title
     , track_id = tid
     , track_tracknum = tracknum

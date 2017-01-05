@@ -11,7 +11,7 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
@@ -25,16 +25,16 @@ test_serialize = do
     let (_, state) =
             UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
     let run f = (f state, recode (f state))
-    uncurry equal $ run State.state_config
-    uncurry equal $ run State.state_views
-    uncurry equal $ run State.state_blocks
-    uncurry equal $ run State.state_tracks
-    uncurry equal $ run State.state_rulers
-    equal State.empty (recode State.empty)
+    uncurry equal $ run Ui.state_config
+    uncurry equal $ run Ui.state_views
+    uncurry equal $ run Ui.state_blocks
+    uncurry equal $ run Ui.state_tracks
+    uncurry equal $ run Ui.state_rulers
+    equal Ui.empty (recode Ui.empty)
 
     -- Performance
     now <- Time.getCurrentTime
-    let perf = State.Performance msgs now "patch-tag"
+    let perf = Ui.Performance msgs now "patch-tag"
         msgs = Vector.fromList
             [Midi.WriteMessage (Midi.write_device "wdev") 42 msg]
         msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)

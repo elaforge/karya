@@ -85,7 +85,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
 
@@ -178,7 +178,7 @@ local_from block_id track_id pos =
 -- | Play the root block from its beginning.
 root_block :: Cmd.M m => m Cmd.PlayMidiArgs
 root_block = do
-    State.lookup_root_id >>= \x -> case x of
+    Ui.lookup_root_id >>= \x -> case x of
         Nothing -> local_block
         Just root_id -> from_score root_id Nothing 0 Nothing
 
@@ -197,7 +197,7 @@ root_selection = do
     let (pos, repeat_at) = if Sel.is_point sel
             then (Sel.start_pos sel, Nothing)
             else Just <$> Sel.range sel
-    State.lookup_root_id >>= \x -> case x of
+    Ui.lookup_root_id >>= \x -> case x of
         Nothing -> local_selection
         Just root_id -> do
             perf <- get_performance root_id
@@ -226,7 +226,7 @@ top_of_block :: Cmd.M m => m (BlockId, TrackId, TrackTime)
 top_of_block = do
     (block_id, _, track_id, _) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
-    top <- Types.zoom_offset . Block.view_zoom <$> State.get_view view_id
+    top <- Types.zoom_offset . Block.view_zoom <$> Ui.get_view view_id
     return (block_id, track_id, top)
 
 root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
@@ -237,7 +237,7 @@ root_from block_id track_id pos = do
 maybe_root_from :: Cmd.M m => BlockId -> TrackId -> ScoreTime
     -> m (Maybe Cmd.PlayMidiArgs)
 maybe_root_from block_id track_id pos =
-    justm State.lookup_root_id $ \root_id -> do
+    justm Ui.lookup_root_id $ \root_id -> do
         perf <- get_performance root_id
         justm (Perf.lookup_realtime perf block_id (Just track_id) pos) $
             \start -> Just <$> from_realtime root_id Nothing start
@@ -282,7 +282,7 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
     -- anyway so I can filter them out.
     mapM_ Log.write $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
     -- Logview can only display one set of stats, so only show the root block.
-    whenM ((== Just block_id) <$> State.lookup_root_id) $
+    whenM ((== Just block_id) <$> Ui.lookup_root_id) $
         record_cache_stats (Cmd.perf_logs perf)
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_current_performance = Map.insert block_id
@@ -396,18 +396,18 @@ from_realtime block_id repeat_at start_ = do
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)
 
-lookup_play_cache_addr :: State.M m => m (Maybe Patch.Addr)
+lookup_play_cache_addr :: Ui.M m => m (Maybe Patch.Addr)
 lookup_play_cache_addr = do
-    allocs <- State.config#State.allocations_map <#> State.get
+    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     let is_im = (==Im.Play.qualified) . StateConfig.alloc_qualified
     case List.find is_im (Map.elems allocs) of
         Nothing -> return Nothing
         Just alloc -> case StateConfig.alloc_backend alloc of
             StateConfig.Midi config -> case Patch.config_addrs config of
-                [] -> State.throw $
+                [] -> Ui.throw $
                     pretty Im.Play.qualified <> " allocation with no addrs"
                 addr : _ -> return $ Just addr
-            _ -> State.throw $
+            _ -> Ui.throw $
                     pretty Im.Play.qualified <> " with non-MIDI allocation"
 
 im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]

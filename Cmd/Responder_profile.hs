@@ -10,7 +10,7 @@ import qualified Util.Log as Log
 import qualified Util.Testing as Testing
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 
@@ -28,9 +28,8 @@ profile_edits_middle = do
     -- Test editing a large score in the middle as a real user would.
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
     let edit_block_id = UiTest.bid "b1.5.0"
-    let (view_id, ui_state) = UiTest.run State.empty $ do
-            State.modify_config $
-                State.allocations #= UiTest.default_allocations
+    let (view_id, ui_state) = UiTest.run Ui.empty $ do
+            Ui.modify_config $ Ui.allocations #= UiTest.default_allocations
             Derive_profile.make_nested_controls 15 3 60
             view_id <- Create.unfitted_view edit_block_id
             UiTest.select_point view_id 1 0.0
@@ -59,9 +58,9 @@ profile_null_cmd = do
 profile_selection = do
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
-    let ui_state2 = ui_state { State.state_rulers =
+    let ui_state2 = ui_state { Ui.state_rulers =
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler_44 256 1)
-                (State.state_rulers ui_state) }
+                (Ui.state_rulers ui_state) }
     let cmd_state2 = modify_edit_state cmd_state $ \st -> st
             { Cmd.state_time_step = TimeStep.time_step
                 (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)

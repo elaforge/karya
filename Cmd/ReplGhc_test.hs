@@ -6,7 +6,7 @@ module Cmd.ReplGhc_test where
 import qualified Control.Concurrent as Concurrent
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ReplGhc as ReplGhc
@@ -44,5 +44,5 @@ run_io cmd = do
         Right (cmd_result, _ustate, _updates) ->
             Right $ ReplProtocol.format_result cmd_result
     where
-    ui_state = State.empty
+    ui_state = Ui.empty
     cmd_state = CmdTest.default_cmd_state

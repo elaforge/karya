@@ -4,7 +4,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
-{- | Instances to serialize and unserialize data types used by Ui.State.State.
+{- | Instances to serialize and unserialize data types used by Ui.Ui.State.
 
     Types that I think might change have versions.  If the type changes,
     increment the put_version and add a new branch to the get_version case.
@@ -34,7 +34,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -57,7 +57,7 @@ import Types
 allocations_magic :: Serialize.Magic StateConfig.Allocations
 allocations_magic = Serialize.Magic 'a' 'l' 'l' 'o'
 
-score_magic :: Serialize.Magic State.State
+score_magic :: Serialize.Magic Ui.State
 score_magic = Serialize.Magic 's' 'c' 'o' 'r'
 
 views_magic :: Serialize.Magic (Map.Map ViewId Block.View)
@@ -65,8 +65,8 @@ views_magic = Serialize.Magic 'v' 'i' 'e' 'w'
 
 -- * Serialize instances
 
-instance Serialize State.State where
-    put (State.State a b c d e) = Serialize.put_version 6
+instance Serialize Ui.State where
+    put (Ui.State a b c d e) = Serialize.put_version 6
         >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- Serialize.get_version
@@ -76,12 +76,12 @@ instance Serialize State.State where
                 blocks :: Map.Map Types.BlockId Block.Block <- get
                 tracks :: Map.Map Types.TrackId Track.Track <- get
                 rulers :: Map.Map Types.RulerId Ruler.Ruler <- get
-                config :: State.Config <- get
-                return $ State.State views blocks tracks rulers config
-            _ -> Serialize.bad_version "State.State" v
+                config :: Ui.Config <- get
+                return $ Ui.State views blocks tracks rulers config
+            _ -> Serialize.bad_version "Ui.State" v
 
-instance Serialize State.Config where
-    put (State.Config ns meta root transform allocs lilypond defaults
+instance Serialize Ui.Config where
+    put (Ui.Config ns meta root transform allocs lilypond defaults
             saved_views ky)
         =  Serialize.put_version 12
             >> put ns >> put meta >> put root >> put transform
@@ -90,30 +90,30 @@ instance Serialize State.Config where
     get = Serialize.get_version >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
+            meta :: Ui.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
             insts :: StateConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            saved_views :: State.SavedViews <- get
+            defaults :: Ui.Default <- get
+            saved_views :: Ui.SavedViews <- get
             ky_file :: Maybe FilePath <- get
-            return $ State.Config ns meta root transform insts lilypond
+            return $ Ui.Config ns meta root transform insts lilypond
                 defaults saved_views
                 (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
         12 -> do
             ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
+            meta :: Ui.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
             insts :: StateConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            saved_views :: State.SavedViews <- get
+            defaults :: Ui.Default <- get
+            saved_views :: Ui.SavedViews <- get
             ky :: Text <- get
-            return $ State.Config ns meta root transform insts lilypond
+            return $ Ui.Config ns meta root transform insts lilypond
                 defaults saved_views ky
-        _ -> Serialize.bad_version "State.Config" v
+        _ -> Serialize.bad_version "Ui.Config" v
 
 instance Serialize.Serialize StateConfig.Allocations where
     put (StateConfig.Allocations a) = Serialize.put_version 1 >> put a
@@ -175,39 +175,39 @@ instance Serialize MidiConfigs where
                 return $ MidiConfigs insts
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
-instance Serialize State.Meta where
-    put (State.Meta a b c d e) = Serialize.put_version 3
+instance Serialize Ui.Meta where
+    put (Ui.Meta a b c d e) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d >> put e
     get = Serialize.get_version >>= \v -> case v of
         3 -> do
             creation :: Time.UTCTime <- get
             last_save :: Time.UTCTime <- get
             notes :: Text <- get
-            midi :: Map.Map BlockId State.MidiPerformance <- get
-            lily :: Map.Map BlockId State.LilypondPerformance <- get
-            return $ State.Meta creation last_save notes midi lily
-        _ -> Serialize.bad_version "State.Meta" v
+            midi :: Map.Map BlockId Ui.MidiPerformance <- get
+            lily :: Map.Map BlockId Ui.LilypondPerformance <- get
+            return $ Ui.Meta creation last_save notes midi lily
+        _ -> Serialize.bad_version "Ui.Meta" v
 
-instance Serialize a => Serialize (State.Performance a) where
-    put (State.Performance a b c) = Serialize.put_version 0 >> put a >> put b
+instance Serialize a => Serialize (Ui.Performance a) where
+    put (Ui.Performance a b c) = Serialize.put_version 0 >> put a >> put b
         >> put c
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             perf :: a <- get
             creation :: Time.UTCTime <- get
             patch :: Text <- get
-            return $ State.Performance perf creation patch
-        _ -> Serialize.bad_version "State.Performance" v
+            return $ Ui.Performance perf creation patch
+        _ -> Serialize.bad_version "Ui.Performance" v
 
-instance Serialize State.Default where
-    put (State.Default a) = Serialize.put_version 4 >> put a
+instance Serialize Ui.Default where
+    put (Ui.Default a) = Serialize.put_version 4 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             4 -> do
                 tempo :: Signal.Y <- get
-                return $ State.Default tempo
-            _ -> Serialize.bad_version "State.Default" v
+                return $ Ui.Default tempo
+            _ -> Serialize.bad_version "Ui.Default" v
 
 -- ** Block
 

@@ -21,7 +21,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
@@ -68,10 +68,10 @@ dump_blocks fname = do
 -- | Like 'dump_blocks', but only dump a single block.
 dump_block :: FilePath -> BlockId -> Cmd.CmdL ()
 dump_block fname block_id = do
-    state <- State.get
-    block <- State.get_block block_id
-    state <- State.eval_rethrow "dump_block"
-        (state { State.state_blocks = Map.singleton block_id block })
+    state <- Ui.get
+    block <- Ui.get_block block_id
+    state <- Ui.eval_rethrow "dump_block"
+        (state { Ui.state_blocks = Map.singleton block_id block })
         Simple.dump_state
     liftIO $ write_dump fname state
 
@@ -81,9 +81,9 @@ write_dump fname = writeFile fname . PPrint.pshow
 -- * track
 
 -- | Check 'Events.Events'.
-check_events_invariants :: State.M m => m [(TrackId, Text)]
+check_events_invariants :: Ui.M m => m [(TrackId, Text)]
 check_events_invariants = do
-    tracks <- State.gets $ Map.toAscList . State.state_tracks
+    tracks <- Ui.gets $ Map.toAscList . Ui.state_tracks
     return
         [ (track_id, err)
         | (track_id, track) <- tracks
@@ -132,7 +132,7 @@ get_warps block_id track_id = do
 -- signals so they don't take up tons of space.
 get_track_warps :: Cmd.M m => m (Map.Map Stack.Stack TrackWarp.TrackWarp)
 get_track_warps = do
-    result <- LPerf.derive =<< State.get_root_id
+    result <- LPerf.derive =<< Ui.get_root_id
     let wmap = Derive.collect_warp_map $ Derive.state_collect $
             Derive.r_state result
     let strip (TrackWarp.TrackWarp s e _warp bid tid) =

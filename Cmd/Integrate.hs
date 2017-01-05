@@ -59,7 +59,7 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -103,7 +103,7 @@ integrate derived_block_id integrated = do
 -- a list of DeriveDestinations.
 integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks -> m ()
 integrate_tracks block_id track_id tracks = do
-    itracks <- Block.block_integrated_tracks <$> State.get_block block_id
+    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let dests = [dests | (source_id, Block.DeriveDestinations dests) <- itracks,
             source_id == track_id]
     new_dests <- if null dests
@@ -112,7 +112,7 @@ integrate_tracks block_id track_id tracks = do
     unless (null new_dests) $
         Log.notice $ "derive integrated " <> showt track_id <> " to: "
             <> pretty (map (map (fst . Block.dest_note)) new_dests)
-    State.modify_integrated_tracks block_id $ replace track_id
+    Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]
 
@@ -120,7 +120,7 @@ integrate_tracks block_id track_id tracks = do
 -- create a new block if there are no blocks derived from this one.
 integrate_block :: Cmd.M m => BlockId -> Convert.Tracks -> m ()
 integrate_block source_id tracks = do
-    blocks <- State.gets State.state_blocks
+    blocks <- Ui.gets Ui.state_blocks
     new_blocks <- case integrated_from blocks of
         [] -> do
             (block_id, dests) <- Merge.create_block source_id tracks
@@ -131,7 +131,7 @@ integrate_block source_id tracks = do
     Log.notice $ "derive integrated " <> showt source_id <> " to: "
         <> pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
-        State.set_integrated_block new_block_id $
+        Ui.set_integrated_block new_block_id $
             Just (source_id, Block.DeriveDestinations track_dests)
     Cmd.derive_immediately (map fst new_blocks)
     where
@@ -145,10 +145,10 @@ integrate_block source_id tracks = do
 
 -- * score integrate
 
-score_integrate :: [Update.UiUpdate] -> State.State
-    -> Either State.Error ([Log.Msg], State.State, [Update.CmdUpdate])
-score_integrate updates state = State.run_id state $ do
-    -- These both use the passed state instead of using State.get when figuring
+score_integrate :: [Update.UiUpdate] -> Ui.State
+    -> Either Ui.Error ([Log.Msg], Ui.State, [Update.CmdUpdate])
+score_integrate updates state = Ui.run_id state $ do
+    -- These both use the passed state instead of using Ui.get when figuring
     -- out if there are updates that require integration.  This way, a
     -- track integrate can't trigger a block integrate, at least not until the
     -- next call to this function.
@@ -158,13 +158,13 @@ score_integrate updates state = State.run_id state $ do
         needs_block_integrate updates state
     return $ map (Log.msg Log.Notice Nothing) (track_logs ++ block_logs)
 
-score_integrate_block :: State.M m => BlockId -> m Text
+score_integrate_block :: Ui.M m => BlockId -> m Text
 score_integrate_block source_id = do
-    blocks <- State.gets State.state_blocks
+    blocks <- Ui.gets Ui.state_blocks
     let integrated = integrated_from blocks
     forM_ integrated $ \(dest_id, dests) -> do
         dests <- Merge.score_merge_block source_id dest_id dests
-        State.set_integrated_block dest_id $
+        Ui.set_integrated_block dest_id $
             Just (source_id, Block.ScoreDestinations dests)
     return $ "score integrated " <> showt source_id <> " to: "
         <> pretty (map fst integrated)
@@ -176,13 +176,13 @@ score_integrate_block source_id = do
         , source_block == source_id
         ]
 
-score_integrate_tracks :: State.M m => (BlockId, TrackId) -> m [Text]
+score_integrate_tracks :: Ui.M m => (BlockId, TrackId) -> m [Text]
 score_integrate_tracks (block_id, track_id) = do
-    itracks <- Block.block_integrated_tracks <$> State.get_block block_id
+    itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let dests = [dests | (tid, Block.ScoreDestinations dests) <- itracks,
             tid == track_id]
     new_dests <- mapM (Merge.score_merge_tracks block_id track_id) dests
-    State.modify_integrated_tracks block_id $ replace track_id
+    Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.ScoreDestinations dests) | dests <- new_dests]
     return $ map msg new_dests
     where
@@ -195,9 +195,9 @@ score_integrate_tracks (block_id, track_id) = do
 replace :: Eq key => key -> [(key, a)] -> [(key, a)] -> [(key, a)]
 replace key new xs = new ++ filter ((/=key) . fst) xs
 
-needs_block_integrate :: [Update.UiUpdate] -> State.State -> [BlockId]
+needs_block_integrate :: [Update.UiUpdate] -> Ui.State -> [BlockId]
 needs_block_integrate updates state =
-    Seq.unique $ filter needs $ Map.keys $ State.state_blocks state
+    Seq.unique $ filter needs $ Map.keys $ Ui.state_blocks state
     where
     -- True if the block is damaged, and other blocks exist with it as an
     -- integrated source.
@@ -205,12 +205,11 @@ needs_block_integrate updates state =
     damaged_blocks = mapMaybe block_changed updates
     integrated block_id =
         any (maybe False ((==block_id) . fst) . Block.block_integrated)
-            (Map.elems (State.state_blocks state))
+            (Map.elems (Ui.state_blocks state))
     block_changed (Update.Block bid _) = Just bid
     block_changed _ = Nothing
 
-needs_track_integrate :: [Update.UiUpdate] -> State.State
-    -> [(BlockId, TrackId)]
+needs_track_integrate :: [Update.UiUpdate] -> Ui.State -> [(BlockId, TrackId)]
 needs_track_integrate updates state = Seq.unique $
     concatMap (integrated_blocks . fst) $ mapMaybe Update.track_changed updates
     where
@@ -219,7 +218,7 @@ needs_track_integrate updates state = Seq.unique $
         , has_integrated block track_id
         ]
     blocks_with track_id = filter (has_track track_id . snd) $ Map.toList $
-        State.state_blocks state
+        Ui.state_blocks state
     has_track track_id block = track_id `elem` Block.block_track_ids block
     has_integrated block track_id = not $ null
         [tid | (tid, Block.ScoreDestinations _)

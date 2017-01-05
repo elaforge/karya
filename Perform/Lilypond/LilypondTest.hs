@@ -10,7 +10,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
@@ -242,11 +242,11 @@ derive_blocks_setup setup blocks =
         Derive.with_imported True Module.ly deriver
     where
     deriver = Prelude.Block.eval_root_block global_transform bid
-    global_transform = State.config#State.global_transform #$ state
+    global_transform = Ui.config#Ui.global_transform #$ state
     state = DeriveTest.setup_ui setup state_
     (bid:_, state_) = UiTest.run_mkblocks blocks
 
-derive_lilypond :: CallStack.Stack => State.State -> Derive.NoteDeriver
+derive_lilypond :: CallStack.Stack => Ui.State -> Derive.NoteDeriver
     -> Derive.Result
 derive_lilypond state deriver =
     extract $ CmdTest.result_val $

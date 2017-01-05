@@ -84,7 +84,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -108,26 +108,25 @@ rename = Create.rename_ruler
 listn :: Cmd.CmdL [(RulerId, Int)]
 listn = map (second length) <$> list
 
-list :: State.M m => m [(RulerId, [BlockId])]
+list :: Ui.M m => m [(RulerId, [BlockId])]
 list = do
-    ruler_ids <- State.all_ruler_ids
-    block_ids <- mapM State.blocks_with_ruler_id ruler_ids
+    ruler_ids <- Ui.all_ruler_ids
+    block_ids <- mapM Ui.blocks_with_ruler_id ruler_ids
     return $ zip ruler_ids (map (map fst) block_ids)
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
-gc :: State.M m => m [RulerId]
+gc :: Ui.M m => m [RulerId]
 gc = do
     ruler_ids <- Create.orphan_rulers
-    mapM_ State.destroy_ruler ruler_ids
+    mapM_ Ui.destroy_ruler ruler_ids
     return ruler_ids
 
 -- | Group together rulers that are the same, replace all the duplicates with
 -- the first ruler in each group, then gc away the duplicates.  Return the
 -- duplicates.
-unify :: State.M m => m [[RulerId]]
+unify :: Ui.M m => m [[RulerId]]
 unify = do
-    groups <- Seq.group_stable snd <$>
-        State.gets (Map.toAscList . State.state_rulers)
+    groups <- Seq.group_stable snd <$> Ui.gets (Map.toAscList . Ui.state_rulers)
     mapM_ merge groups
     gc
     return $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
@@ -139,7 +138,7 @@ unify = do
 -- wind up with names from other blocks.  Synchronize RulerIds along with their
 -- owning BlockIds.  A RulerId only on one BlockId is assumed to be local to
 -- that block, and will get its name.
-sync_ids :: State.M m => m Text
+sync_ids :: Ui.M m => m Text
 sync_ids = do
     deleted <- unify
     let unified = if null deleted then "" else Text.unlines $
@@ -154,7 +153,7 @@ sync_ids = do
                 <> pretty (Id.RulerId to) | (from, to) <- renames]
     return $ unified <> renamed
 
-list_misnamed :: State.M m => m [(RulerId, BlockId)]
+list_misnamed :: Ui.M m => m [(RulerId, BlockId)]
 list_misnamed = go <$> list
     where
     go ruler_blocks =
@@ -166,38 +165,38 @@ list_misnamed = go <$> list
     len1 _ = Nothing
 
 -- | Blocks that contain the given ruler.
-blocks_of :: State.M m => RulerId -> m [BlockId]
-blocks_of = fmap (map fst) . State.blocks_with_ruler_id
+blocks_of :: Ui.M m => RulerId -> m [BlockId]
+blocks_of = fmap (map fst) . Ui.blocks_with_ruler_id
 
 -- | Set the rulers on a block to the given RulerId.
-set_ruler_id :: State.M m => RulerId -> BlockId -> m ()
+set_ruler_id :: Ui.M m => RulerId -> BlockId -> m ()
 set_ruler_id ruler_id block_id = do
-    old <- State.block_ruler block_id
-    State.replace_ruler_id block_id old ruler_id
+    old <- Ui.block_ruler block_id
+    Ui.replace_ruler_id block_id old ruler_id
 
 -- | Copy the ruler of the given block to the current one.
 copy :: Cmd.M m => BlockId -> m ()
 copy other_block = do
-    other_ruler <- State.ruler_of other_block
+    other_ruler <- Ui.ruler_of other_block
     this_block <- Cmd.get_focused_block
-    this_ruler <- State.block_ruler this_block
-    State.replace_ruler_id this_block this_ruler other_ruler
+    this_ruler <- Ui.block_ruler this_block
+    Ui.replace_ruler_id this_block this_ruler other_ruler
 
 -- | Set the ruler of the tracks in the given scope.
-set :: State.M m => RulerId -> BlockId -> RulerUtil.Scope -> m ()
+set :: Ui.M m => RulerId -> BlockId -> RulerUtil.Scope -> m ()
 set ruler_id block_id scope = do
     ruler_ids <- case scope of
         RulerUtil.Block -> do
-            count <- State.track_count block_id
+            count <- Ui.track_count block_id
             return $ replicate count (Just ruler_id)
         RulerUtil.Section tracknum -> replace_tracknums
             =<< map fst <$> RulerUtil.get_section block_id tracknum
         RulerUtil.Tracks tracknums -> replace_tracknums tracknums
-    State.set_ruler_ids block_id ruler_ids
+    Ui.set_ruler_ids block_id ruler_ids
     where
     replace_tracknums tracknums = do
         old <- map Block.ruler_id_of . Block.block_tracklike_ids <$>
-                State.get_block block_id
+                Ui.get_block block_id
         let replace tracknum old_ruler
                 | tracknum `elem` tracknums = Just ruler_id
                 | otherwise = old_ruler
@@ -215,32 +214,32 @@ lruler = local . ruler
 -- | Modify all rulers.
 modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_rulers modify = do
-    ruler_ids <- State.all_ruler_ids
+    ruler_ids <- Ui.all_ruler_ids
     forM_ ruler_ids $ \ruler_id ->
-        State.modify_ruler ruler_id (Right . modify)
+        Ui.modify_ruler ruler_id (Right . modify)
 
 -- | Replace all occurrences of one RulerId with another.
-replace_ruler_id :: State.M m => RulerId -> RulerId -> m ()
+replace_ruler_id :: Ui.M m => RulerId -> RulerId -> m ()
 replace_ruler_id old new = do
-    blocks <- State.blocks_with_ruler_id old
+    blocks <- Ui.blocks_with_ruler_id old
     forM_ (map fst blocks) $ \block_id ->
-        State.replace_ruler_id block_id old new
+        Ui.replace_ruler_id block_id old new
 
 -- * query
 
-get_meter :: State.M m => BlockId -> m Meter.LabeledMeter
+get_meter :: Ui.M m => BlockId -> m Meter.LabeledMeter
 get_meter block_id =
-    Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
+    Meter.ruler_meter <$> (Ui.get_ruler =<< Ui.ruler_of block_id)
 
-get_marks :: State.M m => BlockId -> m [Ruler.PosMark]
+get_marks :: Ui.M m => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
     Ruler.ascending 0 . snd . Ruler.get_marklist Ruler.meter <$>
-        (State.get_ruler =<< State.ruler_of block_id)
+        (Ui.get_ruler =<< Ui.ruler_of block_id)
 
 -- | Ruler under the selection having at least the given rank.
 selected_marks :: Cmd.M m => Ruler.Rank -> m [Ruler.PosMark]
 selected_marks rank = do
-    ruler <- State.get_ruler =<< selected
+    ruler <- Ui.get_ruler =<< selected
     (start, end) <- Selection.range
     return $ filter ((<=rank) . Ruler.mark_rank . snd) $
         takeWhile ((<=end) . fst) $ Ruler.ascending start $ snd $
@@ -250,7 +249,7 @@ selected_marks rank = do
 selected :: Cmd.M m => m RulerId
 selected = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    Cmd.require "no ruler" =<< State.ruler_track_at block_id tracknum
+    Cmd.require "no ruler" =<< Ui.ruler_track_at block_id tracknum
 
 -- * Modify
 
@@ -282,7 +281,7 @@ append = do
 -- | Append another ruler to this one.
 append_ruler_id :: Cmd.M m => RulerId -> m Modify
 append_ruler_id ruler_id = do
-    other <- Meter.ruler_meter <$> State.get_ruler ruler_id
+    other <- Meter.ruler_meter <$> Ui.get_ruler ruler_id
     modify_selected $ (<> other) . Seq.rdrop 1
 
 -- | Remove the selected range of the ruler and shift the rest up.
@@ -331,10 +330,10 @@ gongs :: Cmd.M m => Int -- ^ number of gongs
 gongs sections jegog = ruler $ Gong.gongs sections jegog
 
 -- | Create a meter ruler fitted to the end of the last event on the block.
-fit_to_end :: State.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
+fit_to_end :: Ui.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> BlockId -> m Ruler.Ruler
 fit_to_end config meter block_id = do
-    end <- State.block_event_end block_id
+    end <- Ui.block_event_end block_id
     return $ Meter.fit_ruler config end meter
 
 fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
@@ -348,7 +347,7 @@ fit_to_selection config meter = do
 -- calls and doesn't scale the extracted rulers.
 concat :: Cmd.M m => [BlockId] -> m Modify
 concat block_ids = do
-    ruler_ids <- mapM State.ruler_of block_ids
+    ruler_ids <- mapM Ui.ruler_of block_ids
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
     modify_selected $ const $ mconcat meters ++ [final_mark]
@@ -367,7 +366,7 @@ extract = do
 extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
 extract_meters block_id track_id = do
     subs <- extract_calls block_id track_id
-    ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
+    ruler_ids <- mapM Ui.ruler_of [bid | (_, _, bid) <- subs]
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
     return $ mconcat $
@@ -378,10 +377,10 @@ extract_meters block_id track_id = do
 final_mark :: Meter.LabeledMark
 final_mark = Meter.LabeledMark 0 0 ""
 
-extract_calls :: State.M m => BlockId -> TrackId
+extract_calls :: Ui.M m => BlockId -> TrackId
     -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls block_id track_id =
-    mapMaybeM extract =<< Events.ascending <$> State.get_events track_id
+    mapMaybeM extract =<< Events.ascending <$> Ui.get_events track_id
     where
     extract event = fmap (range event) <$>
         NoteTrack.block_call (Just block_id) (Event.text event)
@@ -443,7 +442,7 @@ modify_m :: Cmd.M m => Modify -> m ()
 modify_m (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
 
 -- | Modify a local copy of the main block ruler.
-local_ruler :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
+local_ruler :: Ui.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
 local_ruler block_id modify =
     RulerUtil.local_section block_id 0 $ Right . modify
 
@@ -499,8 +498,8 @@ cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
 reset_colors :: Cmd.CmdL ()
 reset_colors = do
     block_id <- Cmd.get_focused_block
-    ruler_id <- State.ruler_of block_id
-    State.modify_ruler ruler_id (Right . set_colors meter_ranks)
+    ruler_id <- Ui.ruler_of block_id
+    Ui.modify_ruler ruler_id (Right . set_colors meter_ranks)
 
 set_colors :: [(Color.Color, Meter.MarkWidth, Int)] -> Ruler.Ruler
     -> Ruler.Ruler

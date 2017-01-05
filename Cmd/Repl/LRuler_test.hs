@@ -4,7 +4,7 @@
 
 module Cmd.Repl.LRuler_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
@@ -17,7 +17,7 @@ import Types
 
 test_extract = do
     let meter_ruler = RulerUtil.meter_ruler Meter.default_config
-    let ((vid, bid), ui_state) = UiTest.run State.empty $ do
+    let ((vid, bid), ui_state) = UiTest.run Ui.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
                 , ("b1", [])
@@ -39,7 +39,7 @@ test_extract = do
         , (0, 0)
         ]
 
-e_ruler :: BlockId -> State.State -> Meter.Meter
+e_ruler :: BlockId -> Ui.State -> Meter.Meter
 e_ruler bid ustate = UiTest.eval ustate $
     Meter.unlabel_meter . Meter.ruler_meter <$>
-        (State.get_ruler =<< State.ruler_of bid)
+        (Ui.get_ruler =<< Ui.ruler_of bid)

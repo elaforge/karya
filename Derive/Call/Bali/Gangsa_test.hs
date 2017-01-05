@@ -7,7 +7,7 @@ import qualified Data.List as List
 
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
 
@@ -282,8 +282,8 @@ test_unison_tuning = do
     equal (run [(0, 1, "4i")]) ([("i1", Just 62.95), ("i2", Just 62.5)], [])
 
 modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
-    -> State.State -> State.State
-modify_config inst modify = State.allocation inst %= fmap update
+    -> Ui.State -> Ui.State
+modify_config inst modify = Ui.allocation inst %= fmap update
     where
     update alloc = alloc
         { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }

@@ -26,7 +26,7 @@ import qualified Util.Process
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
 import qualified Cmd.Repl.Util as Util
@@ -43,14 +43,14 @@ import Types
 
 -- * config
 
-get_config :: State.M m => m Lilypond.Config
-get_config = State.config#State.lilypond <#> State.get
+get_config :: Ui.M m => m Lilypond.Config
+get_config = Ui.config#Ui.lilypond <#> Ui.get
 
-modify_config :: State.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
-modify_config modify = State.modify_config $ State.lilypond %= modify
+modify_config :: Ui.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
+modify_config modify = Ui.modify_config $ Ui.lilypond %= modify
 
 with_config :: Cmd.M m => Lilypond.Config -> m a -> m a
-with_config config = State.with_config (State.lilypond #= config)
+with_config config = Ui.with_config (Ui.lilypond #= config)
 
 make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
 make_config quarter quantize = Lilypond.default_config
@@ -58,16 +58,16 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
-toggle_display :: State.M m => Util.Instrument -> m ()
+toggle_display :: Ui.M m => Util.Instrument -> m ()
 toggle_display inst = modify_staff inst $ Lilypond.display %= not
 
-modify_staff :: State.M m => Util.Instrument
+modify_staff :: Ui.M m => Util.Instrument
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig) -> m ()
 modify_staff inst_ modify = do
     config <- get_config
     let staves = Lilypond.config_staves config
     case Seq.find_modify ((==inst) . fst) (second modify) staves of
-        Nothing -> State.throw $ "no staff config for " <> pretty inst
+        Nothing -> Ui.throw $ "no staff config for " <> pretty inst
         Just staves -> modify_config $ const $
             config { Lilypond.config_staves = staves }
     where inst = Util.instrument inst_
@@ -78,10 +78,10 @@ modify_staff inst_ modify = do
 -- If there is no staff config, all instruments get staves.  Otherwise, only
 -- instruments with 'Lilypond.StaffConfig's and 'Lilypond.staff_display' are
 -- displayed.
-set_staves :: State.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
+set_staves :: Ui.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> m (Lilypond.Config -> Lilypond.Config)
 set_staves staves
-    | not (null dups) = State.throw $ "duplicate instruments: " <> pretty dups
+    | not (null dups) = Ui.throw $ "duplicate instruments: " <> pretty dups
     | otherwise = return $ \config ->
         config { Lilypond.config_staves = map mk staves }
     where

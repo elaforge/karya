@@ -22,7 +22,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -46,19 +46,19 @@ import Types
 
 -- * create ui state
 
-create :: State.M m => Id.Namespace -> [UiBlock] -> m ()
+create :: Ui.M m => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
-    State.set_namespace name
+    Ui.set_namespace name
     let mkid = Id.id name
     rid <- Create.ruler "meter44" $
         RulerUtil.meter_ruler Meter.default_config 16 (replicate 4 Meters.m44_4)
     block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
     root <- create_order_block mkid block_ids
-    State.set_root_id root
+    Ui.set_root_id root
     Create.unfitted_view root
     return ()
 
-create_block :: State.M m => (Text -> Id.Id) -> RulerId
+create_block :: Ui.M m => (Text -> Id.Id) -> RulerId
     -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
 create_block mkid rid inst num (ui_block, block_rows) = do
     block_id <- make_block mkid rid ("b" <> showt num)
@@ -66,7 +66,7 @@ create_block mkid rid inst num (ui_block, block_rows) = do
     return (block_id, block_rows)
     where mktrack (ntrack, ctracks) = ('>' : inst, ntrack) : ctracks
 
-create_order_block :: State.M m => (Text -> Id.Id)
+create_order_block :: Ui.M m => (Text -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
     rid <- Create.ruler "order" $ Meters.ruler (order_meter block_rows)
@@ -87,16 +87,16 @@ order_meter =
     . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur Meter.T)
 
-make_block :: State.M m => (Text -> Id.Id) -> RulerId -> Text
+make_block :: Ui.M m => (Text -> Id.Id) -> RulerId -> Text
     -> [(String, [Event.Event])] -> m BlockId
 make_block mkid rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
-        State.create_track (mkid (name <> ".t" <> showt i)) $
+        Ui.create_track (mkid (name <> ".t" <> showt i)) $
             Track.track (txt title) (Events.from_list events)
     let block_tracks = Block.track (Block.RId rid) 20
             : [Block.track (Block.TId tid rid) 25 | tid <- tids]
-    block_id <- State.create_block (mkid name) "" block_tracks
-    State.set_skeleton block_id =<<
+    block_id <- Ui.create_block (mkid name) "" block_tracks
+    Ui.set_skeleton block_id =<<
         ParseSkeleton.default_parser <$> TrackTree.tracks_of block_id
     BlockConfig.toggle_merge_all block_id
     return block_id
@@ -113,7 +113,7 @@ make_block mkid rid name tracks = do
 --     -- where to_tracks (Block rows) = Seq.rotate (map (\(Row ns) -> ns)  rows)
 
 -- | An intermediate representation, between the row-oriented Block and
--- State.State.
+-- Ui.State.
 type UiBlock = ([(NoteTrack, [ControlTrack])], BlockRows)
 type NoteTrack = [Event.Event]
 -- | (title, [event])

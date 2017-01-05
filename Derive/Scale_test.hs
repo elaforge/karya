@@ -4,7 +4,7 @@
 
 module Derive.Scale_test where
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
@@ -15,7 +15,7 @@ import qualified Perform.Pitch as Pitch
 
 print_note_numbers :: Pitch.ScaleId -> IO ()
 print_note_numbers scale = do
-    let run scale_id environ = DeriveTest.eval State.empty
+    let run scale_id environ = DeriveTest.eval Ui.empty
             (scale_degrees scale_id environ)
     prettyp (run scale mempty)
 

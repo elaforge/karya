@@ -50,7 +50,7 @@ import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Transform as Transform
 
@@ -87,7 +87,7 @@ load path = do
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
-read :: FilePath -> Cmd.CmdT IO (State.State, StateSaveFile)
+read :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read path = do
     path <- expand_filename path
     save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
@@ -96,7 +96,7 @@ read path = do
         Cmd.SaveState fn -> read_state fn
 
 -- | Low level 'read'.
-read_ :: Cmd.InstrumentDb -> FilePath -> IO (Either Text State.State)
+read_ :: Cmd.InstrumentDb -> FilePath -> IO (Either Text Ui.State)
 read_ db path = infer_save_type path >>= \case
     Left err -> return $ Left $ "read " <> showt path <> ": " <> err
     Right save -> case save of
@@ -111,7 +111,7 @@ load_template fn = do
     (state, _) <- read fn
     set_state Nothing True state
     now <- liftIO $ Time.getCurrentTime
-    State.modify_config $ State.meta#State.creation #= now
+    Ui.modify_config $ Ui.meta#Ui.creation #= now
 
 -- | Given a path, which is either a file or a directory, try to figure out
 -- what to load.  Saves can be either a plain saved state, or a directory
@@ -187,26 +187,26 @@ save_state_as fname = do
 write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
     fname <- expand_filename fname
-    state <- State.get
+    state <- Ui.get
     ((), _, wall_secs) <- rethrow_io "write_current_state" $ liftIO $
         Log.time_eval $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname
         <> ", took " <> pretty wall_secs <> "s"
     return fname
 
-write_state :: FilePath -> State.State -> IO ()
+write_state :: FilePath -> Ui.State -> IO ()
 write_state fname state = do
     now <- Time.getCurrentTime
     Serialize.serialize Cmd.Serialize.score_magic fname $
-        State.config#State.meta#State.last_save #= now $
-        State.clear state
+        Ui.config#Ui.meta#Ui.last_save #= now $
+        Ui.clear state
 
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do
     (state, save_file) <- read_state fname
     set_state save_file True state
 
-read_state :: FilePath -> Cmd.CmdT IO (State.State, StateSaveFile)
+read_state :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_state fname = do
     let mkmsg err = "load " <> txt fname <> ": " <> pretty err
     writable <- liftIO $ File.writable fname
@@ -219,7 +219,7 @@ read_state fname = do
 
 -- | Low level 'read_state'.
 read_state_ :: Cmd.InstrumentDb -> FilePath
-    -> IO (Either Serialize.UnserializeError State.State)
+    -> IO (Either Serialize.UnserializeError Ui.State)
 read_state_ db fname =
     Serialize.unserialize Cmd.Serialize.score_magic fname >>= \case
         Right state -> mapM_ Log.write logs >> return (Right upgraded)
@@ -228,7 +228,7 @@ read_state_ db fname =
 
 -- | Low level 'read_git'.
 read_git_ :: Cmd.InstrumentDb -> SaveGit.Repo -> Maybe SaveGit.Commit
-    -> IO (Either Text (State.State, SaveGit.Commit, [Text]))
+    -> IO (Either Text (Ui.State, SaveGit.Commit, [Text]))
 read_git_ db repo maybe_commit = SaveGit.load repo maybe_commit >>= \case
     Right (state, commit, names) -> do
         mapM_ Log.write logs
@@ -239,7 +239,7 @@ read_git_ db repo maybe_commit = SaveGit.load repo maybe_commit >>= \case
 
 -- * upgrade
 
-upgrade_state :: Cmd.InstrumentDb -> State.State -> (State.State, [Log.Msg])
+upgrade_state :: Cmd.InstrumentDb -> Ui.State -> (Ui.State, [Log.Msg])
 upgrade_state db state = Identity.runIdentity $ Log.run $ do
     upgraded <- forM allocs $ \alloc -> if is_old alloc
         then case upgrade_allocation db alloc of
@@ -251,10 +251,10 @@ upgrade_state db state = Identity.runIdentity $ Log.run $ do
                     <> " to: " <> pretty (alloc_settings new)
                 return new
         else return alloc
-    return $ State.config#StateConfig.allocations
+    return $ Ui.config#StateConfig.allocations
         #= StateConfig.Allocations upgraded $ state
     where
-    StateConfig.Allocations allocs = State.config#State.allocations #$ state
+    StateConfig.Allocations allocs = Ui.config#Ui.allocations #$ state
     is_old = maybe False (Cmd.Serialize.is_old_settings . Patch.config_settings)
         . StateConfig.midi_config . StateConfig.alloc_backend
 
@@ -316,7 +316,7 @@ save_git_as repo = do
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
         Just commit -> return commit
         Nothing -> do
-            state <- State.get
+            state <- Ui.get
             rethrow =<< liftIO (SaveGit.checkpoint repo
                 (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
@@ -329,7 +329,7 @@ load_git repo maybe_commit = do
     set_state save_file True state
 
 read_git :: FilePath -> Maybe SaveGit.Commit
-    -> Cmd.CmdT IO (State.State, StateSaveFile)
+    -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_git repo maybe_commit = do
     db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
     (state, commit, names) <- Cmd.require_right
@@ -378,7 +378,7 @@ rethrow_io caller io = Cmd.require_right
 
 get_git_path :: Cmd.M m => m Git.Repo
 get_git_path = do
-    ns <- State.get_namespace
+    ns <- Ui.get_namespace
     state <- Cmd.get
     return $ make_git_path ns state
 
@@ -397,7 +397,7 @@ default_git = "save" ++ SaveGit.git_suffix
 
 save_allocations :: FilePath -> Cmd.CmdT IO ()
 save_allocations fname = do
-    allocs <- State.config#State.allocations <#> State.get
+    allocs <- Ui.config#Ui.allocations <#> Ui.get
     fname <- expand_filename fname
     Log.notice $ "write instrument allocations to " <> showt fname
     rethrow_io "save_allocations" $ liftIO $
@@ -411,7 +411,7 @@ load_allocations fname = do
             <> ": " <> pretty err
     allocs <- Cmd.require_right mkmsg
         =<< liftIO (Serialize.unserialize Cmd.Serialize.allocations_magic fname)
-    State.modify_config $ State.allocations #= allocs
+    Ui.modify_config $ Ui.allocations #= allocs
 
 -- * misc
 
@@ -424,10 +424,10 @@ load_allocations fname = do
 -- They could theoretically checkpoint view changes, but it would be
 -- complicated (they mostly come from the GUI, not diff) and inefficient
 -- (scrolling emits tons of them).
-save_views :: Cmd.State -> State.State -> IO ()
+save_views :: Cmd.State -> Ui.State -> IO ()
 save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
     Just (Cmd.ReadWrite, Cmd.SaveRepo repo) ->
-        SaveGit.save_views repo $ State.state_views ui_state
+        SaveGit.save_views repo $ Ui.state_views ui_state
     _ -> return ()
 
 -- | This is just like 'Cmd.SaveFile', except SaveRepo has more data.
@@ -449,7 +449,7 @@ set_save_file :: StateSaveFile -> Bool -> Cmd.CmdT IO ()
 set_save_file save_file clear_history = do
     cmd_state <- Cmd.get
     when (file /= Cmd.state_save_file cmd_state) $ do
-        ui_state <- State.get
+        ui_state <- Ui.get
         liftIO $ save_views cmd_state ui_state
         Cmd.modify $ \state -> state
             { Cmd.state_save_file = file
@@ -475,7 +475,7 @@ set_save_file save_file clear_history = do
                 (Just commit, Just (writable, Cmd.SaveRepo repo))
     clear entry = entry { Cmd.hist_commit = Nothing }
 
-set_state :: StateSaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
+set_state :: StateSaveFile -> Bool -> Ui.State -> Cmd.CmdT IO ()
 set_state save_file clear_history state = do
     set_save_file save_file clear_history
     Play.cmd_stop
@@ -488,11 +488,11 @@ set_state save_file clear_history state = do
                 { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
             }
         _ -> return ()
-    old <- State.get
-    State.put $ State.clear $
+    old <- Ui.get
+    Ui.put $ Ui.clear $
         Transform.replace_namespace Config.clip_namespace old state
-    root <- case State.config_root (State.state_config state) of
+    root <- case Ui.config_root (Ui.state_config state) of
         Nothing -> return Nothing
-        Just root -> Seq.head . Map.keys <$> State.views_of root
-    let focused = msum [root, Seq.head $ Map.keys (State.state_views state)]
+        Just root -> Seq.head . Map.keys <$> Ui.views_of root
+    let focused = msum [root, Seq.head $ Map.keys (Ui.state_views state)]
     whenJust focused Cmd.focus

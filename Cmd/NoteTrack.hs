@@ -23,7 +23,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -95,7 +95,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
             -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
             whenJust maybe_pitch $ \pitch -> EditUtil.remove_event_at
-                (EditUtil.Pos block_id (State.track_tracknum pitch) pos 0) False
+                (EditUtil.Pos block_id (Ui.track_tracknum pitch) pos 0) False
             Selection.advance
         _ -> Cmd.abort
     return Cmd.Done
@@ -170,7 +170,7 @@ next_control_track block_id tracknum is_control = do
             (ctrack, create) <- should_create_control block_id track is_control
             next <- find (track_control ctrack + 1)
             return (ctrack, create,
-                State.track_tracknum . Info.track_info <$> next)
+                Ui.track_tracknum . Info.track_info <$> next)
     where
     -- Wow, monads can be awkward.
     candidate inst associated right_of
@@ -181,9 +181,9 @@ next_control_track block_id tracknum is_control = do
             , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
             ]
         where
-        tracknum = State.track_tracknum track
-        pitch_tracknum = State.track_tracknum <$>
-            List.find (is_control . State.track_title) controls
+        tracknum = Ui.track_tracknum track
+        pitch_tracknum = Ui.track_tracknum <$>
+            List.find (is_control . Ui.track_title) controls
     candidate _ _ _ _ = return False
 
 -- | The given track should be a note track.  Figure out if it has a control
@@ -202,16 +202,16 @@ should_create_control block_id track is_control = case Info.track_type track of
     Info.Note controls _ -> case find controls of
         Nothing -> return (ControlTrack tracknum (tracknum+1), True)
         Just control ->
-            return (ControlTrack tracknum (State.track_tracknum control), False)
+            return (ControlTrack tracknum (Ui.track_tracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
         <> showt (block_id, tracknum) <> " but got " <> showt ttype
     where
-    find = List.find (is_control . State.track_title)
-    tracknum = State.track_tracknum (Info.track_info track)
+    find = List.find (is_control . Ui.track_title)
+    tracknum = Ui.track_tracknum (Info.track_info track)
 
 event_pos_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
 event_pos_at_or_before track_id pos = do
-    (_, events) <- Events.split_at_before pos <$> State.get_events track_id
+    (_, events) <- Events.split_at_before pos <$> Ui.get_events track_id
     return $ maybe pos Event.start (Seq.head events)
 
 all_keys_up :: Cmd.M m => m Bool
@@ -228,7 +228,7 @@ find_pitch_track note_id = do
     case maybe_track of
         Nothing -> return Nothing
         Just (block_id, tracknum) -> do
-            track_id <- State.get_event_track_at block_id tracknum
+            track_id <- Ui.get_event_track_at block_id tracknum
             return $ Just (tracknum, track_id)
 
 
@@ -257,10 +257,10 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_calls :: State.M m => Maybe BlockId -> Text -> m [BlockId]
+block_calls :: Ui.M m => Maybe BlockId -> Text -> m [BlockId]
 block_calls caller expr = do
-    blocks <- State.gets State.state_blocks
-    ns <- State.get_namespace
+    blocks <- Ui.gets Ui.state_blocks
+    ns <- Ui.get_namespace
     let to_bid = to_block_id blocks ns caller
     return $ case possible_block_calls expr of
         [] -> []
@@ -268,7 +268,7 @@ block_calls caller expr = do
             Nothing -> mapMaybe to_bid bs
             Just block_id -> [block_id]
 
-block_call :: State.M m => Maybe BlockId -> Text -> m (Maybe BlockId)
+block_call :: Ui.M m => Maybe BlockId -> Text -> m (Maybe BlockId)
 block_call caller = fmap Seq.head . block_calls caller
 
 -- | If the first word names a block, then it's probably a block call with
@@ -293,13 +293,13 @@ create_pitch_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
     Create.track block_id pitch "*" Events.empty
     -- Link note track underneath newly created pitch track.
-    State.splice_skeleton_below block_id pitch note
+    Ui.splice_skeleton_below block_id pitch note
 
 create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
-    State.splice_skeleton_below block_id dyn note
-    State.set_track_title tid (ParseTitle.control_to_title Score.c_dynamic)
+    Ui.splice_skeleton_below block_id dyn note
+    Ui.set_track_title tid (ParseTitle.control_to_title Score.c_dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

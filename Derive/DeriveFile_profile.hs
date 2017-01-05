@@ -6,7 +6,7 @@ module Derive.DeriveFile_profile where
 import qualified Data.Vector as Vector
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ResponderTest as ResponderTest
@@ -33,7 +33,7 @@ profile_file = do
 
 perform :: Cmd.Config -> FilePath -> IO [ResponderTest.Result]
 perform cmd_config fname = do
-    let states = (State.empty, Cmd.initial_state cmd_config)
+    let states = (Ui.empty, Cmd.initial_state cmd_config)
     let continue = ResponderTest.continue_until ResponderTest.is_derive_complete
             8
     result <- ResponderTest.respond_cmd states $ Save.load fname

@@ -3,11 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Should I rename Ui.State to Ui?  That way I can have Ui.State and
+  * Should I rename Ui.State to Ui?  That way I can have Ui.State and
     Cmd.State.  It seems inconsistent that UI state should get the "state"
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
-    . Ui.Ui -> Ui.EventLoop.
-    . Ui.StateConfig -> Ui.UiConfig
+    * Ui.Ui -> Ui.Fltk
+  - Ui.StateConfig -> Ui.UiConfig
   - More things for Global: Data.Map, Data.Set, List.foldl'
   * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:

@@ -22,7 +22,7 @@ import qualified Control.Concurrent.STM as STM
 
 import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Derive.Score as Score
 import Global
 import Types
@@ -49,7 +49,7 @@ data Info = Info {
     -- tell the play monitor thread which views are currently opened.  It needs
     -- this so if you open a new view while it's playing, it can put the play
     -- selection on that view.
-    , info_state :: MVar.MVar State.State
+    , info_state :: MVar.MVar Ui.State
     }
 
 -- * play control

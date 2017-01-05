@@ -10,7 +10,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -66,12 +66,12 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 -- for a substring.  A better check would be to see if the event being edited
 -- can have a normalized number extracted from it, and fall back on this only
 -- if there is no existing event.
-infer_normalized :: State.M m => TrackId -> m Bool
+infer_normalized :: Ui.M m => TrackId -> m Bool
 infer_normalized =
     -- Don't get fooled by the ' call, which is fairly common.
     fmap (maybe True normal . Seq.head . dropWhile (=="'") . map Event.text
         . Events.ascending)
-    . State.get_events
+    . Ui.get_events
     where
     normal event = any (`Text.isInfixOf` event) normalized_prefixes
 

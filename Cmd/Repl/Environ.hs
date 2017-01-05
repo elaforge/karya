@@ -31,7 +31,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track

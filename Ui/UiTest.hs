@@ -27,7 +27,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -140,110 +140,110 @@ default_ruler_id = rid "r0"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
-run :: CallStack.Stack => State.State -> State.StateId a -> (a, State.State)
+run :: CallStack.Stack => Ui.State -> Ui.StateId a -> (a, Ui.State)
 run state m = case result of
         Left err -> errorStack $ "state error: " <> showt err
         Right (val, state', _) -> (val, state')
-    where result = Identity.runIdentity (State.run state m)
+    where result = Identity.runIdentity (Ui.run state m)
 
-exec :: CallStack.Stack => State.State -> State.StateId a -> State.State
-exec state m = case State.exec state m of
+exec :: CallStack.Stack => Ui.State -> Ui.StateId a -> Ui.State
+exec state m = case Ui.exec state m of
     Left err -> errorStack $ "state error: " <> showt err
     Right state' -> state'
 
-eval :: CallStack.Stack => State.State -> State.StateId a -> a
-eval state m = case State.eval state m of
+eval :: CallStack.Stack => Ui.State -> Ui.StateId a -> a
+eval state m = case Ui.eval state m of
     Left err -> errorStack $ "state error: " <> showt err
     Right val -> val
 
-run_mkblock :: [TrackSpec] -> ([TrackId], State.State)
+run_mkblock :: [TrackSpec] -> ([TrackId], Ui.State)
 run_mkblock tracks = (tids, state)
     where
-    ((_, tids), state) = run State.empty (mkblock (default_block_name, tracks))
+    ((_, tids), state) = run Ui.empty (mkblock (default_block_name, tracks))
 
-run_mkview :: [TrackSpec] -> ([TrackId], State.State)
-run_mkview tracks = run State.empty $ mkblock_view (default_block_name, tracks)
+run_mkview :: [TrackSpec] -> ([TrackId], Ui.State)
+run_mkview tracks = run Ui.empty $ mkblock_view (default_block_name, tracks)
 
-run_mkblocks :: [BlockSpec] -> ([BlockId], State.State)
-run_mkblocks = run State.empty . mkblocks
+run_mkblocks :: [BlockSpec] -> ([BlockId], Ui.State)
+run_mkblocks = run Ui.empty . mkblocks
 
-mkblocks :: State.M m => [BlockSpec] -> m [BlockId]
+mkblocks :: Ui.M m => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblock) blocks
 
-mkviews :: State.M m => [BlockSpec] -> m [ViewId]
+mkviews :: Ui.M m => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
-mkblock :: State.M m => BlockSpec -> m (BlockId, [TrackId])
+mkblock :: Ui.M m => BlockSpec -> m (BlockId, [TrackId])
 mkblock (spec, tracks) = do
     let (block_id, title, has_ruler) = parse_block_spec spec
     ruler_id <- if has_ruler
         then do
             let len = event_end tracks
                 rid = Id.id test_ns ("r" <> showt len)
-            ifM (Maybe.isJust <$> State.lookup_ruler (Id.RulerId rid))
+            ifM (Maybe.isJust <$> Ui.lookup_ruler (Id.RulerId rid))
                 (return (Id.RulerId rid))
-                (State.create_ruler rid (mkruler_44 len 1))
+                (Ui.create_ruler rid (mkruler_44 len 1))
         else maybe
-            (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
+            (Ui.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
             (const (return default_ruler_id))
-                =<< State.lookup_ruler default_ruler_id
+                =<< Ui.lookup_ruler default_ruler_id
     mkblock_ruler ruler_id block_id title tracks
     where
     event_end :: [TrackSpec] -> Int
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
 
-mkblock_marklist :: State.M m => Ruler.Marklist -> BlockId -> String
+mkblock_marklist :: Ui.M m => Ruler.Marklist -> BlockId -> String
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
     ruler_id <- Create.ruler "r" $
         Ruler.meter_ruler (Just Meter.mtype)  marklist
     mkblock_ruler ruler_id block_id title tracks
 
-mkblocks_skel :: State.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
+mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
     (block_id, track_ids) <- mkblock block
-    State.set_skeleton block_id (Skeleton.make skel)
+    Ui.set_skeleton block_id (Skeleton.make skel)
     return (block_id, track_ids)
 
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkblock_ruler :: State.M m => RulerId -> BlockId -> String -> [TrackSpec]
+mkblock_ruler :: Ui.M m => RulerId -> BlockId -> String -> [TrackSpec]
     -> m (BlockId, [TrackId])
 mkblock_ruler ruler_id block_id title tracks = do
-    State.set_namespace test_ns
+    Ui.set_namespace test_ns
     -- Start at 1 because track 0 is the ruler.
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
-        State.create_track (Id.unpack_id (mk_tid_block block_id i))
+        Ui.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
     create_block (Id.unpack_id block_id) "" $ (Block.RId ruler_id)
         : [Block.TId tid ruler_id | tid <- tids]
     unless (null title) $
-        State.set_block_title block_id (txt title)
-    State.set_skeleton block_id =<< parse_skeleton block_id
+        Ui.set_block_title block_id (txt title)
+    Ui.set_skeleton block_id =<< parse_skeleton block_id
     -- This ensures that any state created via these functions will have the
     -- default midi config.  This saves some hassle since all tests can assume
     -- there are some instruments defined.
-    State.modify set_default_allocations
+    Ui.modify set_default_allocations
     return (block_id, tids)
 
-create_block :: State.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
-create_block block_id title tracks = State.create_block block_id
+create_block :: Ui.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
+create_block block_id title tracks = Ui.create_block block_id
     (txt title) [Block.track tid 30 | tid <- tracks]
 
-parse_skeleton :: State.M m => BlockId -> m Skeleton.Skeleton
+parse_skeleton :: Ui.M m => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- TrackTree.tracks_of block_id
     return $ ParseSkeleton.default_parser tracks
 
-mkview :: State.M m => BlockId -> m ViewId
+mkview :: Ui.M m => BlockId -> m ViewId
 mkview block_id = do
-    block <- State.get_block block_id
-    State.create_view (Id.unpack_id (mk_vid block_id)) $
+    block <- Ui.get_block block_id
+    Ui.create_view (Id.unpack_id (mk_vid block_id)) $
         Block.view block block_id default_rect default_zoom
 
-mkblock_view :: State.M m => BlockSpec -> m [TrackId]
+mkblock_view :: Ui.M m => BlockSpec -> m [TrackId]
 mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
@@ -278,19 +278,19 @@ tid_tracknum = parse . Seq.rtake_while Char.isDigit . untxt . Id.ident_name
 
 -- * actions
 
-insert_event_in :: State.M m => String -> TrackNum
+insert_event_in :: Ui.M m => String -> TrackNum
     -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event_in block_name tracknum (pos, dur, text) =
-    State.insert_event (mk_tid_name block_name tracknum)
+    Ui.insert_event (mk_tid_name block_name tracknum)
         (Event.event pos dur (txt text))
 
-insert_event :: State.M m => TrackNum -> (ScoreTime, ScoreTime, String) -> m ()
+insert_event :: Ui.M m => TrackNum -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event = insert_event_in default_block_name
 
-remove_event_in :: State.M m => String -> TrackNum -> ScoreTime -> m ()
-remove_event_in name tracknum = State.remove_event (mk_tid_name name tracknum)
+remove_event_in :: Ui.M m => String -> TrackNum -> ScoreTime -> m ()
+remove_event_in name tracknum = Ui.remove_event (mk_tid_name name tracknum)
 
-remove_event :: State.M m => TrackNum -> ScoreTime -> m ()
+remove_event :: Ui.M m => TrackNum -> ScoreTime -> m ()
 remove_event = remove_event_in default_block_name
 
 -- ** make specs
@@ -363,7 +363,7 @@ add_pitches = go ""
 
 -- * state to spec
 
-dump_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
+dump_block :: BlockId -> Ui.State -> (BlockSpec, [Skeleton.Edge])
 dump_block block_id state =
     ((name ++ if Text.null title then "" else " -- " ++ untxt title,
         map dump_track (Maybe.catMaybes tracks)), skel)
@@ -375,37 +375,37 @@ dump_block block_id state =
         (ScoreTime.double start, ScoreTime.double dur, untxt text)
 
 -- | Like 'dump_block' but strip out everything but the tracks.
-extract_tracks_of :: BlockId -> State.State -> [TrackSpec]
+extract_tracks_of :: BlockId -> Ui.State -> [TrackSpec]
 extract_tracks_of block_id state = tracks
     where ((_, tracks), _) = dump_block block_id state
 
 -- | Get the names and tracks of the default block.
-extract_tracks :: State.State -> [TrackSpec]
+extract_tracks :: Ui.State -> [TrackSpec]
 extract_tracks = extract_tracks_of default_block_id
 
-extract_all_tracks :: State.State -> [(BlockId, [TrackSpec])]
+extract_all_tracks :: Ui.State -> [(BlockId, [TrackSpec])]
 extract_all_tracks state =
     zip block_ids (map (flip extract_tracks_of state) block_ids)
-    where block_ids = Map.keys (State.state_blocks state)
+    where block_ids = Map.keys (Ui.state_blocks state)
 
-extract_skeleton :: State.State -> [(TrackNum, TrackNum)]
+extract_skeleton :: Ui.State -> [(TrackNum, TrackNum)]
 extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
-    . Map.lookup default_block_id . State.state_blocks
+    . Map.lookup default_block_id . Ui.state_blocks
 
-extract_track_ids :: State.State -> [(BlockId, [TrackId])]
+extract_track_ids :: Ui.State -> [(BlockId, [TrackId])]
 extract_track_ids state =
     [(block_id, tracks_of block) | (block_id, block)
-        <- Map.toList (State.state_blocks state)]
+        <- Map.toList (Ui.state_blocks state)]
     where
     tracks_of = Block.track_ids_of . map Block.tracklike_id . Block.block_tracks
 
 -- * view
 
-select :: State.M m => ViewId -> Sel.Selection -> m ()
+select :: Ui.M m => ViewId -> Sel.Selection -> m ()
 select view_id sel =
-    State.set_selection view_id Config.insert_selnum (Just sel)
+    Ui.set_selection view_id Config.insert_selnum (Just sel)
 
-select_point :: State.M m => ViewId -> TrackNum -> ScoreTime -> m ()
+select_point :: Ui.M m => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos = select view_id (Sel.point tracknum pos)
 
 -- * non-monadic make_- functions
@@ -500,8 +500,8 @@ allocations allocs = either errorStack id $
     where settings = Patch.patch_defaults $ make_patch "test"
     -- Since the lookup is just const, it should never return Left.
 
-set_default_allocations :: State.State -> State.State
-set_default_allocations = State.config#State.allocations #= default_allocations
+set_default_allocations :: Ui.State -> Ui.State
+set_default_allocations = Ui.config#Ui.allocations #= default_allocations
 
 default_allocations :: StateConfig.Allocations
 default_allocations = allocations

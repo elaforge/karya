@@ -17,7 +17,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.BaseTypes as BaseTypes
@@ -501,7 +501,7 @@ track :: Cmd.M m => BlockId -> TrackId -> m Document
 track block_id track_id = do
     dynamic <- Cmd.require "CallDoc.track: no root dynamic"
         =<< Perf.lookup_root_dynamic (block_id, Just track_id)
-    ttype <- ParseTitle.track_type <$> State.get_track_title track_id
+    ttype <- ParseTitle.track_type <$> Ui.get_track_title track_id
     return $ track_sections ttype (Derive.state_scopes dynamic)
 
 -- | This is an alternate doc extraction path which extracts the docs from

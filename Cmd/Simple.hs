@@ -17,7 +17,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -100,31 +100,31 @@ perf_event evt =
 
 -- * state
 
-dump_state :: State.M m => m State
+dump_state :: Ui.M m => m State
 dump_state = do
-    state <- State.get
-    blocks <- mapM dump_block (Map.keys (State.state_blocks state))
+    state <- Ui.get
+    blocks <- mapM dump_block (Map.keys (Ui.state_blocks state))
     return
-        ( State.config#State.global_transform #$ state
-        , dump_allocations $ State.config#State.allocations #$ state
+        ( Ui.config#Ui.global_transform #$ state
+        , dump_allocations $ Ui.config#Ui.allocations #$ state
         , blocks
         )
 
-load_state :: State.M m => (InstTypes.Qualified -> Maybe Patch.Settings)
-    -> State -> m State.State
+load_state :: Ui.M m => (InstTypes.Qualified -> Maybe Patch.Settings)
+    -> State -> m Ui.State
 load_state lookup_settings (global_transform, allocs, blocks) =
-    State.exec_rethrow "convert state" State.empty $ do
+    Ui.exec_rethrow "convert state" Ui.empty $ do
         mapM_ make_block blocks
-        allocs <- State.require_right id $ allocations lookup_settings allocs
-        State.modify $
-            (State.config#State.global_transform #= global_transform)
-            . (State.config#State.allocations #= allocs)
+        allocs <- Ui.require_right id $ allocations lookup_settings allocs
+        Ui.modify $
+            (Ui.config#Ui.global_transform #= global_transform)
+            . (Ui.config#Ui.allocations #= allocs)
 
 -- * block
 
-dump_block :: State.M m => BlockId -> m Block
+dump_block :: Ui.M m => BlockId -> m Block
 dump_block block_id = do
-    block <- State.get_block block_id
+    block <- Ui.get_block block_id
     tracks <- mapM dump_tracklike (Block.block_tracklike_ids block)
     tree <- TrackTree.track_tree_of block_id
     return (Id.ident_text block_id, Block.block_title block, tracks,
@@ -135,40 +135,40 @@ dump_block block_id = do
         go (Tree.Node track subs) =
             [(num track, num (Tree.rootLabel sub)) | sub <- subs]
             ++ to_skel subs
-    num = State.track_tracknum
+    num = Ui.track_tracknum
 
-load_block :: Cmd.M m => Block -> m State.State
-load_block block = State.exec_rethrow "convert block" State.empty $
+load_block :: Cmd.M m => Block -> m Ui.State
+load_block block = Ui.exec_rethrow "convert block" Ui.empty $
     make_block block
 
 load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
 load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
 
-read_block :: FilePath -> Cmd.CmdT IO State.State
+read_block :: FilePath -> Cmd.CmdT IO Ui.State
 read_block fn = do
     simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
     load_block simple_block
 
-make_block :: State.M m => Block -> m BlockId
+make_block :: Ui.M m => Block -> m BlockId
 make_block (id_name, title, tracks, skel) = do
     tracks <- mapM load_tracklike tracks
-    block_id <- State.create_block (Id.read_id id_name) title tracks
-    State.set_skeleton block_id (Skeleton.make skel)
+    block_id <- Ui.create_block (Id.read_id id_name) title tracks
+    Ui.set_skeleton block_id (Skeleton.make skel)
     return block_id
 
-dump_tracklike :: State.M m => Block.TracklikeId -> m (Maybe Track)
+dump_tracklike :: Ui.M m => Block.TracklikeId -> m (Maybe Track)
 dump_tracklike =
     maybe (return Nothing) (fmap Just . dump_track) . Block.track_id_of
 
-load_tracklike :: State.M m => Maybe Track -> m Block.Track
-load_tracklike Nothing = return $ Block.track (Block.RId State.no_ruler) 0
+load_tracklike :: Ui.M m => Maybe Track -> m Block.Track
+load_tracklike Nothing = return $ Block.track (Block.RId Ui.no_ruler) 0
 load_tracklike (Just track) = load_track track
 
 -- * track
 
-dump_track :: State.M m => TrackId -> m Track
+dump_track :: Ui.M m => TrackId -> m Track
 dump_track track_id = do
-    track <- State.get_track track_id
+    track <- Ui.get_track track_id
     return (simplify_track track_id track)
 
 simplify_track :: TrackId -> Track.Track -> Track
@@ -176,11 +176,11 @@ simplify_track track_id track =
     (Id.ident_text track_id, Track.track_title track, map event events)
     where events = Events.ascending (Track.track_events track)
 
-load_track :: State.M m => Track -> m Block.Track
+load_track :: Ui.M m => Track -> m Block.Track
 load_track (id_name, title, events) = do
-    track_id <- State.create_track (Id.read_id id_name) $
+    track_id <- Ui.create_track (Id.read_id id_name) $
         Track.track title (Events.from_list (map load_event events))
-    return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
+    return $ Block.track (Block.TId track_id Ui.no_ruler) Config.track_width
 
 load_event :: Event -> Event.Event
 load_event (start, dur, text) =

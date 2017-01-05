@@ -8,7 +8,7 @@ module Cmd.Repl.Fast where
 import qualified Data.Char as Char
 
 import qualified Util.Then as Then
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Repl.Global as Global
@@ -57,9 +57,9 @@ interpret tokens = case tokens of
         ["load", str] | Just arg <- val str -> action $ Global.load arg
 
         -- State
-        ["State.lookup_root_id"] -> action State.lookup_root_id
-        ["State.set_root_id", str] | Just arg <- val str ->
-            action $ State.set_root_id arg
+        ["Ui.lookup_root_id"] -> action Ui.lookup_root_id
+        ["Ui.set_root_id", str] | Just arg <- val str ->
+            action $ Ui.set_root_id arg
 
         ["LDebug.memory"] -> action $ LDebug.memory
         _ -> Nothing

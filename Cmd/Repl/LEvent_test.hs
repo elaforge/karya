@@ -6,7 +6,7 @@ module Cmd.Repl.LEvent_test where
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Repl.LEvent as LEvent
@@ -59,6 +59,6 @@ make_marklist :: [(ScoreTime, Ruler.Rank)] -> Ruler.Marklist
 make_marklist = Ruler.marklist . map (second mark)
     where mark rank = Ruler.null_mark { Ruler.mark_rank = rank }
 
-run_ruler :: Ruler.Marklist -> [UiTest.TrackSpec] -> State.StateId a -> a
-run_ruler marklist tracks = UiTest.eval $ UiTest.exec State.empty $
+run_ruler :: Ruler.Marklist -> [UiTest.TrackSpec] -> Ui.StateId a -> a
+run_ruler marklist tracks = UiTest.eval $ UiTest.exec Ui.empty $
     UiTest.mkblock_marklist marklist UiTest.default_block_id "" tracks

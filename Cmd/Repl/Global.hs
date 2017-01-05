@@ -33,7 +33,7 @@ import Midi.Synth ()
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -105,11 +105,11 @@ ruler :: Cmd.CmdL RulerId
 ruler = do
     n <- tracknum
     block_id <- block
-    Cmd.abort_unless =<< State.ruler_track_at block_id n
+    Cmd.abort_unless =<< Ui.ruler_track_at block_id n
 
 -- | Get the root block.
 root :: Cmd.CmdL BlockId
-root = State.get_root_id
+root = Ui.get_root_id
 
 -- | Create a namespace, and throw an IO exception if it has bad characters.
 -- Intended to be used from the REPL, where throwing an IO exception is ok.
@@ -156,7 +156,7 @@ highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     unerror
     block_id <- maybe find_block return maybe_bid
-    view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- Map.keys <$> Ui.views_of block_id
     view_ids <- if null view_ids then (:[]) <$> Create.view block_id
         else return view_ids
     mapM_ Cmd.focus view_ids
@@ -165,12 +165,12 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
             Selection.set_selnum vid Config.error_selnum
                 (Just (Sel.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
-            tracknum <- State.get_tracknum_of block_id tid
+            tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_selnum vid Config.error_selnum
                     (Just (Sel.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
-            tracknum <- State.get_tracknum_of block_id tid
+            tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_and_scroll vid Config.error_selnum
                     (Sel.selection tracknum to tracknum from)
@@ -180,12 +180,11 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
             "can't highlight stack frame with neither block nor track: "
             <> showt (maybe_bid, maybe_tid, maybe_range)
         Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
-            (return . fst) . Seq.head
-                =<< State.blocks_with_track_id track_id
+            (return . fst) . Seq.head =<< Ui.blocks_with_track_id track_id
 
 unerror :: Cmd.CmdL ()
 unerror = do
-    view_ids <- State.all_view_ids
+    view_ids <- Ui.all_view_ids
     forM_ view_ids $ \vid ->
         Selection.set_selnum vid Config.error_selnum Nothing
 
@@ -235,10 +234,10 @@ collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
     -- note track instead
-    State.add_track_flag block_id tracknum Block.Collapse
+    Ui.add_track_flag block_id tracknum Block.Collapse
     Info.set_instrument_status block_id tracknum
 expand_track block_id tracknum = do
-    State.remove_track_flag block_id tracknum Block.Collapse
+    Ui.remove_track_flag block_id tracknum Block.Collapse
     Info.set_instrument_status block_id tracknum
 
 -- | Called from logview.

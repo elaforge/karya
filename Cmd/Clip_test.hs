@@ -5,7 +5,7 @@
 module Cmd.Clip_test where
 import Util.Test
 import qualified Ui.Id as Id
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Clip as Clip
@@ -24,7 +24,7 @@ clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
 -- * copy
 
 test_cmd_copy_selection = do
-    let state = UiTest.exec State.empty $
+    let state = UiTest.exec Ui.empty $
             UiTest.mkviews [(UiTest.default_block_name, [track1, track2])]
         run strack spos ctrack cpos =
             e_tracks clip_id $ CmdTest.run_ui state $ do
@@ -51,7 +51,7 @@ e_tracks :: BlockId -> CmdTest.Result val -> Either String [UiTest.TrackSpec]
 e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
     (\state _ -> UiTest.extract_tracks_of block_id state)
 
-run_sel :: State.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
+run_sel :: Ui.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
     -> ScoreTime -> Either String [UiTest.TrackSpec]
 run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
     CmdTest.run_ui state $ do
@@ -168,10 +168,10 @@ test_cmd_paste_stretch = do
 clip_id :: BlockId
 clip_id = Id.BlockId $ Id.id Config.clip_namespace Config.clip_block_name
 
-mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> State.State
-mkstate block_tracks clip_tracks = UiTest.exec State.empty $ do
+mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> Ui.State
+mkstate block_tracks clip_tracks = UiTest.exec Ui.empty $ do
     UiTest.mkviews [(UiTest.default_block_name, block_tracks)]
     Clip.state_to_namespace
-        (UiTest.exec State.empty
+        (UiTest.exec Ui.empty
             (UiTest.mkblocks [(untxt Config.clip_block_name, clip_tracks)]))
         Config.clip_namespace

@@ -33,7 +33,7 @@ import qualified Util.Tree
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -63,7 +63,7 @@ note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
     (tree, block_range) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
         (,) <$> TrackTree.block_events_tree block_id
-            <*> State.block_logical_range block_id
+            <*> Ui.block_logical_range block_id
     with_per_block_state (snd block_range) $ derive_tree block_range tree
 
 -- | Reset Dynamic state for a new block.
@@ -83,12 +83,12 @@ with_per_block_state end = clear . Derive.with_val EnvKey.block_end end
 -- met, a fake note track will be appended to make this a valid note block,
 -- with a single note event whose only job is to collect the the default
 -- control.
-control_deriver :: BlockId -> State.StateId Derive.ControlDeriver
+control_deriver :: BlockId -> Ui.StateId Derive.ControlDeriver
 control_deriver block_id = do
     tree <- TrackTree.block_events_tree block_id
-    block_range <- State.block_logical_range block_id
+    block_range <- Ui.block_logical_range block_id
     case check_control_tree (snd block_range) tree of
-        Left err -> State.throw $ "control block skeleton malformed: " <> err
+        Left err -> Ui.throw $ "control block skeleton malformed: " <> err
         Right tree -> return $ with_per_block_state (snd block_range) $
             derive_control_tree block_range tree
 
@@ -157,8 +157,7 @@ derive_tree block_range tree
             (derive_tracks tree)
     where
     get_tempo = Derive.lookup_val EnvKey.tempo >>= \x -> case x of
-        Nothing -> Derive.get_ui_config
-            (State.default_tempo . State.config_default)
+        Nothing -> Derive.get_ui_config (Ui.default_tempo . Ui.config_default)
         Just tempo -> return tempo
 
 -- | Derive an EventsTree.

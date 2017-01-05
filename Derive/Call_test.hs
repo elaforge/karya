@@ -7,7 +7,7 @@ module Derive.Call_test where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -33,7 +33,7 @@ test_random = do
     equal v1 v2
 
 test_randoms_in = do
-    let run seed = expect_right . DeriveTest.eval State.empty
+    let run seed = expect_right . DeriveTest.eval Ui.empty
             . Derive.with_val EnvKey.seed (seed :: Int)
         randoms seed low high = take 4 $
             run seed (Call.randoms_in low high)

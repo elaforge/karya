@@ -48,7 +48,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Fltk as Fltk
@@ -67,15 +67,15 @@ import Types
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
 sync :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
-    -> State.State -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
+    -> Ui.State -> [Update.DisplayUpdate] -> IO (Maybe Ui.Error)
 sync ui_chan track_signals set_style state updates = do
     updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
-    result <- State.run state $
+    result <- Ui.run state $
         do_updates ui_chan track_signals set_style updates
     return $ case result of
         Left err -> Just err
-        -- I reuse State.StateT for convenience, but run_update should
+        -- I reuse Ui.StateT for convenience, but run_update should
         -- not modify the State and hence shouldn't produce any updates.
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
@@ -86,13 +86,12 @@ sync ui_chan track_signals set_style state updates = do
 -- update then that indicates a bug in the program, while this is meant to
 -- filter out updates that could occur \"normally\".  I'm not sure the
 -- distinction is worth it.
-check_updates :: State.State -> [Update.DisplayUpdate]
-    -> IO [Update.DisplayUpdate]
+check_updates :: Ui.State -> [Update.DisplayUpdate] -> IO [Update.DisplayUpdate]
 check_updates state = filterM $ \update -> case update of
     Update.View view_id u -> case u of
         -- Already destroyed, so I don't expect it to exist.
         Update.DestroyView -> return True
-        _ | view_id `Map.member` State.state_views state -> return True
+        _ | view_id `Map.member` Ui.state_views state -> return True
         _ -> do
             Log.warn $ "Update for nonexistent " <> showt view_id <> ": "
                 <> pretty u
@@ -100,7 +99,7 @@ check_updates state = filterM $ \update -> case update of
     _ -> return True
 
 do_updates :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
-    -> [Update.DisplayUpdate] -> State.StateT IO ()
+    -> [Update.DisplayUpdate] -> Ui.StateT IO ()
 do_updates ui_chan track_signals set_style updates = do
     -- Debug.fullM Debug.putp "sync updates" updates
     actions <- mapM (run_update track_signals set_style) updates
@@ -185,11 +184,11 @@ set_selection_carefully view_id selnum maybe_tracknums sels =
         let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
         BlockC.set_selection view_id selnum tracknums sels
 
-floating_input :: State.State -> Cmd.FloatingInput -> Fltk.Fltk ()
+floating_input :: Ui.State -> Cmd.FloatingInput -> Fltk.Fltk ()
 floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
     BlockC.floating_open view_id tracknum at text selection
 floating_input state (Cmd.FloatingInsert text) =
-    BlockC.floating_insert (Map.keys (State.state_views state)) text
+    BlockC.floating_insert (Map.keys (Ui.state_views state)) text
 
 
 -- * run_update
@@ -215,7 +214,7 @@ floating_input state (Cmd.FloatingInsert text) =
 -- CreateView Updates will modify the State to add the ViewPtr.  The IO in
 -- the StateT is needed only for some logging.
 run_update :: Track.TrackSignals -> Track.SetStyleHigh -> Update.DisplayUpdate
-    -> State.StateT IO (Fltk.Fltk ())
+    -> Ui.StateT IO (Fltk.Fltk ())
 run_update track_signals set_style update = case update of
     Update.View view_id update ->
         update_view track_signals set_style view_id update
@@ -228,10 +227,10 @@ run_update track_signals set_style update = case update of
     Update.State () -> return (return ())
 
 update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
-    -> Update.View -> State.StateT IO (Fltk.Fltk ())
+    -> Update.View -> Ui.StateT IO (Fltk.Fltk ())
 update_view track_signals set_style view_id Update.CreateView = do
-    view <- State.get_view view_id
-    block <- State.get_block (Block.view_block view)
+    view <- Ui.get_view view_id
+    block <- Ui.get_block (Block.view_block view)
 
     let dtracks = Block.block_display_tracks block
         btracks = Block.block_tracks block
@@ -239,7 +238,7 @@ update_view track_signals set_style view_id Update.CreateView = do
     -- It's important to get the tracklikes from the dtracks, not the
     -- tlike_ids.  That's because the dtracks will have already turned
     -- Collapsed tracks into Dividers.
-    tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id) dtracks
+    tracklikes <- mapM (Ui.get_tracklike . Block.dtracklike_id) dtracks
 
     let sels = Block.view_selections view
         selnum_sels :: [(Sel.Num, [([TrackNum], [BlockC.Selection])])]
@@ -247,14 +246,14 @@ update_view track_signals set_style view_id Update.CreateView = do
             [ (selnum, track_selections selnum (length btracks) (Just sel))
             | (selnum, sel) <- Map.toAscList sels
             ]
-    state <- State.get
+    state <- Ui.get
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
     -- empty view, but this way seems less complicated if more error-prone.
     -- Sync: title, tracks, selection, skeleton
     return $ do
         let title = block_window_title
-                (State.config_namespace (State.state_config state))
+                (Ui.config_namespace (Ui.state_config state))
                 view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.block_config block)
@@ -272,7 +271,7 @@ update_view track_signals set_style view_id Update.CreateView = do
                 BlockC.set_selection view_id selnum tracknums sels
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
             (Block.status_color (Block.view_block view) block
-                (State.config_root (State.state_config state)))
+                (Ui.config_root (Ui.state_config state)))
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
@@ -300,9 +299,9 @@ update_view _ _ view_id update = case update of
 -- | Block ops apply to every view with that block.
 update_block :: Track.TrackSignals -> Track.SetStyleHigh
     -> BlockId -> Update.Block Block.DisplayTrack
-    -> State.StateT IO (Fltk.Fltk ())
+    -> Ui.StateT IO (Fltk.Fltk ())
 update_block track_signals set_style block_id update = do
-    view_ids <- fmap Map.keys (State.views_of block_id)
+    view_ids <- fmap Map.keys (Ui.views_of block_id)
     case update of
         Update.BlockTitle title -> return $
             mapM_ (flip BlockC.set_title title) view_ids
@@ -316,8 +315,8 @@ update_block track_signals set_style block_id update = do
         Update.InsertTrack tracknum dtrack ->
             create_track view_ids tracknum dtrack
         Update.BlockTrack tracknum dtrack -> do
-            tracklike <- State.get_tracklike (Block.dtracklike_id dtrack)
-            state <- State.get
+            tracklike <- Ui.get_tracklike (Block.dtracklike_id dtrack)
+            state <- Ui.get
             let set_style_low = update_set_style state block_id
                     (Block.dtracklike_id dtrack) set_style
             return $ forM_ view_ids $ \view_id -> do
@@ -331,11 +330,11 @@ update_block track_signals set_style block_id update = do
     where
     create_track view_ids tracknum dtrack = do
         let tlike_id = Block.dtracklike_id dtrack
-        tlike <- State.get_tracklike tlike_id
-        state <- State.get
+        tlike <- Ui.get_tracklike tlike_id
+        state <- Ui.get
         -- I need to get this for Block.track_wants_signal.
         mb_btrack <- fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
-            (State.get_block block_id)
+            (Ui.get_block block_id)
         flags <- case mb_btrack of
             Nothing -> do
                 liftIO $ Log.warn $
@@ -348,16 +347,16 @@ update_block track_signals set_style block_id update = do
                 tlike_id tlike track_signals flags
 
 update_track :: Track.TrackSignals -> Track.SetStyleHigh
-    -> TrackId -> Update.Track -> State.StateT IO (Fltk.Fltk ())
+    -> TrackId -> Update.Track -> Ui.StateT IO (Fltk.Fltk ())
 update_track _ set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
-    state <- State.get
+    state <- Ui.get
     acts <- forM block_ids $ \block_id -> do
-        block <- State.get_block block_id
-        view_ids <- fmap Map.keys (State.views_of block_id)
+        block <- Ui.get_block block_id
+        view_ids <- fmap Map.keys (Ui.views_of block_id)
         forM (tracklikes track_id block) $ \(tracknum, tracklike_id) -> do
             let merged = merged_events_of state block tracknum
-            tracklike <- State.get_tracklike tracklike_id
+            tracklike <- Ui.get_tracklike tracklike_id
             let set_style_low = update_set_style state block_id tracklike_id
                     set_style
             forM view_ids $ \view_id ->
@@ -390,16 +389,16 @@ update_track _ set_style track_id update = do
                     merged set_style
 
 update_ruler :: Track.TrackSignals -> Track.SetStyleHigh
-    -> RulerId -> State.StateT IO (Fltk.Fltk ())
+    -> RulerId -> Ui.StateT IO (Fltk.Fltk ())
 update_ruler _ set_style ruler_id = do
     blocks <- dtracks_with_ruler_id ruler_id
-    state <- State.get
+    state <- Ui.get
     let tinfo = [(block_id, tracknum, tid)
             | (block_id, tracks) <- blocks, (tracknum, tid) <- tracks]
     fmap sequence_ $ forM tinfo $ \(block_id, tracknum, tracklike_id) -> do
-        view_ids <- fmap Map.keys (State.views_of block_id)
-        tracklike <- State.get_tracklike tracklike_id
-        block <- State.get_block block_id
+        view_ids <- fmap Map.keys (Ui.views_of block_id)
+        tracklike <- Ui.get_tracklike tracklike_id
+        block <- Ui.get_block block_id
         let merged = merged_events_of state block tracknum
         return $ sequence_ $ flip map view_ids $ \view_id ->
             BlockC.update_entire_track True view_id tracknum tracklike merged
@@ -408,7 +407,7 @@ update_ruler _ set_style ruler_id = do
 -- ** util
 
 -- | Insert a track.  Tracks require a crazy amount of configuration.
-insert_track :: State.State -> Track.SetStyleHigh -> BlockId -> ViewId
+insert_track :: Ui.State -> Track.SetStyleHigh -> BlockId -> ViewId
     -> TrackNum -> Block.DisplayTrack -> Block.TracklikeId -> Block.Tracklike
     -> Track.TrackSignals -> Set.Set Block.TrackFlag -> Fltk.Fltk ()
 insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
@@ -434,21 +433,21 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
 -- 'has_note_children' flag.  This is a bit awkward and ad-hoc, but the
 -- alternative is setting some flag in the 'Ui.Track.Track', and that's just
 -- one more thing that can get out of sync.
-update_set_style :: State.State -> BlockId -> Block.TracklikeId
+update_set_style :: Ui.State -> BlockId -> Block.TracklikeId
     -> Track.SetStyleHigh -> Track.SetStyle
 update_set_style state block_id (Block.TId track_id _) (track_bg, set_style) =
     (track_bg, set_style note_children)
     where
-    note_children = either (const False) id $ State.eval state $
+    note_children = either (const False) id $ Ui.eval state $
         has_note_children block_id track_id
 update_set_style _ _ _ (track_bg, set_style) = (track_bg, set_style False)
 
-has_note_children :: State.M m => BlockId -> TrackId -> m Bool
+has_note_children :: Ui.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do
     children <- fromMaybe [] <$> TrackTree.children_of block_id track_id
-    return $ any (ParseTitle.is_note_track . State.track_title) children
+    return $ any (ParseTitle.is_note_track . Ui.track_title) children
 
-merged_events_of :: State.State -> Block.Block -> TrackNum -> [Events.Events]
+merged_events_of :: Ui.State -> Block.Block -> TrackNum -> [Events.Events]
 merged_events_of state block tracknum =
     case Seq.at (Block.block_tracks block) tracknum of
         Just track -> events_of_track_ids state (Block.track_merged track)
@@ -465,11 +464,11 @@ block_window_title ns view_id block_id = block <> " - " <> strip block view
     view = Id.show_short ns (Id.unpack_id view_id)
     strip prefix txt = fromMaybe txt $ Text.stripPrefix prefix txt
 
-events_of_track_ids :: State.State -> Set.Set TrackId -> [Events.Events]
+events_of_track_ids :: Ui.State -> Set.Set TrackId -> [Events.Events]
 events_of_track_ids state = mapMaybe events_of . Set.toList
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
-    tracks = State.state_tracks state
+    tracks = Ui.state_tracks state
 
 -- | Convert Sel.Selection to BlockC.Selection, and clip to the valid track
 -- range.  Return sets of tracknums and the selections they should have.
@@ -498,17 +497,17 @@ convert_selection selnum tracks sel =
         }
     color = Config.lookup_selection_color selnum
 
-dtracks_with_ruler_id :: State.M m =>
+dtracks_with_ruler_id :: Ui.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 dtracks_with_ruler_id ruler_id =
     find_dtracks ((== Just ruler_id) . Block.ruler_id_of)
-        <$> State.gets State.state_blocks
+        <$> Ui.gets Ui.state_blocks
 
-dtracks_with_track_id :: State.M m =>
+dtracks_with_track_id :: Ui.M m =>
     TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 dtracks_with_track_id track_id =
     find_dtracks ((== Just track_id) . Block.track_id_of)
-        <$> State.gets State.state_blocks
+        <$> Ui.gets Ui.state_blocks
 
 find_dtracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
     -> [(BlockId, [(TrackNum, Block.TracklikeId)])]

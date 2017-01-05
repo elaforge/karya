@@ -9,7 +9,7 @@
 module Cmd.SaveGitTypes where
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Pretty as Pretty
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 import Global
 
@@ -23,7 +23,7 @@ import Global
 -- mean anything, and if they're applied on top of the wrong commit the result
 -- will be a corrupted state.
 data SaveHistory =
-    SaveHistory !State.State !(Maybe GitTypes.Commit) [Update.UiUpdate] ![Text]
+    SaveHistory !Ui.State !(Maybe GitTypes.Commit) [Update.UiUpdate] ![Text]
     deriving (Show)
 
 instance Pretty.Pretty SaveHistory where

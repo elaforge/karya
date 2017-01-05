@@ -21,7 +21,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -85,7 +85,7 @@ extract_result (result, state, logs) = Result
     }
     where
     (more_logs, blocks) =
-        case State.run_id ui_state TrackWarp.get_track_trees of
+        case Ui.run_id ui_state TrackWarp.get_track_trees of
             Left err -> ([Log.msg Log.Warn Nothing msg], [])
                 where msg = "error collecting TrackWarps: " <> pretty err
             Right (blocks, _, _) -> ([], blocks)

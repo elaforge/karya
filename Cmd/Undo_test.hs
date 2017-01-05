@@ -15,7 +15,7 @@ import qualified Util.Testing as Testing
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -116,15 +116,15 @@ test_undo_merge = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [])]
         vid = UiTest.default_view_id
     res1 <- ResponderTest.respond_cmd states $ do
-        State.set_namespace (Id.namespace "oogabooga")
-        State.set_view_rect vid $ Rect.xywh 40 40 100 100
+        Ui.set_namespace (Id.namespace "oogabooga")
+        Ui.set_view_rect vid $ Rect.xywh 40 40 100 100
         insert_event 0 "z"
     res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
         Undo.undo
     -- some things aren't affected by undo
-    equal (UiTest.eval (e_ui res1) (Block.view_rect <$> State.get_view vid))
+    equal (UiTest.eval (e_ui res1) (Block.view_rect <$> Ui.get_view vid))
         (Rect.xywh 40 40 100 100)
-    equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
+    equal (UiTest.eval (e_ui res2) (Block.view_rect <$> Ui.get_view vid))
         (Rect.xywh 40 40 100 100)
 
 track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
@@ -249,7 +249,7 @@ get_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
 next = ResponderTest.respond_cmd . ResponderTest.result_states
 
-insert_event :: State.M m => ScoreTime -> String -> m ()
+insert_event :: Ui.M m => ScoreTime -> String -> m ()
 insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
 
 set_sel :: Cmd.M m => ScoreTime -> m ()
@@ -279,11 +279,11 @@ e_commits res = (map extract past, extract present, map extract future)
 extract_ui :: ResponderTest.Result -> String
 extract_ui = ui_notes 0 . e_ui
 
-ui_notes :: Int -> State.State -> String
+ui_notes :: Int -> Ui.State -> String
 ui_notes tracknum ui_state = [c | (_, _, c:_) <- tracks]
     where ('>' : _, tracks) = UiTest.extract_tracks ui_state !! tracknum
 
-e_ui :: ResponderTest.Result -> State.State
+e_ui :: ResponderTest.Result -> Ui.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 
 e_hist_updates :: ResponderTest.Result

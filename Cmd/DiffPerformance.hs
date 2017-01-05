@@ -32,7 +32,7 @@ import qualified Midi.Encode as Encode
 import Midi.Instances ()
 import qualified Midi.Midi as Midi
 
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Perform.RealTime as RealTime
 import Global
 
@@ -58,21 +58,20 @@ midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
 
 -- * diff lilypond
 
-diff_lilypond :: String -> FilePath -> State.LilypondPerformance -> Text
+diff_lilypond :: String -> FilePath -> Ui.LilypondPerformance -> Text
     -> IO (Maybe Text, [FilePath])
 diff_lilypond name dir performance ly_code =
     first (fmap (info<>)) <$> diff_lines name dir
-        (Text.lines (State.perf_performance performance)) (Text.lines ly_code)
+        (Text.lines (Ui.perf_performance performance)) (Text.lines ly_code)
     where info = diff_info performance <> "\n"
 
 -- * diff midi
 
 diff_midi_performance :: String -> FilePath
-    -> State.MidiPerformance -> [Midi.WriteMessage]
-    -> IO (Maybe Text, [FilePath])
+    -> Ui.MidiPerformance -> [Midi.WriteMessage] -> IO (Maybe Text, [FilePath])
 diff_midi_performance name dir performance msgs =
     first (fmap (info<>)) <$> diff_lines name dir
-        (show_midi $ Vector.toList $ State.perf_performance performance)
+        (show_midi $ Vector.toList $ Ui.perf_performance performance)
         (show_midi msgs)
     where info = diff_info performance <> "\n"
 
@@ -95,10 +94,10 @@ diff_lines name dir expected got = do
     expected_fn = dir </> name ++ ".expected"
     got_fn = dir </> name ++ ".got"
 
-diff_info :: State.Performance a -> Text
+diff_info :: Ui.Performance a -> Text
 diff_info perf =
-    "Diffs from " <> pretty (State.perf_creation perf)
-    <> "\nPatch: " <> State.perf_patch perf
+    "Diffs from " <> pretty (Ui.perf_creation perf)
+    <> "\nPatch: " <> Ui.perf_patch perf
 
 show_diffs :: Text -> Text
 show_diffs diff = Text.unlines (limit 50 (Text.lines diff))

@@ -27,7 +27,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -57,11 +57,11 @@ load fn = liftIO (parse fn) >>= \x -> case x of
         mapM_ (Log.warn . ((txt fn <> ": ") <>)) warns
         create tracks skel
 
-create :: State.M m => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
+create :: Ui.M m => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
 create tracks skel = do
-    block_id <- Create.block State.no_ruler
+    block_id <- Create.block Ui.no_ruler
     mapM_ (add_track block_id) tracks
-    State.set_skeleton block_id skel
+    Ui.set_skeleton block_id skel
     return block_id
     where
     add_track block_id (title, track) =

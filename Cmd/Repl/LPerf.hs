@@ -20,7 +20,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -76,9 +76,9 @@ controls from_root = Derive.state_controls <$> dynamic from_root
 control_vals :: Bool -> Cmd.CmdL Score.ControlValMap
 control_vals from_root = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    ruler_id <- fromMaybe State.no_ruler <$>
-        State.ruler_track_at block_id tracknum
-    mlists <- Ruler.ruler_marklists <$> State.get_ruler ruler_id
+    ruler_id <- fromMaybe Ui.no_ruler <$>
+        Ui.ruler_track_at block_id tracknum
+    mlists <- Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
     dyn <- dynamic from_root
     pos <- get_realtime from_root
     -- I can't get 'Derive.state_event_serial' back, so the randomization will
@@ -371,10 +371,10 @@ midi_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch
 perform_events :: [LEvent.LEvent Score.Event] -> Cmd.CmdL Perform.MidiEvents
 perform_events = PlayUtil.perform_events . Vector.fromList . LEvent.events_of
 
-perform_midi_events :: State.M m => [LEvent.LEvent Types.Event]
+perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
 perform_midi_events events = do
-    allocs <- State.gets $ State.config_allocations . State.state_config
+    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
     let midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state midi_allocs events
 
@@ -475,8 +475,8 @@ chord_hook = mapM_ (uncurry set_chord_status)
 chord :: Cmd.CmdL Text
 chord = do
     (view_id, sel) <- Selection.get
-    block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Selection.point_track sel)
+    block_id <- Ui.block_id_of view_id
+    maybe_track_id <- Ui.event_track_at block_id (Selection.point_track sel)
     show_chord <$> chord_at block_id maybe_track_id (Selection.point sel)
 
 show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
@@ -528,11 +528,11 @@ chord_at block_id maybe_track_id pos = do
 --
 -- TODO I should look for the block anywhere in the stack, and sort it by the
 -- corresponding track.
-sort_by_track :: State.M m => BlockId -> [Score.Event] -> m [Score.Event]
+sort_by_track :: Ui.M m => BlockId -> [Score.Event] -> m [Score.Event]
 sort_by_track block_id events = do
     let by_track = Seq.key_on_maybe
             (fmap snd . Stack.block_track_of . Score.event_stack) events
-    tracknums <- mapM (State.tracknum_of block_id . fst) by_track
+    tracknums <- mapM (Ui.tracknum_of block_id . fst) by_track
     let by_tracknum = [(tracknum, event)
             | (Just tracknum, event) <- zip tracknums (map snd by_track)]
     return $ map snd $ Seq.sort_on fst by_tracknum

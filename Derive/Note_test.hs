@@ -6,7 +6,7 @@ module Derive.Note_test where
 import qualified Data.Map as Map
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
@@ -90,7 +90,7 @@ test_stash_signal = do
             DeriveTest.derive_tracks_setup (want wanted) "" $
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
         want control = DeriveTest.with_ui $ \state -> UiTest.exec state $
-            State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
+            Ui.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
         draw_dyn = Track.Control Score.c_dynamic
         draw_pitch = Track.Pitch Score.default_pitch
     equal (run draw_dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])

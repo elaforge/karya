@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Testing as Testing
 
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
@@ -39,7 +39,7 @@ import Types
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
 profile_big_block = derive_profile "big block" $ make_simple 2000
 
-make_simple :: State.M m => Int -> m ()
+make_simple :: Ui.M m => Int -> m ()
 make_simple size =
     mkblock $ make_tempo size
         : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
@@ -114,10 +114,10 @@ profile_file fname = do
 
 -- * make states
 
-make_nested_notes :: State.M m => Int -> Int -> Int -> m ()
+make_nested_notes :: Ui.M m => Int -> Int -> Int -> m ()
 make_nested_notes = make_nested [simple_pitch_track, note_track inst1]
 
-make_nested_controls :: State.M m => Int -> Int -> Int -> m ()
+make_nested_controls :: Ui.M m => Int -> Int -> Int -> m ()
 make_nested_controls = make_nested
     [ simple_pitch_track
     , mod_track
@@ -128,11 +128,11 @@ make_nested_controls = make_nested
 -- with the terminal blocks having a more events than the intermediate ones.
 --
 -- This doesn't produce intermediate tempo or control curves.
-make_nested :: State.M m => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
+make_nested :: Ui.M m => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
     ruler_id <- Create.ruler "ruler" UiTest.default_ruler
     go ruler_id UiTest.default_block_name depth
-    State.modify set_allocations
+    Ui.modify set_allocations
     where
     go ruler_id block_name 1 = do
         UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
@@ -145,15 +145,15 @@ make_nested bottom_tracks size depth bottom_size = do
             (map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
-mkblock :: State.M m => [UiTest.TrackSpec] -> m ()
+mkblock :: Ui.M m => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
     UiTest.mkblock (UiTest.default_block_name, tracks)
     tinfo <- TrackTree.tracks_of UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.
-    State.set_skeleton UiTest.default_block_id $
+    Ui.set_skeleton UiTest.default_block_id $
         ParseSkeleton.note_bottom_parser tinfo
-    State.modify set_allocations
+    Ui.modify set_allocations
 
 -- * implementation
 
@@ -163,7 +163,7 @@ derive_saved with_perform fname = do
     (ui_state, library) <- either errorIO return
         =<< DeriveSaved.load_score (Cmd.config_instrument_db cmd_config) fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        State.config#State.root #$ ui_state
+        Ui.config#Ui.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library
             (Cmd.initial_state cmd_config)
     (events, logs) <- DeriveSaved.timed_derive fname ui_state cmd_state block_id
@@ -173,7 +173,7 @@ derive_saved with_perform fname = do
             ("perform " ++ fname) ui_state events
         mapM_ Log.write logs
 
-derive_size :: State.StateId a -> IO ()
+derive_size :: Ui.StateId a -> IO ()
 derive_size create = do
     Testing.print_timer "force mmsgs" (\_ _ _ -> "done") (Testing.force mmsgs)
     Testing.print_timer "gc" (\_ _ _ -> "") Mem.performGC
@@ -184,10 +184,10 @@ derive_size create = do
     Testing.print_timer "length" (\_ _ -> id) $ return $ show (length mmsgs)
     return ()
     where
-    ui_state = UiTest.exec State.empty create
+    ui_state = UiTest.exec Ui.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id
     mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (State.config#State.allocations #$ ui_state)
+        (Ui.config#Ui.allocations #$ ui_state)
         (Derive.r_events result)
 
 busy_wait :: Int -> Double
@@ -199,16 +199,16 @@ busy_wait ops = go ops 2
         | otherwise = go (n-1) (sqrt accum)
 
 -- | This runs the derivation several times to minimize the creation cost.
-derive_profile :: String -> State.StateId a -> IO ()
+derive_profile :: String -> Ui.StateId a -> IO ()
 derive_profile name create = replicateM_ 6 $
-    run_profile name Nothing (UiTest.exec State.empty create)
+    run_profile name Nothing (UiTest.exec Ui.empty create)
 
 run_profile :: String
     -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
-    -> State.State -> IO ()
+    -> Ui.State -> IO ()
 run_profile fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        State.config#State.root #$ ui_state
+        Ui.config#Ui.root #$ ui_state
     start_cpu <- CPUTime.getCPUTime
     let section = time_section start_cpu
     let result = DeriveTest.derive_block ui_state block_id
@@ -219,7 +219,7 @@ run_profile fname maybe_lookup ui_state = do
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
-                (State.config#State.allocations #$ ui_state)
+                (Ui.config#Ui.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
         Testing.force mmsgs
         return mmsgs
@@ -244,8 +244,8 @@ cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 inst1 = ">i1"
 inst2 = ">i2"
 
-set_allocations :: State.State -> State.State
-set_allocations = State.config#State.allocations #= allocs
+set_allocations :: Ui.State -> Ui.State
+set_allocations = Ui.config#Ui.allocations #= allocs
     where
     allocs = DeriveTest.allocs_from_db UiTest.default_db
         [ ("i1", ("s/1", dev [0, 1]))

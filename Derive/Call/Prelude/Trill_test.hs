@@ -5,7 +5,7 @@
 module Derive.Call.Prelude.Trill_test where
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
@@ -198,7 +198,7 @@ test_real_trill = do
     let f neighbor speed = fst <$> Trill.trill_from_controls (0, 1)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Real speed)
-        run = extract . DeriveTest.run State.empty
+        run = extract . DeriveTest.run Ui.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
     equal (run $ f (cnst 1) (cnst 2)) $ Right [(0, 0), (0.5, 1)]
@@ -218,7 +218,7 @@ test_score_trill = do
     let f dur neighbor speed = fst <$> Trill.trill_from_controls (0, dur)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Score speed)
-        run = extract . DeriveTest.run State.empty
+        run = extract . DeriveTest.run Ui.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $

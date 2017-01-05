@@ -13,7 +13,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
@@ -32,14 +32,14 @@ import Types
 -- | List all tracks, along with the number of blocks each one appears in.
 list :: Cmd.CmdL [(TrackId, Int)]
 list = do
-    track_ids <- State.all_track_ids
-    counts <- map length <$> mapM State.blocks_with_track_id track_ids
+    track_ids <- Ui.all_track_ids
+    counts <- map length <$> mapM Ui.blocks_with_track_id track_ids
     return $ zip track_ids counts
 
 gc :: Cmd.CmdL [TrackId]
 gc = do
     tids <- orphans
-    mapM_ State.destroy_track tids
+    mapM_ Ui.destroy_track tids
     return tids
 
 -- | Tracks that don't appear in any block.
@@ -49,41 +49,41 @@ orphans = Set.elems <$> Create.orphan_tracks
 -- | Remove tracks with no events from the given block.
 remove_empty :: BlockId -> Cmd.CmdL ()
 remove_empty block_id = do
-    track_ids <- Block.block_track_ids <$> State.get_block block_id
-    mapM_ State.destroy_track
-        =<< filterM (fmap Events.null . State.get_events) track_ids
+    track_ids <- Block.block_track_ids <$> Ui.get_block block_id
+    mapM_ Ui.destroy_track
+        =<< filterM (fmap Events.null . Ui.get_events) track_ids
 
 remove_all_empty :: Cmd.CmdL ()
-remove_all_empty = mapM_ remove_empty =<< State.all_block_ids
+remove_all_empty = mapM_ remove_empty =<< Ui.all_block_ids
 
 map_widths :: (Text -> Bool) -> (Types.Width -> Types.Width) -> Cmd.CmdL ()
 map_widths wanted f = do
-    block_ids <- State.all_block_ids
+    block_ids <- Ui.all_block_ids
     forM_ block_ids $ \block_id -> do
-        tracknums <- map State.track_tracknum
-            . filter (wanted . State.track_title) <$>
+        tracknums <- map Ui.track_tracknum
+            . filter (wanted . Ui.track_title) <$>
                 TrackTree.tracks_of block_id
         widths <- map Block.track_width <$>
-            mapM (State.get_block_track_at block_id) tracknums
-        zipWithM_ (State.set_track_width block_id)
+            mapM (Ui.get_block_track_at block_id) tracknums
+        zipWithM_ (Ui.set_track_width block_id)
             tracknums (map f widths)
 
 -- | Transform all track titles.
 map_titles :: (Text -> Text) -> Cmd.CmdL ()
 map_titles f = do
-    tids <- State.all_track_ids
-    mapM_ (flip State.modify_track_title f) tids
+    tids <- Ui.all_track_ids
+    mapM_ (flip Ui.modify_track_title f) tids
 
 replace :: Text -> Text -> Cmd.CmdL ()
 replace from to = map_titles $ Text.replace from to
 
 -- | Find all tracks with the given string in their title.  You can use
--- 'State.blocks_with_track_id' to find the blocks with the tracks, and
+-- 'Ui.blocks_with_track_id' to find the blocks with the tracks, and
 -- 'map_titles' or 'replace' to change the titles.
 find :: Text -> Cmd.CmdL [(TrackId, Text)]
 find search = do
-    tids <- State.all_track_ids
-    titles <- mapM State.get_track_title tids
+    tids <- Ui.all_track_ids
+    titles <- mapM Ui.get_track_title tids
     return [(tid, title) | (tid, title) <- zip tids titles,
         search `Text.isInfixOf` title]
 
@@ -92,27 +92,27 @@ find search = do
 -- | Duplicate a track from one block to another.  The underlying track is
 -- the same, so edits in one of its occurrances will be reflected in all of its
 -- blocks.
-duplicate :: State.M m => BlockId -> TrackNum -> BlockId -> TrackNum -> m ()
+duplicate :: Ui.M m => BlockId -> TrackNum -> BlockId -> TrackNum -> m ()
 duplicate source_block source_tracknum dest_block dest_tracknum = do
-    track <- State.get_block_track_at source_block source_tracknum
-    State.insert_track dest_block dest_tracknum track
+    track <- Ui.get_block_track_at source_block source_tracknum
+    Ui.insert_track dest_block dest_tracknum track
 
 -- * events
 
-events :: State.M m => TrackId -> m [Event.Event]
-events = fmap Events.ascending . State.get_events
+events :: Ui.M m => TrackId -> m [Event.Event]
+events = fmap Events.ascending . Ui.get_events
 
 selected :: Cmd.M m => m [Event.Event]
 selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
     track_id <- Cmd.require "selected track" (Seq.head track_ids)
     Events.ascending . Events.in_range (Events.Positive start end) <$>
-        State.get_events track_id
+        Ui.get_events track_id
 
 events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
 events_range track_id start end =
     Events.ascending . Events.in_range (Events.Positive start end) <$>
-        State.get_events track_id
+        Ui.get_events track_id
 
 selected_notation :: Cmd.M m => TrackTime -> m Text
 selected_notation step = do
@@ -147,11 +147,11 @@ drop_dups = ModifyEvents.selection $ ModifyEvents.events $
 -- * signal render
 
 filled :: Cmd.CmdL ()
-filled = mapM_ (State.set_render_style (Track.Filled Nothing))
+filled = mapM_ (Ui.set_render_style (Track.Filled Nothing))
     =<< Selection.track_ids
 
 line :: Cmd.CmdL ()
-line = mapM_ (State.set_render_style (Track.Line Nothing))
+line = mapM_ (Ui.set_render_style (Track.Line Nothing))
     =<< Selection.track_ids
 
 note_pitch :: Cmd.CmdL ()
@@ -171,11 +171,10 @@ note_render mode control_name = do
     control <- Cmd.require_right id $ Score.parse_generic_control control_name
     track_ids <- Selection.track_ids
     track_ids <- filterM is_note track_ids
-    mapM_ (State.set_render_style
+    mapM_ (Ui.set_render_style
         (mode (Just (either Track.Control Track.Pitch control)))) track_ids
     where
-    is_note = fmap ParseTitle.is_note_track . State.get_track_title
+    is_note = fmap ParseTitle.is_note_track . Ui.get_track_title
 
 no_render :: Cmd.CmdL ()
-no_render =
-    mapM_ (State.set_render_style Track.NoRender) =<< Selection.track_ids
+no_render = mapM_ (Ui.set_render_style Track.NoRender) =<< Selection.track_ids

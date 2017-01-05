@@ -9,7 +9,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Rect as Rect
 import Util.Test
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
@@ -24,7 +24,7 @@ import Types
 
 test_track_ruler = do
     let f tracknum = Create.track_events UiTest.default_block_id
-            State.no_ruler tracknum 20 Track.empty
+            Ui.no_ruler tracknum 20 Track.empty
         run track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
             CmdTest.run_tracks track_specs cmd
     equal (run [] (f 1)) $ Right [("", [])]
@@ -82,7 +82,7 @@ test_insert_branch = do
 test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
         make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
-        make_tree = map $ fmap $ \title -> State.TrackInfo (txt title)
+        make_tree = map $ fmap $ \title -> Ui.TrackInfo (txt title)
             (UiTest.mk_tid 1) 1 (UiTest.btrack (UiTest.mk_tid 1))
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
@@ -93,7 +93,7 @@ test_make_tracks = do
 run_cmd :: [String] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
 run_cmd titles skel cmd = CmdTest.run state CmdTest.default_cmd_state cmd
     where
-    state = UiTest.exec State.empty $ do
+    state = UiTest.exec Ui.empty $ do
         UiTest.mkblocks_skel [((UiTest.default_block_name,
             [(title, []) | title <- titles]), skel)]
         UiTest.mkview UiTest.default_block_id
@@ -111,18 +111,18 @@ run_skel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> (TrackNum, TrackNum)
     -- ^ (edges as titles, logs)
 run_skel m ntracks skel (start_track, end_track) =
     extract $ CmdTest.run_tracks tracks $ do
-        State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
+        Ui.set_skeleton UiTest.default_block_id (Skeleton.make skel)
         CmdTest.set_sel start_track 0 end_track 0
         m
     where
     tracks = [(show (n+1), []) | n <- [0..ntracks-1]]
     extract = CmdTest.extract_ui_state extract_skel
     extract_skel ustate = UiTest.eval ustate $ do
-        skel <- Skeleton.flatten <$> State.get_skeleton UiTest.default_block_id
+        skel <- Skeleton.flatten <$> Ui.get_skeleton UiTest.default_block_id
         mapM (\(t1, t2) -> (,) <$> replace t1 <*> replace t2) skel
     replace n = do
-        tid <- State.get_event_track_at UiTest.default_block_id n
-        title <- Track.track_title <$> State.get_track tid
+        tid <- Ui.get_event_track_at UiTest.default_block_id n
+        title <- Track.track_title <$> Ui.get_track tid
         return $ Text.head $
             if Text.null (Text.strip title) then "x" else title
 

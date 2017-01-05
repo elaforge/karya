@@ -14,7 +14,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -42,7 +42,7 @@ instance Pretty.Pretty Pos where pretty = showt
 get_pos :: Cmd.M m => m Pos
 get_pos = do
     (view_id, sel) <- Selection.get
-    block_id <- State.block_id_of view_id
+    block_id <- Ui.block_id_of view_id
     let (start, end) = Sel.range sel
     return $ Pos block_id (Selection.point_track sel) start (end - start)
 
@@ -50,10 +50,10 @@ get_pos = do
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_or_create_event :: State.M m => Event.Orientation
+get_or_create_event :: Ui.M m => Event.Orientation
     -> Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
 get_or_create_event orient modify_dur track_id pos dur = do
-    event <- Events.at pos <$> State.get_events track_id
+    event <- Events.at pos <$> Ui.get_events track_id
     let modify = if modify_dur then Event.set_duration dur else id
     let create = Event.set_orientation orient $ Event.event pos dur ""
     return $ maybe (create, True) (\evt -> (modify evt, False)) event
@@ -77,14 +77,14 @@ modify_event_at :: Cmd.M m => Pos
     -> Modify -> m ()
 modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     dur <- infer_duration dur
-    track_id <- State.get_event_track_at block_id tracknum
+    track_id <- Ui.get_event_track_at block_id tracknum
     orient <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
     (event, created) <- get_or_create_event orient modify_dur track_id start dur
     let (val, advance) = modify $
             if created then Nothing else Just (Event.text event)
     case val of
-        Nothing -> State.remove_event track_id start
-        Just new_text -> State.insert_event track_id
+        Nothing -> Ui.remove_event track_id start
+        Just new_text -> Ui.insert_event track_id
             (Event.set_text new_text event)
     when advance Selection.advance
     where

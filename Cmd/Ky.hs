@@ -20,7 +20,7 @@ import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Macro as Macro
@@ -37,7 +37,7 @@ import Global
 
 -- | Check if ky files have changed, and if they have, update
 -- 'Cmd.state_ky_cache' and clear the performances.
-update_cache :: State.State -> Cmd.State -> IO Cmd.State
+update_cache :: Ui.State -> Cmd.State -> IO Cmd.State
 update_cache ui_state cmd_state = do
     cache <- check_cache ui_state cmd_state
     return $ case cache of
@@ -53,11 +53,11 @@ update_cache ui_state cmd_state = do
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: State.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
+check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
     (defs, imported) <- try $ Parse.load_ky (state_ky_paths cmd_state)
-        (State.config#State.ky #$ ui_state)
+        (Ui.config#Ui.ky #$ ui_state)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
     -- turns out to be too expensive, I can go back to the modification time
@@ -90,10 +90,10 @@ check_cache ui_state cmd_state = run $ do
     apply (Right (lib, fingerprint)) =
         Just $ Cmd.KyCache (Right lib) fingerprint
 
-load :: [FilePath] -> State.State -> IO (Either Text Derive.Library)
+load :: [FilePath] -> Ui.State -> IO (Either Text Derive.Library)
 load paths =
     fmap (fmap (compile_library . fst)) . Parse.load_ky paths
-        . (State.config#State.ky #$)
+        . (Ui.config#Ui.ky #$)
 
 write_update_logs :: Log.LogMonad m => [FilePath] -> Derive.Library -> m ()
 write_update_logs imports lib = do

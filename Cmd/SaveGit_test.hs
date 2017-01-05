@@ -11,7 +11,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -41,12 +41,12 @@ test_checkpoint = Git.initialize $ do
             ]
         , (,) "hi" $ UiTest.insert_event 1 (2, 2, "hi")
         , (,) "new track" $ do
-            State.destroy_track (UiTest.mk_tid 2)
-            void $ State.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
+            Ui.destroy_track (UiTest.mk_tid 2)
+            void $ Ui.create_track (Id.unpack_id (UiTest.mk_tid 2)) $
                 Track.track "new" Events.empty
         , (,) "destroy" $ do
-            State.destroy_view UiTest.default_view_id
-            State.destroy_block UiTest.default_block_id
+            Ui.destroy_view UiTest.default_view_id
+            Ui.destroy_block UiTest.default_block_id
         ]
     io_equal (Git.read_log_head repo) [commit4, commit3, commit2, commit1]
 
@@ -80,9 +80,9 @@ test_ruler_checkpoint = Git.initialize $ do
     states <- checkpoint_sequence repo
         [ ("create", mkview [("1", [])])
         , (,) "destroy" $ do
-            State.modify_ruler UiTest.default_ruler_id
+            Ui.modify_ruler UiTest.default_ruler_id
                 (const (Right Ruler.no_ruler))
-            State.destroy_ruler UiTest.default_ruler_id
+            Ui.destroy_ruler UiTest.default_ruler_id
         ]
     -- Mostly just verify that when a ruler is modified and deleted the update
     -- will be cancelled by 'Ui.Diff.cancel_updates' and won't crash or log
@@ -97,7 +97,7 @@ test_more_checkpoints = Git.initialize $ check_sequence
     , Create.destroy_block UiTest.default_block_id
     ]
 
-check_sequence :: [State.StateId ()] -> IO ()
+check_sequence :: [Ui.StateId ()] -> IO ()
 check_sequence actions = do
     repo <- new_repo
     state_commits <- checkpoint_sequence repo (zip (map showt [0..]) actions)
@@ -106,29 +106,29 @@ check_sequence actions = do
             io_equal (load_from repo commit1 (Just commit2) state1)
                 (Right (state2, []))
 
-load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> State.State
-    -> IO (Either Text (State.State, [Update.CmdUpdate]))
+load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> Ui.State
+    -> IO (Either Text (Ui.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state =
     fmap (first strip_views) <$>
         SaveGit.load_from repo commit_from maybe_commit_to state
 
 -- | Views aren't saved, so I shouldn't compare them.
-strip_views :: State.State -> State.State
-strip_views state = state { State.state_views = mempty }
+strip_views :: Ui.State -> Ui.State
+strip_views state = state { Ui.state_views = mempty }
 
-check_load :: FilePath -> (State.State, SaveGit.Commit, [Text]) -> IO Bool
+check_load :: FilePath -> (Ui.State, SaveGit.Commit, [Text]) -> IO Bool
 check_load repo (state, commit, names) =
     io_equal (SaveGit.load repo (Just commit)) (Right (state, commit, names))
 
-check_load_from :: FilePath -> (State.State, SaveGit.Commit)
-    -> (State.State, SaveGit.Commit) -> IO Bool
+check_load_from :: FilePath -> (Ui.State, SaveGit.Commit)
+    -> (Ui.State, SaveGit.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (load_from repo commit1 (Just commit2) state1)
         (Right (state2, []))
 
-checkpoint_sequence :: Git.Repo -> [(Text, State.StateId ())]
-    -> IO [(State.State, SaveGit.Commit)]
-checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
+checkpoint_sequence :: Git.Repo -> [(Text, Ui.StateId ())]
+    -> IO [(Ui.State, SaveGit.Commit)]
+checkpoint_sequence repo actions = apply (Ui.empty, Nothing) actions
     where
     apply _ [] = return []
     apply (prev_state, prev_commit) ((name, action) : actions) = do
@@ -138,15 +138,15 @@ checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
         rest <- apply (state, Just commit) actions
         return $ (strip_views state, commit) : rest
 
-diff :: State.State -> State.StateId a -> (State.State, [Update.UiUpdate])
+diff :: Ui.State -> Ui.StateId a -> (Ui.State, [Update.UiUpdate])
 diff state modify = (state2, ui_updates)
     where
     (ui_updates, _) = Diff.diff cmd_updates state state2
-    (state2, cmd_updates) = case State.run_id state modify of
-        Left err -> error $ "State.run: " ++ show err
+    (state2, cmd_updates) = case Ui.run_id state modify of
+        Left err -> error $ "Ui.run: " ++ show err
         Right (_, state, cmd_updates) -> (state, cmd_updates)
 
-mkview :: [UiTest.TrackSpec] -> State.StateId ()
+mkview :: [UiTest.TrackSpec] -> Ui.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo :: IO FilePath

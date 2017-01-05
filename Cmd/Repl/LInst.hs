@@ -17,7 +17,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.TrackTree as TrackTree
 
@@ -54,17 +54,16 @@ import Types
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
-lookup_allocation :: State.M m => Util.Instrument
+lookup_allocation :: Ui.M m => Util.Instrument
     -> m (Maybe StateConfig.Allocation)
-lookup_allocation inst =
-    State.allocation (Util.instrument inst) <#> State.get
+lookup_allocation inst = Ui.allocation (Util.instrument inst) <#> Ui.get
 
-get_allocation :: State.M m => Util.Instrument -> m StateConfig.Allocation
+get_allocation :: Ui.M m => Util.Instrument -> m StateConfig.Allocation
 get_allocation = get_instrument_allocation . Util.instrument
 
 -- | List all allocated instruments.
-allocated :: State.M m => m [Score.Instrument]
-allocated = State.get_config $ Map.keys . (StateConfig.allocations_map #$)
+allocated :: Ui.M m => m [Score.Instrument]
+allocated = Ui.get_config $ Map.keys . (StateConfig.allocations_map #$)
 
 -- | List all allocated instrument configs all purty-like.
 list :: Cmd.M m => m Text
@@ -76,7 +75,7 @@ list = list_like ""
 -- > >syn - sampler/inst 音
 list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
-    alloc_map <- State.config#State.allocations_map <#> State.get
+    alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
     patches <- map (fmap fst . (Cmd.midi_instrument =<<)) <$>
         mapM Cmd.lookup_instrument names
@@ -150,8 +149,8 @@ show_scale scale = "scale " <> Patch.scale_name scale <> " "
     <> showt (length (Patch.scale_nns Nothing scale)) <> " keys"
 
 -- | Instrument allocations.
-allocations :: State.M m => m StateConfig.Allocations
-allocations = State.config#State.allocations <#> State.get
+allocations :: Ui.M m => m StateConfig.Allocations
+allocations = Ui.config#Ui.allocations <#> Ui.get
 
 -- * add and remove
 
@@ -207,17 +206,17 @@ add_dummy inst qualified = do
 allocate :: Cmd.M m => Score.Instrument -> StateConfig.Allocation -> m ()
 allocate score_inst alloc = do
     inst <- Cmd.get_qualified (StateConfig.alloc_qualified alloc)
-    allocs <- State.config#State.allocations <#> State.get
+    allocs <- Ui.config#Ui.allocations <#> Ui.get
     allocs <- Cmd.require_right id $
         StateConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
-    State.modify_config $ State.allocations #= allocs
+    Ui.modify_config $ Ui.allocations #= allocs
 
 -- | Remove an instrument allocation.
 remove :: Instrument -> Cmd.CmdL ()
 remove = deallocate . Util.instrument
 
 deallocate :: Cmd.M m => Score.Instrument -> m ()
-deallocate inst = State.modify_config $ State.allocations_map %= Map.delete inst
+deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 
 -- | Merge the given configs into the existing one.  This also merges
 -- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
@@ -231,7 +230,7 @@ merge (StateConfig.Allocations alloc_map) = do
     let errors = mapMaybe verify (zip3 names merged insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
-    State.modify_config $ State.allocations
+    Ui.modify_config $ Ui.allocations
         %= (StateConfig.Allocations (Map.fromList (zip names merged)) <>)
     where
     verify (name, alloc, inst) =
@@ -240,10 +239,10 @@ merge (StateConfig.Allocations alloc_map) = do
 -- * modify
 
 -- | Rename an instrument.
-rename :: State.M m => Instrument -> Instrument -> m ()
+rename :: Ui.M m => Instrument -> Instrument -> m ()
 rename from to = do
     alloc <- get_allocation from
-    State.modify_config $ State.allocations %= rename alloc
+    Ui.modify_config $ Ui.allocations %= rename alloc
     where
     rename alloc (StateConfig.Allocations allocs) = StateConfig.Allocations $
         Map.insert (Util.instrument to) alloc $
@@ -252,50 +251,49 @@ rename from to = do
 -- ** Common.Config
 
 -- | Toggle and return the new value.
-mute :: State.M m => Instrument -> m Bool
+mute :: Ui.M m => Instrument -> m Bool
 mute inst = modify_common_config inst $ \config ->
     let mute = not $ Common.config_mute config
     in (config { Common.config_mute = mute }, mute)
 
 -- | Toggle and return the new value.
-solo :: State.M m => Instrument -> m Bool
+solo :: Ui.M m => Instrument -> m Bool
 solo inst = modify_common_config inst $ \config ->
     let solo = not $ Common.config_solo config
     in (config { Common.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
-add_environ :: (RestrictedEnviron.ToVal a, State.M m) =>
+add_environ :: (RestrictedEnviron.ToVal a, Ui.M m) =>
     Instrument -> Env.Key -> a -> m ()
 add_environ inst name val =
     modify_common_config_ inst $ Common.add_environ name val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
 -- from 'Patch.patch_environ' is still present.
-clear_environ :: State.M m => Instrument -> m ()
+clear_environ :: Ui.M m => Instrument -> m ()
 clear_environ inst = modify_common_config_ inst $ Common.cenviron #= mempty
 
 -- ** Midi.Patch.Config
 
-set_addr :: State.M m => Instrument -> Text -> [Midi.Channel] -> m ()
+set_addr :: Ui.M m => Instrument -> Text -> [Midi.Channel] -> m ()
 set_addr inst wdev chans = modify_midi_config inst $
     Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
-set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
+set_controls :: Ui.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_common_config_ inst $
     Common.controls #= Map.fromList controls
 
-set_control :: State.M m => Instrument -> Score.Control -> Maybe Signal.Y
-    -> m ()
+set_control :: Ui.M m => Instrument -> Score.Control -> Maybe Signal.Y -> m ()
 set_control inst control val = modify_common_config_ inst $
     Common.controls # Lens.map control #= val
 
-set_tuning_scale :: State.M m => Instrument -> Text -> Patch.Scale -> m ()
+set_tuning_scale :: Ui.M m => Instrument -> Text -> Patch.Scale -> m ()
 set_tuning_scale inst tuning scale = do
     set_scale inst scale
     add_environ inst EnvKey.tuning tuning
 
-set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
+set_control_defaults :: Ui.M m => Instrument -> [(Score.Control, Signal.Y)]
     -> m ()
 set_control_defaults inst controls = modify_midi_config inst $
     Patch.control_defaults #= Map.fromList controls
@@ -306,31 +304,31 @@ get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
 get_scale inst =
     (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
 
-set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
+set_scale :: Ui.M m => Instrument -> Patch.Scale -> m ()
 set_scale inst scale = modify_midi_config inst $
     Patch.settings#Patch.scale #= Just scale
 
-add_flag :: State.M m => Instrument -> Patch.Flag -> m ()
+add_flag :: Ui.M m => Instrument -> Patch.Flag -> m ()
 add_flag inst flag = modify_midi_config inst $
     Patch.settings#Patch.flags %= Patch.add_flag flag
 
-remove_flag :: State.M m => Instrument -> Patch.Flag -> m ()
+remove_flag :: Ui.M m => Instrument -> Patch.Flag -> m ()
 remove_flag inst flag = modify_midi_config inst $
     Patch.settings#Patch.flags %= Patch.remove_flag flag
 
-set_decay :: State.M m => Instrument -> Maybe RealTime -> m ()
+set_decay :: Ui.M m => Instrument -> Maybe RealTime -> m ()
 set_decay inst decay = modify_midi_config inst $
     Patch.settings#Patch.decay #= decay
 
 -- * util
 
-get_midi_config :: State.M m => Score.Instrument
+get_midi_config :: Ui.M m => Score.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
 get_midi_config inst =
-    State.require ("not a midi instrument: " <> pretty inst) =<<
+    Ui.require ("not a midi instrument: " <> pretty inst) =<<
         lookup_midi_config inst
 
-lookup_midi_config :: State.M m => Score.Instrument
+lookup_midi_config :: Ui.M m => Score.Instrument
     -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
 lookup_midi_config inst = do
     StateConfig.Allocation qualified config backend
@@ -339,7 +337,7 @@ lookup_midi_config inst = do
         StateConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
 
-modify_config :: State.M m => Instrument
+modify_config :: Ui.M m => Instrument
     -> (Common.Config -> Patch.Config -> ((Common.Config, Patch.Config), a))
     -> m a
 modify_config inst_ modify = do
@@ -348,34 +346,34 @@ modify_config inst_ modify = do
     let ((new_common, new_midi), result) = modify common midi
         new = StateConfig.Allocation qualified new_common
             (StateConfig.Midi new_midi)
-    State.modify_config $ State.allocations_map %= Map.insert inst new
+    Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
-modify_midi_config :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
+modify_midi_config :: Ui.M m => Instrument -> (Patch.Config -> Patch.Config)
     -> m ()
 modify_midi_config inst modify = modify_config inst $ \common midi ->
     ((common, modify midi), ())
 
-modify_common_config :: State.M m => Instrument
+modify_common_config :: Ui.M m => Instrument
     -> (Common.Config -> (Common.Config, a)) -> m a
 modify_common_config inst_ modify = do
     let inst = Util.instrument inst_
     alloc <- get_instrument_allocation inst
     let (config, result) = modify (StateConfig.alloc_config alloc)
         new = alloc { StateConfig.alloc_config = config }
-    State.modify_config $ State.allocations_map %= Map.insert inst new
+    Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
-modify_common_config_ :: State.M m => Instrument
+modify_common_config_ :: Ui.M m => Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_common_config_ inst modify =
     modify_common_config inst $ \config -> (modify config, ())
 
-get_instrument_allocation :: State.M m => Score.Instrument
+get_instrument_allocation :: Ui.M m => Score.Instrument
     -> m StateConfig.Allocation
 get_instrument_allocation inst =
-    State.require ("no allocation for " <> pretty inst)
-        =<< State.allocation inst <#> State.get
+    Ui.require ("no allocation for " <> pretty inst)
+        =<< Ui.allocation inst <#> Ui.get
 
 
 -- * Cmd.EditState
@@ -403,7 +401,7 @@ change_instrument new_qualified = do
     track_id <- Cmd.require "must select an event track"
         =<< snd <$> Selection.track
     old_inst <- Cmd.require "must select an event track"
-        =<< ParseTitle.title_to_instrument <$> State.get_track_title track_id
+        =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id
     (_, common_config, midi_config) <- get_midi_config old_inst
     -- Replace the old instrument and reuse its addr.
     deallocate old_inst
@@ -411,13 +409,13 @@ change_instrument new_qualified = do
         (StateConfig.Midi midi_config)
     addr <- Cmd.require ("inst has no addr allocation: " <> pretty old_inst) $
         Seq.head $ Patch.config_addrs midi_config
-    State.set_track_title track_id (ParseTitle.instrument_to_title new_inst)
+    Ui.set_track_title track_id (ParseTitle.instrument_to_title new_inst)
     initialize_midi new_inst addr
     return ()
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
-    titles <- fmap (map State.track_title) (TrackTree.tracks_of block_id)
+    titles <- fmap (map Ui.track_title) (TrackTree.tracks_of block_id)
     return $ mapMaybe ParseTitle.title_to_instrument titles
 
 -- | Synths default to writing to a device with their name.  You'll have to
@@ -485,7 +483,7 @@ initialize_all :: Cmd.M m => m ()
 initialize_all = mapM_ initialize_inst =<< allocated
 
 -- | List allocated instruments that need initialization.
-need_initialization :: State.M m => m Text
+need_initialization :: Ui.M m => m Text
 need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
     where
     show1 inst = justm (lookup_midi_config inst) $ \(_, _, config) -> do

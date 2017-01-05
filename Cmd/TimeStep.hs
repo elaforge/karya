@@ -39,7 +39,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Ruler.Meter as Meter
 import Global
@@ -164,7 +164,7 @@ show_direction Rewind = "-"
 
 -- | Given a pos, the point on a timestep at or previous to that pos.  If
 -- there was no snap point, the pos is return unchanged.
-snap :: State.M m => TimeStep -> BlockId -> TrackNum
+snap :: Ui.M m => TimeStep -> BlockId -> TrackNum
     -> Maybe TrackTime -- ^ Last sel pos, needed to snap relative steps like
     -- 'Duration' and 'RelativeMark'.
     -> TrackTime -> m TrackTime
@@ -196,11 +196,11 @@ drop_before p (x:xs)
 
 -- * step
 
-rewind :: State.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
+rewind :: Ui.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
     -> m (Maybe TrackTime)
 rewind = step_from (-1)
 
-advance :: State.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
+advance :: Ui.M m => TimeStep -> BlockId -> TrackNum -> TrackTime
     -> m (Maybe TrackTime)
 advance = step_from 1
 
@@ -214,7 +214,7 @@ direction Rewind = -1
 -- should make sure to limit the value.  The reason is that this is also used
 -- to get e.g. the duration of a whole note at a given point, and that should
 -- work even if the given point is near the end of the ruler.
-step_from :: State.M m => Int -> TimeStep -> BlockId -> TrackNum
+step_from :: Ui.M m => Int -> TimeStep -> BlockId -> TrackNum
     -> TrackTime -> m (Maybe TrackTime)
 step_from steps tstep block_id tracknum start = extract <$>
     get_points_from (if steps >= 0 then Advance else Rewind) block_id tracknum
@@ -223,7 +223,7 @@ step_from steps tstep block_id tracknum start = extract <$>
     extract = Seq.head
         . if steps == 0 then id else drop (abs steps - 1) . dropWhile (==start)
 
-get_points_from :: State.M m => Direction -> BlockId -> TrackNum -> TrackTime
+get_points_from :: Ui.M m => Direction -> BlockId -> TrackNum -> TrackTime
     -> TimeStep -> m [TrackTime]
 get_points_from dir block_id tracknum start tstep =
     merge_points dir <$> mapM (get block_id tracknum start) (to_list tstep)
@@ -234,12 +234,12 @@ get_points_from dir block_id tracknum start tstep =
 
 -- | Step points ascending from the given time.  Includes the start
 -- point.
-ascending_points :: State.M m => BlockId -> TrackNum -> TrackTime -> Step
+ascending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
 ascending_points block_id tracknum start step =
     dropWhile (<start) <$> case step of
         Duration t -> do
-            end <- State.block_ruler_end block_id
+            end <- Ui.block_ruler_end block_id
             return $ Seq.range start end t
         AbsoluteMark match rank ->
             get_marks Advance False match rank start <$>
@@ -248,7 +248,7 @@ ascending_points block_id tracknum start step =
             shift . get_marks Advance True match rank start <$>
                 get_ruler block_id tracknum
         BlockEdge -> do
-            end <- State.block_ruler_end block_id
+            end <- Ui.block_ruler_end block_id
             return [0, end]
         EventStart tracks ->
             track_events Advance True block_id tracknum start tracks
@@ -262,7 +262,7 @@ ascending_points block_id tracknum start step =
 
 -- | Step points descending from the given time.  Includes the start
 -- point.
-descending_points :: State.M m => BlockId -> TrackNum -> TrackTime -> Step
+descending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
 descending_points block_id tracknum start step =
     dropWhile (>start) <$> case step of
@@ -274,7 +274,7 @@ descending_points block_id tracknum start step =
             shift . get_marks Rewind True match rank start <$>
                 get_ruler block_id tracknum
         BlockEdge -> do
-            end <- State.block_ruler_end block_id
+            end <- Ui.block_ruler_end block_id
             return [end, 0]
         EventStart tracks ->
             track_events Rewind True block_id tracknum start tracks
@@ -286,19 +286,19 @@ descending_points block_id tracknum start step =
         | p == start = p : ps
         | otherwise = map (+ (start-p)) (p:ps)
 
-track_events :: State.M m => Direction -> Bool
+track_events :: Ui.M m => Direction -> Bool
     -> BlockId -> TrackNum -> TrackTime -> Tracks -> m [TrackTime]
 track_events dir event_start block_id tracknum start tracks = case tracks of
     AllTracks -> do
-        track_ids <- State.track_ids_of block_id
+        track_ids <- Ui.track_ids_of block_id
         merge_points dir <$> mapM get_times track_ids
-    CurrentTrack -> get_times =<< State.get_event_track_at block_id tracknum
+    CurrentTrack -> get_times =<< Ui.get_event_track_at block_id tracknum
     TrackNums tracknums -> do
-        track_ids <- mapM (State.get_event_track_at block_id) tracknums
+        track_ids <- mapM (Ui.get_event_track_at block_id) tracknums
         merge_points dir <$> mapM get_times track_ids
     where
     event_time = if event_start then Event.start else Event.end
-    get_times = fmap (map event_time . get_events) . State.get_events
+    get_times = fmap (map event_time . get_events) . Ui.get_events
     get_events = case dir of
         Advance -> if event_start then Events.at_after start
             else snd . Events.split_at_before start
@@ -342,8 +342,7 @@ get_marks dir minus1 match rank start marklists =
         where marks = with_rank $ Ruler.descending start mlist
     with_rank = map fst . filter ((<=rank) . Ruler.mark_rank . snd)
 
-get_ruler :: State.M m => BlockId -> TrackNum -> m Ruler.Marklists
+get_ruler :: Ui.M m => BlockId -> TrackNum -> m Ruler.Marklists
 get_ruler block_id tracknum = do
-    ruler_id <- fromMaybe State.no_ruler <$>
-        State.ruler_track_at block_id tracknum
-    Ruler.ruler_marklists <$> State.get_ruler ruler_id
+    ruler_id <- fromMaybe Ui.no_ruler <$> Ui.ruler_track_at block_id tracknum
+    Ruler.ruler_marklists <$> Ui.get_ruler ruler_id

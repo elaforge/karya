@@ -20,8 +20,8 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Midi.Midi as Midi
-import qualified Ui.State as State
 import qualified Ui.StateConfig as StateConfig
+import qualified Ui.Ui as Ui
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Serialize
@@ -106,14 +106,14 @@ dump_git flag repo maybe_arg = do
         (untxt (Text.intercalate ", " names))
     Text.IO.putStrLn $ dump_score flag state
 
-dump_score :: Flag -> State.State -> Text
+dump_score :: Flag -> Ui.State -> Text
 dump_score flag = strip_name . format
     where
     format state = case flag of
         DumpAll -> Pretty.formatted state
         DumpAllocations -> Pretty.formatted $
-            StateConfig.config_allocations $ State.state_config state
-        DumpConfig -> Pretty.formatted $ State.state_config state
+            StateConfig.config_allocations $ Ui.state_config state
+        DumpConfig -> Pretty.formatted $ Ui.state_config state
 
 dump_midi :: Vector.Vector Midi.WriteMessage -> [Text]
 dump_midi = map Pretty.formatted . Vector.toList

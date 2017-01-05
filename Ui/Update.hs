@@ -113,7 +113,7 @@ data Track =
     | TrackRender !Track.RenderConfig
     deriving (Eq, Show)
 
--- | These are updates to 'Ui.State.State' that have no UI presence.
+-- | These are updates to 'Ui.Ui.State' that have no UI presence.
 data State =
     Config !StateConfig.Config
     | CreateBlock !BlockId !Block.Block
