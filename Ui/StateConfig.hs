@@ -68,6 +68,7 @@ data Config = Config {
     -- | If set, load local definitions from this file.  The filename is
     -- relative to the score directory, which is defined by the loading code.
     , config_ky_file :: !(Maybe FilePath)
+    , config_ky :: !Text
     } deriving (Eq, Show)
 
 -- Ui.State already has a function called 'namespace'.
@@ -89,6 +90,8 @@ saved_views = Lens.lens config_saved_views
     (\f r -> r { config_saved_views = f (config_saved_views r) })
 ky_file = Lens.lens config_ky_file
     (\f r -> r { config_ky_file = f (config_ky_file r) })
+ky = Lens.lens config_ky
+    (\f r -> r { config_ky = f (config_ky r) })
 
 -- | Unwrap the newtype for convenience.
 allocations_map :: Lens Config (Map.Map Score.Instrument Allocation)
@@ -108,6 +111,7 @@ empty_config = Config
     , config_default = empty_default
     , config_saved_views = mempty
     , config_ky_file = Nothing
+    , config_ky = ""
     }
 
 -- | Insert an allocation into 'config_allocations' while checking it for
@@ -293,7 +297,7 @@ empty_default = Default { default_tempo = 1 }
 
 instance Pretty.Pretty Config where
     format (Config namespace meta root global_transform allocations lily
-            default_ saved_views definition) =
+            default_ saved_views ky_file ky) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -302,8 +306,9 @@ instance Pretty.Pretty Config where
             , ("allocations", Pretty.format allocations)
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
-            , ("saved views", Pretty.format saved_views)
-            , ("definition file", Pretty.format definition)
+            , ("saved_views", Pretty.format saved_views)
+            , ("ky_file", Pretty.format ky_file)
+            , ("ky", Pretty.format ky)
             ]
 
 instance Pretty.Pretty Meta where

@@ -428,7 +428,9 @@ instance Monoid Fingerprint where
 
 fingerprint :: [(FilePath, Text)] -> Fingerprint
 fingerprint files =
-    Fingerprint fnames (List.foldl' CRC32.crc32Update 0 contents)
+    -- 'State.ky' gets "" for the filename.
+    Fingerprint (filter (not . null) fnames)
+        (List.foldl' CRC32.crc32Update 0 contents)
     where (fnames, contents) = unzip files
 
 initial_state :: Config -> State

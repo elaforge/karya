@@ -7,6 +7,7 @@ UNSORTED
     Cmd.State.  It seems inconsistent that UI state should get the "state"
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
     . Ui.Ui -> Ui.EventLoop.
+    . Ui.StateConfig -> Ui.UiConfig
   - More things for Global: Data.Map, Data.Set, List.foldl'
   * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:
@@ -237,7 +238,7 @@ UNSORTED
     . The only thing is that this doesn't display so compactly in logview.
     . I can also start using this for text-based score, and for nicer
       integration between textual and graphical score.
-  - Implement local_ky.
+  * Implement local_ky.
     . Like ky_file, but has the contents instead of a filename, has the text.
     . It can still import external .ky files, so it needs to be integrated
       with the cache.
@@ -253,6 +254,9 @@ UNSORTED
         than reading the whole file, and I do call Ky.update_cache on every
         respond cycle.  I could still use the fprint of the modification time.
     . Can I then replace ky_file with local_ky = "import 'file.ky'"?
+  - Get rid of state_ky_file, since I can replace it with "import 'x'".
+  - ky: Keep the defining file in a special slot in the call doc, so I can
+    print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?

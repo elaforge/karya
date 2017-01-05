@@ -133,7 +133,7 @@ get_library = do
     cache <- Cmd.gets Cmd.state_ky_cache
     case cache of
         Nothing -> return mempty
-        Just (Cmd.KyCache (Left err) _) -> Cmd.throw $ "get_library: " <> err
+        Just (Cmd.KyCache (Left err) _) -> Cmd.throw $ "parsing ky: " <> err
         Just (Cmd.KyCache (Right library) _) -> return library
         Just (Cmd.PermanentKy library) -> return library
 

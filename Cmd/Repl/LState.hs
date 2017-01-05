@@ -93,16 +93,24 @@ set_transform = State.modify_config . (State.global_transform #=)
 get_transform :: Cmd.CmdL Text
 get_transform = State.config#State.global_transform <#> State.get
 
-edit_transform :: Cmd.CmdL ReplProtocol.Result
-edit_transform = do
+transform :: Cmd.CmdL ReplProtocol.Result
+transform = do
     expr <- get_transform
     return $ ReplProtocol.Edit expr "LState.set_transform"
 
-transform :: (Text -> Text) -> Cmd.CmdL ()
-transform = State.modify_config . (State.global_transform %=)
+set_ky_file :: Maybe FilePath -> Cmd.CmdL ()
+set_ky_file = State.modify_config . (State.ky_file #=)
 
-set_ky :: Maybe FilePath -> Cmd.CmdL ()
-set_ky = State.modify_config . (State.ky_file #=)
+ky :: Cmd.CmdL ReplProtocol.Result
+ky = do
+    ky <- get_ky
+    return $ ReplProtocol.Edit ky "LState.set_ky"
+
+get_ky :: Cmd.CmdL Text
+get_ky = State.config#State.ky <#> State.get
+
+set_ky :: Text -> Cmd.CmdL ()
+set_ky = State.modify_config . (State.ky #=)
 
 -- ** meta
 

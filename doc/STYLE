@@ -26,12 +26,12 @@ named "note" or "Note" in the source!  This is borrowed from GHC and it seems
 to work for them.
 
 Modules are imported like 'import qualified A.B.C as C', with very few
-exceptions.  Therefore, toplevel variable names should generally not repeat the
-module name.  Preferably no two modules have the same file name, but if they
-do, they can be imported along with their directory name, e.g. 'import
-qualified A.B.C as B.C'.  They are sorted by the order in the '.fix-imports'
-file, and alphabetically after that.  The order is automatically enforced by
-the fix-imports tool.
+exceptions (notably, Global and Types).  Therefore, toplevel variable names
+should generally not repeat the module name.  Preferably no two modules have
+the same file name, but if they do, they can be imported along with their
+directory name, e.g. 'import qualified A.B.C as B.C'.  They are sorted by the
+order in the '.fix-imports' file, and alphabetically after that.  The order is
+automatically enforced by the fix-imports tool.
 
 Major high level types tend to go in a module with their own name.  Many types
 also often have a constructor with the lower cased name of the type which may
@@ -60,19 +60,15 @@ bound to a key, and it will get various default parameters from context and
 call the non-cmd_ prefixed version with more parameters.  Lately I've been
 omitting the prefix.
 
-Once I prefixed derivers with 'd_', but I don't do that any more and there are
-not many left.
-
 Calls begin with c_.  I use this convention pretty consistently, where the c_
 prefixed version has the documentation, signature, and any further arg
 parsing, and the non-prefixed version has the actual logic.
 
-Most types should be in Show, for debugging and interactive use.  Types that
-cannot use the automatic Show instance may derive their own.  If so, they
-should emit valid haskell syntax because non-valid syntax will break
+Most types should be in Show and Pretty, for debugging and interactive use.
+Types that cannot use the automatic Show instance may derive their own.  If so,
+they should emit valid haskell syntax because non-valid syntax will break
 'Util.PPrint.pshow'.  In this case, they are surrounded by double parens
-'((xyz))' to distinguish them from automatic instances.  Types that are likely
-to be used from the REPL should have a 'Util.Pretty.Pretty' instance.
+'((xyz))' to distinguish them from automatic instances.
 
 There's a convention where functions that look something up are prefixed with
 lookup_ if they return Nothing on failure, and get_ if they throw an exception

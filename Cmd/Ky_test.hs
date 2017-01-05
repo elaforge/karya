@@ -3,17 +3,22 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Ky_test where
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
+import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ky as Ky
 import qualified Cmd.PlayUtil as PlayUtil
 
+import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Parse as Parse
+
 import Global
 
 
@@ -46,6 +51,39 @@ test_ky_file = do
             ]
     equal (run defs [(">", [(0, 1, "with-a")])]) (["+a"], [])
     equal (run defs [(">", [(0, 1, "d |")])]) (["+a+b"], [])
+
+test_check_cache = do
+    let f ky_cache ky = Ky.check_cache
+            (State.config#State.ky #= ky $ State.empty)
+            (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
+        extract Nothing = Right Nothing
+        extract (Just (Cmd.KyCache lib (Cmd.Fingerprint fnames fprint))) =
+            case lib of
+                Left err -> Left err
+                Right lib -> Right $ Just (e_library lib, (fnames, fprint))
+        extract (Just (Cmd.PermanentKy lib)) =
+            Right $ Just (e_library lib, ([], 0))
+
+    io_equal (extract <$> f Nothing "") (Right Nothing)
+    let define_a = "note generator:\na = +a\n"
+    result <- f Nothing define_a
+    equal (extract result) (Right (Just (["a"], ([], 1304129647))))
+    -- No change, so don't update.
+    io_equal (extract <$> f result define_a) (Right Nothing)
+    -- Now it has changed.
+    io_equal (extract <$> f result "note generator:\nb = +b\n")
+        (Right (Just (["b"], ([], 1120727268))))
+
+    result <- f Nothing "error"
+    left_like (extract result) "expected eof"
+    -- But don't update after two errors in a row.
+    io_equal (extract <$> f result "error") (Right Nothing)
+
+    -- TODO track imported files
+
+e_library :: Derive.Library -> [BaseTypes.CallId]
+e_library lib = [name | Derive.LookupMap m <- gen, name <- Map.keys m]
+    where Derive.CallMaps gen _trans = Derive.lib_note lib
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text = Cmd.modify $ \st -> st

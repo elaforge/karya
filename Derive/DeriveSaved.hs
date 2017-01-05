@@ -161,14 +161,10 @@ load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
                 state <- require_right $ first pretty <$>
                     Save.read_state_ db fname
                 return (state, FilePath.takeDirectory fname)
-        case State.config#State.ky_file #$ state of
-            Nothing -> return (state, mempty)
-            Just ky_fname -> do
-                app_dir <- liftIO Config.get_app_dir
-                let paths = dir
-                        : map (Config.make_path app_dir) Config.ky_paths
-                (lib, _) <- tryRight =<< liftIO (Ky.load paths ky_fname)
-                return (state, lib)
+        app_dir <- liftIO Config.get_app_dir
+        let paths = dir : map (Config.make_path app_dir) Config.ky_paths
+        lib <- require_right $ Ky.load paths state
+        return (state, lib)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = tryRight =<< liftIO io

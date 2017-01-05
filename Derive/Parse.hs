@@ -444,27 +444,29 @@ is_whitespace c = c == ' ' || c == '\t'
 
 -- * definition file
 
--- | Load a ky file and all other files it imports.  'parse_ky' describes the
--- format of the ky file.
-load_ky :: [FilePath] -> FilePath
+-- | Parse ky text and load and parse all the files it imports.  'parse_ky'
+-- describes the format of the ky file.
+load_ky :: [FilePath] -> Text
     -> IO (Either Text (Definitions, [(FilePath, Text)]))
     -- ^ (all_definitions, [(import_filename, content)])
-load_ky paths fname =
-    catch_io (txt fname) $
-        fmap annotate . Except.runExceptT $ load Set.empty [fname]
+load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
     where
-    load _ [] = return []
-    load loaded (lib:libs)
-        | lib `Set.member` loaded = return []
-        | otherwise = do
-            (fname, content) <- expect_right =<< liftIO (find_ky paths lib)
-            (imports, defs) <- expect_right $ parse_ky fname content
-            ((defs, (fname, content)) :) <$>
-                load (Set.insert lib loaded) (libs ++ imports)
-    expect_right = either Except.throwError return
-    annotate (Left err) = Left $ txt fname <> ": " <> err
-    annotate (Right results) = Right (mconcat defs, loaded)
+    parse content = do
+        (imports, defs) <- tryRight $ parse_ky "" content
+        ((defs, ("", content)) :) <$> load_ky_file paths Set.empty imports
+    annotate results = (mconcat defs, loaded)
         where (defs, loaded) = unzip results
+
+load_ky_file :: [FilePath] -> Set.Set FilePath -> [FilePath]
+    -> Except.ExceptT Text IO [(Definitions, (FilePath, Text))]
+load_ky_file _ _ [] = return []
+load_ky_file paths loaded (lib:libs)
+    | lib `Set.member` loaded = return []
+    | otherwise = do
+        (fname, content) <- tryRight =<< liftIO (find_ky paths lib)
+        (imports, defs) <- tryRight $ parse_ky fname content
+        ((defs, (fname, content)) :) <$>
+            load_ky_file paths (Set.insert lib loaded) (libs ++ imports)
 
 -- | Find the file in the given paths and return its filename and contents.
 find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Text))

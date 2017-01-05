@@ -2,26 +2,24 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Load ky files, which are separate files containing call definitions.
 -- The syntax is defined by 'Parse.parse_ky'.
 module Cmd.Ky (
     update_cache
     , load
     , compile_library
+#ifdef TESTING
+    , module Cmd.Ky
+#endif
 ) where
 import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
-
 import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
-import qualified Util.File as File
 import qualified Util.Log as Log
-
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
@@ -37,79 +35,81 @@ import qualified Derive.Sig as Sig
 import Global
 
 
--- | Update the definition cache by reading the per-score definition file.
+-- | Check if ky files have changed, and if they have, update
+-- 'Cmd.state_ky_cache' and clear the performances.
 update_cache :: State.State -> Cmd.State -> IO Cmd.State
-update_cache ui_state cmd_state = case ky_file of
-    Nothing
-        | Maybe.isNothing $ Cmd.state_ky_cache cmd_state ->
-            return cmd_state
-        | otherwise -> return $ cmd_state { Cmd.state_ky_cache = Nothing }
-    Just fname -> cached_load cmd_state fname >>= \x -> return $ case x of
+update_cache ui_state cmd_state = do
+    cache <- check_cache ui_state cmd_state
+    return $ case cache of
         Nothing -> cmd_state
-        Just (lib, timestamps) -> cmd_state
-            { Cmd.state_ky_cache = Just $ Cmd.KyCache lib timestamps
+        Just ky_cache -> cmd_state
+            { Cmd.state_ky_cache = Just ky_cache
             , Cmd.state_play = (Cmd.state_play cmd_state)
                 { Cmd.state_performance = mempty
                 , Cmd.state_current_performance = mempty
                 , Cmd.state_performance_threads = mempty
                 }
             }
-    where ky_file = State.config#State.ky_file #$ ui_state
 
--- | Load a definition file if the cache is out of date.  Nothing if the cache
--- is up to date.
-cached_load :: Cmd.State -> FilePath
-    -> IO (Maybe (Either Text Derive.Library, Cmd.Fingerprint))
-cached_load state fname = run $ case Cmd.state_ky_cache state of
-    Just (Cmd.PermanentKy _) -> return Nothing
-    _ -> do
-        dir <- tryJust ("need a SaveFile to find " <> showt fname) $
-            Cmd.state_save_dir state
-        let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
-        new_fprint <- tryRight =<< liftIO (get_fingerprint loaded_files)
-        let fresh = new_fprint == old_fprint
-                && not (null loaded_files)
-                -- If loaded_files = [], then I have to always try to load
-                -- to detect the no ky -> ky transition.
-        if fresh then return Nothing else do
-            (lib, fingerprint) <- tryRight =<< liftIO (load paths fname)
-            return $ Just (Right lib, fingerprint)
+-- | Reload the ky files if they're out of date, Nothing if no reload is
+-- needed.
+check_cache :: State.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
+check_cache ui_state cmd_state = run $ do
+    when is_permanent abort
+    (defs, imported) <- try $
+        Parse.load_ky (state_ky_paths cmd_state) (state_ky ui_state)
+    -- This uses the contents of all the files for the fingerprint, which
+    -- means it has to read and parse them on each respond cycle.  If this
+    -- turns out to be too expensive, I can go back to the modification time
+    -- like I had before.
+    let fingerprint = Cmd.fingerprint imported
+    when (fingerprint == old_fingerprint) abort
+    let lib = compile_library defs
+    write_update_logs (map fst imported) lib
+    return (lib, fingerprint)
     where
-    run = fmap map_error . Except.runExceptT
-    map_error (Left msg) = case Cmd.state_ky_cache state of
-        -- If it failed last time then don't replace the error.  Otherwise,
-        -- 'update_cache' will clear the performance and I'll get an endless
-        -- loop.
-        Just (Cmd.KyCache (Left _) _) -> Nothing
-        _ -> Just (Left msg, mempty)
-    map_error (Right val) = val
+    is_permanent = case Cmd.state_ky_cache cmd_state of
+        Just (Cmd.PermanentKy {}) -> True
+        _ -> False
+    old_fingerprint = case Cmd.state_ky_cache cmd_state of
+        Just (Cmd.KyCache _ fprint) -> fprint
+        _ -> mempty
+    -- If it failed last time then don't replace the error.  Otherwise, I'll
+    -- continually clear the performance and get an endless loop.
+    failed_previously = case Cmd.state_ky_cache cmd_state of
+        Just (Cmd.KyCache (Left _) _) -> True
+        _ -> False
 
-    old_fprint@(Cmd.Fingerprint loaded_files _) =
-        case Cmd.state_ky_cache state of
-            Just (Cmd.KyCache _ fprint) -> fprint
-            _ -> mempty
+    abort = Except.throwError Nothing
+    try action = tryRight . first Just =<< liftIO action
+    run = fmap apply . Except.runExceptT
+    apply (Left Nothing) = Nothing
+    apply (Left (Just err))
+        | failed_previously = Nothing
+        | otherwise = Just $ Cmd.KyCache (Left err) mempty
+    apply (Right (lib, fingerprint)) =
+        Just $ Cmd.KyCache (Right lib) fingerprint
 
-get_fingerprint :: [FilePath] -> IO (Either Text Cmd.Fingerprint)
-get_fingerprint fns = fmap map_error . File.tryIO $ do
-    contents <- mapM (liftIO . File.ignoreEnoent . Text.IO.readFile) fns
-    return $
-        Cmd.fingerprint [(fn, content) | (fn, Just content) <- zip fns contents]
+load :: [FilePath] -> State.State -> IO (Either Text Derive.Library)
+load paths =
+    fmap (fmap (compile_library . fst)) . Parse.load_ky paths . state_ky
+
+write_update_logs :: Log.LogMonad m => [FilePath] -> Derive.Library -> m ()
+write_update_logs imports lib = do
+    let files = map (txt . FilePath.takeFileName) $ filter (not . null) imports
+    Log.notice $ "reloaded ky " <> pretty files
+    forM_ (Library.shadowed lib) $ \((call_type, _module), calls) ->
+        Log.warn $ call_type <> " shadowed: " <> pretty calls
+
+state_ky :: State.State -> Text
+state_ky state = maybe "" to_import ky_file <> (State.config#State.ky #$ state)
     where
-    map_error = first (("get_fingerprint: "<>) . showt)
+    ky_file = State.config#State.ky_file #$ state
+    to_import fname = "import '" <> txt fname <> "'\n"
 
-load :: [FilePath] -> FilePath
-    -> IO (Either Text (Derive.Library, Cmd.Fingerprint))
-load paths fname = Parse.load_ky paths fname >>= \result -> case result of
-    Left err -> return $ Left err
-    Right (defs, imported) -> do
-        Log.notice $ "imported definitions from "
-            <> Text.intercalate ", "
-                (map (txt . FilePath.takeFileName . fst) imported)
-        let lib = compile_library defs
-        forM_ (Library.shadowed lib) $ \((name, _), calls) ->
-            Log.warn $ "definitions in " <> showt fname
-                <> " " <> name <> " shadowed: " <> pretty calls
-        return $ Right (lib, Cmd.fingerprint imported)
+state_ky_paths :: Cmd.State -> [FilePath]
+state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
+    (Cmd.config_ky_paths (Cmd.state_config cmd_state))
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val aliases) =

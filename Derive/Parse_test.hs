@@ -250,7 +250,8 @@ test_load_ky = do
 
     let write imports =
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
+    let load = (untxt *** first extract)
+            <$> Parse.load_ky [dir, lib] "import 'defs'"
         extract = map (fst . snd) . fst . Parse.def_note
     write ["z1"]
     v <- load
@@ -265,7 +266,8 @@ test_load_ky = do
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
     io_equal load $ Right
         ( ["defs-call", "lib1-call", "lib2-call"]
-        , [ (dir </> "defs", defs)
+        , [ ("", "import 'defs'")
+          , (dir </> "defs", defs)
           , (lib </> "lib1", lib1)
           , (lib </> "lib2", lib2)
           ]
