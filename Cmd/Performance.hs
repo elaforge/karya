@@ -31,7 +31,7 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -263,12 +263,12 @@ evaluate_im maybe_im_config lookup_inst events
         Just (Inst.Inst (Inst.Im {}) _) -> True
         _ -> False
 
--- | If there are no StateConfig.Im instruments, then I don't need to bother to
+-- | If there are no UiConfig.Im instruments, then I don't need to bother to
 -- partition out its events.  However, it means I won't get errors if there
 -- happen to be any, but I'll worry about that if it becomes a problem.
-im_allocated :: StateConfig.Allocations -> Bool
-im_allocated (StateConfig.Allocations allocs) =
-    any ((==StateConfig.Im) . StateConfig.alloc_backend) (Map.elems allocs)
+im_allocated :: UiConfig.Allocations -> Bool
+im_allocated (UiConfig.Allocations allocs) =
+    any ((==UiConfig.Im) . UiConfig.alloc_backend) (Map.elems allocs)
 
 -- | Make a broken performance with just an error msg.  This ensures that
 -- the msg is logged when you try to play, but will still suppress further

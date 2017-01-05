@@ -6,7 +6,7 @@
 module Local.Instrument.Kontakt.Wayang where
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
@@ -85,19 +85,19 @@ patches = map (MidiInst.code #= code <> with_weak)
 -- There are two pasang instruments, which then rely on the kotekan calls to
 -- split into inst-polos and inst-sangsih.  This uses the traditional setup
 -- with polos on umbang.
-allocations :: Text -> StateConfig.Allocations
+allocations :: Text -> UiConfig.Allocations
 allocations dev_ = MidiInst.allocations
     [ ("p", "kontakt/wayang-pemade", pasang "p-umbang" "p-isep",
-        StateConfig.Dummy)
+        UiConfig.Dummy)
     , ("k", "kontakt/wayang-kantilan", pasang "k-umbang" "k-isep",
-        StateConfig.Dummy)
+        UiConfig.Dummy)
     , ("p-umbang", "kontakt/wayang-umbang", id, midi_channel 0)
     , ("p-isep", "kontakt/wayang-isep", id, midi_channel 1)
     , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 2)
     , ("k-isep", "kontakt/wayang-isep", id, midi_channel 3)
     ]
     where
-    midi_channel chan = StateConfig.Midi (MidiInst.config1 dev chan)
+    midi_channel chan = UiConfig.Midi (MidiInst.config1 dev chan)
     pasang polos sangsih = Common.add_environ Gangsa.inst_polos (inst polos)
         . Common.add_environ Gangsa.inst_sangsih (inst sangsih)
     dev = Midi.write_device dev_

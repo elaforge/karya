@@ -18,7 +18,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -54,16 +54,15 @@ import Types
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
-lookup_allocation :: Ui.M m => Util.Instrument
-    -> m (Maybe StateConfig.Allocation)
+lookup_allocation :: Ui.M m => Util.Instrument -> m (Maybe UiConfig.Allocation)
 lookup_allocation inst = Ui.allocation (Util.instrument inst) <#> Ui.get
 
-get_allocation :: Ui.M m => Util.Instrument -> m StateConfig.Allocation
+get_allocation :: Ui.M m => Util.Instrument -> m UiConfig.Allocation
 get_allocation = get_instrument_allocation . Util.instrument
 
 -- | List all allocated instruments.
 allocated :: Ui.M m => m [Score.Instrument]
-allocated = Ui.get_config $ Map.keys . (StateConfig.allocations_map #$)
+allocated = Ui.get_config $ Map.keys . (UiConfig.allocations_map #$)
 
 -- | List all allocated instrument configs all purty-like.
 list :: Cmd.M m => m Text
@@ -87,22 +86,21 @@ list_like pattern = do
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
 
-pretty_alloc :: Maybe Patch.Patch -> Score.Instrument -> StateConfig.Allocation
+pretty_alloc :: Maybe Patch.Patch -> Score.Instrument -> UiConfig.Allocation
     -> [Text]
 pretty_alloc maybe_patch inst alloc =
     [ ShowVal.show_val inst
-    , InstTypes.show_qualified (StateConfig.alloc_qualified alloc)
-    , case StateConfig.alloc_backend alloc of
-        StateConfig.Midi config ->
-            Info.show_addrs (Patch.config_addrs config)
-        StateConfig.Im -> "音"
-        StateConfig.Dummy -> "(dummy)"
+    , InstTypes.show_qualified (UiConfig.alloc_qualified alloc)
+    , case UiConfig.alloc_backend alloc of
+        UiConfig.Midi config -> Info.show_addrs (Patch.config_addrs config)
+        UiConfig.Im -> "音"
+        UiConfig.Dummy -> "(dummy)"
     -- Put flags in their own column to make them obvious.
-    , show_flags (StateConfig.alloc_config alloc)
+    , show_flags (UiConfig.alloc_config alloc)
     , join
-        [ show_common_config (StateConfig.alloc_config alloc)
-        , case StateConfig.alloc_backend alloc of
-            StateConfig.Midi config -> show_midi_config config
+        [ show_common_config (UiConfig.alloc_config alloc)
+        , case UiConfig.alloc_backend alloc of
+            UiConfig.Midi config -> show_midi_config config
             _ -> ""
         ]
     ]
@@ -149,7 +147,7 @@ show_scale scale = "scale " <> Patch.scale_name scale <> " "
     <> showt (length (Patch.scale_nns Nothing scale)) <> " keys"
 
 -- | Instrument allocations.
-allocations :: Ui.M m => m StateConfig.Allocations
+allocations :: Ui.M m => m UiConfig.Allocations
 allocations = Ui.config#Ui.allocations <#> Ui.get
 
 -- * add and remove
@@ -180,14 +178,14 @@ add_config inst qualified allocs = do
         . Inst.inst_midi =<< Cmd.get_qualified qualified
     let config = Patch.patch_to_config patch allocs
     allocate (Util.instrument inst) $
-        StateConfig.allocation qualified (StateConfig.Midi config)
+        UiConfig.allocation qualified (UiConfig.Midi config)
 
 -- | Allocate a new Im instrument.
 add_im :: Instrument -> Qualified -> Cmd.CmdL ()
 add_im inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
-        StateConfig.allocation qualified StateConfig.Im
+        UiConfig.allocation qualified UiConfig.Im
 
 -- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
@@ -199,16 +197,16 @@ add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
 add_dummy inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
-        StateConfig.allocation qualified StateConfig.Dummy
+        UiConfig.allocation qualified UiConfig.Dummy
 
 -- | All allocations should go through this to verify their validity, unless
 -- it's modifying an existing allocation and not changing the Qualified name.
-allocate :: Cmd.M m => Score.Instrument -> StateConfig.Allocation -> m ()
+allocate :: Cmd.M m => Score.Instrument -> UiConfig.Allocation -> m ()
 allocate score_inst alloc = do
-    inst <- Cmd.get_qualified (StateConfig.alloc_qualified alloc)
+    inst <- Cmd.get_qualified (UiConfig.alloc_qualified alloc)
     allocs <- Ui.config#Ui.allocations <#> Ui.get
     allocs <- Cmd.require_right id $
-        StateConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
+        UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
     Ui.modify_config $ Ui.allocations #= allocs
 
 -- | Remove an instrument allocation.
@@ -221,20 +219,20 @@ deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 -- | Merge the given configs into the existing one.  This also merges
 -- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
 -- that create Allocations don't have to find the relevant Patch.
-merge :: Cmd.M m => StateConfig.Allocations -> m ()
-merge (StateConfig.Allocations alloc_map) = do
+merge :: Cmd.M m => UiConfig.Allocations -> m ()
+merge (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
-    insts <- mapM (Cmd.get_qualified . StateConfig.alloc_qualified) allocs
+    insts <- mapM (Cmd.get_qualified . UiConfig.alloc_qualified) allocs
     merged <- Cmd.require_right id $
         mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
     let errors = mapMaybe verify (zip3 names merged insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
     Ui.modify_config $ Ui.allocations
-        %= (StateConfig.Allocations (Map.fromList (zip names merged)) <>)
+        %= (UiConfig.Allocations (Map.fromList (zip names merged)) <>)
     where
     verify (name, alloc, inst) =
-        StateConfig.verify_allocation (Inst.inst_backend inst) name alloc
+        UiConfig.verify_allocation (Inst.inst_backend inst) name alloc
 
 -- * modify
 
@@ -244,7 +242,7 @@ rename from to = do
     alloc <- get_allocation from
     Ui.modify_config $ Ui.allocations %= rename alloc
     where
-    rename alloc (StateConfig.Allocations allocs) = StateConfig.Allocations $
+    rename alloc (UiConfig.Allocations allocs) = UiConfig.Allocations $
         Map.insert (Util.instrument to) alloc $
         Map.delete (Util.instrument from) allocs
 
@@ -331,10 +329,10 @@ get_midi_config inst =
 lookup_midi_config :: Ui.M m => Score.Instrument
     -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
 lookup_midi_config inst = do
-    StateConfig.Allocation qualified config backend
+    UiConfig.Allocation qualified config backend
         <- get_instrument_allocation inst
     return $ case backend of
-        StateConfig.Midi midi_config -> Just (qualified, config, midi_config)
+        UiConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
 
 modify_config :: Ui.M m => Instrument
@@ -344,8 +342,7 @@ modify_config inst_ modify = do
     let inst = Util.instrument inst_
     (qualified, common, midi) <- get_midi_config inst
     let ((new_common, new_midi), result) = modify common midi
-        new = StateConfig.Allocation qualified new_common
-            (StateConfig.Midi new_midi)
+        new = UiConfig.Allocation qualified new_common (UiConfig.Midi new_midi)
     Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
@@ -359,8 +356,8 @@ modify_common_config :: Ui.M m => Instrument
 modify_common_config inst_ modify = do
     let inst = Util.instrument inst_
     alloc <- get_instrument_allocation inst
-    let (config, result) = modify (StateConfig.alloc_config alloc)
-        new = alloc { StateConfig.alloc_config = config }
+    let (config, result) = modify (UiConfig.alloc_config alloc)
+        new = alloc { UiConfig.alloc_config = config }
     Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
@@ -369,8 +366,7 @@ modify_common_config_ :: Ui.M m => Instrument
 modify_common_config_ inst modify =
     modify_common_config inst $ \config -> (modify config, ())
 
-get_instrument_allocation :: Ui.M m => Score.Instrument
-    -> m StateConfig.Allocation
+get_instrument_allocation :: Ui.M m => Score.Instrument -> m UiConfig.Allocation
 get_instrument_allocation inst =
     Ui.require ("no allocation for " <> pretty inst)
         =<< Ui.allocation inst <#> Ui.get
@@ -405,8 +401,8 @@ change_instrument new_qualified = do
     (_, common_config, midi_config) <- get_midi_config old_inst
     -- Replace the old instrument and reuse its addr.
     deallocate old_inst
-    allocate new_inst $ StateConfig.Allocation new_qualified common_config
-        (StateConfig.Midi midi_config)
+    allocate new_inst $ UiConfig.Allocation new_qualified common_config
+        (UiConfig.Midi midi_config)
     addr <- Cmd.require ("inst has no addr allocation: " <> pretty old_inst) $
         Seq.head $ Patch.config_addrs midi_config
     Ui.set_track_title track_id (ParseTitle.instrument_to_title new_inst)

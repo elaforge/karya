@@ -86,7 +86,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -399,11 +399,11 @@ from_realtime block_id repeat_at start_ = do
 lookup_play_cache_addr :: Ui.M m => m (Maybe Patch.Addr)
 lookup_play_cache_addr = do
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
-    let is_im = (==Im.Play.qualified) . StateConfig.alloc_qualified
+    let is_im = (==Im.Play.qualified) . UiConfig.alloc_qualified
     case List.find is_im (Map.elems allocs) of
         Nothing -> return Nothing
-        Just alloc -> case StateConfig.alloc_backend alloc of
-            StateConfig.Midi config -> case Patch.config_addrs config of
+        Just alloc -> case UiConfig.alloc_backend alloc of
+            UiConfig.Midi config -> case Patch.config_addrs config of
                 [] -> Ui.throw $
                     pretty Im.Play.qualified <> " allocation with no addrs"
                 addr : _ -> return $ Just addr

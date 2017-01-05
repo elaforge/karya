@@ -8,7 +8,7 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -114,7 +114,7 @@ pitched_keymap_patch scale =
 set_midi_config :: Cmd.M m => Cmd.InstrumentDb -> (Patch.Config -> Patch.Config)
     -> m ()
 set_midi_config inst_db modify_config = do
-    Ui.modify_config $ StateConfig.allocations
+    Ui.modify_config $ UiConfig.allocations
         %= UiTest.modify_midi_config "i1" modify_config
     Cmd.modify $ \st -> st
         { Cmd.state_config = (Cmd.state_config st)

@@ -8,7 +8,7 @@ import qualified Data.List as List
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Attrs as Attrs
@@ -286,7 +286,7 @@ modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
 modify_config inst modify = Ui.allocation inst %= fmap update
     where
     update alloc = alloc
-        { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }
+        { UiConfig.alloc_config = modify (UiConfig.alloc_config alloc) }
 
 test_kempyung = do
     let run title = DeriveTest.extract extract . derive (title <> " | kempyung")

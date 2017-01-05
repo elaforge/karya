@@ -51,7 +51,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
@@ -251,21 +251,21 @@ upgrade_state db state = Identity.runIdentity $ Log.run $ do
                     <> " to: " <> pretty (alloc_settings new)
                 return new
         else return alloc
-    return $ Ui.config#StateConfig.allocations
-        #= StateConfig.Allocations upgraded $ state
+    return $ Ui.config#UiConfig.allocations
+        #= UiConfig.Allocations upgraded $ state
     where
-    StateConfig.Allocations allocs = Ui.config#Ui.allocations #$ state
+    UiConfig.Allocations allocs = Ui.config#Ui.allocations #$ state
     is_old = maybe False (Cmd.Serialize.is_old_settings . Patch.config_settings)
-        . StateConfig.midi_config . StateConfig.alloc_backend
+        . UiConfig.midi_config . UiConfig.alloc_backend
 
-alloc_settings :: StateConfig.Allocation -> Maybe Patch.Settings
-alloc_settings = fmap Patch.config_settings . StateConfig.midi_config
-    . StateConfig.alloc_backend
+alloc_settings :: UiConfig.Allocation -> Maybe Patch.Settings
+alloc_settings = fmap Patch.config_settings . UiConfig.midi_config
+    . UiConfig.alloc_backend
 
-upgrade_allocation :: Cmd.InstrumentDb -> StateConfig.Allocation
-    -> Either Text StateConfig.Allocation
+upgrade_allocation :: Cmd.InstrumentDb -> UiConfig.Allocation
+    -> Either Text UiConfig.Allocation
 upgrade_allocation db alloc =
-    case Inst.lookup (StateConfig.alloc_qualified alloc) db of
+    case Inst.lookup (UiConfig.alloc_qualified alloc) db of
         Just inst -> MidiInst.merge_defaults inst alloc
         Nothing -> Left "no inst for alloc"
 

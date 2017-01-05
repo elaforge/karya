@@ -28,7 +28,7 @@ import qualified Util.Vector
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -232,16 +232,16 @@ perform_events_list events = do
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.
-filter_instrument_muted :: StateConfig.Allocations -> [Score.Event]
+filter_instrument_muted :: UiConfig.Allocations -> [Score.Event]
     -> [Score.Event]
-filter_instrument_muted (StateConfig.Allocations allocs)
+filter_instrument_muted (UiConfig.Allocations allocs)
     | not (Set.null soloed) = filter $
         (`Set.member` soloed) . Score.event_instrument
     | not (Set.null muted) = filter $
         (`Set.notMember` muted) . Score.event_instrument
     | otherwise = id
     where
-    configs = map (second StateConfig.alloc_config) (Map.toList allocs)
+    configs = map (second UiConfig.alloc_config) (Map.toList allocs)
     soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
     muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
 
@@ -307,15 +307,15 @@ solo_to_mute tree blocks soloed = Set.fromList
             (Block.block_tracks block)
         ]
 
-midi_configs :: StateConfig.Allocations -> Map.Map Score.Instrument Patch.Config
-midi_configs (StateConfig.Allocations allocs) = Map.fromAscList
+midi_configs :: UiConfig.Allocations -> Map.Map Score.Instrument Patch.Config
+midi_configs (UiConfig.Allocations allocs) = Map.fromAscList
     [ (inst, config)
     | (inst, alloc) <- Map.toAscList allocs
-    , Just config <- [midi_config (StateConfig.alloc_backend alloc)]
+    , Just config <- [midi_config (UiConfig.alloc_backend alloc)]
     ]
 
-midi_config :: StateConfig.Backend -> Maybe Patch.Config
-midi_config (StateConfig.Midi a) = Just a
+midi_config :: UiConfig.Backend -> Maybe Patch.Config
+midi_config (UiConfig.Midi a) = Just a
 midi_config _ = Nothing
 
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
@@ -331,4 +331,4 @@ get_convert_lookup = do
         }
     where
     lookup_config inst allocs =
-        midi_config . StateConfig.alloc_backend =<< Map.lookup inst allocs
+        midi_config . UiConfig.alloc_backend =<< Map.lookup inst allocs

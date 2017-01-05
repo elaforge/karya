@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -30,9 +30,9 @@ test_respond = do
             UiTest.note_spec
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
         add_allocation = Ui.config#Ui.allocations #= allocs
-        allocs = StateConfig.Allocations $ Map.fromList
-            [ (Score.Instrument "im", StateConfig.allocation
-                (InstTypes.Qualified "sampler" "inst") StateConfig.Im)
+        allocs = UiConfig.Allocations $ Map.fromList
+            [ (Score.Instrument "im", UiConfig.allocation
+                (InstTypes.Qualified "sampler" "inst") UiConfig.Im)
             ]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)

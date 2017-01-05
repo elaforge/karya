@@ -35,7 +35,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
@@ -54,7 +54,7 @@ import Global
 import Types
 
 
-allocations_magic :: Serialize.Magic StateConfig.Allocations
+allocations_magic :: Serialize.Magic UiConfig.Allocations
 allocations_magic = Serialize.Magic 'a' 'l' 'l' 'o'
 
 score_magic :: Serialize.Magic Ui.State
@@ -93,7 +93,7 @@ instance Serialize Ui.Config where
             meta :: Ui.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
-            insts :: StateConfig.Allocations <- get
+            insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: Ui.Default <- get
             saved_views :: Ui.SavedViews <- get
@@ -106,7 +106,7 @@ instance Serialize Ui.Config where
             meta :: Ui.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
-            insts :: StateConfig.Allocations <- get
+            insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
             defaults :: Ui.Default <- get
             saved_views :: Ui.SavedViews <- get
@@ -115,39 +115,39 @@ instance Serialize Ui.Config where
                 defaults saved_views ky
         _ -> Serialize.bad_version "Ui.Config" v
 
-instance Serialize.Serialize StateConfig.Allocations where
-    put (StateConfig.Allocations a) = Serialize.put_version 1 >> put a
+instance Serialize.Serialize UiConfig.Allocations where
+    put (UiConfig.Allocations a) = Serialize.put_version 1 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             1 -> do
-                configs :: Map.Map Score.Instrument StateConfig.Allocation
+                configs :: Map.Map Score.Instrument UiConfig.Allocation
                     <- get
-                return $ StateConfig.Allocations configs
-            _ -> Serialize.bad_version "StateConfig.Allocations" v
+                return $ UiConfig.Allocations configs
+            _ -> Serialize.bad_version "UiConfig.Allocations" v
 
-instance Serialize StateConfig.Allocation where
-    put (StateConfig.Allocation a b c) =
+instance Serialize UiConfig.Allocation where
+    put (UiConfig.Allocation a b c) =
         Serialize.put_version 0 >> put a >> put b >> put c
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             qualified :: InstTypes.Qualified <- get
             config :: Common.Config <- get
-            backend :: StateConfig.Backend <- get
-            return $ StateConfig.Allocation qualified config backend
-        _ -> Serialize.bad_version "StateConfig.Allocation" v
+            backend :: UiConfig.Backend <- get
+            return $ UiConfig.Allocation qualified config backend
+        _ -> Serialize.bad_version "UiConfig.Allocation" v
 
-instance Serialize StateConfig.Backend where
-    put (StateConfig.Midi a) = put_tag 0 >> put a
-    put StateConfig.Im = put_tag 1
-    put StateConfig.Dummy = put_tag 2
+instance Serialize UiConfig.Backend where
+    put (UiConfig.Midi a) = put_tag 0 >> put a
+    put UiConfig.Im = put_tag 1
+    put UiConfig.Dummy = put_tag 2
     get = get_tag >>= \tag -> case tag of
         0 -> do
             config :: Patch.Config <- get
-            return $ StateConfig.Midi config
-        1 -> return StateConfig.Im
-        2 -> return StateConfig.Dummy
-        _ -> bad_tag "StateConfig.Backend" tag
+            return $ UiConfig.Midi config
+        1 -> return UiConfig.Im
+        2 -> return UiConfig.Dummy
+        _ -> bad_tag "UiConfig.Backend" tag
 
 instance Serialize Common.Config where
     put (Common.Config a b c d) = Serialize.put_version 0

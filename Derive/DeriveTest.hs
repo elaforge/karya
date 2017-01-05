@@ -26,7 +26,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
@@ -134,7 +134,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         UiTest.default_allocations (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Lookup -> StateConfig.Allocations -> Stream.Stream Score.Event
+perform :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup allocations events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
@@ -146,8 +146,7 @@ perform_defaults :: Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_allocations
 
-perform_stream :: Lookup -> StateConfig.Allocations
-    -> Stream.Stream Score.Event
+perform_stream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
 perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     where
@@ -156,7 +155,7 @@ perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocations
 
 -- | Perform events with the given instrument db.
-perform_synths :: StateConfig.Allocations -> [MidiInst.Synth]
+perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_synths allocations synths =
@@ -343,8 +342,8 @@ with_transform = with_ui . (Ui.config#Ui.global_transform #=)
 with_midi_config :: Text -> Text -> Common.Config -> Patch.Config -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
     Ui.config#Ui.allocations_map %= Map.insert (Score.instrument inst)
-        (StateConfig.Allocation (InstTypes.parse_qualified qualified)
-            common_config (StateConfig.Midi midi_config))
+        (UiConfig.Allocation (InstTypes.parse_qualified qualified)
+            common_config (UiConfig.Midi midi_config))
 
 -- * setup_deriver
 
@@ -384,18 +383,18 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 
 -- | Derive with a bit of a real instrument db.  Useful for testing instrument
 -- calls.
-with_synths :: StateConfig.Allocations -> [MidiInst.Synth] -> Setup
+with_synths :: UiConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
 
 -- | Merge the incomplete Allocations with the Patch defaults.  Crash if it
 -- doesn't like you.  TODO unused... maybe I don't really need this?
-merge_allocs :: CallStack.Stack => [MidiInst.Synth] -> StateConfig.Allocations
-    -> StateConfig.Allocations
-merge_allocs synths (StateConfig.Allocations allocs) =
-    StateConfig.Allocations (merge <$> allocs)
+merge_allocs :: CallStack.Stack => [MidiInst.Synth] -> UiConfig.Allocations
+    -> UiConfig.Allocations
+merge_allocs synths (UiConfig.Allocations allocs) =
+    UiConfig.Allocations (merge <$> allocs)
     where
     merge alloc =
-        case Inst.lookup (StateConfig.alloc_qualified alloc) db of
+        case Inst.lookup (UiConfig.alloc_qualified alloc) db of
             Just inst ->
                 Testing.expect_right $ MidiInst.merge_defaults inst alloc
             Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
@@ -414,7 +413,7 @@ with_patch configure_patch name =
     synth = UiTest.make_synth name [patch]
     patch = configure_patch $ MidiInst.make_patch $ UiTest.make_patch ""
 
-with_instrument_db :: StateConfig.Allocations -> Cmd.InstrumentDb -> Setup
+with_instrument_db :: UiConfig.Allocations -> Cmd.InstrumentDb -> Setup
 with_instrument_db allocs db = with_allocations allocs <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
@@ -422,8 +421,7 @@ with_instrument_db allocs db = with_allocations allocs <> with_db
 
 -- | Use the db to infer 'Patch.Settings' for the allocations.  The simple
 -- version doesn't record the Patch.config_settings, so I get the defaults.
-allocs_from_db :: Cmd.InstrumentDb -> Simple.Allocations
-    -> StateConfig.Allocations
+allocs_from_db :: Cmd.InstrumentDb -> Simple.Allocations -> UiConfig.Allocations
 allocs_from_db db allocs = Testing.expect_right $
         Simple.allocations (lookup_settings db) allocs
 
@@ -432,7 +430,7 @@ allocs_from_db db allocs = Testing.expect_right $
 type SimpleAllocations = [(Text, Text)]
 
 simple_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
-    -> StateConfig.Allocations
+    -> UiConfig.Allocations
 simple_allocs_from_db db allocs =
     allocs_from_db db
         [ (inst, (qual, [(UiTest.wdev_name, chan)]))
@@ -449,7 +447,7 @@ lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
     -> Maybe Cmd.Inst
 lookup_qualified = flip Inst.lookup
 
-with_allocations :: StateConfig.Allocations -> Setup
+with_allocations :: UiConfig.Allocations -> Setup
 with_allocations allocations =
     with_ui $ Ui.config#Ui.allocations %= (allocations <>)
 
@@ -516,7 +514,7 @@ synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
 synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
     where db = synths_to_db synth
 
-synths_to_convert_lookup :: StateConfig.Allocations -> [MidiInst.Synth]
+synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth]
     -> Lookup
 synths_to_convert_lookup allocs = make_convert_lookup allocs . synths_to_db
 
@@ -532,11 +530,11 @@ make_convert_lookup_for :: Score.Instrument -> Patch.Config -> Patch.Patch
 make_convert_lookup_for inst patch_config patch =
     make_convert_lookup allocs inst_db
     where
-    allocs = StateConfig.midi_allocations
+    allocs = UiConfig.midi_allocations
         [(inst, (InstTypes.Qualified "s" "1", patch_config))]
     inst_db = UiTest.make_db [("s", [patch { Patch.patch_name = "1" }])]
 
-make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
+make_convert_lookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
     run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $
         (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup

@@ -18,7 +18,7 @@ import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -61,7 +61,7 @@ type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 -- | (instrument, (qualified, [(device, chan)]))
 --
--- [] chans means it's StateConfig.Dummy.
+-- [] chans means it's UiConfig.Dummy.
 --
 -- This doesn't include 'Patch.config_settings', so it's assumed they're the
 -- same as 'Patch.patch_defaults'.
@@ -191,14 +191,14 @@ dump_selection = map (second (map event)) <$> Selection.events
 
 -- * allocations
 
-dump_allocations :: StateConfig.Allocations -> Allocations
-dump_allocations (StateConfig.Allocations allocs) = do
+dump_allocations :: UiConfig.Allocations -> Allocations
+dump_allocations (UiConfig.Allocations allocs) = do
     (inst, alloc) <- Map.toList allocs
-    let addrs = case StateConfig.alloc_backend alloc of
-            StateConfig.Midi config -> addrs_of config
-            StateConfig.Im -> []
-            StateConfig.Dummy -> []
-    let qualified = InstTypes.show_qualified $ StateConfig.alloc_qualified alloc
+    let addrs = case UiConfig.alloc_backend alloc of
+            UiConfig.Midi config -> addrs_of config
+            UiConfig.Im -> []
+            UiConfig.Dummy -> []
+    let qualified = InstTypes.show_qualified $ UiConfig.alloc_qualified alloc
     return (Score.instrument_name inst, (qualified, addrs))
     where
     addrs_of config =
@@ -207,19 +207,19 @@ dump_allocations (StateConfig.Allocations allocs) = do
         ]
 
 allocations :: (InstTypes.Qualified -> Maybe Patch.Settings) -> Allocations
-    -> Either Text StateConfig.Allocations
+    -> Either Text UiConfig.Allocations
 allocations lookup_settings =
-    fmap (StateConfig.Allocations . Map.fromList) . mapM make1
+    fmap (UiConfig.Allocations . Map.fromList) . mapM make1
     where
     make1 (inst, (qual, addrs)) = (Score.Instrument inst,) <$> alloc
         where
-        alloc = StateConfig.allocation qualified <$> backend
+        alloc = UiConfig.allocation qualified <$> backend
         qualified = InstTypes.parse_qualified qual
         backend = case addrs of
-            [] -> Right StateConfig.Dummy
+            [] -> Right UiConfig.Dummy
             _ -> case lookup_settings qualified of
                 Nothing -> Left $ "no patch for " <> pretty qualified
-                Just settings -> Right $ StateConfig.Midi $
+                Just settings -> Right $ UiConfig.Midi $
                     Patch.config settings
                         [ ((Midi.write_device dev, chan), Nothing)
                         | (dev,chan) <- addrs

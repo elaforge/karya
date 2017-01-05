@@ -69,7 +69,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
@@ -1187,25 +1187,25 @@ state_resolve_instrument ui_state cmd_state = \inst -> do
     either (const Nothing) Just $
         resolve_instrument (config_instrument_db (state_config cmd_state)) alloc
 
-resolve_instrument :: InstrumentDb -> StateConfig.Allocation
+resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument
 resolve_instrument db alloc = do
-    let qualified = StateConfig.alloc_qualified alloc
+    let qualified = UiConfig.alloc_qualified alloc
     inst <- justErr ("no instrument: " <> pretty qualified) $
         Inst.lookup qualified db
-    backend <- case (Inst.inst_backend inst, StateConfig.alloc_backend alloc) of
-        (Inst.Midi patch, StateConfig.Midi config) ->
+    backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
+        (Inst.Midi patch, UiConfig.Midi config) ->
             return $ Just (Midi patch config)
-        (Inst.Im patch, StateConfig.Im) -> return $ Just (Im patch)
-        (_, StateConfig.Dummy) -> return Nothing
-        -- 'StateConfig.verify_allocation' should have prevented this.
+        (Inst.Im patch, UiConfig.Im) -> return $ Just (Im patch)
+        (_, UiConfig.Dummy) -> return Nothing
+        -- 'UiConfig.verify_allocation' should have prevented this.
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
     return $ ResolvedInstrument
         { inst_instrument = inst
         , inst_qualified = qualified
         , inst_common_config = merge_environ (Inst.inst_common inst) $
-            StateConfig.alloc_config alloc
+            UiConfig.alloc_config alloc
         , inst_backend = backend
         }
     where

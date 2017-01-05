@@ -8,7 +8,7 @@ import qualified Data.List as List
 
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -103,7 +103,7 @@ lanang = Attrs.attr "lanang"
 kempli = Attrs.attr "kempli"
 kajar = Attrs.attr "kajar"
 
-kebyar_allocations :: Text -> StateConfig.Allocations
+kebyar_allocations :: Text -> UiConfig.Allocations
 kebyar_allocations dev_ = make_config $ concat
     [ pasang "jegog"
     , pasang "calung"
@@ -121,7 +121,7 @@ kebyar_allocations dev_ = make_config $ concat
     -- (inst, qualified, gets_chan, environ, scale)
     make_config :: [(Text, Text, Bool,
             [(BaseTypes.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
-        -> StateConfig.Allocations
+        -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
         where
         allocate chan (inst, qualified, gets_chan, environ, scale) =
@@ -131,12 +131,12 @@ kebyar_allocations dev_ = make_config $ concat
             where
             next_chan = if gets_chan then chan+1 else chan
             backend
-                | gets_chan = StateConfig.Midi $
+                | gets_chan = UiConfig.Midi $
                     Patch.settings#Patch.scale #= scale $
                     MidiInst.config1 dev chan
                 -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
-                | otherwise = StateConfig.Dummy
+                | otherwise = UiConfig.Dummy
             set_config = Common.cenviron #= RestrictedEnviron.make environ
     dev = Midi.write_device dev_
 

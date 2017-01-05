@@ -28,7 +28,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
@@ -486,12 +486,12 @@ r_4 = Meter.r_4
 
 -- * allocations
 
-midi_allocation :: Text -> Patch.Config -> StateConfig.Allocation
-midi_allocation qualified config = StateConfig.allocation
-    (InstTypes.parse_qualified qualified) (StateConfig.Midi config)
+midi_allocation :: Text -> Patch.Config -> UiConfig.Allocation
+midi_allocation qualified config = UiConfig.allocation
+    (InstTypes.parse_qualified qualified) (UiConfig.Midi config)
 
 -- | Make Simple.Allocations from (inst, qualified, [chan]).
-allocations :: [(Text, Text, [Midi.Channel])] -> StateConfig.Allocations
+allocations :: [(Text, Text, [Midi.Channel])] -> UiConfig.Allocations
 allocations allocs = either errorStack id $
     Simple.allocations (const $ Just settings)
         [ (inst, (qualified, map (wdev_name,) chans))
@@ -503,7 +503,7 @@ allocations allocs = either errorStack id $
 set_default_allocations :: Ui.State -> Ui.State
 set_default_allocations = Ui.config#Ui.allocations #= default_allocations
 
-default_allocations :: StateConfig.Allocations
+default_allocations :: UiConfig.Allocations
 default_allocations = allocations
     [ ("i", "s/1", [0..2])
     , ("i1", "s/1", [0..2])
@@ -512,16 +512,16 @@ default_allocations = allocations
     ]
 
 modify_midi_config :: CallStack.Stack => Text -> (Patch.Config -> Patch.Config)
-    -> StateConfig.Allocations -> StateConfig.Allocations
+    -> UiConfig.Allocations -> UiConfig.Allocations
 modify_midi_config inst_ modify =
-    Testing.expect_right . StateConfig.modify_allocation inst modify_alloc
+    Testing.expect_right . UiConfig.modify_allocation inst modify_alloc
     where
     inst = Score.Instrument inst_
     modify_alloc alloc = do
         config <- justErr ("not a midi alloc: " <> pretty inst) $
-            StateConfig.midi_config (StateConfig.alloc_backend alloc)
+            UiConfig.midi_config (UiConfig.alloc_backend alloc)
         return $ alloc
-            { StateConfig.alloc_backend = StateConfig.Midi (modify config) }
+            { UiConfig.alloc_backend = UiConfig.Midi (modify config) }
 
 i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"

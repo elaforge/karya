@@ -11,7 +11,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -141,18 +141,18 @@ write_ksp = mapM_ (uncurry Util.write)
 -- * config
 
 -- | @LInst.merge $ KontaktKendang.allocations ...@
-allocations :: Text -> Text -> StateConfig.Allocations
+allocations :: Text -> Text -> UiConfig.Allocations
 allocations name dev_ = MidiInst.allocations
     [ (name <> "-w", "kontakt/kendang-bali", id, midi_channel 0)
     , (name <> "-l", "kontakt/kendang-bali", id, midi_channel 1)
     , ( name, "kontakt/kendang-bali-pasang"
       , Common.add_environ "w" (inst $ name <> "-w")
         . Common.add_environ "l" (inst $ name <> "-l")
-      , StateConfig.Dummy
+      , UiConfig.Dummy
       )
     ]
     where
-    midi_channel = StateConfig.Midi . MidiInst.config1 dev
+    midi_channel = UiConfig.Midi . MidiInst.config1 dev
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

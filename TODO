@@ -7,7 +7,7 @@ UNSORTED
     Cmd.State.  It seems inconsistent that UI state should get the "state"
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
     * Ui.Ui -> Ui.Fltk
-  - Ui.StateConfig -> Ui.UiConfig
+  * Ui.StateConfig -> Ui.UiConfig
   - More things for Global: Data.Map, Data.Set, List.foldl'
   * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:
@@ -761,7 +761,7 @@ cleanup:
     . For example, I can add an allocation with State.allocations, but if
       I wanted to make that cause damage I couldn't.  Of course maybe it
       doesn't matter since I infer damage based on config changes.
-    . Also I can't make sure that StateConfig.allocate is used instead of
+    . Also I can't make sure that UiConfig.allocate is used instead of
       directly modifying the map.  The root of the problem is that I have
       unrestricted modification via State.modify_config, but even if I removed
       that I'd want something as convenient as lenses, but with the posibility
@@ -772,8 +772,8 @@ cleanup:
       a bug where it put on the wrong backend.
     - If State.allocations is so read-only, why not make it a plain function?
       . Tests use it to write...
-  - Why re-export StateConfig from Ui.State?  Why not directly reference
-    StateConfig?
+  - Why re-export UiConfig from Ui.State?  Why not directly reference
+    UiConfig?
   - Can I make prev val or {Note,Control,Pitch}Deriver return values more
     typesafe with GADTs?
     . Study https://github.com/goldfirere/glambda for ideas.
@@ -785,7 +785,7 @@ cleanup:
     - Cmd.State
     - Derive.Deriver.Monad
     - Ui.State
-    - Ui.StateConfig
+    - Ui.UiConfig
     - Perform.Midi.Instrument
   - Util.TimeVector has a hack where a sample at <=0 is considered to extend
     to -inf.  It's because I want a control track call at 0 to extend back.

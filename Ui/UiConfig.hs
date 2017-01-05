@@ -7,7 +7,7 @@
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
 -- in "Ui.State".
-module Ui.StateConfig where
+module Ui.UiConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid

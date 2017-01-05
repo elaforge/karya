@@ -44,7 +44,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.BaseTypes as BaseTypes
@@ -272,20 +272,20 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- * Allocations
 
 allocations ::
-    [(Text, Text, Common.Config -> Common.Config, StateConfig.Backend)]
+    [(Text, Text, Common.Config -> Common.Config, UiConfig.Backend)]
     -- ^ (inst, qualified, set_config, backend)
-    -> StateConfig.Allocations
-allocations = StateConfig.make_allocations . map make
+    -> UiConfig.Allocations
+allocations = UiConfig.make_allocations . map make
     where
     make (name, qualified, set_config, backend) =
         ( Score.Instrument name
-        , StateConfig.Allocation (InstTypes.parse_qualified qualified)
+        , UiConfig.Allocation (InstTypes.parse_qualified qualified)
             (set_config Common.empty_config) backend
         )
 
 -- | Create an incomplete Config.  It's incomplete because it doesn't have
 -- the Settings from 'Patch.patch_defaults', so it'll need to have those
--- applied when it gets applied to 'StateConfig.state_allocations'.
+-- applied when it gets applied to 'UiConfig.state_allocations'.
 config :: [Patch.Addr] -> Patch.Config
 config = Patch.config mempty . map (, Nothing)
 
@@ -294,19 +294,19 @@ config1 :: Midi.WriteDevice -> Midi.Channel -> Patch.Config
 config1 dev chan = config [(dev, chan)]
 
 -- | Merge an incomplete allocation with defaults from its instrument.
-merge_defaults :: Cmd.Inst -> StateConfig.Allocation
-    -> Either Text StateConfig.Allocation
+merge_defaults :: Cmd.Inst -> UiConfig.Allocation
+    -> Either Text UiConfig.Allocation
 merge_defaults inst alloc = case (Inst.inst_midi inst, backend) of
-    (Just patch, StateConfig.Midi config) -> Right $ alloc
-        { StateConfig.alloc_backend =
-            StateConfig.Midi (Patch.merge_defaults patch config)
+    (Just patch, UiConfig.Midi config) -> Right $ alloc
+        { UiConfig.alloc_backend =
+            UiConfig.Midi (Patch.merge_defaults patch config)
         }
-    (Just _, StateConfig.Dummy) -> Right alloc
-    (Just _, StateConfig.Im) ->
+    (Just _, UiConfig.Dummy) -> Right alloc
+    (Just _, UiConfig.Im) ->
         Left $ pretty inst <> ": can't merge defaults from Midi to Im"
     (Nothing, _) -> Left $ pretty inst
         <> ": can't merge defaults for a non-Midi inst"
-    where backend = StateConfig.alloc_backend alloc
+    where backend = UiConfig.alloc_backend alloc
 
 
 -- * db

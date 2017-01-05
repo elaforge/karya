@@ -17,7 +17,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -193,7 +193,7 @@ test_config_damage = do
             [ ("top", [(">i1", [(0, 1, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             ]
-    -- I can't change StateConfig.config_global_transform because that will
+    -- I can't change UiConfig.config_global_transform because that will
     -- invalidate the cache via changed stack.
     let (_, cached, uncached) = compare_cached create $
             modify_alloc_config UiTest.i1 $
@@ -208,7 +208,7 @@ modify_alloc_config inst modify =
     where
     mod Nothing = error $ "modify_alloc_config: no inst " <> prettys inst
     mod (Just alloc) = Just $ alloc
-        { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }
+        { UiConfig.alloc_config = modify (UiConfig.alloc_config alloc) }
 
 test_logs = do
     let create = mkblocks

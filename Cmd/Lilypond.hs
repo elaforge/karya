@@ -23,7 +23,7 @@ import qualified System.Process as Process
 import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -73,10 +73,10 @@ derive deriver = do
             Derive.state_ui state
         }
     set_mode config state = state { Derive.state_mode = Derive.Lilypond config }
-    add_ly_global = Ui.config#StateConfig.allocations_map
+    add_ly_global = Ui.config#UiConfig.allocations_map
         %= Map.insert Lilypond.Constants.ly_global allocation
-    allocation = StateConfig.allocation Lilypond.Constants.ly_qualified
-        StateConfig.Dummy
+    allocation = UiConfig.allocation Lilypond.Constants.ly_qualified
+        UiConfig.Dummy
 
 -- | Override a few calls with lilypond versions.
 lilypond_scope :: Derive.Scopes -> Derive.Scopes

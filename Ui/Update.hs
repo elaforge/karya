@@ -22,7 +22,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
@@ -115,7 +115,7 @@ data Track =
 
 -- | These are updates to 'Ui.Ui.State' that have no UI presence.
 data State =
-    Config !StateConfig.Config
+    Config !UiConfig.Config
     | CreateBlock !BlockId !Block.Block
     | DestroyBlock !BlockId
     | CreateTrack !TrackId !Track.Track

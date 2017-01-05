@@ -19,7 +19,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -199,8 +199,8 @@ get_track_status block_id tracknum = do
         let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
         alloc <- Ui.allocation inst <#> Ui.get
-        let addrs = case StateConfig.alloc_backend <$> alloc of
-                Just (StateConfig.Midi config) -> Patch.config_addrs config
+        let addrs = case UiConfig.alloc_backend <$> alloc of
+                Just (UiConfig.Midi config) -> Patch.config_addrs config
                 _ -> []
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)

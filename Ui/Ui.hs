@@ -158,7 +158,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import Ui.StateConfig hiding (allocation)
+import Ui.UiConfig hiding (allocation)
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -456,7 +456,7 @@ with_config f action = do
     return result
 
 -- | TODO use this for read only.  If used for write it bypasses
--- 'StateConfig.allocate'.
+-- 'UiConfig.allocate'.
 allocation :: ScoreTypes.Instrument -> Lens State (Maybe Allocation)
 allocation inst = config # allocations_map # Lens.map inst
 

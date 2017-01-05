@@ -12,7 +12,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
-import qualified Ui.StateConfig as StateConfig
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -89,7 +89,7 @@ test_derive_diff = do
     let tlike = Block.TId (UiTest.mk_tid 4) Ui.no_ruler
     equal (f (Ui.insert_track bid 3 (Block.track tlike 10)))
         (mkdamage [] [] [bid])
-    let modify_config = Ui.modify_default $ StateConfig.tempo #= 0.5
+    let modify_config = Ui.modify_default $ UiConfig.tempo #= 0.5
     equal (f modify_config) (mkdamage [] [] [bid])
     -- A config change damages blocks that were removed as well.
     equal (f (modify_config >> Ui.destroy_block bid))
