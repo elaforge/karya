@@ -69,9 +69,9 @@ import Util.ForeignC
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
+import Ui.Fltk (Fltk, fltk)
 import qualified Ui.Types as Types
 import qualified Ui.Util as Util
-import Ui.Ui (Fltk, fltk)
 
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events

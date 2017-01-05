@@ -40,9 +40,9 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
 import qualified Midi.StubMidi as StubMidi
+import qualified Ui.Fltk as Fltk
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -289,7 +289,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
             Map.keysSet (State.state_blocks ui_state)
         }
 
-make_rstate :: Ui.Channel -> TVar.TVar [[Update.DisplayUpdate]]
+make_rstate :: Fltk.Channel -> TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
 make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =

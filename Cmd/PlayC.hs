@@ -32,10 +32,10 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Fltk as Fltk
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -53,7 +53,7 @@ import Types
 -- * cmd_play_msg
 
 -- | Respond to msgs about derivation and playing status.
-cmd_play_msg :: Ui.Channel -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
+cmd_play_msg :: Fltk.Channel -> Msg.Msg -> Cmd.CmdT IO Cmd.Status
 cmd_play_msg ui_chan msg = do
     case msg of
         Msg.Transport status -> transport_msg status
@@ -108,7 +108,7 @@ type Range = (TrackTime, TrackTime)
 
 -- ** track signals
 
-update_track_signals :: Ui.Channel -> BlockId -> Track.TrackSignals
+update_track_signals :: Fltk.Channel -> BlockId -> Track.TrackSignals
     -> Cmd.CmdT IO ()
 update_track_signals ui_chan block_id tsigs = do
     rendering <- rendering_tracks block_id
@@ -148,7 +148,7 @@ rendering_tracks block_id = do
 -- ** highlights
 
 -- | Get highlights from the events, clear old highlights, and set the new ones.
-update_highlights :: Ui.Channel -> BlockId -> Vector.Vector Score.Event
+update_highlights :: Fltk.Channel -> BlockId -> Vector.Vector Score.Event
     -> Cmd.CmdT IO ()
 update_highlights ui_chan block_id events = do
     sels <- get_event_highlights block_id events
@@ -200,7 +200,7 @@ event_highlights derived_block_id colors
 
 -- | This actually kicks off a MIDI play thread, and if an inverse tempo
 -- function is given, a play monitor thread.
-play :: Ui.Channel -> State.State -> Transport.Info -> Cmd.PlayMidiArgs
+play :: Fltk.Channel -> State.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
         (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at) = do
@@ -227,7 +227,7 @@ passive_play_monitor_thread send monitor_ctl =
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-play_monitor_thread :: Ui.Channel -> Transport.Info
+play_monitor_thread :: Fltk.Channel -> Transport.Info
     -> Transport.PlayMonitorControl -> Transport.InverseTempoFunction
     -> Maybe RealTime -> IO ()
 play_monitor_thread ui_chan transport_info ctl inv_tempo_func repeat_at = do
@@ -262,7 +262,7 @@ data UpdaterState = UpdaterState {
     , monitor_active_sels :: Set.Set (ViewId, [TrackNum])
     , monitor_ui_state :: MVar.MVar State.State
     , monitor_repeat_at :: Maybe RealTime
-    , monitor_ui_channel :: Ui.Channel
+    , monitor_ui_channel :: Fltk.Channel
     }
 
 monitor_loop :: UpdaterState -> IO ()

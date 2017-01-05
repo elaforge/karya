@@ -26,7 +26,7 @@ import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Ui.Ui as Ui
+import qualified Ui.Fltk as Fltk
 import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
 
@@ -137,7 +137,7 @@ main = initialize $ \midi_interface repl_socket -> do
     ui_chan <- MVar.newMVar []
     Thread.start_logged "interpreter" $ do
         Repl.interpreter session
-        `Exception.finally` Ui.quit_ui_thread quit_request
+        `Exception.finally` Fltk.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
         -- and OS threads managed by the GHC RTS is probably unpredictable.
         -- I gather the recommended way is to start a thread for signal
@@ -151,8 +151,8 @@ main = initialize $ \midi_interface repl_socket -> do
             Log.error $ "responder thread died from exception: " <> showt exc)
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
-        `Exception.finally` Ui.quit_ui_thread quit_request
-    Ui.event_loop ui_chan quit_request msg_chan
+        `Exception.finally` Fltk.quit_ui_thread quit_request
+    Fltk.event_loop ui_chan quit_request msg_chan
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "ui died from exception: " <> showt exc
 

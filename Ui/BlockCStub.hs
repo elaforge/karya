@@ -13,12 +13,12 @@ module Ui.BlockCStub where
 import qualified Util.Rect as Rect
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import Ui.Fltk (Fltk, fltk)
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import Ui.Ui (Fltk, fltk)
 
 import Global
 import Types

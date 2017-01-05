@@ -17,13 +17,13 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Fltk as Fltk
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Perform.Signal as Signal
@@ -36,15 +36,16 @@ initialize f = do
     quit_request <- Concurrent.newMVar ()
     msg_chan <- STM.newTChanIO
     LoadConfig.styles Config.styles
-    Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
-    Ui.event_loop global_ui_channel quit_request msg_chan
+    Concurrent.forkIO $
+        f `Exception.finally` Fltk.quit_ui_thread quit_request
+    Fltk.event_loop global_ui_channel quit_request msg_chan
 
-global_ui_channel :: Ui.Channel
+global_ui_channel :: Fltk.Channel
 {-# NOINLINE global_ui_channel #-}
 global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
 
-send :: Ui.Fltk () -> IO ()
-send = Ui.send_action global_ui_channel "test"
+send :: Fltk.Fltk () -> IO ()
+send = Fltk.send_action global_ui_channel "test"
 
 -- tests
 

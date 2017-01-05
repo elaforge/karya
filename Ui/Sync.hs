@@ -51,7 +51,7 @@ import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
+import qualified Ui.Fltk as Fltk
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -66,8 +66,8 @@ import Types
 -- TrackSignals are passed separately instead of going through diff because
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
-sync :: Ui.Channel -> Track.TrackSignals -> Track.SetStyleHigh -> State.State
-    -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
+sync :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
+    -> State.State -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 sync ui_chan track_signals set_style state updates = do
     updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
@@ -99,25 +99,25 @@ check_updates state = filterM $ \update -> case update of
             return False
     _ -> return True
 
-do_updates :: Ui.Channel -> Track.TrackSignals -> Track.SetStyleHigh
+do_updates :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
     -> [Update.DisplayUpdate] -> State.StateT IO ()
 do_updates ui_chan track_signals set_style updates = do
     -- Debug.fullM Debug.putp "sync updates" updates
     actions <- mapM (run_update track_signals set_style) updates
     unless (null actions) $
-        liftIO $ Ui.send_action ui_chan ("sync: " <> pretty updates)
+        liftIO $ Fltk.send_action ui_chan ("sync: " <> pretty updates)
             (sequence_ actions)
 
-set_track_signals :: Ui.Channel -> [(ViewId, TrackNum, Track.TrackSignal)]
+set_track_signals :: Fltk.Channel -> [(ViewId, TrackNum, Track.TrackSignal)]
     -> IO ()
 set_track_signals ui_chan tracks =
     -- Make sure tracks is fully forced, because a hang on the fltk event loop
     -- can be confusing.
-    tracks `DeepSeq.deepseq` Ui.send_action ui_chan "set_track_signals" $
+    tracks `DeepSeq.deepseq` Fltk.send_action ui_chan "set_track_signals" $
         forM_ tracks $ \(view_id, tracknum, tsig) ->
             set_track_signal view_id tracknum tsig
 
-set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Ui.Fltk ()
+set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk.Fltk ()
 set_track_signal = BlockC.set_track_signal
 
 -- | The play position selection bypasses all the usual State -> Diff -> Sync
@@ -126,24 +126,25 @@ set_track_signal = BlockC.set_track_signal
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
+set_play_position :: Fltk.Channel -> [(ViewId, [(TrackNum, ScoreTime)])]
+    -> IO ()
 set_play_position chan view_sels = unless (null view_sels) $
-    Ui.send_action chan "set_play_position" $ sequence_ $ do
+    Fltk.send_action chan "set_play_position" $ sequence_ $ do
         (view_id, tracknum_pos) <- Seq.group_fst view_sels
         (tracknums, pos) <- Seq.group_fst $ Seq.group_snd (concat tracknum_pos)
         return $ set_selection_carefully view_id
             Config.play_position_selnum (Just tracknums)
             [BlockC.Selection Config.play_selection_color p p True | p <- pos]
 
-clear_play_position :: Ui.Channel -> [ViewId] -> IO ()
+clear_play_position :: Fltk.Channel -> [ViewId] -> IO ()
 clear_play_position = clear_selections Config.play_position_selnum
 
 type Range = (TrackTime, TrackTime)
 
-set_highlights :: Ui.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
+set_highlights :: Fltk.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
     -> IO ()
 set_highlights chan view_sels = unless (null view_sels) $
-    Ui.send_action chan "set_highlights" $ sequence_ $ do
+    Fltk.send_action chan "set_highlights" $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
         return $ set_selection_carefully view_id Config.highlight_selnum
@@ -162,12 +163,12 @@ group_by_view view_sels = map (second Seq.group_fst) by_view
     by_view :: [(ViewId, [(TrackNum, (Range, Color.Color))])]
     by_view = Seq.group_fst $ zip view_ids (zip tracknums range_colors)
 
-clear_highlights :: Ui.Channel -> [ViewId] -> IO ()
+clear_highlights :: Fltk.Channel -> [ViewId] -> IO ()
 clear_highlights = clear_selections Config.highlight_selnum
 
-clear_selections :: Sel.Num -> Ui.Channel -> [ViewId] -> IO ()
+clear_selections :: Sel.Num -> Fltk.Channel -> [ViewId] -> IO ()
 clear_selections selnum chan view_ids = unless (null view_ids) $
-    Ui.send_action chan "clear_selections" $
+    Fltk.send_action chan "clear_selections" $
         mapM_ (\view_id -> set_selection_carefully view_id selnum Nothing [])
             view_ids
 
@@ -177,14 +178,14 @@ clear_selections selnum chan view_ids = unless (null view_ids) $
 -- This can be called outside of the responder loop, and the caller may have
 -- an out of date UI state.
 set_selection_carefully :: ViewId -> Sel.Num -> Maybe [TrackNum]
-    -> [BlockC.Selection] -> Ui.Fltk ()
+    -> [BlockC.Selection] -> Fltk.Fltk ()
 set_selection_carefully view_id selnum maybe_tracknums sels =
     whenM (liftIO $ PtrMap.view_exists view_id) $ do
         tracks <- BlockC.tracks view_id
         let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
         BlockC.set_selection view_id selnum tracknums sels
 
-floating_input :: State.State -> Cmd.FloatingInput -> Ui.Fltk ()
+floating_input :: State.State -> Cmd.FloatingInput -> Fltk.Fltk ()
 floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
     BlockC.floating_open view_id tracknum at text selection
 floating_input state (Cmd.FloatingInsert text) =
@@ -214,7 +215,7 @@ floating_input state (Cmd.FloatingInsert text) =
 -- CreateView Updates will modify the State to add the ViewPtr.  The IO in
 -- the StateT is needed only for some logging.
 run_update :: Track.TrackSignals -> Track.SetStyleHigh -> Update.DisplayUpdate
-    -> State.StateT IO (Ui.Fltk ())
+    -> State.StateT IO (Fltk.Fltk ())
 run_update track_signals set_style update = case update of
     Update.View view_id update ->
         update_view track_signals set_style view_id update
@@ -227,7 +228,7 @@ run_update track_signals set_style update = case update of
     Update.State () -> return (return ())
 
 update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
-    -> Update.View -> State.StateT IO (Ui.Fltk ())
+    -> Update.View -> State.StateT IO (Fltk.Fltk ())
 update_view track_signals set_style view_id Update.CreateView = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
@@ -299,7 +300,7 @@ update_view _ _ view_id update = case update of
 -- | Block ops apply to every view with that block.
 update_block :: Track.TrackSignals -> Track.SetStyleHigh
     -> BlockId -> Update.Block Block.DisplayTrack
-    -> State.StateT IO (Ui.Fltk ())
+    -> State.StateT IO (Fltk.Fltk ())
 update_block track_signals set_style block_id update = do
     view_ids <- fmap Map.keys (State.views_of block_id)
     case update of
@@ -347,7 +348,7 @@ update_block track_signals set_style block_id update = do
                 tlike_id tlike track_signals flags
 
 update_track :: Track.TrackSignals -> Track.SetStyleHigh
-    -> TrackId -> Update.Track -> State.StateT IO (Ui.Fltk ())
+    -> TrackId -> Update.Track -> State.StateT IO (Fltk.Fltk ())
 update_track _ set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
     state <- State.get
@@ -389,7 +390,7 @@ update_track _ set_style track_id update = do
                     merged set_style
 
 update_ruler :: Track.TrackSignals -> Track.SetStyleHigh
-    -> RulerId -> State.StateT IO (Ui.Fltk ())
+    -> RulerId -> State.StateT IO (Fltk.Fltk ())
 update_ruler _ set_style ruler_id = do
     blocks <- dtracks_with_ruler_id ruler_id
     state <- State.get
@@ -409,7 +410,7 @@ update_ruler _ set_style ruler_id = do
 -- | Insert a track.  Tracks require a crazy amount of configuration.
 insert_track :: State.State -> Track.SetStyleHigh -> BlockId -> ViewId
     -> TrackNum -> Block.DisplayTrack -> Block.TracklikeId -> Block.Tracklike
-    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> Ui.Fltk ()
+    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> Fltk.Fltk ()
 insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
         track_signals flags = do
     BlockC.insert_track view_id tracknum tlike merged set_style_low

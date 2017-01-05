@@ -43,9 +43,9 @@ import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
+import qualified Ui.Fltk as Fltk
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
-import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -79,7 +79,7 @@ data State = State {
     , state_ui :: State.State
     , state_cmd :: Cmd.State
     -- | Channel to send IO actions to be executed on the FLTK event loop.
-    , state_ui_channel :: Ui.Channel
+    , state_ui_channel :: Fltk.Channel
     -- | State for the repl subsystem.
     , state_session :: Repl.Session
     -- | This is used to feed msgs back into the MsgReader.
@@ -108,7 +108,7 @@ state_transport_info state = Transport.Info
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> Ui.Channel -> MsgReader
+responder :: StaticConfig.StaticConfig -> Fltk.Channel -> MsgReader
     -> Interface.Interface -> Cmd.CmdT IO Cmd.Status -> Repl.Session
     -> Loopback -> IO ()
 responder config ui_chan msg_reader midi_interface setup_cmd repl_session
@@ -316,7 +316,7 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
             cmd_state { Cmd.state_focused_view = Nothing }
         _ -> cmd_state
 
-handle_special_status :: Ui.Channel -> State.State -> Cmd.State
+handle_special_status :: Fltk.Channel -> State.State -> Cmd.State
     -> Transport.Info -> Cmd.Status -> IO Cmd.State
 handle_special_status ui_chan ui_state cmd_state transport_info status =
     case status of
@@ -327,7 +327,7 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
                     { Cmd.state_play_control = Just play_ctl }
                 }
         Cmd.FloatingInput action -> do
-            Ui.send_action ui_chan "floating_input" $
+            Fltk.send_action ui_chan "floating_input" $
                 Sync.floating_input ui_state action
             return $! cmd_state
                 { Cmd.state_edit = (Cmd.state_edit cmd_state)
@@ -416,7 +416,7 @@ hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
 -- | These are the only commands that run in IO.
-hardcoded_io_cmds :: Ui.Channel -> Repl.Session
+hardcoded_io_cmds :: Fltk.Channel -> Repl.Session
     -> [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 hardcoded_io_cmds ui_chan repl_session =
     [ Repl.respond repl_session

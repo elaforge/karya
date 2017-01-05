@@ -4,7 +4,7 @@
 
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 -- | Like "Ui.BlockCStub" for "Ui.Ui".
-module Ui.UiStub (
+module Ui.FltkStub (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
 import qualified Control.Applicative as Applicative

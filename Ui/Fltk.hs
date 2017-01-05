@@ -5,11 +5,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | This has the FLTK event thread, and communication with it.
-module Ui.Ui (
+module Ui.Fltk (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
 #ifdef STUB_OUT_FLTK
-import Ui.UiStub
+import Ui.FltkStub
 #else
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
