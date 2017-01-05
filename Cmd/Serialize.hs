@@ -82,11 +82,11 @@ instance Serialize State.State where
 
 instance Serialize State.Config where
     put (State.Config ns meta root transform allocs lilypond defaults
-            saved_views ky_file local_ky)
+            saved_views ky)
         =  Serialize.put_version 12
             >> put ns >> put meta >> put root >> put transform
             >> put allocs >> put lilypond >> put defaults >> put saved_views
-            >> put ky_file >> put local_ky
+            >> put ky
     get = Serialize.get_version >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
@@ -99,7 +99,8 @@ instance Serialize State.Config where
             saved_views :: State.SavedViews <- get
             ky_file :: Maybe FilePath <- get
             return $ State.Config ns meta root transform insts lilypond
-                defaults saved_views ky_file ""
+                defaults saved_views
+                (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
         12 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
@@ -109,10 +110,9 @@ instance Serialize State.Config where
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
-            ky_file :: Maybe FilePath <- get
-            local_ky :: Text <- get
+            ky :: Text <- get
             return $ State.Config ns meta root transform insts lilypond
-                defaults saved_views ky_file local_ky
+                defaults saved_views ky
         _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize.Serialize StateConfig.Allocations where

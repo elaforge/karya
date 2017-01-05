@@ -98,9 +98,6 @@ transform = do
     expr <- get_transform
     return $ ReplProtocol.Edit expr "LState.set_transform"
 
-set_ky_file :: Maybe FilePath -> Cmd.CmdL ()
-set_ky_file = State.modify_config . (State.ky_file #=)
-
 ky :: Cmd.CmdL ReplProtocol.Result
 ky = do
     ky <- get_ky

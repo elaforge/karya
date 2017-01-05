@@ -478,9 +478,8 @@ sync_defaults (State.Default tempo) =
 
 -- | Sync State.Config changes.
 sync_ui_config :: Cmd.M m => State.Config -> m ()
-sync_ui_config config = do
+sync_ui_config config =
     Cmd.set_global_status "global" $ State.config_global_transform config
-    Cmd.set_global_status "ky" $ maybe "" txt (State.config_ky_file config)
 
 -- Zoom is actually not very useful.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()

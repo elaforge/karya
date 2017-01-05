@@ -1,4 +1,6 @@
-. This is a pure-text score notation.  It renders down to tracklang, but
+### text score
+
+- This is a pure-text score notation.  It renders down to tracklang, but
 because it's just text there has to be more complicated mechanism for
 rhythm.
 
@@ -13,10 +15,42 @@ it should be possible to integrate into a block.
 - However, it can represent things that are awkward in the gui score,
 such as truly per-note controls and lots of use of parent tracks.
 
-- Syntax examples: lilypond, https://github.com/alda-lang/alda
-MML: http://www.nullsleep.com/treasure/mck_guide/
+- Syntax examples: lilypond, <https://github.com/alda-lang/alda>
+MML: <http://www.nullsleep.com/treasure/mck_guide/>
 
-- Mridangam: http://korvai.org/notation/notation-html/index.html
+- Mridangam: <http://korvai.org/notation/notation-html/index.html>
+
+### integration
+
+There are three levels of DSL:
+
+- DSL: Totally separate language, with its own parser and compiler.  `ky` is
+one of these.
+
+- TH: Separate language, but uses TH quasiquotes to interpolate haskell.  The
+advantage is that I get variables, typechecking, debugging, and testing from
+haskell.  Also, presuming they all compile down to the same intermediate form
+(perhaps just NoteDeriver), they can all coexist in the same file, or even same
+expression.  The disadvantage is that I have to deal with TH and probably needs
+a compile and relink.  Well, I could probably dynamically load, but it's
+complicated.
+
+- EDSL: Plain haskell, with a special prelude with specialized operators and
+the like.  `Derive.Solkattu.Score` does this.  The advantages are the full
+power of haskell and ghci.  Disadvantages are the same as TH, only less awkward
+than TH, but it can be hard to get a succinct syntax in haskell.
+
+I can use the same mechanism as the local ky definitions, presumably in the
+same file.  Text-defined score should integrate with the graphical score, so
+I can use which is most convenient.  For example, text-defined calls should
+provide CallDuration, so the GUI can automatically size their events.  I still
+have the problem where a duration change bubbles up through each level, but it
+only affects the GUI stages.
+
+Even just a simple sequencing language could be pretty useful.
+
+In theory, in the distant future, with some editor integration I could use the
+tempo map and playback thread to highlight currently playing expressions.
 
 
 ### rhythm

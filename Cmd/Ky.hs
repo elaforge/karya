@@ -56,8 +56,8 @@ update_cache ui_state cmd_state = do
 check_cache :: State.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
-    (defs, imported) <- try $
-        Parse.load_ky (state_ky_paths cmd_state) (state_ky ui_state)
+    (defs, imported) <- try $ Parse.load_ky (state_ky_paths cmd_state)
+        (State.config#State.ky #$ ui_state)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
     -- turns out to be too expensive, I can go back to the modification time
@@ -92,7 +92,8 @@ check_cache ui_state cmd_state = run $ do
 
 load :: [FilePath] -> State.State -> IO (Either Text Derive.Library)
 load paths =
-    fmap (fmap (compile_library . fst)) . Parse.load_ky paths . state_ky
+    fmap (fmap (compile_library . fst)) . Parse.load_ky paths
+        . (State.config#State.ky #$)
 
 write_update_logs :: Log.LogMonad m => [FilePath] -> Derive.Library -> m ()
 write_update_logs imports lib = do
@@ -100,12 +101,6 @@ write_update_logs imports lib = do
     Log.notice $ "reloaded ky " <> pretty files
     forM_ (Library.shadowed lib) $ \((call_type, _module), calls) ->
         Log.warn $ call_type <> " shadowed: " <> pretty calls
-
-state_ky :: State.State -> Text
-state_ky state = maybe "" to_import ky_file <> (State.config#State.ky #$ state)
-    where
-    ky_file = State.config#State.ky_file #$ state
-    to_import fname = "import '" <> txt fname <> "'\n"
 
 state_ky_paths :: Cmd.State -> [FilePath]
 state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)

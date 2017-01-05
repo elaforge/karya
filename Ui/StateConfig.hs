@@ -65,9 +65,8 @@ data Config = Config {
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
-    -- | If set, load local definitions from this file.  The filename is
-    -- relative to the score directory, which is defined by the loading code.
-    , config_ky_file :: !(Maybe FilePath)
+    -- | Locally defined code in the ky language, as parsed by
+    -- 'Derive.Parse.parse_ky'.
     , config_ky :: !Text
     } deriving (Eq, Show)
 
@@ -88,8 +87,6 @@ default_ = Lens.lens config_default
     (\f r -> r { config_default = f (config_default r) })
 saved_views = Lens.lens config_saved_views
     (\f r -> r { config_saved_views = f (config_saved_views r) })
-ky_file = Lens.lens config_ky_file
-    (\f r -> r { config_ky_file = f (config_ky_file r) })
 ky = Lens.lens config_ky
     (\f r -> r { config_ky = f (config_ky r) })
 
@@ -110,7 +107,6 @@ empty_config = Config
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
     , config_saved_views = mempty
-    , config_ky_file = Nothing
     , config_ky = ""
     }
 
@@ -297,7 +293,7 @@ empty_default = Default { default_tempo = 1 }
 
 instance Pretty.Pretty Config where
     format (Config namespace meta root global_transform allocations lily
-            default_ saved_views ky_file ky) =
+            default_ saved_views ky) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -307,7 +303,6 @@ instance Pretty.Pretty Config where
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
             , ("saved_views", Pretty.format saved_views)
-            , ("ky_file", Pretty.format ky_file)
             , ("ky", Pretty.format ky)
             ]
 

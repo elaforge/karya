@@ -254,8 +254,8 @@ UNSORTED
         than reading the whole file, and I do call Ky.update_cache on every
         respond cycle.  I could still use the fprint of the modification time.
     . Can I then replace ky_file with local_ky = "import 'file.ky'"?
-  - Get rid of state_ky_file, since I can replace it with "import 'x'".
-  - ky: Keep the defining file in a special slot in the call doc, so I can
+  * Get rid of state_ky_file, since I can replace it with "import 'x'".
+  - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
@@ -2164,20 +2164,7 @@ tracklang problems
       sort_on_pitch more robust.
 
 planning / research
-  text oriented score:
-    . This is a pure-text score notation.  It renders down to tracklang, but
-      because it's just text there has to be more complicated mechanism for
-      rhythm.
-    . It should also support sub-languages, e.g. pakhawaj bols.
-    . There could be a text based interface that either uses a REPL or a text
-      file.  This would be basically just 'seq' without any open windows.
-    . Scores in this notation should be fully compatible with tracklang, and
-      it should be possible to integrate into a block.
-    . However, it can represent things that are awkward in the gui score,
-      such as truly per-note controls and lots of use of parent tracks.
-    . Syntax examples: lilypond, https://github.com/alda-lang/alda
-      MML: http://www.nullsleep.com/treasure/mck_guide/
-    . Mridangam: http://korvai.org/notation/notation-html/index.html
+  text score: doc/dev_notes/text-score.md
   cmj:
     . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
@@ -2260,11 +2247,6 @@ planning / research
     . Or maybe I do it as sub-notes, that way the one on the left specifies
       the extent of the "note DSL", and I don't need a "skip following" hack.
 
-  . Composition of score fragments.  Similar to the note grammar thing, this
-    is a sublanguage, so I can sequence movements or sections without worrying
-    about their timing.  It simply derives each one and concatenates them.
-    I could implement it as a "sequence" note transformer call.
-
   . Give a visual indication of the events emitted by a call.  This is the
     note level version of the track signal render.  The underlying problem is
     that textual call names are not necessarily very clear about what the
@@ -2272,7 +2254,7 @@ planning / research
     I need a fancier GUI for this, since I'd have to have some way of turning
     a bunch of events into a distinctive looking graphic, e.g. a scaled down
     image of the block or something.
-  - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
+  . spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
 
-  - If I implement a VST host or patch a DAW to accept VST controls like MIDI
+  . If I implement a VST host or patch a DAW to accept VST controls like MIDI
     controls can I get low latency high res controls?
