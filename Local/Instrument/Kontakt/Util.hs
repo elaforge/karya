@@ -221,7 +221,7 @@ drum_mute_template =
 
 -- * util
 
-interpolate :: Map.Map Text Text -> Text -> Either Text Text
+interpolate :: Map Text Text -> Text -> Either Text Text
 interpolate values =
     TextUtil.mapDelimitedM False '*' $ \v ->
         justErr ("no value for " <> showt v) $ Map.lookup v values

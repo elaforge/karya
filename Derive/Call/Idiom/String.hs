@@ -155,7 +155,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
     - If the note falls on the string in use, bend that string up to the note
     to be played and emit it.
 -}
-process :: Map.Map Pitch.NoteNumber PSignal.Pitch
+process :: Map Pitch.NoteNumber PSignal.Pitch
     -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
     -- evaluate them to NoteNumbers first.
     -> PitchUtil.Interpolate -> PitchUtil.Interpolate
@@ -216,7 +216,7 @@ merge_curve interpolate x0 y0 x1 y1 event =
     curve = interpolate False x0 y0 x1 y1
     new_pitch = Score.event_transformed_pitch event <> curve
 
-find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PSignal.Pitch
+find_string :: Pitch.NoteNumber -> Map Pitch.NoteNumber PSignal.Pitch
     -> Maybe (Pitch.NoteNumber, PSignal.Pitch)
 find_string = Map.lookup_below
 
@@ -230,7 +230,7 @@ data State = State {
     , state_event :: !Score.Event
     } deriving (Show)
 
-initial_state :: Map.Map Pitch.NoteNumber PSignal.Pitch -> Score.Event
+initial_state :: Map Pitch.NoteNumber PSignal.Pitch -> Score.Event
     -> Maybe State
 initial_state strings event = do
     nn <- Score.initial_nn event

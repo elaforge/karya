@@ -45,7 +45,7 @@ docs = map extract (Map.elems scales)
 
 -- | This is the hardcoded scale map.  It is merged with the static config
 -- scale map at startup.
-scales :: Map.Map Pitch.ScaleId Scale.Make
+scales :: Map Pitch.ScaleId Scale.Make
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $ concat
     [ BohlenPierce.scales

@@ -106,8 +106,8 @@ foreign import ccall "read_event"
     c_read_event :: Ptr CClient -> Ptr CString -> Ptr CJackTime
         -> Ptr (Ptr CChar) -> IO CInt
 
-notify_callback :: IORef.IORef (Set.Set Midi.ReadDevice)
-    -> IORef.IORef (Set.Set Midi.WriteDevice) -> NotifyCallback
+notify_callback :: IORef.IORef (Set Midi.ReadDevice)
+    -> IORef.IORef (Set Midi.WriteDevice) -> NotifyCallback
 notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
     when (toBool c_is_add) $ if toBool c_is_read
         then notify_read =<< Midi.peek_rdev namep
@@ -199,8 +199,8 @@ type CJackTime = Word.Word64
 data CClient
 data Client = Client {
     client_ptr :: Ptr CClient
-    , client_wanted_reads :: IORef.IORef (Set.Set Midi.ReadDevice)
-    , client_wanted_writes :: IORef.IORef (Set.Set Midi.WriteDevice)
+    , client_wanted_reads :: IORef.IORef (Set Midi.ReadDevice)
+    , client_wanted_writes :: IORef.IORef (Set Midi.WriteDevice)
     }
 
 -- | This is the underlying jack_client_t, as opposed to jack.cc's Client.

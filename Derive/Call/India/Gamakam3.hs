@@ -428,7 +428,7 @@ data DynCall = forall a b. DynCall {
     , _dcall_func :: a -> b -> Context -> M DynState Signal.Control
     }
 
-dyn_call_map :: Map.Map Text DynCall
+dyn_call_map :: Map Text DynCall
 dyn_call_map = Map.fromList $ (("-", dc_flat) :) $
     validate_names $ moves ++
         [ ("=>", dc_attack)
@@ -525,7 +525,7 @@ data PCall = forall a. PCall {
     , _pcall_func :: a -> Context -> M State PSignal.PSignal
     }
 
-pitch_call_map :: Map.Map Char [PitchCall]
+pitch_call_map :: Map Char [PitchCall]
 pitch_call_map = resolve $ Map.unique $ concat
     -- relative motion
     [ [ pcall '0' "Hold flat pitch." pc_flat
@@ -572,7 +572,7 @@ pitch_call_map = resolve $ Map.unique $ concat
     pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
     config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
-pitch_call_map2 :: Map.Map Char [PitchCall]
+pitch_call_map2 :: Map Char [PitchCall]
 pitch_call_map2 = resolve $ Map.unique $ concat
     [ [pcall '=' "Hold flat pitch." pc_flat]
     -- relative motion
@@ -619,8 +619,8 @@ pitch_call_map2 = resolve $ Map.unique $ concat
     pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
     config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
-resolve_aliases :: Map.Map Char (Either [Text] PitchCall)
-    -> Either Text (Map.Map Char [PitchCall])
+resolve_aliases :: Map Char (Either [Text] PitchCall)
+    -> Either Text (Map Char [PitchCall])
 resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
     where
     resolve (name, Right call) = Right (name, [call])

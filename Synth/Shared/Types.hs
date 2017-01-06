@@ -11,7 +11,7 @@ import Global
 -- | Unique identifier for a patch.
 type PatchName = Text
 
-newtype Attributes = Attributes (Set.Set Text)
+newtype Attributes = Attributes (Set Text)
     deriving (Eq, Ord, Show, Pretty.Pretty, Serialize.Serialize,
         Aeson.FromJSON, Aeson.ToJSON, Monoid.Monoid)
 

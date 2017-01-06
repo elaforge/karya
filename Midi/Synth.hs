@@ -50,10 +50,10 @@ data State = State {
     state_channel :: !MState.State
     -- | Notes still sounding.  This retains notes for 'deactivate_time' after
     -- their note-off to capture controls during the decay.
-    , state_active :: !(Map.Map Addr [SoundingNote])
+    , state_active :: !(Map Addr [SoundingNote])
     , state_notes :: ![Note]
     , state_warns :: ![(Midi.WriteMessage, Text)]
-    , state_pb_range :: !(Map.Map Addr PbRange)
+    , state_pb_range :: !(Map Addr PbRange)
     } deriving (Show)
 
 -- | (down, up)
@@ -80,7 +80,7 @@ data NoteT dur = Note {
     , note_addr :: Addr
     } deriving (Eq, Show)
 
-type ControlMap = Map.Map MState.Control [(RealTime, Midi.ControlValue)]
+type ControlMap = Map MState.Control [(RealTime, Midi.ControlValue)]
 
 -- | Keep the current msg for 'warn'.
 type SynthM a = Reader.ReaderT Midi.WriteMessage

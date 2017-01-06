@@ -409,7 +409,7 @@ update_ruler _ set_style ruler_id = do
 -- | Insert a track.  Tracks require a crazy amount of configuration.
 insert_track :: Ui.State -> Track.SetStyleHigh -> BlockId -> ViewId
     -> TrackNum -> Block.DisplayTrack -> Block.TracklikeId -> Block.Tracklike
-    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> Fltk.Fltk ()
+    -> Track.TrackSignals -> Set Block.TrackFlag -> Fltk.Fltk ()
 insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
         track_signals flags = do
     BlockC.insert_track view_id tracknum tlike merged set_style_low
@@ -464,7 +464,7 @@ block_window_title ns view_id block_id = block <> " - " <> strip block view
     view = Id.show_short ns (Id.unpack_id view_id)
     strip prefix txt = fromMaybe txt $ Text.stripPrefix prefix txt
 
-events_of_track_ids :: Ui.State -> Set.Set TrackId -> [Events.Events]
+events_of_track_ids :: Ui.State -> Set TrackId -> [Events.Events]
 events_of_track_ids state = mapMaybe events_of . Set.toList
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
@@ -509,7 +509,7 @@ dtracks_with_track_id track_id =
     find_dtracks ((== Just track_id) . Block.track_id_of)
         <$> Ui.gets Ui.state_blocks
 
-find_dtracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
+find_dtracks :: (Block.TracklikeId -> Bool) -> Map BlockId Block.Block
     -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
 find_dtracks f blocks = do
     (bid, b) <- Map.assocs blocks

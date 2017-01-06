@@ -87,7 +87,7 @@ copy_block block_id new_name = do
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to Ui.destroy_track for \"gc\".
-orphan_tracks :: Ui.M m => m (Set.Set TrackId)
+orphan_tracks :: Ui.M m => m (Set TrackId)
 orphan_tracks = do
     blocks <- Ui.gets (Map.elems . Ui.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
@@ -201,7 +201,7 @@ destroy_block block_id = do
 
 -- ** util
 
-generate_block_id :: Maybe BlockId -> Id.Namespace -> Map.Map BlockId _a
+generate_block_id :: Maybe BlockId -> Id.Namespace -> Map BlockId _a
     -> Maybe Id.Id
 generate_block_id maybe_parent ns blocks =
     generate_id ns parent "b" Id.BlockId blocks
@@ -269,7 +269,7 @@ block_view :: Cmd.M m => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id :: BlockId -> Map.Map ViewId _a -> Maybe Id.Id
+generate_view_id :: BlockId -> Map ViewId _a -> Maybe Id.Id
 generate_view_id block_id views =
     generate_id (Id.id_namespace ident) ident "v" Id.ViewId views
     where ident = Id.unpack_id block_id
@@ -390,7 +390,7 @@ insert_branch_from block_id source = do
         Ui.add_edges block_id skel
         where (tracks, skel) = make_tracks tracknum [track_node]
     rightmost :: TrackTree.TrackTree -> Int
-    rightmost = List.foldl' max 0
+    rightmost = foldl' max 0
         . map (Foldable.foldl' (\x -> max x . Ui.track_tracknum) 0)
 
 make_tracks :: TrackNum -> TrackTree.TrackTree
@@ -549,7 +549,7 @@ track_after block tracknum
     | otherwise = next_tracknum
     where next_tracknum = Ui.skip_unselectable_tracks block tracknum 1
 
-generate_track_id :: BlockId -> Text -> Map.Map TrackId _a -> Maybe Id.Id
+generate_track_id :: BlockId -> Text -> Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =
     generate_id (Id.id_namespace ident) ident code Id.TrackId tracks
     where ident = Id.unpack_id block_id
@@ -576,7 +576,7 @@ set_block_ruler ruler_id block_id =
 -- * general util
 
 generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
-    -> Map.Map a _b -> Maybe Id.Id
+    -> Map a _b -> Maybe Id.Id
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
     where candidates = ids_for ns (Id.id_name parent_id) code

@@ -122,7 +122,7 @@ record_track_dynamic_for block_id track_id = do
 
 -- * misc Dynamic state
 
-with_default_merge :: Map.Map Score.Control (Merger Signal.Control)
+with_default_merge :: Map Score.Control (Merger Signal.Control)
     -> Deriver a -> Deriver a
 with_default_merge defaults = local $ \st -> st
     { state_control_merge_defaults =
@@ -166,7 +166,7 @@ eval_ui caller action = do
     either rethrow return (Ui.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
+lookup_id :: (Ord k, Show k) => k -> Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "unknown " <> showt key
     Just val -> return val

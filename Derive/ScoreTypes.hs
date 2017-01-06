@@ -8,7 +8,6 @@
 -- circular imports.
 module Derive.ScoreTypes where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Map as Map
 import qualified Data.String as String
 import qualified Data.Text as Text
 
@@ -193,5 +192,5 @@ instance ShowVal.ShowVal TypedVal where
 -- | This is a snapshot of the control signals at a certain point in time.
 -- It's meant for 'PitchConfig', so the values are expected to be
 -- transpositions, and hence untyped.
-type ControlValMap = Map.Map Control Signal.Y
-type TypedControlValMap = Map.Map Control (Typed Signal.Y)
+type ControlValMap = Map Control Signal.Y
+type TypedControlValMap = Map Control (Typed Signal.Y)

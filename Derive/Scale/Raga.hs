@@ -48,7 +48,7 @@ relative_fmt = JustScales.make_relative_fmt keys default_key
 default_key :: JustScales.Key
 Just default_key = Map.lookup (Pitch.Key "shankarabharanam") keys
 
-keys :: Map.Map Pitch.Key JustScales.Key
+keys :: Map Pitch.Key JustScales.Key
 keys = Map.fromList melakarta_keys
 
 
@@ -118,7 +118,7 @@ aliases_of = flip (Map.findWithDefault []) $
         Map.fromList [(janaka, map fst janyas) | (janaka, janyas) <- janya]
 
 -- | Common aliases for the melakarta names.
-aliases :: Map.Map Text [Text]
+aliases :: Map Text [Text]
 aliases = Map.fromList $ map assert_valid_name
     [ ("dheerashankarabharanam", ["shankarabharanam"])
     , ("mechakalyani", ["kalyani"])

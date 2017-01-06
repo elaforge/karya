@@ -92,7 +92,7 @@ raw_control_vals from_root = do
     pos <- get_realtime from_root
     return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
 
-aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
+aliases :: Cmd.CmdL (Map Score.Instrument Score.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic True
 
 warp :: Bool -> Cmd.CmdL Score.Warp
@@ -120,15 +120,15 @@ get_realtime from_root = do
 -- * analysis
 
 type ControlVals =
-    Map.Map Score.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
+    Map Score.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
 
 -- | Get the first and last values for each instrument.  This can be used to
 -- show which controls the each instrument uses, which in turn can be used
 -- to set its 'Instrument.config_controls', to make sure it is always
 -- initialized consistently.
-inst_controls :: BlockId -> Cmd.CmdL (Map.Map Score.Instrument ControlVals)
+inst_controls :: BlockId -> Cmd.CmdL (Map Score.Instrument ControlVals)
 inst_controls block_id =
-    List.foldl' merge mempty . LEvent.events_of <$> block_midi_events block_id
+    foldl' merge mempty . LEvent.events_of <$> block_midi_events block_id
     where
     merge insts event =
         Map.insertWith (Map.unionWith merge1) (event_inst event)
@@ -434,14 +434,14 @@ simple_midi = map $ \wmsg -> (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
 
 -- ** cache contents
 
-get_cache :: Cmd.M m => BlockId -> m (Map.Map Derive.CacheKey Derive.Cached)
+get_cache :: Cmd.M m => BlockId -> m (Map Derive.CacheKey Derive.Cached)
 get_cache block_id = do
     Derive.Cache cache <- Cmd.perf_derive_cache <$>
         Cmd.get_performance block_id
     return cache
 
 get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
-    -> m (Map.Map Derive.CacheKey [LEvent.LEvent d])
+    -> m (Map Derive.CacheKey [LEvent.LEvent d])
 get_cache_events block_id = do
     cache <- get_cache block_id
     return $ fmap Stream.to_list $ Map.mapMaybe get cache

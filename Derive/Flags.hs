@@ -16,7 +16,7 @@ import Global
 -- a note for the instrument.  Keeping them separate avoids confusing the
 -- performer with various internal attributes that have nothing to do with
 -- instrument.
-type Flags = Set.Set Flag
+type Flags = Set Flag
 newtype Flag = Flag Text
     deriving (Eq, Ord, Show, DeepSeq.NFData)
 

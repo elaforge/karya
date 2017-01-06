@@ -89,7 +89,7 @@ track_tree_of block_id = do
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by
 -- a map.
-resolve_track_tree :: Map.Map TrackNum a -> [Tree.Tree TrackNum]
+resolve_track_tree :: Map TrackNum a -> [Tree.Tree TrackNum]
     -> ([Tree.Tree a], [TrackNum]) -- ^ resolved tree, and missing TrackNums
 resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
     where
@@ -240,8 +240,8 @@ block_events_tree block_id = do
     events_tree block_id end info_tree
 
 -- | All the children of this EventsNode with TrackIds.
-track_children :: EventsNode -> Set.Set TrackId
-track_children = List.foldl' (flip Set.insert) Set.empty
+track_children :: EventsNode -> Set TrackId
+track_children = foldl' (flip Set.insert) Set.empty
     . mapMaybe track_id . Tree.flatten
 
 -- | Each note track with an instrument gets a count and maximum count, so they

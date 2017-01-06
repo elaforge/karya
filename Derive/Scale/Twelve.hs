@@ -114,7 +114,7 @@ nn_to_note nn = notes Vector.!? (round nn - 1)
 
 -- * implementation
 
-all_keys :: Map.Map Pitch.Key Theory.Key
+all_keys :: Map Pitch.Key Theory.Key
 all_keys = ChromaticScales.make_keys absolute_fmt $
     church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
 

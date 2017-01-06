@@ -174,26 +174,26 @@ import Types
 
 -- | Score state.  When you save a score, this is what is saved to disk.
 data State = State {
-    state_views :: Map.Map ViewId Block.View
-    , state_blocks :: Map.Map BlockId Block.Block
-    , state_tracks :: Map.Map TrackId Track.Track
-    , state_rulers :: Map.Map RulerId Ruler.Ruler
+    state_views :: Map ViewId Block.View
+    , state_blocks :: Map BlockId Block.Block
+    , state_tracks :: Map TrackId Track.Track
+    , state_rulers :: Map RulerId Ruler.Ruler
     , state_config :: Config
     } deriving (Eq, Show)
 
-views :: Lens.Lens State (Map.Map ViewId Block.View)
+views :: Lens.Lens State (Map ViewId Block.View)
 views = Lens.lens state_views
     (\f r -> r { state_views = f (state_views r) })
 
-blocks :: Lens.Lens State (Map.Map BlockId Block.Block)
+blocks :: Lens.Lens State (Map BlockId Block.Block)
 blocks = Lens.lens state_blocks
     (\f r -> r { state_blocks = f (state_blocks r) })
 
-tracks :: Lens.Lens State (Map.Map TrackId Track.Track)
+tracks :: Lens.Lens State (Map TrackId Track.Track)
 tracks = Lens.lens state_tracks
     (\f r -> r { state_tracks = f (state_tracks r) })
 
-rulers :: Lens.Lens State (Map.Map RulerId Ruler.Ruler)
+rulers :: Lens.Lens State (Map RulerId Ruler.Ruler)
 rulers = Lens.lens state_rulers
     (\f r -> r { state_rulers = f (state_rulers r) })
 
@@ -487,7 +487,7 @@ destroy_view :: M m => ViewId -> m ()
 destroy_view view_id = unsafe_modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
-put_views :: M m => Map.Map ViewId Block.View -> m ()
+put_views :: M m => Map ViewId Block.View -> m ()
 put_views view_map = do
     let (view_ids, views) = unzip (Map.toList view_map)
     views <- mapM _update_view_status views
@@ -618,7 +618,7 @@ block_id_of :: M m => ViewId -> m BlockId
 block_id_of view_id = Block.view_block <$> get_view view_id
 
 -- | Get all views of a given block.
-views_of :: M m => BlockId -> m (Map.Map ViewId Block.View)
+views_of :: M m => BlockId -> m (Map ViewId Block.View)
 views_of block_id = do
     views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
@@ -961,7 +961,7 @@ set_track_width block_id tracknum width =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_width = width }
 
-track_flags :: M m => BlockId -> TrackNum -> m (Set.Set Block.TrackFlag)
+track_flags :: M m => BlockId -> TrackNum -> m (Set Block.TrackFlag)
 track_flags block_id tracknum =
     Block.track_flags <$> get_block_track_at block_id tracknum
 
@@ -985,7 +985,7 @@ remove_track_flag block_id tracknum flag =
     modify_track_flags block_id tracknum (Set.delete flag)
 
 modify_track_flags :: M m => BlockId -> TrackNum
-    -> (Set.Set Block.TrackFlag -> Set.Set Block.TrackFlag) -> m ()
+    -> (Set Block.TrackFlag -> Set Block.TrackFlag) -> m ()
 modify_track_flags block_id tracknum f =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_flags = f (Block.track_flags btrack) }
@@ -1016,7 +1016,7 @@ unmerge_track block_id tracknum = do
         remove_track_flag block_id tracknum Block.Collapse
     set_merged_tracks block_id tracknum mempty
 
-set_merged_tracks :: M m => BlockId -> TrackNum -> Set.Set TrackId -> m ()
+set_merged_tracks :: M m => BlockId -> TrackNum -> Set TrackId -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
@@ -1454,7 +1454,7 @@ no_ruler = Id.RulerId (Id.global "-no-ruler-")
 
 -- * util
 
-find_tracks :: (Block.TracklikeId -> Bool) -> Map.Map BlockId Block.Block
+find_tracks :: (Block.TracklikeId -> Bool) -> Map BlockId Block.Block
     -> [(BlockId, [(TrackNum, Block.TracklikeId)])]
 find_tracks f blocks = do
     (bid, b) <- Map.assocs blocks
@@ -1469,15 +1469,15 @@ find_tracks f blocks = do
         ]
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k, M m) => k -> Map.Map k a -> m a
+lookup_id :: (Ord k, Show k, M m) => k -> Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "State.lookup: unknown " <> showt key
     Just val -> return val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.
 -- Put the map back into @state@ by applying @set_map new_map state@ to it.
-insert :: (M m, Ord k, Show k) => k -> a -> (State -> Map.Map k a)
-    -> (Map.Map k a -> State -> State) -> m k
+insert :: (M m, Ord k, Show k) => k -> a -> (State -> Map k a)
+    -> (Map k a -> State -> State) -> m k
 insert key val get_map set_map = do
     state <- get
     when (key `Map.member` get_map state) $

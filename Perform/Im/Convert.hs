@@ -92,7 +92,7 @@ convert_signal :: Perform.Signal.Signal a -> Signal.Signal
 convert_signal = Signal.fromList . map (first RealTime.to_seconds)
     . Perform.Signal.unsignal
 
-convert_controls :: Score.ControlMap -> Map.Map Control.Control Signal.Signal
+convert_controls :: Score.ControlMap -> Map Control.Control Signal.Signal
 convert_controls controls = Map.fromList $ concat
     [ [ (Control.envelope, convert_signal (Score.typed_val sig))
       | Just sig <- [Map.lookup Controls.dynamic controls]

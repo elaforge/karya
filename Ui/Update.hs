@@ -9,7 +9,6 @@
 -}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -22,9 +21,9 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.UiConfig as UiConfig
 
 import Global
 import Types
@@ -69,7 +68,7 @@ data View =
     CreateView
     | DestroyView
     | ViewSize !Rect.Rect
-    | Status !(Map.Map (Int, Text) Text) !Color.Color -- ^ background color
+    | Status !(Map (Int, Text) Text) !Color.Color -- ^ background color
     | TrackScroll !Types.Width
     | Zoom !Types.Zoom
     | Selection !Sel.Num !(Maybe Sel.Selection)

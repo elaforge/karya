@@ -94,13 +94,13 @@ inst_attributes inst = case inst_backend inst of
 
 -- * Db
 
-newtype Db code = Db (Map.Map InstTypes.SynthName (Synth code))
+newtype Db code = Db (Map InstTypes.SynthName (Synth code))
     deriving (Show, Pretty.Pretty)
 
 data Synth code = Synth {
     -- | Full name, just for documentation.
     synth_doc :: !Text
-    , synth_insts :: !(Map.Map InstTypes.Name (Inst code))
+    , synth_insts :: !(Map InstTypes.Name (Inst code))
     } deriving (Show)
 
 insts = Lens.lens synth_insts (\f r -> r { synth_insts = f (synth_insts r) })
@@ -175,7 +175,7 @@ merge :: Db code -> Db code -> (Db code, [InstTypes.SynthName])
 merge (Db db1) (Db db2) = (Db db, Map.keys dups)
     where (db, dups) = Util.Map.unique_union db1 db2
 
-annotate :: Map.Map InstTypes.Qualified [Tag.Tag] -> Db code
+annotate :: Map InstTypes.Qualified [Tag.Tag] -> Db code
     -> (Db code, [InstTypes.Qualified])
 annotate annots db = Map.foldrWithKey modify (db, []) annots
     where

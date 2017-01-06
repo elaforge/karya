@@ -35,7 +35,7 @@ data StaticConfig = StaticConfig {
     -- a focused block will abort.
     , setup_cmd :: [String] -> Cmd.CmdT IO Cmd.Status
     , midi :: Midi
-    , highlight_colors :: Map.Map Color.Highlight Color.Color
+    , highlight_colors :: Map Color.Highlight Color.Color
     }
 
 empty :: StaticConfig
@@ -55,11 +55,11 @@ data Midi = Midi {
     --
     -- Because input devices are likely to be relatively static, the
     -- read device map is only configured here.
-    rdev_map :: Map.Map Midi.ReadDevice Midi.ReadDevice
+    rdev_map :: Map Midi.ReadDevice Midi.ReadDevice
     -- | WriteDevices may vary per score, e.g. softsynths may listen at any
     -- number of virtual devices.  This map is taken as a default, but may
     -- be overridden by the score loaded.
-    , wdev_map :: Map.Map Midi.WriteDevice Midi.WriteDevice
+    , wdev_map :: Map Midi.WriteDevice Midi.WriteDevice
 
     -- | Open the given devices on startup.  Even if they aren't plugged in,
     -- they'll be added to the read list so they're automatically connected if
@@ -68,19 +68,19 @@ data Midi = Midi {
     --
     -- There's no corresponding write_devices because if you don't want
     -- to write to a device, just don't write to it!
-    , read_devices :: Set.Set Midi.ReadDevice
+    , read_devices :: Set Midi.ReadDevice
     } deriving (Show)
 
 empty_midi :: Midi
 empty_midi = Midi Map.empty Map.empty Set.empty
 
-make_rdev_map :: [(Text, Text)] -> Map.Map Midi.ReadDevice Midi.ReadDevice
+make_rdev_map :: [(Text, Text)] -> Map Midi.ReadDevice Midi.ReadDevice
 make_rdev_map = Map.fromList . map (Midi.read_device *** Midi.read_device)
 
-make_wdev_map :: [(Text, Text)] -> Map.Map Midi.WriteDevice Midi.WriteDevice
+make_wdev_map :: [(Text, Text)] -> Map Midi.WriteDevice Midi.WriteDevice
 make_wdev_map = Map.fromList . map (Midi.write_device *** Midi.write_device)
 
-make_read_devices :: [Text] -> Set.Set Midi.ReadDevice
+make_read_devices :: [Text] -> Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device
 
 -- | Create a 'Cmd.Config' from a StaticConfig.

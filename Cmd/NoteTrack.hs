@@ -274,7 +274,7 @@ block_call caller = fmap Seq.head . block_calls caller
 -- | If the first word names a block, then it's probably a block call with
 -- args, so return just that.  Otherwise, return any argument that names
 -- a block.
-to_block_id :: Map.Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
+to_block_id :: Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
     -> (Maybe BlockId)
 to_block_id blocks ns caller =
     valid <=< Eval.call_to_block_id ns caller . BaseTypes.Symbol

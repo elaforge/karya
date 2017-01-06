@@ -35,7 +35,7 @@ type Annotation = Tag.Tag
 -- TODO other attributes are not supported, but if there were, they could look
 -- like @*pb-range=12 *flag=pressure@
 parse_annotations :: FilePath
-    -> IO (Either String (Map.Map InstTypes.Qualified [Annotation]))
+    -> IO (Either String (Map InstTypes.Qualified [Annotation]))
 parse_annotations fn = do
     result <- Parse.file mempty p_annotation_file () fn
     return $ (show *** Map.fromListWith (++)) result

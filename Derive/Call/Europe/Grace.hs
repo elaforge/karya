@@ -232,7 +232,7 @@ make_grace_notes prev (start, end) notes grace_dur place = do
         score_end <- Derive.score (start + dur)
         return $ Sub.Event score_start (score_end - score_start) note
 
-c_attr_grace :: Map.Map Int Attrs.Attributes
+c_attr_grace :: Map Int Attrs.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
 c_attr_grace supported =
@@ -271,7 +271,7 @@ c_attr_grace supported =
             Call.add_attributes attrs $ Call.with_dynamic dyn $
             Call.pitched_note pitch
 
-grace_attributes :: RealTime -> Map.Map Int Attrs.Attributes -> [PSignal.Pitch]
+grace_attributes :: RealTime -> Map Int Attrs.Attributes -> [PSignal.Pitch]
     -> PSignal.Pitch -> Derive.Deriver (Maybe Attrs.Attributes)
 grace_attributes pos supported [grace] base = do
     base <- Derive.resolve_pitch pos base

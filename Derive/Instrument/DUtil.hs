@@ -194,7 +194,7 @@ instance Pretty.Pretty Composite where
 data Pitch = NoPitch | Pitch Score.PControl deriving (Show)
 -- | If Nothing, then this Composite gets all the controls that are not given
 -- to other instruments.  Otherwise, it only gets the named ones.
-type Controls = Maybe (Set.Set Score.Control)
+type Controls = Maybe (Set Score.Control)
 
 show_controls :: Controls -> Doc.Doc
 show_controls = Doc.Doc . maybe "(all)" pretty

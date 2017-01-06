@@ -79,7 +79,7 @@ convert source_block stream = do
 -- | Convert derived score events back into UI events.
 --
 -- TODO optionally quantize the ui events
-integrate :: Config -> Map.Map TrackId TrackNum -> [Score.Event]
+integrate :: Config -> Map TrackId TrackNum -> [Score.Event]
     -> (Tracks, [Text])
     -- ^ (tracks, errs)
 integrate config tracknums =
@@ -87,7 +87,7 @@ integrate config tracknums =
     . allocate_tracks tracknums
 
 -- | Allocate the events to separate tracks.
-allocate_tracks :: Map.Map TrackId TrackNum -> [Score.Event]
+allocate_tracks :: Map TrackId TrackNum -> [Score.Event]
     -> [(TrackKey, [Score.Event])]
 allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
     where

@@ -158,7 +158,7 @@ type Patterns = IntMap.IntMap (Solkattu.Speed, Text)
 default_variation :: Text
 default_variation = "d"
 
-variations :: Map.Map Text Patterns
+variations :: Map Text Patterns
 variations = Map.fromList $ map (second convert_patterns) $
     [ (default_variation, Mridangam.defaults)
     , ("kt_kn_o", Mridangam.kt_kn_o)

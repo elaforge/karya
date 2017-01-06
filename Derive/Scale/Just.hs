@@ -55,7 +55,7 @@ relative_fmt = JustScales.make_relative_fmt keys default_key
 default_key :: JustScales.Key
 Just default_key = Map.lookup (Pitch.Key "c-maj") keys
 
-keys :: Map.Map Pitch.Key JustScales.Key
+keys :: Map Pitch.Key JustScales.Key
 keys = JustScales.make_keys TheoryFormat.absolute_c_degrees key_ratios
 
 key_ratios :: [(Text, JustScales.Ratios)]

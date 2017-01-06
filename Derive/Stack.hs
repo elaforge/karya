@@ -151,7 +151,7 @@ find_rest f = go
 -- only matches frames where the corresponding field is set, and is equal (or
 -- overlaps in the case of range).
 type Pattern =
-    (Maybe BlockId, Maybe (Set.Set TrackId), Maybe (TrackTime, TrackTime))
+    (Maybe BlockId, Maybe (Set TrackId), Maybe (TrackTime, TrackTime))
 
 match :: Pattern -> Stack -> Bool
 match pattern = any (ui_match pattern) . to_ui

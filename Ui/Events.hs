@@ -293,7 +293,7 @@ newtype Events = Events EventMap
 -- | The ScoreTime is redundant since it's also stored in the Event itself.
 -- I used to have them separate, but then I had to pass (ScoreTime, Event)
 -- pairs around everywhere.
-type EventMap = Map.Map ScoreTime Event.Event
+type EventMap = Map ScoreTime Event.Event
 
 -- | This assumes the input is already sorted!
 from_ascending :: [Event.Event] -> EventMap
@@ -434,6 +434,6 @@ instance Serialize.Serialize Events where
         v <- Serialize.get_version
         case v of
             3 -> do
-                events :: Map.Map ScoreTime Event.Event <- Serialize.get
+                events :: Map ScoreTime Event.Event <- Serialize.get
                 return $ Events events
             _ -> Serialize.bad_version "Events" v

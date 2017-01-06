@@ -4,9 +4,6 @@
 
 -- | Describe an Im 'Patch', from the sequencer's point of view.
 module Perform.Im.Patch where
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
 import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -17,9 +14,9 @@ import Global
 data Patch = Patch {
     -- | Map supported controls to documentation.
     -- TODO maybe I need a separate one for pitch controls.
-    patch_controls :: !(Map.Map ScoreTypes.Control Text)
+    patch_controls :: !(Map ScoreTypes.Control Text)
     , patch_attribute_map :: !AttributeMap
-    , patch_flags :: !(Set.Set Flag)
+    , patch_flags :: !(Set Flag)
     } deriving (Show)
 
 patch :: Patch

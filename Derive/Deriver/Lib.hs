@@ -176,7 +176,7 @@ with_imported empty_ok module_ deriver = do
     with_scopes (import_library lib) deriver
 
 -- | Import only the given symbols from the module.
-with_imported_symbols :: Module.Module -> Set.Set BaseTypes.CallId -> Deriver a
+with_imported_symbols :: Module.Module -> Set BaseTypes.CallId -> Deriver a
     -> Deriver a
 with_imported_symbols module_ syms deriver = do
     lib <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
@@ -460,7 +460,7 @@ with_instrument_alias :: Score.Instrument -> Score.Instrument
 with_instrument_alias alias inst =
     with_instrument_aliases (Map.singleton alias inst)
 
-with_instrument_aliases :: Map.Map Score.Instrument Score.Instrument
+with_instrument_aliases :: Map Score.Instrument Score.Instrument
     -> Deriver a -> Deriver a
 with_instrument_aliases aliases deriver
     | Map.null aliases = deriver

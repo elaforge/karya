@@ -26,7 +26,7 @@ import Global
 import Types
 
 
-newtype Environ = Environ (Map.Map BaseTypes.Key Val)
+newtype Environ = Environ (Map BaseTypes.Key Val)
     deriving (Read, Show, Eq, Monoid, Pretty.Pretty, Serialize.Serialize)
 
 make :: [(BaseTypes.Key, Val)] -> Environ

@@ -56,7 +56,7 @@ data ScaleMap = ScaleMap {
     , smap_accidental_interval :: Double
     }
 
-type Keys = Map.Map Pitch.Key Key
+type Keys = Map Pitch.Key Key
 
 -- | Make a just scale with the given set of keys.  A \"key\" in a just scale
 -- is the set of ratios and the tonic.  The number of ratios should be the same

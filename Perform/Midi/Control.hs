@@ -16,7 +16,7 @@ import qualified Perform.Signal as Signal
 import Global
 
 
-type ControlMap = Map.Map Score.Control Midi.Control
+type ControlMap = Map Score.Control Midi.Control
 
 control_map :: [(Midi.Control, Score.Control)] -> ControlMap
 control_map = Map.fromList . map Tuple.swap

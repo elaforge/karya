@@ -133,7 +133,7 @@ parse_merge name
     | name == "default" = Default
     | otherwise = Merge $ Map.findWithDefault name name symbol_to_merge
 
-symbol_to_merge :: Map.Map BaseTypes.CallId BaseTypes.CallId
+symbol_to_merge :: Map BaseTypes.CallId BaseTypes.CallId
 symbol_to_merge = Map.fromList
     [ ("+", "add")
     , ("-", "sub")

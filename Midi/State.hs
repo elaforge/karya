@@ -13,7 +13,6 @@ module Midi.State (
     , Message, convert
     , play, process, diff
 ) where
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
@@ -25,15 +24,15 @@ import qualified Midi.Midi as Midi
 import Global
 
 
-newtype State = State (Map.Map Addr Channel) deriving (Eq, Show, Pretty.Pretty)
+newtype State = State (Map Addr Channel) deriving (Eq, Show, Pretty.Pretty)
 
 empty :: State
 empty = State Map.empty
 
 data Channel = Channel {
-    chan_notes :: !(Map.Map Midi.Key Midi.Velocity)
+    chan_notes :: !(Map Midi.Key Midi.Velocity)
     , chan_pb :: !Midi.PitchBendValue
-    , chan_controls :: !(Map.Map Control Midi.ControlValue)
+    , chan_controls :: !(Map Control Midi.ControlValue)
     } deriving (Eq, Show)
 
 empty_channel :: Channel
@@ -70,7 +69,7 @@ convert msg = (Midi.wmsg_dev msg, Midi.wmsg_msg msg)
 -- * play
 
 play :: [Message] -> State -> State
-play msgs state = List.foldl' process state msgs
+play msgs state = foldl' process state msgs
 
 process :: State -> Message -> State
 process state (dev, Midi.ChannelMessage chan msg) = case msg of
@@ -128,8 +127,7 @@ diff_note key (Seq.Both v1 v2)
     | v1 == v2 = []
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
 
-diff_map :: Ord k => Map.Map k a -> Map.Map k a -> a -> (k -> a -> a -> [b])
-    -> [b]
+diff_map :: Ord k => Map k a -> Map k a -> a -> (k -> a -> a -> [b]) -> [b]
 diff_map m1 m2 deflt f = concatMap go (Map.pairs m1 m2)
     where
     go (k, Seq.Both v1 v2) = f k v1 v2

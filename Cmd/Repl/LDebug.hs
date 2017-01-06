@@ -130,7 +130,7 @@ get_warps block_id track_id = do
 
 -- | Get all raw uncollected TrackWarps from the root, and strip out the
 -- signals so they don't take up tons of space.
-get_track_warps :: Cmd.M m => m (Map.Map Stack.Stack TrackWarp.TrackWarp)
+get_track_warps :: Cmd.M m => m (Map Stack.Stack TrackWarp.TrackWarp)
 get_track_warps = do
     result <- LPerf.derive =<< Ui.get_root_id
     let wmap = Derive.collect_warp_map $ Derive.state_collect $

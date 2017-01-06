@@ -66,7 +66,6 @@ module Cmd.MidiThru (
     , module Cmd.MidiThru
 #endif
 ) where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -250,7 +249,7 @@ input_to_midi pb_range wdev_state addrs input_nn = case alloc addrs input_nn of
     alloc = alloc_addr (Cmd.wdev_note_addr wdev_state)
         (Cmd.wdev_addr_serial wdev_state) (Cmd.wdev_serial wdev_state)
 
-merge_state :: Maybe (Map.Map NoteId Addr, Map.Map Addr Cmd.Serial)
+merge_state :: Maybe (Map NoteId Addr, Map Addr Cmd.Serial)
     -> Addr -> Midi.PitchBendValue -> Cmd.WriteDeviceState
     -> Cmd.WriteDeviceState
 merge_state new_state addr pb old = case new_state of
@@ -267,10 +266,10 @@ merge_state new_state addr pb old = case new_state of
 -- if it's not NoteOn or NoteOff, abort.  If it is, pick a free addr, and if
 -- there is no free one, pick the oldest one.  Update the wdev state and assign
 -- the note id to the addr.
-alloc_addr :: Map.Map NoteId Addr -> Map.Map Addr Cmd.Serial -> Cmd.Serial
+alloc_addr :: Map NoteId Addr -> Map Addr Cmd.Serial -> Cmd.Serial
     -> [Addr] -- ^ Addrs allocated to this instrument.
     -> InputNote.InputNn
-    -> (Maybe Addr, Maybe (Map.Map NoteId Addr, Map.Map Addr Cmd.Serial))
+    -> (Maybe Addr, Maybe (Map NoteId Addr, Map Addr Cmd.Serial))
 alloc_addr note_addr addr_serial serial addrs input
     | Just addr <- Map.lookup note_id note_addr, addr `elem` addrs =
         case input of
@@ -294,7 +293,7 @@ alloc_addr note_addr addr_serial serial addrs input
     oldest = Seq.minimum_on (flip Map.lookup addr_serial) addrs
 
 pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
-pb_of = List.foldl' f
+pb_of = foldl' f
     where
     f _ (Midi.PitchBend pb) = pb
     f pb _ = pb

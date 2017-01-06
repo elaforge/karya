@@ -168,10 +168,10 @@ merge_undo_states new old =
     -- config changes.
     }
 
-merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
+merge_view :: Map ViewId Block.View -> ViewId -> Block.View -> Block.View
 merge_view old_views view_id new = Map.findWithDefault new view_id old_views
 
-merge_block :: Map.Map BlockId Block.Block -> BlockId -> Block.Block
+merge_block :: Map BlockId Block.Block -> BlockId -> Block.Block
     -> Block.Block
 merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new

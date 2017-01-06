@@ -440,7 +440,7 @@ match_dumps desc dumps attrs = allM matches (Seq.zip_padded dumps attrs)
             fail $ "attrs " <> showt missing <> " not in dump: "
                 <> txt (PPrint.pshow dump)
         where missing = filter (`notElem` dump) attrs
-    allM f xs = List.foldl' (&&) True <$> mapM f xs
+    allM f xs = foldl' (&&) True <$> mapM f xs
     fail = failure . ((desc <> ": ") <>)
     pass = success . ((desc <> ": ") <>)
 

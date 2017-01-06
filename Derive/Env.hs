@@ -76,7 +76,7 @@ insert_val name = insert name . Typecheck.to_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
-hardcoded_types :: Map.Map Key ValType.Type
+hardcoded_types :: Map Key ValType.Type
 hardcoded_types = Map.fromList
     [ (EnvKey.attributes,  ValType.TAttributes)
     , (EnvKey.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)

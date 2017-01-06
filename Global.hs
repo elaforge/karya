@@ -5,13 +5,15 @@
 {-# LANGUAGE CPP #-}
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
-    Proxy(..)
+    Proxy(..), Map, Set
     , (<|>)
     , first, second, (***)
     , Monoid(..), (<>)
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
     , allM, anyM
+    -- * list
+    , foldl'
     , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
@@ -46,7 +48,10 @@ import Control.Monad
         zipWithM, zipWithM_)
 import Control.Monad.Trans (lift, liftIO)
 
+import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Map (Map)
+import Data.Set (Set)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text

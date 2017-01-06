@@ -58,7 +58,7 @@ import Types
 --
 -- A Signal can contain pitches from multiple scales, though I don't think this
 -- should ever happen.  But if it does, the first pitch wins.
-sig_transposers :: PSignal -> Set.Set Score.Control
+sig_transposers :: PSignal -> Set Score.Control
 sig_transposers = pscale_transposers . sig_scale
 
 -- | Get the scale id of the signal.
@@ -99,7 +99,7 @@ to_nn = extract . Either.partitionEithers . map eval . unsignal
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
 unfoldr f st = PSignal $ TimeVector.unfoldr f st
 
-type ControlMap = Map.Map Score.Control Score.TypedControl
+type ControlMap = Map Score.Control Score.TypedControl
 
 -- | Resample the signal according to the 'sig_transposers' and apply the
 -- given controls to the signal.
@@ -128,7 +128,7 @@ apply_controls controls sig
     initial_controls = controls_at start controls
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
-sample_controls :: ControlMap -> Set.Set Score.Control
+sample_controls :: ControlMap -> Set Score.Control
     -> TimeVector.Boxed Score.ControlValMap
 sample_controls controls transposers =
     TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
@@ -223,7 +223,7 @@ symbolic_pitch = either showt Pitch.note_text . pitch_note . coerce
 pitch_scale_id :: RawPitch a -> Pitch.ScaleId
 pitch_scale_id = pscale_scale_id . pitch_scale
 
-pitch_transposers :: Pitch -> Set.Set Score.Control
+pitch_transposers :: Pitch -> Set Score.Control
 pitch_transposers = pscale_transposers . pitch_scale
 
 pitch_controls :: PitchConfig -> Score.ControlValMap

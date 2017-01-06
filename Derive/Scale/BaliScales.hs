@@ -117,7 +117,7 @@ scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
 
 -- * Saih
 
-type SaihMap = Map.Map Text Saih
+type SaihMap = Map Text Saih
 
 data Saih = Saih {
     saih_doc :: Doc.Doc

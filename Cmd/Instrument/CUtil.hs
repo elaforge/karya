@@ -56,13 +56,12 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: Cmd.M m => Map.Map Char BaseTypes.CallId -> Msg.Msg
-    -> m Cmd.Status
+insert_call :: Cmd.M m => Map Char BaseTypes.CallId -> Msg.Msg -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
     where to_expr call = BaseTypes.call call [] :| []
 
-notes_to_calls :: [Drums.Note] -> Map.Map Char BaseTypes.CallId
+notes_to_calls :: [Drums.Note] -> Map Char BaseTypes.CallId
 notes_to_calls notes =
     Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
 
@@ -79,7 +78,7 @@ notes_to_calls notes =
     work in real time.  Still, perhaps it would be possible to integrate them
     better than I have.
 -}
-insert_expr :: Cmd.M m => Map.Map Char BaseTypes.Expr -> Msg.Msg
+insert_expr :: Cmd.M m => Map Char BaseTypes.Expr -> Msg.Msg
     -> m Cmd.Status
 insert_expr char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
@@ -220,7 +219,7 @@ make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Midi.Key -- ^ the pitch of the bottom note of each range
-    -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
+    -> [[Attrs.Attributes]] -> Map Attrs.Attributes KeyswitchRange
 make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group $ maybe (repeat [])
@@ -231,7 +230,7 @@ make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
 -- closely match the sample utils I use.
 make_keymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
     -> Midi.Key -> [[Attrs.Attributes]]
-    -> Map.Map Attrs.Attributes KeyswitchRange
+    -> Map Attrs.Attributes KeyswitchRange
 make_keymap2 base_keyswitch base_key natural_key range natural_nn =
     make_keymap base_keyswitch base_key range
         (natural_nn - Midi.from_key natural_key)
@@ -244,7 +243,7 @@ make_keymap2 base_keyswitch base_key natural_key range natural_nn =
 make_cc_keymap :: Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Midi.Key -- ^ the pitch of the bottom note of each range
-    -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
+    -> [[Attrs.Attributes]] -> Map Attrs.Attributes KeyswitchRange
 make_cc_keymap base_key range root_pitch =
     Map.fromList . go base_cc . zip [base_key, base_key + range ..]
     where
@@ -283,7 +282,7 @@ make_attribute_map notes = Common.attribute_map $ Seq.unique
     ]
 
 -- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
-drum_pitched_notes :: [Drums.Note] -> Map.Map Attrs.Attributes KeyswitchRange
+drum_pitched_notes :: [Drums.Note] -> Map Attrs.Attributes KeyswitchRange
     -> (PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
     -- ^ Also return the notes with no mapping (so they can't be played), and
     -- keymap ranges with no corresponding notes (so there is no call to
@@ -343,7 +342,7 @@ tuning_control args control deriver = do
 --
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
 -- a 'Drums.note_dynamic'
-resolve_strokes :: Signal.Y -> Map.Map Attrs.Attributes KeyswitchRange
+resolve_strokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
     -> [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
     -> (PitchedNotes, [Text]) -- ^ also return errors

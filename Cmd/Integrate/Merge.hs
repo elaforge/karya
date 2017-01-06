@@ -388,7 +388,7 @@ score_pair_tracks track_ids sources dests =
 diff_events :: Block.EventIndex -- ^ results of last integrate
     -> [Event.Event]
     -- ^ current events, which is last integrate plus user edits
-    -> (Set.Set Event.IndexKey, [Edit])
+    -> (Set Event.IndexKey, [Edit])
     -- ^ set of deleted events, and edited events
 diff_events index events = (deletes, edits)
     where
@@ -465,7 +465,7 @@ is_modified _ = True
 
 -- ** apply
 
-apply :: Set.Set Event.IndexKey -- ^ events that were deleted
+apply :: Set Event.IndexKey -- ^ events that were deleted
     -> [Edit] -> [Event.Event] -- ^ results of current integrate
     -> Events.Events
 apply deletes adds_edits = make . mapMaybe edit
@@ -490,7 +490,7 @@ unmodified :: Event.Event -> Event.Event
 unmodified = Event.modify_style Config.unmodified_style
 
 apply_modifications :: [Modify] -> Event.Event -> Event.Event
-apply_modifications mods event = List.foldl' go event mods
+apply_modifications mods event = foldl' go event mods
     where
     go event mod = ($event) $ case mod of
         Position p -> Event.move_to p

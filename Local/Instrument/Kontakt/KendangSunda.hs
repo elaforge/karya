@@ -7,8 +7,6 @@ module Local.Instrument.Kontakt.KendangSunda (
     patches, write_ksp, pitch_control
     , resolve_errors
 ) where
-import qualified Data.Map as Map
-
 import qualified Midi.Key as Key
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -160,7 +158,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     kulanter_leutik_closed = "kulanter-leutik-closed"
     kulanter_leutik_open = "kulanter-leutik-open"
 
-keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
+keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
 keymap = CUtil.make_keymap2 Nothing 8 6 12 Key.c4
     -- indung, left
     [ [dong, det, det <> Attrs.low, det <> Attrs.middle, det <> Attrs.high]

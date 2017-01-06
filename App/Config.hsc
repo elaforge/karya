@@ -219,7 +219,7 @@ lookup_selection_color selnum
 
 -- * colors
 
-highlight_colors :: Map.Map Color.Highlight Color.Color
+highlight_colors :: Map Color.Highlight Color.Color
 highlight_colors = Map.fromList
     [ (Color.Notice, Color.alpha 0.15 Color.green)
     , (Color.Warning, Color.alpha 0.1 Color.red)

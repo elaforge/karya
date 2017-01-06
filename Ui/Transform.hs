@@ -123,7 +123,7 @@ map_ruler_ids f = do
         _ -> track
 
 safe_map_keys :: (Ui.M m, Ord k, Show k) =>
-    String -> (k -> k) -> Map.Map k v -> m (Map.Map k v)
+    String -> (k -> k) -> Map k v -> m (Map k v)
 safe_map_keys name f fm0
     | Map.size fm1 == Map.size fm0 = return fm1
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
@@ -174,7 +174,7 @@ merge_states st0 st1 = Ui.exec st0 $ do
         }
 
 safe_union :: (Ui.M m, Ord k, Show k) => String
-    -> Map.Map k a -> Map.Map k a -> m (Map.Map k a)
+    -> Map k a -> Map k a -> m (Map k a)
 safe_union name fm0 fm1
     | Map.null overlapping = return fm
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
@@ -185,7 +185,7 @@ safe_union name fm0 fm1
 -- * intern
 
 -- | Increase sharing in event text with an intern table.
-intern_text :: Ui.State -> (Ui.State, Map.Map Text Int)
+intern_text :: Ui.State -> (Ui.State, Map Text Int)
 intern_text state =
     (state { Ui.state_tracks = Map.fromAscList tracks }, Map.map snd table)
     where
@@ -198,7 +198,7 @@ intern_text state =
         (state2, events) = List.mapAccumL Event.intern_event state
             (Events.ascending (Track.track_events track))
 
-intern_stats :: Map.Map Text Int -> (Memory.Size, Int)
+intern_stats :: Map Text Int -> (Memory.Size, Int)
 intern_stats table =
     (Memory.from_bytes $ sum (map stats (Map.toList table)), total_hits)
     where

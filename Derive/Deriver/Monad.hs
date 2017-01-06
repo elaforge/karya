@@ -386,7 +386,7 @@ initial_state constant dynamic = State
 data Threaded = Threaded {
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
-    state_prev_val :: !(Map.Map (BlockId, TrackId) Tagged)
+    state_prev_val :: !(Map (BlockId, TrackId) Tagged)
     -- | This is used with 'Controls.seed' for randomization.  It's reset on
     -- the evaluation of each uninverted track event, and incremented after
     -- every Score.Event is emitted.  This way, multiple score events emitted
@@ -416,7 +416,7 @@ data Dynamic = Dynamic {
     -- 'BaseTypes.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
     , state_control_merge_defaults ::
-        Map.Map Score.Control (Merger Signal.Control)
+        Map Score.Control (Merger Signal.Control)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -432,7 +432,7 @@ data Dynamic = Dynamic {
     -- before looking in 'state_lookup_instrument'.  The alias destination is
     -- always the final instrument, not another alias, so you never have to
     -- look up multiple times.
-    , state_instrument_aliases :: !(Map.Map Score.Instrument Score.Instrument)
+    , state_instrument_aliases :: !(Map Score.Instrument Score.Instrument)
     , state_control_damage :: !ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
     -- inversion, it composes itself on to this, which is then applied as
@@ -529,8 +529,7 @@ initial_controls = Map.fromList
     [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
-initial_control_merge_defaults ::
-    Map.Map Score.Control (Merger Signal.Control)
+initial_control_merge_defaults :: Map Score.Control (Merger Signal.Control)
 initial_control_merge_defaults =
     Map.fromList [(c, merge_add) | c <- Controls.additive_controls]
 
@@ -584,7 +583,7 @@ data Library = Library {
     -- at the beginning of derivation.  This doesn't really fit here since
     -- it's not a CallMap, but it's convenient to return from the ky loading
     -- function, and other users can leave it empty.
-    , lib_instrument_aliases :: !(Map.Map Score.Instrument Score.Instrument)
+    , lib_instrument_aliases :: !(Map Score.Instrument Score.Instrument)
     }
 
 instance Monoid Library where
@@ -679,7 +678,7 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
     the toplevel, and it will still override library imported calls.
 -}
 newtype ScopePriority call =
-    ScopePriority (Map.Map CallPriority [LookupCall call])
+    ScopePriority (Map CallPriority [LookupCall call])
     deriving (Pretty.Pretty)
 
 instance Monoid (ScopePriority call) where
@@ -789,9 +788,8 @@ data Constant = Constant {
     state_ui :: !Ui.State
     , state_library :: !Library
     -- | Global map of signal mergers.  Unlike calls, this is static.
-    , state_mergers :: !(Map.Map BaseTypes.CallId (Merger Signal.Control))
-    , state_pitch_mergers ::
-        !(Map.Map BaseTypes.CallId (Merger PSignal.PSignal))
+    , state_mergers :: !(Map BaseTypes.CallId (Merger Signal.Control))
+    , state_pitch_mergers :: !(Map BaseTypes.CallId (Merger PSignal.PSignal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -893,7 +891,7 @@ instance DeepSeq.NFData (Merger a) where
 -- *** control ops
 
 -- | The built-in set of control Mergers.
-mergers :: Map.Map BaseTypes.CallId (Merger Signal.Control)
+mergers :: Map BaseTypes.CallId (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     , Merger "max" Signal.sig_max (Signal.constant (-2^32))
@@ -912,7 +910,7 @@ merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-pitch_mergers :: Map.Map BaseTypes.CallId (Merger PSignal.PSignal)
+pitch_mergers :: Map BaseTypes.CallId (Merger PSignal.PSignal)
 pitch_mergers = Map.fromList $ map to_pair
     [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
@@ -960,8 +958,7 @@ data Collect = Collect {
 -- The signal fragments are indexed by the slice position.  Since
 -- 'Signal.merge' makes the earlier signals win in case of overlaps, this
 -- ensures a trimmed earlier fragment won't replace a more complete later one.
-type SignalFragments =
-    Map.Map (BlockId, TrackId) (Map.Map TrackTime Signal.Control)
+type SignalFragments = Map (BlockId, TrackId) (Map TrackTime Signal.Control)
 
 instance Pretty.Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
@@ -1051,7 +1048,7 @@ instance DeepSeq.NFData Integrated where
     inverted tracks and prefer the inverted tracks, but take controls from the
     non-inverted versions.
 -}
-type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
+type TrackDynamic = Map (BlockId, TrackId) Dynamic
 
 {- | This is the logical duration of a call.  This may be different from its
     actual duration (which is to say, the end time of the last event it emits).
@@ -1092,7 +1089,7 @@ instance Monoid (CallDuration a) where
 -- ** calls
 
 data LookupCall call =
-    LookupMap !(Map.Map BaseTypes.CallId call)
+    LookupMap !(Map BaseTypes.CallId call)
     -- | Text description of the CallIds accepted.  The function is in Deriver
     -- because some calls want to look at the state to know if the CallId is
     -- valid, e.g. block calls.
@@ -1470,7 +1467,7 @@ make_val_call module_ name tags doc (call, arg_docs) = ValCall
 -- defined here to avoid circular dependencies.
 
 -- instead of a stack, this could be a tree of frames
-newtype Cache = Cache (Map.Map CacheKey Cached)
+newtype Cache = Cache (Map CacheKey Cached)
     deriving (Monoid, Pretty.Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
@@ -1544,7 +1541,7 @@ instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
 
 -- ** deps
 
-newtype BlockDeps = BlockDeps (Set.Set BlockId)
+newtype BlockDeps = BlockDeps (Set BlockId)
     deriving (Pretty.Pretty, Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
@@ -1552,15 +1549,15 @@ newtype BlockDeps = BlockDeps (Set.Set BlockId)
 -- | Modified ranges in the score.
 data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
-    sdamage_tracks :: !(Map.Map TrackId (Ranges.Ranges ScoreTime))
+    sdamage_tracks :: !(Map TrackId (Ranges.Ranges ScoreTime))
     -- | The blocks with damaged tracks.  Calls depend on blocks
     -- ('BlockDeps') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.
-    , sdamage_track_blocks :: !(Set.Set BlockId)
+    , sdamage_track_blocks :: !(Set BlockId)
     -- | Blocks which are entirely damaged.
-    , sdamage_blocks :: !(Set.Set BlockId)
+    , sdamage_blocks :: !(Set BlockId)
     } deriving (Eq, Show)
 
 instance Monoid ScoreDamage where
@@ -1639,7 +1636,7 @@ data Scale = Scale {
     -- This is used by 'PSignal.apply_controls' to know when to reevaluate
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
-    , scale_transposers :: !(Set.Set Score.Control)
+    , scale_transposers :: !(Set Score.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
     , scale_read :: BaseTypes.Environ -> Pitch.Note
         -> Either BaseTypes.PitchError Pitch.Pitch

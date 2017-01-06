@@ -101,7 +101,7 @@ instance DeepSeq.NFData Block where
     always kicked off manually now, so this has no use at the moment.  Maybe
     you could put notes in there.
 -}
-type Meta = Map.Map Text Text
+type Meta = Map Text Text
 
 data TrackDestinations =
     -- | A derive integrate can produce multiple note tracks, and each one gets
@@ -137,13 +137,13 @@ data DeriveDestination = DeriveDestination {
     -- | (dest_track, index)
     dest_note :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
-    , dest_controls :: !(Map.Map Text (TrackId, EventIndex))
+    , dest_controls :: !(Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
-type EventIndex = Map.Map Event.IndexKey Event.Event
+type EventIndex = Map Event.IndexKey Event.Event
 
 instance Pretty.Pretty DeriveDestination where
     format (DeriveDestination note controls) = Pretty.record "DeriveDestination"
@@ -236,10 +236,10 @@ data Track = Track {
     -- the same width.
     , track_width :: !Types.Width
     -- | Track display state flags.
-    , track_flags :: !(Set.Set TrackFlag)
+    , track_flags :: !(Set TrackFlag)
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
-    , track_merged :: !(Set.Set TrackId)
+    , track_merged :: !(Set TrackId)
     } deriving (Eq, Show, Read)
 
 track_id :: Track -> Maybe TrackId
@@ -276,7 +276,7 @@ track_selectable track@(Track { tracklike_id = TId _ _}) =
 track_selectable _ = False
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
-track_wants_signal :: Set.Set TrackFlag -> Track.Track -> Bool
+track_wants_signal :: Set TrackFlag -> Track.Track -> Bool
 track_wants_signal flags track =
     Track.render_style (Track.track_render track) /= Track.NoRender
     && Collapse `Set.notMember` flags
@@ -287,7 +287,7 @@ track_wants_signal flags track =
 data DisplayTrack = DisplayTrack {
     dtracklike_id :: !TracklikeId
     , dtrack_width :: !Types.Width
-    , dtrack_merged :: !(Set.Set TrackId)
+    , dtrack_merged :: !(Set TrackId)
     , dtrack_status :: !Status
     , dtrack_event_brightness :: !Double
     } deriving (Eq, Show, Read)
@@ -363,7 +363,7 @@ collapsed_track = DisplayTrack
 display_track_width :: Track -> Types.Width
 display_track_width = dtrack_width . display_track
 
-flags_to_status :: Set.Set TrackFlag -> (Status, Double)
+flags_to_status :: Set TrackFlag -> (Status, Double)
 flags_to_status flags
     | Disable `Set.member` flags =
         (Just (chars Disable, Config.mute_color), 0.7)
@@ -456,13 +456,13 @@ data View = View {
     , view_track_padding :: !Int
     , view_time_padding :: !Int
     -- | Map (sort_order, name) contents
-    , view_status :: !(Map.Map (Int, Text) Text)
+    , view_status :: !(Map (Int, Text) Text)
 
     -- | Scroll and zoom
     , view_track_scroll :: !Types.Width
     , view_zoom :: !Types.Zoom
 
-    , view_selections :: !(Map.Map Sel.Num Sel.Selection)
+    , view_selections :: !(Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty View where
@@ -507,7 +507,7 @@ status_color block_id block maybe_root_id
         ScoreDestinations {} -> Config.status_score_integrate_destination
     | otherwise = Config.status_default
 
-show_status :: Map.Map (Int, Text) Text -> Text
+show_status :: Map (Int, Text) Text -> Text
 show_status = Text.intercalate " | "
     . map (\((_, k), v) -> k <> ": " <> v) . Map.toAscList
 

@@ -29,7 +29,7 @@ modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
 -- | In order to perform generic operations on meters, such as doubling the
 -- length, I need a way to renumber them.  So rulers keep track of their
 -- created type and use that to look up the 'Renumber' function.
-meter_types :: Map.Map Ruler.MeterType Meter.Renumber
+meter_types :: Map Ruler.MeterType Meter.Renumber
 meter_types = Map.fromList
     [ (Meter.mtype, Meter.renumber_meter Meter.default_config)
     , (Gong.mtype, Meter.renumber_meter Gong.config)

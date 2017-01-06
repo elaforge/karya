@@ -37,7 +37,7 @@ import Global
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
 type Attribute = Text
-newtype Attributes = Attributes (Set.Set Attribute)
+newtype Attributes = Attributes (Set Attribute)
     deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
         Aeson.ToJSON, Aeson.FromJSON)
 
@@ -51,10 +51,10 @@ attr = Attributes . Set.singleton
 attrs :: [Text] -> Attributes
 attrs = Attributes . Set.fromList
 
-from_set :: Set.Set Attribute -> Attributes
+from_set :: Set Attribute -> Attributes
 from_set = Attributes
 
-to_set :: Attributes -> Set.Set Attribute
+to_set :: Attributes -> Set Attribute
 to_set (Attributes attrs) = attrs
 
 to_list :: Attributes -> [Attribute]

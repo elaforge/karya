@@ -245,11 +245,11 @@ instance Serialize a => Serialize (Maybe a) where
         tag <- get_tag
         if tag == 0 then return Nothing else Just <$> get
 
-instance (Ord a, Serialize a) => Serialize (Set.Set a) where
+instance (Ord a, Serialize a) => Serialize (Set a) where
     put = put . Set.toAscList
     get = Set.fromAscList <$> get
 
-instance (Ord k, Serialize k, Serialize v) => Serialize (Map.Map k v) where
+instance (Ord k, Serialize k, Serialize v) => Serialize (Map k v) where
     put = put . Map.toAscList
     get = Map.fromAscList <$> get
 

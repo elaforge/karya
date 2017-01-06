@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Meter as Meter
+import Global
 
 
 {- | Create a number of gongs, each divided into a number of jegogan strokes.
@@ -42,7 +43,7 @@ gongs sections jegog =
 meter :: Meter.AbstractMeter
 meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
 
-labeled_ranks :: Set.Set Meter.RankName
+labeled_ranks :: Set Meter.RankName
 labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
 
 -- | Gong config starts counting from 0.  This is more appropriate for Balinese

@@ -4,7 +4,6 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
-import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Midi.Midi as Midi
@@ -79,7 +78,7 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
 reset_controls :: [Score.Control] -> Score.Event -> Score.Event
 reset_controls controls event = event
     { Score.event_untransformed_controls =
-        List.foldl' reset (Score.event_untransformed_controls event) controls
+        foldl' reset (Score.event_untransformed_controls event) controls
     }
     where
     reset cmap control = case Map.lookup control cmap of

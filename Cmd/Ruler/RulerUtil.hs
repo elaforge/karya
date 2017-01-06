@@ -209,7 +209,7 @@ get_section block_id tracknum = do
 block_id_to_ruler :: BlockId -> Id.Id
 block_id_to_ruler = Id.unpack_id
 
-block_id_to_free_ruler :: Map.Map RulerId a -> BlockId -> Id.Id
+block_id_to_free_ruler :: Map RulerId a -> BlockId -> Id.Id
 block_id_to_free_ruler rulers block_id = ident
     where
     -- Always just since the list is infinite.

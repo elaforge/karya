@@ -92,7 +92,7 @@ data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 default_saih :: Text
 default_saih = "sawan"
 
-saihs :: Map.Map Text BaliScales.Saih
+saihs :: Map Text BaliScales.Saih
 saihs = Map.fromList
     [ (default_saih, saih_sawan)
     ]

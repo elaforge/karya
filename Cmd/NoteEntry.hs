@@ -132,7 +132,7 @@ key_to_input is_pressure octave is_down (Key.Char c) = do
     breath note_id val = InputNote.Control note_id Controls.breath val
 key_to_input _ _ _ _ = Nothing
 
-kbd_map :: Map.Map Char Pitch.Pitch
+kbd_map :: Map Char Pitch.Pitch
 kbd_map = Map.fromList $ concat
     -- I leave '-' free since it's mapped to change octave.
     [ [('1', Pitch.Pitch 1 (Pitch.Degree 0 (-1)))]

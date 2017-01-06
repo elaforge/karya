@@ -8,7 +8,7 @@ UNSORTED
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
     * Ui.Ui -> Ui.Fltk
   * Ui.StateConfig -> Ui.UiConfig
-  - More things for Global: Data.Map, Data.Set, List.foldl'
+  * More things for Global: Data.Map, Data.Set, List.foldl'
   * If I exchange a track with a muted track, the mute mark doesn't move.
   * Assertion failed when double clicking on track title:
     . traceback:

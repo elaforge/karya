@@ -16,7 +16,6 @@ import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
 import qualified Data.DList as DList
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -138,7 +137,7 @@ pitch_call_doc (name, pcalls) =
         <> if pcall_duration pcall /= 1
             then " (dur " <> pretty (pcall_duration pcall) <> ")" else ""
 
-pitch_call_map :: Map.Map Char [PitchCall]
+pitch_call_map :: Map Char [PitchCall]
 pitch_call_map = resolve $ Map.unique $ concat
     [ [pcall '=' "Hold flat pitch." pc_flat]
     -- relative motion
@@ -204,7 +203,7 @@ dyn_call_doc :: (Char, DynCall) -> Text
 dyn_call_doc (name, dcall) = "`" <> Text.singleton name <> "` - "
     <> dcall_doc dcall
 
-dyn_call_map :: Map.Map Char DynCall
+dyn_call_map :: Map Char DynCall
 dyn_call_map = Map.fromList $
     [ ('=', dc_flat)
     , ('<', dc_attack)
@@ -365,7 +364,7 @@ resolve_postfix = resolve <=< ensure_no_args
         | otherwise = (modify_duration modify call :) <$> resolve post
         where
         (pre, post) = Seq.span_while is_postfix calls
-        modify dur = List.foldl' (flip ($)) dur pre
+        modify dur = foldl' (flip ($)) dur pre
     -- The parser shouldn't look for args, but let's check anyway.
     ensure_no_args calls
         | null errs = Right calls
@@ -377,7 +376,7 @@ resolve_postfix = resolve <=< ensure_no_args
         | otherwise = []
     is_postfix (Call (_, name) _) = Map.lookup name postfix_calls
 
-postfix_calls :: Map.Map Char (Double -> Double)
+postfix_calls :: Map Char (Double -> Double)
 postfix_calls = Map.fromList [('_', (+1)), ('.', (/2))]
 
 postfix_doc :: Text
@@ -470,8 +469,8 @@ pcall_arg pcall name arg
     | pcall_parse_call_name pcall = Text.cons name arg
     | otherwise = arg
 
-resolve_aliases :: Map.Map Char (Either (Double, [Text]) PitchCall)
-    -> Either Text (Map.Map Char [PitchCall])
+resolve_aliases :: Map Char (Either (Double, [Text]) PitchCall)
+    -> Either Text (Map Char [PitchCall])
 resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
     where
     resolve (name, Right call) = Right (name, [call])

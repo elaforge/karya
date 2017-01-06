@@ -121,10 +121,10 @@ extract_message (time, msg) = case msg of
 -- * convert
 
 -- | (note, pitch, controls)
-data NoteTrack = NoteTrack Track Track (Map.Map Score.Control Track)
+data NoteTrack = NoteTrack Track Track (Map Score.Control Track)
     deriving (Show)
 -- | Map start (dur, text)
-type Track = Map.Map ScoreTime (ScoreTime, Text)
+type Track = Map ScoreTime (ScoreTime, Text)
 
 instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty mempty
@@ -169,7 +169,7 @@ convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
 -- TODO incomplete.  I need to modify convert_tracks to take [AttrMidi].
 
 type AttrMidi = (RealTime, Either Attrs.Attributes Midi.Message)
-type KeyswitchMap = Map.Map (Set.Set Midi.Key) Attrs.Attributes
+type KeyswitchMap = Map (Set Midi.Key) Attrs.Attributes
 
 -- | Collect sounding keys, and each time look in the AttributeMap for the
 -- current set.  If I find a match, emit the attributes as the current state.
@@ -213,7 +213,7 @@ type SplitState = IntMap.IntMap (RealTime, NoteTrack)
 -- | For each note, assign to the lowest track which doesn't have an overlap.
 split_track :: [Midi] -> ([NoteTrack], [(RealTime, Midi.Key)])
     -- ^ (tracks, notes stuck on)
-split_track msgs = (extract $ List.foldl' collect IntMap.empty notes, stuck_on)
+split_track msgs = (extract $ foldl' collect IntMap.empty notes, stuck_on)
     where
     (notes, stuck_on) = collect_notes msgs
     extract = map snd . IntMap.elems
@@ -244,7 +244,7 @@ note_to_track (start, end, key, vel, controls) =
         (Map.singleton (score start) (0, show_val vel))
     score = RealTime.to_score
 
-convert_controls :: [MidiControl] -> Map.Map Score.Control Track
+convert_controls :: [MidiControl] -> Map Score.Control Track
 convert_controls cs =
     Map.fromList [(cc_to_control cc, convert msgs)
         | (cc, msgs) <- Seq.keyed_group_sort (fst . snd) cs]

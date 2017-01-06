@@ -146,7 +146,7 @@ test_grace_attr = do
     equal (run (0, 1, "g (4a)"))
         ([((-1, 1.5), "4a", "+"), ((0, 1), "4c", "+")], [])
 
-graces :: Map.Map Int Attrs.Attributes
+graces :: Map Int Attrs.Attributes
 graces = Map.fromList
     [ (-1, Attrs.attrs ["half", "down"])
     , (2, Attrs.attrs ["whole", "up"])

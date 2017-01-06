@@ -74,7 +74,7 @@ pitch_expr frac note
 -- * just
 
 -- | Map from named intervals to the interval's ratio.
-type NamedIntervals = Map.Map Text Ratio.Rational
+type NamedIntervals = Map Text Ratio.Rational
 
 -- | A fancier version of 'scale_degree' that takes interval arguments.
 scale_degree_just :: PSignal.Scale -> NamedIntervals

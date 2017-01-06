@@ -61,7 +61,7 @@ data Ruler = Ruler {
 -- have multiple simultaneous meters, or a separate list of ad-hoc cue points.
 -- All marks are flattened before display, and are drawn in the sort order of
 -- their Names.
-type Marklists = Map.Map Name (Maybe MeterType, Marklist)
+type Marklists = Map Name (Maybe MeterType, Marklist)
 type Name = Text
 
 -- | The type of meter that this marklist represents.  This is looked up in
@@ -121,8 +121,8 @@ modify_marklist name modify ruler =
     set_marklist name mtype (modify mtype mlist) ruler
     where (mtype, mlist) = get_marklist name ruler
 
-modify_marklists :: (Map.Map Name (Maybe MeterType, Marklist)
-        -> Map.Map Name (Maybe MeterType, Marklist))
+modify_marklists :: (Map Name (Maybe MeterType, Marklist)
+        -> Map Name (Maybe MeterType, Marklist))
     -> Ruler -> Ruler
 modify_marklists modify ruler =
     ruler { ruler_marklists = modify (ruler_marklists ruler) }

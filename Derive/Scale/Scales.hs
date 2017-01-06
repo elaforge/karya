@@ -81,7 +81,7 @@ empty_scale scale_id pattern doc = Scale.Scale
 -- * types
 
 data DegreeMap = DegreeMap {
-    dm_to_semis :: Map.Map Pitch.Note Pitch.Semi
+    dm_to_semis :: Map Pitch.Note Pitch.Semi
     , dm_to_note :: Vector.Vector Pitch.Note
     , dm_to_nn :: Vector.Vector Pitch.NoteNumber
     -- | Number of scale steps per octave.  Actually, simple scales are just
@@ -145,7 +145,7 @@ non_transposing _ _ _ _ = Left BaseTypes.NotImplemented
 -- | Indicate that this scale responds to the standard set of transpose
 -- signals.  It still has to implement the support in its
 -- 'Scale.scale_note_to_call'.
-standard_transposers :: Set.Set Score.Control
+standard_transposers :: Set Score.Control
 standard_transposers = Set.fromList
     [ Controls.octave, Controls.chromatic, Controls.diatonic
     , Controls.nn, Controls.hz
@@ -378,8 +378,7 @@ adjust_octave pc_per_octave kbd_per_octave oct pc =
 
 -- ** call_doc
 
-call_doc :: Set.Set Score.Control -> DegreeMap -> Doc.Doc
-    -> Derive.DocumentedCall
+call_doc :: Set Score.Control -> DegreeMap -> Doc.Doc -> Derive.DocumentedCall
 call_doc transposers dmap doc =
     annotate_call_doc transposers doc fields default_scale_degree_doc
     where
@@ -402,7 +401,7 @@ scale_degree_doc scale_degree =
     Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set.Set Score.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
+annotate_call_doc :: Set Score.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
 annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where
@@ -486,12 +485,12 @@ environ_key :: Env.Environ -> Maybe Pitch.Key
 environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
 
 -- | Find a key in a map, or throw a ScaleError.
-get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
+get_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key
     -> Either BaseTypes.PitchError key
 get_key deflt _ Nothing = Right deflt
 get_key _ keys (Just key) = justErr (key_error key) (Map.lookup key keys)
 
-lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
+lookup_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
 lookup_key deflt _ Nothing = Just deflt
 lookup_key _ keys (Just key) = Map.lookup key keys
 

@@ -33,7 +33,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
 -- | This maps a 'Pattern' of a certain duration to a realization.  S.Matras
 -- should be an integral multiple of the length of the list.  This is enforced
 -- in the constructor 'patterns'.
-newtype Patterns stroke = Patterns (Map.Map S.Matras (S.Speed, [Maybe stroke]))
+newtype Patterns stroke = Patterns (Map S.Matras (S.Speed, [Maybe stroke]))
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
 patterns :: Pretty.Pretty stroke =>
@@ -75,7 +75,7 @@ realize_pattern (speed, strokes) = case speed of
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
-newtype StrokeMap stroke = StrokeMap (Map.Map [S.Sollu] [Maybe stroke])
+newtype StrokeMap stroke = StrokeMap (Map [S.Sollu] [Maybe stroke])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
 stroke_map :: Pretty.Pretty stroke => [(S.Sequence stroke, [Note stroke])]

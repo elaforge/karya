@@ -196,7 +196,7 @@ parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
 --
 -- > /   X   -   +   o
 -- >         m-  nx  .o
-articulations :: Map.Map Char (Attrs.Attributes, Dyn)
+articulations :: Map Char (Attrs.Attributes, Dyn)
 articulations = Map.fromList
     [ (' ', (mempty, 0))
     , ('.', (mempty, 0.75))
@@ -322,7 +322,7 @@ c_norot default_prepare =
         maybe sustain (sustain<>) prepare
 
 realize_positions :: ((Voice, note) -> Derive.NoteDeriver)
-    -> [Voice] -> Map.Map Pitch.PitchClass [note]
+    -> [Voice] -> Map Pitch.PitchClass [note]
     -> Pitch.Pitch -> Derive.Deriver Derive.NoteDeriver
 realize_positions realize voices patterns pitch = do
     positions <- Derive.require
@@ -506,7 +506,7 @@ data KotekanPattern = KotekanPattern {
     where the polos part should be considered closer.
 -}
 
-type Pattern = Map.Map Pitch.PitchClass [[Chord]]
+type Pattern = Map Pitch.PitchClass [[Chord]]
 type Chord = [Note]
 type Note = (Pitch.Pitch, Attrs.Attributes)
 
@@ -578,7 +578,7 @@ parse_relative = map parse1 . filter (/=' ')
 -- | Map a char to the notes it represents for a certain position.  Each
 -- position has different set of notes available.  This is just to interpret a
 -- mini-notation for each position.
-type NoteTable = Map.Map Char Chord
+type NoteTable = Map Char Chord
 
 -- | Pentatonic pitch degree.
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
@@ -605,7 +605,7 @@ parse_note table = extract . head . parse_absolute table . (:[])
              |------|---    |---------|
     4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
 -}
-norot_prepare_patterns :: Map.Map Pitch.PitchClass [[Chord]]
+norot_prepare_patterns :: Map Pitch.PitchClass [[Chord]]
 norot_prepare_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
@@ -618,7 +618,7 @@ norot_prepare_patterns = Map.fromList $ zip [0..] $ map parse by_degree
         , ["Aaea", "Eeie", "Aa-a", "Eeie"] -- a
         ]
 
-norot_patterns :: Map.Map Pitch.PitchClass [[Chord]]
+norot_patterns :: Map Pitch.PitchClass [[Chord]]
 norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)

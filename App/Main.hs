@@ -190,12 +190,12 @@ process_thru :: Midi.ReadMessage -> [(Midi.WriteDevice, Midi.Message)]
 process_thru rmsg = [(Midi.WriteDevice "fm8", Midi.rmsg_msg rmsg)]
 -}
 
-remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
+remap_read_message :: Map Midi.ReadDevice Midi.ReadDevice
     -> Midi.ReadMessage -> Midi.ReadMessage
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.findWithDefault dev dev dev_map }
 
-print_devs :: Set.Set Midi.ReadDevice -> [(Midi.ReadDevice, [Midi.ReadDevice])]
+print_devs :: Set Midi.ReadDevice -> [(Midi.ReadDevice, [Midi.ReadDevice])]
     -> [(Midi.WriteDevice, [Midi.WriteDevice])] -> IO ()
 print_devs opened_rdevs rdevs wdevs = do
     putStrLn "read devs:"

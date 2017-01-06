@@ -176,7 +176,7 @@ resolve_tracks = concatMapM resolve
         view_ids <- Map.keys <$> Ui.views_of block_id
         return [((view_id, tracknum), val) | view_id <- view_ids]
 
-event_highlights :: BlockId -> Map.Map Color.Highlight Color.Color
+event_highlights :: BlockId -> Map Color.Highlight Color.Color
     -> Vector.Vector Score.Event
     -> [((BlockId, TrackId), (Range, Color.Color))]
 event_highlights derived_block_id colors
@@ -257,7 +257,7 @@ data UpdaterState = UpdaterState {
     , monitor_offset :: RealTime
     , monitor_get_now :: IO RealTime
     , monitor_inv_tempo_func :: Transport.InverseTempoFunction
-    , monitor_active_sels :: Set.Set (ViewId, [TrackNum])
+    , monitor_active_sels :: Set (ViewId, [TrackNum])
     , monitor_ui_state :: MVar.MVar Ui.State
     , monitor_repeat_at :: Maybe RealTime
     , monitor_ui_channel :: Fltk.Channel

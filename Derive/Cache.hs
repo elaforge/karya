@@ -17,7 +17,6 @@ module Derive.Cache (
     , _extend_control_damage
 #endif
 ) where
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -77,7 +76,7 @@ data Type = Block
     -- it depends on all of its children.  For a control track, the set should
     -- be empty, since control tracks are not invalidated by damage on their
     -- children.
-    | Track !(Set.Set TrackId)
+    | Track !(Set TrackId)
     deriving (Eq, Show)
 
 -- | If the given generator has a cache entry, relevant derivation context is
@@ -97,7 +96,7 @@ block call args = caching_deriver Block range (call args)
 data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
 
 -- | Cache a track, but only if it's not sliced and has a TrackId.
-track :: Cacheable d => TrackTree.Track -> Set.Set TrackId
+track :: Cacheable d => TrackTree.Track -> Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 track track children
@@ -261,7 +260,7 @@ cache_hit_msg cached =
     Log.with_int cache_hit events $ Log.msg Log.Debug Nothing $
         "using cache, " <> showt events <> " events, " <> showt logs <> " logs"
     where
-    (events, logs) = List.foldl' count (0, 0) (Stream.to_list cached)
+    (events, logs) = foldl' count (0, 0) (Stream.to_list cached)
     count (!es, !ms) e = if LEvent.is_event e then (es+1, ms) else (es, ms+1)
 
 -- | Get the number of cached events from a 'cache_hit_msg'.

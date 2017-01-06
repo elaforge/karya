@@ -307,11 +307,11 @@ unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
 -- * views
 
-save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
+save_views :: Git.Repo -> Map ViewId Block.View -> IO ()
 save_views repo =
     Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
 
-load_views :: Git.Repo -> IO (Either Text (Map.Map ViewId Block.View))
+load_views :: Git.Repo -> IO (Either Text (Map ViewId Block.View))
 load_views repo = do
     x <- Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
     case x of
@@ -328,7 +328,7 @@ dump (Ui.State _views blocks tracks rulers config) =
     ++ [("config", Serialize.encode config)]
 
 dump_map :: (Ident id, Serialize.Serialize a) =>
-    Map.Map id a -> [(FilePath, ByteString)]
+    Map id a -> [(FilePath, ByteString)]
 dump_map m = do
     (ident, val) <- Map.toAscList m
     return (id_to_path ident, Serialize.encode val)
@@ -394,8 +394,7 @@ undump dir = do
         Just (Git.File bytes) -> return bytes
 
 undump_map :: (Serialize.Serialize a, Ord id) =>
-    (Id.Id -> id) -> Map.Map Git.FileName Git.File
-    -> Either Text (Map.Map id a)
+    (Id.Id -> id) -> Map Git.FileName Git.File -> Either Text (Map id a)
 undump_map mkid dir =
     Map.fromList . concat <$> mapM dir_subs (Map.toAscList dir)
     where
@@ -498,7 +497,7 @@ try_e caller io = do
         Right (Left err) -> Left $ caller <> ": " <> err
         Right (Right val) -> Right val
 
-delete_key :: (Show k, Ord k) => k -> Map.Map k a -> Either Text (Map.Map k a)
+delete_key :: (Show k, Ord k) => k -> Map k a -> Either Text (Map k a)
 delete_key k m
     | Map.member k m = Right $ Map.delete k m
     | otherwise = Left $ "deleted key " <> showt k <> " not present: "

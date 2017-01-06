@@ -20,6 +20,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Types as Types
+import Global
 
 
 data Patch = Patch {
@@ -27,7 +28,7 @@ data Patch = Patch {
     sampleDirectory :: !FilePath
     , karyaCommon :: !(Common.Common Cmd.InstrumentCode)
     -- | Paths are relative to 'sampleDirectory'.
-    , samples :: !(Map.Map FilePath Sample)
+    , samples :: !(Map FilePath Sample)
     } deriving (Show)
 
 -- Putting code here means that the sampler has to link in a large portion of

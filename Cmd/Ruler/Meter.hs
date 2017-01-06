@@ -186,10 +186,10 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 -- rank.  This is convenient because that's how staff notation works.  But then
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
-default_labeled_ranks :: Set.Set RankName
+default_labeled_ranks :: Set RankName
 default_labeled_ranks = Set.fromList [W, Q, S, T128]
 
-gong_labeled_ranks :: Set.Set RankName
+gong_labeled_ranks :: Set RankName
 gong_labeled_ranks = Set.fromList [Section, H, S, T128]
     -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
     -- S: kotekan*4, ...
@@ -288,7 +288,7 @@ fit_meter dur meters = make_meter stretch meters
 
 data MeterConfig = MeterConfig {
     -- | Skip labels for these ranks.
-    config_labeled_ranks :: !(Set.Set RankName)
+    config_labeled_ranks :: !(Set RankName)
     , config_label_components :: !LabelComponents
     -- | Labels have at least this many sections.  Otherwise, trailing sections
     -- are omitted.
@@ -333,7 +333,7 @@ label_meter config meter =
         | d == 0 && not (null meter) = drop_0dur meter
         | otherwise = (r, d) : drop_0dur meter
 
-labeled_to_unlabeled_ranks :: Set.Set RankName -> [Ruler.Rank]
+labeled_to_unlabeled_ranks :: Set RankName -> [Ruler.Rank]
 labeled_to_unlabeled_ranks labeled =
     [name_to_rank r | r <- all_ranks, not (r `Set.member` labeled)]
 

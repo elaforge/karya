@@ -92,7 +92,7 @@ data Config = Config {
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
-    , config_initialization :: !(Set.Set Initialization)
+    , config_initialization :: !(Set Initialization)
     , config_settings :: !Settings
     } deriving (Eq, Read, Show)
 
@@ -154,7 +154,7 @@ has_flag config flag = Set.member flag (settings#flags #$ config)
 -- be modified per score.  When the instrument is allocated, 'patch_defaults'
 -- is copied to 'config_settings'.
 data Settings = Settings {
-    config_flags :: !(Set.Set Flag)
+    config_flags :: !(Set Flag)
     , config_scale :: !(Maybe Scale)
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
@@ -264,7 +264,7 @@ default_name = ""
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map.Map Attrs.Attributes BaseTypes.CallId
+type CallMap = Map Attrs.Attributes BaseTypes.CallId
 
 -- ** Scale
 
@@ -406,10 +406,10 @@ instance Serialize.Serialize Flag where
     put = Serialize.put_enum
     get = Serialize.get_enum
 
-add_flag :: Flag -> Set.Set Flag -> Set.Set Flag
+add_flag :: Flag -> Set Flag -> Set Flag
 add_flag = Set.insert
 
-remove_flag :: Flag -> Set.Set Flag -> Set.Set Flag
+remove_flag :: Flag -> Set Flag -> Set Flag
 remove_flag = Set.delete
 
 -- ** InitializePatch

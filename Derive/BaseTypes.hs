@@ -187,7 +187,7 @@ data Scale = Scale {
     -- event_pitch, but the scale at event creation time is not guaranteed to
     -- be the same as the one when the pitch was created, so the safest thing
     -- to do is keep it with the pitch itself.
-    , pscale_transposers :: !(Set.Set ScoreTypes.Control)
+    , pscale_transposers :: !(Set ScoreTypes.Control)
     } deriving (Show)
 
 instance Pretty.Pretty Scale where
@@ -284,7 +284,7 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 
 -- * tracklang types
 
-newtype Environ = Environ (Map.Map Key Val)
+newtype Environ = Environ (Map Key Val)
     deriving (Show, Monoid, Pretty.Pretty, DeepSeq.NFData)
 
 -- | Insert a val directly, with no typechecking.
@@ -649,9 +649,9 @@ val_call sym args = ValCall (literal_call sym args)
 
 -- ** ControlMap
 
-type ControlMap = Map.Map ScoreTypes.Control ScoreTypes.TypedControl
-type ControlFunctionMap = Map.Map ScoreTypes.Control ControlFunction
-type PitchMap = Map.Map ScoreTypes.PControl PSignal
+type ControlMap = Map ScoreTypes.Control ScoreTypes.TypedControl
+type ControlFunctionMap = Map ScoreTypes.Control ControlFunction
+type PitchMap = Map ScoreTypes.PControl PSignal
 
 -- * ControlFunction
 

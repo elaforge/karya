@@ -201,14 +201,14 @@ strip_dynamic dyn = dyn
     -- { Derive.state_controls = mempty -- !Score.ControlMap
     -- , Derive.state_control_functions = mempty -- :: !Score.ControlFunctionMap
     -- , Derive.state_control_merge_defaults = mempty
-    --     -- Map.Map Score.Control (Merger Signal.Control)
+    --     -- Map Score.Control (Merger Signal.Control)
     -- , Derive.state_pitches = mempty -- :: !Score.PitchMap
     -- , Derive.state_pitch = mempty -- :: !PSignal.PSignal
     -- , Derive.state_environ = mempty -- :: !BaseTypes.Environ
     -- -- , Derive.state_warp = -- :: !Score.Warp
     -- -- , Derive.state_scopes = mempty -- :: !Scopes
     -- , Derive.state_instrument_aliases = mempty
-    --     -- :: !(Map.Map Score.Instrument Score.Instrument)
+    --     -- :: !(Map Score.Instrument Score.Instrument)
 
     -- , Derive.state_control_damage :: !ControlDamage
     -- , Derive.state_under_invert = id -- !(NoteDeriver -> NoteDeriver)

@@ -354,7 +354,7 @@ db_path app_dir name =
 
 -- | Like 'generate_names', but don't drop or rename duplicates, just report
 -- them as errors.
-check_names :: [Patch] -> (Map.Map InstTypes.Name Patch, [InstTypes.Name])
+check_names :: [Patch] -> (Map InstTypes.Name Patch, [InstTypes.Name])
 check_names = second (map fst) . Util.Map.unique
     . Seq.key_on (Patch.patch_name . patch_patch)
 
@@ -362,7 +362,7 @@ check_names = second (map fst) . Util.Map.unique
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be
 -- duplicate patches.  Generate valid names for the patches, drop duplicates,
 -- and disambiguate names that wind up the same.
-generate_names :: [Patch] -> (Map.Map InstTypes.Name Patch, [Text])
+generate_names :: [Patch] -> (Map InstTypes.Name Patch, [Text])
 generate_names = -- This only touches the 'patch_patch' field.
     run . (concatMapM split <=< mapM drop_dup_initialization)
         . Seq.keyed_group_sort (clean_name . inst_name)

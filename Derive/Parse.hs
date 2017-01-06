@@ -457,7 +457,7 @@ load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
     annotate results = (mconcat defs, loaded)
         where (defs, loaded) = unzip results
 
-load_ky_file :: [FilePath] -> Set.Set FilePath -> [FilePath]
+load_ky_file :: [FilePath] -> Set FilePath -> [FilePath]
     -> Except.ExceptT Text IO [(Definitions, (FilePath, Text))]
 load_ky_file _ _ [] = return []
 load_ky_file paths loaded (lib:libs)
@@ -581,7 +581,7 @@ parse_alias (lhs, Expr (Call rhs [] :| [])) = Right (convert lhs, convert rhs)
 parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
     <> ShowVal.show_val expr
 
-split_sections :: [Text] -> (Text, Map.Map Text [(LineNumber, Text)])
+split_sections :: [Text] -> (Text, Map Text [(LineNumber, Text)])
 split_sections =
     second (Map.fromListWith (flip (++)) . concatMap split_header)
         . split_imports . Seq.split_with is_header . zip [1..]

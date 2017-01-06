@@ -70,8 +70,8 @@ tags_of :: Index -> InstTypes.Qualified -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
 data Index = Index {
-    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [InstTypes.Qualified])
-    , idx_instrument_tags :: Map.Map InstTypes.Qualified [Tag.Tag]
+    idx_by_key :: Map Tag.Key (Map Tag.Value [InstTypes.Qualified])
+    , idx_instrument_tags :: Map InstTypes.Qualified [Tag.Tag]
     } deriving (Show)
 
 empty_index :: Index

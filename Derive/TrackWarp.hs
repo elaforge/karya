@@ -45,7 +45,7 @@ instance DeepSeq.NFData TrackWarp where
 -- | Each TrackWarp is collected at the Stack of the track it represents.
 -- A TrackWarp is only saved when the warp changes, which is likely a tempo
 -- track.  'collect_warps' then fills in the rest of the tracks.
-type WarpMap = Map.Map Stack.Stack TrackWarp
+type WarpMap = Map Stack.Stack TrackWarp
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the play monitor to figure out where the play position
@@ -54,7 +54,7 @@ data Collection = Collection {
     tw_start :: !RealTime
     , tw_end :: !RealTime
     , tw_block :: !BlockId
-    , tw_tracks :: !(Set.Set TrackId)
+    , tw_tracks :: !(Set TrackId)
     , tw_warp :: !Score.Warp
     } deriving (Eq, Show)
 

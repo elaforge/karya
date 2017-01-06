@@ -133,7 +133,7 @@ id_to_key (NoteId key) = Midi.to_key key
 type Addr = (Midi.ReadDevice, Midi.Channel)
 
 -- | Keep track of the state of each 'Midi.ReadDevice'.
-newtype ReadDeviceState = ReadDeviceState (Map.Map Midi.ReadDevice ControlState)
+newtype ReadDeviceState = ReadDeviceState (Map Midi.ReadDevice ControlState)
     deriving (Eq, Show)
 
 empty_rdev_state :: ReadDeviceState
@@ -146,8 +146,8 @@ next_state rdev cstate (ReadDeviceState state) =
 
 -- | The state of one 'Midi.ReadDevice'.
 data ControlState = ControlState
-    { state_note_id :: Map.Map Addr NoteId -- ^ last note_id
-    , state_pb :: Map.Map Addr Midi.PitchBendValue -- ^ last pb
+    { state_note_id :: Map Addr NoteId -- ^ last note_id
+    , state_pb :: Map Addr Midi.PitchBendValue -- ^ last pb
     , state_pb_range :: Control.PbRange
     } deriving (Eq, Show)
 
@@ -232,10 +232,10 @@ cc_to_control cc = fromMaybe (Score.unchecked_control ("cc" <> showt cc))
 control_to_cc :: Score.Control -> Maybe Midi.Control
 control_to_cc = flip Map.lookup control_cc
 
-cc_control :: Map.Map Midi.Control Score.Control
+cc_control :: Map Midi.Control Score.Control
 cc_control = Map.invert control_cc
 
-control_cc :: Map.Map Score.Control Midi.Control
+control_cc :: Map Score.Control Midi.Control
 control_cc = Control.universal_control_map
 
 -- * from ascii
@@ -255,8 +255,8 @@ pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 
 -- | Convert an InputNn to MIDI.
 to_midi :: Control.PbRange -> Midi.PitchBendValue
-    -> Map.Map NoteId Midi.Key -> InputNn
-    -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
+    -> Map NoteId Midi.Key -> InputNn
+    -> ([Midi.ChannelMessage], Map NoteId Midi.Key)
 to_midi pb_range prev_pb id_to_key input_nn = case input_nn of
     NoteOn note_id nn vel -> note_on note_id nn vel
     NoteOff note_id vel -> with_key note_id $ \key ->

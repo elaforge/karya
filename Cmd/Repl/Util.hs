@@ -18,7 +18,7 @@ type Instrument = Text
 instrument :: Instrument -> Score.Instrument
 instrument = Score.Instrument . Text.dropWhile (=='>')
 
-match_map :: Id.Ident id => Text -> Map.Map id a -> Map.Map id a
+match_map :: Id.Ident id => Text -> Map id a -> Map id a
 match_map match = Map.filterWithKey (\k _ -> match_id match k)
 
 -- | True if the ID contains the given substring.

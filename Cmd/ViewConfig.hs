@@ -117,7 +117,7 @@ resize_all = mapM_ (Views.resize_to_fit False) =<< Ui.all_view_ids
 -- again with any rectangles that wind up totally outside the screen.
 fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
 fit_rects screen =
-    redo_outside . List.foldl' fit []
+    redo_outside . foldl' fit []
         . Seq.sort_on (\(_, r) -> (Rect.rx r, Rect.ry r))
     where
     fit windows (view_id, rect) = case Seq.head (sort rect corners) of

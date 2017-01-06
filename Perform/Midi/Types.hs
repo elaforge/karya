@@ -5,7 +5,6 @@
 -- | Basic types for "Perform.Midi.Perform".
 module Perform.Midi.Types where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -97,7 +96,7 @@ data Event = Event {
     , event_stack :: !Stack.Stack
     } deriving (Eq, Show)
 
-type ControlMap = Map.Map Score.Control Signal.Control
+type ControlMap = Map Score.Control Signal.Control
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur inst controls pitch _svel _evel stack) =

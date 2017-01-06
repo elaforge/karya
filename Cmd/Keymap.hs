@@ -225,7 +225,7 @@ simple_to_mods simple =
 
 type Binding m = (KeySpec, CmdSpec m)
 
-data KeySpec = KeySpec (Set.Set Cmd.Modifier) Bindable deriving (Eq, Ord, Show)
+data KeySpec = KeySpec (Set Cmd.Modifier) Bindable deriving (Eq, Ord, Show)
 
 key_spec :: [Cmd.Modifier] -> Bindable -> KeySpec
 key_spec mods bindable = KeySpec (Set.fromList mods) bindable
@@ -243,7 +243,7 @@ cspec_ desc cmd = CmdSpec desc (const cmd)
 
 -- ** CmdMap
 
-type CmdMap m = Map.Map KeySpec (CmdSpec m)
+type CmdMap m = Map KeySpec (CmdSpec m)
 
 overlaps :: [Binding m] -> [[Text]]
 overlaps bindings =
@@ -254,7 +254,7 @@ overlaps bindings =
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
 -- each mouse chord can be bound individually.
-mods_down :: Cmd.M m => m (Set.Set Cmd.Modifier)
+mods_down :: Cmd.M m => m (Set Cmd.Modifier)
 mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) Cmd.keys_down
     where
     is_mod (Cmd.KeyMod {}) = True

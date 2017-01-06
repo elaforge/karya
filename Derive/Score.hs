@@ -132,7 +132,7 @@ data Event = Event {
     -- I couldn't think of a type safe way to do this, but Dynamic should be
     -- safe enough if you use a shared type declaration in both writer and
     -- reader.
-    , event_delayed_args :: !(Map.Map Text Dynamic.Dynamic)
+    , event_delayed_args :: !(Map Text Dynamic.Dynamic)
     -- | Keep track of interesting things that have happened to this event.
     -- Postproc transforms that alter it should prefix a note.
     , event_logs :: ![Log.Msg]

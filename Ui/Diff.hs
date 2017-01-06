@@ -167,8 +167,8 @@ merge_updates state updates = updates ++ concatMap propagate updates
 
 -- ** view
 
-diff_views :: Ui.State -> Ui.State -> Map.Map ViewId Block.View
-    -> Map.Map ViewId Block.View -> DiffM ()
+diff_views :: Ui.State -> Ui.State -> Map ViewId Block.View
+    -> Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 =
     forM_ (Map.pairs views1 views2) $ \(view_id, paired) -> case paired of
         Seq.Second _ -> change $ Update.View view_id Update.CreateView
@@ -355,7 +355,7 @@ postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
     track_of_block _ = False
 
 -- | Derive damage from UiUpdates.
-updates_damage :: Map.Map RulerId [BlockId] -> [Update.UiUpdate]
+updates_damage :: Map RulerId [BlockId] -> [Update.UiUpdate]
     -> Derive.ScoreDamage
 updates_damage block_rulers updates = mempty
     { Derive.sdamage_tracks = tracks

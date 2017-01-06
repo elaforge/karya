@@ -55,7 +55,7 @@ mridangam_strokes = Mridangam.Strokes
 
 Mridangam.Strokes {..} = mridangam_strokes
 
-stroke_map :: Map.Map (Solkattu.Sequence Mridangam.Stroke) Mridangam.Note
+stroke_map :: Map (Solkattu.Sequence Mridangam.Stroke) Mridangam.Note
 stroke_map = Map.fromList
     [ (Dsl.ki, k), (Dsl.ta, t), (Dsl.nam, n), (Dsl.din, d)
     , (Dsl.lang, u), (Dsl.dheem, i)

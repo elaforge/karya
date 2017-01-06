@@ -98,7 +98,7 @@ kajar_stops :: [(Drums.Group, [Drums.Group])]
     s_open = "open"
     stops = [(s_closed, [s_open])]
 
-keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
+keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
 keymap = CUtil.make_keymap2 Nothing 24 6 12 Key.c4
     [ [Attrs.center <> Attrs.closed]
     , [Attrs.center <> Attrs.open]

@@ -139,7 +139,7 @@ perform state inst_addrs events = (final_msgs, final_state)
     (final_msgs, _) = post_process mempty msgs
 
 -- | Map each instrument to its allocated Addrs.
-type InstAddrs = Map.Map Score.Instrument [(Patch.Addr, Maybe Patch.Voices)]
+type InstAddrs = Map Score.Instrument [(Patch.Addr, Maybe Patch.Voices)]
 
 -- * channelize
 
@@ -307,11 +307,11 @@ data AllotState = AllotState {
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.  It also has the AllotKey so the previous allotment can be
     -- deleted.
-    ast_available :: !(Map.Map Patch.Addr (RealTime, AllotKey))
+    ast_available :: !(Map Patch.Addr (RealTime, AllotKey))
     -- | Map input channels to an instrument address in the allocated range.
     -- Once an (inst, chan) pair has been allotted to a particular Addr, it
     -- should keep going to that Addr, as long as voices remain.
-    , ast_allotted :: !(Map.Map AllotKey Allotted)
+    , ast_allotted :: !(Map AllotKey Allotted)
     } deriving (Eq, Show)
 
 instance Pretty.Pretty AllotState where
@@ -419,7 +419,7 @@ type PerformState = (AddrInst, NoteOffMap)
 -- at that address.
 --
 -- Used to emit keyswitches or program changes.
-type AddrInst = Map.Map Patch.Addr T.Patch
+type AddrInst = Map Patch.Addr T.Patch
 
 -- | Map from an address to the last time a note was playing on that address.
 -- This includes the last note's decay time, so the channel should be reusable
@@ -428,7 +428,7 @@ type AddrInst = Map.Map Patch.Addr T.Patch
 -- Used to give leading cc times a little breathing room.
 --
 -- It only needs to be 'min cc_lead (now - note_off)'
-type NoteOffMap = Map.Map Patch.Addr RealTime
+type NoteOffMap = Map Patch.Addr RealTime
 
 -- | Pass an empty AddrInst because I can't make any assumptions about the
 -- state of the synthesizer.  The one from the wdev state might be out of
@@ -712,11 +712,10 @@ perform_signal prev_note_off start end sig = initial : pairs
 
 -- * post process
 
-type PostprocState = Map.Map Patch.Addr AddrState
+type PostprocState = Map Patch.Addr AddrState
 
 -- | Keep a running state for each channel and drop duplicate msgs.
-type AddrState =
-    (Maybe Midi.PitchBendValue, Map.Map Midi.Control Midi.ControlValue)
+type AddrState = (Maybe Midi.PitchBendValue, Map Midi.Control Midi.ControlValue)
 
 -- | Some context free post-processing on the midi stream.
 post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)

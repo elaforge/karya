@@ -800,7 +800,7 @@ r_cache_stacks = map (Stack.pretty_ui_ . Derive.key_stack) . Map.keys
     valid Derive.Invalid = False
     valid _ = True
 
-uncache :: Derive.Cache -> Map.Map Derive.CacheKey Derive.Cached
+uncache :: Derive.Cache -> Map Derive.CacheKey Derive.Cached
 uncache (Derive.Cache cache) = cache
 
 -- * run

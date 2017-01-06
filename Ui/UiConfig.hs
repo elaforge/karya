@@ -91,7 +91,7 @@ ky = Lens.lens config_ky
     (\f r -> r { config_ky = f (config_ky r) })
 
 -- | Unwrap the newtype for convenience.
-allocations_map :: Lens Config (Map.Map Score.Instrument Allocation)
+allocations_map :: Lens Config (Map Score.Instrument Allocation)
 allocations_map = Lens.lens (open . config_allocations)
     (\f r -> r { config_allocations =
         Allocations $ f $ open $ config_allocations r })
@@ -150,7 +150,7 @@ verify_allocation backend instrument alloc =
         Inst.Midi {} -> "midi"
         Inst.Im {} -> "im"
 
-newtype Allocations = Allocations (Map.Map Score.Instrument Allocation)
+newtype Allocations = Allocations (Map Score.Instrument Allocation)
     deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
 
 -- | Make Allocations with no verification.  This should probably only be used
@@ -226,8 +226,8 @@ data Meta = Meta {
     -- of several saves is the latest.
     , meta_last_save :: !Time.UTCTime
     , meta_notes :: !Text
-    , meta_midi_performances :: !(Map.Map BlockId MidiPerformance)
-    , meta_lilypond_performances :: !(Map.Map BlockId LilypondPerformance)
+    , meta_midi_performances :: !(Map BlockId MidiPerformance)
+    , meta_lilypond_performances :: !(Map BlockId LilypondPerformance)
     } deriving (Eq, Read, Show)
 
 creation = Lens.lens meta_creation
@@ -339,4 +339,4 @@ instance DeepSeq.NFData Default where
 
 -- | This is a place to save sets of views so you can switch between them.
 -- The ViewId is the one with focus.
-type SavedViews = Map.Map Text (Map.Map ViewId Block.View, Maybe ViewId)
+type SavedViews = Map Text (Map ViewId Block.View, Maybe ViewId)

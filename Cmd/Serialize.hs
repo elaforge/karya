@@ -18,8 +18,6 @@ module Cmd.Serialize (
     allocations_magic, score_magic, views_magic
     , is_old_settings
 ) where
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Time as Time
 
 import qualified Util.Rect as Rect
@@ -34,10 +32,10 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
@@ -60,7 +58,7 @@ allocations_magic = Serialize.Magic 'a' 'l' 'l' 'o'
 score_magic :: Serialize.Magic Ui.State
 score_magic = Serialize.Magic 's' 'c' 'o' 'r'
 
-views_magic :: Serialize.Magic (Map.Map ViewId Block.View)
+views_magic :: Serialize.Magic (Map ViewId Block.View)
 views_magic = Serialize.Magic 'v' 'i' 'e' 'w'
 
 -- * Serialize instances
@@ -72,10 +70,10 @@ instance Serialize Ui.State where
         v <- Serialize.get_version
         case v of
             6 -> do
-                views :: Map.Map Types.ViewId Block.View <- get
-                blocks :: Map.Map Types.BlockId Block.Block <- get
-                tracks :: Map.Map Types.TrackId Track.Track <- get
-                rulers :: Map.Map Types.RulerId Ruler.Ruler <- get
+                views :: Map Types.ViewId Block.View <- get
+                blocks :: Map Types.BlockId Block.Block <- get
+                tracks :: Map Types.TrackId Track.Track <- get
+                rulers :: Map Types.RulerId Ruler.Ruler <- get
                 config :: Ui.Config <- get
                 return $ Ui.State views blocks tracks rulers config
             _ -> Serialize.bad_version "Ui.State" v
@@ -121,8 +119,7 @@ instance Serialize.Serialize UiConfig.Allocations where
         v <- Serialize.get_version
         case v of
             1 -> do
-                configs :: Map.Map Score.Instrument UiConfig.Allocation
-                    <- get
+                configs :: Map Score.Instrument UiConfig.Allocation <- get
                 return $ UiConfig.Allocations configs
             _ -> Serialize.bad_version "UiConfig.Allocations" v
 
@@ -162,7 +159,7 @@ instance Serialize Common.Config where
         _ -> Serialize.bad_version "Common.Config" v
 
 -- | For backward compatibility.
-newtype MidiConfigs = MidiConfigs (Map.Map Score.Instrument Patch.Config)
+newtype MidiConfigs = MidiConfigs (Map Score.Instrument Patch.Config)
     deriving (Show)
 
 instance Serialize MidiConfigs where
@@ -171,7 +168,7 @@ instance Serialize MidiConfigs where
         v <- Serialize.get_version
         case v of
             5 -> do
-                insts :: Map.Map Score.Instrument Patch.Config <- get
+                insts :: Map Score.Instrument Patch.Config <- get
                 return $ MidiConfigs insts
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
@@ -183,8 +180,8 @@ instance Serialize Ui.Meta where
             creation :: Time.UTCTime <- get
             last_save :: Time.UTCTime <- get
             notes :: Text <- get
-            midi :: Map.Map BlockId Ui.MidiPerformance <- get
-            lily :: Map.Map BlockId Ui.LilypondPerformance <- get
+            midi :: Map BlockId Ui.MidiPerformance <- get
+            lily :: Map BlockId Ui.LilypondPerformance <- get
             return $ Ui.Meta creation last_save notes midi lily
         _ -> Serialize.bad_version "Ui.Meta" v
 
@@ -225,7 +222,7 @@ instance Serialize Block.Block where
                 skel :: Skeleton.Skeleton <- get
                 iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
                 itracks :: [(TrackId, Block.TrackDestinations)] <- get
-                meta :: Map.Map Text Text <- get
+                meta :: Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
                     iblock itracks meta
             _ -> Serialize.bad_version "Block.Block" v
@@ -244,7 +241,7 @@ instance Serialize Block.DeriveDestination where
     put (Block.DeriveDestination a b) = put a >> put b
     get = do
         note :: (TrackId, Block.EventIndex) <- get
-        controls :: (Map.Map Text (TrackId, Block.EventIndex)) <- get
+        controls :: (Map Text (TrackId, Block.EventIndex)) <- get
         return $ Block.DeriveDestination note controls
 
 instance Serialize Block.Track where
@@ -256,8 +253,8 @@ instance Serialize Block.Track where
             3 -> do
                 id :: Block.TracklikeId <- get
                 width :: Types.Width <- get
-                flags :: Set.Set Block.TrackFlag <- get
-                merged :: Set.Set Types.TrackId <- get
+                flags :: Set Block.TrackFlag <- get
+                merged :: Set Types.TrackId <- get
                 return $ Block.Track id width flags merged
             _ -> Serialize.bad_version "Block.Track" v
 
@@ -309,10 +306,10 @@ instance Serialize Block.View where
                 rect :: Rect.Rect <- get
                 visible_track :: Int <- get
                 visible_time :: Int <- get
-                status :: Map.Map (Int, Text) Text <- get
+                status :: Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Types.Zoom <- get
-                selections :: Map.Map Sel.Num Sel.Selection <- get
+                selections :: Map Sel.Num Sel.Selection <- get
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
             _ -> Serialize.bad_version "Block.View" v
@@ -355,7 +352,7 @@ instance Serialize Ruler.Ruler where
         v <- Serialize.get_version
         case v of
             6 -> do
-                marklists :: Map.Map Ruler.Name (Maybe Ruler.MeterType,
+                marklists :: Map Ruler.Name (Maybe Ruler.MeterType,
                     Ruler.Marklist) <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
@@ -455,14 +452,14 @@ instance Serialize Patch.Config where
                 alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 scale :: Maybe Patch.Scale <- get
                 control_defaults :: Score.ControlValMap <- get
-                initialization :: Set.Set Patch.Initialization <- get
+                initialization :: Set Patch.Initialization <- get
                 let settings = old_settings { Patch.config_scale = scale }
                 return $ Patch.Config alloc control_defaults initialization
                     settings
             9 -> do
                 alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 control_defaults :: Score.ControlValMap <- get
-                initialization :: Set.Set Patch.Initialization <- get
+                initialization :: Set Patch.Initialization <- get
                 settings :: Patch.Settings <- get
                 return $ Patch.Config alloc control_defaults initialization
                     settings
@@ -496,7 +493,7 @@ instance Serialize Patch.Settings where
         v <- Serialize.get_version
         case v of
             0 -> do
-                flags :: Set.Set Patch.Flag <- get
+                flags :: Set Patch.Flag <- get
                 scale :: Maybe Patch.Scale <- get
                 decay :: Maybe RealTime <- get
                 pitch_bend_range :: Midi.Control.PbRange <- get

@@ -174,7 +174,7 @@ grace_call :: [Attrs.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
     Grace.c_attr_grace (Map.filter (`elem` attrs) grace_intervals)
 
-grace_intervals :: Map.Map Int Attrs.Attributes
+grace_intervals :: Map Int Attrs.Attributes
 grace_intervals = Map.fromList $
     [(n, VslInst.grace <> VslInst.up <> attrs) | (n, attrs) <- ints]
     ++ [(-n, VslInst.grace <> VslInst.down <> attrs) | (n, attrs) <- ints]
@@ -238,7 +238,7 @@ keyswitch_map = Patch.keyswitches . Seq.sort_on (priority . fst) . process
 
 -- | Order attributes by priority.  This should correspond to specificity, or
 -- to perceptual importance, as documented in 'Patch.AttributeMap'.
-attribute_priority :: Map.Map Attrs.Attributes Int
+attribute_priority :: Map Attrs.Attributes Int
 attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
     where
     high =
@@ -298,8 +298,8 @@ strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
         ]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
-strip_attr :: Attrs.Attributes -> (Set.Set Attrs.Attributes, [Attrs.Attributes])
-    -> (Set.Set Attrs.Attributes, [Attrs.Attributes])
+strip_attr :: Attrs.Attributes -> (Set Attrs.Attributes, [Attrs.Attributes])
+    -> (Set Attrs.Attributes, [Attrs.Attributes])
 strip_attr attr (all_attrs_set, all_attrs)
     | any (`Attrs.contain` attr) all_attrs =
         List.mapAccumL strip_redundant all_attrs_set all_attrs
@@ -341,9 +341,9 @@ data HarmonicMap = HarmonicMap {
     hmap_strings :: [OpenString]
     -- | Map sounding pitch to possible strings and the key to play to get that
     -- pitch on that string.
-    , hmap_key_to_natural :: Map.Map Midi.Key [(OpenString, Midi.Key)]
+    , hmap_key_to_natural :: Map Midi.Key [(OpenString, Midi.Key)]
     -- | Same as 'hmap_key_to_natural' except map from the gliss destination.
-    , hmap_key_to_gliss_destination :: Map.Map Midi.Key [(OpenString, Midi.Key)]
+    , hmap_key_to_gliss_destination :: Map Midi.Key [(OpenString, Midi.Key)]
     } deriving (Show)
 type OpenString = Attrs.Attributes
 

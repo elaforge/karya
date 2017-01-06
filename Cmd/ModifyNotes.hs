@@ -128,7 +128,7 @@ notes_overlap n1 n2 =
 
 -- * controls
 
-type Controls = Map.Map Control Events.Events
+type Controls = Map Control Events.Events
 -- | A simplified version of 'ParseTitle.ControlType', since Notes don't
 -- support all the forms of control tracks.
 data Control = Control Score.Control | Pitch Pitch.ScaleId
@@ -342,7 +342,7 @@ merge_notes :: [Note] -> [NoteTrack]
 merge_notes = map make_track . Seq.group_sort note_index
     where
     make_track :: [Note] -> NoteTrack
-    make_track = List.foldl' (<>) mempty . map note_track
+    make_track = foldl' (<>) mempty . map note_track
     note_track note = NoteTrack (Events.singleton event) (note_controls note)
         where
         event = Event.set_orientation (note_orientation note) $

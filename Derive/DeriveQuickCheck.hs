@@ -110,7 +110,7 @@ simple_derive [] = []
 simple_derive (((_, tracks), skel) : blocks) =
     derive_block initial_state (mkblocks blocks) (Skeleton.make skel) tracks
 
-type Blocks = Map.Map String Block
+type Blocks = Map String Block
 
 mkblocks :: [Block] -> Blocks
 mkblocks blocks = Map.fromList $ zip (map (fst . fst) blocks) blocks
@@ -152,7 +152,7 @@ type NoteTrack = (Events, [Sample])
 
 data State = State {
     state_pitch :: Pitch.NoteNumber
-    , state_controls :: Map.Map Score.Control Signal.Y
+    , state_controls :: Map Score.Control Signal.Y
     } deriving (Show)
 
 initial_state :: State
@@ -170,7 +170,7 @@ state_psignal = PSignal.constant . mknote . state_pitch
         (const $ return $ Pitch.Note $ showt nn) mempty
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
-update_state samples pos state = (List.foldl' go state pre, post)
+update_state samples pos state = (foldl' go state pre, post)
     where
     (pre, post) = break ((>pos) . sample_pos) samples
     go state (Sample name _ val)
@@ -186,7 +186,7 @@ parse_pitch text =
     fromMaybe (error $ "unparseable pitch: " ++ show text) $
         Map.lookup (Pitch.Note $ txt text) note_to_nn
 
-note_to_nn :: Map.Map Pitch.Note Pitch.NoteNumber
+note_to_nn :: Map Pitch.Note Pitch.NoteNumber
 note_to_nn = Map.fromList
     [(note, nn) | (Just note, nn) <- zip (map Twelve.show_nn nns) nns]
     where nns = Seq.range 1 127 1

@@ -137,7 +137,7 @@ real_to_score block_id inv = map $ \t ->
         Just (_, (_, score) : _) -> Just score
         _ -> Nothing
 
-filter_tracks :: Set.Set TrackId -> Vector.Vector Score.Event
+filter_tracks :: Set TrackId -> Vector.Vector Score.Event
     -> Vector.Vector Score.Event
 filter_tracks track_ids
     | Set.null track_ids = id
@@ -153,7 +153,7 @@ group_edges eta = group . edges . Vector.toList
     group (t : ts) = t : group (dropWhile (<= t + eta) ts)
 
 -- | True if the event was from one of these tracks.
-from_track :: Set.Set TrackId -> Score.Event -> Bool
+from_track :: Set TrackId -> Score.Event -> Bool
 from_track track_ids event = any (`Set.member` track_ids) $
     mapMaybe track_of $ Stack.innermost (Score.event_stack event)
     where

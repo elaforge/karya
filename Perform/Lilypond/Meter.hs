@@ -73,7 +73,7 @@ type Ranks = Vector.Vector Rank
 -- D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
 -- 0    1    2    3    4     5     6     7
 
-meter_map :: Map.Map Text Meter
+meter_map :: Map Text Meter
 meter_map = Map.fromList $ Seq.key_on unparse_meter $ map make
     [ ([1], D4, [T])
     , ([2], D4, [T])

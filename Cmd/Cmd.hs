@@ -40,7 +40,6 @@ import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Digest.CRC32 as CRC32
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -69,9 +68,9 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -354,7 +353,7 @@ data State = State {
     -- another block being derived.  Blocks set to derive immediately are also
     -- considered to have block damage, if they didn't already.  This is
     -- cleared after every cmd.
-    , state_derive_immediately :: !(Set.Set BlockId)
+    , state_derive_immediately :: !(Set BlockId)
     -- | History.
     , state_history :: !History
     , state_history_config :: !HistoryConfig
@@ -364,7 +363,7 @@ data State = State {
     -- with 'keys_down'.
     -- The key is the modifier stripped of extraneous info, like mousedown
     -- position.  The value has complete info.
-    , state_keys_down :: !(Map.Map Modifier Modifier)
+    , state_keys_down :: !(Map Modifier Modifier)
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: !(Maybe ViewId)
@@ -375,7 +374,7 @@ data State = State {
     -- instead of per-view.  So changes are logged with a special prefix so
     -- logview can catch them.  Really I only need this map to suppress log
     -- spam.
-    , state_global_status :: !(Map.Map Text Text)
+    , state_global_status :: !(Map Text Text)
     , state_play :: !PlayState
     , state_hooks :: !Hooks
 
@@ -430,7 +429,7 @@ fingerprint :: [(FilePath, Text)] -> Fingerprint
 fingerprint files =
     -- 'Ui.ky' gets "" for the filename.
     Fingerprint (filter (not . null) fnames)
-        (List.foldl' CRC32.crc32Update 0 contents)
+        (foldl' CRC32.crc32Update 0 contents)
     where (fnames, contents) = unzip files
 
 initial_state :: Config -> State
@@ -487,16 +486,16 @@ data Config = Config {
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.rdev_map' and 'App.StaticConfig.wdev_map' and probably
     -- shouldn't be changed at runtime.
-    , config_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
+    , config_rdev_map :: !(Map Midi.ReadDevice Midi.ReadDevice)
     -- | WriteDevices can be score-specific, though, so another map is kept in
     -- 'Ui.State', which may override the one here.
-    , config_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
+    , config_wdev_map :: !(Map Midi.WriteDevice Midi.WriteDevice)
     , config_instrument_db :: !InstrumentDb
     -- | Library of calls for the deriver.
     , config_library :: !Derive.Library
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , config_lookup_scale :: !Derive.LookupScale
-    , config_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
+    , config_highlight_colors :: !(Map Color.Highlight Color.Color)
     , config_im :: !ImConfig
     } deriving (Show)
 
@@ -545,15 +544,15 @@ data PlayState = PlayState {
     -- means there will be a window in which the performance is out of date,
     -- but this is better than hanging the responder every time it touches an
     -- insufficiently lazy part of the performance.
-    , state_performance :: !(Map.Map BlockId Performance)
+    , state_performance :: !(Map BlockId Performance)
     -- | However, some cmds, like play, want the most up to date performance
     -- even if they have to wait for it.  This map will be updated
     -- immediately.
-    , state_current_performance :: !(Map.Map BlockId Performance)
+    , state_current_performance :: !(Map BlockId Performance)
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
-    , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
+    , state_performance_threads :: !(Map BlockId Concurrent.ThreadId)
     -- | Some play commands start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -688,8 +687,7 @@ data EditState = EditState {
     -- of notes per octave.
     , state_kbd_entry_octave :: !Pitch.Octave
     , state_recorded_actions :: !RecordedActions
-    , state_instrument_attributes ::
-        !(Map.Map Score.Instrument Attrs.Attributes)
+    , state_instrument_attributes :: !(Map Score.Instrument Attrs.Attributes)
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
     } deriving (Eq, Show)
@@ -719,7 +717,7 @@ initial_edit_state = EditState {
 data EditMode = NoEdit | ValEdit | MethodEdit deriving (Eq, Show)
 instance Pretty.Pretty EditMode where pretty = showt
 
-type RecordedActions = Map.Map Char Action
+type RecordedActions = Map Char Action
 
 -- | Repeat a recorded action.
 --
@@ -746,15 +744,15 @@ instance Pretty.Pretty Action where
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
     -- | Last pb val for each Addr.
-    wdev_pb :: !(Map.Map Patch.Addr Midi.PitchBendValue)
+    wdev_pb :: !(Map Patch.Addr Midi.PitchBendValue)
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    , wdev_note_addr :: !(Map.Map InputNote.NoteId Patch.Addr)
+    , wdev_note_addr :: !(Map InputNote.NoteId Patch.Addr)
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
-    , wdev_note_key :: !(Map.Map InputNote.NoteId Midi.Key)
+    , wdev_note_key :: !(Map InputNote.NoteId Midi.Key)
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
-    , wdev_addr_serial :: !(Map.Map Patch.Addr Serial)
+    , wdev_addr_serial :: !(Map Patch.Addr Serial)
     -- | Next serial number for 'wdev_addr_serial'.
     , wdev_serial :: !Serial
     -- | Last NoteId seen.  This is needed to emit controls (rather than just
@@ -765,13 +763,13 @@ data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.PitchTrack:
     -- | NoteIds being entered into which pitch tracks.  When entering a chord,
     -- a PitchChange uses this to know which pitch track to update.
-    , wdev_pitch_track :: !(Map.Map InputNote.NoteId (BlockId, TrackNum))
+    , wdev_pitch_track :: !(Map InputNote.NoteId (BlockId, TrackNum))
 
     -- Used by no one, yet:  (TODO should someone use this?)
     -- | Remember the current patch of each addr.  More than one patch or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: !(Map.Map Patch.Addr Midi.Types.Patch)
+    , wdev_addr_inst :: !(Map Patch.Addr Midi.Types.Patch)
     } deriving (Eq, Show)
 
 type Serial = Int
@@ -1049,7 +1047,7 @@ invalidate_performances = do
         }
 
 -- | Keys currently held down, as in 'state_keys_down'.
-keys_down :: M m => m (Map.Map Modifier Modifier)
+keys_down :: M m => m (Map Modifier Modifier)
 keys_down = gets state_keys_down
 
 get_focused_view :: M m => m ViewId

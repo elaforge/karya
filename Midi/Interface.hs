@@ -110,8 +110,7 @@ all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
 -- * implementation
 
 type TrackerM a = State.StateT State IO a
-type State =
-    Map.Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Bool))
+type State = Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Bool))
 
 run :: State -> TrackerM Bool -> IO (State, Bool)
 run state = fmap Tuple.swap . flip State.runStateT state

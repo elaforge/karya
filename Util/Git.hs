@@ -482,7 +482,7 @@ read_refs repop = alloca $ \arrayp -> do
     return refs
 
 -- | Read all refs along with their commits.
-read_ref_map :: Repo -> IO (Map.Map Ref Commit)
+read_ref_map :: Repo -> IO (Map Ref Commit)
 read_ref_map repo = with_repo repo $ \repop -> do
     refs <- read_refs repop
     commits <- mapM (read_ref_repo repop) refs
@@ -571,7 +571,7 @@ data SortFlag = SortTopological | SortTime | SortReverse deriving (Show)
 walk :: Ptr G.C'git_revwalk -> [SortFlag] -> IO [Commit]
 walk walkp flags = do
     G.c'git_revwalk_sorting walkp
-        (List.foldl' (Bits..|.) git_sort_none (map flag flags))
+        (foldl' (Bits..|.) git_sort_none (map flag flags))
     alloca $ \oidp -> while_just (next oidp)
     where
     next oidp = do
@@ -608,7 +608,7 @@ with_revwalk repop io = alloca $ \walkpp -> do
 
 -- * dir
 
-type Dir = Map.Map FileName File
+type Dir = Map FileName File
 data File = File ByteString | Dir Dir deriving (Eq, Show)
 
 make_dir :: [(FilePath, ByteString)] -> Either String Dir

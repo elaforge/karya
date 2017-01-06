@@ -13,7 +13,7 @@ import qualified Data.Set as Set
 import Global
 
 
-type Tags = Set.Set Tag
+type Tags = Set Tag
 newtype Tag = Tag Text deriving (Show, Ord, Eq)
 
 tag :: Text -> Tags

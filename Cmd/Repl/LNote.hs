@@ -105,7 +105,7 @@ split_on_pitch high_index break_nn =
 -- | Sort by pitch and compact.
 sort_on_pitch :: Cmd.M m => Bool -> m ()
 sort_on_pitch high_left = ModifyNotes.selection $ ModifyNotes.annotate_nns $
-    return . extract . List.foldl' insert mempty
+    return . extract . foldl' insert mempty
     where
     insert state note =
         insert_ordered (\n1 n2 -> cmp (snd n1) (snd n2)) note state
@@ -126,7 +126,7 @@ insert_ordered place_before note state = case Map.lookup index state of
     overlapping = [(i, n) | (i, n : _) <- Map.toAscList state, overlap note n]
     overlap n1 n2 = ModifyNotes.notes_overlap (fst n1) (fst n2)
 
-bump_index :: Int -> Map.Map Int a -> Map.Map Int a
+bump_index :: Int -> Map Int a -> Map Int a
 bump_index index m =
     pre <> Map.fromAscList (map (first (+1)) (Map.toAscList post))
     where (pre, post) = Util.Map.split2 index m
@@ -138,7 +138,7 @@ extract state = concat $
     ]
 
 -- | From track index to notes in reverse order.
-type State annot = Map.Map ModifyNotes.Index [(ModifyNotes.Note, annot)]
+type State annot = Map ModifyNotes.Index [(ModifyNotes.Note, annot)]
 
-insert_cons :: Ord k => k -> a -> Map.Map k [a] -> Map.Map k [a]
+insert_cons :: Ord k => k -> a -> Map k [a] -> Map k [a]
 insert_cons k a = Map.alter (Just . maybe [a] (a:)) k

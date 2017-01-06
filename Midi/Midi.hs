@@ -498,6 +498,6 @@ korg_code = 0x42
 yamaha_code = 0x43
 
 -- | TODO get a more complete list
-manufacturer_codes :: Map.Map Manufacturer Text
+manufacturer_codes :: Map Manufacturer Text
 manufacturer_codes = Map.fromList
     [(korg_code, "korg"), (yamaha_code, "yamaha")]

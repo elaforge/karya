@@ -166,7 +166,7 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
-events_from :: Set.Set Score.Instrument -> RealTime
+events_from :: Set Score.Instrument -> RealTime
     -> Vector.Vector Score.Event -> ([Score.Event], Vector.Vector Score.Event)
 events_from resume_insts start events
     | start <= 0 = ([], events)
@@ -178,7 +178,7 @@ events_from resume_insts start events
     starts = scan_for_starts resume_insts events start i
 
 -- | Starting from the index, look back for overlapping events in the given set.
-scan_for_starts :: Set.Set Score.Instrument -> Vector.Vector Score.Event
+scan_for_starts :: Set Score.Instrument -> Vector.Vector Score.Event
     -> RealTime -> Int -> [Score.Event]
 scan_for_starts resume_insts events pos i =
     reverse $ mapMaybe (set_start pos) $
@@ -281,8 +281,7 @@ filter_track_muted tree blocks
 solo_to_mute :: TrackTree.TrackTree -- ^ All the trees of the whole score,
     -- concatenated.  This is because I just need to know who is a child of
     -- who, and I don't care what block they're in.
-    -> [(BlockId, Block.Block)]
-    -> Set.Set TrackId -> Set.Set TrackId
+    -> [(BlockId, Block.Block)] -> Set TrackId -> Set TrackId
 solo_to_mute tree blocks soloed = Set.fromList
     [ track_id
     | (block_id, block) <- blocks
@@ -307,7 +306,7 @@ solo_to_mute tree blocks soloed = Set.fromList
             (Block.block_tracks block)
         ]
 
-midi_configs :: UiConfig.Allocations -> Map.Map Score.Instrument Patch.Config
+midi_configs :: UiConfig.Allocations -> Map Score.Instrument Patch.Config
 midi_configs (UiConfig.Allocations allocs) = Map.fromAscList
     [ (inst, config)
     | (inst, alloc) <- Map.toAscList allocs

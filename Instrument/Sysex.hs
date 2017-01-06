@@ -105,7 +105,7 @@ add_file fn = Common.tags %= ((Tag.file, txt (FilePath.takeFileName fn)) :)
 
 -- * record
 
-type RMap = Map.Map Name Record
+type RMap = Map Name Record
 data Record =
     -- | A List is represented as an RMap with numbered keys.
     RMap RMap
@@ -123,7 +123,7 @@ data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
 -- | Create a Record from a Spec, defaulting everything to 0, \"\", or the
 -- first enum val.
 spec_to_rmap :: Specs -> RMap
-spec_to_rmap = List.foldl' add Map.empty
+spec_to_rmap = foldl' add Map.empty
     where
     spec_to_record = RMap . spec_to_rmap
     add rec (name, spec) = case spec of
@@ -131,7 +131,7 @@ spec_to_rmap = List.foldl' add Map.empty
         Num (Enum (enum:_)) -> Map.insert name (RStr enum) rec
         Num (Enum []) -> error $ name <> " had an empty Enum"
 
-        Bits bits -> List.foldl' add_bit rec bits
+        Bits bits -> foldl' add_bit rec bits
         Str _ -> Map.insert name (RStr "") rec
         SubSpec specs -> Map.insert name (spec_to_record specs) rec
         List elts specs -> Map.insert name
@@ -530,8 +530,7 @@ show_path = (<>": ") . Seq.join "." . reverse
 -- ** bit fiddling
 
 encode_bits :: [Int] -> [Word8] -> Word8
-encode_bits widths vals =
-    List.foldl' (.|.) 0 $ zipWith Bits.shiftL vals offsets
+encode_bits widths vals = foldl' (.|.) 0 $ zipWith Bits.shiftL vals offsets
     where offsets = scanl (+) 0 widths
 
 decode_bits :: [Int] -> Word8 -> [Word8]
@@ -539,7 +538,7 @@ decode_bits widths byte = zipWith extract bs (drop 1 bs)
     where
     bs = scanl (+) 0 widths
     extract start end = Bits.shiftR (set start end .&. byte) start
-    set start end = List.foldl' Bits.setBit 0 [start .. end-1]
+    set start end = foldl' Bits.setBit 0 [start .. end-1]
 
 -- | Convert an n bit 2s complement word to a signed integer.
 to_signed :: (Integral a, Bits.Bits a) => Int -> a -> Int

@@ -217,7 +217,7 @@ fx_volume = 0x0c
 ex_cut = 0xc3
 fx_delay = 0x1f
 
-degree_to_note :: Map.Map Int String
+degree_to_note :: Map Int String
 degree_to_note = Map.fromList $ zip [0..127] notes
     where notes = [show o ++ d | o <- [-1..9], d <- note_degrees]
 

@@ -7,7 +7,6 @@ module Derive.Scale.ChromaticScales where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
@@ -67,7 +66,7 @@ scale_map layout fmt keys default_key = ScaleMap
     }
     where range = (Theory.nn_to_semis 0, Theory.nn_to_semis 127)
 
-type Keys = Map.Map Pitch.Key Theory.Key
+type Keys = Map Pitch.Key Theory.Key
 
 make_keys :: TheoryFormat.Format -> [Theory.Key] -> Keys
 make_keys fmt keys =
@@ -196,8 +195,7 @@ in_range smap pitch = bottom <= semis && semis <= top
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
-call_doc :: Set.Set Score.Control -> ScaleMap -> Doc.Doc
-    -> Derive.DocumentedCall
+call_doc :: Set Score.Control -> ScaleMap -> Doc.Doc -> Derive.DocumentedCall
 call_doc transposers smap doc =
     Scales.annotate_call_doc transposers doc fields $
         Derive.extract_val_doc call

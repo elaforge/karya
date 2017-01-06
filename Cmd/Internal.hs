@@ -447,7 +447,7 @@ sync_recorded_actions actions = Cmd.set_global_status "rec" $
         (i, act) <- Map.toAscList actions]
 
 sync_instrument_attributes :: Cmd.M m =>
-    Map.Map Score.Instrument Attrs.Attributes -> m ()
+    Map Score.Instrument Attrs.Attributes -> m ()
 sync_instrument_attributes inst_attrs =
     Cmd.set_global_status "attrs" $ Text.unwords
         [ ShowVal.show_val inst <> ":" <> ShowVal.show_val attrs

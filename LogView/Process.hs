@@ -86,7 +86,7 @@ type CatchPattern = (Text, Regex.Regex)
 
 -- ** status
 
-type Status = Map.Map Text Text
+type Status = Map Text Text
 
 render_status :: Status -> StyledText
 render_status status = run_formatter $
@@ -130,7 +130,7 @@ process_msg state msg = run $ do -- suppress_last msg $ do
     run = flip State.runState state
     process_catch = State.modify $ \st -> st
         { state_status = catch (state_status st) (state_catch_patterns st) }
-    catch status patterns = List.foldl'
+    catch status patterns = foldl'
         (\status catch -> catch msg status) status (catches patterns)
 
 catches :: [CatchPattern] -> [Catch]
@@ -181,7 +181,7 @@ global_status_pattern :: CatchPattern
 global_status_pattern =
     ("_", Regex.compileUnsafe "^global status: (.*?) -- (.*)")
 
-match_pattern :: CatchPattern -> Text -> Map.Map Text Text
+match_pattern :: CatchPattern -> Text -> Map Text Text
 match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
     where
     extract (_, [match]) = (title, match)

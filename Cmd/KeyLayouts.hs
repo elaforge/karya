@@ -21,9 +21,9 @@ import Global
 
 data Layout = Layout {
     -- | Map from the shifted key to the unshifted one.
-    map_to_unshifted :: Map.Map Char Char
+    map_to_unshifted :: Map Char Char
     -- | Map from the layout to qwerty.
-    , map_from_qwerty :: Map.Map Char Char
+    , map_from_qwerty :: Map Char Char
     } deriving (Show)
 
 to_unshifted :: Layout -> Char -> Maybe Char
