@@ -76,7 +76,7 @@ UNSORTED
     * Can I move gong related ruler stuff to Cmd.Gong?  I need to put
       meter_types in a higher level module then, which means modify_meter also
       needs to move.
-    - Change kotekan-dur default to "(ts s), but I'll need to update all the
+    * Change kotekan-dur default to "(ts s), but I'll need to update all the
       scores first.
   * The playback selection should go in the ruler track to make it more visible.
   * fltk: If I open a floating input when the event trigger is off the top of
@@ -2184,6 +2184,12 @@ tracklang problems
 
 planning / research
   text score: doc/dev_notes/text-score.md
+    . Time problems:
+      . I want to say "repeat n times".
+      . I want sections with their own tempo, and then the caller just sequences
+        them.  If I turn the whole thing into one call, then I can still fit it
+        into a global timeline, and apply transformations or tempo there.
+      . If there is meter information in the text score, I can derive a ruler.
   cmj:
     . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/

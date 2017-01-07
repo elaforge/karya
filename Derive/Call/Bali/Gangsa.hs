@@ -497,7 +497,7 @@ c_kotekan_kernel =
     <*> Sig.defaulted_env "sangsih" Sig.Both Call.Up
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
-    <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
+    <*> Sig.required_environ "kernel" Sig.Both kernel_doc
     <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
         pasang, initial_final) ->
@@ -518,7 +518,7 @@ c_kotekan_regular maybe_kernel default_style =
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)
-    <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
+    <$> maybe (Sig.required_env "kernel" Sig.Both kernel_doc) pure maybe_kernel
     <*> style_arg default_style
     <*> Sig.defaulted_env "sangsih" Sig.Both Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
@@ -1149,7 +1149,7 @@ style_arg deflt = Sig.defaulted_env "style" Sig.Both deflt "Kotekan style."
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
-    (BaseTypes.quoted "ts" [BaseTypes.str "e"]) "Duration of derived notes."
+    (BaseTypes.quoted "ts" [BaseTypes.str "s"]) "Duration of derived notes."
 
 kotekan_env :: Sig.Parser BaseTypes.ControlRef
 kotekan_env =
