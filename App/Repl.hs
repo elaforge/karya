@@ -204,10 +204,10 @@ edit return_prefix text =
     save_cmd = case return_prefix of
         Nothing -> []
         Just prefix ->
-            [ "-c", "nmap gz :wa<cr>:!build/opt/send --cmd '" <> untxt prefix
-                <> "' <%<cr>"
             -- I don't know that it's ky syntax, but so far it is.
-            , "-c", "source ky-syntax.vim"
+            [ "-c", "source ky-syntax.vim"
+            , "-c", "source vim-functions.vim"
+            , "-c", "nmap gz :call Send('" <> untxt prefix <> "')<cr>"
             ]
 
 -- | Open the given file, and return the selected line.

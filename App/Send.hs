@@ -18,7 +18,6 @@ import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
-import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 import Global
