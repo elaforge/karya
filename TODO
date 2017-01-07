@@ -832,7 +832,7 @@ cleanup:
       . Then take status out of Update.BlockSkeleton.  Now status updates
         don't emit a skeleton update, so they don't cause score damage.
       . Now it loses the raised block.
-  - Convert Block.Status to a real type
+  * Convert Block.Status to a real type
   - split up CallInfo depending on type
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.

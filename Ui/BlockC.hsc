@@ -427,11 +427,7 @@ instance CStorable Block.DisplayTrack where
 poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
     (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
     (#poke DisplayTrack, width) dtrackp (Util.c_int width)
-    (#poke DisplayTrack, status) dtrackp (SkeletonStatus status)
-
-track_status :: Block.Status -> (String, Color.Color)
-track_status Nothing = (repeat '\0', Color.black)
-track_status (Just (status, color)) = (status ++ repeat '\0', color)
+    (#poke DisplayTrack, status) dtrackp status
 
 -- ** skeleton
 
@@ -473,16 +469,15 @@ instance CStorable SkeletonEdge where
         (#poke SkeletonEdge, width) edgep (Util.c_int width)
         (#poke SkeletonEdge, color) edgep color
 
-newtype SkeletonStatus = SkeletonStatus Block.Status
-instance CStorable SkeletonStatus where
+instance CStorable Block.Status where
     sizeOf _ = #size SkeletonStatus
     alignment _ = alignment Color.black
-    peek _ = error "SkeletonStatus peek unimplemented"
-    poke edgep (SkeletonStatus status) = do
-        let (c1 : c2 : _, color) = track_status status
-        (#poke SkeletonStatus, c1) edgep (Util.c_rune c1)
-        (#poke SkeletonStatus, c2) edgep (Util.c_rune c2)
-        (#poke SkeletonStatus, color) edgep color
+    peek _ = error "Block.Status peek unimplemented"
+    poke statusp (Block.Status chars color) = do
+        let c1 : c2 : _ = chars ++ repeat '\0'
+        (#poke SkeletonStatus, c1) statusp (Util.c_rune c1)
+        (#poke SkeletonStatus, c2) statusp (Util.c_rune c2)
+        (#poke SkeletonStatus, color) statusp color
 
 -- ** selection
 

@@ -40,10 +40,10 @@ test_display_track = do
     equal display_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
             Block.DisplayTrack (Block.TId tid1 rid) 30 (Set.singleton tid2)
-                Nothing 1
+                Block.empty_status 1
         , Update.Block bid (Update.RemoveTrack 2)
         , Update.Block bid $ Update.InsertTrack 2 $
-            Block.DisplayTrack div 3 mempty Nothing 1
+            Block.DisplayTrack div 3 mempty Block.empty_status 1
         ]
     -- TODO add more tests if I modify Diff
 

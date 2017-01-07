@@ -18,7 +18,7 @@ module Ui.Block (
     , divider
     , track_collapsed, track_selectable, track_wants_signal
     -- ** DisplayTrack
-    , DisplayTrack(..), Status, TrackFlag(..)
+    , DisplayTrack(..), Status(..), empty_status, TrackFlag(..)
     , block_display_tracks
     , display_track_width
     , flags_to_status, flag_char
@@ -292,10 +292,6 @@ data DisplayTrack = DisplayTrack {
     , dtrack_event_brightness :: !Double
     } deriving (Eq, Show, Read)
 
--- | This has a 2 character string to display above the track, and a background
--- color.
-type Status = Maybe (String, Color.Color)
-
 instance Pretty.Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
         Pretty.record "DisplayTrack"
@@ -304,6 +300,17 @@ instance Pretty.Pretty DisplayTrack where
             , ("merged", Pretty.format merged)
             , ("status", Pretty.format status)
             ]
+
+-- | This has a 2 character string to display above the track, and a background
+-- color.
+data Status = Status !String !Color.Color
+    deriving (Eq, Show, Read)
+
+instance Pretty.Pretty Status where
+    pretty (Status cs color) = pretty (cs, color)
+
+empty_status :: Status
+empty_status = Status "" Color.black
 
 -- | Most of these only make sense for event tracks.
 data TrackFlag =
@@ -356,7 +363,7 @@ collapsed_track = DisplayTrack
     { dtracklike_id = DId (Divider Config.abbreviation_color)
     , dtrack_width = Config.collapsed_width
     , dtrack_merged = mempty
-    , dtrack_status = Nothing
+    , dtrack_status = empty_status
     , dtrack_event_brightness = 1
     }
 
@@ -366,10 +373,10 @@ display_track_width = dtrack_width . display_track
 flags_to_status :: Set TrackFlag -> (Status, Double)
 flags_to_status flags
     | Disable `Set.member` flags =
-        (Just (chars Disable, Config.mute_color), 0.7)
-    | Solo `Set.member` flags = (Just (chars Solo, Config.solo_color), 1)
-    | Mute `Set.member` flags = (Just (chars Mute, Config.mute_color), 0.85)
-    | otherwise = (Nothing, 1)
+        (Status (chars Disable) Config.mute_color, 0.7)
+    | Solo `Set.member` flags = (Status (chars Solo) Config.solo_color, 1)
+    | Mute `Set.member` flags = (Status (chars Mute) Config.mute_color, 0.85)
+    | otherwise = (empty_status, 1)
     where
     chars flag = filter (/=' ') $ flag_char flag
         : map (Char.toLower . flag_char) (Set.toList (Set.delete flag flags))

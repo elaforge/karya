@@ -91,8 +91,8 @@ data Block t =
     | BlockSkeleton !Skeleton.Skeleton ![(Color.Color, [(TrackNum, TrackNum)])]
     | RemoveTrack !TrackNum
     | InsertTrack !TrackNum !t
-    -- | Unlike 'Track', these settings are local to the block, not
-    -- global to this track in all its blocks.
+    -- | Unlike 'Track', these settings are local to the block, not global to
+    -- this track in all its blocks.
     | BlockTrack !TrackNum !t
     deriving (Eq, Show)
 
