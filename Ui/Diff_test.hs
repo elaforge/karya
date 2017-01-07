@@ -11,9 +11,9 @@ import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -27,7 +27,7 @@ test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkblock [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
         st2 = UiTest.exec st1 (Ui.merge_track bid 1 2)
-    let (ui_updates, display_updates) = diff st1 st2
+    let (ui_updates, display_updates) = Diff.diff [] st1 st2
     equal ui_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
             Block.Track (Block.TId tid1 rid) 30 mempty (Set.singleton tid2)
@@ -54,13 +54,24 @@ test_merge_updates = do
             Ui.merge_track bid 1 2
             return tids
     equal (Diff.diff [Update.CmdTrackAllEvents tid2] st st) $
-        ([Update.Track tid2 Update.TrackAllEvents],
-        [ Update.Track tid2 Update.TrackAllEvents
-        , Update.Track tid1 Update.TrackAllEvents
-        ])
+        ( [Update.Track tid2 Update.TrackAllEvents]
+        , [ Update.Track tid2 Update.TrackAllEvents
+          , Update.Track tid1 Update.TrackAllEvents
+          ]
+        )
 
-diff :: Ui.State -> Ui.State -> ([Update.UiUpdate], [Update.DisplayUpdate])
-diff = Diff.diff []
+test_track_flags = do
+    let (_, st) = UiTest.run_mkblock [(">", []), ("*", [])]
+    -- Make sure adding Solo doesn't cause other damage.
+    equal (fst $ diff st ((Ui.add_track_flag bid 2 Block.Solo)))
+        [ Update.Block UiTest.default_block_id $ Update.BlockTrack 2 $
+            (Block.track (Block.TId (UiTest.mk_tid 2) (UiTest.rid "r0")) 30)
+                { Block.track_flags = Set.fromList [Block.Solo] }
+        ]
+
+diff :: Ui.State -> Ui.StateId a -> ([Update.UiUpdate], [Update.DisplayUpdate])
+diff state1 modify = Diff.diff updates state1 state2
+    where (_, state2, updates) = expect_right $ Ui.run_id state1 modify
 
 
 -- * derive_diff
@@ -83,8 +94,6 @@ test_derive_diff = do
         (mkdamage [] [] [bid])
     equal (f (Ui.set_skeleton bid (Skeleton.make [(1, 2)])))
         (mkdamage [] [] [])
-    equal (f (Ui.add_track_flag bid 2 Block.Collapse))
-        (mkdamage [] [] [])
     -- Config damage.
     let tlike = Block.TId (UiTest.mk_tid 4) Ui.no_ruler
     equal (f (Ui.insert_track bid 3 (Block.track tlike 10)))
@@ -98,6 +107,16 @@ test_derive_diff = do
     equal (f (UiTest.create_block (UiTest.mkid "new") "" []))
         (mkdamage [] [] [UiTest.bid "new"])
     equal (f (Ui.destroy_block bid)) (mkdamage [] [] [bid])
+
+test_derive_diff_track_flags = do
+    let (_, ustate) = UiTest.run_mkblock
+            [ ("tempo", [(0, 0, "1")])
+            , (">i", [(0, 1, ""), (1, 1, "")])
+            ]
+    let f modify = Diff.derive_diff ustate (UiTest.exec ustate modify) []
+    equal (f (Ui.add_track_flag bid 2 Block.Collapse)) (mkdamage [] [] [])
+    equal (f (Ui.add_track_flag bid 2 Block.Solo)) (mkdamage [] [] [])
+    equal (f (Ui.add_track_flag bid 2 Block.Disable)) (mkdamage [] [] [bid])
 
 test_derive_diff_updates = do
     let ([_, tid2], ustate) = UiTest.run_mkblock

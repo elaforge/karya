@@ -436,11 +436,12 @@ Block::remove_track(int tracknum)
         delete t;
 
         this->update_scrollbars();
-        // I don't want to delete the track from the skeleton because if this
-        // is a replace then the skeleton can be preserved.  This happens when
-        // a track is collapsed.  Otherwise, the skeleton is out of date and
-        // there should be a set_skeleton soon.
-        this->skel_display.set_width(tracknum, 0);
+        // This removes the track but doesn't change the skeleton.  If it's
+        // really a delete then there will be a skeleton config update coming
+        // soon enough to fix that.  If the track is being replaced (e.g.
+        // a collapse), then the skeleton will be right again.  This is
+        // kind of sketchy but it seems to work.
+        this->skel_display.remove_track(tracknum);
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
             Track *t = this->replace_ruler_track(this->no_ruler, 0);
@@ -462,8 +463,7 @@ Block::set_display_track(int tracknum, const DisplayTrack &dtrack)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
     if (tracknum > 0) {
-        this->skel_display.set_status(
-            tracknum-1, dtrack.status1, dtrack.status2, dtrack.status_color);
+        this->skel_display.set_status(tracknum-1, dtrack.status);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
     this->set_track_width(tracknum, dtrack.width);
@@ -504,6 +504,7 @@ Block::insert_track_view(int tracknum, Track *track, int width)
         track_tile.insert_track(tracknum, track, width);
         this->track_tile.set_zoom(this->zoom);
         // Restore the width as per the comment in 'remove_track'.
+        this->skel_display.insert_track(tracknum);
         this->skel_display.set_width(tracknum, width);
     }
     this->update_scrollbars();

@@ -56,8 +56,8 @@ set_config :: ViewId -> Block.Config -> Fltk ()
 set_config view_id config = fltk $ return ()
 
 set_skeleton :: ViewId -> Skeleton.Skeleton
-    -> [(Color.Color, [(TrackNum, TrackNum)])] -> [Block.Status] -> Fltk ()
-set_skeleton view_id skel integrate_edges statuses = fltk $ return ()
+    -> [(Color.Color, [(TrackNum, TrackNum)])] -> Fltk ()
+set_skeleton view_id skel integrate_edges = fltk $ return ()
 
 set_title :: ViewId -> Text -> Fltk ()
 set_title view_id title = fltk $ return ()

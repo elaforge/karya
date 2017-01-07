@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Why does soloing a track cause a rederive?
+  * Why does soloing a track cause a rederive?
   * Should I rename Ui.State to Ui?  That way I can have Ui.State and
     Cmd.State.  It seems inconsistent that UI state should get the "state"
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
@@ -821,9 +821,18 @@ cleanup:
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
       c++, as well as clang's "treating 'c' input as 'c++' when in C++ mode"
-  - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
+  * Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.
+    . The problem is in the UI the status is in the skeleton at block level,
+      but in haskell it's at the track level.
+    . If I keep status in DisplayTrack:
+      . When I get a UpdateSkeleton, I copy status from the previous value.
+        If a track is added or removed, I have to tell the skeleton about it.
+      . Then take status out of Update.BlockSkeleton.  Now status updates
+        don't emit a skeleton update, so they don't cause score damage.
+      . Now it loses the raised block.
+  - Convert Block.Status to a real type
   - split up CallInfo depending on type
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.

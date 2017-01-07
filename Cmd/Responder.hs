@@ -44,8 +44,8 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.Fltk as Fltk
-import qualified Ui.Ui as Ui
 import qualified Ui.Sync as Sync
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 

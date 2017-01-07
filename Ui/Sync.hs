@@ -45,13 +45,13 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
+import qualified Ui.Fltk as Fltk
 import qualified Ui.Id as Id
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Fltk as Fltk
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -101,7 +101,7 @@ check_updates state = filterM $ \update -> case update of
 do_updates :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
     -> [Update.DisplayUpdate] -> Ui.StateT IO ()
 do_updates ui_chan track_signals set_style updates = do
-    -- Debug.fullM Debug.putp "sync updates" updates
+    -- Debug.fullM (Debug.putp "sync updates") updates
     actions <- mapM (run_update track_signals set_style) updates
     unless (null actions) $
         liftIO $ Fltk.send_action ui_chan ("sync: " <> pretty updates)
@@ -265,7 +265,7 @@ update_view track_signals set_style view_id Update.CreateView = do
         unless (Text.null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
-            (Block.integrate_skeleton block) (map Block.dtrack_status dtracks)
+            (Block.integrate_skeleton block)
         forM_ selnum_sels $ \(selnum, tracknums_sels) ->
             forM_ tracknums_sels $ \(tracknums, sels) ->
                 BlockC.set_selection view_id selnum tracknums sels
@@ -307,9 +307,9 @@ update_block track_signals set_style block_id update = do
             mapM_ (flip BlockC.set_title title) view_ids
         Update.BlockConfig config -> return $
             mapM_ (flip BlockC.set_config config) view_ids
-        Update.BlockSkeleton skel integrate_edges statuses -> return $
+        Update.BlockSkeleton skel integrate_edges -> return $
             forM_ view_ids $ \view_id ->
-                BlockC.set_skeleton view_id skel integrate_edges statuses
+                BlockC.set_skeleton view_id skel integrate_edges
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum dtrack ->

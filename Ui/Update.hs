@@ -88,13 +88,7 @@ data Block t =
     -- seems pointless to convert it to one just so it can be flattened again.
     -- Arguably it's the first arg which should be edges, but at least this way
     -- the two args can't be mixed up.
-    --
-    -- A skeleton update updates the statuses too, because they are
-    -- drawn in the same place.  Otherwise, a change to the skeleton loses the
-    -- status state, and the display can't preserve it because the skeleton
-    -- update may be due to a track deletion or insertion.
     | BlockSkeleton !Skeleton.Skeleton ![(Color.Color, [(TrackNum, TrackNum)])]
-        ![Block.Status]
     | RemoveTrack !TrackNum
     | InsertTrack !TrackNum !t
     -- | Unlike 'Track', these settings are local to the block, not
@@ -164,8 +158,8 @@ instance Pretty.Pretty t => Pretty.Pretty (Block t) where
             [Pretty.format s]
         BlockConfig config -> Pretty.constructor "BlockConfig"
             [Pretty.format config]
-        BlockSkeleton skel int_skel status -> Pretty.constructor "BlockSkeleton"
-            [Pretty.format skel, Pretty.format int_skel, Pretty.format status]
+        BlockSkeleton skel int_skel -> Pretty.constructor "BlockSkeleton"
+            [Pretty.format skel, Pretty.format int_skel]
         RemoveTrack n -> Pretty.constructor "RemoveTrack"
             [Pretty.format n]
         InsertTrack n t -> Pretty.constructor "InsertTrack"
@@ -227,7 +221,7 @@ to_display (View vid update) = Just $ View vid update
 to_display (Block bid update) = Block bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
     BlockConfig a -> Just $ BlockConfig a
-    BlockSkeleton a b c -> Just $ BlockSkeleton a b c
+    BlockSkeleton a b -> Just $ BlockSkeleton a b
     RemoveTrack {} -> Nothing
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing

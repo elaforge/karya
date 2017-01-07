@@ -14,8 +14,8 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd

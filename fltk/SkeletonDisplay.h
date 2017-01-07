@@ -23,8 +23,9 @@ struct SkeletonEdge {
 };
 
 struct SkeletonStatus {
-    SkeletonStatus(Color color, utf8::rune status1, utf8::rune status2) :
-        color(color), status1(status1), status2(status2)
+    SkeletonStatus() : color(), c1(0), c2(0) {}
+    SkeletonStatus(Color color, utf8::rune c1, utf8::rune c2) :
+        color(color), c1(c1), c2(c2)
     {}
     Color color;
     // I'd really like to have a string with a variable number of characters,
@@ -32,7 +33,9 @@ struct SkeletonStatus {
     // probably ways to treat a short string as a value, e.g. by declaring a
     // struct or stuffing it into an int, but they're either not much better
     // than declaring a bunch of chars, or are kind of grody.
-    utf8::rune status1, status2;
+    // '\0' means don't draw a status and ignore the color.  ' ' means draw
+    // the color, but with no text, of course.
+    utf8::rune c1, c2;
 };
 
 // This is a list of pairs linking parent tracknums to child tracknums.
@@ -40,14 +43,11 @@ struct SkeletonStatus {
 // show the relationship visually.  Out of range tracknums will be warned about
 // and ignored.
 struct SkeletonConfig {
-    SkeletonConfig(int edges_len, SkeletonEdge *edges) :
-        edges_len(edges_len), edges(edges), statuses_len(0),
-        statuses(0)
+    SkeletonConfig(int edges_len, SkeletonEdge *edges)
+        : edges_len(edges_len), edges(edges)
     {}
     int edges_len;
     SkeletonEdge *edges;
-    int statuses_len;
-    SkeletonStatus *statuses;
 };
 
 // Display the arrows for the skeleton tree.
@@ -67,17 +67,20 @@ public:
     void set_config(
         const SkeletonConfig &config, const std::vector<int> &widths);
     void set_title(const char *title);
-    void set_status(int tracknum, utf8::rune status1, utf8::rune status2,
-        Color color);
+    void set_status(int tracknum, SkeletonStatus status);
     void set_width(int tracknum, int width);
+
+    void insert_track(int tracknum);
+    void remove_track(int tracknum);
 
 protected:
     void draw() override;
 
 private:
     struct Track {
-        Track(int width, int height) : width(width), left(0),
-            center(0), height(height), status1(0), status2(0)
+        Track() : width(0), left(0), center(0), height(0), status() {}
+        Track(int width, int height, SkeletonStatus status)
+            : width(width), left(0), center(0), height(height), status(status)
         {}
         int width; // Width of this track.
         // Left edge of the track.  It's technically redundant, since it should
@@ -85,10 +88,7 @@ private:
         int left;
         int center;
         int height; // Number of children, as defined by 'track_height'.
-        // '\0' means don't draw a status and ignore the color.  ' ' means draw
-        // the color, but with no text, of course.
-        utf8::rune status1, status2;
-        Color color;
+        SkeletonStatus status;
     };
 
     void recalculate_centers();

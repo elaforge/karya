@@ -69,15 +69,11 @@ struct BlockConfig {
     BlockBox sb_box;
 };
 
-
 // Track config local to each Block.
 struct DisplayTrack {
     double event_brightness;
     int width;
-    // These are also in SkeletonStatus.  The duplication is unfortunate, and
-    // the reasons for it are documented in Ui.Update.Block.
-    Color status_color;
-    utf8::rune status1, status2;
+    SkeletonStatus status;
 };
 
 

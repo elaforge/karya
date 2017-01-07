@@ -439,19 +439,11 @@ main(int argc, char **argv)
             SkeletonEdge(0, 4, 2, Color(0xff, 0, 0))
         };
         SkeletonConfig skel(sizeof edges / sizeof(*edges), edges);
-        SkeletonStatus statuses[] = {
-            SkeletonStatus(Color(0, 0xff, 0xff), 'X', 'y')
-        };
-        skel.statuses = statuses;
-        skel.statuses_len = 1;
         view.block.set_skeleton(skel);
 
         DisplayTrack dtrack;
-        dtrack.status1 = 'M';
-        dtrack.status2 = '\0';
+        dtrack.status = SkeletonStatus(Color(255, 150, 150), 'M', '\0');
         dtrack.width = 30;
-        dtrack.status_color = Color(255, 150, 150);
-        // dtrack.status_color = Color(150, 150, 150);
         dtrack.event_brightness = .75;
         view.block.set_display_track(2, dtrack);
     } else {

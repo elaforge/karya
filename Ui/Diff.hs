@@ -31,8 +31,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Derive.Deriver.Monad as Derive
@@ -231,10 +231,8 @@ diff_block block_id block1 block2 = do
         dtracks2 = Block.block_display_tracks block2
     let int_skel1 = Block.integrate_skeleton block1
         int_skel2 = Block.integrate_skeleton block2
-    when (unequal Block.block_skeleton || int_skel1 /= int_skel2
-            || unequal_on (map Block.dtrack_status) dtracks1 dtracks2) $ do
+    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do
         emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
-            (map Block.dtrack_status dtracks2)
         -- Changing the skeleton may change event styles.
         changes [Update.Track track_id Update.TrackAllEvents
             | track_id <- Block.block_track_ids block2]
@@ -404,8 +402,8 @@ derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =
     when (unequal (Text.strip . Track.track_title)
             || unequal Track.track_render) $
-        Writer.tell $ mempty { Derive.sdamage_tracks =
-            Map.singleton track_id Ranges.everything }
+        Writer.tell $ mempty
+            { Derive.sdamage_tracks = Map.singleton track_id Ranges.everything }
     where
     unequal f = unequal_on f track1 track2
 

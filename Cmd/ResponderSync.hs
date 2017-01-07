@@ -11,8 +11,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Ui.Diff as Diff
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -34,6 +34,8 @@ sync :: Sync
     -> Ui.State -- ^ current state
     -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar Ui.State
     -> IO ([Update.UiUpdate], Ui.State, Cmd.State)
+    -- ^ Sync uses 'Update.DisplayUpdate's, but the diff also produces
+    -- UiUpdates, which are needed for incremental save and score damage.
 sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
     ui_to <- case Ui.quick_verify ui_to of
         Left err -> do
@@ -47,8 +49,8 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
             return state
 
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
-    -- Debug.fullM Debug.putp "ui_updates" ui_updates
-    -- Debug.fullM Debug.putp "display_updates" display_updates
+    -- Debug.fullM (Debug.putp "ui_updates") ui_updates
+    -- Debug.fullM (Debug.putp "display_updates") display_updates
     (ui_to, ui_updates, display_updates) <-
         case Integrate.score_integrate ui_updates ui_to of
             Left err -> do
@@ -58,8 +60,8 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
                 mapM_ Log.write logs
                 let (ui_updates', display_updates') =
                         Diff.diff updates ui_to state
-                -- Debug.fullM Debug.putp "int ui_updates" ui_updates'
-                -- Debug.fullM Debug.putp "int display_updates" display_updates'
+                -- Debug.fullM (Debug.putp "int ui_updates") ui_updates'
+                -- Debug.fullM (Debug.putp "int display_updates") display_updates'
                 return (state, ui_updates ++ ui_updates',
                     display_updates ++ display_updates')
 

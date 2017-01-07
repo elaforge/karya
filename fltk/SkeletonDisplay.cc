@@ -73,20 +73,15 @@ SkeletonDisplay::set_config(
     const SkeletonConfig &config, const std::vector<int> &widths)
 {
     edges.assign(config.edges, config.edges + config.edges_len);
-    this->tracks.clear();
-    this->tracks.reserve(widths.size());
+    std::vector<Track> new_tracks;
+    new_tracks.reserve(widths.size());
     for (size_t i = 0; i < widths.size(); i++) {
-        int height = track_height(edges, i);
-        // DEBUG("height " << i << " -> " << height);
-        tracks.push_back(Track(widths[i], height));
+        new_tracks.push_back(Track(
+            widths[i],
+            track_height(edges, i),
+            i < tracks.size() ? tracks[i].status : SkeletonStatus()));
     }
-    // Should be the same, but just in case.
-    int len = std::min(static_cast<int>(widths.size()), config.statuses_len);
-    for (int i = 0; i < len; i++) {
-        tracks[i].status1 = config.statuses[i].status1;
-        tracks[i].status2 = config.statuses[i].status2;
-        tracks[i].color = config.statuses[i].color;
-    }
+    this->tracks = new_tracks;
     this->recalculate_centers();
     this->redraw();
 }
@@ -101,14 +96,11 @@ SkeletonDisplay::set_title(const char *title)
 
 
 void
-SkeletonDisplay::set_status(
-    int tracknum, utf8::rune status1, utf8::rune status2, Color color)
+SkeletonDisplay::set_status(int tracknum, SkeletonStatus status)
 {
     ASSERT(0 <= tracknum);
     if (static_cast<size_t>(tracknum) < tracks.size()) {
-        tracks[tracknum].status1 = status1;
-        tracks[tracknum].status2 = status2;
-        tracks[tracknum].color = color;
+        tracks[tracknum].status = status;
     }
     this->redraw();
 }
@@ -128,6 +120,22 @@ SkeletonDisplay::set_width(int tracknum, int width)
             this->redraw();
         }
     }
+}
+
+
+void
+SkeletonDisplay::insert_track(int tracknum)
+{
+    tracks.insert(tracks.begin() + tracknum, Track());
+    this->redraw();
+}
+
+
+void
+SkeletonDisplay::remove_track(int tracknum)
+{
+    tracks.erase(tracks.begin() + tracknum);
+    this->redraw();
 }
 
 
@@ -179,16 +187,16 @@ SkeletonDisplay::draw()
 
     // Draw status colors.
     for (int i = 0; i < ntracks; i++) {
-        if (tracks[i].status1) {
-            fl_color(tracks[i].color.fl());
+        if (tracks[i].status.c1) {
+            fl_color(tracks[i].status.color.fl());
             fl_rectf(x() + tracks[i].left, y(), tracks[i].width, h());
         }
         // Draw the step rectangle so it looks like the arrows are sitting on
         // something.
         if (tracks[i].height) {
             int height = tracks[i].height * height_step;
-            if (tracks[i].status1)
-                fl_color(tracks[i].color.brightness(0.8).fl());
+            if (tracks[i].status.c1)
+                fl_color(tracks[i].status.color.brightness(0.8).fl());
             else
                 fl_color(Config::skeleton_display_bg.brightness(0.8).fl());
             fl_rectf(x() + tracks[i].left, y() + h() - height,
@@ -239,16 +247,16 @@ SkeletonDisplay::draw()
     // Draw status letters.
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (int i = 0; i < ntracks; i++) {
-        std::string status(utf8::encode(tracks[i].status1));
-        status.append(utf8::encode(tracks[i].status2));
-        if (status.size()) {
+        std::string str(utf8::encode(tracks[i].status.c1));
+        str.append(utf8::encode(tracks[i].status.c2));
+        if (str.size()) {
             // DEBUG("draw " << i << " " << tracks[i].color);
-            int cw = fl_width(status.c_str(), 2);
+            int cw = fl_width(str.c_str(), 2);
             int xpos = this->x() + tracks[i].center - cw/2;
-            fl_color(tracks[i].color.fl());
+            fl_color(tracks[i].status.color.fl());
             fl_rectf(xpos-1, bottom - fl_height(), cw + 2, fl_height());
             fl_color(FL_BLACK);
-            fl_draw(status.c_str(), 2, xpos, bottom - fl_descent());
+            fl_draw(str.c_str(), 2, xpos, bottom - fl_descent());
         }
     }
 }

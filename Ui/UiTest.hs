@@ -4,7 +4,6 @@
 
 {-# LANGUAGE CPP #-}
 module Ui.UiTest where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -142,9 +141,9 @@ default_ruler_id = rid "r0"
 -- for tests that don't expect to fail here.
 run :: CallStack.Stack => Ui.State -> Ui.StateId a -> (a, Ui.State)
 run state m = case result of
-        Left err -> errorStack $ "state error: " <> showt err
-        Right (val, state', _) -> (val, state')
-    where result = Identity.runIdentity (Ui.run state m)
+    Left err -> errorStack $ "state error: " <> showt err
+    Right (val, state', _) -> (val, state')
+    where result = Ui.run_id state m
 
 exec :: CallStack.Stack => Ui.State -> Ui.StateId a -> Ui.State
 exec state m = case Ui.exec state m of

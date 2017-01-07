@@ -46,17 +46,16 @@ deactivate = IORef.writeIORef active Nothing
 
 -- | Only apply the function if the val is non-mempty.  Useful for the trace
 -- family.
-full :: (Eq a, Monoid.Monoid a) => (msg -> a -> a) -> msg -> a -> a
-full f msg val
-    | val == Monoid.mempty = val
-    | otherwise = f msg val
+full :: (Eq a, Monoid a) => (a -> a) -> a -> a
+full f val
+    | val == mempty = val
+    | otherwise = f val
 
 -- | Like 'full' but useful for the traceM and put family.
-fullM :: (Monad m, Eq a, Monoid.Monoid a) =>
-    (msg -> a -> m ()) -> msg -> a -> m ()
-fullM f msg val
-    | val == Monoid.mempty = return ()
-    | otherwise = f msg val
+fullM :: (Monad m, Eq a, Monoid a) => (a -> m()) -> a -> m ()
+fullM f val
+    | val == mempty = return ()
+    | otherwise = f val
 
 -- * forced by evaluation
 

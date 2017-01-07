@@ -197,11 +197,11 @@ foreign import ccall "set_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
 set_skeleton :: ViewId -> Skeleton.Skeleton
-    -> [(Color.Color, [(TrackNum, TrackNum)])] -> [Block.Status] -> Fltk ()
-set_skeleton view_id skel integrate_edges statuses =
+    -> [(Color.Color, [(TrackNum, TrackNum)])] -> Fltk ()
+set_skeleton view_id skel integrate_edges =
     fltk $ exc "set_skeleton" $ do
         viewp <- PtrMap.get view_id
-        with_skeleton_config (skeleton_edges skel integrate_edges) statuses $
+        with_skeleton_config (skeleton_edges skel integrate_edges) $
             \configp -> c_set_skeleton viewp configp
 foreign import ccall "set_skeleton"
     c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
@@ -425,12 +425,9 @@ instance CStorable Block.DisplayTrack where
     poke = poke_display_track
 
 poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
-    let (c1 : c2 : _, color) = track_status status
     (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
     (#poke DisplayTrack, width) dtrackp (Util.c_int width)
-    (#poke DisplayTrack, status_color) dtrackp color
-    (#poke DisplayTrack, status1) dtrackp (Util.c_rune c1)
-    (#poke DisplayTrack, status2) dtrackp (Util.c_rune c2)
+    (#poke DisplayTrack, status) dtrackp (SkeletonStatus status)
 
 track_status :: Block.Status -> (String, Color.Color)
 track_status Nothing = (repeat '\0', Color.black)
@@ -449,18 +446,11 @@ skeleton_edges skel integrate_edges =
     -- while of course the tracknums here do.
     -- TODO would it be better to put this in BlockView::set_skeleton?
 
-with_skeleton_config :: [SkeletonEdge] -> [Block.Status]
-    -> (Ptr SkeletonConfig -> IO a) -> IO a
-with_skeleton_config edges statuses f =
-    withArrayLen edges $ \edges_len edgesp ->
-    -- The first status is for the ruler track, which is never displayed, since
-    -- the skeleton display starts at the first track.
-    withArrayLen (map SkeletonStatus (drop 1 statuses)) $ \slen statusesp ->
-    alloca $ \skelp -> do
+with_skeleton_config :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
+with_skeleton_config edges f =
+    withArrayLen edges $ \edges_len edgesp -> alloca $ \skelp -> do
         (#poke SkeletonConfig, edges_len) skelp (Util.c_int edges_len)
         (#poke SkeletonConfig, edges) skelp edgesp
-        (#poke SkeletonConfig, statuses_len) skelp (Util.c_int slen)
-        (#poke SkeletonConfig, statuses) skelp statusesp
         f skelp
 
 data SkeletonConfig
@@ -490,8 +480,8 @@ instance CStorable SkeletonStatus where
     peek _ = error "SkeletonStatus peek unimplemented"
     poke edgep (SkeletonStatus status) = do
         let (c1 : c2 : _, color) = track_status status
-        (#poke SkeletonStatus, status1) edgep (Util.c_rune c1)
-        (#poke SkeletonStatus, status2) edgep (Util.c_rune c2)
+        (#poke SkeletonStatus, c1) edgep (Util.c_rune c1)
+        (#poke SkeletonStatus, c2) edgep (Util.c_rune c2)
         (#poke SkeletonStatus, color) edgep color
 
 -- ** selection
