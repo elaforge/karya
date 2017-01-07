@@ -153,7 +153,7 @@ handle_result (ReplProtocol.Format text) = do
     return Continue
 handle_result (ReplProtocol.Edit text return_prefix) =
     maybe Continue (\edited -> Command $ return_prefix <> " " <> showt edited)
-        <$> edit text
+        <$> edit (Just return_prefix) text
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do
@@ -196,14 +196,24 @@ plain_bg = "\ESC[39;49m\STX"
 
 -- | Open an editor on the given text, and return what it saves.
 -- TODO maybe use $EDITOR instead of hardcoding vi.
-edit :: Text -> IO (Maybe Text)
-edit text = edit_temp_file "repl-" text "vi" (\tmp -> [tmp])
+edit :: Maybe Text -- ^ if given, send the file with this cmd prefix on save
+    -> Text -> IO (Maybe Text)
+edit return_prefix text =
+    edit_temp_file "repl-" text "vi" (\tmp -> save_cmd ++ [tmp])
+    where
+    save_cmd = case return_prefix of
+        Nothing -> []
+        Just prefix ->
+            [ "-c", "nmap gz :wa<cr>:!build/opt/send --cmd '" <> untxt prefix
+                <> "' <%<cr>"
+            -- I don't know that it's ky syntax, but so far it is.
+            , "-c", "source ky-syntax.vim"
+            ]
 
 -- | Open the given file, and return the selected line.
 edit_line :: FilePath -> IO (Maybe Text)
 edit_line fname = edit_temp_file "repl-edit-history-" "" "vi" cmdline
     where
-    -- Unfortunately, 'set readonly' causes an annoying
     cmdline tmp =
         [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
         , "-c", "set nowrite"

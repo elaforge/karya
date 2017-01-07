@@ -22,6 +22,7 @@ module Cmd.Repl (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
+import qualified Data.Text as Text
 import qualified Network
 
 import qualified System.Directory as Directory
@@ -90,7 +91,7 @@ respond session msg = do
         ReplProtocol.QSaveFile -> do
             save_file <- fmap (name_of . snd) <$> Cmd.gets Cmd.state_save_file
             return (ReplProtocol.RSaveFile save_file, Cmd.Done)
-        ReplProtocol.QCommand expr -> command session expr
+        ReplProtocol.QCommand expr -> command session (Text.strip expr)
         ReplProtocol.QCompletion prefix -> do
             words <- liftIO $ ReplImpl.complete session prefix
             return (ReplProtocol.RCompletion words, Cmd.Done)

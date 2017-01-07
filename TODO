@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Why does soloing a track cause a rederive?
   * Should I rename Ui.State to Ui?  That way I can have Ui.State and
     Cmd.State.  It seems inconsistent that UI state should get the "state"
     name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
@@ -232,12 +233,15 @@ UNSORTED
     . Also I got a plain segfault after starting with p1, then load p4
   - shakefile: I can turn off Synth, but haddock still wants to build for it
     also tests probably
-  - I can switch global transform to use ky syntax and now I have a local .ky.
-    . I could implicitly wrap everything in global, and then expect the
-      global transform to contain a "note transformer: global = ...".
+  - Replace global transform with UiConfig.ky
+    . I could implicitly wrap everything in 'global', and set it with
+      "note transformer: global = ...".
     . The only thing is that this doesn't display so compactly in logview.
-    . I can also start using this for text-based score, and for nicer
-      integration between textual and graphical score.
+      But it's not like I look at that a lot anyway.
+    * If I want a window open with the text, I can have a vi permanently open.
+      I could bind 'gz' to 'send LState.set_ky'.  Or actually, just open a new
+      repl, nothing says I can't have two at the same time.  I'd need
+      a continuous edit mode though.
   * Implement local_ky.
     . Like ky_file, but has the contents instead of a filename, has the text.
     . It can still import external .ky files, so it needs to be integrated
@@ -254,6 +258,8 @@ UNSORTED
         than reading the whole file, and I do call Ky.update_cache on every
         respond cycle.  I could still use the fprint of the modification time.
     . Can I then replace ky_file with local_ky = "import 'file.ky'"?
+    . I can also start using this for text-based score, and for nicer
+      integration between textual and graphical score.
   * Get rid of state_ky_file, since I can replace it with "import 'x'".
   - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
@@ -262,6 +268,9 @@ UNSORTED
       equal, but is it really necessary?
   - Use 'errors' package tryJust and tryRght instead of require and
     require_right.
+    . For it to work I could put Derive in MonadError
+    . But require_right takes a transform function.  Can it be just a text
+      prefix?
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
   - do a renaming pass on all the prev/next pitch function names in Derive.Args.
@@ -1658,6 +1667,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - >gangsa instrument, which is pemade + kantilan
       - abstract kajar parts, and gong cycles
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be

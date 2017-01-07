@@ -125,8 +125,9 @@ main = do
     logview flags `Exception.finally` Directory.removeFile pid_file
     where
     usage msg = do
+        putStrLn $ "ERROR: " ++ msg
         putStrLn "usage: logview [ flags ]"
-        putStr (GetOpt.usageInfo msg options)
+        putStr (GetOpt.usageInfo "" options)
         System.Exit.exitFailure
 
 logview :: [Flag] -> IO ()
