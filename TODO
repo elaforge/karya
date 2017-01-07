@@ -3,165 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * Why does soloing a track cause a rederive?
-  * Should I rename Ui.State to Ui?  That way I can have Ui.State and
-    Cmd.State.  It seems inconsistent that UI state should get the "state"
-    name.  Also, it's frequently used and 'Ui' is shorter than 'State'.
-    * Ui.Ui -> Ui.Fltk
-  * Ui.StateConfig -> Ui.UiConfig
-  * More things for Global: Data.Map, Data.Set, List.foldl'
-  * If I exchange a track with a muted track, the mute mark doesn't move.
-  * Assertion failed when double clicking on track title:
-    . traceback:
-      assertion: assertion failed at fltk/EventTrack.cc:243 focus_title():
-        'floating_input == nullptr'
-      0   _ZN10EventTrack11focus_titleEv + 402
-      1   _ZN10EventTrack20title_input_focus_cbEP9Fl_WidgetPv + 28
-      2   _ZN9Fl_Widget11do_callbackEPS_Pv + 47
-      3   _ZN16AbbreviatedInput6handleEi + 26
-      4   _ZN8Fl_Group6handleEi + 600
-      5   _ZN8MoveTile6handleEi + 328
-      6   _ZN8Fl_Group6handleEi + 600
-  * Play from root is wrong.
-    . The problem was that it has tons of TrackWarps, which was because the
-      "d" block shadowed the mridangam "d" stroke.
-    . It feels like instrument strokes should shadow blocks, but I think
-      I reversed this intentionally a while back when I wanted to replace
-      a stroke with a block.
-    . Maybe if I still want to shadow instrument with a block, I could have
-      some way to explicitly mark its priority.
-  * The block name restrictions can be annoying when I want blocks reminiscent
-    of angsels.  Doesn't it go against the point of anything in a call name?
-    . Still I can't have /, since it would make the ns/id convention
-      ambiguous.
-    . But I'd need a way to write them, e.g. (mkid "!@#").  I use @-macros
-      to get the namespace, but can I instead emit a partial Id, and have the
-      callee complete it?
-    . That would mean all functions that take BlockId would need to take
-      something else and convert it, so no for that.  But if IDs themselves
-      are partial, then it would be on the lookup function to know the
-      namespace.
-    . That means I'd have to use 'State.lookup_block block_id state', and
-      directly looking at State.state_blocks no longer works.  That could be
-      a hassle.
-    * Ok, so maybe less of a hassle to extend @ notation with quotes.
-    . Move validation to the Ident class so I can relax it for BlockId but
-      keep it for the other Ids.
-  . The ruler is too small for e.g. bali/legong/semara-dana.  It should be
-    one section per gong.  Maybe kotekan default should be "(ts s) instead of
-    "(ts e).
-    . Actually 'e' makes sense if you think of 1 measure = one kotekan cycle.
-      But then I only have section as the next level, so no jegog level.  Or
-      I could abandon the half = quarter*2, and say
-        . unlabeled_ranks = [r_section, r_2, r_8, r_32, r_64, r_256]
-        . e = kotekan note                  q/8
-        + q = kotekan cycle / calung note   h/4
-        . h = jegog note                    w/4
-        + w = gong / kemong                 section / 4, mostly
-        . section = gong
-      But it seems like so few divisions could be inconvenient, so:
-        + s = kotekan note                  e/4
-        . e = 4 kotekan note                q/2
-        + q = kotekan cycle / calung note   h/2
-        . h = jegog note                    w/2
-        + w = gong / kemong                 section / 4, mostly
-        . section = gong
-
-        + 8 kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
-        + 2 c       c       c       c       c       c       c       c       c
-        . 2 J               J               J               J               J
-        . 4 o                               p                               m
-            0       1       2       3       4       5       6       7       8
-    * Invert config_unlabelled_ranks to config_labeled_ranks.
-    * Can I move gong related ruler stuff to Cmd.Gong?  I need to put
-      meter_types in a higher level module then, which means modify_meter also
-      needs to move.
-    * Change kotekan-dur default to "(ts s), but I'll need to update all the
-      scores first.
-  * The playback selection should go in the ruler track to make it more visible.
-  * fltk: If I open a floating input when the event trigger is off the top of
-    the block, the input appears above the window.  I should make it min at
-    the track start.
-  * Memory isn't leaking anymore, but editing is still clunky.  Can
-    I experiment with Trace.traceEventIO to report pauses?
-    . Typing in a control is super laggy, I'll bet it's the extra strictness.
-    . In the test, a Debug.tracepM "x" () in Cmd.Performance only gets printed
-      the first time.  Doesn't happen with Debug.put.  Why?  IO is strict.
-      . It does show up if I print block_id, but not with () or 42.  It
-        seems to only appear if it's displaying a variable, not a constant.
-        I'll bet it has to do with lifting.  I was missing NOINLINE on
-        Debug.write, but even with it, no change.  Probably not important.
-    . If I force track_dynamic in the Performance contructor, then I get a
-      hang in the event thread.  But if I don't, then I get the leak, even
-      if I force the field directly after the constructor returns it.
-    . But the leak is only in MemoryLeak_profile, not in the real app.  What
-      is happening differently?
-      . One is that the test doesn't play, so it's not forcing
-        current_performances.  But even if I explicitly do force it, still the
-        leak.
-      . Try making the perf_track_dynamic strict again, to make sure that's it.
-        Yes, that fixes it, but it puts the lag back in, just like the !.
-  * Add a test to make sure the performance isn't forced in the event loop.
-    Presumably I could put it in MemoryLeak, and assert that the event loop
-    comes back quickly even when initially evaluating the score.
   - When I expand a collapsed track it doesn't get the track signal at first.
-  * The recent fltk refactor broke update for the pitch track, it only redraws
-    when the track signal updates.
-    . Not dependent on track signal, but happens when derive completes.
-    . Damage:
-      old: damage_range(4t, 4t, 1): 65--65 + 370--384 = 370--384
-      new: damage_range(4t, 4t, 0): 67--67 + 376--376 = 67--67
-           damage_range(4t, 4t, 1): 376--1304 + 370--384 = 370--1304
-      . Where did that 370-384 come from?
-      . And is it a bug that 67--67 counts for nothing?  Shouldn't I add
-        1 pixel?  Or maybe the caller shouldn't give a point range if it means
-        empty.
-      . And what's with 65 vs. 67?  That's just the old damage.
-    . In fact, the old code seems to be buggy, it didn't cause damage for
-      an EventTrack update if it didn't modify the ruler config.  Then why
-      does it work?
-      . I think because it's a child object, so it gets ALL damage from its
-        parent.  Not sure how the parent gets it though.
-    . There's an extra DAMAGE_ALL draw of all tracks when the derive completes
-      which is what makes the other track update after all.  What causes that?
-      . Set track signal redraws everything.
-  * fltk: text on the last event of a track should go above
-    I used to have that feature, but it got lost in the text refactor.
-  * Memory leak when rederiving a score.
-    . Note entry gets progressively laggy.  EKG shows memory starts at 220mb
-      and climbs steadily, e.g. at 400mb after 5 minutes or so.
-    . It grows on every rederive by about the same amount, so probably the old
-      derivation doesn't get GCed.
-    * Write a test that uses GHC.Stats for it.  Later I can make sure it
-      doesn't regress.
-      . Make a big score, then do a couple of modify respond cycles, and
-        check if total allocation is increasing each time.
-      . It does increase, but by a tiny amount.  A real score must grow by
-        a lot more.  Try loading a real score.
-    * Extend test infrastructure to run MemoryLeak_profile as a test.
-    Find the leak:
-      . Does it stay around if I wipe the performances?  No.
-      . But if I wipe the cache but keep the performances, goes from 4.3mb to
-        38.6mb!  What?  Maybe it's not the cache, and the rederive causes
-        even more garbage?
-      . Strip other Performance fields: 4.3 -> 3.3
-      . Strip events but not cache and it's down to 1.5mb.  So:
-        . cache, events -> 3.9
-        . no cache, events -> 32, 0, 0
-        . cache, no events -> 1.4
-        . no cache, no events -> 0
-        . invalid cache, events -> 37.62
-        . invalid cache, no events -> 35.68... wtf?
-          How can this be different from an empty cache?  Even if I force
-          it by printing, it's the same.
-          . rnf on the stripped cache makes memory go to 0, so it's just the
-            test code not being strict enough.  Map.Strict.map also fixes it.
-        -> total 4.3 (probably some sharing so it doesn't add up)
-      . It's collect_track_dynamic and collect_track_dynamic_inverted in the
-        cached collect.
-      . And then state_pitch_map in the TrackDynamics.  This is a lazy Just
-        with a whole eval in it, which presumably holds on to everything
-        somehow.  But I'm pretty sure Id on't need to keep it in TrackDynamic.
   - Reduce memory used by REPL.
     . About 200mb.
     Try -fignore-interface-pragmas
@@ -238,29 +80,6 @@ UNSORTED
       "note transformer: global = ...".
     . The only thing is that this doesn't display so compactly in logview.
       But it's not like I look at that a lot anyway.
-    * If I want a window open with the text, I can have a vi permanently open.
-      I could bind 'gz' to 'send LState.set_ky'.  Or actually, just open a new
-      repl, nothing says I can't have two at the same time.  I'd need
-      a continuous edit mode though.
-  * Implement local_ky.
-    . Like ky_file, but has the contents instead of a filename, has the text.
-    . It can still import external .ky files, so it needs to be integrated
-      with the cache.
-    * Replace the filename timestamp with a fprint.  I think I just need
-      one with all the loaded files?
-      . It uses all timestamps together, right?
-    . Can I get rid of the Cmd.state_ky_cache=Nothing case by just using an
-      empty fingerprint?
-    . Load everything, with old fprint.  If fprint has changed, then emit the
-      new library plus score damage.  Really the point of the cache is to
-      avoid score damage, not avoid reading files.
-      . Or does it?  Directory.getModificationTime should be a lot faster
-        than reading the whole file, and I do call Ky.update_cache on every
-        respond cycle.  I could still use the fprint of the modification time.
-    . Can I then replace ky_file with local_ky = "import 'file.ky'"?
-    . I can also start using this for text-based score, and for nicer
-      integration between textual and graphical score.
-  * Get rid of state_ky_file, since I can replace it with "import 'x'".
   - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
@@ -276,9 +95,6 @@ UNSORTED
   - do a renaming pass on all the prev/next pitch function names in Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
 
-  * have an easier way to use MeterConfig to take e.g. r_section out of
-    unlabeled_ranks so I can have a absolute gong count.
-    . Another option is for r_measure to keep going after each r_section.
   - it looks like special kajar calls like 'oo' mess up track signal.
     . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
       work for 'o..'.
@@ -821,18 +637,6 @@ cleanup:
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
       c++, as well as clang's "treating 'c' input as 'c++' when in C++ mode"
-  * Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
-    I merge status update into skeleton updates I can take Status out of
-    Block.DisplayTrack.
-    . The problem is in the UI the status is in the skeleton at block level,
-      but in haskell it's at the track level.
-    . If I keep status in DisplayTrack:
-      . When I get a UpdateSkeleton, I copy status from the previous value.
-        If a track is added or removed, I have to tell the skeleton about it.
-      . Then take status out of Update.BlockSkeleton.  Now status updates
-        don't emit a skeleton update, so they don't cause score damage.
-      . Now it loses the raised block.
-  * Convert Block.Status to a real type
   - split up CallInfo depending on type
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
@@ -1580,9 +1384,6 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        * Doesn't seem to understand when the nadai changes in the middle of
-          an akshara, e.g. in the final avartanam of misra_koraippu, it should
-          have 1/2 adi 8 1/2 adi 6, so 4+3 = 7 matras, but it has 6
         - Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.
           Default to 2, but a chapu might require 3.
@@ -1799,15 +1600,6 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
-        * How to write bottom two parts and infer the top ones?
-          . 'upper' seems inconvenient.
-          . Maybe an 'upper' postproc that only makes upper voices if they
-            don't already exist?  But how is it supposed to know if they exist?
-          . Or make 'upper' a parent call that adds voice number based on the
-            child track order. (v=1, v=3; v=2, v=4).  The tracks would have to
-            be '> | v=+1' for it to work though.
-          . Except of course 'v' is an env var, and =+ is only for controls.
-            But can't I define it for numeric env vars too?
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - I'd like to write two parts, and have the upper octaves automatic.
           . I can put them in a sub-block and wrap with 'upper', but it won't
