@@ -5,6 +5,8 @@
 module Derive.Call.Prelude.Random_test where
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Prelude.Random as Random
 import qualified Derive.DeriveTest as DeriveTest
 
 
@@ -57,3 +59,20 @@ test_alternate_tracks = do
         (["+a"], [])
     equal (run [[(0, 1, "alt-t 1 999")], [(0, 1, "+a")], [(0, 1, "+b")]])
         (["+b"], [])
+
+test_tempo_alternate = do
+    let run tempo note = DeriveTest.extract DeriveTest.e_pitch $
+            DeriveTest.derive_blocks
+            [ ("top", [("tempo", [(0, 0, tempo)]), (">", [(0, 1, note)])])
+            , ("a=ruler", UiTest.note_track [(0, 1, "4c")])
+            , ("b=ruler", UiTest.note_track [(0, 1, "4d")])
+            ]
+    strings_like (snd $ run "1" "t-alt a 2 b 1 a")
+        ["thresholds should be in ascending order"]
+    -- The fast alternate is to the left.
+    equal (run "1" "t-alt a 2 b") (["4c"], [])
+    equal (run ".5" "t-alt a 2 b") (["4d"], [])
+
+test_under_threshold = do
+    let f k = Random.under_threshold k 'a' [(1, 'b'), (3, 'c')]
+    equal (map f [0, 1, 2, 3, 4]) "abbcc"

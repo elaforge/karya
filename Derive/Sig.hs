@@ -428,6 +428,7 @@ many_pairs name doc = parser (arg_doc expected) $ \state -> do
     pairs (a : b : xs) = (a, b) : pairs xs
     pairs _ = []
 
+-- | Like 'many_pairs', but require at least one pair.
 many1_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
     ArgName -> Doc.Doc -> Parser (NonEmpty (a, b))
 many1_pairs name doc = non_empty name $ many_pairs name doc

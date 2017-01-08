@@ -4,9 +4,11 @@
 
 -- | Calls for randomized scores.
 module Derive.Call.Prelude.Random where
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Seq as Seq
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -26,6 +28,7 @@ note_calls = Derive.call_maps
     [ ("alt", c_alternate)
     , ("alt-w", c_alternate_weighted)
     , ("alt-t", c_alternate_tracks)
+    , ("t-alt", c_tempo_alternate)
     ]
     [("omit", c_omit)]
 
@@ -87,6 +90,32 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
     pair err (Seq.First _) = Derive.throw err
     pair _ (Seq.Second sub) = return (1, sub)
 
+-- TODO This doesn't really belong in here since it's not random.  Also not in
+-- NoteTransformer since it's not a transformer.  Maybe all this stuff should
+-- move to an Alternate module?
+c_tempo_alternate :: Derive.Generator Derive.Note
+c_tempo_alternate = Derive.generator Module.prelude "tempo-alternate"
+    mempty "Alternate derivation depending on tempo."
+    $ Sig.call ((,,)
+    <$> Sig.required_env "bottom" Sig.None "Default alternate." -- TODO
+    <*> Sig.many_pairs "threshold,expr"
+        "Evaluate the expr if the tempo is above the threshold.\
+        \ The thresholds should be in ascending order, so the fastest alternate\
+        \ is at the left."
+    <*> Sig.environ "timestep" Sig.Prefixed Meter.E
+        "Use the duration of this timestep, in seconds."
+    ) $ \(bottom, pairs, timestep) args -> do
+        unless (map fst pairs == List.sort (map fst pairs)) $
+            Derive.throw $ "thresholds should be in ascending order: "
+                <> pretty (map fst pairs)
+        dur <- Derive.real =<< Call.meter_duration (Args.start args) timestep 1
+        Eval.eval_quoted (Args.context args) $ under_threshold dur bottom pairs
+
+under_threshold :: Ord key => key -> val -> [(key, val)] -> val
+under_threshold dur bottom ((threshold, expr) : rest)
+    | dur < threshold = bottom
+    | otherwise = under_threshold dur expr rest
+under_threshold _ bottom [] = bottom
 
 -- * val calls
 

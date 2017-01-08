@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Alternate call depending on tempo.
+    . When (ts e) goes below a threshold.
+    - Also I want to be able to switch in the middle of a call.
   - When I expand a collapsed track it doesn't get the track signal at first.
   - Reduce memory used by REPL.
     . About 200mb.
