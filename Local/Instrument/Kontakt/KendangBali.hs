@@ -6,7 +6,9 @@
 module Local.Instrument.Kontakt.KendangBali where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
+import qualified Util.Pretty as Pretty
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -49,6 +51,12 @@ patches =
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
     patch name = MidiInst.named_patch (-24, 24) name []
 
+pasang_code :: MidiInst.Code
+pasang_code =
+    MidiInst.note_transformers [("realize", c_realize_kendang)]
+    <> MidiInst.note_generators c_pasang_calls
+    <> MidiInst.cmd pasang_cmd
+
 tunggal_notes :: CUtil.PitchedNotes
 (tunggal_notes, resolve_errors) =
     CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
@@ -66,6 +74,7 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
+-- TODO enumerate to_call over (Stroke, Dyn)
 tunggal_strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
 (kendang_stops, tunggal_strokes) = (,) stops
@@ -74,6 +83,7 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     , ('q', "P", pak,                   left_closed)
     , ('w', "T", pang,                  left_open)
     , ('1', "^", pak <> soft,           left_closed)
+    , ('3', "ø", tut <> Attrs.left <> soft, left_open)
     , ('e', "Ø", tut <> Attrs.left,     left_open)
     , ('r', "`O+`", de <> Attrs.left,   left_open)
     -- right
@@ -140,7 +150,7 @@ write_ksp = mapM_ (uncurry Util.write)
 
 -- * config
 
--- | @LInst.merge $ KontaktKendang.allocations ...@
+-- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> Text -> UiConfig.Allocations
 allocations name dev_ = MidiInst.allocations
     [ (name <> "-w", "kontakt/kendang-bali", id, midi_channel 0)
@@ -158,63 +168,101 @@ allocations name dev_ = MidiInst.allocations
 
 -- * pasang
 
-data Kendang = Wadon | Lanang deriving (Show, Eq)
-type Pasang = (Score.Instrument, Score.Instrument)
+data Pasang = Pasang { wadon :: Score.Instrument, lanang :: Score.Instrument }
+    deriving (Show)
 
-pasang_inst :: Kendang -> Pasang -> Score.Instrument
-pasang_inst Wadon = fst
-pasang_inst Lanang = snd
+pasang_env :: Sig.Parser Pasang
+pasang_env = Pasang
+    <$> Sig.required_environ "wadon" Sig.Unprefixed "Wadon instrument."
+    <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
 
--- | (keybinding, call_name, Kendang, dispatch_to_call)
---
--- The dispatch calls should all be understood by a kendang tunggal, i.e.
--- in 'tunggal_strokes'.
-pasang_calls :: [(Char, BaseTypes.CallId, Kendang, BaseTypes.CallId)]
-pasang_calls =
-    [ ('b', "PL", Wadon, "PL")
-    , ('t', "Ø", Lanang, "Ø")
-    -- left
-    , ('q', "k", Wadon, "P") -- ka
-    , ('w', "P", Lanang, "P") -- pak
-    , ('e', "t", Wadon, "T") -- kam
-    , ('r', "T", Lanang, "T") -- pang
-    -- right
-    , ('z', "+", Wadon, "+") -- de
-    , ('a', "-", Wadon, "-") -- de
-    , ('x', "o", Lanang, "+") -- tut
-    , ('c', "u", Wadon, "o") -- kum
-    , ('v', "U", Lanang, "o") -- pung
-    , ('m', "<", Wadon, "<") -- dag
-    , ('j', "-<", Wadon, "-<") -- dag
-    , (',', ">", Lanang, "<") -- dug
-    , ('.', "[", Wadon, "[") -- tak
-    , ('/', "]", Lanang, "[") -- tek
+pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
+pasang_cmd = CUtil.insert_call $ Map.fromList
+    [(char, name) | (char, name, _) <- pasang_calls]
+
+c_pasang_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+c_pasang_calls =
+    [ (name, c_pasang_stroke name stroke)
+    | (name, stroke) <- map (\(_, a, b) -> (a, b)) pasang_calls ++ both_calls
     ]
+
+c_pasang_stroke :: BaseTypes.CallId -> PasangStroke
+    -> Derive.Generator Derive.Note
+c_pasang_stroke call_id stroke = Derive.generator Module.instrument name
+    Tags.inst "Dispatch to wadon or lanang." $ Sig.call pasang_env $
+    \pasang args -> do
+        let dispatch inst stroke = Derive.with_instrument (inst pasang) $
+                Eval.reapply_generator args (to_call stroke)
+        case stroke of
+            Wadon stroke -> dispatch wadon stroke
+            Lanang stroke -> dispatch lanang stroke
+            Both w l -> dispatch wadon w <> dispatch lanang l
+    where name = Derive.CallName $ BaseTypes.unsym call_id
+
+both_calls :: [(BaseTypes.CallId, PasangStroke)]
+both_calls =
+    ("PLPL", Both (Plak, Loud) (Plak, Loud)) :
+    [ (wadon ^ lanang, Both wstroke lstroke)
+    | (_, wadon, Wadon wstroke) <- pasang_calls
+    , (_, lanang, Lanang lstroke) <- pasang_calls
+    , fst lstroke /= Plak
+    , Both wstroke lstroke `Set.notMember` already_bound
+    ]
+    where
+    already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
+    a ^ b = BaseTypes.Symbol (BaseTypes.unsym a <> BaseTypes.unsym b)
+
+pasang_calls :: [(Char, BaseTypes.CallId, PasangStroke)]
+pasang_calls =
+    [ ('b', "PL", lanang Plak)
+    , ('t', "Ø", lanang TutL)
+    , ('5', "ø", Lanang (TutL, Soft))
+    , ('y', "+Ø", Both (De, Loud) (TutL, Loud))
+    -- left
+    , ('q', "k", wadon Pak) -- ka
+    , ('w', "P", lanang Pak) -- pak
+    , ('e', "t", wadon Pang) -- kam
+    , ('r', "T", lanang Pang) -- pang
+    -- right
+    , ('z', "+", wadon De) -- de
+    , ('a', "-", Wadon (De, Soft)) -- de
+    , ('x', "o", lanang De) -- tut
+    , ('c', "u", wadon Tut) -- kum
+    , ('v', "U", lanang Tut) -- pung
+    , ('m', "<", wadon Dag) -- dag
+    , ('j', "-<", Wadon (Dag, Soft)) -- dag
+    , (',', ">", lanang Dag) -- dug
+    , ('.', "[", wadon Tek) -- tak
+    , ('/', "]", lanang Tek) -- tek
+    ]
+    where
+    wadon stroke = Wadon (stroke, Loud)
+    lanang stroke = Lanang (stroke, Loud)
 
 -- | Unicode has some kendang notation, but it's harder to type and I'm not
 -- sure if I'll wind up using it.
-balinese_pasang_calls :: [(Char, BaseTypes.CallId, Kendang, BaseTypes.CallId)]
+balinese_pasang_calls :: [(Char, BaseTypes.CallId, PasangStroke)]
 balinese_pasang_calls =
-    [ ('b', "PL",           Wadon, "PL")
-    , ('t', open_ping,      Lanang, "Ø")
+    [ ('b', "PL",           wadon Plak)
+    , ('t', open_ping,      lanang TutL)
     -- left
-    , ('q', closed_plak,    Wadon,  "P") -- ka
-    , ('w', closed_pluk,    Lanang, "P") -- pak
-    , ('e', open_pang,      Wadon,  "T") -- kam
-    , ('r', open_pung,      Lanang, "T") -- pang
+    , ('q', closed_plak,    wadon Pak) -- ka
+    , ('w', closed_pluk,    lanang Pak) -- pak
+    , ('e', open_pang,      wadon Pang) -- kam
+    , ('r', open_pung,      lanang Pang) -- pang
     -- right
-    , ('z', open_dag,       Wadon,  "+") -- de
-    , ('a', quiet open_dag, Wadon,  "-") -- de
-    , ('x', open_dug,       Lanang, "+") -- tut
-    , ('c', closed_tak,     Wadon,  "o") -- kum
-    , ('v', closed_tuk,     Lanang, "o") -- pung
+    , ('z', open_dag,       wadon De) -- de
+    , ('a', quiet open_dag, Wadon (De, Soft)) -- de
+    , ('x', open_dug,       lanang De) -- tut
+    , ('c', closed_tak,     wadon Tut) -- kum
+    , ('v', closed_tuk,     lanang Tut) -- pung
     -- TODO since I use the same symbols for with and without panggul, there
     -- needs to be a separate attribute.
-    , ('m', open_dag,       Wadon,  "<") -- dag
-    , ('j', quiet open_dag, Wadon,  "-<") -- dag
-    , (',', open_dug,       Lanang, "<") -- dug
-    , ('.', closed_tak,     Wadon,  "[") -- tak
-    , ('/', closed_tuk,     Lanang, "[") -- tek
+    , ('m', open_dag,       wadon Dag) -- dag
+    , ('j', quiet open_dag, Wadon (Dag, Soft)) -- dag
+    , (',', open_dug,       lanang Dag) -- dug
+    , ('.', closed_tak,     wadon Tek) -- tak
+    , ('/', closed_tuk,     lanang Tek) -- tek
     ]
     where
     -- left
@@ -229,28 +277,8 @@ balinese_pasang_calls =
     closed_tak = "᭷"    -- ] tek   u kum
     closed_tuk = "᭶"    -- [ tak   U pung
     quiet (BaseTypes.Symbol s) = BaseTypes.Symbol ("," <> s)
-
-pasang_code :: MidiInst.Code
-pasang_code =
-    MidiInst.note_transformers [("realize", c_realize_kendang)]
-    <> MidiInst.note_generators c_pasang_calls
-    <> MidiInst.cmd pasang_cmd
-
-pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
-pasang_cmd = CUtil.insert_call $ Map.fromList
-    [(char, name) | (char, name, _, _) <- pasang_calls]
-
-c_pasang_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
-c_pasang_calls =
-    [(name, dispatch kendang call) | (_, name, kendang, call) <- pasang_calls]
-
--- | Create a call that just dispatches to another call, possibly transformed.
-dispatch :: Kendang -> BaseTypes.CallId -> Derive.Generator Derive.Note
-dispatch kendang call = Derive.generator Module.instrument name Tags.inst
-    "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
-        Derive.with_instrument (pasang_inst kendang pasang) $
-        Eval.reapply_generator args call
-    where name = Derive.CallName $ showt kendang <> " " <> pretty call
+    wadon stroke = Wadon (stroke, Loud)
+    lanang stroke = Lanang (stroke, Loud)
 
 c_realize_kendang :: Derive.Transformer Derive.Note
 c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
@@ -258,11 +286,6 @@ c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
     "Realize a composite kendang score into separate lanang and wadon parts."
     $ Sig.callt pasang_env
     $ \pasang _args deriver -> realize_kendang pasang <$> deriver
-
-pasang_env :: Sig.Parser Pasang
-pasang_env = (,)
-    <$> Sig.required_environ "wadon" Sig.Unprefixed "Wadon instrument."
-    <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
 
 {- | Given a composite part with lanang and wadon, fill in the secondary
     strokes.
@@ -319,3 +342,47 @@ tek = Attrs.attr "tek"
 -- left
 pak = Attrs.attr "pak"
 pang = Attrs.attr "pang" -- rim
+
+
+-- * general
+
+data PasangStroke = Wadon (Stroke, Dyn) | Lanang (Stroke, Dyn)
+    | Both (Stroke, Dyn) (Stroke, Dyn)
+    deriving (Eq, Ord, Show)
+
+data Dyn = Soft | Loud deriving (Show, Ord, Eq)
+
+data Stroke =
+    Plak -- both
+    | Pak | Pang | TutL | DagL -- left
+    | Ka | Tut | De | Dag | Tek -- right
+    deriving (Eq, Ord, Show)
+
+to_call :: (Stroke, Dyn) -> BaseTypes.CallId
+to_call (stroke, dyn) = BaseTypes.Symbol $ case (stroke, dyn) of
+    (Pak, Soft) -> "^"
+    (TutL, Soft) -> "ø"
+    (De, Soft) -> "-"
+    (Dag, Soft) -> "-<"
+    (Tek, Soft) -> "-["
+    (Ka, Loud) -> ".."
+    _ -> pretty stroke
+
+instance Pretty.Pretty Stroke where
+    pretty s = case s of
+        Plak -> "PL"
+        Pak -> "P"
+        Pang -> "T"
+        TutL -> "Ø"
+        DagL -> "`O+`"
+        Ka -> ".."
+        Tut -> "o"
+        De -> "+"
+        Dag -> "<"
+        Tek -> "["
+
+strokes_of :: PasangStroke -> [(Stroke, Dyn)]
+strokes_of pstroke = case pstroke of
+    Wadon stroke -> [stroke]
+    Lanang stroke -> [stroke]
+    Both w l -> [w, l]

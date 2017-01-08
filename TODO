@@ -3,9 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Local.Instrument.Kontakt.Kendang should use the abstract Strokes to
+    generate the tunggal symbols.
+  - Perhaps I should have a ToCall class, for types which can turn into
+    tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
   * Alternate call depending on tempo.
     . When (ts e) goes below a threshold.
     - Also I want to be able to switch in the middle of a call.
+      . I think I have to derive everything, and then re-evaluate the dur
+        every interval.  It would be somewhat complicated because I'd have
+        to assume I don't want overlapping notes, and either delay the
+        transition a note ends, or make it shorter (but not unreasonably
+        short).
+      . I can prevent unreasonably short by not using an unreasonably short
+        time interval.
   - When I expand a collapsed track it doesn't get the track signal at first.
   - Reduce memory used by REPL.
     . About 200mb.

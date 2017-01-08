@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Local.Instrument.Kontakt.KendangBali_test where
+import qualified Data.List as List
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -24,7 +26,7 @@ test_kendang = do
         ([("k", "+plak"), ("k", "+pak"), ("k", "+tut")], [])
     equal (run e_instrument "pasang"
             ["PL", "k", "P", "t", "T", "u", "U"])
-        ([("w", "+plak"), ("w", "+pak"), ("l", "+pak"),
+        ([("l", "+plak"), ("w", "+pak"), ("l", "+pak"),
             ("w", "+pang"), ("l", "+pang"), ("w", "+tut"), ("l", "+tut")], [])
 
     -- Soft attributes.
@@ -32,12 +34,19 @@ test_kendang = do
     equal (run e_dyn "k" [".", "..", "-", "+"])
         ([("+ka+soft", 0.3), ("+ka", 1), ("+de+soft", 0.3), ("+de", 1)], [])
 
+    -- Both strokes.
+    let run_both stroke = run e_instrument "pasang" [stroke]
+    equal (run_both "PLPL") ([("w", "+plak"), ("l", "+plak")], [])
+    equal (run_both "+Ø") ([("w", "+de"), ("l", "+left+tut")], [])
+    equal (run_both "+ø") ([("w", "+de"), ("l", "+left+soft+tut")], [])
+
 test_pasang_calls = do
-    -- every pasang call should be a tunggal call
-    let extract (_, _, _, call) =
-            [sym | (_, sym, _, _) <- KendangBali.tunggal_strokes, sym == call]
-    equal (map extract KendangBali.pasang_calls)
-        [[call] | (_, _, _, call) <- KendangBali.pasang_calls]
+    -- every pasang call dispatch to a valid tunggal call
+    let tunggal = [sym | (_, sym, _, _) <- KendangBali.tunggal_strokes]
+    forM_ KendangBali.pasang_calls $ \(_, _, pstroke) ->
+        forM_ (KendangBali.strokes_of pstroke) $ \stroke -> do
+            let sym = KendangBali.to_call stroke
+            equal (Just sym) (List.find (==sym) tunggal)
 
 test_resolve = do
     equal KendangBali.resolve_errors []
