@@ -311,7 +311,6 @@ note_spec (inst, pitches, controls) =
     note_track = ('>' : inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
     pitch_track = ("*", [(t, 0, s) | (t, _, (_, s)) <- track, not (null s)])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
-
     track = [(t, d, split s) | (t, d, s) <- pitches]
     split s
         | "--" `List.isInfixOf` s = let (pre, post) = Seq.split1 "--" s
@@ -328,6 +327,9 @@ inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
 -- | Like 'note_track', but all notes have a duration of 1.
 note_track1 :: [String] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
+
+control_track :: [(ScoreTime, String)] -> [EventSpec]
+control_track ns = [(t, 0, s) | (t, s) <- ns]
 
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $

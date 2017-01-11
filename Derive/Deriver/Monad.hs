@@ -1536,7 +1536,7 @@ instance DeepSeq.NFData CacheEntry where
 -- but I'm not quite up to those type gymnastics yet.
 data CallType d = CallType !Collect !(Stream.Stream d)
 
-instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
+instance DeepSeq.NFData d => DeepSeq.NFData (CallType d) where
     rnf (CallType collect events) = rnf collect `seq` rnf events
 
 -- ** deps

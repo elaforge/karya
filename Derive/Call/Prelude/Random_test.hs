@@ -62,10 +62,11 @@ test_alternate_tracks = do
 
 test_tempo_alternate = do
     let run tempo note = DeriveTest.extract DeriveTest.e_pitch $
-            DeriveTest.derive_blocks
+            DeriveTest.derive_blocks (blocks tempo note)
+        blocks tempo note =
             [ ("top", [("tempo", [(0, 0, tempo)]), (">", [(0, 1, note)])])
-            , ("a=ruler", UiTest.note_track [(0, 1, "4c")])
-            , ("b=ruler", UiTest.note_track [(0, 1, "4d")])
+            , ("a=ruler", UiTest.note_track1 ["4c"])
+            , ("b=ruler", UiTest.note_track1 ["4d"])
             ]
     strings_like (snd $ run "1" "t-alt a 2 b 1 a")
         ["thresholds should be in ascending order"]
@@ -74,5 +75,40 @@ test_tempo_alternate = do
     equal (run ".5" "t-alt a 2 b") (["4d"], [])
 
 test_under_threshold = do
-    let f k = Random.under_threshold k 'a' [(1, 'b'), (3, 'c')]
+    let f = Random.under_threshold 'a' [(1, 'b'), (3, 'c')]
     equal (map f [0, 1, 2, 3, 4]) "abbcc"
+
+test_tempo_alternate_continuous = do
+    let run tempo note = DeriveTest.extract extract $
+            DeriveTest.derive_blocks (blocks tempo note)
+        blocks tempo note =
+            [ ("top",
+                [ ("tempo", UiTest.control_track tempo)
+                , (">", [(0, 4, note)])
+                ])
+            , ("a=ruler", UiTest.note_track1 ["4c"])
+            , ("b=ruler", UiTest.note_track1 ["5c", "5d"])
+            , ("c=ruler", UiTest.note_track1 ["6c", "6d", "6e", "6f"])
+            ]
+        extract = DeriveTest.e_note
+    equal (run [(0, "1")] "t-alt-c a") ([(0, 4, "4c")], [])
+    equal (run [(0, "1")] "t-alt-c a 1 b 2 c") ([(0, 4, "4c")], [])
+    equal (run [(0, ".5")] "t-alt-c a 1 b 2 c")
+        ([(0, 4, "5c"), (4, 4, "5d")], [])
+    equal (run [(0, ".25")] "t-alt-c a 1 b 2 c")
+        ([(0, 4, "6c"), (4, 4, "6d"), (8, 4, "6e"), (12, 4, "6f")], [])
+    -- Fast to slow.
+    equal (run [(0, "1"), (2, ".5")] "t-alt-c a 1 b 2 c")
+        ([(0, 2, "4c"), (2, 4, "5d")], [])
+    equal (run [(0, "1"), (2, ".25")] "t-alt-c a 1 b 2 c")
+        ([(0, 2, "4c"), (2, 4, "6e"), (6, 4, "6f")], [])
+    -- Slow to fast.
+    equal (run [(0, ".25"), (2, ".5")] "t-alt-c a 1 b 2 c")
+        ([(0, 4, "6c"), (4, 4, "6d"), (8, 4, "5d")], [])
+
+test_select_indices = do
+    let f is = map (xs!!) is2
+            where (xs, is2) = Random.select_indices ("abcdef" :: [Char]) is
+    equal (f [1, 3]) "bd"
+    equal (f [3, 1]) "db"
+    equal (f [2, 0, 5]) "caf"

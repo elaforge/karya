@@ -9,7 +9,7 @@ UNSORTED
     tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
   * Alternate call depending on tempo.
     . When (ts e) goes below a threshold.
-    - Also I want to be able to switch in the middle of a call.
+    * Also I want to be able to switch in the middle of a call.
       . I think I have to derive everything, and then re-evaluate the dur
         every interval.  It would be somewhat complicated because I'd have
         to assume I don't want overlapping notes, and either delay the
@@ -17,6 +17,15 @@ UNSORTED
         short).
       . I can prevent unreasonably short by not using an unreasonably short
         time interval.
+      . 'b2 .15 b3 .25 b4' means 8th note becomes .15 seconds go to b3
+        tempo=1 => 1/8, at tempo=.5 => 1/4
+    - The derived blocks don't get a playback cursor.  More seriously, they
+      don't register as dependent blocks, so they don't get rederived after
+      a change.
+      . It seems like they do have block deps.
+      . You get playback because of TrackWarps.
+    . How can I randomize the transition thresholds?  Maybe as easy as
+      wirama a b = t-alt-c $a (rnd 1/9 1/7) $b
   - When I expand a collapsed track it doesn't get the track signal at first.
   - Reduce memory used by REPL.
     . About 200mb.
@@ -1615,7 +1624,7 @@ Derive:
           integration could theoretically do that.
       trompong: reyong:
         - Damp level is way too high, I have to put %damp=.2 everywhere.
-        - I'd like to write two parts, and have the upper octaves automatic.
+        * I'd like to write two parts, and have the upper octaves automatic.
           . I can put them in a sub-block and wrap with 'upper', but it won't
             get the voices right.  But if I put the track voices as v=+1 and
             v=+2 then they would be right.
