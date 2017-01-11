@@ -359,7 +359,7 @@ quoted_generator :: Derive.Callable d => BaseTypes.Quoted -> Derive.Generator d
 quoted_generator quoted@(BaseTypes.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
-    $ Sig.call0 $ \args -> Eval.eval_expr False (Args.context args) expr
+    $ Sig.call0 $ \args -> Eval.eval_expr True (Args.context args) expr
 
 quoted_transformer :: Derive.Callable d => BaseTypes.Quoted
     -> Derive.Transformer d

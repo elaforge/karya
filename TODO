@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Block calls via a macro don't get block deps and track warps.
+    . The derived blocks don't get a playback cursor.  More seriously, they
+      don't register as dependent blocks, so they don't get rederived after
+      a change.
+    . It seems like they do have block deps.
+    . You get playback because of TrackWarps.  So I must be missing those.
+    . Turns out any block in quotes: '^t = "(a)' doesn't get a track warp.
+    . Ok so why?
   - Local.Instrument.Kontakt.Kendang should use the abstract Strokes to
     generate the tunggal symbols.
   - Perhaps I should have a ToCall class, for types which can turn into
@@ -19,11 +27,6 @@ UNSORTED
         time interval.
       . 'b2 .15 b3 .25 b4' means 8th note becomes .15 seconds go to b3
         tempo=1 => 1/8, at tempo=.5 => 1/4
-    - The derived blocks don't get a playback cursor.  More seriously, they
-      don't register as dependent blocks, so they don't get rederived after
-      a change.
-      . It seems like they do have block deps.
-      . You get playback because of TrackWarps.
     . How can I randomize the transition thresholds?  Maybe as easy as
       wirama a b = t-alt-c $a (rnd 1/9 1/7) $b
   - When I expand a collapsed track it doesn't get the track signal at first.

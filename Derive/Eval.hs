@@ -333,7 +333,7 @@ reapply_generator_normalized args = reapply_generator $ args
 -- any pitch you try to set.
 reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
-reapply = eval_expr False -- TODO why collect=False?
+reapply = eval_expr True
 
 -- | Like 'reapply', but parse the string first.
 reapply_string :: Derive.Callable d => Derive.Context d -> Text
@@ -378,7 +378,8 @@ apply_pitch pos call = do
     ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
+eval_expr :: Derive.Callable d => Bool -- ^ See 'Derive.catch'.  This should
+    -- be True for evals that generate notes for eventual output.
     -> Derive.Context d -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_expr collect ctx expr =
     fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)

@@ -393,6 +393,35 @@ test_collect = do
     equal (Derive.collect_block_deps collect)
         (mk_block_deps ["top", "sub"])
 
+test_collect_indirect_call = do
+    let run note = DeriveTest.derive_blocks
+            [ ("top -- ^t = \"(sub)", [(">", [(0, 1, note)])])
+            , ("sub=ruler", UiTest.note_track1 ["4c"])
+            ]
+    equal (DeriveTest.extract DeriveTest.e_note (run "sub"))
+        ([(0, 1, "4c")], [])
+    equal (DeriveTest.extract DeriveTest.e_note (run "t"))
+        ([(0, 1, "4c")], [])
+
+    let top = UiTest.bid "top"
+        sub = UiTest.bid "sub"
+    let e_collection = map TrackWarp.tw_block . Derive.r_track_warps
+    equal (e_collection (run "sub")) [sub, top]
+    equal (e_collection (run "t")) [sub, top]
+
+    let e_block_deps =
+            map (fmap (fmap (e_block_dep . Derive.collect_block_deps)))
+            . r_cache_collect
+        e_block_dep (Derive.BlockDeps blocks) = Set.toList blocks
+    let deps =
+            [ ("top * *", Just [sub, top])
+            , ("top top.t1 *", Just [sub])
+            , ("top top.t1 0-1: sub * *", Just [sub])
+            , ("top top.t1 0-1: sub sub.t1 *", Just [])
+            ]
+    equal (e_block_deps (run "sub")) deps
+    equal (e_block_deps (run "t")) deps
+
 test_sliced_score_damage = do
     -- Ensure that a cached call underneath a slice still works correctly.
     -- This is tricky because the cache relies on Stack.Region entries
