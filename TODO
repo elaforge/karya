@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Make new block from template should copy the merged flags.
   * Block calls via a macro don't get block deps and track warps.
     . The derived blocks don't get a playback cursor.  More seriously, they
       don't register as dependent blocks, so they don't get rederived after
@@ -95,6 +96,10 @@ UNSORTED
     . It's confusing how entry is at the beginning, and appears in the wrong
       place.
     . Non-point select should not get -0 at its start.
+    . I could still conceivably use real negative durations by keying on
+      (TrackTime, Bool).  Then I could edit them by giving the selection an
+      orientation.  It would have to switch with a key, or I could have 'w'
+      and 'b' automatically switch.
   - load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
@@ -230,9 +235,10 @@ UNSORTED
     can see this editing rehearsal/kendang-legong
   / can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
-  - Play position doesn't work right for 'loop' and 'tile' calls, it only
-    understands the first loop, and doesn't know that 'tile' cuts off the
+  - playback: Play position doesn't work right for 'loop' and 'tile' calls, it
+    only understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
+    . Same for 'clip'.
 
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
@@ -867,8 +873,9 @@ performance:
     AppendList / MergeList for Derive.Stream
       - switch to AppendList and try to get garbage down
         Avoid copying sublists returned by block calls and cache hits
-      - play from cursor is a linear scan on all events from the beginning,
+      / play from cursor is a linear scan on all events from the beginning,
         seems like this would be faster if I could skip chunks.
+        . In practice, the linear scan takes no time.
       - see if a Merge constructor can reduce copying
       - can I cache length and range in AppendList?  does it matter?
       - insert parallelism?  maybe the evaluator can do that when it sees

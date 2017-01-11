@@ -508,7 +508,7 @@ test_make_inverse_tempo_func = do
     -- TODO and it belongs in TrackWarp_test now
     let track_id = Id.TrackId (UiTest.mkid "warp")
         warp = Tempo.tempo_to_warp (Signal.constant 2)
-        track_warps = [TrackWarp.Collection
+        track_warps = [TrackWarp.TrackWarp
                 0 2 UiTest.default_block_id (Set.singleton track_id) warp]
     let f = TrackWarp.inverse_tempo_func track_warps
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
@@ -520,7 +520,7 @@ test_make_inverse_tempo_func = do
 test_tempo_roundtrip = do
     let track_id = Id.TrackId (UiTest.mkid "warp")
         warp = Tempo.tempo_to_warp (Signal.constant 0.987)
-        track_warps = [TrackWarp.Collection
+        track_warps = [TrackWarp.TrackWarp
                 0 10 UiTest.default_block_id (Set.singleton track_id) warp]
     let inv = TrackWarp.inverse_tempo_func track_warps
         tempo = TrackWarp.tempo_func track_warps

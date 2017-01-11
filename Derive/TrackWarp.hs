@@ -8,10 +8,10 @@
     InverseTempoFunction, among other things.
 -}
 module Derive.TrackWarp (
-    TrackWarp(..), WarpMap, Collection(..)
-    , collections
+    Track(..), WarpMap, TrackWarp(..)
+    , collect_track_warps
     , get_track_trees
-    -- * functions on Collection
+    -- * functions on TrackWarp
     , tempo_func, closest_warp, inverse_tempo_func
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -30,27 +30,28 @@ import Global
 import Types
 
 
-data TrackWarp =
-    -- | start end warp block_id (track of tempo track if there is one)
-    TrackWarp !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
+-- | Collected warp for a single track.
+data Track =
+    -- | start end warp block_id (tempo track if there is one)
+    Track !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
     deriving (Eq, Show)
 
-instance Pretty.Pretty TrackWarp where
-    format (TrackWarp start end warp block_id track_id) =
+instance Pretty.Pretty Track where
+    format (Track start end warp block_id track_id) =
         Pretty.format (start, end, warp, block_id, track_id)
 
-instance DeepSeq.NFData TrackWarp where
-    rnf (TrackWarp _ _ _ _ track_id) = DeepSeq.rnf track_id
+instance DeepSeq.NFData Track where
+    rnf (Track _ _ _ _ track_id) = DeepSeq.rnf track_id
 
--- | Each TrackWarp is collected at the Stack of the track it represents.
--- A TrackWarp is only saved when the warp changes, which is likely a tempo
+-- | Each 'Track' is collected at the Stack of the track it represents.
+-- A Track is only saved when the warp changes, which is likely a tempo
 -- track.  'collect_warps' then fills in the rest of the tracks.
-type WarpMap = Map Stack.Stack TrackWarp
+type WarpMap = Map Stack.Stack Track
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the play monitor to figure out where the play position
 -- indicator is at a given point in real time.
-data Collection = Collection {
+data TrackWarp = TrackWarp {
     tw_start :: !RealTime
     , tw_end :: !RealTime
     , tw_block :: !BlockId
@@ -58,8 +59,8 @@ data Collection = Collection {
     , tw_warp :: !Score.Warp
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Collection where
-    format (Collection start end block tracks warp) = Pretty.record "Collection"
+instance Pretty.Pretty TrackWarp where
+    format (TrackWarp start end block tracks warp) = Pretty.record "TrackWarp"
         [ ("start", Pretty.format start)
         , ("end", Pretty.format end)
         , ("block", Pretty.format block)
@@ -67,12 +68,12 @@ instance Pretty.Pretty Collection where
         , ("warp", Pretty.format warp)
         ]
 
-instance DeepSeq.NFData Collection where
+instance DeepSeq.NFData TrackWarp where
     rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)
 
-convert :: (TrackWarp, [TrackId]) -> Collection
-convert (TrackWarp start end warp block_id maybe_track_id, tracks) =
-    Collection
+convert :: (Track, [TrackId]) -> TrackWarp
+convert (Track start end warp block_id maybe_track_id, tracks) =
+    TrackWarp
         { tw_start = start
         , tw_end = end
         , tw_block = block_id
@@ -81,10 +82,12 @@ convert (TrackWarp start end warp block_id maybe_track_id, tracks) =
         }
     where track_ids = maybe tracks (:tracks) maybe_track_id
 
-collections :: [(BlockId, [Tree.Tree TrackId])] -> WarpMap -> [Collection]
-collections blocks =
+-- | Collect 'Track's together into TrackWarps'.
+collect_track_warps :: [(BlockId, [Tree.Tree TrackId])] -> WarpMap
+    -> [TrackWarp]
+collect_track_warps blocks =
     filter (not . Set.null . tw_tracks) . map convert . collect_warps blocks
-    -- There will be a Collection with a null 'tw_tracks' if there are multiple
+    -- There will be a TrackWarp with a null 'tw_tracks' if there are multiple
     -- tempo tracks at the top level.
 
 get_track_trees :: Ui.M m => m [(BlockId, [Tree.Tree TrackId])]
@@ -95,16 +98,16 @@ get_track_trees = do
 
 {- | The WarpMap only has TrackWarps for tempo tracks.  But I want to have
     playback cursors on all tracks, and be able to start play from any track.
-    So this will extend a TrackWarp of a block or a track to all of its
+    So this will extend a Track of a block or a track to all of its
     children.  This assumes that no one else is fiddling with the Warp.
 
     Previously I would collect TrackWarps on every track, which is more
     technically correct.  However, due to note inversion, that wounds up
-    collecting a TrackWarp for every single note, and just sorting all of the
+    collecting a Track for every single note, and just sorting all of the
     stacks was at the top of the profile output.
 -}
 collect_warps :: [(BlockId, [Tree.Tree TrackId])] -> WarpMap
-    -> [(TrackWarp, [TrackId])]
+    -> [(Track, [TrackId])]
 collect_warps blocks wmap =
     [(tw, get_children stack) | (stack, tw) <- Map.toList wmap]
     where
@@ -134,9 +137,9 @@ collect_warps blocks wmap =
     tempo_tracks = Set.fromList $
         mapMaybe (maybe Nothing snd . get_block_track) $ Map.keys wmap
 
--- * functions on Collection
+-- * functions on TrackWarp
 
-tempo_func :: [Collection] -> Transport.TempoFunction
+tempo_func :: [TrackWarp] -> Transport.TempoFunction
 tempo_func track_warps block_id track_id pos =
     map (flip Score.warp_pos pos) warps
     where
@@ -155,7 +158,7 @@ tempo_func track_warps block_id track_id pos =
 --
 -- This can't use Transport.TempoFunction because I need to pick the
 -- appropriate Warp and then look up multiple ScoreTimes in it.
-closest_warp :: [Collection] -> Transport.ClosestWarpFunction
+closest_warp :: [TrackWarp] -> Transport.ClosestWarpFunction
 closest_warp track_warps block_id track_id pos =
     maybe Score.id_warp (tw_warp . snd) $
         Seq.minimum_on (abs . subtract pos . fst) annotated
@@ -164,7 +167,7 @@ closest_warp track_warps block_id track_id pos =
     warps = [tw | tw <- track_warps, tw_block tw == block_id,
         Set.member track_id (tw_tracks tw)]
 
-inverse_tempo_func :: [Collection] -> Transport.InverseTempoFunction
+inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps time = do
     (block_id, track_ids, pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])

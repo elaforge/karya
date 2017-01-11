@@ -381,7 +381,7 @@ test_collect = do
     let e_warp_maps = Seq.sort_on fst . map (first Stack.pretty_ui_)
             . Map.toAscList . Derive.collect_warp_map
 
-    let tw start end bid = TrackWarp.TrackWarp
+    let tw start end bid = TrackWarp.Track
             start end Score.id_warp (UiTest.bid bid) Nothing
     equal (e_warp_maps collect)
         [ ("top * *", tw 0 2 "top")

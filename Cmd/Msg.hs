@@ -98,7 +98,7 @@ data Performance = Performance {
     -- | ScoreDamage is normally calculated automatically from the UI diff,
     -- but Cmds can also intentionally inflict damage to cause a rederive.
     , perf_damage :: Derive.ScoreDamage
-    , perf_warps :: [TrackWarp.Collection]
+    , perf_warps :: [TrackWarp.TrackWarp]
     , perf_track_signals :: Track.TrackSignals
     }
 

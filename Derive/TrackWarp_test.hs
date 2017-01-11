@@ -17,11 +17,11 @@ import qualified Derive.TrackWarp as TrackWarp
 import Types
 
 
-test_collections = do
-    let f tracks = extract . TrackWarp.collections tracks
+test_collect_track_warps = do
+    let f tracks = extract . TrackWarp.collect_track_warps tracks
         extract = sort . map extract1
             where
-            extract1 (TrackWarp.Collection s e block tracks warp) =
+            extract1 (TrackWarp.TrackWarp s e block tracks warp) =
                 ((s, e), block, Foldable.toList tracks,
                     ScoreTypes.warp_stretch warp)
             sort = Seq.sort_on (\(range, block, _, _) -> (block, range))

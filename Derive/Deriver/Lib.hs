@@ -56,7 +56,7 @@ import Types
 data Result = Result {
     r_events :: !(Stream.Stream Score.Event)
     , r_cache :: !Cache
-    , r_track_warps :: ![TrackWarp.Collection]
+    , r_track_warps :: ![TrackWarp.TrackWarp]
     , r_track_signals :: !Track.TrackSignals
     , r_track_dynamic :: !TrackDynamic
     , r_integrated :: ![Integrated]
@@ -77,7 +77,8 @@ extract_result :: RunResult (Stream.Stream Score.Event) -> Result
 extract_result (result, state, logs) = Result
     { r_events = merge_logs result (more_logs ++ logs)
     , r_cache = collect_cache collect <> state_cache (state_constant state)
-    , r_track_warps = TrackWarp.collections blocks (collect_warp_map collect)
+    , r_track_warps =
+        TrackWarp.collect_track_warps blocks (collect_warp_map collect)
     , r_track_signals = collect_track_signals collect
     , r_track_dynamic = extract_track_dynamic collect
     , r_integrated = collect_integrated collect

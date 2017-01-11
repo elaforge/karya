@@ -120,7 +120,7 @@ track_signal = do
     return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
 
 -- | Get collected warps of a specific track.
-get_warps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.Collection]
+get_warps :: Cmd.M m => BlockId -> TrackId -> m [TrackWarp.TrackWarp]
 get_warps block_id track_id = do
     perf <- LPerf.get_root
     let track_warps = Cmd.perf_warps perf
@@ -130,13 +130,13 @@ get_warps block_id track_id = do
 
 -- | Get all raw uncollected TrackWarps from the root, and strip out the
 -- signals so they don't take up tons of space.
-get_track_warps :: Cmd.M m => m (Map Stack.Stack TrackWarp.TrackWarp)
+get_track_warps :: Cmd.M m => m (Map Stack.Stack TrackWarp.Track)
 get_track_warps = do
     result <- LPerf.derive =<< Ui.get_root_id
     let wmap = Derive.collect_warp_map $ Derive.state_collect $
             Derive.r_state result
-    let strip (TrackWarp.TrackWarp s e _warp bid tid) =
-            TrackWarp.TrackWarp s e Score.id_warp bid tid
+    let strip (TrackWarp.Track s e _warp bid tid) =
+            TrackWarp.Track s e Score.id_warp bid tid
     return $ strip <$> wmap
 
 -- ** cache
