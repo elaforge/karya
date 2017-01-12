@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Stack_test where
+import qualified Data.Aeson as Aeson
 
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Stack as Stack
 
@@ -41,3 +41,15 @@ test_to_ui = do
     -- I shouldn't have two regions in a row, but if so the last region wins
     equal (mk [block "b1", track "t1", region 1 2, region 3 4])
         [(bid "b1", tid "t1", Just (3, 4))]
+
+test_json = do
+    let convert :: Stack.Frame -> Either String Stack.Frame
+        convert = to_either . Aeson.fromJSON . Aeson.toJSON
+        to_either (Aeson.Success a) = Right a
+        to_either (Aeson.Error a) = Left a
+        roundtrip a = (Right a, convert a)
+    uncurry equal (roundtrip (block "a"))
+    uncurry equal (roundtrip (track "a"))
+    uncurry equal (roundtrip (region 1 2))
+    uncurry equal (roundtrip (Stack.Call "a"))
+    uncurry equal (roundtrip (Stack.Serial 1))

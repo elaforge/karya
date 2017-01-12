@@ -31,9 +31,8 @@ import Types
 
 
 -- | Collected warp for a single track.
-data Track =
-    -- | start end warp block_id (tempo track if there is one)
-    Track !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
+-- start end warp block_id (tempo track if there is one)
+data Track = Track !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
     deriving (Eq, Show)
 
 instance Pretty.Pretty Track where
@@ -52,6 +51,7 @@ type WarpMap = Map Stack.Stack Track
 -- These are used by the play monitor to figure out where the play position
 -- indicator is at a given point in real time.
 data TrackWarp = TrackWarp {
+    -- | The range over which this warp's 'tw_warp' can be used.
     tw_start :: !RealTime
     , tw_end :: !RealTime
     , tw_block :: !BlockId
@@ -167,26 +167,19 @@ closest_warp track_warps block_id track_id pos =
     warps = [tw | tw <- track_warps, tw_block tw == block_id,
         Set.member track_id (tw_tracks tw)]
 
+-- | Take RealTime back to the TrackTimes on the various blocks that it
+-- corresponds to.
 inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
-inverse_tempo_func track_warps time = do
+inverse_tempo_func track_warps realtime = do
     (block_id, track_ids, pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
     -- Ornaments and leading keyswitches can result in starting at a negative
     -- time.  But if this function returns [] the play monitor thread will take
     -- that to mean the performance is over.
-    ts = max 0 time
+    ts = max 0 realtime
     -- ts <= tw_end means that you can get the ScoreTime for the end of
     -- a block.  This is useful because then "Cmd.StepPlay" can step to the
     -- very end.
     track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos (tw_warp tw) ts)
         | tw <- track_warps, tw_start tw <= ts && ts <= tw_end tw]
-
-    -- TODO Comment is obsolete, but I may want to add it back in if I go
-    -- back to using 'Perf.find_play_pos' for the step playback.
-    --
-    -- The guard is for @ts <= tw_end tw@ rather than @<@ which would be
-    -- consistent with the rest of the half-open ranges.  However, it's
-    -- convenient to have the RealTime corresponding to the end of the last
-    -- msg produce a ScoreTime.  Specifically, "Cmd.StepPlay" wants to do
-    -- this.

@@ -163,6 +163,7 @@ data Frame =
     | Track !TrackId
     | Region !TrackTime !TrackTime
     | Call !Text
+    | Serial !Int
     deriving (Eq, Ord, Read, Show)
 
 instance DeepSeq.NFData Frame where
@@ -176,6 +177,7 @@ instance Pretty.Pretty Frame where
     pretty (Track tid) = showt tid
     pretty (Region s e) = pretty s <> "--" <> pretty e
     pretty (Call call) = call
+    pretty (Serial n) = pretty n
 
 instance Serialize.Serialize Frame where
     put frame = case frame of
@@ -183,6 +185,7 @@ instance Serialize.Serialize Frame where
         Track tid -> Serialize.put_tag 1 >> Serialize.put tid
         Region s e -> Serialize.put_tag 2 >> Serialize.put s >> Serialize.put e
         Call s -> Serialize.put_tag 4 >> Serialize.put s
+        Serial n -> Serialize.put_tag 5 >> Serialize.put n
     get = do
         tag <- Serialize.get_tag
         case tag of
@@ -202,14 +205,19 @@ instance Serialize.Serialize Frame where
             4 -> do
                 s :: Text <- Serialize.get
                 return $ Call s
+            5 -> do
+                n :: Int <- Serialize.get
+                return $ Serial n
             _ -> Serialize.bad_tag "Stack.Frame" tag
 
 instance CRC32.CRC32 Frame where
-    crc32Update n (Block block_id) = n `CRC32.crc32Update` block_id
-    crc32Update n (Track track_id) = n + 1 `CRC32.crc32Update` track_id
-    crc32Update n (Region s e) =
-        n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
-    crc32Update n (Call call) = n + 3 `CRC32.crc32Update` call
+    crc32Update n frame = case frame of
+        Block block_id -> n `CRC32.crc32Update` block_id
+        Track track_id -> n + 1 `CRC32.crc32Update` track_id
+        Region s e ->
+            n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
+        Call call -> n + 3 `CRC32.crc32Update` call
+        Serial i -> n + 4 `CRC32.crc32Update` i
 
 instance Aeson.ToJSON Frame where
     toJSON frame = Aeson.Array $ case frame of
@@ -220,6 +228,7 @@ instance Aeson.ToJSON Frame where
             Region s e -> tagged "Region" $
                 Aeson.toJSON (ScoreTime.to_double s, ScoreTime.to_double e)
             Call text -> tagged "Call" (Aeson.toJSON text)
+            Serial n -> tagged "Serial" (Aeson.toJSON n)
         where tagged name val = Vector.fromList [Aeson.String name, val]
 
 instance Aeson.FromJSON Frame where
@@ -233,6 +242,7 @@ instance Aeson.FromJSON Frame where
                 uncurry Region . (ScoreTime.double *** ScoreTime.double) <$>
                     Aeson.parseJSON val
             | tag == "Call" -> Call <$> Aeson.parseJSON val
+            | tag == "Serial" -> Serial <$> Aeson.parseJSON val
             | otherwise -> fail $ "unknown tag: " <> untxt tag
         _ -> fail "expecting two element array"
     parseJSON _ = fail "expecting array"

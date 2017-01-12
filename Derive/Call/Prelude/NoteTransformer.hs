@@ -13,6 +13,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -199,10 +200,8 @@ c_clip = Derive.transformer Module.prelude "clip" mempty
     \ whatever their calling event's duration, e.g. block calls."
     $ Sig.call0t $ \args -> unstretch_args args $ \_dur deriver -> do
         end <- Derive.real $ snd (Args.range args)
-        fmap (clip end) . Stream.take_while (event_before end) <$>
+        trim_events Nothing (Just end) $
             Derive.at (Args.start args) deriver
-    where
-    clip end event = Score.duration (min (end - Score.event_start event)) event
 
 c_clip_start :: Derive.Transformer Derive.Note
 c_clip_start = Derive.transformer Module.prelude "Clip" mempty
@@ -210,7 +209,7 @@ c_clip_start = Derive.transformer Module.prelude "Clip" mempty
     \ of the beginning. Events that then lie before the start are clipped."
     $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         start <- Derive.real $ fst (Args.range args)
-        Stream.drop_while (event_before start) <$>
+        trim_events (Just start) Nothing $
             Derive.at (Args.end args - dur) deriver
 
 -- ** loop
@@ -224,8 +223,7 @@ c_loop = Derive.transformer Module.prelude "loop" mempty
         let repeats = ceiling $ (end - start) / dur
             starts = take repeats $ Seq.range_ start dur
         real_end <- Derive.real end
-        Stream.take_while (event_before real_end) <$>
-            mconcat [Derive.at s deriver | s <- starts]
+        trim_events Nothing (Just real_end) $ repeat_at starts 1 deriver
 
 c_tile :: Derive.Transformer Derive.Note
 c_tile = Derive.transformer Module.prelude "tile" mempty
@@ -240,9 +238,8 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
         let repeats = ceiling $ (end - sub_start) / dur
             starts = take repeats $ Seq.range_ sub_start dur
         (real_start, real_end) <- Args.real_range args
-        Stream.drop_while (event_before real_start)
-            . Stream.take_while (event_before real_end)
-            <$> mconcat [Derive.at s deriver | s <- starts]
+        trim_events (Just real_start) (Just real_end) $
+            repeat_at starts 1 deriver
 
 c_repeat :: Derive.Transformer Derive.Note
 c_repeat = Derive.transformer Module.prelude "repeat" mempty
@@ -251,8 +248,29 @@ c_repeat = Derive.transformer Module.prelude "repeat" mempty
     $ \(Typecheck.Positive times) args deriver -> do
         let dur = Args.duration args / fromIntegral times
         let deriver0 = Derive.at (- Args.start args) deriver
-        mconcat [Derive.place start (1 / fromIntegral times) deriver0
-            | start <- take times (Seq.range_ (Args.start args) dur)]
+        let starts = take times (Seq.range_ (Args.start args) dur)
+        repeat_at starts (1 / fromIntegral times) deriver0
+
+-- | Repeat the deriver at the given start times.
+repeat_at :: [ScoreTime] -> ScoreTime -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+repeat_at starts dur deriver = mconcat
+    [ Derive.place s dur (Internal.with_stack_serial i deriver)
+    | (i, s) <- zip [0..] starts
+    ]
+
+trim_events :: Maybe RealTime -> Maybe RealTime
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
+trim_events start end deriver = do
+    events <- Internal.trim_track_warps start end deriver
+    return $ maybe id trim_end end $
+        maybe id (Stream.drop_while . event_before) start events
+    where
+    trim_end e = fmap (clip e) . Stream.take_while (event_before e)
+    clip end event
+        | Score.event_end event <= end = event
+        | otherwise =
+            Score.set_duration (max 0 (end - Score.event_start event)) event
 
 -- * util
 

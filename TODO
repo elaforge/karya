@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Use an automatic way to add Internal.with_stack_serial.  I could probably
+    use Derive.state_event_serial, and then use that to get rid of
+    State.key_serial and make random seed no longer use it directly.
+  - Replace Deriver.Internal.eval_ui caller arg with CallStack.Stack
+  - Put Stack.Serial in Stack.UiFrame.
   - Make new block from template should copy the merged flags.
   * Block calls via a macro don't get block deps and track warps.
     . The derived blocks don't get a playback cursor.  More seriously, they
@@ -235,10 +240,27 @@ UNSORTED
     can see this editing rehearsal/kendang-legong
   / can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
-  - playback: Play position doesn't work right for 'loop' and 'tile' calls, it
-    only understands the first loop, and doesn't know that 'tile' cuts off the
-    beginning.
-    . Same for 'clip'.
+  * playback: Play position doesn't work right for 'clip', 'loop' and 'tile'.
+    . The problem is that calling the block collects a TrackWarp.Track with
+      the bounds, and it doesn't know that 'clip' or whatever else is going
+      to drop some events.
+    . I think the only real way to do this is just manually modify the
+      TrackWarp.  I could at least use a 'clip start end deriver'
+      function which handles that.
+    . 'loop' and 'tile' don't work because they all get the same stack.  Use
+      a serial number: Stack.Serial.
+    . I trim events to 0 'start'.  But the TrackWarp is trimmed to what that
+      position corresponds to in the sub-block.  To do that for real, I have to
+      do it when the block cals Internal.add_new_track_warp, perhaps via an env
+      var.
+    . Really I want to set from RealTime: 0s -> 2t.
+    . I can set the var in the caller, but how do I ensure it doesn't continue
+      to propagate to sub-sub blocks?  Actually, I kind of do want it to
+      propagate!  Sub-calls can restrict it further, but not widen it.
+    / For Deriver.Internal to use env vals, Typecheck can't import Internal.
+      I think I can move the stuff it relies on to Monad:
+        real, score, get_control_function_dynamic, get_dynamic
+      . Or should I have another module in between Monad and Internal?
 
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below

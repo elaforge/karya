@@ -70,16 +70,10 @@ detached_local modify_dynamic deriver = do
     mapM_ Log.write logs
     return result
 
--- | Run with an empty Collect, restore the original Collect, and return the
--- sub-deriver's Collect.
-local_collect :: Deriver a -> Deriver (a, Collect)
-local_collect deriver = do
-    old <- gets state_collect
-    modify $ \st -> st { state_collect = mempty }
-    result <- deriver
-    sub_collect <- gets state_collect
-    modify $ \st -> st { state_collect = old }
-    return (result, sub_collect)
+set_threaded :: Threaded -> Deriver ()
+set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
+
+-- * Collect
 
 -- | Collect is only ever accumulated.
 --
@@ -91,11 +85,39 @@ merge_collect c = modify $ \st -> st { state_collect = state_collect st <> c }
     -- for Maps with duplicate keys.  This seems a bit more intuitive than the
     -- last one.
 
+-- | Run with an empty Collect, restore the original Collect, and return the
+-- sub-deriver's Collect.
+local_collect :: Deriver a -> Deriver (a, Collect)
+local_collect deriver = do
+    old <- gets state_collect
+    modify $ \st -> st { state_collect = mempty }
+    result <- deriver
+    sub_collect <- gets state_collect
+    modify $ \st -> st { state_collect = old }
+    return (result, sub_collect)
+
+-- | Modify the 'collect_warp_map' to reduce the start and end by the given
+-- times.  This is useful if you're going to clip off some events.  The
+-- TrackWarps, and hence playback cursor, can't know you're going to do this,
+-- so you have to tell it.
+trim_track_warps :: Maybe RealTime -> Maybe RealTime -> Deriver a -> Deriver a
+trim_track_warps start end = with_collect $ \st -> st
+    { collect_warp_map = trim <$> collect_warp_map st }
+    where
+    trim (TrackWarp.Track s e warp block_id track_id) =
+        TrackWarp.Track (maybe s (max s) start) (maybe e (min e) end)
+            warp block_id track_id
+
+-- | Run the deriver and modify the Collect it returns.
+with_collect :: (Collect -> Collect) -> Deriver a -> Deriver a
+with_collect modify deriver = do
+    (a, collect) <- local_collect deriver
+    merge_collect (modify collect)
+    return a
+
+-- | TODO this is sketchy, you're supposed to use 'merge_collect'.
 modify_collect :: (Collect -> Collect) -> Deriver ()
 modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
-
-set_threaded :: Threaded -> Deriver ()
-set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
 
 -- * environ
 
@@ -212,6 +234,9 @@ with_stack_region s e = with_stack (Stack.Region s e)
 
 with_stack_call :: CallName -> Deriver a -> Deriver a
 with_stack_call (CallName name) = with_stack (Stack.Call name)
+
+with_stack_serial :: Int -> Deriver a -> Deriver a
+with_stack_serial = with_stack . Stack.Serial
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do

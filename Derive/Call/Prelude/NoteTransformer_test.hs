@@ -5,8 +5,11 @@
 module Derive.Call.Prelude.NoteTransformer_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.TrackWarp as TrackWarp
+
 import Types
 
 
@@ -75,6 +78,39 @@ test_multiple = do
         extract e = (Score.event_start e, DeriveTest.e_instrument e)
     equal (run [("> | multiple \"(inst=i1) \"(inst=i2)", [(0, 1, "")])])
         ([(0, "i1"), (0, "i2")], [])
+
+test_track_warps = do
+    let run = extract . DeriveTest.derive_blocks
+        extract = map e_track_warp . Derive.r_track_warps
+        e_track_warp tw =
+            (TrackWarp.tw_block tw, TrackWarp.tw_start tw, TrackWarp.tw_end tw)
+    let blocks notes =
+            [ ("top", [(">", notes)])
+            , ("sub=ruler", UiTest.regular_notes 4)
+            ]
+        top = UiTest.bid "top"
+        sub = UiTest.bid "sub"
+
+    equal (run (blocks [(0, 4, "sub")]))
+        [(sub, 0, 4), (top, 0, 4)]
+    equal (run (blocks [(0, 2, "clip | sub")]))
+        [(sub, 0, 2), (top, 0, 2)]
+    equal (run (blocks [(1, 2, "clip | sub")]))
+        [(sub, 1, 3), (top, 0, 3)]
+    equal (run (blocks [(0, 2, "clip | sub"), (4, 2, "clip | sub")]))
+        [(sub, 0, 2), (sub, 4, 6), (top, 0, 6)]
+
+    equal (run (blocks [(0, 2, "Clip | sub")]))
+        [(sub, 0, 2), (top, 0, 2)]
+    equal (run (blocks [(1, 2, "Clip | sub")]))
+        [(sub, 1, 3), (top, 0, 3)]
+
+    equal (run (blocks [(0, 7, "loop | sub")]))
+        [(sub, 0, 4), (sub, 4, 7), (top, 0, 7)]
+    equal (run (blocks [(2, 4, "tile | sub")]))
+        [(sub, 2, 4), (sub, 4, 6), (top, 0, 6)]
+    equal (run (blocks [(2, 4, "repeat 2 | sub")]))
+        [(sub, 2, 4), (sub, 4, 6), (top, 0, 6)]
 
 test_clip = do
     let run top = run_sub DeriveTest.e_start_dur [(">", top)]
