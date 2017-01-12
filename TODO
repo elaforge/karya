@@ -8,7 +8,7 @@ UNSORTED
     State.key_serial and make random seed no longer use it directly.
   - Replace Deriver.Internal.eval_ui caller arg with CallStack.Stack
   - Put Stack.Serial in Stack.UiFrame.
-  - Make new block from template should copy the merged flags.
+  * Make new block from template should copy the merged flags.
   * Block calls via a macro don't get block deps and track warps.
     . The derived blocks don't get a playback cursor.  More seriously, they
       don't register as dependent blocks, so they don't get rederived after
@@ -907,7 +907,7 @@ performance:
       - There are lots of lookups in the tempo map
     - see if making a version of Derive.local that's non-monadic in the
       modifier has any effect on performance
-    derive cache
+    derive cache:
       - can I cache long blocks by slicing them if they're >n?
       - c_block should only cache if the block has > a certain number of
         events.

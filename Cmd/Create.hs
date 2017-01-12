@@ -150,19 +150,32 @@ named_block_from_template copy_events template_id name = do
     template <- Ui.get_block template_id
     Ui.set_block_title block_id (Block.block_title template)
     let tracks = drop 1 (Block.block_tracks template)
-    forM_ (zip [1..] tracks) $ \(tracknum, btrack) ->
-        case Block.tracklike_id btrack of
-            Block.TId tid rid -> do
-                track <- Ui.get_track tid
-                track_events block_id rid tracknum
-                    (Block.track_width btrack) $
-                        Track.track (Track.track_title track)
-                            (if copy_events then Track.track_events track
-                                else mempty)
-                return ()
-            _ -> Ui.insert_track block_id tracknum btrack
+    new_tids <- mapMaybeM (add_track block_id) (zip [1..] tracks)
+    -- Copy over the flags and merge status.  I have to merge the analogous
+    -- tracks in the new block.
+    let old_to_new = Map.fromList $ zip
+            (Block.track_ids_of (map Block.tracklike_id tracks))
+            new_tids
+    forM_ (zip [1..] tracks) $ \(tracknum, btrack) -> do
+        Ui.modify_track_flags block_id tracknum
+            (const (Block.track_flags btrack))
+        Ui.set_merged_tracks block_id tracknum $
+            Set.fromList $ mapMaybe (`Map.lookup` old_to_new) $ Set.toList $
+            Block.track_merged btrack
     Ui.set_skeleton block_id =<< Ui.get_skeleton template_id
     return block_id
+
+    where
+    add_track block_id (tracknum, btrack) = case Block.tracklike_id btrack of
+        Block.TId tid rid -> do
+            track <- Ui.get_track tid
+            Just <$> track_events block_id rid tracknum
+                (Block.track_width btrack)
+                (Track.track (Track.track_title track)
+                    (if copy_events then Track.track_events track else mempty))
+        _ -> do
+            Ui.insert_track block_id tracknum btrack
+            return Nothing
 
 -- | BlockIds look like @ns\/b1@, @ns\/b2@, etc.
 block :: Ui.M m => RulerId -> m BlockId
