@@ -301,18 +301,17 @@ lookup_scale scale_id = do
 -- ** environment
 
 lookup_val :: Typecheck.Typecheck a => Env.Key -> Deriver (Maybe a)
-lookup_val name = do
-    environ <- Internal.get_environ
-    either throw return (Env.checked_val name environ)
+lookup_val key =
+    either throw return . Env.checked_val key =<< Internal.get_environ
 
 is_val_set :: Env.Key -> Deriver Bool
-is_val_set name = Maybe.isJust . Env.lookup name <$> Internal.get_environ
+is_val_set key = Maybe.isJust . Env.lookup key <$> Internal.get_environ
 
 -- | Like 'lookup_val', but throw if the value isn't present.
 get_val :: Typecheck.Typecheck a => Env.Key -> Deriver a
-get_val name = do
-    val <- lookup_val name
-    maybe (throw $ "environ val not found: " <> pretty name) return val
+get_val key = do
+    val <- lookup_val key
+    maybe (throw $ "environ val not found: " <> pretty key) return val
 
 -- | Set the given val dynamically within the given computation.  This is
 -- analogous to a dynamic let.
@@ -340,6 +339,7 @@ with_val key val deriver
 with_vals :: (Typecheck.Typecheck val, Typecheck.ToVal val) =>
     [(Env.Key, val)] -> Deriver a -> Deriver a
 with_vals vals deriver
+    | null vals = deriver
     | any (`elem` [EnvKey.scale, EnvKey.instrument]) (map fst vals) =
         foldr (uncurry with_val) deriver vals
     | otherwise = Internal.localm with deriver

@@ -15,8 +15,8 @@ import qualified Data.Word as Word
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.Deriver.Monad
@@ -250,11 +250,6 @@ get_stack = get_dynamic state_stack
 
 -- * warp
 
-real_to_score :: RealTime -> Deriver ScoreTime
-real_to_score pos = do
-    warp <- get_warp
-    return $ Score.unwarp_pos warp pos
-
 in_real_time :: Deriver a -> Deriver a
 in_real_time = with_warp (const Score.id_warp)
 
@@ -267,10 +262,10 @@ get_warp = get_dynamic state_warp
 -- ** time and duration
 
 -- | Times are types that can be converted to RealTime and ScoreTime.
-class Time t where
-    real :: t -> Deriver RealTime
-    score :: t -> Deriver ScoreTime
-    to_duration :: t -> BaseTypes.Duration
+class Time a where
+    real :: a -> Deriver RealTime
+    score :: a -> Deriver ScoreTime
+    to_duration :: a -> BaseTypes.Duration
 
 instance Time ScoreTime where
     real = score_to_real

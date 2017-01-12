@@ -47,6 +47,7 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
+    , EventSerial
     , Dynamic(..), Inversion(..), initial_dynamic, strip_dynamic
     , initial_controls, default_dynamic
 
@@ -112,7 +113,7 @@ module Derive.Deriver.Monad (
     , ControlDamage(..)
 
     -- * util
-    , score_to_real
+    , score_to_real, real_to_score
 
     -- * scale
     -- $scale_doc
@@ -1611,7 +1612,12 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets (state_warp . state_dynamic)
-    return (Score.warp_pos warp pos)
+    return $ Score.warp_pos warp pos
+
+real_to_score :: RealTime -> Deriver ScoreTime
+real_to_score pos = do
+    warp <- gets (state_warp . state_dynamic)
+    return $ Score.unwarp_pos warp pos
 
 
 -- * scale
