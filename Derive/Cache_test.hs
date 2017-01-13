@@ -44,7 +44,7 @@ test_invalidate_damaged = do
             (Set.fromList (map UiTest.bid blocks))
         empty = Derive.CachedEvents (Derive.CallType mempty Stream.empty)
         mkcache stack = Derive.Cache $
-            Map.singleton (Derive.CacheKey stack 0) (Derive.Cached empty)
+            Map.singleton (Derive.CacheKey stack) (Derive.Cached empty)
     let extract (key, cached) = (Derive.key_stack key,) $ case cached of
             Derive.Invalid -> False
             _ -> True

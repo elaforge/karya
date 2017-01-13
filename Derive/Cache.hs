@@ -115,9 +115,7 @@ caching_deriver typ range call = do
     let cdamage = Derive.state_control_damage (Derive.state_dynamic st)
         sdamage = Derive.state_score_damage (Derive.state_constant st)
         stack = Derive.state_stack (Derive.state_dynamic st)
-        serial = Derive.state_event_serial (Derive.state_threaded st)
-        key = Derive.CacheKey { key_stack = stack, key_serial = serial }
-    generate stack $ find_generator_cache typ key range
+    generate stack $ find_generator_cache typ (Derive.CacheKey stack) range
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
@@ -129,11 +127,10 @@ caching_deriver typ range call = do
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
         Log.write $ cache_miss_msg reason
-        serial <- Derive.gets $
-            Derive.state_event_serial . Derive.state_threaded
-        let key = Derive.CacheKey { key_stack = stack, key_serial = serial }
-        Internal.merge_collect $
-            mempty { Derive.collect_cache = make_cache key collect result }
+        Internal.merge_collect $ mempty
+            { Derive.collect_cache =
+                make_cache (Derive.CacheKey stack) collect result
+            }
         return result
 
     -- To get the deps of just the deriver below me, I have to clear out
@@ -283,9 +280,8 @@ cache_miss_reason = Log.lookup_text cache_miss
 -- | Format the cache in a hopefully readable way.
 pretty_cache :: Derive.Cache -> Text
 pretty_cache (Derive.Cache cache) = Text.unlines $ concat
-    [ showt serial <> ", " <> Stack.pretty_ui_ stack <> ": "
-        : map ("    "<>) (fmt cached) ++ [""]
-    | (Derive.CacheKey stack serial, cached) <- Map.toList cache
+    [ Stack.pretty_ui_ stack <> ": " : map ("    "<>) (fmt cached) ++ [""]
+    | (Derive.CacheKey stack, cached) <- Map.toList cache
     ]
     where
     fmt Derive.Invalid = ["Invalid"]

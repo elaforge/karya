@@ -9,7 +9,7 @@ module Derive.Stack (
     , block_of, track_of, region_of, call_of
     , block_track_of, block_track_region_of
     , match
-    , Frame(..)
+    , Frame(..), Serial
     , format_ui, pretty_ui, pretty_ui_, pretty_ui_inner
     , log_ui_frame
 
@@ -163,8 +163,15 @@ data Frame =
     | Track !TrackId
     | Region !TrackTime !TrackTime
     | Call !Text
-    | Serial !Int
+    | Serial !Serial
     deriving (Eq, Ord, Read, Show)
+
+-- | The 'Stack' is used as a unique key for a unique call of a generator.
+-- For instance, the cache uses it to cache generator output, and the random
+-- mechanism uses it to permute 'Derive.EnvKey.seed'.  Since a single track
+-- event may call multiple generators internally, each one is given a unique
+-- serial number.
+type Serial = Int
 
 instance DeepSeq.NFData Frame where
     rnf f = f `seq` ()

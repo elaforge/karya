@@ -66,11 +66,12 @@ test_basic = do
     equal logs []
     where
     mkstack (s, e) = Stack.from_outermost
-        [ block_call UiTest.default_block_id
+        [ block_call UiTest.default_block_id, Stack.Serial 0
         , Stack.Block UiTest.default_block_id
         , Stack.Track (UiTest.mk_tid 1)
         -- track title and event for note track
-        , Stack.Call "note-track", Stack.Region s e, Stack.Call "note"
+        , Stack.Call "note-track", Stack.Region s e
+        , Stack.Call "note", Stack.Serial 0
         , Stack.Track (UiTest.mk_tid 2)
         , Stack.Track (UiTest.mk_tid 3)
         -- t1 shows up again inverted
@@ -146,12 +147,16 @@ test_stack = do
         , ["test/b0 test/b0.t1 1-2", "test/sub test/sub.t1 1-2"]
         ]
 
-    let b0 s e = [block_call "b0", block "b0", track "b0" 1, call "note-track",
-            Stack.Region s e]
-        sub s e = [block_call "sub", block "sub", track "sub" 1,
-            call "note-track", Stack.Region s e, call "note"]
+    let b0 s e =
+            [ block_call "b0", Stack.Serial 0, block "b0", track "b0" 1
+            , call "note-track", Stack.Region s e
+            ]
+        sub s e =
+            [ block_call "sub", Stack.Serial 0, block "sub", track "sub" 1
+            , call "note-track", Stack.Region s e, call "note", Stack.Serial 0
+            ]
     equal stacks $ map Stack.from_outermost
-        [ b0 0 1 ++ [Stack.Call "note"]
+        [ b0 0 1 ++ [Stack.Call "note", Stack.Serial 0]
         , b0 1 2 ++ sub 0 1
         , b0 1 2 ++ sub 1 2
         ]

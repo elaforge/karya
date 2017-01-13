@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.NoteTransformer_test where
+import qualified Data.Map as Map
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
@@ -80,36 +81,28 @@ test_multiple = do
         ([(0, "i1"), (0, "i2")], [])
 
 test_track_warps = do
-    let run = extract . DeriveTest.derive_blocks
-        extract = map e_track_warp . Derive.r_track_warps
-        e_track_warp tw =
-            (TrackWarp.tw_block tw, TrackWarp.tw_start tw, TrackWarp.tw_end tw)
-    let blocks notes =
+    let run notes = extract $ DeriveTest.derive_blocks
             [ ("top", [(">", notes)])
             , ("sub=ruler", UiTest.regular_notes 4)
             ]
+        extract = map e_track_warp . Derive.r_track_warps
+        e_track_warp tw =
+            (TrackWarp.tw_block tw, TrackWarp.tw_start tw, TrackWarp.tw_end tw)
         top = UiTest.bid "top"
         sub = UiTest.bid "sub"
 
-    equal (run (blocks [(0, 4, "sub")]))
-        [(sub, 0, 4), (top, 0, 4)]
-    equal (run (blocks [(0, 2, "clip | sub")]))
-        [(sub, 0, 2), (top, 0, 2)]
-    equal (run (blocks [(1, 2, "clip | sub")]))
-        [(sub, 1, 3), (top, 0, 3)]
-    equal (run (blocks [(0, 2, "clip | sub"), (4, 2, "clip | sub")]))
+    equal (run [(0, 4, "sub")]) [(sub, 0, 4), (top, 0, 4)]
+    equal (run [(0, 2, "clip | sub")]) [(sub, 0, 2), (top, 0, 2)]
+    equal (run [(1, 2, "clip | sub")]) [(sub, 1, 3), (top, 0, 3)]
+    equal (run [(0, 2, "clip | sub"), (4, 2, "clip | sub")])
         [(sub, 0, 2), (sub, 4, 6), (top, 0, 6)]
 
-    equal (run (blocks [(0, 2, "Clip | sub")]))
-        [(sub, 0, 2), (top, 0, 2)]
-    equal (run (blocks [(1, 2, "Clip | sub")]))
-        [(sub, 1, 3), (top, 0, 3)]
+    equal (run [(0, 2, "Clip | sub")]) [(sub, 0, 2), (top, 0, 2)]
+    equal (run [(1, 2, "Clip | sub")]) [(sub, 1, 3), (top, 0, 3)]
 
-    equal (run (blocks [(0, 7, "loop | sub")]))
-        [(sub, 0, 4), (sub, 4, 7), (top, 0, 7)]
-    equal (run (blocks [(2, 4, "tile | sub")]))
-        [(sub, 2, 4), (sub, 4, 6), (top, 0, 6)]
-    equal (run (blocks [(2, 4, "repeat 2 | sub")]))
+    equal (run [(0, 7, "loop | sub")]) [(sub, 0, 4), (sub, 4, 7), (top, 0, 7)]
+    equal (run [(2, 4, "tile | sub")]) [(sub, 2, 4), (sub, 4, 6), (top, 0, 6)]
+    equal (run [(2, 4, "repeat 2 | sub")])
         [(sub, 2, 4), (sub, 4, 6), (top, 0, 6)]
 
 test_clip = do

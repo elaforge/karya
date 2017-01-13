@@ -3,11 +3,29 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Use an automatic way to add Internal.with_stack_serial.  I could probably
+  - Legong scale umbang and isep is too close.
+  * Use an automatic way to add Internal.with_stack_serial.  I could probably
     use Derive.state_event_serial, and then use that to get rid of
     State.key_serial and make random seed no longer use it directly.
-  - Replace Deriver.Internal.eval_ui caller arg with CallStack.Stack
-  - Put Stack.Serial in Stack.UiFrame.
+    . Manually:
+      . block (bid "test/top"), (bid "test/top"), (tid "test/top.t1")
+        , note-track, 0t--4t, repeat, 0, block (bid "test/sub")
+        , (bid "test/sub")
+      . block (bid "test/top"), (bid "test/top"), (tid "test/top.t1")
+        , note-track, 0t--4t, repeat, 1, block (bid "test/sub")
+        , (bid "test/sub")
+    . Put in generator call:
+      . block (bid "test/top"), 0, (bid "test/top"), (tid "test/top.t1")
+        , note-track, 0t--4t, repeat, block (bid "test/sub"), 0
+        , (bid "test/sub")
+      . block (bid "test/top"), 0, (bid "test/top"), (tid "test/top.t1")
+        , note-track, 0t--4t, repeat, block (bid "test/sub"), 1
+        , (bid "test/sub")
+    . The serial is reset on each track event.  If the event calls generators,
+      each one will get a unique serial number.
+  / Replace Deriver.Internal.eval_ui caller arg with CallStack.Stack
+    . Actually I can only get filename and line number.
+  / Put Stack.Serial in Stack.UiFrame.
   * Make new block from template should copy the merged flags.
   * Block calls via a macro don't get block deps and track warps.
     . The derived blocks don't get a playback cursor.  More seriously, they
@@ -36,72 +54,6 @@ UNSORTED
     . How can I randomize the transition thresholds?  Maybe as easy as
       wirama a b = t-alt-c $a (rnd 1/9 1/7) $b
   - When I expand a collapsed track it doesn't get the track signal at first.
-  - Reduce memory used by REPL.
-    . About 200mb.
-    Try -fignore-interface-pragmas
-      . Now: without: Bytes 150308240 Bytes 150326920
-      . From ghci: 210mb vs. 1552mb
-      . But from REPL seems to make no difference.
-    . 200mb for an empty score seems excessive.  Where does it go?
-      . With inst db: 197, without sysex: 190, without vsl: 187.4
-      . Without repl: 12mb
-      . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
-      . Loaded modules:
-        [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
-        [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs, interpreted
-        . with verbosity=2:
-          . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
-          . log: Ready for upsweep
-            [NONREC
-                  ModSummary {
-              { ... imports of every module }
-          . compile: input file ./Ui/ScoreTime.hs
-            *** Checking old interface for Ui.ScoreTime:
-            [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs, build/opt/obj/Ui/ScoreTime.hs.o )
-            *** Deleting temp files:
-            Warning: deleting non-existent /var/folders/6j/c20yyq9x51l0zncxstg1n4n4000_0_/T/ghc13456_0/ghc_62.hs.o
-          . bypecode compile for last two modules
-    . 'du -hc build/opt/**/*.hs.o | tail -1' shows 55mb for object code,
-      and 19mb for .hi.  I'd think object code would be loaded directly with
-      little overhead, but that means .hi code expands by (190 - 55) / 19 = 7x
-      expansion, which seems like a lot.
-    . Also the memory measurements are haskell heap, which might not include
-      loaded object files.
-    . However, it's also loading .hi files for external packages too, though
-      I'm not sure how much.  The external package code is shared libraries,
-      which is shared with the app (and not in the haskell heap anyway).
-    . Use dtrace to figure out exactly what the GHC API is loading and when.
-    - I should be able to share object code by linking everything as a shared
-      library... that might save 55mb at least?
-
-  - Allocation when idle: about 300kb/sec
-    . What triggers this?  Nothing, it's basically always happening.
-      No, the allocation is always happening, but usually it doesn't get
-      retained.
-    ? Who is running?
-      . Threads:
-        / main - Ui.event_loop - should be blocked in Fl::wait,
-          though it comes back on every cursor move.  But still allocates even
-          when it doesn't have focus.
-        . responder - Respond.responder - Should be blocked in STM.atomically
-          block.
-        / Midi.CoreMidi.initialize forkOS - goes into CFRunLoopRun
-        / interpreter
-        / Responder accept repl socket
-        . Cmd.Performance: eval performance
-        . Cmd.PlayC.play - updates the playback
-        . Perform.Midi.Play render midi
-      . Could it be EKG?
-    . It stops during play.
-    . Try disabling ekg and use LDebug.memory and see if it's still there.
-    . It still grows without ekg.  Well, the second time it seems like it
-      moves but doesn't grow.
-    . Is there some way to instrument allocation so I can see which thread is
-      doing it?
-    . Actually it seems like ghci does it all by itself.  So it's either
-      inherent to the GHC API or ghc runtime in general.
-    . Does it grow with the repl off?  Yes, so apparently not the repl.
-
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
@@ -121,8 +73,6 @@ UNSORTED
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4
-  - shakefile: I can turn off Synth, but haddock still wants to build for it
-    also tests probably
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
@@ -373,6 +323,9 @@ Synth: Im:
     . hackage accelerate
 
 shakefile: build:
+  - Make it possible to build with minimal dependencies.
+    . I can turn off Synth, but haddock still wants to build for it.
+      Also tests probably.
   - use new system calls and logging levels
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
@@ -722,7 +675,72 @@ cleanup:
       amount of work as clipping.  Also, just reading events allocates.
 
 performance:
-  - input lag, debug with Trace.traceEventIO
+  - Reduce memory used by REPL.
+    . About 200mb.
+    Try -fignore-interface-pragmas
+      . From ghci: 210mb without vs. 1552mb with
+      . But from REPL seems to make no difference.
+      . Actually, I can't reproduce this now.
+    . 200mb for an empty score seems excessive.  Where does it go?
+      . With inst db: 197, without sysex: 190, without vsl: 187.4
+      . Without repl: 12mb
+      . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
+      . Loaded modules:
+        [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
+        [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs,interpreted
+        . with verbosity=2:
+        . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
+        . log: Ready for upsweep
+          [NONREC
+                ModSummary {
+            { ... imports of every module }
+        . compile: input file ./Ui/ScoreTime.hs
+          *** Checking old interface for Ui.ScoreTime:
+          [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs,
+              build/opt/obj/Ui/ScoreTime.hs.o )
+          *** Deleting temp files:
+          Warning: deleting non-existent /var/folders/6j/.../ghc_62.hs.o
+          . bypecode compile for last two modules
+    . 'du -hc build/opt/**/*.hs.o | tail -1' shows 55mb for object code,
+      and 19mb for .hi.  I'd think object code would be loaded directly with
+      little overhead, but that means .hi code expands by (190 - 55) / 19 = 7x
+      expansion, which seems like a lot.
+    . Also the memory measurements are haskell heap, which might not include
+      loaded object files.
+    . However, it's also loading .hi files for external packages too, though
+      I'm not sure how much.  The external package code is shared libraries,
+      which is shared with the app (and not in the haskell heap anyway).
+    . Use dtrace to figure out exactly what the GHC API is loading and when.
+    - I should be able to share object code by linking everything as a shared
+      library... that might save 55mb at least?
+  - Allocation when idle: about 300kb/sec
+    . What triggers this?  Nothing, it's basically always happening.
+      No, the allocation is always happening, but usually it doesn't get
+      retained.
+    ? Who is running?
+      . Threads:
+        / main - Ui.event_loop - should be blocked in Fl::wait,
+          though it comes back on every cursor move.  But still allocates even
+          when it doesn't have focus.
+        . responder - Respond.responder - Should be blocked in STM.atomically
+          block.
+        / Midi.CoreMidi.initialize forkOS - goes into CFRunLoopRun
+        / interpreter
+        / Responder accept repl socket
+        . Cmd.Performance: eval performance
+        . Cmd.PlayC.play - updates the playback
+        . Perform.Midi.Play render midi
+      . Could it be EKG?
+    . It stops during play.
+    . Try disabling ekg and use LDebug.memory and see if it's still there.
+    . It still grows without ekg.  Well, the second time it seems like it
+      moves but doesn't grow.
+    . Is there some way to instrument allocation so I can see which thread is
+      doing it?
+    . Actually it seems like ghci does it all by itself.  So it's either
+      inherent to the GHC API or ghc runtime in general.
+    . Does it grow with the repl off?  Yes, so apparently not the repl.
+  - Control input lag, debug with Trace.traceEventIO
     . http://www.yesodweb.com/blog/2012/10/future-work-warp
     / Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
       disabling a track with 'D' is laggy.
@@ -739,7 +757,6 @@ performance:
         by using ghc-events to process the eventlog.
     - GHC's +RTS -v flag is documented but doesn't exist.
       It only exists when -debug, but this isn't documented.
-    . Moving the selection gets really laggy on save/transcribe/bali/gabor
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - experiment with GC flags

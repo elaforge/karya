@@ -254,10 +254,8 @@ c_repeat = Derive.transformer Module.prelude "repeat" mempty
 -- | Repeat the deriver at the given start times.
 repeat_at :: [ScoreTime] -> ScoreTime -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-repeat_at starts dur deriver = mconcat
-    [ Derive.place s dur (Internal.with_stack_serial i deriver)
-    | (i, s) <- zip [0..] starts
-    ]
+repeat_at starts dur deriver =
+    mconcat [Derive.place start dur deriver | start <- starts]
 
 trim_events :: Maybe RealTime -> Maybe RealTime
     -> Derive.NoteDeriver -> Derive.NoteDeriver

@@ -405,7 +405,7 @@ get_control_function_dynamic = do
     return $ convert_dynamic ruler (state_dynamic state)
         (state_event_serial (state_threaded state))
 
-convert_dynamic :: Ruler.Marklists -> Dynamic -> Int -- ^ 'state_event_serial'
+convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
     -> BaseTypes.Dynamic
 convert_dynamic ruler dyn serial = BaseTypes.Dynamic
     { dyn_controls = state_controls dyn

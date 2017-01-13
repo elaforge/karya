@@ -47,7 +47,6 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
-    , EventSerial
     , Dynamic(..), Inversion(..), initial_dynamic, strip_dynamic
     , initial_controls, default_dynamic
 
@@ -388,17 +387,12 @@ data Threaded = Threaded {
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
     state_prev_val :: !(Map (BlockId, TrackId) Tagged)
-    -- | This is used with 'Controls.seed' for randomization.  It's reset on
-    -- the evaluation of each uninverted track event, and incremented after
-    -- every Score.Event is emitted.  This way, multiple score events emitted
-    -- by a single UI event (and thus likely all having the same 'Stack.Stack')
-    -- can all be randomized uniquely.  See NOTE [event-serial] for history.
-    --
-    -- EventSerial is also in the 'CacheKey' for reasons described there.
-    , state_event_serial :: !EventSerial
+    -- | This is used for 'Stack.Serial' to ensure a unique stack for multiple
+    -- generator calls within a single track event.  It's reset on the
+    -- evaluation of each uninverted track event, and incremented after
+    -- every Score.Event is emitted.  See NOTE [event-serial] for history.
+    , state_event_serial :: !Stack.Serial
     } deriving (Show)
-
-type EventSerial = Int
 
 initial_threaded :: Threaded
 initial_threaded = Threaded mempty 0
@@ -1485,22 +1479,11 @@ cache_size (Cache c) = Map.size c
     The first approximation is the stack, which is a proxy for the things that
     are likely to affect derivation.  Different calls in the stack are likely
     to result in a different environment, or a different 'Stack.Region' likely
-    means a different warp.  However, the stack is the same during the
-    evaluation of a single event, so if one event calls a block multiple times,
-    I need something else to distinguish them.  'EventSerial' is incremented
-    on each block call (in addition to each event), so it should make each
-    block call unique.
+    means a different warp.  'Stack.Serial' attempts to ensure that multiple
+    generators within a single event also have unique stacks.
 -}
-data CacheKey = CacheKey {
-    key_stack :: !Stack.Stack
-    , key_serial :: !EventSerial
-    } deriving (Eq, Ord, Show)
-
-instance DeepSeq.NFData CacheKey where
-    rnf (CacheKey stack _) = rnf stack
-
-instance Pretty.Pretty CacheKey where
-    format (CacheKey stack serial) = Pretty.format (stack, serial)
+newtype CacheKey = CacheKey { key_stack :: Stack.Stack }
+    deriving (Eq, Ord, Show, DeepSeq.NFData, Pretty.Pretty)
 
 -- | When cache entries are invalidated by ScoreDamage, a marker is left in
 -- their place.  This is just for a nicer log msg that can tell the difference

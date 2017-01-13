@@ -111,7 +111,13 @@ apply_generator ctx call args = do
             dur <- Derive.gfunc_real_duration (Derive.call_func call) passed
             set_real_duration dur
             return Stream.empty
-        _ -> Derive.gfunc_f (Derive.call_func call) passed
+        _ -> do
+            -- Ensure a unique serial number for each generator call, as
+            -- documneted in 'Stack.Serial'.
+            serial <- Derive.gets $
+                Derive.state_event_serial . Derive.state_threaded
+            Internal.with_stack_serial serial $
+                Derive.gfunc_f (Derive.call_func call) passed
 
 -- | See 'Derive.CallDuration' for details.
 set_score_duration :: Derive.CallDuration ScoreTime -> Derive.Deriver ()
