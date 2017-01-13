@@ -94,12 +94,14 @@ query_cmd socket cmd = do
         Right response -> raw $ "unexpected response: " <> showt response
         Left exc -> raw $ "exception: " <> showt exc
 
+-- | Ask for the current save filename.  Nothing for an error, and Just Nothing
+-- for no save file.
 query_save_file :: Network.PortID -> IO (Maybe (Maybe FilePath))
 query_save_file socket = do
     response <- query socket QSaveFile
     case response of
         Right (RSaveFile fname) -> return (Just fname)
-        Left exc | IO.Error.isDoesNotExistError exc -> return (Just Nothing)
+        Left exc | IO.Error.isDoesNotExistError exc -> return Nothing
         _ -> do
             Log.error $ "unexpected response to QSaveFile: " <> showt response
             return Nothing

@@ -91,9 +91,6 @@ main = ReplProtocol.initialize $ do
     liftIO $ putStrLn "^D to quit"
     repl socket $ Haskeline.setComplete (complete socket) initial_settings
 
-data SaveFileChanged = SaveFileChanged FilePath deriving (Show)
-instance Exception.Exception SaveFileChanged
-
 repl :: Network.PortID -> Haskeline.Settings IO -> IO ()
 repl socket settings = Exception.mask (loop settings)
     where
@@ -102,15 +99,16 @@ repl socket settings = Exception.mask (loop settings)
                 putStrLn "interrupted"
                 return Continue
         maybe_save_fname <- ReplProtocol.query_save_file socket
-        let settings = case maybe_save_fname of
-                Nothing -> old_settings
-                Just fname -> old_settings
+        let (connection_error, settings) = case maybe_save_fname of
+                Nothing -> (True, old_settings)
+                Just fname -> (,) False $ old_settings
                     { Haskeline.historyFile =
                         Just $ fromMaybe "" fname <> history_suffix
                     }
         status <- Exception.handle catch $ restore $
-            Haskeline.runInputT settings $ Haskeline.withInterrupt
-                (read_eval_print socket (Haskeline.historyFile settings))
+            Haskeline.runInputT settings $ Haskeline.withInterrupt $
+            read_eval_print socket connection_error
+                (Haskeline.historyFile settings)
         case status of
             Continue -> loop settings restore
             Command cmd -> do
@@ -123,8 +121,9 @@ repl socket settings = Exception.mask (loop settings)
                         loop settings restore
                     Quit -> return ()
             Quit -> return ()
-    read_eval_print socket history =
-        maybe (return Quit) (liftIO . eval socket history) =<< get_input history
+    read_eval_print socket connection_error history =
+        maybe (return Quit) (liftIO . eval socket history)
+            =<< get_input connection_error history
 
 eval :: Network.PortID -> Maybe FilePath -> Text -> IO Status
 eval socket maybe_history expr
@@ -166,9 +165,10 @@ print_logs (ReplProtocol.CmdResult val logs_) = do
         putChar '\n'
     return val
 
-get_input :: Maybe FilePath -> Input (Maybe Text)
-get_input history =
-    fmap (Text.strip . txt) <$> Haskeline.getInputLine (prompt history)
+get_input :: Bool -> Maybe FilePath -> Input (Maybe Text)
+get_input connection_error history =
+    fmap (Text.strip . txt) <$>
+        Haskeline.getInputLine (prompt connection_error history)
 
 data Status = Continue
     -- | Skip the next prompt and send this as a QCommand.
@@ -177,19 +177,25 @@ data Status = Continue
     | Quit deriving (Show)
 
 -- | Colorize the prompt to make it stand out.
-prompt :: Maybe FilePath -> String
-prompt maybe_save = save ++ cyan_bg ++ "入" ++ plain_bg ++ " "
+prompt :: Bool -> Maybe FilePath -> String
+prompt connection_error maybe_save =
+    mconcat [save,  color_bg,  stx,  "入",  plain_bg,  stx,  " "]
     where
+    color_bg = if connection_error then red_bg else cyan_bg
     save = maybe "" (fst . Seq.drop_suffix ".repl" . FilePath.takeFileName)
         maybe_save
+    -- The trailing \STX tells haskeline this is a control sequence, from
+    -- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt
+    stx = "\STX"
 
--- The trailing \STX tells haskeline this is a control sequence, from
--- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt
 cyan_bg :: String
-cyan_bg = "\ESC[46m\STX"
+cyan_bg = "\ESC[46m"
+
+red_bg :: String
+red_bg = "\ESC[41m"
 
 plain_bg :: String
-plain_bg = "\ESC[39;49m\STX"
+plain_bg = "\ESC[39;49m"
 
 
 -- * editor

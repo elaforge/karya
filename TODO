@@ -61,8 +61,19 @@ UNSORTED
             *** Deleting temp files:
             Warning: deleting non-existent /var/folders/6j/c20yyq9x51l0zncxstg1n4n4000_0_/T/ghc13456_0/ghc_62.hs.o
           . bypecode compile for last two modules
-      . Does it grow with the repl off?
-        . Yes, so it's not the repl.
+    . 'du -hc build/opt/**/*.hs.o | tail -1' shows 55mb for object code,
+      and 19mb for .hi.  I'd think object code would be loaded directly with
+      little overhead, but that means .hi code expands by (190 - 55) / 19 = 7x
+      expansion, which seems like a lot.
+    . Also the memory measurements are haskell heap, which might not include
+      loaded object files.
+    . However, it's also loading .hi files for external packages too, though
+      I'm not sure how much.  The external package code is shared libraries,
+      which is shared with the app (and not in the haskell heap anyway).
+    . Use dtrace to figure out exactly what the GHC API is loading and when.
+    - I should be able to share object code by linking everything as a shared
+      library... that might save 55mb at least?
+
   - Allocation when idle: about 300kb/sec
     . What triggers this?  Nothing, it's basically always happening.
       No, the allocation is always happening, but usually it doesn't get
@@ -89,6 +100,7 @@ UNSORTED
       doing it?
     . Actually it seems like ghci does it all by itself.  So it's either
       inherent to the GHC API or ghc runtime in general.
+    . Does it grow with the repl off?  Yes, so apparently not the repl.
 
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
