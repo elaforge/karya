@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Util.TextUtil where
 import Control.Arrow (first)
 import Control.Monad (liftM)
@@ -31,6 +32,10 @@ class Textlike a where
 instance Textlike Text where
     toText = id
     fromText = id
+
+instance Textlike String where
+    toText = Text.pack
+    fromText = Text.unpack
 
 -- | Replace substrings simultaneously.
 replaceMany :: [(Text, Text)] -> Text -> Text

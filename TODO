@@ -3,6 +3,23 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Scales from McPhee
+    . I don't want to have to make up extra pitches, so I need an easy way to
+      say which pitches are available.
+    . That affects layout?  Or I could keep layout the same and just make
+      input_to_call fail, and adjust the FSemis accordingly.
+    . I should keep Pitch.Pitch the same, then transcription between scales
+      works in a more predictable way, e.g. ding is always 0.
+    * Maybe I should have separate scales e.g. *saih-pitu, *selisir, *wayang,
+      *angklung
+      That way, all *legong is implicitly saih pitu.  True selisir tunings
+      have to go in a separate *selisir scale.
+    . But I'm still likely to want to use saih pitu as selisir.
+  - It would be nice to have a no-keys version of BaliScales so I don't have
+    to mess with a fake key in *selisir and *wayang.
+    . I guess it's not a big deal, but at least it means it ignores key.
+  - Rename BailScales.Saih to Laras?
+  - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.
   * Use an automatic way to add Internal.with_stack_serial.  I could probably
     use Derive.state_event_serial, and then use that to get rid of

@@ -22,7 +22,7 @@
 -}
 module Derive.Scale.Theory (
     -- * constants
-    piano_intervals, piano_layout
+    piano_intervals, piano_layout, diatonic_layout
     -- * NoteNumber diatonic transposition
     , diatonic_to_chromatic
     -- * symbolic transposition
@@ -68,6 +68,9 @@ piano_intervals = [2, 2, 1, 2, 2, 2, 1]
 -- | The layout of keys on everyone's favorite boxed harp.
 piano_layout :: Layout
 piano_layout = layout piano_intervals
+
+diatonic_layout :: Pitch.PitchClass -> Layout
+diatonic_layout per_oct = layout $ replicate per_oct 1
 
 
 -- * NoteNumber diatonic transposition

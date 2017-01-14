@@ -22,7 +22,6 @@ import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
@@ -34,56 +33,49 @@ import Global
 
 scales :: [Scale.Make]
 scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
-    [ BaliScales.make_scale scale_id complete_scale
+    [ BaliScales.make_scale scale_id
+        (BaliScales.scale_map config BaliScales.ioeua_absolute Nothing)
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-pemade" pemade
+        BaliScales.make_scale "wayang-pemade" (inst_scale_map pemade)
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-kantilan" kantilan
+        BaliScales.make_scale "wayang-kantilan" (inst_scale_map kantilan)
     ]
+    where
+    inst_scale_map = BaliScales.instrument_scale_map config
 
-complete_scale :: BaliScales.ScaleMap
-complete_scale =
-    BaliScales.scale_map layout BaliScales.ioeua_absolute base_oct all_keys
-        default_key saihs default_saih Nothing
+pemade :: BaliScales.Instrument
+pemade = instrument 4 (Pitch.pitch 3 O) (Pitch.pitch 5 I)
 
-pemade :: BaliScales.ScaleMap
-pemade = inst_scale_map 4 pemade_low pemade_high
+kantilan :: BaliScales.Instrument
+kantilan = instrument 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
 
-kantilan :: BaliScales.ScaleMap
-kantilan = inst_scale_map 5 kantilan_low kantilan_high
+instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
+    -> BaliScales.Instrument
+instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
 
-inst_scale_map :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
-    -> BaliScales.ScaleMap
-inst_scale_map =
-    BaliScales.instrument_scale_map
-        BaliScales.ioeua BaliScales.arrow_octaves
-        layout all_keys default_key saihs default_saih base_oct
+config :: BaliScales.Config
+config = BaliScales.Config
+    { config_layout = layout
+    , config_base_octave = base_oct
+    , config_keys = mempty
+    , config_default_key = default_key
+    , config_saihs = saihs
+    , config_default_saih = default_saih
+    }
+    where
+    layout = Theory.diatonic_layout 5
+    default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
 -- | Start octave for the extended scale.
 base_oct :: Pitch.Octave
 base_oct = 1
 
-pemade_low, pemade_high :: Pitch.Pitch
-(pemade_low, pemade_high) = (Pitch.pitch 3 O, Pitch.pitch 5 I)
-
-kantilan_low, kantilan_high :: Pitch.Pitch
-(kantilan_low, kantilan_high) = (Pitch.pitch 4 O, Pitch.pitch 6 I)
-
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
-
-layout :: Theory.Layout
-layout = Theory.layout [1, 1, 1, 1, 1]
-
-all_keys :: ChromaticScales.Keys
-all_keys = mempty
-
-default_key :: Theory.Key
-default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
 
 -- * saihs
 
@@ -124,7 +116,7 @@ saih_sawan = BaliScales.saih extend
 -- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend = BaliScales.extend_scale 5 (Pitch.pitch 1 I) (Pitch.pitch 8 I)
-    pemade_low
+    (BaliScales.inst_low pemade)
 
 undo_extend :: [a] -> [a]
 undo_extend = take 15 . drop (1 + 5 + 5)

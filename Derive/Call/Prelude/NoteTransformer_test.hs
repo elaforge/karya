@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.NoteTransformer_test where
-import qualified Data.Map as Map
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive

@@ -21,6 +21,7 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Octa as Octa
 import qualified Derive.Scale.Raga as Raga
 import qualified Derive.Scale.Ratio as Ratio
+import qualified Derive.Scale.Selisir as Selisir
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Scale.WendyCarlos as WendyCarlos
@@ -56,6 +57,7 @@ shadowed :: [Pitch.ScaleId]
     , Octa.scales
     , Raga.scales
     , Ratio.scales
+    , Selisir.scales
     , Twelve.scales
     , Wayang.scales
     , WendyCarlos.scales

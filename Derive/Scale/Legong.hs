@@ -2,13 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Saih pelegongan.
-
-    Tuning from my gender rambat.  I extend the scale to cover the complete
-    gong range.  I start at octave 3 so that the octaves more or less line
-    up with 12tet.
-
-    TODO: add pengisep and pengumbang
+{- | Saih pitu scales.
 
     @
     3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
@@ -32,15 +26,16 @@ module Derive.Scale.Legong where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
@@ -49,77 +44,86 @@ import Global
 
 
 scales :: [Scale.Make]
-scales =
-    map (Scale.Simple . Scales.add_doc "Saih pelegongan, from my instruments.")
-    [ BaliScales.make_scale scale_id complete_scale
-    , BaliScales.make_scale "legong-b" complete_scale_balinese
+scales = make_scale_set config scale_id "Saih pelegongan, from my instruments."
+
+make_scale_set :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc -> [Scale.Make]
+make_scale_set config (Pitch.ScaleId prefix) doc =
+    map (Scale.Simple . Scales.add_doc doc)
+    [ BaliScales.make_scale (id_with "") (scale_map complete_scale)
+    , BaliScales.make_scale (id_with "b") (scale_map complete_scale_balinese)
     , Scales.add_doc "Use Javanese-style cipher notation. This can be more\
         \ convenient for saih pitu." $
         -- TODO use 4 and 7 instead of 3# and 6#.
-        BaliScales.make_scale "legong-c" cipher_scale
-    , inst_doc "pemade" $ BaliScales.make_scale "legong-pemade" pemade
-    , inst_doc "pemade" $ BaliScales.make_scale "legong-pemade-b" pemade_b
-    , inst_doc "kantilan" $ BaliScales.make_scale "legong-kantilan" kantilan
-    , inst_doc "kantilan" $ BaliScales.make_scale "legong-kantilan-b" kantilan_b
+        -- Use simple_scale like *wayang and *selesir?
+        BaliScales.make_scale (id_with "c") (scale_map cipher_scale)
+    , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade")
+        (inst_scale_map pemade)
+    , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade-b")
+        (inst_scale_map (balinese pemade))
+    , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan")
+        (inst_scale_map kantilan)
+    , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan-b")
+        (inst_scale_map (balinese kantilan))
     ]
     where
-    inst_doc name =
-        Scales.add_doc ("This is centered around the " <> name <> " range.")
+    id_with suffix = Pitch.ScaleId $ TextUtil.joinWith "-" prefix suffix
+    inst_doc name = Scales.add_doc $
+        "This is centered around the " <> name <> " range."
+    scale_map fmt = BaliScales.scale_map config fmt Nothing
+    inst_scale_map = BaliScales.instrument_scale_map config
 
-complete_scale :: BaliScales.ScaleMap
-complete_scale = scale_map (BaliScales.ioeua_relative True default_key all_keys)
-
-complete_scale_balinese :: BaliScales.ScaleMap
-complete_scale_balinese =
-    scale_map (BaliScales.digit_octave_relative BaliScales.balinese True
-        default_key all_keys)
-
-cipher_scale :: BaliScales.ScaleMap
-cipher_scale = scale_map
-    (BaliScales.cipher_relative_dotted 5 default_key all_keys)
-
-scale_map :: TheoryFormat.Format -> BaliScales.ScaleMap
-scale_map fmt =
-    BaliScales.scale_map layout fmt base_oct all_keys default_key
-        saihs default_saih Nothing
-
-jegog, calung, penyacah :: BaliScales.ScaleMap
-jegog = inst_scale_map 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
-calung = inst_scale_map 2 (Pitch.pitch 4 I) (Pitch.pitch 4 As)
-penyacah = inst_scale_map 3 (Pitch.pitch 5 0) (Pitch.pitch 5 As)
-
-pemade, pemade_b :: BaliScales.ScaleMap
-pemade = inst_scale_map 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
-pemade_b = inst_scale_map_balinese 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
-
-kantilan, kantilan_b :: BaliScales.ScaleMap
-kantilan = inst_scale_map 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
-kantilan_b = inst_scale_map_balinese 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
-
-inst_scale_map :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
-    -> BaliScales.ScaleMap
-inst_scale_map =
-    BaliScales.instrument_scale_map
-        BaliScales.ioeua BaliScales.arrow_octaves
-        layout all_keys default_key saihs default_saih base_oct
-
-inst_scale_map_balinese :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
-    -> BaliScales.ScaleMap
-inst_scale_map_balinese =
-    BaliScales.instrument_scale_map
-        BaliScales.balinese BaliScales.balinese_octaves
-        layout all_keys default_key saihs default_saih base_oct
+    complete_scale = BaliScales.ioeua_relative True
+        (BaliScales.config_default_key config) (BaliScales.config_keys config)
+    complete_scale_balinese =
+        BaliScales.digit_octave_relative BaliScales.balinese True
+            (BaliScales.config_default_key config)
+            (BaliScales.config_keys config)
+    cipher_scale = BaliScales.cipher_relative_dotted 5
+        (BaliScales.config_default_key config)
+        (BaliScales.config_keys config)
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
 
-layout :: Theory.Layout
-layout = Theory.layout [1, 1, 2, 1, 2]
+jegog, calung, penyacah :: BaliScales.Instrument
+jegog = instrument 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)
+calung = instrument 2 (Pitch.pitch 4 I) (Pitch.pitch 4 As)
+penyacah = instrument 3 (Pitch.pitch 5 0) (Pitch.pitch 5 As)
+
+pemade, kantilan :: BaliScales.Instrument
+pemade = instrument 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
+kantilan = instrument 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
+
+-- * config
+
+instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
+    -> BaliScales.Instrument
+instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
+
+balinese :: BaliScales.Instrument -> BaliScales.Instrument
+balinese inst = inst
+    { BaliScales.inst_degrees = BaliScales.balinese
+    , BaliScales.inst_relative_octaves = BaliScales.balinese_octaves
+    }
+
+config :: BaliScales.Config
+config = BaliScales.Config
+    { config_layout = layout
+    , config_base_octave = base_oct
+    , config_keys = keys
+    , config_default_key = default_key
+    , config_saihs = saihs
+    , config_default_saih = default_saih
+    }
+    where
+    layout = Theory.layout [1, 1, 2, 1, 2]
+    keys = BaliScales.make_keys layout all_keys
+    Just default_key = Map.lookup (Pitch.Key "selisir") keys
 
 -- | These are from Tenzer's kebyar book, for Semar Pegulingan.  McPhee's
 -- book has different names for gambuh, but Tenzer's book is more modern.
-all_keys :: ChromaticScales.Keys
-all_keys = BaliScales.make_keys layout $ map make_key
+all_keys :: [(Text, Pitch.Semi, [Pitch.Semi])]
+all_keys = map make_key
     [ ("selisir", [1, 2, 3, 5, 6])
     , ("slendro-gede", [2, 3, 4, 6, 7])
     , ("baro", [1, 3, 4, 5, 7])
@@ -136,9 +140,6 @@ make_key :: (Text, [Pitch.Semi]) -> (Text, Pitch.Semi, [Pitch.Semi])
 make_key (_, []) = errorStack "no semis for scale"
 make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 
-default_key :: Theory.Key
-Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
-
 ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
 ugal_range = Scale.Range (Pitch.pitch 3 O) (Pitch.pitch 5 I)
 rambat_range = Scale.Range (Pitch.pitch 3 E) (Pitch.pitch 6 I)
@@ -151,7 +152,8 @@ base_oct = 3
 
 -- * saih
 
-data Pitch = I | O | E | Es | U | A | As deriving (Eq, Enum, Show)
+data Pitch = I | O | E | Es | U | A | As
+    deriving (Eq, Ord, Enum, Show, Bounded)
 
 default_saih :: Text
 default_saih = "rambat"
@@ -159,7 +161,7 @@ default_saih = "rambat"
 saihs :: Map Text BaliScales.Saih
 saihs = Map.fromList
     [ (default_saih, saih_rambat)
-    , ("teges", saih_teges_pegulingan)
+    , ("pegulingan-teges", pegulingan_teges)
     ]
 
 saih_rambat :: BaliScales.Saih
@@ -200,10 +202,11 @@ saih_rambat = BaliScales.saih (extend 3 E)
     , (96.46,   96.46)  -- 7i, kantilan end
     ]
 
-saih_teges_pegulingan :: BaliScales.Saih
-saih_teges_pegulingan = BaliScales.saih (extend 4 U)
-    "From Teges Semar Pegulingan, via Bob Brown's 1972 recording.\
-    \ The original is saih lima, so pemero and penyerog are invented."
+-- TODO move to *selisir
+-- TODO what is the ombak?
+pegulingan_teges :: BaliScales.Saih
+pegulingan_teges = BaliScales.saih (extend 4 U)
+    "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
     $ map (\nn -> (nn, nn))
     [ 69.55 -- 4u
     , 70.88 -- 4a
@@ -221,14 +224,17 @@ extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend oct pc = BaliScales.extend_scale 7
     (Pitch.pitch base_oct I) (Pitch.pitch 7 I) (Pitch.pitch oct pc)
 
--- | I don't actually have the pemero notes on my instruments, so strip them
--- back out to get the actually recorded scale.
-strip_pemero :: [a] -> [a]
-strip_pemero = go
+-- | Strip extra notes to get back to saih lima.
+pitu_to_lima :: BaliScales.Saih -> BaliScales.Saih
+pitu_to_lima (BaliScales.Saih doc umbang isep) = BaliScales.Saih
+    { saih_doc = doc
+    , saih_umbang = strip umbang
+    , saih_isep = strip isep
+    }
     where
-    go [] = []
-    go nns = strip nns ++ go (drop 7 nns)
-    strip nns = mapMaybe (Seq.at nns) [0, 1, 2, 4, 5]
+    strip = Vector.fromList
+        . concatMap (\nns -> mapMaybe (Seq.at nns) [0, 1, 2, 4, 5])
+        . Seq.chunked 7 . Vector.toList
 
 -- * instrument integration
 

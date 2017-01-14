@@ -8,7 +8,6 @@ import qualified Data.Vector as Vector
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -33,12 +32,10 @@ test_read = do
     equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
 
 test_note_to_call = do
-    let run key ps = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks ("scale=" ++ key) $
-            UiTest.note_track [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) ps]
+    let run = ScaleTest.note_to_call "wayang" ""
         umbang = Vector.toList $ BaliScales.saih_umbang Wayang.saih_sawan
-    equal (run "wayang" ["1i"]) ([Just (head umbang)], [])
-    equal (run "wayang" ["4i"]) ([Just (umbang !! (3*5))], [])
+    equal (run ["1i"]) ([Just (head umbang)], [])
+    equal (run ["4i"]) ([Just (umbang !! (3*5))], [])
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
 read_scale scale note = (prettys *** prettys) $
@@ -53,9 +50,7 @@ scale_track scale_id pitches =
 
 
 test_input_to_note = do
-    let f scale = either pretty Pitch.note_text
-            . Scale.scale_input_to_note scale mempty
-            . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+    let f scale = ScaleTest.input_to_note scale mempty
         wayang = ScaleTest.get_scale Wayang.scales "wayang"
         wayang_pemade = ScaleTest.get_scale Wayang.scales "wayang-pemade"
         invalid = "invalid input"

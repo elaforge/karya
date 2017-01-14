@@ -53,9 +53,9 @@ patches = map (MidiInst.code #= code <> with_weak)
     , MidiInst.doc #= "Tuned to 12TET." $ patch "wayang12"
     ] ++ map (MidiInst.code #= Bali.pasang_code <> with_weak)
     [ patch "wayang"
-    , MidiInst.range (BaliScales.scale_range Wayang.pemade) $
+    , MidiInst.range (BaliScales.instrument_range Wayang.pemade) $
         patch "wayang-pemade"
-    , MidiInst.range (BaliScales.scale_range Wayang.kantilan) $
+    , MidiInst.range (BaliScales.instrument_range Wayang.kantilan) $
         patch "wayang-kantilan"
     ]
     where

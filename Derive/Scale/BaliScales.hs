@@ -66,15 +66,13 @@ data ScaleMap = ScaleMap {
     , smap_default_saih :: !Text
     }
 
-scale_map :: Theory.Layout -> TheoryFormat.Format -> Pitch.Octave
-    -- ^ The octave where the saih starts.  It should be such that
-    -- octave 4 is close to middle C.
-    -> ChromaticScales.Keys
-    -> Theory.Key -> SaihMap -> Text -> Maybe (Pitch.Semi, Pitch.Semi)
+type SaihMap = Map Text Saih
+
+scale_map :: Config -> TheoryFormat.Format -> Maybe (Pitch.Semi, Pitch.Semi)
     -- ^ If not given, use the complete range of the saih.
     -> ScaleMap
-scale_map layout fmt base_oct all_keys default_key saihs default_saih
-        maybe_range =
+scale_map (Config layout base_oct all_keys default_key saihs default_saih)
+        fmt maybe_range =
     ScaleMap
         { smap_chromatic =
             (ChromaticScales.scale_map layout fmt all_keys default_key)
@@ -92,41 +90,55 @@ scale_map layout fmt base_oct all_keys default_key saihs default_saih
     top = maybe 0 (subtract 1 . Vector.length . saih_umbang) $
         Seq.head (Map.elems saihs)
 
+data Config = Config {
+    config_layout :: !Theory.Layout
+    -- | The octave where the saih starts.  It should be such that octave 4 is
+    -- close to middle C.
+    , config_base_octave :: !Pitch.Octave
+    , config_keys :: !ChromaticScales.Keys
+    , config_default_key :: !Theory.Key
+    , config_saihs :: !SaihMap
+    , config_default_saih :: !Text
+    } deriving (Show)
+
 -- | This is a specialized version of 'scale_map' that uses base octave and
 -- low and high pitches to compute the range.
-instrument_scale_map :: TheoryFormat.Degrees -> RelativeOctaves
-    -> Theory.Layout -> ChromaticScales.Keys -> Theory.Key
-    -> SaihMap -> Text -> Pitch.Octave -> Pitch.Octave
-    -> Pitch.Pitch -> Pitch.Pitch -> ScaleMap
-instrument_scale_map degrees relative_octaves layout all_keys default_key saihs
-        default_saih base_oct center_oct low high =
-    scale_map layout fmt base_oct all_keys default_key saihs default_saih
-        (Just (to_pc low, to_pc high))
+instrument_scale_map :: Config -> Instrument -> ScaleMap
+instrument_scale_map config
+        (Instrument degrees relative_octaves center_oct low high) =
+    scale_map config fmt (Just (to_pc low, to_pc high))
     where
-    to_pc p = Pitch.subtract_pitch per_oct p (Pitch.pitch base_oct 0)
+    to_pc p = Pitch.subtract_pitch per_oct p
+        (Pitch.pitch (config_base_octave config) 0)
     fmt = relative_arrow degrees relative_octaves center_oct True
-        default_key all_keys
-    per_oct = Theory.layout_semis_per_octave layout
+        (config_default_key config) (config_keys config)
+    per_oct = Theory.layout_semis_per_octave (config_layout config)
 
-scale_range :: ScaleMap -> Scale.Range
-scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
-    where
-    (bottom, top) = ChromaticScales.smap_range $ smap_chromatic smap
-    to_pitch = Theory.semis_to_pitch_sharps
-        (ChromaticScales.smap_layout (smap_chromatic smap))
+-- | Describe an instrument-relative scale.
+data Instrument = Instrument {
+    inst_degrees :: !TheoryFormat.Degrees
+    , inst_relative_octaves :: !RelativeOctaves
+    , inst_center :: !Pitch.Octave
+    , inst_low :: !Pitch.Pitch
+    , inst_high :: !Pitch.Pitch
+    } deriving (Eq, Show)
+
+instrument_range :: Instrument -> Scale.Range
+instrument_range inst = Scale.Range (inst_low inst) (inst_high inst)
 
 -- * Saih
 
-type SaihMap = Map Text Saih
-
+-- | Describe the frequencies in a saih.  This doesn't say what the range is,
+-- since that's in the 'ScaleMap', and all saihs in one scale should have the
+-- same range.
 data Saih = Saih {
     saih_doc :: Doc.Doc
     , saih_umbang :: Vector.Vector Pitch.NoteNumber
     , saih_isep :: Vector.Vector Pitch.NoteNumber
     } deriving (Eq, Show)
 
-saih :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
-    -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
+saih :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber]) -> Doc.Doc
+    -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Saih
 saih extend doc nns = Saih
     { saih_doc = doc
     , saih_umbang = Vector.fromList (extend umbang)
@@ -137,7 +149,9 @@ saih extend doc nns = Saih
 -- | Extend a scale downwards and upwards, assuming the extended octaves
 -- are exactly 2:1.  The input should have at least an octave's worth of
 -- pitches.
-extend_scale :: Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch -> Pitch.Pitch
+extend_scale :: Pitch.PitchClass -> Pitch.Pitch -- ^ extend down to here
+    -> Pitch.Pitch -- ^ extend up to here
+    -> Pitch.Pitch -- ^ from this original starting point
     -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend_scale per_octave low high start nns =
     reverse (take to_low down) ++ nns ++ take to_high up
@@ -156,8 +170,8 @@ extend_scale per_octave low high start nns =
 
 -- * Format
 
--- | This can't use `ding` etc. because then the combining octave characters
--- don't combine.
+-- | This can't use backtick symbols because then the combining octave
+-- characters don't combine.
 balinese :: TheoryFormat.Degrees
 balinese = TheoryFormat.make_degrees ["᭦", "᭡", "᭢", "᭣", "᭤"]
 

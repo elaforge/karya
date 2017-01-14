@@ -10,7 +10,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.Legong as Legong
+import qualified Derive.Scale.Selisir as Selisir
 
 import qualified Perform.Midi.Patch as Patch
 import Global
@@ -31,12 +31,11 @@ patches =
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
     set_scale =
         (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
-        . MidiInst.default_scale Legong.scale_id
+        . MidiInst.default_scale Selisir.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
     instrument_scale =
-        Legong.instrument_scale (take 15 . drop 4 . Legong.strip_pemero)
-            Legong.saih_rambat tuning
+        Selisir.instrument_scale (take 15 . drop 4) Selisir.saih_rambat tuning
 
 attribute_map :: Patch.AttributeMap
 attribute_map = Patch.keyswitches $ map at

@@ -59,7 +59,7 @@ patches = map add_doc $
         ]
         where wrap = if wrap_octaves then Just range else Nothing
 
-    range_of = BaliScales.scale_range
+    range_of = BaliScales.instrument_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
         MidiInst.patch %= MidiInst.add_flag Patch.ConstantPitch $
