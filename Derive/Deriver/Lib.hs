@@ -362,8 +362,8 @@ delete_val :: Env.Key -> Deriver a -> Deriver a
 delete_val key = Internal.local $ \state ->
     state { state_environ = Env.delete key $ state_environ state }
 
--- | This is the Env version of with_merged_control.  It only works on
--- numeric env vals.
+-- | This is the Env version of with_merged_control.  It only works on numeric
+-- env vals.
 with_merged_numeric_val :: Merger Signal.Control -> Env.Key
     -> Signal.Y -> Deriver a -> Deriver a
 with_merged_numeric_val Set key val = with_val key val
@@ -394,14 +394,20 @@ insert_env key val state = state
         Env.insert_val key (Typecheck.to_val val) (state_environ state)
     }
 
+-- | Replace the scale's calls.
+--
+-- Previously this used 'add_priority' instead of 'replace_priority', which
+-- meant you could overlay scales and use both at the same time.  Maybe that's
+-- actually a useful feature?  In any case, I don't need it at the moment, so
+-- it seems more likely to be confusing than useful.
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
     with_val_raw EnvKey.scale (BaseTypes.scale_id_to_sym (scale_id scale))
         . with_scopes (val . pitch)
     where
-    pitch = s_generator#s_pitch %= add (scale_to_lookup scale val_to_pitch)
-    val = s_val %= add (scale_to_lookup scale id)
-    add = add_priority PrioScale
+    pitch = s_generator#s_pitch %= replace [scale_to_lookup scale val_to_pitch]
+    val = s_val %= replace [scale_to_lookup scale id]
+    replace = replace_priority PrioScale
 
 scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
 scale_to_lookup scale convert =

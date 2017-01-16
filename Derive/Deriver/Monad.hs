@@ -710,11 +710,14 @@ scope_priority = ScopePriority . Map.fromList
 lookup_priority :: CallPriority -> ScopePriority call -> [LookupCall call]
 lookup_priority prio (ScopePriority scopes) = Map.findWithDefault [] prio scopes
 
+-- | Add this call at this level of priority.  It will shadow existing calls
+-- with the same name.
 add_priority :: CallPriority -> LookupCall call -> ScopePriority call
     -> ScopePriority call
 add_priority prio call (ScopePriority scopes) =
     ScopePriority $ Map.alter (Just . maybe [call] (call:)) prio scopes
 
+-- | Replace all calls at this level of priority.
 replace_priority :: CallPriority -> [LookupCall call] -> ScopePriority call
     -> ScopePriority call
 replace_priority prio calls (ScopePriority scopes) =
