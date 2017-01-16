@@ -27,9 +27,7 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
-
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
@@ -221,18 +219,6 @@ mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.saih_pitu
     where
     make (name, (nns, doc)) =
         (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
-
--- | Strip extra notes to get back to saih lima.
-pitu_to_lima :: BaliScales.Saih -> BaliScales.Saih
-pitu_to_lima (BaliScales.Saih doc umbang isep) = BaliScales.Saih
-    { saih_doc = doc
-    , saih_umbang = strip umbang
-    , saih_isep = strip isep
-    }
-    where
-    strip = Vector.fromList
-        . concatMap (\nns -> mapMaybe (Seq.at nns) [0, 1, 2, 4, 5])
-        . Seq.chunked 7 . Vector.toList
 
 -- * instrument integration
 

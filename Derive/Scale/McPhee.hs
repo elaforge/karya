@@ -25,6 +25,7 @@ data Saih = Saih {
     , origin :: Text
     -- | 'hz' start on this note, relative to selisir.
     , base :: Bali.Pitch
+    , base_octave :: Pitch.Octave
     , hz :: [Hz]
     } deriving (Eq, Show)
 
@@ -46,14 +47,11 @@ extract low high saih = (dashes sname, (hz_to_nn low high saih, doc))
 hz_to_nn :: Pitch.Pitch -> Pitch.Pitch -> Saih -> [Pitch.NoteNumber]
 hz_to_nn low high saih =
     Bali.extend_scale (length (hz saih)) low high
-        (Pitch.pitch base_octave (base saih)) (map Pitch.hz_to_nn (hz saih))
-
--- | Saihs start at this octave.
-base_octave :: Pitch.Octave
-base_octave = 3
+        (Pitch.pitch (base_octave saih) (base saih))
+        (map Pitch.hz_to_nn (hz saih))
 
 saih :: Saih
-saih = Saih "" "" "" Bali.I []
+saih = Saih "" "" "" Bali.I 4 []
 
 -- | Music in Bali, page 42.
 --
@@ -72,15 +70,13 @@ saih_pitu =
     , s "gambuh" "tabanan"          [211, 232, 250, 280, 303, 325, 345]
     , s "gambuh" "batuan"           [202, 220, 237.5, 266, 290, 315, 330]
     ]
-    where s genre origin = Saih "" genre origin Bali.U
+    where s genre origin = Saih "" genre origin Bali.U 3
 
 -- | These start at selisir ding.
 selisir :: [Saih]
 selisir =
-    -- same as above
-    [ s "gambuh" "tabanan"  [280, 303, 325, 422, 464]
     -- "typical" selisir
-    , s "gong" "peliatan"   [280, 305, 327, 405, 435]
+    [ s "gong" "peliatan"   [280, 305, 327, 405, 435]
     , s "gong" "klungkung"  [264, 291, 322, 397, 434]
     , s "gong" "apuan"      [285, 302, 322, 410, 435]
     , s "gong" "sayan"      [275, 290, 325, 403, 427]
@@ -94,15 +90,14 @@ selisir =
     -- From "gamelan barong".
     , saih { genre = "barong", name = "demung", hz = [362, 408, 434, 562, 593] }
     ]
-    where
-    s genre origin = Saih "" genre origin Bali.I
+    where s genre origin = Saih "" genre origin Bali.I 4
 
 -- | Bebonangan seems to be an old name for baleganjur.  Dong to dang.
 bebonangan :: [Saih]
 bebonangan =
     [ s "sayan" [290, 325, 403, 427]
     ]
-    where s origin = Saih "" "baleganjur" origin Bali.O
+    where s origin = Saih "" "baleganjur" origin Bali.O 4
 
 
 -- slendro
@@ -119,7 +114,7 @@ slendro =
     , s "lod peken" [172, 200, 225, 257.5, 305]
     , s "sawan"     [167.5, 191.5, 220, 248, 290]
     ]
-    where s origin = Saih "" "gender" origin Bali.O
+    where s origin = Saih "" "gender" origin Bali.O 4
 
 -- | e u a i
 angklung :: [Saih]
@@ -134,5 +129,4 @@ angklung =
     , s "culik"     [335, 375, 445, 505]
     , s "negara"    [270, 305, 375, 445]
     ]
-    where
-    s origin = Saih "" "angklung" origin Bali.O
+    where s origin = Saih "" "angklung" origin Bali.O 4

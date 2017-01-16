@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Add McPhee scales to *wayang.
+  - Add *angklung and *baleganjur.
   - It seems like 'key' in scales is not really right.  It should be 'mode',
     and 'key' should be reserved for moving the starting point.  This would
     also be more appropriate for e.g. Balinese scales, which conflate mode
@@ -28,7 +30,7 @@ UNSORTED
       That way, all *legong is implicitly saih pitu.  True selisir tunings
       have to go in a separate *selisir scale.
     . But I'm still likely to want to use saih pitu as selisir.
-  - Move "pegulingan-teges" to Selisir.
+  * Move "pegulingan-teges" to Selisir.
   - Disallow 4e# in selisir.  And generally accidentals.
     . Validating the absolute pitch is broken for *legong, because I want to
       make sure the relative pitch is in the key's intervals.

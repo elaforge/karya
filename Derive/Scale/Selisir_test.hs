@@ -21,10 +21,13 @@ test_note_to_call = do
     let nns n = take n . from_4i True
     equal (f "rambat" ["4i", "4o", "4e", "4u"])
         (map Just $ nns 4 Selisir.saih_rambat, [])
+    -- Selisir is a true 5 note scale, and shouldn't accept pemero.
     equal (f "rambat" ["4e#"]) ([Nothing], [])
     let Just teges = Map.lookup "pegulingan-teges" Selisir.saihs
     equal (f "pegulingan-teges" ["4i", "4o", "4e", "4u", "4a", "5i"])
         (map Just $ nns 6 teges, [])
+    equal (f "gong-peliatan" ["4i", "4o"])
+        (map (Just . Pitch.hz_to_nn) [280, 305], [])
 
 test_input_to_note = do
     let input_to_note = ScaleTest.input_to_note selisir mempty

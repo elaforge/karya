@@ -6,13 +6,16 @@
 -- mode.
 module Derive.Scale.Selisir where
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 
+import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
+import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Theory as Theory
 
 import qualified Perform.Midi.Patch as Patch
@@ -44,14 +47,32 @@ base_octave :: Pitch.Octave
 base_octave = 3
 
 saihs :: Map Text BaliScales.Saih
-saihs = (Legong.pitu_to_lima <$> Legong.saihs)
-    <> Map.fromList
-        [ ("pegulingan-teges", pegulingan_teges)
-        ]
+saihs = (pitu_to_lima <$> Legong.saihs)
+    <> Map.fromList (("pegulingan-teges", pegulingan_teges) : mcphee)
+
+mcphee :: [(Text, BaliScales.Saih)]
+mcphee =
+    map (make . McPhee.extract Legong.low_pitch Legong.high_pitch)
+        McPhee.selisir
+    where
+    make (name, (nns, doc)) =
+        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
 
 -- | Exported for instruments to use.
 saih_rambat :: BaliScales.Saih
-saih_rambat = Legong.pitu_to_lima Legong.saih_rambat
+saih_rambat = pitu_to_lima Legong.saih_rambat
+
+-- | Strip extra notes to get back to saih lima.
+pitu_to_lima :: BaliScales.Saih -> BaliScales.Saih
+pitu_to_lima (BaliScales.Saih doc umbang isep) = BaliScales.Saih
+    { saih_doc = doc
+    , saih_umbang = strip umbang
+    , saih_isep = strip isep
+    }
+    where
+    strip = Vector.fromList
+        . concatMap (\nns -> mapMaybe (Seq.at nns) [0, 1, 2, 4, 5])
+        . Seq.chunked 7 . Vector.toList
 
 data Pitch = I | O | E | U | A
     deriving (Eq, Ord, Enum, Show, Bounded)
@@ -63,7 +84,6 @@ pegulingan_teges = BaliScales.saih (extend 4 U)
     $ map (\nn -> (nn, nn))
     [ 69.55 -- 4u
     , 70.88 -- 4a
-
     , 75.25 -- 5i
     , 76.90 -- 5o, kantilan begin
     , 77.94 -- 5e
