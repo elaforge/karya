@@ -9,7 +9,8 @@ UNSORTED
     and 'key' should be reserved for moving the starting point.  This would
     also be more appropriate for e.g. Balinese scales, which conflate mode
     and starting point.
-  - Actually, I think BaliScales is wrong, because it doesn't do that.
+    . Or should it?
+  * Actually, I think BaliScales is wrong, because it doesn't do that.
     Maybe I should separate mode and key, and then have a tekepan which is
     equivalent to setting them both.
     . Unless of course Tenzer's version doesn't move ding.  Check the book

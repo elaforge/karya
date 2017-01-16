@@ -35,11 +35,10 @@ test_note_to_call = do
     equal (run "legong" "" ["4i", "4o", "4e", "4e#"])
         (map Just (take 4 ding), [])
 
-    -- baro is 1 345 7
-    -- TODO ding is incorrect
     equal (run "legong | key=baro" ""
-            ["4i", "4i#", "4o", "4e", "4u", "4u#", "4a", "5i"])
-        (map Just (take 8 ding), [])
+            ["4i", "4o", "4e", "4e#", "4u", "4a", "4a#", "5i"])
+        (map Just (take 8 (drop 2 ding)), [])
+
     -- Baro ding == selisir's deng.
     equal (run "legong | key=baro" "" ["4i"])
         (run "legong | key=selisir" "" ["4e"])

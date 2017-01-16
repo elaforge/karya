@@ -261,17 +261,6 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
         let oct = Seq.count (=='^') octs - Seq.count (=='.') octs
         return $ TheoryFormat.RelativePitch (center + oct) pc acc
 
--- * keys
-
-make_keys :: Theory.Layout -> [(Text, Pitch.Semi, [Pitch.Semi])]
-    -> ChromaticScales.Keys
-make_keys layout keys = Map.fromList
-    [ (Pitch.Key name, Theory.key (to_degree tonic) name intervals layout)
-    | (name, tonic, intervals) <- keys
-    ]
-    where
-    to_degree = Pitch.pitch_degree . Theory.semis_to_pitch_sharps layout
-
 -- * tuning
 
 data Tuning = Umbang | Isep deriving (Enum, Bounded, Show)

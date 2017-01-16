@@ -33,6 +33,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
@@ -51,19 +52,18 @@ make_scale_set config (Pitch.ScaleId prefix) doc =
     map (Scale.Simple . Scales.add_doc doc)
     [ BaliScales.make_scale (id_with "") (scale_map complete_scale)
     , BaliScales.make_scale (id_with "b") (scale_map complete_scale_balinese)
-    , Scales.add_doc "Use Javanese-style cipher notation. This can be more\
-        \ convenient for saih pitu." $
+    , Scales.add_doc "Use Javanese-style cipher notation." $
         -- TODO use 4 and 7 instead of 3# and 6#.
         -- Use simple_scale like *wayang and *selesir?
         BaliScales.make_scale (id_with "c") (scale_map cipher_scale)
     , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade")
         (inst_scale_map pemade)
     , inst_doc "pemade" $ BaliScales.make_scale (id_with "pemade-b")
-        (inst_scale_map (balinese pemade))
+        (inst_scale_map (balinese_notation pemade))
     , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan")
         (inst_scale_map kantilan)
     , inst_doc "kantilan" $ BaliScales.make_scale (id_with "kantilan-b")
-        (inst_scale_map (balinese kantilan))
+        (inst_scale_map (balinese_notation kantilan))
     ]
     where
     id_with suffix = Pitch.ScaleId $ TextUtil.joinWith "-" prefix suffix
@@ -100,25 +100,11 @@ instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.Instrument
 instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
 
-balinese :: BaliScales.Instrument -> BaliScales.Instrument
-balinese inst = inst
+balinese_notation :: BaliScales.Instrument -> BaliScales.Instrument
+balinese_notation inst = inst
     { BaliScales.inst_degrees = BaliScales.balinese
     , BaliScales.inst_relative_octaves = BaliScales.balinese_octaves
     }
-
-config :: BaliScales.Config
-config = BaliScales.Config
-    { config_layout = layout
-    , config_base_octave = base_octave
-    , config_keys = keys
-    , config_default_key = default_key
-    , config_saihs = saihs
-    , config_default_saih = default_saih
-    }
-    where
-    layout = Theory.layout [1, 1, 2, 1, 2]
-    keys = BaliScales.make_keys layout all_keys
-    Just default_key = Map.lookup (Pitch.Key "selisir") keys
 
 -- | These are from Tenzer's "Gamelan Gong Kebyar", page 29.  This is Dewa
 -- Beratha's definition.  McPhee's book has different names for gambuh, but
@@ -126,26 +112,39 @@ config = BaliScales.Config
 --
 -- This are assigned with @key=...@.  McPhee calls them tekepan (suling) or
 -- ambah.  Or I could use patutan / pathet.
---
--- TODO this is wrong, patut changes both key and mode, so ding is shifted.
-all_keys :: [(Text, Pitch.Semi, [Pitch.Semi])]
-all_keys = map make_key
-    [ ("selisir", [1, 2, 3, 5, 6])          -- 123_45_  ioe_ua_
-    , ("slendro-gede", [2, 3, 4, 6, 7])     -- _234_67  _ioe_ua
-    , ("baro", [1, 3, 4, 5, 7])             -- 1_345_7  a_ioe_u
-    , ("tembung", [1, 2, 4, 5, 6])          -- 12_456_  ua_ioe_
-    , ("sunaren", [2, 3, 5, 6, 7])          -- _23_567  _ua_ioe
-    -- hypothetical
-    , ("pengenter-alit", [1, 3, 4, 6, 7])   -- 1_34_67  e_ua_io
-    , ("pengenter", [1, 2, 4, 5, 7])        -- 12_45_7  oe_ua_i
-    -- TODO these all have a hardcoded layout that assumes some "accidentals".
-    -- For lebeng I can just use selisir with all the notes.
-    -- , ("lebeng", [1, 2, 3, 4, 5, 6, 7])
-    ]
+config :: BaliScales.Config
+config = BaliScales.Config
+    { config_layout = layout
+    , config_base_octave = base_octave
+    , config_keys = all_keys
+    , config_default_key = default_key
+    , config_saihs = saihs
+    , config_default_saih = default_saih
+    }
+    where
+    layout = Theory.layout intervals
+    Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
-make_key :: (Text, [Pitch.Semi]) -> (Text, Pitch.Semi, [Pitch.Semi])
-make_key (_, []) = errorStack "no semis for scale"
-make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
+intervals :: [Pitch.Semi]
+intervals = [1, 1, 2, 1, 2]
+
+all_keys :: ChromaticScales.Keys
+all_keys = Map.fromList $ zipWith make [0..]
+    [ "selisir"         -- 123_45_  ioe_ua_
+    , "slendro-gede"    -- _234_67  _ioe_ua
+    , "baro"            -- 1_345_7  a_ioe_u
+    , "tembung"         -- 12_456_  ua_ioe_
+    , "sunaren"         -- _23_567  _ua_ioe
+    -- hypothetical
+    , "pengenter-alit"  -- 1_34_67  e_ua_io
+    , "pengenter"       -- 12_45_7  oe_ua_i
+    ]
+    where
+    make tonic name =
+        ( Pitch.Key name
+        , Theory.key (Pitch.Degree tonic 0) name intervals
+            (BaliScales.config_layout config)
+        )
 
 ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
 ugal_range = Scale.Range (Pitch.pitch 3 O) (Pitch.pitch 5 I)
