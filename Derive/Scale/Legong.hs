@@ -168,10 +168,7 @@ default_saih :: Text
 default_saih = "rambat"
 
 saihs :: Map Text BaliScales.Saih
-saihs = Map.fromList $
-    [ (default_saih, saih_rambat)
-    , ("pegulingan-teges", pegulingan_teges)
-    ] ++ mcphee
+saihs = Map.fromList $ (default_saih, saih_rambat) : mcphee
 
 saih_rambat :: BaliScales.Saih
 saih_rambat = BaliScales.saih (extend 3 E)
@@ -211,23 +208,6 @@ saih_rambat = BaliScales.saih (extend 3 E)
     , (96.46,   96.46)  -- 7i, kantilan end
     ]
 
--- TODO move to *selisir
--- TODO what is the ombak?
-pegulingan_teges :: BaliScales.Saih
-pegulingan_teges = BaliScales.saih (extend 4 U)
-    "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
-    $ map (\nn -> (nn, nn))
-    [ 69.55 -- 4u
-    , 70.88 -- 4a
-    , 73.00
-
-    , 75.25 -- 5i
-    , 76.90 -- 5o, kantilan begin
-    , 77.94 -- 5e
-    , 81.00
-    , 81.80 -- 5u... should I agree with the lower octave?
-    ]
-
 -- | Extend down to 3i, which is jegog range.
 extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend oct pc = Bali.extend_scale 7 low_pitch high_pitch (Pitch.pitch oct pc)
@@ -265,19 +245,26 @@ instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
-instrument_scale take_range saih tuning =
-    Patch.make_scale ("legong " <> ShowVal.show_val tuning) $
-        take_range $ zip midi_keys (Vector.toList nns)
+instrument_scale =
+    make_instrument_scale "legong" -- i o e e# u a a#
+        [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
+
+make_instrument_scale :: Text -> [Midi.Key]
+    -> ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
+    -- ^ drop and take keys for the instrument's range
+    -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+make_instrument_scale name keys take_range saih tuning =
+    Patch.make_scale (name <> " " <> ShowVal.show_val tuning) $
+        take_range $ zip (midi_keys keys) (Vector.toList nns)
     where
     nns = case tuning of
         BaliScales.Umbang -> BaliScales.saih_umbang saih
         BaliScales.Isep -> BaliScales.saih_isep saih
 
 -- | Emit from i3 on up.
-midi_keys :: [Midi.Key]
-midi_keys = trim $ concatMap keys [base_octave + 1 ..]
+midi_keys :: [Midi.Key] -> [Midi.Key]
+midi_keys keys = trim $ concatMap octave_keys [base_octave + 1 ..]
     -- base_octave + 1 because MIDI starts at octave -1
     where
-    trim = take (5*7 + 1)
-    keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#
-        [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
+    trim = take (5 * length keys + 1)
+    octave_keys oct = map (Midi.to_key (oct * 12) +) keys

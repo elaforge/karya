@@ -5,15 +5,15 @@
 -- | This is like "Derive.Scale.Legong", except specialized to the selisir
 -- mode.
 module Derive.Scale.Selisir where
-import qualified Data.Vector as Vector
+import qualified Data.Map as Map
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
@@ -29,7 +29,7 @@ scale_id = "selisir"
 config :: BaliScales.Config
 config = BaliScales.Config
     { config_layout = layout
-    , config_base_octave = base_oct
+    , config_base_octave = base_octave
     , config_keys = mempty
     , config_default_key = default_key
     , config_saihs = saihs
@@ -40,33 +40,44 @@ config = BaliScales.Config
     default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
 -- | Lowest note start on this octave.
-base_oct :: Pitch.Octave
-base_oct = 3
+base_octave :: Pitch.Octave
+base_octave = 3
 
 saihs :: Map Text BaliScales.Saih
-saihs = Legong.pitu_to_lima <$> Legong.saihs
+saihs = (Legong.pitu_to_lima <$> Legong.saihs)
+    <> Map.fromList
+        [ ("pegulingan-teges", pegulingan_teges)
+        ]
 
+-- | Exported for instruments to use.
 saih_rambat :: BaliScales.Saih
 saih_rambat = Legong.pitu_to_lima Legong.saih_rambat
 
--- TODO duplicated with Legong
+data Pitch = I | O | E | U | A
+    deriving (Eq, Ord, Enum, Show, Bounded)
+
+-- TODO what is the ombak?
+pegulingan_teges :: BaliScales.Saih
+pegulingan_teges = BaliScales.saih (extend 4 U)
+    "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
+    $ map (\nn -> (nn, nn))
+    [ 69.55 -- 4u
+    , 70.88 -- 4a
+
+    , 75.25 -- 5i
+    , 76.90 -- 5o, kantilan begin
+    , 77.94 -- 5e
+    , 81.80 -- 5u... should I agree with the lower octave?
+    ]
+
+-- | Extend down to the "Legong" range.
+extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend oct pc =
+    Bali.extend_scale 7 Legong.low_pitch Legong.high_pitch (Pitch.pitch oct pc)
+
 instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
     -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
-instrument_scale take_range saih tuning =
-    Patch.make_scale ("selisir " <> ShowVal.show_val tuning) $
-        take_range $ zip midi_keys (Vector.toList nns)
-    where
-    nns = case tuning of
-        BaliScales.Umbang -> BaliScales.saih_umbang saih
-        BaliScales.Isep -> BaliScales.saih_isep saih
-
--- | Emit from i3 on up.
-midi_keys :: [Midi.Key]
-midi_keys = trim $ concatMap keys [base_oct + 1 ..]
-    -- base_oct + 1 because MIDI starts at octave -1
-    where
-    trim = take (5*5 + 1)
-    keys oct = map (Midi.to_key (oct * 12) +)
-        [Key.c_1, Key.d_1, Key.e_1, Key.g_1, Key.a_1] -- i o e u a
+instrument_scale = Legong.make_instrument_scale "selisir"
+    [Key.c_1, Key.d_1, Key.e_1, Key.g_1, Key.a_1] -- i o e u a

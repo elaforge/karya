@@ -16,7 +16,6 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-
 test_note_to_call = do
     let f saih = ScaleTest.note_to_call "selisir" ("saih=" <> saih)
     let nns n = take n . from_4i True
