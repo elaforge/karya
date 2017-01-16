@@ -3,7 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Scales from McPhee
+  - It seems like 'key' in scales is not really right.  It should be 'mode',
+    and 'key' should be reserved for moving the starting point.  This would
+    also be more appropriate for e.g. Balinese scales, which conflate mode
+    and starting point.
+  - Actually, I think BaliScales is wrong, because it doesn't do that.
+    Maybe I should separate mode and key, and then have a tekepan which is
+    equivalent to setting them both.
+    . Unless of course Tenzer's version doesn't move ding.  Check the book
+      again.  Maybe modern practice or bronze saih pitu doesn't move ding.
+    . In any case, I could model McPhee's system as a relative scale.
+  - BaliScales should have a default ombak, depending on saih.
+    - Also there should be a way to randomize per instrument, so it's not too
+      perfect.
+  * Scales from McPhee
     . I don't want to have to make up extra pitches, so I need an easy way to
       say which pitches are available.
     . That affects layout?  Or I could keep layout the same and just make
@@ -15,6 +28,21 @@ UNSORTED
       That way, all *legong is implicitly saih pitu.  True selisir tunings
       have to go in a separate *selisir scale.
     . But I'm still likely to want to use saih pitu as selisir.
+  - Move "pegulingan-teges" to Selisir.
+  - Disallow 4e# in selisir.  And generally accidentals.
+    . Validating the absolute pitch is broken for *legong, because I want to
+      make sure the relative pitch is in the key's intervals.
+    . I could make validation more complicated, but I think not using
+      ChromaticScales would also fix this.
+    . I don't get an error because the pitch is created, but will evaluate to
+      UnparseableNote, which makes an error only on conversion.
+    . It's because ChromaticScales reads a relative pitch, and only checks
+      for validity once it's absolute, at which point it already created
+      a ScaleDegree.  I could either also validate relative, or get rid of
+      the fancy ChromaticScales use for scales without modes.
+    . Or maybe UnparseableNote should have a msg arg to show what it was?
+  - ChromaticScales docs is misleading, it talks about European-style pitches,
+    but really it's used for scales with modes.
   - It would be nice to have a no-keys version of BaliScales so I don't have
     to mess with a fake key in *selisir and *wayang.
     . I guess it's not a big deal, but at least it means it ignores key.

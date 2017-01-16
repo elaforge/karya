@@ -20,13 +20,12 @@ import Global
 test_note_to_call = do
     let f saih = ScaleTest.note_to_call "selisir" ("saih=" <> saih)
     let nns n = take n . from_4i True
-    equal (f "rambat" ["4i", "4o", "4e", "4e#"])
+    equal (f "rambat" ["4i", "4o", "4e", "4u"])
         (map Just $ nns 4 Selisir.saih_rambat, [])
-
+    equal (f "rambat" ["4e#"]) ([Nothing], [])
     let Just teges = Map.lookup "pegulingan-teges" Selisir.saihs
     equal (f "pegulingan-teges" ["4i", "4o", "4e", "4u", "4a", "5i"])
         (map Just $ nns 6 teges, [])
-    equal (f "pegulingan-teges" ["4e#"]) ([Nothing], ["error"])
 
 test_input_to_note = do
     let input_to_note = ScaleTest.input_to_note selisir mempty

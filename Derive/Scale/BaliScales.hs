@@ -146,28 +146,6 @@ saih extend doc nns = Saih
     }
     where (umbang, isep) = unzip nns
 
--- | Extend a scale downwards and upwards, assuming the extended octaves
--- are exactly 2:1.  The input should have at least an octave's worth of
--- pitches.
-extend_scale :: Pitch.PitchClass -> Pitch.Pitch -- ^ extend down to here
-    -> Pitch.Pitch -- ^ extend up to here
-    -> Pitch.Pitch -- ^ from this original starting point
-    -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend_scale per_octave low high start nns =
-    reverse (take to_low down) ++ nns ++ take to_high up
-    where
-    to_low = Pitch.subtract_pitch per_octave start low
-    -- 'high' is inclusive, so +1.
-    to_high = Pitch.subtract_pitch per_octave high start - length nns + 1
-    down =
-        [ nn - 12 * fromIntegral oct
-        | oct <- [1..], nn <- reverse (take per_octave nns)
-        ]
-    up =
-        [ nn + 12 * fromIntegral oct
-        | oct <- [1..], nn <- Seq.rtake per_octave nns
-        ]
-
 -- * Format
 
 -- | This can't use backtick symbols because then the combining octave

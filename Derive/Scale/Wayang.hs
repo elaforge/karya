@@ -21,6 +21,7 @@ import qualified Data.Vector as Vector
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
@@ -115,7 +116,7 @@ saih_sawan = BaliScales.saih extend
 --
 -- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend = BaliScales.extend_scale 5 (Pitch.pitch 1 I) (Pitch.pitch 8 I)
+extend = Bali.extend_scale 5 (Pitch.pitch 1 I) (Pitch.pitch 8 I)
     (BaliScales.inst_low pemade)
 
 undo_extend :: [a] -> [a]

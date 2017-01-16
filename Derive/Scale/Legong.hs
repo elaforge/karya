@@ -33,7 +33,9 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
@@ -109,7 +111,7 @@ balinese inst = inst
 config :: BaliScales.Config
 config = BaliScales.Config
     { config_layout = layout
-    , config_base_octave = base_oct
+    , config_base_octave = base_octave
     , config_keys = keys
     , config_default_key = default_key
     , config_saihs = saihs
@@ -120,17 +122,24 @@ config = BaliScales.Config
     keys = BaliScales.make_keys layout all_keys
     Just default_key = Map.lookup (Pitch.Key "selisir") keys
 
--- | These are from Tenzer's kebyar book, for Semar Pegulingan.  McPhee's
--- book has different names for gambuh, but Tenzer's book is more modern.
+-- | These are from Tenzer's "Gamelan Gong Kebyar", page 29.  This is Dewa
+-- Beratha's definition.  McPhee's book has different names for gambuh, but
+-- Beratha's is probably more modern.
+--
+-- This are assigned with @key=...@.  McPhee calls them tekepan (suling) or
+-- ambah.  Or I could use patutan / pathet.
+--
+-- TODO this is wrong, patut changes both key and mode, so ding is shifted.
 all_keys :: [(Text, Pitch.Semi, [Pitch.Semi])]
 all_keys = map make_key
-    [ ("selisir", [1, 2, 3, 5, 6])
-    , ("slendro-gede", [2, 3, 4, 6, 7])
-    , ("baro", [1, 3, 4, 5, 7])
-    , ("tembung", [1, 2, 4, 5, 6])
-    , ("sunaren", [2, 3, 5, 6, 7])
-    , ("pengenter-alit", [1, 3, 4, 6, 7])
-    , ("pengenter", [1, 2, 4, 5, 7])
+    [ ("selisir", [1, 2, 3, 5, 6])          -- 123_45_  ioe_ua_
+    , ("slendro-gede", [2, 3, 4, 6, 7])     -- _234_67  _ioe_ua
+    , ("baro", [1, 3, 4, 5, 7])             -- 1_345_7  a_ioe_u
+    , ("tembung", [1, 2, 4, 5, 6])          -- 12_456_  ua_ioe_
+    , ("sunaren", [2, 3, 5, 6, 7])          -- _23_567  _ua_ioe
+    -- hypothetical
+    , ("pengenter-alit", [1, 3, 4, 6, 7])   -- 1_34_67  e_ua_io
+    , ("pengenter", [1, 2, 4, 5, 7])        -- 12_45_7  oe_ua_i
     -- TODO these all have a hardcoded layout that assumes some "accidentals".
     -- For lebeng I can just use selisir with all the notes.
     -- , ("lebeng", [1, 2, 3, 4, 5, 6, 7])
@@ -147,8 +156,8 @@ trompong_range = Scale.Range (Pitch.pitch 3 A) (Pitch.pitch 5 U)
 reyong_range = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
 
 -- | Lowest note start on this octave.
-base_oct :: Pitch.Octave
-base_oct = 3
+base_octave :: Pitch.Octave
+base_octave = 3
 
 -- * saih
 
@@ -159,10 +168,10 @@ default_saih :: Text
 default_saih = "rambat"
 
 saihs :: Map Text BaliScales.Saih
-saihs = Map.fromList
+saihs = Map.fromList $
     [ (default_saih, saih_rambat)
     , ("pegulingan-teges", pegulingan_teges)
-    ]
+    ] ++ mcphee
 
 saih_rambat :: BaliScales.Saih
 saih_rambat = BaliScales.saih (extend 3 E)
@@ -221,8 +230,17 @@ pegulingan_teges = BaliScales.saih (extend 4 U)
 
 -- | Extend down to 3i, which is jegog range.
 extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend oct pc = BaliScales.extend_scale 7
-    (Pitch.pitch base_oct I) (Pitch.pitch 7 I) (Pitch.pitch oct pc)
+extend oct pc = Bali.extend_scale 7 low_pitch high_pitch (Pitch.pitch oct pc)
+
+low_pitch, high_pitch :: Pitch.Pitch
+low_pitch = Pitch.pitch base_octave I
+high_pitch = Pitch.pitch 7 I
+
+mcphee :: [(Text, BaliScales.Saih)]
+mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.saih_pitu
+    where
+    make (name, (nns, doc)) =
+        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
 
 -- | Strip extra notes to get back to saih lima.
 pitu_to_lima :: BaliScales.Saih -> BaliScales.Saih
@@ -257,8 +275,8 @@ instrument_scale take_range saih tuning =
 
 -- | Emit from i3 on up.
 midi_keys :: [Midi.Key]
-midi_keys = trim $ concatMap keys [base_oct + 1 ..]
-    -- base_oct + 1 because MIDI starts at octave -1
+midi_keys = trim $ concatMap keys [base_octave + 1 ..]
+    -- base_octave + 1 because MIDI starts at octave -1
     where
     trim = take (5*7 + 1)
     keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#
