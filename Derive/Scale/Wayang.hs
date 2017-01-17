@@ -65,8 +65,8 @@ config = BaliScales.Config
     , config_base_octave = base_oct
     , config_keys = mempty
     , config_default_key = default_key
-    , config_saihs = saihs
-    , config_default_saih = default_saih
+    , config_laras = laras
+    , config_default_laras = default_laras
     }
     where
     layout = Theory.diatonic_layout 5
@@ -79,18 +79,18 @@ base_oct = 1
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
 
--- * saihs
+-- * laras
 
 data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 
-default_saih :: Text
-default_saih = "sawan"
+default_laras :: Text
+default_laras = "sawan"
 
-saihs :: Map Text BaliScales.Saih
-saihs = Map.fromList $ (default_saih, saih_sawan) : mcphee
+laras :: Map Text BaliScales.Laras
+laras = Map.fromList $ (default_laras, laras_sawan) : mcphee
 
-saih_sawan :: BaliScales.Saih
-saih_sawan = BaliScales.saih (extend (BaliScales.inst_low pemade))
+laras_sawan :: BaliScales.Laras
+laras_sawan = BaliScales.laras (extend (BaliScales.inst_low pemade))
     "Tuning from my gender wayang, made in Sawan, Singaraja."
     [ (53.00,   52.30) -- 3o, pemade begin
     , (55.15,   54.55)
@@ -111,11 +111,11 @@ saih_sawan = BaliScales.saih (extend (BaliScales.inst_low pemade))
     , (86.88,   86.78) -- 6i, kantilan end
     ]
 
-mcphee :: [(Text, BaliScales.Saih)]
+mcphee :: [(Text, BaliScales.Laras)]
 mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.slendro
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
+        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
 
 -- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
 --
@@ -133,15 +133,15 @@ undo_extend = take 15 . drop (1 + 5 + 5)
 
 -- * instrument integration
 
-instrument_scale :: Bool -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
-instrument_scale extended saih tuning =
+instrument_scale :: Bool -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
+instrument_scale extended laras tuning =
     Patch.make_scale ("wayang " <> ShowVal.show_val tuning) $
         zip (midi_keys extended)
             ((if extended then id else undo_extend) (Vector.toList nns))
     where
     nns = case tuning of
-        BaliScales.Umbang -> BaliScales.saih_umbang saih
-        BaliScales.Isep -> BaliScales.saih_isep saih
+        BaliScales.Umbang -> BaliScales.laras_umbang laras
+        BaliScales.Isep -> BaliScales.laras_isep laras
 
 -- | If extended is True, emit from i1 on up.  Otherwise, give pemade to
 -- kantilan range.

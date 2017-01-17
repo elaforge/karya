@@ -118,8 +118,8 @@ config = BaliScales.Config
     , config_base_octave = base_octave
     , config_keys = all_keys
     , config_default_key = default_key
-    , config_saihs = saihs
-    , config_default_saih = default_saih
+    , config_laras = laras
+    , config_default_laras = default_laras
     }
     where
     layout = Theory.layout intervals
@@ -156,19 +156,19 @@ reyong_range = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
 base_octave :: Pitch.Octave
 base_octave = 3
 
--- * saih
+-- * laras
 
 data Pitch = I | O | E | Es | U | A | As
     deriving (Eq, Ord, Enum, Show, Bounded)
 
-default_saih :: Text
-default_saih = "rambat"
+default_laras :: Text
+default_laras = "rambat"
 
-saihs :: Map Text BaliScales.Saih
-saihs = Map.fromList $ (default_saih, saih_rambat) : mcphee
+laras :: Map Text BaliScales.Laras
+laras = Map.fromList $ (default_laras, laras_rambat) : mcphee
 
-saih_rambat :: BaliScales.Saih
-saih_rambat = BaliScales.saih (extend 3 E)
+laras_rambat :: BaliScales.Laras
+laras_rambat = BaliScales.laras (extend 3 E)
     "From my gender rambat, made in Blabatuh, Gianyar, tuned in\
     \ Munduk, Buleleng."
     $ map (second (Pitch.add_hz 4)) -- TODO until I measure real values
@@ -213,23 +213,24 @@ low_pitch, high_pitch :: Pitch.Pitch
 low_pitch = Pitch.pitch base_octave I
 high_pitch = Pitch.pitch 7 I
 
-mcphee :: [(Text, BaliScales.Saih)]
+mcphee :: [(Text, BaliScales.Laras)]
 mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.saih_pitu
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
+        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
 
 -- * instrument integration
 
 -- | A Scale with the entire theoretical range.  This is for instruments
 -- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
-complete_instrument_scale :: BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+complete_instrument_scale :: BaliScales.Laras -> BaliScales.Tuning
+    -> Patch.Scale
 complete_instrument_scale = instrument_scale id
 
 instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+    -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
 instrument_scale =
     make_instrument_scale "legong" -- i o e e# u a a#
         [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
@@ -237,14 +238,14 @@ instrument_scale =
 make_instrument_scale :: Text -> [Midi.Key]
     -> ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
-make_instrument_scale name keys take_range saih tuning =
+    -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
+make_instrument_scale name keys take_range laras tuning =
     Patch.make_scale (name <> " " <> ShowVal.show_val tuning) $
         take_range $ zip (midi_keys keys) (Vector.toList nns)
     where
     nns = case tuning of
-        BaliScales.Umbang -> BaliScales.saih_umbang saih
-        BaliScales.Isep -> BaliScales.saih_isep saih
+        BaliScales.Umbang -> BaliScales.laras_umbang laras
+        BaliScales.Isep -> BaliScales.laras_isep laras
 
 -- | Emit from i3 on up.
 midi_keys :: [Midi.Key] -> [Midi.Key]

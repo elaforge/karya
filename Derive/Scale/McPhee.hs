@@ -19,7 +19,7 @@ import Global
 
 type Hz = Double
 
-data Saih = Saih {
+data Laras = Laras {
     name :: Text
     , genre :: Text
     , origin :: Text
@@ -29,29 +29,26 @@ data Saih = Saih {
     , hz :: [Hz]
     } deriving (Eq, Show)
 
-saihs :: [Saih]
-saihs = concat [saih_pitu, selisir, bebonangan, slendro, angklung]
-
-extract :: Pitch.Pitch -> Pitch.Pitch -> Saih
+extract :: Pitch.Pitch -> Pitch.Pitch -> Laras
     -> (Text, ([Pitch.NoteNumber], Doc.Doc))
-extract low high saih = (dashes sname, (hz_to_nn low high saih, doc))
+extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
     where
     doc = "From McPhee's \"Music in Bali\", from "
-        <> Doc.Doc (Text.toTitle (origin saih)) <> "."
+        <> Doc.Doc (Text.toTitle (origin laras)) <> "."
     sname
-        | Text.null (name saih) =
-            TextUtil.joinWith "-" (genre saih) (origin saih)
-        | otherwise = name saih
+        | Text.null (name laras) =
+            TextUtil.joinWith "-" (genre laras) (origin laras)
+        | otherwise = name laras
     dashes = Text.map (\c -> if c == ' ' then '-' else c)
 
-hz_to_nn :: Pitch.Pitch -> Pitch.Pitch -> Saih -> [Pitch.NoteNumber]
-hz_to_nn low high saih =
-    Bali.extend_scale (length (hz saih)) low high
-        (Pitch.pitch (base_octave saih) (base saih))
-        (map Pitch.hz_to_nn (hz saih))
+hz_to_nn :: Pitch.Pitch -> Pitch.Pitch -> Laras -> [Pitch.NoteNumber]
+hz_to_nn low high laras =
+    Bali.extend_scale (length (hz laras)) low high
+        (Pitch.pitch (base_octave laras) (base laras))
+        (map Pitch.hz_to_nn (hz laras))
 
-saih :: Saih
-saih = Saih "" "" "" Bali.I 4 []
+laras :: Laras
+laras = Laras "" "" "" Bali.I 4 []
 
 -- | Music in Bali, page 42.
 --
@@ -61,7 +58,7 @@ saih = Saih "" "" "" Bali.I 4 []
 -- >         0   1   2   3   4   5   6
 -- > tembung I   O   E   Es  U   A   Aa
 -- > selisir U   A   As  I   O   E   Es
-saih_pitu :: [Saih]
+saih_pitu :: [Laras]
 saih_pitu =
     [ s "luang" "seseh"             [276, 305, 345, 372, 410, 466, 505]
     , s "gambang" "krobokan"        [275, 305, 326, 360, 405, 440, 465]
@@ -70,10 +67,10 @@ saih_pitu =
     , s "gambuh" "tabanan"          [211, 232, 250, 280, 303, 325, 345]
     , s "gambuh" "batuan"           [202, 220, 237.5, 266, 290, 315, 330]
     ]
-    where s genre origin = Saih "" genre origin Bali.U 3
+    where s genre origin = Laras "" genre origin Bali.U 3
 
 -- | These start at selisir ding.
-selisir :: [Saih]
+selisir :: [Laras]
 selisir =
     -- "typical" selisir
     [ s "gong" "peliatan"   [280, 305, 327, 405, 435]
@@ -83,27 +80,29 @@ selisir =
     , s "gong" "gianyar"    [274, 296, 327, 415, 435]
     -- unusual selisir
     -- From Gusti Putuh.
-    , saih { name = "tembung cenik", hz = [273, 295, 328, 390, 433] }
+    , laras { name = "tembung cenik", hz = [273, 295, 328, 390, 433] }
     -- Used for McPhee's Semar Pegulingan.  Also called selisir or sunaren.
     , s "pelegongan" "sanur"   [310, 345, 372, 450, 490]
     , s "pelegongan" "selisir" [305, 325, 360, 435, 470]
     -- From "gamelan barong".
-    , saih { genre = "barong", name = "demung", hz = [362, 408, 434, 562, 593] }
+    , laras
+        { genre = "barong", name = "demung", hz = [362, 408, 434, 562, 593]
+        }
     ]
-    where s genre origin = Saih "" genre origin Bali.I 4
+    where s genre origin = Laras "" genre origin Bali.I 4
 
 -- | Bebonangan seems to be an old name for baleganjur.  Dong to dang.
-bebonangan :: [Saih]
+bebonangan :: [Laras]
 bebonangan =
     [ s "sayan" [290, 325, 403, 427]
     ]
-    where s origin = Saih "" "baleganjur" origin Bali.O 4
+    where s origin = Laras "" "baleganjur" origin Bali.O 4
 
 
 -- slendro
 
 -- | o e u a i
-slendro :: [Saih]
+slendro :: [Laras]
 slendro =
     [ s "6-edo"     [183, 210, 241.5, 277, 318.5] -- theoretical
     , s "kuta"      [183, 206, 241, 280, 327]
@@ -114,10 +113,10 @@ slendro =
     , s "lod peken" [172, 200, 225, 257.5, 305]
     , s "sawan"     [167.5, 191.5, 220, 248, 290]
     ]
-    where s origin = Saih "" "gender" origin Bali.O 3
+    where s origin = Laras "" "gender" origin Bali.O 3
 
 -- | e u a i
-angklung :: [Saih]
+angklung :: [Laras]
 angklung =
     [ s "mas"       [410, 469, 519, 620]
     , s "kamasan"   [400, 450, 495, 610]
@@ -129,4 +128,4 @@ angklung =
     , s "culik"     [335, 375, 445, 505]
     , s "negara"    [270, 305, 375, 445]
     ]
-    where s origin = Saih "" "angklung" origin Bali.O 4
+    where s origin = Laras "" "angklung" origin Bali.O 4

@@ -35,8 +35,8 @@ config = BaliScales.Config
     , config_base_octave = base_octave
     , config_keys = mempty
     , config_default_key = default_key
-    , config_saihs = saihs
-    , config_default_saih = Legong.default_saih
+    , config_laras = laras
+    , config_default_laras = Legong.default_laras
     }
     where
     layout = Theory.diatonic_layout 5
@@ -46,28 +46,28 @@ config = BaliScales.Config
 base_octave :: Pitch.Octave
 base_octave = 3
 
-saihs :: Map Text BaliScales.Saih
-saihs = (pitu_to_lima <$> Legong.saihs)
+laras :: Map Text BaliScales.Laras
+laras = (pitu_to_lima <$> Legong.laras)
     <> Map.fromList (("pegulingan-teges", pegulingan_teges) : mcphee)
 
-mcphee :: [(Text, BaliScales.Saih)]
+mcphee :: [(Text, BaliScales.Laras)]
 mcphee =
     map (make . McPhee.extract Legong.low_pitch Legong.high_pitch)
         McPhee.selisir
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
+        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
 
 -- | Exported for instruments to use.
-saih_rambat :: BaliScales.Saih
-saih_rambat = pitu_to_lima Legong.saih_rambat
+laras_rambat :: BaliScales.Laras
+laras_rambat = pitu_to_lima Legong.laras_rambat
 
 -- | Strip extra notes to get back to saih lima.
-pitu_to_lima :: BaliScales.Saih -> BaliScales.Saih
-pitu_to_lima (BaliScales.Saih doc umbang isep) = BaliScales.Saih
-    { saih_doc = doc
-    , saih_umbang = strip umbang
-    , saih_isep = strip isep
+pitu_to_lima :: BaliScales.Laras -> BaliScales.Laras
+pitu_to_lima (BaliScales.Laras doc umbang isep) = BaliScales.Laras
+    { laras_doc = doc
+    , laras_umbang = strip umbang
+    , laras_isep = strip isep
     }
     where
     strip = Vector.fromList
@@ -78,8 +78,8 @@ data Pitch = I | O | E | U | A
     deriving (Eq, Ord, Enum, Show, Bounded)
 
 -- TODO what is the ombak?
-pegulingan_teges :: BaliScales.Saih
-pegulingan_teges = BaliScales.saih (extend 4 U)
+pegulingan_teges :: BaliScales.Laras
+pegulingan_teges = BaliScales.laras (extend 4 U)
     "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
     $ map (\nn -> (nn, nn))
     [ 69.55 -- 4u
@@ -98,6 +98,6 @@ extend oct pc =
 instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Saih -> BaliScales.Tuning -> Patch.Scale
+    -> BaliScales.Laras -> BaliScales.Tuning -> Patch.Scale
 instrument_scale = Legong.make_instrument_scale "selisir"
     [Key.c_1, Key.d_1, Key.e_1, Key.g_1, Key.a_1] -- i o e u a

@@ -28,8 +28,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
--- | This contains all that is needed to define a European-like key system.
--- It fills a similar role to 'Scales.ScaleMap' for non-keyed scales.
+-- | This contains all that is needed to define a modal key system.  It fills
+-- a similar role to 'Scales.ScaleMap' for non-keyed scales.
 data ScaleMap = ScaleMap {
     smap_fmt :: !TheoryFormat.Format
     , smap_keys :: !Keys

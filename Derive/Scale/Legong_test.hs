@@ -19,7 +19,7 @@ import Global
 
 test_note_to_call = do
     let run scale title = ScaleTest.note_to_call scale title
-        ding = from_4i True Legong.saih_rambat
+        ding = from_4i True Legong.laras_rambat
 
     -- 4i is close to middle C (60nn).
     equal (run "legong" "" ["4i"]) ([Just (head ding)], [])
@@ -31,7 +31,7 @@ test_note_to_call = do
     equal (run "legong-pemade" "" ["i-", "o-", "e-"]) (map Just (take 3 i5), [])
 
     equal (run "legong" "" ["tuning=isep | -- 4i"])
-        ([Just (head (from_4i False Legong.saih_rambat))], [])
+        ([Just (head (from_4i False Legong.laras_rambat))], [])
     equal (run "legong" "" ["4i", "4o", "4e", "4e#"])
         (map Just (take 4 ding), [])
 
@@ -44,17 +44,17 @@ test_note_to_call = do
         (run "legong | key=selisir" "" ["4e"])
 
 test_note_to_call_mcphee = do
-    let run saih key = ScaleTest.note_to_call "legong"
-            ("saih=" <> saih <> " | " <> "key=" <> key)
+    let run laras key = ScaleTest.note_to_call "legong"
+            ("laras=" <> laras <> " | " <> "key=" <> key)
     -- Ensure that when I convert tembung to selisir, I get ding in
     -- the correct place according to McPhee.
     equal (run "gambuh-tabanan" "selisir" ["4i", "4o", "4e"])
         (map (Just . Pitch.hz_to_nn) [280, 303, 325], [])
 
-Just saih = Map.lookup "gambuh-tabanan" Legong.saihs
-saih_nns = map Pitch.hz_to_nn $ McPhee.hz $ McPhee.saih_pitu !! 4
+Just laras = Map.lookup "gambuh-tabanan" Legong.laras
+laras_nns = map Pitch.hz_to_nn $ McPhee.hz $ McPhee.saih_pitu !! 4
 
-selisir_nns = Vector.toList $ BaliScales.saih_umbang saih
+selisir_nns = Vector.toList $ BaliScales.laras_umbang laras
 selisir_hz = map Pitch.nn_to_hz selisir_nns
 
 test_input_to_note = do
@@ -82,7 +82,8 @@ test_input_to_note = do
 legong :: Scale.Scale
 legong = ScaleTest.get_scale Legong.scales "legong"
 
-from_4i :: Bool -> BaliScales.Saih -> [Pitch.NoteNumber]
-from_4i umbang saih = drop (2 + 5) $ Vector.toList (nns saih)
-    where nns = if umbang then BaliScales.saih_umbang else BaliScales.saih_isep
+from_4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
+from_4i umbang laras = drop (2 + 5) $ Vector.toList (nns laras)
+    where
+    nns = if umbang then BaliScales.laras_umbang else BaliScales.laras_isep
     -- 2 to undo 'Legong.extend', 5 to get to ding

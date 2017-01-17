@@ -164,15 +164,15 @@ write_ksp maybe_inst filename scale = do
     liftIO $ Text.IO.writeFile filename ksp
     return ()
 
-write_saih_ksp :: FilePath -> (BaliScales.Tuning -> Patch.Scale)
+write_bali_scales_ksp :: Cmd.CmdT IO ()
+write_bali_scales_ksp = do
+    write_laras_ksp "wayang" (Wayang.instrument_scale True Wayang.laras_sawan)
+    write_laras_ksp "legong"
+        (Legong.complete_instrument_scale Legong.laras_rambat)
+
+write_laras_ksp :: FilePath -> (BaliScales.Tuning -> Patch.Scale)
     -> Cmd.CmdT IO ()
-write_saih_ksp name make = mapM_ (uncurry (write_ksp Nothing))
+write_laras_ksp name make = mapM_ (uncurry (write_ksp Nothing))
     [ (name <> "-umbang.ksp", make BaliScales.Umbang)
     , (name <> "-isep.ksp", make BaliScales.Isep)
     ]
-
-write_bali_scales_ksp :: Cmd.CmdT IO ()
-write_bali_scales_ksp = do
-    write_saih_ksp "wayang" (Wayang.instrument_scale True Wayang.saih_sawan)
-    write_saih_ksp "legong"
-        (Legong.complete_instrument_scale Legong.saih_rambat)

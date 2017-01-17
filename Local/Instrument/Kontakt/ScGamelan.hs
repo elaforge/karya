@@ -160,13 +160,13 @@ kebyar_allocations dev_ = make_config $ concat
         ( name, sc_qualified patch, True
         , tuning BaliScales.Umbang
         , Just $ Legong.complete_instrument_scale
-            Legong.saih_rambat BaliScales.Umbang
+            Legong.laras_rambat BaliScales.Umbang
         )
     isep_patch name patch =
         ( name, sc_qualified patch, True
         , tuning BaliScales.Isep
         , Just $ Legong.complete_instrument_scale
-            Legong.saih_rambat BaliScales.Isep
+            Legong.laras_rambat BaliScales.Isep
         )
     tuning val = [(EnvKey.tuning, to_val val)]
     patch name = (name, sc_qualified name, True, [], Nothing)

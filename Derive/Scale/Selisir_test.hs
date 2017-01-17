@@ -17,13 +17,13 @@ import Global
 
 
 test_note_to_call = do
-    let f saih = ScaleTest.note_to_call "selisir" ("saih=" <> saih)
+    let f laras = ScaleTest.note_to_call "selisir" ("laras=" <> laras)
     let nns n = take n . from_4i True
     equal (f "rambat" ["4i", "4o", "4e", "4u"])
-        (map Just $ nns 4 Selisir.saih_rambat, [])
+        (map Just $ nns 4 Selisir.laras_rambat, [])
     -- Selisir is a true 5 note scale, and shouldn't accept pemero.
     equal (f "rambat" ["4e#"]) ([Nothing], [])
-    let Just teges = Map.lookup "pegulingan-teges" Selisir.saihs
+    let Just teges = Map.lookup "pegulingan-teges" Selisir.laras
     equal (f "pegulingan-teges" ["4i", "4o", "4e", "4u", "4a", "5i"])
         (map Just $ nns 6 teges, [])
     equal (f "gong-peliatan" ["4i", "4o"])
@@ -35,9 +35,10 @@ test_input_to_note = do
     equal (map (input_to_note) [(4, pc, acc) | pc <- [0, 1, 2], acc <- [0, 1]])
         ["4i", invalid, "4o", invalid, "4e", invalid]
 
-from_4i :: Bool -> BaliScales.Saih -> [Pitch.NoteNumber]
-from_4i umbang saih = drop 5 $ Vector.toList (nns saih)
-    where nns = if umbang then BaliScales.saih_umbang else BaliScales.saih_isep
+from_4i :: Bool -> BaliScales.Laras -> [Pitch.NoteNumber]
+from_4i umbang laras = drop 5 $ Vector.toList (nns laras)
+    where
+    nns = if umbang then BaliScales.laras_umbang else BaliScales.laras_isep
 
 selisir :: Scale.Scale
 selisir = ScaleTest.get_scale Selisir.scales "selisir"

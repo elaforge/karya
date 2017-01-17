@@ -49,14 +49,17 @@ UNSORTED
     . Or maybe UnparseableNote should have a msg arg to show what it was?
     . The thing is, I don't want the whole accidental parsing mechanism,
       I just want 7 symbols, and a relative pitch system.
+    . So I could have a simplified ChromaticScales which dispenses with letter
+      + accidental, and instead just has a unique name for each scale degree.
+    . Then I could use 1234567 for javanese-style notation.
   / ChromaticScales docs is misleading, it talks about European-style pitches,
     but really it's used for scales with modes.
   - It would be nice to have a no-keys version of BaliScales so I don't have
     to mess with a fake key in *selisir and *wayang.
     . I guess it's not a big deal, but at least it means it ignores key.
     . Actually it seems like it might be a pain, because then I can't use
-      the same Config
-  - Rename BailScales.Saih to Laras?
+      the same Config.
+  * Rename BailScales.Saih to Laras?
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.
   * Use an automatic way to add Internal.with_stack_serial.  I could probably

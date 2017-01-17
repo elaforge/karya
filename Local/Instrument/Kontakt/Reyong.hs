@@ -35,7 +35,7 @@ patches =
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
     instrument_scale =
-        Selisir.instrument_scale (take 15 . drop 4) Selisir.saih_rambat tuning
+        Selisir.instrument_scale (take 15 . drop 4) Selisir.laras_rambat tuning
 
 attribute_map :: Patch.AttributeMap
 attribute_map = Patch.keyswitches $ map at
