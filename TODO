@@ -3,13 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Add McPhee scales to *wayang.
-  - Add *angklung and *baleganjur.
-  - It seems like 'key' in scales is not really right.  It should be 'mode',
+  * Add McPhee scales to 'wayang'.
+  - Add 'angklung' and 'baleganjur'.
+  / It seems like 'key' in scales is not really right.  It should be 'mode',
     and 'key' should be reserved for moving the starting point.  This would
     also be more appropriate for e.g. Balinese scales, which conflate mode
     and starting point.
-    . Or should it?
+    . Actually, it can be convenient to set both key and mode with one
+      assignment, or at least I can't think of any real advantages to
+      separating them.  And the disadvantage is it implies that e.g. with
+      'legong' they can be set separately.
   * Actually, I think BaliScales is wrong, because it doesn't do that.
     Maybe I should separate mode and key, and then have a tekepan which is
     equivalent to setting them both.
@@ -44,11 +47,15 @@ UNSORTED
       a ScaleDegree.  I could either also validate relative, or get rid of
       the fancy ChromaticScales use for scales without modes.
     . Or maybe UnparseableNote should have a msg arg to show what it was?
-  - ChromaticScales docs is misleading, it talks about European-style pitches,
+    . The thing is, I don't want the whole accidental parsing mechanism,
+      I just want 7 symbols, and a relative pitch system.
+  / ChromaticScales docs is misleading, it talks about European-style pitches,
     but really it's used for scales with modes.
   - It would be nice to have a no-keys version of BaliScales so I don't have
     to mess with a fake key in *selisir and *wayang.
     . I guess it's not a big deal, but at least it means it ignores key.
+    . Actually it seems like it might be a pain, because then I can't use
+      the same Config
   - Rename BailScales.Saih to Laras?
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.

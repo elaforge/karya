@@ -23,6 +23,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
@@ -86,12 +87,10 @@ default_saih :: Text
 default_saih = "sawan"
 
 saihs :: Map Text BaliScales.Saih
-saihs = Map.fromList
-    [ (default_saih, saih_sawan)
-    ]
+saihs = Map.fromList $ (default_saih, saih_sawan) : mcphee
 
 saih_sawan :: BaliScales.Saih
-saih_sawan = BaliScales.saih extend
+saih_sawan = BaliScales.saih (extend (BaliScales.inst_low pemade))
     "Tuning from my gender wayang, made in Sawan, Singaraja."
     [ (53.00,   52.30) -- 3o, pemade begin
     , (55.15,   54.55)
@@ -112,12 +111,21 @@ saih_sawan = BaliScales.saih extend
     , (86.88,   86.78) -- 6i, kantilan end
     ]
 
+mcphee :: [(Text, BaliScales.Saih)]
+mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.slendro
+    where
+    make (name, (nns, doc)) =
+        (name, BaliScales.saih id doc (map (\nn -> (nn, nn)) nns))
+
 -- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
 --
 -- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
-extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend = Bali.extend_scale 5 (Pitch.pitch 1 I) (Pitch.pitch 8 I)
-    (BaliScales.inst_low pemade)
+extend :: Pitch.Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend from = Bali.extend_scale 5 low_pitch high_pitch from
+
+low_pitch, high_pitch :: Pitch.Pitch
+low_pitch = Pitch.pitch 1 I
+high_pitch = Pitch.pitch 8 I
 
 undo_extend :: [a] -> [a]
 undo_extend = take 15 . drop (1 + 5 + 5)

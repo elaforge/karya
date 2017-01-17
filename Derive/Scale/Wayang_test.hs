@@ -32,10 +32,12 @@ test_read = do
     equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
 
 test_note_to_call = do
-    let run = ScaleTest.note_to_call "wayang" ""
+    let run saih = ScaleTest.note_to_call "wayang" ("saih=" <> saih)
         umbang = Vector.toList $ BaliScales.saih_umbang Wayang.saih_sawan
-    equal (run ["1i"]) ([Just (head umbang)], [])
-    equal (run ["4i"]) ([Just (umbang !! (3*5))], [])
+    equal (run "sawan" ["1i"]) ([Just (head umbang)], [])
+    equal (run "sawan" ["4i"]) ([Just (umbang !! (3*5))], [])
+    let to_hz = first $ map $ fmap (round . Pitch.nn_to_hz)
+    equal (to_hz $ run "gender-kuta" ["3o", "3e"]) ([Just 183, Just 206], [])
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
 read_scale scale note = (prettys *** prettys) $

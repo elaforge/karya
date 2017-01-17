@@ -114,7 +114,7 @@ slendro =
     , s "lod peken" [172, 200, 225, 257.5, 305]
     , s "sawan"     [167.5, 191.5, 220, 248, 290]
     ]
-    where s origin = Saih "" "gender" origin Bali.O 4
+    where s origin = Saih "" "gender" origin Bali.O 3
 
 -- | e u a i
 angklung :: [Saih]
