@@ -14,8 +14,11 @@ module Midi.Midi (
     , add_timestamp, modify_timestamp
 
     -- * constructors
-    , program_change, pitch_bend_sensitivity, reset_channel
+    , program_change, reset_channel
     , realtime_sysex
+    -- ** rpn / nrpn
+    , pitch_bend_range, nrpn_tuning
+    , rpn, nrpn
 
     -- * modify
     , set_channel
@@ -36,6 +39,7 @@ module Midi.Midi (
     , generate_mtc
     , mtc_sync, mtc_fragments
     -- * tuning
+    , NoteNumber
     , realtime_tuning
 
     -- * util
@@ -153,16 +157,6 @@ program_change bank program =
     ]
     where (lsb, msb) = split14 bank
 
--- | Emit a pitch bend sensitivity RPN message for the given range.
-pitch_bend_sensitivity :: Double -> [ChannelMessage]
-pitch_bend_sensitivity range =
-    [ ControlChange CC.rpn_msb 0, ControlChange CC.rpn_lsb 0
-    , ControlChange CC.data_entry semitones
-    ] ++ if cents <= 0 then [] else [ControlChange CC.data_entry_lsb cents]
-    where
-    (semitones, frac) = properFraction range
-    cents = round (frac * 100)
-
 reset_channel :: Channel -> [Message]
 reset_channel chan =
     -- There is also AllNotesOff, but AllSoundOff seems more widely supported.
@@ -174,6 +168,61 @@ reset_channel chan =
 -- time.
 realtime_sysex :: ByteString.ByteString -> Message
 realtime_sysex = CommonMessage . SystemExclusive 0x7f
+
+-- ** rpn / nrpn
+
+-- | Emit a pitch bend range RPN message for the given range.
+pitch_bend_range :: Double -> [ChannelMessage]
+pitch_bend_range range = rpn (0, 0) (semitones, cents) ++ cancel_rpn
+    where
+    (semitones, frac) = properFraction range
+    cents = round (frac * 100)
+
+{- | This is an emulation of 'realtime_tuning' for Kontakt KSP, which
+    understands NRPNs, but not sysex.
+
+    Each key gets (50, 0) with the source key, (51, 0) with the destination,
+    and (52, 0) with tenths of a cent as a 14-bit number.  I have to put
+    source and destination NoteNumbers into separate NRPN numbers because
+    msb and lsb arrive separately, so they pretty much have to be used as
+    msb and lsb of a single number.
+-}
+nrpn_tuning :: [(Key, NoteNumber)] -> [ChannelMessage]
+nrpn_tuning = concatMap retune_key
+    where
+    retune_key (key, nn) = concat
+        [ emit 50 (from_key key)
+        , emit 51 to_key
+        , nrpn (0, 52) (msb, lsb)
+        ]
+        where
+        emit key value = nrpn (0, key) (value, 0)
+        (lsb, msb) = split14 $ round $ frac * centicent
+        -- 2^14 = 16384, so I can fit 10000.  I think KSP only does integer
+        -- math, so I can't properly rescale 2^14 to its millicents.
+        centicent = 100 * 100
+        (to_key, frac) = properFraction nn
+
+rpn :: (ControlValue, ControlValue) -> (ControlValue, ControlValue)
+    -> [ChannelMessage]
+rpn (key_msb, key_lsb) (value_msb, value_lsb) =
+    [ ControlChange CC.rpn_msb key_msb
+    , ControlChange CC.rpn_lsb key_lsb
+    , ControlChange CC.data_entry value_msb
+    , ControlChange CC.data_entry_lsb value_lsb
+    ]
+
+cancel_rpn :: [ChannelMessage]
+cancel_rpn = [ControlChange CC.rpn_msb 127, ControlChange CC.rpn_lsb 127]
+
+nrpn :: (ControlValue, ControlValue) -> (ControlValue, ControlValue)
+    -> [ChannelMessage]
+nrpn (key_msb, key_lsb) (value_msb, value_lsb) =
+    [ ControlChange CC.nrpn_msb key_msb
+    , ControlChange CC.nrpn_lsb key_lsb
+    , ControlChange CC.data_entry value_msb
+    , ControlChange CC.data_entry_lsb value_lsb
+    ]
 
 -- * modify
 
@@ -455,14 +504,13 @@ type NoteNumber = Double
 realtime_tuning :: [(Key, NoteNumber)] -> Message
 realtime_tuning nns = realtime_sysex $ ByteString.pack $
     [generic_device, 8, 2, 0, fromIntegral (length nns)]
-    ++ concatMap (uncurry key_frequency) nns
-
-key_frequency :: Key -> NoteNumber -> [Word8]
-key_frequency key nn = [from_key key, nn_key, msb, lsb]
+        ++ concatMap (uncurry retune_key) nns
     where
-    (lsb, msb) = split14 $ round $ frac * 2^14
-    (nn_key, frac) = properFraction nn
-
+    retune_key :: Key -> NoteNumber -> [Word8]
+    retune_key key nn = [from_key key, nn_key, msb, lsb]
+        where
+        (lsb, msb) = split14 $ round $ frac * 2^14
+        (nn_key, frac) = properFraction nn
 
 -- * util
 

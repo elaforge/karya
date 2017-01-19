@@ -154,7 +154,7 @@ usage = unlines
     , "melody <out>         play a melody on <out>, also relaying msgs thru"
     , "spam <out> n         spam <out> with 'n' msgs in rapid succession"
     , "test                 run some semi-automatic tests"
-    , "pb-range <out> n     send pitch bend sensitivity"
+    , "pb-range <out> n     send pitch bend range"
     ]
 
 
@@ -268,7 +268,7 @@ spam interface write_msg n = do
 
 pitch_bend_range :: WriteMsg -> Double -> IO ()
 pitch_bend_range write_msg semis = do
-    let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_sensitivity semis)
+    let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_range semis)
     Test.pprint msgs
     mapM_ (write_msg . (,) 0) msgs
 

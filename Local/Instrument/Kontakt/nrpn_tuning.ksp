@@ -1,0 +1,25 @@
+{ This implements an imitation of the MIDI tuning standard via NRPNs. }
+
+on init
+    set_script_title("nrpn tuning")
+    declare %Pitches[128]
+    declare $from_key
+    declare $to_key
+end on
+
+on nrpn
+    select ($RPN_ADDRESS)
+        case 50
+            $from_key := msb($RPN_VALUE)
+        case 51
+            $to_key := msb($RPN_VALUE)
+        case 52
+            { $RPN_VALUE is in centicents, change_tune expects millicents. }
+            %Pitches[$from_key] := ...
+                ($to_key - $from_key) * 1000 * 100 + $RPN_VALUE * 10
+    end select
+end on
+
+on note
+    change_tune($EVENT_ID, %Pitches[$EVENT_NOTE], 0)
+end on

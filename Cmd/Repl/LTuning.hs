@@ -64,7 +64,7 @@ table scale =
 
 -- | Get a patch scale for the scale at the selection.
 selection :: Cmd.M m => Bool
-    -- ^ False to check for warnings and errors, True to ignore them.
+    -- ^ False to throw if there are warnings or errors, True to ignore them.
     -> m Patch.Scale
 selection ignore_errors = do
     (block_id, _, track_id, _) <- Selection.get_insert
@@ -73,6 +73,8 @@ selection ignore_errors = do
         Cmd.throw $ Text.unlines errs
     return scale
 
+-- | Figure out a 'Patch.Scale' by enumerating all inputs to the scale in
+-- scope.
 scale_at :: Cmd.M m => BlockId -> TrackId -> m (Patch.Scale, [Text])
 scale_at block_id track_id = do
     scale <- Perf.get_derive_at block_id track_id Call.get_scale
@@ -144,13 +146,21 @@ get_tuning inst scale = do
         ]
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
--- message with 'LInst.initialize_tuning'.
+-- message with 'LInst.initialize_realtime_tuning'.
 realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
     LInst.set_scale inst scale
     LInst.modify_midi_config inst $
         Patch.initialization %= Set.insert Patch.Tuning
-    LInst.initialize_tuning (Util.instrument inst)
+    LInst.initialize_realtime_tuning (Util.instrument inst)
+
+-- | Just like 'realtime', but send tuning via 'LInst.initialize_nrpn_tuning'.
+nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
+nrpn inst scale = do
+    LInst.set_scale inst scale
+    LInst.modify_midi_config inst $
+        Patch.initialization %= Set.insert Patch.NrpnTuning
+    LInst.initialize_nrpn_tuning (Util.instrument inst)
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
 -- to configure the instrument.

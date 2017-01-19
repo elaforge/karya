@@ -492,20 +492,37 @@ initialize_inst inst =
     whenJustM (lookup_midi_config inst) $ \(_, _, config) -> do
         let inits = Patch.config_initialization config
         when (Set.member Patch.Tuning inits) $
-            initialize_tuning inst
+            initialize_realtime_tuning inst
+        when (Set.member Patch.NrpnTuning inits) $
+            initialize_nrpn_tuning inst
         when (Set.member Patch.Midi inits) $
             forM_ (Patch.config_addrs config) $ initialize_midi inst
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
-initialize_tuning :: Cmd.M m => Score.Instrument -> m ()
-initialize_tuning inst = whenJustM (get_scale inst) $ \scale -> do
+initialize_realtime_tuning :: Cmd.M m => Score.Instrument -> m ()
+initialize_realtime_tuning inst = do
+    keys <- get_tuning_map inst
     (_, _, config) <- get_midi_config inst
-    attr_map <- Patch.patch_attribute_map . fst <$> Cmd.get_midi_instrument inst
-    let devs = map fst (Patch.config_addrs config)
-    let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
+    let msg = Midi.realtime_tuning keys
+    mapM_ (flip Cmd.midi msg) (Seq.unique (map fst (Patch.config_addrs config)))
+
+-- | Like 'initialize_realtime_tuning', except use 'Midi.nrpn_tuning'.
+initialize_nrpn_tuning :: Cmd.M m => Score.Instrument -> m ()
+initialize_nrpn_tuning inst = do
+    keys <- get_tuning_map inst
+    (_, _, config) <- get_midi_config inst
+    forM_ (Seq.unique (Patch.config_addrs config)) $ \(dev, chan) ->
+        mapM_ (Cmd.midi dev . Midi.ChannelMessage chan) (Midi.nrpn_tuning keys)
+
+get_tuning_map :: Cmd.M m => Score.Instrument -> m [(Midi.Key, Midi.NoteNumber)]
+get_tuning_map inst = get_scale inst >>= \x -> case x of
+    Nothing -> return []
+    Just scale -> do
+        attr_map <- Patch.patch_attribute_map . fst <$>
+            Cmd.get_midi_instrument inst
+        return $ map (second Pitch.nn_to_double) $
             Patch.scale_nns (Just attr_map) scale
-    mapM_ (flip Cmd.midi msg) (Seq.unique devs)
 
 initialize_midi :: Cmd.M m => Score.Instrument -> Patch.Addr -> m ()
 initialize_midi inst addr = do

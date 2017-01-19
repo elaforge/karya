@@ -135,6 +135,7 @@ instance Pretty.Pretty Config where
 -- instrument is initialized once when the score is loaded.
 data Initialization =
     Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
+    | NrpnTuning -- ^ Configure tuning with 'Midi.nrpn_tuning'.
     | Midi -- ^ Send 'InitializePatch'.
     deriving (Read, Show, Eq, Ord, Bounded, Enum)
 instance Pretty.Pretty Initialization where pretty = showt

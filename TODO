@@ -3,8 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * For scales in kontakt, it's stil a pain to copy over KSP files.  Can
+    I make it support MTS or something like it?
+    . KSP claims to support RPNs, but I can't trust it.  How does it combine
+      the various msb and lsb msgs?
+    . It doesn't, it calls nrpn with incomplete values.
   * Add McPhee scales to 'wayang'.
-  - Add 'angklung' and 'baleganjur'.
+  - Add 'angklung' and 'beleganjur'.
   / It seems like 'key' in scales is not really right.  It should be 'mode',
     and 'key' should be reserved for moving the starting point.  This would
     also be more appropriate for e.g. Balinese scales, which conflate mode
@@ -19,7 +24,7 @@ UNSORTED
     . Unless of course Tenzer's version doesn't move ding.  Check the book
       again.  Maybe modern practice or bronze saih pitu doesn't move ding.
     . In any case, I could model McPhee's system as a relative scale.
-  - BaliScales should have a default ombak, depending on saih.
+  - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
       perfect.
   * Scales from McPhee
@@ -52,8 +57,8 @@ UNSORTED
     . So I could have a simplified ChromaticScales which dispenses with letter
       + accidental, and instead just has a unique name for each scale degree.
     . Then I could use 1234567 for javanese-style notation.
-  / ChromaticScales docs is misleading, it talks about European-style pitches,
-    but really it's used for scales with modes.
+    . I'd basically replace the show/read pitch stuff with a hardcoded map to
+      RelativePitches.
   - It would be nice to have a no-keys version of BaliScales so I don't have
     to mess with a fake key in *selisir and *wayang.
     . I guess it's not a big deal, but at least it means it ignores key.
@@ -62,6 +67,7 @@ UNSORTED
   * Rename BailScales.Saih to Laras?
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.
+    . Maybe something wrong with how I retuned the sc gamelan samples.
   * Use an automatic way to add Internal.with_stack_serial.  I could probably
     use Derive.state_event_serial, and then use that to get rid of
     State.key_serial and make random seed no longer use it directly.
