@@ -93,7 +93,7 @@ test_pitch_track = do
 
     let (val, logs) = derive ("*no-scale", [(0, 0, "1"), (1, 0, "2")])
     equal val []
-    strings_like logs ["get_scale: unknown \\*no-scale"]
+    strings_like logs ["get_scale: unknown scale: no-scale"]
 
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val [[]]

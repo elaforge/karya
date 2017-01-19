@@ -302,8 +302,7 @@ newtype ScaleId = ScaleId Text
     deriving (Eq, Ord, Read, Show, String.IsString, Serialize.Serialize)
 
 instance Pretty.Pretty ScaleId where
-    -- This is the pitch track syntax.
-    pretty (ScaleId s) = "*" <> s
+    pretty (ScaleId s) = s
 
 -- | Usually this means to use the scale currently in scope.
 empty_scale :: ScaleId

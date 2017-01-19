@@ -27,7 +27,7 @@ test_compile = do
             ("tempo", [(0, 0, "2")]) : tracks
     strings_like
         (snd $ derive [(">", [(0, 1, "")]), ("*bogus-scale", [(0, 0, ".1")])])
-        ["get_scale: unknown \\*bogus-scale"]
+        ["*unknown scale: bogus-scale"]
 
     let mkcont vals = Map.union Derive.initial_controls
             (Map.singleton "c1" (Score.untyped (Signal.signal vals)))
