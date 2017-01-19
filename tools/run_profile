@@ -68,7 +68,7 @@ for prof in $profiles; do
     # directly.
     stem=${stem/ /_}
     if [[ $basename = seq ]]; then
-        cores=1 run $run_profile +RTS $flags -${^heap_flags} -RTS
+        run $run_profile +RTS $flags -${^heap_flags} -RTS
     elif [[ $basename = verify_performance ]]; then
         run $run_profile +RTS $flags -${^heap_flags} -RTS \
             | tee $basename.stdout
