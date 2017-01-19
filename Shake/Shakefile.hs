@@ -521,7 +521,7 @@ configure midi = do
         , hLinkFlags = ["-rtsopts", "-threaded"]
             -- Enable GC stats.  It's pretty cheap and allows EKG and
             -- MemoryLeak_test and LDebug.memory.
-            ++ ["-with-rtsopts=-T"]
+            ++ ["-with-rtsopts=-T -A8m"]
             ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
