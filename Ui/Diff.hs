@@ -396,7 +396,18 @@ derive_diff_block block_id pair = case pair of
 -- rederivation.
 flags_differ :: Block.Track -> Block.Track -> Bool
 flags_differ track1 track2 = relevant track1 /= relevant track2
-    where relevant = Set.filter (==Block.Disable) . Block.track_flags
+    where
+    relevant = Set.filter must_rederive . Block.track_flags
+    must_rederive flag = case flag of
+        -- If this was an uncollapse, I may need a track signal for it now.
+        -- Another way to solve this would be to emit track signals for
+        -- collapsed tracks, but lots of tracks are collapsed and usually not
+        -- expanded, and I'd like derivation to be efficient.
+        Block.Collapse -> True
+        -- These flags are handled by filtering in the player.
+        Block.Solo -> False
+        Block.Mute -> False
+        Block.Disable -> True
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =

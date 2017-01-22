@@ -117,7 +117,7 @@ UNSORTED
         tempo=1 => 1/8, at tempo=.5 => 1/4
     . How can I randomize the transition thresholds?  Maybe as easy as
       wirama a b = t-alt-c $a (rnd 1/9 1/7) $b
-  - When I expand a collapsed track it doesn't get the track signal at first.
+  * When I expand a collapsed track it doesn't get the track signal at first.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
