@@ -8,7 +8,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Pretty as Pretty
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -59,7 +58,10 @@ pasang_code =
 
 tunggal_notes :: CUtil.PitchedNotes
 (tunggal_notes, resolve_errors) =
-    CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
+    CUtil.resolve_strokes 0.3 tunggal_keymap
+        [ (char, to_call stroke attrs, attrs, group)
+        | (char, stroke, attrs, group) <- tunggal_strokes
+        ]
 
 tunggal_keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
 tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
@@ -74,32 +76,32 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
--- TODO enumerate to_call over (Stroke, Dyn)
-tunggal_strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
+tunggal_strokes :: [(Char, Stroke, Attrs.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
 (kendang_stops, tunggal_strokes) = (,) stops
-    [ ('b', "PL", plak,                 both)
+    [ ('b', Plak, plak,         both)
     -- left
-    , ('q', "P", pak,                   left_closed)
-    , ('w', "T", pang,                  left_open)
-    , ('1', "^", pak <> soft,           left_closed)
-    , ('3', "ø", tut <> Attrs.left <> soft, left_open)
-    , ('e', "Ø", tut <> Attrs.left,     left_open)
-    , ('r', "`O+`", de <> Attrs.left,   left_open)
+    , ('1', Pak, pak <> soft,   left_closed)
+    , ('q', Pak, pak,           left_closed)
+    , ('w', Pang, pang,         left_open)
+    , ('3', TutL, left <> tut <> soft,  left_open)
+    , ('e', TutL, left <> tut,  left_open)
+    , ('r', DeL, left <> de,    left_open)
     -- right
-    , ('z', "+", de,                    right_open)
-    , ('a', "-", de <> soft,            right_open)
-    , ('s', "+.", de <> Attrs.thumb,    right_open)
-    , ('d', "+/", de <> Attrs.staccato, right_open)
-    , ('x', "o", tut,                   right_open)
-    , ('c', ".", ka <> soft,            right_closed)
-    , ('f', "..", ka,                   right_closed)
-    , ('.', "<", dag,                   right_open)
-    , ('l', "-<", dag <> soft,          right_open)
-    , ('/', "[", tek,                   right_closed)
-    , (';', "-[", tek <> soft,          right_closed)
+    , ('a', De, de <> soft,     right_open)
+    , ('z', De, de,             right_open)
+    , ('s', De, de <> Attrs.thumb,    right_open)
+    , ('d', De, de <> Attrs.staccato, right_open)
+    , ('x', Tut, tut,           right_open)
+    , ('c', Ka, ka <> soft,     right_closed)
+    , ('f', Ka, ka,             right_closed)
+    , ('.', Dag, dag,           right_open)
+    , ('l', Dag, dag <> soft,   right_open)
+    , ('/', Tek, tek,           right_closed)
+    , (';', Tek, tek <> soft,   right_closed)
     ]
     where
+    left = Attrs.left
     stops =
         [ (both, [left_open, right_open])
         , (left_closed, [left_open])
@@ -110,6 +112,28 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     left_open = "left-open"
     right_closed = "right-closed"
     right_open = "right-open"
+
+to_call :: Stroke -> Attrs.Attributes -> BaseTypes.CallId
+to_call stroke attrs = BaseTypes.Symbol $ case stroke of
+    Plak -> "PL"
+    -- left
+    Pak -> if soft then "^" else "P"
+    Pang -> "T"
+    TutL -> if soft then "ø" else "Ø"
+    DeL -> "`O+`"
+    -- right
+    Ka -> if soft then "." else ".."
+    Tut -> "o"
+    De
+        | soft -> "-"
+        | has Attrs.thumb -> "+."
+        | has Attrs.staccato -> "+/"
+        | otherwise -> "+"
+    Dag -> if soft then "-<" else "<"
+    Tek -> if soft then "-[" else "["
+    where
+    has = Attrs.contain attrs
+    soft = Attrs.contain attrs Attrs.soft
 
 -- | Mapping for the old kendang patches.
 old_tunggal_notes :: [(Drums.Note, Midi.Key)]
@@ -135,10 +159,11 @@ old_tunggal_notes = map (first make_note)
     , (tek, Key.c1)
     ]
     where
-    make_note attrs = Drums.note_dyn char call attrs
+    make_note attrs =
+        Drums.note_dyn char (to_call stroke attrs) attrs
             (if Attrs.contain attrs soft then 0.3 else 1)
         where
-        Just (char, call, _, _) =
+        Just (char, stroke, _, _) =
             List.find ((==attrs) . attrs_of) tunggal_strokes
     attrs_of (_, _, a, _) = a
 
@@ -188,16 +213,17 @@ c_pasang_calls =
 
 c_pasang_stroke :: BaseTypes.CallId -> PasangStroke
     -> Derive.Generator Derive.Note
-c_pasang_stroke call_id stroke = Derive.generator Module.instrument name
-    Tags.inst "Dispatch to wadon or lanang." $ Sig.call pasang_env $
-    \pasang args -> do
-        let dispatch inst stroke = Derive.with_instrument (inst pasang) $
-                Eval.reapply_generator args (to_call stroke)
-        case stroke of
-            Wadon stroke -> dispatch wadon stroke
-            Lanang stroke -> dispatch lanang stroke
-            Both w l -> dispatch wadon w <> dispatch lanang l
-    where name = Derive.CallName $ BaseTypes.unsym call_id
+c_pasang_stroke call_id pstroke = Derive.generator Module.instrument name
+    Tags.inst "Dispatch to wadon or lanang." $ Sig.call pasang_env call
+    where
+    call pasang args = case pstroke of
+        Wadon stroke -> dispatch wadon stroke
+        Lanang stroke -> dispatch lanang stroke
+        Both w l -> dispatch wadon w <> dispatch lanang l
+        where
+        dispatch inst stroke_dyn = Derive.with_instrument (inst pasang) $
+            Eval.reapply_generator args (stroke_dyn_to_call stroke_dyn)
+    name = Derive.CallName $ BaseTypes.unsym call_id
 
 both_calls :: [(BaseTypes.CallId, PasangStroke)]
 both_calls =
@@ -354,32 +380,13 @@ data Dyn = Soft | Loud deriving (Show, Ord, Eq)
 
 data Stroke =
     Plak -- both
-    | Pak | Pang | TutL | DagL -- left
+    | Pak | Pang | TutL | DeL -- left
     | Ka | Tut | De | Dag | Tek -- right
     deriving (Eq, Ord, Show)
 
-to_call :: (Stroke, Dyn) -> BaseTypes.CallId
-to_call (stroke, dyn) = BaseTypes.Symbol $ case (stroke, dyn) of
-    (Pak, Soft) -> "^"
-    (TutL, Soft) -> "ø"
-    (De, Soft) -> "-"
-    (Dag, Soft) -> "-<"
-    (Tek, Soft) -> "-["
-    (Ka, Loud) -> ".."
-    _ -> pretty stroke
-
-instance Pretty.Pretty Stroke where
-    pretty s = case s of
-        Plak -> "PL"
-        Pak -> "P"
-        Pang -> "T"
-        TutL -> "Ø"
-        DagL -> "`O+`"
-        Ka -> ".."
-        Tut -> "o"
-        De -> "+"
-        Dag -> "<"
-        Tek -> "["
+stroke_dyn_to_call :: (Stroke, Dyn) -> BaseTypes.CallId
+stroke_dyn_to_call (stroke, dyn) =
+    to_call stroke (if dyn == Soft then Attrs.soft else mempty)
 
 strokes_of :: PasangStroke -> [(Stroke, Dyn)]
 strokes_of pstroke = case pstroke of

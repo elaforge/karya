@@ -9,7 +9,7 @@ UNSORTED
       the various msb and lsb msgs?
     . It doesn't, it calls nrpn with incomplete values.
   * Add McPhee scales to 'wayang'.
-  - Add 'angklung' and 'beleganjur'.
+  - Add 'angklung' and 'beleganjur' scales.
   / It seems like 'key' in scales is not really right.  It should be 'mode',
     and 'key' should be reserved for moving the starting point.  This would
     also be more appropriate for e.g. Balinese scales, which conflate mode
@@ -59,11 +59,54 @@ UNSORTED
     . Then I could use 1234567 for javanese-style notation.
     . I'd basically replace the show/read pitch stuff with a hardcoded map to
       RelativePitches.
+    - I can't have different pc_per_octave based on key, without parsing
+      the key in input_to_note.
   - It would be nice to have a no-keys version of BaliScales so I don't have
     to mess with a fake key in *selisir and *wayang.
     . I guess it's not a big deal, but at least it means it ignores key.
     . Actually it seems like it might be a pain, because then I can't use
       the same Config.
+  Why are scales so complicated?
+    - Can I make it simpler?  If I were to rewrite it knowing all this stuff,
+      what would it look like?
+    . twelve: Keys have mode and tonic, so each key has a signature that
+      influences enharmonic spelling.  Has accidentals with enharmonic
+      spelling, and a layout which says which pitches are skipped, also based
+      on the key.  Both the pitches and accidentals are absolute and so
+      independent of the key.
+    . twelve-k: Like 'twelve', but while pitches are still absolute,
+      accidentals are relative to the scale.
+    . twelve-r: like 'twelve', but both pitches and accidentals are relative
+      from the key's tonic.
+    . just: Keys have mode and tonic as with 'twelve', but they affect the
+      tuning.  The layout is diatonic in that there are no skipped pitches,
+      and hence no enharmonics and accidentals.  Accidentals are supported
+      just as a constant ratio offset, so respelling enharmonics will change
+      the frequency.  Since there's no per-key spelling, the key is much
+      simpler, just a tonic pitch.
+    . just-r: Like 'just', except that pitches and accidentals are relative to
+      the tonic.
+    . raga: Like 'just-r', except with a much larger selection of modes.
+      Also, instead of accidentals, there are multiple candidates for
+      certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
+      the key.  TODO the last bit is not implemented yet.
+    . legong, pelog: These have keys, but like 'just-r', they are simply a
+      starting note (tonic) and a layout to indicate skipped notes.  However,
+      there are no accidentals, and instead each note has a unique name.
+      'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
+      pengisep, and they also have a 'laras' value, which indicates the tuning
+      variant.
+    . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
+      relative to the tessitura of a particular instrument.
+    . selisir, wayang:
+    . selisir, wayang -pemade etc.: Relative octave variants.
+    . belaganjur, angklung:
+
+    . Simplest is an absolute scale with no key and no octave structure, just
+      a mapping from symbol to pitch.
+    . Then we have a relative diatonic scale.  This has a key which influences
+      the note names, since they are relative to a certain pitch, but no other
+      structure.
   * Rename BailScales.Saih to Laras?
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.
@@ -99,7 +142,7 @@ UNSORTED
     . You get playback because of TrackWarps.  So I must be missing those.
     . Turns out any block in quotes: '^t = "(a)' doesn't get a track warp.
     . Ok so why?
-  - Local.Instrument.Kontakt.Kendang should use the abstract Strokes to
+  * Local.Instrument.Kontakt.Kendang should use the abstract Strokes to
     generate the tunggal symbols.
   - Perhaps I should have a ToCall class, for types which can turn into
     tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
@@ -1904,7 +1947,7 @@ pitch: scales: scale:
       . Use scale_alternate to switch a note between alternates, bind to the
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
-    Raga
+    raga:
       - Support arohana and avarohana by treating them as enharmonics
         Is this really a good idea, since they aren't anything like
         enharmonics?  Maybe I should just use the flip-enharmonic key, but
@@ -1917,6 +1960,12 @@ pitch: scales: scale:
           I should have separate symbols, e.g. 4r^ and 4r_ for up and down
           variants.  For western modes this isn't necessary since the notation
           is already absolute.
+        . Or I can model r1 r2 r3 as accidentals.  The raga gives the default,
+          and then I can change the cycle enharmonics binding to instead cycle
+          number of "accidentals" to force a particular one.
+        . So I would model as a chromatic scale but with a custom number of
+          accidentals per degree:
+            s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
 
     - letter and jianpu but with implicit accidentals based on the key
   intonation: think about how to do e.g. meantone melody, with just harmony
