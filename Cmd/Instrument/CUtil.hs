@@ -341,7 +341,7 @@ tuning_control args control deriver = do
 -- key binding describes the capabilities of the instrument itself.
 --
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
--- a 'Drums.note_dynamic'
+-- the given dynamic.
 resolve_strokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
     -> [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
@@ -357,7 +357,7 @@ resolve_strokes soft_dyn keymap =
         dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
     check_dups (notes, msgs) = (notes3, dup_msgs ++ msgs)
         where
-        dup_msgs = map ((">1 call with name name: "<>) . extract) by_name
+        dup_msgs = map ((">1 call with same name: "<>) . extract) by_name
             ++ map ((">1 call mapped to same key: "<>) . extract) by_key
         extract = pretty . map fst . (\(x, xs) -> x : xs)
         (notes2, by_name) = Seq.partition_dups (Drums.note_name . fst) notes

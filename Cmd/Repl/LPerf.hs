@@ -529,7 +529,7 @@ chord_at block_id maybe_track_id pos = do
 -- corresponding track.
 sort_by_track :: Ui.M m => BlockId -> [Score.Event] -> m [Score.Event]
 sort_by_track block_id events = do
-    let by_track = Seq.key_on_maybe
+    let by_track = Seq.key_on_just
             (fmap snd . Stack.block_track_of . Score.event_stack) events
     tracknums <- mapM (Ui.tracknum_of block_id . fst) by_track
     let by_tracknum = [(tracknum, event)

@@ -72,8 +72,8 @@ range_ start step = go 0
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
 
-key_on_maybe :: (a -> Maybe k) -> [a] -> [(k, a)]
-key_on_maybe f xs = [(k, a) | (Just k, a) <- key_on f xs]
+key_on_just :: (a -> Maybe k) -> [a] -> [(k, a)]
+key_on_just f xs = [(k, a) | (Just k, a) <- key_on f xs]
 
 -- | Apply a function to the first and last elements.  Middle elements are
 -- unchanged.  A null or singleton list is also unchanged.
@@ -266,8 +266,8 @@ group_adjacent key = List.groupBy ((==) `on` key)
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
 keyed_group_sort :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
-keyed_group_sort key = Map.toAscList . foldr go Map.empty
-    where go x = Map.alter (Just . maybe [x] (x:)) (key x)
+keyed_group_sort key = Map.toAscList . List.foldl' go Map.empty
+    where go m x = Map.alter (Just . maybe [x] (x:)) (key x) m
 
 -- | Similar to 'keyed_group_sort', but key on the fst element, and strip the
 -- key out of the groups.

@@ -198,7 +198,7 @@ apply_attributes :: Score.Event -> Score.Event
 apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
     where
     controls :: [(Attrs.Attributes, Score.Control)]
-    controls = Seq.key_on_maybe control_attributes $ Map.keys $
+    controls = Seq.key_on_just control_attributes $ Map.keys $
         Score.event_untransformed_controls event
     attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
     get c = maybe 0 Score.typed_val $

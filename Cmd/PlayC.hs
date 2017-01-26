@@ -129,7 +129,7 @@ rendering_tracks block_id = do
     return $ do
         (view_id, tracks) <- zip view_ids btracks
         ((tracknum, track_id, flags), track) <- tracks
-        -- I don't even want to send an empty signal to these.
+        -- I don't want to send even an empty signal to these.
         guard $ Block.Collapse `Set.notMember` flags
         return (view_id, track_id, tracknum,
             Block.track_wants_signal flags track)

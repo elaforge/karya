@@ -60,8 +60,9 @@ keys = JustScales.make_keys TheoryFormat.absolute_c_degrees key_ratios
 
 key_ratios :: [(Text, JustScales.Ratios)]
 key_ratios =
-    [(name, Vector.fromList $ select (0:is) chromatic) |
-        (name, is) <- intervals]
+    [ (name, Vector.fromList $ select (0:is) chromatic)
+    | (name, is) <- intervals
+    ]
     where
     intervals = map (second (take 7)) $ zip names $ List.tails $
         cycle Theory.piano_intervals

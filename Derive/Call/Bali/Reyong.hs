@@ -795,7 +795,7 @@ zip_next xs = zip xs (drop 1 (List.tails xs))
 -- simplistic but hopefully works well enough.
 assign_hands :: [Score.Event] -> [(Hand, Score.Event)]
 assign_hands =
-    snd . List.mapAccumL assign (L, 999) . Seq.key_on_maybe Score.initial_nn
+    snd . List.mapAccumL assign (L, 999) . Seq.key_on_just Score.initial_nn
     where
     assign (prev_hand, prev_pitch) (pitch, event) =
         ((hand, pitch), (hand, event))

@@ -97,9 +97,9 @@ justErr :: err -> Maybe a -> Either err a
 justErr err = maybe (Left err) Right
 
 -- | I usually call this @require@.
-tryJust :: Monad m => err -> Maybe a -> Except.ExceptT err m a
+tryJust :: Except.MonadError e m => e -> Maybe a -> m a
 tryJust err = maybe (Except.throwError err) return
 
 -- | I usually call this @require_right@.
-tryRight :: Monad m => Either err a -> Except.ExceptT err m a
+tryRight :: Except.MonadError e m => Either e a -> m a
 tryRight = either Except.throwError return
