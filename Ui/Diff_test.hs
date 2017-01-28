@@ -114,7 +114,7 @@ test_derive_diff_track_flags = do
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
     let f modify = Diff.derive_diff ustate (UiTest.exec ustate modify) []
-    equal (f (Ui.add_track_flag bid 2 Block.Collapse)) (mkdamage [] [] [])
+    equal (f (Ui.add_track_flag bid 2 Block.Collapse)) (mkdamage [] [] [bid])
     equal (f (Ui.add_track_flag bid 2 Block.Solo)) (mkdamage [] [] [])
     equal (f (Ui.add_track_flag bid 2 Block.Disable)) (mkdamage [] [] [bid])
 
