@@ -264,10 +264,11 @@ group_adjacent key = List.groupBy ((==) `on` key)
 -- Sort groups sort the input by the group key as a side-effect of grouping.
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
--- after @key@ is applied to them.  List is returned in sorted order.
+-- after @key@ is applied to them.
 keyed_group_sort :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
-keyed_group_sort key = Map.toAscList . List.foldl' go Map.empty
-    where go m x = Map.alter (Just . maybe [x] (x:)) (key x) m
+    -- ^ Sorted by key. The NonNull group is in the same order as the input.
+keyed_group_sort key = Map.toAscList . foldr go Map.empty
+    where go x = Map.alter (Just . maybe [x] (x:)) (key x)
 
 -- | Similar to 'keyed_group_sort', but key on the fst element, and strip the
 -- key out of the groups.

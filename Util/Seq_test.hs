@@ -22,6 +22,9 @@ test_keyed_group_sort = do
     equal (f ([] :: [(Int, Char)])) []
     equal (f [(5, 'a'), (0, 'b'), (5, 'c')])
         [(0, [(0, 'b')]), (5, [(5, 'a'), (5, 'c')])]
+    -- Each group comes back in its original order.
+    equal (f [(5, 'a'), (5, 'c'), (5, 'b')])
+        [(5, [(5, 'a'), (5, 'c'), (5, 'b')])]
 
 test_merge_asc_lists = do
     let f = Seq.merge_asc_lists fst
