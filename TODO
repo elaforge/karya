@@ -3,43 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * For scales in kontakt, it's stil a pain to copy over KSP files.  Can
-    I make it support MTS or something like it?
-    . KSP claims to support RPNs, but I can't trust it.  How does it combine
-      the various msb and lsb msgs?
-    . It doesn't, it calls nrpn with incomplete values.
-  * Add McPhee scales to 'wayang'.
+  - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Add 'angklung' and 'beleganjur' scales.
-  / It seems like 'key' in scales is not really right.  It should be 'mode',
-    and 'key' should be reserved for moving the starting point.  This would
-    also be more appropriate for e.g. Balinese scales, which conflate mode
-    and starting point.
-    . Actually, it can be convenient to set both key and mode with one
-      assignment, or at least I can't think of any real advantages to
-      separating them.  And the disadvantage is it implies that e.g. with
-      'legong' they can be set separately.
-  * Actually, I think BaliScales is wrong, because it doesn't do that.
-    Maybe I should separate mode and key, and then have a tekepan which is
-    equivalent to setting them both.
-    . Unless of course Tenzer's version doesn't move ding.  Check the book
-      again.  Maybe modern practice or bronze saih pitu doesn't move ding.
-    . In any case, I could model McPhee's system as a relative scale.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
       perfect.
-  * Scales from McPhee
-    . I don't want to have to make up extra pitches, so I need an easy way to
-      say which pitches are available.
-    . That affects layout?  Or I could keep layout the same and just make
-      input_to_call fail, and adjust the FSemis accordingly.
-    . I should keep Pitch.Pitch the same, then transcription between scales
-      works in a more predictable way, e.g. ding is always 0.
-    * Maybe I should have separate scales e.g. *saih-pitu, *selisir, *wayang,
-      *angklung
-      That way, all *legong is implicitly saih pitu.  True selisir tunings
-      have to go in a separate *selisir scale.
-    . But I'm still likely to want to use saih pitu as selisir.
-  * Move "pegulingan-teges" to Selisir.
   - Disallow 4e# in selisir.  And generally accidentals.
     . Validating the absolute pitch is broken for *legong, because I want to
       make sure the relative pitch is in the key's intervals.
@@ -107,60 +75,10 @@ UNSORTED
     . Then we have a relative diatonic scale.  This has a key which influences
       the note names, since they are relative to a certain pitch, but no other
       structure.
-  * Rename BailScales.Saih to Laras?
-  - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Legong scale umbang and isep is too close.
     . Maybe something wrong with how I retuned the sc gamelan samples.
-  * Use an automatic way to add Internal.with_stack_serial.  I could probably
-    use Derive.state_event_serial, and then use that to get rid of
-    State.key_serial and make random seed no longer use it directly.
-    . Manually:
-      . block (bid "test/top"), (bid "test/top"), (tid "test/top.t1")
-        , note-track, 0t--4t, repeat, 0, block (bid "test/sub")
-        , (bid "test/sub")
-      . block (bid "test/top"), (bid "test/top"), (tid "test/top.t1")
-        , note-track, 0t--4t, repeat, 1, block (bid "test/sub")
-        , (bid "test/sub")
-    . Put in generator call:
-      . block (bid "test/top"), 0, (bid "test/top"), (tid "test/top.t1")
-        , note-track, 0t--4t, repeat, block (bid "test/sub"), 0
-        , (bid "test/sub")
-      . block (bid "test/top"), 0, (bid "test/top"), (tid "test/top.t1")
-        , note-track, 0t--4t, repeat, block (bid "test/sub"), 1
-        , (bid "test/sub")
-    . The serial is reset on each track event.  If the event calls generators,
-      each one will get a unique serial number.
-  / Replace Deriver.Internal.eval_ui caller arg with CallStack.Stack
-    . Actually I can only get filename and line number.
-  / Put Stack.Serial in Stack.UiFrame.
-  * Make new block from template should copy the merged flags.
-  * Block calls via a macro don't get block deps and track warps.
-    . The derived blocks don't get a playback cursor.  More seriously, they
-      don't register as dependent blocks, so they don't get rederived after
-      a change.
-    . It seems like they do have block deps.
-    . You get playback because of TrackWarps.  So I must be missing those.
-    . Turns out any block in quotes: '^t = "(a)' doesn't get a track warp.
-    . Ok so why?
-  * Local.Instrument.Kontakt.Kendang should use the abstract Strokes to
-    generate the tunggal symbols.
   - Perhaps I should have a ToCall class, for types which can turn into
     tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
-  * Alternate call depending on tempo.
-    . When (ts e) goes below a threshold.
-    * Also I want to be able to switch in the middle of a call.
-      . I think I have to derive everything, and then re-evaluate the dur
-        every interval.  It would be somewhat complicated because I'd have
-        to assume I don't want overlapping notes, and either delay the
-        transition a note ends, or make it shorter (but not unreasonably
-        short).
-      . I can prevent unreasonably short by not using an unreasonably short
-        time interval.
-      . 'b2 .15 b3 .25 b4' means 8th note becomes .15 seconds go to b3
-        tempo=1 => 1/8, at tempo=.5 => 1/4
-    . How can I randomize the transition thresholds?  Maybe as easy as
-      wirama a b = t-alt-c $a (rnd 1/9 1/7) $b
-  * When I expand a collapsed track it doesn't get the track signal at first.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
@@ -309,27 +227,6 @@ UNSORTED
     can see this editing rehearsal/kendang-legong
   / can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
-  * playback: Play position doesn't work right for 'clip', 'loop' and 'tile'.
-    . The problem is that calling the block collects a TrackWarp.Track with
-      the bounds, and it doesn't know that 'clip' or whatever else is going
-      to drop some events.
-    . I think the only real way to do this is just manually modify the
-      TrackWarp.  I could at least use a 'clip start end deriver'
-      function which handles that.
-    . 'loop' and 'tile' don't work because they all get the same stack.  Use
-      a serial number: Stack.Serial.
-    . I trim events to 0 'start'.  But the TrackWarp is trimmed to what that
-      position corresponds to in the sub-block.  To do that for real, I have to
-      do it when the block cals Internal.add_new_track_warp, perhaps via an env
-      var.
-    . Really I want to set from RealTime: 0s -> 2t.
-    . I can set the var in the caller, but how do I ensure it doesn't continue
-      to propagate to sub-sub blocks?  Actually, I kind of do want it to
-      propagate!  Sub-calls can restrict it further, but not widen it.
-    / For Deriver.Internal to use env vals, Typecheck can't import Internal.
-      I think I can move the stuff it relies on to Monad:
-        real, score, get_control_function_dynamic, get_dynamic
-      . Or should I have another module in between Monad and Internal?
 
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
@@ -1687,7 +1584,7 @@ Derive:
           "measure" seems more natural.
         - p+ and s+ should also be generators
         - version of k_\ without the gap, maybe k-\
-        * The kotekan call can be hard to use for irregular sections like:
+        . The kotekan call can be hard to use for irregular sections like:
           . |       |       |
              3-23-3-23-23-23-5
             2-12-2-12-12-1234-34-4-3
@@ -1792,12 +1689,6 @@ Derive:
           integration could theoretically do that.
       trompong: reyong:
         - Damp level is way too high, I have to put %damp=.2 everywhere.
-        * I'd like to write two parts, and have the upper octaves automatic.
-          . I can put them in a sub-block and wrap with 'upper', but it won't
-            get the voices right.  But if I put the track voices as v=+1 and
-            v=+2 then they would be right.
-          . There's also UI track integration, but I'd want it to happen only
-            for individual notes.
         - remove kilit, isn't it just norot now?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
