@@ -36,8 +36,9 @@ control = "control"
 instrument :: Key
 instrument = "inst"
 
--- | VSymbol: Diatonic transposition often requires a key.  The interpretation
--- of the value depends on the scale.
+-- | VSymbol: Many scales use this for scale-specific configuration.
+-- Some scales conceptually have a separate key and mode, e.g. C minor, in
+-- which case they're combined into @key@.
 key :: Key
 key = "key"
 

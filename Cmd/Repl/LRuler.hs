@@ -26,7 +26,7 @@
 
     Examples:
 
-    - 8 gongs with 4 strokes per gong (e.g. p, m, p, o)
+    - Bali: 8 gongs with 4 jegogans per gong:
 
         > LRuler.local $ LRuler.gongs 8 4
 

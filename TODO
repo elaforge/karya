@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Track 'mute' status gets increasingly off.  Surely this is due to the
+    bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
+    only absolute updates to the skeleton.
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
@@ -98,6 +101,7 @@ UNSORTED
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4
+    . Probably due to updates in the wrong order.
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
@@ -239,43 +243,10 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
 
-MILESTONES
-  0.1
-    * support diatonics, enharmonics, and symbolic transposition for church
-      modes, modes of limited transposition, and exotic scales
-      (e.g. octatonic a-h)
-    * record chords
-    + integration
-    * just scales, and other ratio-oriented scales that use letters and
-      accidentals
-    * complete Idiom.Wind, experiment with the Idiom postprocs
-    * bring back negative duration / arrival beats
-    * scales and keyswitches
-    / efficient thru
-    * tracklang complete with set of basic calls
-    * better REPL situation
-    * derive cache
-    * symbolic score
-    + save undo history / incremental save - more extensive testing
-    * solution for audio, plugins, track bouncing, etc.  ardour / reaper + MTC
-    + jack support on linux
-    / simple csound backend
-    * lilypond backend: good enough to render viola-sonata
-    * documentation
-  1.0
-    - midi record
-    - dense / efficient control signals
-    - stable api
-    - solution for local data / code
-  future
-    - non-realtime synthesizer: doc/dev_notes/synthesizer
-    - horizontal layout
-    - mouse oriented signal editing
-    - Unify environ, controls, and pitch signals by making signals of
-      arbitrary type.
-    - print scores
-    - include audio inline, so I can write signal transforms like event
-      transforms
+PRIORITY
+  - input latency still gets crummy when the score is large
+  - fix the shakefile so it doesn't require libs for im if you don't use it
+  - fix bugs in Util.Pretty / Util.Format
 
 ----------------------------------------------------------------------
 
@@ -2061,6 +2032,20 @@ tracklang problems
     . More utils like LNote.sort_on_pitch to automate away hassle could help
       with writing, but not reading.  So maybe it's worth trying to make
       sort_on_pitch more robust.
+
+long term:
+  - midi record
+  - dense / efficient control signals
+  - stable api
+  - solution for per score haskell
+  - text score
+  - non-realtime synthesizer: doc/dev_notes/synthesizer
+    - include audio inline, so I can write signal transforms like event
+      transforms
+  - horizontal layout
+  - Unify environ, controls, and pitch signals by making signals of
+    arbitrary type.
+  - print scores
 
 planning / research
   text score: doc/dev_notes/text-score.md

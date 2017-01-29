@@ -47,6 +47,9 @@ import Global
 scales :: [Scale.Make]
 scales = make_scale_set config scale_id "Saih pelegongan, from my instruments."
 
+scale_id :: Pitch.ScaleId
+scale_id = "legong"
+
 make_scale_set :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc -> [Scale.Make]
 make_scale_set config (Pitch.ScaleId prefix) doc =
     map (Scale.Simple . Scales.add_doc doc)
@@ -81,9 +84,6 @@ make_scale_set config (Pitch.ScaleId prefix) doc =
     cipher_scale = BaliScales.cipher_relative_dotted 5
         (BaliScales.config_default_key config)
         (BaliScales.config_keys config)
-
-scale_id :: Pitch.ScaleId
-scale_id = "legong"
 
 jegog, calung, penyacah :: BaliScales.Instrument
 jegog = instrument 1 (Pitch.pitch 3 I) (Pitch.pitch 3 As)

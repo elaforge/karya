@@ -52,6 +52,31 @@ Even just a simple sequencing language could be pretty useful.
 In theory, in the distant future, with some editor integration I could use the
 tempo map and playback thread to highlight currently playing expressions.
 
+### implementation
+
+Initial implementation in `Derive/Text`.
+
+If I wind up using a lot of text, I could store this as a normal file, or group
+of files, inside of .git.  If I then use a "checked out" repo, I can use diff.
+
+It could also be more convenient to always have an editor open, rather than
+editing through the REPL.  This would basically be the same as the imported
+.ky file, except it also imports from inside the git repo, and save would need
+to notice a change to the files and commit them.
+
+I could have a text language which is rendered to a block automatically.  The
+block is read-only and can only be rederived from the text, but it gives a
+visualization of the time, and a place to put the play cursor.  Its ruler could
+also be automatically derived as a concatenation of the rulers underneath.
+This would solve the problem of sequencing, but also integrate with the
+graphical score.
+
+Currently ^z sets a call to its "natural" duration, but won't move other
+events.  I could have a version that does insert or delete time as appropriate.
+It might have to extend the block length though, which in turn can cause its
+callers to change size.  Perhaps there could be a notion of "open" blocks,
+which know how to generate their own ruler, and automatically set their
+end to the end of the last event.
 
 ### rhythm
 
