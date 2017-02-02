@@ -102,6 +102,73 @@ UNSORTED
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4
     . Probably due to updates in the wrong order.
+    . Some blocks have the same name: wayang/intro
+    . But I get it even with no windows open.
+
+    . from: @top @b1.v3 => @b1.t7 @top.t2 @b1.t8
+
+    . sync updates:
+      [ Block ((bid "wayang/b1")) (RemoveTrack (1))
+      , Block ((bid "wayang/intro")) (RemoveTrack (0))
+      , Block ((bid "wayang/intro")) (RemoveTrack (0))
+      , Block ((bid "wayang/intro")) (RemoveTrack (0))
+
+    . Lots of updates turn into [] because they're on non-visible blocks or
+      tracks.
+    . I think they turn into return () >> return () >> ..., and I'm not sure
+      if that can be optimized away.  Even if it can't, maybe it's so fast
+      it doesn't matter.  In any case, I could get rid of it by returning
+      [Fltk ()] instead of Fltk ().
+    . The other problem is that it means the sync updates are noisy.  I'd like
+      to see what the actual calls are.  I could give Fltk a name... and
+      even reuse the exception catch for that.
+      . That's not easy to do because I make use of the Monad Fltk instance.
+      . And I can get effectively the same thing by just printing in
+        BlockC.exc.
+
+    . Maybe I should get the segfault back, since it's a clearly wrong thing.
+      I could get it even with no windows in the from state, so try for that.
+    . CreateView -> create_view
+      RemoveTrack 1 -> ?
+      TrackAllEvents for many
+      BlockTrack 0, 1, 3, 5, 7 ->
+        set_display_track 0, 1
+        set_track_title 1
+        insert_track 2
+        set_display_track 2
+        insert_track 3
+      BringToFront
+      BlockSkeleton
+      TrackTitle, Selections
+      . create_view, insert_track
+    . I think the problem is that CreateView makes the fully updated view, but
+      then there are all these Updates converting from the old view.
+    . A diff on block or track or ruler will expand to all views that contain
+      it.  But it should include new ones!  Maybe I should move CreateView to
+      the end.
+    . I think the comment in Ui.Diff about views at the top is just wrong,
+      but how can I test the correct order?  I'd like a test that demonstrates
+      the current brokenness.
+      . I could make Sync either return data, or use BlockCStub to record the
+        calls, then use those to update a model UI.  Seems non-trivial.
+      . But it could be worth it if I can use quickcheck to verify a whole
+        bunch of starting and ending states.  It would be compare the
+        incremental output against creating the visible UI from scratch.
+
+    . What should happen: a bunch of underlying things have changed
+    . When a block, track, or ruler has changed, I only want to emit changes
+      for old views, I can't include the newly created view.
+    . What about updates for an added track?
+      If I have InsertTrack, I shouldn't update that track.  Can that happen?
+      CreateView happens because I add a view, but also happen to change its
+      blocks.  The block changes are relative to the old block, but the view
+      is created with the new state.
+      The track situation would be that I add a track to a block, but also
+      modify it.  But since I think all track updates are idempotent, this
+      shouldn't cause a problem.
+    . Another way to fix this would be to create the view from the old state.
+      Of course it would be less efficient, but would it be simpler?
+
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
