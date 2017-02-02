@@ -60,9 +60,6 @@ run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 diff :: [Update.CmdUpdate] -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
 diff cmd_updates st1 st2 = postproc cmd_updates st2 $ run $ do
-    -- View diff needs to happen first, because other updates may want to
-    -- update the new view (technically these updates are redundant, but they
-    -- don't hurt and filtering them would be complicated).
     diff_views st1 st2 (Ui.state_views st1) (Ui.state_views st2)
     mapM_ (uncurry3 diff_block) $
         Map.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)

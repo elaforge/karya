@@ -97,7 +97,7 @@ UNSORTED
       (TrackTime, Bool).  Then I could edit them by giving the selection an
       orientation.  It would have to switch with a key, or I could have 'w'
       and 'b' automatically switch.
-  - load wayang/merta1, then load p1, I get:
+  * load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
     . Also I got a plain segfault after starting with p1, then load p4

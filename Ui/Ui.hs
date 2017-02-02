@@ -357,8 +357,8 @@ modify f = do
 -- redrawing the whole track isn't that expensive.
 --
 -- See the StateStack comment for more.
-run :: (Monad m) =>
-   State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
+run :: Monad m => State -> StateT m a
+    -> m (Either Error (a, State, [Update.CmdUpdate]))
 run state m = do
     res <- (Except.runExceptT . Logger.run . flip State.runStateT state
         . (\(StateT x) -> x)) m
