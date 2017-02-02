@@ -4,4 +4,7 @@
 if repl=t bin/mk build/opt/logview build/debug/seq; then
     build/opt/logview &
     build/debug/seq "$@"
+    if [[ $? -ne 0 ]]; then
+        rm seq-repl
+    fi
 fi
