@@ -71,15 +71,19 @@ sync :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
 sync ui_chan track_signals set_style state updates = do
     updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
-    result <- Ui.run state $
-        do_updates ui_chan track_signals set_style updates
-    return $ case result of
-        Left err -> Just err
+    -- Debug.fullM (Debug.putp "sync updates") updates
+    let action = sync_actions track_signals set_style updates
+    case Ui.run_id state action of
+        Left err -> return $ Just err
         -- I reuse Ui.StateT for convenience, but run_update should
         -- not modify the State and hence shouldn't produce any updates.
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
-        Right _ -> Nothing
+        Right (actions, _, _) -> do
+            unless (null actions) $
+                Fltk.send_action ui_chan ("sync " <> showt (length actions))
+                    (sequence_ actions)
+            return Nothing
 
 -- | Filter out updates that will cause the BlockC level to throw an exception,
 -- and log an error instead.  BlockC could log itself, but if BlockC gets a bad
@@ -98,15 +102,11 @@ check_updates state = filterM $ \update -> case update of
             return False
     _ -> return True
 
-do_updates :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
-    -> [Update.DisplayUpdate] -> Ui.StateT IO ()
-do_updates ui_chan track_signals set_style updates = do
-    -- Debug.fullM (Debug.putp "sync updates") updates
+sync_actions :: Track.TrackSignals -> Track.SetStyleHigh
+    -> [Update.DisplayUpdate] -> Ui.StateId [Fltk.Fltk ()]
+sync_actions track_signals set_style updates = do
     views_of <- old_views_of updates <$> Ui.get
-    actions <- concatMapM (run_update views_of track_signals set_style) updates
-    unless (null actions) $ do
-        liftIO $ Fltk.send_action ui_chan ("sync: " <> pretty updates)
-            (sequence_ actions)
+    concatMapM (run_update views_of track_signals set_style) updates
 
 set_track_signals :: Fltk.Channel -> [(ViewId, TrackNum, Track.TrackSignal)]
     -> IO ()
@@ -215,9 +215,9 @@ floating_input state (Cmd.FloatingInsert text) =
 -- CreateView Updates will modify the State to add the ViewPtr.  The IO in
 -- the StateT is needed only for some logging.
 run_update :: (BlockId -> [ViewId]) -> Track.TrackSignals
-    -> Track.SetStyleHigh -> Update.DisplayUpdate -> Ui.StateT IO [Fltk.Fltk ()]
-    -- TODO can I make this into StateId?  or even pure?
-    -- or a custome State, stince there are a bunch of other args?
+    -> Track.SetStyleHigh -> Update.DisplayUpdate -> Ui.StateId [Fltk.Fltk ()]
+    -- I'd like to put the various args in a StateT, but so far it's not worth
+    -- the annoyance of having to lift the Ui.M operations.
 run_update views_of track_signals set_style update = case update of
     Update.View view_id update ->
         update_view track_signals set_style view_id update
@@ -230,7 +230,7 @@ run_update views_of track_signals set_style update = case update of
     Update.State () -> return []
 
 update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
-    -> Update.View -> Ui.StateT IO [Fltk.Fltk ()]
+    -> Update.View -> Ui.StateId [Fltk.Fltk ()]
 update_view track_signals set_style view_id Update.CreateView = do
     view <- Ui.get_view view_id
     block <- Ui.get_block (Block.view_block view)
@@ -302,7 +302,7 @@ update_view _ _ view_id update = case update of
 -- | Block ops apply to every view with that block.
 update_block :: (BlockId -> [ViewId]) -> Track.TrackSignals
     -> Track.SetStyleHigh -> BlockId -> Update.Block Block.DisplayTrack
-    -> Ui.StateT IO [Fltk.Fltk ()]
+    -> Ui.StateId [Fltk.Fltk ()]
 update_block views_of track_signals set_style block_id update = case update of
     Update.BlockTitle title -> return $
         map (flip BlockC.set_title title) view_ids
@@ -334,22 +334,17 @@ update_block views_of track_signals set_style block_id update = case update of
         let tlike_id = Block.dtracklike_id dtrack
         tlike <- Ui.get_tracklike tlike_id
         state <- Ui.get
-        -- I need to get this for Block.track_wants_signal.
-        maybe_btrack <- fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
-            (Ui.get_block block_id)
-        flags <- case maybe_btrack of
-            Nothing -> do
-                liftIO $ Log.warn $
-                    "InsertTrack with tracknum that's not in the block's "
-                    <> "tracks: " <> showt update
-                return mempty
-            Just btrack -> return (Block.track_flags btrack)
+        -- Not sure if this should be fatal?
+        btrack <- Ui.require
+            ("InsertTrack with tracknum not in the block: " <> pretty update)
+            =<< fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
+                (Ui.get_block block_id)
         return $ for view_ids $ \view_id ->
             insert_track state set_style block_id view_id tracknum dtrack
-                tlike_id tlike track_signals flags
+                tlike_id tlike track_signals (Block.track_flags btrack)
 
 update_track :: (BlockId -> [ViewId]) -> Track.SetStyleHigh
-    -> TrackId -> Update.Track -> Ui.StateT IO [Fltk.Fltk ()]
+    -> TrackId -> Update.Track -> Ui.StateId [Fltk.Fltk ()]
 update_track views_of set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
     state <- Ui.get
@@ -389,7 +384,7 @@ update_track views_of set_style track_id update = do
                     merged set_style
 
 update_ruler :: (BlockId -> [ViewId]) -> Track.SetStyleHigh -> RulerId
-    -> Ui.StateT IO [Fltk.Fltk ()]
+    -> Ui.StateId [Fltk.Fltk ()]
 update_ruler views_of set_style ruler_id = do
     block_tracks <- dtracks_with_ruler_id ruler_id
     state <- Ui.get

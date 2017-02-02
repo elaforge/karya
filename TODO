@@ -168,7 +168,14 @@ UNSORTED
       shouldn't cause a problem.
     . Another way to fix this would be to create the view from the old state.
       Of course it would be less efficient, but would it be simpler?
-
+  - Write a test for Ui.Diff and Ui.Sync.
+    . I think the easiest way to do this is make BlockCStub record its calls,
+      then have a UI simulation that interprets those.  Then I can use
+      quickcheck to verify a bunch of starting and ending states.  It would
+      compare the incremental output against creating the visible UI from
+      scratch.
+    . It seems non-trivial... but maybe worth it, seeing how complicated
+      diff and sync are.
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
