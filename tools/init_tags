@@ -6,9 +6,12 @@
 # fast-tags wrapper to generate tags automatically if there are none.
 
 fn=$1
+flags=(
+    --qualified
+)
 if [[ ! -r tags ]]; then
     echo Generating tags from scratch...
-    exec fast-tags $(tools/all_hs.py)
+    exec fast-tags $flags $(tools/all_hs.py)
 else
-    exec fast-tags $fn
+    exec fast-tags $flags $fn
 fi
