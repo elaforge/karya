@@ -357,10 +357,14 @@ test_nyog_instrument_environ = do
             ( pretty $ Types.patch_name (Types.event_patch e)
             , head $ Signal.unsignal $ Types.event_pitch e
             )
-
+    -- The instrument brings tuning along with it, so I match the patch scale
+    -- for both polos umbang and sangsih isep.
     equal (run [(0, 1, "4i"), (1, 1, "4i")])
         ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
+    -- If an instrument is given specifically, it overrides.
     equal (run [(0, 1, "inst=pemade-s | -- 4i"), (1, 1, "4i")])
+        ([("pemade-s", (0, 60)), ("pemade-p", (1, 60))], [])
+    equal (run [(0, 1, "inst=pemade-p | -- 4i"), (1, 1, "4i")])
         ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
 
 test_noltol = do

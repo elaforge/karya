@@ -353,7 +353,6 @@ set_instrument (score_inst, inst) event = event
     , Score.event_environ =
         Derive.inst_environ inst <> Score.event_environ event
     }
-    where env = Derive.inst_environ inst
 
 -- * misc
 

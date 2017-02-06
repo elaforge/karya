@@ -1005,14 +1005,24 @@ c_nyogcag = Make.transform_notes module_ "nyog" Tags.postproc
     <$> Sig.defaulted "polos-first" True "First note is polos."
     <*> pasang_env
     ) $ \(polos_first, pasang) deriver -> do
+        inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
             <*> Derive.get_instrument (sangsih pasang)
-        snd . Post.emap_asc (nyogcag pasang) polos_first <$> deriver
+        snd . Post.emap_asc (nyogcag inst pasang) polos_first <$> deriver
 
-nyogcag :: Pasang (Score.Instrument, Derive.Instrument) -> Bool -> Score.Event
-    -> (Bool, [Score.Event])
-nyogcag pasang is_polos event = (not is_polos, [with_inst event])
+nyogcag :: Score.Instrument -> Pasang (Score.Instrument, Derive.Instrument)
+    -> Bool -> Score.Event -> (Bool, [Score.Event])
+nyogcag inst pasang is_polos event =
+    ( next_is_polos
+    , if event_inst == inst then [with_inst event] else [event]
+    )
     where
+    next_is_polos
+        | event_inst == inst = not is_polos
+        | event_inst == fst (polos pasang) = False
+        | event_inst == fst (sangsih pasang) = True
+        | otherwise = is_polos
+    event_inst = Score.event_instrument event
     with_inst =
         Post.set_instrument (if is_polos then polos pasang else sangsih pasang)
 
