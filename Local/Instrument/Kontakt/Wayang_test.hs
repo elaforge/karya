@@ -21,7 +21,7 @@ test_wayang = do
     let run notes = extract $ KontaktTest.perform allocations $
             Derive.r_events $ KontaktTest.derive allocations "" $
                 UiTest.note_spec ("u" <> wayang_title, notes, [])
-        extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
+        extract ((_, midi), logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.d3], [])
     equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.d_1], [])
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.d_1], [])
@@ -55,7 +55,7 @@ test_wayang_pasang = do
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.95, Just 62.5]
 
-    let (_events, midi, logs) =
+    let ((_events, midi), logs) =
             KontaktTest.perform allocations (Derive.r_events result)
     equal logs []
     -- Note no PitchBend, which means the split instruments applied

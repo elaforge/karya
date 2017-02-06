@@ -50,7 +50,7 @@ test_basic = do
             , ("*", [(0, 0, "4c"), (16, 0, "4c#")])
             , ("dyn", [(0, 0, "1"), (16, 0, ".5")])
             ]
-    let (perf_events, mmsgs, logs) =
+    let ((perf_events, mmsgs), logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
     equal (e_events res) ([(0, 16, ""), (16, 16, "")], [])
 
@@ -87,10 +87,10 @@ test_basic = do
 
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
-    let res = DeriveTest.derive_tracks ""
-            [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
-    let (_, mmsgs, _) =
-            DeriveTest.perform_defaults (Derive.r_events res)
+    let ((_, mmsgs), _) =
+            DeriveTest.perform_result DeriveTest.perform_defaults $
+            DeriveTest.derive_tracks ""
+                [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
 
 test_attributes = do
@@ -114,7 +114,7 @@ test_attributes = do
             [ (">i1 | +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
-        (_, mmsgs, logs) = DeriveTest.perform convert_lookup
+        ((_, mmsgs), logs) = DeriveTest.perform convert_lookup
             allocs (Derive.r_events res)
 
     -- Attribute inheritance thing works.
@@ -256,20 +256,21 @@ test_subderive_error = do
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly
-    let res = DeriveTest.derive_blocks
-            [ ("b0",
-                [ ("tempo", [(0, 0, "2")])
-                , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
-                , (">i1", [(0, 8, "sub")])
-                ])
-            , ("sub=ruler",
-                [ (">", [(0, 1, ""), (1, 1, "")])
-                , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
-                , (">", [(0, 1, ""), (1, 1, "")])
-                , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
-                ])
-            ]
-    let (_, mmsgs, logs) = DeriveTest.perform_defaults (Derive.r_events res)
+    let ((_, mmsgs), logs) =
+            DeriveTest.perform_result DeriveTest.perform_defaults $
+            DeriveTest.derive_blocks
+                [ ("b0",
+                    [ ("tempo", [(0, 0, "2")])
+                    , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
+                    , (">i1", [(0, 8, "sub")])
+                    ])
+                , ("sub=ruler",
+                    [ (">", [(0, 1, ""), (1, 1, "")])
+                    , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
+                    , (">", [(0, 1, ""), (1, 1, "")])
+                    , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
+                    ])
+                ]
     equal (DeriveTest.note_on_vel mmsgs)
         [ (0, Key.c5, 127), (0, Key.c4, 127)
         , (2000, Key.d5, 64), (2000, Key.d4, 64)
@@ -477,12 +478,12 @@ test_fractional_pitch = do
     -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
     -- also tests that the pitch signal is trimmed properly by
     -- Note.trim_pitches.
-    let res = DeriveTest.derive_tracks ""
-            [ (">i1", [(0, 16, ""), (16, 16, "")])
-            , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
-            ]
-    let (_perf_events, mmsgs, logs) =
-            DeriveTest.perform_defaults (Derive.r_events res)
+    let ((_perf_events, mmsgs), logs) =
+            DeriveTest.perform_result DeriveTest.perform_defaults $
+                DeriveTest.derive_tracks ""
+                    [ (">i1", [(0, 16, ""), (16, 16, "")])
+                    , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
+                    ]
 
     equal logs []
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
@@ -490,17 +491,17 @@ test_fractional_pitch = do
         [(0, Key.c4), (1, Key.d4)]
 
 test_control = do
-    let res = DeriveTest.derive_tracks ""
+    let ((perf_events, mmsgs), logs) =
+            DeriveTest.perform_result DeriveTest.perform_defaults res
+        res = DeriveTest.derive_tracks ""
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
-    let (perf_events, mmsgs, logs) =
-            DeriveTest.perform_defaults (Derive.r_events res)
 
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
-    equal (map DeriveTest.show_log logs) []
+    equal logs []
     equal (fst $ e_events res) [(0, 1, ""), (1, 1, "")]
     equal (length perf_events) 2
 
@@ -567,9 +568,8 @@ test_block_end = do
 test_regress_pedal = do
     -- Make sure a pedal halfway through a note really only turns on halfway
     -- through the note.
-    let res = derive_blocks blocks
-    let (_perf_events, mmsgs, _logs) =
-            DeriveTest.perform_defaults (Derive.r_events res)
+    let ((_perf_events, mmsgs), _logs) = DeriveTest.perform_result
+            DeriveTest.perform_defaults (derive_blocks blocks)
     let pedal_on =
             [ (ts, c)
             | (ts, Midi.ChannelMessage _ (Midi.ControlChange 64 c))

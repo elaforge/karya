@@ -75,7 +75,7 @@ test_drum_instrument = do
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
 
-    let (_, midi, logs) = perform result
+    let ((_, midi), logs) = perform result
     equal logs []
     let e_midi = Seq.map_maybe_snd Midi.channel_message
             . filter (Midi.is_note . snd) . DeriveTest.extract_midi

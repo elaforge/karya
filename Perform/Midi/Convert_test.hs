@@ -5,7 +5,6 @@
 module Perform.Midi.Convert_test where
 import qualified Data.Map as Map
 
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
@@ -15,7 +14,6 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -192,12 +190,12 @@ show_logs extract =
 -- * instrument scale
 
 test_instrument_scale = do
-    let (_, (evts, _midi, logs)) = perform patch [("i1", "s/1")]
+    let ((events, _), logs) = perform patch [("i1", "s/1")]
             [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
     equal logs []
-    equal (map (Signal.unsignal . Types.event_pitch) evts)
+    equal (map (Signal.unsignal . Types.event_pitch) events)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
     patch = Patch.defaults#Patch.scale #= Just scale $ UiTest.make_patch "1"
@@ -215,9 +213,8 @@ test_pitched_keymap = do
             , ("*", [(n, 0, p) | (n, p) <- vals])
             ]
             where vals = zip (Seq.range_ 0 1) ps
-    let (res, (events, _, logs)) = perform patch [("i1", "s/1")]
+    let ((events, _), logs) = perform patch [("i1", "s/1")]
             (mktracks ["3c", "4c", "5c", "6c"])
-    equal (DeriveTest.r_logs res) []
     equal logs []
     equal (map (nn_signal . Types.event_pitch) events)
         [ [(0, NN.c2)]
@@ -232,13 +229,13 @@ nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
 perform :: Patch.Patch -> DeriveTest.SimpleAllocations -> [UiTest.TrackSpec]
-    -> (Derive.Result, ([Types.Event], [Midi.WriteMessage], [Log.Msg]))
-perform patch allocs tracks = (result, performance)
+    -> (([Types.Event], [Midi.WriteMessage]), [String])
+perform patch allocs tracks =
+    DeriveTest.perform_result perform $
+        DeriveTest.derive_tracks_setup
+            (DeriveTest.with_instrument_db allocations db) "" tracks
     where
+    perform = DeriveTest.perform
+        (DeriveTest.make_convert_lookup allocations db) allocations
     allocations = DeriveTest.simple_allocs_from_db db allocs
-    performance = DeriveTest.perform
-        (DeriveTest.make_convert_lookup allocations db)
-        allocations (Derive.r_events result)
     db = UiTest.make_db [("s", [patch])]
-    result = DeriveTest.derive_tracks_setup
-        (DeriveTest.with_instrument_db allocations db) "" tracks

@@ -91,8 +91,7 @@ run = merge . Identity.runIdentity . Log.run
     where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the
--- keymap.  Otherwise convert the pitch signal.  Possibly warn if there are
--- attributes that didn't match anything.
+-- keymap.  Otherwise convert the pitch signal.
 --
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,

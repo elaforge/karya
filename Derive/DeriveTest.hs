@@ -130,20 +130,20 @@ perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
-    (_, mmsgs, logs) = perform default_convert_lookup
+    ((_, mmsgs), logs) = perform default_convert_lookup
         UiTest.default_allocations (Derive.r_events result)
     result = derive_blocks blocks
 
 perform :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform lookup allocations events =
-    (fst (LEvent.partition perf_events), mmsgs, logs)
+    ((fst (LEvent.partition perf_events), mmsgs), logs)
     where
     (perf_events, perf) = perform_stream lookup allocations events
     (mmsgs, logs) = extract_logs perf
 
 perform_defaults :: Stream.Stream Score.Event
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_allocations
 
 perform_stream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
@@ -157,13 +157,22 @@ perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
 -- | Perform events with the given instrument db.
 perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform_synths allocations synths =
     perform (synths_to_convert_lookup allocations synths) allocations
 
+-- | Chain a 'perform' from a Derive.Result.
+perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
+    -> Derive.Result -> (a, [String])
+perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
+    where
+    (events, derive_logs) = extract_logs $ Stream.to_list $
+        Derive.r_events result
+    (val, perf_logs) = perform (Stream.from_events events)
+
 perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform_synths_simple simple_allocs synths =
     perform (make_convert_lookup allocs db) allocs
     where
@@ -236,7 +245,7 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
         Prelude.Block.eval_root_block global_transform block_id
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform_dump synths (_, simple_allocs, _) =
     perform lookup allocs . Derive.r_events
     where

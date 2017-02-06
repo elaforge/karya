@@ -23,5 +23,5 @@ with_synth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
 with_synth allocs = DeriveTest.with_synths_simple allocs [Kontakt.synth]
 
 perform :: DeriveTest.SimpleAllocations -> Stream.Stream Score.Event
-    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform allocs = DeriveTest.perform_synths_simple allocs [Kontakt.synth]

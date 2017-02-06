@@ -20,7 +20,7 @@ test_mridangam = do
         perf = KontaktTest.perform allocs . Derive.r_events
         allocs = [("m", "kontakt/mridangam-d")]
 
-    let (_events, midi, logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
+    let ((_events, midi), logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
             DeriveTest.extract_midi_msg midi)
@@ -35,7 +35,7 @@ test_mridangam = do
         (["+din", "+thom"], [])
 
     -- I get ControlChange.
-    let (_events, midi, logs) = perf $ run "3g#" [["n", "d"], ["o/"]]
+    let ((_events, midi), logs) = perf $ run "3g#" [["n", "d"], ["o/"]]
     equal logs []
     let extract = mapMaybe Midi.channel_message . DeriveTest.extract_midi_msg
     equal (extract midi)
