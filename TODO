@@ -3,9 +3,15 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Can I have a block that automatically extends itself?  It needs to know
+    the ruler, or at least the ruler it should use to extend.
+    . Is the meter type enough to generate meters from scratch?  I think not,
+      because it doesn't differentiate different meters of the same type.
   - Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
+    . Can't reproduce this now.
+    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
   - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
@@ -318,7 +324,9 @@ UNSORTED
     the rest reset to 0.
 
 PRIORITY
-  - input latency still gets crummy when the score is large
+  performance:
+    - input latency still gets crummy when the score is large
+    - Reduce memory usage of GHC API, might help with latency.
   - fix the shakefile so it doesn't require libs for im if you don't use it
   - fix bugs in Util.Pretty / Util.Format
 
@@ -613,6 +621,9 @@ cleanup:
     . It's confusing how sometimes the environ is applied to the pitch during
       derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
       to do it.  Do I really need both?
+      . The environ goes in the Score.Event, which is then applied to the pitch.
+        So Post.set_instrument actually maybe doesn't work, if the event
+        still has environ.  I have to replace the event environ instead.
     . Post.set_instrument needs to set because I need the environ from the new
       inst.  Could I instead overlay the environ into the event environ?
     . It's error prone because there's nothing that enforces that you set
@@ -620,6 +631,8 @@ cleanup:
       you use a scale with e.g. tuning, and then it will be slightly off.
     - Maybe I should at least not export Score.Event(..) so I can't directly
       modify its fields?
+    . Or maybe insist on rederive instead of just changing the instrument.
+      In general that's the proper approach.
     . Originally added in the patch 'add interpolate scale':
       The bigger problem was that since pitches got the Environ at conversion
       time, the interpolate scale couldn't substitute `key-from` and `key-to`
@@ -1610,7 +1623,6 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      - >gangsa instrument, which is pemade + kantilan
       - abstract kajar parts, and gong cycles
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
@@ -1622,6 +1634,17 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        * bug: I'm still getting retuning for nyog in kebyar-duduk @b2.
+          . In norot prepare, polos has umbang, sangsih has isep.
+          . It happens when nyog changes polos to sangsih.  Nyog should not
+            do that, but it uses Post.set_instrument...
+          ? Does PSignal.apply_environ override existing environ?  I think so,
+            because it puts it first.  But then why doesn't set_instrument
+            override the tuning?
+          . I just want to get rid of that awful set_instrument.
+        - >gangsa instrument, which is pemade + kantilan
+        - Make nyog understand p+ and s+ and ps+, and infer after that.
+          Or is this the best way for semi-norot?
         - nyog polos first can be inferred based on whether it's a major ruler
           division.
         - I still need a separate norot prepare

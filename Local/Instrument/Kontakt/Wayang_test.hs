@@ -52,7 +52,7 @@ test_wayang_pasang = do
     let result = run [(0, 1, "4i")]
     equal (DeriveTest.extract DeriveTest.e_instrument result)
         (["u", "i"], [])
-    equal (fst $ DeriveTest.extract Score.initial_nn result)
+    equal (fst $ DeriveTest.extract DeriveTest.e_nn result)
         [Just 62.95, Just 62.5]
 
     let ((_events, midi), logs) =

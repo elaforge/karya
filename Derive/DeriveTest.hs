@@ -161,15 +161,6 @@ perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
 perform_synths allocations synths =
     perform (synths_to_convert_lookup allocations synths) allocations
 
--- | Chain a 'perform' from a Derive.Result.
-perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
-    -> Derive.Result -> (a, [String])
-perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
-    where
-    (events, derive_logs) = extract_logs $ Stream.to_list $
-        Derive.r_events result
-    (val, perf_logs) = perform (Stream.from_events events)
-
 perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
@@ -178,6 +169,15 @@ perform_synths_simple simple_allocs synths =
     where
     db = synths_to_db synths
     allocs = simple_allocs_from_db db simple_allocs
+
+-- | Chain a 'perform' from a Derive.Result.
+perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
+    -> Derive.Result -> (a, [String])
+perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
+    where
+    (events, derive_logs) = extract_logs $ Stream.to_list $
+        Derive.r_events result
+    (val, perf_logs) = perform (Stream.from_events events)
 
 -- * derive
 
@@ -523,8 +523,7 @@ synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
 synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
     where db = synths_to_db synth
 
-synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth]
-    -> Lookup
+synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth] -> Lookup
 synths_to_convert_lookup allocs = make_convert_lookup allocs . synths_to_db
 
 synths_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
@@ -654,6 +653,11 @@ e_nns e
         "DeriveTest.e_nns: errors flattening signal: " <> showt errs
     | otherwise = sig
     where (sig, errs) = e_nns_errors e
+
+-- | Like 'Score.initial_nn', except it transposes the pitch so you see the
+-- final value.
+e_nn :: Score.Event -> Maybe Pitch.NoteNumber
+e_nn = Score.initial_nn . Score.normalize (const mempty)
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]

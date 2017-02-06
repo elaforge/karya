@@ -20,7 +20,11 @@ import qualified Derive.Flags as Flags
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.Types as Types
+import qualified Perform.Signal as Signal
 import qualified Instrument.Common as Common
+import qualified Local.Instrument.Kontakt as Kontakt
+import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
 import Global
 import Types
 
@@ -60,9 +64,9 @@ test_norot = do
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
 test_norot_prepare = do
-    let run = e_pattern 0 . derive " | cancel-pasang 2"
+    let run = derive " | cancel-pasang 2"
     -- No pitch at 0, but it's not a problem because there's no sustain.
-    equal (run [(4, -4, "norot t -- 4c"), (4, 4, "4c")])
+    equal (e_pattern 0 $ run [(4, -4, "norot t -- 4c"), (4, 4, "4c")])
         ([(pasang, "-1121")], [])
 
 test_norot_final = do
@@ -274,7 +278,7 @@ test_unison_tuning = do
                 title
             . UiTest.note_track
         title = block_title <> " | scale=wayang | unison"
-        extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
+        extract e = (pretty $ Score.event_instrument e, DeriveTest.e_nn e)
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_config inst $
@@ -297,7 +301,7 @@ test_kempyung = do
     equal (run " | inst-top = (pitch (4f))" notes)
         ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
 
-test_nyogcag = do
+test_nyog = do
     let run title = DeriveTest.extract extract . derive title
         extract e = (Score.event_start e, Score.event_instrument e,
             DeriveTest.e_pitch e)
@@ -313,7 +317,7 @@ test_nyogcag = do
             ((">i3", [(0, 3, "nyog")]) : UiTest.note_track1 ["4c", "4d", "4e"]))
         ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
 
-test_nyogcag_norot = do
+test_nyog_norot = do
     let run parent notes = DeriveTest.extract extract $
             DeriveTest.derive_tracks_linear (block_title <> ngotek True) $
             (">", parent) : UiTest.note_track notes
@@ -336,6 +340,28 @@ test_nyogcag_norot = do
           ]
         , []
         )
+
+test_nyog_instrument_environ = do
+    -- It would be better to not rely on an external instrument, but setting
+    -- this up is already really complicated.
+    let allocs = ScGamelan.kebyar_allocations "dev"
+        synths = [Kontakt.synth]
+    let run = extract . DeriveTest.perform_result perform
+            . DeriveTest.derive_tracks_setup setup
+                ("import bali.gangsa | scale=legong | inst=pemade | nyog")
+            . UiTest.note_track
+        setup = DeriveTest.with_synths allocs synths
+        perform = DeriveTest.perform_synths allocs synths
+        extract ((pevents, _), logs) = (map e_event pevents, logs)
+        e_event e =
+            ( pretty $ Types.patch_name (Types.event_patch e)
+            , head $ Signal.unsignal $ Types.event_pitch e
+            )
+
+    equal (run [(0, 1, "4i"), (1, 1, "4i")])
+        ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
+    equal (run [(0, 1, "inst=pemade-s | -- 4i"), (1, 1, "4i")])
+        ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
 
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
