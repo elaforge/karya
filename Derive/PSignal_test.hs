@@ -7,8 +7,11 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Test
+import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.Typecheck as Typecheck
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
@@ -34,6 +37,26 @@ test_apply_controls = do
     -- Transposition won't create pitch where none existed.
     equal (f [(trans1, [(0, 1)])] [(2, 2)]) [(2, Right 3)]
 
+test_apply_environ = do
+    let f env1 env2 = unsignal $ PSignal.apply_environ (mkenv env1) $
+            mksignal (mkenv env2)
+        unsignal = map (second (PSignal.pitch_note . PSignal.coerce))
+            . PSignal.unsignal
+        mksignal env = PSignal.signal [(0, env_pitch env)]
+        mkenv val = Env.from_list [("tuning", Typecheck.to_val (val :: Text))]
+    -- apply_environ wins over the environ already in the pitch.
+    equal (f "a" "b") [(0, Right "a")]
+
+env_pitch :: Env.Environ -> PSignal.Pitch
+env_pitch env =
+    PSignal.pitch default_scale pitch_nn pitch_note
+        (PSignal.PitchConfig env mempty)
+    where
+    pitch_nn _ = Right 42
+    pitch_note (PSignal.PitchConfig env _) =
+        Right $ Pitch.Note $ fromMaybe "?" $ Env.maybe_val "tuning" env
+
+
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.PSignal
 mksignal = PSignal.signal . map (second mkpitch)
 
@@ -42,10 +65,10 @@ default_scale = PSignal.Scale "test" (Set.fromList [trans1, trans2])
 
 mkpitch :: Pitch.NoteNumber -> PSignal.Pitch
 mkpitch nn =
-    PSignal.pitch default_scale note (const $ Right $ Pitch.Note $ showt nn)
+    PSignal.pitch default_scale pitch_nn (const $ Right $ Pitch.Note $ showt nn)
         mempty
     where
-    note config
+    pitch_nn config
         | nn + t >= 4 = Left (PSignal.PitchError "bad transpose")
         | otherwise = Right (nn + t)
         where
