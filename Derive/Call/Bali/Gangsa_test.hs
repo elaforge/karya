@@ -305,10 +305,9 @@ test_nyog = do
     let run title = DeriveTest.extract extract . derive title
         extract e = (Score.event_start e, Score.event_instrument e,
             DeriveTest.e_pitch e)
-    let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
-    equal (run " | nyog" notes)
+    equal (run " | nyog" [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")])
         ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
-    equal (run " | nyog f" notes)
+    equal (run " | nyog" [(0, 1, "s+ -- 4c"), (1, 1, "4d"), (2, 1, "4e")])
         ([(0, sangsih, "4c"), (1, polos, "4d"), (2, sangsih, "4e")], [])
 
     let runl = DeriveTest.extract extract
@@ -330,9 +329,9 @@ test_nyog_norot = do
     -- TODO I have to explicitly turn off the final norot note with 'f-', it
     -- seems like that should happen for me.
     equal (run
-        [(3, 4, "nyog f | ap")]
+        [(3, 4, "nyog | ap")]
         [ (0, 3, "f- | nt f -- 4d")
-        , (3, 1, "4c"), (4, 1, "4d"), (5, 1, "4e"), (6, 1, "4f")
+        , (3, 1, "s+ -- 4c"), (4, 1, "4d"), (5, 1, "4e"), (6, 1, "4f")
         ])
         ( [ (0, polos, "4d"), (1, sangsih, "4e"), (2, polos, "4d")
           , (3, sangsih, "4c"), (4, polos, "4d"), (5, sangsih, "4e")
@@ -341,7 +340,7 @@ test_nyog_norot = do
         , []
         )
 
-test_nyog_instrument_environ = do
+test_nyog_instrument_override = do
     -- It would be better to not rely on an external instrument, but setting
     -- this up is already really complicated.
     let allocs = ScGamelan.kebyar_allocations "dev"
@@ -362,9 +361,9 @@ test_nyog_instrument_environ = do
     equal (run [(0, 1, "4i"), (1, 1, "4i")])
         ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
     -- If an instrument is given specifically, it overrides.
-    equal (run [(0, 1, "inst=pemade-s | -- 4i"), (1, 1, "4i")])
+    equal (run [(0, 1, "s+ -- 4i"), (1, 1, "4i")])
         ([("pemade-s", (0, 60)), ("pemade-p", (1, 60))], [])
-    equal (run [(0, 1, "inst=pemade-p | -- 4i"), (1, 1, "4i")])
+    equal (run [(0, 1, "p+ -- 4i"), (1, 1, "4i")])
         ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
 
 test_noltol = do

@@ -119,10 +119,6 @@ note_calls = Derive.call_maps
         "Kotekan calls won't emit a note on the initial beat.")
     , ("f-", Make.environ_val module_ "f-" "final" False
         "Kotekan calls won't emit a final note at the end time.")
-    , ("p+", Make.environ_val module_ "p+" only_key ("polos" :: Text)
-        "Tell `unison` to only emit polos.")
-    , ("s+", Make.environ_val module_ "s+" only_key ("sangsih" :: Text)
-        "Tell `unison` to only emit sangsih.")
     , ("unison", c_unison)
     , ("noltol", c_noltol)
     , ("realize-gangsa", c_realize_gangsa)
@@ -134,6 +130,9 @@ note_calls = Derive.call_maps
     [ ("nyog", c_nyogcag)
     , ("kempyung", c_kempyung)
     , ("k+", c_kempyung) -- short version for single notes
+    , ("p+", c_derive_with "p+" True False)
+    , ("s+", c_derive_with "s+" False True)
+    , ("ps+", c_derive_with "ps+" True True)
     ]
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
@@ -143,6 +142,15 @@ val_calls = Derive.call_map
 
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
+
+c_derive_with :: Derive.CallName -> Bool -> Bool -> Make.Calls Derive.Note
+c_derive_with name with_polos with_sangsih =
+    Make.transform_notes module_ name Tags.inst
+    "Derive the note with polos, sangsih, or both." pasang_env $
+    \pasang deriver -> mconcat $ concat
+        [ [Derive.with_instrument (polos pasang) deriver | with_polos]
+        , [Derive.with_instrument (sangsih pasang) deriver | with_sangsih]
+        ]
 
 -- * instrument postproc
 
@@ -924,11 +932,6 @@ instance Typecheck.TypecheckSymbol KotekanStyle
 
 -- * postproc
 
--- | Set to a 'Polos' or 'Sangsih' to make various calls emit only polos or
--- sangsih instead of both.
-only_key :: Env.Key
-only_key = "only"
-
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih. Emit only polos if\
@@ -940,11 +943,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
         Post.emap_asc_ (unison inst pasang) <$> deriver
     where
     unison inst pasang event
-        | Score.event_instrument event == inst =
-            case Env.maybe_val only_key (Score.event_environ event) of
-                Nothing -> [set polos, set sangsih]
-                Just Polos -> [set polos]
-                Just Sangsih -> [set sangsih]
+        | Score.event_instrument event == inst = [set polos, set sangsih]
         | otherwise = [event]
         where
         msg = "unison from " <> pretty inst
@@ -961,28 +960,23 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
 c_kempyung :: Make.Calls Derive.Note
 c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
-    \ above. If the sangsih would go out of range, it's forced into unison.\
-    \ Like `unison`, this is overridden by `only`."
+    \ above. If the sangsih would go out of range, it's forced into unison."
     ((,)
     <$> instrument_top_env <*> pasang_env
     ) $ \(maybe_top, pasang) deriver -> do
-        inst <- Call.get_instrument
+        pasang_inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
             <*> Derive.get_instrument (sangsih pasang)
         scale <- Call.get_scale
         let too_high = pitch_too_high scale maybe_top
-        Post.emap_asc_ (kempyung too_high inst pasang) <$> deriver
+        Post.emap_asc_ (kempyung too_high pasang_inst pasang) <$> deriver
     where
-    kempyung too_high inst pasang event
-        | Score.event_instrument event == inst =
-            case Env.maybe_val only_key (Score.event_environ event) of
-                Nothing ->
-                    [ set ("low kempyung from " <> pretty inst) polos
-                    , transpose too_high $
-                        set ("high kempyung from " <> pretty inst) sangsih
-                    ]
-                Just Polos -> [set "polos only" polos]
-                Just Sangsih -> [set "sangsih only" sangsih]
+    kempyung too_high pasang_inst pasang event
+        | Score.event_instrument event == pasang_inst =
+            [ set ("low kempyung from " <> pretty pasang_inst) polos
+            , transpose too_high $
+                set ("high kempyung from " <> pretty pasang_inst) sangsih
+            ]
         | otherwise = [event]
         where
         set msg role =
@@ -1001,24 +995,21 @@ c_nyogcag :: Make.Calls Derive.Note
 c_nyogcag = Make.transform_notes module_ "nyog" Tags.postproc
     "Nyog cag style. Split a single part into polos and sangsih parts by\
     \ assigning polos and sangsih to alternating notes."
-    ((,)
-    <$> Sig.defaulted "polos-first" True "First note is polos."
-    <*> pasang_env
-    ) $ \(polos_first, pasang) deriver -> do
+    pasang_env $ \pasang deriver -> do
         inst <- Call.get_instrument
         pasang <- Pasang <$> Derive.get_instrument (polos pasang)
             <*> Derive.get_instrument (sangsih pasang)
-        snd . Post.emap_asc (nyogcag inst pasang) polos_first <$> deriver
+        snd . Post.emap_asc (nyogcag inst pasang) True <$> deriver
 
 nyogcag :: Score.Instrument -> Pasang (Score.Instrument, Derive.Instrument)
     -> Bool -> Score.Event -> (Bool, [Score.Event])
-nyogcag inst pasang is_polos event =
+nyogcag pasang_inst pasang is_polos event =
     ( next_is_polos
-    , if event_inst == inst then [with_inst event] else [event]
+    , if event_inst == pasang_inst then [with_inst event] else [event]
     )
     where
     next_is_polos
-        | event_inst == inst = not is_polos
+        | event_inst == pasang_inst = not is_polos
         | event_inst == fst (polos pasang) = False
         | event_inst == fst (sangsih pasang) = True
         | otherwise = is_polos
@@ -1137,15 +1128,22 @@ pasang_key e = (inst, get EnvKey.hand)
 
 c_pasangan :: Derive.ValCall
 c_pasangan = Derive.val_call module_ "pasangan" mempty
-    ("Choose a value depending on the value of the "
-    <> ShowVal.doc EnvKey.role <> " variable."
-    ) $ Sig.call ((,,)
+    "Choose a value depending on the value of the variable."
+    $ Sig.call ((,,)
     <$> Sig.required "polos" "Value for polos."
     <*> Sig.required "sangsih" "Value for sangsih."
     <*> role_env
     ) $ \(polos, sangsih, role) _args -> case role of
         Polos -> return (polos :: BaseTypes.Val)
         Sangsih -> return (sangsih :: BaseTypes.Val)
+
+data Role = Polos | Sangsih deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal Role where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Role
+instance Typecheck.TypecheckSymbol Role
+
+role_env :: Sig.Parser Role
+role_env = Sig.required_environ "role" Sig.Unprefixed "Instrument role."
 
 -- * implementation
 
@@ -1220,15 +1218,6 @@ inst_polos = "inst-polos"
 
 inst_sangsih :: Env.Key
 inst_sangsih = "inst-sangsih"
-
-data Role = Polos | Sangsih deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Role where show_val = Typecheck.enum_show_val
-instance Typecheck.Typecheck Role
-instance Typecheck.TypecheckSymbol Role
-
-role_env :: Sig.Parser Role
-role_env = Sig.required_environ (Derive.sym_to_arg_name EnvKey.role)
-    Sig.Unprefixed "Instrument role."
 
 final_flag :: Flags.Flags
 final_flag = Flags.flag "final"

@@ -153,10 +153,6 @@ instrument_bottom = "inst-bottom"
 open_strings :: Key
 open_strings = "open-strings"
 
--- | VSymbol: Instrument role, e.g. 'polos' or 'sangsih'.
-role :: Key
-role = "role"
-
 -- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.
 tuning :: Key

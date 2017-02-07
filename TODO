@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I want to find existing callers of a call.  Maybe a flag for 'dump'
+    which writes 'stack -- call', so I can just grep for the call name.
+    Of course it's not smart enough to recognize imports, but it should
+    do in many cases.
+    . It should also search the .ky files, global transform, block titles,
+      track titles.
   - Can I have a block that automatically extends itself?  It needs to know
     the ruler, or at least the ruler it should use to extend.
     . Is the meter type enough to generate meters from scratch?  I think not,
@@ -1643,15 +1649,21 @@ Derive:
             override the tuning?
           . I just want to get rid of that awful set_instrument.
         - >gangsa instrument, which is pemade + kantilan
-        - Make nyog understand p+ and s+ and ps+, and infer after that.
+        * Make nyog understand p+ and s+ and ps+, and infer after that.
           Or is this the best way for semi-norot?
+          . How about just have p+ and s+ set the instrument, and make sure
+            the various calls pass through non-pasang inst?  ps+ basically
+            becomes 'unison', except working by rederiving, which unison
+            should probably have done from the beginning.  Actually, it's
+            different, because unison has to pass through non-pasang
+            instruments.
         - nyog polos first can be inferred based on whether it's a major ruler
-          division.
+          division.  But should I?  I can just write 's+' to be explicit.
         - I still need a separate norot prepare
-        - default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
+        * default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
           "measure" seems more natural.
-        - p+ and s+ should also be generators
-        - version of k_\ without the gap, maybe k-\
+        * p+ and s+ should also be generators
+        * version of k_\ without the gap, maybe k-\
         . The kotekan call can be hard to use for irregular sections like:
           . |       |       |
              3-23-3-23-23-23-5
