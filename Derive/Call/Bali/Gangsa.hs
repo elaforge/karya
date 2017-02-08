@@ -135,11 +135,6 @@ note_calls = Derive.call_maps
     , ("ps+", c_derive_with "ps+" True True)
     ]
 
-val_calls :: [Derive.LookupCall Derive.ValCall]
-val_calls = Derive.call_map
-    [ ("pasangan", c_pasangan)
-    ]
-
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
 
@@ -1123,27 +1118,6 @@ pasang_key e = (inst, get EnvKey.hand)
         (Just p, Just s) -> Right (p, s)
         _ -> Left (Score.event_instrument e)
     get k = Env.maybe_val k (Score.event_environ e)
-
--- * util
-
-c_pasangan :: Derive.ValCall
-c_pasangan = Derive.val_call module_ "pasangan" mempty
-    "Choose a value depending on the value of the variable."
-    $ Sig.call ((,,)
-    <$> Sig.required "polos" "Value for polos."
-    <*> Sig.required "sangsih" "Value for sangsih."
-    <*> role_env
-    ) $ \(polos, sangsih, role) _args -> case role of
-        Polos -> return (polos :: BaseTypes.Val)
-        Sangsih -> return (sangsih :: BaseTypes.Val)
-
-data Role = Polos | Sangsih deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Role where show_val = Typecheck.enum_show_val
-instance Typecheck.Typecheck Role
-instance Typecheck.TypecheckSymbol Role
-
-role_env :: Sig.Parser Role
-role_env = Sig.required_environ "role" Sig.Unprefixed "Instrument role."
 
 -- * implementation
 
