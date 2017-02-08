@@ -3,12 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - I want to find existing callers of a call.  Maybe a flag for 'dump'
+  * I want to find existing callers of a call.  Maybe a flag for 'dump'
     which writes 'stack -- call', so I can just grep for the call name.
-    Of course it's not smart enough to recognize imports, but it should
-    do in many cases.
-    . It should also search the .ky files, global transform, block titles,
-      track titles.
+    Of course it's not smart enough to recognize imports, but it should work
+    most of the time.
+    . It should also search the .ky files, global transform,
+      block titles, track titles.
   - Can I have a block that automatically extends itself?  It needs to know
     the ruler, or at least the ruler it should use to extend.
     . Is the meter type enough to generate meters from scratch?  I think not,
@@ -1660,6 +1660,8 @@ Derive:
         - nyog polos first can be inferred based on whether it's a major ruler
           division.  But should I?  I can just write 's+' to be explicit.
         - I still need a separate norot prepare
+          Wait, why not just use nt?
+        - How about a flag for nt to start with a prepare?
         * default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
           "measure" seems more natural.
         * p+ and s+ should also be generators
