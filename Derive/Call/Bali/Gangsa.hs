@@ -287,8 +287,8 @@ c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
         Nothing -> "")
     $ Sig.call ((,,,,,,)
     <$> Sig.defaulted "prepare" default_prepare
-        "Whether or not to prepare for the next pitch. If Nothing, infer based\
-        \ on the next note."
+        "Whether or not to prepare for the next pitch. If Nothing, prepare\
+        \ if this note touches the next one."
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> infer_initial_final_env
@@ -364,17 +364,14 @@ prepare_sustain has_prepare note_dur (maybe_initial, final) orient start end =
     prepare_dur = note_dur * 3
     prepare_dur1 = note_dur * 4
 
--- | Prepare for the next pitch if the next notes starts at the end of this one
--- and has a different pitch.
+-- | Prepare for the next pitch if this note touches the next one.
 infer_prepare :: Derive.PassedArgs a -> Maybe Bool
     -> Derive.Deriver (Maybe PSignal.Pitch)
 infer_prepare _ (Just False) = return Nothing
 infer_prepare args (Just True) = Args.lookup_next_pitch args
 infer_prepare args Nothing
     | Args.next_start args /= Just (Args.end args) = return Nothing
-    | otherwise = justm (Args.lookup_next_pitch args) $ \next -> do
-        cur <- Call.get_pitch =<< Args.real_start args
-        return $ if Pitches.equal cur next then Nothing else Just next
+    | otherwise = Args.lookup_next_pitch args
 
 gangsa_norot :: NorotStyle -> Pasang Score.Instrument
     -> Pasang (Pitch.Step, Pitch.Step) -> Cycle

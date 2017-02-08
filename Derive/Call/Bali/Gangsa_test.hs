@@ -50,8 +50,8 @@ test_norot = do
     equal (run [(0, 4, "norot -- 4c"), (4, 2, "4e")]) ([(pasang, "-3343")], [])
     equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
-    -- Unless it has the same pitch.
-    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "12121")], [])
+    -- Unless it doesn't tocuh.
+    equal (run [(0, 3, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "12121")], [])
     -- Unless I explicitly ask for a prepare.
     equal (run [(0, 4, "norot t -- 4c"), (4, 2, "4c")])
         ([(pasang, "-1121")], [])
