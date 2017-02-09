@@ -73,11 +73,14 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("norot", c_norot Nothing)
+    [ ("norot", c_norot False Nothing)
     -- Alias for norot.  It's separate so I can rebind this locally.
-    , ("nt", c_norot Nothing)
-    , ("nt>", c_norot (Just True))
-    , ("nt-", c_norot (Just False))
+    , ("nt", c_norot False Nothing)
+    , ("nt-", c_norot False (Just False))
+    , ("nt>", c_norot False (Just True))
+    , ("nt<", c_norot True Nothing)
+    , ("nt<-", c_norot True (Just False))
+    , ("nt<>", c_norot True (Just True))
     , ("gnorot", c_gender_norot)
     , ("k_\\", c_kotekan_irregular  Pat $ irregular_pattern
         "-11-1321" "-44-43-4"
@@ -279,8 +282,9 @@ pattern_steps style pasang (KotekanPattern telu pat itelu ipat) = Realization
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
-c_norot :: Maybe Bool -> Derive.Generator Derive.Note
-c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
+c_norot :: Bool -> Maybe Bool -> Derive.Generator Derive.Note
+c_norot start_prepare default_prepare =
+    Derive.generator module_ "norot" Tags.inst
     ("Emit the basic norot pattern." <> case default_prepare of
         Just True -> " Default to prepare."
         Just False -> " Default to no preparation."
@@ -292,47 +296,174 @@ c_norot default_prepare = Derive.generator module_ "norot" Tags.inst
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> infer_initial_final_env
-    ) $ \(prepare, style, note_dur, kotekan, inst_top, pasang, initial_final)
+    ) $ \(prepare, style, note_dur, kotekan, inst_top, pasang, (initial, final))
     -> Sub.inverting $ \args -> do
         next_pitch <- infer_prepare args prepare
+        cur_pitch <- Derive.pitch_at =<< Args.real_start args
         scale <- Call.get_scale
         under_threshold <- under_threshold_function kotekan note_dur
         let get_steps = norot_steps scale inst_top style
         let sustain_cycle = gangsa_norot style pasang . get_steps
             prepare_cycle = gangsa_norot_prepare style pasang . get_steps
-        norot sustain_cycle prepare_cycle under_threshold next_pitch
-            note_dur initial_final (Args.orientation args)
+        let initial_final =
+                ( fromMaybe (Args.orientation args == Event.Positive) initial
+                , final
+                )
+        norot start_prepare sustain_cycle prepare_cycle under_threshold
+            cur_pitch next_pitch note_dur initial_final
             (Args.start args) (Args.end args)
 
-norot :: (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
-    -> (ScoreTime -> Bool) -> Maybe PSignal.Pitch
-    -> ScoreTime -> (Maybe Bool, Bool)
-    -> Event.Orientation -> ScoreTime -> ScoreTime
+norot :: Bool -> (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
+    -> (ScoreTime -> Bool) -> Maybe PSignal.Pitch -> Maybe PSignal.Pitch
+    -> ScoreTime -> (Bool, Bool) -> ScoreTime -> ScoreTime
     -> Derive.NoteDeriver
-norot sustain_cycle prepare_cycle under_threshold next_pitch note_dur
-        initial_final orient start end = do
-    real_start <- Derive.real (start :: ScoreTime)
-    sustain <- case sustain_params of
-        Nothing -> return mempty
-        Just (initial_final, range) -> do
-            pitch <- Call.get_pitch real_start
-            pitch_t <- Derive.resolve_pitch real_start pitch
-            return $ realize_kotekan_pattern initial_final range Event.Positive
-                note_dur pitch under_threshold Repeat (sustain_cycle pitch_t)
-    prepare <- case (,) <$> next_pitch <*> prepare_params of
-        Nothing -> return Nothing
-        Just (next, (initial_final, range)) -> do
-            next_t <- Derive.resolve_pitch real_start next
-            return $ Just $ realize_kotekan_pattern initial_final range
-                Event.Positive note_dur next under_threshold Once
-                (prepare_cycle next_t)
-    maybe sustain (sustain<>) prepare
+norot start_prepare sustain_cycle prepare_cycle under_threshold
+        cur_pitch next_pitch
+        note_dur initial_final start end = do
+    real_start <- Derive.real start
+    cycles <- norot_sequence start_prepare sustain_cycle prepare_cycle
+        cur_pitch next_pitch real_start
+    let notes = apply_initial_final start end initial_final $
+            -- Debug.tracep "notes" $
+            realize_norot under_threshold note_dur start end cycles
+    realize_notes id $ concat notes
+
+apply_initial_final :: ScoreTime -> ScoreTime -> (Bool, Bool) -> [[Note a]]
+    -> [[Note a]]
+apply_initial_final start end (initial, final) =
+    Seq.map_last modify_final
+    . (if initial then id else dropWhile (any ((<=start) . note_start)))
     where
-    (sustain_params, prepare_params) =
-        prepare_sustain (Maybe.isJust next_pitch) note_dur initial_final
-            orient start end
+    modify_final notes
+        | final && any ((>=end) . note_start) notes =
+            map (add_flag (Flags.infer_duration <> final_flag)) notes
+        | otherwise = []
+
+-- | Realize the output of 'norot_sequence'.
+realize_norot :: (ScoreTime -> Bool) -> ScoreTime -> ScoreTime -> ScoreTime
+    -> (Maybe PitchedCycle, Maybe PitchedCycle, Maybe PitchedCycle)
+    -> [[Note Derive.NoteDeriver]]
+realize_norot under_threshold note_dur initial_start exact_end
+        (prepare_this, sustain, prepare_next) =
+    map realize . trim $ concat
+        -- This is the initial note, which may be dropped.
+        [ on_just sustain $ \(PitchedCycle pitch cycle) ->
+            -- There should never be an empty cycle, but might as well be safe.
+            on_just (Seq.last (get_cycle cycle initial_start)) $ \notes ->
+                [(pitch, (initial_t, notes))]
+        , on_just prepare_this $ \(PitchedCycle pitch cycle) ->
+            one_cycle pitch cycle this_t
+        , on_just sustain $ \(PitchedCycle pitch cycle) ->
+            map (pitch,) $ cycles (get_cycle cycle) $
+                Seq.range' sustain_t next_t note_dur
+        , on_just prepare_next $ \(PitchedCycle pitch cycle) ->
+            one_cycle pitch cycle next_t
+        ]
+        -- TODO should I throw an error if I wanted a pitch but couldn't get
+        -- it?  I could make a NoteDeriver that throws when evaluated.
+    {- i = initial, t = prepare_this, s = sustain, n = prepare_next
+        0 1 2 3 4
+        1 3 3 4 3
+        i n-----n                s = (1, 1), n = (1, 5)
+
+        0 1 2 3 4
+        1 2 1 2 1                s = (1, 5)
+        i s-----s
+
+        0 1 2 3 4 5 6 7 8
+        1 1 1 2 1 3 3 4 3
+        i t-----t n-----n        t = (1, 5), s = (5, 5), n = (5, 9)
+
+        0 1 2 3 4 5 6 7 8 9 a
+        1 1 1 2 1 2 1 3 3 4 3
+        i t-----t s-s n-----n    t = (1, 5), s = (5, 7), n = (7, 11)
+
+        0 1 2 3 4 5 6 7 8 9 a b c d e f 10
+        1 1 1 2 1 3 3 4 3 3 3 4 3 4 3 4 3
+        |-nt< ----------->|-nt< -------->
+        i t-----t n-----n t-----t s-----s
+    -}
+    where
+    on_just val f = maybe [] f val
+    -- This is just sequencing the 4 sections, where sustain is stretchy, but
+    -- it's complicated because they align to the end.  I'd lay them out
+    -- forwards and then shift back, but the times need to be accurate for
+    -- get_cycle.
+    initial_t = min initial_start (this_t - note_dur)
+    this_t = min start next_t
+    sustain_t = start + if Maybe.isJust prepare_this then prep_dur else 0
+    next_t = end - if Maybe.isJust prepare_next then prep_dur else 0
+    -- Negative orientation means the logical start and end are shifted forward
+    -- by one step.
+    start = initial_start + note_dur
+    end = exact_end + note_dur
+
+    trim = takeWhile ((<=exact_end) . fst . snd)
+        . dropWhile ((<initial_start) . fst . snd)
+    one_cycle pitch cycle start = map (pitch,) $ zip (Seq.range_ start note_dur)
+        (get_cycle cycle start)
+    get_cycle cycle t
+        | under_threshold t = interlocking cycle
+        | otherwise = non_interlocking cycle
+    prep_dur = note_dur * 4
+
+    realize :: (PSignal.Pitch, (ScoreTime, [KotekanNote]))
+        -> [Note Derive.NoteDeriver]
+    realize (pitch, (t, chord)) = map (make_note t pitch) chord
+    make_note t pitch note = Note
+        { note_start = t
+        , note_duration = note_dur
+        , note_flags = mempty
+        , note_data = realize_note pitch note
+        }
+    realize_note pitch (KotekanNote inst steps muted) =
+        maybe id Derive.with_instrument inst $
+        -- TODO the kind of muting should be configurable.  Or, rather I should
+        -- dispatch to a zero dur note call, which will pick up whatever form
+        -- of mute is configured.
+        -- TODO I'm using 'm' for that now, right?
+        (if muted then Call.add_attributes Attrs.mute else id) $
+        Call.pitched_note (Pitches.transpose_d steps pitch)
+
+-- | Figure out the appropriate cycles for each norot phase.  There are
+-- 3 phases: an optional preparation for the current pitch, a variable length
+-- sustain, and an optional preparation for the next pitch.
+norot_sequence :: Bool
+    -> (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
+    -> Maybe PSignal.Pitch -> Maybe PSignal.Pitch -> RealTime
+    -> Derive.Deriver (Maybe PitchedCycle, Maybe PitchedCycle,
+        Maybe PitchedCycle)
+norot_sequence start_prepare sustain_cycle prepare_cycle cur_pitch next_pitch
+        start = do
+    -- It's ok for there to be no current pitch, because the sustain might
+    -- not be played at all.  But if there's no pitch at all it's probably
+    -- better to throw an error than silently emit no notes.
+    when (all Maybe.isNothing [cur_pitch, next_pitch]) $
+        Derive.throw "no current pitch and no next pitch"
+    prepare_this <- case (start_prepare, cur_pitch) of
+        (True, Just pitch) -> do
+            pitch_t <- Derive.resolve_pitch start pitch
+            return $ Just $ PitchedCycle pitch (prepare_cycle pitch_t)
+        _ -> return Nothing
+    sustain <- case cur_pitch of
+        Nothing -> return Nothing
+        Just pitch -> do
+            pitch_t <- Derive.resolve_pitch start pitch
+            return $ Just $ PitchedCycle pitch (sustain_cycle pitch_t)
+    prepare_next <- case next_pitch of
+        Nothing -> return Nothing
+        Just next -> do
+            next_t <- Derive.resolve_pitch start next
+            return $ Just $ PitchedCycle next (prepare_cycle next_t)
+    return (prepare_this, sustain, prepare_next)
+
+data PitchedCycle = PitchedCycle !PSignal.Pitch !Cycle
 
 -- | Figure out parameters for the sustain and prepare phases.
+-- Why is this SO COMPLICATED.
+--
+-- TODO this is still used by Reyong.  If I can simplify reyong norot too
+-- then I can get rid of it.
 prepare_sustain :: Bool -> ScoreTime -> (Maybe Bool, Bool)
     -> Event.Orientation -> ScoreTime -> ScoreTime
     -> (Maybe ((Bool, Bool), (ScoreTime, ScoreTime)),
@@ -347,7 +478,6 @@ prepare_sustain has_prepare note_dur (maybe_initial, final) orient start end =
         | otherwise = Nothing
         where
         initial = fromMaybe (orient == Event.Positive) maybe_initial
-    -- first $ fromMaybe (not $ Event.is_negative (Args.event args))
         sustain_end = end - if has_prepare then prepare_dur else 0
     prepare
         | has_prepare =
@@ -869,7 +999,7 @@ realize_pattern repeat orientation (initial, final) start end dur get_cycle =
         | otherwise = ns
         where ns = map (Note t dur mempty) chord
 
--- | Get elements from the function for each @t@.
+-- | Pair each @t@ with an @a@, asking the function for more @a@s as needed.
 cycles :: (t -> [a]) -> [t] -> [(t, a)]
 cycles get_cycle = go
     where

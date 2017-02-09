@@ -33,6 +33,8 @@ test_norot = do
     let run = e_pattern 0 . derive title
         title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | final=t"
     equal (run [(0, 2, "initial=f | norot -- 4c")]) ([(pasang, "-21")], [])
+    equal (run [(0, 4, "initial=t | final=t | norot -- 4c")])
+        ([(pasang, "12121")], [])
     equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "121")], [])
     equal (run [(0, 4, "norot _ diamond -- 4d")])
         ([(polos, "23232"), (sangsih, "21212")], [])
@@ -46,22 +48,32 @@ test_norot = do
     -- Prepare next note.
     equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "4e")])
         ([(pasang, "13343")], [])
-    -- If there's only room for prepare, it defaults to initial=f.
-    equal (run [(0, 4, "norot -- 4c"), (4, 2, "4e")]) ([(pasang, "-3343")], [])
+
+    -- You can get just a preparation with a short note.
+    equal (run [(1, 3, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "-1121")], [])
+    equal (run [(2, 3, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "--121")], [])
+    -- Negative duration implies initial=f so it works too.
+    equal (run [(4, -4, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "-1121")], [])
+
     equal (run [(0, 4, "i+ | norot -- 4c"), (4, 2, "norot -- 4e")])
         ([(pasang, "1334343")], [])
     -- Unless it doesn't tocuh.
     equal (run [(0, 3, "norot -- 4c"), (4, 2, "4c")]) ([(pasang, "12121")], [])
-    -- Unless I explicitly ask for a prepare.
-    equal (run [(0, 4, "norot t -- 4c"), (4, 2, "4c")])
-        ([(pasang, "-1121")], [])
-    equal (run [(0, 4, "i+ | norot t -- 4c"), (4, 2, "4c")])
-        ([(pasang, "11121")], [])
 
     -- Goes down because 4f is the top.
     equal (run [(0, 8, "kotekan=2 | norot -- 4c"),
             (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
+
+test_norot_start_prepare = do
+    let run kotekan = e_pattern 0
+            . derive (" | realize-gangsa 1 " <> ngotek kotekan)
+    equal (run False [(0, 4, "nt< -- 4c")]) ([(pasang, "11121")], [])
+    equal (run True [(0, 4, "nt< -- 4c")])
+        ([(polos, "111-1"), (sangsih, "-112-")], [])
+    equal (run True [(0, 8, "nt< -- 4c"), (8, 8, "nt< -- 4e")])
+        ([(polos,   "111-133-333-3-3-3"),
+          (sangsih, "-112-334-334-4-4-")], [])
 
 test_norot_prepare = do
     let run = derive " | cancel-pasang 2"

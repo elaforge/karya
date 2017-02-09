@@ -1659,9 +1659,29 @@ Derive:
             instruments.
         - nyog polos first can be inferred based on whether it's a major ruler
           division.  But should I?  I can just write 's+' to be explicit.
-        - I still need a separate norot prepare
+        * I still need a separate norot prepare
           Wait, why not just use nt?
-        - How about a flag for nt to start with a prepare?
+        * How about a flag for nt to start with a prepare?
+        * I should be able to simplify the norot implementation:
+          . Sequence KotekanNotes.  Or:
+            data Note = Note (Maybe Score.Instrument) Pitch Muted
+          . Make all note durations 1, the caller can stretch.
+          . Same with start time, start at 0.
+          . Always add initial, drop it later.
+          . I need to only require current pitch if I need it, which means
+            I have initial, prepare_start, or sustain.  The problem is that
+            I need the pitch to even ask for the cycle, due to needing to
+            check if the note is too high.
+          . There's just current pitch and next pitch.  So maybe pass Cycle
+            instead of PitchedCycle, and realize then gets Deriver Pitch
+            to ask if it needs them?
+
+          - Now that I only do a prepare if I touch the next note, I think I
+            can get rid of the "force norot" variants, and maybe even the
+            argument.
+          - Simplify reyong norot in the same way?  I also want to add the
+            prepare_start feature.
+          - Can I remove Once now?
         * default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
           "measure" seems more natural.
         * p+ and s+ should also be generators
