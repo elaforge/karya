@@ -77,10 +77,8 @@ note_calls = Derive.call_maps
     -- Alias for norot.  It's separate so I can rebind this locally.
     , ("nt", c_norot False Nothing)
     , ("nt-", c_norot False (Just False))
-    , ("nt>", c_norot False (Just True))
     , ("nt<", c_norot True Nothing)
     , ("nt<-", c_norot True (Just False))
-    , ("nt<>", c_norot True (Just True))
     , ("gnorot", c_gender_norot)
     , ("k_\\", c_kotekan_irregular  Pat $ irregular_pattern
         "-11-1321" "-44-43-4"
@@ -283,20 +281,16 @@ pattern_steps style pasang (KotekanPattern telu pat itelu ipat) = Realization
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
 c_norot :: Bool -> Maybe Bool -> Derive.Generator Derive.Note
-c_norot start_prepare default_prepare =
+c_norot start_prepare prepare =
     Derive.generator module_ "norot" Tags.inst
-    ("Emit the basic norot pattern." <> case default_prepare of
-        Just True -> " Default to prepare."
-        Just False -> " Default to no preparation."
-        Nothing -> "")
-    $ Sig.call ((,,,,,,)
-    <$> Sig.defaulted "prepare" default_prepare
-        "Whether or not to prepare for the next pitch. If Nothing, prepare\
-        \ if this note touches the next one."
-    <*> Sig.defaulted "style" Default "Norot style."
+    "Emit the basic norot pattern. Normally it will prepare for the next\
+    \ pitch if it touches the next note, the `nt-` variant will suppress that.\
+    \ The `nt<` variant will also emit a preparation at the note's start."
+    $ Sig.call ((,,,,,)
+    <$> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> infer_initial_final_env
-    ) $ \(prepare, style, note_dur, kotekan, inst_top, pasang, (initial, final))
+    ) $ \(style, note_dur, kotekan, inst_top, pasang, (initial, final))
     -> Sub.inverting $ \args -> do
         next_pitch <- infer_prepare args prepare
         cur_pitch <- Derive.pitch_at =<< Args.real_start args

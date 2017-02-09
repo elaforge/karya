@@ -1675,8 +1675,7 @@ Derive:
           . There's just current pitch and next pitch.  So maybe pass Cycle
             instead of PitchedCycle, and realize then gets Deriver Pitch
             to ask if it needs them?
-
-          - Now that I only do a prepare if I touch the next note, I think I
+          * Now that I only do a prepare if I touch the next note, I think I
             can get rid of the "force norot" variants, and maybe even the
             argument.
           - Simplify reyong norot in the same way?  I also want to add the

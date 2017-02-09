@@ -36,7 +36,7 @@ test_norot = do
     equal (run [(0, 4, "initial=t | final=t | norot -- 4c")])
         ([(pasang, "12121")], [])
     equal (run [(0, 2, "norot -- 4c")]) ([(pasang, "121")], [])
-    equal (run [(0, 4, "norot _ diamond -- 4d")])
+    equal (run [(0, 4, "norot diamond -- 4d")])
         ([(polos, "23232"), (sangsih, "21212")], [])
     -- Positive defaults to initial=t, negative to initial=f.
     equal (run [(0, 4, "nt -- 4c")]) ([(pasang, "12121")], [])
@@ -78,7 +78,7 @@ test_norot_start_prepare = do
 test_norot_prepare = do
     let run = derive " | cancel-pasang 2"
     -- No pitch at 0, but it's not a problem because there's no sustain.
-    equal (e_pattern 0 $ run [(4, -4, "norot t -- 4c"), (4, 4, "4c")])
+    equal (e_pattern 0 $ run [(4, -4, "norot -- 4c"), (4, 4, "4c")])
         ([(pasang, "-1121")], [])
 
 test_norot_final = do
@@ -119,7 +119,7 @@ test_norot_cancel = do
         ([(pasang, "121212232")], [])
 
     -- First note is cancelled out.
-    equal (run [(0, 2, "norot f -- 4c"), (2, 2, "norot f -- 4d")])
+    equal (run [(0, 2, "nt- -- 4c"), (2, 2, "nt- -- 4d")])
         ([(pasang, "12132")], [])
 
 test_gender_norot = do
@@ -342,7 +342,7 @@ test_nyog_norot = do
     -- seems like that should happen for me.
     equal (run
         [(3, 4, "nyog | ap")]
-        [ (0, 3, "f- | nt f -- 4d")
+        [ (0, 3, "f- | nt- -- 4d")
         , (3, 1, "s+ -- 4c"), (4, 1, "4d"), (5, 1, "4e"), (6, 1, "4f")
         ])
         ( [ (0, polos, "4d"), (1, sangsih, "4e"), (2, polos, "4d")
