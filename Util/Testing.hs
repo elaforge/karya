@@ -396,14 +396,21 @@ print_test_line stack color prefix msg = do
     force msg
     isatty <- Terminal.queryTerminal IO.stdOutput
     test_name <- config_test_name <$> IORef.readIORef test_config
-    let full_msg = prefix <> show_stack test_name stack <> " " <> msg
+    -- If there is highlighting in the msg, then it's probably a diff so
+    -- most of it may be unhighlighted.  So highlight the prefix to make
+    -- the line visible.
+    let full_prefix = (if is_highlighted msg then highlight color else id)
+            (prefix <> show_stack test_name stack)
+    let full_msg = full_prefix <> " " <> msg
         highlighted
             -- I only want colors in tty output.
             | not isatty = strip_colors full_msg
             -- Don't put on a color if it already has some.
-            | vt100_prefix `Text.isInfixOf` full_msg = full_msg
+            | is_highlighted full_msg = full_msg
             | otherwise = highlight color full_msg
     Text.IO.putStrLn highlighted
+    where
+    is_highlighted = (vt100_prefix `Text.isInfixOf`)
 
 show_stack :: String -> Stack.CallStack -> Text
 show_stack test_name =
@@ -414,7 +421,6 @@ show_stack test_name =
         <> showt (SrcLoc.srcLocStartLine srcloc)
         <> if null test_name then "" else " [" <> Text.pack test_name <> "]"
 
--- | Highlight the line unless the text already has highlighting in it.
 highlight :: ColorCode -> Text -> Text
 highlight (ColorCode code) text
     | Text.null text = text
