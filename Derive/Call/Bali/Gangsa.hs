@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RecordWildCards #-}
 {- | Calls for gangsa techniques.  Gangsa come in polos and sangsih pairs,
     and play either kotekan patterns or play unison or parallel parts.
 
@@ -80,28 +81,43 @@ note_calls = Derive.call_maps
     , ("nt<", c_norot True Nothing)
     , ("nt<-", c_norot True (Just False))
     , ("gnorot", c_gender_norot)
-    , ("k_\\", c_kotekan_irregular  Pat $ irregular_pattern
-        "-11-1321" "-44-43-4"
-        "-11-1-21"
-        "3-32-32-" "-44-43-4")
-    , ("k-\\", c_kotekan_irregular  Pat $ irregular_pattern
-        "211-1321" "-44-43-4"
-        "211-1-21"
-        "3-32-32-" "-44-43-4")
-    , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern
-        "-123123213213123" "-423423243243423"
-        "-12-12-21-21-12-"
-        "3-23-232-32-3-23" "-4-34-3-43-434-3")
+    , ("k_\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
+        { ir_polos              = "-11-1321"
+        , ir_sangsih4           = "-44-43-4"
+        , ir_polos_ngotek       = "-11-1-21"
+        , ir_sangsih_ngotek3    = "3-32-32-"
+        , ir_sangsih_ngotek4    = "-44-43-4"
+        })
+    , ("k-\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
+        { ir_polos              = "211-1321"
+        , ir_sangsih4           = "-44-43-4"
+        , ir_polos_ngotek       = "211-1-21"
+        , ir_sangsih_ngotek3    = "3-32-32-"
+        , ir_sangsih_ngotek4    = "-44-43-4"
+        })
+    , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
+        { ir_polos              = "-123123213213123"
+        , ir_sangsih4           = "-423423243243423"
+        , ir_polos_ngotek       = "-12-12-21-21-12-"
+        , ir_sangsih_ngotek3    = "3-23-232-32-3-23"
+        , ir_sangsih_ngotek4    = "-4-34-3-43-434-3"
+        })
     -- There are two ways to play k\\, either 21321321 or 31321321.  The first
     -- one is irregular since sangsih starts on 2 but there's no unison polos.
-    , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern
-        "21321321" "24324324"
-        "-1-21-21"
-        "2-32-32-" "-43-43-4")
-    , ("k//", c_kotekan_irregular Telu $ irregular_pattern
-        "23123123" "20120120"
-        "-3-23-23"
-        "2-12-12-" "-01-01-0")
+    , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern $ IrregularPattern
+        { ir_polos              = "21321321"
+        , ir_sangsih4           = "24324324"
+        , ir_polos_ngotek       = "-1-21-21"
+        , ir_sangsih_ngotek3    = "2-32-32-"
+        , ir_sangsih_ngotek4    = "-43-43-4"
+        })
+    , ("k//", c_kotekan_irregular Telu $ irregular_pattern $ IrregularPattern
+        { ir_polos              = "23123123"
+        , ir_sangsih4           = "20120120"
+        , ir_polos_ngotek       = "-3-23-23"
+        , ir_sangsih_ngotek3    = "2-12-12-"
+        , ir_sangsih_ngotek4    = "-01-01-0"
+        })
     , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
     , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
 
@@ -219,27 +235,33 @@ data Realization a = Realization {
     , non_interlocking :: a
     } deriving (Eq, Show)
 
-irregular_pattern :: CallStack.Stack => [Char] -> [Char]
-    -> [Char] -> [Char] -> [Char] -> KotekanPattern
-irregular_pattern polos sangsih_pat polos_i sangsih_i_telu sangsih_i_pat =
-    KotekanPattern
-    { kotekan_telu = parse1 polos
-    , kotekan_pat = parse1 sangsih_pat
-    , kotekan_interlock_telu =
-        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i_telu }
-    , kotekan_interlock_pat =
-        Pasang { polos = parse1 polos_i, sangsih = parse1 sangsih_i_pat }
+data IrregularPattern = IrregularPattern
+    { ir_polos :: [Char]
+    , ir_sangsih4 :: [Char]
+    , ir_polos_ngotek :: [Char]
+    , ir_sangsih_ngotek3 :: [Char]
+    , ir_sangsih_ngotek4 :: [Char]
+    } deriving (Show)
+
+irregular_pattern :: CallStack.Stack => IrregularPattern -> KotekanPattern
+irregular_pattern (IrregularPattern {..}) = KotekanPattern
+    { kotekan_telu = parse1 ir_polos
+    , kotekan_pat = parse1 ir_sangsih4
+    , kotekan_interlock_telu = Pasang
+        { polos = parse1 ir_polos_ngotek, sangsih = parse1 ir_sangsih_ngotek3 }
+    , kotekan_interlock_pat = Pasang
+        { polos = parse1 ir_polos_ngotek, sangsih = parse1 ir_sangsih_ngotek4 }
     }
     where
     -- TODO the CallStack.Stack doesn't actually work because all these
     -- functions would have to have it too.
     parse1 = parse_pattern destination . check
     check ns
-        | length ns == length polos = ns
+        | length ns == length ir_polos = ns
         | otherwise =
             CallStack.errorStack $ "not same length as polos: " <> showt ns
     destination = fromMaybe (CallStack.errorStack "no final pitch") $
-        Seq.last $ Maybe.catMaybes $ parse_pattern 0 polos
+        Seq.last $ Maybe.catMaybes $ parse_pattern 0 ir_polos
 
 parse_pattern :: CallStack.Stack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
 parse_pattern destination = map (fmap (subtract destination) . parse1)
