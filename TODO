@@ -12,7 +12,10 @@ UNSORTED
   - Can I have a block that automatically extends itself?  It needs to know
     the ruler, or at least the ruler it should use to extend.
     . Is the meter type enough to generate meters from scratch?  I think not,
-      because it doesn't differentiate different meters of the same type.
+      because it doesn't differentiate different meters of the same type.  But
+      it's enough to double it.
+    - Or maybe I should just bind to LRuler.ldouble?
+    - Also a keybinding for LRuler.lclip, since I do that a lot too.
   - Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
@@ -105,10 +108,17 @@ UNSORTED
     . It's confusing how entry is at the beginning, and appears in the wrong
       place.
     . Non-point select should not get -0 at its start.
+    . Set duration doesn't work when there's positive and negative together.
+    . Using ^G to flip orientation tends to wipe out the pitch event.
+    . Also I want to be able to put an explicit note at the start of
+      a negative event, e.g. |<--|.
     . I could still conceivably use real negative durations by keying on
       (TrackTime, Bool).  Then I could edit them by giving the selection an
       orientation.  It would have to switch with a key, or I could have 'w'
       and 'b' automatically switch.
+    . Suppose the selection could be either negative or positively oriented.
+      Maybe I could even use it for e.g. set duration vs. set begin, and move
+      up vs. move down.  It would have to be easy to switch directions though.
   * load wayang/merta1, then load p1, I get:
     . assertion failed at fltk/Track.h:125 update(): '!(track.track
       || track.ruler)': updated a divider with a non-divider config
@@ -1640,6 +1650,8 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
+        * When k// or k//2 has sangsih above, it becomes k2-12-12-.  Same in
+          reverse for k\\2 and sangsih=d.
         * bug: I'm still getting retuning for nyog in kebyar-duduk @b2.
           . In norot prepare, polos has umbang, sangsih has isep.
           . It happens when nyog changes polos to sangsih.  Nyog should not

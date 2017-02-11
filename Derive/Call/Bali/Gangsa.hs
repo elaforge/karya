@@ -120,6 +120,12 @@ note_calls = Derive.call_maps
         })
     , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
     , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
+    -- This is k// but with sangsih above.
+    -- TODO maybe a more natural way to express this would be to make k//
+    -- understand sangsih=u?  But then I also need sangsih=d for k\\,
+    -- irregular_pattern support for sangsih direction, and they both become
+    -- irregular.
+    , ("k//^",   c_kotekan_regular (Just "2-12-12-") Telu)
 
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_regular Nothing Telu)
