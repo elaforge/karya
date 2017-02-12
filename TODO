@@ -9,13 +9,13 @@ UNSORTED
     most of the time.
     . It should also search the .ky files, global transform,
       block titles, track titles.
-  - Can I have a block that automatically extends itself?  It needs to know
+  / Can I have a block that automatically extends itself?  It needs to know
     the ruler, or at least the ruler it should use to extend.
     . Is the meter type enough to generate meters from scratch?  I think not,
       because it doesn't differentiate different meters of the same type.  But
       it's enough to double it.
-    - Or maybe I should just bind to LRuler.ldouble?
-    - Also a keybinding for LRuler.lclip, since I do that a lot too.
+    * Or maybe I should just bind to LRuler.ldouble?
+      . Also a keybinding for LRuler.lclip, since I do that a lot too.
   - Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
@@ -1661,6 +1661,8 @@ Derive:
             override the tuning?
           . I just want to get rid of that awful set_instrument.
         - >gangsa instrument, which is pemade + kantilan
+          . It can be a alias of `multiple`:
+            gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
         * Make nyog understand p+ and s+ and ps+, and infer after that.
           Or is this the best way for semi-norot?
           . How about just have p+ and s+ set the instrument, and make sure

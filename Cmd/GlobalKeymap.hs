@@ -60,10 +60,11 @@ import Cmd.Keymap
        (plain_key, plain_char, shift_char, bind_key, bind_key_status,
         bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..),
         really_control)
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
+import qualified Cmd.Ruler
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
@@ -343,6 +344,10 @@ block_config_bindings = concat
     , command_char 'M' "toggle merge all"
         (BlockConfig.toggle_merge_all =<< Cmd.get_focused_block)
     , command_char 'm' "toggle merged" BlockConfig.toggle_merge_selected
+
+    -- The idea is cmd-; works in kbd mode.
+    , command_char ';' "double ruler" Cmd.Ruler.local_double
+    , plain_char ':' "clip ruler" Cmd.Ruler.local_clip
     ]
 
 -- | Modify global edit state.
