@@ -349,7 +349,7 @@ PRIORITY
 ----------------------------------------------------------------------
 
 documentation:
-  - update the screenshots
+  * update the screenshots
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   - Can I have Util.Linkify check the validity of single-quote links?  Or
     maybe I could run a link checker against the final output.  Otherwise

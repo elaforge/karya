@@ -31,7 +31,7 @@ run :: IO ()
 run = do
     let synth = Kontakt.synth
     let res = DeriveTest.derive_dump [synth] dump (UiTest.bid "thani-s")
-        (pevents, msgs, logs) = DeriveTest.perform_dump [synth] dump res
+        ((pevents, msgs), logs) = DeriveTest.perform_dump [synth] dump res
     prettyp $ DeriveTest.extract id res
     prettyp pevents
     prettyp msgs

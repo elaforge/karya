@@ -41,18 +41,18 @@ If you want to build the documentation:
 
     cabal install hscolour pandoc
 
-These are separate because pandoc has a ridiculous number of dependencies and
-all it does is turn the `doc/*.md` files into html.  pandoc has so many
-dependencies it might break your install by downgrading things, so maybe do
-that in a separate sandbox.  It's a completely independent binary, so however
-you can get it compiled and installed is fine.
+These are separate because pandoc has a ridiculous number of dependencies.
+pandoc has so many dependencies it might break your install by downgrading
+things, so maybe do that in a separate sandbox, or at least --dry-run first.
+It's a completely independent binary, so however you can get it compiled and
+installed is fine.
 
 ## INSTALLED SEPARATELY
 
-- The latest fltk, from <http://fltk.org/>.  Install version from SVN for
-bugfixes and better rendering on retina macs.  `Shake/Config.hs` needs the path
-to the `fltk-config` script, which is normally going to be `/usr/local/bin` if
-you did a `make install`.
+- Fltk, from <http://fltk.org/>.  The latest 1.3 should work fine.  I use the
+SVN version because in the past its had bugfixes for retina macs.
+`Shake/Config.hs` needs the path to the `fltk-config` script, which is normally
+going to be `/usr/local/bin` if you did a `make install`.
 
 - libpcre library from <http://www.pcre.org>.
 

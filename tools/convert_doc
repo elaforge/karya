@@ -12,4 +12,5 @@ haddock_dir=../haddock
 in=$1
 out=$2
 
-build/opt/linkify $haddock_dir <$in | pandoc -f markdown -t html >$out
+build/opt/linkify $haddock_dir <$in \
+    | pandoc --standalone -f markdown -t html >$out

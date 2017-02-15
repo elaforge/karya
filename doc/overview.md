@@ -28,18 +28,15 @@ haven't done much testing there.
 As far as I know, there are no other sequencers with similar goals and
 features, but if there are, I'd be interested in hearing about them.
 
-All calligraphy is by 黃世昌 / Samson Huang.
+Calligraphy is by 黃世昌 / Samson Huang.
 
 ## Music, screenshots, examples
 
 - [Music examples with screenshots.](examples.md.html)
 
-- [Some stuff I've written over the years.](link-to-my-music.html)  All of
-varying quality and completeness.  The older stuff uses other software.
-
 ## Features:
 
-<a href="../../doc/img/screen/seq-viola-sonata-vla1.png">
+<a href="../../doc/img/seq-viola-sonata-vla1.png">
 <img align=right width=200 src="../../doc/img/seq-viola-sonata-vla1.png">
 </a>
 
@@ -196,13 +193,50 @@ external interface yet, so effectively everything is an internal interface.
 
 ## Documentation
 
+[INSTALL](INSTALL.md.html) has the usual build instructions.  The
+[quickstart](quickstart.md.html) covers basic configuration.  This is the
+closest there is to "how to do it" documentation, the rest is reference style
+and maybe hard to get a big picture from.
+
+For the purposes of documentation, there are several major layers:
+
+- [UI](ui.md.html) documents the visible UI.  If Karya is a language, then the
+UI is the concrete syntax.
+
+- [Cmd](cmd.md.html) is intimately tied to the UI, since it's the way user
+actions on the UI get turned into score edits.
+
+- [Derivation](derivation.md.html) is the process of converting the UI-level
+score into medium-level score events.  This is where the complexity of score
+interpretation is.
+
+- [Performance](performance.md.html) converts the medium-level score events to
+the low level output that can directly produce sound.  What this is depends on
+the backend.  For example, the MIDI backend converts score events to MIDI
+messages, while the lilypond backend converts them to a lilypond score. Unlike
+derivation, there's likely nothing user-configurable here.  The idea is that
+score events are basically backend-independent, but there are various hacks
+due to the different capabilities of backends, and a certain amount of tangle
+due to instruments.  Conceptually, an [instrument](instrument.md.html) is just
+a string at the derivation level, but in practice they have various attributes
+which affect the derivation level, e.g. a default scale, or even affect the
+Cmd layer by bringing custom Cmds into scope.
+
+- [Local](local.md.html) configuration reaches into all the layers, since you
+can configure all of them.  Karya's configuration is "self-hosted", i.e.
+written in Haskell along with the rest of the app, so there's really no firm
+line between configuring it and modifying its code.  However, there is support
+to make certain things easier to modify locally.
+
+### more details
+
 Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
 [source](../hscolour/).  Since using karya probably involves writing code that
 interacts with the internal APIs, you'll need to be familiar with at least some
-of the code.  Sometimes the documentation isn't exported as haddock, so if the
-haddock seems sparse try the "source" link.  Whenever possible, I try to keep
-documentation in the haddock, since it's easier to keep up to date if it's next
-to the code that implements it.
+of the implementation.  Sometimes the documentation isn't exported as haddock,
+so if the haddock seems sparse try the "source" link.  Whenever possible, I try
+to keep documentation in the haddock, since it's easier to keep up to date if
+it's next to the code that implements it.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
 development.  It's mostly just notes to myself.
@@ -260,39 +294,3 @@ used to send a single command.
 - extract_doc - This extracts documentation and saves it as HTML.  That
 includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 [builtin scales](scales.html).
-
-## karya
-
-The [quickstart](quickstart.md.html) covers basic configuration.  This is the
-closest there is to "how to do it" documentation, the rest is reference style
-and maybe hard to get a big picture from.
-
-For the purposes of documentation, there are several major layers:
-
-- [UI](ui.md.html) documents the visible UI.  If Karya is a language, then the
-UI is the concrete syntax.
-
-- [Cmd](cmd.md.html) is intimately tied to the UI, since it's the way user
-actions on the UI get turned into score edits.
-
-- [Derivation](derivation.md.html) is the process of converting the UI-level
-score into medium-level score events.  This is where the complexity of score
-interpretation is.
-
-- [Performance](performance.md.html) converts the medium-level score events to
-the low level output that can directly produce sound.  What this is depends on
-the backend.  For example, the MIDI backend converts score events to MIDI
-messages, while the lilypond backend converts them to a lilypond score. Unlike
-derivation, there's likely nothing user-configurable here.  The idea is that
-score events are basically backend-independent, but there are various hacks
-due to the different capabilities of backends, and a certain amount of tangle
-due to instruments.  Conceptually, an [instrument](instrument.md.html) is just
-a string at the derivation level, but in practice they have various attributes
-which affect the derivation level, e.g. a default scale, or even affect the
-Cmd layer by bringing custom Cmds into scope.
-
-- [Local](local.md.html) configuration reaches into all the layers, since you
-can configure all of them.  Karya's configuration is "self-hosted", i.e.
-written in Haskell along with the rest of the app, so there's really no firm
-line between configuring it and modifying its code.  However, there is support
-to make certain things easier to modify locally.

@@ -28,11 +28,12 @@ configuration is a single patch named 'Cmd.Instrument.MidiInst.default_patch'
 which is just "", so the qualified name (used below when you allocate an
 instrument) will be `synth-name/`.
 
-- Recompile because you edited stuff: `bin/mk binaries`
+- `mkdir save; cp data/default.save save/default`.  `save` is where saved
+scores go, and `default` is an example mostly-empty score to start with.
 
 - Run `bin/opt`.  This will recompile and start `build/opt/logview` and
-`build/opt/seq`.  Open another terminal window and type `bin/run
-build/opt/repl` to compile and run the REPL.
+`build/opt/seq`.  Open another terminal window and type `bin/repl` to compile
+and run the REPL.
 
 - The default block is whatever is loaded from `save/default` (unless you
 changed that in 'Local.Config'), but it probably has a tempo track (called
@@ -55,7 +56,7 @@ LInst.allocations`.  `LInst.remove "inst"` to remove an instrument allocation.
 Look at the source to 'Cmd.Repl.LInst' to see all the things you can do.  All
 of the modules in `Cmd/Repl/L*.hs` are intended to be used from the REPL.
 
-- Rename the note track from `>` to `>inst`.
+- Rename the `>` note track to `>inst`.
 
 - Click in the note track to set the selection, and turn on edit mode with `^[`
 or escape, and kbd entry with `^]`.  The edit box should turn red and get a
