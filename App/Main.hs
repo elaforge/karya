@@ -77,7 +77,10 @@ initialize :: (Interface.Interface -> Network.Socket -> IO ()) -> IO ()
 initialize app = do
     log_fn <- Tail.log_filename
     log_hdl <- Tail.rotate_logs 4 max_log_size log_fn
-    Log.configure $ const $ Log.State (Log.write_json log_hdl) Log.Timer
+    Log.configure $ const $ Log.State
+        { state_write_msg = Log.write_json log_hdl
+        , state_log_level = Log.Timer
+        }
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> errorStack $ "initializing midi: " <> txt err
         Right midi_interface -> Network.withSocketsDo $ do

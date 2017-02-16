@@ -313,7 +313,10 @@ view_size = (300, 300)
 
 -- | Create new views at this zoom.
 zoom :: Types.Zoom
-zoom = Types.Zoom 0 46
+zoom = Types.Zoom
+    { zoom_offset = 0
+    , zoom_factor = 46
+    }
 
 -- | Default width for the block ruler track.
 ruler_width :: Types.Width
@@ -329,8 +332,8 @@ collapsed_width :: Types.Width
 collapsed_width = 3
 
 -- | Default color for the track signal, as rendered in the track UI.
-render_color :: Color.Color
-render_color = Color.rgba 0.65 0.65 0.8 0.5
+track_signal_color :: Color.Color
+track_signal_color = Color.rgba 0.65 0.65 0.8 0.5
 
 -- | The default namespace for the clipboard.  Copies go to block + tracks in
 -- this namespace.

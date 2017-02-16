@@ -81,10 +81,10 @@ data RenderConfig = RenderConfig {
     } deriving (Eq, Show, Read)
 
 no_render :: RenderConfig
-no_render = RenderConfig NoRender Config.render_color
+no_render = RenderConfig NoRender Config.track_signal_color
 
 line_render :: RenderConfig
-line_render = RenderConfig (Line Nothing) Config.render_color
+line_render = RenderConfig (Line Nothing) Config.track_signal_color
 
 instance Pretty.Pretty RenderConfig where
     pretty (RenderConfig style color) = pretty (style, color)

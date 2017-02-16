@@ -65,9 +65,7 @@ default_out_dir = "build/test"
 read_mode :: String -> Flag
 read_mode s =
     Mode $ fromMaybe (error ("unknown mode: " <> show s)) $ Map.lookup s modes
-    where
-    modes = Map.fromList
-        [(show m, m) | m <- [minBound .. maxBound]]
+    where modes = Map.fromList [(show m, m) | m <- [minBound .. maxBound]]
 
 main :: IO ()
 main = Git.initialize $ do
