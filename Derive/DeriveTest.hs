@@ -25,15 +25,16 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.Attrs as Attrs
@@ -484,6 +485,7 @@ cmd_config inst_db = Cmd.Config
         { Cmd.im_binary = "/usr/bin/true"
         , Cmd.im_notes = default_im_notes
         }
+    , config_git_user = SaveGit.User "name" "email"
     }
 
 default_im_notes :: FilePath

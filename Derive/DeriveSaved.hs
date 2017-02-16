@@ -192,4 +192,7 @@ cmd_config inst_db = do
             { Cmd.im_binary = "/usr/bin/true"
             , Cmd.im_notes = Testing.tmp_base_dir </> "im_notes"
             }
+        -- You shouldn't be saving any checkpoints from here, so I can use
+        -- dummy values.
+        , config_git_user = SaveGit.User "name" "email"
         }
