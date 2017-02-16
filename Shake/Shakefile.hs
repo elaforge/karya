@@ -634,9 +634,10 @@ main = withLockedDatabase $ do
                 HasIcon -> makeBundle (Just (hsRtsFlags binary)) True fn
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
-            let src = "doc/icon" </> replaceExt fn "iconset"
-            need [src]
-            Util.system "iconutil" ["-c", "icns", "-o", fn, src]
+            let iconset = "doc/icon" </> replaceExt fn "iconset"
+            icons <- Shake.getDirectoryFiles "" [iconset <> "/*"]
+            need icons
+            Util.system "iconutil" ["-c", "icns", "-o", fn, iconset]
         forM_ extractableDocs $ \fn ->
             fn %> extractDoc (modeConfig Debug)
         testRules (modeConfig Test)
