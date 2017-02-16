@@ -208,7 +208,7 @@ UNSORTED
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
-  - Use 'errors' package tryJust and tryRght instead of require and
+  / Use 'errors' package tryJust and tryRght instead of require and
     require_right.
     . For it to work I could put Derive in MonadError
     . But require_right takes a transform function.  Can it be just a text
@@ -339,16 +339,31 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
 
+IN PROGRESS
+  - Make negative events less awkward. Make selection directional, and key
+    events on (TrackTime, Orientation), so I can have |<--|.
+  - Make BaliScales which are not saih pitu be fundamentally diatonic, not
+    just degenerate chromatic.  Or figure out how to simplify the whole scales
+    mess.
+  - rewrite shakefile so I can disable features like 'im' and not require
+    their dependencies for tests, haddock, etc.
+    . branch shake-targets
+  - Extend TimeVector with an offset, so I can get rid of
+    Score.event_untransformed_controls and the like.
+  - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
+    instances.
+
 PRIORITY
   performance:
     - input latency still gets crummy when the score is large
     - Reduce memory usage of GHC API, might help with latency.
-  - fix the shakefile so it doesn't require libs for im if you don't use it
   - fix bugs in Util.Pretty / Util.Format
+    . Or use someone else's library... printcess?
 
 ----------------------------------------------------------------------
 
 documentation:
+  - make a symlink for doc/img in build, so I can just tar everything with -L
   * update the screenshots
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   - Can I have Util.Linkify check the validity of single-quote links?  Or
@@ -1360,6 +1375,24 @@ Cmd:
 
 Derive:
   - A block with logical range called at time 0 gets messed up.
+  - event_transformed_controls etc. are really annoying.  I can get rid of
+    them by building the translation into Perform.Signal.
+    . The downside is that every signal gets an offset, even though it's
+      just for Score.Event ones, and their offset is all the same.  But still,
+      what's another Double in signal full of them?
+    . However, Warps also have it, so I could take that field out of the Warp.
+    . I'd want to add an X offset to TimeVector.Boxed and Unboxed, but those
+      are type aliases so they work with the Vector.Generic functions.
+      So how can I resue Vector.Generic?
+    . Presumably I could put my new types in the Generic.Vector class too, but
+      that might actually be wrong since then they would ignore the offset.
+      So maybe I just stop directly using the generic functions.
+    . I also want to consider that I may want to have a TimeVector Val to
+      replace the Environ.  So it would be nice to eliminate the duplication
+      between PSignal and Signal.  Presumably I could do that by putting them
+      in a 'class ToVector a where to_vector :: a -> TimeVector.Offset ?',
+      then I can either re-export the shared ones directly, or specialize the
+      type.
   sekaran
     How to apply sekaran?
       . >hang -> sekar abab -> notes

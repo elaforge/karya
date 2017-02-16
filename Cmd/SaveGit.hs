@@ -17,6 +17,8 @@ module Cmd.SaveGit (
     , save_views, load_views
     -- * util
     , infer_commit, try
+    -- * User
+    , User(..), get_user
 #ifdef TESTING
     , parse_names, load_from
 #endif
@@ -34,6 +36,7 @@ import qualified Numeric
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
+import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Git as Git
@@ -48,13 +51,12 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import Cmd.SaveGitTypes (SaveHistory(..))
 import qualified Cmd.Serialize
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -142,10 +144,10 @@ save_to_ref (SavePoint versions) =
 
 -- | Checkpoint the given SaveHistory.  If it has no previous commit, create
 -- a new repo.
-checkpoint :: Git.Repo -> SaveHistory -> IO (Either Text Commit)
-checkpoint repo (SaveHistory state Nothing _ names) =
-    try "save" $ save repo state names
-checkpoint repo (SaveHistory state (Just commit) updates names) =
+checkpoint :: User -> Git.Repo -> SaveHistory -> IO (Either Text Commit)
+checkpoint user repo (SaveHistory state Nothing _ names) =
+    try "save" $ save user repo state names
+checkpoint user repo (SaveHistory state (Just commit) updates names) =
         try "checkpoint" $ do
     let (not_found, mods) = dump_diff False state (filter should_record updates)
     unless (null not_found) $
@@ -157,17 +159,18 @@ checkpoint repo (SaveHistory state (Just commit) updates names) =
             Git.throw $ "git repo is not writable: " <> show repo
         last_tree <- Git.commit_tree <$> Git.read_commit repo commit
         tree <- Git.modify_tree repo last_tree mods
-        commit_tree repo tree (Just commit) (unparse_names "checkpoint" names)
+        commit_tree user repo tree (Just commit)
+            (unparse_names "checkpoint" names)
 
 -- | Create a new repo, or throw if it already exists.
-save :: Git.Repo -> Ui.State -> [Text] -> IO Commit
-save repo state cmd_names = do
+save :: User -> Git.Repo -> Ui.State -> [Text] -> IO Commit
+save user repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
     dir <- either (Git.throw . ("make_dir: "<>)) return $
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
-    commit_tree repo tree Nothing (unparse_names "save" cmd_names)
+    commit_tree user repo tree Nothing (unparse_names "save" cmd_names)
 
 -- | True if this update is interesting enough to record a checkpoint for.
 should_record :: Update.UiUpdate -> Bool
@@ -176,9 +179,10 @@ should_record update = case update of
     Update.Block _ (Update.BlockConfig {}) -> False
     _ -> not $ Update.is_view_update update
 
-commit_tree :: Git.Repo -> Git.Tree -> Maybe Commit -> String -> IO Commit
-commit_tree repo tree maybe_parent desc = do
-    commit <- Git.write_commit repo Config.name Config.email
+commit_tree :: User -> Git.Repo -> Git.Tree -> Maybe Commit -> String
+    -> IO Commit
+commit_tree user repo tree maybe_parent desc = do
+    commit <- Git.write_commit repo (name user) (email user)
         (maybe [] (:[]) maybe_parent) tree desc
     Git.update_head repo commit
     return commit
@@ -510,3 +514,24 @@ decode msg = with_msg msg . first txt . Serialize.decode
 with_msg :: Text -> Either Text a -> Either Text a
 with_msg msg (Left err) = Left $ msg <> ": " <> err
 with_msg _ (Right val) = Right val
+
+-- * config
+
+-- | Git wants these fields for commits.  It probably doesn't matter much
+-- what they are, but they might as well be accurate.
+data User = User { name :: !Text, email :: !Text } deriving (Show)
+
+get_user :: IO (Either Text User)
+get_user = Exception.handle handle $ do
+    lines <- Text.lines . txt <$> Process.readProcess "git"
+        ["config", "--get-regexp", "user.(name|email)"] ""
+    let m = Text.strip <$> Map.fromList (map (Text.break (==' ')) lines)
+    return $ case (Map.lookup "user.name" m, Map.lookup "user.email" m) of
+        (Just name, Just email)
+            | not (Text.null name) && not (Text.null email) ->
+                Right $ User name email
+        _ -> Left $ "user.name and user.email not set in git config output: "
+            <> showt lines
+    where
+    handle exc = return $
+        Left $ "error getting git config: " <> showt (exc :: IO.Error.IOError)

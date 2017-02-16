@@ -27,11 +27,6 @@ import Global
 #include "fltk/config.h"
 
 
--- | These go into the git save files, because git insists on having them.
-name, email :: String
-name = "Evan Laforge"
-email = "qdunkan@gmail.com"
-
 data Platform = Mac | Linux deriving (Show, Eq)
 
 platform :: Platform

@@ -11,6 +11,8 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Color as Color
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.SaveGit as SaveGit
+
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.All as Scale.All
 import qualified Instrument.Inst as Inst
@@ -85,8 +87,8 @@ make_read_devices = Set.fromList . map Midi.read_device
 
 -- | Create a 'Cmd.Config' from a StaticConfig.
 cmd_config :: FilePath -> Interface.Interface -> StaticConfig
-    -> Cmd.Config
-cmd_config app_dir interface config = Cmd.Config
+    -> SaveGit.User -> Cmd.Config
+cmd_config app_dir interface config git_user = Cmd.Config
     { config_app_dir = app_dir
     , config_midi_interface = interface
     , config_ky_paths = map (Config.make_path app_dir) Config.ky_paths
@@ -97,5 +99,6 @@ cmd_config app_dir interface config = Cmd.Config
     , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = highlight_colors config
     , config_im = Cmd.default_im_config
+    , config_git_user = git_user
     }
     where midi_config = midi config

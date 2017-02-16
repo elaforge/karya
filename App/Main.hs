@@ -24,6 +24,7 @@ import qualified System.Remote.Monitoring
 
 import qualified Util.Git as Git
 import qualified Util.Log as Log
+import qualified Util.Process as Process
 import qualified Util.Thread as Thread
 
 import qualified Ui.Fltk as Fltk
@@ -43,6 +44,7 @@ import qualified Midi.StubMidi as MidiDriver
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
+import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Module as Module
@@ -146,10 +148,12 @@ main = initialize $ \midi_interface repl_socket -> do
         -- I gather the recommended way is to start a thread for signal
         -- handling, I'll do that if this causes more trouble.
 
+    git_user <- either (\err -> Log.error err >> Process.exit 1) return
+        =<< SaveGit.get_user
     Thread.start_logged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
-        Responder.responder static_config ui_chan get_msg midi_interface
-            setup_cmd session loopback
+        Responder.responder static_config git_user ui_chan get_msg
+            midi_interface setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " <> showt exc)
             -- It would be possible to restart the responder, but chances are

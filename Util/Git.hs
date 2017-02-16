@@ -51,6 +51,7 @@ import qualified Data.Char as Char
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text.Encoding as Encoding
 import qualified Data.Typeable as Typeable
 
 import Foreign
@@ -324,7 +325,7 @@ parse_commit str
     | length str == 40 = Just $ Commit $ Char8.pack str
     | otherwise = Nothing
 
-write_commit :: Repo -> String -> String -> [Commit] -> Tree -> String
+write_commit :: Repo -> Text -> Text -> [Commit] -> Tree -> String
     -> IO Commit
 write_commit repo user email parents tree description =
     with_repo repo $ \repop -> with_sig $ \sigp ->
@@ -335,7 +336,7 @@ write_commit repo user email parents tree description =
             sigp sigp nullPtr descp treep (fromIntegral parents_len) parentsp
         to_commit <$> peek_oid commitp
     where
-    with_sig io = withCString user $ \userp -> withCString email $ \emailp ->
+    with_sig io = withText user $ \userp -> withText email $ \emailp ->
         alloca $ \sigpp -> do
             check "signature_now" $ G.c'git_signature_now sigpp userp emailp
             sigp <- peek sigpp
@@ -725,3 +726,6 @@ with_fptr :: IO (FunPtr a) -> (FunPtr a -> IO b) -> IO b
 with_fptr make io = do
     fptr <- make
     io fptr `Exception.finally` freeHaskellFunPtr fptr
+
+withText :: Text -> (CString -> IO a) -> IO a
+withText = ByteString.useAsCString . Encoding.encodeUtf8

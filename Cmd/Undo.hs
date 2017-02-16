@@ -212,8 +212,10 @@ record_suppressed = do
 save_history :: Cmd.State -> Cmd.History -> Cmd.HistoryCollect
     -> [SaveGit.SaveHistory] -> IO Cmd.State
 save_history cmd_state hist collect uncommitted = do
+    let user = Cmd.config_git_user $ Cmd.state_config cmd_state
     entries <- case Internal.can_checkpoint cmd_state of
-        Just (repo, prev_commit) -> commit_entries repo prev_commit uncommitted
+        Just (repo, prev_commit) ->
+            commit_entries user repo prev_commit uncommitted
         _ -> return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
@@ -257,19 +259,19 @@ bump_updates old_cur (new_cur : news) =
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.
-commit_entries :: SaveGit.Repo -> SaveGit.Commit -> [SaveGit.SaveHistory]
-    -> IO [Cmd.HistoryEntry]
-commit_entries _ _ [] = return []
-commit_entries repo prev_commit (hist0:hists) = do
+commit_entries :: SaveGit.User -> SaveGit.Repo -> SaveGit.Commit
+    -> [SaveGit.SaveHistory] -> IO [Cmd.HistoryEntry]
+commit_entries _ _ _ [] = return []
+commit_entries user repo prev_commit (hist0:hists) = do
     let hist = set_commit prev_commit hist0
-    result <- SaveGit.checkpoint repo hist
+    result <- SaveGit.checkpoint user repo hist
     case result of
         Left err -> do
             -- This can happen if the repo is read-only.
             Log.warn $ "error committing history: " <> err
             return []
         Right commit -> do
-            entries <- commit_entries repo commit hists
+            entries <- commit_entries user repo commit hists
             return $ history_entry (Just commit) hist : entries
     where
     set_commit commit (SaveGit.SaveHistory state _ updates names) =

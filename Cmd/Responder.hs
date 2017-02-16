@@ -61,6 +61,7 @@ import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
@@ -108,17 +109,17 @@ state_transport_info state = Transport.Info
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> Fltk.Channel -> MsgReader
-    -> Interface.Interface -> Cmd.CmdT IO Cmd.Status -> Repl.Session
-    -> Loopback -> IO ()
-responder config ui_chan msg_reader midi_interface setup_cmd repl_session
-        loopback = do
+responder :: StaticConfig.StaticConfig -> SaveGit.User -> Fltk.Channel
+    -> MsgReader -> Interface.Interface -> Cmd.CmdT IO Cmd.Status
+    -> Repl.Session -> Loopback -> IO ()
+responder config git_user ui_chan msg_reader midi_interface setup_cmd
+        repl_session loopback = do
     Log.debug "start responder"
     ui_state <- Ui.create
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Config.get_app_dir
     let cmd_state = setup_state $ Cmd.initial_state $
-            StaticConfig.cmd_config app_dir midi_interface config
+            StaticConfig.cmd_config app_dir midi_interface config git_user
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state

@@ -77,6 +77,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import Cmd.Msg (Performance(..)) -- avoid a circular import
+import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.TimeStep as TimeStep
 
@@ -497,6 +498,7 @@ data Config = Config {
     , config_lookup_scale :: !Derive.LookupScale
     , config_highlight_colors :: !(Map Color.Highlight Color.Color)
     , config_im :: !ImConfig
+    , config_git_user :: !SaveGit.User
     } deriving (Show)
 
 -- | Get a midi writer that takes the 'config_wdev_map' into account.

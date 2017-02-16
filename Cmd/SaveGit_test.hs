@@ -27,7 +27,7 @@ test_do_save = Git.initialize $ do
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-    SaveGit.save repo state ["save"]
+    SaveGit.save user repo state ["save"]
     state2 <- fmap (\(a, _, _) -> a) <$> SaveGit.load repo Nothing
     right_equal (strip_views <$> state2) (strip_views state)
 
@@ -133,7 +133,7 @@ checkpoint_sequence repo actions = apply (Ui.empty, Nothing) actions
     apply _ [] = return []
     apply (prev_state, prev_commit) ((name, action) : actions) = do
         let (state, ui_updates) = diff prev_state action
-        Right commit <- SaveGit.checkpoint repo
+        Right commit <- SaveGit.checkpoint user repo
             (SaveGit.SaveHistory state prev_commit ui_updates [name])
         rest <- apply (state, Just commit) actions
         return $ (strip_views state, commit) : rest
@@ -151,3 +151,6 @@ mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo :: IO FilePath
 new_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
+
+user :: SaveGit.User
+user = SaveGit.User "name" "email"

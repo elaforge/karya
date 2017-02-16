@@ -316,8 +316,9 @@ save_git_as repo = do
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
         Just commit -> return commit
         Nothing -> do
+            let user = Cmd.config_git_user $ Cmd.state_config cmd_state
             state <- Ui.get
-            rethrow =<< liftIO (SaveGit.checkpoint repo
+            rethrow =<< liftIO (SaveGit.checkpoint user repo
                 (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
