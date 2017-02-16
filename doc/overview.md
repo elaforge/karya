@@ -1,4 +1,4 @@
-<img align=left width=180 src="../../doc/img/karya.png">
+<img align=left width=180 src="img/karya.png">
 
 Karya is a music sequencer.
 
@@ -36,8 +36,8 @@ Calligraphy is by 黃世昌 / Samson Huang.
 
 ## Features:
 
-<a href="../../doc/img/seq-viola-sonata-vla1.png">
-<img align=right width=200 src="../../doc/img/seq-viola-sonata-vla1.png">
+<a href=img/seq-viola-sonata-vla1.png">
+<img align=right width=200 src="img/seq-viola-sonata-vla1.png">
 </a>
 
 - Ornaments.  There is a library of musical ornaments, such as grace notes,
@@ -114,7 +114,7 @@ synthesizers, or simple patch lists.
 developed one, but there is also some ability to export to lilypond.
 Lilypond export is necessarily limited because it's hard to translate between
 different kinds of scores, but with a bit of work you can get
-[reasonable looking output.](../data/score/viola-sonata.pdf)
+[reasonable looking output.](data/score/viola-sonata.pdf)
 
 - Incremental saving.  The score is continually saved as changes are made.  You
 can undo and make different changes, resulting in a branching history.  If

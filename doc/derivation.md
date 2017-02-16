@@ -33,7 +33,7 @@ controls of that name.  Full details are in 'Derive.ParseTitle'.  Note tracks
 generate events, and control tracks generate a control signal and put it into
 the dynamic environment.  What all of that means will be defined later.
 
-<img align=right width=180 src="../../doc/img/example-tracks.png">
+<img align=right width=180 src="img/example-tracks.png">
 
 For example, a common block configuration is one tempo track which is parent to
 the toplevel tracks.  Below that are a note tracks `>inst`, which set the

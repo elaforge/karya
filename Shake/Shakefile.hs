@@ -604,7 +604,7 @@ main = withLockedDatabase $ do
     env <- Environment.getEnvironment
     modeConfig <- configure (midiFromEnv env)
     writeGhciFlags modeConfig
-    makeDataLink
+    makeDataLinks
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule
         matchBuildDir hsconfigH ?> configHeaderRule
@@ -1119,10 +1119,14 @@ writeGhciFlags modeConfig =
     getFlags config = "-dynamic" : ghcFlags config
         ++ sandboxFlags (configFlags config)
 
--- | This has large binary files I don't want to put into source control.
-makeDataLink :: IO ()
-makeDataLink = void $ File.ignoreError IO.Error.isAlreadyExistsError $
-    Posix.createSymbolicLink "../../data" (build </> "data")
+-- | Make links to large binary files I don't want to put into source control.
+makeDataLinks :: IO ()
+makeDataLinks = do
+    Directory.createDirectoryIfMissing True docDir
+    run $ Posix.createSymbolicLink "../../data" (docDir </> "data")
+    run $ Posix.createSymbolicLink "../../doc/img" (docDir </> "img")
+    return ()
+    where run = File.ignoreError IO.Error.isAlreadyExistsError
 
 -- | Get the file-independent flags for a haskell compile.
 ghcFlags :: Config -> [Flag]

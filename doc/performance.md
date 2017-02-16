@@ -122,7 +122,7 @@ only to emit lilypond.  The library of lilypond-specific calls is in
 'Derive.Call.Lily', and are in the 'Derive.Call.Module.ly' module.  You can
 search for them [call doc](calls.html) with `m:ly`.
 
-<img align=right width=180 src="../../doc/img/example-tracks.png">
+<img align=right width=180 src="img/example-tracks.png">
 
 Sometimes the differences between lilypond output and MIDI output are too great
 to be reconciled by the calls.  For instance, you may want to write notes as

@@ -363,7 +363,7 @@ PRIORITY
 ----------------------------------------------------------------------
 
 documentation:
-  - make a symlink for doc/img in build, so I can just tar everything with -L
+  * make a symlink for doc/img in build, so I can just tar everything with -L
   * update the screenshots
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   - Can I have Util.Linkify check the validity of single-quote links?  Or
