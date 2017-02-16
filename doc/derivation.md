@@ -11,7 +11,7 @@ everything else that's needed by the performer.
 ## Derivation
 
 Derivation starts from a root block.  You can derive from any block, but for
-convenience one block is marked as the root with 'Ui.State.config_root', and
+convenience one block is marked as the root with 'Ui.Ui.config_root', and
 derivation normally starts from there.  The eventual output of derivation is a
 stream of 'Derive.Score.Event's.
 
@@ -554,7 +554,7 @@ CallDuration via the bounds ruler: 'Ui.Ruler.set_bounds'.
 'Cmd.Repl.LRuler.set_start' and 'Cmd.Repl.LRuler.set_end' will set start and
 end bounds, respectively.  Notes before a start bound will fall before the
 block call, and notes after the end bound will fall after the block call.
-'Ui.State.block_logical_bounds' takes this into account, so you should use that
+'Ui.Ui.block_logical_bounds' takes this into account, so you should use that
 if you want the logical bounds.
 
 The implementation is documented in 'Derive.Deriver.Monad.CallDuration'.

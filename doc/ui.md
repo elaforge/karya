@@ -18,13 +18,13 @@ This is represented mostly by the API exposed in 'Ui.Block.BlockC', which is a
 direct wrapper around the C++ API.  The medium level is mostly dumb, in that
 you alter haskell data structures and the UI then changes to reflect the
 changes, but you are still free to alter them in just about any way you see
-fit.  This level is what you see if you directly manipulate 'Ui.State.State',
+fit.  This level is what you see if you directly manipulate 'Ui.Ui.State',
 which you could do if you wanted, or slightly higher level if you use the
-functions in 'Ui.State', which is what you should probably do.  The high level
+functions in 'Ui.Ui', which is what you should probably do.  The high level
 is defined by what Cmds are available, and it is at this level that UI changes
 have "meaning".  For example, a "K" in the edit box means that kbd entry is
 enabled only because there is a Cmd that notices when kbd entry is enabled
-('Cmd.Internal.sync_edit_box') and calls 'Ui.State.set_edit_box'.  This is all
+('Cmd.Internal.sync_edit_box') and calls 'Ui.Ui.set_edit_box'.  This is all
 to say that most of what is described here are simply the conventions
 established by the default set of Cmds, and if you write your own Cmds or
 override the defaults you can change things arbitrarily.  So you could put
@@ -120,7 +120,7 @@ BlockIds name 'Ui.Block.Block's, RulerIds name 'Ui.Ruler.Ruler's, and TrackIds
 name 'Ui.Track.Track's.  When you want to do something with one of those, say
 create a view for a block, modify a ruler, or whatever, you wind up using the
 ID to name it.  Ultimately IDs all turn into lookups on the maps in
-'Ui.State.State'.
+'Ui.Ui.State'.
 
 Each ID has a namespace and a name component, e.g.  `(bid "namespace/name")` is
 a BlockId.  Each score has a default namespace
@@ -140,7 +140,7 @@ flexibility in other places, e.g. @-macros in the [REPL](repl.md.html).
 
 ## Cmds
 
-All the interesting things you can do with 'Ui.State.State' is facilitated by
+All the interesting things you can do with 'Ui.Ui.State' is facilitated by
 cmds, so you should look at the [cmd documentation](cmd.md.html).
 
 ## ky file

@@ -3,7 +3,7 @@
 ## Cmds
 
 Technically, a Cmd is anything in the 'Cmd.Cmd.CmdT' monad.  The Cmd monad is
-basically just a state monad on 'Ui.State.State' and 'Cmd.Cmd.State', which
+basically just a state monad on 'Ui.Ui.State' and 'Cmd.Cmd.State', which
 means a Cmd is a function that can modify the score or the app state.
 
 Bound Cmds are just functions that take a 'Cmd.Msg.Msg' and decide whether or
@@ -22,7 +22,7 @@ practice though, the 0th track is usually the ruler, so the "real" tracks start
 at 1.
 
 A track can be addressed either by a (BlockId, TrackNum) pair, or directly by a
-TrackId or RulerId.  The functions in 'Ui.State' enforce that a given TrackId
+TrackId or RulerId.  The functions in 'Ui.Ui' enforce that a given TrackId
 can only appear in a block once, so you can convert between TrackId and
 TrackNum.  The TrackNum is actually more general, in that it may address a
 ruler or divider, so functions that expect an event track or don't care where a

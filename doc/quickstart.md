@@ -4,7 +4,8 @@
 
 - Set up some internal MIDI devices.  On OS X this means going to "Audio MIDI
 Setup" and adding some IAC ports.  You can test this with test_midi:
-`bin/mk build/opt/test_midi`.  Just run it and it will monitor
+`bin/mk build/opt/test_midi`.  Just run it and it will monitor from the inputs,
+so play your MIDI keyboard if you have one, and make sure events show up.
 
 - Add your machine's name to 'Local.Config.get_midi_config', and add make a
 config for it.  This is just optional aliases for MIDI device names, and a list

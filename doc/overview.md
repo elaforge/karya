@@ -65,7 +65,8 @@ else, all within whatever scale is in use.  The same goes for other control
 signals.  The MIDI backend can automatically multiplex an instrument across
 multiple channels to keep control changes isolated to their intended notes.
 Unfortunately this usually requires multiple instantiations of the same
-softsynth, or a multitimbral setup on a synthesize, but it's a MIDI limitation.
+softsynth, or a multitimbral setup on a synthesizer, but it's a MIDI
+limitation.
 
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. gradually
@@ -90,9 +91,9 @@ increases.
 into another score to produce new parts.  The generated score can then be
 further edited, and changes to the original source will be merged into the
 modifications, to a limited degree.  For instance, a part that mirrors another
-with added idiomatic ornaments plus hand tweaks, a series of repeats which all
-have individual variations, or a whole section which is the reverse of another
-section, edited to sound better.
+with added idiomatic ornaments plus tweaks, a series of repeats which all
+have individual variations, or a whole section which is the reverse of
+another section, edited to sound better.
 
 - [REPL](repl.md.html).  All non-GUI interaction is through a command-line
 interface, so you can do complicated transformations by writing a function.
@@ -189,7 +190,8 @@ sub-languages for things like konnakol which output score notation.
 - At the moment it's still early in development, and has many underdocumented
 and buggy parts.  It's also changing rapidly, and code written against internal
 interfaces may be broken by changes down the line.  And there's no defined
-external interface yet, so effectively everything is an internal interface.
+external interface yet.  That said, I have scores from 4 years ago that still
+work fine, and at worst you can just rewind the repo.
 
 ## Documentation
 
@@ -225,8 +227,8 @@ Cmd layer by bringing custom Cmds into scope.
 - [Local](local.md.html) configuration reaches into all the layers, since you
 can configure all of them.  Karya's configuration is "self-hosted", i.e.
 written in Haskell along with the rest of the app, so there's really no firm
-line between configuring it and modifying its code.  However, there is support
-to make certain things easier to modify locally.
+line between configuring it and modifying its code.  However, things in `Local`
+are set up for easy modification.
 
 ### more details
 
@@ -249,7 +251,7 @@ you like reading C++.  But if you do, get in there and make it better, I'm no
 good at it.
 
 - Ui - The UI level has the data structures that hold the score, all collected
-in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
+in 'Ui.Ui.State'.  They mostly correspond directly to what is visible in the
 GUI.  This is what gets saved when you save a score.  If you study the UI state
 and follow some of the links, you can get an idea of what a score actually is.
 
