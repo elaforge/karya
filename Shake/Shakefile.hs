@@ -34,7 +34,6 @@ import qualified System.Info
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
-import qualified Util.FLock as FLock
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
@@ -592,14 +591,8 @@ inferConfig modeConfig = maybe (modeConfig Debug) modeConfig . targetToMode
 
 -- * rules
 
--- | If two shakes run concurrently, they corrupt the database.
-withLockedDatabase :: IO a -> IO a
-withLockedDatabase =
-    FLock.withLockedWarning db (putStrLn $ "waiting for lock on " ++ db) 1
-    where db = Shake.shakeFiles defaultOptions ++ ".database"
-
 main :: IO ()
-main = withLockedDatabase $ do
+main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
     modeConfig <- configure (midiFromEnv env)
