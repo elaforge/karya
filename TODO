@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - shakefile: replace // patterns with **
+  * shakefile: replace // patterns with **
   * shakefile: withLockedDatabase should no longer be necessary.  Test it out
     and remove.
   * I want to find existing callers of a call.  Maybe a flag for 'dump'

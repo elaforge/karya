@@ -1116,7 +1116,7 @@ writeGhciFlags modeConfig =
 makeDataLinks :: IO ()
 makeDataLinks = do
     Directory.createDirectoryIfMissing True docDir
-    run $ Posix.createSymbolicLink "../../data" (docDir </> "data")
+    run $ Posix.createSymbolicLink "../../../data" (docDir </> "data")
     run $ Posix.createSymbolicLink "../../doc/img" (docDir </> "img")
     return ()
     where run = File.ignoreError IO.Error.isAlreadyExistsError
@@ -1158,7 +1158,7 @@ ghcLanguageFlags = map ("-X"++)
 -- * cc
 
 ccORule :: InferConfig -> Shake.Rules ()
-ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
+ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do
     Shake.askOracleWith (Question () :: Question FltkQ) ("" :: String)
     let config = infer obj
     let cc = objToSrc config obj
@@ -1200,7 +1200,7 @@ linkCc flags binary objs =
 -- * hsc
 
 hsRule :: Config -> Shake.Rules ()
-hsRule config = hscDir config ++ "//*.hs" %> \hs -> do
+hsRule config = hscDir config </> "**/*.hs" %> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config [] hsc
     logDeps config "hsc" hs (hsc : includes)
