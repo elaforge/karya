@@ -215,7 +215,7 @@ remove = deallocate . Util.instrument
 deallocate :: Cmd.M m => Score.Instrument -> m ()
 deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 
--- | Merge the given configs into the existing one.  This also merges
+-- | Merge the given configs into the existing ones.  This also merges
 -- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
 -- that create Allocations don't have to find the relevant Patch.
 merge :: Cmd.M m => UiConfig.Allocations -> m ()
@@ -232,6 +232,11 @@ merge (UiConfig.Allocations alloc_map) = do
     where
     verify (name, alloc, inst) =
         UiConfig.verify_allocation (Inst.inst_backend inst) name alloc
+
+replace :: Cmd.M m => UiConfig.Allocations -> m ()
+replace allocs = do
+    Ui.modify_config $ Ui.allocations #= mempty
+    merge allocs
 
 -- * modify
 
