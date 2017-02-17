@@ -7,7 +7,7 @@ basically just a state monad on 'Ui.Ui.State' and 'Cmd.Cmd.State', which
 means a Cmd is a function that can modify the score or the app state.
 
 Bound Cmds are just functions that take a 'Cmd.Msg.Msg' and decide whether or
-not to do something based on that: `'Msg.Msg' -> 'Cmd.CmdId Cmd.Status'`.
+not to do something based on that: `Msg.Msg -> Cmd.CmdId Cmd.Status`.
 Most of them are bound in 'Cmd.GlobalKeymap' and track-specific ones are bound
 from 'Cmd.Track'.  The keymap bound cmds are summarized in [the keymap
 doc](keymap.html), and the track commands mostly depend on the
@@ -59,9 +59,9 @@ A 'Ui.Ruler.Ruler' has 'Ui.Ruler.Marklist's, which is just a list of
 
 A ruler can have marks in any kind of arbitrary pattern, but typically you'd
 want them dividing up time according to a meter or tala or whatever system you
-use.  'Cmd.Meter' has utilities to describe European-style meters, while
-'Cmd.Tala' has Carnatic talas.  Normally you'd use the functions in
-'Cmd.Repl.LRuler' to modify the ruler or create new rulers.
+use.  'Cmd.Ruler.Meters' has European-style meters, while 'Cmd.Ruler.Tala' has
+Carnatic talas.  Normally you'd use the functions in 'Cmd.Repl.LRuler' to
+modify the ruler or create new rulers.
 
 While ruler tracks have a ruler only, event tracks have rulers too, which show
 up as transparent lines.  Normally all tracks in a block have the same ruler,
@@ -186,12 +186,12 @@ Besides visual reference, rulers also provide snapping points for the insert
 selection.
 
 A 'Cmd.TimeStep.TimeStep' describes a time interval, some of which are in terms
-of ruler mark ranks.  Utilities in 'Cmd.Meter' can create and modify rulers
-with appropriately spaced marks, which cause the various timesteps to
+of ruler mark ranks.  Utilities in 'Cmd.Ruler.RulerUtil' can create and modify
+rulers with appropriately spaced marks, which cause the various timesteps to
 correspond to whole notes, quarter notes, etc.  The short form of a TimeStep as
 emitted by 'Cmd.TimeStep.show_time_step' uses mnemonics like `w`, `h` and `q`,
 and in European meters these generally correspond to whole, half, and quarter
-notes, but not necessarily exactly, as documented in 'Cmd.Meter'.
+notes, but not necessarily exactly, as documented in 'Cmd.Ruler.Meter'.
 
 ## EditMode
 

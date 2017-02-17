@@ -185,7 +185,7 @@ compactly, but falls apart with different scales or additive rhythms.
 Similarly, since time is explicit and spatial, it's less efficient than
 notation which can make assumptions about the rhythmic conventions, such as
 written konnakol or Javanese kepatihan.  To deal with that, I have
-sub-languages for things like konnakol which output score notation.
+specialized DSLs for things like konnakol which output score notation.
 
 - At the moment it's still early in development, and has many underdocumented
 and buggy parts.  It's also changing rapidly, and code written against internal

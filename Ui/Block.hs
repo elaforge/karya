@@ -462,13 +462,10 @@ data View = View {
     -- here so pure code doesn't have to call to the UI and import BlockC.
     , view_track_padding :: !Int
     , view_time_padding :: !Int
-    -- | Map (sort_order, name) contents
+    -- | Contents of the status line.  Map (sort_order, name) contents.
     , view_status :: !(Map (Int, Text) Text)
-
-    -- | Scroll and zoom
     , view_track_scroll :: !Types.Width
     , view_zoom :: !Types.Zoom
-
     , view_selections :: !(Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show, Read)
 

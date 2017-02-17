@@ -106,7 +106,7 @@ children.  Only tracks below the note track are sliced, but control tracks
 have to go around note tracks for them to affect the note track's evaluation.
 The null note call "" is an inverting call, so you can put control tracks
 below them.  In fact, most all calls that generate events should be inverting.
-Inverting calls are wrapped in 'Derive.Call.Note.inverting'.
+Inverting calls are wrapped in 'Derive.Call.Sub.inverting'.
 
 Visually, the transformation looks like this:
 
@@ -216,11 +216,10 @@ always context for some calls.  A call may require a previous value to produce
 a value of its own.  For instance, an interpolate call can emit the
 "interpolate to" value even if there is no previous value, but a
 "repeat previous value" call has no such luxury if the previous call was
-sliced off.  This is solved with a grody hack: such calls are hardcoded into
-'Derive.Call.Control.require_previous' and
-'Derive.Call.Pitch.require_previous', and 'Derive.Slice.slice' uses those to
-extract as many events as necessary (e.g. a whole chain of "repeat previous
-value" calls).
+sliced off.  I used to have a hardcoded `require_previous` list for those, but
+at some point I fixed that... though I don't really remember how.  Maybe I just
+don't have such calls any more, or they use the `NOTE [previous-pitch]`
+machinery.
 
 Note that inverting and non-inverting slicing calls can be combined, for
 instance:

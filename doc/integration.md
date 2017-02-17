@@ -22,7 +22,7 @@ but it's probably not terribly difficult to confuse it.
 Since track structure is lost during derivation, integration has to recreate
 it.  It's described by 'Cmd.Integrate.Convert.TrackKey', but basically it
 tries to keep the source tracks and their order, while splitting overlapping
-events and differing instruments.  It also splits on the 'Derive.Environ.voice'
+events and differing instruments.  It also splits on the 'Derive.EnvKey.voice'
 variable, and calls that expect their output will be integrated can set this
 to explicitly divide their output events into separate tracks.
 

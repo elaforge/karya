@@ -11,7 +11,7 @@ General instrument details are in [instrument.md](instrument.md.html).
 At the derive level, a 'Derive.BaseTypes.Instrument' is simply a text string,
 but the first step in performance is to look up all those instruments in the
 [instrument db](#instrument-db), and in the per-score configuration, which is
-'Ui.StateConfig.config_allocations', which maps instruments to
+'Ui.UiConfig.config_allocations', which maps instruments to
 'Perform.Midi.Patch.Config's.
 
 The main feature of the Config is the allocation, which says which Addrs, (MIDI
@@ -72,7 +72,7 @@ There are lots of other kinds of configuration, see the haddock for details.
 
 ## lilypond
 
-Per-score lilypond configuration is in 'Ui.StateConfig.config_lilypond'.
+Per-score lilypond configuration is in 'Ui.UiConfig.config_lilypond'.
 Unlike MIDI perforance, lilypond "performance" is always initiated manually,
 via the functions in 'Cmd.Repl.LLily'.
 

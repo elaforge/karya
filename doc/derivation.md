@@ -407,7 +407,7 @@ in scope in all tracks.  Since each call except val calls also has generator
 and transformer namespaces, that's a total of seven separate namespaces.
 
 A call may have zero or more arguments, which are parsed as
-'Derive.TrackLang.Val's.  Argument parsing and the defaulting scheme (which
+'Derive.BaseTypes.Val's.  Argument parsing and the defaulting scheme (which
 uses the dynamic environ) is documented in 'Derive.Sig'.
 
 ### ValCall
@@ -565,7 +565,7 @@ A 'Derive.BaseTypes.Instrument' at the derive level is just an arbitrary string.
 Well, not totally arbitrary, since it should conform to 'Ui.Id.valid'.  But the
 deriver doesn't do much special with instruments.  Instruments bring their
 calls into scope, and the default note deriver will inherit
-'Derive.Environ.instrument', but that's about it.
+'Derive.EnvKey.instrument', but that's about it.
 
 All the interesting stuff about instruments is [documented
 separately](instrument.md.html).

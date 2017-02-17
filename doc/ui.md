@@ -124,7 +124,7 @@ ID to name it.  Ultimately IDs all turn into lookups on the maps in
 
 Each ID has a namespace and a name component, e.g.  `(bid "namespace/name")` is
 a BlockId.  Each score has a default namespace
-'Ui.StateConfig.config_namespace'.  New IDs get the default namespace, and when
+'Ui.UiConfig.config_namespace'.  New IDs get the default namespace, and when
 writing a block call you normally just write the name, leaving the namespace
 implicit.  The idea is that you should be able to merge two scores together and
 avoid ID clashes.
@@ -162,10 +162,11 @@ and tests, so it might be a better idea to put them in Local as normal modules
 and link them statically.  We'll see.
 
 A more concise way is to define the calls in tracklang.  This is limited to
-combinations of standard calls.  Small expressions can be defined inline in the score with the `=` call, e.g. `^down-to = "(g 2 1)`, but this is cumbersome
+combinations of standard calls.  Small expressions can be defined inline in the
+score with the `=` call, e.g. `^down-to = "(g 2 1)`, but this is cumbersome
 if there are a lot of them.
 
-If you set 'Ui.StateConfig.config_ky_file', the tracklang call definitions in
+If you set 'Ui.UiConfig.config_ky_file', the tracklang call definitions in
 the file are loaded each time it changes.  Then the built-in calls can focus on
 being flexible if verbose, and rely on local definitions to "instantiate" them
 in a way that makes sense for the specific score.  The syntax is described in

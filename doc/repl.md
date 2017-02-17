@@ -29,8 +29,8 @@ and it will reload them.
 The REPL also has a simple macro feature to make it easier to write IDs.
 `@name` will become `(*Id "ns/name")` where `*` is BlockId, RulerId, TrackId,
 or ViewId, whatever is appropriate, and `ns` is the
-'Ui.State.config_namespace'.  `@"a b c"` will let you put spaces or symbols or
-other non-letter non-dash letters in.
+'Ui.UiConfig.config_namespace'.  `@"a b c"` will let you put spaces or symbols
+or other non-letter non-dash letters in.
 
 You can do tons of stuff from the REPL, and in fact most operations can only be
 done from the REPL.  Read through the `Cmd/Repl` directory to get some ideas.

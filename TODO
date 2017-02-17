@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - shakefile: replace // patterns with **
+  - shakefile: withLockedDatabase should no longer be necessary.  Test it out
+    and remove.
   * I want to find existing callers of a call.  Maybe a flag for 'dump'
     which writes 'stack -- call', so I can just grep for the call name.
     Of course it's not smart enough to recognize imports, but it should work
@@ -342,6 +345,7 @@ UNSORTED
 IN PROGRESS
   - Make negative events less awkward. Make selection directional, and key
     events on (TrackTime, Orientation), so I can have |<--|.
+    . branch directional-select
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -1375,8 +1379,9 @@ Cmd:
 
 Derive:
   - A block with logical range called at time 0 gets messed up.
-  - event_transformed_controls etc. are really annoying.  I can get rid of
-    them by building the translation into Perform.Signal.
+  - Add time offset to TimeVector
+    . event_transformed_controls etc. are really annoying.  I can get rid of
+      them by building the translation into Perform.Signal.
     . The downside is that every signal gets an offset, even though it's
       just for Score.Event ones, and their offset is all the same.  But still,
       what's another Double in signal full of them?

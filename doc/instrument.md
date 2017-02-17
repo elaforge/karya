@@ -53,7 +53,7 @@ Utilities for generating per-instrument cmds are in 'Cmd.Instrument.CUtil'.
 ### LInst config
 
 The 'Cmd.Repl.LInst' module has utilities to configure per-score instrument
-configuration, which lives in 'Ui.StateConfig.config_allocations'.
+configuration, which lives in 'Ui.UiConfig.config_allocations'.
 
 The most useful functions are 'Cmd.Repl.LInst.list', to show an abbreviated
 version of the current configuration, 'Cmd.Repl.LInst.add' to allocate a new
@@ -78,7 +78,7 @@ instrument-specific calls.
 In theory, all the Perform level instrument configuration is specific to a
 backend, and a different backend may expose an entirely different set of
 fields.  However, currently the only backend with non-trivial instrument needs
-is MIDI (lilypond config is in 'Ui.StateConfig.config_lilypond', but it just
+is MIDI (lilypond config is in 'Ui.UiConfig.config_lilypond', but it just
 cares about the name to put it on the staff).
 
 Performance specific details are in [performance.md](performance.md.html).
