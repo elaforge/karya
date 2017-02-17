@@ -12,12 +12,13 @@
     tail recursive.
 -}
 module Util.Logger (
-    LoggerT, run, exec, MonadLogger(..), logs
+    LoggerT, Logger, run, run_id, exec, MonadLogger(..), logs
 ) where
 import Prelude hiding (log)
 import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Lazy as Lazy
 import qualified Control.Monad.State.Strict as Strict
@@ -33,10 +34,15 @@ newtype LoggerT w m a = LoggerT { runLoggerT :: Strict.StateT [w] m a }
     deriving (Applicative.Applicative, Functor, Monad, Trans.MonadTrans,
         Trans.MonadIO, Except.MonadError e, Reader.MonadReader r)
 
+type Logger w a = LoggerT w Identity.Identity a
+
 run :: Monad m => LoggerT w m a -> m (a, [w])
 run m = do
     (result, logs) <- Strict.runStateT (runLoggerT m) []
     return (result, reverse logs)
+
+run_id :: Logger w a -> (a, [w])
+run_id = Identity.runIdentity . run
 
 exec :: Monad m => LoggerT w m a -> m [w]
 exec m = return . snd =<< run m

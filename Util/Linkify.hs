@@ -17,8 +17,10 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Environment as Environment
+import qualified System.IO as IO
 
 import qualified Util.File as File
+import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -29,26 +31,38 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     case args of
-        [haddock_dir] ->
-            Text.IO.putStr =<< linkify haddock_dir =<< Text.IO.getContents
-        _ -> putStrLn "usage: linkify path/to/haddock/dir <doc/text"
+        [haddock_dir, input] ->
+            Text.IO.putStr =<< linkify haddock_dir input
+                =<< Text.IO.readFile input
+        _ -> putStrLn "usage: linkify path/to/haddock/dir doc/text"
 
-linkify :: FilePath -> Text -> IO Text
-linkify haddock_dir text = do
+linkify :: FilePath -> FilePath -> Text -> IO Text
+linkify haddock_dir input_file text = do
     files <- get_files "."
-    return $ TextUtil.mapDelimited False '\''
-        (link_quoted files haddock_dir) text
+    let (out, logs) = Logger.run_id $ TextUtil.mapDelimitedM False '\''
+            (link_quoted files haddock_dir) text
+    unless (null logs) $
+        Text.IO.hPutStrLn IO.stderr $ "** " <> txt input_file
+            <> ": broken link: " <> Text.intercalate ", " logs
+    return out
 
 get_files :: FilePath -> IO TextUtil.Files
 get_files dir = do
     files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
     return $ Set.fromList files
 
-link_quoted :: TextUtil.Files -> FilePath -> Text -> Text
-link_quoted files haddock_dir text =
-    case TextUtil.haddockUrl files haddock_dir text of
-        Nothing -> "'" <> text <> "'"
-        Just url -> markdown_link text url
+link_quoted :: TextUtil.Files -> FilePath -> Text -> Logger.Logger Text Text
+link_quoted files haddock_dir text
+    | looks_like_link text = case TextUtil.haddockUrl files haddock_dir text of
+        Nothing -> do
+            Logger.log text
+            return $ "'" <> text <> "'"
+        Just url -> return $ markdown_link text url
+    | otherwise = return $ "'" <> text <> "'"
+
+looks_like_link :: Text -> Bool
+looks_like_link text =
+    "." `Text.isInfixOf` text && Char.isUpper (Text.head text)
 
 markdown_link :: Text -> String -> Text
 markdown_link text url = "[" <> text <> "](" <> Text.pack url <> ")"
