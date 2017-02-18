@@ -35,7 +35,7 @@ module Derive.Score (
     , move, place, move_start, duration, set_duration
     -- *** control
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
-    , modify_control, merge_control
+    , modify_control_vals, modify_control
     , set_control, event_controls_at
     -- *** pitch
     , default_pitch, set_pitch, set_named_pitch, event_pitch, event_named_pitch
@@ -387,6 +387,7 @@ set_duration :: RealTime -> Event -> Event
 set_duration = duration . const
 
 -- set_instrument is in "Derive.Call.Post".
+-- TODO move it here
 
 -- *** control
 
@@ -408,13 +409,13 @@ initial_dynamic event = maybe 0 typed_val $
      -- Derive.initial_controls should mean this is never Nothing.
     control_at (event_start event) c_dynamic event
 
--- | Use this instead of 'modify_control' because it also sets
+-- | Use this instead of 'modify_control_vals' because it also sets
 -- 'EnvKey.dynamic_val'.
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
             (BaseTypes.VNum . untyped . modify . num_of)
-        . modify_control c_dynamic modify
+        . modify_control_vals c_dynamic modify
     where
     num_of (Just (BaseTypes.VNum n)) = typed_val n
     num_of _ = 0
@@ -426,22 +427,22 @@ set_dynamic dyn =
     modify_environ_key EnvKey.dynamic_val (const $ BaseTypes.VNum $ untyped dyn)
         . set_control c_dynamic (untyped (Signal.constant dyn))
 
-modify_control :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
-modify_control control modify event = event
+modify_control_vals :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_control_vals control modify event = event
     { event_untransformed_controls =
         Map.adjust (fmap (Signal.map_y modify)) control
             (event_untransformed_controls event)
     }
 
--- | Merge a signal with an existing one.  If there is no existing control,
--- the merge function gets an empty signal.
-merge_control :: Control -> (Signal.Control -> Signal.Control)
-    -> Event -> Event
-merge_control control merge event = event
+-- | Modify a control.  If there is no existing control, the modify function
+-- gets an empty signal.
+modify_control :: Control -> (Signal.Control -> Signal.Control) -> Event
+    -> Event
+modify_control control modify event = event
     { event_untransformed_controls =
         Map.alter (Just . alter) control (event_untransformed_controls event)
     }
-    where alter old = merge <$> fromMaybe mempty old
+    where alter old = modify <$> fromMaybe mempty old
 
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event
