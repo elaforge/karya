@@ -32,7 +32,7 @@ module Derive.Score (
     , put_arg, take_arg
 
     -- ** modify events
-    , move, place, move_start, duration, set_duration
+    , move, place, move_start, duration, set_duration, set_instrument
     -- *** control
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
     , modify_control_vals, modify_control
@@ -386,8 +386,14 @@ duration modify event
 set_duration :: RealTime -> Event -> Event
 set_duration = duration . const
 
--- set_instrument is in "Derive.Call.Post".
--- TODO move it here
+-- | Set the instrument on an event, and also update its environ from the
+-- instrument.  You should really rederive with the new instrument, but this
+-- way can be more convenient, if somewhat sketchy.
+set_instrument :: Instrument -> BaseTypes.Environ -> Event -> Event
+set_instrument score_inst inst_environ event = event
+    { event_instrument = score_inst
+    , event_environ = inst_environ <> event_environ event
+    }
 
 -- *** control
 

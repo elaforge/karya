@@ -340,19 +340,11 @@ add_environ :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Env.Key -> a
     -> Score.Event -> Score.Event
 add_environ name val = Score.modify_environ $ Env.insert_val name val
 
--- | Set the instrument on an event, and also update its environ from the
--- instrument.  You should really rederive with the new instrument, but this
--- way can be more convenient, if somewhat sketchy.
---
--- TODO it's error prone to have to remember this, can I put it in Derive.Score?
 set_instrument :: (Score.Instrument, Derive.Instrument)
-    -- ^ unaliased instrument name, this should come from Derive.get_instrument
+    -- ^ unaliased instrument name, from 'Derive.get_instrument'
     -> Score.Event -> Score.Event
-set_instrument (score_inst, inst) event = event
-    { Score.event_instrument = score_inst
-    , Score.event_environ =
-        Derive.inst_environ inst <> Score.event_environ event
-    }
+set_instrument (score_inst, inst) =
+    Score.set_instrument score_inst (Derive.inst_environ inst)
 
 -- * misc
 
