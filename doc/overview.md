@@ -13,8 +13,8 @@ notation, but more complicated notation is defined in haskell.  The idea is to
 have a standard library, but also be able to define notation specific to your
 score.  The editor is graphical but also uses a haskell REPL for configuration,
 automation, and extension.  If you're familiar with Amiga-style trackers, it
-looks somewhat similar, but fundamentally it's closer to a programming language
-and aims at a higher level of expression.
+looks somewhat similar, but fundamentally it's closer to a programming
+language.
 
 The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
@@ -22,8 +22,8 @@ notation.  It doesn't record audio or host VSTs, but you can use a DAW to
 host VSTs and effect, and record tracks.  You can sync with MTC and MMC to
 record live audio, but I haven't tested that much yet.
 
-Development is on OS X.  It should theoretically work on linux, but I
-haven't done much testing there.
+I develop on OS X.  It should theoretically work on linux, and there is a JACK
+backend, but I haven't done much testing there.
 
 As far as I know, there are no other sequencers with similar goals and
 features, but if there are, I'd be interested in hearing about them.
@@ -34,10 +34,17 @@ Calligraphy is by 黃世昌 / Samson Huang.
 
 - [Music examples with screenshots.](examples.md.html)
 
+## Download
+
+<http://hub.darcs.net/elaforge/karya/>
+
+It's source-only.  Since it uses a REPL, a binary distribution wouldn't make
+much sense.
+
 ## Features:
 
-<a href=img/seq-viola-sonata-vla1.png">
-<img align=right width=200 src="img/seq-viola-sonata-vla1.png">
+<a href="data/img/screen/huiyin-concert-gift.png">
+<img align=right width=300 src="data/img/screen/huiyin-concert-gift.png">
 </a>
 
 - Ornaments.  There is a library of musical ornaments, such as grace notes,
@@ -71,11 +78,10 @@ limitation.
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. gradually
 retuning a scale) or on other instruments (e.g. the intonation of one part is
-defined relative to another).  For example, you can write the melody in
-mean-tone, and define the harmony in just intervals relative to the melody.
-Enharmonics and chromatic and diatonic transposition are supported for scales
-that employ those concepts.  You can define your own scales that involve any
-combination of the above concepts.  [Scale documentation.](scales.html)
+defined relative to another).  Enharmonics and chromatic and diatonic
+transposition are supported for scales that employ those concepts.  You can
+define your own scales that involve any combination of the above concepts.
+[Scale documentation.](scales.html)
 
 - Tempo control.  You can give separate tempos to separate parts
 simultaneously, so you can express that one part is pushing or lagging the
@@ -134,7 +140,7 @@ inversion](slicing-inverting.md.html), the structure of the score can get
 complicated and hard to understand.  There are a lot of tools for inspecting
 intermediate output, but sometimes it can feel like debugging a compiler.  And
 since it's a rather programmerly view of music and relies on writing code to
-perform operations, it will probably never be usable by non-programmers.
+perform operations, it will probably never be accessible to non-programmers.
 
 - Slow.  It relies on caching to rederive scores quickly.  If you put your
 score together in a way that defeats caching it will start taking a long time
@@ -149,10 +155,10 @@ be greatly improved with some optimization work.
 
 - Non-realtime.  While you should be able to play back a score soon after
 making changes, it's still oriented around non-realtime score-writing.  You
-cannot change a playback in progress.  Support for recording MIDI is not a
-focus, partially because it's hard to integrate a low-level recorded
-performance with a high-level handwritten score, but mostly because I don't
-work that way.
+cannot change a playback in progress.  You can't record MIDI in realtime,
+partially because it's hard to reconcile a low-level recorded performance with
+a high-level handwritten score, but mostly because I don't work that way.  It
+wouldn't be that hard to implement though.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
@@ -171,12 +177,12 @@ deeply embedded MIDI's limitations.  To solve this we'd need to drag software
 synths out of the '80s, create a new high-resolution protocol, and modify the
 major samplers and synthesizers to support it.  This will surely never happen,
 because there were no sequencers or input devices to generate the high
-resolution output, and no tradition of music that relies on it.  As far as I
-can tell, VST's "automation parameters" are basically higher resolution MIDI
-controls, so some of this could probably be ameliorated by extending a VST host
-to turn high resolution OSC into VST automation.  As far as I know there is no
-program that does this.  Probably the fundamental problem is that no one cares
-much about this issue.
+resolution output, and no tradition of music that relies on it.  I think VST's
+"automation parameters" are basically higher resolution MIDI controls, so some
+of this could probably be ameliorated by extending a VST host to turn high
+resolution OSC into VST automation.  As far as I know there is no program that
+does this.  Probably the fundamental problem is that no one cares much about
+this issue.
 
 - The score format tries to be simple and general, but the price is that it's
 not as efficient as more specialized notation.  For example, staff notation
