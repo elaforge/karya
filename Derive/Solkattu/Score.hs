@@ -108,10 +108,19 @@ c_16_09_28 = korvai (adi 4) mridangam $
         , (dheem, [o&d])
         ]
 
+c_17_02_06 :: Korvai
+c_17_02_06 = korvai (adi 4) mridangam $
+    tri_ (din.__.p6.p6) (ta.ki.ta.dinga.din.__.ta.__.ka.__)
+    where
+    mridangam = make_mridangam
+        [ (ta.ki.ta.dinga.din, [k, p, k, od, k, od])
+        , (ta.ka, [o&n, k])
+        , (din, [od])
+        ]
 
 chatusrams :: [Korvai]
 chatusrams = concat
-    [ c1s, [c2_yt1, c_16_09_28]
+    [ c1s, [c2_yt1, c_16_09_28, c_17_02_06]
     ]
 
 -- * kanda nadai
@@ -508,10 +517,10 @@ misra_koraippu = korvais (adi 8) mridangam $ concat
 koraippus :: [Korvai]
 koraippus = concat [misra_koraippu]
 
--- * kirvanam
+-- * tirmanam
 
-kir_18 :: [Korvai]
-kir_18 = korvais (adi 8) mridangam $ map (pad 18 .)
+tir_18 :: [Korvai]
+tir_18 = korvais (adi 8) mridangam $ map (pad 18 .)
     [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     ]
     where

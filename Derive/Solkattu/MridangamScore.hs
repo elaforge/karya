@@ -29,6 +29,19 @@ c_exercises =
     [ o&d.__4 . k.t.p.k.n.__.o.__.k.t.p.k -- janahan
     ]
 
+ganesh_17_02_13 :: [Korvai]
+ganesh_17_02_13 = korvais (adi 6)
+    [ takitadin.kadin . takitadin.kadin . takitatin.katin
+        . takitatin.k.takitatin.k
+    , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
+        . __ . p.k.od.__ . p.k.od.__ . p.k.od
+    ]
+    where
+    takitadin   = k.p.k.od.__
+    takitatin   = k.p.k. d.__
+    kadin = k.od.__.o&n.__.k.__
+    katin = k. d.__.  n.__.k.__
+
 -- ** tisram
 
 ganesh_16_11_14 :: Korvai
