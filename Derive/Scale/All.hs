@@ -14,6 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
+import qualified Derive.Scale.Harmonic as Harmonic
 import qualified Derive.Scale.Hex as Hex
 import qualified Derive.Scale.Interpolate as Interpolate
 import qualified Derive.Scale.Just as Just
@@ -53,6 +54,7 @@ shadowed :: [Pitch.ScaleId]
     , Hex.scales
     , Interpolate.scales
     , Just.scales
+    , Harmonic.scales
     , Legong.scales
     , Octa.scales
     , Raga.scales
