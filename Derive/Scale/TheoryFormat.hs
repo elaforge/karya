@@ -12,6 +12,11 @@
     to configure octave format, accidental format, key parsing, etc.  To
     avoid annoyingly long argument lists, they are mostly packaged up into
     records, such as 'Config', 'KeyConfig', and 'RelativeFormat'.
+
+    It's basically all just an attempt to parameterize scale creation, so I
+    can reuse the shared parts but still be able to configure them.  It winds
+    up being complicated, probably due to how it's evolved in reaction to
+    increasingly varied scales, rather than according to an overarching design.
 -}
 module Derive.Scale.TheoryFormat where
 import qualified Data.Attoparsec.Text as A
@@ -154,6 +159,11 @@ make_pattern degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
 
 -- * Format
 
+-- | This is the central data structure for this module.  It has the set of
+-- functions needed to parse and generate symbolic pitches.  Making one of
+-- these gives you access to the set of functions in here, such as 'show_pitch'
+-- and 'read_pitch', which in turn can be used to implement
+-- a 'Derive.Scale.Scale'.
 data Format = Format {
     fmt_show :: ShowPitch
     -- | This doesn't need the key because that work is split off to
@@ -332,6 +342,8 @@ show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
     (pc_oct, pc_text) =
         show_pc degrees (Pitch.degree_pc (Theory.key_tonic key)) pc
 
+-- | Convert a relative pitch using the key signature key system defined by
+-- 'Theory.Key'.
 chromatic_to_absolute :: ToAbsolute Theory.Key
 chromatic_to_absolute key degrees (RelativePitch octave pc maybe_acc) =
     Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
@@ -361,6 +373,8 @@ show_pc :: Degrees -> Tonic -> Pitch.PitchClass -> (Pitch.Octave, Text)
 show_pc degrees tonic pc = (oct, degrees ! degree)
     where (oct, degree) = (pc - tonic) `divMod` Vector.length degrees
 
+-- | Convert a relative pitch using a simple diatonic key system, where the
+-- key is just a note in the scale.
 diatonic_to_absolute :: ToAbsolute Tonic
 diatonic_to_absolute tonic degrees (RelativePitch octave pc maybe_acc) =
     Pitch.Pitch (octave + oct) (Pitch.Degree pc2 (fromMaybe 0 maybe_acc))

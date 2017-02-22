@@ -66,10 +66,10 @@ melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
     ma <- [ma1, ma2]
     ri <- [ri1, ri2, ri3]
     ga <- [ga1, ga2, ga3]
-    dha <- [dha1, dha2, dha3]
+    dha <- [da1, da2, da3]
     ni <- [ni1, ni2, ni3]
-    guard $ dha == dha2 |- ni /= ni1
-    guard $ dha == dha3 |- ni == ni3
+    guard $ dha == da2 |- ni /= ni1
+    guard $ dha == da3 |- ni == ni3
     guard $ ri == ri2 |- ga /= ga1
     guard $ ri == ri3 |- ga == ga3
     return [sa, ri, ga, ma, pa, dha, ni]
@@ -103,13 +103,13 @@ ga3 = 5 % 4
 ma1 = 4 % 3
 ma2 = 7 % 5
 
-pa, dha1, dha2, dha3, ni1, ni2, ni3 :: Ratio
+pa, da1, da2, da3, ni1, ni2, ni3 :: Ratio
 pa = 3 % 2
-dha1 = 8 % 5
-dha2 = 5 % 3
-dha3 = 7 % 4
-ni1 = dha2
-ni2 = dha3
+da1 = 8 % 5
+da2 = 5 % 3
+da3 = 7 % 4
+ni1 = da2
+ni2 = da3
 ni3 = 15 % 8
 
 aliases_of :: Text -> [Text]

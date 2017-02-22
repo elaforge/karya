@@ -354,6 +354,7 @@ IN PROGRESS
     . branch shake-targets
   - Extend TimeVector with an offset, so I can get rid of
     Score.event_untransformed_controls and the like.
+    . branch signal-offset
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
 
@@ -1398,6 +1399,13 @@ Derive:
       in a 'class ToVector a where to_vector :: a -> TimeVector.Offset ?',
       then I can either re-export the shared ones directly, or specialize the
       type.
+    . I could make an Offset wrapper and have all the TimeVector functions
+      apply the offset.  But it seems like a lot of work for what is really
+      just a way to fuse multiple translations for just Score.Events.  It's
+      only worth it if I do multiple translations before unpacking.
+    . I could put just the event controls into Offset, and require a translate
+      to get the control out.  This would be like event_untransformed_controls
+      except put it in the type.
   sekaran
     How to apply sekaran?
       . >hang -> sekar abab -> notes

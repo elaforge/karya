@@ -91,12 +91,12 @@ selisir =
     ]
     where s genre origin = Laras "" genre origin Bali.I 4
 
--- | Bebonangan seems to be an old name for baleganjur.  Dong to dang.
+-- | Bebonangan seems to be an old name for beleganjur.  Dong to dang.
 bebonangan :: [Laras]
 bebonangan =
     [ s "sayan" [290, 325, 403, 427]
     ]
-    where s origin = Laras "" "baleganjur" origin Bali.O 4
+    where s origin = Laras "" "beleganjur" origin Bali.O 4
 
 
 -- slendro
