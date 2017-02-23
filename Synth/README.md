@@ -1,3 +1,6 @@
+These modules require additional dependencies.  Enable in Shake.Config, and
+install from build/enabled-deps.cabal.
+
 This directory contains the synthesizer implementations, which are somewhat
 independent of the sequencer.
 
@@ -9,6 +12,9 @@ audio from the cache.  As usual, this is greatly complicated by the desire to
 only recalculate the bits of audio that correspond to the parts of the score
 that changed.  The cache is not actually implemented, but plans are in
 `doc/dev_notes/synthesizer`.
+
+
+## out of date scribble
 
 I want to be able to compile the sequencer without the synthesizer
 dependencies, and also just to avoid a hairball of cross dependencies, so there

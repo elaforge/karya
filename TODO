@@ -416,9 +416,11 @@ Synth: Im:
     . hackage accelerate
 
 shakefile: build:
-  - Make it possible to build with minimal dependencies.
+  * Make it possible to build with minimal dependencies.
     . I can turn off Synth, but haddock still wants to build for it.
       Also tests probably.
+    . The shake-targets branch is really complicated, can I just hardcode
+      some stuff for haddock and tests?
   - use new system calls and logging levels
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not

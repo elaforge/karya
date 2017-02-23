@@ -55,7 +55,7 @@ type Package = String
 
 -- | This is the big list of packages that should make everyone happy.
 allPackages :: [Package]
-allPackages = map fst globalPackages
+allPackages = map fst enabledPackages
 
 -- | This is used to create karya.cabal and supply -package arguments to ghc.
 basicPackages :: [(Package, String)]
@@ -102,14 +102,14 @@ synthPackages = concat
     ]
     where w = map (\p -> (p, "")) . words
 
-globalPackages :: [(Package, String)]
-globalPackages = concat
+enabledPackages :: [(Package, String)]
+enabledPackages = concat
     [ basicPackages
     , if Config.enableSynth then synthPackages else []
     , if Config.enableEkg then [("ekg", "")] else []
     ]
 
--- | This is a hack so I can add packages that aren't in 'globalPackages'.
+-- | This is a hack so I can add packages that aren't in 'enabledPackages'.
 -- This is for packages with tons of dependencies that I usually don't need.
 extraPackagesFor :: FilePath -> [Package]
 extraPackagesFor obj
@@ -243,10 +243,10 @@ hsBinaries =
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
     , (gui "seq" "App/Main.hs" ["fltk/fltk.a"])
-        -- Disable or reduce the idle GC?
-        -- { hsRtsFlags = ["-N", "-I0"] }
     , plain "send" "App/Send.hs"
-    , plain "shakefile" "Shake/Shakefile.hs"
+    , (plain "shakefile" "Shake/Shakefile.hs")
+        { hsRtsFlags = ["-I0"] }
+        -- turn off idle ghc, as recommended by the shake docs
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
@@ -599,7 +599,8 @@ main = do
     writeGhciFlags modeConfig
     makeDataLinks
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        cabalRule
+        cabalRule basicPackages "karya.cabal"
+        cabalRule enabledPackages (build </> "enabled-deps.cabal")
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
@@ -728,7 +729,7 @@ matchPrefix :: [Shake.FilePattern] -> Shake.FilePattern -> FilePath -> Bool
 matchPrefix prefixes pattern fn =
     case msum $ map (flip dropPrefix fn) prefixes of
         Nothing -> False
-        Just rest -> pattern ?== (dropWhile (=='/') rest)
+        Just rest -> pattern ?== dropWhile (=='/') rest
 
 dispatch :: (Mode -> Config) -> [String] -> Shake.Rules ()
 dispatch modeConfig targets = do
@@ -897,24 +898,26 @@ wantsHaddock midi hs = not $ or
     [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
     -- This will crash haddock on OS X since jack.h is likely not present.
-    -- TODO sorta hacky
+    -- TODO NOTE [no-package]
     , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
     -- Temporary scratch files.
     , Char.isLower $ head hs
+    -- Synth/* modules have deps that might not be installed.
+    -- TODO NOTE [no-package]
+    , not Config.enableSynth && "Synth/" `List.isPrefixOf` hs
     ]
 
 -- ** packages
 
-cabalRule :: Shake.Rules ()
-cabalRule = (>> Shake.want [fn]) $ fn %> \_ -> do
+cabalRule :: [(Package, String)] -> FilePath -> Shake.Rules ()
+cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
     Shake.alwaysRerun
     template <- Shake.readFile' "doc/karya.cabal.template"
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
-    fn = "karya.cabal"
     indent = replicate 8 ' '
     buildDepends = (indent<>) $ List.intercalate (",\n" ++ indent) $
-        List.sort $ map mkline globalPackages
+        List.sort $ map mkline packages
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
@@ -972,12 +975,18 @@ generateTestHs suffix fn = do
     let contains = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
         pattern = if null contains then '*' : suffix ++ ".hs"
             else contains ++ suffix ++ ".hs"
-    tests <- Util.findHs pattern "."
+    tests <- filter wantsTest <$> Util.findHs pattern "."
     when (null tests) $
         Util.errorIO $ "no tests match pattern: " ++ show pattern
     let generate = modeToDir Opt </> "generate_run_tests"
     need $ generate : tests
     Util.system generate (fn : tests)
+
+wantsTest :: FilePath -> Bool
+wantsTest hs = not $ or
+    -- TODO NOTE [no-package]
+    [ not Config.enableSynth && "Synth/" `List.isPrefixOf` hs
+    ]
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
@@ -1323,3 +1332,9 @@ dropSuffix str suf
 
 replaceExt :: FilePath -> String -> FilePath
 replaceExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
+
+-- NOTE [no-package] I don't have a way to declare packages and their
+-- dependencies.  I just sort of ad-hoc it by giving most dependencies to
+-- everyone, but it's a problem for haddock and tests, which are global.
+-- A real generalized reusable package system is complicated, so for the
+-- moment I hack it by filtering based on directory prefix.
