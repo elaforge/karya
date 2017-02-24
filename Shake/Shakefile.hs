@@ -219,6 +219,11 @@ data HsBinary = HsBinary {
     , hsRtsFlags :: [Flag]
     } deriving (Show)
 
+-- | RTS flags for generated binaries without an explicit target in
+-- 'hsBinaries', like tests and profiles.
+defaultRtsFlags :: [Flag]
+defaultRtsFlags = ["-N", "-T"]
+
 -- | GUI apps require some postprocessing.
 data GuiType =
     NoGui -- ^ plain app
@@ -243,14 +248,25 @@ hsBinaries =
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
     , (gui "seq" "App/Main.hs" ["fltk/fltk.a"])
+        { hsRtsFlags =
+            [ "-N"
+            -- Increase generation 0 size.  Informal tests with
+            -- verify_performance seem to show a significant speed up.
+            , "-A8m"
+            -- Enable GC stats.  It's pretty cheap and is used by EKG,
+            -- MemoryLeak_test, and LDebug.memory.
+            , "-T"
+            ]
+        }
     , plain "send" "App/Send.hs"
     , (plain "shakefile" "Shake/Shakefile.hs")
-        { hsRtsFlags = ["-I0"] }
-        -- turn off idle ghc, as recommended by the shake docs
+        -- Turn off idle ghc, as recommended by the shake docs.
+        { hsRtsFlags = ["-N", "-I0"] }
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
-    , plain "verify_performance" "App/VerifyPerformance.hs"
+    , (plain "verify_performance" "App/VerifyPerformance.hs")
+        { hsRtsFlags = ["-N", "-A8m"] }
     ]
     ++ if not Config.enableSynth then [] else
         [ plain "sampler" "Synth/Sampler/Main.hs" ]
@@ -388,9 +404,13 @@ ccBinaries =
         }
     ]
     where
-    fltk name deps =
-        CcBinary name deps (fltkCc . configFlags) (fltkLd . configFlags)
-            (makeBundle Nothing False)
+    fltk name deps = CcBinary
+        { ccName = name
+        , ccRelativeDeps = deps
+        , ccCompileFlags = fltkCc . configFlags
+        , ccLinkFlags = fltkLd . configFlags
+        , ccPostproc = makeBundle False
+        }
     makeVst fn = do
         let vst = fn ++ ".vst"
         Util.system "rm" ["-rf", vst]
@@ -518,9 +538,6 @@ configure midi = do
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
         , hLinkFlags = ["-rtsopts", "-threaded"]
-            -- Enable GC stats.  It's pretty cheap and allows EKG and
-            -- MemoryLeak_test and LDebug.memory.
-            ++ ["-with-rtsopts=-T -A8m"]
             ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
@@ -621,11 +638,12 @@ main = do
             let config = infer fn
             hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (map (oDir config </>) (hsDeps binary)) [] hs fn
+            buildHs config (hsRtsFlags binary) (map (oDir config </>)
+                (hsDeps binary)) [] hs fn
             case hsGui binary of
                 NoGui -> return ()
-                MakeBundle -> makeBundle (Just (hsRtsFlags binary)) False fn
-                HasIcon -> makeBundle (Just (hsRtsFlags binary)) True fn
+                MakeBundle -> makeBundle False fn
+                HasIcon -> makeBundle True fn
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let iconset = "doc/icon" </> replaceExt fn "iconset"
@@ -924,9 +942,9 @@ cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
 -- ** hs
 
 -- | Build a haskell binary.
-buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
+buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
-buildHs config libs extraPackages hs fn = do
+buildHs config rtsFlags libs extraPackages hs fn = do
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
@@ -934,18 +952,14 @@ buildHs config libs extraPackages hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
-    Util.cmdline $ linkHs config fn (extraPackages ++ allPackages) objs
+    Util.cmdline $ linkHs config rtsFlags fn (extraPackages ++ allPackages) objs
 
-makeBundle :: Maybe [Flag] -> Bool -> FilePath -> Shake.Action ()
-makeBundle ghcRtsFlags hasIcon binary
+makeBundle :: Bool -> FilePath -> Shake.Action ()
+makeBundle hasIcon binary
     | System.Info.os == "darwin" = do
         let icon = build </> replaceExt binary "icns"
         when hasIcon $ need [icon]
-        Util.system "tools/make_bundle"
-            [ binary
-            , if hasIcon then icon else ""
-            , maybe "" (unwords . ("+RTS":) . (++["-RTS"])) ghcRtsFlags
-            ]
+        Util.system "tools/make_bundle" [binary, if hasIcon then icon else ""]
     | otherwise = return ()
 
 -- * tests and profiles
@@ -957,7 +971,8 @@ testRules config = do
     binaryWithPrefix runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
-        buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
+        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
+            (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
         Util.system "rm" ["-f", replaceExt fn "tix"]
         -- This gets reset on each new test run.
@@ -967,7 +982,8 @@ profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     runProfile ++ "*.hs" %> generateTestHs "_profile"
     binaryWithPrefix runProfile ?> \fn ->
-        buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
+        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
+            (fn ++ ".hs") fn
 
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs suffix fn = do
@@ -993,7 +1009,7 @@ criterionRules :: Config -> Shake.Rules ()
 criterionRules config = buildDir config </> "RunCriterion-*" %> \fn -> do
     let hs = runCriterionToSrc config fn
     need [hs]
-    buildHs config [] ["criterion"] hs fn
+    buildHs config defaultRtsFlags [] ["criterion"] hs fn
 
 -- | build/(mode)/RunCriterion-Derive.Derive -> Derive/Derive_criterion.hs
 runCriterionToSrc :: Config -> FilePath -> FilePath
@@ -1093,12 +1109,14 @@ compileHs packages config hs =
             ["-main-is", pathToModule hs]
         | otherwise = []
 
-linkHs :: Config -> FilePath -> [Package] -> [FilePath] -> Util.Cmdline
-linkHs config output packages objs =
+linkHs :: Config -> [Flag] -> FilePath -> [Package] -> [FilePath]
+    -> Util.Cmdline
+linkHs config rtsFlags output packages objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
         [ fltkLd flags, midiLibs flags, hLinkFlags flags
+        , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"], packageFlags flags packages, objs
         , ["-o", output]
         ]
