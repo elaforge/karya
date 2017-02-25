@@ -7,7 +7,6 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
-import Control.Monad
 
 import qualified Data.ByteString as ByteString
 import qualified Data.Set as Set
@@ -225,8 +224,9 @@ get_ports client flags = do
 foreign import ccall "get_midi_ports"
     c_get_midi_ports :: Ptr CClient -> CULong -> IO (Ptr CString)
 
-#enum CULong, id, JackPortIsInput, JackPortIsOutput, JackPortIsPhysical, \
-    JackPortCanMonitor, JackPortIsTerminal
+#enum CULong, id, JackPortIsInput, JackPortIsOutput
+    -- Avoid unused warnings for these.
+    -- JackPortIsPhysical, JackPortCanMonitor, JackPortIsTerminal
 
 get_port_aliases :: Client -> String -> IO [String]
 get_port_aliases client name = do

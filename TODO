@@ -193,14 +193,6 @@ UNSORTED
       shouldn't cause a problem.
     . Another way to fix this would be to create the view from the old state.
       Of course it would be less efficient, but would it be simpler?
-  - Write a test for Ui.Diff and Ui.Sync.
-    . I think the easiest way to do this is make BlockCStub record its calls,
-      then have a UI simulation that interprets those.  Then I can use
-      quickcheck to verify a bunch of starting and ending states.  It would
-      compare the incremental output against creating the visible UI from
-      scratch.
-    . It seems non-trivial... but maybe worth it, seeing how complicated
-      diff and sync are.
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
@@ -357,11 +349,13 @@ IN PROGRESS
     . branch signal-offset
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
+    . Maybe I should fix the formatting bugs first.
 
 PRIORITY
   performance:
     - input latency still gets crummy when the score is large
     - Reduce memory usage of GHC API, might help with latency.
+      . performance: Reduce memory used
   - fix bugs in Util.Pretty / Util.Format
     . Or use someone else's library... printcess?
 
@@ -777,6 +771,7 @@ cleanup:
 performance:
   - Reduce memory used by REPL.
     . About 200mb.
+    . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
     Try -fignore-interface-pragmas
       . From ghci: 210mb without vs. 1552mb with
       . But from REPL seems to make no difference.
@@ -897,6 +892,14 @@ performance:
     - I could analyze TrackWarp or TrackDynamic to get stats on how many times
       each block is called, along with overall stats on how many notes.  Just
       an interesting thing to know.
+  criterion
+    / it seems unreasonably fast, why is it so much faster than in seq?
+      . 5us for 128 events, plus no_invert is slower than invert?
+      . And shouldn't perform for invert and no_invert be the same?
+      . Maybe I should force the track signals too?
+      . 'seq' was being slowed down by startup overhead.
+    - score from a file
+    - parsing
   understand deriver performance
     . I never know if changes I am making help or hurt performance, because I
       don't trust any of my profiles.  This means I hardly ever run them, at
@@ -1166,7 +1169,15 @@ Ui:
       . efficient storage, preferably as a Signal so no conversion is necessary
       . display dense signals: omit text and trigger lines when zoomed out
 
-test:
+test: testing:
+  - Write a test for Ui.Diff and Ui.Sync.
+    . I think the easiest way to do this is make BlockCStub record its calls,
+      then have a UI simulation that interprets those.  Then I can use
+      quickcheck to verify a bunch of starting and ending states.  It would
+      compare the incremental output against creating the visible UI from
+      scratch.
+    . It seems non-trivial... but maybe worth it, seeing how complicated
+      diff and sync are.
   - Some way to associate a custom pretty-printer with test input or output,
     e.g.:
       annotate :: (Eq a, Show a) => (a -> Text) -> (a -> a) -> a -> a -> IO Bool
@@ -1185,7 +1196,6 @@ test:
       parameterized version of 'equal'?
     . Use this with Events.draw_events, it should be useful for all event
       triplets.
-
   - delete build/test/tmp on every test run to avoid test contamination
     . test/run_tests will clear it out, but sometimes I run them directly
     . But this is pretty much limited to expecting a file in a certain
@@ -1229,15 +1239,6 @@ test:
     . ResponderTest.continue_until has a timeout, what happens if it expires?
       It's unlikely, because it was 7 seconds before.
 
-
-  criterion
-    / it seems unreasonably fast, why is it so much faster than in seq?
-      . 5us for 128 events, plus no_invert is slower than invert?
-      . And shouldn't perform for invert and no_invert be the same?
-      . Maybe I should force the track signals too?
-      . 'seq' was being slowed down by startup overhead.
-    - score from a file
-    - parsing
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.

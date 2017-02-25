@@ -405,7 +405,7 @@ initial_threaded = Threaded mempty 0
 data Dynamic = Dynamic {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controls :: !Score.ControlMap
+    state_controls :: !BaseTypes.ControlMap
     -- | Function variant of controls.  Normally they modify a backing
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'BaseTypes.ControlFunction' for details.
@@ -519,7 +519,7 @@ strip_dynamic dyn = dyn
     }
 
 -- | Initial control environment.
-initial_controls :: Score.ControlMap
+initial_controls :: BaseTypes.ControlMap
 initial_controls = Map.fromList
     [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
@@ -1638,6 +1638,7 @@ data Scale = Scale {
     -- pitch by transposing until you get OutOfRange.  TODO that's a dumb way,
     -- if I explicitly need the top I should just add it.
     , scale_bottom :: !Pitch.Pitch
+    -- | If a scale has a Layout, cmds can do math with 'Pitch.Pitch'es.
     , scale_layout :: !Layout
     , scale_transpose :: !Transpose
     , scale_enharmonics :: !Enharmonics

@@ -157,8 +157,8 @@ be greatly improved with some optimization work.
 making changes, it's still oriented around non-realtime score-writing.  You
 cannot change a playback in progress.  You can't record MIDI in realtime,
 partially because it's hard to reconcile a low-level recorded performance with
-a high-level handwritten score, but mostly because I don't work that way.  It
-wouldn't be that hard to implement though.
+a high-level handwritten score, but mostly because I haven't gotten around to
+adding that feature.  It wouldn't be hard to add though.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI

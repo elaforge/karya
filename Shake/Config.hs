@@ -22,6 +22,8 @@ enableEventLog :: Bool
 enableEventLog = False
 
 -- | If True, compile the VST-using synthesizer from the Synth hierarchy.
+-- This requires a number of hackage dependencies, including the VST SDK,
+-- which has to be downloaded separately.
 enableSynth :: Bool
 enableSynth = False
 
