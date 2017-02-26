@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Ui.SymbolC (get_fonts, insert_symbol) where
+module Ui.SymbolC (get_fonts, insert) where
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import Foreign
@@ -29,8 +29,8 @@ foreign import ccall "get_fonts" c_get_fonts :: IO (Ptr CString)
 
 -- | Insert the given symbol into the symbol map.  Return any missing Fonts.
 -- If the return is non-null, the symbol wasn't inserted.
-insert_symbol :: Symbol.Symbol -> IO [Symbol.Font]
-insert_symbol (Symbol.Symbol name absolute_y glyphs) = do
+insert :: Symbol.Symbol -> IO [Symbol.Font]
+insert (Symbol.Symbol name absolute_y glyphs) = do
     maybe_glyphcs <- mapM glyph_to_glyphc glyphs
     let missing = [Symbol.glyph_font glyph
             | (glyph, Nothing) <- zip glyphs maybe_glyphcs]

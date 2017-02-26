@@ -17,9 +17,9 @@ import Global
 -- Symbols that couldn't be loaded.
 symbols :: [Symbol.Symbol] -> IO ()
 symbols syms = forM_ syms $ \sym -> do
-    missing <- SymbolC.insert_symbol sym
+    missing <- SymbolC.insert sym
     unless (null missing) $
-        Log.warn $ "failed to load symbol " <> showt (Symbol.sym_name sym)
+        Log.warn $ "failed to load symbol " <> showt (Symbol.name sym)
             <> ", fonts not found: " <> showt missing
 
 styles :: [Style.Style] -> IO ()

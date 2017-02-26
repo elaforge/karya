@@ -44,12 +44,12 @@ type Font = String
 -- The bounding box will be scaled by the eventual font size.  Don't pass an
 -- empty glyphs list.
 data Symbol = Symbol {
-    sym_name :: Text
+    name :: Text
     -- | Turn on absolute y placement, disabling automatic y placement.  If
     -- the glyphs have descenders and you want them to actually descend, turn
     -- this on.
-    , sym_absolute_y :: Bool
-    , sym_glyphs :: [Glyph]
+    , absolute_y :: Bool
+    , glyphs :: [Glyph]
     } deriving (Show)
 
 data Glyph = Glyph {

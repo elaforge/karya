@@ -37,11 +37,11 @@ make = do
 -- | Put the given Symbol into the test block.
 set :: Symbol.Symbol -> Cmd.CmdL ()
 set sym = do
-    fonts <- liftIO $ SymbolC.insert_symbol sym
+    fonts <- liftIO $ SymbolC.insert sym
     unless (null fonts) $
         Cmd.throw $ "Missing fonts: " <> pretty fonts
     (_, _, tid, _) <- Selection.get_insert
-    Ui.insert_event tid $ Event.event 0 5 ("`" <> Symbol.sym_name sym <> "`")
+    Ui.insert_event tid $ Event.event 0 5 ("`" <> Symbol.name sym <> "`")
 
 get_fonts :: Cmd.CmdL [Symbol.Font]
 get_fonts = liftIO SymbolC.get_fonts

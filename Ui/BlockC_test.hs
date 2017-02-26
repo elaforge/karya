@@ -174,10 +174,10 @@ test_symbols = do
 
     let bad_font = Symbol.symbol "x"
             [(Symbol.glyph "y") { Symbol.glyph_font = Just "no such font" }]
-    io_equal (SymbolC.insert_symbol bad_font) ["no such font"]
-    io_equal (SymbolC.insert_symbol sym) []
+    io_equal (SymbolC.insert bad_font) ["no such font"]
+    io_equal (SymbolC.insert sym) []
     -- do it twice and make sure the memory from the first one is freed
-    io_equal (SymbolC.insert_symbol sym) []
+    io_equal (SymbolC.insert sym) []
     view <- create_empty_view
     io_human "track with symbol" $
         insert_track view 1
