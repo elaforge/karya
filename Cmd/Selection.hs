@@ -28,10 +28,11 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -341,7 +342,7 @@ cmd_snap_selection btn selnum extend msg = do
     -- it's easy for the selection to jump way off screen while dragging.
     snap_over_threshold view_id block_id pos snap = do
         zoom <- Ui.get_zoom view_id
-        let over = Types.zoom_to_pixels zoom (abs (snap - pos)) > threshold
+        let over = Zoom.to_pixels zoom (abs (snap - pos)) > threshold
         -- Don't go past the end of the ruler.  Otherwise it's easy to
         -- accidentally select too much by dragging to the end of the block.
         end <- Ui.block_ruler_end block_id
@@ -397,7 +398,7 @@ auto_scroll view_id old new = do
     let time_offset = Num.clamp 0 (end - Block.visible_time view) $
             auto_time_scroll view (Sel.cur_pos <$> old) (Sel.cur_pos new)
         track_offset = auto_track_scroll block view new
-    Ui.modify_zoom view_id $ \zoom -> zoom { Types.zoom_offset = time_offset }
+    Ui.modify_zoom view_id $ \zoom -> zoom { Zoom.offset = time_offset }
     Ui.set_track_scroll view_id track_offset
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
@@ -412,15 +413,14 @@ auto_time_scroll view prev_pos pos
     | otherwise = view_start
     where
     visible = Block.visible_time view
-    view_start = Types.zoom_offset (Block.view_zoom view)
+    view_start = Zoom.offset (Block.view_zoom view)
     view_end = view_start + visible
     space = ScoreTime.double $
-        visible_pixels / Types.zoom_factor (Block.view_zoom view)
+        visible_pixels / Zoom.factor (Block.view_zoom view)
     visible_pixels = 30
 
 -- | Find the track scroll that would put the given selection into view.
-auto_track_scroll :: Block.Block -> Block.View -> Sel.Selection
-    -> Types.Width
+auto_track_scroll :: Block.Block -> Block.View -> Sel.Selection -> Types.Width
 auto_track_scroll block view sel
     | track_end > view_end = track_end - visible
     | track_start < view_start = track_start

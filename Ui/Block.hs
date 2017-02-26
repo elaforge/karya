@@ -54,6 +54,7 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import qualified App.Config as Config
 import Global
@@ -465,7 +466,7 @@ data View = View {
     -- | Contents of the status line.  Map (sort_order, name) contents.
     , view_status :: !(Map (Int, Text) Text)
     , view_track_scroll :: !Types.Width
-    , view_zoom :: !Types.Zoom
+    , view_zoom :: !Zoom.Zoom
     , view_selections :: !(Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show, Read)
 
@@ -488,7 +489,7 @@ instance DeepSeq.NFData View where
 -- | Construct a View, using default values for most of its fields.
 -- Don't construct views using View directly since 'State.create_view'
 -- overwrites view_tracks, and maybe more in the future.
-view :: Block -> BlockId -> Rect.Rect -> Types.Zoom -> View
+view :: Block -> BlockId -> Rect.Rect -> Zoom.Zoom -> View
 view block block_id rect zoom = View
     { view_block = block_id
     , view_rect = rect
@@ -517,7 +518,7 @@ show_status = Text.intercalate " | "
 
 -- | Return how much track is in view.
 visible_time :: View -> TrackTime
-visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
+visible_time view = Zoom.to_time (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
 visible_track = view_visible_track

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | The 'Rect' type.
 module Util.Rect (
     Rect
     -- * access
@@ -18,6 +19,7 @@ module Util.Rect (
     , distance, intersection, overlaps, touches, point_distance
     , contains_point, touches_point
 ) where
+import Util.ForeignC
 import qualified Util.Pretty as Pretty
 
 
@@ -106,3 +108,19 @@ contains_point r (x, y) = rx r <= x && x < rr r && ry r <= y && y < rb r
 -- right or bottom edge of the rectangle.
 touches_point :: Rect -> Point -> Bool
 touches_point r (x, y) = rx r <= x && x <= rr r && ry r <= y && y <= rb r
+
+#include "Ui/c_interface.h"
+
+-- | It should be in "Util.Rect", but hscs are annoying to work with, and
+-- I think this is where the storable instance is actually used.
+instance CStorable Rect where
+    sizeOf _ = #size IRect
+    alignment _ = alignment (0 :: CInt)
+    poke = error "Rect poke unimplemented"
+    peek rectp = do
+        x <- (#peek IRect, x) rectp :: IO CInt
+        y <- (#peek IRect, y) rectp :: IO CInt
+        w <- (#peek IRect, w) rectp :: IO CInt
+        h <- (#peek IRect, h) rectp :: IO CInt
+        return $ xywh (i x) (i y) (i w) (i h)
+        where i = fromIntegral

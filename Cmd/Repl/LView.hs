@@ -11,8 +11,8 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -94,6 +94,6 @@ prev = restore "prev"
 -- useful when lining up parts.
 zoom_from :: Cmd.M m => ViewId -> m ()
 zoom_from from = do
-    from_factor <- Types.zoom_factor . Block.view_zoom <$> Ui.get_view from
+    from_factor <- Zoom.factor . Block.view_zoom <$> Ui.get_view from
     to <- Cmd.get_focused_view
-    Views.modify_zoom to (\z -> z { Types.zoom_factor = from_factor })
+    Views.modify_zoom to (\z -> z { Zoom.factor = from_factor })

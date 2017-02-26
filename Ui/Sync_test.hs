@@ -45,14 +45,15 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import Ui.UiTest (mkid)
 import qualified Ui.Update as Update
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Internal as Internal
 import qualified App.Config as Config
@@ -153,15 +154,15 @@ test_zoom_scroll = do
             , Event.event 100 64 "last"
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
-        Ui.modify_zoom t_view_id $ const (Types.Zoom 128 1)
+        Ui.modify_zoom t_view_id $ const (Zoom.Zoom 128 1)
     state <- io_human "scrolls back up" $ run state $ do
-        Ui.modify_zoom t_view_id $ const (Types.Zoom 0 1)
+        Ui.modify_zoom t_view_id $ const (Zoom.Zoom 0 1)
     state <- io_human "zoom in to 2" $ run state $ do
-        Ui.modify_zoom t_view_id $ const (Types.Zoom 0 2)
+        Ui.modify_zoom t_view_id $ const (Zoom.Zoom 0 2)
     state <- io_human "zoom out to .5" $ run state $ do
-        Ui.modify_zoom t_view_id $ const (Types.Zoom 0 0.5)
+        Ui.modify_zoom t_view_id $ const (Zoom.Zoom 0 0.5)
     _ <- io_human "zoom out to 0, should clamp at a low number" $
-        run state $ Ui.modify_zoom t_view_id $ const (Types.Zoom 0 0)
+        run state $ Ui.modify_zoom t_view_id $ const (Zoom.Zoom 0 0)
     return ()
 
 test_set_status = do
@@ -472,7 +473,7 @@ setup_state = do
     b1 <- create_block t_block "hi b1" [Block.RId ruler, Block.TId t1 ruler]
     create_view "v1" =<< make_view b1 UiTest.default_rect UiTest.default_zoom
 
-make_view :: Ui.M m => BlockId -> Rect.Rect -> Types.Zoom -> m Block.View
+make_view :: Ui.M m => BlockId -> Rect.Rect -> Zoom.Zoom -> m Block.View
 make_view block_id rect zoom = do
     block <- Ui.get_block block_id
     return $ Block.view block block_id rect zoom

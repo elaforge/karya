@@ -28,11 +28,11 @@ import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -173,7 +173,7 @@ ui_update :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
 ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> Ui.set_track_scroll view_id hpos
     UiMsg.UpdateTimeScroll offset -> Ui.modify_zoom view_id $ \zoom ->
-        zoom { Types.zoom_offset = offset }
+        zoom { Zoom.offset = offset }
     UiMsg.UpdateViewResize rect padding -> do
         view <- Ui.get_view view_id
         when (rect /= Block.view_rect view) $ Ui.set_view_rect view_id rect

@@ -36,6 +36,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
+import qualified Ui.Zoom as Zoom
 
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
@@ -308,7 +309,7 @@ instance Serialize Block.View where
                 visible_time :: Int <- get
                 status :: Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
-                zoom :: Types.Zoom <- get
+                zoom :: Zoom.Zoom <- get
                 selections :: Map Sel.Num Sel.Selection <- get
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
@@ -320,12 +321,12 @@ instance Serialize Rect.Rect where
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Rect.xywh a b c d)
 
-instance Serialize Types.Zoom where
-    put (Types.Zoom a b) = put a >> put b
+instance Serialize Zoom.Zoom where
+    put (Zoom.Zoom a b) = put a >> put b
     get = do
         offset :: ScoreTime <- get
         factor :: Double <- get
-        return $ Types.Zoom offset factor
+        return $ Zoom.Zoom offset factor
 
 instance Serialize Sel.Selection where
     put (Sel.Selection a b c d) = put a >> put b >> put c >> put d

@@ -20,6 +20,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import Global
 
@@ -307,11 +308,8 @@ view_size :: (Int, Int)
 view_size = (300, 300)
 
 -- | Create new views at this zoom.
-zoom :: Types.Zoom
-zoom = Types.Zoom
-    { zoom_offset = 0
-    , zoom_factor = 46
-    }
+zoom :: Zoom.Zoom
+zoom = Zoom.Zoom { offset = 0, factor = 46 }
 
 -- | Default width for the block ruler track.
 ruler_width :: Types.Width

@@ -10,7 +10,7 @@ import qualified Util.Rect as Rect
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
-import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
@@ -31,7 +31,7 @@ zoom_to_ruler view_id = do
     view <- Ui.get_view view_id
     block_end <- Ui.block_end (Block.view_block view)
     factor <- zoom_factor view_id block_end
-    set_zoom view_id $ Types.Zoom 0 factor
+    set_zoom view_id $ Zoom.Zoom { offset = 0, factor = factor }
 
 -- | Figure out the zoom factor to display the given amount of TrackTime.
 zoom_factor :: Ui.M m => ViewId -> TrackTime -> m Double
@@ -42,7 +42,7 @@ zoom_factor view_id dur
         let pixels = Block.view_visible_time view
         return $ fromIntegral pixels / ScoreTime.to_double dur
 
-set_zoom :: Cmd.M m => ViewId -> Types.Zoom -> m ()
+set_zoom :: Cmd.M m => ViewId -> Zoom.Zoom -> m ()
 set_zoom view_id = modify_zoom view_id . const
 
 -- | Set time scroll, clipping so it doesn't scroll past 'Block.block_end'.
@@ -52,9 +52,9 @@ set_time_offset view_id offset = do
     let visible = Block.visible_time view
     end <- Ui.block_end $ Block.view_block view
     modify_zoom view_id $ \zoom -> zoom
-        { Types.zoom_offset = Num.clamp 0 (end - visible) offset }
+        { Zoom.offset = Num.clamp 0 (end - visible) offset }
 
-modify_zoom :: Cmd.M m => ViewId -> (Types.Zoom -> Types.Zoom) -> m ()
+modify_zoom :: Cmd.M m => ViewId -> (Zoom.Zoom -> Zoom.Zoom) -> m ()
 modify_zoom view_id modify = do
     Ui.modify_zoom view_id modify
     Internal.sync_zoom_status view_id
@@ -88,5 +88,5 @@ contents_rect view = do
     block <- Ui.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
         w = sum $ map Block.display_track_width (Block.block_tracks block)
-        h = Types.zoom_to_pixels (Block.view_zoom view) block_end
+        h = Zoom.to_pixels (Block.view_zoom view) block_end
     return $ Rect.xywh x y (max w 40) (max h 40)

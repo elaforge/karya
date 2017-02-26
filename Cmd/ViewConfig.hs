@@ -16,7 +16,7 @@ import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
-import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -41,9 +41,9 @@ cmd_zoom_around view_id pos f = do
     zoom <- Ui.get_zoom view_id
     Views.set_zoom view_id (zoom_around zoom pos f)
 
-zoom_around :: Types.Zoom -> ScoreTime -> (Double -> Double) -> Types.Zoom
-zoom_around (Types.Zoom offset factor) pos f =
-    Types.Zoom (zoom_pos offset pos (ScoreTime.double factor)
+zoom_around :: Zoom.Zoom -> ScoreTime -> (Double -> Double) -> Zoom.Zoom
+zoom_around (Zoom.Zoom offset factor) pos f =
+    Zoom.Zoom (zoom_pos offset pos (ScoreTime.double factor)
         (ScoreTime.double newf)) newf
     where newf = f factor
 
@@ -53,8 +53,7 @@ zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do
     zoom <- Ui.get_zoom view_id
-    Views.set_zoom view_id $
-        zoom { Types.zoom_factor = f (Types.zoom_factor zoom) }
+    Views.set_zoom view_id $ zoom { Zoom.factor = f (Zoom.factor zoom) }
 
 -- | Zoom to the ruler duration if the selection is a point, or zoom to the
 -- selection if it's not.
@@ -67,7 +66,7 @@ zoom_to_ruler_or_selection = do
 
 zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
 zoom_to view_id start end =
-    Views.set_zoom view_id . Types.Zoom start
+    Views.set_zoom view_id . Zoom.Zoom start
         =<< Views.zoom_factor view_id (end - start)
 
 -- * scroll
@@ -79,7 +78,7 @@ scroll_pages pages = do
     view_id <- Cmd.get_focused_view
     view <- Ui.get_view view_id
     let visible = Block.visible_time view
-        offset = Types.zoom_offset $ Block.view_zoom view
+        offset = Zoom.offset $ Block.view_zoom view
     Views.set_time_offset view_id (offset + pages * visible)
 
 -- * resize
@@ -232,9 +231,9 @@ views_covering view_id = do
     block_dur <- Ui.block_end $ Block.view_block view
     forM (views_covering_starts block_dur view) $ \start -> do
         view_id <- Create.view (Block.view_block view)
-        Views.modify_zoom view_id $ const $ Types.Zoom
-            { zoom_factor = Types.zoom_factor (Block.view_zoom view)
-            , zoom_offset = start
+        Views.modify_zoom view_id $ const $ Zoom.Zoom
+            { factor = Zoom.factor (Block.view_zoom view)
+            , offset = start
             }
         return view_id
 
@@ -243,7 +242,7 @@ views_covering_starts block_dur view =
     -- drop 1 to exclude the given view.
     drop 1 $ take needed $ Seq.range_ offset (block_dur / fromIntegral needed)
     where
-    offset = Types.zoom_offset (Block.view_zoom view)
+    offset = Zoom.offset (Block.view_zoom view)
     visible = Block.visible_time view - offset
     needed = ceiling (block_dur / visible)
 

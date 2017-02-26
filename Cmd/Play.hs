@@ -87,7 +87,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -226,7 +226,7 @@ top_of_block :: Cmd.M m => m (BlockId, TrackId, TrackTime)
 top_of_block = do
     (block_id, _, track_id, _) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
-    top <- Types.zoom_offset . Block.view_zoom <$> Ui.get_view view_id
+    top <- Zoom.offset . Block.view_zoom <$> Ui.get_view view_id
     return (block_id, track_id, top)
 
 root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs

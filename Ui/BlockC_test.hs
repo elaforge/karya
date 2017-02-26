@@ -25,6 +25,7 @@ import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
+import qualified Ui.Zoom as Zoom
 
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
@@ -67,16 +68,16 @@ test_scroll_zoom = do
         send $ BlockC.set_track_scroll view 0
 
     io_human "scroll down a little" $
-        send $ BlockC.set_zoom view (Types.Zoom 20 1)
+        send $ BlockC.set_zoom view (Zoom.Zoom 20 1)
     io_human "scroll down all the way" $
-        send $ BlockC.set_zoom view (Types.Zoom 99999 1)
+        send $ BlockC.set_zoom view (Zoom.Zoom 99999 1)
     io_human "scroll back" $
-        send $ BlockC.set_zoom view (Types.Zoom (-20) 1)
+        send $ BlockC.set_zoom view (Zoom.Zoom (-20) 1)
 
     io_human "zoom in to 2" $
-        send $ BlockC.set_zoom view (Types.Zoom 0 2)
+        send $ BlockC.set_zoom view (Zoom.Zoom 0 2)
     io_human "zoom out back to 1" $
-        send $ BlockC.set_zoom view (Types.Zoom 0 1)
+        send $ BlockC.set_zoom view (Zoom.Zoom 0 1)
 
 test_set_selection = do
     view <- create_empty_view
@@ -139,7 +140,7 @@ test_insert_remove_track = do
     let ruler = mkruler 20 10
     io_human "new event track" $
         insert_track view 1 (Block.T event_track_1 ruler) 30
-    send $ BlockC.set_zoom view (Types.Zoom 0 2)
+    send $ BlockC.set_zoom view (Zoom.Zoom 0 2)
     io_human "another new event track also zoomed" $
         insert_track view 2 (Block.T event_track_2 ruler) 30
     io_human "remove ruler track, others move over" $

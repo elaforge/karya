@@ -30,7 +30,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -93,7 +93,7 @@ rid = Id.RulerId . mkid
 test_ns :: Id.Namespace
 test_ns = Id.namespace "test"
 
-default_zoom :: Types.Zoom
+default_zoom :: Zoom.Zoom
 default_zoom = Config.zoom
 
 -- * monadic mk- functions

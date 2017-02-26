@@ -74,6 +74,7 @@ import qualified Ui.Fltk as Fltk
 import Ui.Fltk (Fltk)
 import qualified Ui.Types as Types
 import qualified Ui.Util as Util
+import qualified Ui.Zoom as Zoom
 
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
@@ -146,7 +147,7 @@ foreign import ccall "destroy" c_destroy :: Ptr CView -> IO ()
 --
 -- This is unused because I sync this with UI msgs, but if they prove
 -- unreliable I could use this to verify or just replace them.
-get_view_status :: ViewId -> Fltk (Rect.Rect, Types.Zoom, Int, Int)
+get_view_status :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
     -- ^ (rect, zoom, time_padding, track_padding)
 get_view_status view_id = fltk "get_view_status" view_id $ do
     viewp <- PtrMap.get view_id
@@ -157,7 +158,7 @@ get_view_status view_id = fltk "get_view_status" view_id $ do
                 <*> (fromIntegral <$> peek timep)
                 <*> (fromIntegral <$> peek trackp)
 foreign import ccall "get_view_status"
-    c_get_view_status :: Ptr CView -> Ptr Rect.Rect -> Ptr Types.Zoom
+    c_get_view_status :: Ptr CView -> Ptr Rect.Rect -> Ptr Zoom.Zoom
         -> Ptr CInt -> Ptr CInt -> IO ()
 
 -- ** Set other attributes
@@ -172,12 +173,12 @@ set_size view_id rect = fltk "set_size" (view_id, rect) $ do
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
-set_zoom :: ViewId -> Types.Zoom -> Fltk ()
+set_zoom :: ViewId -> Zoom.Zoom -> Fltk ()
 set_zoom view_id zoom = fltk "set_zoom" (view_id, zoom) $ do
     viewp <- PtrMap.get view_id
     with zoom $ \zoomp -> c_set_zoom viewp zoomp
 foreign import ccall "set_zoom"
-    c_set_zoom :: Ptr CView -> Ptr Types.Zoom -> IO ()
+    c_set_zoom :: Ptr CView -> Ptr Zoom.Zoom -> IO ()
 
 -- | Set the scroll along the track dimension, in pixels.
 set_track_scroll :: ViewId -> Types.Width -> Fltk ()
@@ -528,7 +529,5 @@ instance CStorable Selection where
         (#poke Selection, start) selp start
         (#poke Selection, cur) selp cur
         (#poke Selection, draw_arrow) selp (Util.c_bool draw_arrow)
-
--- * util
 
 ##endif

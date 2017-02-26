@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - Get rid of ResponderTest.respond_until and continue_until, since they're
     non-deterministic.
-  - Put Types.Zoom in Ui.Zoom module
+  * Put Types.Zoom in Ui.Zoom module
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of

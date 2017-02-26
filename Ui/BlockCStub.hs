@@ -13,12 +13,13 @@ module Ui.BlockCStub where
 import qualified Util.Rect as Rect
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
-import Ui.Fltk (Fltk, fltk)
 import qualified Ui.Events as Events
+import Ui.Fltk (Fltk, fltk)
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.Zoom as Zoom
 
 import Global
 import Types
@@ -32,13 +33,13 @@ create_view view_id window_title rect block_config = fltk $ return ()
 destroy_view :: ViewId -> Fltk ()
 destroy_view view_id = fltk $ return ()
 
-get_view_status :: ViewId -> Fltk (Rect.Rect, Types.Zoom, Int, Int)
+get_view_status :: ViewId -> Fltk (Rect.Rect, Zoom.Zoom, Int, Int)
 get_view_status view_id = fltk $ errorIO "unimplemented"
 
 set_size :: ViewId -> Rect.Rect -> Fltk ()
 set_size view_id rect = fltk $ return ()
 
-set_zoom :: ViewId -> Types.Zoom -> Fltk ()
+set_zoom :: ViewId -> Zoom.Zoom -> Fltk ()
 set_zoom view_id zoom = fltk $ return ()
 
 set_track_scroll :: ViewId -> Types.Width -> Fltk ()

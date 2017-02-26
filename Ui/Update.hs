@@ -24,6 +24,7 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiConfig as UiConfig
+import qualified Ui.Zoom as Zoom
 
 import Global
 import Types
@@ -70,7 +71,7 @@ data View =
     | ViewSize !Rect.Rect
     | Status !(Map (Int, Text) Text) !Color.Color -- ^ background color
     | TrackScroll !Types.Width
-    | Zoom !Types.Zoom
+    | Zoom !Zoom.Zoom
     | Selection !Sel.Num !(Maybe Sel.Selection)
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.

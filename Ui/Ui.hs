@@ -158,10 +158,11 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import Ui.UiConfig hiding (allocation)
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import Ui.UiConfig hiding (allocation)
 import qualified Ui.Update as Update
+import qualified Ui.Zoom as Zoom
 
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.Stack as Stack
@@ -512,14 +513,13 @@ _update_view_status view = do
 
 -- ** zoom and track scroll
 
-get_zoom :: M m => ViewId -> m Types.Zoom
+get_zoom :: M m => ViewId -> m Zoom.Zoom
 get_zoom = fmap Block.view_zoom . get_view
 
-modify_zoom :: M m => ViewId -> (Types.Zoom -> Types.Zoom) -> m ()
+modify_zoom :: M m => ViewId -> (Zoom.Zoom -> Zoom.Zoom) -> m ()
 modify_zoom view_id modify = modify_view view_id $ \view ->
     view { Block.view_zoom = clamp $ modify $ Block.view_zoom view }
-    where
-    clamp zoom = zoom { Types.zoom_offset = max 0 (Types.zoom_offset zoom) }
+    where clamp zoom = zoom { Zoom.offset = max 0 (Zoom.offset zoom) }
 
 set_track_scroll :: M m => ViewId -> Types.Width -> m ()
 set_track_scroll view_id offset =
