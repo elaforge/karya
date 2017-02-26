@@ -293,6 +293,7 @@ test_parse_ky = do
     equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
     equal (f e_note "-- hi") (Right [])
     equal (f e_note "-- note_generator:") (Right [])
+    equal (note "a = c =+ 1\n") $ Right [("a", ("=", ["c", "1", "'+'"]))]
 
     -- imports
     equal (f fst "import 'x' -- blah\nimport 'y'\n") $

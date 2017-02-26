@@ -656,19 +656,11 @@ p_expr_ky = do
     return $ Expr (c :| cs)
 
 p_toplevel_call_ky :: A.Parser Call
-p_toplevel_call_ky = call_to_ky <$> p_unparsed_expr
-    <|> p_equal_ky
+p_toplevel_call_ky =
+    call_to_ky <$> p_unparsed_expr
+    <|> call_to_ky <$> p_equal
     <|> p_call_ky
     <|> call_to_ky <$> p_null_call
-
-p_equal_ky :: A.Parser Call
-p_equal_ky = do
-    lhs <- BaseTypes.VSymbol <$> (p_string <|> p_call_symbol True)
-    spaces
-    A.char '='
-    spaces
-    rhs <- A.many1 p_term_ky
-    return $ Call BaseTypes.c_equal (Literal lhs : rhs)
 
 call_to_ky :: BaseTypes.Call -> Call
 call_to_ky (BaseTypes.Call call_id args) = Call call_id (map convert args)
@@ -683,7 +675,8 @@ p_call_ky :: A.Parser Call
 p_call_ky = Call <$> lexeme (p_call_symbol False) <*> A.many p_term_ky
 
 p_term_ky :: A.Parser Term
-p_term_ky = lexeme $ VarTerm <$> p_var
+p_term_ky =
+    lexeme $ VarTerm <$> p_var
     <|> Literal <$> p_val
     <|> ValCall <$> p_sub_call_ky
 
