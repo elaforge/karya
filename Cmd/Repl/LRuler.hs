@@ -26,7 +26,8 @@
 
     Examples:
 
-    - Bali: 8 gongs with 4 jegogans per gong:
+    - Bali: 8 gongs with 4 jegogans per gong.  Since counts are on calung, and
+    there are 2 calung per jegogan, this is basically an 8 beat cycle:
 
         > LRuler.local $ LRuler.gongs 8 4
 

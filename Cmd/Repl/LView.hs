@@ -11,11 +11,14 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.ViewConfig as ViewConfig
+import qualified Cmd.Views as Views
 
 import Global
 import Types
@@ -84,3 +87,13 @@ restore = ViewConfig.restore_views
 
 prev :: Cmd.CmdL ()
 prev = restore "prev"
+
+-- * zoom
+
+-- | Copy the zoom factor from the given view to the selected one.  This is
+-- useful when lining up parts.
+zoom_from :: Cmd.M m => ViewId -> m ()
+zoom_from from = do
+    from_factor <- Types.zoom_factor . Block.view_zoom <$> Ui.get_view from
+    to <- Cmd.get_focused_view
+    Views.modify_zoom to (\z -> z { Types.zoom_factor = from_factor })
