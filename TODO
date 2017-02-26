@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Get rid of ResponderTest.respond_until and continue_until, since they're
+    non-deterministic.
+  - Put Types.Zoom in Ui.Zoom module
+  - ControlFunctions are still super confusing.
+    . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
+      %strength is .5, but it's actually not, and the only way to get rid of
+      the CF is %strength=_.
+    . Also the whole implementation is a mess.  Isn't there some other way to
+      randomize signals?
   * shakefile: replace // patterns with **
   * shakefile: withLockedDatabase should no longer be necessary.  Test it out
     and remove.
@@ -1201,7 +1210,7 @@ test: testing:
     . But this is pretty much limited to expecting a file in a certain
       place, which pretty much only Perform.Im.Convert does.  Tests that
       create tmp files should use Testing.unique_tmp_dir.
-  + Integrate_test.test_block_integrate is flaky, sometimes I get:
+  * Integrate_test.test_block_integrate is flaky, sometimes I get:
     . __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
       ((bid "test/b2"),
        [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
@@ -1233,7 +1242,6 @@ test: testing:
             ((Performance 3 events 3 logs))
       . ['e c', 'e c', 'f c']
       . index has fdc
-
     . So it looks like the first OutOfDate gets interrupted by another.a What
       is the expected sequence?
     . ResponderTest.continue_until has a timeout, what happens if it expires?

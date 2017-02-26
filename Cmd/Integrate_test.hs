@@ -58,30 +58,11 @@ test_block_integrate = do
         UiTest.remove_event_in "b2" 1 1
         UiTest.remove_event_in "b2" 2 1
         UiTest.insert_event 2 (2, 0, "4f")
-
-    -- debugging to track down flakiness
-    putStrLn $ "reses: " <> show (length reses)
-    -- normally: ['e c', 'e c', 'f c']
-    pprint (map (last . e_tracks) reses)
-    -- normally index has fdc
-    let get_index = Block.block_integrated . (!!1) . Map.elems
-            . Ui.state_blocks . ResponderTest.result_ui_state
-    prettyp (get_index (last reses))
-
     equal (last (e_tracks (last reses)))
         (UiTest.bid "b2",
             [ (">i1", [(0, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
-
-    -- flaky: sometimes is 'e c', instead of 'f c'
-    -- ((bid "test/b2"),
-    --  [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
-    --   ("*", [(0.0, 0.0, "4e"), (2.0, 0.0, "4c")])])
-    --     /=
-    -- ((bid "test/b2"),
-    --  [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
-    --   ("*", [(0.0, 0.0, "4f"), (2.0, 0.0, "4c")])])
 
 test_block_integrate2 = do
     let states = mkstates "<<" ("i1", [(0, 1, "4c"), (1, 1, "4g")], [])
@@ -93,6 +74,7 @@ test_block_integrate2 = do
         UiTest.insert_event_in dest 2 (0.5, 0, "4a")
         UiTest.insert_event_in source 2 (0.25, 0, "4d")
     res <- next res $ UiTest.insert_event_in source 2 (0.5, 0, "4e")
+    -- 4e in src is replaced by overidden by 4a in dest
     equal (pitch_track res) $ Just
         [(0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (1, 0, "4g")]
     res <- next res $ UiTest.insert_event_in source 2 (0.75, 0, "4f")
@@ -333,7 +315,7 @@ nexts = until_complete . ResponderTest.result_states
 
 until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]
-until_complete = ResponderTest.respond_until ResponderTest.is_derive_complete 1
+until_complete = ResponderTest.respond_all 1
 
 e_tracks :: ResponderTest.Result -> [(BlockId, [UiTest.TrackSpec])]
 e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state

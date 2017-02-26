@@ -10,7 +10,7 @@
     asynchronously.
 -}
 module Cmd.Performance (
-    SendStatus, update_performance, performance, derive
+    SendStatus, update_performance, derive_blocks, performance, derive
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
@@ -91,10 +91,15 @@ update_performance send_status ui_state cmd_state damage =
 run_update :: SendStatus -> Ui.State -> StateM
 run_update send_status ui_state = do
     kill_threads
-    let visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
-        root_id = Ui.config_root (Ui.state_config ui_state)
-        block_ids = Seq.unique $ maybe id (:) root_id visible
-    mapM_ (try_generate_performance send_status ui_state) block_ids
+    mapM_ (try_generate_performance send_status ui_state)
+        (derive_blocks ui_state)
+
+-- | Which blocks should get derived?
+derive_blocks :: Ui.State -> [BlockId]
+derive_blocks ui_state = Seq.unique $ maybe id (:) root_id visible
+    where
+    root_id = Ui.config_root (Ui.state_config ui_state)
+    visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
 
 try_generate_performance :: SendStatus -> Ui.State -> BlockId -> StateM
 try_generate_performance send_status ui_state block_id = do

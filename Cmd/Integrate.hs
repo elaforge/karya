@@ -51,7 +51,7 @@
     integration that simply copies score events directly, without the
     intervening derive step.
 -}
-module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
+module Cmd.Integrate (cmd_integrate, score_integrate) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -73,6 +73,9 @@ import Global
 import Types
 
 
+-- | Derive integrate takes the result of a derivation and merges it into
+-- blocks or tracks which are marked as integrate destinations.  A special
+-- derive call captures events and saves them in 'Cmd.perf_integrated'.
 cmd_integrate :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
     -- If a block or track wants to integrate twice with different events,
@@ -110,7 +113,7 @@ integrate_tracks block_id track_id tracks = do
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
     unless (null new_dests) $
-        Log.notice $ "derive integrated " <> showt track_id <> " to: "
+        Log.notice $ "derive integrated " <> showt track_id <> " to "
             <> pretty (map (map (fst . Block.dest_note)) new_dests)
     Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
@@ -121,19 +124,19 @@ integrate_tracks block_id track_id tracks = do
 integrate_block :: Cmd.M m => BlockId -> Convert.Tracks -> m ()
 integrate_block source_id tracks = do
     blocks <- Ui.gets Ui.state_blocks
-    new_blocks <- case integrated_from blocks of
+    dest_blocks <- case integrated_from blocks of
         [] -> do
             (block_id, dests) <- Merge.create_block source_id tracks
             Create.view block_id
             return [(block_id, dests)]
         integrated -> forM integrated $ \(dest_id, track_dests) ->
             (,) dest_id <$> Merge.merge_block dest_id tracks track_dests
-    Log.notice $ "derive integrated " <> showt source_id <> " to: "
-        <> pretty (map fst new_blocks)
-    forM_ new_blocks $ \(new_block_id, track_dests) ->
-        Ui.set_integrated_block new_block_id $
+    Log.notice $ "derive integrated " <> showt source_id <> " to "
+        <> pretty (map fst dest_blocks)
+    forM_ dest_blocks $ \(dest_block_id, track_dests) ->
+        Ui.set_integrated_block dest_block_id $
             Just (source_id, Block.DeriveDestinations track_dests)
-    Cmd.derive_immediately (map fst new_blocks)
+    Cmd.derive_immediately (map fst dest_blocks)
     where
     integrated_from blocks =
         [ (block_id, dests)

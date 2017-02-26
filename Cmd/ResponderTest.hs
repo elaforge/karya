@@ -19,6 +19,7 @@ module Cmd.ResponderTest (
     , result_perf
     -- * run
     , respond_cmd, respond_until, continue_until
+    , respond_all
     , is_derive_complete, is_block_derive_complete
     , thread, thread_delay
 ) where
@@ -28,7 +29,9 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
+
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
@@ -49,6 +52,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Performance as Performance
 import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
@@ -181,13 +185,53 @@ continue_until is_complete timeout last_result =
                     then return (result : accum)
                     else go (result : accum) (result_states result)
 
+-- | Continue feeding loopback msgs into the responder until I see
+-- DeriveCompletes for all the blocks I expect to derive.
+--
+-- This is a hack, because I want to make sure all msgs have been processed,
+-- but there's no explicit way for the system to say it's done.  But since the
+-- only thing chucking things in loopback is background derivation, I can use
+-- what I know of how it works to guess when it's done.
+--
+-- It's dangerous to look for a particular DeriveComplete because the order
+-- in which derive threads complete is non-deterministic.
+respond_all :: Thread.Seconds -> States -> Cmd.CmdT IO a -> IO [Result]
+respond_all timeout states cmd = do
+    putStrLn "---------- new cmd"
+    result <- respond_cmd states cmd
+    (result:) <$> continue_all timeout result
+
+continue_all :: Thread.Seconds -> Result -> IO [Result]
+continue_all timeout prev_result = go Set.empty (result_states prev_result)
+    where
+    loopback = result_loopback prev_result
+    expected_blocks = Set.fromList $
+        Performance.derive_blocks (result_ui_state prev_result)
+    go complete_blocks states
+        | complete_blocks == expected_blocks = return []
+        | otherwise = do
+            maybe_msg <- read_msg timeout loopback
+            Text.IO.putStrLn $ "ResponderTest.continue: "
+                <> maybe "timed out!" pretty maybe_msg
+            case maybe_msg of
+                Nothing -> return []
+                Just msg -> do
+                    result <- respond1 (Just loopback) states Nothing msg
+                    let completed = maybe id Set.insert (complete msg)
+                            complete_blocks
+                    (result:) <$> go completed (result_states result)
+    complete (Msg.DeriveStatus block_id (Msg.DeriveComplete {})) = Just block_id
+    complete _ = Nothing
+
 read_msg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
 read_msg timeout = Thread.timeout timeout . Chan.readChan
 
+-- TODO use 'respond_all' instead
 is_derive_complete :: Msg.Msg -> Bool
 is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
 is_derive_complete _ = False
 
+-- TODO use 'respond_all' instead
 is_block_derive_complete :: BlockId -> Msg.Msg -> Bool
 is_block_derive_complete block_id (Msg.DeriveStatus bid (Msg.DeriveComplete {}))
     = block_id == bid
