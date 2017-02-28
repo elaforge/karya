@@ -3,8 +3,15 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Get rid of ResponderTest.respond_until and continue_until, since they're
+  - Factoring a bit of score into a call makes it less readable because
+    I can't see the events inside.
+    . A cheap way would be to open the callee, and set position and zoom so
+      it lines up vertically.
+    . A much fancier way would be to put a mini version in the background of
+      the event.
+  * Get rid of ResponderTest.respond_until and continue_until, since they're
     non-deterministic.
+  - Why does Integrate_test have logs about score derivation?
   * Put Types.Zoom in Ui.Zoom module
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like

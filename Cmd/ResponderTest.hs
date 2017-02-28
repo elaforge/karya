@@ -18,9 +18,8 @@ module Cmd.ResponderTest (
     , result_cmd_state
     , result_perf
     -- * run
-    , respond_cmd, respond_until, continue_until
-    , respond_all
-    , is_derive_complete, is_block_derive_complete
+    , respond_cmd
+    , respond_all, continue_all
     , thread, thread_delay
 ) where
 import qualified Control.Concurrent.Chan as Chan
@@ -157,34 +156,6 @@ get_perf chan = do
             return (block_id, perf)
         Just _ -> get_perf chan
 
--- | Run a cmd, and then 'continue_until'.
-respond_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> States -> Cmd.CmdT IO a
-    -> IO [Result]
-respond_until is_complete timeout states cmd = do
-    putStrLn "---------- new cmd"
-    result <- respond_cmd states cmd
-    (result:) <$> continue_until is_complete timeout result
-
--- | Continue feeding loopback msgs into the responder until the function
--- matches, or until I time out reading from the loopback channel.  The
--- matching Msg is responded to and all Results returned.
-continue_until :: (Msg.Msg -> Bool) -> Thread.Seconds -> Result -> IO [Result]
-continue_until is_complete timeout last_result =
-    reverse <$> go [] (result_states last_result)
-    where
-    chan = result_loopback last_result
-    go accum states = do
-        maybe_msg <- read_msg timeout chan
-        Text.IO.putStrLn $ "ResponderTest.continue_until: "
-            <> maybe "timed out!" pretty maybe_msg
-        case maybe_msg of
-            Nothing -> return accum
-            Just msg -> do
-                result <- respond1 (Just chan) states Nothing msg
-                if is_complete msg
-                    then return (result : accum)
-                    else go (result : accum) (result_states result)
-
 -- | Continue feeding loopback msgs into the responder until I see
 -- DeriveCompletes for all the blocks I expect to derive.
 --
@@ -226,23 +197,7 @@ continue_all timeout prev_result = go Set.empty (result_states prev_result)
 read_msg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
 read_msg timeout = Thread.timeout timeout . Chan.readChan
 
--- TODO use 'respond_all' instead
-is_derive_complete :: Msg.Msg -> Bool
-is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
-is_derive_complete _ = False
-
--- TODO use 'respond_all' instead
-is_block_derive_complete :: BlockId -> Msg.Msg -> Bool
-is_block_derive_complete block_id (Msg.DeriveStatus bid (Msg.DeriveComplete {}))
-    = block_id == bid
-is_block_derive_complete _ _ = False
-
 -- * thread
-
--- TODO to do a realistic simulation, I think I need to asynchronously send
--- loopback results back into the input queue.  This will let me test that
--- cmds complete with a minimum of delay, don't get in loops, and the new
--- performance becomes available eventually.
 
 thread :: Bool -> States -> [Msg.Msg] -> IO [Result]
 thread print_timing states msgs =

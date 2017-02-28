@@ -40,7 +40,7 @@ test_respond = do
             }
         (db, warns) = Inst.db Local.Instrument.im_synths
     equal warns []
-    results <- until_complete states (return ())
+    results <- respond states (return ())
     ResponderTest.print_results results
     notes <- Note.unserialize DeriveTest.default_im_notes
     right_equal (map Note.start <$> notes) [0, 1]
@@ -54,7 +54,5 @@ test_respond = do
           ]
         ]
 
-until_complete :: ResponderTest.States -> Cmd.CmdT IO a
-    -> IO [ResponderTest.Result]
-until_complete =
-    ResponderTest.respond_until ResponderTest.is_derive_complete 2
+respond :: ResponderTest.States -> Cmd.CmdT IO a -> IO [ResponderTest.Result]
+respond = ResponderTest.respond_all 2

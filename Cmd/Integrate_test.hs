@@ -301,10 +301,9 @@ e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
 start :: ResponderTest.States -> Cmd.CmdT IO a -> IO ResponderTest.Result
 start states action = last <$> until_complete states action
 
--- | Keep on getting results, until there's another DeriveComplete.
+-- | Keep on getting results until all derives complete.
 continue :: ResponderTest.Result -> IO ResponderTest.Result
-continue =
-    fmap last . ResponderTest.continue_until ResponderTest.is_derive_complete 1
+continue = fmap last . ResponderTest.continue_all 1
 
 -- | Run another cmd on the state returned from a previous one.
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
