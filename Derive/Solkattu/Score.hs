@@ -86,6 +86,39 @@ c2_yt1 = korvai (adi 4) mridangam $
         , (din, [od])
         ]
 
+-- | 3 avartanams of chatusram -> 2 avartanams of tisram.
+c_13_10_29 :: Korvai
+c_13_10_29 = korvai (adi 4) mridangam $
+    reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
+        . tri_ (tam.__6) (p6.p6.p6)
+    where
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (tat.dit, [k, t])
+        , (dit, [k])
+        , (tam, [u])
+        ]
+
+c_13_11_12 :: Korvai
+c_13_11_12 = korvai (adi 4) mridangam $
+    seq . dropM 2 seq . ta.ka.dheem.__4 . dropM 4 seq
+        . repeat 2 (ta.ka.dheem.__4)
+        . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+    where
+    seq = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
+    tdgnt = ta.din.gin.na.thom
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (tat.dit, [k, t])
+        , (dit, [k])
+        , (ta.ka, [p, k])
+        ]
+
+standard_strokes :: [(Solkattu.Sequence stroke, [Mridangam.Note])]
+standard_strokes =
+    [ (ta.ka.din.na, [k, o, o, k])
+    , (ta.din.gin.na.thom, [k, t, k, n, o])
+    , (dheem, [od])
+    ]
+
 c_16_09_28 :: Korvai
 c_16_09_28 = korvai (adi 4) mridangam $
     tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
@@ -95,18 +128,19 @@ c_16_09_28 = korvai (adi 4) mridangam $
     where
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
     nakatiku = na.ka.ti.ku.ta.ri.ki.ta
-    mridangam = make_mridangam
+    mridangam = make_mridangam $ standard_strokes ++
         [ (tat.dit, [k&p, t])
         , (dit, [k])
         , (kitakina, [k, t, k, n, o, k, t&o, k])
         , (nakatiku, [n, p, u, p, k, t, p, k])
         , (na.ka, [n, p])
-        , (ta.ka.din.na, [k, o, o, k])
         , (ta.ka.dheem, [p, k, o&d])
         , (ta.ka, [k, p])
         , (ta.ka.na.ka, [k, p, n, p])
-        , (dheem, [o&d])
         ]
+
+-- TODO: reduction pattern, forwards and backwards
+-- c_14_01_14 -- 14_02_20
 
 c_17_02_06 :: Korvai
 c_17_02_06 = korvai (adi 4) mridangam $
@@ -120,7 +154,7 @@ c_17_02_06 = korvai (adi 4) mridangam $
 
 chatusrams :: [Korvai]
 chatusrams = concat
-    [ c1s, [c2_yt1, c_16_09_28, c_17_02_06]
+    [ c1s, [c2_yt1, c_13_10_29, c_16_09_28, c_17_02_06]
     ]
 
 -- * kanda nadai
