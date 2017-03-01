@@ -60,8 +60,6 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
                 mapM_ Log.write logs
                 let (ui_updates', display_updates') =
                         Diff.diff updates ui_to state
-                -- Debug.fullM (Debug.putp "int ui_updates") ui_updates'
-                -- Debug.fullM (Debug.putp "int display_updates") display_updates'
                 return (state, ui_updates ++ ui_updates',
                     display_updates ++ display_updates')
 

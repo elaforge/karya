@@ -3,15 +3,17 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Block.set_visible_rect (and Views.set_visible_rect) is cofusingly named.
+    It really sets the track area rect.  set_track_area_rect?
   - Factoring a bit of score into a call makes it less readable because
     I can't see the events inside.
-    . A cheap way would be to open the callee, and set position and zoom so
+    - A cheap way would be to open the callee, and set position and zoom so
       it lines up vertically.
     . A much fancier way would be to put a mini version in the background of
       the event.
   * Get rid of ResponderTest.respond_until and continue_until, since they're
     non-deterministic.
-  - Why does Integrate_test have logs about score derivation?
+  * Why does Integrate_test have logs about score derivation?
   * Put Types.Zoom in Ui.Zoom module
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
@@ -367,13 +369,35 @@ IN PROGRESS
     instances.
     . Maybe I should fix the formatting bugs first.
 
-PRIORITY
-  performance:
-    - input latency still gets crummy when the score is large
-    - Reduce memory usage of GHC API, might help with latency.
-      . performance: Reduce memory used
-  - fix bugs in Util.Pretty / Util.Format
+TASKS:
+  Performance
+    . Solve input lagginess when the score is large.
+    . Reduce GHC-API memory usage: 'Reduce memory used'
+    . Look for memory leaks.
+    . Make transformers lazy so they can interleave, aka
+      map f . map g -> map (f.g)
+  . Text score.
+  . Solve how timing changes bubble up.  Text score can do it, or maybe
+    integrate from DSL (either text score or haskell) or have a purely
+    read-only block or track.
+  . Simplify scale implementation 'Why are scales so complicated'
+  Analysis:
+    . Look for repeats or repeats with transposition.
+  . Something better than ControlFunctions for randomized signals.
+  Tests:
+    . Quickcheck for derivation.
+    . Test Ui.Diff and Ui.Sync.
+    . Properly parallelize tests.  Maybe use a Test monad instead of IO and
+      make tests pure.
+  . Negative events, negative selection.
+  . Im
+  . fix bugs in Util.Pretty / Util.Format
     . Or use someone else's library... printcess?
+  GUI:
+    . Prettier events, smooth scrolling etc.  OpenGL?
+    . TrackSignals could use y position and color / transparency.
+    . Window management: automatic tiling, window manager configuration.
+  . Linux.
 
 ----------------------------------------------------------------------
 

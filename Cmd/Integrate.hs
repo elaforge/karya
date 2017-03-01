@@ -148,6 +148,8 @@ integrate_block source_id tracks = do
 
 -- * score integrate
 
+-- | For each block with 'Block.ScoreDestinations', figure out if their sources
+-- have damage, and if so, re-integrate.
 score_integrate :: [Update.UiUpdate] -> Ui.State
     -> Either Ui.Error ([Log.Msg], Ui.State, [Update.CmdUpdate])
 score_integrate updates state = Ui.run_id state $ do
@@ -156,9 +158,9 @@ score_integrate updates state = Ui.run_id state $ do
     -- track integrate can't trigger a block integrate, at least not until the
     -- next call to this function.
     track_logs <- concatMapM score_integrate_tracks $
-        needs_track_integrate updates state
+        needs_track_score_integrate updates state
     block_logs <- mapM score_integrate_block $
-        needs_block_integrate updates state
+        needs_block_score_integrate updates state
     return $ map (Log.msg Log.Notice Nothing) (track_logs ++ block_logs)
 
 score_integrate_block :: Ui.M m => BlockId -> m Text
@@ -198,22 +200,28 @@ score_integrate_tracks (block_id, track_id) = do
 replace :: Eq key => key -> [(key, a)] -> [(key, a)] -> [(key, a)]
 replace key new xs = new ++ filter ((/=key) . fst) xs
 
-needs_block_integrate :: [Update.UiUpdate] -> Ui.State -> [BlockId]
-needs_block_integrate updates state =
+-- | Blocks which are block score integrate sources and have damage.
+needs_block_score_integrate :: [Update.UiUpdate] -> Ui.State -> [BlockId]
+needs_block_score_integrate updates state =
     Seq.unique $ filter needs $ Map.keys $ Ui.state_blocks state
     where
     -- True if the block is damaged, and other blocks exist with it as an
     -- integrated source.
-    needs block_id = block_id `elem` damaged_blocks && integrated block_id
+    needs block_id = block_id `elem` damaged_blocks && has_integrated block_id
     damaged_blocks = mapMaybe block_changed updates
-    integrated block_id =
-        any (maybe False ((==block_id) . fst) . Block.block_integrated)
-            (Map.elems (Ui.state_blocks state))
+    has_integrated block_id = not $ null
+        [ ()
+        | Just (dest_block_id, Block.ScoreDestinations {}) <-
+            map Block.block_integrated $ Map.elems (Ui.state_blocks state)
+        , block_id == dest_block_id
+        ]
     block_changed (Update.Block bid _) = Just bid
     block_changed _ = Nothing
 
-needs_track_integrate :: [Update.UiUpdate] -> Ui.State -> [(BlockId, TrackId)]
-needs_track_integrate updates state = Seq.unique $
+-- | Tracks which are track score integrate sources and have damage.
+needs_track_score_integrate :: [Update.UiUpdate] -> Ui.State
+    -> [(BlockId, TrackId)]
+needs_track_score_integrate updates state = Seq.unique $
     concatMap (integrated_blocks . fst) $ mapMaybe Update.track_changed updates
     where
     integrated_blocks track_id =
@@ -224,5 +232,8 @@ needs_track_integrate updates state = Seq.unique $
         Ui.state_blocks state
     has_track track_id block = track_id `elem` Block.block_track_ids block
     has_integrated block track_id = not $ null
-        [tid | (tid, Block.ScoreDestinations _)
-            <- Block.block_integrated_tracks block, track_id == tid]
+        [ ()
+        | (dest_track_id, Block.ScoreDestinations {}) <-
+            Block.block_integrated_tracks block
+        , track_id == dest_track_id
+        ]
