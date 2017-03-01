@@ -22,7 +22,8 @@ import Types
 local_clip :: Cmd.M m => m ()
 local_clip = do
     (block_id, _, _, pos) <- Selection.get_insert
-    RulerUtil.modify RulerUtil.Block block_id (clip pos)
+    RulerUtil.local RulerUtil.Block block_id (clip pos)
+    return ()
 
 clip :: ScoreTime -> RulerUtil.ModifyRuler
 clip pos = Ruler.Modify.modify_meter $ Meter.clip 0 (Meter.time_to_duration pos)
@@ -30,7 +31,8 @@ clip pos = Ruler.Modify.modify_meter $ Meter.clip 0 (Meter.time_to_duration pos)
 local_double :: Cmd.M m => m ()
 local_double = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.modify RulerUtil.Block block_id double
+    RulerUtil.local RulerUtil.Block block_id double
+    return ()
 
 double :: RulerUtil.ModifyRuler
 double = Ruler.Modify.modify_meter $ \meter -> Seq.rdrop 1 meter <> meter
