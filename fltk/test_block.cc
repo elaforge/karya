@@ -201,25 +201,6 @@ static const Color track_bg = Color(255, 255, 255);
 static const Color render_color = Color(166, 166, 205, 127);
 
 static void
-timeout_func(void *unused)
-{
-    static int n;
-
-    std::cout << n << "------------\n";
-    if (n == 0) {
-        // Block *block = windows[0]->block;
-        // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
-        return;
-    } else if (n == 1) {
-    } else if (n == 2) {
-    } else {
-        return;
-    }
-    n++;
-    Fl::repeat_timeout(1, timeout_func, nullptr);
-}
-
-static void
 creep_selection(void *vp)
 {
     BlockWindow &view = *((BlockWindow *) vp);
@@ -353,7 +334,7 @@ add_symbols()
 
 
     // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
-    Fl_Font bali = t->font("NotoSansBalinese");
+    Fl_Font bali = t->font("NotoSans");
 
     t->insert("ding", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe1\xad\xa6", bali, 8)));
@@ -370,6 +351,24 @@ add_symbols()
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
 }
 
+static void
+timeout_func(void *unused)
+{
+    static int n;
+
+    std::cout << n << "------------\n";
+    if (n == 0) {
+        Block *block = &windows[0]->block;
+        // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
+        return;
+    } else if (n == 1) {
+    } else if (n == 2) {
+    } else {
+        return;
+    }
+    n++;
+    Fl::repeat_timeout(1, timeout_func, nullptr);
+}
 
 int
 main(int argc, char **argv)

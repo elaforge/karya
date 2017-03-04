@@ -28,7 +28,13 @@ simple :: Text -> Text -> Symbol
 simple name chars = Symbol name True [glyph chars]
 
 glyph :: Text -> Glyph
-glyph s = Glyph s Nothing 0 (0, 0) 0
+glyph text = Glyph
+    { glyph_text = text
+    , glyph_font = Nothing
+    , glyph_size = 0
+    , glyph_align = (0, 0)
+    , glyph_rotate = 0
+    }
 
 size :: Int -> Glyph -> Glyph
 size n g = g { glyph_size = n }

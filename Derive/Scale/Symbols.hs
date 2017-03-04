@@ -85,7 +85,7 @@ staff_symbols =
 
     -- 琵琶手法
     , Symbol.simple "kou" "口"
-    , Symbol.simple "up" "㇀" -- \x31c0
+    , Symbol.simple "upstroke" "㇀" -- \x31c0
     , Symbol.simple "L" "㇄" -- \x31c4
     -- \x2020 at least until I can make a better one
     , placed "dagger" [(Symbol.glyph "†") { Symbol.glyph_size = 4 }]

@@ -6,6 +6,7 @@
 module Derive.Call.Symbols where
 import qualified Ui.Symbol as Symbol
 import qualified App.Config as Config
+import Global
 
 
 symbols :: [Symbol.Symbol]
@@ -15,7 +16,16 @@ misc_symbols :: [Symbol.Symbol]
 misc_symbols =
     [ Symbol.Symbol "0x" True
         [Symbol.glyph_at (-2) (0, -0.4) (Symbol.glyph "x")]
+    , simple "up" "↑"
+    , simple "^" "↑"
+    , simple "right" "→"
+    , simple "left" "←"
+    , simple "down" "↓"
+    , simple "_" "↓"
     ]
+
+simple :: Text -> Text -> Symbol.Symbol
+simple name text = Symbol.symbol name [Symbol.glyph text]
 
 -- | See <http://www.smufl.org/version/latest/>
 --
@@ -39,9 +49,10 @@ staff_symbols =
     , symbol "ped-up" "\xe655" -- keyboardPedalUp
     ]
     where
-    symbol name str = Symbol.Symbol name False [glyph str]
     arp_glyph rotate align str = (glyph str)
         { Symbol.glyph_align = align
         , Symbol.glyph_rotate = rotate
         }
     glyph str = Symbol.Glyph str (Just Config.bravura) 8 (0, 0) 0
+    symbol name str = Symbol.Symbol
+        { name = name, absolute_y = False, glyphs = [glyph str] }
