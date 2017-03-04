@@ -269,10 +269,12 @@ view block_id = do
     return view_id
 
 -- | Create a view, or focus on it if it already exists.
-view_or_focus :: Cmd.M m => BlockId -> m ()
+view_or_focus :: Cmd.M m => BlockId -> m (Maybe ViewId)
+    -- ^ Just ViewId if a new one was created.
 view_or_focus block_id = do
     views <- Ui.views_of block_id
-    maybe (view block_id >> return ()) Cmd.focus (Seq.head (Map.keys views))
+    maybe (Just <$> view block_id) (\vid -> Cmd.focus vid *> return Nothing)
+        (Seq.head (Map.keys views))
 
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =

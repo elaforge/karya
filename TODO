@@ -7,7 +7,7 @@ UNSORTED
     It really sets the track area rect.  set_track_area_rect?
   - Factoring a bit of score into a call makes it less readable because
     I can't see the events inside.
-    - A cheap way would be to open the callee, and set position and zoom so
+    * An easy way would be to open the callee, and set position and zoom so
       it lines up vertically.
       . According to fltk:
         window bar: ?,  block title: 17, skel: 16, track title: 20

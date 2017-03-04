@@ -4,7 +4,7 @@
 
 -- | The 'Rect' type.
 module Util.Rect (
-    Rect
+    Rect(Rect)
     -- * access
     , rx, ry, rw, rh, rr, rb
     , upper_left, lower_left, upper_right, lower_right

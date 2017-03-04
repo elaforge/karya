@@ -189,7 +189,9 @@ mouse_bindings = concat
         (Selection.cmd_mouse_selection btn Config.insert_selnum True)
 
     , bind_click [] btn Keymap.OnTrack 2 "open block"
-        (const BlockConfig.cmd_open_block)
+        (const (BlockConfig.cmd_open_block False))
+    , bind_click [PrimaryCommand] btn Keymap.OnTrack 2 "open block"
+        (const (BlockConfig.cmd_open_block True))
 
     -- TODO without a track_drag equivalent for skeleton clicks, this
     -- will interfere with the OnTrack bind_drag when you drag into the

@@ -69,14 +69,14 @@ resize_to_fit maximize view_id = do
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
     rect <- contents_rect view
     Ui.set_view_rect view_id $ Rect.intersection screen $ scootch screen $
-        if maximize then max_height view screen rect else rect
+        if maximize then max_height screen rect else rect
     where
     -- Move the rect over so it fits on the screen.
     scootch screen r = Rect.place
         (Num.clamp (Rect.rx screen) (Rect.rr screen - Rect.rw r) (Rect.rx r))
         (Num.clamp (Rect.ry screen) (Rect.rb screen - Rect.rh r) (Rect.ry r))
         r
-    max_height view screen r = Rect.xywh
+    max_height screen r = Rect.xywh
         (Rect.rx r) (Rect.ry screen)
         (Rect.rw r) (Rect.rh screen - Config.window_decoration_h)
 

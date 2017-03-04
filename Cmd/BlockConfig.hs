@@ -10,7 +10,9 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
@@ -24,6 +26,7 @@ import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Views as Views
 
 import qualified Derive.ParseTitle as ParseTitle
 import Global
@@ -100,13 +103,31 @@ is_control_or_pitch block_id tracknum =
             return $ ttype
                 `elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]
 
-cmd_open_block :: Cmd.M m => m ()
-cmd_open_block = do
+cmd_open_block :: Cmd.M m => Bool -> m ()
+cmd_open_block align_new_view = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
+    parent <- Ui.get_view =<< Cmd.get_focused_view
     let block_calls = NoteTrack.block_calls (Just block_id) . Event.text
     forM_ sel $ \(_, events) -> forM_ events $ \event ->
-        mapM_ Create.view_or_focus =<< block_calls event
+        mapM_ (open parent event) =<< block_calls event
+    where
+    open parent event block_id = do
+        new_view <- Create.view_or_focus block_id
+        when align_new_view $ whenJust new_view $ \view_id ->
+            align_view_to parent (Event.start event) (Event.end event) view_id
+
+-- | Line the ViewId up to be right next to the given parent view and fit into
+-- the given time range.
+align_view_to :: Cmd.M m => Block.View -> TrackTime -> TrackTime -> ViewId
+    -> m ()
+align_view_to parent start end view_id = do
+    let x = Rect.rr $ Block.view_rect parent
+        top = Block.screen_pixels parent start
+        bottom = Block.screen_pixels parent end
+    width <- Rect.rw . Block.track_rect <$> Ui.get_view view_id
+    Views.set_track_rect view_id $ Rect.xywh x top width (bottom - top)
+    Views.zoom_to_ruler view_id
 
 cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()
 cmd_add_block_title _ = do

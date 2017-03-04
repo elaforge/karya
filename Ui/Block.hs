@@ -569,5 +569,6 @@ view_visible_time view = Rect.rh (view_rect view) - top padding - bottom padding
 
 -- | Y coordinate of the given TrackTime.
 screen_pixels :: View -> TrackTime -> Int
-screen_pixels view t = Zoom.to_pixels (view_zoom view) t
+screen_pixels view t =
+    Zoom.to_pixels (view_zoom view) (t - Zoom.offset (view_zoom view))
     + top (view_padding view) + Rect.ry (view_rect view)
