@@ -151,7 +151,7 @@ struct UiMsg {
 
     struct Resize {
         IRect *rect;
-        int track_padding, time_padding;
+        Padding padding;
     };
 
     struct TrackWidth {

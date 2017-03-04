@@ -10,8 +10,10 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
+import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
+
 import Global
 import Types
 
@@ -65,8 +67,8 @@ data UiUpdate =
     UpdateInput !(Maybe Text.Text)
     | UpdateTrackScroll !Types.Width
     | UpdateTimeScroll !ScoreTime
-    -- | Size of entire block window, and (track_padding, time_padding).
-    | UpdateViewResize !Rect.Rect !(Int, Int)
+    -- | Size of entire block window, and padding.
+    | UpdateViewResize !Rect.Rect !Block.Padding
     | UpdateTrackWidth !Types.Width
     -- | The given view was closed.
     | UpdateClose

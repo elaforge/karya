@@ -69,8 +69,6 @@ public:
     ScoreTime visible_time() const;
     // Right side of the rightmost track.
     int track_end() const;
-    // Visible width and height.
-    IPoint visible_pixels() const;
 
     void insert_track(int tracknum, Track *track, int width);
     // Remove and return the Track, so the parent can delete it.

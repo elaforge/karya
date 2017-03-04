@@ -177,9 +177,8 @@ ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateViewResize rect padding -> do
         view <- Ui.get_view view_id
         when (rect /= Block.view_rect view) $ Ui.set_view_rect view_id rect
-        let old_padding =
-                (Block.view_track_padding view, Block.view_time_padding view)
-        when (old_padding /= padding) $ Ui.set_view_padding view_id padding
+        when (Block.view_padding view /= padding) $
+            Ui.set_view_padding view_id padding
     UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
         Just tracknum -> do
             block_id <- Ui.block_id_of view_id

@@ -32,10 +32,12 @@ module Ui.Block (
     -- * View
     , View(..)
     , view
+    , Padding(..)
     , status_color, show_status
     , visible_track, visible_time
-    , view_visible_rect, set_visible_rect
-    , view_visible_track, view_visible_time
+    , track_rect, set_track_rect
+    , view_visible_time, view_visible_track
+    , screen_pixels
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
@@ -443,8 +445,7 @@ ruler_of _ = Nothing
 rulers_of :: [Tracklike] -> [Ruler.Ruler]
 rulers_of = mapMaybe ruler_of
 
--- | A divider separating tracks.
--- Defined here in Block since it's so trivial.
+-- | A divider separating tracks.  Defined here in Block since it's so trivial.
 newtype Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
@@ -455,14 +456,7 @@ data View = View {
     -- | view_block should never change.
     view_block :: !BlockId
     , view_rect :: !Rect.Rect
-
-    -- | Pixel width and height of stuff in the view that is not the track area,
-    -- i.e. scrollbars, skeleton display, block title, etc.
-    --
-    -- Only fltk knows the width of all the various widgets, but it's cached
-    -- here so pure code doesn't have to call to the UI and import BlockC.
-    , view_track_padding :: !Int
-    , view_time_padding :: !Int
+    , view_padding :: !Padding
     -- | Contents of the status line.  Map (sort_order, name) contents.
     , view_status :: !(Map (Int, Text) Text)
     , view_track_scroll :: !Types.Width
@@ -471,19 +465,19 @@ data View = View {
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty View where
-    format (View block rect track_pad time_pad status tscroll zoom sels) =
+    format (View block rect padding status tscroll zoom sels) =
         Pretty.record "View"
             [ ("block", Pretty.format block)
             , ("rect", Pretty.format rect)
-            , ("padding", Pretty.format (track_pad, time_pad))
+            , ("padding", Pretty.format padding)
             , ("status", Pretty.format status)
             , ("scroll/zoom", Pretty.format (tscroll, zoom))
             , ("selections", Pretty.format sels)
             ]
 
 instance DeepSeq.NFData View where
-    rnf (View bid rect track time status scroll zoom selections) =
-        bid `seq` rect `seq` track `seq` time `seq` status `seq` scroll
+    rnf (View bid rect padding status scroll zoom selections) =
+        bid `seq` rect `seq` padding `seq` status `seq` scroll
         `seq` zoom `seq` selections `seq` ()
 
 -- | Construct a View, using default values for most of its fields.
@@ -495,12 +489,36 @@ view block block_id rect zoom = View
     , view_rect = rect
     -- These will be filled in when the new view emits its initial resize msg,
     -- but it should start off with the defaults.
-    , view_track_padding = default_track_padding block
-    , view_time_padding = default_time_padding block
+    , view_padding = default_padding block
     , view_status = Map.empty
     , view_track_scroll = 0
     , view_zoom = zoom
     , view_selections = Map.empty
+    }
+
+-- | Pixel width and height of stuff in the view that is not the track area,
+-- i.e. scrollbars, skeleton display, block title, etc.
+--
+-- Only fltk knows the width of all the various widgets, but it's cached
+-- here so pure code doesn't have to call to the UI and import BlockC.
+-- Only 'UiMsg.UpdateViewResize' should set this, which in turn comes from
+-- MsgCollector::msg_resize, which in turn comes from Block::get_padding.
+data Padding = Padding {
+    left :: !Int
+    , top :: !Int
+    , bottom :: !Int
+    -- Right padding is not necessary, because I can add up track widths.
+    } deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty Padding where
+    pretty (Padding left top bottom) = pretty (left, top, bottom)
+
+default_padding :: Block -> Padding
+default_padding block = Padding
+    { left = Config.view_left_padding
+    , top = Config.view_top_padding
+        + if Text.null (block_title block) then 0 else Config.block_title_height
+    , bottom = Config.view_bottom_padding
     }
 
 -- | Figure out what color the background of the status line should be.
@@ -523,30 +541,33 @@ visible_time view = Zoom.to_time (view_zoom view) (view_visible_time view)
 visible_track :: View -> Types.Width
 visible_track = view_visible_track
 
-view_visible_rect :: View -> Rect.Rect
-view_visible_rect view@(View { view_rect = rect }) = rect
-    { Rect.rw = Rect.rw rect - view_track_padding view
-    , Rect.rh = Rect.rh rect - view_time_padding view
+-- | Get the rect of the track area within the view.  This is used with
+-- 'set_track_rect' to set the size of the visible track area, minus the
+-- extra GUI bits around it.
+track_rect :: View -> Rect.Rect
+track_rect (View { view_rect = rect, view_padding = padding }) = Rect.Rect
+    { rx = Rect.rx rect + left padding
+    , ry = Rect.ry rect + top padding
+    , rw = Rect.rw rect - left padding
+    , rh = Rect.rh rect - top padding - bottom padding
     }
 
--- | If the given Rect is the visible area, expand it to be what the
--- 'view_rect' would be for that visible area.  Use this to set the visible
--- area to a certain size.
-set_visible_rect :: View -> Rect.Rect -> Rect.Rect
-set_visible_rect view rect = rect
-    { Rect.rw = Rect.rw rect + view_track_padding view
-    , Rect.rh = Rect.rh rect + view_time_padding view
+-- | The inverse of 'track_rect'  Use this to set the track area area to
+-- a certain size.
+set_track_rect :: View -> Rect.Rect -> Rect.Rect
+set_track_rect (View { view_padding = padding }) rect = Rect.Rect
+    { rx = Rect.rx rect - left padding
+    , ry = Rect.ry rect - top padding
+    , rw = Rect.rw rect + left padding
+    , rh = Rect.rh rect + top padding + bottom padding
     }
 
 view_visible_track, view_visible_time :: View -> Int
-view_visible_track view = Rect.rw (view_rect view) - view_track_padding view
-view_visible_time view = Rect.rh (view_rect view) - view_time_padding view
+view_visible_track view = Rect.rw (view_rect view) - left (view_padding view)
+view_visible_time view = Rect.rh (view_rect view) - top padding - bottom padding
+    where padding = view_padding view
 
--- | The actual window size is this much larger than the sum of the widths
--- of the tracks, but only after first creation, when 'view_visible_track'
--- has not yet been set by the UI.
-default_time_padding, default_track_padding :: Block -> Int
-default_time_padding block = Config.view_time_padding
-    + if not (Text.null (block_title block))
-        then Config.block_title_height else 0
-default_track_padding = const Config.view_track_padding
+-- | Y coordinate of the given TrackTime.
+screen_pixels :: View -> TrackTime -> Int
+screen_pixels view t = Zoom.to_pixels (view_zoom view) t
+    + top (view_padding view) + Rect.ry (view_rect view)

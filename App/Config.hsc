@@ -349,21 +349,25 @@ bconfig_box = (box_color, ' ')
 -- ** fiddly pixel bits
 
 -- | This is the number of pixels taken up by the various gizmos in the window
--- track beyond the main track view.  Only correct when the window is first
--- created, since the skel_height may be dragged around.
-view_time_padding :: Int
-view_time_padding =
-    #const Config::Block::track_title_height
-    + #const Config::Block::skel_height
-    + #const Config::Block::status_size
-    + #const Config::Block::sb_size
-    + #const Config::Block::extra_time_padding
+-- track beyond the main track view.  It's only correct when the window is
+-- first created, since various widgets can be dragged around.
+view_top_padding :: Int
+view_top_padding =
+    -- This is intentionally missing block_title_height, because it may or may
+    -- not be present.
+    #const Config::Block::skel_height
+    + #const Config::Block::track_title_height
 
 block_title_height :: Int
 block_title_height = #const Config::Block::block_title_height
 
-view_track_padding :: Int
-view_track_padding = #const Config::Block::sb_size
+view_bottom_padding :: Int
+view_bottom_padding =
+    #const Config::Block::sb_size
+    + #const Config::Block::status_size
+
+view_left_padding :: Int
+view_left_padding = #const Config::Block::sb_size
 
 -- | How many pixels the window bar consumes above the window.  This is
 -- needed because to place windows I need an accurate idea of their

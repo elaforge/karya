@@ -531,11 +531,9 @@ set_view_rect view_id rect =
 
 -- | Only 'Cmd.Cmd.ui_update' is supposed to call this, because the UI is
 -- responsible for the padding.
-set_view_padding :: M m => ViewId -> (Int, Int) -> m ()
-set_view_padding view_id (track, time) = modify_view view_id $ \view -> view
-    { Block.view_track_padding = track
-    , Block.view_time_padding = time
-    }
+set_view_padding :: M m => ViewId -> Block.Padding -> m ()
+set_view_padding view_id padding = modify_view view_id $ \view ->
+    view { Block.view_padding = padding }
 
 -- ** selections
 

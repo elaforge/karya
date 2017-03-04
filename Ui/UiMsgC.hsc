@@ -5,6 +5,7 @@
 module Ui.UiMsgC (get_ui_msgs) where
 import Util.ForeignC
 
+import qualified Ui.Block as Block
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -31,8 +32,8 @@ foreign import ccall unsafe "clear_ui_msgs" c_clear_ui_msgs :: IO ()
 instance CStorable UiMsg.UiMsg where
     sizeOf _ = #size UiMsg
     alignment _ = alignment nullPtr
-    peek = peek_msg
     poke = error "UiMsg poke unimplemented"
+    peek = peek_msg
 
 peek_msg :: Ptr UiMsg.UiMsg -> IO UiMsg.UiMsg
 peek_msg msgp = do
@@ -133,9 +134,8 @@ peek_ui_update type_num msgp = case type_num of
         return $ UiMsg.UpdateTimeScroll scroll
     (#const UiMsg::msg_resize) -> do
         rect <- peek =<< (#peek UiMsg, resize.rect) msgp
-        track <- int <$> (#peek UiMsg, resize.track_padding) msgp :: IO Int
-        time <- int <$> (#peek UiMsg, resize.time_padding) msgp :: IO Int
-        return $ UiMsg.UpdateViewResize rect (track, time)
+        padding <- (#peek UiMsg, resize.padding) msgp :: IO Block.Padding
+        return $ UiMsg.UpdateViewResize rect padding
     (#const UiMsg::msg_track_width) -> do
         width <- int <$> (#peek UiMsg, track_width.width) msgp :: IO Int
         return $ UiMsg.UpdateTrackWidth width
@@ -144,3 +144,13 @@ peek_ui_update type_num msgp = case type_num of
 
 int :: CInt -> Int
 int = fromIntegral
+
+instance CStorable Block.Padding where
+    sizeOf _ = #size Padding
+    alignment _ = alignment (0 :: CInt)
+    poke = error "Block.Padding poke unimplemented"
+    peek p = do
+        left <- int <$> (#peek Padding, left) p
+        top <- int <$> (#peek Padding, top) p
+        bottom <- int <$> (#peek Padding, bottom) p
+        return $ Block.Padding { left = left, top = top, bottom = bottom }

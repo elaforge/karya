@@ -72,15 +72,11 @@ destroy(BlockWindow *view)
 }
 
 void
-get_view_status(
-    BlockWindow *view, IRect *rect, Zoom *zoom,
-    int *time_padding, int *track_padding)
+get_view_status(BlockWindow *view, IRect *rect, Zoom *zoom, Padding *padding)
 {
     *rect = f_util::rect(view);
     *zoom = view->block.get_zoom();
-    IPoint padding = view->block.get_padding();
-    *track_padding = padding.x;
-    *time_padding = padding.y;
+    *padding = view->block.get_padding();
 }
 
 void

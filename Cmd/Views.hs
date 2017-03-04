@@ -7,6 +7,7 @@
 module Cmd.Views where
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
+
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
@@ -67,8 +68,7 @@ resize_to_fit maximize view_id = do
     view <- Ui.get_view view_id
     screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
     rect <- contents_rect view
-    Ui.set_view_rect view_id $ Rect.intersection screen $
-        scootch screen $ Block.set_visible_rect view $
+    Ui.set_view_rect view_id $ Rect.intersection screen $ scootch screen $
         if maximize then max_height view screen rect else rect
     where
     -- Move the rect over so it fits on the screen.
@@ -76,17 +76,22 @@ resize_to_fit maximize view_id = do
         (Num.clamp (Rect.rx screen) (Rect.rr screen - Rect.rw r) (Rect.rx r))
         (Num.clamp (Rect.ry screen) (Rect.rb screen - Rect.rh r) (Rect.ry r))
         r
-    max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
-        (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
-            - Config.window_decoration_h)
+    max_height view screen r = Rect.xywh
+        (Rect.rx r) (Rect.ry screen)
+        (Rect.rw r) (Rect.rh screen - Config.window_decoration_h)
 
--- | Get the View's Rect, resized to fit its contents.  Its position is
--- unchanged.
+-- | Get the View's Rect, resized to fit its contents at its current zoom.  Its
+-- position is unchanged.
 contents_rect :: Ui.M m => Block.View -> m Rect.Rect
 contents_rect view = do
     block_end <- Ui.block_end (Block.view_block view)
     block <- Ui.get_block (Block.view_block view)
-    let (x, y) = Rect.upper_left (Block.view_rect view)
+    let (x, y) = Rect.upper_left (Block.track_rect view)
         w = sum $ map Block.display_track_width (Block.block_tracks block)
         h = Zoom.to_pixels (Block.view_zoom view) block_end
-    return $ Rect.xywh x y (max w 40) (max h 40)
+    return $ Block.set_track_rect view $ Rect.xywh x y (max w 40) (max h 40)
+
+set_track_rect :: Ui.M m => ViewId -> Rect.Rect -> m ()
+set_track_rect view_id rect = do
+    view <- Ui.get_view view_id
+    Ui.set_view_rect view_id $ Block.set_track_rect view rect

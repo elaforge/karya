@@ -34,8 +34,7 @@ BlockWindow *create(int x, int y, int w, int h, const char *label,
     BlockConfig *config);
 void destroy(BlockWindow *view);
 void get_view_status(
-    BlockWindow *view, IRect *rect, Zoom *zoom,
-    int *time_padding, int *track_padding);
+    BlockWindow *view, IRect *rect, Zoom *zoom, Padding *padding);
 
 void set_size(BlockWindow *view, int x, int y, int w, int h);
 void get_size(BlockWindow *view, int *sz);

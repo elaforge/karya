@@ -33,6 +33,11 @@ static const int min_height =
     + Config::Block::sb_size;
 static const int min_width = Config::Block::sb_size + 10;
 
+std::ostream &
+operator<<(std::ostream &os, const Padding &p)
+{
+    return os << "(" << p.left << " " << p.top << " " << p.bottom << ")";
+}
 
 Block::Block(int x, int y, int w, int h,
         const BlockConfig &config, const char *window_title) :
@@ -331,7 +336,8 @@ Block::set_zoom_attr(const Zoom &new_zoom)
     // -4 to pretend that the visible area is a bit smaller than it is.
     // This in turns lets me scroll down a little bit past the end.  Otherwise,
     // events right at the end are cut off.
-    ScoreTime visible = clamped.to_time(track_tile.visible_pixels().y - 4);
+    // time_sb.h() is a proxy for the track_tile height without the title area.
+    ScoreTime visible = clamped.to_time(time_sb.h() - 4);
     // make this a bit bigger
     ScoreTime max_offset = track_tile.time_end() - visible;
     clamped.offset = util::clamp(ScoreTime(0), max_offset, clamped.offset);
@@ -368,13 +374,13 @@ Block::set_track_scroll(int offset)
 }
 
 
-IPoint
+Padding
 Block::get_padding() const
 {
-    // Subtract, rather than try to remember every widget to add them up.
-    IPoint p = track_tile.visible_pixels();
-    return IPoint(w() - (p.x + ruler_track->w()), h() - p.y
-        + Config::Block::extra_time_padding);
+    int left = time_sb.w();
+    int bottom = track_sb.h() + status_line.h();
+    int top = h() - time_sb.h() - bottom;
+    return Padding(left, top, bottom);
 }
 
 

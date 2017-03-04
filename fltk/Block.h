@@ -76,6 +76,13 @@ struct DisplayTrack {
     SkeletonStatus status;
 };
 
+struct Padding {
+    Padding(int left, int top, int bottom) :
+        left(left), top(top), bottom(bottom) {}
+    int left, top, bottom;
+};
+
+std::ostream &operator<<(std::ostream &os, const Padding &p);
 
 // The ruler track is a special track that doesn't scroll with set_track_scroll
 // like the other tracks do.  There is always just one ruler track and it's
@@ -104,7 +111,7 @@ public:
     void set_track_scroll(int offset);
     // Get the pixels devoted to non-track overhead like scrollbars, in the
     // (track, time) dimensions.
-    IPoint get_padding() const;
+    Padding get_padding() const;
 
     void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels);

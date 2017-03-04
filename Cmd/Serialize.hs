@@ -297,23 +297,47 @@ instance Serialize Block.Divider where
     get = Block.Divider <$> get
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h) = Serialize.put_version 5
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
+    put (Block.View a b c d e f g) = Serialize.put_version 6
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
     get = do
         v <- Serialize.get_version
         case v of
             5 -> do
                 block :: Types.BlockId <- get
                 rect :: Rect.Rect <- get
-                visible_track :: Int <- get
-                visible_time :: Int <- get
+                track_padding :: Int <- get
+                time_padding :: Int <- get
                 status :: Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Zoom.Zoom <- get
                 selections :: Map Sel.Num Sel.Selection <- get
-                return $ Block.View block rect visible_track visible_time
-                    status track_scroll zoom selections
+                let padding = Block.Padding track_padding time_padding 0
+                return $ Block.View block rect padding status track_scroll zoom
+                    selections
+            6 -> do
+                block :: Types.BlockId <- get
+                rect :: Rect.Rect <- get
+                padding :: Block.Padding <- get
+                status :: Map (Int, Text) Text <- get
+                track_scroll :: Types.Width <- get
+                zoom :: Zoom.Zoom <- get
+                selections :: Map Sel.Num Sel.Selection <- get
+                return $ Block.View block rect padding status track_scroll zoom
+                    selections
             _ -> Serialize.bad_version "Block.View" v
+
+instance Serialize Block.Padding where
+    put (Block.Padding a b c) = Serialize.put_version 0
+        >> put a >> put b >> put c
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                left :: Int <- get
+                top :: Int <- get
+                bottom :: Int <- get
+                return $ Block.Padding left top bottom
+            _ -> Serialize.bad_version "Block.Padding" v
 
 instance Serialize Rect.Rect where
     put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)

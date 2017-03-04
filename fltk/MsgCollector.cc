@@ -57,8 +57,7 @@ operator<<(std::ostream &os, const UiMsg &m)
         os << m.time_scroll.scroll;
         break;
     case UiMsg::msg_resize:
-        os << *m.resize.rect << " track=(" << m.resize.track_padding
-            << ", " << m.resize.time_padding << ")";
+        os << *m.resize.rect << " padding=" << m.resize.padding;
         break;
     case UiMsg::msg_track_width:
         os << m.track_width.width;
@@ -287,9 +286,7 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
     case UiMsg::msg_resize:
         {
             m.resize.rect = new IRect(f_util::rect(block->window()));
-            IPoint padding = block->get_padding();
-            m.resize.track_padding = padding.x;
-            m.resize.time_padding = padding.y;
+            m.resize.padding = block->get_padding();
         }
         break;
     case UiMsg::msg_track_width:

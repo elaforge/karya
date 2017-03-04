@@ -376,7 +376,7 @@ insert_branch :: Cmd.M m => m ()
 insert_branch = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     insert_branch_from block_id tracknum
-    embiggen =<< Cmd.get_focused_view
+    widen =<< Cmd.get_focused_view
 
 -- | Insert tracks using the given one and its children as a template.
 -- If the source track has a parent, the new tracks are spliced below its
@@ -441,25 +441,25 @@ append_track = do
     block_id <- Cmd.get_focused_block
     focused_track block_id 99999
 
--- | Add a new track, give keyboard focus to the title, and embiggen the view
+-- | Add a new track, give keyboard focus to the title, and widen the view
 -- to make sure it's visible.
 focused_track :: Cmd.M m => BlockId -> TrackNum -> m TrackId
 focused_track block_id tracknum = do
     track_id <- track block_id tracknum "" Events.empty
     view_id <- Cmd.get_focused_view
-    embiggen view_id
+    widen view_id
     tracknum <- clip_tracknum block_id tracknum
     Ui.update $ Update.CmdTitleFocus view_id (Just tracknum)
     return track_id
 
--- | Hush now, this is the correct technical term.
-embiggen :: Ui.M m => ViewId -> m ()
-embiggen view_id = do
+-- | Expand the view horizontally to to fit all tracks.
+widen :: Ui.M m => ViewId -> m ()
+widen view_id = do
     view <- Ui.get_view view_id
     embiggened <- Views.contents_rect view
-    let rect = Block.view_visible_rect view
+    let rect = Block.track_rect view
     when (Rect.rw embiggened > Rect.rw rect) $
-        Ui.set_view_rect view_id $ Block.set_visible_rect view $
+        Ui.set_view_rect view_id $ Block.set_track_rect view $
             Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
 
 empty_track :: Ui.M m => BlockId -> TrackNum -> m TrackId

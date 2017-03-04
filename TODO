@@ -3,12 +3,27 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Block.set_visible_rect (and Views.set_visible_rect) is cofusingly named.
+  * Block.set_visible_rect (and Views.set_visible_rect) is cofusingly named.
     It really sets the track area rect.  set_track_area_rect?
   - Factoring a bit of score into a call makes it less readable because
     I can't see the events inside.
     - A cheap way would be to open the callee, and set position and zoom so
       it lines up vertically.
+      . According to fltk:
+        window bar: ?,  block title: 17, skel: 16, track title: 20
+        tracks: 45
+        track sb: 6, status: 16
+      . Actual measurements:
+        window bar: 23, block title: 17, skel: 16, track title: 20
+        tracks: 25
+        track sb: 6, status: 16
+        total: 122
+      . So I asked for 100, but got 122. Also tracks think they are 45, but
+        they are actually 25.  I can get the right value from sb height.
+      . So the window height already does not include the title bar.
+        The (x, y) placement also doesn't include it, so I think I can just
+        ignore it, except that I can't place at y=0, which is already the case
+        due to the title bar.
     . A much fancier way would be to put a mini version in the background of
       the event.
   * Get rid of ResponderTest.respond_until and continue_until, since they're

@@ -447,12 +447,10 @@ instance CStorable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
     alignment _ = alignment (0 :: CDouble)
     peek = error "DisplayTrack peek unimplemented"
-    poke = poke_display_track
-
-poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
-    (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
-    (#poke DisplayTrack, width) dtrackp (Util.c_int width)
-    (#poke DisplayTrack, status) dtrackp status
+    poke dtrackp (Block.DisplayTrack _ width _ status bright) = do
+        (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
+        (#poke DisplayTrack, width) dtrackp (Util.c_int width)
+        (#poke DisplayTrack, status) dtrackp status
 
 -- ** skeleton
 
@@ -478,6 +476,8 @@ data SkeletonConfig
 instance CStorable SkeletonConfig where
     sizeOf _ = #size SkeletonConfig
     alignment _ = alignment nullPtr -- contains pointers and ints
+    peek = error "SkeletonConfig peek unimplemented"
+    poke = error "SkeletonConfig poke unimplemented"
     -- peek and poke intentionally not implemented, due to dynamic allocation
     -- for internal pointers.  Use 'with_skeleton_config' instead.
 
