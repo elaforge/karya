@@ -380,7 +380,8 @@ Block::get_padding() const
     int left = time_sb.w();
     int bottom = track_sb.h() + status_line.h();
     int top = h() - time_sb.h() - bottom;
-    return Padding(left, top, bottom);
+    // There are a few pixels of track bevel in there that don't count.
+    return Padding(left, top + 2, bottom + 2);
 }
 
 

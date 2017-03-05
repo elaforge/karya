@@ -7,7 +7,6 @@
 module Cmd.Views where
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
-
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui

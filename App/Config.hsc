@@ -357,6 +357,7 @@ view_top_padding =
     -- not be present.
     #const Config::Block::skel_height
     + #const Config::Block::track_title_height
+    + 2 -- tweak for track bevel, same as in Block::get_padding()
 
 block_title_height :: Int
 block_title_height = #const Config::Block::block_title_height
@@ -365,6 +366,7 @@ view_bottom_padding :: Int
 view_bottom_padding =
     #const Config::Block::sb_size
     + #const Config::Block::status_size
+    + 2 -- tweak for track bevel, same as in Block::get_padding()
 
 view_left_padding :: Int
 view_left_padding = #const Config::Block::sb_size
