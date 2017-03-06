@@ -108,7 +108,7 @@ BrowserWindow::BrowserWindow(int X, int Y, int W, int H, const char *title,
         MsgCallback cb) :
     Fl_Double_Window(0, 0, W, H, title), browser(0, 0, W, H, cb)
 {
-    Fl::dnd_text_ops(false);
+    Fl::dnd_text_ops(false); // turn off annoying text drag and drop
     Fl::visible_focus(false);
     this->resizable(this);
 }

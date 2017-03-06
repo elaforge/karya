@@ -291,4 +291,6 @@ LogViewWindow::LogViewWindow(int X, int Y, int W, int H, const char *label,
     Fl_Double_Window(0, 0, W, H, label), view(0, 0, W, H, cb, max_bytes)
 {
     this->resizable(this);
+    Fl::dnd_text_ops(false); // turn off annoying text drag and drop
+    Fl::visible_focus(false);
 }
