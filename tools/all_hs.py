@@ -22,14 +22,13 @@ def main():
     dotted = 'dotted' in sys.argv
     hs_files = []
     hsc_files = []
-    def accum(_arg, dirname, fnames):
-        join = lambda fn: os.path.join(dirname, fn)
-        hs_files.extend([join(fn)
-            for fn in fnames if fn.endswith('.hs') and capword(fn)])
-        hsc_files.extend([join(fn)
-            for fn in fnames if fn.endswith('.hsc') and capword(fn)])
-        fnames[:] = filter(capword, fnames)
-    os.path.walk('.', accum, None)
+    for dirpath, subdirs, fnames in os.walk('.'):
+        join = lambda fn: os.path.join(dirpath, fn)
+        hs_files.extend(
+            join(fn) for fn in fnames if fn.endswith('.hs') and capword(fn))
+        hsc_files.extend(
+            join(fn) for fn in fnames if fn.endswith('.hsc') and capword(fn))
+        subdirs[:] = filter(capword, subdirs)
 
     if hsc_as_hs:
         hsc_files = [os.path.join('build/hsc', fn.replace('.hsc', '.hs'))
@@ -41,7 +40,7 @@ def main():
         fns = filter(lambda fn: not is_main(fn), fns)
     if dotted:
         fns = map(to_dotted, fns)
-    print ' '.join(fns)
+    print(' '.join(fns))
 
 def is_test(fn):
     return fn.endswith('_test.hs') or fn.endswith('Test.hs')
