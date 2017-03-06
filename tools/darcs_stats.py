@@ -3,6 +3,8 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+from __future__ import print_function
+
 import sys, subprocess, re, os
 
 def main():
@@ -22,25 +24,27 @@ def main():
             subtracts.get(path, 0) + subtract)
 
     if normal_by_dir or test_by_dir:
-        longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
+        longest = max(
+            map(len, list(normal_by_dir.keys()) + list(test_by_dir.keys())))
     else:
         longest = 1
     col1 = 20
-    print '%-*s %-*s test' % (longest, 'dir', col1, 'normal')
+    print('%-*s %-*s test' % (longest, 'dir', col1, 'normal'))
     for dir in sorted(set(normal_by_dir).union(set(test_by_dir))):
         normal = normal_by_dir.get(dir, (0, 0))
         test = test_by_dir.get(dir, (0, 0))
-        print '%-*s %-*s %s' % (
-            longest, dir, col1, show_diff(normal), show_diff(test))
-    print
-    print '%-*s %-*s %s' % (longest, 'total', col1,
+        print('%-*s %-*s %s' % (
+            longest, dir, col1, show_diff(normal), show_diff(test)))
+    print()
+    print('%-*s %-*s %s' % (longest, 'total', col1,
         show_diff(sum_diffs(normal_by_dir.values())),
-        show_diff(sum_diffs(test_by_dir.values())))
+        show_diff(sum_diffs(test_by_dir.values()))))
 
 def sum_diffs(diffs):
     return (sum(map(fst, diffs)), sum(map(snd, diffs)))
 
-def show_diff((add, sub)):
+def show_diff(add_sub):
+    (add, sub) = add_sub
     return '+%d-%d %d (%d)' % (add, abs(sub), add+sub, add + abs(sub))
 
 def parse_whatsnew(lines):
@@ -50,7 +54,7 @@ def parse_whatsnew(lines):
         m = re.match(r'[MAR] ([./a-zA-Z0-9_-]+) *(\-\d+)? *(\+\d+)?$', line)
         if not m:
             if m and m[0] in 'MAR':
-                print 'no match', repr(line)
+                print('no match', repr(line))
             continue
         path = os.path.normpath(m.groups()[0])
         if path.endswith('TODO'):
@@ -74,13 +78,13 @@ def parse_whatsnew(lines):
                     adds[path] = int(diff)
     return adds, subtracts
 
-def fst((a, b)): return a
-def snd((a, b)): return b
+def fst(x): return x[0]
+def snd(x): return x[1]
 
 def run(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     stdout, _ = p.communicate()
-    return stdout
+    return stdout.decode('utf8')
 
 if __name__ == '__main__':
     main()

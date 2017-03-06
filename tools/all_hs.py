@@ -12,6 +12,8 @@ Args:
     dotted - emit names as dotted haskell modules instead of filenames
 """
 
+from __future__ import print_function
+
 import sys, os
 
 
