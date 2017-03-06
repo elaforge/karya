@@ -5,27 +5,6 @@ LEGEND
 UNSORTED
   * Block.set_visible_rect (and Views.set_visible_rect) is cofusingly named.
     It really sets the track area rect.  set_track_area_rect?
-  - Factoring a bit of score into a call makes it less readable because
-    I can't see the events inside.
-    * An easy way would be to open the callee, and set position and zoom so
-      it lines up vertically.
-      . According to fltk:
-        window bar: ?,  block title: 17, skel: 16, track title: 20
-        tracks: 45
-        track sb: 6, status: 16
-      . Actual measurements:
-        window bar: 23, block title: 17, skel: 16, track title: 20
-        tracks: 25
-        track sb: 6, status: 16
-        total: 122
-      . So I asked for 100, but got 122. Also tracks think they are 45, but
-        they are actually 25.  I can get the right value from sb height.
-      . So the window height already does not include the title bar.
-        The (x, y) placement also doesn't include it, so I think I can just
-        ignore it, except that I can't place at y=0, which is already the case
-        due to the title bar.
-    . A much fancier way would be to put a mini version in the background of
-      the event.
   * Get rid of ResponderTest.respond_until and continue_until, since they're
     non-deterministic.
   * Why does Integrate_test have logs about score derivation?
@@ -36,6 +15,14 @@ UNSORTED
       the CF is %strength=_.
     . Also the whole implementation is a mess.  Isn't there some other way to
       randomize signals?
+    . I could pass a Quoted, and then control functions are val calls that
+      return Quoteds: (cf-rnd control 0 1)
+    . Then I want to be able to treat those as signals, or coerce them both
+      to the same thing.  Really that's a SignalFunction, or maybe just
+      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
+      various types into SignalFunction, but not have to have an opaque
+      SignalFunction for all the defaults.
+    . I could have a Coerce typeclass, or a could have a Default class.
   * shakefile: replace // patterns with **
   * shakefile: withLockedDatabase should no longer be necessary.  Test it out
     and remove.
@@ -52,12 +39,13 @@ UNSORTED
       it's enough to double it.
     * Or maybe I should just bind to LRuler.ldouble?
       . Also a keybinding for LRuler.lclip, since I do that a lot too.
-  - Track 'mute' status gets increasingly off.  Surely this is due to the
+  - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
     . Can't reproduce this now.
     . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-  - I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
+  - bug: I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
+    . Also telek ugal, before pengawak.
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
@@ -123,12 +111,12 @@ UNSORTED
     . selisir, wayang:
     . selisir, wayang -pemade etc.: Relative octave variants.
     . belaganjur, angklung:
-
-    . Simplest is an absolute scale with no key and no octave structure, just
-      a mapping from symbol to pitch.
-    . Then we have a relative diatonic scale.  This has a key which influences
-      the note names, since they are relative to a certain pitch, but no other
-      structure.
+    misc notes:
+      . Simplest is an absolute scale with no key and no octave structure, just
+        a mapping from symbol to pitch.
+      . Then we have a relative diatonic scale.  This has a key which influences
+        the note names, since they are relative to a certain pitch, but no other
+        structure.
   - Legong scale umbang and isep is too close.
     . Maybe something wrong with how I retuned the sc gamelan samples.
   - Perhaps I should have a ToCall class, for types which can turn into
@@ -343,6 +331,8 @@ UNSORTED
   - Better solution for the "sample at end of block" problem, as demonstrated
     by Block_test.test_trim_controls_problem
   wayang
+    - Infer late damping.  E.g., if there is a jump wider than 2 notes, then
+      wait until the hand is free for long enough to damp it.
     - Automatically fill in weak notes?
       . This also applies to reyongan, even more so.
       . In fact this is similar to noltol.
@@ -391,28 +381,32 @@ TASKS:
     . Look for memory leaks.
     . Make transformers lazy so they can interleave, aka
       map f . map g -> map (f.g)
-  . Text score.
-  . Solve how timing changes bubble up.  Text score can do it, or maybe
-    integrate from DSL (either text score or haskell) or have a purely
-    read-only block or track.
-  . Simplify scale implementation 'Why are scales so complicated'
-  Analysis:
-    . Look for repeats or repeats with transposition.
-  . Something better than ControlFunctions for randomized signals.
+  Music / design / language:
+    . Clean up tracklang type checking.
+    . Music Analysis: Look for repeats or repeats with transposition.
+    . Text score.
+    . Solve how timing changes bubble up.  Text score can do it, or maybe
+      integrate from DSL (either text score or haskell) or have a purely
+      read-only block or track.
+    . Simplify scale implementation 'Why are scales so complicated'
+    . Something better than ControlFunctions for randomized signals.
+    . Negative events, negative selection.
+    . Im
   Tests:
     . Quickcheck for derivation.
     . Test Ui.Diff and Ui.Sync.
     . Properly parallelize tests.  Maybe use a Test monad instead of IO and
       make tests pure.
-  . Negative events, negative selection.
-  . Im
   . fix bugs in Util.Pretty / Util.Format
     . Or use someone else's library... printcess?
   GUI:
     . Prettier events, smooth scrolling etc.  OpenGL?
     . TrackSignals could use y position and color / transparency.
     . Window management: automatic tiling, window manager configuration.
-  . Linux.
+  Linux:
+    - Event triggers messed up.
+    - Increased scroll sensitivity for the scroll wheel.  Or is that an
+      X config?
 
 ----------------------------------------------------------------------
 
@@ -1112,6 +1106,28 @@ performance:
 fltk:
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
+  - Factoring a bit of score into a call makes it less readable because
+    I can't see the events inside.
+    . I could put a mini version in the background of the event.  I'd need
+      to be careful to retain readability.  Maybe only show the frist track,
+      or the first note track.
+    * An easy way would be to open the callee, and set position and zoom so
+      it lines up vertically.
+      . According to fltk:
+        window bar: ?,  block title: 17, skel: 16, track title: 20
+        tracks: 45
+        track sb: 6, status: 16
+      . Actual measurements:
+        window bar: 23, block title: 17, skel: 16, track title: 20
+        tracks: 25
+        track sb: 6, status: 16
+        total: 122
+      . So I asked for 100, but got 122. Also tracks think they are 45, but
+        they are actually 25.  I can get the right value from sb height.
+      . So the window height already does not include the title bar.
+        The (x, y) placement also doesn't include it, so I think I can just
+        ignore it, except that I can't place at y=0, which is already the case
+        due to the title bar.
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
     . I'd need to pass a haskell callback.  Worth it?
