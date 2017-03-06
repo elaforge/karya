@@ -222,7 +222,7 @@ collect_logs action = do
 
 -- The log_action signature tends to change between GHC versions.
 #if GHC_VERSION < 80000
--- ghc 8.0:
+-- ghc 7.10:
 -- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
 --      -> PprStyle -> MsgDoc -> IO ()
 log_action :: IORef.IORef [String]
@@ -232,7 +232,7 @@ log_action logs dflags _severity _span style msg =
 #else
 log_action :: IORef.IORef [String]
     -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
-    -> GHC.PprStyle -> GHC.MsgDoc -> IO ()
+    -> Outputable.PprStyle -> Outputable.SDoc -> IO ()
 log_action logs dflags _warn_reason _severity _span style msg =
 #endif
     liftIO $ IORef.modifyIORef logs (formatted:)

@@ -18,6 +18,8 @@ driver, but now it will never produce any MIDI so what was the point?
 re-enable key repeats globally.  Provided you want them to work sanely, and
 not iphone-ly.
 
+- Go read doc/quickstart.md.
+
 ## HASKELL DEPENDENCIES
 
 For whatever reason cabal won't install happy automatically, so first run
@@ -39,15 +41,15 @@ below.
 
 If you want to build the documentation:
 
-    cabal install hscolour pandoc
+    cabal install hscolour
+    my-package-manager install pandoc
 
-These are separate because pandoc has a ridiculous number of dependencies.
-pandoc has so many dependencies it might break your install by downgrading
-things, so maybe do that in a separate sandbox, or at least --dry-run first.
-It's a completely independent binary, so however you can get it compiled and
-installed is fine.
+You can also install pandoc with cabal but it has a ridiculous number of
+dependencies.
 
 ## INSTALLED SEPARATELY
+
+- Git, and make sure user.email and user.name are configured.
 
 - Fltk, from <http://fltk.org/>.  The latest 1.3 should work fine.  I use the
 SVN version because in the past its had bugfixes for retina macs.

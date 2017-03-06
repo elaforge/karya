@@ -2,10 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Basic testing utilities.
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
@@ -48,7 +50,9 @@ import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
-import qualified GHC.SrcLoc as SrcLoc
+#if GHC_VERSION < 80000
+import qualified GHC.SrcLoc as Stack
+#endif
 import qualified GHC.Stack as Stack
 
 import qualified System.Directory as Directory
@@ -417,8 +421,8 @@ show_stack test_name =
     maybe "<empty-stack>" show_frame . Seq.last . Stack.getCallStack
     where
     show_frame (_, srcloc) =
-        Text.pack (SrcLoc.srcLocFile srcloc) <> ":"
-        <> showt (SrcLoc.srcLocStartLine srcloc)
+        Text.pack (Stack.srcLocFile srcloc) <> ":"
+        <> showt (Stack.srcLocStartLine srcloc)
         <> if null test_name then "" else " [" <> Text.pack test_name <> "]"
 
 highlight :: ColorCode -> Text -> Text
