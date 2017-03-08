@@ -3,12 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * Block.set_visible_rect (and Views.set_visible_rect) is cofusingly named.
-    It really sets the track area rect.  set_track_area_rect?
-  * Get rid of ResponderTest.respond_until and continue_until, since they're
-    non-deterministic.
-  * Why does Integrate_test have logs about score derivation?
-  * Put Types.Zoom in Ui.Zoom module
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
@@ -22,23 +16,20 @@ UNSORTED
       RealTime -> Deriver Y.  So this turns into the problem of how to coerce
       various types into SignalFunction, but not have to have an opaque
       SignalFunction for all the defaults.
-    . I could have a Coerce typeclass, or a could have a Default class.
-  * shakefile: replace // patterns with **
-  * shakefile: withLockedDatabase should no longer be necessary.  Test it out
-    and remove.
-  * I want to find existing callers of a call.  Maybe a flag for 'dump'
-    which writes 'stack -- call', so I can just grep for the call name.
-    Of course it's not smart enough to recognize imports, but it should work
-    most of the time.
-    . It should also search the .ky files, global transform,
-      block titles, track titles.
-  / Can I have a block that automatically extends itself?  It needs to know
-    the ruler, or at least the ruler it should use to extend.
-    . Is the meter type enough to generate meters from scratch?  I think not,
-      because it doesn't differentiate different meters of the same type.  But
-      it's enough to double it.
-    * Or maybe I should just bind to LRuler.ldouble?
-      . Also a keybinding for LRuler.lclip, since I do that a lot too.
+    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
+      split Typecheck and Convert?
+      Typecheck: Val -> Maybe a, Convert: a -> b
+      Convert would be: Int -> SignalFunction.
+    . I think this won't work because the intermediate 'a' will be
+      ambiguous.
+    . I can always have a Default class that is used only for Sig defaults,
+      and provides both ShowVal and the coercion.  It would mean I have to
+      duplicate everything in Typecheck, unless I use an overlapping
+      typeclass.  Or I could default to... what exactly?
+    . The problem with `Convert a b` is that 'a' needs a type annotation,
+      which would make signatures annoying to write.  Normally I don't need
+      them because they are the Typecheck val, which already needs to be
+      fixed.
   - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
@@ -143,77 +134,6 @@ UNSORTED
     . Suppose the selection could be either negative or positively oriented.
       Maybe I could even use it for e.g. set duration vs. set begin, and move
       up vs. move down.  It would have to be easy to switch directions though.
-  * load wayang/merta1, then load p1, I get:
-    . assertion failed at fltk/Track.h:125 update(): '!(track.track
-      || track.ruler)': updated a divider with a non-divider config
-    . Also I got a plain segfault after starting with p1, then load p4
-    . Probably due to updates in the wrong order.
-    . Some blocks have the same name: wayang/intro
-    . But I get it even with no windows open.
-
-    . from: @top @b1.v3 => @b1.t7 @top.t2 @b1.t8
-
-    . sync updates:
-      [ Block ((bid "wayang/b1")) (RemoveTrack (1))
-      , Block ((bid "wayang/intro")) (RemoveTrack (0))
-      , Block ((bid "wayang/intro")) (RemoveTrack (0))
-      , Block ((bid "wayang/intro")) (RemoveTrack (0))
-
-    . Lots of updates turn into [] because they're on non-visible blocks or
-      tracks.
-    . I think they turn into return () >> return () >> ..., and I'm not sure
-      if that can be optimized away.  Even if it can't, maybe it's so fast
-      it doesn't matter.  In any case, I could get rid of it by returning
-      [Fltk ()] instead of Fltk ().
-    . The other problem is that it means the sync updates are noisy.  I'd like
-      to see what the actual calls are.  I could give Fltk a name... and
-      even reuse the exception catch for that.
-      . That's not easy to do because I make use of the Monad Fltk instance.
-      . And I can get effectively the same thing by just printing in
-        BlockC.exc.
-
-    . Maybe I should get the segfault back, since it's a clearly wrong thing.
-      I could get it even with no windows in the from state, so try for that.
-    . CreateView -> create_view
-      RemoveTrack 1 -> ?
-      TrackAllEvents for many
-      BlockTrack 0, 1, 3, 5, 7 ->
-        set_display_track 0, 1
-        set_track_title 1
-        insert_track 2
-        set_display_track 2
-        insert_track 3
-      BringToFront
-      BlockSkeleton
-      TrackTitle, Selections
-      . create_view, insert_track
-    . I think the problem is that CreateView makes the fully updated view, but
-      then there are all these Updates converting from the old view.
-    . A diff on block or track or ruler will expand to all views that contain
-      it.  But it should include new ones!  Maybe I should move CreateView to
-      the end.
-    . I think the comment in Ui.Diff about views at the top is just wrong,
-      but how can I test the correct order?  I'd like a test that demonstrates
-      the current brokenness.
-      . I could make Sync either return data, or use BlockCStub to record the
-        calls, then use those to update a model UI.  Seems non-trivial.
-      . But it could be worth it if I can use quickcheck to verify a whole
-        bunch of starting and ending states.  It would be compare the
-        incremental output against creating the visible UI from scratch.
-
-    . What should happen: a bunch of underlying things have changed
-    . When a block, track, or ruler has changed, I only want to emit changes
-      for old views, I can't include the newly created view.
-    . What about updates for an added track?
-      If I have InsertTrack, I shouldn't update that track.  Can that happen?
-      CreateView happens because I add a view, but also happen to change its
-      blocks.  The block changes are relative to the old block, but the view
-      is created with the new state.
-      The track situation would be that I add a track to a block, but also
-      modify it.  But since I think all track updates are idempotent, this
-      shouldn't cause a problem.
-    . Another way to fix this would be to create the view from the old state.
-      Of course it would be less efficient, but would it be simpler?
   - Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
@@ -224,11 +144,6 @@ UNSORTED
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
-  / Use 'errors' package tryJust and tryRght instead of require and
-    require_right.
-    . For it to work I could put Derive in MonadError
-    . But require_right takes a transform function.  Can it be just a text
-      prefix?
   - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
     have per_octave built-in, but I could still use Int for generic cases.
   - do a renaming pass on all the prev/next pitch function names in Derive.Args.
@@ -404,15 +319,12 @@ TASKS:
     . TrackSignals could use y position and color / transparency.
     . Window management: automatic tiling, window manager configuration.
   Linux:
-    - Event triggers messed up.
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
 
 ----------------------------------------------------------------------
 
 documentation:
-  * make a symlink for doc/img in build, so I can just tar everything with -L
-  * update the screenshots
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   - Can I have Util.Linkify check the validity of single-quote links?  Or
     maybe I could run a link checker against the final output.  Otherwise
@@ -459,11 +371,6 @@ Synth: Im:
     . hackage accelerate
 
 shakefile: build:
-  * Make it possible to build with minimal dependencies.
-    . I can turn off Synth, but haddock still wants to build for it.
-      Also tests probably.
-    . The shake-targets branch is really complicated, can I just hardcode
-      some stuff for haddock and tests?
   - use new system calls and logging levels
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
@@ -610,7 +517,6 @@ negative duration / arrival beats:
     #1 might not be compelling if I've already done the work to get them to
     work, but if it's buggy or turns into continual for for every cmd then it
     becomes a big deal.
-  / ensure inversion works (it should slice >start <=end)
 
 external
   parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
@@ -803,19 +709,6 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
-  / storing TrackEvents without duration would make maintaining the
-    no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
-    each event extends to the next one.  It means after merging I have to
-    clear redundant offs, but that's easier right?
-    . Insert, positive: clear Ends from Event.start until the next key,
-      then insert [(Event.start, event), (Event.end, End)]
-    . Insert, negative: clear Ends from prev key until Event.start, then
-      insert [(Event.trigger, End), (Event.start event)].
-    . On read: when I take out the Event, set the duration based on prev End
-      or next End.
-    . Pros: impossible to have overlaps.
-    . Cons: still have to clear out those Ends, which might be around the same
-      amount of work as clipping.  Also, just reading events allocates.
 
 performance:
   - Reduce memory used by REPL.
@@ -886,10 +779,6 @@ performance:
     . Does it grow with the repl off?  Yes, so apparently not the repl.
   - Control input lag, debug with Trace.traceEventIO
     . http://www.yesodweb.com/blog/2012/10/future-work-warp
-    / Reyong input in save/transcribe/bali/gabor is laggy.  In fact even
-      disabling a track with 'D' is laggy.
-      . But not always.  Maybe only after editing for a while?
-      . I think fixed when I fixed the memory leak.
     . Can I use custom events to see lags in threadscope?
       . Yes, but hard to visualize with everything there.
         I can get labels with View -> Event labels, but often they are jammed
@@ -942,11 +831,6 @@ performance:
       each block is called, along with overall stats on how many notes.  Just
       an interesting thing to know.
   criterion
-    / it seems unreasonably fast, why is it so much faster than in seq?
-      . 5us for 128 events, plus no_invert is slower than invert?
-      . And shouldn't perform for invert and no_invert be the same?
-      . Maybe I should force the track signals too?
-      . 'seq' was being slowed down by startup overhead.
     - score from a file
     - parsing
   understand deriver performance
@@ -1032,17 +916,6 @@ performance:
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
-  / The Control.put_signal_fragment work is done on a second call to
-    a track, even though the output is never used.  Can I fix that?
-    . I would need to notice in the collect that there's already an entry in
-      Derive.collect_track_signals.  But for that I can't pass an empty
-      collect.  I still think it belongs in collect though, because it's
-      not an actual data dependency, it just makes it more efficient if it
-      is.
-    . This is possible now that I thread Collect... well, except it's not
-      because Cache clears it.  But in any case, I don't think I can get
-      a second call to a track if I am only collecting signals for the
-      toplevel block.
   scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
@@ -1076,9 +949,6 @@ performance:
     AppendList / MergeList for Derive.Stream
       - switch to AppendList and try to get garbage down
         Avoid copying sublists returned by block calls and cache hits
-      / play from cursor is a linear scan on all events from the beginning,
-        seems like this would be faster if I could skip chunks.
-        . In practice, the linear scan takes no time.
       - see if a Merge constructor can reduce copying
       - can I cache length and range in AppendList?  does it matter?
       - insert parallelism?  maybe the evaluator can do that when it sees
@@ -1106,28 +976,13 @@ performance:
 fltk:
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
+    . Can fltk even do this?  I can't even figure out what xprop should show
+      for transient windows.
   - Factoring a bit of score into a call makes it less readable because
     I can't see the events inside.
     . I could put a mini version in the background of the event.  I'd need
       to be careful to retain readability.  Maybe only show the frist track,
       or the first note track.
-    * An easy way would be to open the callee, and set position and zoom so
-      it lines up vertically.
-      . According to fltk:
-        window bar: ?,  block title: 17, skel: 16, track title: 20
-        tracks: 45
-        track sb: 6, status: 16
-      . Actual measurements:
-        window bar: 23, block title: 17, skel: 16, track title: 20
-        tracks: 25
-        track sb: 6, status: 16
-        total: 122
-      . So I asked for 100, but got 122. Also tracks think they are 45, but
-        they are actually 25.  I can get the right value from sb height.
-      . So the window height already does not include the title bar.
-        The (x, y) placement also doesn't include it, so I think I can just
-        ignore it, except that I can't place at y=0, which is already the case
-        due to the title bar.
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
     . I'd need to pass a haskell callback.  Worth it?
@@ -1140,7 +995,6 @@ fltk:
     . It still might be useful to put the top level ruler labels, or cues if
       I ever use those, but I'd have to make it wider.
   - Do I want to support set_ruler for Scrollbar?
-  * linux fltk drawing: event ears draw as a solid bar
   - Drag on an event track title doesn't work, because the new FloatingInput
     doesn't realize that a drag has started.
     . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
@@ -1170,7 +1024,6 @@ fltk:
     . Some of this may be fltk bugs.
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
-  / Should fltk collapse adjacent dividers?
   - bug: There's a focus bug, but I'm not sure how to reproduce it.
     . The focus bug is still here.  Even clicking on the "unfocused" block
       doesn't fix it.  Don't all msgs contain focus?  What can I log after the
@@ -1200,7 +1053,7 @@ fltk:
       currently?
     . Entirely turned it off, speed seems acceptable.
   Track
-    / dividers can have separate color for upper part, for collapsable tracks
+    - dividers can have separate color for upper part, for collapsable tracks
   + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     http://developer.apple.com/library/mac/#documentation/General/Conceptual/MOSXAppProgrammingGuide/CoreAppDesign/CoreAppDesign.html#//apple_ref/doc/uid/TP40010543-CH3-SW26
@@ -1218,8 +1071,6 @@ fltk:
 
 logview:
   - use Fl_Help_View and HTML to display text
-  / Adding new log msgs causes the status bar to shrink back to one line, even
-    though it should be wrapped to two.
   + Logview got some kind of file locked error, presumably trying to track
     a rotated log.
     . It happens if the write handle is still open, for some reason
@@ -1229,7 +1080,6 @@ logview:
       . Apparently not caused by log rotation.  Maybe if it checks for
         rotation at the same time a new line is written?
   - can I get the standard edit menu and copy/paste?
-  / haskell and c++ use the same machine readable format
   - tabs are not lining up properly
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
@@ -1272,43 +1122,6 @@ test: testing:
     . But this is pretty much limited to expecting a file in a certain
       place, which pretty much only Perform.Im.Convert does.  Tests that
       create tmp files should use Testing.unique_tmp_dir.
-  * Integrate_test.test_block_integrate is flaky, sometimes I get:
-    . __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
-      ((bid "test/b2"),
-       [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
-        ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
-        /=
-      ((bid "test/b2"),
-       [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
-        ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
-    . Presumably due to non-determinism within the respond cycle.
-    . Or maybe not, since the 'f' write is lost, maybe integrate itself is
-      non-deterministic.
-    . Broken:
-      5 responses:
-        DeriveStatus: (bid "test/b1"): OutOfDate
-        **   Cmd/Integrate.hs:159 - score integrated (bid "test/b1") to: []
-        DeriveStatus: (bid "test/b1"): Deriving
-        **   Cmd/Integrate.hs:159 - score integrated (bid "test/b1") to: []
-        DeriveStatus: (bid "test/b2"): OutOfDate
-        DeriveStatus: (bid "test/b2"): Deriving
-        DeriveStatus: (bid "test/b2"): DeriveComplete
-            ((Performance 2 events 2 logs))
-      . ['e c'] * 5
-      . index has edc
-    . Working:
-      3 responses:
-        DeriveStatus: (bid "test/b1"): OutOfDate
-        DeriveStatus: (bid "test/b1"): Deriving
-        DeriveStatus: (bid "test/b1"): DeriveComplete
-            ((Performance 3 events 3 logs))
-      . ['e c', 'e c', 'f c']
-      . index has fdc
-    . So it looks like the first OutOfDate gets interrupted by another.a What
-      is the expected sequence?
-    . ResponderTest.continue_until has a timeout, what happens if it expires?
-      It's unlikely, because it was 7 seconds before.
-
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
@@ -1386,34 +1199,6 @@ Cmd:
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
-  / Can I give Cmds their own state without putting it in Cmd.State every time?
-    At worst I can have 'Map.Map String Dynamic'.
-
-    Use existentials:
-      data forall a. Cmd = Cmd {
-        cmd_func :: a -> CmdT (Status, Cmd)
-        , cmd_state = a
-      }
-    This means that such cmds have to be able to be updated after they are run,
-    so the cmd lists have to be kept in responder state.  If I'm going to do
-    that, why not have cmds optionally return a continuation and handle state
-    that way?
-
-      cmd msg = do
-        state <- stuff
-        return $ continue $ \msg -> do
-          more stuff
-
-    Or if I can put it in the monad:
-      cmd msg = do
-        state <- stuff
-        msg2 <- yield Cmd.Done
-        more stuff
-
-    For module level, each module of cmds would have to export a bunch of Cmds
-    and the responder retrieves the state and passes in another layer of
-    StateT, or directly.  I supposed Dynamic wouldn't be so bad for that.  What
-    happens when the module is reloaded?
 
   ruler:
     - meter type and the construction functions should be integrated more
@@ -1511,9 +1296,6 @@ Derive:
         but Quoted is like that too.
       . And realistically it seems really invasive to support a=b if it's not
         a Val.  But I wind up with weird things like a=b=c.
-    / Pipe could be an exception to "first call is any non-space", so I can
-      write a|b.  Or... is that so great after all?  With proportional fonts,
-      the spaces are small and I don't want multiple ways to do it.
     generalize sub-event calls
       - Generalize sub-event calls so that they can also take block names.  This
         is just another way to write sub-tracks, perhaps more convenient if
@@ -1594,8 +1376,6 @@ Derive:
         partially applied functions, or just write 'switch<'.
     - replace VAttributes with a general purpose VSet.
       . No users though?
-    / maybe use {} for quoted, it's a bit shorter than "()
-      . The advantage of "() is that I already have to stop parsing on ).
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some
@@ -1670,6 +1450,13 @@ Derive:
           Default to 2, but a chapu might require 3.
         - Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
+          . S2 (k.__.t.__) should be equivalent to S1 (k.t).
+          . It's a hassle to manipulate speeds when there is just S1-4.  If
+            I make it just an integer, then I can always go negative.
+          . Then I can make speed a relative change, so to slow /2 I can just
+            wrap in Speed -1.  Then all the s2 stuff is just up or down.
+          . Then the first step in realization is to normalize to the fastest
+            speed, where 0 is akshara/nadai.
         - explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
           ta_ta.din_din.gin_gin.na_na.thom_thom
@@ -1695,10 +1482,6 @@ Derive:
               variations.
             . Or maybe I should write them explicitly, but make them easier to
               write?
-        / put sep argument second, so e.g. 'tri_ p6 (tang.ga)', this way it
-          reads forwards.
-          . Then it's inconsistent with 'trin', and it would be really awkward
-            to put the karvai last for that.
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
@@ -1769,55 +1552,14 @@ Derive:
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
-        * When k// or k//2 has sangsih above, it becomes k2-12-12-.  Same in
-          reverse for k\\2 and sangsih=d.
-        * bug: I'm still getting retuning for nyog in kebyar-duduk @b2.
-          . In norot prepare, polos has umbang, sangsih has isep.
-          . It happens when nyog changes polos to sangsih.  Nyog should not
-            do that, but it uses Post.set_instrument...
-          ? Does PSignal.apply_environ override existing environ?  I think so,
-            because it puts it first.  But then why doesn't set_instrument
-            override the tuning?
-          . I just want to get rid of that awful set_instrument.
         - >gangsa instrument, which is pemade + kantilan
           . It can be a alias of `multiple`:
             gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
-        * Make nyog understand p+ and s+ and ps+, and infer after that.
-          Or is this the best way for semi-norot?
-          . How about just have p+ and s+ set the instrument, and make sure
-            the various calls pass through non-pasang inst?  ps+ basically
-            becomes 'unison', except working by rederiving, which unison
-            should probably have done from the beginning.  Actually, it's
-            different, because unison has to pass through non-pasang
-            instruments.
         - nyog polos first can be inferred based on whether it's a major ruler
           division.  But should I?  I can just write 's+' to be explicit.
-        * I still need a separate norot prepare
-          Wait, why not just use nt?
-        * How about a flag for nt to start with a prepare?
-        * I should be able to simplify the norot implementation:
-          . Sequence KotekanNotes.  Or:
-            data Note = Note (Maybe Score.Instrument) Pitch Muted
-          . Make all note durations 1, the caller can stretch.
-          . Same with start time, start at 0.
-          . Always add initial, drop it later.
-          . I need to only require current pitch if I need it, which means
-            I have initial, prepare_start, or sustain.  The problem is that
-            I need the pitch to even ask for the cycle, due to needing to
-            check if the note is too high.
-          . There's just current pitch and next pitch.  So maybe pass Cycle
-            instead of PitchedCycle, and realize then gets Deriver Pitch
-            to ask if it needs them?
-          * Now that I only do a prepare if I touch the next note, I think I
-            can get rid of the "force norot" variants, and maybe even the
-            argument.
-          - Simplify reyong norot in the same way?  I also want to add the
-            prepare_start feature.
+        - Simplify reyong norot in the same way as gangsa norot.  I also
+          want to add the prepare_start feature.
           - Can I remove Once now?
-        * default for kotekan should be "(ts s) instead of 'e'.  4 cycles per
-          "measure" seems more natural.
-        * p+ and s+ should also be generators
-        * version of k_\ without the gap, maybe k-\
         . The kotekan call can be hard to use for irregular sections like:
           . |       |       |
              3-23-3-23-23-23-5
@@ -1872,13 +1614,6 @@ Derive:
         - clip should be end-weighted.  If I used a negative duration I could
           make it based on that...
           . Wait, isn't that what Clip is?
-        / zero dur note for norot destination winds up being a mute, because
-          of course it is.  I want it to be {infer-duration, final}.
-          . I could give it those explicitly, e.g. a 'final' call, or use
-            -0 dur.
-          . Or just remove the event, but keep the pitch.
-        norot:
-          - I only use Once for norot prepare, can I get rid of it?
         - generate all possible kernels following some playability rules,
           e.g. no more than 2 notes in a row, only one rest
           . I could then use that to automatically select a pattern for
@@ -1893,7 +1628,6 @@ Derive:
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
           . Reapply the 'm' call instead, and override that as appropriate.
-        / gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
       wayang in octaves
@@ -2103,17 +1837,6 @@ pitch: scales: scale:
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
-
-signal: PSignal:
-  / The Signal / PSignal divide can be annoying.  If I put them in
-    a TimeVector class then I should be able to directly apply TimeVector
-    functions to them.  Then, make all TimeVector functions polymorphic, and
-    Signal and PSignal can just re-export them.
-    . But it seems weird that Signal functions work on PitchSignals, so maybe
-      I should specialize them before re-exporting... but that winds up being
-      not much less work than unwrapping the newtype.  The advantage is that
-      I can write functions generic on the signal, but in practice there are
-      few of those.  So maybe I don't actually care that much.
 
 Perform:
   - Overlapping notes with different ControlSwitch cc numbers should share

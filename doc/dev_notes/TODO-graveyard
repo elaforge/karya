@@ -1,0 +1,86 @@
+This has TODO items that I rejected, but might still be useful as either
+documentation of why I didn't do something, or for ideas in case I change my
+mind.
+
+/ The Control.put_signal_fragment work is done on a second call to
+  a track, even though the output is never used.  Can I fix that?
+  . I would need to notice in the collect that there's already an entry in
+    Derive.collect_track_signals.  But for that I can't pass an empty
+    collect.  I still think it belongs in collect though, because it's
+    not an actual data dependency, it just makes it more efficient if it
+    is.
+  . This is possible now that I thread Collect... well, except it's not
+    because Cache clears it.  But in any case, I don't think I can get
+    a second call to a track if I am only collecting signals for the
+    toplevel block.
+
+/ play from cursor is a linear scan on all events from the beginning,
+  seems like this would be faster if I could skip chunks.
+  . In practice, the linear scan takes no time.
+
+/ haskell and c++ use the same machine readable format for logs
+  . In practice the only logs I get from c++ are DEBUG warnings.  It still
+    might be useful to keep those and in context with other logs, but no need
+    for it yet.
+
+/ storing TrackEvents without duration would make maintaining the
+  no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
+  each event extends to the next one.  It means after merging I have to
+  clear redundant offs, but that's easier right?
+  . Insert, positive: clear Ends from Event.start until the next key,
+    then insert [(Event.start, event), (Event.end, End)]
+  . Insert, negative: clear Ends from prev key until Event.start, then
+    insert [(Event.trigger, End), (Event.start event)].
+  . On read: when I take out the Event, set the duration based on prev End
+    or next End.
+  . Pros: impossible to have overlaps.
+  . Cons: still have to clear out those Ends, which might be around the same
+    amount of work as clipping.  Also, just reading events allocates.
+
+/ Can I give Cmds their own state without putting it in Cmd.State every time?
+  At worst I can have 'Map.Map String Dynamic'.
+
+  Use existentials:
+    data forall a. Cmd = Cmd {
+      cmd_func :: a -> CmdT (Status, Cmd)
+      , cmd_state = a
+    }
+  This means that such cmds have to be able to be updated after they are run,
+  so the cmd lists have to be kept in responder state.  If I'm going to do
+  that, why not have cmds optionally return a continuation and handle state
+  that way?
+
+    cmd msg = do
+      state <- stuff
+      return $ continue $ \msg -> do
+        more stuff
+
+  Or if I can put it in the monad:
+    cmd msg = do
+      state <- stuff
+      msg2 <- yield Cmd.Done
+      more stuff
+
+  For module level, each module of cmds would have to export a bunch of Cmds
+  and the responder retrieves the state and passes in another layer of
+  StateT, or directly.  I supposed Dynamic wouldn't be so bad for that.  What
+  happens when the module is reloaded?
+
+tracklang:
+  / Pipe could be an exception to "first call is any non-space", so I can
+    write a|b.  Or... is that so great after all?  With proportional fonts,
+    the spaces are small and I don't want multiple ways to do it.
+
+  / maybe use {} for quoted, it's a bit shorter than "()
+    . The advantage of "() is that I already have to stop parsing on ).
+
+signal: PSignal:
+  / The Signal / PSignal divide can be annoying.  If I put them in
+    a TimeVector class then I should be able to directly apply TimeVector
+    functions to them.  Then, make all TimeVector functions polymorphic, and
+    Signal and PSignal can just re-export them.
+    . But it seems weird that Signal functions work on PitchSignals, so maybe
+      I should specialize them before re-exporting... but that winds up being
+      not much less work than unwrapping the newtype.  The advantage is that
+      I can write functions generic on the signal, but in practice there are
+      few of those.  So maybe I don't actually care that much.
