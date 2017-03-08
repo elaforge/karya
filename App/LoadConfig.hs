@@ -23,6 +23,7 @@ symbols syms = forM_ syms $ \sym -> do
             <> ", fonts not found: " <> showt missing
 
 styles :: [Style.Style] -> IO ()
-styles style_table =
-    sequence_ [StyleC.insert_style (Style.StyleId n) style
-        | (n, style) <- zip [0..] style_table]
+styles style_table = sequence_
+    [ StyleC.insert_style (Style.StyleId n) style
+    | (n, style) <- zip [0..] style_table
+    ]

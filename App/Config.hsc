@@ -378,13 +378,13 @@ view_left_padding = #const Config::Block::sb_size
 -- zoom) based on the new size.
 --
 -- TODO I should actually be getting this from fltk but it's easier to
--- hardcode for now.
+-- hardcode for now.  But I need a window, since it comes from
+-- Fl_Window::decorated_h() - Fl_Window::h().  However I can't assume that
+-- linux will have 0.
 window_decoration_h :: Int
-#ifdef __APPLE__
-window_decoration_h = 22
-#else
-window_decoration_h = 0
-#endif
+window_decoration_h = case platform of
+    Linux -> 0
+    Mac -> 22
 
 -- * fonts
 

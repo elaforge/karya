@@ -11,6 +11,10 @@ import Foreign.C
 import qualified Ui.Util as Util
 import qualified Ui.Symbol as Symbol
 
+import qualified App.Config as Config
+
+import Global
+
 
 #include "Ui/c_interface.h"
 
@@ -40,7 +44,7 @@ insert (Symbol.Symbol name absolute_y glyphs) = do
         then return (Maybe.catMaybes missing)
         else do
             let glyphcs = Maybe.catMaybes maybe_glyphcs
-            Util.withText name $ \namep -> withArrayLen glyphcs $
+            Util.withText (mangle_name name) $ \namep -> withArrayLen glyphcs $
                 \len glyphsp ->
                     c_insert_symbol namep (fromBool absolute_y)
                         glyphsp (Util.c_int len)
@@ -48,6 +52,13 @@ insert (Symbol.Symbol name absolute_y glyphs) = do
 
 foreign import ccall "insert_symbol"
     c_insert_symbol :: CString -> CInt -> Ptr GlyphC -> CInt -> IO ()
+
+mangle_name :: Text -> Text
+mangle_name name = case Config.platform of
+    -- Fltk on X puts a character at the start of the name to encode the style,
+    -- and space for no style.  Fltk on OS X doesn't do this.
+    Config.Linux -> " " <> name
+    Config.Mac -> name
 
 glyph_to_glyphc :: Symbol.Glyph -> IO (Maybe GlyphC)
 glyph_to_glyphc (Symbol.Glyph text maybe_font size (x, y) rotation) = do
