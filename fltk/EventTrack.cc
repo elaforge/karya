@@ -786,23 +786,38 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
             y = std::min(y, next_limit - 3.0);
         }
     }
+    int r = x + w;
+    int mid = x + w/2;
 
-    fl_begin_polygon();
+    //          x       x+cx    mid     r-cx    r
+    // y        0               1
+    // y+h2                     2
+    // y+cy             3
+    // y+h1     4
     if (align == EventTrack::Left) {
-        // left side
+        fl_begin_complex_polygon();
+        fl_vertex(x, y);            // 0
+        fl_vertex(mid, y);          // 1
+        fl_vertex(mid, y+h2);       // 2
+        fl_vertex(x+cx, y+cy);      // 3
+        fl_vertex(x, y+h1);         // 4
         fl_vertex(x, y);
-        fl_vertex(x, y+h1);
-        fl_vertex(x+cx, y+cy);
+        fl_end_complex_polygon();
     }
-    fl_vertex(x + (w/2), y+h2); // center
-    // right side
-    fl_vertex(x+w-cx, y+cy);
-    fl_vertex(x+w, y+h1);
-    fl_vertex(x+w, y);
-    if (align == EventTrack::Right) {
-        fl_vertex(x + (w/2), y);
-    }
-    fl_end_polygon();
+
+    //          x       x+cx    mid     r-cx    r
+    // y                        0               1
+    // y+h2                     4
+    // y+cy                             3
+    // y+h1                                     2
+    fl_begin_complex_polygon();
+    fl_vertex(mid, y);              // 0
+    fl_vertex(r, y);                // 1
+    fl_vertex(r, y+h1);             // 2
+    fl_vertex(r-cx, y+cy);          // 3
+    fl_vertex(mid, y+h2);           // 4
+    fl_vertex(mid, y);
+    fl_end_complex_polygon();
 }
 
 

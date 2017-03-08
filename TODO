@@ -1140,7 +1140,7 @@ fltk:
     . It still might be useful to put the top level ruler labels, or cues if
       I ever use those, but I'd have to make it wider.
   - Do I want to support set_ruler for Scrollbar?
-  - linux fltk drawing: event ears draw as a solid bar
+  * linux fltk drawing: event ears draw as a solid bar
   - Drag on an event track title doesn't work, because the new FloatingInput
     doesn't realize that a drag has started.
     . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
