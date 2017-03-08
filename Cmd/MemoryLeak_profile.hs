@@ -70,11 +70,17 @@ check_results times states mods = do
     check ("< 1mb: " <> pretty diffs) $ all ((<1) . megabytes) diffs
 
     -- If it's too strict, the UI will get laggy.
-    putStrLn "cmd lacency:"
+    putStrLn "cmd latency:"
     let show_latency (msg, secs) = msg <> ": " <> pretty secs
     mapM_ Text.IO.putStrLn (map show_latency (concat latency))
-    equal [show_latency (msg, secs) | (msg, secs) <- concat latency,
-            secs >= max_cmd_latency]
+    equal
+        [ show_latency (msg, secs)
+        -- drop 1 because the latency on the first cmd is much higher.  I don't
+        -- know why, maybe it needs to evaluate more thunks, but it doesn't
+        -- represent sustained use.
+        | (msg, secs) <- concat (map (drop 1) latency)
+        , secs >= max_cmd_latency
+        ]
         []
     return ()
 
@@ -100,17 +106,14 @@ type Latency = (Text, ResponderTest.Seconds)
 
 thread :: ResponderTest.States -> [Cmd.CmdT IO ()] -> IO [([Latency], Bytes)]
 thread states (mod:mods) = do
-    root_id <- maybe (errorIO "no root block") return $
-        Ui.config#Ui.root #$ fst states
     states <- return $ strip_states states
     (latency, result) <- strip_results <$>
-        ResponderTest.respond_until (is_complete root_id) timeout states mod
+        ResponderTest.respond_all timeout states mod
     force_performances result
     mem <- memory_used
     ((latency, mem):) <$> thread (ResponderTest.result_states result) mods
     where
     timeout = 64
-    is_complete = ResponderTest.is_block_derive_complete
 thread _ [] = return []
 
 -- | Get rid of intermediate Results, otherwise I get the memory leak right
@@ -128,7 +131,7 @@ strip_results results = latency `DeepSeq.deepseq` (latency, last results)
 strip_states :: ResponderTest.States -> ResponderTest.States
 strip_states = id -- second strip_cmd
     where
-    strip_cmd state = state
+    _strip_cmd state = state
         { Cmd.state_play = play
             -- { Cmd.state_performance = mempty
             -- , Cmd.state_current_performance = mempty
