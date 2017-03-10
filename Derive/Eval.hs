@@ -139,13 +139,7 @@ eval_transformers ctx calls deriver = go calls
     go (BaseTypes.Call call_id args : calls) = do
         vals <- mapM (eval ctx) args
         call <- get_transformer call_id
-        let passed = Derive.PassedArgs
-                { Derive.passed_vals = vals
-                , Derive.passed_call_name = Derive.call_name call
-                , Derive.passed_ctx = ctx
-                }
-        Internal.with_stack_call (Derive.call_name call) $
-            Derive.call_func call passed (go calls)
+        apply_transformer ctx call vals (go calls)
 
 -- | Parse and apply a transformer expression.
 eval_transform_expr :: Derive.Callable d => Text -> Text
