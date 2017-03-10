@@ -175,6 +175,8 @@ data Format = Format {
     , fmt_to_absolute :: Maybe Pitch.Key -> RelativePitch
         -> Either BaseTypes.PitchError Pitch.Pitch
     , fmt_pattern :: !Text
+    -- TODO why do I need this?  can I have keys with different octaves?
+    -- It's used only by JustScales
     , fmt_pc_per_octave :: Pitch.PitchClass
     -- | True if this scale is relative to the key.
     , fmt_relative :: !Bool

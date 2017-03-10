@@ -245,20 +245,21 @@ defaulted_env_quoted name env_default quoted =
 defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     ArgName -> Derive.EnvironDefault -> Either a BaseTypes.Quoted -> Doc.Doc
     -> Parser a
-defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
+defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> deflt state1
         Just (state, BaseTypes.VNotGiven) -> deflt state
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where
-    deflt state = eval_default arg_doc (argnum_error state) name state quoted
+    deflt state =
+        eval_default arg_doc (argnum_error state) name state deflt_quoted
     expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
         , arg_parser = Derive.Defaulted $
-            either ShowVal.show_val ShowVal.show_val quoted
+            either ShowVal.show_val ShowVal.show_val deflt_quoted
         , arg_environ_default = env_default
         , arg_doc = doc
         }

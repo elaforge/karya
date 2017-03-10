@@ -92,6 +92,8 @@ of extra dependencies.  To build, enable it in Shake.Config, install the VST3
 SDK from Steinberg's website, and install additional deps from
 build/enabled-deps.karya.
 
+The VST3 SDK is now at github: https://github.com/steinbergmedia/vst3sdk
+
 But it doesn't do much yet.
 
 ## MISC
