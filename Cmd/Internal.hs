@@ -285,8 +285,6 @@ sync_status ui_from cmd_from = do
     sync_save_file $ Cmd.state_save_file cmd_to
     sync_defaults $ Ui.config#Ui.default_ #$ ui_to
 
-    when (Ui.state_config ui_from /= Ui.state_config ui_to) $
-        sync_ui_config (Ui.state_config ui_to)
     run_selection_hooks (mapMaybe selection_update updates)
     forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
@@ -474,11 +472,6 @@ sync_save_file save = Cmd.set_global_status "save" $ case save of
 sync_defaults :: Cmd.M m => Ui.Default -> m ()
 sync_defaults (Ui.Default tempo) =
     Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
-
--- | Sync Ui.Config changes.
-sync_ui_config :: Cmd.M m => Ui.Config -> m ()
-sync_ui_config config =
-    Cmd.set_global_status "global" $ Ui.config_global_transform config
 
 -- Zoom is actually not very useful.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()

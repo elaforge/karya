@@ -239,10 +239,9 @@ derive_blocks_setup :: DeriveTest.Setup -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_setup setup blocks =
     derive_lilypond state $ DeriveTest.setup_deriver setup $
         Derive.with_imported True Module.europe $
-        Derive.with_imported True Module.ly deriver
+        Derive.with_imported True Module.ly $
+        Prelude.Block.eval_root_block bid
     where
-    deriver = Prelude.Block.eval_root_block global_transform bid
-    global_transform = Ui.config#Ui.global_transform #$ state
     state = DeriveTest.setup_ui setup state_
     (bid:_, state_) = UiTest.run_mkblocks blocks
 

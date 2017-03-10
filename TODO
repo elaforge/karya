@@ -134,11 +134,19 @@ UNSORTED
     . Suppose the selection could be either negative or positively oriented.
       Maybe I could even use it for e.g. set duration vs. set begin, and move
       up vs. move down.  It would have to be easy to switch directions though.
-  - Replace global transform with UiConfig.ky
+  * Replace global transform with UiConfig.ky
     . I could implicitly wrap everything in 'global', and set it with
       "note transformer: global = ...".
     . The only thing is that this doesn't display so compactly in logview.
       But it's not like I look at that a lot anyway.
+    . Maybe call at 'GLOBAL' so it's visually distinct.
+    . This once again changes randomization because a new GLOBAL in the stack.
+      How can I stop doing that?
+    . I could add a hack to skip it.  It works but is obviously not
+      a general solution.
+    . I could mitigate by not including calls, just blocks and tracks and
+      region.  That way just setting an env var won't change everything under
+      it.  Is there a case where I would want it to be different but isn't?
   - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
@@ -279,12 +287,18 @@ IN PROGRESS
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
+    . branch: bali-scales
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . branch shake-targets
   - Extend TimeVector with an offset, so I can get rid of
     Score.event_untransformed_controls and the like.
     . branch signal-offset
+    . After this I'd like to make Score.Event's fields private so e.g.
+      I can enforce set_instrument.
+    . Also simplify or unify various types in Derive.ScoreTypes,
+      Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
+      and move simple types to Derive.T.
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
     . Maybe I should fix the formatting bugs first.

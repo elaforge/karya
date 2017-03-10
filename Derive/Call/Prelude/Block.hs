@@ -4,7 +4,10 @@
 
 -- | Block call and support.
 module Derive.Call.Prelude.Block (
-    eval_root_block, note_calls, control_calls
+    -- * root block
+    eval_root_block, global_transform
+    -- * note calls
+    , note_calls, control_calls
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -41,13 +44,26 @@ import Types
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
-eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
-    -- Tempo.with_tempo does a bit of magic to stretch all blocks to length 1,
-    -- except the root one.  The root block should operate in real time, so
-    -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
-eval_root_block global_transform block_id =
-    Eval.eval_transform_expr "global transform" global_transform $
-        Eval.eval_one_call True $ call_from_block_id block_id
+--
+-- Tempo.with_tempo does a bit of magic to stretch all blocks to length 1,
+-- except the root one.  The root block should operate in real time, so no
+-- stretching here.  Otherwise, a tempo of 2 would be the same as 1.
+eval_root_block :: BlockId -> Derive.NoteDeriver
+eval_root_block block_id =
+    global_transform $ Eval.eval_one_call True $ call_from_block_id block_id
+
+global_transform :: Derive.NoteDeriver -> Derive.NoteDeriver
+global_transform = transform_if_present ctx "GLOBAL"
+    where ctx = Derive.dummy_context 0 1 "<GLOBAL transform>"
+
+transform_if_present :: Derive.Callable a => Derive.Context a
+    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream a)
+    -> Derive.Deriver (Stream.Stream a)
+transform_if_present ctx call_id deriver = do
+    maybe_call <- Derive.lookup_transformer call_id
+    case maybe_call of
+        Nothing -> deriver
+        Just call -> Eval.apply_transformer ctx call [] deriver
 
 -- * note calls
 
@@ -167,8 +183,8 @@ d_block block_id = do
             -- An empty title means no transformation.
             Right (BaseTypes.Call call [] :| []) | call == "" -> deriver
             Right expr ->
-                Eval.eval_transformers info (NonEmpty.toList expr) deriver
-                where info = Derive.dummy_context 0 1 "block title"
+                Eval.eval_transformers ctx (NonEmpty.toList expr) deriver
+                where ctx = Derive.dummy_context 0 1 "block title"
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> BaseTypes.Call

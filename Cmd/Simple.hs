@@ -105,20 +105,19 @@ dump_state = do
     state <- Ui.get
     blocks <- mapM dump_block (Map.keys (Ui.state_blocks state))
     return
-        ( Ui.config#Ui.global_transform #$ state
+        ( Ui.config#Ui.ky #$ state
         , dump_allocations $ Ui.config#Ui.allocations #$ state
         , blocks
         )
 
 load_state :: Ui.M m => (InstTypes.Qualified -> Maybe Patch.Settings)
     -> State -> m Ui.State
-load_state lookup_settings (global_transform, allocs, blocks) =
+load_state lookup_settings (ky, allocs, blocks) =
     Ui.exec_rethrow "convert state" Ui.empty $ do
         mapM_ make_block blocks
         allocs <- Ui.require_right id $ allocations lookup_settings allocs
         Ui.modify $
-            (Ui.config#Ui.global_transform #= global_transform)
-            . (Ui.config#Ui.allocations #= allocs)
+            (Ui.config#Ui.ky #= ky) . (Ui.config#Ui.allocations #= allocs)
 
 -- * block
 

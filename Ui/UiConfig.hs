@@ -46,16 +46,6 @@ data Config = Config {
     -- a program with a more absolute notion of time, like a DAW.
     , config_root :: !(Maybe BlockId)
 
-    -- | This is a tracklang transformer expression that's wrapped around every
-    -- derivation.  So if it's @x = 1 | y = 2@ then the environment will be so
-    -- modified for every derivation.
-    --
-    -- It's useful to set config as above, or to apply a postproc.  Of course
-    -- these can also be done within a block, but if you put it on the root
-    -- block then playing in sub-blocks doesn't get the transformation, and
-    -- if you put it in sub-blocks then you repeat yourself and possibly apply
-    -- it multiple times.
-    , config_global_transform :: !Text
     -- | Instrument allocations.
     , config_allocations :: !Allocations
         -- TODO I'm not a big fan of this name, since it's generic and not
@@ -66,7 +56,8 @@ data Config = Config {
     , config_default :: !Default
     , config_saved_views :: !SavedViews
     -- | Locally defined code in the ky language, as parsed by
-    -- 'Derive.Parse.parse_ky'.
+    -- 'Derive.Parse.parse_ky'.  If the ky defines a note transformer called
+    -- @GLOBAL@, it will be implicitly wrapped around every derivation.
     , config_ky :: !Text
     } deriving (Eq, Show)
 
@@ -77,8 +68,6 @@ meta = Lens.lens config_meta
     (\f r -> r { config_meta = f (config_meta r) })
 root = Lens.lens config_root
     (\f r -> r { config_root = f (config_root r) })
-global_transform = Lens.lens config_global_transform
-    (\f r -> r { config_global_transform = f (config_global_transform r) })
 allocations = Lens.lens config_allocations
     (\f r -> r { config_allocations = f (config_allocations r) })
 lilypond = Lens.lens config_lilypond
@@ -102,7 +91,6 @@ empty_config = Config
     { config_namespace = Id.namespace "untitled"
     , config_meta = empty_meta
     , config_root = Nothing
-    , config_global_transform = ""
     , config_allocations = mempty
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
@@ -276,9 +264,9 @@ data Performance a = Performance {
 
 -- | Initial values for derivation.
 --
--- This used to have other fields, but they were replaced by
--- 'config_global_transform'.  I haven't removed tempo yet because it's the
--- only way to change the speed for tempo-less blocks, and doesn't affect
+-- This used to have other fields, but they were replaced by the more general
+-- 'ky' and the implicit GLOBAL call.  I haven't removed tempo yet because it's
+-- the only way to change the speed for tempo-less blocks, and doesn't affect
 -- (or rather, is undone automatically) for integrated blocks.
 data Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
@@ -292,16 +280,14 @@ empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root global_transform allocations lily
-            default_ saved_views ky) =
+    format (Config namespace meta root allocations lily dflt saved_views ky) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
-            , ("global_transform", Pretty.format global_transform)
             , ("allocations", Pretty.format allocations)
             , ("lilypond", Pretty.format lily)
-            , ("default", Pretty.format default_)
+            , ("default", Pretty.format dflt)
             , ("saved_views", Pretty.format saved_views)
             , ("ky", Pretty.format ky)
             ]

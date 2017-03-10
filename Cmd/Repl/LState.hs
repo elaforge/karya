@@ -84,19 +84,6 @@ get_default_tempo = Ui.config#Ui.default_#Ui.tempo <#> Ui.get
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
 set_default_tempo t = Ui.modify_config $ Ui.default_#Ui.tempo #= t
 
--- | 'Ui.config_global_transform' is an expression that's applied to the
--- output of derivation.
-set_transform :: Text -> Cmd.CmdL ()
-set_transform = Ui.modify_config . (Ui.global_transform #=) . Text.strip
-
-get_transform :: Cmd.CmdL Text
-get_transform = Ui.config#Ui.global_transform <#> Ui.get
-
-transform :: Cmd.CmdL ReplProtocol.Result
-transform = do
-    expr <- get_transform
-    return $ ReplProtocol.Edit expr "LState.set_transform"
-
 ky :: Cmd.CmdL ReplProtocol.Result
 ky = do
     ky <- get_ky

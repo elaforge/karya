@@ -241,9 +241,7 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
     where
     cmd = Derive.extract_result <$> PlayUtil.run cache damage deriver
     ui_state = setup_ui setup ui_state_
-    global_transform = Ui.config#Ui.global_transform #$ ui_state
-    deriver = setup_deriver setup $
-        Prelude.Block.eval_root_block global_transform block_id
+    deriver = setup_deriver setup $ Prelude.Block.eval_root_block block_id
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
@@ -345,9 +343,6 @@ with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
         Just source -> track { Track.track_render =
             Track.RenderConfig (Track.Line source) Color.blue }
         Nothing -> track
-
-with_transform :: Text -> Setup
-with_transform = with_ui . (Ui.config#Ui.global_transform #=)
 
 with_midi_config :: Text -> Text -> Common.Config -> Patch.Config -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $

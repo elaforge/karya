@@ -80,13 +80,12 @@ uncached_derive = derive_block mempty mempty
 -- | Derive the contents of the given block to score events.
 derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
-derive_block cache damage block_id = do
-    global_transform <- Ui.config#Ui.global_transform <#> Ui.get
+derive_block cache damage block_id =
     fmap Derive.extract_result $ run cache damage $ do
         unless (damage == mempty) $
             Log.debug $ "score damage for " <> showt block_id <> ": "
                 <> pretty damage
-        Prelude.Block.eval_root_block global_transform block_id
+        Prelude.Block.eval_root_block block_id
 
 is_score_damage_log :: Log.Msg -> Bool
 is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text

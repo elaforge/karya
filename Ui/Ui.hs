@@ -27,7 +27,7 @@ module Ui.Ui (
     , empty, create, clear
     -- * config
     , Config(..), empty_config, SavedViews
-    , namespace_, meta, root, global_transform, allocations, allocations_map
+    , namespace_, meta, root, allocations, allocations_map
     , lilypond, default_, saved_views, ky
     , Meta(..), empty_meta, creation, last_save, notes, midi_performances
     , lilypond_performances

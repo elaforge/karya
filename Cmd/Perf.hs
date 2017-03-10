@@ -20,12 +20,13 @@ import qualified Util.Tree
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
@@ -112,20 +113,17 @@ find_track block_id track_id = do
 -- | Get the environment established by 'Ui.config_global_transform'.
 global_environ :: Cmd.M m => m Env.Environ
 global_environ = do
-    global_transform <- Ui.config#Ui.global_transform <#> Ui.get
-    (result, _, logs) <- PlayUtil.run mempty mempty $
-        Eval.eval_transform_expr "global transform" global_transform
-            smuggle_environ
+    (result, _, logs) <- PlayUtil.run mempty mempty smuggle_environ
     mapM_ Log.write logs
     events <- Stream.write_logs =<< Cmd.require_right pretty result
-    event <- Cmd.require "Perf.global_transform: expected a single Event" $
+    event <- Cmd.require "Perf.global_environ: expected a single Event" $
         Seq.head events
     return $ Score.event_environ event
 
 -- | Smuggle the environ out in an event.  It's annoying to require such
 -- shennanigans, rationale in NOTE [transform-without-derive-callable].
 smuggle_environ :: Derive.NoteDeriver
-smuggle_environ = do
+smuggle_environ = Prelude.Block.global_transform $ do
     env <- Internal.get_dynamic Derive.state_environ
     return $! Stream.from_event $!
         Score.empty_event { Score.event_environ = env }
@@ -283,19 +281,17 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 
 -- * default
 
--- | Get defaults set by 'Ui.config_global_transform'.
+-- | Get global defaults.
 lookup_default_environ :: (Typecheck.Typecheck a, Cmd.M m) =>
     Env.Key -> m (Maybe a)
 lookup_default_environ name = do
-    global <- Ui.config#Ui.global_transform <#> Ui.get
-    let apply = Eval.eval_transform_expr caller global
     -- Eval.eval_transform_expr only applies to things in Derived, so I have to
     -- do this gross hack where I stash the result in a Score.Event.
     -- Ultimately it's because I use the return type to infer the lookup
     -- function, and I want to use Score.Event transformers.  It might be
     -- a better design to figure out the lookup function separately, but
     -- meanwhile this hack should be safe.
-    result <- derive $ apply smuggle_environ
+    result <- derive smuggle_environ
     environ <- case result of
         Left err -> Cmd.throw $ caller <> ": " <> err
         Right val -> case Stream.events_of val of

@@ -18,6 +18,7 @@ module Cmd.Serialize (
     allocations_magic, score_magic, views_magic
     , is_old_settings
 ) where
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified Util.Rect as Rect
@@ -80,12 +81,11 @@ instance Serialize Ui.State where
             _ -> Serialize.bad_version "Ui.State" v
 
 instance Serialize Ui.Config where
-    put (Ui.Config ns meta root transform allocs lilypond defaults
+    put (Ui.Config ns meta root allocs lilypond defaults
             saved_views ky)
-        =  Serialize.put_version 12
-            >> put ns >> put meta >> put root >> put transform
-            >> put allocs >> put lilypond >> put defaults >> put saved_views
-            >> put ky
+        =  Serialize.put_version 13
+            >> put ns >> put meta >> put root >> put allocs >> put lilypond
+            >> put defaults >> put saved_views >> put ky
     get = Serialize.get_version >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
@@ -97,9 +97,9 @@ instance Serialize Ui.Config where
             defaults :: Ui.Default <- get
             saved_views :: Ui.SavedViews <- get
             ky_file :: Maybe FilePath <- get
-            return $ Ui.Config ns meta root transform insts lilypond
-                defaults saved_views
-                (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file)
+            return $ Ui.Config ns meta root insts lilypond defaults saved_views
+                (upgrade_transform transform
+                    (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file))
         12 -> do
             ns :: Id.Namespace <- get
             meta :: Ui.Meta <- get
@@ -110,9 +110,25 @@ instance Serialize Ui.Config where
             defaults :: Ui.Default <- get
             saved_views :: Ui.SavedViews <- get
             ky :: Text <- get
-            return $ Ui.Config ns meta root transform insts lilypond
-                defaults saved_views ky
+            return $ Ui.Config ns meta root insts lilypond
+                defaults saved_views (upgrade_transform transform ky)
+        13 -> do
+            ns :: Id.Namespace <- get
+            meta :: Ui.Meta <- get
+            root :: Maybe BlockId <- get
+            insts :: UiConfig.Allocations <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: Ui.Default <- get
+            saved_views :: Ui.SavedViews <- get
+            ky :: Text <- get
+            return $ Ui.Config ns meta root insts lilypond defaults saved_views
+                ky
         _ -> Serialize.bad_version "Ui.Config" v
+        where
+        upgrade_transform global_transform ky
+            | Text.null (Text.strip global_transform) = ky
+            | otherwise = ky <> "\n\nnote transformer:\nGLOBAL = "
+                <> global_transform
 
 instance Serialize.Serialize UiConfig.Allocations where
     put (UiConfig.Allocations a) = Serialize.put_version 1 >> put a

@@ -254,7 +254,8 @@ with_stack frame = localm $ \st -> do
 add_stack_frame :: Stack.Frame -> Dynamic -> Dynamic
 add_stack_frame frame st = st
     { state_stack = Stack.add frame (state_stack st)
-    , state_environ = update_seed (state_environ st)
+    , state_environ = (if frame == Stack.Call "GLOBAL" then id else update_seed)
+        (state_environ st)
     }
     where
     update_seed env = BaseTypes.insert
