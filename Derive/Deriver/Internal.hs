@@ -254,10 +254,21 @@ with_stack frame = localm $ \st -> do
 add_stack_frame :: Stack.Frame -> Dynamic -> Dynamic
 add_stack_frame frame st = st
     { state_stack = Stack.add frame (state_stack st)
+    -- TODO skip GLOBAL to avoid breaking randomization on all existing scores.
+    -- If I wind up breaking it again, I should switch to filtering out
+    -- Stack.Call as below to make it less brittle.  It might actually help
+    -- performance since I think seed updates were surprisingly prominent in
+    -- the profile.
     , state_environ = (if frame == Stack.Call "GLOBAL" then id else update_seed)
         (state_environ st)
     }
     where
+    -- , state_environ = (if should_update_seed frame then update_seed else id)
+    --     (state_environ st)
+    -- I used to update the seed for all Frames, but Stack.Call makes it too
+    -- easy for the seed to change.
+    _should_update_seed (Stack.Call {}) = False
+    _should_update_seed _ = True
     update_seed env = BaseTypes.insert
         EnvKey.seed (BaseTypes.VNum (Score.untyped (seed old))) env
         where
