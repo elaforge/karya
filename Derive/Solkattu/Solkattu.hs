@@ -291,59 +291,6 @@ show_position state =
     <> ", akshara " <> showt (state_akshara state)
     <> ", matra " <> showt (state_matra state)
 
--- * transform
-
--- | Drop a number of matras from the Sequence.  Patterns will be shortened.
-dropM :: Matras -> Sequence stroke -> Sequence stroke
-dropM matras ns = case ns of
-    [] -> []
-    (n:ns)
-        | matras <= 0 -> (n:ns)
-        | otherwise -> case n of
-            Pattern dur
-                | dur > matras -> Pattern (dur - matras) : ns
-                | otherwise -> dropM (matras - dur) ns
-            _ -> dropM (matras - note_duration n) ns
-
-takeM :: Matras -> Sequence stroke -> Sequence stroke
-takeM _ [] = []
-takeM matras _ | matras <= 0 = []
-takeM matras (n:ns) = case n of
-    Sollu {} -> n : takeM (matras-1) ns
-    Rest {} -> n : takeM (matras-1) ns
-    Pattern dur
-        | dur > matras -> n : takeM (matras-dur) ns
-        | otherwise -> [Pattern (dur - matras)]
-    Alignment {} -> takeM matras ns
-    TimeChange {} -> takeM matras ns
-
-rdropM :: Matras -> Sequence stroke -> Sequence stroke
-rdropM matras = reverse . dropM matras . reverse
-
--- | Reduce three times, with a separator.
-reduce3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
-reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
-
--- | Reduce by a duration until a final duration.
-reduceTo :: CallStack.Stack => Matras -> Matras -> Sequence stroke
-    -> Sequence stroke
-reduceTo by to seq
-    | (duration_of seq - to) `mod` by /= 0 =
-        errorStack $ showt (duration_of seq) <> " can't reduce by " <> showt by
-            <> " to " <> showt to
-    | otherwise = mconcat $ takeWhile ((>=to) . duration_of) $
-        iterate (dropM by) seq
-
--- | Reduce by dropping the end.
-reduceR :: Matras -> Sequence stroke -> [Sequence stroke]
-reduceR n = iterate (rdropM n)
-
-reduceR3 :: Matras -> Sequence stroke -> Sequence stroke -> Sequence stroke
-reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
-
--- | Start fully reduced, and expand to the given sequence.
-expand :: Int -> Matras -> Sequence stroke -> [Sequence stroke]
-expand times dur = reverse . take times . iterate (dropM dur)
 
 -- ** vary
 

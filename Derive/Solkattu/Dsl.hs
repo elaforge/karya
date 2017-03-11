@@ -31,6 +31,7 @@ module Derive.Solkattu.Dsl (
     , join, repeat, inter, spread
     -- * transform
     , module Derive.Solkattu.Solkattu
+    , module Derive.Solkattu.Notation
     -- * mridangam
     , stroke, (&)
     -- * misc
@@ -51,11 +52,11 @@ import Util.Pretty (pprint)
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai)
 import Derive.Solkattu.Mridangam ((&))
+import Derive.Solkattu.Notation
+       (dropM, takeM, rdropM, reduce3, reduceTo, reduceR3, expand)
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
-import Derive.Solkattu.Solkattu
-       (Aksharas, Matras, check, duration_of, dropM, takeM, rdropM, reduce3,
-        reduceTo, reduceR3, expand)
+import Derive.Solkattu.Solkattu (Aksharas, Matras, check, duration_of)
 
 import Global
 
