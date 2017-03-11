@@ -1459,6 +1459,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - various take and drop functions should retain the speed
         - Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.
           Default to 2, but a chapu might require 3.

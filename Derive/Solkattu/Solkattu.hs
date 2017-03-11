@@ -9,6 +9,7 @@
 -- and thus easily inserted into a track.
 module Derive.Solkattu.Solkattu where
 import qualified Data.List as List
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -58,7 +59,7 @@ data Speed = S1 | S2 | S3 | S4 deriving (Eq, Ord, Show, Bounded, Enum)
 
 instance Pretty.Pretty Speed where pretty = showt
 
-speed_factor :: Speed -> Double
+speed_factor :: Num a => Speed -> a
 speed_factor s = case s of
     S1 -> 1
     S2 -> 2
@@ -110,9 +111,27 @@ type Aksharas = Int
 -- it can be fractional when >S1, but it's more convenient for me to have
 -- a variable time unit corresponding to a single sollu.
 type Matras = Int
+-- TODO Matras should be Ratio and really Matras, Atom or something should be
+-- the integral unit.
+
+-- TODO This should be Matras
+type Duration = Ratio.Rational
 
 duration_of :: Sequence stroke -> Matras
 duration_of = sum . map note_duration
+
+durations_of :: Sequence stroke -> [Duration]
+durations_of = snd . List.mapAccumL dur (S1, 4)
+    where
+    dur (speed, nadai) n = case n of
+        TimeChange change -> case change of
+            Speed speed -> ((speed, nadai), 0)
+            Nadai nadai -> ((speed, nadai), 0)
+        _ -> ((speed, nadai), fromIntegral (note_duration n)
+            / speed_factor speed / fromIntegral nadai)
+
+real_duration_of :: Sequence stroke -> Duration
+real_duration_of = sum . durations_of
 
 note_duration :: Note stroke -> Matras
 note_duration n = case n of
@@ -147,7 +166,7 @@ data State = State {
     , state_akshara :: !Aksharas
     -- | Time through this akshara.  This is not 'Matras' because it's actual
     -- fractional matras, rather than sollu-durations.
-    , state_matra :: !Double
+    , state_matra :: !Double -- TODO Duration
     -- | How many nadai in this akshara.  This is different from 'state_nadai'
     -- because if nadai changes in the middle of an akshara, that akshara will
     -- have an irregular number of matra in it.  For instance, if you change

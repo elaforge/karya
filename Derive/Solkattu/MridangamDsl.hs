@@ -7,6 +7,7 @@ module Derive.Solkattu.MridangamDsl (
     (&)
     , korvai
     , k, t, n, d, u, i, y, j, p, o, od
+    , closed
 ) where
 import qualified Data.Map as Map
 
@@ -64,3 +65,7 @@ stroke_map = Map.fromList
     , (Dsl.tam, od)
     ]
     where Mridangam.Strokes {..} = Mridangam.strokes
+
+-- | Thom -> tha.
+closed :: Sequence -> Sequence
+closed = concatMap $ \n -> if [n] == o then t else [n]

@@ -115,6 +115,34 @@ p16_12_06_janahan2 = korvai (adi 8) $
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
 
+-- * korvai sequences
+
+ksequence = korvais (adi 4) $
+    [ sarva `replaceEnd` theme
+    , takeD 4 sarva `replaceEnd` theme
+        . rtakeD 4 sarva `replaceEnd` theme
+    , theme . ptheme . theme . ptheme
+    , tri_ (od.__4) theme
+    , theme . od.__4 . theme . od.__2 . eme . od.__2 . eme
+    , theme . od.__4 . theme . od.__2 . eme . od . me . od . me
+    , tri_ od (theme.me)
+    , theme . od . theme.me . od . theme.me.me
+    , repeat 2 (theme.od.__2 . eme.od.__2 . eme . od.__2)
+        . theme.od.__2 . eme.od . me.od.me
+    -- , tri_ (o.__4) (theme . eme . closed eme . eme . closed eme)
+    ]
+    where
+    -- sarva = slower $
+    --       on.od.od.on . s2 (on.on) . od.od.on
+    --     . p&n.d.d.n       . n       .od.od.on
+    sarva =
+          on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
+        . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
+    theme = s2 $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
+    ptheme = s2 $ t `replaceStart` theme
+    eme = s2 $ rtakeM 8 theme
+    me = s2 $ rtakeM 4 theme
+
 -- * farans
 
 farans :: [Korvai]
