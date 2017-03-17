@@ -13,7 +13,6 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -59,7 +58,7 @@ data Speed = S1 | S2 | S3 | S4 deriving (Eq, Ord, Show, Bounded, Enum)
 
 instance Pretty.Pretty Speed where pretty = showt
 
-speed_factor :: Num a => Speed -> a
+speed_factor :: Speed -> Duration
 speed_factor s = case s of
     S1 -> 1
     S2 -> 2
@@ -104,21 +103,24 @@ instance Pretty.Pretty Sollu where
 -- | An akshara is one count of the talam.
 type Aksharas = Int
 
--- | A matra is an akshara divided by the nadai divided by the 'speed_factor'.
--- It corresponds to a single sollu.
---
--- This is nonstandard usage since an actual matra doesn't depend on speed, so
--- it can be fractional when >S1, but it's more convenient for me to have
--- a variable time unit corresponding to a single sollu.
+-- | A matra is an akshara divided by the nadai.  It corresponds to a single
+-- sollu in first speed.  'Duration' is used for absolute, Nadai and Speed
+-- independent duration.
 type Matras = Int
--- TODO Matras should be Ratio and really Matras, Atom or something should be
--- the integral unit.
 
--- TODO This should be Matras
-type Duration = Ratio.Rational
+-- | A single Duration unit is equivalent to 1 Akshara.
+newtype Duration = Duration Ratio.Rational
+    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac)
+    -- deriving Real produces:
+    -- <no location info>: Warning:
+    -- Call of toRational :: Rational -> Rational
+    --   can probably be omitted
+-- type Duration = Ratio.Rational
 
-duration_of :: Sequence stroke -> Matras
-duration_of = sum . map note_duration
+instance Pretty.Pretty Duration where
+    pretty (Duration dur) =
+        pretty (whole :: Int) <> if frac == 0 then "" else " " <> pretty frac
+        where (whole, frac) = properFraction dur
 
 durations_of :: Sequence stroke -> [Duration]
 durations_of = snd . List.mapAccumL dur (S1, 4)
@@ -127,14 +129,18 @@ durations_of = snd . List.mapAccumL dur (S1, 4)
         TimeChange change -> case change of
             Speed speed -> ((speed, nadai), 0)
             Nadai nadai -> ((speed, nadai), 0)
-        _ -> ((speed, nadai), fromIntegral (note_duration n)
+        _ -> ((speed, nadai), fromIntegral (note_matras n)
             / speed_factor speed / fromIntegral nadai)
 
-real_duration_of :: Sequence stroke -> Duration
-real_duration_of = sum . durations_of
+duration_of :: Sequence stroke -> Duration
+duration_of = sum . durations_of
 
-note_duration :: Note stroke -> Matras
-note_duration n = case n of
+matras_of :: Sequence stroke -> Matras
+matras_of = sum . map note_matras
+    -- TODO take speed changes into account
+
+note_matras :: Note stroke -> Matras
+note_matras n = case n of
     Sollu {} -> 1
     Rest -> 1
     Pattern dur -> dur
@@ -154,8 +160,8 @@ instance Pretty.Pretty Tala where
         , ("nadai", Pretty.format nadai)
         ]
 
-tala_matras :: Tala -> Matras
-tala_matras tala = tala_aksharas tala * tala_nadai tala
+-- tala_matras :: Tala -> Matras
+-- tala_matras tala = tala_aksharas tala * tala_nadai tala
 
 adi_tala :: Matras -> Tala
 adi_tala = Tala 8 4
@@ -164,9 +170,10 @@ adi_tala = Tala 8 4
 data State = State {
     state_avartanam :: !Int
     , state_akshara :: !Aksharas
-    -- | Time through this akshara.  This is not 'Matras' because it's actual
-    -- fractional matras, rather than sollu-durations.
-    , state_matra :: !Double -- TODO Duration
+    -- | Time through this akshara, so this is always < 1.
+    -- TODO actually this is not matras, but fraction of the way through the
+    -- akshara.  Is there a better term?
+    , state_matra :: !Duration
     -- | How many nadai in this akshara.  This is different from 'state_nadai'
     -- because if nadai changes in the middle of an akshara, that akshara will
     -- have an irregular number of matra in it.  For instance, if you change
@@ -250,17 +257,19 @@ verify_alignment tala =
             Arudi -> tala_arudi tala
 
 -- | Map over notes, keeping track of the position in the talam.
-map_time :: Tala -> (State -> a -> (Either TimeChange Double, [b]))
-    -- ^ return (either a time change or matras to advance, results)
+map_time :: Tala -> (State -> a -> (Either TimeChange Matras, [b]))
+    -- ^ return (either a time change or Matras to advance, results)
+    -- The Matras here are assuming 'S1', so they still need to be divided by
+    -- speed to get Duration.
     -> [a] -> [Either Text b]
 map_time tala f = concat . snd . List.mapAccumL process (initial_state tala)
     where
-    process state note = case advance of
+    process state note = case change_advance of
         Left change -> case time_change change state of
             Right state -> (state, map Right vals)
             Left err -> (state, [Left err])
         Right advance -> (advance_state tala advance state, map Right vals)
-        where (advance, vals) = f state note
+        where (change_advance, vals) = f state note
 
 time_change :: TimeChange -> State -> Either Text State
 time_change change state = case change of
@@ -277,8 +286,7 @@ nadai_change new_nadai state
     | frac == 0 = Right nadai
     | otherwise = Left $ show_position state
         <> ": can't change nadai " <> showt old_nadai <> "->" <> showt new_nadai
-        <> " at " <> pretty (state_matra state)
-        <> "/" <> showt old_nadai <> " akshara, would be a "
+        <> " at " <> pretty (state_matra state) <> " akshara, would be a "
         <> pretty pre <> " + " <> pretty post
         <> " = " <> pretty (pre + post) <> " matra akshara"
     where
@@ -286,10 +294,10 @@ nadai_change new_nadai state
     pre = (1 - ratio) * fromIntegral new_nadai
     post = ratio * fromIntegral old_nadai
     -- Ratio of the way through the akshara.
-    ratio = state_matra state / fromIntegral old_nadai
+    ratio = state_matra state -- / fromIntegral old_nadai
     old_nadai = state_nadai state
 
-advance_state :: Tala -> Double -> State -> State
+advance_state :: Tala -> Matras -> State -> State
 advance_state tala matras state = state
     { state_avartanam = state_avartanam state + akshara_carry
     , state_akshara = akshara
@@ -298,9 +306,9 @@ advance_state tala matras state = state
         then state_nadai state else state_akshara_nadai state
     }
     where
-    advance = matras * (1 / speed_factor (state_speed state))
-    (matra_carry, matra) = (state_matra state + advance)
-        `Num.fDivMod` fromIntegral (state_akshara_nadai state)
+    advance = fromIntegral matras / speed_factor (state_speed state)
+        / fromIntegral (state_nadai state)
+    (matra_carry, matra) = properFraction $ state_matra state + advance
     (akshara_carry, akshara) = (state_akshara state + matra_carry)
         `divMod` tala_aksharas tala
 
@@ -308,7 +316,8 @@ show_position :: State -> Text
 show_position state =
     "avartanam " <> showt (state_avartanam state + 1)
     <> ", akshara " <> showt (state_akshara state)
-    <> ", matra " <> showt (state_matra state)
+    <> ", matra "
+    <> pretty (state_matra state * fromIntegral (state_nadai state))
 
 
 -- ** vary

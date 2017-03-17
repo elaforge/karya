@@ -173,8 +173,8 @@ make_k1_1 pt gap = make_k1 $
         6 -> p666 end_gap
         _ -> p765 end_gap
     where
-    pdur = duration_of pt
-    end_gap = __n (5 - duration_of gap)
+    pdur = matras_of pt
+    end_gap = __n (5 - matras_of gap)
 
 k1_1s :: [Korvai]
 k1_1s = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]

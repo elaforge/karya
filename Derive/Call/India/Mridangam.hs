@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -118,7 +117,7 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
         (speed, pattern) <- Derive.require_right id $
             infer_pattern strokes variation
         let seq = realize_sequence (Args.context args) pattern
-        let factor = ScoreTime.double $ Solkattu.speed_factor speed
+        let factor = realToFrac $ Solkattu.speed_factor speed
         m_sequence seq (dur / factor) (Args.range args)
             (Args.orientation args)
 

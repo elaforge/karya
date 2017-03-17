@@ -28,12 +28,17 @@ test_verify_alignment = do
         , "expected akshara 2, but at avartanam 1, akshara 1, matra 1"
         ]
 
+test_verify_alignment_nadai_change = do
+    let f = verify_alignment
+        tdkt = cycle $ ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     let tala8 = Solkattu.Tala 1 0 8
     equal (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 3 tdkt))
         []
     strings_like (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 4 tdkt))
         ["ta di ki", "avartanam 2, akshara 0, matra 1"]
+    strings_like (f tala8 (take 3 tdkt <> Dsl.nadai 6 <> take 4 tdkt))
+        ["ta di ki", "can't change nadai 8->6"]
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm

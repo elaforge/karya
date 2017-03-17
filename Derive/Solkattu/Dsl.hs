@@ -55,7 +55,8 @@ import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
-import Derive.Solkattu.Solkattu (Aksharas, Matras, check, duration_of)
+import Derive.Solkattu.Solkattu
+       (Aksharas, Matras, check, duration_of, matras_of)
 
 import Global
 

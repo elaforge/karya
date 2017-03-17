@@ -22,7 +22,7 @@ dropM matras ns = case ns of
             Solkattu.Pattern dur
                 | dur > matras -> Solkattu.Pattern (dur - matras) : ns
                 | otherwise -> dropM (matras - dur) ns
-            _ -> dropM (matras - Solkattu.note_duration n) ns
+            _ -> dropM (matras - Solkattu.note_matras n) ns
 
 rdropM :: Matras -> Sequence stroke -> Sequence stroke
 rdropM matras = reverse . dropM matras . reverse
@@ -70,10 +70,10 @@ reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 reduceTo :: CallStack.Stack => Matras -> Matras -> Sequence stroke
     -> Sequence stroke
 reduceTo by to seq
-    | (Solkattu.duration_of seq - to) `mod` by /= 0 =
-        errorStack $ showt (Solkattu.duration_of seq) <> " can't reduce by "
+    | (Solkattu.matras_of seq - to) `mod` by /= 0 =
+        errorStack $ showt (Solkattu.matras_of seq) <> " can't reduce by "
             <> showt by <> " to " <> showt to
-    | otherwise = mconcat $ takeWhile ((>=to) . Solkattu.duration_of) $
+    | otherwise = mconcat $ takeWhile ((>=to) . Solkattu.matras_of) $
         iterate (dropM by) seq
 
 -- | Reduce by dropping the end.
@@ -88,10 +88,10 @@ expand :: Int -> Matras -> Sequence stroke -> [Sequence stroke]
 expand times dur = reverse . take times . iterate (dropM dur)
 
 replaceEnd :: Sequence stroke -> Sequence stroke -> Sequence stroke
-replaceEnd seq suffix = rdropD (Solkattu.real_duration_of suffix) seq <> suffix
+replaceEnd seq suffix = rdropD (Solkattu.duration_of suffix) seq <> suffix
 
 replaceStart :: Sequence stroke -> Sequence stroke -> Sequence stroke
-replaceStart prefix seq = prefix <> dropD (Solkattu.real_duration_of prefix) seq
+replaceStart prefix seq = prefix <> dropD (Solkattu.duration_of prefix) seq
 
 -- | Increase speed by a multiple by incrementing Speeds.
 fasterS :: Solkattu.Speed -> Sequence stroke -> Sequence stroke
