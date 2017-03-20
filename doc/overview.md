@@ -9,18 +9,18 @@ It's not oriented around realtime use, or recording realtime input.
 It uses its own score format.  One way to look at it is a 2D language for
 expressing music along with an editor for that language.  The score language
 has a built-in library of notation and has basic means for defining new
-notation, but more complicated notation is defined in haskell.  The idea is to
+notation, but more complicated notation is defined in Haskell.  The idea is to
 have a standard library, but also be able to define notation specific to your
-score.  The editor is graphical but also uses a haskell REPL for configuration,
+score.  The editor is graphical but also uses a Haskell REPL for configuration,
 automation, and extension.  If you're familiar with Amiga-style trackers, it
 looks somewhat similar, but fundamentally it's closer to a programming
 language.
 
 The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
-notation.  It doesn't record audio or host VSTs, but you can use a DAW to
-host VSTs and effect, and record tracks.  You can sync with MTC and MMC to
-record live audio, but I haven't tested that much yet.
+notation.  It doesn't record audio or host VSTs, but you can use a DAW to host
+VSTs and record or bounce tracks.  You can sync with MTC and MMC to record live
+audio, but I haven't tested that much yet.
 
 I develop on OS X.  It should theoretically work on linux, and there is a JACK
 backend, but I haven't done much testing there.

@@ -37,6 +37,9 @@ UNSORTED
     . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
   - bug: I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
     . Also telek ugal, before pengawak.
+    . I think it's still kontakt's fault, since if I record in reaper and play
+      back I get non-deterministic results.  Try moving the keyswitch back
+      again.
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
@@ -110,8 +113,6 @@ UNSORTED
         structure.
   - Legong scale umbang and isep is too close.
     . Maybe something wrong with how I retuned the sc gamelan samples.
-  - Perhaps I should have a ToCall class, for types which can turn into
-    tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
@@ -152,8 +153,6 @@ UNSORTED
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
     . Not quite, since Backend encodes that alloc and patch backends are
       equal, but is it really necessary?
-  - I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
-    have per_octave built-in, but I could still use Int for generic cases.
   - do a renaming pass on all the prev/next pitch function names in Derive.Args.
     . Should Prelude.Pitch.approach use the lookup pitch style?
 
@@ -328,6 +327,8 @@ TASKS:
       make tests pure.
   . fix bugs in Util.Pretty / Util.Format
     . Or use someone else's library... printcess?
+      . Looks like it only has one level of indentation.  Also I think it
+        doesn't have breaks, it just always breaks on space.  And uses String.
   GUI:
     . Prettier events, smooth scrolling etc.  OpenGL?
     . TrackSignals could use y position and color / transparency.
@@ -806,6 +807,7 @@ performance:
       It only exists when -debug, but this isn't documented.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
+  - Check out score size with 'weigh', ala https://github.com/haskell-perf
   - experiment with GC flags
     memory usage:
       . 200 mb -> 350 rss
@@ -1113,6 +1115,21 @@ test: testing:
       scratch.
     . It seems non-trivial... but maybe worth it, seeing how complicated
       diff and sync are.
+    . If I make Fltk into a typeclass I could substitute a pure State version.
+      But I still can't get rid of FltkStub, because the main point is to not
+      link in C++.  So as long as I'm doing that anyway, maybe I don't even
+      need a typeclass, but I still have to replace the PtrMap functions so
+      I don't need MonadIO.
+    . Except BlockC uses IO in PtrMap.modify... but that's in BlockC, which
+      relies on Fltk (IO a).  BlockCStub wouldn't need that.  So unstubbed
+      Fltk is in MonadIO, stubbed one isn't.
+    . But how am I supposed to record calls to BlockC without reifying the API
+      into a type?  And if I do that, I don't need to do this at all, just
+      have Sync return that type.
+    . I guess I'm not too worried that an intervenining data type will hurt
+      performance.  Mostly because just one more allocation is probably not a
+      big deal, but also maybe if I inline the interpretation function then
+      the allocation goes away.
   - Some way to associate a custom pretty-printer with test input or output,
     e.g.:
       annotate :: (Eq a, Show a) => (a -> Text) -> (a -> a) -> a -> a -> IO Bool
@@ -2056,6 +2073,19 @@ planning / research
         them.  If I turn the whole thing into one call, then I can still fit it
         into a global timeline, and apply transformations or tempo there.
       . If there is meter information in the text score, I can derive a ruler.
+    . Perhaps I should have a ToCall class, for types which can turn into
+      tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
+    . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
+      have per_octave built-in, but I could still use Int for generic cases.
+    . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
+      to 'Note a | TempoChange (Speed | Nadai)' and I have have generic
+      functions to get durations and check tala alignment using matras, and
+      flatten to (Time Ratio, a).
+    . This winds up being more general than haskore, but probably less general
+      than music-suite.  It looks like 'temporal-media' is analogous, though
+      with arbitrary time shift/stretch, and events have duration.  Also since
+      it uses (start, dur, note) events, it doesn't need rests, and can do
+      overlapping events.
   cmj:
     . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/

@@ -3,9 +3,11 @@
 - If you pulled from darcs and didn't use --set-scripts-executable, run
 `chmod 755 fix-perms && ./fix-perms`.
 
-- Install dependencies, documented below in `INSTALLED SEPARATELY`.
+- Install (non-haskell dependencies)[#non-haskell-dependencies].
 
 - Update `Shake/Config.hs` to point to where those dependencies are installed.
+
+- Install (haskell dependencies)[#haskell-dependencies].
 
 - Build shakefile: `bin/mkmk`
 
@@ -20,15 +22,14 @@ not iphone-ly.
 
 - Go read doc/quickstart.md.
 
-## HASKELL DEPENDENCIES
+## Haskell dependencies
 
 For whatever reason cabal won't install happy automatically, so first run
 
     cabal install happy
 
-The reason for happy is some dumb thing like needing `haskell-src` to do pretty
-printing, or something like that.  To install the needed haskell dependencies,
-type:
+The reason for happy is that I use `haskell-src` to do pretty printing.  To
+install the needed haskell dependencies, type:
 
     cabal sandbox init  # if you're afraid to screw up your haskell installation
     cabal install --only-dependencies
@@ -47,7 +48,7 @@ If you want to build the documentation:
 You can also install pandoc with cabal but it has a ridiculous number of
 dependencies.
 
-## INSTALLED SEPARATELY
+## Non-Haskell dependencies
 
 - Git, and make sure user.email and user.name are configured.
 
