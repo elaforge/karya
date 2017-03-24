@@ -145,7 +145,7 @@ strip_name text = case Text.lines text of
 
 extract_calls :: Ui.State -> [Text]
 extract_calls state = filter (not . Text.null) $
-    label "global" (Ui.config#Ui.global_transform #$ state)
+    label "ky" (Ui.config#UiConfig.ky #$ state)
     : map block_title (Map.toList (Ui.state_blocks state))
     ++ map track_title (Map.toList (Ui.state_tracks state))
     where
