@@ -30,6 +30,9 @@ UNSORTED
       which would make signatures annoying to write.  Normally I don't need
       them because they are the Typecheck val, which already needs to be
       fixed.
+    . Or I could have defaults be either a Typecheck val, or
+      (Doc, Typecheck val), and then have an explicit constructor for Function
+      which promotes various types to (Doc, Function).
   - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
@@ -1126,11 +1129,11 @@ test: testing:
     . But how am I supposed to record calls to BlockC without reifying the API
       into a type?  And if I do that, I don't need to do this at all, just
       have Sync return that type.
-    . I guess I'm not too worried that an intervenining data type will hurt
+    . I guess I'm not too worried that an intervening data type will hurt
       performance.  Mostly because just one more allocation is probably not a
       big deal, but also maybe if I inline the interpretation function then
       the allocation goes away.
-  - Some way to associate a custom pretty-printer with test input or output,
+  * Some way to associate a custom pretty-printer with test input or output,
     e.g.:
       annotate :: (Eq a, Show a) => (a -> Text) -> (a -> a) -> a -> a -> IO Bool
       annotate format f input expected

@@ -9,12 +9,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Testing as Testing
+import qualified Util.Then as Then
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -95,6 +95,34 @@ test_ns = Id.namespace "test"
 
 default_zoom :: Zoom.Zoom
 default_zoom = Config.zoom
+
+-- * fmt
+
+-- | Visualize event ranges.  This can be used with 'Testing.equal_fmt'.
+fmt_events :: RealFrac t => [(t, t, Text)] -> Text
+fmt_events [] = ""
+fmt_events events = Text.unlines $ ruler : map fmt events
+    where
+    ruler = fmt_ruler (ceiling end)
+        where end = maximum $ map (\(start, dur, _) -> start + dur) events
+    fmt (start, dur, text) = gap <> arrow <> label
+        where
+        gap = Text.replicate (to_steps (min start (start + dur))) " "
+        arrow
+            | dur < 0 = "<" <> middle <> "|"
+            | otherwise = "|" <> middle <> ">"
+        middle = Text.replicate (to_steps (abs dur) - 1) "-"
+        label = if Text.null text then "" else " [" <> text <> "]"
+    fmt_ruler :: Int -> Text
+    fmt_ruler end = Text.stripEnd $ mconcatMap (space . pretty) ts
+        where
+        space t = t <> Text.replicate (to_steps step - Text.length t) " "
+        ts = Then.takeWhile1 (<end) (Seq.range_ 0 1)
+        step = 1
+    to_steps t = floor (t * 4)
+
+fmt_start_duration :: RealFrac t => [(t, t)] -> Text
+fmt_start_duration = fmt_events . map (\(s, d) -> (s, d, ""))
 
 -- * monadic mk- functions
 
@@ -562,19 +590,3 @@ make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 btrack :: TrackId -> Block.Track
 btrack track_id = Block.track (Block.TId track_id default_ruler_id) 30
-
--- | Visualize event ranges.
-draw_events :: [EventSpec] -> IO ()
-draw_events events =
-    Text.IO.putStrLn ruler >> mapM_ (Text.IO.putStrLn . draw) events
-    where
-    draw (start, dur, t) = gap <> arrow <> " [" <> txt t <> "]"
-        where
-        gap = Text.replicate (to_steps (min start (start + dur))) " "
-        arrow
-            | dur < 0 = "<" <> middle <> "|"
-            | otherwise = "|" <> middle <> ">"
-        middle = Text.replicate (to_steps (abs dur) - 1) "-"
-    to_steps t = floor (t / 0.25)
-    ruler = Text.intercalate (Text.replicate (to_steps 1 - 1) " ")
-        (take 12 (map showt [0..]))

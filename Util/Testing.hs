@@ -12,7 +12,7 @@
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
     -- * assertions
-    , check, equal, right_equal, not_equal, equalf, strings_like
+    , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like
     , left_like , match
     -- ** exception assertions
     , throws
@@ -37,6 +37,7 @@ module Util.Testing (
     -- * filesystem
     , unique_tmp_dir, tmp_dir, tmp_base_dir
 ) where
+import Control.Monad (unless)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.Algorithm.Diff as Diff
@@ -107,6 +108,21 @@ equal a b
     | a == b = success $ pretty True
     | otherwise = failure $ pretty False
     where pretty = pretty_compare "==" "/=" True a b
+
+equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> IO Bool
+equal_fmt fmt a b = do
+    ok <- equal a b
+    let (pa, pb) = (fmt a, fmt b)
+    unless (ok || Text.null pa && Text.null pb) $
+        Text.IO.putStrLn $ show_diff pa pb
+    return ok
+    where
+    show_diff pretty_a pretty_b = fmt_lines "/="
+        (Text.lines $ highlight_lines color diff_a pretty_a)
+        (Text.lines $ highlight_lines color diff_b pretty_b)
+        where
+        color = failure_color
+        (diff_a, diff_b) = diff_ranges pretty_a pretty_b
 
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
