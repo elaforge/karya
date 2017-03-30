@@ -252,7 +252,10 @@ strip_stack event = modified $ event { _stack = Nothing }
 -- * style
 
 modify_style :: (Style.StyleId -> Style.StyleId) -> Event -> Event
-modify_style f event = event { _style = f (style event) }
+modify_style modify event
+    | new_style == style event = event
+    | otherwise = event { _style = new_style }
+    where new_style = modify (style event)
 
 -- | If this was an integrated event, it might have the unmodified style.
 -- Set it to modified now so I don't have to wait for the next integration.
