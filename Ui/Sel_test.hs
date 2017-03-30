@@ -9,6 +9,6 @@ import qualified Ui.Sel as Sel
 
 test_union = do
     let f = Sel.union
-        sel = Sel.Selection
+        sel st sp ct cp = Sel.Selection st sp ct cp Sel.Positive
     equal (f (sel 1 1 2 2) (sel 3 3 4 4)) (sel 1 1 4 4)
     equal (f (sel 3 3 4 4) (sel 1 1 2 2)) (sel 4 4 1 1)

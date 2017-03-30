@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, MultiWayIf #-}
 {- | Event editing commands.  This is where generic event editing commands go.
     More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.
@@ -15,6 +15,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
@@ -164,29 +165,30 @@ cmd_move_event_backward = move_event $ \pos events ->
             | otherwise -> Just next
         [] -> Nothing
 
-move_event :: Cmd.M m =>
-    (ScoreTime -> Events.Events -> Maybe Event.Event) -> m ()
+move_event :: Cmd.M m => (ScoreTime -> Events.Events -> Maybe Event.Event)
+    -> m ()
 move_event modify = do
-    (block_id, _, track_ids, pos, _) <- Selection.tracks
+    (block_id, _, track_ids, _) <- Selection.tracks
+    pos <- Selection.point
     forM_ track_ids $ \track_id -> do
         events <- Ui.get_events track_id
         whenJust (modify pos events) $ \event -> do
-            Ui.remove_event track_id (Event.start event)
+            Ui.remove_event track_id event
             Ui.insert_block_events block_id track_id [Event.move_to pos event]
-
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
 --
 -- If the selection is on an event, the previous or next one (depending on
 -- 'Event.Orientation') is extended instead.  This is more useful than reducing
--- the event to 0, which has its own cmd anyway.
+-- the event to 0, which has its own cmd anyway.  If the selection is between
+-- a positive and negative event, the one corresponding to 'Sel.orientation' is
+-- selected.
 cmd_set_duration :: Cmd.M m => m ()
 cmd_set_duration = modify_event_near_point modify
     where
     modify (start, end) event
-        | Event.duration event == 0 = event
-        | Event.is_negative event = Event.set_start start event
+        | Event.is_negative event = set_dur (start - Event.start event) event
         | otherwise = set_dur (end - Event.start event) event
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
@@ -194,40 +196,38 @@ cmd_set_duration = modify_event_near_point modify
 modify_event_near_point :: Cmd.M m =>
     ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event) -> m ()
 modify_event_near_point modify = do
-    (_, sel) <- Selection.get
+    sel <- snd <$> Selection.get
     if Sel.is_point sel
-        then prev_or_next (Sel.start_pos sel)
+        then prev_or_next (Selection.sel_point sel) =<< Cmd.get_focused_block
         else selection (Sel.range sel)
     where
-    selection range = ModifyEvents.selection_expanded $ ModifyEvents.events $
-        return . Events.clip_negative_events . map (modify range)
-    -- TODO Should I make this ModifyEvents.prev_or_next?
-    prev_or_next pos = do
-        (block_id, tracknums, track_ids, _, _) <- Selection.tracks
-        forM_ (zip tracknums track_ids) $ \(tracknum, track_id) ->
-            unlessM (Ui.track_collapsed block_id tracknum) $
-                track_point pos track_id
-    track_point pos track_id = do
-        events <- Ui.get_events track_id
-        whenJust (event_around pos events) $ \event -> do
-            Ui.remove_event track_id (Event.start event)
-            Ui.insert_event track_id $ modify (pos, pos) event
+    -- TODO Should I integrate this into ModifyEvents?
+    prev_or_next pos block_id = do
+        tracks <- avoid_exact_match
+        forM_ tracks $ \(track_id, event) -> do
+            tracknum <- Ui.get_tracknum_of block_id track_id
+            -- It's confusing to modify collapsed tracks because you don't
+            -- see the change.  TODO this is recreating the stuff in
+            -- ModifyEvents.
+            unlessM (Ui.track_collapsed block_id tracknum) $ do
+                Ui.remove_event track_id event
+                Ui.insert_event track_id $ modify (pos, pos) event
 
-event_around :: TrackTime -> Events.Events -> Maybe Event.Event
-event_around pos events = case Events.split_lists pos events of
-    (pre:_, _) | Event.overlaps pos pre && pos /= Event.trigger pre -> Just pre
-    --  |--->    |---> => take pre
-    (pre:_, posts) | positive pre && maybe True positive (Seq.head posts) ->
-        Just pre
-    --  <---|    <---| => take post
-    (pres, post:_) | negative post && maybe True negative (Seq.head pres) ->
-        Just post
-    --  |--->    <---| => take closer, favor pre
-    (pre:_, post:_) | positive pre && negative post ->
-        Just $ Seq.min_on (abs . subtract pos . Event.trigger) pre post
-    --  <---|    |---> => in the middle, do nothing
-    _ -> Nothing
+    selection range = ModifyEvents.selection_expanded $ ModifyEvents.events $
+        return . map (modify range)
+
+-- | Like 'Selection.events_around', but if a point selection is on an event
+-- start, find a neighbor instead of matching that event.
+avoid_exact_match :: Cmd.M m => m [(TrackId, Event.Event)]
+avoid_exact_match = do
+    pos <- Selection.sel_point . snd <$> Selection.get
+    Seq.map_maybe_snd (select pos) <$> Selection.events_around
     where
+    select pos triple = case triple of
+        (_, [within], _) | Event.start within /= pos -> Just within
+        (prev:_, [within], _) | positive within && positive prev -> Just prev
+        (_, [within], next:_) | negative within && negative next -> Just next
+        _ -> Nothing
     positive = Event.is_positive
     negative = Event.is_negative
 
@@ -236,11 +236,6 @@ event_around pos events = case Events.split_lists pos events of
     If the event is non-zero, then make it zero.  Otherwise, set its end to the
     cursor.  Unless the cursor is on the event start, and then extend it by
     a timestep.
-
-    Previously I would \"zero\" negative duration to the 'Event.trigger', like
-    'cmd_set_duration'.  But because this is actually moving the start time, it
-    will delete a next event that starts where this one ends, which is
-    confusing.
 
     Also I previously used the same event selection strategy as
     'cmd_set_duration', which avoided the awkward point selection on zero-dur
@@ -258,15 +253,19 @@ cmd_toggle_zero_timestep = do
 toggle_zero_timestep :: Cmd.M m => BlockId -> TrackNum
     -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
 toggle_zero_timestep block_id tracknum start end event
-    | Event.duration event /= 0 = return $ Event.set_duration 0 event
-    | start == end && start == Event.trigger event = do
+    | Event.duration event /= 0 = return $
+        Event.set_duration (if Event.is_negative event then -0 else 0) event
+    | start == end && start == Event.start event = do
         step <- Cmd.get_current_step
-        maybe_pos <- TimeStep.step_from 1 step block_id tracknum start
+        maybe_pos <- TimeStep.step_from
+            (if Event.is_negative event then -1 else 1) step block_id tracknum
+            start
         case maybe_pos of
             Nothing -> return event
             Just pos -> return $ Event.set_end pos event
-    | end > Event.start event = return $ Event.set_end end event
-    | otherwise = return event
+    | Event.is_negative event =
+        return $ Event.set_duration (start - Event.start event) event
+    | otherwise = return $ Event.set_duration (end - Event.start event) event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -276,7 +275,8 @@ toggle_zero_timestep block_id tracknum start end event
 -- if it overlaps with an event, it will affect that one.  Otherwise, it
 -- affects the next positive event or the previous negative event.  The idea
 -- is that it's not very useful to clip an event to 0 by moving it past its
--- end, so let's not do that.
+-- end, so let's not do that.  So it's like set_duration backwards: at does
+-- nothing, otherwise get next positive or prev negative.
 --
 -- Unlike 'cmd_set_duration', I can't think of a way for this to make sense
 -- with a non-point selection, so it uses the point position.
@@ -286,25 +286,15 @@ toggle_zero_timestep block_id tracknum start end event
 -- there a more orthogonal organization?
 cmd_set_start :: Cmd.M m => m ()
 cmd_set_start = do
-    (_, sel) <- Selection.get
-    (_, _, track_ids, _, _) <- Selection.tracks
-    let pos = Selection.point sel
-    forM_ track_ids $ \track_id -> do
-        (pre, post) <- Events.split_lists pos <$> Ui.get_events track_id
-        let set = set_beginning track_id pos
-        case (pre, post) of
-            (prev:_, _) | Event.overlaps pos prev -> set prev
-            (_, next:_) | Event.overlaps pos next -> set next
-            (_, next:_) | Event.is_positive next -> set next
-            (prev:_, _) | Event.is_negative prev -> set prev
-            _ -> return ()
+    pos <- Selection.point
+    mapM_ (process pos) =<< Selection.opposite_neighbor
     where
-    set_beginning track_id start event = do
-        let end = (if Event.is_positive event then max else min)
-                (Event.end event) start
-            dur = if Event.duration event == 0 then 0 else end - start
-        Ui.remove_event track_id (Event.start event)
-        Ui.insert_event track_id $ place start dur event
+    process pos (track_id, event) = do
+        Ui.remove_event track_id event
+        Ui.insert_event track_id $ set_start pos event
+    set_start p event
+        | Event.duration event == 0 = Event.move_to p event
+        | otherwise = Event.set_start p event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
@@ -322,42 +312,34 @@ cmd_join_events = mapM_ process =<< Selection.events_around
     where
     -- If I only selected one, join with the next.  Otherwise, join select
     -- first to last.
-    process (track_id, (_, [evt1], evt2:_)) = join track_id evt1 evt2
-    process (track_id, (_, events@(_ : _ : _), _)) =
-        join track_id (head events) (last events)
-    process _ = return ()
+    process (track_id, selected) = case selected of
+        (_, [cur], next:_) | Event.is_positive cur -> join track_id cur next
+        (prev:_, [cur], _) | Event.is_negative cur -> join track_id prev cur
+        (_, events@(_:_:_), _) -> join track_id (head events) (last events)
+        _ -> return ()
     join track_id evt1 evt2 =
-        -- Yes, this deletes any "backwards" events in the middle, but that
-        -- should be ok.
         case (Event.is_positive evt1, Event.is_positive evt2) of
             (True, True) -> do
-                remove_range track_id evt1 evt2
+                mapM_ (Ui.remove_event track_id) [evt1, evt2]
                 Ui.insert_event track_id $
                     set_dur (Event.end evt2 - Event.start evt1) evt1
             (False, False) -> do
-                remove_range track_id evt1 evt2
+                mapM_ (Ui.remove_event track_id) [evt1, evt2]
                 Ui.insert_event track_id $ if Event.duration evt2 == 0
                     then evt2
-                    else Event.place (Event.start evt1)
-                        (Event.end evt2 - Event.start evt1) evt2
+                    else Event.set_end (Event.end evt1) evt2
             _ -> return () -- no sensible way to join these
-    remove_range track_id evt1 evt2 = do
-        Ui.remove_event_range track_id
-            (Events.Positive (Event.start evt1) (Event.end evt2))
-        -- If evt2 is zero dur, the above half-open range won't get it.
-        when (Event.duration evt2 == 0) $
-            Ui.remove_event track_id (Event.start evt2)
 
 
 -- | Split the events under the cursor.
 cmd_split_events :: Cmd.M m => m ()
 cmd_split_events = do
-    (_, _, _, p) <- Selection.get_insert
+    p <- Selection.point
     ModifyEvents.overlapping $ ModifyEvents.events $
         return . concatMap (split p)
     where
     split p event
-        | not (Event.overlaps p event) || p == Event.trigger event = [event]
+        | not (Event.overlaps p event) || p == Event.start event = [event]
         | otherwise =
             [ Event.set_duration (p - Event.start event) event
             , Event.place p (Event.end event - p) event
@@ -369,15 +351,13 @@ set_dur dur evt
     | Event.duration evt == 0 = evt
     | otherwise = Event.set_duration dur evt
 
-place :: TrackTime -> TrackTime -> Event.Event -> Event.Event
-place start dur = Event.move_to start . set_dur dur
-
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
 -- a point, insert one timestep.
 cmd_insert_time :: Cmd.M m => m ()
 cmd_insert_time = do
-    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, range) <- Selection.tracks
+    let (start, end) = Events.range_times range
     (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id -> do
         events <- Ui.get_events track_id
@@ -385,6 +365,8 @@ cmd_insert_time = do
             (_, []) -> return ()
             (_, events@(event:_)) -> do
                 Ui.remove_from track_id (min (Event.start event) start)
+                -- The above won't get a negative event at start.
+                Ui.remove_event track_id event
                 Ui.insert_block_events block_id track_id $
                     map (insert_event_time start (end-start)) events
 
@@ -392,15 +374,22 @@ cmd_insert_time = do
 -- within the event's duration.
 insert_event_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 insert_event_time start shift event
-    | Event.start event >= start = Event.move (+shift) event
-    | Event.end event > start = Event.modify_duration (+shift) event
-    | otherwise = event
+    | Event.is_positive event = if
+        | start <= Event.start event -> Event.move (+shift) event
+        | start < Event.end event -> Event.modify_duration (+shift) event
+        | otherwise -> event
+    | otherwise = if
+        | start <= Event.end event -> Event.move (+shift) event
+        | start < Event.start event ->
+            Event.set_start (Event.start event + shift) event
+        | otherwise -> event
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
 cmd_delete_time :: Cmd.M m => m ()
 cmd_delete_time = do
-    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, range) <- Selection.tracks
+    let (start, end) = Events.range_times range
     (start, end) <- point_to_timestep tracknums start end
     when (end > start) $ forM_ track_ids $ \track_id ->
         delete_time block_id track_id start (end-start)
@@ -421,41 +410,34 @@ delete_time block_id track_id start dur = do
         (_, []) -> return ()
         (_, events@(event:_)) -> do
             Ui.remove_from track_id (min (Event.start event) start)
+            -- The above won't get a negative event at start.
+            Ui.remove_event track_id event
             Ui.insert_block_events block_id track_id
                 (mapMaybe (delete_event_time start dur) events)
 
 -- | Modify the event to delete time, shortening it the start time falls within
--- the event's duration, or removing it entirely if its 'Event.trigger' was
+-- the event's duration, or removing it entirely if its 'Event.start' was
 -- deleted.
+--
+-- This is more complicated than 'insert_event_time' because it can delete
+-- events, and because the event may only be partially shortened if the range
+-- overlaps its end.
 delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
 delete_event_time start shift event
-    -- Why is this SO COMPLICATED?
-    -- if overlaps trigger, then delete
-    | Event.is_positive event && overlaps (Event.start event) = Nothing
-    -- Negative events use an end range, except I don't want to delete
-    -- a -0 dur when it touches the end, only when it passses it.
-    | Event.is_negative event && Event.duration event > 0
-        && overlaps_end (Event.end event) = Nothing
-    | Event.is_negative event && Event.duration event == 0
-        && overlaps (Event.end event) = Nothing
-    -- if within, then subtract dur
-    | Event.start event < start && end <= Event.end event =
-        Just $ Event.modify_duration (subtract shift) event
-    -- if overlaps end of positive, shorten to the end
-    | Event.is_positive event && overlaps (Event.end event) =
-        Just $ Event.modify_duration (subtract (Event.end event - start)) event
-    -- if overlap start of negative, then place
-    | Event.is_negative event && overlaps (Event.start event) =
-        Just $ Event.place start
-            (Event.duration event - (end - Event.start event)) event
-    -- if before, then move.
-    | end <= Event.start event = Just $ Event.move (subtract shift) event
-    -- if after, then leave it alone
-    | otherwise {- start >= Event.end event -} = Just event
-    where
-    end = start + shift
-    overlaps p = start <= p && p < end
-    overlaps_end p = start < p && p <= end
+    | Event.is_positive event = if
+        | end <= Event.start event -> Just $ Event.move (subtract shift) event
+        | start < Event.start event -> Nothing
+        | start < Event.end event -> Just $ Event.set_duration
+            (max (Event.duration event - shift) (start - Event.start event))
+            event
+        | otherwise -> Just event
+    | otherwise = if
+        | end <= Event.end event -> Just $ Event.move (subtract shift) event
+        | end < Event.start event -> Just $
+            Event.set_end start $ Event.move (subtract shift) event
+        | start < Event.start event -> Nothing
+        | otherwise -> Just event
+    where end = start + shift
 
 -- | If the range is a point, then expand it to one timestep.
 point_to_timestep :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
@@ -473,8 +455,8 @@ point_to_timestep [] start end = return (start, end)
 -- a range, clear all events within its half-open extent.
 cmd_clear_selected :: Cmd.M m => m ()
 cmd_clear_selected = do
-    (_, _, track_ids, start, end) <- Selection.tracks
-    clear_range track_ids (Events.range Event.Positive start end)
+    (_, _, track_ids, range) <- Selection.tracks
+    clear_range track_ids range
 
 clear_range :: Ui.M m => [TrackId] -> Events.Range -> m ()
 clear_range track_ids range =
@@ -531,29 +513,30 @@ cmd_invert_orientation = do
     let is_control = fmap ParseTitle.is_control_track . Ui.get_track_title
     ifM (allM is_control track_ids) invert_events invert_notes
 
+-- TODO swap 0 and -0.
 invert_events :: Cmd.M m => m ()
-invert_events = ModifyEvents.selection $ ModifyEvents.event $ \event ->
-    Event.set_orientation (Event.invert (Event.orientation event)) event
+invert_events = ModifyEvents.selection $ ModifyEvents.event $ \e ->
+    Event.move (+ Event.duration e) $ Event.modify_duration negate e
 
 invert_notes :: Cmd.M m => m ()
 invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
     where
-    invert note = ModifyNotes.orientation %= Event.invert $
-        ModifyNotes.controls %= fmap (invert_control note) $
-        note
+    invert note = invert_note $
+        ModifyNotes.controls %= fmap (invert_control note) $ note
+    invert_note note = ModifyNotes.start %= (+ ModifyNotes.note_duration note) $
+        ModifyNotes.duration %= negate $ note
+    -- If there's exactly one event at the start time, I can flip it with the
+    -- note.
     invert_control note events = case Events.ascending events of
-        [event]
-            | zero_dur event && positive
-                    && Event.start event == ModifyNotes.note_start note ->
-                Events.singleton $
-                    Event.move_to (ModifyNotes.note_end note) event
-            | zero_dur event && Event.end event == ModifyNotes.note_end note ->
-                Events.singleton $
-                    Event.move_to (ModifyNotes.note_start note) event
+        [event] | Event.duration event == 0 && Event.start event == start ->
+            Events.singleton $ Event.set_duration dur $
+                Event.move_to (ModifyNotes.note_end note) event
         _ -> events
         where
-        positive = ModifyNotes.note_orientation note == Event.Positive
-        zero_dur = (==0) . Event.duration
+        dur = case ModifyNotes.note_orientation note of
+            Event.Positive -> -0
+            Event.Negative -> 0
+        start = ModifyNotes.note_start note
 
 -- * modify text
 
@@ -637,21 +620,31 @@ replace_last_call = open_floating $ \text -> case Text.breakOnEnd "|" text of
         let space = " " `Text.isPrefixOf` post
         in (Text.length pre + (if space then 1 else 0), Text.length text)
 
+-- | If a selection is used to create an event, this is where the event's start
+-- is.
+edit_point :: Sel.Selection -> TrackTime
+edit_point sel = case Sel.orientation sel of
+    Sel.Negative -> Sel.max sel
+    _ -> Sel.min sel
+
 -- | Open a floating text entry with a selection set.
 open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
 open_floating selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert
-    let pos = Sel.min sel
-    text <- fromMaybe "" <$> event_text_at track_id pos
+    let pos = edit_point sel
+    text <- fromMaybe "" <$>
+        event_text_at track_id pos (Sel.event_orientation sel)
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)
 
-event_text_at :: Ui.M m => TrackId -> ScoreTime -> m (Maybe Text)
-event_text_at track_id = fmap (fmap Event.text) . event_at track_id
+event_text_at :: Ui.M m => TrackId -> TrackTime -> Event.Orientation
+    -> m (Maybe Text)
+event_text_at track_id pos = fmap (fmap Event.text) . event_at track_id pos
 
-event_at :: Ui.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
-event_at track_id pos = Events.at pos <$> Ui.get_events track_id
+event_at :: Ui.M m => TrackId -> TrackTime -> Event.Orientation
+    -> m (Maybe Event.Event)
+event_at track_id pos orient = Events.at pos orient <$> Ui.get_events track_id
 
 -- ** handle floating input msg
 
@@ -666,25 +659,24 @@ handle_floating_input always_zero_dur msg = do
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
     track_id <- Cmd.require "handle_floating_input on non-event track"
         =<< Ui.event_track_at block_id tracknum
-    old_text <- event_text_at track_id start
+    old_text <- event_text_at track_id start (Event.orientation_of dur)
     let zero_dur = always_zero_dur || " " `Text.isPrefixOf` text
     EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
         zero_dur False (const (Just (Text.strip text), False))
     -- 0 dur means a point selection, which means to use the time step.
-    insert_recorded_action '.' $ make_action old_text (Text.strip text)
-        (if zero_dur then Just 0 else if dur == 0 then Nothing else Just dur)
+    insert_recorded_action '.' $ make_action old_text (Text.strip text) $ if
+        | zero_dur -> Just (if ScoreTime.is_negative dur then -0 else 0)
+        | dur == 0 -> Nothing
+        | otherwise -> Just dur
     when (old_text == Nothing) $
-        try_set_call_duration block_id track_id start
+        try_set_call_duration block_id track_id start (Event.orientation_of dur)
     return Cmd.Done
 
 -- | Set the event's duration to its CallDuration, if it has one.
---
--- Calling this from 'handle_floating_input' unconditionally means that every
--- edit to an event will potentially resize it.  Perhaps I'll want to scale it
--- back so that only adding a new event has this behaviour.
-try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m ()
-try_set_call_duration block_id track_id pos =
-    whenJustM (event_at track_id pos) $ \event ->
+try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime
+    -> Event.Orientation -> m ()
+try_set_call_duration block_id track_id pos orient =
+    whenJustM (event_at track_id pos orient) $ \event ->
         whenJustM (lookup_call_duration block_id track_id event) $ \dur ->
             when (dur /= Event.duration event) $
                 Ui.insert_event track_id (Event.set_duration dur event)

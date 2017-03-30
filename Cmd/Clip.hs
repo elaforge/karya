@@ -116,21 +116,20 @@ selected_to_block block_id selected = do
             (Track.track title (Events.map_events Event.strip_stack events))
 
 get_selection :: Cmd.M m => Selection.Tracks -> m Selected
-get_selection (block_id, tracknums, _, start, end) = do
+get_selection (block_id, tracknums, _, range) = do
     tracks <- mapM Ui.get_track
         =<< mapMaybeM (Ui.event_track_at block_id) tracknums
     return $ map extract tracks
     where
-    extract track = (Track.track_title track,
-        select_events start end (Track.track_events track))
+    extract track =
+        ( Track.track_title track
+        , select_events range (Track.track_events track)
+        )
 
-select_events :: ScoreTime -> ScoreTime -> Events.Events -> Events.Events
-select_events start end events =
-    Events.map_events (Event.move (subtract start)) selected
-    where
-    selected = if start == end
-        then maybe Events.empty Events.singleton (Events.at start events)
-        else Events.in_range (Events.Positive start end) events
+select_events :: Events.Range -> Events.Events -> Events.Events
+select_events range =
+    Events.map_events (Event.move (subtract (Events.range_start range)))
+    . Events.in_range range
 
 -- * paste
 
@@ -142,7 +141,7 @@ cmd_paste_overwrite :: Cmd.M m => m ()
 cmd_paste_overwrite = do
     (start, end, track_events) <- paste_info
     forM_ track_events $ \(track_id, events) -> do
-        Ui.remove_event_range track_id (Events.Positive start end)
+        Ui.remove_event_range track_id (Events.Range start end)
         Ui.insert_events track_id events
 
 cmd_paste_merge :: Cmd.M m => m ()
@@ -191,7 +190,7 @@ cmd_paste_stretch = do
             let stretched = map (stretch (start, end) (clip_s, clip_e)
                     . Events.ascending) events
             forM_ (zip track_ids stretched) $ \(track_id, stretched) -> do
-                Ui.remove_event_range track_id (Events.Positive start end)
+                Ui.remove_event_range track_id (Events.Range start end)
                 Ui.insert_events track_id stretched
         _ -> return ()
 
@@ -277,7 +276,8 @@ clip_to_selection start end
 get_paste_area :: Cmd.M m =>
     m ([TrackId], [TrackId], ScoreTime, ScoreTime, ScoreTime)
 get_paste_area = do
-    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, range) <- Selection.tracks
+    let (start, end) = Events.range_times range
     ruler_end <- Ui.block_ruler_end block_id
     clip_block <- Ui.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.

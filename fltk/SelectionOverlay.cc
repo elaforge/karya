@@ -17,6 +17,40 @@
 const static int selection_min_size = 2;
 
 
+static void
+draw_arrow(int x, int y, const Selection &sel)
+{
+    const int sz = SelectionOverlay::selection_point_size;
+    // Cur track and cur time gets an arrow.  Not cur track gets no arrows.
+    // Hopefully it's visible enough if it's a point selection.
+    switch (sel.orientation) {
+    case Selection::None:
+        break;
+    case Selection::Positive:
+        fl_color(sel.color.fl());
+        fl_polygon(
+            x, y,
+            x+sz, y,
+            x, y+sz);
+        break;
+    case Selection::Negative:
+        fl_color(sel.color.fl());
+        fl_polygon(
+            x, y-sz,
+            x+sz, y,
+            x, y);
+        break;
+    case Selection::Both:
+        fl_color(sel.color.fl());
+        fl_polygon(
+            x, y-sz,
+            x+sz, y,
+            x, y+sz);
+        break;
+    }
+}
+
+
 void
 SelectionOverlay::draw(int x, int y, int w, const Zoom &zoom)
 {
@@ -35,31 +69,14 @@ SelectionOverlay::draw(int x, int y, int w, const Zoom &zoom)
             // line.
             sel_rect = f_util::clip_rect(IRect(x, start, w, height + 1));
             fl_line_style(FL_SOLID, 0);
+            // TODO darken for orientation == Negative?
             alpha_rectf(sel_rect, sel.color);
 
             // Darken the the cur pos a bit, and make it non-transparent.
             fl_color(sel.color.brightness(0.5).fl());
             int cur = y + zoom.to_pixels(sel.cur - zoom.offset);
             fl_line(x + 2, cur, x + w - 2, cur);
-            if (sel.is_point() || sel.draw_arrow) {
-                // Draw a little arrow bevel thingy, so you can see a point
-                // selection, or see the cur track for a non-point selection.
-                // 'damage_range' will extend the damage a bit to cover this.
-                const int sz = SelectionOverlay::selection_point_size;
-                if (sel.draw_arrow) {
-                    fl_color(sel.color.fl());
-                    fl_polygon(
-                        x, cur - sz,
-                        x + sz, cur,
-                        x, cur + sz);
-                } else {
-                    fl_color(sel.color.fl());
-                    fl_polygon(
-                        x, cur - sz,
-                        x + sz, cur,
-                        x, cur);
-                }
-            }
+            draw_arrow(x, cur, sel);
         }
     }
 }

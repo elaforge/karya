@@ -224,12 +224,6 @@ end = Event.end . event
 real_end :: PassedArgs a -> Derive.Deriver RealTime
 real_end = Derive.real . end
 
-trigger :: PassedArgs a -> TrackTime
-trigger = Event.trigger . event
-
-real_trigger :: PassedArgs a -> Derive.Deriver RealTime
-real_trigger = Derive.real . trigger
-
 -- | The start of the next event, or the end of the block if there is no next
 -- event.
 --

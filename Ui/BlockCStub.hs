@@ -129,12 +129,18 @@ dump = return []
 
 -- ** selection
 
+-- TODO copy and pasted with "Ui.BlockC".  Put them in Ui.BlockCTypes if there
+-- are ever any more.
+
 -- | This is the low level version of 'Sel.Selection'.  It only applies to
 -- a single track, and has an explicit color.
 data Selection = Selection {
     sel_color :: !Color.Color
     , sel_start :: !TrackTime
     , sel_cur :: !TrackTime
-    , sel_draw_arrow :: !Bool
+    , sel_orientation :: !SelectionOrientation
     }
     deriving (Eq, Ord, Show)
+
+data SelectionOrientation = None | Positive | Negative | Both
+    deriving (Show, Eq, Ord, Enum)

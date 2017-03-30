@@ -42,7 +42,7 @@ insert instrument realize_patterns akshara_dur korvai = do
     (_, _, track_id, at) <- Selection.get_insert
     events <- map (Event.move (+at)) . Events.ascending <$>
         realize_korvai instrument realize_patterns stroke_dur korvai
-    Ui.remove_events track_id (map Event.start events)
+    Ui.remove_events track_id events
     Ui.insert_events track_id events
 
 realize_korvai :: (Pretty.Pretty stroke, Ui.M m) =>

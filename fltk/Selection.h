@@ -13,9 +13,13 @@
 // selection in Ui.Types.Selection, that one is a contiguous block that
 // can cover multiple tracks.
 struct Selection {
-    Selection() : start(ScoreTime::invalid), cur(ScoreTime::invalid) {}
-    Selection(Color color, ScoreTime start, ScoreTime cur, bool draw_arrow)
-        : color(color), start(start), cur(cur), draw_arrow(draw_arrow)
+    enum Orientation { None, Positive, Negative, Both };
+
+    Selection() : start(ScoreTime::invalid), cur(ScoreTime::invalid),
+        orientation(None) {}
+    Selection(Color color, ScoreTime start, ScoreTime cur,
+            Orientation orientation)
+        : color(color), start(start), cur(cur), orientation(orientation)
     {}
     bool empty() const;
     ScoreTime low() const { return std::min(start, cur); }
@@ -24,8 +28,8 @@ struct Selection {
 
     Color color;
     ScoreTime start, cur;
-    // Draw an arrow at the 'cur' end of the selection.
-    bool draw_arrow;
+    // This affects arrow existence or direction.
+    Orientation orientation;
 };
 
 std::ostream &operator<<(std::ostream &os, const Selection &sel);

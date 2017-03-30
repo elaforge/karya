@@ -244,7 +244,9 @@ sized_view block_id rect = do
             _ -> Just 1
     whenJust maybe_tracknum $ \tracknum ->
         Ui.set_selection view_id Config.insert_selnum $
-            Just $ Sel.point tracknum 0
+            Just $ Sel.point tracknum 0 Sel.Positive
+            -- TODO I should use the current orientation, but that would make
+            -- this and all its callers dependent on Cmd, or need another arg.
     return view_id
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
@@ -308,7 +310,7 @@ splice_below = do
     -- I want to add a track to the right of the selected track.  Taking the
     -- maximum means I should splice after a merged pitch track, if there is
     -- one.
-    (block_id, sel_tracknums, _, _, _) <- Selection.tracks
+    (block_id, sel_tracknums, _, _) <- Selection.tracks
     let sel_tracknum = maximum (1 : sel_tracknums)
     block <- Ui.get_block block_id
     let tracknum = track_after block sel_tracknum
@@ -360,7 +362,7 @@ splice_above_all = do
 -- ancestor.
 splice_above_ancestors :: Cmd.M m => m TrackId
 splice_above_ancestors = do
-    (block_id, tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _) <- Selection.tracks
     tree <- TrackTree.track_tree_of block_id
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require "no selected tracks" $ Seq.minimum ancestors
@@ -509,12 +511,12 @@ named_track block_id ruler_id tracknum name track = do
 
 remove_selected_tracks :: Cmd.M m => m ()
 remove_selected_tracks = do
-    (block_id, tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _) <- Selection.tracks
     mapM_ (Ui.remove_track block_id) (reverse tracknums)
 
 destroy_selected_tracks :: Cmd.M m => m ()
 destroy_selected_tracks = do
-    (block_id, tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _) <- Selection.tracks
     -- Deleting each track will decrease the tracknum of the ones after it.
     mapM_ (destroy_track block_id) (zipWith (-) tracknums [0..])
 

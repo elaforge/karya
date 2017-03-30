@@ -45,8 +45,8 @@ import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Derive.ParseTitle as ParseTitle
 import Global
@@ -137,11 +137,20 @@ extract_note_events exclude_start start end events =
     (if exclude_start then exclude_s else id)
         (Events.descending pre, within, Events.ascending post)
     where
-    (pre, within, post) =
-        Events.split_range (Events.range Event.Positive start end) events
-    exclude_s (pre, within, post) = case Events.at start within of
-        Just event -> (event : pre, Events.remove_at start within, post)
-        Nothing -> (pre, within, post)
+    -- TODO pass Events.Range instead of (start, end) so I can get -0 slices
+    -- right.
+    range
+        | start == end = Events.Point start Event.Positive
+        | otherwise = Events.Range start end
+    (pre, within, post) = Events.split_range range events
+    exclude_s (pre, within, post) =
+        case Events.at start Event.Positive within of
+            Just event ->
+                ( event : pre
+                , Events.remove (Events.Point start Event.Positive) within
+                , post
+                )
+            Nothing -> (pre, within, post)
 
 extract_control_events :: ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
@@ -174,7 +183,8 @@ slice_notes :: Bool -- ^ include a note at the end
 slice_notes include_end start end tracks
     | null tracks || start > end = []
     | otherwise = filter (not . null) $
-        map (mapMaybe strip_note . slice_track) $ concatMap note_tracks tracks
+        map (mapMaybe strip_note . slice_track) $
+        concatMap note_tracks tracks
     where
     note_tracks :: TrackTree.EventsNode -> [Sliced]
     note_tracks node@(Tree.Node track subs)
@@ -192,9 +202,11 @@ slice_notes include_end start end tracks
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
     slice1 tree (prev, (n_start, n_end, n_next)) =
-        (n_start, n_end - n_start,
-            map (fmap (shift_tree n_start n_next)) $
-            map (slice prev_zero n_start n_end Nothing) tree)
+        ( n_start
+        , n_end - n_start
+        , map (fmap (shift_tree n_start n_next)) $
+            map (slice prev_zero n_start n_end Nothing) tree
+        )
         where
         -- exclude_start if 's' is still the original 'start', or if the
         -- previous slice was zero dur and is the same as 'start', which means
@@ -234,21 +246,27 @@ event_ranges include_end start end = nonoverlapping . to_ranges
         . events_in_range include_end start end
         . TrackTree.track_events
     range (event, next) =
-        (Event.min event, Event.max event,
-            max (Event.max event) (maybe end Event.min next))
+        ( Event.min event, Event.max event
+        , max (Event.max event) (maybe end Event.min next)
+        )
     nonoverlapping [] = []
     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
     overlaps (s1, e1, _) (s2, e2, _) = not $ e1 <= s2 || e2 <= s1
 
+-- TODO maybe I can remove include_end if I require the next event to be
+-- negative.
 events_in_range :: Bool -> TrackTime -> TrackTime -> Events.Events
     -> Events.Events
 events_in_range include_end start end events
-    | start == end = maybe mempty Events.singleton $ Events.at start events
-    | include_end =
-        maybe within (\e -> Events.insert [e] within) (Events.at end post)
+    | include_end = maybe within (\e -> Events.insert [e] within)
+        (Events.at end Event.Positive post)
     | otherwise = within
     where
-    (_, within, post) = Events.split_range (Events.Positive start end) events
+    (_, within, post) = Events.split_range range events
+    -- TODO since this is Positive I think it doesn't treat -0 events
+    -- correctly.  I could pass Events.Range from the caller.
+    range = if start == end then Events.Point start Event.Positive
+        else Events.Range start end
 
 strip_note :: Note -> Maybe Note
 strip_note (start, dur, tree)

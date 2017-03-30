@@ -80,7 +80,7 @@ mkstates_blocks blocks =
         root_id : _ <- UiTest.mkblocks blocks
         view_id <- UiTest.mkview root_id
         Ui.set_selection view_id Config.insert_selnum $
-            Just $ Sel.selection 1 0 1 0
+            Just $ Sel.selection 1 0 1 0 Sel.Positive
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.

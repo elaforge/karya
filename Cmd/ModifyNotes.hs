@@ -55,8 +55,8 @@ import qualified Util.Tree
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -76,7 +76,6 @@ import Types
 data Note = Note {
     note_start :: !TrackTime
     , note_duration :: !TrackTime
-    , note_orientation :: !Event.Orientation
     , note_text :: !Text
     -- | This is the contents of the child tracks, where they overlap this
     -- Note's range.
@@ -92,8 +91,6 @@ start = Lens.lens note_start
     (\f r -> r { note_start = f (note_start r) })
 duration = Lens.lens note_duration
     (\f r -> r { note_duration = f (note_duration r) })
-orientation = Lens.lens note_orientation
-    (\f r -> r { note_orientation = f (note_orientation r) })
 text = Lens.lens note_text
     (\f r -> r { note_text = f (note_text r) })
 controls = Lens.lens note_controls
@@ -104,12 +101,21 @@ index = Lens.lens note_index
 end = Lens.lens note_end
     (\f r -> r { note_start = f (note_end r) - note_duration r })
 
+note_min :: Note -> TrackTime
+note_min n = min (note_start n) (note_end n)
+
+note_max :: Note -> TrackTime
+note_max n = max (note_start n) (note_end n)
+
+note_orientation :: Note -> Event.Orientation
+note_orientation = Event.orientation_of . note_duration
+
 -- | Each note has an Index, which indicates which of the selected note tracks
 -- it came from, or should be written to.
 type Index = Int
 
 instance Pretty.Pretty Note where
-    format (Note start dur orientation text controls index control_track_ids) =
+    format (Note start dur text controls index control_track_ids) =
         Pretty.record title $
             (if text == mempty then [] else [("text", Pretty.format text)]) ++
             [ ("controls", Pretty.format controls)
@@ -117,14 +123,11 @@ instance Pretty.Pretty Note where
             , ("control_track_ids", Pretty.format control_track_ids)
             ]
         where
-        title = Pretty.text "Note" <> minus <> Pretty.format (start, dur)
-        minus = case orientation of
-            Event.Positive -> mempty
-            Event.Negative -> "-"
+        title = Pretty.text "Note" <> Pretty.format (start, dur)
 
 notes_overlap :: Note -> Note -> Bool
 notes_overlap n1 n2 =
-    not $ note_start n1 >= note_end n2 || note_end n1 <= note_start n2
+    not $ note_min n1 >= note_max n2 || note_max n1 <= note_min n2
 
 -- * controls
 
@@ -183,7 +186,7 @@ selection :: Cmd.M m => ModifyNotes m -> m ()
 selection modify = do
     old_notes <- selected_notes
     block_id <- Cmd.get_focused_block
-    new_notes <- mapM verify =<< modify block_id old_notes
+    new_notes <- modify block_id old_notes
     -- Clear selected events before merging in new ones.
     let ranges = remove_ranges old_notes
     forM_ ranges $ \(track_id, range) ->
@@ -195,14 +198,13 @@ remove_ranges = concatMap range . Seq.group_snd
     where
     range ([], _) = [] -- shouldn't happen, per Seq.group_snd's postcondition
     range (notes@(note : _), track_id) =
-        (track_id, Events.Inclusive start (maximum (map note_start notes)))
-            : map (, range) (note_control_track_ids note)
+        (track_id, Events.Range start end)
+            : map (, Events.Range start end) (note_control_track_ids note)
         where
-        start = minimum (map note_start notes)
-        end = maximum (map note_end notes)
+        start = minimum $ map note_min notes
+        end = maximum $ map note_max notes
         -- All Notes with the same TrackId should also have the same
         -- note_control_track_ids.
-        range = Events.range (note_orientation note) start end
 
 -- | Find the top-level note tracks in the selection, and reduce them down to
 -- Notes.
@@ -212,11 +214,6 @@ selected_notes = do
     sel <- filterM is_note =<< Selection.events
     tree <- TrackTree.track_tree_of =<< Cmd.get_focused_block
     slice_tracks tree sel
-
-verify :: Cmd.M m => Note -> m Note
-verify note
-    | note_duration note < 0 = Cmd.throw $ "duration <0: " <> pretty note
-    | otherwise = return note
 
 -- ** annotated transformations
 
@@ -292,12 +289,10 @@ slice_tracks tree = concatMapM slice . zip [0..]
 slice_note :: Index -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Event.Event -> Either Error Note
 slice_note index subs event = do
-    controls <- extract_controls (Event.orientation event)
-        (Event.range event) subs
+    controls <- extract_controls (Event.range event) subs
     return $ Note
         { note_start = Event.start event
         , note_duration = Event.duration event
-        , note_orientation = Event.orientation event
         , note_text = Event.text event
         , note_controls = Map.fromList controls
         , note_index = index
@@ -305,25 +300,20 @@ slice_note index subs event = do
             concatMap Tree.flatten subs
         }
 
-extract_controls :: Event.Orientation -> (TrackTime, TrackTime)
+extract_controls :: (TrackTime, TrackTime)
     -> [Tree.Tree (Ui.TrackInfo, Events.Events)]
     -> Either Error [(Control, Events.Events)]
-extract_controls orientation range tracks = case tracks of
+extract_controls range tracks = case tracks of
     [] -> return []
     [Tree.Node (track, events) subs] -> do
         control <- annotate (showt (Ui.track_id track)) $
             title_to_control (Ui.track_title track)
-        rest <- extract_controls orientation range subs
+        rest <- extract_controls range subs
         return $ (control, slice range events) : rest
     _ -> Left $ ">1 subtrack: "
         <> showt (map (Ui.track_id . fst . Tree.rootLabel) tracks)
     where
-    slice (start, end) = Events.from_list . extract . Events.at_after start
-        where
-        extract = case orientation of
-            Event.Positive -> takeWhile ((<end) . Event.start)
-            Event.Negative -> takeWhile ((<=end) . Event.start)
-                . dropWhile ((<=start) . Event.start)
+    slice (start, end) e = Events.in_range (Events.Range start end) e
 
 annotate :: Text -> Either Error a -> Either Error a
 annotate prefix = first ((prefix <> ": ") <>)
@@ -345,8 +335,8 @@ merge_notes = map make_track . Seq.group_sort note_index
     make_track = foldl' (<>) mempty . map note_track
     note_track note = NoteTrack (Events.singleton event) (note_controls note)
         where
-        event = Event.set_orientation (note_orientation note) $
-            Event.event (note_start note) (note_duration note) (note_text note)
+        event = Event.event (note_start note) (note_duration note)
+            (note_text note)
 
 -- | Write NoteTracks to the given block.  It may create new tracks, but won't
 -- delete ones that are made empty.

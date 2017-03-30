@@ -44,7 +44,7 @@ test_serialize = do
     equal tdest (recode tdest)
     let flags = [minBound .. maxBound] :: [Block.TrackFlag]
     equal flags (recode flags)
-    let sel = Sel.Selection 1 2 3 4
+    let sel = Sel.Selection 1 2 3 4 Sel.Positive
     equal sel (recode sel)
 
     let rstyle =

@@ -120,18 +120,11 @@ cb_find_events :: EventStyle -> [Events.Events] -> FindEvents
 cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
-    -- The haskell level stores negative events as (start, dur, Negative),
-    -- while fltk sees them as (start+dur, -dur).  So I have to order by
-    -- 'Event.trigger' to make sure fltk sees them in order.  'in_range' uses
-    -- Event.start instead of Event.trigger, but since it also unconditionally
-    -- includes neighbors, I think it should work out to be the same.
-    let (events, ranks) = unzip $ Seq.sort_on key
-            [ (style event, rank)
-            | (rank, events) <- zip [0..] event_lists
-            , event <- in_range start end events
-            ]
-        key (event, rank) = (Event.trigger event, rank)
-        style event = Event.modify_style (const (event_style event)) event
+    let (events, ranks) = unzip $ Seq.merge_lists key $
+            zipWith (\rank -> map (, rank)) [0..] $
+            map (map set_style . in_range start end) event_lists
+        key (event, rank) = (Event.start event, rank)
+        set_style event = Event.modify_style (const (event_style event)) event
     unless (null events) $ do
         -- Calling c++ is responsible for freeing these.
         poke ret_events =<< newArray events

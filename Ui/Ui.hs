@@ -1294,19 +1294,35 @@ calculate_damage old new =
         | otherwise =
             (Event.start old, max (Event.end old) (Event.end new)) : ranges
 
--- | Remove a single event at @pos@, if there is one.
-remove_event :: M m => TrackId -> TrackTime -> m ()
-remove_event track_id pos = _modify_events track_id $ \events ->
-    case Events.at pos events of
+-- | Remove a single event by start and orientation.
+-- TODO I think 'remove_event_range' is now just as expressive and can be just
+-- as efficient
+remove_event :: M m => TrackId -> Event.Event -> m ()
+remove_event track_id event = _modify_events track_id $ \events ->
+    case Events.at t (Event.orientation event) events of
         Nothing -> (events, Ranges.nothing)
-        Just event -> (Events.remove_at pos events, events_range [event])
+        Just event ->
+            ( Events.remove (Events.Point t (Event.orientation event)) events
+            , events_range [event]
+            )
+    where t = Event.start event
 
 -- | Just like @mapM_ (remove_event track_id)@ but more efficient.
-remove_events :: M m => TrackId -> [TrackTime] -> m ()
+-- TODO at least I hope, it got sort of complicated.
+remove_events :: M m => TrackId -> [Event.Event] -> m ()
 remove_events _ [] = return ()
-remove_events track_id starts =
+remove_events track_id [event] = remove_event track_id event
+remove_events track_id events = do
     remove_event_range track_id
-        (Events.Inclusive (minimum starts) (maximum starts))
+        (Events.Range (Event.min first) (Event.max last))
+    when (Event.is_negative first) $
+        remove_event track_id first
+    when (Event.is_positive last) $
+        remove_event track_id last
+    where
+    -- Events is non-empty due to the pattern match above.
+    Just first = Seq.minimum_on Event.start events
+    Just last = Seq.maximum_on Event.start events
 
 -- | Remove any events whose starting positions fall within a range.
 remove_event_range :: M m => TrackId -> Events.Range -> m ()
@@ -1319,8 +1335,9 @@ remove_event_range track_id range = _modify_events track_id $ \events ->
 remove_from :: M m => TrackId -> TrackTime -> m ()
 remove_from track_id start = do
     end <- track_event_end track_id
-    -- +1 to get final event if it's 0 dur.  It seems gross, but it works.
-    remove_event_range track_id (Events.Positive start (end + 1))
+    -- +1 to get final event if it's 0 dur, even if it's positive.  It seems
+    -- gross, but it works.
+    remove_event_range track_id (Events.Range start (end + 1))
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime

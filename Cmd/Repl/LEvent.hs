@@ -32,7 +32,7 @@ get = fmap Track.track_events . Ui.get_track
 
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
-    (start, _) <- Selection.range
+    start <- Selection.point
     ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
 
 stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
@@ -45,7 +45,7 @@ stretch_event start n event
 stretch_to :: TrackTime -> Cmd.CmdL ()
 stretch_to dur = do
     selected <- Selection.events
-    (start, _) <- Selection.range
+    start <- Selection.point
     let maybe_end = Seq.maximum $
             mapMaybe (fmap Event.end . Seq.last . snd) selected
     whenJust maybe_end $ \end ->

@@ -94,7 +94,7 @@ modify_selected include_collapsed modify selected = do
         whenM (wanted track_id) $ do
             maybe_new_events <- modify block_id track_id events
             whenJust maybe_new_events $ \new_events -> do
-                Ui.remove_events track_id (map Event.start events)
+                Ui.remove_events track_id events
                 Ui.insert_block_events block_id track_id new_events
 
 -- | Advance the selection if it was a point.  This is convenient for applying
@@ -106,13 +106,13 @@ advance_if_point = whenM (Sel.is_point . snd <$> Selection.get)
 -- | Map a function over the events that overlap the selection point.
 overlapping :: Cmd.M m => Track m -> m ()
 overlapping f = do
-    (block_id, _, track_ids, _, _) <- Selection.tracks
-    pos <- Selection.point . snd <$> Selection.get
+    (block_id, _, track_ids, _) <- Selection.tracks
+    pos <- Selection.point
     forM_ track_ids $ \track_id -> do
         maybe_event <- Events.overlapping pos <$> Ui.get_events track_id
         whenJust maybe_event $ \old_event ->
             whenJustM (f block_id track_id [old_event]) $ \new_events -> do
-                Ui.remove_event track_id (Event.start old_event)
+                Ui.remove_event track_id old_event
                 Ui.insert_block_events block_id track_id new_events
 
 -- | Map over tracks whose name matches the predicate.
@@ -174,9 +174,9 @@ move_events block_end point shift events = merged
     where
     shifted = Events.clip False block_end $
         map (Event.move (+shift)) (Events.at_after point events)
-    -- Inclusive in case the last event is zero duration.
+    -- +1 in case the last event is +0 duration.
     merged = Events.insert shifted $
-        Events.remove (Events.Inclusive point (Events.time_end events)) events
+        Events.remove (Events.Range point (Events.time_end events + 1)) events
 
 -- * replace tokens
 

@@ -189,7 +189,7 @@ append dest source = do
 -- the track as a whole soloed.
 cmd_toggle_flag :: Cmd.M m => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
-    (block_id, tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _) <- Selection.tracks
     flags <- mapM (Ui.track_flags block_id) tracknums
     let set = any (Set.member flag) flags
     forM_ tracknums $ \tracknum -> if set
@@ -240,7 +240,7 @@ expand_or_unmerge block_id tracknum = do
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()
 cmd_move_tracks msg = do
-    (block_id, tracknums, _, _, _) <- Selection.tracks
+    (block_id, tracknums, _, _) <- Selection.tracks
     clicked <- Cmd.abort_unless $ clicked_track msg
     move_tracks block_id tracknums clicked
     -- Shift from the max tracknum or the minimum tracknum, depending on

@@ -244,8 +244,8 @@ sub_events_ include_end args =
         Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
-    -- The events have been shifted back to 0 by 'Slice.slice_notes', but
-    -- are still their original lengths.  Stretch them back to 1 so Events
+    -- The events have been shifted back to 0 by 'Slice.checked_slice_notes',
+    -- but are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
     mkevent (shift, stretch, tree) = Event
         { event_start = shift

@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Test
+import qualified Util.Testing as Testing
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
@@ -49,38 +50,22 @@ test_selected_notes = do
     let fancy = mkstate [(">", [(0, 1, "")]), ("add c", [])] [(1, 2)]
     left_like (run fancy 0 2) "complicated controls unsupported"
 
-test_selected_notes_negative = do
-    let run tracks start end = fmap (fmap (fmap fst)) $ CmdTest.result_val $
-            CmdTest.run_tracks tracks $ do
-                CmdTest.set_sel 1 start 8 end
-                ModifyNotes.selected_notes
-        negative n = n { ModifyNotes.note_orientation = Event.Negative }
-    let tracks =
-            [ (">", [(2, -2, "1")]), ("*", [(2, 0, "4c")])
-            , (">", [(4, -2, "2")]), ("*", [(4, 0, "4d")])
-            ]
-    equal (run tracks 0 4) $ Right $ Just $ map (negative . mknote)
-        [ (0, 2, "1", [("*", [(2, "4c")])], 0, [2])
-        , (2, 2, "2", [("*", [(4, "4d")])], 1, [4])
-        ]
-    let tracks = [(">", [(2, -2, "1"), (2, 2, "2")]), ("*", [(2, 0, "4c")])]
-    equal (run tracks 0 4) $ Right $ Just
-        [ negative $ mknote (0, 2, "1", [("*", [(2, "4c")])], 0, [2])
-        , mknote (2, 2, "2", [("*", [(2, "4c")])], 0, [2])
-        ]
-
 test_selected_remove = do
     let run tracks start end = CmdTest.e_tracks $
             CmdTest.run_tracks tracks $ do
                 CmdTest.set_sel 1 start 2 end
                 ModifyNotes.selection (ModifyNotes.notes (const []))
-    equal (run (UiTest.note_track [(0, 2, "a"), (2, 2, "b")]) 0 0) $
+    let mkpitch negative ts = ("*",
+            [(ScoreTime.double t, if negative then -0 else 0, "") | t <- ts])
+    equal_t (run (UiTest.note_track [(0, 2, "a"), (2, 2, "b")]) 0 0) $
         Right ([(">", [(2, 2, "")]), ("*", [(2, 0, "b")])], [])
-    let mkpitch ts = ("*", [(ScoreTime.double t, 0, "") | t <- ts])
-    equal (run ((">", [(0, 2, "1"), (2, 2, "2")]) : [mkpitch [0..4]]) 0 0) $
-        Right ([(">", [(2, 2, "2")]), mkpitch [2..4]], [])
-    equal (run ((">", [(2, -2, "1"), (4, -2, "2")]) : [mkpitch [0..4]]) 0 0) $
-        Right ([(">", [(4, -2, "2")]), mkpitch [0, 3, 4]], [])
+    equal_t (run ((">", [(0, 2, "1"), (2, 2, "2")]) : [mkpitch False [0..4]])
+            0 0) $
+        Right ([(">", [(2, 2, "2")]), mkpitch False [2..4]], [])
+    -- The pitch at 0 is still there because "1" was negative.
+    equal_t (run ((">", [(2, -2, "1"), (4, -2, "2")]) : [mkpitch True [0..4]])
+            0 0) $
+        Right ([(">", [(4, -2, "2")]), mkpitch True [0, 3, 4]], [])
 
 test_merge_notes = do
     let f = extract . head . ModifyNotes.merge_notes . mknotes
@@ -180,6 +165,12 @@ write_tracks state tracknums tracks = extract $ UiTest.exec state $
     extract state =
         (UiTest.extract_tracks state, UiTest.extract_skeleton state)
 
+-- * util
+
+equal_t :: (Eq logs, Show logs) => Either String ([UiTest.TrackSpec], logs)
+    -> Either String ([UiTest.TrackSpec], logs) -> IO Bool
+equal_t = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_tracks)
+
 extract_events :: Events.Events -> [(TrackTime, Text)]
 extract_events = map event . Events.ascending
     where event e = (Event.start e, Event.text e)
@@ -193,7 +184,6 @@ mknote :: (TrackTime, TrackTime, Text, [(Text, [(TrackTime, Text)])],
 mknote (start, dur, text, controls, index, control_track_ids) = ModifyNotes.Note
     { note_start = start
     , note_duration = dur
-    , note_orientation = Event.Positive
     , note_text = text
     , note_controls = mkcontrols controls
     , note_index = index

@@ -184,7 +184,9 @@ test_trim_signal = do
             [ (">", [(4, -4, "g"), (4, 4, "g")])
             , ("*", [(0, 0, "4c"), (4, 0, "4d")])
             ])
-        ([[(0, NN.c4), (4, NN.d4)], [(4, NN.d4)]], [])
+        ([[(4, NN.d4)], [(4, NN.d4)]], [])
+        -- c4 is now not included in (4, -4) because of the usual selection
+        -- range rules.
 
 -- * track signal
 

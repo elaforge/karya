@@ -137,7 +137,7 @@ selection_alts relative alts name
     | alts <= 0 = return []
     | otherwise = do
         alt1 <- selection_ relative $ Id.modify_name (<>"1") name
-        (block_id, _, track_ids, start, end) <- Selection.tracks
+        (block_id, _, track_ids, range) <- Selection.tracks
         altn <- forM [2..alts] $ \n ->
             Create.named_block_from_template True alt1 $
                 alt_name block_id (Id.modify_name (<> showt n) name)
@@ -145,6 +145,7 @@ selection_alts relative alts name
         mapM_ Create.view alts
         let call = Text.unwords $
                 "alt" : map (Eval.block_id_to_call relative block_id) alts
+        let (start, end) = Events.range_times range
         whenJust (Seq.head track_ids) $ \track_id ->
             Ui.insert_event track_id $ Event.event start (end-start) call
         return alts
@@ -157,30 +158,30 @@ selection_alts relative alts name
 selection_ :: Cmd.M m => Bool -- ^ create relative block call
     -> Id.Id -> m BlockId
 selection_ relative name = do
-    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    (block_id, tracknums, track_ids, range) <- Selection.tracks
     name <- return $ if relative
         then make_relative block_id name else name
-    selection_at relative name block_id tracknums track_ids start end
+    selection_at relative name block_id tracknums track_ids range
 
 make_relative :: BlockId -> Id.Id -> Id.Id
 make_relative caller name =
     Id.set_name (Eval.make_relative caller (Id.id_name name)) name
 
 selection_at :: Ui.M m => Bool -> Id.Id -> BlockId -> [TrackNum]
-    -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
-selection_at relative name block_id tracknums track_ids start end = do
+    -> [TrackId] -> Events.Range -> m BlockId
+selection_at relative name block_id tracknums track_ids range = do
     ruler_id <- Ui.block_ruler block_id
     to_block_id <- Create.named_block name ruler_id
+    let (start, end) = Events.range_times range
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- Ui.get_track_title track_id
-        events <- Events.in_range (Events.range Event.Positive start end) <$>
-            Ui.get_events track_id
+        events <- Events.in_range range <$> Ui.get_events track_id
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
             Events.map_events (Event.move (subtract start)) events
     clipped_skeleton block_id to_block_id tracknums
     -- Clear selected range and put in a call to the new block.
-    Edit.clear_range track_ids (Events.Positive start end)
+    Edit.clear_range track_ids range
     whenJust (Seq.head track_ids) $ \track_id ->
         Ui.insert_event track_id $ Event.event start (end-start)
             (Eval.block_id_to_call relative block_id to_block_id)
@@ -254,16 +255,15 @@ delete_empty_tracks block_id = do
 
 block_template_from_selection :: Cmd.M m => m BlockId
 block_template_from_selection =
-    Selection.tracks >>= \(block_id, _, track_ids, start, end) -> do
-        to_block_id <- block_template block_id track_ids start end
+    Selection.tracks >>= \(block_id, _, track_ids, range) -> do
+        to_block_id <- block_template block_id track_ids range
         Create.view to_block_id
         return to_block_id
 
 -- | Create a new block with the given tracks and ruler clipped to the given
 -- range.
-block_template :: Ui.M m => BlockId -> [TrackId] -> TrackTime -> TrackTime
-    -> m BlockId
-block_template block_id track_ids start end = do
+block_template :: Ui.M m => BlockId -> [TrackId] -> Events.Range -> m BlockId
+block_template block_id track_ids range = do
     to_block_id <- Create.block =<< Ui.block_ruler block_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- Ui.get_track_title track_id
@@ -272,6 +272,7 @@ block_template block_id track_ids start end = do
     clipped_skeleton block_id to_block_id
         =<< mapM (Ui.get_tracknum_of block_id) track_ids
     -- Create a clipped ruler.
+    let (start, end) = Events.range_times range
     local_block to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id

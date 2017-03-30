@@ -7,8 +7,10 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Factor as Factor
 
@@ -39,7 +41,8 @@ test_selection_at = do
             UiTest.exec Ui.empty $ do
                 UiTest.mkblocks (("b", [(">", tracks)]) : subs)
                 Factor.selection_at False (UiTest.mkid "sub") parent
-                    [1] [UiTest.mk_tid_block parent 1] start end
+                    [1] [UiTest.mk_tid_block parent 1]
+                    (Events.Range start end)
         parent = UiTest.bid "b"
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)
         [ (parent, [(">", [(0, 1, "sub"), (1, 1, "b")])])

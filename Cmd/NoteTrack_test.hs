@@ -40,7 +40,8 @@ test_cmd_val_edit_simple = do
     equal (run [(">", [])] (f note_on)) $
         Right [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
     -- put pitch at the end for Negative
-    equal (run [(">", [])] (Edit.cmd_toggle_note_orientation >> f note_on)) $
+    equal (run [(">", [])] (Edit.cmd_toggle_note_orientation
+            >> CmdTest.set_point_sel 1 1 >> f note_on)) $
         Right [(">", [(1, -1, "")]), ("*", [(1, -0, "4c")])]
     -- modify existing track
     let note_tracks = [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4d")])]

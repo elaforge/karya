@@ -133,8 +133,14 @@ set_play_position chan view_sels = unless (null view_sels) $
         (view_id, tracknum_pos) <- Seq.group_fst view_sels
         (tracknums, pos) <- Seq.group_fst $ Seq.group_snd (concat tracknum_pos)
         return $ set_selection_carefully view_id
-            Config.play_position_selnum (Just tracknums)
-            [BlockC.Selection Config.play_selection_color p p True | p <- pos]
+            Config.play_position_selnum (Just tracknums) (map sel pos)
+    where
+    sel p = BlockC.Selection
+        { sel_color = Config.play_selection_color
+        , sel_start = p
+        , sel_cur = p
+        , sel_orientation = BlockC.Both
+        }
 
 clear_play_position :: Fltk.Channel -> [ViewId] -> IO ()
 clear_play_position = clear_selections Config.play_position_selnum
@@ -150,7 +156,12 @@ set_highlights chan view_sels = unless (null view_sels) $
         return $ set_selection_carefully view_id Config.highlight_selnum
             (Just [tracknum]) (map make_sel range_colors)
     where
-    make_sel ((start, end), color) = BlockC.Selection color start end False
+    make_sel ((start, end), color) = BlockC.Selection
+        { sel_color = color
+        , sel_start = start
+        , sel_cur = end
+        , sel_orientation = BlockC.None
+        }
 
 -- | Juggle the selections around into the format that 'BlockC.set_selection'
 -- wants.
@@ -509,17 +520,23 @@ convert_selection :: Sel.Num -> TrackNum -> Sel.Selection
     -> [([TrackNum], [BlockC.Selection])]
 convert_selection selnum tracks sel =
     filter (not . null . fst)
-        [(cur_tracknums, [bsel True]), (tracknums, [bsel False])]
+        [(cur_tracknums, [make_sel True]), (tracknums, [make_sel False])]
     where
     (cur_tracknums, tracknums) = List.partition (== Sel.cur_track sel)
         (Sel.tracknums tracks sel)
-    bsel draw_arrow = BlockC.Selection
-        { BlockC.sel_color = color
-        , BlockC.sel_start = Sel.start_pos sel
-        , BlockC.sel_cur = Sel.cur_pos sel
-        , BlockC.sel_draw_arrow = draw_arrow
+    make_sel cur_track = BlockC.Selection
+        { sel_color = color
+        , sel_start = Sel.start_pos sel
+        , sel_cur = Sel.cur_pos sel
+        , sel_orientation = if cur_track
+            then convert (Sel.orientation sel)
+            else BlockC.None
         }
     color = Config.lookup_selection_color selnum
+    convert o = case o of
+        Sel.None -> BlockC.None
+        Sel.Positive -> BlockC.Positive
+        Sel.Negative -> BlockC.Negative
 
 dtracks_with_ruler_id :: Ui.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]

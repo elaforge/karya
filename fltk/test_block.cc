@@ -210,7 +210,8 @@ creep_selection(void *vp)
 
     ScoreTime pos(double(i) / 2);
     std::vector<Selection> sels;
-    sels.push_back(Selection(selection_colors[0], pos, pos, true));
+    sels.push_back(
+        Selection(selection_colors[0], pos, pos, Selection::Positive));
     view.block.set_selection(0, 1, sels);
     Fl::repeat_timeout(.1, creep_selection, vp);
 }
@@ -459,9 +460,11 @@ main(int argc, char **argv)
 
     std::vector<Selection> sels;
     sels.push_back(
-        Selection(selection_colors[0], ScoreTime(80), ScoreTime(80), true));
+        Selection(selection_colors[0], ScoreTime(80), ScoreTime(80),
+            Selection::Positive));
     sels.push_back(
-        Selection(selection_colors[0], ScoreTime(90), ScoreTime(100), true));
+        Selection(selection_colors[0], ScoreTime(90), ScoreTime(100),
+            Selection::Positive));
     view.block.set_selection(0, 1, sels);
 
     /*

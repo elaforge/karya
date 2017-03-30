@@ -10,7 +10,7 @@
     a negative event at he end of the range will be included.  This is natural
     for events with negative duration, since they are weighted at the end.
 
-    This behaviour is actually implemented in the low level "Ui.Track"
+    This behaviour is actually implemented in the low level "Ui.Events"
     functions.
 -}
 module Cmd.Selection where
@@ -108,7 +108,7 @@ set_block block_id ((_, pos) : _) = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     forM_ view_ids $ \view_id ->
         Ui.set_selection view_id Config.play_position_selnum
-            (Just (Sel.selection 0 pos 999 pos))
+            (Just (Sel.selection 0 pos 999 pos Sel.Positive))
 
 -- | Figure out how much to scroll to keep the selection visible and with
 -- reasonable space around it.
@@ -122,6 +122,13 @@ set_and_scroll view_id selnum sel = do
     auto_scroll view_id old sel
 
 -- ** modify existing selection
+
+-- | Update the selection's orientation to match 'Cmd.state_note_orientation'.
+update_orientation :: Cmd.M m => m ()
+update_orientation = whenJustM lookup $ \(view_id, sel) -> do
+    orientation <- get_orientation
+    when (Sel.orientation sel /= orientation) $
+        set view_id $ Just $ sel { Sel.orientation = orientation }
 
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
 to_point :: Cmd.M m => m ()
@@ -168,13 +175,14 @@ step dir move = do
 step_with :: Cmd.M m => Int -> Move -> TimeStep.TimeStep -> m ()
 step_with steps move step = do
     view_id <- Cmd.get_focused_view
-    old@(Sel.Selection start_track start_pos cur_track cur_pos) <-
+    old@(Sel.Selection start_track start_pos cur_track cur_pos orient) <-
         Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = case move of
-            Extend -> Sel.selection start_track start_pos cur_track new_pos
+            Extend ->
+                Sel.selection start_track start_pos cur_track new_pos orient
             Move -> Sel.move (new_pos - cur_pos) old
-            Replace -> Sel.point cur_track new_pos
+            Replace -> Sel.point cur_track new_pos orient
     set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
@@ -186,6 +194,7 @@ shift skip_unselectable move shift = modify $ \block old ->
         Extend -> Sel.merge old new
         Move -> new
         Replace -> Sel.point (Sel.cur_track new) (Sel.cur_pos new)
+            (Sel.orientation new)
 
 -- | Unlike 'shift', this uses 'Sel.union', which means that the selection will
 -- always expand, instead of only expanding if the current track is moving away
@@ -198,6 +207,7 @@ jump_to_track move tracknum = modify $ \_ old ->
         Extend -> Sel.union old (Sel.modify_tracks (const tracknum) old)
         Move -> new
         Replace -> Sel.point (Sel.cur_track new) (Sel.cur_pos new)
+            (Sel.orientation new)
 
 modify :: Cmd.M m => (Block.Block -> Sel.Selection -> Sel.Selection) -> m ()
 modify f = do
@@ -269,7 +279,7 @@ select_track_all block_end tracks sel
     select_tracks = until_end $ sel { Sel.cur_pos = 0 }
     select_all = until_end $ track_selection 1 (tracks - 1)
     until_end = select_until_end block_end
-    track_selection from to = Sel.selection from 0 to 0
+    track_selection from to = Sel.selection from 0 to 0 (Sel.orientation sel)
 
 cmd_tracks :: Cmd.M m => m ()
 cmd_tracks = do
@@ -291,7 +301,7 @@ select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
 select_tracks selnum view_id from to = do
     block_end <- Ui.block_end =<< Ui.block_id_of view_id
     set_selnum view_id selnum $ Just $ select_until_end block_end $
-        Sel.selection from 0 to 0
+        Sel.selection from 0 to 0 Sel.Positive
 
 -- | Extend the selection to the end of then block.  This sets 'Sel.start_pos',
 -- with the assumption that 'Sel.cur_pos' is onscreen.  This is so
@@ -311,9 +321,11 @@ cmd_mouse_selection btn selnum extend msg = do
     view_id <- Cmd.get_focused_view
     old_sel <- Ui.get_selection view_id selnum
     let (start_tracknum, start_pos) = case (extend, old_sel) of
-            (True, Just (Sel.Selection tracknum pos _ _)) -> (tracknum, pos)
+            (True, Just (Sel.Selection tracknum pos _ _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
+    orientation <- get_orientation
     let sel = Sel.selection start_tracknum start_pos mouse_tracknum mouse_pos
+            orientation
     set_and_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
@@ -329,11 +341,13 @@ cmd_snap_selection btn selnum extend msg = do
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
+    orientation <- get_orientation
     let sel = case old_sel of
             _ | old_sel == Nothing || Msg.mouse_down msg && not extend ->
                 Sel.selection down_tracknum snap_pos mouse_tracknum snap_pos
-            Just (Sel.Selection tracknum pos _ _) ->
-                Sel.selection tracknum pos mouse_tracknum snap_pos
+                    orientation
+            Just (Sel.Selection tracknum pos _ _ orient) ->
+                Sel.selection tracknum pos mouse_tracknum snap_pos orient
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
     set_and_scroll view_id selnum sel
@@ -349,6 +363,13 @@ cmd_snap_selection btn selnum extend msg = do
         return $ if not (Msg.mouse_down msg) && over && pos < end
             then pos else snap
     threshold = 20
+
+get_orientation :: Cmd.M m => m Sel.Orientation
+get_orientation = do
+    o <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
+    return $ case o of
+        Event.Positive -> Sel.Positive
+        Event.Negative -> Sel.Negative
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
 mouse_drag_pos :: Cmd.M m => Types.MouseButton -> Msg.Msg
@@ -502,19 +523,20 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     operations like \"play from selection\"), there is a choice of taking the
     point from the beginning of the selection, the end, or the 'sel_cur_pos',
     which is the dragged-to point.  The convention, established by
-    'point' and 'point_track', is to take the first point.
+    'sel_point' and 'sel_point_track', is to use the active end of the
+    selection.
 -}
 
 -- | Get the \"point\" position of a Selection.
-point :: Sel.Selection -> TrackTime
-point = Sel.cur_pos
+sel_point :: Sel.Selection -> TrackTime
+sel_point = Sel.cur_pos
 
 -- | When multiple tracks are selected, only one can be the point.  This
 -- is 'Sel.cur_track', and in fact must be, because 'Sel.start_track' may
 -- be an invalid tracknum.  That is so a selection can maintain its shape even
 -- if it momentarily goes out of bounds.
-point_track :: Sel.Selection -> TrackNum
-point_track = Sel.cur_track
+sel_point_track :: Sel.Selection -> TrackNum
+sel_point_track = Sel.cur_track
 
 -- | A point on a track.
 type Point = (BlockId, TrackNum, TrackId, TrackTime)
@@ -548,7 +570,7 @@ lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- Ui.block_id_of view_id
-        return $ Just (view_id, (block_id, point_track sel, point sel))
+        return $ Just (view_id, (block_id, sel_point_track sel, sel_point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.
@@ -562,11 +584,12 @@ lookup_block_insert block_id = do
         view_id : _ ->
             justm (Ui.get_selection view_id Config.insert_selnum) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
-            return $ Just (block_id, point_track sel, track_id, point sel)
+            return $ Just
+                (block_id, sel_point_track sel, track_id, sel_point sel)
 
 -- | Get the point track of a selection.
 sel_track :: Ui.M m => BlockId -> Sel.Selection -> m (Maybe TrackId)
-sel_track block_id sel = Ui.event_track_at block_id (point_track sel)
+sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 
 -- ** plain Selection
 
@@ -587,8 +610,11 @@ lookup_selnum selnum =
     justm (Ui.get_selection view_id selnum) $ \sel ->
     return $ Just (view_id, sel)
 
-range :: Cmd.M m => m (TrackTime, TrackTime)
-range = Sel.range . snd <$> get
+range :: Cmd.M m => m Events.Range
+range = Events.selection_range . snd <$> get
+
+point :: Cmd.M m => m TrackTime
+point = sel_point . snd <$> get
 
 -- ** selections in RealTime
 
@@ -681,58 +707,126 @@ around_to_events = map $ \(track_id, (_, within, _)) -> (track_id, within)
 events :: Cmd.M m => m SelectedEvents
 events = around_to_events <$> events_around
 
--- | Like 'events', but only for the 'point_track'.
+-- | Like 'events', but only for the 'sel_point_track'.
 track_events :: Cmd.M m => m SelectedEvents
 track_events = do
     (block_id, maybe_track_id) <- track
+    sel <- snd <$> get
     track_id <- Cmd.abort_unless maybe_track_id
-    (start, end) <- range
-    around_to_events <$> events_around_tracks block_id [track_id] start end
+    around_to_events <$> events_around_tracks block_id [track_id] sel
 
 -- | 'events_around_tracks' for the selection.
 events_around :: Cmd.M m => m SelectedAround
 events_around = do
-    (block_id, _, track_ids, start, end) <- tracks
-    events_around_tracks block_id track_ids start end
+    (block_id, _, track_ids, _) <- tracks
+    sel <- snd <$> get
+    events_around_tracks block_id track_ids sel
+
+-- | Like 'event_around', but select as if the selection were a point.
+-- Suitable for cmds that logically only work on a single event per-track.
+events_around_point :: Cmd.M m => m SelectedAround
+events_around_point = do
+    (block_id, _, track_ids, _) <- tracks
+    sel <- snd <$> get
+    events_around_tracks block_id track_ids $ sel
+        { Sel.start_pos = sel_point sel
+        , Sel.cur_pos = sel_point sel
+        }
 
 -- | Get events in the selection, but if no events are selected, expand it
--- to include the previous event.  If the range was changed to get an event,
--- The range will become the 'Event.range', so if you want to replace the
--- selected events, you can remove events in that range.
+-- to include a neighboring event, as documented in 'select_neighbor'.
 --
--- Normally the range is half-open, but if it touches the end of the block, it
--- will include an event there.  Otherwise it's confusing when you can't select
--- a final zero-dur event.
+-- Normally the range is half-open by event orientation, so a positive event at
+-- the end of the selection won't be included.  But there's a special hack
+-- where if the end of the selection happens to be the end of the block,
+-- a positive event there will be included anyway.  Otherwise it's annoying to
+-- select a final event (unless it's negative).
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_tracks :: Ui.M m => BlockId -> [TrackId] -> TrackTime
-    -> TrackTime -> m SelectedAround
-events_around_tracks block_id track_ids start end = do
+events_around_tracks :: Ui.M m => BlockId -> [TrackId] -> Sel.Selection
+    -> m SelectedAround
+events_around_tracks block_id track_ids sel = do
     block_end <- Ui.block_end block_id
     let extend
-            | block_end == end = map until_end
+            | block_end == Sel.max sel = map until_end
             | otherwise = id
-    extend . zipWith around_track track_ids <$> mapM Ui.get_events track_ids
+    extend . zip track_ids . map (split_events_around sel) <$>
+            mapM Ui.get_events track_ids
     where
-    around_track track_id events = case split_range events of
-        (pre:pres, [], posts) -> (track_id, (pres, [pre], posts))
-        events -> (track_id, events)
     until_end (track_id, (pre, within, post)) =
         (track_id, (pre, within ++ post, []))
-    split_range events =
+
+split_events_around :: Sel.Selection -> Events.Events
+    -> ([Event.Event], [Event.Event], [Event.Event])
+split_events_around sel events
+    | null within = select_neighbor sel (pre, post)
+    | otherwise = (pre, within, post)
+    where
+    (pre, within, post) =
         (Events.descending pre, Events.ascending within, Events.ascending post)
         where
-        (pre, within, post) = Events.split_range
-            (Events.range Event.Positive start end) events
+        (pre, within, post) =
+            Events.split_range (Events.selection_range sel) events
+
+select_neighbor :: Sel.Selection -> ([Event.Event], [Event.Event])
+    -> ([Event.Event], [Event.Event], [Event.Event])
+select_neighbor sel pair = case pair of
+    -- Always pick an overlapping event.
+    (pre:pres, posts) | Event.overlaps p pre -> (pres, [pre], posts)
+    (pres, post:posts) | Event.overlaps p post -> (pres, [post], posts)
+    --  |--->    <---| => take based on orientation
+    (pre:pres, post:posts)
+        | Event.is_positive pre && Event.is_negative post -> case orient of
+            Event.Positive -> (pres, [pre], post:posts)
+            Event.Negative -> (pre:pres, [post], posts)
+    --  |--->          => take pre
+    (pre:pres, posts) | Event.is_positive pre -> (pres, [pre], posts)
+    --           <---| => take post
+    (pres, post:posts) | Event.is_negative post -> (pres, [post], posts)
+    --  <---|    |---> => in the middle, do nothing
+    (pres, posts) -> (pres, [], posts)
+    where
+    p = sel_point sel
+    orient = Sel.event_orientation sel
+
+-- | This is similar to 'events_around', except that the direction is reversed:
+-- it favors the next positive event, or the previous negative one.  Also this
+-- assumes a point selection and only selects one event per track.
+opposite_neighbor :: Cmd.M m => m [(TrackId, Event.Event)]
+opposite_neighbor = do
+    tids <- track_ids
+    sel <- snd <$> get
+    events <- forM tids $ \track_id ->
+        select_opposite_neighbor (sel_point sel) (Sel.event_orientation sel) <$>
+            Ui.get_events track_id
+    return [(track_id, event) | (track_id, Just event) <- zip tids events]
+
+select_opposite_neighbor :: ScoreTime -> Event.Orientation -> Events.Events
+    -> Maybe Event.Event
+select_opposite_neighbor pos orient events =
+    case Events.split_lists pos events of
+        -- TODO should select overlapping like before
+        -- except this messes up zero dur
+        -- How did this work before?  It didn't!
+        -- (pre:_, _) | Event.overlaps pos pre -> Just pre
+        -- (_, post:_) | Event.overlaps pos post -> Just post
+        (pre:_, post:_)
+            | Event.is_positive post && Event.is_negative pre -> case orient of
+                Event.Positive -> Just post
+                Event.Negative -> Just pre
+        (_, post:_) | Event.is_positive post -> Just post
+        (pre:_, _) | Event.is_negative pre -> Just pre
+        _ -> Nothing
 
 -- ** select tracks
 
--- | @(block_id, [tracknums], [track_ids], start, end)@
+-- | Per-track selection info.
 --
 -- The TrackNums are sorted, and the TrackIds are likewise in left-to-right
--- order.  Both lists are never empty.
-type Tracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
+-- order.  Only TrackNums for event tracks are returned, so both lists should
+-- have the same length and correspond if you zip them up.
+type Tracks = (BlockId, [TrackNum], [TrackId], Events.Range)
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
@@ -743,32 +837,32 @@ tracks = tracks_selnum Config.insert_selnum
 -- | Just the TrackIds part of 'tracks'.
 track_ids :: Cmd.M m => m [TrackId]
 track_ids = do
-    (_, _, track_ids, _, _) <- tracks
+    (_, _, track_ids, _) <- tracks
     return track_ids
 
 tracknums :: Cmd.M m => m (BlockId, [TrackNum])
 tracknums = do
-    (block_id, tracknums, _, _, _) <- tracks
+    (block_id, tracknums, _, _) <- tracks
     return (block_id, tracknums)
 
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = do
-    (view_id, sel) <- get_selnum Config.insert_selnum
+    (view_id, sel) <- get
     block_id <- Ui.block_id_of view_id
-    maybe_track_id <- Ui.event_track_at block_id (point_track sel)
+    maybe_track_id <- Ui.event_track_at block_id (sel_point_track sel)
     return (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
 tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
 tracks_selnum selnum = do
-    (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
+    (block_id, tracknums, track_ids, range) <- strict_tracks_selnum selnum
     tracks <- mapM (Ui.get_block_track_at block_id) tracknums
     let merged_track_ids = mconcatMap Block.track_merged tracks
     block <- Ui.get_block block_id
     let merged = tracknums_of block (Set.toList merged_track_ids)
-    let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
+    let (all_tracknums, all_track_ids) = unzip $ Seq.unique_sort $
             merged ++ zip tracknums track_ids
-    return (block_id, all_tracknums, all_track_ids, start, end)
+    return (block_id, all_tracknums, all_track_ids, range)
 
 -- | Selected tracks, not including merged tracks.
 strict_tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
@@ -779,10 +873,10 @@ strict_tracks_selnum selnum = do
     let tracknums = Sel.tracknums tracks sel
     tracklikes <- mapM (Ui.track_at block_id) tracknums
     (tracknums, track_ids) <- return $ unzip
-        [(i, track_id) | (i, Just (Block.TId track_id _))
-            <- zip tracknums tracklikes]
-    let (start, end) = Sel.range sel
-    return (block_id, tracknums, track_ids, start, end)
+        [ (i, track_id)
+        | (i, Just (Block.TId track_id _)) <- zip tracknums tracklikes
+        ]
+    return (block_id, tracknums, track_ids, Events.selection_range sel)
 
 tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]
 tracknums_of block track_ids = do

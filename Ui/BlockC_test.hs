@@ -86,13 +86,13 @@ test_set_selection = do
     let c = Color.brightness 1.5 Color.blue
         set = BlockC.set_selection view 0 [1]
     io_human "point selection appears" $
-        send $ set [BlockC.Selection c 1 1 True]
+        send $ set [BlockC.Selection c 1 1 BlockC.Positive]
     io_human "replaced by long selection" $
-        send $ set [BlockC.Selection c 10 20 True]
+        send $ set [BlockC.Selection c 10 20 BlockC.Positive]
     io_human "lots of pretty colors" $ send $ set
-        [ BlockC.Selection Color.blue 1 10 True
-        , BlockC.Selection Color.red 20 40 True
-        , BlockC.Selection Color.green 45 45 True
+        [ BlockC.Selection Color.blue 1 10 BlockC.Positive
+        , BlockC.Selection Color.red 20 40 BlockC.Negative
+        , BlockC.Selection Color.green 45 45 BlockC.Positive
         ]
     io_human "goes away" $ send $ set []
 

@@ -3,10 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Edit_test where
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Util.Testing as Testing
+
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
@@ -34,7 +39,7 @@ test_split_events = do
     equal (run [(0, 4)] 2) $ Right ([(0, 2), (2, 2)], [])
     equal (run [(2, 2)] 3) $ Right ([(2, 1), (3, 1)], [])
     equal (run [(0, 4)] 4) $ Right ([(0, 4)], [])
-
+    -- Negative.
     equal (run [(4, -4)] 0) $ Right ([(4, -4)], [])
     equal (run [(4, -4)] 2) $ Right ([(2, -2), (4, -2)], [])
     equal (run [(4, -4)] 4) $ Right ([(4, -4)], [])
@@ -71,20 +76,22 @@ test_set_duration = do
         , [(2, -2), (6, -2)]
         ]
     -- No effect on zero-dur events.
-    equal (run [(0, -0), (1, -0)] 0.5 3) $ Right ([(0, -0), (1, -0)], [])
+    equal_sd (run [(0, -0), (1, -0)] 0.5 3) $ Right ([(0, -0), (1, -0)], [])
 
     -- Non-point selection affects all selected events.
-    equal (run [(1, -0.5), (2, -0.5)] 0 2) $ Right ([(1, -1), (2, -1)], [])
+    equal_sd (run [(0, 1), (2, 1)] 0 4) $ Right ([(0, 2), (2, 2)], [])
+    equal_sd (run [(2, -1), (4, -1)] 0 4) $ Right ([(2, -2), (4, -2)], [])
 
     -- 0 1 2 3 4 5 6
-    -- |--->   <---| => take closer, favor pre
+    -- |--->   <---| => take overlapping, or favor prev because selection is
+    -- Positive
     let events = [(0, 2), (6, -2)]
     equal [run events p p | p <- Seq.range 0 6 1] $ map (Right . (,[]))
         [ [(0, 2), (6, -2)]
         , [(0, 1), (6, -2)]
         , [(0, 2), (6, -2)]
         , [(0, 3), (6, -2)]
-        , [(0, 2), (6, -2)]
+        , [(0, 4), (6, -2)]
         , [(0, 2), (6, -1)]
         , [(0, 2), (6, -2)]
         ]
@@ -108,8 +115,23 @@ test_move_events = do
     let fwd = Edit.cmd_move_event_forward
         bwd = Edit.cmd_move_event_backward
     -- Clipped to the end of the ruler.
-    equal (run fwd [(0, 2)] 1 1) $ Right ([(1, 1, "a")], [])
-    equal (run bwd [(2, -1)] 0 0) $ Right ([(1, -1, "a")], [])
+    equal_e (run fwd [(0, 2)] 1 1) $ Right ([(1, 1, "a")], [])
+    equal_e (run fwd [(0, 0), (2, 0)] 1 1) $
+        Right ([(1, 0, "a"), (2, 0, "b")], [])
+
+    equal_e (run bwd [(2, -1)] 1 1) $ Right ([(1, -1, "a")], [])
+    equal_e (run bwd [(0, 0), (2, 0)] 1 1) $
+        Right ([(0, 0, "a"), (1, 0, "b")], [])
+
+test_set_start = do
+    let run events sel = e_start_dur_text $
+            run_events_sel Edit.cmd_set_start events sel sel
+    equal_e (run [(0, 2), (2, 2)] 1) $ Right ([(0, 1, "a"), (1, 3, "b")], [])
+    equal_e (run [(0, 0), (2, 0)] 1) $ Right ([(0, 0, "a"), (1, 0, "b")], [])
+    equal_e (run [(2, -2), (4, -2)] 1) $
+        Right ([(2, -2, "a"), (4, -2, "b")], [])
+    equal_e (run [(2, -2), (4, -2)] 3) $
+        Right ([(3, -3, "a"), (4, -1, "b")], [])
 
 test_insert_time = do
     let run events start end = e_start_dur_text $
@@ -152,7 +174,7 @@ test_delete_time = do
         , [(3, -2)]
         , [(2, -2)]
         , [(1, -1)]
-        , []
+        , [] -- deleted rather than reduced to 0
         ]
     -- zero dur doesn't get deleted when it touches the point.
     equal (map (run [(2, -0)] 0) (Seq.range 1 3 1)) $ map (Right . (,[]))
@@ -166,46 +188,69 @@ test_toggle_zero_timestep = do
     let run tracks start end = e_start_dur $
             run_events_sel Edit.cmd_toggle_zero_timestep tracks start end
     equal (run [(0, 2)] 1 1) $ Right ([(0, 0)], [])
+    equal (run [(2, -2)] 1 1) $ Right ([(2, -0)], [])
+    -- Make sure it's actually -0.
+    equal (ScoreTime.is_negative $ snd $ head $ fst $ expect_right $
+            run [(2, -2)] 1 1)
+        True
     equal (run [(0, 0), (2, 0), (4, 0)] 0 4) $
         Right ([(0, 2), (2, 2), (4, 0)], [])
-    equal (run [(0, -0), (2, -0), (4, 0)] 0 4) $
-        Right ([(2, -2), (4, -2), (4, 0)], [])
-    equal (run [(2, -2), (4, -2)] 1 1) $ Right ([(0, -0), (4, -2)], [])
-    -- Expand to a timestep.
-    equal (run [(0, 0), (4, 0)] 1 1) $ Right ([(0, 1), (4, 0)], [])
-    equal (run [(1, -0), (4, -0)] 1 1) $ Right ([(2, -1), (4, -0)], [])
+    equal (run [(0, -0), (2, -0), (4, -0)] 0 4) $
+        Right ([(0, -0), (2, -2), (4, -2)], [])
+    equal (run [(2, -2), (4, -2)] 1 1) $ Right ([(2, -0), (4, -2)], [])
 
 test_join_events = do
-    let run tracks start end = e_start_dur_text $
-            run_events_sel Edit.cmd_join_events tracks start end
-    equal (run [(0, 2), (2, 2)] 1 1) $ Right ([(0, 4, "a")], [])
-    equal (run [(0, 2), (2, 2), (6, 2)] 2 8) $
+    let run events start end = e_start_dur_text $
+            run_events_sel Edit.cmd_join_events events start end
+    -- positive
+    equal_e (run [(0, 2), (2, 2)] 1 1) $ Right ([(0, 4, "a")], [])
+    equal_e (run [(0, 2), (2, 2), (6, 2)] 2 8) $
         Right ([(0, 2, "a"), (2, 6, "b")], [])
-    equal (run [(0, 0), (2, 0)] 1 1) $ Right ([(0, 0, "a")], [])
-    equal (run [(0, -0), (2, -0)] 1 1) $ Right ([(2, -0, "b")], [])
-    equal (run [(2, -2), (4, -2)] 1 1) $ Right ([(4, -4, "b")], [])
+    equal_e (run [(0, 0), (2, 0)] 1 1) $ Right ([(0, 0, "a")], [])
+
+    -- negative
+    equal_e (run [(0, -0), (2, -0)] 1 1) $ Right ([(2, -0, "b")], [])
+    equal_e (run [(2, -2), (4, -2)] 1 1) $
+        Right ([(2, -2, "a"), (4, -2, "b")], [])
+    equal_e (run [(2, -2), (4, -2)] 3 3) $ Right ([(4, -4, "b")], [])
     -- Don't try for mixed polarities.
-    equal (run [(0, 2), (4, -2)] 1 1) $ Right ([(0, 2, "a"), (4, -2, "b")], [])
+    equal_e (run [(0, 2), (4, -2)] 1 1) $
+        Right ([(0, 2, "a"), (4, -2, "b")], [])
 
 test_cmd_invert_orientation = do
     let run tracks = CmdTest.e_tracks $ CmdTest.run_tracks tracks $ do
-            CmdTest.set_sel 1 0 2 0
+            CmdTest.set_sel 1 1 2 1
             Edit.cmd_invert_orientation
-    equal (run [(">", [(0, 2, "1")])])
-        (Right ([(">", [(2, -2, "1")])], []))
-    equal (run [(">", [(0, 2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])])
-        (Right ([(">", [(2, -2, "1")]), ("*", [(2, 0, "4c")])], []))
-    equal (run [(">", [(2, -2, "1")])]) $
-        Right ([(">", [(0, 2, "1")])], [])
-    -- Since a negative note gets the control at the end, it should also
-    -- clear it when it replaces it.
-    equal (run [(">", [(2, -2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])])
-        (Right ([(">", [(0, 2, "1")]), ("*", [(0, 0, "4d")])], []))
+    -- invert_notes
+    equal (run [(">", [(0, 2, "1")])]) (Right ([(">", [(2, -2, "1")])], []))
+    equal (run [(">", [(2, -2, "1")])]) (Right ([(">", [(0, 2, "1")])], []))
+
+    -- Control gets flipped.
+    equal (run [(">", [(0, 2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])]) $
+        Right ([(">", [(2, -2, "1")]), ("*", [(2, -0, "4c"), (2, 0, "4d")])],
+            [])
+        -- It's awkward that I can't actually test 0 vs -0, but presence of
+        -- both controls is impicit proof.
+    -- Flip back.
+    equal (run [(">", [(2, -2, "1")]), ("*", [(2, -0, "4c"), (2, 0, "4d")])]) $
+        Right ([(">", [(0, 2, "1")]), ("*", [(0, 0, "4c"), (2, 0, "4d")])], [])
     -- Don't move controls if there isn't exactly one control at start.
     equal (run [(">", [(0, 2, "1")]), ("*", [(1, 0, "4d")])])
         (Right ([(">", [(2, -2, "1")]), ("*", [(1, 0, "4d")])], []))
 
 -- * util
+
+equal_e :: CallStack.Stack =>
+    Either String ([UiTest.EventSpec], [String])
+    -> Either String ([UiTest.EventSpec], [String])
+    -> IO Bool
+equal_e = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_events)
+
+equal_sd :: CallStack.Stack =>
+    Either String ([(ScoreTime, ScoreTime)], [String])
+    -> Either String ([(ScoreTime, ScoreTime)], [String])
+    -> IO Bool
+equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)
 
 -- | Run with events and a selection.
 run_events_sel :: Cmd.CmdId a -> [(TrackTime, TrackTime)]
@@ -231,5 +276,5 @@ e_start_dur :: CmdTest.Result a
 e_start_dur = fmap (first (map (\(s, d, _) -> (s, d)))) . e_start_dur_text
 
 e_start_dur_text :: CmdTest.Result a
-    -> Either String ([(ScoreTime, ScoreTime, String)], [String])
+    -> Either String ([UiTest.EventSpec], [String])
 e_start_dur_text = fmap (first (snd . head)) . CmdTest.e_tracks

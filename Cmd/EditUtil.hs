@@ -43,20 +43,25 @@ get_pos :: Cmd.M m => m Pos
 get_pos = do
     (view_id, sel) <- Selection.get
     block_id <- Ui.block_id_of view_id
-    let (start, end) = Sel.range sel
-    return $ Pos block_id (Selection.point_track sel) start (end - start)
+    let (start, dur) = let (s, e) = Sel.range sel
+            in case Sel.orientation sel of
+                Sel.Negative
+                    | s == e -> (e, -0)
+                    | otherwise -> (e, s - e)
+                _ -> (s, e - s)
+    return $ Pos block_id (Selection.sel_point_track sel) start dur
 
 -- * events
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_or_create_event :: Ui.M m => Event.Orientation
-    -> Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
-get_or_create_event orient modify_dur track_id pos dur = do
-    event <- Events.at pos <$> Ui.get_events track_id
+get_or_create_event :: Ui.M m => Bool -> TrackId -> TrackTime -> TrackTime
+    -> m (Event.Event, Bool)
+get_or_create_event modify_dur track_id pos dur = do
+    event <- Events.at pos (Event.orientation_of dur) <$> Ui.get_events track_id
     let modify = if modify_dur then Event.set_duration dur else id
-    let create = Event.set_orientation orient $ Event.event pos dur ""
-    return $ maybe (create, True) (\evt -> (modify evt, False)) event
+    return $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
+        event
 
 -- | Modify event text.
 type Modify = Maybe Text
@@ -78,26 +83,32 @@ modify_event_at :: Cmd.M m => Pos
 modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     dur <- infer_duration dur
     track_id <- Ui.get_event_track_at block_id tracknum
-    orient <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
-    (event, created) <- get_or_create_event orient modify_dur track_id start dur
+    (event, created) <- get_or_create_event modify_dur track_id start dur
     let (val, advance) = modify $
             if created then Nothing else Just (Event.text event)
     case val of
-        Nothing -> Ui.remove_event track_id start
+        Nothing -> Ui.remove_event_range track_id
+            (Events.Point start (Event.orientation_of dur))
         Just new_text -> Ui.insert_event track_id
             (Event.set_text new_text event)
     when advance Selection.advance
     where
     infer_duration dur
         | dur /= 0 = return dur
-        | zero_dur = return 0
+        | zero_dur = ifM ((==Event.Positive) <$> get_orientation)
+            (return 0) (return (-0))
         | otherwise = get_duration tracknum start
 
 get_duration :: Cmd.M m => TrackNum -> TrackTime -> m TrackTime
 get_duration tracknum start = do
+    orient <- get_orientation
     step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-    end <- Selection.step_from tracknum start 1 step
+    end <- Selection.step_from tracknum start
+        (if orient == Event.Positive then 1 else -1) step
     return (end - start)
+
+get_orientation :: Cmd.M m => m Event.Orientation
+get_orientation = Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
 
 remove_event :: Cmd.M m => Bool -> m ()
 remove_event advance = do

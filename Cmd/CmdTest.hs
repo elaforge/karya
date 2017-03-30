@@ -246,7 +246,7 @@ set_sel = set_sel_on UiTest.default_view_id
 set_sel_on :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
     -> Types.TrackNum -> ScoreTime -> m ()
 set_sel_on view_id start_track start_pos cur_track cur_pos = do
-    let sel = Sel.selection start_track start_pos cur_track cur_pos
+    let sel = Sel.selection start_track start_pos cur_track cur_pos Sel.Positive
     Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
     Ui.set_selection view_id Config.insert_selnum (Just sel)
 
@@ -259,7 +259,7 @@ set_point_sel tracknum pos = do
 set_point_sel_block :: Ui.M m => String -> Types.TrackNum -> ScoreTime -> m ()
 set_point_sel_block block_name tracknum pos =
     Ui.set_selection view_id Config.insert_selnum
-        (Just (Sel.point tracknum pos))
+        (Just (Sel.point tracknum pos Sel.Positive))
     where view_id = UiTest.mk_vid_name block_name
 
 select_all :: Cmd.M m => m ()

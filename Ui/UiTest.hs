@@ -99,30 +99,59 @@ default_zoom = Config.zoom
 -- * fmt
 
 -- | Visualize event ranges.  This can be used with 'Testing.equal_fmt'.
-fmt_events :: RealFrac t => [(t, t, Text)] -> Text
+fmt_events :: [EventSpec] -> Text
 fmt_events [] = ""
-fmt_events events = Text.unlines $ ruler : map fmt events
+fmt_events events = Text.unlines
+    [fmt_ruler (events_end events), fmt_events_only events]
+
+fmt_events_only :: [EventSpec] -> Text
+fmt_events_only = Text.unlines . map event
     where
-    ruler = fmt_ruler (ceiling end)
-        where end = maximum $ map (\(start, dur, _) -> start + dur) events
-    fmt (start, dur, text) = gap <> arrow <> label
+    event (start, dur, text) = gap <> arrow <> label
         where
-        gap = Text.replicate (to_steps (min start (start + dur))) " "
+        gap = Text.replicate (time_to_spaces (min start (start + dur))) " "
         arrow
+            | dur == 0 && ScoreTime.is_negative dur = "<"
+            | dur == 0 = ">"
             | dur < 0 = "<" <> middle <> "|"
             | otherwise = "|" <> middle <> ">"
-        middle = Text.replicate (to_steps (abs dur) - 1) "-"
-        label = if Text.null text then "" else " [" <> text <> "]"
-    fmt_ruler :: Int -> Text
-    fmt_ruler end = Text.stripEnd $ mconcatMap (space . pretty) ts
-        where
-        space t = t <> Text.replicate (to_steps step - Text.length t) " "
-        ts = Then.takeWhile1 (<end) (Seq.range_ 0 1)
-        step = 1
-    to_steps t = floor (t * 4)
+        middle = Text.replicate (time_to_spaces (abs dur) - 1) "-"
+        label = if null text then "" else " [" <> txt text <> "]"
 
-fmt_start_duration :: RealFrac t => [(t, t)] -> Text
+fmt_ruler :: Int -> Text
+fmt_ruler end = Text.stripEnd $ mconcatMap (space . pretty) ts
+    where
+    space t = t <> Text.replicate (time_to_spaces step - Text.length t) " "
+    ts = Then.takeWhile1 (<end) (Seq.range_ 0 1)
+    step = 1
+
+fmt_start_duration :: [(ScoreTime, ScoreTime)] -> Text
 fmt_start_duration = fmt_events . map (\(s, d) -> (s, d, ""))
+
+fmt_tracks :: [TrackSpec] -> Text
+fmt_tracks [] = ""
+fmt_tracks tracks = Text.unlines $
+    (indent <> fmt_ruler (maximum (map (events_end . snd) tracks)))
+    : concatMap track tracks
+    where
+    track (title, events) = case Text.lines (fmt_events_only events) of
+        [] -> []
+        x : xs -> fmt_title title <> x : map (indent<>) xs
+    indent = Text.replicate (title_length + 2) " "
+    fmt_title title = Text.justifyLeft title_length ' ' (txt title) <> ": "
+    title_length = maximum $ map (length . fst) tracks
+
+time_to_spaces :: ScoreTime -> Int
+time_to_spaces = floor . (*4)
+
+events_end :: [(ScoreTime, ScoreTime, x)] -> Int
+events_end =
+    ceiling . maximum .  map (\(start, dur, _) -> max start (start + dur))
+
+-- | Extract and fmt the fst . right element.  Many DeriveTest extractors
+-- return Either Error (val, [log]).
+right_fst :: (a -> Text) -> Either x (a, y) -> Text
+right_fst fmt = either (const "") (fmt . fst)
 
 -- * monadic mk- functions
 
@@ -315,7 +344,9 @@ insert_event :: Ui.M m => TrackNum -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event = insert_event_in default_block_name
 
 remove_event_in :: Ui.M m => String -> TrackNum -> ScoreTime -> m ()
-remove_event_in name tracknum = Ui.remove_event (mk_tid_name name tracknum)
+remove_event_in name tracknum pos =
+    Ui.remove_event_range (mk_tid_name name tracknum)
+        (Events.Point pos Event.Positive)
 
 remove_event :: Ui.M m => TrackNum -> ScoreTime -> m ()
 remove_event = remove_event_in default_block_name
@@ -435,7 +466,8 @@ select view_id sel =
     Ui.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: Ui.M m => ViewId -> TrackNum -> ScoreTime -> m ()
-select_point view_id tracknum pos = select view_id (Sel.point tracknum pos)
+select_point view_id tracknum pos =
+    select view_id (Sel.point tracknum pos Sel.Positive)
 
 -- * non-monadic make_- functions
 

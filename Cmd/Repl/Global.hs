@@ -163,17 +163,17 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.set_selnum vid Config.error_selnum
-                (Just (Sel.selection 0 0 9999 9999))
+                (Just (Sel.selection 0 0 9999 9999 Sel.None))
         (Just tid, Nothing) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_selnum vid Config.error_selnum
-                    (Just (Sel.selection tracknum 0 tracknum 9999))
+                    (Just (Sel.selection tracknum 0 tracknum 9999 Sel.None))
         (Just tid, Just (from, to)) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_and_scroll vid Config.error_selnum
-                    (Sel.selection tracknum to tracknum from)
+                    (Sel.selection tracknum to tracknum from Sel.None)
     where
     find_block = case maybe_tid of
         Nothing -> Cmd.throw $

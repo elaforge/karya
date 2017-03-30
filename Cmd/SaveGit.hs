@@ -198,7 +198,7 @@ dump_events state track_id start end =
         Serialize.encode $ EventsUpdate track_id start end events
     where
     events = maybe Events.empty
-        (Events.in_range (Events.Positive start end) . Track.track_events)
+        (Events.in_range (Events.Range start end) . Track.track_events)
         (Map.lookup track_id (Ui.state_tracks state))
 
 -- | Put the range into the filename.  You still have to load all the event

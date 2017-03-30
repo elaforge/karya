@@ -358,7 +358,7 @@ run_selection_hooks sels = do
         Just sel -> do
             block_id <- Ui.block_id_of view_id
             maybe_track_id <- Ui.event_track_at block_id
-                (Selection.point_track sel)
+                (Selection.sel_point_track sel)
             return (view_id, Just (sel, block_id, maybe_track_id))
     hooks <- Cmd.gets (Cmd.hooks_selection . Cmd.state_hooks)
     mapM_ ($ sel_tracks) hooks
@@ -514,7 +514,8 @@ sync_selection_realtime view_id maybe_sel = case maybe_sel of
     where
     set = Cmd.set_view_status view_id Config.status_realtime
     get block_id maybe_track_id sel = justm Perf.lookup_root $ \perf ->
-        Perf.lookup_realtime perf block_id maybe_track_id (Selection.point sel)
+        Perf.lookup_realtime perf block_id maybe_track_id
+            (Selection.sel_point sel)
 
 -- | If a ScoreTime looks like a low fraction, display it thus, rather than as
 -- a decimal.  This is useful because e.g. meters in three will have lots of
@@ -543,7 +544,7 @@ pretty_rational d
 
 sync_selection_control :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_control view_id (Just (sel, block_id, Just track_id)) = do
-    status <- track_control block_id track_id (Selection.point sel)
+    status <- track_control block_id track_id (Selection.sel_point sel)
     Cmd.set_view_status view_id Config.status_control status
 sync_selection_control view_id _ =
     Cmd.set_view_status view_id Config.status_control Nothing

@@ -332,23 +332,21 @@ c_norot start_prepare prepare =
                 , final
                 )
         norot start_prepare sustain_cycle prepare_cycle under_threshold
-            cur_pitch next_pitch note_dur initial_final
-            (Args.start args) (Args.end args)
+            cur_pitch next_pitch note_dur initial_final (Args.range args)
 
 norot :: Bool -> (PSignal.Transposed -> Cycle) -> (PSignal.Transposed -> Cycle)
     -> (ScoreTime -> Bool) -> Maybe PSignal.Pitch -> Maybe PSignal.Pitch
-    -> ScoreTime -> (Bool, Bool) -> ScoreTime -> ScoreTime
+    -> ScoreTime -> (Bool, Bool) -> (ScoreTime, ScoreTime)
     -> Derive.NoteDeriver
 norot start_prepare sustain_cycle prepare_cycle under_threshold
         cur_pitch next_pitch
-        note_dur initial_final start end = do
+        note_dur initial_final (start, end) = do
     real_start <- Derive.real start
     cycles <- norot_sequence start_prepare sustain_cycle prepare_cycle
         cur_pitch next_pitch real_start
     let notes = apply_initial_final start end initial_final $
-            -- Debug.tracep "notes" $
             realize_norot under_threshold note_dur start end cycles
-    realize_notes id $ concat notes
+    realize_notes id (concat notes)
 
 apply_initial_final :: ScoreTime -> ScoreTime -> (Bool, Bool) -> [[Note a]]
     -> [[Note a]]
@@ -487,10 +485,11 @@ data PitchedCycle = PitchedCycle !PSignal.Pitch !Cycle
 -- TODO this is still used by Reyong.  If I can simplify reyong norot too
 -- then I can get rid of it.
 prepare_sustain :: Bool -> ScoreTime -> (Maybe Bool, Bool)
-    -> Event.Orientation -> ScoreTime -> ScoreTime
+    -> Event.Orientation -> (ScoreTime, ScoreTime)
     -> (Maybe ((Bool, Bool), (ScoreTime, ScoreTime)),
         Maybe ((Bool, Bool), (ScoreTime, ScoreTime)))
-prepare_sustain has_prepare note_dur (maybe_initial, final) orient start end =
+prepare_sustain has_prepare note_dur (maybe_initial, final) orient
+        (start, end) =
     (sustain, prepare)
     where
     sustain
@@ -522,7 +521,8 @@ infer_prepare :: Derive.PassedArgs a -> Maybe Bool
 infer_prepare _ (Just False) = return Nothing
 infer_prepare args (Just True) = Args.lookup_next_pitch args
 infer_prepare args Nothing
-    | Args.next_start args /= Just (Args.end args) = return Nothing
+    | Args.next_start args /= Just (Event.max (Args.event args)) =
+        return Nothing
     | otherwise = Args.lookup_next_pitch args
 
 gangsa_norot :: NorotStyle -> Pasang Score.Instrument
@@ -705,8 +705,7 @@ c_kotekan_explicit =
         polos_steps <- parse "polos" expected polos_s
         sangsih_steps <- parse "sangsih" expected sangsih_s
         pitch <- get_pitch args
-        let realize = realize_explicit (Args.start args) (Args.end args) dur
-                pitch
+        let realize = realize_explicit (Args.range args) dur pitch
         realize polos_steps (polos pasang)
             <> realize sangsih_steps (sangsih pasang)
     where
@@ -721,9 +720,9 @@ c_kotekan_explicit =
     parse1 c = maybe (Left $ "expected digit or '-': " <> showt c)
         (Right . Just) (Num.readDigit c)
 
-realize_explicit :: ScoreTime -> ScoreTime -> ScoreTime -> PSignal.Pitch
+realize_explicit :: (ScoreTime, ScoreTime) -> ScoreTime -> PSignal.Pitch
     -> [Maybe Pitch.Step] -> Score.Instrument -> Derive.NoteDeriver
-realize_explicit start end dur pitch notes inst = mconcat
+realize_explicit (start, end) dur pitch notes inst = mconcat
     [ Derive.place t dur (note t transpose)
     | (t, Just transpose) <- zip (tail (Seq.range_ start dur)) notes
     ]
@@ -1273,7 +1272,7 @@ pasang_key e = (inst, get EnvKey.hand)
 -- | Get pitch for a kotekan call.  For Negative events, get the pitch at the
 -- end.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
-get_pitch args = Call.get_pitch =<< Args.real_trigger args
+get_pitch args = Call.get_pitch =<< Args.real_start args
 
 style_arg :: KotekanStyle -> Sig.Parser KotekanStyle
 style_arg deflt = Sig.defaulted_env "style" Sig.Both deflt "Kotekan style."

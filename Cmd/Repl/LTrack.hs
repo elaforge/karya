@@ -103,20 +103,19 @@ events = fmap Events.ascending . Ui.get_events
 
 selected :: Cmd.M m => m [Event.Event]
 selected = do
-    (_, _, track_ids, start, end) <- Selection.tracks
+    (_, _, track_ids, range) <- Selection.tracks
     track_id <- Cmd.require "selected track" (Seq.head track_ids)
-    Events.ascending . Events.in_range (Events.Positive start end) <$>
-        Ui.get_events track_id
+    Events.ascending . Events.in_range range <$> Ui.get_events track_id
 
 events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
 events_range track_id start end =
-    Events.ascending . Events.in_range (Events.Positive start end) <$>
+    Events.ascending . Events.in_range (Events.Range start end) <$>
         Ui.get_events track_id
 
 selected_notation :: Cmd.M m => TrackTime -> m Text
 selected_notation step = do
     events <- selected
-    (_, _, _, start, end) <- Selection.tracks
+    (start, end) <- Events.range_times <$> Selection.range
     return $ to_notation start step end events
 
 -- | Reduce event text to notation at a fixed time increment.  It only works

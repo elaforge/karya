@@ -5,6 +5,7 @@
 module Ui.ScoreTime (
     ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix
     , eta, (==), (>), (<=)
+    , is_negative
 ) where
 import qualified Prelude
 import Prelude hiding ((==), (>), (<=), round)
@@ -118,3 +119,7 @@ eta = 0.00000000000004
 (>), (<=) :: ScoreTime -> ScoreTime -> Bool
 a > b = a - eta Prelude.> b
 a <= b = not (a > b)
+
+-- | Unlike <0, this counts -0 as negative.
+is_negative :: ScoreTime -> Bool
+is_negative (ScoreTime t) = t < 0 || isNegativeZero t

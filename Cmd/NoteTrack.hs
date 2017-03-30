@@ -113,14 +113,9 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
             else this_control_track block_id sel_tracknum is_pitch
         when create $ create_pitch_track block_id ctrack
         associate_note_id block_id (track_control ctrack) note_id
-        is_positive <- (==Event.Positive) <$>
-            Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit)
-        let mkpos = EditUtil.Pos block_id (track_control ctrack)
-        pitch_pos <- if is_positive
-            then return $ mkpos pos 0
-            else do
-                note_dur <- EditUtil.get_duration sel_tracknum pos
-                return $ mkpos (pos + note_dur) (-0)
+        orient <- Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit)
+        let pitch_pos = EditUtil.Pos block_id (track_control ctrack)
+                pos (if orient == Event.Positive then 0 else -0)
         PitchTrack.val_edit_at pitch_pos note
         -- Dyn track.
         whenM (get_state Cmd.state_record_velocity) $ do
@@ -141,7 +136,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
     is_dyn = (== Just Score.c_dynamic) . ParseTitle.title_to_control
     set_temp_sel pos maybe_tracknum = Selection.set_current
         Config.temporary_insert_selnum $
-            fmap (\num -> Sel.point num pos) maybe_tracknum
+            fmap (\num -> Sel.point num pos Sel.Positive) maybe_tracknum
     dissociate_note_id note_id = Cmd.modify_wdev_state $ \st -> st
         { Cmd.wdev_pitch_track = Map.delete note_id (Cmd.wdev_pitch_track st) }
     associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $

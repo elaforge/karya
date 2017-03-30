@@ -306,7 +306,7 @@ c_norot default_prepare =
         let orientation = Args.orientation args
         let (sustain_params, prepare_params) = Gangsa.prepare_sustain
                 (Maybe.isJust next_pitch) note_dur initial_final
-                orientation (Args.start args) (Args.end args)
+                orientation (Args.range args)
         sustain <- case sustain_params of
             Nothing -> return mempty
             Just (initial_final, range) -> realize_positions
@@ -440,7 +440,7 @@ get_parsed_pitch :: Derive.PassedArgs a
     -> Derive.Deriver (Pitch.Pitch, Pitch.Pitch -> Maybe Pitch.Note)
 get_parsed_pitch args = do
     (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
-    pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_trigger args
+    pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
     return (pitch, show_pitch)
 
 -- | Like 'Gangsa.infer_prepare', except return a parsed Pitch.Pitch.

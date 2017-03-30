@@ -5,33 +5,44 @@
 module Ui.Events_test where
 import qualified Data.Maybe as Maybe
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Util.Testing as Testing
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import Ui.Events (Range(..))
+import qualified Ui.UiTest as UiTest
 
 import Global
 import Types
 
 
 test_split_range = do
-    let f range evts = e_ranges $ Events.split_range range $
-            from_list [(p, d, showt p) | (p, d) <- evts]
-    equal (f (Positive 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
+    let f range = e_ranges . Events.split_range range . from_start_dur
+    -- Half-open for positive.
+    equal (f (Range 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
-    equal (f (Positive 1 2) [(0, 1), (1, 0.5), (2, -0.5), (3, 1)])
-        ([0], [1, 1.5], [3])
-    equal (f (Positive 1 2) [(0, 0), (1, 0), (2, 0), (3, 0)])
+    -- Half-open for negative.
+    equal (f (Range 1 2) [(1, -1), (2, -1), (3, -1)])
+        ([1], [2], [3])
+    equal (f (Range 1 2) [(0, 1), (1, 0.5), (2, -0.5), (3, 1)])
+        ([0], [1, 2], [3])
+    equal (f (Range 1 2) [(0, 0), (1, 0), (2, 0), (3, 0)])
         ([0], [1], [2, 3])
-    -- Negative.
-    equal (f (Negative 1 2) [(0, 1), (1, 1), (2, 1), (3, 1)])
-        ([1, 0], [2], [3])
     -- An empty range divides into before and after, even for negative events.
-    equal (f (Positive 1 1) [(1, 1)]) ([], [], [1])
-    equal (f (Positive 1 1) [(1, -1)]) ([0], [], [])
-    -- Point gets the one exactly at.
-    equal (f (Inclusive 1 1) [(0, 1), (1, 1), (2, 1)]) ([0], [1], [2])
+    equal (f (Range 1 1) [(1, 1)]) ([], [], [1])
+    equal (f (Range 1 1) [(1, -1)]) ([1], [], [])
+
+    equal (f (Point 1 Event.Positive) [(0, 1), (1, 1), (2, 1)])
+        ([0], [1], [2])
+    equal (f (Point 1 Event.Positive) [(1, -1), (1, 1), (2, 1)])
+        ([1], [1], [2])
+    equal (f (Point 1 Event.Negative) [(1, -1), (1, 1), (2, 1)])
+        ([], [1], [1, 2])
+    equal (f (Point 0.5 Event.Positive) [(1, -1), (1, 1), (2, 1)])
+        ([], [], [1, 1, 2])
 
 e_ranges :: (Events.Events, Events.Events, Events.Events)
     -> ([TrackTime], [TrackTime], [TrackTime])
@@ -52,13 +63,30 @@ test_split_at_before = do
 
 test_from_list = do
     let f = extract . from_list
-    equal (f [(0, 1, "a"), (2, 1, "c"), (1, 1, "b")])
+    -- Unsorted is ok.
+    equal_e (f [(2, 1, "a"), (1, 1, "b")]) [(1, 1, "b"), (2, 1, "a")]
+    -- Positive.
+    equal_e (f [(0, 1, "a"), (2, 1, "c"), (1, 1, "b")])
         [(0, 1, "a"), (1, 1, "b"), (2, 1, "c")]
+    equal_e (f [(0, 4, "a"), (2, 2, "b")]) [(0, 2, "a"), (2, 2, "b")]
+    equal_e (f [(0, 4, "a"), (0, 2, "b")]) [(0, 2, "b")]
+
+    -- Negative.
+    equal_e (f [(2, -2, "a"), (4, -4, "b")]) [(2, -2, "a"), (4, -2, "b")]
+    equal_e (f [(2, -2, "a"), (2, -1, "b")]) [(2, -2, "a")]
+    equal_e (f [(2, -2, "a"), (4, -2, "b")]) [(2, -2, "a"), (4, -2, "b")]
+    equal_e (f [(3, -3, "a"), (4, -2, "b")]) [(3, -3, "a"), (4, -1, "b")]
+
+    -- Mixed, Positive wins.
+    equal_e (f [(0, 1, "a"), (2, -2, "b")]) [(0, 1, "a"), (2, -1, "b")]
+    equal_e (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
+    equal_e (f [(0, 2, "a"), (2, -2, "b")]) [(0, 2, "a")]
 
 test_clip = do
-    let f include_end at = map extract_event $
-            Events.clip include_end at (pos_events [(0, 2, "a"), (2, 2, "b")])
-    equal (map (f False) (Seq.range 0 5 1))
+    let f include_end end = map extract_event
+            . Events.clip include_end end . pos_events
+    let positive = [(0, 2, "a"), (2, 2, "b")]
+    equal [f False end positive | end <- Seq.range 0 5 1]
         [ []
         , [(0, 1, "a")]
         , [(0, 2, "a")]
@@ -66,7 +94,7 @@ test_clip = do
         , [(0, 2, "a"), (2, 2, "b")]
         , [(0, 2, "a"), (2, 2, "b")]
         ]
-    equal (map (f True) (Seq.range 0 5 1))
+    equal [f True end positive | end <- Seq.range 0 5 1]
         [ [(0, 0, "a")]
         , [(0, 1, "a")]
         , [(0, 2, "a"), (2, 0, "b")]
@@ -74,23 +102,34 @@ test_clip = do
         , [(0, 2, "a"), (2, 2, "b")]
         , [(0, 2, "a"), (2, 2, "b")]
         ]
+    equal [f False end [(2, -2, "a"), (4, -2, "b")] | end <- Seq.range 0 3 1]
+        [ []
+        , []
+        , [(2, -2, "a")]
+        , [(2, -2, "a")]
+        ]
 
 test_insert = do
-    let f evts0 evts1 = extract $
-            Events.insert (pos_events evts0) (from_list evts1)
-    equal (f [(0, 1, "a0")] [(3, 1, "b0")])
+    let f new old = extract $ Events.insert (pos_events new) (from_list old)
+    equal_e (f [(0, 1, "a0")] [(3, 1, "b0")])
         [(0, 1, "a0"), (3, 1, "b0")]
-    equal (f [(0, 4, "a0"), (4, 4, "a1")] [(2, 4, "b0"), (6, 4, "b1")])
+    equal_e (f [(0, 4, "a0"), (4, 4, "a1")] [(2, 4, "b0"), (6, 4, "b1")])
         [(0, 2, "a0"), (2, 2, "b0"), (4, 2, "a1"), (6, 4, "b1")]
     -- Inserting overlapping events are clipped.
-    equal (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
+    equal_e (f [(0, 4, "a0"), (2, 4, "a1")] []) [(0, 2, "a0"), (2, 4, "a1")]
+    equal_e (f [(1, 3, "new")] [(0, 2, "old")]) [(0, 1, "old"), (1, 3, "new")]
     -- If the start is coincident, the existing events are replaced.
-    equal (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
+    equal_e (f [(0, 1, "a"), (2, 1, "b")] [(0, 0, "1"), (2, 0, "2")])
         [(0, 1, "a"), (2, 1, "b")]
-    equal (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]
+    equal_e (f [(1, 0, "1"), (1.25, 0, "1.25"), (2, 0, "2")]
             [(0, 0, "0"), (0.25, 0, "0.25")])
-        [(0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25"),
-            (2, 0, "2")]
+        [ (0, 0, "0"), (0.25, 0, "0.25"), (1, 0, "1"), (1.25, 0, "1.25")
+        , (2, 0, "2")
+        ]
+    -- Negative events.
+    equal_e (f [(4, -2, "a")] [(3, -3, "b")]) [(3, -3, "b"), (4, -1, "a")]
+    equal_e (f [(3, -3, "b")] [(4, -2, "a")]) [(3, -3, "b"), (4, -1, "a")]
+    equal_e (f [(2, -2, "a")] [(0, 2, "b")]) [(0, 2, "b")]
 
 -- TODO unimplemented.  I should do this with quickcheck.
 -- Not only to generate the events but also to report the failing input.
@@ -106,29 +145,35 @@ test_properties = do
 
 test_clip_events = do
     let f = map extract_event .  Events.clip_events . pos_events
-    equal (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
-    equal (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
-    equal (f [(0, 2, "a"), (0, 1, "b")]) [(0, 1, "b")]
-    equal (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
+    equal_e (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
+    equal_e (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equal_e (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
+    equal_e (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
+    equal_e (f [(0, 2, "a"), (0, 1, "b")]) [(0, 1, "b")]
+    equal_e (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
+    -- Negative loses to Positive.
+    equal_e (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
+    equal_e (f [(1, -0, "a"), (1, 0, "b")]) [(1, -0, "a"), (1, 0, "b")]
+    equal_e (f [(0, 2, "a"), (2, -1, "b")]) [(0, 2, "a")]
+    equal_e (f [(0, 2, "a"), (3, -2, "b")]) [(0, 2, "a"), (3, -1, "b")]
 
 test_remove = do
-    let f range = extract $
-            Events.remove range (from_list [(0, 0, "0"), (16, 1, "16")])
+    let f range = e_start_dur . Events.remove range . from_start_dur
     -- able to remove 0 dur events
-    equal (f (Inclusive 0 0)) [(16, 1, "16")]
+    equal (f (Point 0 Event.Positive) [(0, 0), (1, 1)]) [(1, 1)]
+    equal (f (Point 1 Event.Negative) [(0, 0), (1, -0), (1, 0), (2, 0)])
+        [(0, 0), (1, 0), (2, 0)]
+    equal (f (Point 1 Event.Positive) [(0, 0), (1, -0), (1, 0), (2, 0)])
+        [(0, 0), (1, -0), (2, 0)]
 
-    equal (f (Positive 0 16)) [(16, 1, "16")]
-    equal (f (Negative 0 16)) [(0, 0, "0")]
-    -- get it all
-    equal (f (Positive 0 17)) []
-    -- missed entirely
-    equal (f (Positive 4 10)) [(0, 0, "0"), (16, 1, "16")]
+    equal (f (Range 0 1) [(0, 0), (1, 0)]) [(1, 0)]
+    equal (f (Range 0 1) [(0, 0), (1, -0)]) []
+    equal (f (Range 0 1) [(0, -0), (1, -0)]) [(0, -0)]
+    equal (f (Range 1 2) [(0, 1), (3, 1)]) [(0, 1), (3, 1)]
 
 test_round_events = do
-    let move events =
-            Events.insert [next] $ Events.remove_at (Event.start e) events
+    let move events = Events.insert [next] $
+            Events.remove (Point (Event.start e) Event.Positive) events
             where
             e = Maybe.fromJust $ Events.head events
             next = Event.move (+ 1/3) e
@@ -140,7 +185,14 @@ test_round_events = do
 
 -- * util
 
+equal_e :: CallStack.Stack => [Event] -> [Event] -> IO Bool
+equal_e = Testing.equal_fmt (UiTest.fmt_events . map convert)
+    where convert (s, d, t) = (s, d, untxt t)
+
 type Event = (ScoreTime, ScoreTime, Text)
+
+from_start_dur :: [(TrackTime, TrackTime)] -> Events.Events
+from_start_dur evts = from_list [(p, d, showt p) | (p, d) <- evts]
 
 from_list :: [Event] -> Events.Events
 from_list = Events.from_list . pos_events
@@ -155,20 +207,8 @@ pos_events = map (\(pos, dur, text) -> Event.event pos dur text)
 extract :: Events.Events -> [(TrackTime, TrackTime, Text)]
 extract = map extract_event . Events.ascending
 
+e_start_dur :: Events.Events -> [(TrackTime, TrackTime)]
+e_start_dur = map (\(s, d, _) -> (s, d)) . extract
+
 extract_event :: Event.Event -> (TrackTime, TrackTime, Text)
-extract_event e = (s, d, Event.text e)
-    where (s, d) = Event.orientation_as_duration e
-
-no_overlaps :: Events.Events -> IO Bool
-no_overlaps events = check ("no overlaps: " <> pretty events) $
-    not (events_overlap events)
-
-events_overlap :: Events.Events -> Bool
-events_overlap events = any (uncurry overlaps)
-    (zip (Events.ascending events) (drop 1 (Events.ascending events)))
-
-overlaps :: Event.Event -> Event.Event -> Bool
-overlaps evt1 evt2 =
-    -- They don't overlap and they aren't simultaneous (the second condition is
-    -- needed for zero duration events).
-    Event.end evt1 > Event.start evt2 || Event.start evt1 >= Event.start evt2
+extract_event e = (Event.start e, Event.duration e, Event.text e)

@@ -17,7 +17,6 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
-import qualified Ui.Sel as Sel
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
@@ -27,6 +26,9 @@ import Global
 
 #include "fltk/config.h"
 
+
+-- | This is 'Ui.Sel.Num', but duplicated here to avoid the import.
+type SelNum = Int
 
 data Platform = Mac | Linux deriving (Show, Eq)
 
@@ -166,24 +168,24 @@ mouse_select = 1
 -- know where to apply any score changes they are supposed to make.  Generally
 -- if a Cmd doesn't have specific BlockId, TrackId, and ScoreTime arguments,
 -- it probably defaults to the insert_selnum.
-insert_selnum :: Sel.Num
+insert_selnum :: SelNum
 -- | Temporary insert point,  to indicate insert position when it's not the
 -- insert_selnum.
-temporary_insert_selnum :: Sel.Num
+temporary_insert_selnum :: SelNum
 -- | Highlight errors, possibly reported internally but probably sent by
 -- logview when you click on a stack trace.
-error_selnum :: Sel.Num
+error_selnum :: SelNum
 -- | Display current "Cmd.StepPlay" position.
-step_play_selnum :: Sel.Num
+step_play_selnum :: SelNum
 -- | Display current play position, managed by play monitor thread.
-play_position_selnum :: Sel.Num
+play_position_selnum :: SelNum
 -- | Display 'Color.Highlight's.  This has many possible colors.
-highlight_selnum :: Sel.Num
+highlight_selnum :: SelNum
 
--- | The most number of Sel.Nums that will be used.  The only reason this needs
+-- | The most number of SelNums that will be used.  The only reason this needs
 -- a constant is so 'Ui.Diff.refresh_selections' can emit updates for all
 -- selections.
-max_selnums :: Sel.Num
+max_selnums :: SelNum
 max_selnums = 7
 
 -- This must be the same length as 'max_selnums'.
@@ -197,7 +199,7 @@ max_selnums = 7
     , (highlight_selnum, _)
     ] = zip [0..] selection_colors
 
--- | Colors that come from a Sel.Num.
+-- | Colors that come from a SelNum.
 selection_colors :: [Color.Color]
 selection_colors = map to_sel $ take max_selnums $
     [ Color.blue, Color.green, Color.yellow, Color.red, Color.purple
@@ -207,7 +209,7 @@ selection_colors = map to_sel $ take max_selnums $
     ] ++ repeat Color.black
     where to_sel = Color.alpha 0.3 . Color.brightness 1.25
 
-lookup_selection_color :: Sel.Num -> Color.Color
+lookup_selection_color :: SelNum -> Color.Color
 lookup_selection_color selnum
     | Array.in_bounds selnum a = a IArray.! selnum
     | otherwise = Color.black

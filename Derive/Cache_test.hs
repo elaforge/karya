@@ -119,7 +119,8 @@ test_add_remove = do
                 ])
             ]
     let (_, cached, uncached) = compare_cached create $
-            Ui.remove_event (UiTest.tid "top.t1") 1
+            Ui.remove_event_range (UiTest.tid "top.t1")
+                (Events.Point 1 Event.Positive)
     equal (diff_events cached uncached) []
 
     let (_, cached, uncached) = compare_cached create $

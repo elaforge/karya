@@ -52,7 +52,7 @@ distribute_n tracks = ModifyNotes.selection $ \_ notes -> return $
 -- | Like 'distribute_n', but use only the selected tracks.
 distribute :: Cmd.CmdL ()
 distribute = do
-    (block_id, _, track_ids, _, _) <- Selection.tracks
+    (block_id, _, track_ids, _) <- Selection.tracks
     tracks <- length <$> ModifyNotes.extract_note_trees block_id track_ids
     distribute_n tracks
 

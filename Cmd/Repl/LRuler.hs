@@ -241,7 +241,7 @@ get_marks block_id =
 selected_marks :: Cmd.M m => Ruler.Rank -> m [Ruler.PosMark]
 selected_marks rank = do
     ruler <- Ui.get_ruler =<< selected
-    (start, end) <- Selection.range
+    (start, end) <- selection_range
     return $ filter ((<=rank) . Ruler.mark_rank . snd) $
         takeWhile ((<=end) . fst) $ Ruler.ascending start $ snd $
         Ruler.get_marklist Ruler.meter ruler
@@ -274,7 +274,7 @@ lclip = local clip
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify
 append = do
-    (start, end) <- Selection.range
+    (start, end) <- selection_range
     modify_selected $ \meter ->
         meter <> Meter.clip (Meter.time_to_duration start)
             (Meter.time_to_duration end) meter
@@ -288,14 +288,14 @@ append_ruler_id ruler_id = do
 -- | Remove the selected range of the ruler and shift the rest up.
 delete :: Cmd.M m => m Modify
 delete = do
-    (start, end) <- Selection.range
+    (start, end) <- selection_range
     modify_selected $ Meter.delete
         (Meter.time_to_duration start) (Meter.time_to_duration end)
 
 -- | Replace the selected region with another marklist.
 replace :: Cmd.M m => Meter.LabeledMeter -> m Modify
 replace insert = do
-    (start, end) <- Selection.range
+    (start, end) <- selection_range
     modify_selected $ replace_range start end insert
 
 -- | Replace the selected region with another marklist.
@@ -393,7 +393,7 @@ extract_calls block_id track_id =
 tracks :: Cmd.M m => m Modify -> m Modify
 tracks modify = do
     modify <- modify
-    (_, tracknums, _, _, _) <- Selection.tracks
+    (_, tracknums, _, _) <- Selection.tracks
     return $ modify { m_scope = RulerUtil.Tracks tracknums }
 
 -- | Change a Modify so it modifies all rulers on the block.
@@ -537,3 +537,9 @@ meter_ranks =
     a2 = alpha 0.4
     a3 = alpha 0.55
     alpha a r g b = Color.rgba r g b a
+
+-- * util
+
+-- | Ruler operations don't care about selection orientation.
+selection_range :: Cmd.M m => m (TrackTime, TrackTime)
+selection_range = Events.range_times <$> Selection.range

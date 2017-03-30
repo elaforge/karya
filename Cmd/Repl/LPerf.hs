@@ -323,7 +323,7 @@ get_sel :: (d -> RealTime) -> (d -> Stack.Stack) -> Bool -- ^ from root
 get_sel event_start event_stack from_root derive_events = do
     (block_id, start, end) <-
         if from_root then Selection.realtime else Selection.local_realtime
-    (_, _, track_ids, _, _) <- Selection.tracks
+    track_ids <- Selection.track_ids
     events <- derive_events block_id
     return $ in_tracks event_stack track_ids $
         in_range event_start start end events
@@ -475,8 +475,8 @@ chord :: Cmd.CmdL Text
 chord = do
     (view_id, sel) <- Selection.get
     block_id <- Ui.block_id_of view_id
-    maybe_track_id <- Ui.event_track_at block_id (Selection.point_track sel)
-    show_chord <$> chord_at block_id maybe_track_id (Selection.point sel)
+    maybe_track_id <- Ui.event_track_at block_id (Selection.sel_point_track sel)
+    show_chord <$> chord_at block_id maybe_track_id (Selection.sel_point sel)
 
 show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
 show_chord = Text.intercalate ", " . map pretty
@@ -499,7 +499,7 @@ set_chord_status view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
     Just (sel, block_id, maybe_track_id) ->
         set . Just . show_chord
-            =<< chord_at block_id maybe_track_id (Selection.point sel)
+            =<< chord_at block_id maybe_track_id (Selection.sel_point sel)
     where set = Cmd.set_view_status view_id Config.status_chord
 
 -- | Show the ratios of the frequencies of the notes at the time of the current

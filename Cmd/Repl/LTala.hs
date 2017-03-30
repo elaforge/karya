@@ -4,6 +4,7 @@
 
 -- | Utilities for talams for Carnatic music.
 module Cmd.Repl.LTala where
+import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -17,7 +18,8 @@ import qualified Cmd.Selection as Selection
 -- | Convert the selection from chatusram nadai to tisram nadai.
 chatusram_to_tisram :: Cmd.CmdL ()
 chatusram_to_tisram = do
-    (block_id, _, _, start, end) <- Selection.tracks
+    (block_id, _, _, range) <- Selection.tracks
+    let (start, end) = Events.range_times range
     ModifyEvents.selection $
         ModifyEvents.event $ LEvent.stretch_event start (2/3)
     let dur = (end - start) * (2/3)

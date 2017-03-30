@@ -20,5 +20,5 @@ std::ostream &
 operator<<(std::ostream &os, const Selection &sel)
 {
     return os << "Selection(" << sel.color << ", " << sel.start
-        << ", " << sel.cur << ", " << sel.draw_arrow << ")";
+        << ", " << sel.cur << ", " << sel.orientation << ")";
 }

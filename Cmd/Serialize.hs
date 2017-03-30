@@ -313,7 +313,7 @@ instance Serialize Block.Divider where
     get = Block.Divider <$> get
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g) = Serialize.put_version 6
+    put (Block.View a b c d e f g) = Serialize.put_version 7
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g
     get = do
         v <- Serialize.get_version
@@ -326,11 +326,21 @@ instance Serialize Block.View where
                 status :: Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Zoom.Zoom <- get
-                selections :: Map Sel.Num Sel.Selection <- get
+                selections :: Map Sel.Num OldSelection <- get
                 let padding = Block.Padding track_padding time_padding 0
                 return $ Block.View block rect padding status track_scroll zoom
-                    selections
+                    (upgrade <$> selections)
             6 -> do
+                block :: Types.BlockId <- get
+                rect :: Rect.Rect <- get
+                padding :: Block.Padding <- get
+                status :: Map (Int, Text) Text <- get
+                track_scroll :: Types.Width <- get
+                zoom :: Zoom.Zoom <- get
+                selections :: Map Sel.Num OldSelection <- get
+                return $ Block.View block rect padding status track_scroll zoom
+                    (upgrade <$> selections)
+            7 -> do
                 block :: Types.BlockId <- get
                 rect :: Rect.Rect <- get
                 padding :: Block.Padding <- get
@@ -341,6 +351,8 @@ instance Serialize Block.View where
                 return $ Block.View block rect padding status track_scroll zoom
                     selections
             _ -> Serialize.bad_version "Block.View" v
+        where
+        upgrade (OldSelection a b c d) = Sel.Selection a b c d Sel.Positive
 
 instance Serialize Block.Padding where
     put (Block.Padding a b c) = Serialize.put_version 0
@@ -368,14 +380,30 @@ instance Serialize Zoom.Zoom where
         factor :: Double <- get
         return $ Zoom.Zoom offset factor
 
+data OldSelection = OldSelection TrackNum TrackTime TrackNum TrackTime
+
+instance Serialize OldSelection where
+    put (OldSelection a b c d) = put a >> put b >> put c >> put d
+    get = OldSelection <$> get <*> get <*> get <*> get
+
 instance Serialize Sel.Selection where
-    put (Sel.Selection a b c d) = put a >> put b >> put c >> put d
+    put (Sel.Selection a b c d e) = Serialize.put_version 0
+        >> put a >> put b >> put c >> put d >> put e
     get = do
-        strack :: Int <- get
-        stime :: ScoreTime <- get
-        ctrack :: Int <- get
-        ctime :: ScoreTime <- get
-        return $ Sel.Selection strack stime ctrack ctime
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                strack :: Int <- get
+                stime :: ScoreTime <- get
+                ctrack :: Int <- get
+                ctime :: ScoreTime <- get
+                orient :: Sel.Orientation <- get
+                return $ Sel.Selection strack stime ctrack ctime orient
+            _ -> Serialize.bad_version "Sel.Selection" v
+
+instance Serialize Sel.Orientation where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
 
 -- ** Types, Color, Font
 

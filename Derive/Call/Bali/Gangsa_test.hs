@@ -40,7 +40,7 @@ test_norot = do
         ([(polos, "23232"), (sangsih, "21212")], [])
     -- Positive defaults to initial=t, negative to initial=f.
     equal (run [(0, 4, "nt -- 4c")]) ([(pasang, "12121")], [])
-    equal (run [(0, 0, "4c"), (4, -4, "nt -- 4c")]) ([(pasang, "-2121")], [])
+    equal (run [(4, -4, "nt -- 4c")]) ([(pasang, "-2121")], [])
     -- Under threshold, split sangsih and polos.
     equal (run [(0, 4, "kotekan=2 | norot -- 4c")])
         ([(polos, "1-1-1"), (sangsih, "-2-2-")], [])

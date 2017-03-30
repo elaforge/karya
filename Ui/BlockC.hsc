@@ -39,7 +39,7 @@ module Ui.BlockC (
     , set_size
     , set_zoom
     , set_track_scroll
-    , Selection(..)
+    , Selection(..), SelectionOrientation(..)
     , set_selection
     , bring_to_front
 
@@ -512,22 +512,27 @@ data Selection = Selection {
     sel_color :: !Color.Color
     , sel_start :: !TrackTime
     , sel_cur :: !TrackTime
-    , sel_draw_arrow :: !Bool
+    , sel_orientation :: !SelectionOrientation
     }
     deriving (Eq, Ord, Show)
 
+data SelectionOrientation = None | Positive | Negative | Both
+    deriving (Show, Eq, Ord, Enum)
+
 instance Pretty.Pretty Selection where
-    pretty (Selection color start cur draw_arrow) =
-        "Selection " <> pretty (color, start, cur, draw_arrow)
+    pretty (Selection color start cur orientation) =
+        "Selection " <> pretty (color, start, cur, orientation)
+
+instance Pretty.Pretty SelectionOrientation where pretty = showt
 
 instance CStorable Selection where
     sizeOf _ = #size Selection
     alignment _ = alignment (0 :: TrackTime)
     peek = error "Selection peek unimplemented"
-    poke selp (Selection color start cur draw_arrow) = do
+    poke selp (Selection color start cur orientation) = do
         (#poke Selection, color) selp color
         (#poke Selection, start) selp start
         (#poke Selection, cur) selp cur
-        (#poke Selection, draw_arrow) selp (Util.c_bool draw_arrow)
+        (#poke Selection, orientation) selp (Util.c_int (fromEnum orientation))
 
 ##endif
