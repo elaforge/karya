@@ -239,7 +239,7 @@ resolve_relative_call ns caller sym
 -- the selected tracks with a ruler clipped to the selected range.
 block_from_template :: Cmd.M m => m ()
 block_from_template = do
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     if Sel.is_point sel
         then void $ Create.view =<< Create.block_from_template False
             =<< Cmd.get_focused_block

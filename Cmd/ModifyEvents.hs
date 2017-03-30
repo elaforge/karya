@@ -100,8 +100,7 @@ modify_selected include_collapsed modify selected = do
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.
 advance_if_point :: Cmd.M m => m ()
-advance_if_point = whenM (Sel.is_point . snd <$> Selection.get)
-    Selection.advance
+advance_if_point = whenM (Sel.is_point <$> Selection.get) Selection.advance
 
 -- | Map a function over the events that overlap the selection point.
 overlapping :: Cmd.M m => Track m -> m ()

@@ -41,7 +41,7 @@ instance Pretty.Pretty Pos where pretty = showt
 
 get_pos :: Cmd.M m => m Pos
 get_pos = do
-    (view_id, sel) <- Selection.get
+    (view_id, sel) <- Selection.get_view
     block_id <- Ui.block_id_of view_id
     let (start, dur) = let (s, e) = Sel.range sel
             in case Sel.orientation sel of
@@ -191,7 +191,7 @@ fallthrough msg = do
 
     -- When clearing a range, let the global Edit.cmd_clear_selected handle it.
     let is_backspace = Msg.key_down msg == Just Key.Backspace
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     when (is_backspace && not (Sel.is_point sel)) Cmd.abort
 
 -- | Convert an InputKey to the symbolic Note that it should be.

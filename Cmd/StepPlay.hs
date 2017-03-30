@@ -71,7 +71,7 @@ set step_back play_selected_tracks = do
     view_id <- Cmd.get_focused_view
     tracks <- Ui.track_count block_id
     play_tracks <- if play_selected_tracks
-        then Sel.tracknums tracks . snd <$> Selection.get
+        then Sel.tracknums tracks <$> Selection.get
         else return []
     initialize view_id block_id play_tracks
     start <- if step_back

@@ -473,7 +473,7 @@ chord_hook = mapM_ (uncurry set_chord_status)
 -- | Show chord ratios at current selection.
 chord :: Cmd.CmdL Text
 chord = do
-    (view_id, sel) <- Selection.get
+    (view_id, sel) <- Selection.get_view
     block_id <- Ui.block_id_of view_id
     maybe_track_id <- Ui.event_track_at block_id (Selection.sel_point_track sel)
     show_chord <$> chord_at block_id maybe_track_id (Selection.sel_point sel)

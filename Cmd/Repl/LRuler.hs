@@ -265,7 +265,7 @@ ldouble = local double
 -- | Clip the meter to end at the selection.
 clip :: Cmd.M m => m Modify
 clip = do
-    (_, _, _, pos) <- Selection.get_insert
+    pos <- Selection.point
     modify_selected $ Meter.clip 0 (Meter.time_to_duration pos)
 
 lclip :: Cmd.CmdL [RulerId]
@@ -340,7 +340,7 @@ fit_to_end config meter block_id = do
 fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> m Ruler.Ruler
 fit_to_selection config meter = do
-    (_, _, _, pos) <- Selection.get_insert
+    pos <- Selection.point
     return $ Meter.fit_ruler config pos meter
 
 -- | Replace the meter with the concatenation of the rulers of the given

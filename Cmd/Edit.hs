@@ -196,7 +196,7 @@ cmd_set_duration = modify_event_near_point modify
 modify_event_near_point :: Cmd.M m =>
     ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event) -> m ()
 modify_event_near_point modify = do
-    sel <- snd <$> Selection.get
+    sel <- Selection.get
     if Sel.is_point sel
         then prev_or_next (Selection.sel_point sel) =<< Cmd.get_focused_block
         else selection (Sel.range sel)
@@ -220,7 +220,7 @@ modify_event_near_point modify = do
 -- start, find a neighbor instead of matching that event.
 avoid_exact_match :: Cmd.M m => m [(TrackId, Event.Event)]
 avoid_exact_match = do
-    pos <- Selection.sel_point . snd <$> Selection.get
+    pos <- Selection.sel_point <$> Selection.get
     Seq.map_maybe_snd (select pos) <$> Selection.events_around
     where
     select pos triple = case triple of
@@ -244,7 +244,7 @@ avoid_exact_match = do
 -}
 cmd_toggle_zero_timestep :: Cmd.M m => m ()
 cmd_toggle_zero_timestep = do
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     ModifyEvents.selection_expanded $ \block_id track_id events -> do
         tracknum <- Ui.get_tracknum_of block_id track_id
         let (start, end) = Sel.range sel
@@ -465,7 +465,7 @@ clear_range track_ids range =
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
     cmd_clear_selected
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     when (Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel)
         Selection.advance
 
@@ -630,7 +630,7 @@ edit_point sel = case Sel.orientation sel of
 -- | Open a floating text entry with a selection set.
 open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
 open_floating selection = do
-    (view_id, sel) <- Selection.get
+    (view_id, sel) <- Selection.get_view
     (_, tracknum, track_id, _) <- Selection.get_insert
     let pos = edit_point sel
     text <- fromMaybe "" <$>

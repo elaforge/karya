@@ -25,7 +25,7 @@ test_cmd_clear_and_advance = do
     let run events start end = extract $ run_events_sel cmd events start end
         cmd = do
             Edit.cmd_clear_and_advance
-            (_, sel) <- Selection.get
+            sel <- Selection.get
             return (Sel.start_pos sel, Sel.cur_pos sel)
         extract r = (e_start_dur_text r, expect_right $ CmdTest.result_val r)
     equal (run [(0, 1)] 0 0) (Right ([], []), Just (1, 1))

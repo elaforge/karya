@@ -125,7 +125,7 @@ set_and_scroll view_id selnum sel = do
 
 -- | Update the selection's orientation to match 'Cmd.state_note_orientation'.
 update_orientation :: Cmd.M m => m ()
-update_orientation = whenJustM lookup $ \(view_id, sel) -> do
+update_orientation = whenJustM lookup_view $ \(view_id, sel) -> do
     orientation <- get_orientation
     when (Sel.orientation sel /= orientation) $
         set view_id $ Just $ sel { Sel.orientation = orientation }
@@ -133,7 +133,7 @@ update_orientation = whenJustM lookup $ \(view_id, sel) -> do
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
 to_point :: Cmd.M m => m ()
 to_point = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     selectable <- Ui.selectable_tracks <$>
         (Ui.get_block =<< Ui.block_id_of view_id)
     let closest = fromMaybe (Sel.cur_track sel) $
@@ -245,7 +245,7 @@ get_tracks_from_selection :: Cmd.M m => Bool -- ^ If True, start from the R or
     -- L edge of the selection, rather than 'Sel.cur_track'.
     -> Direction -> m [Ui.TrackInfo]
 get_tracks_from_selection from_edge dir = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     let tracknum = if from_edge
             then (if dir == R then snd else fst) (Sel.track_range sel)
             else Sel.cur_track sel
@@ -263,7 +263,7 @@ get_tracks_from_selection from_edge dir = do
 -- not only not useful, it tends to make cmds that want to get a TrackId abort.
 cmd_track_all :: Cmd.M m => m ()
 cmd_track_all = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     block_id <- Ui.block_id_of view_id
     block_end <- Ui.block_end block_id
     tracks <- Ui.track_count block_id
@@ -283,7 +283,7 @@ select_track_all block_end tracks sel
 
 cmd_tracks :: Cmd.M m => m ()
 cmd_tracks = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     tracks <- Ui.track_count =<< Ui.block_id_of view_id
     set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
 
@@ -593,16 +593,22 @@ sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 
 -- ** plain Selection
 
+get :: Cmd.M m => m Sel.Selection
+get = snd <$> get_view
+
 -- | Get the insertion selection in the focused view.
-get :: Cmd.M m => m (ViewId, Sel.Selection)
-get = get_selnum Config.insert_selnum
+get_view :: Cmd.M m => m (ViewId, Sel.Selection)
+get_view = get_selnum Config.insert_selnum
 
 -- | Get the requested selnum in the focused view.
 get_selnum :: Cmd.M m => Sel.Num -> m (ViewId, Sel.Selection)
 get_selnum selnum = Cmd.abort_unless =<< lookup_selnum selnum
 
-lookup :: Cmd.M m => m (Maybe (ViewId, Sel.Selection))
-lookup = lookup_selnum Config.insert_selnum
+lookup :: Cmd.M m => m (Maybe Sel.Selection)
+lookup = fmap snd <$> lookup_view
+
+lookup_view :: Cmd.M m => m (Maybe (ViewId, Sel.Selection))
+lookup_view = lookup_selnum Config.insert_selnum
 
 lookup_selnum :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Sel.Selection))
 lookup_selnum selnum =
@@ -611,10 +617,10 @@ lookup_selnum selnum =
     return $ Just (view_id, sel)
 
 range :: Cmd.M m => m Events.Range
-range = Events.selection_range . snd <$> get
+range = Events.selection_range <$> get
 
 point :: Cmd.M m => m TrackTime
-point = sel_point . snd <$> get
+point = sel_point <$> get
 
 -- ** selections in RealTime
 
@@ -657,7 +663,7 @@ get_root_insert = maybe get_insert return =<< rootsel
 -- block's first occurrance.
 relative_realtime :: Cmd.M m => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     maybe_root_sel <- lookup_block_insert root_id
@@ -671,7 +677,7 @@ relative_realtime root_id = do
 -- selection's block.  This means that the top should be 0.
 local_realtime :: Cmd.M m => m (BlockId, RealTime, RealTime)
 local_realtime = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
@@ -711,7 +717,7 @@ events = around_to_events <$> events_around
 track_events :: Cmd.M m => m SelectedEvents
 track_events = do
     (block_id, maybe_track_id) <- track
-    sel <- snd <$> get
+    sel <- get
     track_id <- Cmd.abort_unless maybe_track_id
     around_to_events <$> events_around_tracks block_id [track_id] sel
 
@@ -719,7 +725,7 @@ track_events = do
 events_around :: Cmd.M m => m SelectedAround
 events_around = do
     (block_id, _, track_ids, _) <- tracks
-    sel <- snd <$> get
+    sel <- get
     events_around_tracks block_id track_ids sel
 
 -- | Like 'event_around', but select as if the selection were a point.
@@ -727,7 +733,7 @@ events_around = do
 events_around_point :: Cmd.M m => m SelectedAround
 events_around_point = do
     (block_id, _, track_ids, _) <- tracks
-    sel <- snd <$> get
+    sel <- get
     events_around_tracks block_id track_ids $ sel
         { Sel.start_pos = sel_point sel
         , Sel.cur_pos = sel_point sel
@@ -796,7 +802,7 @@ select_neighbor sel pair = case pair of
 opposite_neighbor :: Cmd.M m => m [(TrackId, Event.Event)]
 opposite_neighbor = do
     tids <- track_ids
-    sel <- snd <$> get
+    sel <- get
     events <- forM tids $ \track_id ->
         select_opposite_neighbor (sel_point sel) (Sel.event_orientation sel) <$>
             Ui.get_events track_id
@@ -847,7 +853,7 @@ tracknums = do
 
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = do
-    (view_id, sel) <- get
+    (view_id, sel) <- get_view
     block_id <- Ui.block_id_of view_id
     maybe_track_id <- Ui.event_track_at block_id (sel_point_track sel)
     return (block_id, maybe_track_id)

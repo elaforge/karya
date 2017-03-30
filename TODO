@@ -68,8 +68,8 @@ selection-orientation branch:
       ModifyNote thing.  This was broken before too.
     - Rename Event.set_start and set_end to move_start and move_end.  Set
       winds up being the lens.
-    - Change Selection.get_insert to Selection.point as appropriate.
-    - Selection.get should just return the selection, Selection.view can
+    * Change Selection.get_insert to Selection.point as appropriate.
+    * Selection.get should just return the selection, Selection.view can
       return (ViewId, Selection).
     - Events shouldn't export split_lists, callers can use split
     - In Ui.Event, rather than ad-hoc modify functions with hard to remember

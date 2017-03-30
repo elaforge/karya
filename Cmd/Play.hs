@@ -150,7 +150,7 @@ local_block = do
 local_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 local_selection = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     let (pos, repeat_at) = if Sel.is_point sel
             then (Sel.start_pos sel, Nothing)
             else Just <$> Sel.range sel
@@ -193,7 +193,7 @@ root_from_root_selection = do
 root_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 root_selection = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     let (pos, repeat_at) = if Sel.is_point sel
             then (Sel.start_pos sel, Nothing)
             else Just <$> Sel.range sel

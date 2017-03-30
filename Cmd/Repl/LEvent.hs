@@ -55,7 +55,7 @@ stretch_to dur = do
 -- | Duration of the current selection, e.g. @stretch_to =<< sel_dur@.
 sel_dur :: Cmd.M m => m TrackTime
 sel_dur = do
-    (_, sel) <- Selection.get
+    sel <- Selection.get
     return $ Sel.duration sel
 
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
