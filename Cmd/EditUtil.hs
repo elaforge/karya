@@ -59,7 +59,7 @@ get_or_create_event :: Ui.M m => Bool -> TrackId -> TrackTime -> TrackTime
     -> m (Event.Event, Bool)
 get_or_create_event modify_dur track_id pos dur = do
     event <- Events.at pos (Event.orientation_of dur) <$> Ui.get_events track_id
-    let modify = if modify_dur then Event.set_duration dur else id
+    let modify = if modify_dur then Event.duration_ #= dur else id
     return $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
         event
 
@@ -90,7 +90,7 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
         Nothing -> Ui.remove_event_range track_id
             (Events.Point start (Event.orientation_of dur))
         Just new_text -> Ui.insert_event track_id
-            (Event.set_text new_text event)
+            (Event.text_ #= new_text $ event)
     when advance Selection.advance
     where
     infer_duration dur

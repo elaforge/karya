@@ -72,7 +72,7 @@ selection-orientation branch:
     * Selection.get should just return the selection, Selection.view can
       return (ViewId, Selection).
     - Events shouldn't export split_lists, callers can use split
-    - In Ui.Event, rather than ad-hoc modify functions with hard to remember
+    * In Ui.Event, rather than ad-hoc modify functions with hard to remember
       names, why not export lenses?
       . This will break everywhere that uses Event.start event.  Can I have
         lens variant, e.g. Event.start_?

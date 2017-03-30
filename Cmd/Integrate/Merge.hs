@@ -274,7 +274,7 @@ make_index events = Map.fromList
 add_event_stacks :: BlockId -> TrackId -> Events.Events -> [Event.Event]
 add_event_stacks block_id track_id = map add_stack . Events.ascending
     where
-    add_stack event = Event.set_stack (make_stack event) event
+    add_stack event = Event.stack_ #= Just (make_stack event) $ event
     make_stack event = Event.Stack
         { Event.stack_stack =
             Stack.from_innermost [Stack.Track track_id, Stack.Block block_id]
@@ -406,7 +406,7 @@ diff index new = case index_key new of
         -- stack is deleted.  TODO could this multiply events endlessly?
         -- TODO This could be a symptom of tracks not lining up anymore.
         -- I should emit a warning.
-        Nothing -> Add (Event.strip_stack new)
+        Nothing -> Add (Event.stack_ #= Nothing $ new)
         Just old -> Edit key (diff_event old new)
 
 index_key :: Event.Event -> Maybe Event.IndexKey
@@ -487,13 +487,13 @@ apply deletes adds_edits = make . mapMaybe edit
 
 -- | Unmodified events get a special style to indicate such.
 unmodified :: Event.Event -> Event.Event
-unmodified = Event.modify_style Config.unmodified_style
+unmodified = Event.style_ %= Config.unmodified_style
 
 apply_modifications :: [Modify] -> Event.Event -> Event.Event
 apply_modifications mods event = foldl' go event mods
     where
     go event mod = ($event) $ case mod of
-        Position p -> Event.move_to p
-        Duration d -> Event.set_duration d
-        Set text -> Event.modify_text (const text)
-        Prefix text -> Event.modify_text (text<>)
+        Position p -> Event.start_ #= p
+        Duration d -> Event.duration_ #= d
+        Set text -> Event.text_ #= text
+        Prefix text -> Event.text_ %= (text<>)

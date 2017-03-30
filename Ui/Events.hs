@@ -157,8 +157,7 @@ clip allow_zero end (event : events)
     | allow_zero && Event.start event > end = []
     | Event.is_negative event && Event.start event > end = []
     | Event.is_positive event && Event.start event >= end && not allow_zero = []
-    | Event.end event > end =
-        [Event.modify_duration (\d -> min d (end - Event.start event)) event]
+    | Event.end event > end = [Event.set_end end event]
     | otherwise = event : clip allow_zero end events
 
 -- ** insert / remove

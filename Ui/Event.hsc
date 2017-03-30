@@ -27,24 +27,25 @@
     be used to store the "parent event" of a derivation, for instance.
 -}
 module Ui.Event (
-    Event, start, duration, orientation, orientation_of, style, stack
-    , Orientation(..), invert
+    -- * types
+    Event
     , Text
     , Stack(..), IndexKey, event
-    -- * text
-    , text, set_text
-    , modify_text
-    , intern_event
-    -- * start, duration
-    , end, range, overlaps
-    , min, max
-    , move, move_to, set_start, set_end
-    , place, round, set_duration, modify_duration, modify_end
+    -- * access
+    , start, duration, text, style, stack
+    , start_, duration_, text_, style_, stack_, end_
+    , end, range, overlaps, min, max
+    -- ** Orientation
+    , Orientation(..), invert
+    , orientation, orientation_of
     , is_negative, is_positive
-    -- * stack
-    , set_stack, strip_stack
+    -- * modify
+    , set_start, set_end
+    , place, round
+    -- * misc
+    , intern_event
     -- * style
-    , modify_style, modified, EventStyle
+    , EventStyle
 ) where
 import Prelude hiding (round, min, max)
 import qualified Prelude
@@ -53,6 +54,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Util.ForeignC
 
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
@@ -65,6 +67,8 @@ import qualified App.Config as Config
 import Types
 import Global hiding (Text)
 
+
+-- * types
 
 data Event = Event {
     _start :: !TrackTime
@@ -80,43 +84,7 @@ data Event = Event {
     , _stack :: !(Maybe Stack)
     } deriving (Eq, Read, Show)
 
--- Don't allow direct modification.
-
-start :: Event -> TrackTime
-start = _start
-
-duration :: Event -> TrackTime
-duration = _duration
-
-orientation :: Event -> Orientation
-orientation = orientation_of . duration
-
-orientation_of :: TrackTime -> Orientation
-orientation_of t
-    | ScoreTime.is_negative t = Negative
-    | otherwise = Positive
-
-text :: Event -> Text
-text = _text
-
-style :: Event -> Style.StyleId
-style = _style
-
-stack :: Event -> Maybe Stack
-stack = _stack
-
--- | Whether the event is front-weighted or back-weighted.  In the event this
--- is represented with positive or negative duration.
-data Orientation = Negative | Positive
-    deriving (Eq, Ord, Read, Show, Enum, Bounded)
-    -- The Negative to Positive order is important, because that affects the
-    -- EventMap's sort order, which functions in "Ui.Events" rely on.
-instance Pretty.Pretty Orientation where pretty = showt
-
-invert :: Orientation -> Orientation
-invert Positive = Negative
-invert Negative = Positive
-
+-- | TODO remove this, it dates from when event text was ByteString.
 type Text = Text.Text
 
 data Stack = Stack {
@@ -129,15 +97,16 @@ data Stack = Stack {
 instance DeepSeq.NFData Stack where
     rnf = DeepSeq.rnf . stack_stack
 
--- | This is the original position of the event on its integrated track.  I can
--- use this to find the (hopefully) equivalent event from the next integration
--- to apply it even if the event has been moved or altered.
---
--- Keying on just the position has the effect that moving an event means to
--- move any event that is generated at that position.  This might be perfectly
--- reasonable or even desirable since it's easier to understand.  I'll have to
--- see what kinds of edits and what kinds of reintegrations are likely in
--- practice.
+{- | This is the original position of the event on its integrated track.  I can
+    use this to find the (hopefully) equivalent event from the next integration
+    to apply it even if the event has been moved or altered.
+
+    Keying on just the position has the effect that moving an event means to
+    move any event that is generated at that position.  This might be perfectly
+    reasonable or even desirable since it's easier to understand.  I'll have to
+    see what kinds of edits and what kinds of reintegrations are likely in
+    practice.
+-}
 type IndexKey = TrackTime
 
 instance DeepSeq.NFData Event where
@@ -161,32 +130,64 @@ event start dur text = Event
     , _stack = Nothing
     }
 
--- * text
+-- * access
 
-set_text :: Text.Text -> Event -> Event
-set_text s event = modified $ event { _text = s }
+-- Don't allow direct modification.
 
-modify_text :: (Text -> Text) -> Event -> Event
-modify_text f event = event { _text = f (text event) }
+start :: Event -> TrackTime
+start = _start
 
-intern_event :: Map.Map Text (Text, Int) -> Event
-    -> (Map.Map Text (Text, Int), Event)
-intern_event table event = case Map.lookup (text event) table of
-    Nothing -> (Map.insert (text event) (text event, 1) table, event)
-    Just (interned, count) ->
-        (Map.insert interned (interned, count+1) table,
-            event { _text = interned })
+duration :: Event -> TrackTime
+duration = _duration
 
--- * start, duration
+text :: Event -> Text
+text = _text
+
+style :: Event -> Style.StyleId
+style = _style
+
+stack :: Event -> Maybe Stack
+stack = _stack
+
+start_ :: Lens Event TrackTime
+start_ = event_lens _start (\val event -> event { _start = val })
+
+duration_ :: Lens Event TrackTime
+duration_ = event_lens_eq eq _duration (\val event -> event { _duration = val })
+    where eq a b = a == b && ScoreTime.is_negative a == ScoreTime.is_negative b
+
+text_ :: Lens Event Text
+text_ = event_lens _text (\val event -> event { _text = val })
+
+style_ :: Lens Event Style.StyleId
+style_ = event_lens _style (\val event -> event { _style = val })
+
+stack_ :: Lens Event (Maybe Stack)
+stack_ = event_lens _stack (\val event -> event { _stack = val })
+
+-- -- | The stack is a bit different in that clearing the stack will 'modified'
+-- stack_ :: Lens Event (Maybe Stack)
+-- stack_ = Lens.lens field update
+--     where
+--     field = _stack
+--     update modify event = case (field event, val) of
+--         (Nothing, Nothing) -> event
+--         (Nothing, Just _) -> new
+--         (Just _, Nothing) -> modified new
+--         (Just _, Just _) -> new
+--         where
+--         val = modify (field event)
+--         new = event { _stack = val }
 
 -- | Return the position at the end of the event.  If it has a negative
 -- duration, this will be before the 'start'.
 end :: Event -> ScoreTime
 end e = start e + duration e
 
-min, max :: Event -> ScoreTime
-min e = Prelude.min (start e) (end e)
-max e = Prelude.max (start e) (end e)
+end_ :: Lens Event TrackTime
+end_ = Lens.lens end update
+    where
+    update modify event = duration_ #= modify (end event) - start event $ event
 
 range :: Event -> (ScoreTime, ScoreTime)
 range e = (min e, max e)
@@ -196,20 +197,67 @@ overlaps p event
     | is_positive event = start event <= p && p < end event
     | otherwise = end event < p && p <= start event
 
--- | Move both start and end, so the duration remains the same.
-move :: (ScoreTime -> ScoreTime) -> Event -> Event
-move f event = modified $ event { _start = f (start event) }
+min, max :: Event -> ScoreTime
+min e = Prelude.min (start e) (end e)
+max e = Prelude.max (start e) (end e)
 
-move_to :: ScoreTime -> Event -> Event
-move_to p = move (const p)
+-- ** lens
+
+event_lens :: Eq a => (Event -> a) -> (a -> Event -> Event) -> Lens.Lens Event a
+event_lens = event_lens_eq (==)
+
+event_lens_eq :: (a -> a -> Bool) -> (Event -> a) -> (a -> Event -> Event)
+    -> Lens.Lens Event a
+event_lens_eq eq field set = Lens.lens field update
+    where
+    update modify event
+        | field event `eq` val = event
+        | otherwise = modified (set val event)
+        where val = modify (field event)
+
+-- | If this was an integrated event, it might have the unmodified style.
+-- Set it to modified now so I don't have to wait for the next integration.
+modified :: Event -> Event
+modified event = event { _style = Config.modified_style (style event) }
+
+-- ** Orientation
+
+-- | Whether the event is front-weighted or back-weighted.  In the event this
+-- is represented with positive or negative duration.
+data Orientation = Negative | Positive
+    deriving (Eq, Ord, Read, Show, Enum, Bounded)
+    -- The Negative to Positive order is important, because that affects the
+    -- EventMap's sort order, which functions in "Ui.Events" rely on.
+instance Pretty.Pretty Orientation where pretty = showt
+
+invert :: Orientation -> Orientation
+invert Positive = Negative
+invert Negative = Positive
+
+orientation :: Event -> Orientation
+orientation = orientation_of . duration
+
+orientation_of :: TrackTime -> Orientation
+orientation_of t
+    | ScoreTime.is_negative t = Negative
+    | otherwise = Positive
+
+is_negative :: Event -> Bool
+is_negative = ScoreTime.is_negative . duration
+
+is_positive :: Event -> Bool
+is_positive = not . is_negative
+
+-- * modify
 
 -- | Move the start only.  This could invert the duration if the start moves
 -- past the end.
 set_start :: ScoreTime -> Event -> Event
 set_start p event = place p (end event - p) event
 
+-- | Redundant with the 'end_' lens, but here for symmetry with 'set_start'.
 set_end :: ScoreTime -> Event -> Event
-set_end p event = set_duration (p - start event) event
+set_end = (end_ #=)
 
 place :: ScoreTime -> ScoreTime -> Event -> Event
 place start dur event = modified $ event { _start = start, _duration = dur }
@@ -222,45 +270,17 @@ round event = event
     , _duration = ScoreTime.round (duration event)
     }
 
-set_duration :: ScoreTime -> Event -> Event
-set_duration dur event
-    | dur /= duration event
-        || ScoreTime.is_negative dur /= ScoreTime.is_negative (duration event) =
-            modified $ event { _duration = dur }
-    | otherwise = event
+-- * misc
 
-modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
-modify_duration f evt = set_duration (f (duration evt)) evt
-
-modify_end :: (ScoreTime -> ScoreTime) -> Event -> Event
-modify_end f evt = modify_duration (\dur -> f (start evt + dur) - start evt) evt
-
-is_negative :: Event -> Bool
-is_negative = ScoreTime.is_negative . duration
-
-is_positive :: Event -> Bool
-is_positive = not . is_negative
-
--- * stack
-
-set_stack :: Stack -> Event -> Event
-set_stack stack event = event { _stack = Just stack }
-
-strip_stack :: Event -> Event
-strip_stack event = modified $ event { _stack = Nothing }
+intern_event :: Map.Map Text (Text, Int) -> Event
+    -> (Map.Map Text (Text, Int), Event)
+intern_event table event = case Map.lookup (text event) table of
+    Nothing -> (Map.insert (text event) (text event, 1) table, event)
+    Just (interned, count) ->
+        (Map.insert interned (interned, count+1) table,
+            event { _text = interned })
 
 -- * style
-
-modify_style :: (Style.StyleId -> Style.StyleId) -> Event -> Event
-modify_style modify event
-    | new_style == style event = event
-    | otherwise = event { _style = new_style }
-    where new_style = modify (style event)
-
--- | If this was an integrated event, it might have the unmodified style.
--- Set it to modified now so I don't have to wait for the next integration.
-modified :: Event -> Event
-modified event = event { _style = Config.modified_style (style event) }
 
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the

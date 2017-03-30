@@ -180,7 +180,7 @@ test_round_events = do
             Events.remove (Point (Event.start e) Event.Positive) events
             where
             e = Maybe.fromJust $ Events.head events
-            next = Event.move (+ 1/3) e
+            next = Event.start_ %= (+ 1/3) $ e
     -- If round_event is doing its thing, this won't fall victim to
     -- imprecision.
     equal (to_list $ iterate move (from_list [(0, 1, "a")]) !! (20 * 3))

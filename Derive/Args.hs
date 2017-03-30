@@ -262,7 +262,7 @@ prev_events = Derive.ctx_prev_events . context
 set_duration :: TrackTime -> PassedArgs a -> PassedArgs a
 set_duration dur args = args
     { Derive.passed_ctx = ctx
-        { Derive.ctx_event = Event.set_duration dur $ Derive.ctx_event ctx }
+        { Derive.ctx_event = Event.duration_ #= dur $ Derive.ctx_event ctx }
     }
     where ctx = Derive.passed_ctx args
 

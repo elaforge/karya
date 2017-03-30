@@ -250,7 +250,7 @@ event_stack event = Event.Stack (Score.event_stack event)
 
 ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> Text -> Event.Event
 ui_event stack pos dur text =
-    Event.set_stack (Event.Stack stack pos) $ Event.event pos dur text
+    Event.stack_ #= Just (Event.Stack stack pos) $ Event.event pos dur text
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the
@@ -270,8 +270,8 @@ drop_dups = Seq.drop_dups Event.text
 clip_to_zero :: [Event.Event] -> [Event.Event]
 clip_to_zero (e1 : rest@(e2 : _))
     | Event.start e1 <= 0 && Event.start e2 <= 0 = clip_to_zero rest
-    | otherwise = Event.move (max 0) e1 : rest
-clip_to_zero [e] = [Event.move (max 0) e]
+    | otherwise = (Event.start_ %= max 0 $ e1) : rest
+clip_to_zero [e] = [Event.start_ %= max 0 $ e]
 clip_to_zero [] = []
 
 make_track :: Text -> [Event.Event] -> Track

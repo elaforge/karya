@@ -128,8 +128,8 @@ convert_blocks row_time = map (map_times (*row_time) . convert_block)
 
 map_times :: (ScoreTime -> ScoreTime) -> UiBlock -> UiBlock
 map_times f = first $ map $ \(ntrack, ctracks) ->
-    (map modify ntrack, map (second (map (Event.move f))) ctracks)
-    where modify = Event.move f . Event.modify_duration f
+    (map modify ntrack, map (second (map (Event.start_ %= f))) ctracks)
+    where modify = (Event.start_ %= f) . (Event.duration_ %= f)
 
 convert_block :: Block -> UiBlock
 convert_block (Block rows) = (map convert_track clipped, block_length)
@@ -163,7 +163,7 @@ convert_note maybe_prev at (Note pitch _ effects)
     start = note_start effects at
     note = case maybe_prev of
         Just event ->
-            Just $ Event.set_duration (start - Event.start event) event
+            Just $ Event.duration_ #= (start - Event.start event) $ event
         Nothing -> Nothing
 
 -- | Find the note start, taking the delay effect into account.  The delay

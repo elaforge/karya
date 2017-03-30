@@ -6,6 +6,7 @@ module Ui.Event_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Event as Event
+import Global
 import Types
 
 
@@ -15,7 +16,7 @@ test_set_start = do
         [(0, 2), (1, 1), (2, -0), (3, -1), (4, -2), (5, -3)]
 
 test_set_end = do
-    let f p = extract $ Event.set_end p (Event.event 4 (-2) "a")
+    let f p = extract $ Event.end_ #= p $ Event.event 4 (-2) "a"
     equal (map f (Seq.range 0 5 1))
         [(4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1)]
 

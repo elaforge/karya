@@ -224,7 +224,7 @@ slice_notes include_end start end tracks
             in (map move prev, map move next)
         , TrackTree.track_shifted = TrackTree.track_shifted track + shift
         }
-        where move = Event.move (subtract shift)
+        where move = Event.start_ %= subtract shift
 
 -- | (parents, track, 'event_ranges', subs)
 type Sliced = ([TrackTree.Track], TrackTree.Track,

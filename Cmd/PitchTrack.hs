@@ -106,10 +106,7 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
 modify :: (Event -> Event) -> Event.Event -> Event.Event
-modify f event = Event.set_text text event
-    where
-    text = process (Event.text event)
-    process = unparse . f . parse
+modify f = Event.text_ %= unparse . f . parse
 
 -- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls
 -- can take args.

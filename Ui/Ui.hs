@@ -1238,7 +1238,7 @@ insert_events track_id events_ = _modify_events track_id $ \old_events ->
     where
     events = map clip_negative $ dropWhile ((<0) . Event.start) events_
     clip_negative event
-        | Event.end event < 0 = Event.set_duration (- Event.start event) event
+        | Event.end event < 0 = Event.set_end 0 event
         | otherwise = event
 
 {- | Like 'insert_events', but clip the events to the end of a block.

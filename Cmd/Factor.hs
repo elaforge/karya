@@ -55,7 +55,7 @@ split_time_at from_block_id pos block_name = do
     -- Copy over the new events.
     track_events <- forM tracks $ \(track_id, tracknum) -> do
         events <- Events.at_after pos <$> Ui.get_events track_id
-        let shifted = map (Event.move (subtract pos)) events
+        let shifted = map (Event.start_ %= subtract pos) events
         return (tracknum, shifted)
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
@@ -178,7 +178,7 @@ selection_at relative name block_id tracknums track_ids range = do
         events <- Events.in_range range <$> Ui.get_events track_id
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
-            Events.map_events (Event.move (subtract start)) events
+            Events.map_events (Event.start_ %= subtract start) events
     clipped_skeleton block_id to_block_id tracknums
     -- Clear selected range and put in a call to the new block.
     Edit.clear_range track_ids range

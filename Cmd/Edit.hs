@@ -174,7 +174,8 @@ move_event modify = do
         events <- Ui.get_events track_id
         whenJust (modify pos events) $ \event -> do
             Ui.remove_event track_id event
-            Ui.insert_block_events block_id track_id [Event.move_to pos event]
+            Ui.insert_block_events block_id track_id
+                [Event.start_ #= pos $ event]
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
@@ -254,7 +255,7 @@ toggle_zero_timestep :: Cmd.M m => BlockId -> TrackNum
     -> TrackTime -> TrackTime -> Event.Event -> m Event.Event
 toggle_zero_timestep block_id tracknum start end event
     | Event.duration event /= 0 = return $
-        Event.set_duration (if Event.is_negative event then -0 else 0) event
+        Event.duration_ #= (if Event.is_negative event then -0 else 0) $ event
     | start == end && start == Event.start event = do
         step <- Cmd.get_current_step
         maybe_pos <- TimeStep.step_from
@@ -264,8 +265,8 @@ toggle_zero_timestep block_id tracknum start end event
             Nothing -> return event
             Just pos -> return $ Event.set_end pos event
     | Event.is_negative event =
-        return $ Event.set_duration (start - Event.start event) event
-    | otherwise = return $ Event.set_duration (end - Event.start event) event
+        return $ Event.duration_ #= (start - Event.start event) $ event
+    | otherwise = return $ Event.duration_ #= (end - Event.start event) $ event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -293,14 +294,14 @@ cmd_set_start = do
         Ui.remove_event track_id event
         Ui.insert_event track_id $ set_start pos event
     set_start p event
-        | Event.duration event == 0 = Event.move_to p event
+        | Event.duration event == 0 = Event.start_ #= p $ event
         | otherwise = Event.set_start p event
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
-modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $ \evt ->
-    Event.set_duration (apply (Event.duration evt)) evt
+modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $
+    Event.duration_ %= apply
     where apply dur = if dur == 0 then dur else f dur
 
 -- | If there is a following event, delete it and extend this one to its end.
@@ -341,7 +342,7 @@ cmd_split_events = do
     split p event
         | not (Event.overlaps p event) || p == Event.start event = [event]
         | otherwise =
-            [ Event.set_duration (p - Event.start event) event
+            [ Event.duration_ #= p - Event.start event $  event
             , Event.place p (Event.end event - p) event
             ]
 
@@ -349,7 +350,7 @@ cmd_split_events = do
 set_dur :: TrackTime -> Event.Event -> Event.Event
 set_dur dur evt
     | Event.duration evt == 0 = evt
-    | otherwise = Event.set_duration dur evt
+    | otherwise = Event.duration_ #= dur $ evt
 
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
@@ -375,11 +376,11 @@ cmd_insert_time = do
 insert_event_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 insert_event_time start shift event
     | Event.is_positive event = if
-        | start <= Event.start event -> Event.move (+shift) event
-        | start < Event.end event -> Event.modify_duration (+shift) event
+        | start <= Event.start event -> Event.start_ %= (+shift) $ event
+        | start < Event.end event -> Event.duration_ %= (+shift) $ event
         | otherwise -> event
     | otherwise = if
-        | start <= Event.end event -> Event.move (+shift) event
+        | start <= Event.end event -> Event.start_ %= (+shift) $ event
         | start < Event.start event ->
             Event.set_start (Event.start event + shift) event
         | otherwise -> event
@@ -425,16 +426,18 @@ delete_time block_id track_id start dur = do
 delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
 delete_event_time start shift event
     | Event.is_positive event = if
-        | end <= Event.start event -> Just $ Event.move (subtract shift) event
+        | end <= Event.start event ->
+            Just $ Event.start_ %= subtract shift $ event
         | start < Event.start event -> Nothing
-        | start < Event.end event -> Just $ Event.set_duration
-            (max (Event.duration event - shift) (start - Event.start event))
+        | start < Event.end event -> Just $ Event.duration_ #=
+            (max (Event.duration event - shift) (start - Event.start event)) $
             event
         | otherwise -> Just event
     | otherwise = if
-        | end <= Event.end event -> Just $ Event.move (subtract shift) event
-        | end < Event.start event -> Just $
-            Event.set_end start $ Event.move (subtract shift) event
+        | end <= Event.end event ->
+            Just $ Event.start_ %= subtract shift $ event
+        | end < Event.start event ->
+            Just $ Event.set_end start $ Event.start_ %= subtract shift $ event
         | start < Event.start event -> Nothing
         | otherwise -> Just event
     where end = start + shift
@@ -491,7 +494,7 @@ cmd_set_call_duration = ModifyEvents.selection_expanded $
 set_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m Event.Event
 set_call_duration block_id track_id event =
-    maybe event (flip Event.set_duration event) <$>
+    maybe event (\d -> Event.duration_ #= d $ event) <$>
         lookup_call_duration block_id track_id event
 
 -- | Evaluate the given event to find its 'Derive.get_call_duration'.
@@ -516,7 +519,7 @@ cmd_invert_orientation = do
 -- TODO swap 0 and -0.
 invert_events :: Cmd.M m => m ()
 invert_events = ModifyEvents.selection $ ModifyEvents.event $ \e ->
-    Event.move (+ Event.duration e) $ Event.modify_duration negate e
+    Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e
 
 invert_notes :: Cmd.M m => m ()
 invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
@@ -529,8 +532,8 @@ invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
     -- note.
     invert_control note events = case Events.ascending events of
         [event] | Event.duration event == 0 && Event.start event == start ->
-            Events.singleton $ Event.set_duration dur $
-                Event.move_to (ModifyNotes.note_end note) event
+            Events.singleton $ Event.duration_ #= dur $
+                Event.start_ #= ModifyNotes.note_end note $ event
         _ -> events
         where
         dur = case ModifyNotes.note_orientation note of
@@ -679,7 +682,7 @@ try_set_call_duration block_id track_id pos orient =
     whenJustM (event_at track_id pos orient) $ \event ->
         whenJustM (lookup_call_duration block_id track_id event) $ \dur ->
             when (dur /= Event.duration event) $
-                Ui.insert_event track_id (Event.set_duration dur event)
+                Ui.insert_event track_id (Event.duration_ #= dur $ event)
 
 floating_input_msg :: Msg.Msg -> Maybe Text
 floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx

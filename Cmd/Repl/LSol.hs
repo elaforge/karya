@@ -40,7 +40,7 @@ insert instrument realize_patterns akshara_dur korvai = do
     let stroke_dur = akshara_dur
             / fromIntegral (Solkattu.tala_nadai (Korvai.korvai_tala korvai))
     (_, _, track_id, at) <- Selection.get_insert
-    events <- map (Event.move (+at)) . Events.ascending <$>
+    events <- map (Event.start_ %= (+at)) . Events.ascending <$>
         realize_korvai instrument realize_patterns stroke_dur korvai
     Ui.remove_events track_id events
     Ui.insert_events track_id events

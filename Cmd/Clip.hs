@@ -113,7 +113,8 @@ selected_to_block block_id selected = do
         [Block.track (Block.RId Ui.no_ruler) 0]
     forM_ (zip [1..] selected) $ \(tracknum, (title, events)) ->
         Create.track_events block_id Ui.no_ruler tracknum Config.track_width
-            (Track.track title (Events.map_events Event.strip_stack events))
+            (Track.track title
+                (Events.map_events (Event.stack_ #= Nothing) events))
 
 get_selection :: Cmd.M m => Selection.Tracks -> m Selected
 get_selection (block_id, tracknums, _, range) = do
@@ -128,7 +129,7 @@ get_selection (block_id, tracknums, _, range) = do
 
 select_events :: Events.Range -> Events.Events -> Events.Events
 select_events range =
-    Events.map_events (Event.move (subtract (Events.range_start range)))
+    Events.map_events (Event.start_ %= subtract (Events.range_start range))
     . Events.in_range range
 
 -- * paste
@@ -198,8 +199,8 @@ stretch :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
     -> [Event.Event] -> [Event.Event]
 stretch (start, end) (clip_s, clip_e) = map reposition
     where
-    reposition = Event.move (\pos -> (pos-clip_s) * factor + start)
-        . Event.modify_duration (*factor)
+    reposition = (Event.start_ %= (\pos -> (pos-clip_s) * factor + start))
+        . (Event.duration_ %= (*factor))
     factor = (end - start) / (clip_e - clip_s)
 
 
@@ -254,7 +255,7 @@ paste_info :: Cmd.M m => m (ScoreTime, ScoreTime, [(TrackId, [Event.Event])])
 paste_info = do
     (track_ids, clip_track_ids, start, sel_end, event_end) <- get_paste_area
     tracks <- mapM Ui.get_track clip_track_ids
-    let clip_and_move = map (Event.move (+start))
+    let clip_and_move = map (Event.start_ %= (+start))
             . clip_to_selection start event_end
             . Events.ascending . Track.track_events
     return (start, sel_end, zip track_ids (map clip_and_move tracks))

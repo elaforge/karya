@@ -38,8 +38,8 @@ stretch n = do
 stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
 stretch_event start n event
     | Event.start event < start = event
-    | otherwise = Event.move (\p -> (p - start) * n + start) $
-        Event.modify_duration (*n) event
+    | otherwise = Event.start_ %= (\p -> (p - start) * n + start) $
+        Event.duration_ %= (*n) $ event
 
 -- | Stretch events to fit in the given duration.
 stretch_to :: TrackTime -> Cmd.CmdL ()
@@ -138,7 +138,7 @@ resolve_conflicts :: [TrackTime] -> [Event.Event] -> [Event.Event]
 resolve_conflicts _ [] = []
 resolve_conflicts points (event : events) =
     event : resolve_conflicts points_after
-        (map (Event.move_to bump) group ++ rest)
+        (map (Event.start_ #= bump) group ++ rest)
     where
     (group, rest) = span ((== Event.start event) . Event.start) events
     bump = fromMaybe (Event.start event + 1) (Seq.head points_after)
@@ -159,9 +159,8 @@ quantize_event mode points_ event = (start_points, quantize_event event)
         Both
             | zero -> quantize_start
             | otherwise -> quantize_end . quantize_start
-    quantize_start = Event.move (quantize start_points)
-    quantize_end event =
-        Event.modify_end (quantize (end_points event)) event
+    quantize_start = Event.start_ %= quantize start_points
+    quantize_end event = Event.end_ %= quantize (end_points event) $ event
     zero = Event.duration event == 0
     start_points = TimeStep.drop_before (Event.start event) points_
     end_points e = dropWhile (<= Event.start e) $

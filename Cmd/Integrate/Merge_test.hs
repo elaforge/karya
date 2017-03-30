@@ -152,8 +152,8 @@ make_convert_tracks =
     where
     convert (title, events) = Convert.Track (txt title)
         (map (add_stack title) $ map UiTest.make_event events)
-    add_stack title event = Event.set_stack
-        (Event.Stack (Stack.call (txt title)) (Event.start event)) event
+    add_stack title event = Event.stack_ #= Just stack $ event
+        where stack = Event.Stack (Stack.call (txt title)) (Event.start event)
 
 -- * score integrate
 
@@ -231,7 +231,7 @@ mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
     add_stack = case mb_stack of
         Nothing -> id
         Just pos ->
-            Event.set_stack (Event.Stack (Stack.call (showt pos)) pos)
+            Event.stack_ #= Just (Event.Stack (Stack.call (showt pos)) pos)
 
 extract_event :: Event.Event -> Event
 extract_event event =

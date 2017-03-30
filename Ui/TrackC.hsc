@@ -124,7 +124,7 @@ cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
             zipWith (\rank -> map (, rank)) [0..] $
             map (map set_style . in_range start end) event_lists
         key (event, rank) = (Event.start event, rank)
-        set_style event = Event.modify_style (const (event_style event)) event
+        set_style event = Event.style_ #= event_style event $ event
     unless (null events) $ do
         -- Calling c++ is responsible for freeing these.
         poke ret_events =<< newArray events

@@ -38,7 +38,7 @@ event :: Monad m => (Event.Event -> Event.Event) -> Track m
 event f = events (return . map f)
 
 text :: Monad m => (Text -> Text) -> Track m
-text = event . (\f event -> Event.set_text (f (Event.text event)) event)
+text = event . (\f -> Event.text_ %= f)
 
 -- | Split up a pipeline and lex the calls.
 pipeline :: ([[Text]] -> [[Text]]) -> Text -> Text
@@ -58,7 +58,7 @@ failable_text f block_id track_id events = do
     where
     failing_text f event = case f (Event.text event) of
         Left err -> Left (err, event)
-        Right text -> Right $ Event.set_text text event
+        Right text -> Right $ Event.text_ #= text $ event
 
 
 -- * modify selections
@@ -172,7 +172,7 @@ move_events :: ScoreTime -- ^ events past the block end are shortened or removed
 move_events block_end point shift events = merged
     where
     shifted = Events.clip False block_end $
-        map (Event.move (+shift)) (Events.at_after point events)
+        map (Event.start_ %= (+shift)) (Events.at_after point events)
     -- +1 in case the last event is +0 duration.
     merged = Events.insert shifted $
         Events.remove (Events.Range point (Events.time_end events + 1)) events
