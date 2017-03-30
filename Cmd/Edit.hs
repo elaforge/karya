@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -19,6 +20,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -32,6 +34,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
+import qualified App.Config as Config
 import Global
 import Types
 
@@ -636,9 +639,16 @@ open_floating selection = do
     (view_id, sel) <- Selection.get_view
     (_, tracknum, track_id, _) <- Selection.get_insert
     let pos = edit_point sel
-    text <- fromMaybe "" <$>
-        event_text_at track_id pos (Sel.event_orientation sel)
-    return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
+    maybe_event <- event_at track_id pos (Sel.event_orientation sel)
+    let text = maybe "" Event.text maybe_event
+        orient = maybe (Sel.event_orientation sel) Event.orientation maybe_event
+    zoom <- Block.view_zoom <$> Ui.get_view view_id
+    -- If I'm editing or opening a negative event, move the input up since
+    -- the text will also be above the trigger.
+    let open_pos = pos - case orient of
+            Event.Negative -> Zoom.to_time zoom Config.track_title_height
+            Event.Positive -> 0
+    return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum open_pos text
         (selection text)
 
 event_text_at :: Ui.M m => TrackId -> TrackTime -> Event.Orientation

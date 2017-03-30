@@ -364,6 +364,9 @@ view_top_padding =
 block_title_height :: Int
 block_title_height = #const Config::Block::block_title_height
 
+track_title_height :: Int
+track_title_height = #const Config::Block::track_title_height
+
 view_bottom_padding :: Int
 view_bottom_padding =
     #const Config::Block::sb_size

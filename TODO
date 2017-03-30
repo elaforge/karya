@@ -49,7 +49,7 @@ selection-orientation branch:
   - set_duration: If I have ><---|, I can't set the negative event back to the
     zero dur event because it sets the previous positive event, regardless of
     selection orientation.
-  - Floating input should be above or below depending on orientation.
+  * Floating input should be above or below depending on orientation.
 
   . I tend to lose -0 ScoreTime because they show up as (==).  Also can't
     test 0 vs. -0 for the same reason.  I could modify ScoreTime's Eq to
@@ -89,6 +89,8 @@ selection-orientation branch:
     - Maybe the arrows should go at the top or bottom to represent range, and
       the "current" end should get a highlight to indicate where motion
       happens.
+      . Now that selection orientation isn't really range orientation maybe I
+        don't care so much about this.
     - Someday switch UiTest.EventSpec to use Text.
 
   - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
