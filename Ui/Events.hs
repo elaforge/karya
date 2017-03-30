@@ -174,12 +174,12 @@ insert [] events = events
 insert unsorted_events (Events events) =
     Events $ Map.unions [pre, overlapping, post]
     where
-    new_events = map round_event (Seq.sort_on event_key unsorted_events)
-    start = Event.min (Prelude.head new_events)
-    end = Event.max (Prelude.last new_events)
+    new_events = Seq.sort_on fst $ Seq.key_on event_key $
+        map round_event unsorted_events
+    start = Event.min $ snd $ Prelude.head new_events
+    end = Event.max $ snd $ Prelude.last new_events
     (pre, within, post) = _split_overlapping start end events
-    overlapping = from_ascending $ clip_events $
-        Seq.merge_on event_key (Map.elems within) new_events
+    overlapping = merge_and_clip (Map.toAscList within) new_events
 
 -- | Round event times as described in 'ScoreTime.round'.
 round_event :: Event.Event -> Event.Event
@@ -369,14 +369,25 @@ merge :: Events -> Events -> Events
 merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
-    | otherwise = Events $ from_ascending $ clip_events $ map snd $
-        Seq.merge_on fst (Map.toAscList evts1) (Map.toAscList evts2)
+    | otherwise = Events $
+        merge_and_clip (Map.toAscList evts2) (Map.toAscList evts1)
     -- Previously I would extract the overlapping sections and clip only those,
     -- but I moved that to 'insert'.  Perhaps it's a bit more elegant here, but
     -- I think I'm never really merging large Events, just inserting small
     -- lists into a large EventMap.  And in any case, EventMaps never get very
     -- big.  Also, putting it in 'insert' avoids having to clip_events an extra
     -- time to create the new Events.
+
+merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> EventMap
+merge_and_clip old new = from_ascending $ clip_events $ map (snd . snd) $
+    Seq.merge_on clip_key (zip (repeat False) old) (zip (repeat True) new)
+
+-- | Order otherwise-equal events so that new ones will prevail over old ones.
+-- For positive events, the last event wins, for negative ones it's the first.
+clip_key :: (Bool, (Key, x)) -> (Key, Int)
+clip_key (is_new, (k@(Key _ orient), _))
+    | is_new = (k, if orient == Event.Positive then 1 else 0)
+    | otherwise = (k, if orient == Event.Positive then 0 else 1)
 
 {- | Clip overlapping event durations.  An event with duration overlapping
     another event will be clipped.  Positive events are clipped by following

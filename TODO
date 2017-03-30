@@ -40,11 +40,16 @@ selection-orientation branch:
     * Tests.
   * Ui.Events events keyed by (Orientation, TrackTime).
   * Fix Serialize Selection instance
-  - Can't modify text on negative events.
+  * Can't modify text on negative events.
+    . Because new negative events lose to old ones.
+    . I can fix it by sorting new events so they get priority.
+  - It's surprising how positive always wins to negative.  This means adding
+    a positive events with +END will destroy all negative ones below it.
   - Invert duration should swap the places of (n, -0), (n, 0).
   - set_duration: If I have ><---|, I can't set the negative event back to the
     zero dur event because it sets the previous positive event, regardless of
     selection orientation.
+  - Floating input should be above or below depending on orientation.
 
   . I tend to lose -0 ScoreTime because they show up as (==).  Also can't
     test 0 vs. -0 for the same reason.  I could modify ScoreTime's Eq to
@@ -53,8 +58,8 @@ selection-orientation branch:
     might as well be standard.
   cleanup:
     - highlight_errors might be hard to see now, especially if zero dur.
-    - ModifyEvents.selection_expanded still has a confusing name.  Maybe
-      selection_visible?
+    - ModifyEvents.selection_expanded still has a confusing name because
+      it sounds like Selection.around_events.  Maybe selection_visible?
     - Verify I can use control set at -0 and 0 to get interpolate to, then
       jump.  I think that means the specialized controls are now obsolete,
       though they might be less work to use anyway.
@@ -69,6 +74,8 @@ selection-orientation branch:
     - Events shouldn't export split_lists, callers can use split
     - In Ui.Event, rather than ad-hoc modify functions with hard to remember
       names, why not export lenses?
+      . This will break everywhere that uses Event.start event.  Can I have
+        lens variant, e.g. Event.start_?
     - Slice range should be Events.Range so it can remember the orientation.
       Otherwise I think -0 note slices don't work.
     - I think Slice.events_in_range should get an orientation, which in turn
