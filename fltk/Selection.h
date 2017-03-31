@@ -13,10 +13,11 @@
 // selection in Ui.Types.Selection, that one is a contiguous block that
 // can cover multiple tracks.
 struct Selection {
-    enum Orientation { None, Positive, Negative, Both };
+    // None is taken by X11/X.h.
+    enum Orientation { SelNone, Negative, Positive, Both };
 
     Selection() : start(ScoreTime::invalid), cur(ScoreTime::invalid),
-        orientation(None) {}
+        orientation(SelNone) {}
     Selection(Color color, ScoreTime start, ScoreTime cur,
             Orientation orientation)
         : color(color), start(start), cur(cur), orientation(orientation)

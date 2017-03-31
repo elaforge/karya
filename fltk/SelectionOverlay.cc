@@ -24,7 +24,7 @@ draw_arrow(int x, int y, const Selection &sel)
     // Cur track and cur time gets an arrow.  Not cur track gets no arrows.
     // Hopefully it's visible enough if it's a point selection.
     switch (sel.orientation) {
-    case Selection::None:
+    case Selection::SelNone:
         break;
     case Selection::Positive:
         fl_color(sel.color.fl());
