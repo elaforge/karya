@@ -519,10 +519,12 @@ cmd_invert_orientation = do
     let is_control = fmap ParseTitle.is_control_track . Ui.get_track_title
     ifM (allM is_control track_ids) invert_events invert_notes
 
--- TODO swap 0 and -0.
 invert_events :: Cmd.M m => m ()
-invert_events = ModifyEvents.selection $ ModifyEvents.event $ \e ->
-    Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e
+invert_events =
+    ModifyEvents.modify_selected False modify =<< Selection.events_at_point
+    where
+    modify = ModifyEvents.event $ \e ->
+        Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e
 
 invert_notes :: Cmd.M m => m ()
 invert_notes = ModifyNotes.selection $ ModifyNotes.note invert

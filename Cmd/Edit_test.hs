@@ -238,6 +238,17 @@ test_cmd_invert_orientation = do
     equal (run [(">", [(0, 2, "1")]), ("*", [(1, 0, "4d")])])
         (Right ([(">", [(2, -2, "1")]), ("*", [(1, 0, "4d")])], []))
 
+    -- invert_events
+    equal (run [("c", [(1, 0, "1")])]) (Right ([("c", [(1, -0, "1")])], []))
+    case run [("c", [(1, 0, "1")])] of
+        Right ([("c", [(1, dur, "1")])], _) ->
+            equal (ScoreTime.is_negative dur) True
+        x -> failure $ "no match: " <> pretty x
+    -- 0 dur events trade places.
+    equal (run [("c", [(1, -0, "a"), (1, 0, "b")])]) $
+        Right ([("c", [(1, -0, "b"), (1, 0, "a")])], [])
+
+
 -- * util
 
 equal_e :: CallStack.Stack =>

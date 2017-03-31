@@ -716,9 +716,8 @@ events = around_to_events <$> events_around
 -- | Like 'events', but only for the 'sel_point_track'.
 track_events :: Cmd.M m => m SelectedEvents
 track_events = do
-    (block_id, maybe_track_id) <- track
+    (block_id, track_id) <- event_track
     sel <- get
-    track_id <- Cmd.abort_unless maybe_track_id
     around_to_events <$> events_around_tracks block_id [track_id] sel
 
 -- | 'events_around_tracks' for the selection.
@@ -727,6 +726,18 @@ events_around = do
     (block_id, _, track_ids, _) <- tracks
     sel <- get
     events_around_tracks block_id track_ids sel
+
+-- | Get events exactly at the point.  This gets both positive and negative
+-- events, so each track may have up to 2 events.
+events_at_point :: Cmd.M m => m SelectedEvents
+events_at_point = do
+    track_ids <- track_ids
+    pos <- point
+    fmap (filter (not . null . snd)) $ forM track_ids $ \track_id -> do
+        events <- Ui.get_events track_id
+        return $ (track_id,) $
+            maybe [] (:[]) (Events.at pos Event.Negative events)
+            ++ maybe [] (:[]) (Events.at pos Event.Positive events)
 
 -- | Like 'event_around', but select as if the selection were a point.
 -- Suitable for cmds that logically only work on a single event per-track.
@@ -850,6 +861,12 @@ tracknums :: Cmd.M m => m (BlockId, [TrackNum])
 tracknums = do
     (block_id, tracknums, _, _) <- tracks
     return (block_id, tracknums)
+
+event_track :: Cmd.M m => m (BlockId, TrackId)
+event_track = do
+    (block_id, track_id) <- track
+    track_id <- Cmd.require "must select an event track" track_id
+    return (block_id, track_id)
 
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = do

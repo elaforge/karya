@@ -45,7 +45,7 @@ selection-orientation branch:
     . I can fix it by sorting new events so they get priority.
   - It's surprising how positive always wins to negative.  This means adding
     a positive events with +END will destroy all negative ones below it.
-  - Invert duration should swap the places of (n, -0), (n, 0).
+  * Invert duration should swap the places of (n, -0), (n, 0).
   - set_duration: If I have ><---|, I can't set the negative event back to the
     zero dur event because it sets the previous positive event, regardless of
     selection orientation.
@@ -66,7 +66,7 @@ selection-orientation branch:
     - Make cmd_set_start apply to overlapping events.  The problem is that
       this makes moving event + controls messed up, so it has to do the
       ModifyNote thing.  This was broken before too.
-    - Rename Event.set_start and set_end to move_start and move_end.  Set
+    / Rename Event.set_start and set_end to move_start and move_end.  Set
       winds up being the lens.
     * Change Selection.get_insert to Selection.point as appropriate.
     * Selection.get should just return the selection, Selection.view can

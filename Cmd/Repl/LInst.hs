@@ -398,9 +398,8 @@ change_instrument new_qualified = do
     new_qualified <- parse_qualified new_qualified
     let new_inst = case new_qualified of
             InstTypes.Qualified _ name -> Score.instrument name
-    track_id <- Cmd.require "must select an event track"
-        =<< snd <$> Selection.track
-    old_inst <- Cmd.require "must select an event track"
+    track_id <- snd <$> Selection.event_track
+    old_inst <- Cmd.require "must select a note track"
         =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id
     (_, common_config, midi_config) <- get_midi_config old_inst
     -- Replace the old instrument and reuse its addr.
