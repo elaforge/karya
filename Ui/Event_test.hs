@@ -20,5 +20,14 @@ test_set_end = do
     equal (map f (Seq.range 0 5 1))
         [(4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1)]
 
+test_overlaps = do
+    let f = Event.overlaps
+    equal [f p (Event.event 1 0 "") | p <- [0, 1, 2]] [False, True, False]
+    equal [f p (Event.event 1 (-0) "") | p <- [0, 1, 2]] [False, True, False]
+    equal [f p (Event.event 1 2 "") | p <- [0, 1, 2, 3, 4]]
+        [False, True, True, False, False]
+    equal [f p (Event.event 3 (-2) "") | p <- [0, 1, 2, 3, 4]]
+        [False, False, True, True, False]
+
 extract :: Event.Event -> (TrackTime, TrackTime)
 extract e = (Event.start e, Event.duration e)

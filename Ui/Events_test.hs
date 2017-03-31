@@ -133,7 +133,9 @@ test_insert = do
 
     -- New events win over old ones.
     equal_e (f [(0, 2, "new")] [(0, 2, "old")]) [(0, 2, "new")]
+    equal_e (f [(1, 0, "new")] [(1, 0, "old")]) [(1, 0, "new")]
     equal_e (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
+    equal_e (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
 
 -- TODO unimplemented.  I should do this with quickcheck.
 -- Not only to generate the events but also to report the failing input.

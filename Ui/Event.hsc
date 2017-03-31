@@ -194,6 +194,7 @@ range e = (min e, max e)
 
 overlaps :: ScoreTime -> Event -> Bool
 overlaps p event
+    | start event == p = True
     | is_positive event = start event <= p && p < end event
     | otherwise = end event < p && p <= start event
 
