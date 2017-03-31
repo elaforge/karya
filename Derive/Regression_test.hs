@@ -60,7 +60,7 @@ compare_performance saved score = timeout score $ do
             return False
 
 timeout :: String -> IO a -> IO a
-timeout fname = maybe (errorIO msg) return <=< Thread.timeout 60
+timeout fname = maybe (errorIO msg) return <=< Thread.timeout 120
     where
     msg = txt fname
         <> ": timed out, this can happen when too many msgs are different"
