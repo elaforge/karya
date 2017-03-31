@@ -494,7 +494,7 @@ create_ruler a b = Ui.create_ruler (mkid a) b
 run :: Ui.State -> Ui.StateT IO a -> IO Ui.State
 run st1 m = do
     res <- Ui.run st1 m
-    let (_val, st2, cmd_updates) = right "run: state" res
+    let (_val, st2, cmd_updates) = expect_right res
     sync st1 st2 cmd_updates
     return st2
 
@@ -513,10 +513,6 @@ sync st1 st2 cmd_updates = do
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"
-
-right :: (Show err) => String -> Either err a -> a
-right msg (Left err) = error $ msg ++ " error: " ++ show err
-right _ (Right x) = x
 
 selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Sel.Selection
 selection a b c d = Sel.selection a b c d Sel.Positive
