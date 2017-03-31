@@ -535,8 +535,8 @@ convert_selection selnum tracks sel =
     color = Config.lookup_selection_color selnum
     convert o = case o of
         Sel.None -> BlockC.None
-        Sel.Positive -> BlockC.Positive
         Sel.Negative -> BlockC.Negative
+        Sel.Positive -> BlockC.Positive
 
 dtracks_with_ruler_id :: Ui.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]

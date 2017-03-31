@@ -516,8 +516,8 @@ data Selection = Selection {
     }
     deriving (Eq, Ord, Show)
 
-data SelectionOrientation = None | Positive | Negative | Both
-    deriving (Show, Eq, Ord, Enum)
+data SelectionOrientation = None | Negative | Positive | Both
+    deriving (Show, Eq, Ord)
 
 instance Pretty.Pretty Selection where
     pretty (Selection color start cur orientation) =
@@ -533,6 +533,13 @@ instance CStorable Selection where
         (#poke Selection, color) selp color
         (#poke Selection, start) selp start
         (#poke Selection, cur) selp cur
-        (#poke Selection, orientation) selp (Util.c_int (fromEnum orientation))
+        (#poke Selection, orientation) selp (convert_orientation orientation)
+
+convert_orientation :: SelectionOrientation -> CInt
+convert_orientation o = case o of
+    None -> #const Selection::SelNone
+    Positive -> #const Selection::Positive
+    Negative -> #const Selection::Negative
+    Both -> #const Selection::Both
 
 ##endif
