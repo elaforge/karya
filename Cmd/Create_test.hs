@@ -90,7 +90,7 @@ test_make_tracks = do
             ])
         ([(1, "1"), (2, "11"), (3, "12"), (4, "2")], [(1, 2), (1, 3)])
 
-run_cmd :: [String] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
+run_cmd :: [Text] -> [(TrackNum, TrackNum)] -> Cmd.CmdId a -> CmdTest.Result a
 run_cmd titles skel cmd = CmdTest.run state CmdTest.default_cmd_state cmd
     where
     state = UiTest.exec Ui.empty $ do
@@ -115,7 +115,7 @@ run_skel m ntracks skel (start_track, end_track) =
         CmdTest.set_sel start_track 0 end_track 0
         m
     where
-    tracks = [(show (n+1), []) | n <- [0..ntracks-1]]
+    tracks = [(showt (n+1), []) | n <- [0..ntracks-1]]
     extract = CmdTest.extract_ui_state extract_skel
     extract_skel ustate = UiTest.eval ustate $ do
         skel <- Skeleton.flatten <$> Ui.get_skeleton UiTest.default_block_id

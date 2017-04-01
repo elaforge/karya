@@ -12,6 +12,8 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+
+import Global
 import Types
 
 
@@ -52,7 +54,7 @@ test_transpose_out_of_range = do
         head $ DeriveTest.extract_events DeriveTest.e_nns_errors $
             DeriveTest.derive_tracks ""
                 [ (inst_title, [(0, 5, "")])
-                , ('*' : pitch_title, [(x, 0, n) | (x, n) <- pitches])
+                , ("*" <> pitch_title, [(x, 0, n) | (x, n) <- pitches])
                 ]
 
 test_neighbor = do
@@ -112,10 +114,10 @@ test_linear_next = do
     equal (run2 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
         [[(0, 60)], [(1, 60), (2, 61)], [(3, 64)]]
 
-run :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
+run :: [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run = run_tempo 1
 
-run_tempo :: Int -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
+run_tempo :: Int -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []
     where
     -- Slicing implementation details can make dups, but they don't matter for
@@ -123,9 +125,9 @@ run_tempo tempo pitches = extract $ run_ tempo pitches []
     extract = Seq.drop_dups snd . head
         . DeriveTest.extract_events DeriveTest.e_nns
 
-run_ :: Int -> [(ScoreTime, String)] -> [UiTest.TrackSpec] -> Derive.Result
+run_ :: Int -> [(ScoreTime, Text)] -> [UiTest.TrackSpec] -> Derive.Result
 run_ tempo pitches tracks = DeriveTest.derive_tracks "" $
-    [ ("tempo", [(0, 0, show tempo)])
+    [ ("tempo", [(0, 0, showt tempo)])
     , (">", [(0, 10, "")])
     , ("*", [(start, 0, text) | (start, text) <- pitches])
     ] ++ tracks

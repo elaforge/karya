@@ -43,10 +43,10 @@ read_scale :: Scale.Scale -> Pitch.Note -> Either String String
 read_scale scale note = (prettys *** prettys) $
     Scale.scale_read scale mempty note
 
-scale_track :: String -> [String] -> [UiTest.TrackSpec]
+scale_track :: Text -> [Text] -> [UiTest.TrackSpec]
 scale_track scale_id pitches =
     [ (">", [(n, 1, "") | n <- map fst events])
-    , ('*' : scale_id, [(n, 0, p) | (n, p) <- events])
+    , ("*" <> scale_id, [(n, 0, p) | (n, p) <- events])
     ]
     where events = zip (Seq.range_ 0 1) pitches
 

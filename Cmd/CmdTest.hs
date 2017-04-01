@@ -256,7 +256,7 @@ set_point_sel tracknum pos = do
     return Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
-set_point_sel_block :: Ui.M m => String -> Types.TrackNum -> ScoreTime -> m ()
+set_point_sel_block :: Ui.M m => Text -> Types.TrackNum -> ScoreTime -> m ()
 set_point_sel_block block_name tracknum pos =
     Ui.set_selection view_id Config.insert_selnum
         (Just (Sel.point tracknum pos Sel.Positive))

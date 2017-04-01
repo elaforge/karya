@@ -11,11 +11,11 @@ import qualified Derive.Score as Score
 import Global
 
 
-transform :: String
+transform :: Text
 transform = "import bali.gender"
 
-ngoret_transform :: String
-ngoret_transform = transform ++ " | realize-ngoret | ngoret-damp-threshold=20"
+ngoret_transform :: Text
+ngoret_transform = transform <> " | realize-ngoret | ngoret-damp-threshold=20"
 
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
@@ -101,7 +101,7 @@ test_past_end = do
 
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- " ++ ngoret_transform ++ " | cancel"
+        top = "top -- " <> ngoret_transform <> " | cancel"
     -- This also tests the interaction between the default note deriver and
     -- cancel-pasang, when invoked via Util.note.
     --    sub1     |sub2
@@ -118,8 +118,8 @@ test_ngoret_infer_duration = do
         ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
 
     -- Previous note is shortened instead of lengthened.
-    let mkblock s = [(top,
-            UiTest.note_track [(0, 2, "4c"), (2, 2, s ++ " -- 4e")])]
+    let mkblock s =
+            [(top, UiTest.note_track [(0, 2, "4c"), (2, 2, s <> " -- 4e")])]
     equal (run (mkblock "' 10 0"))
         ([(0, 2, "4c"), (1, 1, "4d"), (2, 2, "4e")], [])
     equal (run (mkblock "ngoret-damp-threshold=0 | ' 10 0"))
@@ -130,7 +130,7 @@ test_ngoret_infer_duration = do
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks (ngoret_transform ++ " | %t-dia=7")
+            . DeriveTest.derive_tracks (ngoret_transform <> " | %t-dia=7")
             . UiTest.note_track
     -- Make sure the transposition doesn't get applied twice.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])

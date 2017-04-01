@@ -7,25 +7,26 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import Global
 
 
 test_delay = do
     let run title pref tracks = DeriveTest.extract_events DeriveTest.e_event $
             DeriveTest.derive_tracks "" (tracks ++ [event])
             where
-            event = (title, [(0, 1, pref ++ "n --1"), (1, 1, pref ++ "n --2")])
+            event = (title, [(0, 1, pref <> "n --1"), (1, 1, pref <> "n --2")])
 
     -- delay notes with a delay signal
     let pref = "d %delay | "
-    equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
-        [(1, 1, pref ++ "n --1"), (3, 1, pref ++ "n --2")]
+    equal (run ">i" (txt pref) [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+        [(1, 1, pref <> "n --1"), (3, 1, pref <> "n --2")]
     equal (run ">i | d 2" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
     equal (run ">i | d %delay,2" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
     let pref = "d %delay | "
-    equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
-        [(1, 1, pref ++ "n --1"), (3, 1, pref ++ "n --2")]
+    equal (run ">i" (txt pref) [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+        [(1, 1, pref <> "n --1"), (3, 1, pref <> "n --2")]
     -- delay twice
     equal (run ">i | d %delay,1s | d %delay,1s" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
@@ -65,7 +66,7 @@ test_event_echo = do
         [(0, 60, 127), (1000, 62, 127),
             (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)]
 
-perform :: (String, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
+perform :: (Text, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
      -> ([Midi.WriteMessage], [String])
 perform (title, events) tracks = DeriveTest.perform_block $
-    tracks ++ [(">i1 | " ++ title, events)]
+    tracks ++ [(">i1 | " <> title, events)]

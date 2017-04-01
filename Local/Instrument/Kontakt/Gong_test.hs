@@ -12,6 +12,8 @@ import qualified Derive.Score as Score
 import qualified Local.Instrument.Kontakt.Gong as Gong
 import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
 
+import Global
+
 
 test_resolve = do
     equal Gong.kajar_resolve_errors []
@@ -35,5 +37,5 @@ test_nruk = do
     equal (run [(4, 0, "o.. 2 2"), (6, 0, "+")])
         ([(4, o), (4.5, o), (5, o), (5.5, o), (6, "+open+rim")], [])
 
-derive :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive :: Text -> [UiTest.TrackSpec] -> Derive.Result
 derive = KontaktTest.derive [("k", "kontakt/kajar")]

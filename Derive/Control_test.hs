@@ -144,8 +144,8 @@ test_relative_control = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""
             [ (">", [(0, 5, "")])
             , ("*", [(0, 0, "4c")])
-            , ("cont" ++ suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
-            , ("add cont" ++ add_suf, [(0, 0, "1")])
+            , ("cont" <> suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
+            , ("add cont" <> add_suf, [(0, 0, "1")])
             ]
         extract = DeriveTest.extract $
             (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
@@ -180,7 +180,7 @@ test_default_merge = do
                 , (c, [(0, 0, ".5")])
                 , (c, [(0, 0, ".5")])
                 ]
-                where c = untxt $ Score.control_name control
+                where c = Score.control_name control
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
 

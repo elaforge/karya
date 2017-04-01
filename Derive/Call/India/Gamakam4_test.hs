@@ -181,8 +181,7 @@ test_dyn_sequence = do
          ], [])
     equal (run ".5" "!T0=") ([[(0, 0.5)], [(6, 0)], [(6, 0)]], [])
 
-make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
-    -> [UiTest.TrackSpec]
+make_dyn_tracks :: (ScoreTime, Text) -> (ScoreTime, Text) -> [UiTest.TrackSpec]
 make_dyn_tracks (dur1, call1) (dur2, call2) =
     [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])
     , ("*", [(0, 0, "4c"), (dur1, 0, "4d"), (dur1 + dur2, 0, "4e")])
@@ -201,7 +200,7 @@ note_pitch_gamakam :: [UiTest.EventSpec] -> [UiTest.EventSpec]
 note_pitch_gamakam notes pitches gamakams =
     [(">", notes), ("*", pitches), ("* interleave", gamakams)]
 
-make_tracks :: [(ScoreTime, ScoreTime, String, String)]
+make_tracks :: [(ScoreTime, ScoreTime, Text, Text)]
     -- ^ (start, dur, pitch, gamakam)
     -> [UiTest.TrackSpec]
 make_tracks notes =
@@ -212,7 +211,7 @@ make_tracks notes =
     , ("dyn", [(0, 0, "1")])
     ]
 
-make_2notes :: (ScoreTime, String) -> (ScoreTime, String) -> [UiTest.TrackSpec]
+make_2notes :: (ScoreTime, Text) -> (ScoreTime, Text) -> [UiTest.TrackSpec]
 make_2notes (dur1, call1) (dur2, call2) = make_tracks
     [ (0, dur1, "4c", call1)
     , (dur1, dur2, "4d", call2)

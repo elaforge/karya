@@ -249,7 +249,7 @@ test_sequence_interleave = do
     -- pprint (run "! P1c !-c-")
     -- pprint (run "! P2 0 -2")
 
-make_tracks :: [(ScoreTime, ScoreTime, String, String)] -> [UiTest.TrackSpec]
+make_tracks :: [(ScoreTime, ScoreTime, Text, Text)] -> [UiTest.TrackSpec]
 make_tracks notes =
     [ (">", [(start, dur, "") | (start, dur, _, _) <- notes])
     , ("*", [(start, 0, pitch) | (start, _, pitch, _) <- notes, pitch /= ""])
@@ -258,7 +258,7 @@ make_tracks notes =
     , ("dyn", [(0, 0, "1")])
     ]
 
-make_2notes :: (ScoreTime, String) -> (ScoreTime, String) -> [UiTest.TrackSpec]
+make_2notes :: (ScoreTime, Text) -> (ScoreTime, Text) -> [UiTest.TrackSpec]
 make_2notes (dur1, call1) (dur2, call2) = make_tracks
     [ (0, dur1, "4c", call1)
     , (dur1, dur2, "4d", call2)
@@ -284,7 +284,7 @@ test_dyn_sequence = do
     equal (run ".5" "!=>-")
         ([[(0, 0.5)], [(4, 1), (5, 0.75), (6, 0.5)], [(6, 0.5)]], [])
 
-make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
+make_dyn_tracks :: (ScoreTime, Text) -> (ScoreTime, Text)
     -> [UiTest.TrackSpec]
 make_dyn_tracks (dur1, call1) (dur2, call2) =
     [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])

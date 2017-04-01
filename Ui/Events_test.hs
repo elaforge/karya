@@ -192,8 +192,7 @@ test_round_events = do
 -- * util
 
 equal_e :: CallStack.Stack => [Event] -> [Event] -> IO Bool
-equal_e = Testing.equal_fmt (UiTest.fmt_events . map convert)
-    where convert (s, d, t) = (s, d, untxt t)
+equal_e = Testing.equal_fmt UiTest.fmt_events
 
 type Event = (ScoreTime, ScoreTime, Text)
 

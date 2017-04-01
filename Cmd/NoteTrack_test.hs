@@ -142,7 +142,7 @@ test_cmd_val_edit_dyn = do
         , ("dyn", [(0, 0, "`0x`80")])
         ]
 
-val_edit :: Bool -> Bool -> [String] -> [Msg.Msg] -> Either String States
+val_edit :: Bool -> Bool -> [Text] -> [Msg.Msg] -> Either String States
 val_edit advance chord tracks msgs =
     thread tracks (mode advance chord) NoteTrack.cmd_val_edit msgs
     where
@@ -172,7 +172,7 @@ type States = (Ui.State, Cmd.State)
 
 -- | Thread a bunch of msgs through the command with the selection set to
 -- (1, 0).
-thread :: [String] -> (Cmd.State -> Cmd.State)
+thread :: [Text] -> (Cmd.State -> Cmd.State)
     -> (Msg.Msg -> Cmd.CmdId Cmd.Status)
     -> [Msg.Msg] -> Either String (Ui.State, Cmd.State)
 thread tracks modify_cmd_state cmd msgs =
@@ -186,16 +186,15 @@ simplify = simplify_tracks . UiTest.extract_tracks . fst
 -- -> [(">", [(0, 1, "4c")])]
 simplify_tracks :: [UiTest.TrackSpec] -> [UiTest.TrackSpec]
 simplify_tracks tracks =
-    case Seq.split_with (ParseTitle.is_note_track . txt . fst) tracks of
+    case Seq.split_with (ParseTitle.is_note_track . fst) tracks of
         [] -> []
         [] : groups -> map simplify groups
         hd : _ ->
             error $ "simplify_tracks: extra tracks in front: " ++ show hd
     where
     simplify [(note, notes), (pitch, pitches)]
-        | ParseTitle.is_note_track (txt note)
-            && ParseTitle.is_pitch_track (txt pitch) =
-                (note, combine "" notes pitches)
+        | ParseTitle.is_note_track note && ParseTitle.is_pitch_track pitch =
+            (note, combine "" notes pitches)
     simplify tracks = error $ "simplify_tracks: expected a note and a pitch: "
         ++ show tracks
     combine _ [] _ = []

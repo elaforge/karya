@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Edit_test where
+import qualified Data.Text as Text
+
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
@@ -280,7 +282,8 @@ run_sel tracks cmd start end = CmdTest.run_tracks tracks $ do
 
 start_dur_events :: [(TrackTime, TrackTime)] -> [UiTest.TrackSpec]
 start_dur_events events =
-    [(">", [(start, dur, c:"") | ((start, dur), c) <- zip events ['a'..'z']])]
+    [(">", [(start, dur, Text.singleton c) |
+        ((start, dur), c) <- zip events ['a'..'z']])]
 
 e_start_dur :: CmdTest.Result a
     -> Either String ([(ScoreTime, ScoreTime)], [String])

@@ -10,6 +10,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
+import Global
 import Types
 
 
@@ -66,7 +67,7 @@ test_parallel = do
 run_blocks :: [UiTest.BlockSpec] -> ([(RealTime, RealTime, String)], [String])
 run_blocks = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
 
-make_subs :: ScoreTime -> ScoreTime -> String -> [UiTest.BlockSpec]
+make_subs :: ScoreTime -> ScoreTime -> Text -> [UiTest.BlockSpec]
 make_subs start dur call =
     [ ("top", [(">", [(start, dur, call)])])
     , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])

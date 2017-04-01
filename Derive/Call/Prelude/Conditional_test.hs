@@ -6,11 +6,13 @@ module Derive.Call.Prelude.Conditional_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 
+import Global
+
 
 test_c_if_c = do
     let run control pitch = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks ""
-                [ ("c", [(0, 0, show control)])
+                [ ("c", [(0, 0, showt control)])
                 , (">", [(0, 1, "")])
                 , ("*", [(0, 0, pitch)])
                 ]

@@ -36,5 +36,5 @@ test_aftertouch = do
         , []
         )
 
-title :: String
+title :: Text
 title = "scale=selisir | tuning=umbang"

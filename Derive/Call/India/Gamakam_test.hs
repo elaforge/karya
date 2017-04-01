@@ -10,6 +10,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
+import Global
 import Types
 
 
@@ -81,7 +82,7 @@ test_jaru = do
     equal (run "sgr (3c) 2")
         ([[(0, 47), (1, 48), (2, 50), (3, 49), (4, 48)]], [])
 
-run_diatonic :: (Score.Event -> a) -> String -> ScoreTime -> ([a], [String])
+run_diatonic :: (Score.Event -> a) -> Text -> ScoreTime -> ([a], [String])
 run_diatonic extract call end =
     DeriveTest.extract extract $ derive_tracks
         [ (">", [(0, end, "")])

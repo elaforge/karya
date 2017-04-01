@@ -7,9 +7,10 @@ import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.NN as NN
+import Global
 
 
-title :: String
+title :: Text
 title = "import china.zheng | open-strings = (list (4c) (4d) (4e) (4g) (4a))"
 
 test_gliss = do

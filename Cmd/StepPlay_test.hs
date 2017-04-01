@@ -116,11 +116,11 @@ simple_tracks = note_track
     -- 0   1   2   3
     -- 60  62  64  65
 
-note_track :: [String] -> [UiTest.TrackSpec]
+note_track :: [Text] -> [UiTest.TrackSpec]
 note_track notes = UiTest.note_spec
     ("i1", [(t, 1, pitch) | (t, pitch) <- zip (Seq.range_ 0 1) notes], [])
 
-prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
+prepare_blocks :: Text -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks =
     CmdTest.update_perf ustate $ CmdTest.run ustate cstate (return ())
     where
@@ -137,6 +137,6 @@ get_sel_tracks =
     fmap (\s -> (Sel.cur_pos s, Sel.tracknums 99 s)) <$>
         Ui.get_selection UiTest.default_view_id StepPlay.selnum
 
-get_block_sel :: Ui.M m => String -> m (Maybe ScoreTime)
+get_block_sel :: Ui.M m => Text -> m (Maybe ScoreTime)
 get_block_sel name = fmap Sel.cur_pos <$>
     Ui.get_selection (UiTest.mk_vid_name name) StepPlay.selnum

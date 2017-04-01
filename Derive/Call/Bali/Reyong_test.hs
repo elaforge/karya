@@ -21,16 +21,16 @@ import Global
 import Types
 
 
-title :: String
+title :: Text
 title = "import bali.reyong | scale=legong | inst = i1"
 
-title_cancel :: String
+title_cancel :: Text
 title_cancel = title <> " | cancel-kotekan 5"
 
-title_damp :: Double -> String
-title_damp dur = title_cancel <> " | infer-damp i1 " <> show dur
+title_damp :: Double -> Text
+title_damp dur = title_cancel <> " | infer-damp i1 " <> showt dur
 
-title_realize :: String
+title_realize :: Text
 title_realize = title <> " | realize-reyong i1"
 
 test_articulation = do
@@ -106,7 +106,7 @@ test_kotekan_negative_slice = do
             [(">", []), (">", [(16, -16, "k//\\\\")]), ("*", [(16, -0, "4i")])])
         (Just "--ua-ua-au-au-ua-", [])
 
-derive_tracks_ruler :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_ruler :: Text -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_ruler title tracks =
     DeriveTest.derive_blocks_setup DeriveTest.with_linear
         [(UiTest.default_block_name <> "=ruler -- " <> title, tracks)]
@@ -192,7 +192,7 @@ test_select_pattern = do
 
 test_c_byong = do
     let run voice = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks (title <> " | v=" <> show voice)
+            . DeriveTest.derive_tracks (title <> " | v=" <> showt voice)
             . UiTest.note_track
     equal (run 1 [(1, 2, "o --")]) ([(1, 2, "4e"), (1, 2, "4a")], [])
     equal (run 2 [(1, 2, "o --")]) ([(1, 2, "5i"), (1, 2, "5e")], [])

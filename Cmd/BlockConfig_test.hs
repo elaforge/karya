@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.BlockConfig as BlockConfig
+import Global
 
 
 test_move_tracks = do
@@ -15,8 +16,8 @@ test_move_tracks = do
             BlockConfig.move_tracks UiTest.default_block_id sources dest
         mkstate ntracks tracks = UiTest.exec Ui.empty $
             UiTest.mkblocks_skel [((UiTest.default_block_name,
-                [(show n, []) | n <- [1..ntracks]]), tracks)]
-        extract st = (concatMap fst $ UiTest.extract_tracks st,
+                [(showt n, []) | n <- [1..ntracks]]), tracks)]
+        extract st = (mconcatMap fst $ UiTest.extract_tracks st,
             UiTest.extract_skeleton st)
 
     -- Move up.

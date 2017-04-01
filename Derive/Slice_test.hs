@@ -388,13 +388,12 @@ test_note_transformer_stack = do
 
 -- * util
 
-type EventsTree = Tree.Tree (String, [Event])
+type EventsTree = Tree.Tree (Text, [Event])
 type Event = (ScoreTime, ScoreTime, Text)
 
-extract_tree :: TrackTree.Track -> (String, [Event])
+extract_tree :: TrackTree.Track -> (Text, [Event])
 extract_tree track =
-    (untxt $ TrackTree.track_title track,
-        extract_track (TrackTree.track_events track))
+    (TrackTree.track_title track, extract_track (TrackTree.track_events track))
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
@@ -404,29 +403,30 @@ extract_track events =
 make_tree :: EventsTree -> TrackTree.EventsNode
 make_tree = fmap $ \(title, events) -> make_track title events 32
 
-make_track :: String -> [Event] -> TrackTime -> TrackTree.Track
+make_track :: Text -> [Event] -> TrackTime -> TrackTree.Track
 make_track title events end =
-    (TrackTree.make_track (txt title) tevents end)
-        { TrackTree.track_id = Just $ UiTest.tid $ filter Id.is_id_char title
+    (TrackTree.make_track title tevents end)
+        { TrackTree.track_id =
+            Just $ UiTest.tid $ Text.filter Id.is_id_char title
         }
     where
     tevents = Events.from_list
         [Event.event start dur text | (start, dur, text) <- events]
 
-make_controls :: String -> [Int] -> (String, [Event])
+make_controls :: Text -> [Int] -> (Text, [Event])
 make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
 
-make_controls2 :: String -> [(Int, Text)] -> (String, [Event])
+make_controls2 :: Text -> [(Int, Text)] -> (Text, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 
 to_score :: Int -> ScoreTime
 to_score = ScoreTime.double . fromIntegral
 
-make_notes :: ScoreTime -> String -> (String, [Event])
+make_notes :: ScoreTime -> [Char] -> (Text, [Event])
 make_notes offset notes = (">",
     zipWith (\start note -> (start, 1, Text.singleton note))
         (Seq.range_ offset 1) notes)
 
-make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (String, [Event])
+make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (Text, [Event])
 make_notes_dur notes =
     (">", [(start, dur, Text.singleton c) | (start, dur, c) <- notes])

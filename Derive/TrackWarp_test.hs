@@ -14,6 +14,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.TrackWarp as TrackWarp
 
+import Global
 import Types
 
 
@@ -27,7 +28,7 @@ test_collect_track_warps = do
             sort = Seq.sort_on (\(range, block, _, _) -> (block, range))
     let bid = UiTest.bid
         tids name = map (UiTest.mk_tid_name name)
-        tempo n = ("tempo", [(0, 0, show n)])
+        tempo n = ("tempo", [(0, 0, showt n)])
 
     let (tracks, wmap, logs) =
             run_warps [("b1", UiTest.note_track [(0, 1, "4c")])]

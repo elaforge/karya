@@ -13,7 +13,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 
 import qualified App.Config as Config
-import Global
 import Types
 
 
@@ -173,5 +172,5 @@ mkstate block_tracks clip_tracks = UiTest.exec Ui.empty $ do
     UiTest.mkviews [(UiTest.default_block_name, block_tracks)]
     Clip.state_to_namespace
         (UiTest.exec Ui.empty
-            (UiTest.mkblocks [(untxt Config.clip_block_name, clip_tracks)]))
+            (UiTest.mkblocks [(Config.clip_block_name, clip_tracks)]))
         Config.clip_namespace

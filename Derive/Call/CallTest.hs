@@ -35,18 +35,18 @@ transform trans = DeriveTest.derive Ui.empty $
     Derive.with_constant_pitch
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 
-run_pitch_ :: String -> [(ScoreTime, String)] -> Derive.Result
+run_pitch_ :: Text -> [(ScoreTime, Text)] -> Derive.Result
 run_pitch_ title events = DeriveTest.derive_tracks title
     [ (">", [(0, 10, "")])
     , ("*", [(start, 0, text) | (start, text) <- events])
     ]
 
-run_pitch :: String -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
+run_pitch :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_pitch title = extract . run_pitch_ title
     where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 -- | Run a control track and extract the control signal it produces.
-run_control :: [(ScoreTime, String)] -> [(Signal.X, Signal.Y)]
+run_control :: [(ScoreTime, Text)] -> [(Signal.X, Signal.Y)]
 run_control events = run_control_dur [(p, 0, t) | (p, t) <- events]
 
 run_control_dur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
@@ -112,7 +112,7 @@ lookup_map = Derive.LookupMap . Map.fromList
 -- * calls
 
 -- | Run a val call, and return what it returned.
-run_val :: Maybe String -> String -> (Maybe BaseTypes.Val, [String])
+run_val :: Maybe Text -> Text -> (Maybe BaseTypes.Val, [String])
 run_val transform call = extract $ DeriveTest.derive_tracks_setup
         (with_note_generator "capture" c_capture) ""
         [(">", [(0, 1, maybe "" (<> " | ") transform

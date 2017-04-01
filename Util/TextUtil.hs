@@ -60,6 +60,10 @@ joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 join :: (Textlike a, Textlike b) => a -> [a] -> b
 join sep = fromText . Text.intercalate (toText sep) . map toText
 
+split1 :: Text -> Text -> (Text, Text)
+split1 sep text = (pre, Text.drop (Text.length sep) post)
+    where (pre, post) = Text.breakOn sep text
+
 ellipsis :: Int -> Text -> Text
 ellipsis maxWidth text
     | Text.length text <= maxWidth = text

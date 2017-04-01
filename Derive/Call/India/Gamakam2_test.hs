@@ -113,15 +113,15 @@ test_nkampita = do
     equal (run [(0, 4, "nkam-transition=2 | @; nk^ 1; -- 4c")])
         ([[(0, 60), (3, 60.5), (4, 61)]], [])
 
-run_note_track_dyn :: String -> [UiTest.EventSpec]
+run_note_track_dyn :: Text -> [UiTest.EventSpec]
     -> ([([(RealTime, Pitch.NoteNumber)], [(RealTime, Signal.Y)])], [String])
 run_note_track_dyn = run_ $ \e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e)
 
-run_note_track :: String -> [UiTest.EventSpec]
+run_note_track :: Text -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [String])
 run_note_track = run_ DeriveTest.e_nns
 
-run_ :: (Score.Event -> a) -> String -> [UiTest.EventSpec] -> ([a], [String])
+run_ :: (Score.Event -> a) -> Text -> [UiTest.EventSpec] -> ([a], [String])
 run_ extract transform = DeriveTest.extract extract
     . DeriveTest.derive_tracks ("import india.gamakam2 " <> transform)
     . UiTest.note_track

@@ -14,6 +14,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Testing as Testing
+import qualified Util.TextUtil as TextUtil
 import qualified Util.Then as Then
 
 import qualified Midi.Midi as Midi
@@ -75,19 +76,19 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
-mkid :: String -> Id.Id
-mkid = Id.read_short test_ns . txt
+mkid :: Text -> Id.Id
+mkid = Id.read_short test_ns
 
-bid :: String -> BlockId
+bid :: Text -> BlockId
 bid = Id.BlockId . mkid
 
-vid :: String -> ViewId
+vid :: Text -> ViewId
 vid = Id.ViewId . mkid
 
-tid :: String -> TrackId
+tid :: Text -> TrackId
 tid = Id.TrackId . mkid
 
-rid :: String -> RulerId
+rid :: Text -> RulerId
 rid = Id.RulerId . mkid
 
 test_ns :: Id.Namespace
@@ -116,7 +117,7 @@ fmt_events_only = Text.unlines . map event
             | dur < 0 = "<" <> middle <> "|"
             | otherwise = "|" <> middle <> ">"
         middle = Text.replicate (time_to_spaces (abs dur) - 1) "-"
-        label = if null text then "" else " [" <> txt text <> "]"
+        label = if Text.null text then "" else " [" <> text <> "]"
 
 fmt_ruler :: Int -> Text
 fmt_ruler end = Text.stripEnd $ mconcatMap (space . pretty) ts
@@ -138,8 +139,8 @@ fmt_tracks tracks = Text.unlines $
         [] -> []
         x : xs -> fmt_title title <> x : map (indent<>) xs
     indent = Text.replicate (title_length + 2) " "
-    fmt_title title = Text.justifyLeft title_length ' ' (txt title) <> ": "
-    title_length = maximum $ map (length . fst) tracks
+    fmt_title title = Text.justifyLeft title_length ' ' title <> ": "
+    title_length = maximum $ map (Text.length . fst) tracks
 
 time_to_spaces :: ScoreTime -> Int
 time_to_spaces = floor . (*4)
@@ -162,20 +163,21 @@ right_fst fmt = either (const "") (fmt . fst)
 -- tests and lets them avoid hardcoding the default_ruler end.
 --
 -- Also, if the name contains @--@, the text after it becomes the block title.
-type BlockSpec = (String, [TrackSpec])
+type BlockSpec = (Text, [TrackSpec])
 
 -- | (track_title, events)
-type TrackSpec = (String, [EventSpec])
+type TrackSpec = (Text, [EventSpec])
 
 -- | (start, dur, text)
-type EventSpec = (ScoreTime, ScoreTime, String)
+type EventSpec = (ScoreTime, ScoreTime, Text)
 
 -- | Parse a block spec, which looks like @name[=ruler] [-- title]@
-parse_block_spec :: String -> (BlockId, String, Bool)
-parse_block_spec spec = (bid block_id, Seq.strip title, has_ruler)
+parse_block_spec :: Text -> (BlockId, Text, Bool)
+parse_block_spec spec = (bid block_id, Text.strip title, has_ruler)
     where
-    (name, title) = Seq.split1 "--" spec
-    (block_id, has_ruler) = Seq.drop_suffix "=ruler" (Seq.strip name)
+    (name, title) = TextUtil.split1 "--" spec
+    (block_id, has_ruler) = maybe (Text.strip name, False) (, True) $
+        Text.stripSuffix "=ruler" (Text.strip name)
 
 -- | Often tests work with a single block, or a single view.  To make them
 -- less verbose, there is a default block and view so functions can omit the
@@ -183,7 +185,7 @@ parse_block_spec spec = (bid block_id, Seq.strip title, has_ruler)
 default_block_id :: BlockId
 default_block_id = bid default_block_name
 
-default_block_name :: String
+default_block_name :: Text
 default_block_name = "b1"
 
 default_view_id :: ViewId
@@ -249,7 +251,7 @@ mkblock (spec, tracks) = do
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
 
-mkblock_marklist :: Ui.M m => Ruler.Marklist -> BlockId -> String
+mkblock_marklist :: Ui.M m => Ruler.Marklist -> BlockId -> Text
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
     ruler_id <- Create.ruler "r" $
@@ -265,7 +267,7 @@ mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkblock_ruler :: Ui.M m => RulerId -> BlockId -> String -> [TrackSpec]
+mkblock_ruler :: Ui.M m => RulerId -> BlockId -> Text -> [TrackSpec]
     -> m (BlockId, [TrackId])
 mkblock_ruler ruler_id block_id title tracks = do
     Ui.set_namespace test_ns
@@ -275,8 +277,8 @@ mkblock_ruler ruler_id block_id title tracks = do
             (make_track track)
     create_block (Id.unpack_id block_id) "" $ (Block.RId ruler_id)
         : [Block.TId tid ruler_id | tid <- tids]
-    unless (null title) $
-        Ui.set_block_title block_id (txt title)
+    unless (Text.null title) $
+        Ui.set_block_title block_id title
     Ui.set_skeleton block_id =<< parse_skeleton block_id
     -- This ensures that any state created via these functions will have the
     -- default midi config.  This saves some hassle since all tests can assume
@@ -284,9 +286,9 @@ mkblock_ruler ruler_id block_id title tracks = do
     Ui.modify set_default_allocations
     return (block_id, tids)
 
-create_block :: Ui.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
-create_block block_id title tracks = Ui.create_block block_id
-    (txt title) [Block.track tid 30 | tid <- tracks]
+create_block :: Ui.M m => Id.Id -> Text -> [Block.TracklikeId] -> m BlockId
+create_block block_id title tracks =
+    Ui.create_block block_id title [Block.track tid 30 | tid <- tracks]
 
 parse_skeleton :: Ui.M m => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
@@ -307,7 +309,7 @@ mk_vid :: BlockId -> ViewId
 mk_vid block_id = Id.ViewId $ Id.id ns ("v." <> block_name)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
-mk_vid_name :: String -> ViewId
+mk_vid_name :: Text -> ViewId
 mk_vid_name = mk_vid . bid
 
 -- | Make a TrackId as mkblock does.  This is so tests can independently come
@@ -322,7 +324,7 @@ mk_tid_block block_id i
     | otherwise = Id.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
-mk_tid_name :: String -> TrackNum -> TrackId
+mk_tid_name :: Text -> TrackNum -> TrackId
 mk_tid_name = mk_tid_block . bid
 
 -- | Get a TrackNum back out of a 'mk_tid' call.
@@ -334,16 +336,15 @@ tid_tracknum = parse . Seq.rtake_while Char.isDigit . untxt . Id.ident_name
 
 -- * actions
 
-insert_event_in :: Ui.M m => String -> TrackNum
-    -> (ScoreTime, ScoreTime, String) -> m ()
+insert_event_in :: Ui.M m => Text -> TrackNum -> (ScoreTime, ScoreTime, Text)
+    -> m ()
 insert_event_in block_name tracknum (pos, dur, text) =
-    Ui.insert_event (mk_tid_name block_name tracknum)
-        (Event.event pos dur (txt text))
+    Ui.insert_event (mk_tid_name block_name tracknum) (Event.event pos dur text)
 
-insert_event :: Ui.M m => TrackNum -> (ScoreTime, ScoreTime, String) -> m ()
+insert_event :: Ui.M m => TrackNum -> (ScoreTime, ScoreTime, Text) -> m ()
 insert_event = insert_event_in default_block_name
 
-remove_event_in :: Ui.M m => String -> TrackNum -> ScoreTime -> m ()
+remove_event_in :: Ui.M m => Text -> TrackNum -> ScoreTime -> m ()
 remove_event_in name tracknum pos =
     Ui.remove_event_range (mk_tid_name name tracknum)
         (Events.Point pos Event.Positive)
@@ -361,51 +362,53 @@ remove_event = remove_event_in default_block_name
 --
 -- If the pitch looks like \"a -- b\" then \"a\" is the note track's event and
 -- \"b\" is the pitch track's event.
-type NoteSpec = (String, [EventSpec], [(String, [(ScoreTime, String)])])
+type NoteSpec = (Text, [EventSpec], [(Text, [(ScoreTime, Text)])])
 
 note_spec :: NoteSpec -> [TrackSpec]
 note_spec (inst, pitches, controls) =
     note_track : pitch_track : map control_track controls
     where
-    note_track = ('>' : inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
-    pitch_track = ("*", [(t, 0, s) | (t, _, (_, s)) <- track, not (null s)])
+    note_track = (">" <> inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
+    pitch_track =
+        ("*", [(t, 0, s) | (t, _, (_, s)) <- track, not (Text.null s)])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
     track = [(t, d, split s) | (t, d, s) <- pitches]
     split s
-        | "--" `List.isInfixOf` s = let (pre, post) = Seq.split1 "--" s
-            in (Seq.strip pre, Seq.strip post)
+        | "--" `Text.isInfixOf` s = let (pre, post) = TextUtil.split1 "--" s
+            in (Text.strip pre, Text.strip post)
         | otherwise = ("", s)
 
 -- | Abbreviation for 'note_spec' where the inst and controls are empty.
 note_track :: [EventSpec] -> [TrackSpec]
 note_track pitches = note_spec ("", pitches, [])
 
-inst_note_track :: (String, [EventSpec]) -> [TrackSpec]
+inst_note_track :: (Text, [EventSpec]) -> [TrackSpec]
 inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
 
 -- | Like 'note_track', but all notes have a duration of 1.
-note_track1 :: [String] -> [TrackSpec]
+note_track1 :: [Text] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
 
-control_track :: [(ScoreTime, String)] -> [EventSpec]
+control_track :: [(ScoreTime, Text)] -> [EventSpec]
 control_track ns = [(t, 0, s) | (t, s) <- ns]
 
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $
     take n [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
-    where pitches = [o:p:"" | o <- "34567", p <- "cdefgab"]
+    where
+    pitches =
+        [Text.singleton o <> Text.singleton p | o <- "34567", p <- "cdefgab"]
 
 -- | Parse a TrackSpec back out to a NoteSpec.
 to_note_spec :: [TrackSpec] -> [NoteSpec]
-to_note_spec =
-    mapMaybe parse . Seq.split_with (ParseTitle.is_note_track . txt . fst)
+to_note_spec = mapMaybe parse . Seq.split_with (ParseTitle.is_note_track . fst)
     where
     parse [] = Nothing
     parse ((inst, notes) : controls) =
-        Just (drop 1 inst, add_pitches pitches notes, [])
+        Just (Text.drop 1 inst, add_pitches pitches notes, [])
         where
         pitches = maybe [] snd $
-            List.find (ParseTitle.is_pitch_track . txt . fst) controls
+            List.find (ParseTitle.is_pitch_track . fst) controls
 
 -- | Like 'to_note_spec' but expect just notes and pitches, no controls.
 to_pitch_spec :: [NoteSpec] -> [[EventSpec]]
@@ -418,21 +421,21 @@ add_pitches = go ""
         | ((pt, _, nextp) : restp) <- pitches, nt >= pt = go nextp restp ns
         | otherwise = (nt, nd, add p n) : go p pitches notes
     go _ _ [] = []
-    add p n = List.intercalate " -- " $ filter (not . null) [p, n]
+    add p n = Text.intercalate " -- " $ filter (not . Text.null) [p, n]
 
 
 -- * state to spec
 
 dump_block :: BlockId -> Ui.State -> (BlockSpec, [Skeleton.Edge])
 dump_block block_id state =
-    ((name ++ if Text.null title then "" else " -- " ++ untxt title,
+    ((name <> if Text.null title then "" else " -- " <> title,
         map dump_track (Maybe.catMaybes tracks)), skel)
     where
     (id_str, title, tracks, skel) = eval state (Simple.dump_block block_id)
-    name = untxt $ snd $ Id.un_id $ Id.read_id id_str
-    dump_track (_, title, events) = (untxt title, map convert events)
+    name = snd $ Id.un_id $ Id.read_id id_str
+    dump_track (_, title, events) = (title, map convert events)
     convert (start, dur, text) =
-        (ScoreTime.double start, ScoreTime.double dur, untxt text)
+        (ScoreTime.double start, ScoreTime.double dur, text)
 
 -- | Like 'dump_block' but strip out everything but the tracks.
 extract_tracks_of :: BlockId -> Ui.State -> [TrackSpec]
@@ -474,7 +477,7 @@ select_point view_id tracknum pos =
 mkstack :: (TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
 mkstack (tracknum, s, e) = mkstack_block (default_block_name, tracknum, s, e)
 
-mkstack_block :: (String, TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
+mkstack_block :: (Text, TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
 mkstack_block (block, tracknum, s, e) = Stack.from_outermost
     [Stack.Block (bid block), Stack.Track (mk_tid_name block tracknum),
         Stack.Region s e]
@@ -485,17 +488,17 @@ make_track :: TrackSpec -> Track.Track
 make_track (title, events) = Track.modify_events
     (Events.insert (map make_event events)) (empty_track title)
 
-empty_track :: String -> Track.Track
-empty_track title = (Track.track (txt title) Events.empty)
+empty_track :: Text -> Track.Track
+empty_track title = (Track.track title Events.empty)
     { Track.track_render = Track.no_render }
 
 -- ** event
 
 make_event :: EventSpec -> Event.Event
-make_event (start, dur, text) = Event.event start dur (txt text)
+make_event (start, dur, text) = Event.event start dur text
 
 extract_event :: Event.Event -> EventSpec
-extract_event e = (Event.start e, Event.duration e, untxt $ Event.text e)
+extract_event e = (Event.start e, Event.duration e, Event.text e)
 
 -- ** ruler
 

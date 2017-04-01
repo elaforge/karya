@@ -121,7 +121,7 @@ set_midi_config inst_db modify_config = do
             { Cmd.config_instrument_db = inst_db }
         }
 
-run_thru :: Cmd.State -> String -> Cmd.CmdT IO ()
+run_thru :: Cmd.State -> Text -> Cmd.CmdT IO ()
     -> (Attrs.Attributes, InputNote.Input) -> IO (CmdTest.Result ())
 run_thru cmd_state title setup (attrs, input) =
     CmdTest.run_with_performance (CmdTest.make_tracks tracks) cmd_state $ do

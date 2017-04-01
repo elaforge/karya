@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Parent_test where
+import qualified Data.Text as Text
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -12,6 +14,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+
+import Global
 
 
 test_tuplet = do
@@ -76,7 +80,7 @@ test_tuplet_multiple_tracks = do
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]
             . LilypondTest.derive_tracks_linear
-        pitches = map ('3':) (map (:"") "abcdefg")
+        pitches = map ("3"<>) (map Text.singleton "abcdefg")
         notes dur ts =
             UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
 

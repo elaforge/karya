@@ -34,8 +34,7 @@ input_to_note scale env =
     . Scale.scale_input_to_note scale env
     . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
 
-note_to_call :: String -> String -> [String]
-    -> ([Maybe Pitch.NoteNumber], [String])
+note_to_call :: Text -> Text -> [Text] -> ([Maybe Pitch.NoteNumber], [String])
 note_to_call scale title =
     DeriveTest.extract Score.initial_nn
     . DeriveTest.derive_tracks

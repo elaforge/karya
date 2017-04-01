@@ -21,7 +21,7 @@ import Global
 
 test_note_trill = do
     let run tempo notes pitches = extract $ derive_tracks
-            [("tempo", [(0, 0, show tempo)]), (">", notes), ("*", pitches)]
+            [("tempo", [(0, 0, showt tempo)]), (">", notes), ("*", pitches)]
         extract = DeriveTest.extract DeriveTest.e_note
     equal (run 1 [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
@@ -129,7 +129,7 @@ test_trill = do
 
     let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
-            , ("tr-neighbor" ++ suffix, [(0, 0, val)])
+            , ("tr-neighbor" <> suffix, [(0, 0, val)])
             , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--")])
             ]
     equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -142,7 +142,7 @@ test_trill = do
     let run_speed suffix = extract $ derive_tracks
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
-            , ("tr-speed" ++ suffix, [(0, 0, "2")])
+            , ("tr-speed" <> suffix, [(0, 0, "2")])
             , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--")])
             ]
         trill xs = [zip xs (cycle [60, 62])]
@@ -257,7 +257,7 @@ test_xcut_pitch = do
 
 test_control_trill = do
     let run tempo text = extract $ derive_tracks
-            [ ("tempo", [(0, 0, show tempo)])
+            [ ("tempo", [(0, 0, showt tempo)])
             , (">", [(0, 3, "")])
             , ("cont", [(0, 0, text), (3, 0, "--")])
             ]

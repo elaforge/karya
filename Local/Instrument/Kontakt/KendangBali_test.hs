@@ -64,5 +64,5 @@ derive = KontaktTest.derive allocs ""
         , ("l", "kontakt/kendang-bali")
         ]
 
-inst_title :: String
+inst_title :: Text
 inst_title = " | wadon = w | lanang = l"

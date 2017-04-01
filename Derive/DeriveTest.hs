@@ -182,16 +182,16 @@ perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
 
 -- * derive
 
-derive_tracks :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks :: Text -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_setup mempty
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
-derive_tracks_linear :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_linear :: Text -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_linear = derive_tracks_setup with_linear
 
 -- | Variant that lets you run setup on various states.
-derive_tracks_setup :: Setup -> String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_setup :: Setup -> Text -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_setup setup title tracks = derive_blocks_setup setup
     [(UiTest.default_block_name <> " -- " <> title, tracks)]
 
@@ -858,7 +858,7 @@ fake_stack = Stack.from_outermost
 
 -- * create misc
 
-make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
+make_damage :: Text -> TrackNum -> ScoreTime -> ScoreTime
     -> Derive.ScoreDamage
 make_damage block tracknum s e = Derive.ScoreDamage
     (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))

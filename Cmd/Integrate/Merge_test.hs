@@ -4,6 +4,7 @@
 
 module Cmd.Integrate.Merge_test where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
@@ -88,7 +89,8 @@ apply last_integrate integrated events = map extract_event $ Events.ascending $
 
 test_derive_integrate = do
     let f state integrated = return $ derive_integrate state integrated
-    let events cs = [(n, 1, c:"") | (n, c) <- zip (Seq.range_ 0 2) cs]
+    let events cs =
+            [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
         extract = UiTest.extract_tracks
 
     -- New tracks are appended.
@@ -150,17 +152,18 @@ make_convert_tracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])]
 make_convert_tracks =
     map $ \(note, controls) -> (convert note, map convert controls)
     where
-    convert (title, events) = Convert.Track (txt title)
+    convert (title, events) = Convert.Track title
         (map (add_stack title) $ map UiTest.make_event events)
     add_stack title event = Event.stack_ #= Just stack $ event
-        where stack = Event.Stack (Stack.call (txt title)) (Event.start event)
+        where stack = Event.Stack (Stack.call title) (Event.start event)
 
 -- * score integrate
 
 test_score_integrate = do
     -- make a block with the source, then modify
     let f state m = return $ score_integrate 1 (modify m state)
-    let events cs = [(n, 1, c:"") | (n, c) <- zip (Seq.range_ 0 2) cs]
+    let events cs =
+            [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
         extract = UiTest.extract_tracks
     state <- f Ui.empty $ UiTest.mkblock
         (UiTest.default_block_name, [(">", events "ab"), ("c1", events "12")])

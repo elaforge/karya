@@ -44,4 +44,4 @@ run_sel cmd events start end =
         cmd
 
 start_dur_events :: [(ScoreTime, ScoreTime)] -> [UiTest.EventSpec]
-start_dur_events specs = [(p, d, prettys p) | (p, d) <- specs]
+start_dur_events specs = [(p, d, pretty p) | (p, d) <- specs]

@@ -8,10 +8,12 @@ import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
+
+import Global
 import Types
 
 
-run :: [(ScoreTime, String)] -> [(RealTime, Signal.Y)]
+run :: [(ScoreTime, Text)] -> [(RealTime, Signal.Y)]
 run = CallTest.run_control
 
 test_set = do

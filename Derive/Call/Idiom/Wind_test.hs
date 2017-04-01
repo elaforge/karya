@@ -14,7 +14,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-title :: String
+title :: Text
 title =
     "import idiom.wind | fundamentals = (list (nn 70) (nn 100)) | wind-idiom"
 

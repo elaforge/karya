@@ -740,10 +740,10 @@ test_track_cache2 = do
 
 -- * make
 
-block :: String -> Stack.Frame
+block :: Text -> Stack.Frame
 block = Stack.Block . UiTest.bid
 
-track :: String -> Stack.Frame
+track :: Text -> Stack.Frame
 track = Stack.Track . UiTest.tid
 
 region :: TrackTime -> TrackTime -> Stack.Frame
@@ -760,7 +760,7 @@ toplevel_rederived :: Bool -> Text
 toplevel_rederived True = "top *: rederived * block damage"
 toplevel_rederived False = "top *: rederived * sub-block damage"
 
-mk_block_deps :: [String] -> Derive.BlockDeps
+mk_block_deps :: [Text] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
 mkblocks :: Ui.M m => [UiTest.BlockSpec] -> m BlockId
@@ -771,7 +771,7 @@ mkblocks blocks = do
 mkblock :: Ui.M m => [UiTest.TrackSpec] -> m BlockId
 mkblock tracks = mkblocks [("top", tracks)]
 
-insert_event :: Ui.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
+insert_event :: Ui.M m => Text -> ScoreTime -> ScoreTime -> Text -> m ()
 insert_event tid pos dur text =
     Ui.insert_event (UiTest.tid tid) (Event.event pos dur text)
 

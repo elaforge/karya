@@ -65,7 +65,7 @@ test_infer_pattern = do
 ktkno :: [String]
 ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
 
-derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
+derive_tracks :: Text -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) [(">m", notes)]
 

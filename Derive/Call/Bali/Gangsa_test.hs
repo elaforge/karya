@@ -453,17 +453,17 @@ test_kotekan_cancel_noltol = do
             ])
          ], [])
 
-ngotek :: Bool -> String
+ngotek :: Bool -> Text
 ngotek b = " | kotekan=" <> if b then "2" else "1"
 
 -- * derive
 
-derive_polos :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
+derive_polos :: (Score.Event -> a) -> Text -> [UiTest.EventSpec]
     -> ([a], [String])
 derive_polos extract title = first (fromMaybe [] . lookup polos)
     . e_by_inst extract . derive title
 
-derive :: String -> [UiTest.EventSpec] -> Derive.Result
+derive :: Text -> [UiTest.EventSpec] -> Derive.Result
 derive title notes = derive_tracks $ UiTest.note_spec (title, notes, [])
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
@@ -515,7 +515,7 @@ pitch_digit p = case p of
     "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
     _ -> "unknown pitch: " <> show p
 
-block_title :: String
+block_title :: Text
 block_title =
     "import bali.gangsa | inst = i3 | inst-polos = i1 | inst-sangsih = i2"
 

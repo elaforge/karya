@@ -13,9 +13,10 @@ import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Local.Instrument.Kontakt as Kontakt
+import Global
 
 
-derive :: DeriveTest.SimpleAllocations -> String -> [UiTest.TrackSpec]
+derive :: DeriveTest.SimpleAllocations -> Text -> [UiTest.TrackSpec]
     -> Derive.Result
 derive = DeriveTest.derive_tracks_setup . with_synth
 

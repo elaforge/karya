@@ -4,11 +4,11 @@
 
 module Cmd.Undo_test where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Testing as Testing
 
@@ -249,7 +249,7 @@ get_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
 next = ResponderTest.respond_cmd . ResponderTest.result_states
 
-insert_event :: Ui.M m => ScoreTime -> String -> m ()
+insert_event :: Ui.M m => ScoreTime -> Text -> m ()
 insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
 
 set_sel :: Cmd.M m => ScoreTime -> m ()
@@ -260,9 +260,9 @@ set_sel pos = Cmd.name "select" $
 
 -- ** extract
 
-e_hist_names :: ResponderTest.Result -> ([String], String, [String])
+e_hist_names :: ResponderTest.Result -> ([Text], Text, [Text])
 e_hist_names = extract_hist $ \(Cmd.HistoryEntry state _ names _) ->
-    Seq.join "+" (map untxt names) ++ ": " ++ ui_notes 0 state
+    Text.intercalate "+" names <> ": " <> txt (ui_notes 0 state)
 
 extract_hist :: (Cmd.HistoryEntry -> a) -> ResponderTest.Result -> ([a], a, [a])
 extract_hist extract res =
@@ -277,12 +277,15 @@ e_commits res = (map extract past, extract present, map extract future)
     Cmd.History past present future _ = e_hist res
     extract hist = (Cmd.hist_names hist, Cmd.hist_commit hist)
 
-extract_ui :: ResponderTest.Result -> String
+extract_ui :: ResponderTest.Result -> [Char]
 extract_ui = ui_notes 0 . e_ui
 
-ui_notes :: Int -> Ui.State -> String
-ui_notes tracknum ui_state = [c | (_, _, c:_) <- tracks]
-    where ('>' : _, tracks) = UiTest.extract_tracks ui_state !! tracknum
+ui_notes :: Int -> Ui.State -> [Char]
+ui_notes tracknum ui_state
+    | not (">" `Text.isPrefixOf` title) =
+        errorStack $ "not a note track: " <> showt title
+    | otherwise = [Text.head text | (_, _, text) <- tracks]
+    where (title, tracks) = UiTest.extract_tracks ui_state !! tracknum
 
 e_ui :: ResponderTest.Result -> Ui.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd

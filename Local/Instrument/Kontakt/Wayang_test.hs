@@ -96,5 +96,5 @@ make_allocations suffix =
     , ("u", "kontakt/wayang-umbang"), ("i", "kontakt/wayang-isep")
     ]
 
-wayang_title :: String
+wayang_title :: Text
 wayang_title = " | scale = wayang | n w | inst-polos = u  | inst-sangsih = i"

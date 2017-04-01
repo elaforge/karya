@@ -12,11 +12,12 @@ import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
+import Global
 
 
 test_random = do
     let f seed = DeriveTest.extract extract $ DeriveTest.derive_blocks
-            [ ("top", [(">", [(0, 1, seed ++ "b"), (1, 1, seed ++ "b")])])
+            [ ("top", [(">", [(0, 1, seed <> "b"), (1, 1, seed <> "b")])])
             , ("b", [(">", [(0, 1, "")]), ("c", [(0, 0, "set (range)")])])
             ]
         extract = DeriveTest.e_control "c"

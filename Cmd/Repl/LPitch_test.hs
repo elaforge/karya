@@ -30,10 +30,10 @@ test_to_relative = do
     equal (run "twelve" ["4c", "4d", "5c"] False "4c") $
         Right (("*twelve", ["0", "2", "12"]), [])
 
-e_pitch :: CmdTest.Result val -> CmdTest.Extracted (String, [String])
+e_pitch :: CmdTest.Result val -> CmdTest.Extracted (Text, [Text])
 e_pitch = CmdTest.extract_ui_state $
     second (map (\(_, _, p) -> p)) . head . UiTest.extract_tracks
 
-pitch_track :: String -> [String] -> [UiTest.TrackSpec]
+pitch_track :: Text -> [Text] -> [UiTest.TrackSpec]
 pitch_track scale ps =
     [("*" <> scale, [(n, 0 , p) | (n, p) <- zip (Seq.range_ 0 1) ps])]

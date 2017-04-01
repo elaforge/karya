@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Someday switch UiTest.EventSpec to use Text.
+  * Someday switch UiTest.EventSpec to use Text.
   - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
     . Or a key to expand the selection to all tracks?
     . A downside is that I might want to go back to my original selection.

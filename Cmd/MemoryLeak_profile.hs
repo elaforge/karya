@@ -244,7 +244,7 @@ score sub_blocks sub_notes =
         : map (, sub) subs
     where
     dur = fromIntegral sub_notes
-    subs = map (("sub"<>) . show) [1..sub_blocks]
+    subs = map (("sub"<>) . showt) [1..sub_blocks]
     sub = UiTest.regular_notes sub_notes
 
 memory_used :: IO Bytes

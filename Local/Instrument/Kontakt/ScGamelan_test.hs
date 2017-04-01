@@ -34,6 +34,6 @@ test_wrap_octaves = do
         , []
         )
 
-derive :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive :: Text -> [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup $
     DeriveTest.with_synths (ScGamelan.kebyar_allocations "dev") [Kontakt.synth]

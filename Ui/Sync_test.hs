@@ -478,17 +478,17 @@ make_view block_id rect zoom = do
     block <- Ui.get_block block_id
     return $ Block.view block block_id rect zoom
 
-create_view :: Ui.M m => String -> Block.View -> m ViewId
+create_view :: Ui.M m => Text -> Block.View -> m ViewId
 create_view a b = Ui.create_view (mkid a) b
 
-create_block :: Ui.M m => String -> String -> [Block.TracklikeId]
+create_block :: Ui.M m => Text -> Text -> [Block.TracklikeId]
     -> m BlockId
 create_block block_name = UiTest.create_block (UiTest.mkid block_name)
 
-create_track :: Ui.M m => String -> Track.Track -> m TrackId
+create_track :: Ui.M m => Text -> Track.Track -> m TrackId
 create_track a b = Ui.create_track (mkid a) b
 
-create_ruler :: Ui.M m => String -> Ruler.Ruler -> m RulerId
+create_ruler :: Ui.M m => Text -> Ruler.Ruler -> m RulerId
 create_ruler a b = Ui.create_ruler (mkid a) b
 
 run :: Ui.State -> Ui.StateT IO a -> IO Ui.State

@@ -59,14 +59,14 @@ import Types
 
 type Block = (UiTest.BlockSpec, [Skeleton.Edge])
 type Track = UiTest.TrackSpec
-type Events = [(ScoreTime, ScoreTime, String)]
+type Events = [(ScoreTime, ScoreTime, Text)]
 
 -- | Random length track of \"\" notes with pitches.
 simple_pitch :: Q.Gen Block
 simple_pitch = do
     ranges <- granges
     pitches <- Q.vectorOf (length ranges) gpitch
-    let ptrack = [(p, 0, untxt $ Pitch.note_text n)
+    let ptrack = [(p, 0, Pitch.note_text n)
             | (p, n) <- zip (map fst ranges) pitches]
     return (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
         [(1, 2)])
@@ -95,7 +95,7 @@ gevent text = do
     dur <- Q.arbitrarySizedFractional
     return $ Event.event (abs start) (abs dur) text
 
-to_spec :: String -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, String)
+to_spec :: Text -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, Text)
 to_spec text (start, dur) = (start, dur, text)
 
 instance Q.Arbitrary ScoreTime where
@@ -110,7 +110,7 @@ simple_derive [] = []
 simple_derive (((_, tracks), skel) : blocks) =
     derive_block initial_state (mkblocks blocks) (Skeleton.make skel) tracks
 
-type Blocks = Map String Block
+type Blocks = Map Text Block
 
 mkblocks :: [Block] -> Blocks
 mkblocks blocks = Map.fromList $ zip (map (fst . fst) blocks) blocks
@@ -142,9 +142,9 @@ derive_note_track state blocks (notes, samples) =
         }
 
 data Sample = Sample {
-    sample_name :: String -- ^ @*@ for pitch
+    sample_name :: Text -- ^ @*@ for pitch
     , sample_pos :: RealTime
-    , sample_val :: String
+    , sample_val :: Text
     } deriving (Show)
 
 -- | (note track, pitch track, controls)
@@ -176,15 +176,14 @@ update_state samples pos state = (foldl' go state pre, post)
     go state (Sample name _ val)
         | name == "*" = state { state_pitch = parse_pitch val }
         | otherwise = state
-            { state_controls = Map.insert (Score.unchecked_control (txt name))
-                (parse_control (txt val))
-                (state_controls state)
+            { state_controls = Map.insert (Score.unchecked_control name)
+                (parse_control val) (state_controls state)
             }
 
-parse_pitch :: String -> Pitch.NoteNumber
+parse_pitch :: Text -> Pitch.NoteNumber
 parse_pitch text =
     fromMaybe (error $ "unparseable pitch: " ++ show text) $
-        Map.lookup (Pitch.Note $ txt text) note_to_nn
+        Map.lookup (Pitch.Note text) note_to_nn
 
 note_to_nn :: Map Pitch.Note Pitch.NoteNumber
 note_to_nn = Map.fromList
