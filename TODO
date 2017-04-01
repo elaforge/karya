@@ -2,102 +2,43 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
-selection-orientation branch:
-  . How should selection work?
-    . Events fully within the selection are affected no matter what.
-    . An event with its trigger at the beginning or end of the selection is
-      affected based on the selection's orientation.
-    . A point selection affects events at the point and with the same
-      orientation.  If there is one with the wrong orientation, select that.
-
-    . If events have orientation, do I need orientation on the selection?
-      I do need some way to say if I'm editing the positive or negative if
-      both coincide, but for a range I think I can just say get a positive
-      event at the beginning, and a negative one at the end.
-
-  . Events.split puts a negative event in pre.  Will that lead to confusing
-    results, or expected ones?  At least for Factor.split_time_at it seems to
-    be right, since the negative one will go before.
-
-  . So can I go back to negative durations for events?  I think so, and in
-    fact orientation is only needed to differentiate 0 and -0.  Maybe I could
-    even make a newtype around ScoreTime for that?
-    . No wait that's totally wrong, the negative is in the duration.
-    . It's just that the event itself should now have a negative duration
-      again, instead of Event.orientation.  Or rather, Event.orientation
-      calculates from the duration.
-
-  * Selection.events takes the previous event for point selection, but could
-    take the next one for Negative orientation.
-  * Add visual orientation to fltk and Selection type.
-  * Add orientation to haskell Selection.
-  Add orientation support to Cmd.Selection.
-    * Make orientation affect selected events.
-    * Test that selection orientation works, in Cmd.Selection_test
-  Cmd.Edit
-    * Compile
-    * Fix definitions
-    * Tests.
-  * Ui.Events events keyed by (Orientation, TrackTime).
-  * Fix Serialize Selection instance
-  * Can't modify text on negative events.
-    . Because new negative events lose to old ones.
-    . I can fix it by sorting new events so they get priority.
-  - It's surprising how positive always wins to negative.  This means adding
-    a positive events with +END will destroy all negative ones below it.
-  * Invert duration should swap the places of (n, -0), (n, 0).
-  - set_duration: If I have ><---|, I can't set the negative event back to the
-    zero dur event because it sets the previous positive event, regardless of
-    selection orientation.
-  * Floating input should be above or below depending on orientation.
-
-  . I tend to lose -0 ScoreTime because they show up as (==).  Also can't
-    test 0 vs. -0 for the same reason.  I could modify ScoreTime's Eq to
-    differentiate, but then things that check zero dur with (==0) would need
-    to also have (== -0).  So if it's going to be error-prone either way, I
-    might as well be standard.
-  cleanup:
-    - highlight_errors might be hard to see now, especially if zero dur.
-    - ModifyEvents.selection_expanded still has a confusing name because
-      it sounds like Selection.around_events.  Maybe selection_visible?
-    * Verify I can use control set at -0 and 0 to get interpolate to, then
-      jump.  I think that means the specialized controls are now obsolete,
-      though they might be less work to use anyway.
-    - Make cmd_set_start apply to overlapping events.  The problem is that
-      this makes moving event + controls messed up, so it has to do the
-      ModifyNote thing.  This was broken before too.
-    / Rename Event.set_start and set_end to move_start and move_end.  Set
-      winds up being the lens.
-    * Change Selection.get_insert to Selection.point as appropriate.
-    * Selection.get should just return the selection, Selection.view can
-      return (ViewId, Selection).
-    / Events shouldn't export split_lists, callers can use split
-      . Nah, it's useful.
-    * In Ui.Event, rather than ad-hoc modify functions with hard to remember
-      names, why not export lenses?
-      . This will break everywhere that uses Event.start event.  Can I have
-        lens variant, e.g. Event.start_?
-    - Slice range should be Events.Range so it can remember the orientation.
-      Otherwise I think -0 note slices don't work.
-    - I think Slice.events_in_range should get an orientation, which in turn
-      means checked_slice_notes needs one.  Otherwise don't negative notes
-      not get the end event?  But Sekar maybe relies on include_end.
-    - Perhaps related, I removed include_end since negative should work for
-      that, but Sekar used it.  Can I use Sekar with negative events to get
-      end bias back?
-    - Remove Sel.selection constructor, record syntax is actually nicer.
-    / lots of calls to Selection.tracks ignore range.  Make simpler versions?
-    / Maybe the arrows should go at the top or bottom to represent range, and
-      the "current" end should get a highlight to indicate where motion
-      happens.
-      . Now that selection orientation isn't really range orientation maybe I
-        don't care so much about this.
-    - Someday switch UiTest.EventSpec to use Text.
-
-  - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
-    Or a key to expand the selection to all tracks?
-
 UNSORTED
+  - Someday switch UiTest.EventSpec to use Text.
+  - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
+    . Or a key to expand the selection to all tracks?
+    . A downside is that I might want to go back to my original selection.
+  - Integrate from dsl.
+    . I'd like to be able to edit e.g. solkattu dsl, then save triggers
+      a score integrate.
+    . This is also the way to get text language to integrate in general.
+    . Also it's visualization for text language.
+    . StateConfig can have 'dsl_integrate :: Map CallId Code', then repl cmds
+      to edit them.  This is then haskell, which means I need some way to get
+      it into the REPL, and some standard environment in which it is executed.
+    . I can actually do this currently but I have to run a repl cmd, e.g.
+      LSol.integrate Score.xyz
+    . So simpler way would be to hook the editor so it does 'send ...' on
+      save.  I should do that first, and think about a more automatic way
+      if it's too awkward.
+    . The common building block is a manual score integrate like
+      integrate :: CallId -> Track [Ui.Event] | Block Ruler [Ui.Event]
+    ? Remind myself about how score integrate works.
+      . Manually call LIntegrate.score_block
+      . Which sets (source_block, ScoreDestinations []) on the dest block.
+      . score_track adds (source_track, ScoreDestinations []) to dest
+        block_integrated_tracks.
+    . Dsl integration won't have a source track or block.  Instead it needs
+      another ID which can link it with the source.  So for code it would be
+      defining file or expression.  I also need identifying stacks for the
+      generated events.
+
+    . I have to load the module with the dsl.  If that's supposed to be
+      per-score then I need to get that into an .hs file and get the repl to
+      add that to the targets.  The file should be .hs and loadable anyway so
+      I can use ghci on it.
+    . But I'll likely have multiple DSLs, so 
+    . Two cases: EDSL means it's haskell with a special "prelude", like
+      solkattu.  DSL means text with a parser.
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
@@ -378,7 +319,7 @@ UNSORTED
     the rest reset to 0.
 
 IN PROGRESS
-  - Make negative events less awkward. Make selection directional, and key
+  + Make negative events less awkward. Make selection directional, and key
     events on (TrackTime, Orientation), so I can have |<--|.
     . branch directional-select
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
@@ -434,6 +375,97 @@ TASKS:
   Linux:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
+
+selection-orientation branch:
+  . How should selection work?
+    . Events fully within the selection are affected no matter what.
+    . An event with its trigger at the beginning or end of the selection is
+      affected based on the selection's orientation.
+    . A point selection affects events at the point and with the same
+      orientation.  If there is one with the wrong orientation, select that.
+
+    . If events have orientation, do I need orientation on the selection?
+      I do need some way to say if I'm editing the positive or negative if
+      both coincide, but for a range I think I can just say get a positive
+      event at the beginning, and a negative one at the end.
+
+  . Events.split puts a negative event in pre.  Will that lead to confusing
+    results, or expected ones?  At least for Factor.split_time_at it seems to
+    be right, since the negative one will go before.
+
+  . So can I go back to negative durations for events?  I think so, and in
+    fact orientation is only needed to differentiate 0 and -0.  Maybe I could
+    even make a newtype around ScoreTime for that?
+    . No wait that's totally wrong, the negative is in the duration.
+    . It's just that the event itself should now have a negative duration
+      again, instead of Event.orientation.  Or rather, Event.orientation
+      calculates from the duration.
+
+  * Selection.events takes the previous event for point selection, but could
+    take the next one for Negative orientation.
+  * Add visual orientation to fltk and Selection type.
+  * Add orientation to haskell Selection.
+  Add orientation support to Cmd.Selection.
+    * Make orientation affect selected events.
+    * Test that selection orientation works, in Cmd.Selection_test
+  Cmd.Edit
+    * Compile
+    * Fix definitions
+    * Tests.
+  * Ui.Events events keyed by (Orientation, TrackTime).
+  * Fix Serialize Selection instance
+  * Can't modify text on negative events.
+    . Because new negative events lose to old ones.
+    . I can fix it by sorting new events so they get priority.
+  - It's surprising how positive always wins to negative.  This means adding
+    a positive events with +END will destroy all negative ones below it.
+  * Invert duration should swap the places of (n, -0), (n, 0).
+  - set_duration: If I have ><---|, I can't set the negative event back to the
+    zero dur event because it sets the previous positive event, regardless of
+    selection orientation.
+  * Floating input should be above or below depending on orientation.
+
+  . I tend to lose -0 ScoreTime because they show up as (==).  Also can't
+    test 0 vs. -0 for the same reason.  I could modify ScoreTime's Eq to
+    differentiate, but then things that check zero dur with (==0) would need
+    to also have (== -0).  So if it's going to be error-prone either way, I
+    might as well be standard.
+  cleanup:
+    * highlight_errors might be hard to see now, especially if zero dur.
+    - ModifyEvents.selection_expanded still has a confusing name because
+      it sounds like Selection.around_events.  Maybe selection_visible?
+    * Verify I can use control set at -0 and 0 to get interpolate to, then
+      jump.  I think that means the specialized controls are now obsolete,
+      though they might be less work to use anyway.
+    - Make cmd_set_start apply to overlapping events.  The problem is that
+      this makes moving event + controls messed up, so it has to do the
+      ModifyNote thing.  This was broken before too.
+    / Rename Event.set_start and set_end to move_start and move_end.  Set
+      winds up being the lens.
+    * Change Selection.get_insert to Selection.point as appropriate.
+    * Selection.get should just return the selection, Selection.view can
+      return (ViewId, Selection).
+    / Events shouldn't export split_lists, callers can use split
+      . Nah, it's useful.
+    * In Ui.Event, rather than ad-hoc modify functions with hard to remember
+      names, why not export lenses?
+      . This will break everywhere that uses Event.start event.  Can I have
+        lens variant, e.g. Event.start_?
+    - Slice range should be Events.Range so it can remember the orientation.
+      Otherwise I think -0 note slices don't work.
+    - I think Slice.events_in_range should get an orientation, which in turn
+      means checked_slice_notes needs one.  Otherwise don't negative notes
+      not get the end event?  But Sekar maybe relies on include_end.
+    - Perhaps related, I removed include_end since negative should work for
+      that, but Sekar used it.  Can I use Sekar with negative events to get
+      end bias back?
+    - Remove Sel.selection constructor, record syntax is actually nicer.
+    / lots of calls to Selection.tracks ignore range.  Make simpler versions?
+    / Maybe the arrows should go at the top or bottom to represent range, and
+      the "current" end should get a highlight to indicate where motion
+      happens.
+      . Now that selection orientation isn't really range orientation maybe I
+        don't care so much about this.
 
 ----------------------------------------------------------------------
 
