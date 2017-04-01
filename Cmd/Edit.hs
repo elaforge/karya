@@ -217,7 +217,7 @@ modify_event_near_point modify = do
                 Ui.remove_event track_id event
                 Ui.insert_event track_id $ modify (pos, pos) event
 
-    selection range = ModifyEvents.selection_expanded $ ModifyEvents.events $
+    selection range = ModifyEvents.selection_visible $ ModifyEvents.events $
         return . map (modify range)
 
 -- | Like 'Selection.events_around', but if a point selection is on an event
@@ -249,7 +249,7 @@ avoid_exact_match = do
 cmd_toggle_zero_timestep :: Cmd.M m => m ()
 cmd_toggle_zero_timestep = do
     sel <- Selection.get
-    ModifyEvents.selection_expanded $ \block_id track_id events -> do
+    ModifyEvents.selection_visible $ \block_id track_id events -> do
         tracknum <- Ui.get_tracknum_of block_id track_id
         let (start, end) = Sel.range sel
         Just <$> mapM (toggle_zero_timestep block_id tracknum start end) events
@@ -303,7 +303,7 @@ cmd_set_start = do
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
-modify_dur f = ModifyEvents.selection_expanded $ ModifyEvents.event $
+modify_dur f = ModifyEvents.selection_visible $ ModifyEvents.event $
     Event.duration_ %= apply
     where apply dur = if dur == 0 then dur else f dur
 
@@ -488,7 +488,7 @@ toggle_note_duration = do
 -- ** fancier start\/duration edits
 
 cmd_set_call_duration :: Cmd.M m => m ()
-cmd_set_call_duration = ModifyEvents.selection_expanded $
+cmd_set_call_duration = ModifyEvents.selection_visible $
     \block_id track_id events ->
         Just <$> mapM (set_call_duration block_id track_id) events
 

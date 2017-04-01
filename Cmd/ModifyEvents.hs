@@ -72,8 +72,8 @@ selection modify = modify_selected True modify =<< Selection.events
 -- multiple note tracks, then the intervening collapsed pitch tracks will also
 -- be selected and if you accidentally modify those you won't see the
 -- modifications.
-selection_expanded :: Cmd.M m => Track m -> m ()
-selection_expanded modify = modify_selected False modify =<< Selection.events
+selection_visible :: Cmd.M m => Track m -> m ()
+selection_visible modify = modify_selected False modify =<< Selection.events
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()

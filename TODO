@@ -432,7 +432,7 @@ selection-orientation branch:
     might as well be standard.
   cleanup:
     * highlight_errors might be hard to see now, especially if zero dur.
-    - ModifyEvents.selection_expanded still has a confusing name because
+    * ModifyEvents.selection_expanded still has a confusing name because
       it sounds like Selection.around_events.  Maybe selection_visible?
     * Verify I can use control set at -0 and 0 to get interpolate to, then
       jump.  I think that means the specialized controls are now obsolete,
