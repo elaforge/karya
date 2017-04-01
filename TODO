@@ -60,7 +60,7 @@ selection-orientation branch:
     - highlight_errors might be hard to see now, especially if zero dur.
     - ModifyEvents.selection_expanded still has a confusing name because
       it sounds like Selection.around_events.  Maybe selection_visible?
-    - Verify I can use control set at -0 and 0 to get interpolate to, then
+    * Verify I can use control set at -0 and 0 to get interpolate to, then
       jump.  I think that means the specialized controls are now obsolete,
       though they might be less work to use anyway.
     - Make cmd_set_start apply to overlapping events.  The problem is that
@@ -71,7 +71,8 @@ selection-orientation branch:
     * Change Selection.get_insert to Selection.point as appropriate.
     * Selection.get should just return the selection, Selection.view can
       return (ViewId, Selection).
-    - Events shouldn't export split_lists, callers can use split
+    / Events shouldn't export split_lists, callers can use split
+      . Nah, it's useful.
     * In Ui.Event, rather than ad-hoc modify functions with hard to remember
       names, why not export lenses?
       . This will break everywhere that uses Event.start event.  Can I have
@@ -85,8 +86,8 @@ selection-orientation branch:
       that, but Sekar used it.  Can I use Sekar with negative events to get
       end bias back?
     - Remove Sel.selection constructor, record syntax is actually nicer.
-    - lots of calls to Selection.tracks ignore range.  Make simpler versions?
-    - Maybe the arrows should go at the top or bottom to represent range, and
+    / lots of calls to Selection.tracks ignore range.  Make simpler versions?
+    / Maybe the arrows should go at the top or bottom to represent range, and
       the "current" end should get a highlight to indicate where motion
       happens.
       . Now that selection orientation isn't really range orientation maybe I
