@@ -3,10 +3,25 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I'd like to make a local scale derived from another one but some notes
+    missing, and have input and transposition skip those.
+    . Ideally it could be a modifier to any scale, so it would modify input
+      and transpose accordingly.  Symbols remain the same.
+    . I'm still unhappy with the Scale.Make Make|Simple thing.  Returning
+      Scale from a val call would be better, but I think that runs into the
+      big Derive / Val circular dependency problem.
+    . Do as a Make for now.
   * Someday switch UiTest.EventSpec to use Text.
   - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
     . Or a key to expand the selection to all tracks?
     . A downside is that I might want to go back to my original selection.
+    . Would it be useful to have an undo stack for selections?  I could also
+      do things like select to end of track, delete, then go back to the
+      selection.  This is like ^o and tab in vim.
+  - Undo stack for selection.
+    . For drags, don't record until mouse-up.
+    . ^o is still available, but it would become alt-o on linux.
+    . Also this tracks focused ViewId and focus changes.
   - Integrate from dsl.
     . I'd like to be able to edit e.g. solkattu dsl, then save triggers
       a score integrate.
@@ -319,7 +334,7 @@ UNSORTED
     the rest reset to 0.
 
 IN PROGRESS
-  + Make negative events less awkward. Make selection directional, and key
+  * Make negative events less awkward. Make selection directional, and key
     events on (TrackTime, Orientation), so I can have |<--|.
     . branch directional-select
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
@@ -337,6 +352,9 @@ IN PROGRESS
     . Also simplify or unify various types in Derive.ScoreTypes,
       Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
       and move simple types to Derive.T.
+  - Make solkattu use a generalized rhythmic framework, and support speed and
+    nadai change.
+    . branch solkattu
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
     . Maybe I should fix the formatting bugs first.
@@ -357,6 +375,7 @@ TASKS:
       read-only block or track.
     . Simplify scale implementation 'Why are scales so complicated'
     . Something better than ControlFunctions for randomized signals.
+      . Could be figure out the Sig.Parser defaults, e.g. Typecheck or Convert.
     . Negative events, negative selection.
     . Im
   Tests:
@@ -388,11 +407,9 @@ selection-orientation branch:
       I do need some way to say if I'm editing the positive or negative if
       both coincide, but for a range I think I can just say get a positive
       event at the beginning, and a negative one at the end.
-
   . Events.split puts a negative event in pre.  Will that lead to confusing
     results, or expected ones?  At least for Factor.split_time_at it seems to
     be right, since the negative one will go before.
-
   . So can I go back to negative durations for events?  I think so, and in
     fact orientation is only needed to differentiate 0 and -0.  Maybe I could
     even make a newtype around ScoreTime for that?
@@ -400,7 +417,6 @@ selection-orientation branch:
     . It's just that the event itself should now have a negative duration
       again, instead of Event.orientation.  Or rather, Event.orientation
       calculates from the duration.
-
   * Selection.events takes the previous event for point selection, but could
     take the next one for Negative orientation.
   * Add visual orientation to fltk and Selection type.
@@ -1606,6 +1622,10 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Tala doesn't support chapu.
+        - remove arudi and nadai from Tala.  I've hardly ever used arudi
+          alignment, and not all talams have one.  And nadai can just default
+          to 4, as an attribute of the solkattu, not the talam.
         - various take and drop functions should retain the speed
         - Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.

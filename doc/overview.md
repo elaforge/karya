@@ -78,9 +78,12 @@ limitation.
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. gradually
 retuning a scale) or on other instruments (e.g. the intonation of one part is
-defined relative to another).  Enharmonics and chromatic and diatonic
-transposition are supported for scales that employ those concepts.  You can
-define your own scales that involve any combination of the above concepts.
+defined relative to another).  A scale can be based on other scales, e.g. a
+scale that interpolates between two others, or an instrument can have a local
+scale which is the same as the one in its environment only with certain pitches
+altered or removed.  Enharmonics and chromatic and diatonic transposition are
+supported for scales that employ those concepts.  You can define your own
+scales that involve any combination of the above concepts.
 [Scale documentation.](scales.html)
 
 - Tempo control.  You can give separate tempos to separate parts
@@ -135,7 +138,7 @@ any motivation to do that yet.
 ## Weaknesses:
 
 - Complicated.  If there is a bug in a call's implementation it can be a
-hassle to track it down what is going wrong and fix it.  Due to [slicing and
+hassle to track down what is going wrong and fix it.  Due to [slicing and
 inversion](slicing-inverting.md.html), the structure of the score can get
 complicated and hard to understand.  There are a lot of tools for inspecting
 intermediate output, but sometimes it can feel like debugging a compiler.  And
@@ -158,7 +161,7 @@ making changes, it's still oriented around non-realtime score-writing.  You
 cannot change a playback in progress.  You can't record MIDI in realtime,
 partially because it's hard to reconcile a low-level recorded performance with
 a high-level handwritten score, but mostly because I haven't gotten around to
-adding that feature.  It wouldn't be hard to add though.
+adding that feature.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
@@ -197,7 +200,9 @@ specialized DSLs for things like konnakol which output score notation.
 and buggy parts.  It's also changing rapidly, and code written against internal
 interfaces may be broken by changes down the line.  And there's no defined
 external interface yet.  That said, I have scores from 4 years ago that still
-work fine, and at worst you can just rewind the repo.
+work fine, and at worst you can just rewind the repo.  MIDI output can be saved
+with the score to become a test against future versions, so you can be very
+clear when code changes have changed score output.
 
 ## Documentation
 
