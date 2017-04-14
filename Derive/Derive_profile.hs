@@ -139,7 +139,7 @@ make_nested bottom_tracks size depth bottom_size = do
             (map (track_take bottom_size) bottom_tracks)
         return ()
     go ruler_id block_name depth = do
-        let sub_bids = [block_name ++ "." ++ show sub | sub <- [0 .. size-1]]
+        let sub_bids = [block_name <> "." <> showt sub | sub <- [0 .. size-1]]
             step = bottom_size * size^(depth-2)
         UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
             (map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
@@ -263,11 +263,11 @@ nontempered_pitch_track =
     ctrack0 1 "*legong" ["4i", "4o", "4e", "4u", "4a", "5i", "5o"]
 vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
-ctrack0 :: ScoreTime -> String -> [String] -> UiTest.TrackSpec
+ctrack0 :: ScoreTime -> Text -> [Text] -> UiTest.TrackSpec
 ctrack0 step title ts =
     (title, [(p, 0, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 
-ctrack :: ScoreTime -> String -> [String] -> UiTest.TrackSpec
+ctrack :: ScoreTime -> Text -> [Text] -> UiTest.TrackSpec
 ctrack step title ts =
     (title, [(p, step, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 

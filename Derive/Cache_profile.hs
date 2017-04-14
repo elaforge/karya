@@ -23,6 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_profile as Derive_profile
 
+import Global
 import Types
 
 
@@ -31,8 +32,8 @@ import Types
 profile_normal = do
     let ui_state = UiTest.exec Ui.empty
             (Derive_profile.make_nested_controls 10 3 128)
-        modify block pos = modify_note ("b1.0." ++ show block ++ ".t0")
-            ("b1.0." ++ show block ++ ".t1") pos
+        modify block pos = modify_note ("b1.0." <> showt block <> ".t0")
+            ("b1.0." <> showt block <> ".t1") pos
     rederive ui_state [modify 0 2, modify 1 0, modify 4 4]
 
 profile_small = do
@@ -41,12 +42,12 @@ profile_small = do
     -- pprint (Map.keys (Ui.state_tracks ui_state))
     rederive ui_state [modify_pitch "b1.0.0.t1" 2]
 
-modify_note :: Ui.M m => String -> String -> ScoreTime -> m ()
+modify_note :: Ui.M m => Text -> Text -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
     Ui.insert_event (UiTest.tid note_tid) (Event.event pos 1 "")
     Ui.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 
-modify_pitch :: Ui.M m => String -> ScoreTime -> m ()
+modify_pitch :: Ui.M m => Text -> ScoreTime -> m ()
 modify_pitch pitch_tid pos =
     Ui.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 
