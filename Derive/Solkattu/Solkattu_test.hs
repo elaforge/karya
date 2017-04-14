@@ -9,36 +9,35 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (ta, di, ki, tha, thom, __)
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
 test_verify_alignment = do
-    let f = verify_alignment
+    let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
-        tala4 = Solkattu.Tala 4 2 2 -- 4 akshara, 2 nadai
-    equal (f tala4 []) []
-    strings_like (f tala4 ta) ["ta", "akshara 0, matra 1"]
-    strings_like (f tala4 (take 4 tdkt)) ["ta di ki ta", "akshara 2, matra 0"]
-    equal (f tala4 (take 8 tdkt)) []
-    equal (f tala4 (take 4 tdkt <> Dsl.atX <> take 4 tdkt)) []
-    strings_like (f tala4 (take 3 tdkt <> Dsl.atX <> take 5 tdkt))
+    equal (f []) []
+    strings_like (f ta) ["ta", "akshara 0, matra 1"]
+    strings_like (f (take 6 tdkt)) ["ta di ki ta", "akshara 1, matra 2"]
+    equal (f (take (8*4) tdkt)) []
+    equal (f (Dsl.speed (-2) $ take 8 tdkt)) []
+    equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt)) []
+    strings_like (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt))
         [ "ta di ki"
-        , "expected akshara 2, but at avartanam 1, akshara 1, matra 1"
+        , "expected akshara 4, but at avartanam 1, akshara 0, matra 3"
         ]
 
 test_verify_alignment_nadai_change = do
-    let f = verify_alignment
+    let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    let tala8 = Solkattu.Tala 1 0 8
-    equal (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 3 tdkt))
-        []
-    strings_like (f tala8 (take 4 tdkt <> Dsl.nadai 6 <> take 4 tdkt))
-        ["ta di ki", "avartanam 2, akshara 0, matra 1"]
-    strings_like (f tala8 (take 3 tdkt <> Dsl.nadai 6 <> take 4 tdkt))
-        ["ta di ki", "can't change nadai 8->6"]
+    strings_like (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt)))
+        [ "ta di ta di ki"
+        , "akshara 1, matra 0"
+        ]
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm
@@ -50,13 +49,27 @@ test_verify_alignment_nadai_change = do
     -- 5 -_ ki th Tm ta __
     -- 6 di __ ki th tm ta
     -- 7 __ di __ ki th tm
-    let sequence p7 = __ <> Dsl.repeat 5 p7 <> Dsl.nadai 6 <> Dsl.tri p7
-    let adi = Solkattu.adi_tala 8
-    equal (f adi (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom))) []
-    equal (f adi (sequence Dsl.p7)) []
+    let sequence p7 = Dsl.nadai 8 (__ <> Dsl.repeat 5 p7)
+            <> Dsl.nadai 6 (Dsl.tri p7)
+    equal (f (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom))) []
+    equal (f (sequence Dsl.p7)) []
 
-verify_alignment :: Solkattu.Tala -> [Solkattu.Note ()] -> [Text]
-verify_alignment tala = snd . Solkattu.verify_alignment tala
+test_cancel_karvai = do
+    let f :: [Solkattu.Note ()] -> Text
+        f = Text.unwords . map (pretty . snd) . Solkattu.cancel_karvai
+            . Sequence.flatten
+    equal (f (ta <> thom)) "ta thom"
+    equal (f (ta <> Dsl.karv thom)) "ta"
+    equal (f (ta <> Dsl.karv thom <> __)) "ta thom"
+    equal (f (ta <> Dsl.karv thom <> di)) "ta di"
+
+verify_alignment :: Tala.Tala -> [Sequence.Note (Solkattu.Solkattu ())]
+    -> [Text]
+verify_alignment tala =
+    format . Solkattu.verify_alignment tala . Sequence.flatten
+    where
+    format (notes, Just err) = [Text.unwords (map (pretty . snd) notes), err]
+    format (_, Nothing) = []
 
 test_vary = do
     let f (notes :: [Solkattu.Note ()]) = map (Text.unwords . map pretty) $
@@ -72,16 +85,6 @@ test_vary = do
         ]
 
 -- * utils
-
-test_split_just = do
-    let f = Solkattu.split_just
-    equal (f (flip lookup [(2, 'b')]) 'a' [1, 2, 3]) [('a', [1]), ('b', [2, 3])]
-
-test_round_up = do
-    let f = Solkattu.round_up
-    equal (f 7 8) 8
-    equal (f 8 8) 8
-    equal (f 9 8) 16
 
 test_apply_modifications = do
     let f = Solkattu.apply_modifications (+)

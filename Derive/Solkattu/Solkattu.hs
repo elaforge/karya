@@ -1,79 +1,88 @@
--- Copyright 2016 Evan Laforge
+-- Copyright 2017 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Notation for Carnatic solkattu.
---
--- This is actually a separate library that's independent of Derive.  The only
--- connection is that its final output can be stroke names for some instrument
--- and thus easily inserted into a track.
+{- | Notation for Carnatic solkattu.
+
+    This is actually a separate library that's independent of Derive.  The only
+    connection is that its final output can be stroke names for some instrument
+    and thus easily inserted into a track.
+
+    Salkattu is a general form of rhythmic notation.  Since the syllables
+    (sollus) are independent of any particular instrument, they can express
+    general rhythmic structures, which can then be realized in a form idiomatic
+    to different instruments.
+
+    The system is split up in a somewhat complicated way to separate rhythmic
+    handling from sollus, and separate realizations sollus to various
+    instruments.  The structure from low to high level is:
+
+    "Derive.Solkattu.Tala" - General 'Tala.Tala' type.
+
+    "Derive.Solkattu.Sequence" - Generic rhythmic framework, where the
+    "payload" note type is abstract.  This can express rhythms in terms of
+    'S.Speed' and 'S.Nadai', check them against a Tala, and realize down to
+    'S.Duration' tagged notes.
+
+    "Derive.Solkattu.Solkattu" - Fill in a Sequence's note with a Sollu type.
+    This supports all of the notation in "Derive.Solkattu.Dsl".  As Sequence
+    leaves the note type abstract, this leaves the instrument-dependent stroke
+    type abstract.
+
+    "Derive.Solkattu.Realize" - This has an instrument-specific Stroke, which
+    is the result of resolving the sollus.  The stroke type is still abstract
+    since it's polymorphic over the specific instrument.
+
+    "Derive.Solkattu.Mridangam", "Derive.Solkattu.KendangTunggal", etc. - These
+    describe specific instruments for Realize.
+
+    "Derive.Solkattu.Korvai" - A Korvai unifies the instrument-specific
+    Patterns and StrokeMaps together with Tala and a solkattu sequence.  So I
+    can support multiple instruments from one solkattu score, it merges the
+    stroke types into a single type, and projects out the specific strokes
+    depending on which instrument is being realized.
+
+    "Derive.Solkattu.Dsl", "Derive.Solkattu.Notation" - Functions for creating
+    solkattu scores.  Dsl defines (or replaces) various operators to make
+    scores look nicer.
+
+    "Derive.Solkattu.Score" - Instrument-independent korvais.
+
+    "Derive.Solkattu.MridangamDsl", "Derive.Solkattu.MridangamScore" - These
+    are similar to Dsl and Score, except they use concrete mridangam strokes
+    instead of abstract sollus.
+
+    There is some naming awkwardness, because too many things are called
+    "sequence" and "note".  Generally, sequence is the low level rhythmic
+    framework, "note" is the payload of the sequence, and Sequence is a list
+    of 'S.Note's.  Technically the type should be abstract since it just
+    matters that it's a Monoid, but I haven't bothered to make it so.  The
+    Sequence module needs a different name to avoid confusion.
+-}
 module Derive.Solkattu.Solkattu where
 import qualified Data.List as List
-import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Solkattu.Sequence as S
+import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence stroke = [Note stroke]
 type Error = Text
+type Note stroke = S.Note (Solkattu stroke)
 
-data Note stroke =
-    -- | A Sollu can carry an explicit stroke, for exceptions to the usual
-    -- inference.  The concrete stroke type depends on the instrument it's
-    -- being realized on.
+data Solkattu stroke =
     Sollu Sollu Karvai (Maybe stroke)
     | Rest
-    -- | Set pattern with the given duration.
-    | Pattern Matras
-    | Alignment Alignment
-    | TimeChange TimeChange
+    | Pattern !S.Matra
+    | Alignment !Tala.Akshara
     deriving (Eq, Ord, Show)
 
--- | If it's a karvai stroke, and it's followed by a rest, it will replace the
--- rest.  Otherwise, it will be replaced by a note.
-data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
-
-map_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
-map_stroke f n = case n of
-    Sollu sollu karvai stroke -> Sollu sollu karvai (f stroke)
-    Rest -> Rest
-    Pattern a -> Pattern a
-    Alignment a -> Alignment a
-    TimeChange a -> TimeChange a
-
-data Alignment = Akshara Aksharas | Arudi
-    deriving (Eq, Ord, Show)
-
-data TimeChange = Speed Speed | Nadai Matras
-    deriving (Eq, Ord, Show)
-
--- | Each speed increase doubles the number of 'Matras' per akshara.  As
--- documented in 'Matras', this is a nonstandard use of the term.
-data Speed = S1 | S2 | S3 | S4 deriving (Eq, Ord, Show, Bounded, Enum)
-
-instance Pretty.Pretty Speed where pretty = showt
-
-speed_factor :: Speed -> Duration
-speed_factor s = case s of
-    S1 -> 1
-    S2 -> 2
-    S3 -> 4
-    S4 -> 8
-
-factor_speed :: Int -> Maybe Speed
-factor_speed n = case n of
-    1 -> Just S1
-    2 -> Just S2
-    4 -> Just S3
-    8 -> Just S4
-    _ -> Nothing
-
-instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
+instance Pretty.Pretty stroke => Pretty.Pretty (Solkattu stroke) where
     pretty n = case n of
         Sollu sollu karvai stroke -> mconcat $ filter (not . Text.null)
             [ pretty sollu
@@ -81,17 +90,33 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
             , maybe "" (("!"<>) . pretty) stroke
             ]
         Rest -> "__"
-        Pattern d -> "p" <> showt d
-        Alignment (Akshara n) -> "@" <> showt n
-        Alignment Arudi -> "@X"
-        TimeChange change -> pretty change
+        Pattern matras -> "p" <> showt matras
+        Alignment n -> "@" <> showt n
 
-instance Pretty.Pretty TimeChange where
-    pretty (Speed s) = "speed " <> showt s
-    pretty (Nadai s) = "nadai " <> showt s
+map_stroke :: Functor f => (Maybe a -> Maybe b) -> f (Solkattu a)
+    -> f (Solkattu b)
+map_stroke f = fmap $ \n -> case n of
+    Rest -> Rest
+    Pattern a -> Pattern a
+    Alignment a -> Alignment a
+    Sollu sollu karvai stroke -> Sollu sollu karvai (f stroke)
+
+note_matras :: Solkattu stroke -> S.Matra
+note_matras s = case s of
+    -- Karvai notes are cancelled out, so they logically have 0 duration.
+    Sollu _ Karvai _ -> 0
+    Sollu {} -> 1
+    Rest -> 1
+    Pattern matras -> matras
+    Alignment {} -> 0
+
+-- | If it's a karvai stroke, and it's followed by a rest, it will replace the
+-- rest.  Otherwise, it will be replaced by a note.
+data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
 data Sollu =
-    Dheem | Dhom | Di | Din | Dit
+    NoSollu -- ^ a dummy sollu for 'Solkattu' with an explicit stroke
+    | Dheem | Dhom | Di | Din | Dit
     | Ga | Gin | Ka | Ki | Ku | Lang
     | Mi | Na | Nam | Ri | Ta | Tam | Tang
     | Tat | Tha | Thom | Ti
@@ -100,230 +125,71 @@ data Sollu =
 instance Pretty.Pretty Sollu where
     pretty = Text.toLower . showt
 
--- | An akshara is one count of the talam.
-type Aksharas = Int
+-- * durations
 
--- | A matra is an akshara divided by the nadai.  It corresponds to a single
--- sollu in first speed.  'Duration' is used for absolute, Nadai and Speed
--- independent duration.
-type Matras = Int
+duration_of :: [Note a] -> S.Duration
+duration_of = sum . map (S.note_duration note_matras S.default_tempo)
 
--- | A single Duration unit is equivalent to 1 Akshara.
-newtype Duration = Duration Ratio.Rational
-    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac)
-    -- deriving Real produces:
-    -- <no location info>: Warning:
-    -- Call of toRational :: Rational -> Rational
-    --   can probably be omitted
--- type Duration = Ratio.Rational
-
-instance Pretty.Pretty Duration where
-    pretty (Duration dur) =
-        pretty (whole :: Int) <> if frac == 0 then "" else " " <> pretty frac
-        where (whole, frac) = properFraction dur
-
-durations_of :: Sequence stroke -> [Duration]
-durations_of = snd . List.mapAccumL dur (S1, 4)
+matras_of :: Pretty.Pretty stroke => [Note stroke] -> Either Error S.Matra
+matras_of ns = justErr msg $ to_matras dur
     where
-    dur (speed, nadai) n = case n of
-        TimeChange change -> case change of
-            Speed speed -> ((speed, nadai), 0)
-            Nadai nadai -> ((speed, nadai), 0)
-        _ -> ((speed, nadai), fromIntegral (note_matras n)
-            / speed_factor speed / fromIntegral nadai)
+    msg = "non-integral " <> pretty (S.nadai S.default_tempo) <> " * "
+        <> pretty dur <> " in " <> pretty ns
+    dur = duration_of ns
 
-duration_of :: Sequence stroke -> Duration
-duration_of = sum . durations_of
+to_matras :: S.Duration -> Maybe S.Matra
+to_matras dur
+    | frac == 0 = Just matras
+    | otherwise = Nothing
+    where
+    (matras, frac) =
+        properFraction $ dur * fromIntegral (S.nadai S.default_tempo)
 
-matras_of :: Sequence stroke -> Matras
-matras_of = sum . map note_matras
-    -- TODO take speed changes into account
-
-note_matras :: Note stroke -> Matras
-note_matras n = case n of
-    Sollu {} -> 1
-    Rest -> 1
-    Pattern dur -> dur
-    Alignment {} -> 0
-    TimeChange {} -> 0
-
-data Tala = Tala {
-    tala_aksharas :: !Aksharas
-    , tala_arudi :: !Aksharas
-    , tala_nadai :: !Matras
-    } deriving (Eq, Show)
-
-instance Pretty.Pretty Tala where
-    format (Tala aksharas arudi nadai) = Pretty.record "Tala"
-        [ ("aksharas", Pretty.format aksharas)
-        , ("arudi", Pretty.format arudi)
-        , ("nadai", Pretty.format nadai)
-        ]
-
--- tala_matras :: Tala -> Matras
--- tala_matras tala = tala_aksharas tala * tala_nadai tala
-
-adi_tala :: Matras -> Tala
-adi_tala = Tala 8 4
-
--- | Keep track of timing and tala position.
-data State = State {
-    state_avartanam :: !Int
-    , state_akshara :: !Aksharas
-    -- | Time through this akshara, so this is always < 1.
-    -- TODO actually this is not matras, but fraction of the way through the
-    -- akshara.  Is there a better term?
-    , state_matra :: !Duration
-    -- | How many nadai in this akshara.  This is different from 'state_nadai'
-    -- because if nadai changes in the middle of an akshara, that akshara will
-    -- have an irregular number of matra in it.  For instance, if you change
-    -- from nadai 4 to 3 at matra 2, then you have a 2+3 = 5 matra akshara.
-    , state_akshara_nadai :: !Int
-    , state_speed :: !Speed
-    , state_nadai :: !Int
-    } deriving (Show)
-
-instance Pretty.Pretty State where
-    format (State avartanam akshara matra akshara_nadai speed nadai) =
-        Pretty.record "State"
-            [ ("avartanam", Pretty.format avartanam)
-            , ("akshara", Pretty.format akshara)
-            , ("matra", Pretty.format matra)
-            , ("akshara_nadai", Pretty.format akshara_nadai)
-            , ("speed", Pretty.format speed)
-            , ("nadai", Pretty.format nadai)
-            ]
-
-initial_state :: Tala -> State
-initial_state tala = State
-    { state_avartanam = 0
-    , state_akshara = 0
-    , state_matra = 0
-    , state_akshara_nadai = tala_nadai tala
-    , state_speed = S1
-    , state_nadai = tala_nadai tala
-    }
+-- * functions
 
 -- | A Karvai Sollu followed by a Rest will replace the rest, if followed by
--- a Sollu, the Karvai will be dropped.
-cancel_karvai :: [Note stroke] -> [Note stroke]
+-- a Sollu or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
+-- logically has no duration, if it's the last note it will be dropped
+-- entirely.
+cancel_karvai :: [(a, Solkattu stroke)] -> [(a, Solkattu stroke)]
 cancel_karvai = go
     where
-    go (Sollu sollu Karvai stroke : rest) = case drop_next_rest rest of
-        (True, rest) -> Sollu sollu Karvai stroke : go rest
+    go ((a, Sollu sollu Karvai stroke) : rest) = case drop_next_rest rest of
+        (True, rest) -> (a, Sollu sollu NotKarvai stroke) : go rest
         (False, rest) -> go rest
     go (n:ns) = n : go ns
     go [] = []
 
-drop_next_rest :: [Note stroke] -> (Bool, [Note stroke])
-drop_next_rest (n:ns) = case n of
+drop_next_rest :: [(a, Solkattu stroke)] -> (Bool, [(a, Solkattu stroke)])
+drop_next_rest (n : ns) = case snd n of
     Rest -> (True, ns)
     Sollu {} -> (False, n:ns)
-    _ -> (n:) <$> drop_next_rest ns
+    Pattern {} -> (False, n:ns)
+    Alignment {} -> second (n:) $ drop_next_rest ns
 drop_next_rest [] = (False, [])
 
--- | Verify that the notes start and end at Sam, and the given Alignments
+-- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verify_alignment :: Pretty.Pretty stroke => Tala -> [Note stroke]
-    -> ([Note stroke], [Text])
-    -- ^ Return warnings in addition to notes, rather than just failing with
-    -- a Left.  This is because the misaligned notes are easier to read if I
-    -- realize them down to strokes.
+verify_alignment :: Pretty.Pretty stroke =>
+    Tala.Tala -> [(S.Tempo, Solkattu stroke)]
+    -> ([(S.Tempo, Solkattu stroke)], Maybe Error)
+    -- ^ If there's an error, still return the elemnts leading up to it.
 verify_alignment tala =
-    verify_result . filter (not . is_empty) . map flatten . map_time tala verify
-        . (Alignment (Akshara 0) :) . (++[Alignment (Akshara 0)])
+    first (filter (not . is_alignment . snd)) . S.right_until_left
+        . map verify . S.tempo_to_state note_matras tala
+        . (++[(S.default_tempo, Alignment 0)])
     where
-    flatten = either Left (either Left Right)
-    verify state note = second (:[]) $ case note of
-        Sollu {} -> (Right 1, Right note)
-        Rest -> (Right 1, Right note)
-        Pattern matras -> (Right (fromIntegral matras), Right note)
-        Alignment align -> (Right 0, verify_align state align)
-        TimeChange change -> (Left change, Right note)
-    -- Stop at the first error, since if I'm already wrong then later errors
-    -- are probably just noise.
-    verify_result vals = case right_until_left vals of
-        (notes, Nothing) -> (notes, [])
-        (notes, Just err) -> (notes, [Text.unwords (map pretty notes), err])
-    is_empty (Left err) = Text.null err
-    is_empty _ = False
-    verify_align state align
-        | state_akshara state == expected && state_matra state == 0 = Left ""
-        | otherwise = Left $ "expected akshara " <> showt expected
-            <> ", but at " <> show_position state
-        where
-        expected = case align of
-            Akshara n -> n
-            Arudi -> tala_arudi tala
+    verify (state, Alignment akshara)
+        | S.state_akshara state /= akshara || S.state_matra state /= 0 =
+            Left $ "expected akshara " <> showt akshara
+                <> ", but at " <> S.show_position state
+    verify (state, note) = Right (S.state_tempo state, note)
+    is_alignment (Alignment {}) = True
+    is_alignment _ = False
 
--- | Map over notes, keeping track of the position in the talam.
-map_time :: Tala -> (State -> a -> (Either TimeChange Matras, [b]))
-    -- ^ return (either a time change or Matras to advance, results)
-    -- The Matras here are assuming 'S1', so they still need to be divided by
-    -- speed to get Duration.
-    -> [a] -> [Either Text b]
-map_time tala f = concat . snd . List.mapAccumL process (initial_state tala)
-    where
-    process state note = case change_advance of
-        Left change -> case time_change change state of
-            Right state -> (state, map Right vals)
-            Left err -> (state, [Left err])
-        Right advance -> (advance_state tala advance state, map Right vals)
-        where (change_advance, vals) = f state note
+-- * vary
 
-time_change :: TimeChange -> State -> Either Text State
-time_change change state = case change of
-    Speed speed -> Right $ state { state_speed = speed }
-    Nadai nadai -> do
-        akshara_nadai <- nadai_change nadai state
-        Right $ state
-            { state_nadai = nadai
-            , state_akshara_nadai = akshara_nadai
-            }
-
-nadai_change :: Matras -> State -> Either Text Int
-nadai_change new_nadai state
-    | frac == 0 = Right nadai
-    | otherwise = Left $ show_position state
-        <> ": can't change nadai " <> showt old_nadai <> "->" <> showt new_nadai
-        <> " at " <> pretty (state_matra state) <> " akshara, would be a "
-        <> pretty pre <> " + " <> pretty post
-        <> " = " <> pretty (pre + post) <> " matra akshara"
-    where
-    (nadai, frac) = properFraction (pre + post)
-    pre = (1 - ratio) * fromIntegral new_nadai
-    post = ratio * fromIntegral old_nadai
-    -- Ratio of the way through the akshara.
-    ratio = state_matra state -- / fromIntegral old_nadai
-    old_nadai = state_nadai state
-
-advance_state :: Tala -> Matras -> State -> State
-advance_state tala matras state = state
-    { state_avartanam = state_avartanam state + akshara_carry
-    , state_akshara = akshara
-    , state_matra = matra
-    , state_akshara_nadai = if matra_carry > 0
-        then state_nadai state else state_akshara_nadai state
-    }
-    where
-    advance = fromIntegral matras / speed_factor (state_speed state)
-        / fromIntegral (state_nadai state)
-    (matra_carry, matra) = properFraction $ state_matra state + advance
-    (akshara_carry, akshara) = (state_akshara state + matra_carry)
-        `divMod` tala_aksharas tala
-
-show_position :: State -> Text
-show_position state =
-    "avartanam " <> showt (state_avartanam state + 1)
-    <> ", akshara " <> showt (state_akshara state)
-    <> ", matra "
-    <> pretty (state_matra state * fromIntegral (state_nadai state))
-
-
--- ** vary
-
-data PatternFamily = A | B | C | D | E | F | G deriving (Eq, Ord, Show)
-type Variations = [(Matras, Matras, Matras)]
+type Variations = [(S.Matra, S.Matra, S.Matra)]
 
 -- | Variation means replacing a triad of patterns of the same duration with a
 -- an increasing or decreasing sequence.  For instance, 666 can become 567,
@@ -335,8 +201,8 @@ type Variations = [(Matras, Matras, Matras)]
 -- TODO Also we have 5, 55, 555 -> 55, 55, 55 -> 555, 55, 5.  This actually
 -- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
 -- orthogonal and could get a different function.
-vary :: (Matras -> Variations) -- ^ variations allowed for this duration
-    -> Sequence stroke -> [Sequence stroke]
+vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
+    -> [Note stroke] -> [[Note stroke]]
 vary allowed_variations notes
     | null modification_groups = [notes]
     | otherwise = map apply modification_groups
@@ -344,21 +210,21 @@ vary allowed_variations notes
     -- List of sets of permutations.
     modification_groups = permute_fst allowed_variations (find_triads notes)
     -- Apply a set of permutations to the original input.
-    apply mods = apply_modifications (\_ matras -> Pattern matras)
+    apply mods = apply_modifications (\_ matras -> S.Note (Pattern matras))
         (concatMap extract mods) notes
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
-variations :: [(Matras, Matras, Matras) -> Bool] -> (Matras -> Variations)
+variations :: [(S.Matra, S.Matra, S.Matra) -> Bool] -> (S.Matra -> Variations)
 variations filters = filter (\v -> all ($v) filters) . all_variations
 
-ascending, descending, standard :: (Matras, Matras, Matras) -> Bool
+ascending, descending, standard :: (S.Matra, S.Matra, S.Matra) -> Bool
 ascending (m1, m2, m3) = m1 < m2 && m2 < m3
 descending (m1, m2, m3) = m1 > m2 && m2 > m3
 standard (m1, m2, m3) =
     m1 == m2 && m2 == m3
     || List.sort [m1, m2, m3] `elem` [[5, 6, 7], [6, 7, 8], [5, 7, 9]]
 
-all_variations :: Matras -> Variations
+all_variations :: S.Matra -> Variations
 all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
     where
     vars d
@@ -371,51 +237,18 @@ all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-find_triads :: [Note stroke] -> [(Matras, (Int, Int, Int))]
+find_triads :: [Note stroke] -> [(S.Matra, (Int, Int, Int))]
 find_triads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
-        [(matras, i) | (i, Pattern matras) <- zip [0..] notes]
+        [(matras, i) | (i, S.Note (Pattern matras)) <- zip [0..] notes]
     , triad <- triads indices
     ]
     where
     triads (x1:x2:x3:xs) = (x1, x2, x3) : triads xs
     triads _ = []
 
--- * misc
-
-check :: CallStack.Stack => Either Error a -> a
-check = either errorStack id
-
-check_msg :: CallStack.Stack => Text -> Either Error a -> a
-check_msg msg = either (errorStack . ((msg <> ": ") <>)) id
-
 -- * util
-
-splits :: [a] -> [([a], [a])]
-splits xs = drop 1 $ zip (List.inits xs) (List.tails xs)
-
--- | Round the first argument up to the next multiple of the second.
-round_up :: Integral a => a -> a -> a
-round_up a b = b * ceiling (fromIntegral a / fromIntegral b)
-
--- | Split when the function returns Just, and pair that value with the
--- subsequent elements.
-split_just :: (a -> Maybe b) -> b -> [a] -> [(b, [a])]
-split_just f initial xs = go [] initial (zip (map f xs) xs)
-    where
-    go accum key ((mb, a) : rest) = case mb of
-        Nothing -> go (a : accum) key rest
-        Just b -> (key, reverse accum) : go [a] b rest
-    go accum key [] = [(key, reverse accum)]
-
--- | Collect Rights until I hit a Left.
-right_until_left :: [Either a b] -> ([b], Maybe a)
-right_until_left = go
-    where
-    go [] = ([], Nothing)
-    go (Left a : _) = ([], Just a)
-    go (Right b : xs) = first (b:) (go xs)
 
 apply_modifications :: (a -> mod -> a) -> [(Int, mod)]
     -- ^ modifications along with their indices, in ascending order
@@ -436,3 +269,9 @@ permute_fst permutations ((k, x) : xs)
     | otherwise =
         [(p, x) : rest | p <- permutations k, rest <- go xs]
     where go = permute_fst permutations
+
+check :: CallStack.Stack => Either Error a -> a
+check = either errorStack id
+
+check_msg :: CallStack.Stack => Text -> Either Error a -> a
+check_msg msg = either (errorStack . ((msg <> ": ") <>)) id

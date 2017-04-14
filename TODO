@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - make india.mridangam seq call align to the end for -0 dur
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
     . Ideally it could be a modifier to any scale, so it would modify input
@@ -352,7 +353,7 @@ IN PROGRESS
     . Also simplify or unify various types in Derive.ScoreTypes,
       Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
       and move simple types to Derive.T.
-  - Make solkattu use a generalized rhythmic framework, and support speed and
+  * Make solkattu use a generalized rhythmic framework, and support speed and
     nadai change.
     . branch solkattu
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
@@ -394,6 +395,27 @@ TASKS:
   Linux:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
+
+solkattu branch:
+  * Make generalize Sequence module with just the rhythmic part.
+  . I can't reduce to Duration before formatting because I don't have
+    fractional spacing, so I actually want to do spacing based on nadai, not
+    absolute timing.  This is in conflict with treating 's (-1) (a.b)' the
+    same as 'a.__.b.__', but presumably I could do a simplification step that
+    looks for such binary reductions.
+  . Can't I still flatten the notes?  It's awkward to find subsequences in
+    nested data.  And once I'm in realize, I don't care about dropM stuff.
+    If I realize by inserting Tempos into a flat stream, then I can do both
+    format and realize to Duration as necessary, and the stream is still flat.
+  * Realize.Patterns should map to Sequence.Notes for tempo changes.
+  * Fix tests.
+  * It seems like realize_patterns destroys the tempo?
+    . Do tests that check that.
+
+  * Document structure:
+    Realize -> Solkattu -> Sequence -> Tala
+  Realize.format:
+    - Implement break_avartanam
 
 selection-orientation branch:
   . How should selection work?
@@ -1622,15 +1644,19 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - Tala doesn't support chapu.
-        - remove arudi and nadai from Tala.  I've hardly ever used arudi
+        - Realize.format: break long lines
+        - special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
+        * Realize.format: Emit a new ruler if the nadai changes.  I can do it
+          by making a ruler for each line and filtering out the repeats.
+        * Tala doesn't support chapu talas.
+        * remove arudi and nadai from Tala.  I've hardly ever used arudi
           alignment, and not all talams have one.  And nadai can just default
           to 4, as an attribute of the solkattu, not the talam.
-        - various take and drop functions should retain the speed
-        - Realize.format should be able to fit an adi 4 avartanam on one line.
+        * various take and drop functions should retain the speed
+        * Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.
           Default to 2, but a chapu might require 3.
-        - Why does format make the S2 sequence in
+        * Why does format make the S2 sequence in
           Realize_test.test_realize_pattern have underscores?
           . S2 (k.__.t.__) should be equivalent to S1 (k.t).
           . It's a hassle to manipulate speeds when there is just S1-4.  If
@@ -1639,7 +1665,7 @@ Derive:
             wrap in Speed -1.  Then all the s2 stuff is just up or down.
           . Then the first step in realization is to normalize to the fastest
             speed, where 0 is akshara/nadai.
-        - explicit strokes via (!) should not require a valid entry in the
+        * explicit strokes via (!) should not require a valid entry in the
           StrokeMap, so I can have irregular sequences manually, e.g.
           ta_ta.din_din.gin_gin.na_na.thom_thom
           . But I still need ones that are in the StrokeMap to use it because

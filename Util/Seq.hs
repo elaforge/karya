@@ -645,7 +645,7 @@ ne_viewr (x :| xs) =
 -- | Split @xs@ before places where @f@ matches.
 --
 -- > split_with (==1) [1,2,1]
--- > --> [[1, 2], [1]]
+-- > --> [[], [1, 2], [1]]
 split_with :: (a -> Bool) -> [a] -> [[a]]
 split_with f xs = map reverse (go f xs [])
     where

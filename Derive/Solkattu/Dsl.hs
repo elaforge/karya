@@ -8,9 +8,9 @@
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
     -- * solkattu
-    Sequence, Korvai
+    Korvai
     -- ** sollus
-    , (.)
+    , (.), (•)
     , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
     , karv
 
@@ -20,18 +20,18 @@ module Derive.Solkattu.Dsl (
     , dinga
 
     -- ** directives
-    , nadai
-    , speed, s2
     , (!), (<+>)
-    , at0, atX, (^)
+    , akshara, sam, (^)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- ** combinators
     , tri, tri_, trin
     , join, repeat, inter, spread
-    -- * transform
+    -- * re-exports
+    , module Derive.Solkattu.Sequence
     , module Derive.Solkattu.Solkattu
     , module Derive.Solkattu.Notation
+    , module Derive.Solkattu.Tala
     -- * mridangam
     , stroke, (&)
     -- * misc
@@ -39,7 +39,8 @@ module Derive.Solkattu.Dsl (
     -- * realize
     , realize_instrument, many
 ) where
-import Prelude hiding ((.), (^), repeat, sequence)
+import Prelude hiding ((.), (^), repeat)
+import qualified Prelude
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
@@ -55,35 +56,38 @@ import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
-import Derive.Solkattu.Solkattu
-       (Aksharas, Matras, check, duration_of, matras_of)
+import qualified Derive.Solkattu.Sequence as Sequence
+import Derive.Solkattu.Sequence (Matra)
+import Derive.Solkattu.Tala (Akshara)
+import Derive.Solkattu.Solkattu (check, duration_of)
 
 import Global
 
-
-type Sequence = S.Sequence Korvai.Stroke
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
 (.) = (Monoid.<>)
 infixr 6 . -- same as <>
 
-sequence :: S.Note stroke -> S.Sequence stroke
-sequence = (:[])
+(•) :: (b -> c) -> (a -> b) -> a -> c
+(•) = (Prelude..)
 
-sollu :: S.Sollu -> S.Sequence stroke
-sollu s = [S.Sollu s S.NotKarvai Nothing]
+make_note :: S.Solkattu stroke -> Sequence stroke
+make_note n = [Sequence.Note n]
+
+sollu :: S.Sollu -> Sequence stroke
+sollu s = make_note (S.Sollu s S.NotKarvai Nothing)
 
 -- ** sollus
 
 class Rest a where __ :: a
-instance Rest (S.Sequence stroke) where __ = sequence S.Rest
-instance Rest (Realize.Note stroke) where __ = Realize.Rest
+instance Rest (Sequence stroke) where __ = make_note S.Rest
+instance Rest (Realize.Note stroke) where __ = Sequence.Note Realize.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__2, __3, __4, __5, __6, __7, __8, __9 :: S.Sequence stroke
+__2, __3, __4, __5, __6, __7, __8, __9 :: Sequence stroke
 __2 = __
 __3 = __n 3
 __4 = __n 4
@@ -93,15 +97,16 @@ __7 = __n 7
 __8 = __n 8
 __9 = __n 9
 
--- | 'Realize.Note' is not a monoid like 'S.Sequence', so this can't emit
+-- | 'Realize.Note' is not a monoid like 'Sequence', so this can't emit
 -- a Rest.
-__n :: Matras -> S.Sequence stroke
+__n :: Matra -> Sequence stroke
 __n n = repeat (n-1) __
 
 -- | Make a single sollu 'S.Karvai'.
 karv :: (CallStack.Stack, Pretty.Pretty stroke) =>
-    S.Sequence stroke -> S.Sequence stroke
-karv [S.Sollu s _ stroke] = [S.Sollu s S.Karvai stroke]
+    Sequence stroke -> Sequence stroke
+karv [Sequence.Note (S.Sollu s _ stroke)] =
+    [Sequence.Note $ S.Sollu s S.Karvai stroke]
 karv ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
 
 dheem = sollu S.Dheem
@@ -125,45 +130,39 @@ tha = sollu S.Tha
 thom = sollu S.Thom
 ti = sollu S.Ti
 
-tang, lang :: S.Sequence stroke
+tang, lang :: Sequence stroke
 tang = sollu S.Tang
 lang = sollu S.Lang
 
-dinga :: S.Sequence stroke
+dinga :: Sequence stroke
 dinga = din <> __ <> ga
 
 -- ** directives
 
-nadai :: Matras -> S.Sequence stroke
-nadai n = [S.TimeChange (S.Nadai n)]
+akshara :: Akshara -> Sequence stroke
+akshara n = make_note (S.Alignment n)
 
-speed :: S.Speed -> S.Sequence stroke
-speed s = [S.TimeChange (S.Speed s)]
-
-s2 :: S.Sequence stroke -> S.Sequence stroke
-s2 seq = speed S.S2 <> seq <> speed S.S1
-
--- | Align at sam or the arudi.
-at0, atX :: S.Sequence stroke
-at0 = sequence $ S.Alignment (S.Akshara 0)
-atX = sequence $ S.Alignment S.Arudi
+-- | Align at sam.
+sam :: Sequence stroke
+sam = akshara 0
 
 -- | Align at the given akshara.
-(^) :: S.Sequence stroke -> Aksharas -> S.Sequence stroke
-seq ^ n = sequence (S.Alignment (S.Akshara n)) <> seq
+(^) :: Sequence stroke -> Akshara -> Sequence stroke
+seq ^ n = make_note (S.Alignment n) <> seq
 infix 9 ^
 
-pat :: Matras -> S.Sequence stroke
-pat d = sequence $ S.Pattern d
+pat :: Matra -> Sequence stroke
+pat d = make_note $ S.Pattern d
 
 -- ** strokes
 
 -- | Add a specific stroke annotation to a sollu.
 stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
-    stroke -> Sequence -> Sequence
+    stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
 stroke _ [] = errorStack $ "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
-    S.Sollu s karvai _ -> S.Sollu s karvai (Just (Korvai.to_stroke stroke)) : ns
+    Sequence.Note (S.Sollu s karvai _) ->
+        Sequence.Note (S.Sollu s karvai (Just (Korvai.to_stroke stroke))) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
 
 -- | Add a specific stroke annotation to a sollu.
@@ -172,7 +171,7 @@ stroke stroke (n:ns) = case n of
 -- just @sollu ! d@ works.  For non-imported, it would have to be
 -- @sollu ! d <+> K.p@.
 (!) :: (Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
-    Sequence -> stroke -> Sequence
+    Sequence Korvai.Stroke -> stroke -> Sequence Korvai.Stroke
 (!) = flip stroke
 
 (<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
@@ -181,26 +180,26 @@ a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
 -- ** structures
 
 -- | Repeat thrice, with no karvai.
-tri :: S.Sequence stroke -> S.Sequence stroke
+tri :: Sequence stroke -> Sequence stroke
 tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
-tri_ :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
+tri_ :: Sequence stroke -> Sequence stroke -> Sequence stroke
 tri_ sep seq = join sep [seq, seq, seq]
 
 -- | Three different patterns with the same separator.
-trin :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
-    -> S.Sequence stroke -> S.Sequence stroke
+trin :: Sequence stroke -> Sequence stroke -> Sequence stroke
+    -> Sequence stroke -> Sequence stroke
 trin sep a b c = join sep [a, b, c]
 
-p5, p6, p7, p8, p9 :: S.Sequence stroke
+p5, p6, p7, p8, p9 :: Sequence stroke
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
 p8 = pat 8
 p9 = pat 9
 
-p666, p567, p765 :: S.Sequence stroke -> S.Sequence stroke
+p666, p567, p765 :: Sequence stroke -> Sequence stroke
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
@@ -208,15 +207,15 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
-join :: S.Sequence stroke -> [S.Sequence stroke] -> S.Sequence stroke
+join :: Sequence stroke -> [Sequence stroke] -> Sequence stroke
 join = List.intercalate
 
 -- | Intersperse between each stroke.
-inter :: S.Sequence stroke -> S.Sequence stroke -> S.Sequence stroke
+inter :: Sequence stroke -> Sequence stroke -> Sequence stroke
 inter _ [] = []
 inter sep (x:xs) = x : sep ++ inter sep xs
 
-spread :: Matras -> S.Sequence stroke -> S.Sequence stroke
+spread :: Matra -> Sequence stroke -> Sequence stroke
 spread n = inter (__n n)
 
 -- * realize
@@ -227,8 +226,10 @@ realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize instrument realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
         Right (notes, warning) ->
-            Realize.format (Korvai.korvai_tala korvai) notes
+            Realize.format width (Korvai.korvai_tala korvai) notes
             <> if Text.null warning then "" else "\n" <> warning
+    where
+    width = 78
 
 many :: (a -> IO ()) -> [a] -> IO ()
 many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)

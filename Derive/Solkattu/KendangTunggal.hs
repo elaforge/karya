@@ -8,7 +8,8 @@ module Derive.Solkattu.KendangTunggal where
 import qualified Data.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Solkattu as S
+import qualified Derive.Solkattu.Sequence as S
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
@@ -20,17 +21,17 @@ data Stroke =
     | Ka | Tut | Dag -- right
     deriving (Eq, Ord, Show)
 
-instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
+instrument :: [([Solkattu.Note Stroke], [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
 standard_stroke_map = Realize.StrokeMap $ Map.fromList
-    [ ([S.Thom], [Just Dag])
-    , ([S.Tam], [Just TutL])
-    , ([S.Tang], [Just TutL])
-    , ([S.Lang], [Just TutL])
-    , ([S.Dheem], [Just Dag])
+    [ ([Solkattu.Thom], [Just Dag])
+    , ([Solkattu.Tam], [Just TutL])
+    , ([Solkattu.Tang], [Just TutL])
+    , ([Solkattu.Lang], [Just TutL])
+    , ([Solkattu.Dheem], [Just Dag])
     ]
 
 -- * strokes
@@ -62,16 +63,19 @@ data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
     } deriving (Show)
 
+stroke :: stroke -> Realize.Note stroke
+stroke = S.Note . Realize.Stroke
+
 strokes :: Strokes Note
 strokes = Strokes
-    { pk = Realize.Note Plak
-    , p = Realize.Note Pak
-    , t = Realize.Note Pang
-    , u = Realize.Note TutL
-    , å = Realize.Note DagL
-    , k = Realize.Note Ka
-    , o = Realize.Note Tut
-    , a = Realize.Note Dag
+    { pk = stroke Plak
+    , p = stroke Pak
+    , t = stroke Pang
+    , u = stroke TutL
+    , å = stroke DagL
+    , k = stroke Ka
+    , o = stroke Tut
+    , a = stroke Dag
     }
 
 
@@ -80,10 +84,10 @@ strokes = Strokes
 type Patterns = Realize.Patterns Stroke
 
 __ :: Note
-__ = Realize.Rest
+__ = S.Note Realize.Rest
 
 defaults :: Patterns
-defaults = S.check $ Realize.patterns
+defaults = Solkattu.check $ Realize.patterns
     [ (5, [o, p, k, t, a])
     , (6, [o, p, __, k, t, a])
     , (7, [o, __, p, __, k, t, a])

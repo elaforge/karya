@@ -16,6 +16,7 @@ module Util.Pretty (
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
     , constructor
+    , module Util.Format
     -- * misc
     , readWord
 ) where
@@ -46,7 +47,7 @@ import qualified Text.Read as Read
 import qualified Util.Format as Format
 import Util.Format
        (Doc, (</>), (<//>), (<+/>), (<+>), text, string, render, withIndent,
-        indent_, indent, indentLine)
+        indent_, indent, indentLine, wrapWords)
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -202,7 +203,7 @@ recordTitle = record . text
 constructor :: Text -> [Doc] -> Doc
 constructor name [] = text name
 constructor name fields =
-    text name <> indent_ (Format.wrapWords $ map (surround '(' ')') fields)
+    text name <> indent_ (wrapWords $ map (surround '(' ')') fields)
     where surround left right x = char left <> x <> char right
     -- TODO only surround ()s if it has spaces in it
 

@@ -23,6 +23,10 @@ test_sequence = do
     equal (run [(2, 5, "seq 'k_D t'")])
         ([(2, "+ki"), (4, "+thom"), (4, "+din"), (6, "+ta")], [])
 
+    -- -- TODO align negative 0 dur to end as well
+    -- equal (run [(7, -5, "seq ktkno")])
+    --     (zip (Seq.range_ 3 1) ktkno, [])
+
     -- Positive means clip the end.
     equal (run [(2, 3, "seq ktkno 1")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki")], [])

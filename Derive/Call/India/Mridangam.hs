@@ -4,7 +4,7 @@
 
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
-import qualified Data.IntMap as IntMap
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -21,8 +21,8 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Solkattu.Mridangam as Mridangam
-import qualified Derive.Solkattu.Realize as Solkattu.Realize
-import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -58,38 +58,10 @@ c_sequence pattern_arg = Derive.generator module_ "sequence" Tags.inst
     \ If `dur` is 0, then stretch to the sequence to fit the event."
     $ Sig.call ((,) <$> pattern_arg <*> dur_arg) $ \(pattern, dur) ->
     Sub.inverting $ \args -> do
-        let seq = realize_sequence (Args.context args) pattern
+        -- 1/4 because m_sequence scales by 4, since it expects
+        -- Sequence.default_tempo.  TODO this is weird, fix it.
+        let seq = map (1/4,) $ realize_sequence (Args.context args) pattern
         m_sequence seq dur (Args.range args) (Args.orientation args)
-
-pattern_arg :: Sig.Parser Text
-pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
-    "Single letter stroke names.  `_` or space is a rest."
-
-dur_arg :: Sig.Parser ScoreTime
-dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
-    "Duration for each letter in the pattern. If 0, the pattern will\
-    \ stretch to the event's duration."
-
-m_sequence :: [Maybe Derive.NoteDeriver] -> ScoreTime -> (TrackTime, TrackTime)
-    -> Event.Orientation -> Derive.NoteDeriver
-m_sequence pattern dur (start, end) orientation = realize $ case orientation of
-    _ | dur == 0 -> stretch_to_range (start, end) pattern
-    Event.Positive -> takeWhile ((<end) . fst) $
-        zip (Seq.range_ start dur) (cycle pattern)
-    Event.Negative -> reverse $ takeWhile ((>=start) . fst) $
-        zip (Seq.range_ end (-dur)) (cycle (reverse pattern))
-        -- Since this is >=start, but includes the end, I'll wind up with one
-        -- more note than the duration would indicate.  I think this is ok,
-        -- because otherwise to put a note at the start I'd have to have
-        -- a previous negative event, but if it's a problem I could add
-        -- Flags.weak.
-    where
-    realize notes =
-        mconcat [Derive.place start 0 note | (start, Just note) <- notes]
-
-stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
-stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
-    where dur = (end - start) / fromIntegral (length xs)
 
 realize_sequence :: Derive.Context Score.Event -> Text
     -> [Maybe Derive.NoteDeriver]
@@ -100,6 +72,39 @@ realize_sequence ctx = map realize . Text.unpack
         | otherwise = Just $ do
             call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
             Eval.apply_generator ctx call []
+
+pattern_arg :: Sig.Parser Text
+pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
+    "Single letter stroke names.  `_` or space is a rest."
+
+dur_arg :: Sig.Parser ScoreTime
+dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
+    "Duration for each letter in the pattern. If 0, the pattern will\
+    \ stretch to the event's duration."
+
+m_sequence :: [(Sequence.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
+    -> (TrackTime, TrackTime) -> Event.Orientation -> Derive.NoteDeriver
+m_sequence notes dur (start, end) orientation = realize $ case orientation of
+    _ | dur == 0 -> stretch_to_range (start, end) notes
+    Event.Positive -> takeWhile ((<end) . fst) $ place start dur (cycle notes)
+    Event.Negative -> reverse $ takeWhile ((>=start) . fst) $
+        place end (-dur) $ cycle (reverse notes)
+    where
+    place from step = Seq.map_maybe_snd id . snd . List.mapAccumL note from
+        where note t (d, n) = (t + realToFrac d * step * scale, (t, n))
+    -- Sequence.default_tempo has 4 nadai, so each one winds up being 1/4.
+    scale = 4
+    realize notes =
+        mconcat [Derive.place start 0 note | (start, note) <- notes]
+
+stretch_to_range :: (ScoreTime, ScoreTime) -> [(Sequence.Duration, Maybe a)]
+    -> [(ScoreTime, a)]
+stretch_to_range (start, end) dur_notes =
+    [(t, note) | (t, Just note) <- zip starts notes]
+    where
+    starts = scanl (+) start $ map ((*factor) . realToFrac) durs
+    (durs, notes) = unzip dur_notes
+    factor = (end - start) / realToFrac (sum durs)
 
 -- * c_pattern
 
@@ -114,12 +119,25 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
     ) $ \(maybe_strokes, variation, dur) -> Sub.inverting $ \args -> do
         strokes <- maybe (infer_strokes dur (Args.duration args)) return
             maybe_strokes
-        (speed, pattern) <- Derive.require_right id $
-            infer_pattern strokes variation
-        let seq = realize_sequence (Args.context args) pattern
-        let factor = realToFrac $ Solkattu.speed_factor speed
-        m_sequence seq (dur / factor) (Args.range args)
-            (Args.orientation args)
+        notes <- Derive.require_right id $ infer_pattern strokes variation
+        notes <- return $
+            map (second (realize_stroke (Args.context args))) notes
+        m_sequence notes dur (Args.range args) (Args.orientation args)
+
+realize_stroke :: Derive.Context Score.Event -> Realize.Stroke Mridangam.Stroke
+    -> Maybe Derive.NoteDeriver
+realize_stroke ctx = fmap realize . stroke_call
+    where
+    realize sym = do
+        call <- Eval.get_generator sym
+        Eval.apply_generator ctx call []
+
+stroke_call :: Realize.Stroke Mridangam.Stroke -> Maybe BaseTypes.CallId
+stroke_call stroke = case stroke of
+    Realize.Stroke stroke ->
+        Just $ BaseTypes.Symbol $ Mridangam.stroke_to_call stroke
+    Realize.Rest -> Nothing
+    Realize.Pattern matras -> Just $ BaseTypes.Symbol $ "p" <> showt matras
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
@@ -135,36 +153,39 @@ c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
     $ Sig.call ((,) <$> variation_arg <*> dur_arg) $
     \(variation, dur) args -> do
         let notes = round $ Args.duration args / dur
-        Derive.require_right id $ snd <$> infer_pattern notes variation
+        Derive.require_right id $
+            to_pattern . map snd =<< infer_pattern notes variation
 
 variation_arg :: Sig.Parser Text
 variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
     ("Variation name. Possibilities are: "
         <> Doc.commas (map Doc.literal (Map.keys variations)))
 
-infer_pattern :: Int -> Text -> Either Text (Solkattu.Speed, Text)
+to_pattern :: [Realize.Stroke Mridangam.Stroke] -> Either Text Text
+to_pattern = fmap mconcat . traverse convert
+    where
+    convert (Realize.Stroke stroke) = Right $ Mridangam.stroke_to_call stroke
+    convert Realize.Rest = Right "_"
+    convert (Realize.Pattern matras) = Left $
+        "pattern with another p" <> showt matras <> " can't go in a string"
+
+infer_pattern :: Sequence.Matra -> Text
+    -> Either Text [(Sequence.Duration, Realize.Stroke Mridangam.Stroke)]
 infer_pattern dur variation = do
     patterns <- justErr ("unknown variation " <> showt variation) $
         Map.lookup variation variations
-    justErr ("variation " <> showt variation <> " doesn't have duration: "
+    notes <- justErr
+        ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
-        (IntMap.lookup dur patterns)
-
-
--- | Map pattern duration to Speed to play and the pattern to play.
-type Patterns = IntMap.IntMap (Solkattu.Speed, Text)
+        (Realize.lookup_pattern dur patterns)
+    return $ Realize.tempo_to_duration $ Sequence.flatten notes
 
 default_variation :: Text
 default_variation = "d"
 
-variations :: Map Text Patterns
-variations = Map.fromList $ map (second convert_patterns) $
-    [ (default_variation, Mridangam.defaults)
+variations :: Map Text Mridangam.Patterns
+variations = Map.fromList $
+    [ (default_variation, Mridangam.default_patterns)
     , ("kt_kn_o", Mridangam.kt_kn_o)
     ] ++
     [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]
-
-convert_patterns :: Mridangam.Patterns -> Patterns
-convert_patterns (Solkattu.Realize.Patterns pmap) =
-    IntMap.fromAscList (Map.toAscList (convert <$> pmap))
-    where convert = second $ mconcatMap (maybe "_" Mridangam.stroke_to_call)

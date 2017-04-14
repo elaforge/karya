@@ -5,25 +5,25 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
-import qualified Data.Text as Text
-
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-type Sequence = Solkattu.Sequence Stroke
+type Sequence = [Solkattu.Note Stroke]
 
 -- * korvai
 
 data Korvai = Korvai {
-    korvai_sequence :: Sequence
-    , korvai_instruments :: Instruments
-    , korvai_tala :: Solkattu.Tala
+    korvai_sequence :: !Sequence
+    , korvai_instruments :: !Instruments
+    , korvai_tala :: !Tala.Tala
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Korvai where
@@ -33,7 +33,7 @@ instance Pretty.Pretty Korvai where
         , ("tala", Pretty.format tala)
         ]
 
-korvai :: Solkattu.Tala -> Instruments -> Sequence -> Korvai
+korvai :: Tala.Tala -> Instruments -> Sequence -> Korvai
 korvai tala instruments sequence = Korvai
     { korvai_sequence = sequence
     , korvai_instruments = instruments
@@ -62,14 +62,21 @@ kendang_tunggal = GetInstrument
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
-    -> Either Text ([Realize.Note stroke], Text)
+    -> Either Text ([(Sequence.Tempo, Realize.Stroke stroke)], Text)
 realize get realize_patterns korvai = do
-    let (rnotes, align_warning) = Solkattu.verify_alignment (korvai_tala korvai)
-            (Solkattu.cancel_karvai (korvai_sequence korvai))
-    realized <- first Text.unlines $ Realize.realize realize_patterns
-        (get_realization get (korvai_instruments korvai))
-        (map (Solkattu.map_stroke (get_stroke get =<<)) rnotes)
-    return (realized, Text.unlines align_warning)
+    -- Continue to realize even if there are align errors.  Misaligned notes
+    -- are easier to read if I realize them down to strokes.
+    let notes = Solkattu.cancel_karvai $ Sequence.flatten $
+            korvai_sequence korvai
+    (notes, align_error) <- return $
+        Solkattu.verify_alignment (korvai_tala korvai) notes
+    let inst = get_realization get (korvai_instruments korvai)
+    notes <- return $ map (Solkattu.map_stroke (get_stroke get =<<)) notes
+    notes <- if realize_patterns
+        then Realize.realize_patterns (Realize.inst_patterns inst) notes
+        else return notes
+    realized <- Realize.realize (Realize.inst_stroke_map inst) notes
+    return (realized, fromMaybe "" align_error)
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =
@@ -116,6 +123,11 @@ instance ToStroke KendangTunggal.Stroke where
     to_stroke s = mempty { s_kendang_tunggal = Just s }
 
 instance (Pretty.Pretty stroke, ToStroke stroke) =>
-        ToStroke (Realize.Note stroke) where
-    to_stroke (Realize.Note s) = to_stroke s
+        ToStroke (Sequence.Note stroke) where
+    to_stroke (Sequence.Note s) = to_stroke s
+    to_stroke n = errorStack $ "requires a note: " <> pretty n
+
+instance (Pretty.Pretty stroke, ToStroke stroke) =>
+        ToStroke (Realize.Stroke stroke) where
+    to_stroke (Realize.Stroke s) = to_stroke s
     to_stroke n = errorStack $ "requires a note: " <> pretty n

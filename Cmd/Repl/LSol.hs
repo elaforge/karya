@@ -11,7 +11,6 @@ module Cmd.Repl.LSol (
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
@@ -21,7 +20,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
-import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Sequence as Sequence
 
 import Global
 import Types
@@ -37,22 +36,35 @@ insert_k1 = insert Korvai.kendang_tunggal
 insert :: (Pretty.Pretty stroke, Cmd.M m) => Korvai.GetInstrument stroke
     -> Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert instrument realize_patterns akshara_dur korvai = do
-    let stroke_dur = akshara_dur
-            / fromIntegral (Solkattu.tala_nadai (Korvai.korvai_tala korvai))
     (_, _, track_id, at) <- Selection.get_insert
-    events <- map (Event.start_ %= (+at)) . Events.ascending <$>
-        realize_korvai instrument realize_patterns stroke_dur korvai
+    let place = (Event.start_ %= ((+at) . (*akshara_dur)))
+            . (Event.duration_ %= (*akshara_dur))
+    events <- map place . Events.ascending
+        <$> realize_korvai instrument realize_patterns korvai
     Ui.remove_events track_id events
     Ui.insert_events track_id events
 
 realize_korvai :: (Pretty.Pretty stroke, Ui.M m) =>
-    Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai
+    Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai
     -> m Events.Events
-realize_korvai instrument realize_patterns stroke_dur korvai = do
+realize_korvai instrument realize_patterns korvai = do
     (strokes, warning) <- Ui.require_right id $
         Korvai.realize instrument realize_patterns korvai
     unless (Text.null warning) $ Ui.throw warning
-    return $ Events.from_list
-        [ Event.event start 0 (Korvai.get_stroke_to_call instrument stroke)
-        | (start, Realize.Note stroke) <- zip (Seq.range_ 0 stroke_dur) strokes
-        ]
+    return $ Events.from_list $
+        strokes_to_events (Korvai.get_stroke_to_call instrument) strokes
+
+strokes_to_events :: (a -> Event.Text) -> [(Sequence.Tempo, Realize.Stroke a)]
+    -> [Event.Event]
+strokes_to_events to_call strokes =
+    [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
+        text
+    | (start, dur, Just (text, has_dur)) <- zip3 starts durs (map to_text notes)
+    ]
+    where
+    starts = scanl (+) 0 durs
+    (durs, notes) = unzip $ Realize.tempo_to_duration strokes
+    to_text s = case s of
+        Realize.Stroke stroke -> Just (to_call stroke, False)
+        Realize.Pattern matras -> Just ("p" <> showt matras, True)
+        Realize.Rest -> Nothing

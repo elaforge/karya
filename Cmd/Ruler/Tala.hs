@@ -15,7 +15,6 @@ module Cmd.Ruler.Tala (
     -- * standard talams
     , simple, simple_meter
     , adi, adi3
-    , dhruva, matya, rupaka, jhampa, triputa, ata, eka
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
     , misra_chapu, khanda_chapu, rupaka_fast
@@ -28,6 +27,11 @@ import qualified Data.Set as Set
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
+import qualified Derive.Solkattu.Tala as Tala
+import Derive.Solkattu.Tala
+       (Tala(..), adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala,
+        triputa_tala, ata_tala, eka_tala, misra_chapu, khanda_chapu,
+        rupaka_fast)
 import Global
 
 
@@ -62,48 +66,6 @@ adi = simple adi_tala 4
 -- | 'adi' but in tisram.
 adi3 :: Avartanams -> Ruler.Ruler
 adi3 = simple adi_tala 3
-
--- * implementation
-
-data Tala = Tala ![Anga] !Jati deriving (Show, Eq)
-data Anga = Clap !Int | Wave !Int
-    -- | laghu, drutam, anudrutam
-    | I | O | U
-    deriving (Show, Eq)
-type Jati = Int
-
-dhruva, matya, rupaka, jhampa, triputa, ata, eka :: [Anga]
-dhruva = [I, O, I, I]
-matya = [I, O, I]
-rupaka = [O, I]
-jhampa = [I, U, O]
-triputa = [I, O, O]
-ata = [I, I, O, O]
-eka = [I]
-
--- | Talas with default jati.
-dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala,
-    eka_tala :: Tala
-dhruva_tala = Tala dhruva 4
-matya_tala = Tala matya 4
-rupaka_tala = Tala rupaka 4
-jhampa_tala = Tala jhampa 7
-triputa_tala = Tala triputa 3
-ata_tala = Tala ata 5
-eka_tala = Tala eka 4
-
-adi_tala :: Tala
-adi_tala = Tala triputa 4 -- chatusra jati triputa tala
-
-misra_chapu :: Tala
-misra_chapu = Tala [Wave 1, Wave 2, Clap 2, Clap 2] 0
-    -- These have no laghu, so jati doesn't matter.
-
-khanda_chapu :: Tala
-khanda_chapu = Tala [Clap 2, Clap 1, Clap 2] 0
-
-rupaka_fast :: Tala
-rupaka_fast = Tala [Clap 1, Clap 1, Wave 1] 0
 
 -- * define talams
 
@@ -163,28 +125,20 @@ ruler_meter (Ruler tala sections avartanams nadai dur) =
 
 tala_to_meter :: Tala -> AbstractMeter
 tala_to_meter (Tala angas jati) =
-    D [D (replicate (anga_aksharas jati anga) T) | anga <- angas]
+    D [D (replicate (Tala.anga_aksharas jati anga) T) | anga <- angas]
 
 anga_claps :: Tala -> Int
-anga_claps (Tala angas jati) = sum (map (anga_aksharas jati) angas)
-
-anga_aksharas :: Int -> Anga -> Int
-anga_aksharas jati anga = case anga of
-    Clap n -> n
-    Wave n -> n
-    I -> jati
-    O -> 2
-    U -> 1
+anga_claps (Tala angas jati) = sum (map (Tala.anga_aksharas jati) angas)
 
 tala_labels :: Tala -> [Meter.Label]
 tala_labels (Tala angas jati) = map Meter.big_label $ concatMap mk angas
     where
     mk anga = case anga of
-        Clap n -> "X" : replicate (n-1) "-"
-        Wave n -> "O" : replicate (n-1) "-"
-        I -> take jati (Meter.count_from 0)
-        O -> ["X", "O"]
-        U -> ["X"]
+        Tala.Clap n -> "X" : replicate (n-1) "-"
+        Tala.Wave n -> "O" : replicate (n-1) "-"
+        Tala.I -> take jati (Meter.count_from 0)
+        Tala.O -> ["X", "O"]
+        Tala.U -> ["X"]
 
 make_components :: [Meter.Label] -> Meter.LabelComponents
 make_components aksharas = Meter.LabelComponents

@@ -2,8 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE RecordWildCards #-}
--- | Realize an abstract solkattu 'S.Sequence' to concrete mridangam 'Note's.
+{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
+-- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Derive.Solkattu.Mridangam where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -11,11 +11,12 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Solkattu as S
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Sequence as Sequence
 import Global
 
 
-type Note = Realize.Note Stroke
+type Note = Sequence.Note (Realize.Stroke Stroke)
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
@@ -26,17 +27,17 @@ data Valantalai = Ki | Ta | Nam | Din | Chapu | Dheem
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-instrument :: [(S.Sequence Stroke, [Note])] -> Patterns
+instrument :: [([Solkattu.Note Stroke], [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
 standard_stroke_map = Realize.StrokeMap $ Map.fromList
-    [ ([S.Thom], [Just $ Thoppi Thom])
-    , ([S.Tam], [Just $ Valantalai Chapu])
-    , ([S.Tang], [Just $ Valantalai Chapu])
-    , ([S.Lang], [Just $ Valantalai Chapu])
-    , ([S.Dheem], [Just $ Valantalai Dheem])
+    [ ([Solkattu.Thom], [Just $ Thoppi Thom])
+    , ([Solkattu.Tam], [Just $ Valantalai Chapu])
+    , ([Solkattu.Tang], [Just $ Valantalai Chapu])
+    , ([Solkattu.Lang], [Just $ Valantalai Chapu])
+    , ([Solkattu.Dheem], [Just $ Valantalai Dheem])
     ]
 
 -- * strokes
@@ -72,9 +73,9 @@ instance Pretty.Pretty Valantalai where
         Kin -> ","
         Tan -> "^"
 
--- | Pretty reproduces the SolkattuScore syntax, which has to be haskell
--- syntax, so it can't use +, and I have to put thoppi first to avoid the
--- keyword @do@.  It would be nice if I could make the tracklang syntax
+-- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
+-- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
+-- the keyword @do@.  It would be nice if I could make the tracklang syntax
 -- consistent, but maybe not a huge deal at the moment.
 stroke_to_call :: Stroke -> Text
 stroke_to_call s = case s of
@@ -96,31 +97,38 @@ data Strokes a = Strokes {
     -- the left hand can go on the left side?
     , od :: a
     -- Less common combinations can use (&).
-    } deriving (Show)
+    } deriving (Functor, Show)
 
-strokes :: Strokes Note
+strokes :: Strokes Stroke
 strokes = Strokes
-    { k = Realize.Note $ Valantalai Ki
-    , t = Realize.Note $ Valantalai Ta
-    , n = Realize.Note $ Valantalai Nam
-    , d = Realize.Note $ Valantalai Din
-    , u = Realize.Note $ Valantalai Chapu
-    , i = Realize.Note $ Valantalai Dheem
-    , y = Realize.Note $ Valantalai Kin
-    , j = Realize.Note $ Valantalai Tan
-    , p = Realize.Note $ Thoppi Tha
-    , o = Realize.Note $ Thoppi Thom
-    , od = Realize.Note $ Both Thom Din
+    { k = Valantalai Ki
+    , t = Valantalai Ta
+    , n = Valantalai Nam
+    , d = Valantalai Din
+    , u = Valantalai Chapu
+    , i = Valantalai Dheem
+    , y = Valantalai Kin
+    , j = Valantalai Tan
+    , p = Thoppi Tha
+    , o = Thoppi Thom
+    , od = Both Thom Din
     }
 
+note :: stroke -> Realize.Note stroke
+note = Sequence.Note . Realize.Stroke
+
+notes :: Strokes Note
+notes = note <$> strokes
+
 both :: Thoppi -> Valantalai -> Note
-both a b = Realize.Note  (Both a b)
+both a b = note (Both a b)
 
 (&) :: CallStack.Stack => Note -> Note -> Note
-Realize.Note a & Realize.Note b = case (a, b) of
-    (Thoppi a, Valantalai b) -> both a b
-    (Valantalai b, Thoppi a) -> both a b
-    _ -> errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+Sequence.Note (Realize.Stroke a) & Sequence.Note (Realize.Stroke b) =
+    case (a, b) of
+        (Thoppi a, Valantalai b) -> both a b
+        (Valantalai b, Thoppi a) -> both a b
+        _ -> errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 a & b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
 
@@ -129,33 +137,36 @@ a & b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 type Patterns = Realize.Patterns Stroke
 
 __ :: Note
-__ = Realize.Rest
+__ = Sequence.Note Realize.Rest
 
-defaults :: Patterns
-defaults = S.check $ Realize.patterns
+default_patterns :: Patterns
+default_patterns = Solkattu.check $ Realize.patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
     , (8, [k, t, __, k, __, n, __, o])
     , (9, [k, __, t, __, k, __, n, __, o])
     ]
-    where Strokes {..} = strokes
+    where Strokes {..} = notes
 
 kt_kn_o :: Patterns
-kt_kn_o = S.check $ Realize.patterns
+kt_kn_o = Solkattu.check $ Realize.patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
     ]
-    where Strokes {..} = strokes
+    where Strokes {..} = notes
+
+s2 :: [Sequence.Note a] -> [Sequence.Note a]
+s2 = (:[]) . Sequence.faster
 
 families567 :: [Patterns]
-families567 = map (S.check . Realize.patterns . zip [5..])
-    [ [ [k, t, k, n, o]
-      , [k, t, __, k, n, o]
-      , [k, __, t, __, k, n, o]
-      ]
-    , [ [k, __, t, __, k, __, k, t, o, __]
+families567 = map (Solkattu.check . Realize.patterns . zip [5..]) $
+    [ [k, t, k, n, o]
+    , [k, t, __, k, n, o]
+    , [k, __, t, __, k, n, o]
+    ] : map (map s2)
+    [ [ [k, __, t, __, k, __, k, t, o, __]
       , [k, __, t, __, __, __, k, __, k, t, o, __]
       , [k, __, __, __, t, __, __, __, k, __, k, t, o, __]
       ]
@@ -189,6 +200,6 @@ families567 = map (S.check . Realize.patterns . zip [5..])
       ]
     ]
     where
-    Strokes {..} = strokes
+    Strokes {..} = notes
     kp = [k, p]
     kpnp = [k, p, n, p]

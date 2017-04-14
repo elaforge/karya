@@ -2,83 +2,79 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase, ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase, ScopedTypeVariables, DeriveFunctor #-}
 -- | Realize an abstract solkattu 'S.Sequence' to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.Solkattu.Solkattu as S
+import qualified Derive.Solkattu.Sequence as S
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Tala as Tala
+
 import Global
 
 
-data Note stroke =
-    Note stroke | Rest | Pattern S.Matras | TimeChange S.TimeChange
-    deriving (Show)
+type Note stroke = S.Note (Stroke stroke)
 
-instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
+-- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
+data Stroke stroke = Stroke stroke | Rest | Pattern !S.Matra
+    deriving (Eq, Show, Functor)
+
+note_matras :: Stroke stroke -> S.Matra
+note_matras n = case n of
+    Stroke {} -> 1
+    Rest -> 1
+    Pattern matras -> matras
+
+instance Pretty.Pretty stroke => Pretty.Pretty (Stroke stroke) where
     pretty Rest = "__"
-    pretty (Note s) = pretty s
+    pretty (Stroke s) = pretty s
     pretty (Pattern matras) = "p" <> showt matras
-    pretty (TimeChange change) = pretty change
 
--- | This maps a 'Pattern' of a certain duration to a realization.  S.Matras
--- should be an integral multiple of the length of the list.  This is enforced
--- in the constructor 'patterns'.
-newtype Patterns stroke = Patterns (Map S.Matras (S.Speed, [Maybe stroke]))
+-- | This maps a 'Pattern' of a certain duration to a realization.  The
+-- 'S.Matra's should the same duration as the the list in the default tempo.
+-- This is enforced in the constructor 'patterns'.
+newtype Patterns stroke = Patterns (Map S.Matra [Note stroke])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
+-- | Make a Patterns while checking that the durations match.
 patterns :: Pretty.Pretty stroke =>
-    [(S.Matras, [Note stroke])] -> Either Text (Patterns stroke)
+    [(S.Matra, [Note stroke])] -> Either Text (Patterns stroke)
 patterns pairs
-    | null wrong = Right $ Patterns $ Map.fromList right
-    | otherwise = Left $ Text.intercalate "; " wrong
+    | null errors = Right $ Patterns $ Map.fromList pairs
+    | otherwise = Left $ Text.intercalate "; " errors
     where
-    (wrong, right) = Either.partitionEithers $ map check pairs
-    check (matras, notes) = case factor_speed (length notes) matras of
-        Nothing -> Left $
-            "matras " <> showt matras <> " not a log2 of note length "
-                <> pretty notes
-        Just speed -> do
-            strokes <- mapM (check_note matras) notes
-            return (matras, (speed, strokes))
-    check_note matras n = case n of
-        Note s -> Right $ Just s
-        Rest -> Right Nothing
-        _ -> Left $ showt matras <> " matras: expected Note or Rest: "
-            <> pretty n
+    errors = mapMaybe check pairs
+    check (matras, notes)
+        | notes_matras /= fromIntegral matras =
+            Just $ "pattern matras " <> pretty matras
+                <> " /= realization matras " <> pretty notes_matras
+        | otherwise = Nothing
+        where
+        notes_matras = notes_duration / S.matra_duration S.default_tempo
+        notes_duration = sum $ map (S.note_duration note_matras S.default_tempo)
+            notes
 
-factor_speed :: S.Matras -- ^ If I want to fit this many strokes
-    -> S.Matras -- ^ into this duration
-    -> Maybe S.Speed -- ^ play at this speed.
-factor_speed strokes dur
-    | strokes `mod` dur /= 0 = Nothing
-    | otherwise = S.factor_speed (strokes `div` dur)
-
-realize_pattern :: (S.Speed, [Maybe stroke]) -> [Note stroke]
-realize_pattern (speed, strokes) = case speed of
-    -- TODO This assumes that the speed is S1.  Maybe I should just always
-    -- emit the speed?
-    S.S1 -> notes
-    _ -> TimeChange (S.Speed speed) : notes ++ [TimeChange (S.Speed S.S1)]
-    where
-    notes = map (maybe Rest Note) strokes
+lookup_pattern :: S.Matra -> Patterns stroke -> Maybe [Note stroke]
+lookup_pattern matras (Patterns pmap) = Map.lookup matras pmap
 
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
-newtype StrokeMap stroke = StrokeMap (Map [S.Sollu] [Maybe stroke])
+newtype StrokeMap stroke = StrokeMap (Map [Solkattu.Sollu] [Maybe stroke])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
-stroke_map :: Pretty.Pretty stroke => [(S.Sequence stroke, [Note stroke])]
+stroke_map :: Pretty.Pretty stroke => [([Solkattu.Note stroke], [Note stroke])]
     -> Either Text (StrokeMap stroke)
 stroke_map = unique <=< mapM verify
     where
@@ -86,12 +82,12 @@ stroke_map = unique <=< mapM verify
         let throw = Left
                 . (("stroke map " <> pretty (sollus, strokes) <> ": ") <>)
         sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
-            S.Sollu s _ _ -> Right (Just s)
-            S.Rest -> Right Nothing
+            S.Note (Solkattu.Sollu s _ _) -> Right (Just s)
+            S.Note Solkattu.Rest -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
-            Note s -> Right (Just s)
-            Rest -> Right Nothing
+            S.Note (Stroke s) -> Right (Just s)
+            S.Note Rest -> Right Nothing
             s -> throw $ "should have plain strokes: " <> pretty s
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths after removing\
@@ -119,7 +115,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Instrument stroke) where
         ]
 
 instrument :: Pretty.Pretty stroke => StrokeMap stroke
-    -> [(S.Sequence stroke, [Note stroke])] -> Patterns stroke
+    -> [([Solkattu.Note stroke], [Note stroke])] -> Patterns stroke
     -> Either Text (Instrument stroke)
 instrument defaults strokes patterns = do
     smap <- stroke_map strokes
@@ -130,118 +126,168 @@ instrument defaults strokes patterns = do
 
 -- * realize
 
-realize :: forall stroke. Pretty.Pretty stroke => Bool -> Instrument stroke
-    -> [S.Note stroke] -> Either [Text] [Note stroke]
-realize realize_patterns (Instrument smap (Patterns patterns)) =
-    format_error . go
+type Event stroke = (S.Duration, Solkattu.Solkattu stroke)
+
+realize :: forall stroke. Pretty.Pretty stroke =>
+    StrokeMap stroke -> [(S.Tempo, Solkattu.Solkattu stroke)]
+    -> Either Text [(S.Tempo, Stroke stroke)]
+realize smap = format_error . go
     where
-    go :: [S.Note stroke] -> ([[Note stroke]], Maybe (Text, [S.Note stroke]))
     go [] = ([], Nothing)
-    go (n : ns) = case n of
-        S.Pattern dur
-            | realize_patterns -> case Map.lookup dur patterns of
-                Nothing ->
-                    ([], Just ("no pattern with duration " <> showt dur, n:ns))
-                Just strokes -> first (realize_pattern strokes :) (go ns)
-            | otherwise -> first ([Pattern dur] :) (go ns)
-        S.Rest -> first ([Rest] :) (go ns)
-        S.Sollu sollu _ stroke ->
-            case find_sequence smap sollu stroke ns of
-                Right (strokes, rest) -> first (strokes:) (go rest)
-                Left err -> ([], Just (err, n:ns))
-        S.Alignment {} -> go ns
-        S.TimeChange change -> first ([TimeChange change] :) (go ns)
-    format_error (result, Nothing) = Right (concat result)
-    format_error (pre, Just (err, post)) = Left $
-        [ Text.intercalate " / " $ map pretty_strokes pre
-        , "*** " <> err
-        , Text.unwords (map pretty post)
-        ]
+    go ((tempo, note) : rest) = case note of
+        Solkattu.Alignment {} -> go rest
+        Solkattu.Rest -> first ((tempo, Rest) :) (go rest)
+        -- Patterns are realized separately with 'realize_patterns'.
+        Solkattu.Pattern matras -> first ((tempo, Pattern matras) :) (go rest)
+        Solkattu.Sollu sollu _ stroke ->
+            case find_sequence smap tempo sollu stroke rest of
+                Left err -> case stroke of
+                    Nothing -> ([], Just err)
+                    -- If it's not part of a sequence, but has a hardcoded
+                    -- stroke then I know what to do with it already.
+                    Just stroke -> first ((tempo, Stroke stroke) :) (go rest)
+                Right (strokes, rest) -> first (strokes++) (go rest)
+    format_error (result, Nothing) = Right result
+    format_error (pre, Just err) = Left $
+        TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
 
-pretty_strokes :: Pretty.Pretty stroke => [Note stroke] -> Text
-pretty_strokes = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
+tempo_to_duration :: [(S.Tempo, Stroke stroke)] -> [(S.Duration, Stroke stroke)]
+tempo_to_duration = S.tempo_to_duration note_matras
 
--- | Find the longest matching sequence until the sollus are consumed or
--- a sequence isn't found.
-find_sequence :: StrokeMap stroke -> S.Sollu -> Maybe stroke -> [S.Note stroke]
-    -> Either Text ([Note stroke], [S.Note stroke])
-find_sequence (StrokeMap smap) sollu stroke notes =
+pretty_words :: Pretty.Pretty a => [a] -> Text
+pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
+
+-- | Find the longest matching sequence and return the match and unconsumed
+-- notes.
+find_sequence :: StrokeMap stroke -> a -> Solkattu.Sollu
+    -> Maybe stroke -> [(a, Solkattu.Solkattu stroke)]
+    -> Either Text ([(a, Stroke stroke)], [(a, Solkattu.Solkattu stroke)])
+find_sequence (StrokeMap smap) a sollu stroke notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
-        Just strokes -> Right $
-            replace_strokes strokes (S.Sollu sollu S.NotKarvai stroke : notes)
+        Just strokes -> Right $ replace_sollus strokes $
+            (a, Solkattu.Sollu sollu Solkattu.NotKarvai stroke) : notes
     where
     -- Collect only sollus and rests, and strip the rests.
-    sollus = Maybe.catMaybes $ fst $ Seq.span_while is_sollu notes
-    is_sollu (S.Sollu s _ _) = Just (Just s)
-    is_sollu (S.Rest {}) = Just Nothing
+    sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
+    is_sollu (Solkattu.Sollu s _ _) = Just (Just s)
+    is_sollu Solkattu.Rest = Just Nothing
+    is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
     longest_match = Seq.head . mapMaybe (flip Map.lookup smap) . reverse
         . drop 1 . List.inits
 
--- | Match each stroke to its 'Note', and insert rests where the SNotes have
--- one.
-replace_strokes :: [Maybe stroke] -> [S.Note stroke]
-    -> ([Note stroke], [S.Note stroke])
-replace_strokes [] ns = ([], ns)
-replace_strokes (stroke : strokes) (n : ns) = case n of
-    S.Rest -> first (Rest :) skip
-    S.Sollu _ _ explicit_stroke ->
-        first (maybe (maybe Rest Note stroke) Note explicit_stroke :) $
-            replace_strokes strokes ns
-    -- These shouldn't happen because the strokes are from the result of
-    -- Seq.span_while is_sollu.
-    S.Pattern {} -> skip
-    S.Alignment {} -> skip
-    S.TimeChange {} -> skip
+-- | Match each stroke to a Sollu, copying over Rests without consuming
+-- a stroke.
+replace_sollus :: [Maybe stroke] -> [(a, Solkattu.Solkattu stroke)]
+    -> ([(a, Stroke stroke)], [(a, Solkattu.Solkattu stroke)])
+replace_sollus [] ns = ([], ns)
+replace_sollus (stroke : strokes) ((a, n) : ns) = case n of
+    Solkattu.Sollu _ _ (Just stroke) ->
+        first ((a, Stroke stroke) :) (replace_sollus strokes ns)
+    Solkattu.Sollu _ _ Nothing ->
+        first ((a, maybe Rest Stroke stroke) :) (replace_sollus strokes ns)
+    Solkattu.Rest -> first ((a, Rest) :) next
+    Solkattu.Alignment {} -> next
+    -- This shouldn't happen because Seq.span_while is_sollu should have
+    -- stopped when it saw this.
+    Solkattu.Pattern {} -> next
     where
-    skip = replace_strokes (stroke : strokes) ns
-replace_strokes (_:_) [] = ([], [])
+    next = replace_sollus (stroke : strokes) ns
+replace_sollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
+
+realize_patterns :: Pretty.Pretty stroke =>
+    Patterns stroke -> [(S.Tempo, Solkattu.Solkattu stroke)]
+    -> Either Text [(S.Tempo, Solkattu.Solkattu stroke)]
+realize_patterns pmap = format_error . concatMap realize
+    where
+    realize (tempo, n) = case n of
+        Solkattu.Pattern matras -> case lookup_pattern matras pmap of
+            Just notes ->
+                map Right $ S.flatten_with tempo $ map (fmap to_solkattu) notes
+            Nothing -> [Left $ "no pattern with duration " <> showt matras]
+        _ -> [Right (tempo, n)]
+    format_error xs = case S.first_left xs of
+        Right vals -> Right vals
+        Left (vals, err) ->
+            Left $ TextUtil.joinWith "\n" (pretty_words (map snd vals)) err
+
+to_solkattu :: Stroke stroke -> Solkattu.Solkattu stroke
+to_solkattu n = case n of
+    Stroke stroke ->
+        Solkattu.Sollu Solkattu.NoSollu Solkattu.NotKarvai (Just stroke)
+    Rest -> Solkattu.Rest
+    Pattern matras -> Solkattu.Pattern matras
 
 
 -- * format
 
+speed_scale :: Int -> Int -> Int
+speed_scale speed n
+    | speed > 0 = n `div` 2^speed
+    | otherwise = n * n ^ (abs speed)
+
 -- | Format the notes according to the tala.
-format :: forall stroke. Pretty.Pretty stroke => S.Tala -> [Note stroke] -> Text
-format tala notes =
-    either id (Text.strip . mconcat) $
-        map_time per_word =<< map_time per_note notes
+format :: Pretty.Pretty stroke => Int -> Tala.Tala
+    -> [(S.Tempo, Stroke stroke)] -> Text
+format width tala notes =
+    Text.intercalate "\n" $ filter (not . Text.null) $ map Text.stripEnd $
+        concatMap (\(a, b) -> [a, b]) $ drop_duplicates ruler_avartanams
     where
-    map_time f = check . S.map_time tala f
-    check xs = case err of
-        Just err -> Left $ pretty vals <> "\nerror: " <> err
-        Nothing -> Right vals
-        where (vals, err) = S.right_until_left xs
-    per_note _ note = case note of
-        Rest -> (Right 1, [Right "_"])
-        Note n -> (Right 1, [Right (pretty n)])
-        Pattern matras ->
-            ( Right (fromIntegral matras)
-            , map Right $ pretty (Pattern matras :: Note stroke)
-                : replicate (matras - 1) "--"
-            )
-        TimeChange change -> (Left change, [Left change])
-    per_word _ (Left change) = (Left change, [])
-    per_word state (Right word) =
-        (Right 1, [newline <> add_emphasis (pad word)])
+    drop_duplicates =
+        map (\(prev, (ruler, line)) -> if maybe False ((==ruler) . fst) prev
+            then ("", line) else (ruler, line))
+        . Seq.zip_prev
+    ruler_avartanams =
+        [ (infer_ruler avartanam, mconcatMap emphasize_akshara avartanam)
+        | avartanam <- by_avartanam
+        ]
+    by_avartanam = dropWhile null $ Seq.split_with (is_sam . fst) states
+    is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
+    states = S.tempo_to_state (const 1) tala $
+        mconcatMap (format_stroke s0_spaces) notes
+    max_speed = maximum $ 0 : map (S.speed . fst) notes
+    -- spaces = S0 -> 2, S1 -> 1
+    -- spaces = S0 -> 4, s1 -> 2, s2 -> 1
+    -- spaces = 4, this means 1 at s0 gets 4, so 4 / 2^s
+    s0_spaces = max 2 (2^max_speed)
+    emphasize_akshara (state, word)
+        | S.state_matra state == 0 && should_emphasize state = emphasize word
+        | otherwise = word
         where
-        -- TODO look for the highest speed, and normalize to that
-        pad = Text.justifyLeft
-            (if S.state_speed state == S.S1 then 2 else 0) ' '
-        add_emphasis s
-            | not (Text.null s) && matra == 0 = emphasize s
-            | otherwise = s
-        newline
-            | matra == 0 && S.state_akshara state == 0 = "\n\n"
-            | matra == 0 && S.state_akshara state == S.tala_arudi tala = "\n"
-            | otherwise = ""
-        matra = S.state_matra state
-    -- I have to pad first so it doesn't count the control chars.
-    emphasize word
-        -- A bold _ looks the same as a non-bold one, so put a bar to make it
-        -- more obvious.
-        | Text.strip word == "_" = emphasize "_|"
-        | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
-        where (pre, post) = Text.break (==' ') word
+        should_emphasize = (`Set.member` aksharas) . S.state_akshara
+            where
+            aksharas = Set.fromList $ scanl (+) 0 $ Tala.tala_aksharas tala
+
+format_stroke :: Pretty.Pretty a => Int -> (S.Tempo, Stroke a)
+    -> [(S.Tempo, Text)]
+format_stroke s0_spaces (tempo, stroke) = case stroke of
+    Rest -> [(tempo, pad "_ " spaces "_")]
+    Stroke stroke -> [(tempo, pad "- " spaces (pretty stroke))]
+    Pattern matras -> map (tempo,) $
+        pad "-" spaces ("p" <> showt matras)
+        : replicate (matras - 1) (Text.replicate spaces "-")
+    where
+    spaces = speed_scale (S.speed tempo) s0_spaces
+    pad extension spaces text =
+        text <> Text.drop (Text.length text) (Text.take spaces padding)
+        where
+        padding = Text.replicate (spaces `div` Text.length extension + 1)
+            extension
+
+infer_ruler :: [(S.State, Text)] -> Text
+infer_ruler = count . (++[0]) . map (sum . map (Text.length . snd))
+    . dropWhile null . Seq.split_with ((==0) . S.state_matra . fst)
+    where
+    count = mconcatMap (\(n, spaces) -> Text.justifyLeft spaces ' ' (showt n))
+        . zip [0..]
+
+emphasize :: Text -> Text
+emphasize word
+    -- A bold _ looks the same as a non-bold one, so put a bar to make it
+    -- more obvious.
+    | word == "_ " = emphasize "_|"
+    | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
+    where (pre, post) = Text.break (==' ') word

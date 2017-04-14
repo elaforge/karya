@@ -3,24 +3,25 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
+-- | This is similar to "Derive.Solkattu.Score", except for mridangam specific
+-- scores.
 module Derive.Solkattu.MridangamScore where
 import Prelude hiding ((.), repeat)
 
 import qualified Util.CallStack as CallStack
-import Derive.Solkattu.Dsl hiding ((&))
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.MridangamDsl
-import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Tala as Tala
 
 
 -- * exercises
 
 sriram :: [Korvai]
-sriram = korvais (adi 4)
+sriram = korvais adi
     -- TODO not right
     [ o&n.__.p.k.t.k . tri (n.k.t.p.k.t.k)
-        . repeat 4 (o.t.k.n . s2 (k.t.p.k))
-        . repeat 4 (n . s2 (k.t.p.k)  . o.t.k)
+        . repeat 4 (o.t.k.n . faster (k.t.p.k))
+        . repeat 4 (n . faster (k.t.p.k)  . o.t.k)
         . o&n.__.p.k . tari . tri (p.k.p.t.p.k . tari)
     ]
 
@@ -29,8 +30,14 @@ c_exercises =
     [ o&d.__4 . k.t.p.k.n.__.o.__.k.t.p.k -- janahan
     ]
 
+-- ** tisram
+
+ganesh_16_11_14 :: Korvai
+ganesh_16_11_14 = korvai adi $ nadai 6 $
+    tri (reduce3 1 mempty (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
+
 ganesh_17_02_13 :: [Korvai]
-ganesh_17_02_13 = korvais (adi 6)
+ganesh_17_02_13 = korvais adi $ map (nadai 6)
     [ takitadin.kadin . takitadin.kadin . takitatin.katin
         . takitatin.k.takitatin.k
     , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
@@ -42,12 +49,6 @@ ganesh_17_02_13 = korvais (adi 6)
     kadin = k.od.__.o&n.__.k.__
     katin = k. d.__.  n.__.k.__
 
--- ** tisram
-
-ganesh_16_11_14 :: Korvai
-ganesh_16_11_14 = korvai (adi 6) $
-    tri (reduce3 1 mempty (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
-
 -- * sarvalagu, fills
 
 namita_dimita_dimi :: [Sequence]
@@ -56,22 +57,22 @@ namita_dimita_dimi =
     , k.t.k.t . k.t.k.n.kt.p.k . o.t.k.n.kt.p.k . o.n.kt.p.k
     -- goes past sam: previous . o.t.k.o&n.kt.p.k
     ]
-    where kt = s2 (k.t)
+    where kt = faster (k.t)
 
 janahan :: [Korvai]
-janahan = korvais (adi 4)
+janahan = korvais adi
     [ o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
     ]
 
 nakanadin :: [Korvai]
-nakanadin = korvais (beats 2 8)
+nakanadin = korvais (beats 2) $ map faster
     [ d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
     ]
 
 -- * korvais
 
 p16_12_06_sriram1 :: Korvai
-p16_12_06_sriram1 = korvai (adi 8) $
+p16_12_06_sriram1 = korvai adi $ faster $
     p&k.__4.p&t.__4.kitakina . tri (okto . n.o.o.k)
         . od.__.od.__4 . p&u.__.p&u.__4 . od.__4
     . p&t.__4.kitakina . tri okto . od.__4 . p&k.__4 . od.__4
@@ -91,7 +92,7 @@ p16_12_06_sriram1 = korvai (adi 8) $
     kitakina = k.t.k.n.o.k.o&t.k.tari
 
 p16_12_06_sriram2 :: Korvai
-p16_12_06_sriram2 = korvai (adi 7) $
+p16_12_06_sriram2 = korvai adi $ nadai 7 $
       repeat 2 kook . od.__.k.d.__.k.__                                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__.o.o.k.d.__.k.__.p&u.__7
@@ -99,14 +100,14 @@ p16_12_06_sriram2 = korvai (adi 7) $
     where kook = k.o.o.k.n.p.k
 
 p16_12_06_janahan1 :: Korvai
-p16_12_06_janahan1 = korvai (adi 8) $
+p16_12_06_janahan1 = korvai adi $ faster $
     tri (op_od_ . on.k.op_od_ . on.k.o&t.k.op_od_)
         . trin __ (tri p5) (tri p6) (tri p7)
     where
     op_od_ = on.p.k.od.__.o
 
 p16_12_06_janahan2 :: Korvai
-p16_12_06_janahan2 = korvai (adi 8) $
+p16_12_06_janahan2 = korvai adi $ faster $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
         . tdgnt . p6
         . tdgnt . p6 . k.p.p6
@@ -115,9 +116,15 @@ p16_12_06_janahan2 = korvai (adi 8) $
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
 
+all_korvais :: [Korvai]
+all_korvais =
+    [ p16_12_06_sriram1, p16_12_06_sriram2
+    , p16_12_06_janahan1, p16_12_06_janahan2
+    ]
+
 -- * korvai sequences
 
-ksequence = korvais (adi 4) $
+ksequence = korvais adi $
     [ sarva `replaceEnd` theme
     , takeD 4 sarva `replaceEnd` theme
         . rtakeD 4 sarva `replaceEnd` theme
@@ -133,20 +140,20 @@ ksequence = korvais (adi 4) $
     ]
     where
     -- sarva = slower $
-    --       on.od.od.on . s2 (on.on) . od.od.on
+    --       on.od.od.on . faster (on.on) . od.od.on
     --     . p&n.d.d.n       . n       .od.od.on
     sarva =
           on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
         . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
-    theme = s2 $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
-    ptheme = s2 $ t `replaceStart` theme
-    eme = s2 $ rtakeM 8 theme
-    me = s2 $ rtakeM 4 theme
+    theme = faster $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
+    ptheme = faster $ t `replaceStart` theme
+    eme = faster $ rtakeM 8 theme
+    me = faster $ rtakeM 4 theme
 
 -- * farans
 
 farans :: [Korvai]
-farans = korvais (adi 8) $ concat
+farans = korvais adi $ map faster $ concat
     [ map (make (p.n.p.k) (p.n.p.k . t.k))
         [ k.t.k.n.p.k.t.k
         , o.o.k.n.p.k.t.k
@@ -192,18 +199,18 @@ farans = korvais (adi 8) $ concat
 -- * fragments
 
 eddupu6 :: [Korvai]
-eddupu6 = korvais (beats 3 4)
+eddupu6 = korvais (beats 3)
     [ repeat 2 (k.__.p.__.k.__)
     , repeat 2 (od.__.p.k.n.o)
     , repeat 3 (k.o.o.k)
     , repeat 2 (o.o.t.__.k.__)
     , k.p.k.__.t.__.k.t.__.k.n.o
     , __.__.u.__3.k.o.o&t.k.n.o.k
-    , s2 $ repeat 2 nang_kita
+    , faster $ repeat 2 nang_kita
     ]
 
 eddupu10 :: [Korvai]
-eddupu10 = korvais (beats 5 4)
+eddupu10 = korvais (beats 5)
     [ repeat 2 $ u.__3.k.o.o&t.k.n.o.k
     , __.__ . repeat 3 p6
     ]
@@ -217,15 +224,16 @@ nang_kita = o&n . __ . p.k.tari
 on :: Sequence
 on = o&n
 
--- * realize
+-- -- * realize
 
-adi :: Matras -> Solkattu.Tala
-adi = Solkattu.adi_tala
+adi :: Tala.Tala
+adi = Tala.adi_tala
 
-beats :: Aksharas -> Matras -> Solkattu.Tala
-beats aksharas nadai = Solkattu.Tala aksharas 0 nadai
+-- | For a fragment which fits a certain number of beats.
+beats :: Akshara -> Tala.Tala
+beats aksharas = Tala.Tala (replicate aksharas (Tala.Clap 1)) 0
 
-korvais :: CallStack.Stack => Solkattu.Tala -> [Sequence] -> [Korvai]
+korvais :: CallStack.Stack => Tala.Tala -> [Sequence] -> [Korvai]
 korvais tala = map (korvai tala)
 
 realize, realizep :: Korvai.Korvai -> IO ()

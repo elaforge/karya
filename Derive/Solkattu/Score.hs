@@ -15,16 +15,19 @@ import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-Mridangam.Strokes {..} = Mridangam.strokes
+type Seq = Sequence Korvai.Stroke
+
+Mridangam.Strokes {..} = Mridangam.notes
 
 -- * chatusra nadai
 
 c1s :: [Korvai]
-c1s = korvais (adi 4) (mridangam <> kendang)
+c1s = korvais adi (mridangam <> kendang)
     [            theme 2 1 . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
@@ -38,7 +41,6 @@ c1s = korvais (adi 4) (mridangam <> kendang)
       . dropM 4 (theme 4 2) . repeat 2 pat8 . dheem ! (u <+> K.u) . __4
       . dropM 8 (theme 4 3)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
-
     ]
     where
     theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . ta.ka.din.na.din
@@ -64,7 +66,7 @@ c1s = korvais (adi 4) (mridangam <> kendang)
     pat9 = ta.__.ka.__.p5
 
 c2_yt1 :: Korvai
-c2_yt1 = korvai (adi 4) mridangam $
+c2_yt1 = korvai adi mridangam $
     -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --              .ta.ka.din.na.thom.__.tat.__.din.__4
@@ -88,7 +90,7 @@ c2_yt1 = korvai (adi 4) mridangam $
 
 -- | 3 avartanams of chatusram -> 2 avartanams of tisram.
 c_13_10_29 :: Korvai
-c_13_10_29 = korvai (adi 4) mridangam $
+c_13_10_29 = korvai adi mridangam $
     reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     where
@@ -99,7 +101,7 @@ c_13_10_29 = korvai (adi 4) mridangam $
         ]
 
 c_13_11_12 :: Korvai
-c_13_11_12 = korvai (adi 4) mridangam $
+c_13_11_12 = korvai adi mridangam $
     seq . dropM 2 seq . ta.ka.dheem.__4 . dropM 4 seq
         . repeat 2 (ta.ka.dheem.__4)
         . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
@@ -112,7 +114,7 @@ c_13_11_12 = korvai (adi 4) mridangam $
         , (ta.ka, [p, k])
         ]
 
-standard_strokes :: [(Solkattu.Sequence stroke, [Mridangam.Note])]
+standard_strokes :: [(Sequence stroke, [Mridangam.Note])]
 standard_strokes =
     [ (ta.ka.din.na, [k, o, o, k])
     , (ta.din.gin.na.thom, [k, t, k, n, o])
@@ -120,7 +122,7 @@ standard_strokes =
     ]
 
 c_16_09_28 :: Korvai
-c_16_09_28 = korvai (adi 4) mridangam $
+c_16_09_28 = korvai adi mridangam $
     tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
           .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
                  .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
@@ -142,8 +144,22 @@ c_16_09_28 = korvai (adi 4) mridangam $
 -- TODO: reduction pattern, forwards and backwards
 -- c_14_01_14 -- 14_02_20
 
+c_nnnd :: [Korvai]
+c_nnnd = korvais adi mridangam
+    [ make (na.na.na.din.__)
+    , make (faster (dhom.ka.ta.ka.na.ka) . din.__)
+    ]
+    where
+    make theme = tri_ (tam.__3) (tri theme . tri p5)
+    mridangam = make_mridangam
+        [ (na.na.na.din, [o&n, o&n, o&n, od])
+        , (tam, [i])
+        , (dhom.ka.ta.ka.na.ka, [o, n, p, k, n, o])
+        , (din, [od])
+        ]
+
 c_17_02_06 :: Korvai
-c_17_02_06 = korvai (adi 4) mridangam $
+c_17_02_06 = korvai adi mridangam $
     tri_ (din.__.p6.p6) (ta.ki.ta.dinga.din.__.ta.__.ka.__)
     where
     mridangam = make_mridangam
@@ -159,14 +175,14 @@ chatusrams = concat
 
 -- * kanda nadai
 
-make_k1 :: Sequence -> Korvai
-make_k1 = korvai (adi 5) k1_mridangam
+make_k1 :: Seq -> Korvai
+make_k1 = korvai adi k1_mridangam • nadai 5
 
-make_k1_1 :: Sequence -> Sequence -> Korvai
+make_k1_1 :: Seq -> Seq -> Korvai
 make_k1_1 pt gap = make_k1 $
-      at0 . k1_a  . __ . ta . din . __n (10 - pdur) . pt
-    . atX . k1_a' . __ . ta . din . __n (10 - pdur) . pt
-    . at0 . ta . __ . di . __ . ki . ta . __ . gap
+      sam . k1_a  . __ . ta . din . __n (10 - pdur) . pt
+          . k1_a' . __ . ta . din . __n (10 - pdur) . pt
+    . sam . ta . __ . di . __ . ki . ta . __ . gap
     .       ta . ka . di . __ . ki . ta . __ . gap
     . case pdur of
         5 -> p567 end_gap
@@ -182,9 +198,9 @@ k1_1s = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]
 
 k1_2 :: Korvai
 k1_2 = make_k1 $
-      at0 . k1_a  . __ . ta_din_ . p7
-    . atX . k1_a' . __ . ta_din_ . p7
-    . at0 . k1_a . __ . k1_a' . __
+      sam . k1_a  . __ . ta_din_ . p7
+          . k1_a' . __ . ta_din_ . p7
+    . sam . k1_a . __ . k1_a' . __
           . ta_din_ . tri p7
           . ta_din_ . tri (tadin_ . p7)
           . ta_din_ . tri (tadin_ . tadin_ . p7)
@@ -204,7 +220,7 @@ k1_3 = make_k1 $
     where
     tata_dindin_ = ta.__.ta.__3.din.__.din.__3
 
-k1_a, k1_a' :: Sequence
+k1_a, k1_a' :: Sequence stroke
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
@@ -218,19 +234,21 @@ k1_mridangam = make_mridangam
     , (din, [od])
     ]
 
+k1_test = make_k1 $ nadai 5 (ta.__.di.__.ki.ta .__.thom.__.ta.din)
+
 k2 :: Bool -> Korvai
-k2 chatusram_transition = korvai (adi 5) k1_mridangam $
+k2 chatusram_transition = korvai adi k1_mridangam $ nadai 5 $
       din.__3 . p5.tam.__4.p6.ta.__
     . din.__3 . p5.tam.__4.p6.ta.__.ta.__
     . din.__3 . p5
     . if chatusram_transition
-        then nadai 4 . tri (ta.ta.__.p5)
+        then nadai 4 (tri (ta.ta.__.p5))
         else tam.__4 . tri_ __5 p6
     -- p6 can also be k-t---ktkto-
     -- development is din_3.p5.ta.__.din
 
 k3s :: [Korvai]
-k3s = korvais (adi 5) mridangam
+k3s = korvais adi mridangam $ map (nadai 5)
     [   dit . __  . tangkita . dit   . tat . din^2 . __
       . dit . tat . tangkita . dit^4 . tat . din . __
       . ta . __ . dit . tat . din . __
@@ -247,7 +265,7 @@ k3s = korvais (adi 5) mridangam
       . tri_ __ p6
     ]
     where
-    tangkita = s2 (tang . __ . kitataka . tarikitataka)
+    tangkita = faster (tang . __ . kitataka . tarikitataka)
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam = make_mridangam
@@ -271,7 +289,7 @@ kandams = concat
 
 -- * tisra nadai
 
-t_sarva1 :: (Sequence, Sequence)
+t_sarva1 :: (Sequence stroke, Sequence stroke)
 t_sarva1 =
     ( dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
       . na.mi.na.na.di.mi . na.mi.na.na.di.mi
@@ -283,7 +301,7 @@ t_sarva1 =
     -- are implicit.
 
 t1s :: [Korvai]
-t1s = korvais (adi 6) mridangam
+t1s = korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.din.__.__)   . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.din.__)      . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.din!p)       . utarangam p7
@@ -303,7 +321,7 @@ t1s = korvais (adi 6) mridangam
         ]
 
 t2s :: [Korvai]
-t2s = korvais (adi 6) mridangam
+t2s = korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.dheem.__5) . tri p5
     , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__4) . tri p6
     , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__3) . tri p7
@@ -335,7 +353,7 @@ t2s = korvais (adi 6) mridangam
         ]
 
 t3s :: [Korvai]
-t3s = korvais (adi 6) mridangam
+t3s = korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
@@ -372,7 +390,7 @@ t3s = korvais (adi 6) mridangam
         ]
 
 t4s :: [Korvai]
-t4s = korvais (adi 6) mridangam $ map (purvangam.)
+t4s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
     [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
     , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
@@ -400,7 +418,7 @@ t4s = korvais (adi 6) mridangam $ map (purvangam.)
         ] ++ m_ta_katakita
 
 t4s2 :: [Korvai]
-t4s2 = korvais (adi 6) mridangam
+t4s2 = korvais adi mridangam $ map (nadai 6)
     [ purvangam1 . tri (ta.din.__.p5)
     , purvangam1 . ta.ka.p5 . ta.din.__.p5 . ta.ka.din.__.p5
 
@@ -426,7 +444,7 @@ t4s2 = korvais (adi 6) mridangam
         ] ++ m_ta_katakita
 
 t4s3 :: [Korvai]
-t4s3 = korvais (adi 6) mridangam
+t4s3 = korvais adi mridangam $ map (nadai 6)
     [ ta_katakita . tri (tat.__3.din.__3) . __7
         . ta_katakita . tri (tat.__.din.__3) . __7
         . ta_katakita . tri (tat.din.__3) . __7
@@ -440,7 +458,7 @@ t4s3 = korvais (adi 6) mridangam
         [ (tat.din, [k, od])
         ] ++ m_ta_katakita
 
-ta_katakita :: Sequence
+ta_katakita :: Sequence stroke
 ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
 
 m_ta_katakita :: MStrokes
@@ -450,7 +468,7 @@ m_ta_katakita =
     ]
 
 t5s :: [Korvai]
-t5s = korvais (adi 6) mridangam $ map (purvangam.)
+t5s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
     [ t123 p6 (tat.__6.din.__6)
     , t123 p7 (tat.__.ka.din.__.ta.din.__.ka)
     , t123 (ta.din.__2.p5) (tat.__3.din.__3)
@@ -498,7 +516,7 @@ tisrams = concat
 --      . repeat 2 (ta.__3.ta.ta.ka.din.na)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
-misra_lead = korvai (adi 8) mridangam $
+misra_lead = korvai adi mridangam $ faster $
     rest 8 . tri_ (tam.__) (ta.ka.din.na)
      . repeat 2 (ta.__3.ta.ta.ka.din.na)
      . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
@@ -511,12 +529,12 @@ misra_lead = korvai (adi 8) mridangam $
         ]
 
 misra_koraippu :: [Korvai]
-misra_koraippu = korvais (adi 8) mridangam $ concat
+misra_koraippu = korvais adi mridangam $ map faster $ concat
     [ map long [1..7] -- 2 avartanam
     , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
     , [ repeat 8 (__.p7) ]
-    , [ __ . repeat 5 p7 . nadai 6 . tri p7 ]
+    , [ __ . repeat 5 p7 . nadai 3 (tri p7) ]
     -- to mohra korvai sequence
     ]
 
@@ -554,7 +572,7 @@ koraippus = concat [misra_koraippu]
 -- * tirmanam
 
 tir_18 :: [Korvai]
-tir_18 = korvais (adi 8) mridangam $ map (pad 18 .)
+tir_18 = korvais adi mridangam $ map (faster • (pad 18 .))
     [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     ]
     where
@@ -564,10 +582,10 @@ tir_18 = korvais (adi 8) mridangam $ map (pad 18 .)
         , (din, [od])
         ]
 
-pad :: Matras -> Solkattu.Sequence stroke
+pad :: Matra -> Sequence stroke
 pad dur = repeat (64 - dur) __
 
-rest :: Matras -> Solkattu.Sequence stroke
+rest :: Matra -> Sequence stroke
 rest dur = repeat dur __
 
 -- * vary
@@ -575,39 +593,36 @@ rest dur = repeat dur __
 vary :: Korvai -> [Korvai]
 vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
-set_nadai :: Solkattu.Tala -> Korvai -> Korvai
+set_nadai :: Tala.Tala -> Korvai -> Korvai
 set_nadai tala korvai = korvai { Korvai.korvai_tala = tala }
 
 -- * realize
 
-type MStrokes = [(Solkattu.Sequence Mridangam.Stroke, [Mridangam.Note])]
+type MStrokes = [(Sequence Mridangam.Stroke, [Mridangam.Note])]
 
 make_mridangam :: CallStack.Stack => MStrokes -> Korvai.Instruments
 make_mridangam strokes = mempty
     { Korvai.inst_mridangam =
-        check $ Mridangam.instrument strokes Mridangam.defaults
+        check $ Mridangam.instrument strokes Mridangam.default_patterns
     }
 
 make_kendang1 :: CallStack.Stack =>
-    [(Solkattu.Sequence KendangTunggal.Stroke, [KendangTunggal.Note])]
+    [(Sequence KendangTunggal.Stroke, [KendangTunggal.Note])]
     -> Korvai.Instruments
 make_kendang1 strokes = mempty
     { Korvai.inst_kendang_tunggal = check $
         KendangTunggal.instrument strokes KendangTunggal.defaults
     }
 
-korvais :: CallStack.Stack => Solkattu.Tala -> Korvai.Instruments -> [Sequence]
+korvais :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Seq]
     -> [Korvai]
 korvais tala realizations = map (korvai tala realizations)
 
-korvai :: Solkattu.Tala -> Korvai.Instruments -> Sequence -> Korvai.Korvai
+korvai :: Tala.Tala -> Korvai.Instruments -> Seq -> Korvai.Korvai
 korvai = Korvai.korvai
 
-adi :: Matras -> Solkattu.Tala
-adi = Solkattu.adi_tala
-
-beats :: Aksharas -> Matras -> Solkattu.Tala
-beats aksharas nadai = Solkattu.Tala aksharas 0 nadai
+adi :: Tala.Tala
+adi = Tala.adi_tala
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realize_ True
