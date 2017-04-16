@@ -143,6 +143,38 @@ test_format_ruler = do
         , ""
         )
 
+test_break_avartanam = do
+    let f width tala = fmap (break_avartanam width tala) . realize True tala
+        break_avartanam width tala = map (Text.strip . mconcat . map snd)
+            . Realize.break_avartanam width . Realize.format_strokes tala . fst
+    let tas n = Dsl.repeat n ta
+    equal (f 16 tala4 (tas 8)) $ Right ["k k k k k k k k"]
+
+    -- Even aksharas break in the middle.
+    equal (f 14 tala4 (tas 8)) $ Right ["k k k k", "k k k k"]
+    -- Uneven ones break before the width.
+    equal (f 24 Tala.rupaka_fast (tas (4 * 3))) $
+        Right ["k k k k k k k k k k k k"]
+    equal (f 20 Tala.rupaka_fast (tas (4 * 3))) $
+        Right ["k k k k k k k k", "k k k k"]
+    equal (f 10 Tala.rupaka_fast (tas (4 * 3))) $
+        Right ["k k k k", "k k k k", "k k k k"]
+    equal (f 1 Tala.rupaka_fast (tas (4 * 3))) $
+        Right ["k k k k", "k k k k", "k k k k"]
+
+test_format_break_lines = do
+    let run width =
+            fmap (capitalize_emphasis . Realize.format width tala4 . fst)
+            . realize False tala4
+    let tas n = Dsl.repeat n ta
+    equal (run 80 (tas 16)) $ Right
+        "0       1       2       3       4\n\
+        \K k k k k k k k K k k k k k k k"
+    equal (run 18 (tas 16)) $ Right
+        "0       1       2\n\
+        \K k k k k k k k\n\
+        \K k k k k k k k"
+
 test_format_nadai_change = do
     let f tala realize_patterns =
             fmap (first (capitalize_emphasis . Realize.format 80 tala))
@@ -150,10 +182,11 @@ test_format_nadai_change = do
     let sequence = Dsl.faster (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
-    -- TODO line wrapping
     equal out
-        "0       1       2       3       4         5           6           7           8\n\
-        \_k_t_knok_t_knok_t_knok_t_knok_t_knok _ t _ k n o k _ T _ k n o k _ t _ k n o"
+        "0       1       2       3       4         5           6           \
+            \7           8\n\
+        \_k_t_knok_t_knok_t_knok_t_knok_t_knok _ t _ k n o k _ T _ k n o k \
+            \_ t _ k n o"
     equal warn ""
     -- 0123456701234567012345670123456701234560123450123450123450
     -- 0       1       2       3       4   |  5     6     7     8

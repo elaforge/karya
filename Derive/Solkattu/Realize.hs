@@ -230,36 +230,96 @@ speed_scale speed n
     | otherwise = n * n ^ (abs speed)
 
 -- | Format the notes according to the tala.
+--
+-- The line breaking for rulers is a bit weird in that if the line is broken,
+-- I only emit the first part of the ruler.  Otherwise I'd have to have
+-- a multiple line ruler too, which might be too much clutter.  I'll have to
+-- see how it works out in practice.
 format :: Pretty.Pretty stroke => Int -> Tala.Tala
     -> [(S.Tempo, Stroke stroke)] -> Text
-format width tala notes =
-    Text.intercalate "\n" $ filter (not . Text.null) $ map Text.stripEnd $
-        concatMap (\(a, b) -> [a, b]) $ drop_duplicates ruler_avartanams
+format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
     where
-    drop_duplicates =
-        map (\(prev, (ruler, line)) -> if maybe False ((==ruler) . fst) prev
-            then ("", line) else (ruler, line))
-        . Seq.zip_prev
+    -- Break lines and then get the ruler for just the first one.  This way I
+    -- don't have to break the ruler and notes separately.
     ruler_avartanams =
-        [ (infer_ruler avartanam, mconcatMap emphasize_akshara avartanam)
-        | avartanam <- by_avartanam
+        [ (infer_ruler (head lines), Text.unlines $ map format_line lines)
+        | lines <- map (break_avartanam width) by_avartanam
         ]
-    by_avartanam = dropWhile null $ Seq.split_with (is_sam . fst) states
+    format_line :: [(S.State, Text)] -> Text
+    format_line = Text.stripEnd . mconcat . map snd
+        . map_with_fst emphasize_akshara
+    by_avartanam = dropWhile null $ Seq.split_with (is_sam . fst) $
+        format_strokes tala notes
     is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
-    states = S.tempo_to_state (const 1) tala $
-        mconcatMap (format_stroke s0_spaces) notes
-    max_speed = maximum $ 0 : map (S.speed . fst) notes
-    -- spaces = S0 -> 2, S1 -> 1
-    -- spaces = S0 -> 4, s1 -> 2, s2 -> 1
-    -- spaces = 4, this means 1 at s0 gets 4, so 4 / 2^s
-    s0_spaces = max 2 (2^max_speed)
-    emphasize_akshara (state, word)
+    emphasize_akshara state word
         | S.state_matra state == 0 && should_emphasize state = emphasize word
         | otherwise = word
         where
         should_emphasize = (`Set.member` aksharas) . S.state_akshara
             where
             aksharas = Set.fromList $ scanl (+) 0 $ Tala.tala_aksharas tala
+
+-- | Strip duplicate rulers and attach to the notation lines.  Avartanams which
+-- were broken due to width are separated with two newlines to make that
+-- visible.
+attach_ruler :: [(Text, Text)] -> Text
+attach_ruler = mconcatMap merge . map (second Text.stripEnd)
+    . map strip_duplicate . Seq.zip_prev
+    where
+    merge (ruler, line) = maybe "" (<>"\n") ruler <> line
+        <> if "\n" `Text.isInfixOf` line then "\n\n" else "\n"
+    strip_duplicate (prev, (ruler, line))
+        | maybe False ((==ruler) . fst) prev = (Nothing, line)
+        | otherwise = (Just ruler, line)
+
+format_strokes :: Pretty.Pretty a => Tala.Tala -> [(S.Tempo, Stroke a)]
+    -> [(S.State, Text)]
+format_strokes tala notes =
+    S.tempo_to_state (const 1) tala $
+        mconcatMap (format_stroke s0_spaces) notes
+    where
+    max_speed = maximum $ 0 : map (S.speed . fst) notes
+    -- spaces = S0 -> 2, S1 -> 1
+    -- spaces = S0 -> 4, s1 -> 2, s2 -> 1
+    -- spaces = 4, this means 1 at s0 gets 4, so 4 / 2^s
+    s0_spaces = max 2 (2^max_speed)
+
+-- | Like 'second', but also give fst as an argument.
+map_with_fst :: (a -> b -> c) -> [(a, b)] -> [(a, c)]
+map_with_fst f xs = [(a, f a b) | (a, b) <- xs]
+
+-- | If the text goes over the width, break at the middle akshara, or the
+-- last one before the width if there isn't a middle.
+break_avartanam :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
+break_avartanam max_width notes
+    | width <= max_width = [notes]
+    | even aksharas = break_at (aksharas `div` 2) notes
+    | otherwise = break_before max_width notes
+    where
+    width = sum $ map (Text.length . snd) notes
+    aksharas = Seq.count at_akshara notes
+    break_at akshara =
+        pair_to_list . break ((==akshara) . S.state_akshara . fst)
+    pair_to_list (a, b) = [a, b]
+
+-- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
+break_before :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
+break_before max_width = go . dropWhile null . Seq.split_with at_akshara
+    where
+    go aksharas =
+        case break_fst (>max_width) (zip (running_width aksharas) aksharas) of
+            ([], []) -> []
+            (pre, []) -> [concat pre]
+            ([], post:posts) -> post : go posts
+            (pre, post) -> concat pre : go post
+    -- drop 1 so it's the width at the end of each section.
+    running_width = drop 1 . scanl (+) 0 . map (sum . map (Text.length . snd))
+
+break_fst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
+break_fst f = (map snd *** map snd) . break (f . fst)
+
+at_akshara :: (S.State, a) -> Bool
+at_akshara = (==0) . S.state_matra . fst
 
 format_stroke :: Pretty.Pretty a => Int -> (S.Tempo, Stroke a)
     -> [(S.Tempo, Text)]
@@ -279,7 +339,7 @@ format_stroke s0_spaces (tempo, stroke) = case stroke of
 
 infer_ruler :: [(S.State, Text)] -> Text
 infer_ruler = count . (++[0]) . map (sum . map (Text.length . snd))
-    . dropWhile null . Seq.split_with ((==0) . S.state_matra . fst)
+    . dropWhile null . Seq.split_with at_akshara
     where
     count = mconcatMap (\(n, spaces) -> Text.justifyLeft spaces ' ' (showt n))
         . zip [0..]

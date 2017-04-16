@@ -414,8 +414,6 @@ solkattu branch:
 
   * Document structure:
     Realize -> Solkattu -> Sequence -> Tala
-  Realize.format:
-    - Implement break_avartanam
 
 selection-orientation branch:
   . How should selection work?
@@ -1644,7 +1642,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - Realize.format: break long lines
+        * Realize.format: break long lines
         - special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
         * Realize.format: Emit a new ruler if the nadai changes.  I can do it
           by making a ruler for each line and filtering out the repeats.
