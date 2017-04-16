@@ -325,7 +325,7 @@ format_stroke :: Pretty.Pretty a => Int -> (S.Tempo, Stroke a)
     -> [(S.Tempo, Text)]
 format_stroke s0_spaces (tempo, stroke) = case stroke of
     Rest -> [(tempo, pad "_ " spaces "_")]
-    Stroke stroke -> [(tempo, pad "- " spaces (pretty stroke))]
+    Stroke stroke -> [(tempo, pad "_ " spaces (pretty stroke))]
     Pattern matras -> map (tempo,) $
         pad "-" spaces ("p" <> showt matras)
         : replicate (matras - 1) (Text.replicate spaces "-")

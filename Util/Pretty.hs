@@ -16,7 +16,6 @@ module Util.Pretty (
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
     , constructor
-    , module Util.Format
     -- * misc
     , readWord
 ) where

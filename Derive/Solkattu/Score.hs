@@ -24,7 +24,9 @@ type Seq = Sequence Korvai.Stroke
 
 Mridangam.Strokes {..} = Mridangam.notes
 
--- * chatusra nadai
+-- * adi talam
+
+-- ** chatusra nadai
 
 c1s :: [Korvai]
 c1s = korvais adi (mridangam <> kendang)
@@ -168,12 +170,30 @@ c_17_02_06 = korvai adi mridangam $
         , (din, [od])
         ]
 
+c_17_03_20 :: Korvai
+c_17_03_20 = korvai adi mridangam $ faster $
+    reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
+        . slower (slower td_gnt) . slower td_gnt
+        -- . spread 4 td_gnt . spread 2 td_gnt
+        . tri_ (__2.ga) td_gnt
+    where
+    td_gnt = ta.din.__.gin.na.thom
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (tat, [k])
+        , (ta.ka, [k, t])
+        , (na.ka.dit, [n, o, k])
+        , (dit, [k])
+        , (ta.lang.ga, [o, u, k])
+        , (ga, [o]) -- TODO soft
+        , (din.na, [o ,k])
+        ]
+
 chatusrams :: [Korvai]
 chatusrams = concat
     [ c1s, [c2_yt1, c_13_10_29, c_16_09_28, c_17_02_06]
     ]
 
--- * kanda nadai
+-- ** kanda nadai
 
 make_k1 :: Seq -> Korvai
 make_k1 = korvai adi k1_mridangam • nadai 5
@@ -287,7 +307,7 @@ kandams = concat
     , k3s
     ]
 
--- * tisra nadai
+-- ** tisra nadai
 
 t_sarva1 :: (Sequence stroke, Sequence stroke)
 t_sarva1 =
@@ -505,6 +525,21 @@ tisrams :: [Korvai]
 tisrams = concat
     [ t1s, t2s, t3s, t4s, t4s2, t4s3, t5s
     ]
+
+-- * misra chapu
+
+c_17_04_04 :: [Korvai]
+c_17_04_04 = korvais Tala.misra_chapu mridangam
+    [   tat.__3 . din.__3 . takitatha
+      . ta.ta.ka .din.__3 . takitatha
+    ]
+    where
+    takitatha = ta.ki.ta.tha.ta.ka.din.na
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (tat.din, [k, od])
+        , (ta.ta.ka.din, [k, k, o, od])
+        , (takitatha, [o&n, k, p, k, n, o, od, k])
+        ]
 
 -- * koraippu
 
