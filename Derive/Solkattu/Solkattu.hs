@@ -137,13 +137,15 @@ matras_of ns = justErr msg $ to_matras dur
         <> pretty dur <> " in " <> pretty ns
     dur = duration_of ns
 
+-- | TODO this assumes default_tempo
 to_matras :: S.Duration -> Maybe S.Matra
-to_matras dur
+to_matras =  to_matras_nadai (S.nadai S.default_tempo)
+
+to_matras_nadai :: S.Nadai -> S.Duration -> Maybe S.Matra
+to_matras_nadai nadai dur
     | frac == 0 = Just matras
     | otherwise = Nothing
-    where
-    (matras, frac) =
-        properFraction $ dur * fromIntegral (S.nadai S.default_tempo)
+    where (matras, frac) = properFraction $ dur * fromIntegral nadai
 
 -- * functions
 

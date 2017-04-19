@@ -8,7 +8,9 @@ module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
@@ -109,7 +111,6 @@ c_13_11_12 = korvai adi mridangam $
         . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     where
     seq = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
-    tdgnt = ta.din.gin.na.thom
     mridangam = make_mridangam $ standard_strokes ++
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -173,11 +174,10 @@ c_17_02_06 = korvai adi mridangam $
 c_17_03_20 :: Korvai
 c_17_03_20 = korvai adi mridangam $ faster $
     reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
-        . slower (slower td_gnt) . slower td_gnt
+        -- . slower (slower td_gnt) . slower td_gnt . tri_ (__2.ga) td_gnt
+        . slower (slower p6) . slower p6 . tri_ (__2.ga) p6
         -- . spread 4 td_gnt . spread 2 td_gnt
-        . tri_ (__2.ga) td_gnt
     where
-    td_gnt = ta.din.__.gin.na.thom
     mridangam = make_mridangam $ standard_strokes ++
         [ (tat, [k])
         , (ta.ka, [k, t])
@@ -423,7 +423,6 @@ t4s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
     , tri (tat.dinga . tat.__.dinga.p5)
     ]
     where
-    tdgnt = ta.din.gin.na.thom
     p123 p sep = trin sep p (p.p) (p.p.p)
     purvangam = tri (ta_katakita . din.__6)
     mridangam = make_mridangam $
@@ -529,16 +528,28 @@ tisrams = concat
 -- * misra chapu
 
 c_17_04_04 :: [Korvai]
-c_17_04_04 = korvais Tala.misra_chapu mridangam
-    [   tat.__3 . din.__3 . takitatha
-      . ta.ta.ka .din.__3 . takitatha
+c_17_04_04 = korvais Tala.misra_chapu mridangam $ map slower
+    [   tat.__3 . din.__3 . tadimi
+      . ta.ta.ka. din.__3 . tadimi
+      . utarangam 3 (ta.ki.ta) (ta.ta.ka)
+    , utarangam 4 (ta.ka.din.na) (ta.ka.din.na)
+    , utarangam 5 tdgnt tdgnt
+    , utarangam 6 td_gnt td_gnt
     ]
     where
-    takitatha = ta.ki.ta.tha.ta.ka.din.na
-    mridangam = make_mridangam $ standard_strokes ++
+    utarangam n p p2 =
+        spread 4 p . spread 3 p . spread 2 p . tri_ (din.__n n) p2
+    tadimi = ta.di.mi.ta.ta.ka.din.na
+    mridangam = make_mridangam
         [ (tat.din, [k, od])
-        , (ta.ta.ka.din, [k, k, o, od])
-        , (takitatha, [o&n, k, p, k, n, o, od, k])
+        , (ta.ta.ka.din, [o&n, o&n, k, od])
+        , (tadimi, [o&n, od, k, p&d, n, o, od, k])
+
+        , (din, [od])
+        , (tdgnt, [k, t, k, n, o])
+        , (ta.ki.ta, [p, k, od])
+        , (ta.ta.ka, [o&n, o&n, k])
+        , (ta.ka.din.na, [k, od, od, k])
         ]
 
 -- * koraippu
@@ -617,19 +628,52 @@ tir_18 = korvais adi mridangam $ map (faster • (pad 18 .))
         , (din, [od])
         ]
 
-pad :: Matra -> Sequence stroke
-pad dur = repeat (64 - dur) __
+-- * exercise
 
-rest :: Matra -> Sequence stroke
-rest dur = repeat dur __
+e_spacing :: [Korvai]
+e_spacing = korvais adi mridangam $ map (align 8) $ map faster $ concat
+    [ map arithmetic [p5, p6, p7, p8, p9]
+    , map geometric [p5, p6, p7] -- , p8, p9]
+    ]
+    where
+    p5 = tdgnt
+    p6 = td_gnt
+    p7 = t_d_gnt
+    p8 = ta.din.__.gin.__.na.__.thom
+    p9 = ta.__.din.__.gin.__.na.__.thom
+    arithmetic seq = spread 3 seq . spread 2 seq . tri seq
+    geometric seq = spread 4 seq . spread 2 seq . tri seq
+    mridangam = make_mridangam standard_strokes
 
--- * vary
+t0 :: Sequence ()
+t0 = faster $ geometric tdgnt
+    where geometric seq = spread 4 seq . spread 2 seq . tri seq
+
+-- * util
 
 vary :: Korvai -> [Korvai]
 vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 
-set_nadai :: Tala.Tala -> Korvai -> Korvai
-set_nadai tala korvai = korvai { Korvai.korvai_tala = tala }
+rest :: Matra -> Sequence stroke
+rest dur = repeat dur __
+
+pad :: Matra -> Sequence stroke
+pad dur = repeat (64 - dur) __
+
+tdgnt, td_gnt, t_d_gnt :: Sequence stroke
+tdgnt = ta.din.gin.na.thom
+td_gnt = ta.din.__.gin.na.thom
+t_d_gnt = ta.__.din.__.gin.na.thom
+
+align :: CallStack.Stack => Nadai -> Sequence stroke -> Sequence stroke
+align nadai seq = rest (total - dur) . seq
+    where
+    dur = to_matras 8 (duration_of seq)
+    total = Num.roundUp (to_matras 8 avartanam) dur
+    avartanam = 8
+    -- TODO I assume adi tala
+    -- TODO since I'm in s2, there are 8 matras per akshara, which means
+    -- duration could be 
 
 -- * realize
 

@@ -1642,6 +1642,15 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
+        - I think I need an absolute SetSpeed, so I can pad a number of
+          aksharas, regardless of the speed.
+          . I also need it to rest by Duration, or to turn that into matras.
+          . At the score level it's most convenient to work with sollu-matras.
+            These are relative to nadai, but that's actually good.  With speed
+            changes I can get fractional matras, and operations can actually
+            work as long as the speeds line up and I don't have to drop
+            half of a sollu.
         - speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
         * Realize.format: break long lines
         - special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
@@ -1737,6 +1746,22 @@ Derive:
           - kendang pasangan
           - reyong
           - gangsa / marimba
+        ? Crazy idea: it might be nice to use underline or double underline
+          for faster.  Is there a way I could get the editor to display
+          special brackets as underline, and then turn those special brackets
+          into a 'faster' call?  I think if I'm doing this, I definitely need
+          a preprocessor, though if I keep basic haskell syntax and define it
+          as a translation to haskell, then I can keep all the usual features.
+          . Alternately, use syntax highlighting.  Sufficiently fancy
+            highlighting could highlight 'faster (...)'.  I don't think ascii
+            can do double underlines, though it could do italic+underline or
+            something.
+          . I could also try to automatically align by time.  I imagine
+            a sufficiently advanced vim macro could do that, e.g. bind ^tab to
+            annotate the current expression with line info, evaluate it, and
+            align the current line, or try to move the cursor to the next
+            beat.  Maybe not worth it though, since the whole idea of the dsl
+            is that time can be abstract.
     pakhawaj bols
       . Score integrate to convert bols to low level calls
         . Actually score integrate doesn't work like that, it just copies the
