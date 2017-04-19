@@ -1,0 +1,24 @@
+# HLint configuration file
+
+# Specify additional command line arguments
+#
+# - arguments: [--color, --cpp-simple, -XQuasiQuotes]
+
+- ignore: {name: Use camelCase}
+
+- ignore: {name: Use infix}
+- ignore: {name: Use maybeToList}
+- ignore: {name: Use join}
+- ignore: {name: Use String}
+- ignore: {name: Use section}
+
+- ignore: {name: Redundant lambda}
+- ignore: {name: Avoid lambda} # I do it on purpose for clarity.
+- ignore: {name: Use import/export shortcut} # Weird, don't like it.
+- ignore: {name: Use elem} # I don't use elem for 2 element lists.
+- ignore: {name: Use isNothing} # ==Nothing is fine.
+- ignore: {name: Use uncurry} # ==Nothing is fine.
+
+- ignore: {name: Use module export list}
+- ignore: {name: Use head}
+- ignore: {name: Use &&&}

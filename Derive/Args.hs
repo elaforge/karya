@@ -163,7 +163,7 @@ lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
 -- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
 lookup_parsed_pitch_at :: (Pitch.Note -> Maybe a) -> RealTime
     -> Derive.Deriver (Maybe a)
-lookup_parsed_pitch_at parse_pitch pos = do
+lookup_parsed_pitch_at parse_pitch pos =
     justm (lookup_pitch_at pos) $ \pitch -> do
         note <- Pitches.pitch_note =<< Derive.resolve_pitch pos pitch
         Just <$> Derive.require "unparseable pitch" (parse_pitch note)

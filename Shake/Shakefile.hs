@@ -818,23 +818,7 @@ hlint config = do
         [ "--report=" <> build </> "hlint.html"
         , "--cpp-define=TESTING"
         , "--cpp-include=" <> buildDir config
-        ] ++ mkIgnore hlintIgnore ++ hs
-    Util.staunchSystem "hlint" $ mkIgnore
-        -- hsc2hs triggers these, not my fault.
-        (hlintIgnore ++ ["Redundant bracket", "Avoid lambda"])
-        ++ map (hscToHs (hscDir config)) hscs
-    where
-    mkIgnore = map ("--ignore="++)
-
-hlintIgnore :: [String]
-hlintIgnore =
-    [ "Use camelCase", "Use &&&", "Use uncurry", "Use section"
-    , "Use infix", "Use maybeToList", "Use join", "Use String"
-    , "Redundant lambda", "Avoid lambda" -- I do it on purpose for clarity.
-    , "Use import/export shortcut" -- Weird, don't like it.
-    , "Use elem" -- I don't use elem for 2 element lists.
-    , "Use isNothing" -- ==Nothing is nice too.
-    ]
+        ] ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- ** doc
 

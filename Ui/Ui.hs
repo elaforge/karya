@@ -1444,7 +1444,7 @@ modify_ruler ruler_id modify = do
 
 ruler_of :: M m => BlockId -> m RulerId
 ruler_of block_id = require ("no ruler in " <> showt block_id)
-    =<< Seq.head <$> Block.block_ruler_ids <$> get_block block_id
+    =<< Seq.head . Block.block_ruler_ids <$> get_block block_id
 
 rulers_of :: M m => BlockId -> m [RulerId]
 rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id

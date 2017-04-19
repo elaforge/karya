@@ -632,7 +632,7 @@ instance Pretty.Pretty SyncConfig where
 -- ** hooks
 
 -- | Hooks are Cmds that run after some event.
-data Hooks = Hooks {
+newtype Hooks = Hooks {
     -- | Run when the selection changes.
     hooks_selection :: [[(ViewId, Maybe TrackSelection)] -> CmdId ()]
     }
@@ -1151,7 +1151,7 @@ get_midi_instrument inst =
 
 lookup_midi_config :: (CallStack.Stack, M m) => Score.Instrument
     -> m (Maybe Patch.Config)
-lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved -> do
+lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved ->
     case inst_backend resolved of
         Just (Midi _ config) -> return $ Just config
         _ -> return Nothing

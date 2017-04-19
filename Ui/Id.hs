@@ -190,7 +190,7 @@ class Ident a where
 instance Ident Id where
     unpack_id = Prelude.id
     constructor_name _ = "id"
-    make = Just . Prelude.id
+    make = Just
 
 show_ident :: forall a. Ident a => a -> String
 show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"

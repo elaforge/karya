@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase #-}
 {- | Simple repl to talk to seq.
 
     Type a command to send it to the sequencer.  Everything in
@@ -85,7 +84,7 @@ main = ReplProtocol.initialize $ do
     socket <- case args of
         [] -> return Config.repl_socket
         [fn] -> return $ Network.UnixSocket fn
-        _ -> errorIO $ "usage: repl [ unix-socket ]"
+        _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
     liftIO $ putStrLn "^D to quit"
