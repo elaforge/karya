@@ -37,7 +37,7 @@ note_matras n = case n of
     Pattern matras -> matras
 
 instance Pretty.Pretty stroke => Pretty.Pretty (Stroke stroke) where
-    pretty Rest = "__"
+    pretty Rest = "_"
     pretty (Stroke s) = pretty s
     pretty (Pattern matras) = "p" <> showt matras
 
@@ -239,18 +239,13 @@ format :: Pretty.Pretty stroke => Int -> Tala.Tala
     -> [(S.Tempo, Stroke stroke)] -> Text
 format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
     where
-    -- Break lines and then get the ruler for just the first one.  This way I
-    -- don't have to break the ruler and notes separately.
     ruler_avartanams =
         [ (infer_ruler (head lines), Text.unlines $ map format_line lines)
-        | lines <- map (break_avartanam width) by_avartanam
+        | lines <- format_lines width tala notes
         ]
     format_line :: [(S.State, Text)] -> Text
     format_line = Text.stripEnd . mconcat . map snd
         . map_with_fst emphasize_akshara
-    by_avartanam = dropWhile null $ Seq.split_with (is_sam . fst) $
-        format_strokes tala notes
-    is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
     emphasize_akshara state word
         | S.state_matra state == 0 && should_emphasize state = emphasize word
         | otherwise = word
@@ -258,6 +253,21 @@ format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
         should_emphasize = (`Set.member` aksharas) . S.state_akshara
             where
             aksharas = Set.fromList $ scanl (+) 0 $ Tala.tala_aksharas tala
+
+-- | Break into [avartanam], where avartanam = [line].
+format_lines :: Pretty.Pretty stroke => Int -> Tala.Tala
+    -> [(S.Tempo, Stroke stroke)] -> [[[(S.State, Text)]]]
+format_lines width tala =
+    map (break_line width) . break_avartanam . map (second show_stroke)
+        . S.normalize_speed note_matras tala
+    where
+    break_avartanam = dropWhile null . Seq.split_with (is_sam . fst)
+    show_stroke s = case s of
+        S.Attack a -> Text.justifyLeft matra_width ' ' (pretty a)
+        S.Sustain -> Text.replicate matra_width "-"
+        S.Rest -> Text.justifyLeft matra_width ' ' "_"
+    matra_width = 2
+    is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
 
 -- | Strip duplicate rulers and attach to the notation lines.  Avartanams which
 -- were broken due to width are separated with two newlines to make that
@@ -272,26 +282,14 @@ attach_ruler = mconcatMap merge . map (second Text.stripEnd)
         | maybe False ((==ruler) . fst) prev = (Nothing, line)
         | otherwise = (Just ruler, line)
 
-format_strokes :: Pretty.Pretty a => Tala.Tala -> [(S.Tempo, Stroke a)]
-    -> [(S.State, Text)]
-format_strokes tala notes =
-    S.tempo_to_state (const 1) tala $
-        mconcatMap (format_stroke s0_spaces) notes
-    where
-    max_speed = maximum $ 0 : map (S.speed . fst) notes
-    -- spaces = S0 -> 2, S1 -> 1
-    -- spaces = S0 -> 4, s1 -> 2, s2 -> 1
-    -- spaces = 4, this means 1 at s0 gets 4, so 4 / 2^s
-    s0_spaces = max 2 (2^max_speed)
-
 -- | Like 'second', but also give fst as an argument.
 map_with_fst :: (a -> b -> c) -> [(a, b)] -> [(a, c)]
 map_with_fst f xs = [(a, f a b) | (a, b) <- xs]
 
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
-break_avartanam :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
-break_avartanam max_width notes
+break_line :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
+break_line max_width notes
     | width <= max_width = [notes]
     | even aksharas = break_at (aksharas `div` 2) notes
     | otherwise = break_before max_width notes
@@ -320,22 +318,6 @@ break_fst f = (map snd *** map snd) . break (f . fst)
 
 at_akshara :: (S.State, a) -> Bool
 at_akshara = (==0) . S.state_matra . fst
-
-format_stroke :: Pretty.Pretty a => Int -> (S.Tempo, Stroke a)
-    -> [(S.Tempo, Text)]
-format_stroke s0_spaces (tempo, stroke) = case stroke of
-    Rest -> [(tempo, pad "_ " spaces "_")]
-    Stroke stroke -> [(tempo, pad "_ " spaces (pretty stroke))]
-    Pattern matras -> map (tempo,) $
-        pad "-" spaces ("p" <> showt matras)
-        : replicate (matras - 1) (Text.replicate spaces "-")
-    where
-    spaces = speed_scale (S.speed tempo) s0_spaces
-    pad extension spaces text =
-        text <> Text.drop (Text.length text) (Text.take spaces padding)
-        where
-        padding = Text.replicate (spaces `div` Text.length extension + 1)
-            extension
 
 infer_ruler :: [(S.State, Text)] -> Text
 infer_ruler = count . (++[0]) . map (sum . map (Text.length . snd))

@@ -38,11 +38,11 @@ test_realize = do
         t = M.Valantalai M.Ta
         od = M.Both M.Thom M.Din
         n = M.Valantalai M.Nam
-    equal (f [Rest, sollu Ta, Rest, Rest, sollu Din]) (Right "__ k __ __ D")
-    equal (f [Pattern 5, Rest, sollu Ta, sollu Din]) (Right "p5 __ k D")
+    equal (f [Rest, sollu Ta, Rest, Rest, sollu Din]) (Right "_ k _ _ D")
+    equal (f [Pattern 5, Rest, sollu Ta, sollu Din]) (Right "p5 _ k D")
     equal (f [sollu Ta, sollu Ta]) (Right "t t")
-    equal (f [sollu Din, sollu Ga]) (Right "D __")
-    equal (f [sollu Din, Rest, sollu Ga]) (Right "D __ __")
+    equal (f [sollu Din, sollu Ga]) (Right "D _")
+    equal (f [sollu Din, Rest, sollu Ga]) (Right "D _ _")
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
     let chapu = Just (M.Valantalai M.Chapu)
@@ -58,13 +58,12 @@ test_realize_patterns = do
             <=< Realize.realize_patterns pmap
             . map (Sequence.default_tempo,)
     equal (f (M.families567 !! 0) [Pattern 5]) (Right "k t k n o")
-    equal (f (M.families567 !! 1) [Pattern 5]) (Right "k __ t __ k __ k t o __")
+    equal (f (M.families567 !! 1) [Pattern 5]) (Right "k _ t _ k _ k t o _")
     left_like (f (M.families567 !! 0) [Pattern 3]) "no pattern with duration 3"
 
     let p = expect_right $ realize (M.families567 !! 1) [Pattern 5]
-    equal (e_format $ Realize.format 80 Tala.adi_tala p) "K_t_k_kto_"
-    -- TODO this has underscores because it doesn't omit explicit Rests that
-    -- are on "off beats".  format could get smarter for that.
+    equal (e_format $ Realize.format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
+    -- TODO when format is ok with 1 width it should be "k t k kto "
 
 test_patterns = do
     let f = second (const ()) . Realize.patterns
@@ -143,24 +142,24 @@ test_format_ruler = do
         , ""
         )
 
-test_break_avartanam = do
-    let f width tala = fmap (break_avartanam width tala) . realize True tala
-        break_avartanam width tala = map (Text.strip . mconcat . map snd)
-            . Realize.break_avartanam width . Realize.format_strokes tala . fst
+test_format_lines = do
+    let f width tala = fmap (extract . Realize.format_lines width tala . fst)
+            . realize True tala
+        extract = map (map (Text.strip . mconcat . map snd))
     let tas n = Dsl.repeat n ta
-    equal (f 16 tala4 (tas 8)) $ Right ["k k k k k k k k"]
+    equal (f 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
 
     -- Even aksharas break in the middle.
-    equal (f 14 tala4 (tas 8)) $ Right ["k k k k", "k k k k"]
+    equal (f 14 tala4 (tas 8)) $ Right [["k k k k", "k k k k"]]
     -- Uneven ones break before the width.
     equal (f 24 Tala.rupaka_fast (tas (4 * 3))) $
-        Right ["k k k k k k k k k k k k"]
+        Right [["k k k k k k k k k k k k"]]
     equal (f 20 Tala.rupaka_fast (tas (4 * 3))) $
-        Right ["k k k k k k k k", "k k k k"]
+        Right [["k k k k k k k k", "k k k k"]]
     equal (f 10 Tala.rupaka_fast (tas (4 * 3))) $
-        Right ["k k k k", "k k k k", "k k k k"]
+        Right [["k k k k", "k k k k", "k k k k"]]
     equal (f 1 Tala.rupaka_fast (tas (4 * 3))) $
-        Right ["k k k k", "k k k k", "k k k k"]
+        Right [["k k k k", "k k k k", "k k k k"]]
 
 test_format_break_lines = do
     let run width =
@@ -199,11 +198,11 @@ test_format_speed = do
     equal (f []) (Right "")
     equal (f (thoms 8)) (Right "O o o o O o o o")
     equal (f [nadai 3 $ thoms 6]) (Right "O o o O o o")
-    equal (f $ slower (thoms 4)) (Right "O - o - O - o -")
+    equal (f $ slower (thoms 4)) (Right "O _ o _ O _ o _")
     equal (f $ thoms 2 <> faster (thoms 4) <> thoms 1) (Right "O o ooooO")
     equal (f $ thoms 2 <> faster (faster (thoms 8)) <> thoms 1)
-        (Right "O - o - ooooooooO -")
-    equal (f $ slower (thoms 2) <> thoms 4) (Right "O - o - O o o o")
+        (Right "O _ o _ ooooooooO _")
+    equal (f $ slower (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
 
 -- * util
 

@@ -1649,7 +1649,7 @@ Derive:
         - Realize.format: matra_width should be able to go to 1 for speed > 0.
           I think for this I have Realize.flatten_speed max_speed start at 1,
           but then I have to fix two character strokes like p5.
-        - Realize.format: ruler and emphasis gets messed up when a single
+        * Realize.format: ruler and emphasis gets messed up when a single
           note spans a beat.  I should first normalize to matras.
         - format could combine rests to avoid k___ type stuff.
         - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)

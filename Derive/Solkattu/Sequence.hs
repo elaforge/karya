@@ -18,8 +18,9 @@ module Derive.Solkattu.Sequence (
     -- * realize
     , flatten, flatten_with
     , tempo_to_state, tempo_to_duration
+    , Stroke(..), normalize_speed
     -- * State
-    , State(..), state_tempo, show_position
+    , State(..), state_tempo, state_position, show_position
     -- * functions
     , note_duration, matra_duration
     , map_time, advance_state_by
@@ -41,14 +42,9 @@ instance Pretty.Pretty a => Pretty.Pretty (Note a) where
     format n = case n of
         Note a -> Pretty.format a
         TempoChange change notes ->
-            Pretty.text change_s <> "("
+            Pretty.text (pretty change) <> "("
                 <> Pretty.wrapWords (map Pretty.format notes)
                 <> ")"
-            where
-            change_s = case change of
-                SpeedChange speed -> "s" <> (if speed > 0 then "+" else "")
-                    <> showt speed
-                Nadai n -> "n" <> showt n
 
 -- | A single Duration unit is equivalent to 1 Akshara.
 newtype Duration = Duration Ratio.Rational
@@ -61,11 +57,12 @@ instance Pretty.Pretty Duration where
 
 -- | Relative speed change.  Each positive number doubles the number of
 -- 'Matra's per akshara.  Negative numbers half them.
-data TempoChange = SpeedChange Speed | Nadai Nadai
+data TempoChange = ChangeSpeed Speed | Nadai Nadai
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty TempoChange where
-    pretty (SpeedChange s) = "s" <> showt s
+    pretty (ChangeSpeed s) =
+        "s" <> (if s > 0 then "+" else "-") <> showt (abs s)
     pretty (Nadai s) = "n" <> showt s
 
 -- | A matra is an akshara divided by the nadai.  It corresponds to a single
@@ -84,8 +81,8 @@ speed_factor s
     | otherwise = 1 / (2 ^ abs s)
 
 slower, faster :: [Note a] -> Note a
-slower = TempoChange (SpeedChange (-1))
-faster = TempoChange (SpeedChange 1)
+slower = TempoChange (ChangeSpeed (-1))
+faster = TempoChange (ChangeSpeed 1)
 
 -- ** realize
 
@@ -107,6 +104,33 @@ tempo_to_state note_matras tala = snd . List.mapAccumL process initial_state
         next_state = advance_state_by tala
             (matra_duration tempo * fromIntegral (note_matras note)) state
 
+data Stroke a = Attack a | Sustain | Rest
+    deriving (Show, Eq)
+
+-- | Normalize to the fastest speed, then mark position in the Tala.
+normalize_speed :: (a -> Matra) -> Tala.Tala -> [(Tempo, a)]
+    -> [(State, Stroke a)]
+normalize_speed note_matras tala notes =
+    snd $ List.mapAccumL process initial_state by_nadai
+    where
+    process state (nadai, stroke) =
+        (next_state, (state { state_nadai = nadai }, stroke))
+        where
+        next_state = advance_state_by tala (min_dur / fromIntegral nadai) state
+    (by_nadai, min_dur) = flatten_speed note_matras notes
+
+-- | Normalize to the fastest speed.  Fill slower strokes in with rests.
+flatten_speed :: (a -> Matra) -> [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
+flatten_speed note_matras notes = (concatMap flatten notes, min_dur)
+    where
+    flatten (tempo, note) = map (nadai tempo,) $
+        Attack note : replicate (note_matras note - 1) Sustain
+            ++ replicate (space - note_matras note) Rest
+        where space = 2 ^ (max_speed - speed tempo)
+    -- The smallest duration is a note at max speed.
+    min_dur = 1 / speed_factor max_speed
+    max_speed = maximum $ 0 : map (speed . fst) notes
+
 tempo_to_duration :: (a -> Matra) -> [(Tempo, a)] -> [(Duration, a)]
 tempo_to_duration note_matras = map $ \(tempo, note) ->
     (fromIntegral (note_matras note) * matra_duration tempo, note)
@@ -124,7 +148,7 @@ default_nadai :: Nadai
 default_nadai = 4
 
 change_tempo :: TempoChange -> Tempo -> Tempo
-change_tempo (SpeedChange s) tempo = tempo { speed = s + speed tempo }
+change_tempo (ChangeSpeed s) tempo = tempo { speed = s + speed tempo }
 change_tempo (Nadai n) tempo = tempo { nadai = n }
 
 -- ** State
@@ -172,6 +196,10 @@ state_tempo state = Tempo
     { speed = state_speed state
     , nadai = state_nadai state
     }
+
+state_position :: State -> (Int, Tala.Akshara, Duration)
+state_position state =
+    (state_avartanam state, state_akshara state, state_matra state)
 
 set_tempo :: Tempo -> State -> State
 set_tempo tempo state = state
@@ -232,8 +260,8 @@ advance_state_by tala matras state = state
 
 time_change :: TempoChange -> State -> Either Text State
 time_change change state = case change of
-    SpeedChange change ->
-        Right $ state { state_speed = state_speed state + change }
+    ChangeSpeed speed ->
+        Right $ state { state_speed = state_speed state + speed }
     Nadai nadai -> do
         akshara_nadai <- nadai_change nadai state
         Right $ state
