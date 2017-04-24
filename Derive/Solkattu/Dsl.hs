@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Provide short names and operators for writing korvais in haskell.
 -- This module is meant to be imported unqualified.
@@ -27,6 +26,8 @@ module Derive.Solkattu.Dsl (
     -- ** combinators
     , tri, tri_, trin
     , join, repeat, inter, spread
+    -- * convert
+    , matras_of
     -- * re-exports
     , module Derive.Solkattu.Sequence
     , module Derive.Solkattu.Solkattu
@@ -57,7 +58,7 @@ import Derive.Solkattu.Notation
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import qualified Derive.Solkattu.Sequence as Sequence
-import Derive.Solkattu.Sequence (Matra)
+import Derive.Solkattu.Sequence (Duration, Matra, Nadai)
 import Derive.Solkattu.Tala (Akshara)
 import Derive.Solkattu.Solkattu (check, duration_of)
 
@@ -159,7 +160,7 @@ pat d = make_note $ S.Pattern d
 -- | Add a specific stroke annotation to a sollu.
 stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
-stroke _ [] = errorStack $ "stroke: empty sequence"
+stroke _ [] = errorStack "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
     Sequence.Note (S.Sollu s karvai _) ->
         Sequence.Note (S.Sollu s karvai (Just (Korvai.to_stroke stroke))) : ns

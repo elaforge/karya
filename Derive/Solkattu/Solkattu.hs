@@ -130,23 +130,6 @@ instance Pretty.Pretty Sollu where
 duration_of :: [Note a] -> S.Duration
 duration_of = sum . map (S.note_duration note_matras S.default_tempo)
 
-matras_of :: Pretty.Pretty stroke => [Note stroke] -> Either Error S.Matra
-matras_of ns = justErr msg $ to_matras dur
-    where
-    msg = "non-integral " <> pretty (S.nadai S.default_tempo) <> " * "
-        <> pretty dur <> " in " <> pretty ns
-    dur = duration_of ns
-
--- | TODO this assumes default_tempo
-to_matras :: S.Duration -> Maybe S.Matra
-to_matras =  to_matras_nadai (S.nadai S.default_tempo)
-
-to_matras_nadai :: S.Nadai -> S.Duration -> Maybe S.Matra
-to_matras_nadai nadai dur
-    | frac == 0 = Just matras
-    | otherwise = Nothing
-    where (matras, frac) = properFraction $ dur * fromIntegral nadai
-
 -- * functions
 
 -- | A Karvai Sollu followed by a Rest will replace the rest, if followed by

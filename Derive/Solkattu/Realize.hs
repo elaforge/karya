@@ -227,7 +227,7 @@ to_solkattu n = case n of
 speed_scale :: Int -> Int -> Int
 speed_scale speed n
     | speed > 0 = n `div` 2^speed
-    | otherwise = n * n ^ (abs speed)
+    | otherwise = n * n ^ abs speed
 
 -- | Format the notes according to the tala.
 --

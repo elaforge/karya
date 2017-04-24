@@ -8,9 +8,7 @@ module Derive.Solkattu.Score where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import Derive.Solkattu.Dsl
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
@@ -188,9 +186,30 @@ c_17_03_20 = korvai adi mridangam $ faster $
         , (din.na, [o ,k])
         ]
 
+c_17_04_23 :: [Korvai]
+c_17_04_23 = korvais adi mridangam $ map slower -- remove for melkalam
+    [ purvangam . utarangam p7
+    , purvangam . utarangam (faster (ta.__3.din.__3.gin.__3.na.__3.thom.__2))
+    ]
+    where
+    purvangam = tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
+        -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
+        . dropM 5 (tri_ (din.__2) (ta.ta.ka.din.na))
+    utarangam p7 = mconcat
+        [ slower p7 . p7 . faster end
+        | end <- [p7, p7.p7, p7.p7.p7]
+        ]
+    p7 = ta.ka.tdgnt
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (ta, [k])
+        , (din, [od])
+        , (p7, [k, p, k, t, k, n, o])
+        ]
+
 chatusrams :: [Korvai]
 chatusrams = concat
     [ c1s, [c2_yt1, c_13_10_29, c_16_09_28, c_17_02_06]
+    , [c_17_03_20], c_17_04_23
     ]
 
 -- ** kanda nadai
@@ -631,9 +650,9 @@ tir_18 = korvais adi mridangam $ map (faster • (pad 18 .))
 -- * exercise
 
 e_spacing :: [Korvai]
-e_spacing = korvais adi mridangam $ map (align 8) $ map faster $ concat
+e_spacing = korvais adi mridangam $ map (align adi) $ map faster $ concat
     [ map arithmetic [p5, p6, p7, p8, p9]
-    , map geometric [p5, p6, p7] -- , p8, p9]
+    , map geometric [p5, p6, p7, p8, p9]
     ]
     where
     p5 = tdgnt
@@ -644,10 +663,6 @@ e_spacing = korvais adi mridangam $ map (align 8) $ map faster $ concat
     arithmetic seq = spread 3 seq . spread 2 seq . tri seq
     geometric seq = spread 4 seq . spread 2 seq . tri seq
     mridangam = make_mridangam standard_strokes
-
-t0 :: Sequence ()
-t0 = faster $ geometric tdgnt
-    where geometric seq = spread 4 seq . spread 2 seq . tri seq
 
 -- * util
 
@@ -664,16 +679,6 @@ tdgnt, td_gnt, t_d_gnt :: Sequence stroke
 tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
-
-align :: CallStack.Stack => Nadai -> Sequence stroke -> Sequence stroke
-align nadai seq = rest (total - dur) . seq
-    where
-    dur = to_matras 8 (duration_of seq)
-    total = Num.roundUp (to_matras 8 avartanam) dur
-    avartanam = 8
-    -- TODO I assume adi tala
-    -- TODO since I'm in s2, there are 8 matras per akshara, which means
-    -- duration could be 
 
 -- * realize
 

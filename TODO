@@ -1642,8 +1642,18 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Notation {take,drop}M functions get matras via duration_of and
+          divide, while matras_of counts matras directly.  I'm not totally
+          sure what the difference is and which one is correct.
+        - Notation rdropM and probably rdrop is broken for tempo changes.
+        - Realize.format: matra_width should be able to go to 1 for speed > 0.
+          I think for this I have Realize.flatten_speed max_speed start at 1,
+          but then I have to fix two character strokes like p5.
+        - Realize.format: ruler and emphasis gets messed up when a single
+          note spans a beat.  I should first normalize to matras.
+        - format could combine rests to avoid k___ type stuff.
         - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
-        - I think I need an absolute SetSpeed, so I can pad a number of
+        / I think I need an absolute SetSpeed, so I can pad a number of
           aksharas, regardless of the speed.
           . I also need it to rest by Duration, or to turn that into matras.
           . At the score level it's most convenient to work with sollu-matras.
@@ -1651,7 +1661,11 @@ Derive:
             changes I can get fractional matras, and operations can actually
             work as long as the speeds line up and I don't have to drop
             half of a sollu.
-        - speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
+          . However, for things like 'align', I need to know that tala and
+            nadai, so I can emit a certain number of aksharas.
+          . Actually since align is used at the top level, I can assume s0.
+        / speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
+          . Not any more.  Maybe I just had things messed up?
         * Realize.format: break long lines
         - special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
         * Realize.format: Emit a new ruler if the nadai changes.  I can do it
