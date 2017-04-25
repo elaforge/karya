@@ -1642,16 +1642,22 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - format: if the ruler changes after an avartanam line break, show the
+          partial ruler, e.g. Realize_test.test_format_nadai_change
+        - I could have an 'elide' annotation.  It deletes the previous notes
+          so far as they match the next ones.
         - Notation {take,drop}M functions get matras via duration_of and
           divide, while matras_of counts matras directly.  I'm not totally
           sure what the difference is and which one is correct.
         - Notation rdropM and probably rdrop is broken for tempo changes.
-        - Realize.format: matra_width should be able to go to 1 for speed > 0.
+        * Realize.format: matra_width should be able to go to 1 for speed > 0.
           I think for this I have Realize.flatten_speed max_speed start at 1,
           but then I have to fix two character strokes like p5.
+          . Ruler marks should also move back for an overlapping note.
+          . Just have infer_ruler count each note as 1.
         * Realize.format: ruler and emphasis gets messed up when a single
           note spans a beat.  I should first normalize to matras.
-        - format could combine rests to avoid k___ type stuff.
+        * format could combine rests to avoid k___ type stuff.
         - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
         / I think I need an absolute SetSpeed, so I can pad a number of
           aksharas, regardless of the speed.

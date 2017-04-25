@@ -120,6 +120,8 @@ normalize_speed note_matras tala notes =
     (by_nadai, min_dur) = flatten_speed note_matras notes
 
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
+-- Speed 0 always gets at least one Stroke, even if everything it's not the
+-- slowest.
 flatten_speed :: (a -> Matra) -> [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
 flatten_speed note_matras notes = (concatMap flatten notes, min_dur)
     where

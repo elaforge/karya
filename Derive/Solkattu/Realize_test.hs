@@ -143,7 +143,7 @@ test_format_ruler = do
         )
 
 test_format_lines = do
-    let f width tala = fmap (extract . Realize.format_lines width tala . fst)
+    let f width tala = fmap (extract . Realize.format_lines 2 width tala . fst)
             . realize True tala
         extract = map (map (Text.strip . mconcat . map snd))
     let tas n = Dsl.repeat n ta
@@ -169,40 +169,46 @@ test_format_break_lines = do
     equal (run 80 (tas 16)) $ Right
         "0       1       2       3       4\n\
         \K k k k k k k k K k k k k k k k"
-    equal (run 18 (tas 16)) $ Right
-        "0       1       2\n\
-        \K k k k k k k k\n\
-        \K k k k k k k k"
+    equal (run 10 (tas 16)) $ Right
+        "0   1   2\n\
+        \Kkkkkkkk\n\
+        \Kkkkkkkk"
 
 test_format_nadai_change = do
     let f tala realize_patterns =
-            fmap (first (capitalize_emphasis . Realize.format 80 tala))
+            fmap (first (capitalize_emphasis . Realize.format 50 tala))
             . realize realize_patterns tala
     let sequence = Dsl.faster (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
-    equal out
-        "0       1       2       3       4         5           6           \
-            \7           8\n\
-        \_k_t_knok_t_knok_t_knok_t_knok_t_knok _ t _ k n o k _ T _ k n o k \
-            \_ t _ k n o"
+    equal (Text.lines out)
+        [ "0       1       2       3       4"
+        , "_k_t_knok t knok_t_knok t knok_t"
+        -- TODO should be a ruler here
+        , "_knok _ t _ k n o k _ T _ k n o k _ t _ k n o"
+        ]
     equal warn ""
     -- 0123456701234567012345670123456701234560123450123450123450
     -- 0       1       2       3       4   |  5     6     7     8
     -- _k_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_kno
 
 test_format_speed = do
-    let f = fmap (e_format . Realize.format 80 Tala.rupaka_fast)
+    let f width = fmap (e_format . Realize.format width Tala.rupaka_fast)
             . Realize.realize stroke_map . Sequence.flatten
         thoms n = mconcat (replicate n Dsl.thom)
-    equal (f []) (Right "")
-    equal (f (thoms 8)) (Right "O o o o O o o o")
-    equal (f [nadai 3 $ thoms 6]) (Right "O o o O o o")
-    equal (f $ slower (thoms 4)) (Right "O _ o _ O _ o _")
-    equal (f $ thoms 2 <> faster (thoms 4) <> thoms 1) (Right "O o ooooO")
-    equal (f $ thoms 2 <> faster (faster (thoms 8)) <> thoms 1)
-        (Right "O _ o _ ooooooooO _")
-    equal (f $ slower (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
+    equal (f 80 []) (Right "")
+    equal (f 80 (thoms 8)) (Right "O o o o O o o o")
+    equal (f 80 [nadai 3 $ thoms 6]) (Right "O o o O o o")
+    equal (f 80 $ slower (thoms 4)) (Right "O _ o _ O _ o _")
+    equal (f 80 $ thoms 2 <> faster (thoms 4) <> thoms 1)
+        (Right "O _ o _ o o o o O _")
+    equal (f 80 $ thoms 2 <> faster (faster (thoms 8)) <> thoms 1)
+        (Right "O _ _ _ o _ _ _ o o o o o o o o O _ _ _")
+    equal (f 80 $ slower (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
+    equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "P5------==p5----==--")
+    -- Use narrow spacing when there's isn't space, and p5 overlaps the next
+    -- '-'.
+    equal (f 10 (Dsl.p5 <> Dsl.p5)) (Right "P5--=p5-=-")
 
 -- * util
 

@@ -240,12 +240,18 @@ format :: Pretty.Pretty stroke => Int -> Tala.Tala
 format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
-        [ (infer_ruler (head lines), Text.unlines $ map format_line lines)
-        | lines <- format_lines width tala notes
+        [ (infer_ruler stroke_width (head lines),
+            Text.unlines $ map format_line lines)
+        | lines <- avartanam_lines
         ]
+    (avartanam_lines, stroke_width) = case format_lines 1 width tala notes of
+        ([line] : _) | sum (map (Text.length . snd) line) <= width `div` 2 ->
+            (format_lines 2 width tala notes, 2)
+        result -> (result, 1)
     format_line :: [(S.State, Text)] -> Text
     format_line = Text.stripEnd . mconcat . map snd
         . map_with_fst emphasize_akshara
+        . zipWith thin_rests [0..]
     emphasize_akshara state word
         | S.state_matra state == 0 && should_emphasize state = emphasize word
         | otherwise = word
@@ -254,19 +260,29 @@ format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
             where
             aksharas = Set.fromList $ scanl (+) 0 $ Tala.tala_aksharas tala
 
+-- | Drop single character rests on odd columns, to make the output look less
+-- cluttered.
+thin_rests :: Int -> (s, Text) -> (s, Text)
+thin_rests column (state, stroke)
+    | stroke == "_" && odd column = (state, " ")
+    | otherwise = (state, stroke)
+
 -- | Break into [avartanam], where avartanam = [line].
-format_lines :: Pretty.Pretty stroke => Int -> Tala.Tala
+format_lines :: Pretty.Pretty stroke => Int -> Int -> Tala.Tala
     -> [(S.Tempo, Stroke stroke)] -> [[[(S.State, Text)]]]
-format_lines width tala =
-    map (break_line width) . break_avartanam . map (second show_stroke)
+format_lines stroke_width width tala =
+    map (break_line width) . break_avartanam
+        . map combine . Seq.zip_prev
+        . map (second show_stroke)
         . S.normalize_speed note_matras tala
     where
     break_avartanam = dropWhile null . Seq.split_with (is_sam . fst)
+    combine (prev, (state, text)) = (state, Text.drop overlap text)
+        where overlap = maybe 0 (subtract stroke_width . Text.length . snd) prev
     show_stroke s = case s of
-        S.Attack a -> Text.justifyLeft matra_width ' ' (pretty a)
-        S.Sustain -> Text.replicate matra_width "-"
-        S.Rest -> Text.justifyLeft matra_width ' ' "_"
-    matra_width = 2
+        S.Attack a -> Text.justifyLeft stroke_width ' ' (pretty a)
+        S.Sustain -> Text.replicate stroke_width "-"
+        S.Rest -> Text.justifyLeft stroke_width ' ' "_"
     is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
 
 -- | Strip duplicate rulers and attach to the notation lines.  Avartanams which
@@ -319,9 +335,10 @@ break_fst f = (map snd *** map snd) . break (f . fst)
 at_akshara :: (S.State, a) -> Bool
 at_akshara = (==0) . S.state_matra . fst
 
-infer_ruler :: [(S.State, Text)] -> Text
-infer_ruler = count . (++[0]) . map (sum . map (Text.length . snd))
-    . dropWhile null . Seq.split_with at_akshara
+infer_ruler :: Int -> [(S.State, Text)] -> Text
+infer_ruler stroke_width =
+    count . (++[0]) . map ((*stroke_width) . length) . dropWhile null
+        . Seq.split_with at_akshara
     where
     count = mconcatMap (\(n, spaces) -> Text.justifyLeft spaces ' ' (showt n))
         . zip [0..]
