@@ -103,7 +103,16 @@ instance Pretty Double where pretty = Num.showFloat 3
 instance Pretty Float where pretty = Num.showFloat 3
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
-    pretty r = pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
+    pretty r
+        | r == 0 = "0"
+        | frac == 0 = pretty whole
+        | whole == 0 = ratio frac
+        | otherwise = pretty whole <> "+" <> ratio frac
+        where
+        whole :: Integer
+        (whole, frac) = properFraction r
+        ratio r =
+            pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
 
 instance Pretty a => Pretty (Maybe a) where
     format Nothing = text "Nothing"

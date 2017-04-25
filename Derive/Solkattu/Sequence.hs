@@ -48,12 +48,7 @@ instance Pretty.Pretty a => Pretty.Pretty (Note a) where
 
 -- | A single Duration unit is equivalent to 1 Akshara.
 newtype Duration = Duration Ratio.Rational
-    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac)
-
-instance Pretty.Pretty Duration where
-    pretty (Duration dur) =
-        pretty (whole :: Int) <> if frac == 0 then "" else " " <> pretty frac
-        where (whole, frac) = properFraction dur
+    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty.Pretty)
 
 -- | Relative speed change.  Each positive number doubles the number of
 -- 'Matra's per akshara.  Negative numbers half them.
