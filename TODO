@@ -1649,7 +1649,11 @@ Derive:
         - Notation {take,drop}M functions get matras via duration_of and
           divide, while matras_of counts matras directly.  I'm not totally
           sure what the difference is and which one is correct.
-        - Notation rdropM and probably rdrop is broken for tempo changes.
+          . With division I can get matras even if nadai changes but it winds
+            up being integral.  So nadai 4 -> 8 would be equivalent to a speed
+            change, which is good.  But 4 -> 6 will also be valid matras if
+            I have a multiple of 3.
+        * Notation rdropM and probably rdrop is broken for tempo changes.
         * Realize.format: matra_width should be able to go to 1 for speed > 0.
           I think for this I have Realize.flatten_speed max_speed start at 1,
           but then I have to fix two character strokes like p5.

@@ -5,6 +5,8 @@
 -- | Generic combinators for solkattu patterns.  Because these are expected to
 -- be called as part of the dsl, error calls are allowed.
 module Derive.Solkattu.Notation where
+import qualified Prelude
+import Prelude hiding (reverse)
 import qualified Data.List as List
 
 import qualified Util.CallStack as CallStack
@@ -38,15 +40,15 @@ splitD dur = snd . go S.default_tempo dur
     go tempo dur (n:ns)
         | dur <= 0 = (0, ([], n:ns))
         | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
-        | S.TempoChange change subs <- n =
-            tempo_change tempo dur change subs ns
+        | S.TempoChange change subs <- n = tempo_change tempo dur change subs ns
         -- TODO drop a Pattern, replace with rests
         -- or just error
         | otherwise = errorStack $
             "can't split on a fractional duration: " <> pretty dur
         where ndur = S.note_duration Solkattu.note_matras tempo n
     tempo_change tempo dur change subs ns
-        | dur_left <= 0 = (dur_left, ([S.TempoChange change sub_pre], []))
+        | dur_left <= 0 =
+            (dur_left, (make_tempo sub_pre, make_tempo sub_post ++ ns))
         | otherwise = case go tempo dur_left ns of
             (end_dur, (pre, post)) ->
                 (end_dur, (make_tempo sub_post ++ pre, post))
@@ -62,13 +64,18 @@ rdropD dur = reverse . dropD dur . reverse
 rtakeD :: Duration -> Sequence stroke -> Sequence stroke
 rtakeD dur = reverse . takeD dur . reverse
 
+reverse :: [S.Note a] -> [S.Note a]
+reverse = map sub . Prelude.reverse
+    where
+    sub (S.TempoChange change subs) = S.TempoChange change (reverse subs)
+    sub note@(S.Note _) = note
+
 -- * by Matra
 
 -- | Drop a number of matras from the Sequence.
 dropM :: Matra -> Sequence stroke -> Sequence stroke
 dropM matras = dropD (fromIntegral matras * matra_duration)
 
--- TODO I think it does the wrong thing for a TempoChange
 rdropM :: Matra -> Sequence stroke -> Sequence stroke
 rdropM matras = reverse . dropM matras . reverse
 
@@ -123,7 +130,7 @@ reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
 
 -- | Start fully reduced, and expand to the given sequence.
 expand :: Int -> Matra -> Sequence stroke -> [Sequence stroke]
-expand times dur = reverse . take times . iterate (dropM dur)
+expand times dur = Prelude.reverse . take times . iterate (dropM dur)
 
 replaceEnd :: Sequence stroke -> Sequence stroke -> Sequence stroke
 replaceEnd seq suffix = rdropD (Solkattu.duration_of suffix) seq <> suffix

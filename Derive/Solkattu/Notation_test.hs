@@ -23,11 +23,12 @@ test_matras_of = do
     left_like (f (nadai 5 (ta <> ka) <> di)) "nadai change"
     left_like (f (faster di)) "non-integral matras"
 
-test_dropM = do
-    let f m = map pretty . Notation.dropM m
-    equal (f 1 (ta <> ka)) ["ka"]
-    equal (f 1 (faster (ta <> ka) <> di)) ["di"]
-    equal (f 2 (faster (ta <> ka) <> di <> ta)) ["ta"]
+test_splitD = do
+    let f dur = (map pretty *** map pretty) . Notation.splitD dur
+    equal (f (1/4) (ta <> ka)) (["ta"], ["ka"])
+    equal (f (1/4) (faster (ta <> ka) <> di)) (["s+1(ta ka)"], ["di"])
+    equal (f (1/4) (faster (ta <> di <> ki <> ta) <> di))
+        (["s+1(ta di)"], ["s+1(ki ta)", "di"])
 
 test_rdropM = do
     let f m = map pretty . Notation.rdropM m
