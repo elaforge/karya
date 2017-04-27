@@ -51,5 +51,6 @@ mridangam = mempty
         Mridangam.instrument Score.standard_strokes patterns
     }
     where
-    patterns = Solkattu.check $ Realize.patterns [(4, [p, k, o, n])]
+    patterns = Solkattu.check $ Realize.patterns $
+        map (first Solkattu.PatternM) [(4, [p, k, o, n])]
         where Mridangam.Strokes {..} = Mridangam.notes

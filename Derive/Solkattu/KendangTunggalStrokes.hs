@@ -8,4 +8,4 @@ module Derive.Solkattu.KendangTunggalStrokes where
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 
 
-KendangTunggal.Strokes {..} = KendangTunggal.strokes
+KendangTunggal.Strokes {..} = KendangTunggal.notes

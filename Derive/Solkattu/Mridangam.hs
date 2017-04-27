@@ -139,8 +139,16 @@ type Patterns = Realize.Patterns Stroke
 __ :: Note
 __ = Sequence.Note Realize.Rest
 
+default_nakatiku :: (Solkattu.Pattern, [Note])
+default_nakatiku = (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
+    where Strokes {..} = notes
+
+alternate_nakatiku :: [Note]
+alternate_nakatiku = [t, p, u, p, k, t, p, k]
+    where Strokes {..} = notes
+
 default_patterns :: Patterns
-default_patterns = Solkattu.check $ Realize.patterns
+default_patterns = Solkattu.check $ patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -150,18 +158,15 @@ default_patterns = Solkattu.check $ Realize.patterns
     where Strokes {..} = notes
 
 kt_kn_o :: Patterns
-kt_kn_o = Solkattu.check $ Realize.patterns
+kt_kn_o = Solkattu.check $ patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
     ]
     where Strokes {..} = notes
 
-s2 :: [Sequence.Note a] -> [Sequence.Note a]
-s2 = (:[]) . Sequence.faster
-
 families567 :: [Patterns]
-families567 = map (Solkattu.check . Realize.patterns . zip [5..]) $
+families567 = map (Solkattu.check . patterns . zip [5..]) $
     [ [k, t, k, n, o]
     , [k, t, __, k, n, o]
     , [k, __, t, __, k, n, o]
@@ -203,3 +208,11 @@ families567 = map (Solkattu.check . Realize.patterns . zip [5..]) $
     Strokes {..} = notes
     kp = [k, p]
     kpnp = [k, p, n, p]
+
+patterns :: [(Sequence.Matra, [Realize.Note Stroke])]
+    -> Either Text (Realize.Patterns Stroke)
+patterns = Realize.patterns . (default_nakatiku:)
+    . map (first Solkattu.PatternM)
+
+s2 :: [Sequence.Note a] -> [Sequence.Note a]
+s2 = (:[]) . Sequence.faster

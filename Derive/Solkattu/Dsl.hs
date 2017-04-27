@@ -23,11 +23,10 @@ module Derive.Solkattu.Dsl (
     , akshara, sam, (^)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
+    , nakatiku
     -- ** combinators
     , tri, tri_, trin
     , join, repeat, inter, spread
-    -- * convert
-    , matras_of
     -- * re-exports
     , module Derive.Solkattu.Sequence
     , module Derive.Solkattu.Solkattu
@@ -153,7 +152,10 @@ seq ^ n = make_note (S.Alignment n) <> seq
 infix 9 ^
 
 pat :: Matra -> Sequence stroke
-pat d = make_note $ S.Pattern d
+pat d = make_note $ S.Pattern (S.PatternM d)
+
+nakatiku :: Sequence stroke
+nakatiku = make_note $ S.Pattern S.Nakatiku
 
 -- ** strokes
 

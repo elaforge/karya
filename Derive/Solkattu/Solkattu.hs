@@ -78,7 +78,7 @@ type Note stroke = S.Note (Solkattu stroke)
 data Solkattu stroke =
     Sollu Sollu Karvai (Maybe stroke)
     | Rest
-    | Pattern !S.Matra
+    | Pattern !Pattern
     | Alignment !Tala.Akshara
     deriving (Eq, Ord, Show)
 
@@ -90,7 +90,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Solkattu stroke) where
             , maybe "" (("!"<>) . pretty) stroke
             ]
         Rest -> "__"
-        Pattern matras -> "p" <> showt matras
+        Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
 map_stroke :: Functor f => (Maybe a -> Maybe b) -> f (Solkattu a)
@@ -107,8 +107,23 @@ note_matras s = case s of
     Sollu _ Karvai _ -> 0
     Sollu {} -> 1
     Rest -> 1
-    Pattern matras -> matras
+    Pattern p -> pattern_matras p
     Alignment {} -> 0
+
+pattern_matras :: Pattern -> S.Matra
+pattern_matras p = case p of
+    PatternM m -> m
+    Nakatiku -> 8
+
+data Pattern =
+    PatternM !S.Matra
+    -- | 4-matra faran nakatikutarikita
+    | Nakatiku
+    deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty Pattern where
+    pretty (PatternM matras) = "p" <> showt matras
+    pretty Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the
 -- rest.  Otherwise, it will be replaced by a note.
@@ -195,7 +210,8 @@ vary allowed_variations notes
     -- List of sets of permutations.
     modification_groups = permute_fst allowed_variations (find_triads notes)
     -- Apply a set of permutations to the original input.
-    apply mods = apply_modifications (\_ matras -> S.Note (Pattern matras))
+    apply mods = apply_modifications
+        (\_ matras -> S.Note (Pattern (PatternM matras)))
         (concatMap extract mods) notes
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
@@ -226,7 +242,9 @@ find_triads :: [Note stroke] -> [(S.Matra, (Int, Int, Int))]
 find_triads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
-        [(matras, i) | (i, S.Note (Pattern matras)) <- zip [0..] notes]
+        [ (matras, i)
+        | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] notes
+        ]
     , triad <- triads indices
     ]
     where

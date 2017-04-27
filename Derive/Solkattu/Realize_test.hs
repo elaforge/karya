@@ -39,7 +39,7 @@ test_realize = do
         od = M.Both M.Thom M.Din
         n = M.Valantalai M.Nam
     equal (f [Rest, sollu Ta, Rest, Rest, sollu Din]) (Right "_ k _ _ D")
-    equal (f [Pattern 5, Rest, sollu Ta, sollu Din]) (Right "p5 _ k D")
+    equal (f [pattern 5, Rest, sollu Ta, sollu Din]) (Right "p5 _ k D")
     equal (f [sollu Ta, sollu Ta]) (Right "t t")
     equal (f [sollu Din, sollu Ga]) (Right "D _")
     equal (f [sollu Din, Rest, sollu Ga]) (Right "D _ _")
@@ -52,21 +52,27 @@ test_realize = do
     -- Not found is ok if it has an explicit stroke.
     equal (f [Sollu Tat Solkattu.NotKarvai chapu]) (Right "u")
 
+pattern :: Sequence.Matra -> Solkattu stroke
+pattern = Solkattu.Pattern . Solkattu.PatternM
+
+rpattern :: Sequence.Matra -> Realize.Stroke stroke
+rpattern = Realize.Pattern . Solkattu.PatternM
+
 test_realize_patterns = do
     let f pmap = second (Text.unwords . map (pretty . snd)) . realize pmap
         realize pmap = Realize.realize mempty
             <=< Realize.realize_patterns pmap
             . map (Sequence.default_tempo,)
-    equal (f (M.families567 !! 0) [Pattern 5]) (Right "k t k n o")
-    equal (f (M.families567 !! 1) [Pattern 5]) (Right "k _ t _ k _ k t o _")
-    left_like (f (M.families567 !! 0) [Pattern 3]) "no pattern with duration 3"
+    equal (f (M.families567 !! 0) [pattern 5]) (Right "k t k n o")
+    equal (f (M.families567 !! 1) [pattern 5]) (Right "k _ t _ k _ k t o _")
+    left_like (f (M.families567 !! 0) [pattern 3]) "no pattern for p3"
 
-    let p = expect_right $ realize (M.families567 !! 1) [Pattern 5]
+    let p = expect_right $ realize (M.families567 !! 1) [pattern 5]
     equal (e_format $ Realize.format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
     -- TODO when format is ok with 1 width it should be "k t k kto "
 
 test_patterns = do
-    let f = second (const ()) . Realize.patterns
+    let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
     equal (f [(2, Dsl.slower [k])]) (Right ())
@@ -87,7 +93,7 @@ test_stroke_map = do
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(Dsl.tang <> Dsl.ga, [u, __, __])]) "differing lengths"
-    left_like (f [(ta <> [Sequence.Note $ Pattern 5], [k])])
+    left_like (f [(ta <> [Sequence.Note $ pattern 5], [k])])
         "only have plain sollus"
 
 test_format = do
@@ -100,10 +106,10 @@ test_format = do
     equal (f rupaka n4) "K t _ n"
     equal (f rupaka (n4 <> n4)) "K t _ n K t _ n"
     -- Emphasis works in patterns.
-    equal (f rupaka (n4 <> [Realize.Pattern 5] <> n4))
+    equal (f rupaka (n4 <> [rpattern 5] <> n4))
         "K t _ n P5------==k t _\nN"
     -- Patterns are wrapped properly.
-    equal (f rupaka (n4 <> [Realize.Pattern 5] <> n4 <> [Realize.Pattern 5]))
+    equal (f rupaka (n4 <> [rpattern 5] <> n4 <> [rpattern 5]))
         "K t _ n P5------==k t _\n\
         \N p5----==--"
     -- Emphasize according to the tala.

@@ -22,7 +22,7 @@ sriram = korvais adi
     [ o&n.__.p.k.t.k . tri (n.k.t.p.k.t.k)
         . repeat 4 (o.t.k.n . faster (k.t.p.k))
         . repeat 4 (n . faster (k.t.p.k)  . o.t.k)
-        . o&n.__.p.k . tari . tri (p.k.p.t.p.k . tari)
+        . o&n.__.p.k . nakatiku . tri (p.k.p.t.p.k . nakatiku)
     ]
 
 c_exercises :: [Sequence]
@@ -89,7 +89,7 @@ p16_12_06_sriram1 = korvai adi $ faster $
     k_kto_s = mconcat $ expand 3 2 (k.__.t.__.k_kto)
     k_kto = k.__.k.t.o.__
     okto = o.k.t.o. k .t.p.k
-    kitakina = k.t.k.n.o.k.o&t.k.tari
+    kitakina = k.t.k.n.o.k.o&t.k.nakatiku
 
 p16_12_06_sriram2 :: Korvai
 p16_12_06_sriram2 = korvai adi $ nadai 7 $
@@ -191,9 +191,9 @@ farans = korvais adi $ map faster $ concat
         long . long
         . pattern . pattern . long
         . repeat 2 short . fill1 . long
-        . repeat 3 short . fill2 . tari
+        . repeat 3 short . fill2 . nakatiku
         where
-        long = pattern . tari
+        long = pattern . nakatiku
         short = takeM 6 pattern
 
 -- * fragments
@@ -215,11 +215,8 @@ eddupu10 = korvais (beats 5)
     , __.__ . repeat 3 p6
     ]
 
-tari :: Sequence
-tari = n.p.u.p.k.t.p.k
-
 nang_kita :: Sequence
-nang_kita = o&n . __ . p.k.tari
+nang_kita = o&n . __ . p.k.nakatiku
 
 on :: Sequence
 on = o&n

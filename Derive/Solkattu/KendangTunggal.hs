@@ -3,12 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
--- | Realize an abstract solkattu 'S.Sequence' to concrete kendang 'Note's.
+-- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.KendangTunggal where
 import qualified Data.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as S
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
@@ -63,19 +63,19 @@ data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
     } deriving (Show)
 
-stroke :: stroke -> Realize.Note stroke
-stroke = S.Note . Realize.Stroke
+note :: stroke -> Realize.Note stroke
+note = Sequence.Note . Realize.Stroke
 
-strokes :: Strokes Note
-strokes = Strokes
-    { pk = stroke Plak
-    , p = stroke Pak
-    , t = stroke Pang
-    , u = stroke TutL
-    , å = stroke DagL
-    , k = stroke Ka
-    , o = stroke Tut
-    , a = stroke Dag
+notes :: Strokes Note
+notes = Strokes
+    { pk = note Plak
+    , p = note Pak
+    , t = note Pang
+    , u = note TutL
+    , å = note DagL
+    , k = note Ka
+    , o = note Tut
+    , a = note Dag
     }
 
 
@@ -84,18 +84,22 @@ strokes = Strokes
 type Patterns = Realize.Patterns Stroke
 
 __ :: Note
-__ = S.Note Realize.Rest
+__ = Sequence.Note Realize.Rest
 
 defaults :: Patterns
-defaults = Solkattu.check $ Realize.patterns
+defaults = Solkattu.check $ Realize.patterns $
+    nakatiku : map (first Solkattu.PatternM)
     [ (5, [o, p, k, t, a])
     , (6, [o, p, __, k, t, a])
     , (7, [o, __, p, __, k, t, a])
     , (8, [o, p, __, k, __, t, __, a])
     , (9, [o, __, p, __, k, __, t, __, a])
     ]
-    where Strokes {..} = strokes
+    where Strokes {..} = notes
 
-nakatiku :: [Note]
-nakatiku = [t, o, u, k, p, k, a, k]
-    where Strokes {..} = strokes
+nakatiku :: (Solkattu.Pattern, [Note])
+nakatiku = (Solkattu.Nakatiku, [t, o, u, k, p, k, a, k])
+    where Strokes {..} = notes
+
+s2 :: [Sequence.Note a] -> [Sequence.Note a]
+s2 = (:[]) . Sequence.faster

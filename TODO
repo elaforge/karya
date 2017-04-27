@@ -1677,7 +1677,7 @@ Derive:
         / speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
           . Not any more.  Maybe I just had things messed up?
         * Realize.format: break long lines
-        - special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
+        * special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
         * Realize.format: Emit a new ruler if the nadai changes.  I can do it
           by making a ruler for each line and filtering out the repeats.
         * Tala doesn't support chapu talas.

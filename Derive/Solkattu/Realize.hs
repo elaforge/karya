@@ -27,46 +27,48 @@ import Global
 type Note stroke = S.Note (Stroke stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
-data Stroke stroke = Stroke stroke | Rest | Pattern !S.Matra
+data Stroke stroke = Stroke stroke | Rest | Pattern !Solkattu.Pattern
     deriving (Eq, Show, Functor)
 
 note_matras :: Stroke stroke -> S.Matra
 note_matras n = case n of
     Stroke {} -> 1
     Rest -> 1
-    Pattern matras -> matras
+    Pattern p -> Solkattu.pattern_matras p
 
 instance Pretty.Pretty stroke => Pretty.Pretty (Stroke stroke) where
     pretty Rest = "_"
     pretty (Stroke s) = pretty s
-    pretty (Pattern matras) = "p" <> showt matras
+    pretty (Pattern p) = pretty p
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  The
 -- 'S.Matra's should the same duration as the the list in the default tempo.
 -- This is enforced in the constructor 'patterns'.
-newtype Patterns stroke = Patterns (Map S.Matra [Note stroke])
+newtype Patterns stroke = Patterns (Map Solkattu.Pattern [Note stroke])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
 -- | Make a Patterns while checking that the durations match.
 patterns :: Pretty.Pretty stroke =>
-    [(S.Matra, [Note stroke])] -> Either Text (Patterns stroke)
+    [(Solkattu.Pattern, [Note stroke])] -> Either Text (Patterns stroke)
 patterns pairs
     | null errors = Right $ Patterns $ Map.fromList pairs
     | otherwise = Left $ Text.intercalate "; " errors
     where
     errors = mapMaybe check pairs
-    check (matras, notes)
-        | notes_matras /= fromIntegral matras =
-            Just $ "pattern matras " <> pretty matras
+    check (p, notes)
+        | notes_matras /= fromIntegral p_matras =
+            Just $ "pattern matras " <> pretty p_matras
                 <> " /= realization matras " <> pretty notes_matras
+                <> " for " <> showt p
         | otherwise = Nothing
         where
+        p_matras = Solkattu.pattern_matras p
         notes_matras = notes_duration / S.matra_duration S.default_tempo
         notes_duration = sum $ map (S.note_duration note_matras S.default_tempo)
             notes
 
-lookup_pattern :: S.Matra -> Patterns stroke -> Maybe [Note stroke]
-lookup_pattern matras (Patterns pmap) = Map.lookup matras pmap
+lookup_pattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [Note stroke]
+lookup_pattern p (Patterns pmap) = Map.lookup p pmap
 
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
@@ -138,7 +140,7 @@ realize smap = format_error . go
         Solkattu.Alignment {} -> go rest
         Solkattu.Rest -> first ((tempo, Rest) :) (go rest)
         -- Patterns are realized separately with 'realize_patterns'.
-        Solkattu.Pattern matras -> first ((tempo, Pattern matras) :) (go rest)
+        Solkattu.Pattern p -> first ((tempo, Pattern p) :) (go rest)
         Solkattu.Sollu sollu _ stroke ->
             case find_sequence smap tempo sollu stroke rest of
                 Left err -> case stroke of
@@ -204,10 +206,10 @@ realize_patterns :: Pretty.Pretty stroke =>
 realize_patterns pmap = format_error . concatMap realize
     where
     realize (tempo, n) = case n of
-        Solkattu.Pattern matras -> case lookup_pattern matras pmap of
+        Solkattu.Pattern p -> case lookup_pattern p pmap of
             Just notes ->
                 map Right $ S.flatten_with tempo $ map (fmap to_solkattu) notes
-            Nothing -> [Left $ "no pattern with duration " <> showt matras]
+            Nothing -> [Left $ "no pattern for " <> pretty p]
         _ -> [Right (tempo, n)]
     format_error xs = case S.first_left xs of
         Right vals -> Right vals

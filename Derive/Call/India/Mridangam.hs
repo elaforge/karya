@@ -23,6 +23,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -37,6 +38,8 @@ note_calls = Derive.generator_call_map
     -- standard patterns
     -- There are various other ways to play this.
     , ("tari", c_sequence (pure "n+u+kt+k")) -- naka tiku tari kita
+    -- This is the name I use in Solkattu.
+    , ("nakatiku", c_sequence (pure "n+u+kt+k"))
     , ("tk", c_sequence (pure "k+"))
     , ("tknk", c_sequence (pure "k+n+"))
     ]
@@ -177,7 +180,7 @@ infer_pattern dur variation = do
     notes <- justErr
         ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
-        (Realize.lookup_pattern dur patterns)
+        (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
     return $ Realize.tempo_to_duration $ Sequence.flatten notes
 
 default_variation :: Text

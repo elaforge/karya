@@ -62,7 +62,7 @@ c1s = korvais adi (mridangam <> kendang)
         , (ta.din, [o, a])
         -- for pat7 -- pat9
         , (ta.ka, [p, k])
-        ] where KendangTunggal.Strokes {..} = KendangTunggal.strokes
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     pat7 = ta.ka.p5
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
@@ -130,12 +130,10 @@ c_16_09_28 = korvai adi mridangam $
     . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
     where
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
-    nakatiku = na.ka.ti.ku.ta.ri.ki.ta
     mridangam = make_mridangam $ standard_strokes ++
         [ (tat.dit, [k&p, t])
         , (dit, [k])
         , (kitakina, [k, t, k, n, o, k, t&o, k])
-        , (nakatiku, [n, p, u, p, k, t, p, k])
         , (na.ka, [n, p])
         , (ta.ka.dheem, [p, k, o&d])
         , (ta.ka, [k, p])
