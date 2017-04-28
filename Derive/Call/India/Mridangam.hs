@@ -61,9 +61,7 @@ c_sequence pattern_arg = Derive.generator module_ "sequence" Tags.inst
     \ If `dur` is 0, then stretch to the sequence to fit the event."
     $ Sig.call ((,) <$> pattern_arg <*> dur_arg) $ \(pattern, dur) ->
     Sub.inverting $ \args -> do
-        -- 1/4 because m_sequence scales by 4, since it expects
-        -- Sequence.default_tempo.  TODO this is weird, fix it.
-        let seq = map (1/4,) $ realize_sequence (Args.context args) pattern
+        let seq = map (1,) $ realize_sequence (Args.context args) pattern
         m_sequence seq dur (Args.range args) (Args.orientation args)
 
 realize_sequence :: Derive.Context Score.Event -> Text
@@ -94,9 +92,7 @@ m_sequence notes dur (start, end) orientation = realize $ case orientation of
         place end (-dur) $ cycle (reverse notes)
     where
     place from step = Seq.map_maybe_snd id . snd . List.mapAccumL note from
-        where note t (d, n) = (t + realToFrac d * step * scale, (t, n))
-    -- Sequence.default_tempo has 4 nadai, so each one winds up being 1/4.
-    scale = 4
+        where note t (d, n) = (t + realToFrac d * step, (t, n))
     realize notes =
         mconcat [Derive.place start 0 note | (start, note) <- notes]
 
@@ -181,7 +177,10 @@ infer_pattern dur variation = do
         ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
         (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
-    return $ Realize.tempo_to_duration $ Sequence.flatten notes
+    -- *4 because each note is 1 matra, which is 1/4 Duration, and I want
+    -- duration in matras.
+    return $ map (first (*4)) $ Realize.tempo_to_duration $
+        Sequence.flatten notes
 
 default_variation :: Text
 default_variation = "d"
