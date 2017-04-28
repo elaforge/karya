@@ -463,8 +463,9 @@ load_ky_file _ _ [] = return []
 load_ky_file paths loaded (lib:libs)
     | lib `Set.member` loaded = return []
     | otherwise = do
-        (fname, content) <- tryRight =<< liftIO (find_ky paths lib)
-        (imports, defs) <- tryRight $ parse_ky fname content
+        let prefix = first ((txt lib <> ": ")<>)
+        (fname, content) <- tryRight . prefix =<< liftIO (find_ky paths lib)
+        (imports, defs) <- tryRight . prefix $ parse_ky fname content
         ((defs, (fname, content)) :) <$>
             load_ky_file paths (Set.insert lib loaded) (libs ++ imports)
 
