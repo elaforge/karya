@@ -149,7 +149,7 @@ respond _ (QCompletion prefix) = RCompletion <$>
         rdrs <- GHC.getRdrNamesInScope
         dflags <- GHC.getSessionDynFlags
         return $ filter (prefix `Text.isPrefixOf`) $
-            map (txt . Outputable.showPpr dflags) rdrs
+            Seq.unique_sort $ map (txt . Outputable.showPpr dflags) rdrs
 
 make_response :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
 make_response (val, logs, warns) = case val of
