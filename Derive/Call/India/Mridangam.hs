@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE MultiWayIf #-}
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
 import qualified Data.List as List
@@ -9,16 +10,22 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
@@ -32,17 +39,20 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
-    [ ("seq", c_sequence pattern_arg)
+    [ ("seq", c_sequence sequence_arg)
     , ("p", c_pattern)
+    , ("tir", c_tirmanam)
 
-    -- standard patterns
+    -- standard sequences
     -- There are various other ways to play this.
-    , ("tari", c_sequence (pure "n+u+kt+k")) -- naka tiku tari kita
+    , ("tari", c_sequence (p "n+u+kt+k")) -- naka tiku tari kita
     -- This is the name I use in Solkattu.
-    , ("na", c_sequence (pure "n+u+kt+k"))
-    , ("tk", c_sequence (pure "k+"))
-    , ("tknk", c_sequence (pure "k+n+"))
+    , ("na", c_sequence (p "n+u+kt+k"))
+    , ("tk", c_sequence (p "k+"))
+    , ("tknk", c_sequence (p "k+n+"))
     ]
+    where
+    p = pure . parse_sequence
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
@@ -52,35 +62,25 @@ val_calls = Derive.call_map
 module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
-c_sequence :: Sig.Parser Text -> Derive.Generator Derive.Note
-c_sequence pattern_arg = Derive.generator module_ "sequence" Tags.inst
+c_sequence :: Sig.Parser [Stroke] -> Derive.Generator Derive.Note
+c_sequence sequence_arg = Derive.generator module_ "sequence" Tags.inst
     "Play a sequence of mridangam strokes. Each one takes the given `dur`, and\
     \ if the event is longer than the sequence, it is repeated to fill up\
     \ available space. If a whole cycle doesn't fit, clip from the end for a\
     \ positive event, or from the beginning for a negative one.\
     \ If `dur` is 0, then stretch to the sequence to fit the event."
-    $ Sig.call ((,) <$> pattern_arg <*> dur_arg) $ \(pattern, dur) ->
+    $ Sig.call ((,) <$> sequence_arg <*> dur_arg) $ \(sequence, dur) ->
     Sub.inverting $ \args -> do
-        let seq = map (1,) $ realize_sequence (Args.context args) pattern
+        let seq = map (1,) $ map (realize_stroke (Args.context args)) sequence
         m_sequence seq dur (Args.range args) (Args.orientation args)
 
-realize_sequence :: Derive.Context Score.Event -> Text
-    -> [Maybe Derive.NoteDeriver]
-realize_sequence ctx = map realize . Text.unpack
-    where
-    realize c
-        | c == ' ' || c == '_' = Nothing
-        | otherwise = Just $ do
-            call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
-            Eval.apply_generator ctx call []
-
-pattern_arg :: Sig.Parser Text
-pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
+sequence_arg :: Sig.Parser [Stroke]
+sequence_arg = parse_sequence <$> Sig.required_env "sequence" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
 dur_arg :: Sig.Parser ScoreTime
 dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
-    "Duration for each letter in the pattern. If 0, the pattern will\
+    "Duration for each letter in the sequence. If 0, the sequence will\
     \ stretch to the event's duration."
 
 m_sequence :: [(Sequence.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
@@ -105,6 +105,23 @@ stretch_to_range (start, end) dur_notes =
     (durs, notes) = unzip dur_notes
     factor = (end - start) / realToFrac (sum durs)
 
+-- TODO make this into a Typecheck
+-- actually I think I maybe don't support that?
+parse_sequence :: Text -> [Stroke]
+parse_sequence = map parse . Text.unpack
+    where
+    parse c
+        | c == ' ' || c == '_' = Rest
+        | otherwise = Stroke c
+
+data Stroke = Rest | Stroke Char
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Stroke where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Stroke where
+    show_val Rest = "_"
+    show_val (Stroke c) = Text.singleton c
+
 -- * c_pattern
 
 c_pattern :: Derive.Generator Derive.Note
@@ -120,12 +137,12 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
             maybe_strokes
         notes <- Derive.require_right id $ infer_pattern strokes variation
         notes <- return $
-            map (second (realize_stroke (Args.context args))) notes
+            map (second (realize_mstroke (Args.context args))) notes
         m_sequence notes dur (Args.range args) (Args.orientation args)
 
-realize_stroke :: Derive.Context Score.Event -> Realize.Stroke Mridangam.Stroke
+realize_mstroke :: Derive.Context Score.Event -> Realize.Stroke Mridangam.Stroke
     -> Maybe Derive.NoteDeriver
-realize_stroke ctx = fmap realize . stroke_call
+realize_mstroke ctx = fmap realize . stroke_call
     where
     realize sym = do
         call <- Eval.get_generator sym
@@ -143,6 +160,101 @@ infer_strokes dur event_dur
     | dur > 0 = return $ floor (event_dur / dur)
     | otherwise = Derive.throw "can't infer both number of strokes and\
         \ duration of strokes simultaneously"
+
+-- * c_tirmanam
+
+c_tirmanam :: Derive.Generator Derive.Note
+c_tirmanam = Derive.with_score_duration score_duration $
+    Derive.generator module_ "tir" Tags.inst
+    "Repeat a sequence three times. If the duration is negative, put the first\
+    \ stroke of the karvai at the end time with `{strong}`."
+    $ Sig.call signature $ \(sequence, karvai, matra_dur) ->
+    Sub.inverting $ \args -> do
+        sequence3 <- Derive.require_right id $
+            tirmanam sequence karvai matra_dur (Args.duration args)
+        realize_sequence (Args.context args) (Args.range args) sequence3
+    where
+    signature = (,,)
+        <$> sequence_arg
+        <*> (parse_sequence <$> Sig.defaulted "karvai" ""
+        "Separates each sequence. If it's empty or a single non-rest, then the\
+        \ gap can stretch to an integral number of matras.")
+        <*> dur_arg -- TODO nadai arg?
+    score_duration args = do
+        (sequence, karvai, matra_dur) <- Sig.parse_or_throw signature args
+        return $ Derive.CallDuration $ if
+            | matra_dur == 0 -> Args.duration args
+            | otherwise -> (if Args.negative args then negate else id) $
+                fromIntegral (length sequence * 3 + length karvai * 2)
+                    * matra_dur
+
+realize_sequence :: Derive.Context Score.Event -> (ScoreTime, ScoreTime)
+    -> [(ScoreTime, Stroke)] -> Derive.NoteDeriver
+realize_sequence ctx (start, end) dur_strokes = mconcat
+    [Derive.place t 0 (add_flag t note) | (t, Just note) <- zip starts notes]
+    where
+    add_flag t note
+        | t == end = Call.add_flags Flags.strong note
+        | otherwise = note
+    notes = map (realize_stroke ctx) strokes
+    (durs, strokes) = unzip dur_strokes
+    starts = scanl (+) start durs
+
+tirmanam :: [Stroke] -> [Stroke] -> ScoreTime -> ScoreTime
+    -> Either Text [(ScoreTime, Stroke)]
+tirmanam sequence karvai matra_dur event_dur = (add_final=<<) $ if
+    | matra_dur == 0 ->
+        let p = sequence ++ karvai ++ sequence ++ karvai ++ sequence
+        in return $ map (abs event_dur / fromIntegral (length p),) p
+    | otherwise -> do
+        karvai_durs <- first (("event dur " <> pretty event_dur <> ": ")<>) $
+            stretch_karvai sequence karvai matra_dur (abs event_dur)
+        let p = map (matra_dur,) sequence
+        return $ p ++ karvai_durs ++ p ++ karvai_durs ++ p
+    where
+    add_final sequence
+        | event_dur < 0 = case Seq.head karvai of
+            Just s | s /= Rest -> return $ sequence ++ [(0, s)]
+            _ -> Left "karvai should start with non-rest for a negative event"
+        | otherwise = return sequence
+
+realize_stroke :: Derive.Context Score.Event -> Stroke
+    -> Maybe Derive.NoteDeriver
+realize_stroke _ Rest = Nothing
+realize_stroke ctx (Stroke c) = Just $ do
+    call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
+    Eval.apply_generator ctx call []
+
+stretch_karvai :: [Stroke] -> [Stroke] -> ScoreTime -> ScoreTime
+    -> Either Text [(ScoreTime, Stroke)]
+stretch_karvai sequence karvai matra_dur event_dur = if
+    | matra_dur == 0 -> Left "matra dur of 0" -- caller should stretch
+    | stretch -> if
+        | stretch_dur < 0 -> Left $ "would have to stretch karvai to "
+            <> pretty stretch_dur
+        | not (Num.integral (karvai_dur / matra_dur)) ->
+            Left $ "karvai would have to be " <> pretty (karvai_dur / matra_dur)
+                <> " matras"
+        | otherwise -> case Seq.viewr karvai of
+            Nothing -> Right [(karvai_dur, Rest)]
+            Just (ks, k) ->
+                Right $ map (matra_dur,) ks ++ [(stretch_dur, k)]
+    | to_dur strokes /= event_dur ->
+        Left $ "expected " <> pretty strokes <> "*" <> pretty matra_dur
+            <> " = " <> pretty (to_dur strokes)
+    | otherwise -> Right $ map (matra_dur,) karvai
+    where
+    strokes = length sequence * 3 + length karvai * 2
+    -- Total duration of one karvai.
+    karvai_dur = (event_dur - to_dur (length sequence * 3)) / 2
+    -- The final karvai stroke must be this duration.
+    stretch_dur = karvai_dur - to_dur (max 0 (length karvai - 1))
+    stretch = case karvai of
+        [] -> True
+        [s] | s /= Rest -> True
+        _ -> False
+    to_dur = (*matra_dur) . fromIntegral
+
 
 -- * c_infer_pattern
 

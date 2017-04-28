@@ -136,9 +136,8 @@ fmod = Fixed.mod'
 fDivMod :: (Integral div, RealFrac mod) => mod -> mod -> (div, mod)
 fDivMod a b = (floor (a / b), fmod a b)
 
-isEven, isOdd :: Integral a => a -> Bool
-isEven n = n `mod` 2 == 0
-isOdd = not . isEven
+integral :: RealFrac a => a -> Bool
+integral = (==0) . snd . properFraction
 
 -- | realToFrac doesn't preserve the special float values and is inefficient.
 --

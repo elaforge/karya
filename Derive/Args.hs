@@ -39,6 +39,9 @@ event = Derive.ctx_event . context
 orientation :: PassedArgs a -> Event.Orientation
 orientation = Event.orientation . event
 
+negative :: PassedArgs a -> Bool
+negative = (==Event.Negative) . orientation
+
 -- * prev and next
 
 {- NOTE [previous-pitch]
@@ -268,7 +271,7 @@ set_duration dur args = args
 
 -- ** range
 
--- | Range of the called event, i.e. (start, end).  Note that range is the
+-- | Range of the called event, i.e. (min, max).  Note that range is the
 -- minimum to maximum, which is not the same as the start and end if the event
 -- has negative duration.
 range :: PassedArgs a -> (TrackTime, TrackTime)

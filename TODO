@@ -1630,6 +1630,21 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam:
+      . It would be nice to alternate mridangam and kendang tirmanam, e.g.:
+        mridangam, kendang, both.  But I'd need to either write the tirmanam
+        in solkattu dsl and give it a name, or have a mini solkattu dsl, e.g.
+        with syllable breaking:
+        . tri-mk 'kitakitataka nakadit_ talang_ talang_ ta' lang_
+      . I'd have to have a standard stroke map, but I'm not sure how well that
+        would work in practice.
+      . reyong: takadinna -> cccc, nakadit -> k12, talang -> +O
+        . c = cek, k = kempyung, 0123 -> relative scale degree, .+ -> byut,
+          oO -> byong
+        . I could also have shift up, shift down annotations, like speed or
+          nadai.
+      * india.mridangam: 'tri' call with variable karvai, and an error if it
+        doesn't line up
+        . Maybe 'tri' should be called 'tir' for tirmanam?
       - Perhaps mridangam should automatically transpose the octave to be within
         its range.
         . I can use something like Cmd.Instrument.Bali.wrap
@@ -1646,6 +1661,12 @@ Derive:
           partial ruler, e.g. Realize_test.test_format_nadai_change
         - I could have an 'elide' annotation.  It deletes the previous notes
           so far as they match the next ones.
+          . E.g. tri_ (din.__) p7 . elide . p7.p6.p5
+            or: tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
+              . elide . tri_ (din.__2) (ta.ta.ka.din.na.din)
+          . To keep if from eliding large repeats, it should stop at the
+            shortest match.  But then if it happens to end and start with the
+            same sollu it will just drop that single sollu.
         - Notation {take,drop}M functions get matras via duration_of and
           divide, while matras_of counts matras directly.  I'm not totally
           sure what the difference is and which one is correct.
