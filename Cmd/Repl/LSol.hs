@@ -21,6 +21,7 @@ import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
 import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
 import Types
@@ -66,5 +67,5 @@ strokes_to_events to_call strokes =
     (durs, notes) = unzip $ Realize.tempo_to_duration strokes
     to_text s = case s of
         Realize.Stroke stroke -> Just (to_call stroke, False)
-        Realize.Pattern matras -> Just ("p" <> showt matras, True)
+        Realize.Pattern p -> Just (Solkattu.pattern_to_call p, True)
         Realize.Rest -> Nothing

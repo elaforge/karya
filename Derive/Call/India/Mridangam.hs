@@ -39,7 +39,7 @@ note_calls = Derive.generator_call_map
     -- There are various other ways to play this.
     , ("tari", c_sequence (pure "n+u+kt+k")) -- naka tiku tari kita
     -- This is the name I use in Solkattu.
-    , ("nakatiku", c_sequence (pure "n+u+kt+k"))
+    , ("na", c_sequence (pure "n+u+kt+k"))
     , ("tk", c_sequence (pure "k+"))
     , ("tknk", c_sequence (pure "k+n+"))
     ]
@@ -140,7 +140,7 @@ stroke_call stroke = case stroke of
     Realize.Stroke stroke ->
         Just $ BaseTypes.Symbol $ Mridangam.stroke_to_call stroke
     Realize.Rest -> Nothing
-    Realize.Pattern matras -> Just $ BaseTypes.Symbol $ "p" <> showt matras
+    Realize.Pattern p -> Just $ BaseTypes.Symbol $ Solkattu.pattern_to_call p
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
