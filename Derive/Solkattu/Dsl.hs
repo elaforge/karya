@@ -14,7 +14,7 @@ module Derive.Solkattu.Dsl (
     , karv
 
     , dheem, dhom, di, din, dit, ga, gin, ka, ki
-    , ku, mi, na, nam, ri, ta, tam, tat, tha, thom, ti
+    , ku, mi, na, nam, nang, ri, ta, tam, tat, tha, thom, ti
     , tang, lang
     , dinga
 
@@ -69,6 +69,7 @@ import Global
 (.) = (Monoid.<>)
 infixr 6 . -- same as <>
 
+-- | Composition is still useful though.
 (•) :: (b -> c) -> (a -> b) -> a -> c
 (•) = (Prelude..)
 
@@ -122,6 +123,7 @@ ku = sollu S.Ku
 mi = sollu S.Mi
 na = sollu S.Na
 nam = sollu S.Nam
+nang = sollu S.Nang
 ri = sollu S.Ri
 ta = sollu S.Ta
 tam = sollu S.Tam

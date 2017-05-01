@@ -140,7 +140,7 @@ data Sollu =
     NoSollu -- ^ a dummy sollu for 'Solkattu' with an explicit stroke
     | Dheem | Dhom | Di | Din | Dit
     | Ga | Gin | Ka | Ki | Ku | Lang
-    | Mi | Na | Nam | Ri | Ta | Tam | Tang
+    | Mi | Na | Nam | Nang | Ri | Ta | Tam | Tang
     | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 

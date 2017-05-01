@@ -14,7 +14,6 @@ module Derive.Solkattu.Sequence (
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
-    -- , speed_range
     -- * realize
     , flatten, flatten_with
     , tempo_to_state, tempo_to_duration
