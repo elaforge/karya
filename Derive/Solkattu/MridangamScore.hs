@@ -49,7 +49,16 @@ ganesh_17_02_13 = korvais adi $ map (nadai 6)
     kadin = k.od.__.o&n.__.k.__
     katin = k. d.__.  n.__.k.__
 
--- * sarvalagu, fills
+-- * sarvalaghu
+
+din_nadin :: [Korvai]
+din_nadin = korvais adi
+    [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
+    , faster $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
+    , faster $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    ]
+
+-- ** sarvalaghu fills
 
 namita_dimita_dimi :: [Sequence]
 namita_dimita_dimi =
@@ -217,9 +226,6 @@ eddupu10 = korvais (beats 5)
 
 nang_kita :: Sequence
 nang_kita = o&n . __ . p.k.nakatiku
-
-on :: Sequence
-on = o&n
 
 -- -- * realize
 

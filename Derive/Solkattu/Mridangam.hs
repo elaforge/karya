@@ -22,7 +22,9 @@ data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
 data Thoppi = Tha | Thom
     deriving (Eq, Ord, Show)
-data Valantalai = Ki | Ta | Nam | Din | Chapu | Dheem
+data Valantalai = Ki | Ta
+    | Mi -- ^ light Ki, played with middle finger
+    | Nam | Din | Chapu | Dheem
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
@@ -49,10 +51,11 @@ instance Pretty.Pretty Stroke where
         Tha -> case v of
             Ki -> "P"
             Ta -> "X"
+            Mi -> "pl"
             Nam -> "A"
             Din -> "O"
-            Chapu -> "pu" -- These are pretty rare.
-            Dheem -> "pi"
+            Chapu -> "V"
+            Dheem -> "pi" -- These are pretty rare.
             Kin -> "p,"
             Tan -> "p^"
         Thom -> Text.toUpper (pretty v)
@@ -66,6 +69,7 @@ instance Pretty.Pretty Valantalai where
     pretty n = case n of
         Ki -> "k"
         Ta -> "t"
+        Mi -> "l"
         Nam -> "n"
         Din -> "d"
         Chapu -> "u"
@@ -88,7 +92,7 @@ stroke_to_call s = case s of
         Tha -> "+"
 
 data Strokes a = Strokes {
-    k :: a, t :: a, n :: a, d :: a, u :: a, i :: a
+    k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a
     , y :: a, j :: a
     , p :: a, o :: a
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
@@ -103,6 +107,7 @@ strokes :: Strokes Stroke
 strokes = Strokes
     { k = Valantalai Ki
     , t = Valantalai Ta
+    , l = Valantalai Mi
     , n = Valantalai Nam
     , d = Valantalai Din
     , u = Valantalai Chapu

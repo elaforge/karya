@@ -10,6 +10,7 @@ module Derive.Solkattu.MridangamDsl (
     , (&)
     , korvai
     , k, t, n, d, u, i, y, j, p, o, od
+    , on, l
     , closed
     , module Derive.Solkattu.Dsl
 ) where
@@ -42,10 +43,10 @@ to_stroke seq =
 
 korvai :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvai tala = Korvai.korvai tala
-    (mempty { Korvai.inst_mridangam = mridangam_stroke_map })
+    (mempty { Korvai.inst_mridangam = instrument })
 
-mridangam_stroke_map :: Realize.Instrument Mridangam.Stroke
-mridangam_stroke_map =
+instrument :: Realize.Instrument Mridangam.Stroke
+instrument =
     Solkattu.check $ Mridangam.instrument strokes Mridangam.default_patterns
     where
     strokes =
@@ -55,7 +56,8 @@ mridangam_stroke_map =
 
 mridangam_strokes :: Mridangam.Strokes Sequence
 mridangam_strokes = Mridangam.Strokes
-    { k = Dsl.ki, t = Dsl.ta, n = Dsl.nam, d = Dsl.din
+    { k = Dsl.ki, t = Dsl.ta, l = Dsl.ti
+    , n = Dsl.nam, d = Dsl.din
     , u = Dsl.lang, i = Dsl.dheem
     , y = Dsl.ku, j = Dsl.gin
     , p = Dsl.tha, o = Dsl.thom
@@ -67,9 +69,12 @@ mridangam_strokes = Mridangam.Strokes
 
 Mridangam.Strokes {..} = mridangam_strokes
 
+on :: Sequence
+on = o&n
+
 stroke_map :: Map [Solkattu.Note Mridangam.Stroke] Mridangam.Stroke
 stroke_map = Map.fromList
-    [ (Dsl.ki, k), (Dsl.ta, t), (Dsl.nam, n), (Dsl.din, d)
+    [ (Dsl.ki, k), (Dsl.ta, t), (Dsl.ti, l), (Dsl.nam, n), (Dsl.din, d)
     , (Dsl.lang, u), (Dsl.dheem, i)
     , (Dsl.ku, y), (Dsl.gin, j)
     , (Dsl.tha, p), (Dsl.thom, o)
