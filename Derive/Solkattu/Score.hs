@@ -186,22 +186,26 @@ c_17_03_20 = korvai adi mridangam $ faster $
 
 c_17_04_23 :: [Korvai]
 c_17_04_23 = korvais adi mridangam $ map slower -- remove for melkalam
-    [ purvangam . utarangam p7
-    , purvangam . utarangam (faster (ta.__3.din.__3.gin.__3.na.__3.thom.__2))
+    [ purvangam . utarangam (ta.ka.tdgnt) (ta.ka.tdgnt)
+    , purvangam . utarangam (faster (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
+    , purvangam . faster (r32111 tdgnt . r32111 (ta.ka.tdgnt)
+        . r32111 (ta.ka.na.ka.tdgnt))
     ]
     where
+    r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
     purvangam = tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
         -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
         . dropM 5 (tri_ (din.__2) (ta.ta.ka.din.na))
-    utarangam p7 = mconcat
+    utarangam p7 p7' = mconcat
         [ slower p7 . p7 . faster end
-        | end <- [p7, p7.p7, p7.p7.p7]
+        | end <- [p7', p7'.p7', p7'.p7'.p7']
+        -- TODO some kind of x, xx, xxx function
         ]
-    p7 = ta.ka.tdgnt
     mridangam = make_mridangam $ standard_strokes ++
         [ (ta, [k])
         , (din, [od])
-        , (p7, [k, p, k, t, k, n, o])
+        , (ta.ka.tdgnt, [k, p, k, t, k, n, o])
+        , (ta.ka.na.ka, [k, p, n, p])
         ]
 
 chatusrams :: [Korvai]
@@ -629,8 +633,42 @@ misra_koraippu = korvais adi mridangam $ map faster $ concat
         , (ta.ka.din.na, [k, o, o, k])
         ]
 
+koraippu_janahan :: Korvai
+koraippu_janahan = korvai adi mridangam $ faster $ mconcat
+    [ front1
+        . repeat 4 takita . takadinna
+        . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
+    , front1 . repeat 3 takita . takadinna . tri p5 . thom.__4
+    , front1 . repeat 2 takita . takadinna . tri p6 . thom.__4
+    , front1 . repeat 1 takita . takadinna . tri p7 . thom.__4
+    , front2 . repeat 4 takita2 . faster nakatiku
+        -- . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
+        . faster nang_kita . ta.ka.din.__.tat.__.thom.__4
+    ]
+    where
+    front1 = front (ta.ki.ta) takadinna
+    front2 = front takita2 (faster nakatiku)
+    front takita takadinna =
+        sam.tam.__3.takita.tam.__3.takita.takadinna.takita.takita.tam.__3
+        . takita.takadinna
+    takita = ta.ki.ta
+    takita2 = faster (nang.__.ki.ta.ta.ka)
+    takadinna = ta.ka.din.na
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (tam, [od])
+        , (takita, [n, p, k])
+        , (ta.ka.ta.lang.ga, [p, k, p, u, k])
+        , (ta.ka.din.tat, [o, k, o, k])
+        , (thom, [od])
+        , (nang.ki.ta.ta.ka, [n, k, t, p, k])
+        , (nang.ki.ta, [o&n, p, k])
+        ]
+
 koraippus :: [Korvai]
 koraippus = concat [misra_koraippu]
+
+nang_kita :: Sequence a
+nang_kita = nang . __ . ki.ta.nakatiku
 
 -- * tirmanam
 

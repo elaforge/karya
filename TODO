@@ -3,7 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - make india.mridangam seq call align to the end for -0 dur
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
     . Ideally it could be a modifier to any scale, so it would modify input
@@ -1630,6 +1629,8 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam:
+      - connect kendang and kajar to 'tir' and 'seq' calls.
+      - make india.mridangam seq call align to the end for -0 dur
       . It would be nice to alternate mridangam and kendang tirmanam, e.g.:
         mridangam, kendang, both.  But I'd need to either write the tirmanam
         in solkattu dsl and give it a name, or have a mini solkattu dsl, e.g.
@@ -1657,6 +1658,19 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - bug: formatting messed up with patterns: realizep koraippu_janahan
+        - Can I put StrokeMap and Patterns together?  Then I can put standard
+          strokes along with the stroke map, and override them together.
+        - mridangam patterns can vary by intensity in addition to duration and
+          family
+        - For MridangamDsl, all of the Korvai stuff should be unnecessary
+          except Tala, and the whole sollu to stroke mapping is annoying.
+          Also it makes ppr output not very useful.  If I generalize Sollu
+          out of Solkattu, I can directly replace it with a Stroke and all of
+          that goes away.
+          . Can I cut down on the types by using this for Realize.Stroke as
+            well?  Then I have Alignment... but I want to keep that for
+            MridangamDsl as well.
         - format: if the ruler changes after an avartanam line break, show the
           partial ruler, e.g. Realize_test.test_format_nadai_change
         - I could have an 'elide' annotation.  It deletes the previous notes
