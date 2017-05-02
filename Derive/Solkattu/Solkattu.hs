@@ -73,7 +73,6 @@ import Global
 
 
 type Error = Text
-type Note stroke = S.Note (Solkattu stroke)
 
 data Solkattu stroke =
     Sollu Sollu Karvai (Maybe stroke)
@@ -84,14 +83,21 @@ data Solkattu stroke =
 
 instance Pretty.Pretty stroke => Pretty.Pretty (Solkattu stroke) where
     pretty n = case n of
-        Sollu sollu karvai stroke -> mconcat $ filter (not . Text.null)
+        Sollu NoSollu karvai (Just stroke) -> mconcat
+            [ pretty stroke
+            , pretty_karvai karvai
+            ]
+        Sollu sollu karvai stroke -> mconcat
             [ pretty sollu
-            , if karvai == Karvai then "(k)" else ""
+            , pretty_karvai karvai
             , maybe "" (("!"<>) . pretty) stroke
             ]
         Rest -> "__"
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
+        where
+        pretty_karvai Karvai = "(k)"
+        pretty_karvai NotKarvai = ""
 
 map_stroke :: Functor f => (Maybe a -> Maybe b) -> f (Solkattu a)
     -> f (Solkattu b)
@@ -149,7 +155,7 @@ instance Pretty.Pretty Sollu where
 
 -- * durations
 
-duration_of :: [Note a] -> S.Duration
+duration_of :: [S.Note (Solkattu stroke)] -> S.Duration
 duration_of = sum . map (S.note_duration note_matras S.default_tempo)
 
 -- * functions
@@ -209,7 +215,7 @@ type Variations = [(S.Matra, S.Matra, S.Matra)]
 -- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
 -- orthogonal and could get a different function.
 vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
-    -> [Note stroke] -> [[Note stroke]]
+    -> [S.Note (Solkattu stroke)] -> [[S.Note (Solkattu stroke)]]
 vary allowed_variations notes
     | null modification_groups = [notes]
     | otherwise = map apply modification_groups
@@ -245,7 +251,7 @@ all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-find_triads :: [Note stroke] -> [(S.Matra, (Int, Int, Int))]
+find_triads :: [S.Note (Solkattu stroke)] -> [(S.Matra, (Int, Int, Int))]
 find_triads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst

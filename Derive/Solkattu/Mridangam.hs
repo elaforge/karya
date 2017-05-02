@@ -29,7 +29,7 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-instrument :: [([Solkattu.Note Stroke], [Note])] -> Patterns
+instrument :: [(Realize.Sequence Stroke, [Realize.Note Stroke])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
@@ -130,11 +130,13 @@ both a b = note (Both a b)
 
 (&) :: CallStack.Stack => Note -> Note -> Note
 Sequence.Note (Realize.Stroke a) & Sequence.Note (Realize.Stroke b) =
-    case (a, b) of
-        (Thoppi a, Valantalai b) -> both a b
-        (Valantalai b, Thoppi a) -> both a b
-        _ -> errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+    note (both_strokes a b)
 a & b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+
+both_strokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
+both_strokes (Thoppi a) (Valantalai b) = Both a b
+both_strokes (Valantalai b) (Thoppi a) = Both a b
+both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
 
 -- * patterns

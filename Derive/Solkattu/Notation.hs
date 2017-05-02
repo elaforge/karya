@@ -16,13 +16,15 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Sequence as S
 import Derive.Solkattu.Sequence (Duration, Matra)
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import Derive.Solkattu.Solkattu (Note)
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-type Sequence a = [Note a]
+-- Unlike everywhere else except some Utils, I use camelCase in here.  Since
+-- this is for a DSL, I try to save horizontal space.
+
+type Sequence stroke = [S.Note (Solkattu.Solkattu stroke)]
 
 -- * by Duration
 
@@ -85,13 +87,13 @@ takeM matras = takeD (fromIntegral matras * matra_duration)
 rtakeM :: Matra -> Sequence stroke -> Sequence stroke
 rtakeM matras = reverse . takeM matras . reverse
 
-matras_of :: (CallStack.Stack, Pretty.Pretty stroke) => Sequence stroke -> Matra
-matras_of = Solkattu.check . matras_of_e
+matrasOf :: (CallStack.Stack, Pretty.Pretty stroke) => Sequence stroke -> Matra
+matrasOf = Solkattu.check . matrasOfE
 
 -- | Get the number of sollu-matras.  Whether or not this corresponds to
 -- tala matras depends on the speed.
-matras_of_e :: [Note a] -> Either Text S.Matra
-matras_of_e = integral <=< justErr "nadai change" . of_sequence
+matrasOfE :: Sequence a -> Either Text S.Matra
+matrasOfE = integral <=< justErr "nadai change" . of_sequence
     where
     integral dur
         | frac == 0 = Right matras
@@ -115,10 +117,10 @@ reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 reduceTo :: (CallStack.Stack, Pretty.Pretty stroke) => Matra -> Matra
     -> Sequence stroke -> Sequence stroke
 reduceTo by to seq
-    | (matras_of seq - to) `mod` by /= 0 =
-        errorStack $ showt (matras_of seq) <> " can't reduce by "
+    | (matrasOf seq - to) `mod` by /= 0 =
+        errorStack $ showt (matrasOf seq) <> " can't reduce by "
             <> showt by <> " to " <> showt to
-    | otherwise = mconcat $ takeWhile ((>=to) . matras_of) $
+    | otherwise = mconcat $ takeWhile ((>=to) . matrasOf) $
         iterate (dropM by) seq
 
 -- | Reduce by dropping the end.

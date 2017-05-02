@@ -1663,7 +1663,7 @@ Derive:
           strokes along with the stroke map, and override them together.
         - mridangam patterns can vary by intensity in addition to duration and
           family
-        - For MridangamDsl, all of the Korvai stuff should be unnecessary
+        * For MridangamDsl, all of the Korvai stuff should be unnecessary
           except Tala, and the whole sollu to stroke mapping is annoying.
           Also it makes ppr output not very useful.  If I generalize Sollu
           out of Solkattu, I can directly replace it with a Stroke and all of
@@ -1671,6 +1671,12 @@ Derive:
           . Can I cut down on the types by using this for Realize.Stroke as
             well?  Then I have Alignment... but I want to keep that for
             MridangamDsl as well.
+          . I can't generalize Solkattu.Solkattu to replace Sollu because then
+            I can't do cancel_karvai.  I can generalize Solkattu.Solkattu's
+            Sollu to put a Stroke in there, but then all the Korvai.realize
+            stuff does't work and it seems like a pain to redo that.  Instead,
+            I just use NoSollu and have pretty not show that, and it's much
+            simpler and almost as good.
         - format: if the ruler changes after an avartanam line break, show the
           partial ruler, e.g. Realize_test.test_format_nadai_change
         - I could have an 'elide' annotation.  It deletes the previous notes

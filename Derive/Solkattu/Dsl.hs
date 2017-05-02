@@ -53,7 +53,7 @@ import Util.Pretty (pprint)
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai)
 import Derive.Solkattu.Mridangam ((&))
-import Derive.Solkattu.Notation
+import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Solkattu as S
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -63,6 +63,8 @@ import Derive.Solkattu.Solkattu (check, duration_of)
 
 import Global
 
+
+type Sequence stroke = [Sequence.Note (S.Solkattu stroke)]
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a

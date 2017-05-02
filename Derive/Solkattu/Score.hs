@@ -14,13 +14,15 @@ import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-type Seq = Sequence Korvai.Stroke
+type Seq = Sequence Korvai.Stroke -- TODO get rid of this?
+type Sequence stroke = [Sequence.Note (Solkattu.Solkattu stroke)]
 
 Mridangam.Strokes {..} = Mridangam.notes
 
@@ -230,8 +232,8 @@ make_k1_1 pt gap = make_k1 $
         6 -> p666 end_gap
         _ -> p765 end_gap
     where
-    pdur = matras_of pt
-    end_gap = __n (5 - matras_of gap)
+    pdur = matrasOf pt
+    end_gap = __n (5 - matrasOf gap)
 
 k1_1s :: [Korvai]
 k1_1s = [make_k1_1 p g | g <- gaps, p <- [pat 5, pat 6, pat 7]]

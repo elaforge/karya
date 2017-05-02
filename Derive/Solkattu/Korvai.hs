@@ -16,7 +16,7 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence = [Solkattu.Note Stroke]
+type Sequence = [Sequence.Note (Solkattu.Solkattu Stroke)]
 
 -- * korvai
 

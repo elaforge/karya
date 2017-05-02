@@ -7,6 +7,7 @@ import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (faster, nadai)
 import qualified Derive.Solkattu.Notation as Notation
+
 import Global
 
 
@@ -14,7 +15,7 @@ di, ta, ka, ki :: Notation.Sequence ()
 (di, ta, ka, ki) = (Dsl.di, Dsl.ta, Dsl.ka, Dsl.ki)
 
 test_matras_of = do
-    let f = Notation.matras_of_e
+    let f = Notation.matrasOfE
     equal (f Dsl.p5) (Right 5)
     equal (f (ta <> ka)) (Right 2)
     equal (f (di <> faster (ta <> ka))) (Right 2)
