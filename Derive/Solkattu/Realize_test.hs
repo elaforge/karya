@@ -149,23 +149,27 @@ test_format_ruler = do
         )
 
 test_format_lines = do
-    let f width tala = fmap (extract . Realize.format_lines 2 width tala . fst)
-            . realize True tala
+    let f stroke_width width tala =
+            fmap (extract . Realize.format_lines stroke_width width tala . fst)
+            . realize False tala
         extract = map (map (Text.strip . mconcat . map snd))
     let tas n = Dsl.repeat n ta
-    equal (f 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
+    equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
 
     -- Even aksharas break in the middle.
-    equal (f 14 tala4 (tas 8)) $ Right [["k k k k", "k k k k"]]
+    equal (f 2 14 tala4 (tas 8)) $ Right [["k k k k", "k k k k"]]
     -- Uneven ones break before the width.
-    equal (f 24 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 24 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k k k k k k k k k"]]
-    equal (f 20 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 20 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k k k k k", "k k k k"]]
-    equal (f 10 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 10 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
-    equal (f 1 Tala.rupaka_fast (tas (4 * 3))) $
+    equal (f 2 1 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
+
+    equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4--"]]
+    equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
 
 test_format_break_lines = do
     let run width =

@@ -1658,7 +1658,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - bug: formatting messed up with patterns: realizep koraippu_janahan
+        * bug: formatting messed up with patterns: realizep koraippu_janahan
+          . Because I get p7----- when stroke_width=2.
         - Can I put StrokeMap and Patterns together?  Then I can put standard
           strokes along with the stroke map, and override them together.
         - mridangam patterns can vary by intensity in addition to duration and

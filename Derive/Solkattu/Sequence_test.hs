@@ -46,8 +46,12 @@ test_normalize_speed = do
     equal (f [nadai 5 [n 1, n 1]]) [((0, 0), '+'), ((0, 1/5), '+')]
     equal (f [n 2, n 1]) [((0, 0), '+'), ((0, 1/4), '-'), ((0, 2/4), '+')]
     equal (f [faster [n 1], n 2])
-        [((0, 0), '+'), ((0, 1/8), '+'), ((0, 2/8), '-')]
-    equal (map snd $ f [faster [faster [n 1]], n 2]) "++-__"
+        [ ((0, 0), '+')
+        , ((0, 1/8), '+'), ((0, 2/8), '-'), ((0, 3/8), '-'), ((0, 4/8), '-')
+        ]
+    equal (map snd $ f [faster [faster [n 1]], n 1]) "++___"
+
+    equal (map snd $ f [slower [n 1, n 2, n 1]]) "+_+---+_"
 
 pretty_stroke :: Sequence.Stroke a -> Char
 pretty_stroke s = case s of

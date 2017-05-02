@@ -101,6 +101,12 @@ tempo_to_state note_matras tala = snd . List.mapAccumL process initial_state
 data Stroke a = Attack a | Sustain | Rest
     deriving (Show, Eq)
 
+instance Pretty.Pretty a => Pretty.Pretty (Stroke a) where
+    pretty s = case s of
+        Attack a -> pretty a
+        Sustain -> "-"
+        Rest -> "_"
+
 -- | Normalize to the fastest speed, then mark position in the Tala.
 normalize_speed :: (a -> Matra) -> Tala.Tala -> [(Tempo, a)]
     -> [(State, Stroke a)]
@@ -120,9 +126,14 @@ flatten_speed :: (a -> Matra) -> [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
 flatten_speed note_matras notes = (concatMap flatten notes, min_dur)
     where
     flatten (tempo, note) = map (nadai tempo,) $
-        Attack note : replicate (note_matras note - 1) Sustain
-            ++ replicate (space - note_matras note) Rest
-        where space = 2 ^ (max_speed - speed tempo)
+        Attack note : replicate (spaces - 1)
+            (if has_duration then Sustain else Rest)
+        where
+        spaces = note_matras note * 2 ^ (max_speed - speed tempo)
+        -- I don't actually distinguish between 0 dur and >0 dur notes, but
+        -- in practice only note_matras > 1 notes should be drawn with
+        -- a sustain line.
+        has_duration = note_matras note > 1
     -- The smallest duration is a note at max speed.
     min_dur = 1 / speed_factor max_speed
     max_speed = maximum $ 0 : map (speed . fst) notes

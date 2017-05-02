@@ -39,8 +39,8 @@ module Derive.Solkattu.Dsl (
     -- * realize
     , realize_instrument, many
 ) where
-import Prelude hiding ((.), (^), repeat)
 import qualified Prelude
+import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
@@ -55,11 +55,11 @@ import Derive.Solkattu.Korvai (Korvai)
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Solkattu as S
 import qualified Derive.Solkattu.Sequence as Sequence
 import Derive.Solkattu.Sequence (Duration, Matra, Nadai)
-import Derive.Solkattu.Tala (Akshara)
+import qualified Derive.Solkattu.Solkattu as S
 import Derive.Solkattu.Solkattu (check, duration_of)
+import Derive.Solkattu.Tala (Akshara)
 
 import Global
 
