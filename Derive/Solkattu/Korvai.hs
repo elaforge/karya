@@ -44,28 +44,24 @@ korvai tala instruments sequence = Korvai
 data GetInstrument stroke = GetInstrument {
     get_realization :: Instruments -> Realize.Instrument stroke
     , get_stroke :: Stroke -> Maybe stroke
-    , get_stroke_to_call :: stroke -> Text
     }
 
 mridangam :: GetInstrument Mridangam.Stroke
 mridangam = GetInstrument
     { get_realization = inst_mridangam
     , get_stroke = s_mridangam
-    , get_stroke_to_call = Mridangam.stroke_to_call
     }
 
 kendang_tunggal :: GetInstrument KendangTunggal.Stroke
 kendang_tunggal = GetInstrument
     { get_realization = inst_kendang_tunggal
     , get_stroke = s_kendang_tunggal
-    , get_stroke_to_call = KendangTunggal.stroke_to_call
     }
 
 reyong :: GetInstrument Reyong.Stroke
 reyong = GetInstrument
     { get_realization = inst_reyong
     , get_stroke = s_reyong
-    , get_stroke_to_call = Reyong.stroke_to_call
     }
 
 -- | Realize a Korvai on a particular instrument.

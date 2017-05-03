@@ -11,8 +11,10 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbol as Symbol
+
 import Global
 
 
@@ -84,15 +86,15 @@ instance Pretty.Pretty Valantalai where
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
 -- the keyword @do@.  It would be nice if I could make the tracklang syntax
 -- consistent, but maybe not a huge deal at the moment.
-stroke_to_call :: Stroke -> Text
-stroke_to_call s = case s of
-    Thoppi t -> thoppi t
-    Valantalai v -> pretty v
-    Both t v -> pretty v <> thoppi t
-    where
-    thoppi t = case t of
-        Thom -> "o"
-        Tha -> "+"
+instance Symbol.ToCall Stroke where
+    to_call s = Symbol.Symbol $ case s of
+        Thoppi t -> thoppi t
+        Valantalai v -> pretty v
+        Both t v -> pretty v <> thoppi t
+        where
+        thoppi t = case t of
+            Thom -> "o"
+            Tha -> "+"
 
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a

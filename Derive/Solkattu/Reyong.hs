@@ -6,10 +6,12 @@
 -- | Realize an abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Reyong where
 import qualified Data.Map as Map
+
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbol as Symbol
 
 import Global
 
@@ -36,17 +38,17 @@ instance Pretty.Pretty Stroke where
         CekC -> "k"
         CekO -> "x"
 
-stroke_to_call :: Stroke -> Text
-stroke_to_call s = case s of
-    N1 -> "r1"
-    N2 -> "r2"
-    N3 -> "r3"
-    N4 -> "r4"
-    N14 -> "r14"
-    Byut -> "+"
-    Byong -> "O"
-    CekC -> "X"
-    CekO -> "/"
+instance Symbol.ToCall Stroke where
+    to_call s = case s of
+        N1 -> "r1"
+        N2 -> "r2"
+        N3 -> "r3"
+        N4 -> "r4"
+        N14 -> "r14"
+        Byut -> "+"
+        Byong -> "O"
+        CekC -> "X"
+        CekO -> "/"
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a

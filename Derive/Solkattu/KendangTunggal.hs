@@ -6,10 +6,13 @@
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.KendangTunggal where
 import qualified Data.Map as Map
+
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbol as Symbol
+
 import Global
 
 
@@ -47,17 +50,17 @@ instance Pretty.Pretty Stroke where
         Tut -> "o"
         Dag -> "a"
 
--- | TODO should I make these consistent?
-stroke_to_call :: Stroke -> Text
-stroke_to_call s = case s of
-    Plak -> "PL"
-    Pak -> "P"
-    Pang -> "T"
-    TutL -> "Ø"
-    DagL -> "`O+`"
-    Ka -> ".."
-    Tut -> "o"
-    Dag -> "+"
+-- | TODO should I make these consistent with 'Strokes'?
+instance Symbol.ToCall Stroke where
+    to_call s = case s of
+        Plak -> "PL"
+        Pak -> "P"
+        Pang -> "T"
+        TutL -> "Ø"
+        DagL -> "`O+`"
+        Ka -> ".."
+        Tut -> "o"
+        Dag -> "+"
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a

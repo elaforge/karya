@@ -2360,7 +2360,7 @@ planning / research
         them.  If I turn the whole thing into one call, then I can still fit it
         into a global timeline, and apply transformations or tempo there.
       . If there is meter information in the text score, I can derive a ruler.
-    . Perhaps I should have a ToCall class, for types which can turn into
+    * Perhaps I should have a ToCall class, for types which can turn into
       tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
     . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
       have per_octave built-in, but I could still use Int for generic cases.

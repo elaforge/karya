@@ -31,6 +31,7 @@ import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbol as Symbol
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -150,10 +151,9 @@ realize_mstroke ctx = fmap realize . stroke_call
 
 stroke_call :: Realize.Stroke Mridangam.Stroke -> Maybe BaseTypes.CallId
 stroke_call stroke = case stroke of
-    Realize.Stroke stroke ->
-        Just $ BaseTypes.Symbol $ Mridangam.stroke_to_call stroke
+    Realize.Stroke stroke -> Just $ Symbol.to_call stroke
     Realize.Rest -> Nothing
-    Realize.Pattern p -> Just $ BaseTypes.Symbol $ Solkattu.pattern_to_call p
+    Realize.Pattern p -> Just $ Symbol.to_call p
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
@@ -275,7 +275,8 @@ variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
 to_pattern :: [Realize.Stroke Mridangam.Stroke] -> Either Text Text
 to_pattern = fmap mconcat . traverse convert
     where
-    convert (Realize.Stroke stroke) = Right $ Mridangam.stroke_to_call stroke
+    convert (Realize.Stroke stroke) =
+        Right $ Symbol.unsym $ Symbol.to_call stroke
     convert Realize.Rest = Right "_"
     convert (Realize.Pattern matras) = Left $
         "pattern with another p" <> showt matras <> " can't go in a string"

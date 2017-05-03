@@ -69,6 +69,8 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Tala as Tala
+import qualified Derive.Symbol as Symbol
+
 import Global
 
 
@@ -127,16 +129,11 @@ data Pattern =
     | Nakatiku
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Pattern where pretty = pattern_to_call
+instance Pretty.Pretty Pattern where pretty = Symbol.unsym . Symbol.to_call
 
--- | This is the Pattern equivalent of
--- 'Derive.Solkattu.Mridangam.stroke_to_call'.  Since it doesn't have
--- individual strokes it's not instrument specific.
---
--- This should return BaseTypes.CallId but I don't want the dependency.
-pattern_to_call :: Pattern -> Text
-pattern_to_call (PatternM matras) = "p " <> showt matras
-pattern_to_call Nakatiku = "na"
+instance Symbol.ToCall Pattern where
+    to_call (PatternM matras) = Symbol.Symbol $ "p " <> showt matras
+    to_call Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the
 -- rest.  Otherwise, it will be replaced by a note.

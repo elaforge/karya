@@ -21,7 +21,7 @@ import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
 import qualified Derive.Solkattu.Sequence as Sequence
-import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbol as Symbol
 
 import Global
 import Types
@@ -37,8 +37,8 @@ insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert_r = insert Korvai.reyong
 
 -- | Insert the korvai at the selection, realized for mridangam.
-insert :: (Pretty.Pretty stroke, Cmd.M m) => Korvai.GetInstrument stroke
-    -> Bool -> TrackTime -> Korvai.Korvai -> m ()
+insert :: (Symbol.ToCall stroke, Pretty.Pretty stroke, Cmd.M m) =>
+    Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert instrument realize_patterns akshara_dur korvai = do
     (_, _, track_id, at) <- Selection.get_insert
     let place = (Event.start_ %= ((+at) . (*akshara_dur)))
@@ -48,27 +48,26 @@ insert instrument realize_patterns akshara_dur korvai = do
     Ui.remove_events track_id events
     Ui.insert_events track_id events
 
-realize_korvai :: (Pretty.Pretty stroke, Ui.M m) =>
+realize_korvai :: (Symbol.ToCall stroke, Pretty.Pretty stroke, Ui.M m) =>
     Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai
     -> m Events.Events
 realize_korvai instrument realize_patterns korvai = do
     (strokes, warning) <- Ui.require_right id $
         Korvai.realize instrument realize_patterns korvai
     unless (Text.null warning) $ Ui.throw warning
-    return $ Events.from_list $
-        strokes_to_events (Korvai.get_stroke_to_call instrument) strokes
+    return $ Events.from_list $ strokes_to_events strokes
 
-strokes_to_events :: (a -> Event.Text) -> [(Sequence.Tempo, Realize.Stroke a)]
+strokes_to_events :: Symbol.ToCall a => [(Sequence.Tempo, Realize.Stroke a)]
     -> [Event.Event]
-strokes_to_events to_call strokes =
+strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
-        text
-    | (start, dur, Just (text, has_dur)) <- zip3 starts durs (map to_text notes)
+        (Symbol.unsym call)
+    | (start, dur, Just (call, has_dur)) <- zip3 starts durs (map to_call notes)
     ]
     where
     starts = scanl (+) 0 durs
     (durs, notes) = unzip $ Realize.tempo_to_duration strokes
-    to_text s = case s of
-        Realize.Stroke stroke -> Just (to_call stroke, False)
-        Realize.Pattern p -> Just (Solkattu.pattern_to_call p, True)
+    to_call s = case s of
+        Realize.Stroke stroke -> Just (Symbol.to_call stroke, False)
+        Realize.Pattern p -> Just (Symbol.to_call p, True)
         Realize.Rest -> Nothing

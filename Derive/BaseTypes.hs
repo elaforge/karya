@@ -28,13 +28,15 @@
     > signal    Signal.Control            PSignal.PSignal
     > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
 -}
-module Derive.BaseTypes where
+module Derive.BaseTypes (
+    module Derive.BaseTypes
+    , Symbol(..), unsym, CallId
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
@@ -47,6 +49,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
+import Derive.Symbol (Symbol(..), unsym, CallId)
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -443,14 +446,6 @@ instance ShowVal.ShowVal Quoted where
     show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
 instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
 
-newtype Symbol = Symbol Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
-        Serialize.Serialize, ShowVal.ShowVal)
-instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
-
-unsym :: Symbol -> Text
-unsym (Symbol sym) = sym
-
 -- | Show a symbol intended for call position.  Call position is special in
 -- that it can contain any character except space and equals without quoting.
 show_call_val :: Val -> Text
@@ -551,10 +546,6 @@ constant_control :: Signal.Y -> ControlRef
 constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
 
 -- ** Call
-
--- | Symbols used in function call position.  This is just to document that
--- a symbol is expected to be looked up in the scope.
-type CallId = Symbol
 
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = NonEmpty Call
