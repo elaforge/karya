@@ -18,6 +18,9 @@ import Global
 
 type Note = Sequence.Note (Realize.Stroke Stroke)
 
+note :: stroke -> Realize.Note stroke
+note = Sequence.Note . Realize.Stroke
+
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
 data Thoppi = Tha | Thom
@@ -119,9 +122,6 @@ strokes = Strokes
     , od = Both Thom Din
     }
 
-note :: stroke -> Realize.Note stroke
-note = Sequence.Note . Realize.Stroke
-
 notes :: Strokes Note
 notes = note <$> strokes
 
@@ -162,6 +162,11 @@ default_patterns = Solkattu.check $ patterns
     , (8, [k, t, __, k, __, n, __, o])
     , (9, [k, __, t, __, k, __, n, __, o])
     ]
+    where Strokes {..} = notes
+
+default_patterns_emphasis :: Patterns
+default_patterns_emphasis =
+    Realize.map_patterns (map $ \s -> if s == t then i else s) default_patterns
     where Strokes {..} = notes
 
 kt_kn_o :: Patterns

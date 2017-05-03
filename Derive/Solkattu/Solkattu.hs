@@ -135,7 +135,7 @@ instance Pretty.Pretty Pattern where pretty = pattern_to_call
 --
 -- This should return BaseTypes.CallId but I don't want the dependency.
 pattern_to_call :: Pattern -> Text
-pattern_to_call (PatternM matras) = "p" <> showt matras
+pattern_to_call (PatternM matras) = "p " <> showt matras
 pattern_to_call Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the

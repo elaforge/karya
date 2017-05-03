@@ -14,6 +14,7 @@ import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Reyong as Reyong
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
@@ -170,7 +171,7 @@ c_17_02_06 = korvai adi mridangam $
         ]
 
 c_17_03_20 :: Korvai
-c_17_03_20 = korvai adi mridangam $ faster $
+c_17_03_20 = korvai adi (mridangam <> kendang <> reyong) $ faster $
     reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
         -- . slower (slower td_gnt) . slower td_gnt . tri_ (__2.ga) td_gnt
         . slower (slower p6) . slower p6 . tri_ (__2.ga) p6
@@ -183,8 +184,28 @@ c_17_03_20 = korvai adi mridangam $ faster $
         , (dit, [k])
         , (ta.lang.ga, [o, u, k])
         , (ga, [o]) -- TODO soft
-        , (din.na, [o ,k])
+        , (din.na, [o, k])
         ]
+    kendang = make_kendang1
+        [ (tat, [p])
+        , (ta.ka, [p, k])
+        , (na.ka.dit, [t, o, p])
+        , (dit, [p])
+        , (ta.lang.ga, [o, u, p])
+        , (ga, [a])
+        , (ta.ka.din.na, [p, a, o, p])
+        , (din.na, [o, p])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+    reyong = make_reyong
+        [ (tat, [b])
+        , (ta.ka, [k, k])
+        , (na.ka.dit, [i, r2, r3])
+        , (dit, [r3])
+        , (ta.lang.ga, [b, o, b])
+        , (ga, [b])
+        , (ta.ka.din.na, [x, k, k, k])
+        , (din.na, [k, k])
+        ] where Reyong.Strokes {..} = Reyong.notes
 
 c_17_04_23 :: [Korvai]
 c_17_04_23 = korvais adi mridangam $ map slower -- remove for melkalam
@@ -648,6 +669,7 @@ koraippu_janahan = korvai adi mridangam $ faster $ mconcat
         . faster nang_kita . ta.ka.din.__.tat.__.thom.__4
     ]
     where
+    -- TODO surely there's a better way to replace takita and takadinna?
     front1 = front (ta.ki.ta) takadinna
     front2 = front takita2 (faster nakatiku)
     front takita takadinna =
@@ -733,7 +755,15 @@ make_kendang1 :: CallStack.Stack =>
     -> Korvai.Instruments
 make_kendang1 strokes = mempty
     { Korvai.inst_kendang_tunggal = check $
-        KendangTunggal.instrument strokes KendangTunggal.defaults
+        KendangTunggal.instrument strokes KendangTunggal.default_patterns
+    }
+
+make_reyong :: CallStack.Stack =>
+    [(Sequence Reyong.Stroke, [Reyong.Note])]
+    -> Korvai.Instruments
+make_reyong strokes = mempty
+    { Korvai.inst_reyong = check $
+        Reyong.instrument strokes Reyong.rhythmic_patterns
     }
 
 korvais :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Seq]
@@ -755,3 +785,6 @@ realize_ = realize_instrument Korvai.mridangam
 
 realize_k1 :: Bool -> Korvai.Korvai -> IO ()
 realize_k1 = realize_instrument Korvai.kendang_tunggal
+
+realize_r :: Bool -> Korvai.Korvai -> IO ()
+realize_r = realize_instrument Korvai.reyong

@@ -1629,7 +1629,10 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam:
-      - connect kendang and kajar to 'tir' and 'seq' calls.
+      - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
+        dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
+        emphasis.
+      - connect kendang, reyong, etc. to 'tir' and 'seq' calls.
       - make india.mridangam seq call align to the end for -0 dur
       . It would be nice to alternate mridangam and kendang tirmanam, e.g.:
         mridangam, kendang, both.  But I'd need to either write the tirmanam
@@ -1638,7 +1641,7 @@ Derive:
         . tri-mk 'kitakitataka nakadit_ talang_ talang_ ta' lang_
       . I'd have to have a standard stroke map, but I'm not sure how well that
         would work in practice.
-      . reyong: takadinna -> cccc, nakadit -> k12, talang -> +O
+      . reyong: takadinna -> cccc, nakadit -> i12, talang -> +O
         . c = cek, k = kempyung, 0123 -> relative scale degree, .+ -> byut,
           oO -> byong
         . I could also have shift up, shift down annotations, like speed or
@@ -1654,16 +1657,32 @@ Derive:
         velocity it's like the same dynamic for all strokes.
         . Or I could make + be 0.5, and * be full volume.
       - perhaps only pitched notes should change with the tuning?
-      - built-in sarvalaghu patterns
+      sarvalaghu
+        - get them from Score or MridangamScore.
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        reyong realization:
+          - some way to select between melodic and rythmic realization, and
+            transposition for melodic
+          - implement r1 etc. calls in bali.reyong.solkattu
+        - Emphasis or automatic variant versions of patterns, e.g.
+          . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
+            pu_ pu_ ktkto
+          . The emphasis note can be i, or pu, or maybe u, or p+u (play like
+            kre on pakhawaj).
+        - Mridangam patterns can vary by intensity in addition to duration and
+          family. How can I represent and realize that?  E.g. the final of
+          a group of three can be higher intensity.
+          . It can also be a variant pattern, e.g.
+            k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
+        - Notate Janahan's version of koraippu_janahan.  If I can get a lot
+          of realizations for standard sollus maybe I can start to recognize
+          styles and get an automatic system for deriving strokes.
         * bug: formatting messed up with patterns: realizep koraippu_janahan
           . Because I get p7----- when stroke_width=2.
         - Can I put StrokeMap and Patterns together?  Then I can put standard
           strokes along with the stroke map, and override them together.
-        - mridangam patterns can vary by intensity in addition to duration and
-          family
         * For MridangamDsl, all of the Korvai stuff should be unnecessary
           except Tala, and the whole sollu to stroke mapping is annoying.
           Also it makes ppr output not very useful.  If I generalize Sollu
@@ -1705,6 +1724,7 @@ Derive:
           note spans a beat.  I should first normalize to matras.
         * format could combine rests to avoid k___ type stuff.
         - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
+          . use this in koraippu_janahan
         / I think I need an absolute SetSpeed, so I can pad a number of
           aksharas, regardless of the speed.
           . I also need it to rest by Duration, or to turn that into matras.
@@ -1810,7 +1830,8 @@ Derive:
           thali / khali.
         alternate realization
           - kendang pasangan
-          - reyong
+          - kajar
+          * reyong
           - gangsa / marimba
         ? Crazy idea: it might be nice to use underline or double underline
           for faster.  Is there a way I could get the editor to display

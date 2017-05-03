@@ -9,6 +9,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Reyong as Reyong
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
@@ -60,6 +61,13 @@ kendang_tunggal = GetInstrument
     , get_stroke_to_call = KendangTunggal.stroke_to_call
     }
 
+reyong :: GetInstrument Reyong.Stroke
+reyong = GetInstrument
+    { get_realization = inst_reyong
+    , get_stroke = s_reyong
+    , get_stroke_to_call = Reyong.stroke_to_call
+    }
+
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
     -> Either Text ([(Sequence.Tempo, Realize.Stroke stroke)], Text)
@@ -87,31 +95,35 @@ vary modify korvai =
 data Instruments = Instruments {
     inst_mridangam :: Realize.Instrument Mridangam.Stroke
     , inst_kendang_tunggal :: Realize.Instrument KendangTunggal.Stroke
+    , inst_reyong :: Realize.Instrument Reyong.Stroke
     } deriving (Eq, Show)
 
 instance Monoid Instruments where
-    mempty = Instruments mempty mempty
-    mappend (Instruments a1 a2) (Instruments b1 b2) =
-        Instruments (a1<>b1) (a2<>b2)
+    mempty = Instruments mempty mempty mempty
+    mappend (Instruments a1 a2 a3) (Instruments b1 b2 b3) =
+        Instruments (a1<>b1) (a2<>b2) (a3<>b3)
 
 instance Pretty.Pretty Instruments where
-    format (Instruments mridangam kendang_tunggal) =
+    format (Instruments mridangam kendang_tunggal reyong) =
         Pretty.record "Instruments"
             [ ("mridangam", Pretty.format mridangam)
             , ("kendang_tunggal", Pretty.format kendang_tunggal)
+            , ("reyong", Pretty.format reyong)
             ]
 
 data Stroke = Stroke {
     s_mridangam :: !(Maybe Mridangam.Stroke)
     , s_kendang_tunggal :: !(Maybe KendangTunggal.Stroke)
+    , s_reyong :: !(Maybe Reyong.Stroke)
     } deriving (Eq, Ord, Show)
 
 instance Monoid Stroke where
-    mempty = Stroke Nothing Nothing
-    mappend (Stroke a1 a2) (Stroke b1 b2) = Stroke (a1<|>b1) (a2<|>b2)
+    mempty = Stroke Nothing Nothing Nothing
+    mappend (Stroke a1 a2 a3) (Stroke b1 b2 b3) =
+        Stroke (a1<|>b1) (a2<|>b2) (a3<|>b3)
 
 instance Pretty.Pretty Stroke where
-    pretty (Stroke m k) = pretty (m, k)
+    pretty (Stroke m k r) = pretty (m, k, r)
 
 class ToStroke stroke where
     to_stroke :: stroke -> Stroke

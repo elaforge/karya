@@ -33,6 +33,9 @@ insert_m = insert Korvai.mridangam
 insert_k1 :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert_k1 = insert Korvai.kendang_tunggal
 
+insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
+insert_r = insert Korvai.reyong
+
 -- | Insert the korvai at the selection, realized for mridangam.
 insert :: (Pretty.Pretty stroke, Cmd.M m) => Korvai.GetInstrument stroke
     -> Bool -> TrackTime -> Korvai.Korvai -> m ()

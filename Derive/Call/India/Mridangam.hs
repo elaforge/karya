@@ -289,7 +289,7 @@ infer_pattern dur variation = do
         ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
         (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
-    -- *4 because each note is 1 matra, which is 1/4 Duration, and I want
+    -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
     return $ map (first (*4)) $ Realize.tempo_to_duration $
         Sequence.flatten notes

@@ -71,6 +71,10 @@ patterns pairs
 lookup_pattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [Note stroke]
 lookup_pattern p (Patterns pmap) = Map.lookup p pmap
 
+map_patterns :: ([Note stroke] -> [Note stroke]) -> Patterns stroke
+    -> Patterns stroke
+map_patterns f (Patterns p) = Patterns (f <$> p)
+
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
