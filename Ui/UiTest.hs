@@ -366,7 +366,10 @@ type NoteSpec = (Text, [EventSpec], [(Text, [(ScoreTime, Text)])])
 
 note_spec :: NoteSpec -> [TrackSpec]
 note_spec (inst, pitches, controls) =
-    note_track : pitch_track : map control_track controls
+    -- Filter empty tracks.  Otherwise an empty pitch track will override #=.,
+    -- which will be confusing.
+    filter (not . null . snd) $
+        note_track : pitch_track : map control_track controls
     where
     note_track = (">" <> inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
     pitch_track =
