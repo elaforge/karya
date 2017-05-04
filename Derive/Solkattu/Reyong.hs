@@ -40,11 +40,11 @@ instance Pretty.Pretty Stroke where
 
 instance Symbol.ToCall Stroke where
     to_call s = case s of
-        N1 -> "r1"
-        N2 -> "r2"
-        N3 -> "r3"
-        N4 -> "r4"
-        N14 -> "r14"
+        N1 -> "n1"
+        N2 -> "n2"
+        N3 -> "n3"
+        N4 -> "n4"
+        N14 -> "n14"
         Byut -> "+"
         Byong -> "O"
         CekC -> "X"

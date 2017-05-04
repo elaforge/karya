@@ -328,3 +328,15 @@ test_upper = do
           ]
         , []
         )
+
+-- * solkattu
+
+test_solkattu_note = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks
+                (title <> " | import bali.reyong.solkattu")
+            . UiTest.note_track
+    equal (run [(0, 1, "n1 -- 4i"), (1, 1, "n2 --"), (2, 1, "n14 --"),
+            (4, 0, "-- 3i")])
+        ([(0, 1, "4i"), (1, 1, "4o"), (2, 2, "4i"), (2, 2, "4u"), (4, 0, "3i")],
+            [])

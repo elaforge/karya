@@ -1665,7 +1665,7 @@ Derive:
         reyong realization:
           - some way to select between melodic and rythmic realization, and
             transposition for melodic
-          - implement r1 etc. calls in bali.reyong.solkattu
+          * implement n1 etc. calls in bali.reyong.solkattu
         - Emphasis or automatic variant versions of patterns, e.g.
           . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
             pu_ pu_ ktkto

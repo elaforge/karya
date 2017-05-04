@@ -1269,8 +1269,7 @@ pasang_key e = (inst, get EnvKey.hand)
 
 -- * implementation
 
--- | Get pitch for a kotekan call.  For Negative events, get the pitch at the
--- end.
+-- | Get pitch for a kotekan call.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
 get_pitch args = Call.get_pitch =<< Args.real_start args
 
