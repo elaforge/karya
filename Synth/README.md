@@ -1,5 +1,5 @@
 These modules require additional dependencies.  Enable in Shake.Config, and
-install from build/enabled-deps.cabal.
+install as documented in doc/INSTALL.md.
 
 This directory contains the synthesizer implementations, which are somewhat
 independent of the sequencer.

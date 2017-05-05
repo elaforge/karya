@@ -89,13 +89,16 @@ support.
 ## 音, Im, Synth
 
 These are all names for the incomplete offline synthesizer.  It requires a bunch
-of extra dependencies.  To build, enable it in Shake.Config, install the VST3
-SDK from Steinberg's website, and install additional deps from
-build/enabled-deps.karya.
+of extra dependencies.  To build, turn on Shake.Config.enableSynth, and install
+the VST3 SDK from Steinberg's website.  You'll need additional dependencies,
+and apparently cabal doesn't let you pick the .cabal file, so:
+
+```
+    % cp doc/all-deps.cabal karya.cabal
+    % cabal install --only-dependencies
+```
 
 The VST3 SDK is now at github: https://github.com/steinbergmedia/vst3sdk
-
-But it doesn't do much yet.
 
 ## MISC
 

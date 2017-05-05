@@ -53,7 +53,7 @@ import qualified Shake.Util as Util
 -- | Package, with or without version e.g. containers-0.5.5.1
 type Package = String
 
--- | This is the big list of packages that should make everyone happy.
+-- | This is the big list of enabled packages.
 allPackages :: [Package]
 allPackages = map fst enabledPackages
 
@@ -106,8 +106,19 @@ enabledPackages :: [(Package, String)]
 enabledPackages = concat
     [ basicPackages
     , if Config.enableSynth then synthPackages else []
-    , if Config.enableEkg then [("ekg", "")] else []
+    , if Config.enableEkg then ekgPackages else []
     ]
+
+-- | All packages, not just enabled ones.
+reallyAllPackages :: [(Package, String)]
+reallyAllPackages = concat
+    [ basicPackages
+    , synthPackages
+    , ekgPackages
+    ]
+
+ekgPackages :: [(Package, String)]
+ekgPackages = [("ekg", "")]
 
 -- | This is a hack so I can add packages that aren't in 'enabledPackages'.
 -- This is for packages with tons of dependencies that I usually don't need.
@@ -158,8 +169,12 @@ oDir :: Config -> FilePath
 oDir = (</> "obj") . buildDir
 
 -- | Root for generated documentation.
+buildDocDir :: FilePath
+buildDocDir = build </> "doc"
+
+-- | Root for documentation source.
 docDir :: FilePath
-docDir = build </> "doc"
+docDir = "doc"
 
 -- * flags
 
@@ -617,7 +632,7 @@ main = do
     makeDataLinks
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
-        cabalRule enabledPackages (build </> "enabled-deps.cabal")
+        cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
@@ -836,7 +851,8 @@ makeAllDocumentation config = do
 
 -- | Docs produced by extract_doc.
 extractableDocs :: [FilePath]
-extractableDocs = map (docDir </>) ["keymap.html", "calls.html", "scales.html"]
+extractableDocs =
+    map (buildDocDir </>) ["keymap.html", "calls.html", "scales.html"]
 
 extractDoc :: Config -> FilePath -> Shake.Action ()
 extractDoc config fn = do
@@ -846,7 +862,7 @@ extractDoc config fn = do
     Util.shell $ unwords [bin, name, ">", fn]
 
 getMarkdown :: Shake.Action [FilePath]
-getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
+getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
@@ -1025,18 +1041,18 @@ binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
 -- * markdown
 
 markdownRule :: FilePath -> Shake.Rules ()
-markdownRule linkifyBin = docDir </> "*.md.html" %> \html -> do
+markdownRule linkifyBin = buildDocDir </> "*.md.html" %> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
     Util.system "tools/convert_doc" [doc, html] -- wrapper around pandoc
 
 -- | build/doc/xyz.md.html -> doc/xyz.md
 htmlToDoc :: FilePath -> FilePath
-htmlToDoc = ("doc" </>) . FilePath.takeFileName . FilePath.dropExtension
+htmlToDoc = (docDir </>) . FilePath.takeFileName . FilePath.dropExtension
 
 -- | doc/xyz.md -> build/doc/xyz.md.html
 docToHtml :: FilePath -> FilePath
-docToHtml = (docDir </>) . FilePath.takeFileName . (++".html")
+docToHtml = (buildDocDir </>) . FilePath.takeFileName . (++".html")
 
 -- * hs
 
@@ -1126,9 +1142,9 @@ writeGhciFlags modeConfig =
 -- | Make links to large binary files I don't want to put into source control.
 makeDataLinks :: IO ()
 makeDataLinks = do
-    Directory.createDirectoryIfMissing True docDir
-    run $ Posix.createSymbolicLink "../../../data" (docDir </> "data")
-    run $ Posix.createSymbolicLink "../../doc/img" (docDir </> "img")
+    Directory.createDirectoryIfMissing True buildDocDir
+    run $ Posix.createSymbolicLink "../../../data" (buildDocDir </> "data")
+    run $ Posix.createSymbolicLink "../../doc/img" (buildDocDir </> "img")
     return ()
     where run = File.ignoreError IO.Error.isAlreadyExistsError
 
