@@ -44,7 +44,7 @@ test_respond = do
     ResponderTest.print_results results
     notes <- Note.unserialize DeriveTest.default_im_notes
     right_equal (map Note.start <$> notes) [0, 1]
-    right_equal (map (Map.toAscList . fmap Signal.toList . Note.controls)
+    right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
             <$> notes)
         [ [ (Control.envelope, [(0, 0.5)])
           , (Control.pitch, [(0, realToFrac NN.c4)])

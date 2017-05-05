@@ -21,7 +21,6 @@ import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Im.Patch as Patch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal
 
 import qualified Instrument.Common as Common
@@ -63,8 +62,8 @@ convert_event event patch name = run $ do
         else return Nothing
     return $ Note.Note
         { instrument = name
-        , start = RealTime.to_seconds $ Score.event_start event
-        , duration = RealTime.to_seconds $ Score.event_duration event
+        , start = Score.event_start event
+        , duration = Score.event_duration event
         , controls =
             let converted = convert_controls controls
             in maybe converted (\p -> Map.insert Control.pitch p converted)
@@ -85,12 +84,8 @@ convert_attributes = Shared.Types.Attributes . Attrs.to_set
 convert_control :: Control.Control -> Score.Control
 convert_control (Control.Control a) = ScoreTypes.Control a
 
--- | TODO use the same type... but won't I need different interpolation
--- behaviour?  Also I kind of like the simpler monomorphic version?
--- This implementation is really inefficient but for testing I don't care.
 convert_signal :: Perform.Signal.Signal a -> Signal.Signal
-convert_signal = Signal.fromList . map (first RealTime.to_seconds)
-    . Perform.Signal.unsignal
+convert_signal = Perform.Signal.sig_vec
 
 convert_controls :: Score.ControlMap -> Map Control.Control Signal.Signal
 convert_controls controls = Map.fromList $ concat

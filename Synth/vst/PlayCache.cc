@@ -172,6 +172,7 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
         VstMidiEvent *event = (VstMidiEvent *) events->events[i];
         const char *data = event->midiData;
 
+        // Parse the protocol emitted by Perform.Im.Play.
         int status = data[0] & 0xf0;
         if (status == 0x80
                 || (status == 0xb0 && (data[1] == 0x78 || data[1] == 0x7b))) {

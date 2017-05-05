@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
@@ -15,24 +15,24 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
 import qualified Synth.Shared.Types as Types
+
+import Global
 
 
 -- | High level representation of one note.  This will be converted into
 -- one or more 'Sample.Sample's.
 data Note = Note {
     instrument :: !Types.PatchName
-    , start :: !Types.Time
-    , duration :: !Types.Time
+    , start :: !RealTime.RealTime
+    , duration :: !RealTime.RealTime
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map.Map Control.Control Signal.Signal)
     , attributes :: !Types.Attributes
-    } deriving (Show, Generics.Generic)
-
-instance Aeson.ToJSON Note
-instance Aeson.FromJSON Note
+    } deriving (Show, Generics.Generic, Aeson.ToJSON, Aeson.FromJSON)
 
 instance Serialize.Serialize Note where
     put (Note a b c d e) = put a *> put b *> put c *> put d *> put e
@@ -47,7 +47,7 @@ instance Pretty.Pretty Note where
         , ("attributes", Pretty.format attrs)
         ]
 
-note :: Types.PatchName -> Types.Time -> Types.Time -> Note
+note :: Types.PatchName -> RealTime.RealTime -> RealTime.RealTime -> Note
 note inst start duration = Note
     { instrument = inst
     , start = start
@@ -58,7 +58,7 @@ note inst start duration = Note
 
 initialControl :: Control.Control -> Note -> Maybe Signal.Y
 initialControl control note =
-    Signal.at (start note) <$> Map.lookup control (controls note)
+    fromMaybe 0 . Signal.at (start note) <$> Map.lookup control (controls note)
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
 initialPitch = fmap Pitch.nn . initialControl Control.pitch

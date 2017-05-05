@@ -17,6 +17,3 @@ newtype Attributes = Attributes (Set Text)
 
 attribute :: Text -> Attributes
 attribute = Attributes . Set.singleton
-
--- | Time in absolute seconds since the start of the score.
-type Time = Double

@@ -9,6 +9,7 @@
 -- The Storable instances are used both by vector and when the signals are
 -- copied to C, so they have to produce structs as expected by C.
 module Util.TimeVectorStorable where
+import qualified Data.Aeson as Aeson
 import Foreign
 import qualified Util.ForeignC as C
 import qualified Util.Serialize as Serialize
@@ -45,3 +46,8 @@ instance C.CStorable (Sample Double) where
 instance (Serialize.Serialize y) => Serialize.Serialize (Sample y) where
     put (Sample a b) = Serialize.put a >> Serialize.put b
     get = Serialize.get >>= \a -> Serialize.get >>= \b -> return $ Sample a b
+
+instance Aeson.ToJSON (Sample Double) where
+    toJSON (Sample x y) = Aeson.toJSON (x, y)
+instance Aeson.FromJSON (Sample Double) where
+    parseJSON = fmap (uncurry Sample) . Aeson.parseJSON

@@ -529,7 +529,23 @@ documentation:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
-Synth: Im:
+synth: im:
+  What's the current status?
+    . Cmd.Performance will serialize im notes and start the binary.
+    . Synth.Sampler will read the notes and write a single wav file with
+      the right start times and start pitches.
+    . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
+      which will then play a sample, starting at the right time.
+  TODO
+    . Cache / incremental rendering.  Karya has to also emit damage ranges,
+      and the synth has to expand that to notes and rerender just those
+      sections.  play_cache has to understand the more complicated cache
+      and mix or concatenate the chunks.
+    . Atomic cache replacement.  The synth generates a new cache dir, and
+      play_cache GCs the old one when it stops.
+    . Per-instrument or per-track rendering.  The synth tags rendered chunks
+      with track and instrument, karya protocal can disable, and play_cache
+      omits those.
   csound backend:
     . Use csound-expression?
   - The start time should be in fractions of a second instead of sample
@@ -540,8 +556,15 @@ Synth: Im:
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
     by the PlayCache vst.
+  - Im signals have to either be audio level, or interpolate between their
+    points.  Audio rate is overkill at the sequencer level, so I think I
+    make them interpolated.  But since it's ambiguous whether the sequencer
+    wants interpolation or a discontinuity, I think I have to disambiguate by
+    emitting two samples at a discontinuity.
+    . Ideally I'd have resolution independent signals, so just functions.
+      Not totally sure what that would entail, but it would be a big change.
   more efficient Perform.Im.Convert
-    - Zero-copy conversion for the signals.
+    * Zero-copy conversion for the signals.
       . But first I have to decide how I want to handle interpolation.
       . This doesn't matter as long as the synth doesn't support signals.
     - Trim signals.
