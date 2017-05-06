@@ -100,7 +100,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
-import qualified Synth.Sampler.Config as Sampler.Config
+import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
 import Global
 import Types
@@ -497,7 +497,7 @@ data Config = Config {
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , config_lookup_scale :: !Derive.LookupScale
     , config_highlight_colors :: !(Map Color.Highlight Color.Color)
-    , config_im :: !ImConfig
+    , config_im :: !Shared.Config.Config
     , config_git_user :: !SaveGit.User
     } deriving (Show)
 
@@ -520,19 +520,6 @@ state_midi_writer state imsg = do
 path :: State -> Config.RelativePath -> FilePath
 path state (Config.RelativePath path) =
     config_app_dir (state_config state) </> path
-
-data ImConfig = ImConfig {
-    -- | Path to the binary.
-    im_binary :: !FilePath
-    -- | Write serialized notes to this file.
-    , im_notes :: !FilePath
-    } deriving (Show)
-
-default_im_config :: ImConfig
-default_im_config = ImConfig {
-    im_binary = Sampler.Config.binary
-    , im_notes = Sampler.Config.notes
-    }
 
 -- ** PlayState
 

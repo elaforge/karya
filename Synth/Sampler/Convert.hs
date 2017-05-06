@@ -39,7 +39,7 @@ noteToSample note@(Note.Note instName start _dur controls attrs) = do
         , envelope = fromMaybe (Signal.constant 1) $ get Control.envelope
         , ratio = case (Patch.pitch instSample, get Control.pitch) of
             (Just sampleNn, Just noteNns) ->
-                Signal.mapY (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
+                Signal.map_y (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
                     noteNns
             _ -> Signal.constant 1
         }

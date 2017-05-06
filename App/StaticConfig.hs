@@ -16,6 +16,7 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.All as Scale.All
 import qualified Instrument.Inst as Inst
+import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
 import Global
 
@@ -98,7 +99,7 @@ cmd_config app_dir interface config git_user = Cmd.Config
     , config_library = library config
     , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = highlight_colors config
-    , config_im = Cmd.default_im_config
+    , config_im = Shared.Config.defaultConfig
     , config_git_user = git_user
     }
     where midi_config = midi config

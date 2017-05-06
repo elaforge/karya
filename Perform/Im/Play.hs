@@ -5,7 +5,7 @@
 -- | Fire up the play-cache vst.
 module Perform.Im.Play (
     play_cache_synth, qualified
-    , prepare, midi_to_offset, start, stop
+    , encode_time, decode_time, start, stop
 ) where
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
@@ -18,6 +18,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
+import qualified Synth.Shared.Config as Shared.Config
 import Global
 import Types
 
@@ -41,27 +42,29 @@ qualified = InstTypes.Qualified synth_name Patch.default_name
 synth_name :: InstTypes.SynthName
 synth_name = "play-cache"
 
-sampling_rate :: Double
-sampling_rate = 44100
-
 to_sample :: RealTime -> Int
-to_sample t = round (RealTime.to_seconds t * sampling_rate)
+to_sample t =
+    round $ RealTime.to_seconds t * fromIntegral Shared.Config.samplingRate
 
 -- | Emit MIDI messages that tell play_cache to get ready to start playing at
 -- the given time.
 --
--- TODO currently this is just the frame, which is bad because is dependent on
--- the sampling rate, and can't represent negative times.
-prepare :: RealTime -> [Midi.ChannelMessage]
-prepare t = [at 0, at 1, at 2, at 3]
+-- This is encoded as 'Midi.Aftertouch' where the key is the index*7 and the
+-- value is the 7 bits at that index.  At a 44100 sampling rate, this can
+-- address 2^(7*4) / 44100 / 60 = 101 minutes, which is long enough for
+-- anything I'm likely to write.  TODO since this can't represent negative
+-- times, and the DAW likely doesn't like them either, I'll have to normalize
+-- the output.
+encode_time :: RealTime -> [Midi.ChannelMessage]
+encode_time t = [at 0, at 1, at 2, at 3]
     where
     at i = Midi.Aftertouch (fromIntegral i)
         (fromIntegral $ Bits.shiftR pos (i * 7) .&. 0x7f)
     pos = to_sample t
 
--- | Just to test 'prepare'.  play_cache does this internally.
-midi_to_offset :: [Midi.ChannelMessage] -> Int
-midi_to_offset = foldr go 0
+-- | Just to test 'encode_time'.  play_cache does this internally.
+decode_time :: [Midi.ChannelMessage] -> Int
+decode_time = foldr go 0
     where
     go (Midi.Aftertouch key val) frames =
         set_offset (Midi.from_key key) (fromIntegral val) frames

@@ -548,9 +548,15 @@ synth: im:
       omits those.
   csound backend:
     . Use csound-expression?
-  - The start time should be in fractions of a second instead of sample
+  ? Why does compiling build/opt/sampler compile Cmd.Cmd?
+    . Because Synth.Sampler.Patch uses Cmd.InstrumentCode.
+  / The start time should be in fractions of a second instead of sample
     frames, so I'm not dependent on sample rate.  Also, will I need to emit
     negative time?
+    . But as long as the srate constant is shared, what's the problem?  Also,
+      for negative I'd have to decide how much, and besides reaper doesn't
+      necessarily have negative time.
+    . So I have to add a constant anyway.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -574,6 +580,8 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  . To get a path between two rules:
+    ancestorOf('Synth/Sampler/Main') && descendantOf('Cmd/Cmd')
   - use new system calls and logging levels
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
@@ -2374,6 +2382,10 @@ long term:
   - Unify environ, controls, and pitch signals by making signals of
     arbitrary type.
   - print scores
+
+faust:
+  https://ccrma.stanford.edu/~rmichon/faustDay2017/
+    . http://faust.grame.fr/faustplayground/
 
 planning / research
   text score: doc/dev_notes/text-score.md

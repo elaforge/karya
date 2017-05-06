@@ -6,6 +6,7 @@
 #include <sndfile.h>
 
 #include "Sample.h"
+#include "../Shared/config.h"
 
 
 Sample::Sample(const char *fname)
@@ -16,8 +17,9 @@ Sample::Sample(const char *fname)
         errors << sf_strerror(sndfile);
     } else if (info.channels != 2) {
         errors << "expected 2 channels, got " << info.channels;
-    } else if (info.samplerate != 44100) {
-        errors << "expected srate of 44100, got " << info.samplerate;
+    } else if (info.samplerate != SAMPLING_RATE) {
+        errors << "expected srate of " << SAMPLING_RATE << ", got "
+            << info.samplerate;
     } else {
         this->frames.reset(new float[info.frames * info.channels]);
         sf_count_t read = sf_readf_float(sndfile, frames.get(), info.frames);

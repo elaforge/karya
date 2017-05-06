@@ -18,9 +18,9 @@ import qualified System.Environment as Environment
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
-import qualified Synth.Sampler.Config as Config
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
 import Global
@@ -31,7 +31,8 @@ main = do
     args <- Environment.getArgs
     case args of
         [notesJson] -> process Config.cache =<< loadJson notesJson
-        [] -> process Config.cache =<< loadBinary Config.notes
+        [] -> process Config.cache
+            =<< loadBinary (Config.notes Config.defaultConfig)
         _ -> errorIO $ "usage: sampler notes.json"
 
 process :: FilePath -> [Note.Note] -> IO ()
@@ -73,7 +74,7 @@ realizeSample sample = Sample.catchSndfile (Sample.realize sample) >>= \case
 
 mixAll :: [Audio] -> Audio
 -- TODO surely there is some better way to do mempty?
-mixAll [] = Audio.silent (Audio.Frames 0) 44100 2
+mixAll [] = Audio.silent (Audio.Frames 0) (fromIntegral Config.samplingRate) 2
 mixAll audios = List.foldl1' Audio.mix audios
 
 -- I'd write flac, but it's integer only.
@@ -94,7 +95,7 @@ outputFormat = Sndfile.Format
 outputInfo :: Sndfile.Info
 outputInfo = Sndfile.Info
     { frames = 0
-    , samplerate = 44100
+    , samplerate = Config.samplingRate
     , channels = 2
     , format = outputFormat
     , sections = 1

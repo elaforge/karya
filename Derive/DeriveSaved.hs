@@ -34,6 +34,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Local.Config
+import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 import Global
@@ -188,9 +189,9 @@ cmd_config inst_db = do
         , config_library = Call.All.library
         , config_lookup_scale = Scale.All.lookup_scale
         , config_highlight_colors = mempty
-        , config_im = Cmd.default_im_config
-            { Cmd.im_binary = "/usr/bin/true"
-            , Cmd.im_notes = Testing.tmp_base_dir </> "im_notes"
+        , config_im = Shared.Config.Config
+            { binary = "/usr/bin/true"
+            , notes = Testing.tmp_base_dir </> "im_notes"
             }
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.

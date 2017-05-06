@@ -72,6 +72,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
+import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
 import Global
 import Types
@@ -476,9 +477,9 @@ cmd_config inst_db = Cmd.Config
     , config_library = Call.All.library
     , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = Config.highlight_colors
-    , config_im = Cmd.default_im_config
-        { Cmd.im_binary = "/usr/bin/true"
-        , Cmd.im_notes = default_im_notes
+    , config_im = Shared.Config.Config
+        { binary = "/usr/bin/true"
+        , notes = default_im_notes
         }
     , config_git_user = SaveGit.User "name" "email"
     }

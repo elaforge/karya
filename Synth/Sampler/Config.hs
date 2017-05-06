@@ -4,31 +4,8 @@
 
 -- | Local config variables.
 module Synth.Sampler.Config where
-import System.FilePath ((</>))
 
 
 -- | Root directory for instrument samples.
 instrumentDbDir :: FilePath
 instrumentDbDir = "Synth/Sampler/instruments"
-
--- Paths to coordinate with the sampler.
---
--- TODO Currently they rely on you being in the right directory, but should
--- probably have some more robust configuration at some point.  Of course
--- 'App.Config.app_dir' is just return '.' too.
-
-binary :: FilePath
-binary = "build/opt/sampler"
-
--- | All of the data files used by the Im backend are based in this directory.
--- Everything in here should be temporary files, used for communication or
--- caching.
-dataDir :: FilePath
-dataDir = "im"
-
--- | Serialize notes to this file to send them to the Im backend.
-notes :: FilePath
-notes = dataDir </> "notes"
-
-cache :: FilePath
-cache = dataDir </> "cache"

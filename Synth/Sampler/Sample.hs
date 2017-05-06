@@ -18,10 +18,9 @@ import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
-import qualified Synth.Shared.Types as Types
-
 import Global
 
 
@@ -31,11 +30,11 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Sample = Sample {
-    start :: !Types.Time
+    start :: !RealTime.RealTime
     -- | Relative to 'Config.instrumentDbDir'.
     , filename :: !SamplePath
     -- | Sample start offset.
-    , offset :: !Types.Time
+    , offset :: !RealTime.RealTime
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal
@@ -49,10 +48,11 @@ instance Aeson.FromJSON Sample
 -- | Evaluating the Audio could probably produce more exceptions...
 realize :: Sample -> IO Audio
 realize (Sample start filename offset env ratio) = do
-    audio <- Sndfile.sourceSndFrom (Audio.Seconds offset)
+    audio <- Sndfile.sourceSndFrom (toAudioTime offset)
         (Config.instrumentDbDir </> filename)
-    return $ Audio.padStart (Audio.Seconds start) $
-        resample (Signal.at start ratio) $ applyEnvelope start env audio
+    return $ Audio.padStart (toAudioTime start) $
+        resample (fromMaybe 0 $ Signal.at start ratio) $
+        applyEnvelope start env audio
 
 catchSndfile :: IO a -> IO (Either Text a)
 catchSndfile = fmap try . Exception.try
@@ -71,11 +71,11 @@ resample ratio audio
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-applyEnvelope :: Types.Time -> Signal.Signal -> Audio -> Audio
+applyEnvelope :: RealTime.RealTime -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
     | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val
-    where val = Num.d2f (Signal.at start sig)
+    where val = Num.d2f (fromMaybe 0 $ Signal.at start sig)
     -- TODO scale by envelope, and shorten the audio if the 'sig' ends on 0
 
 empty :: Audio
@@ -89,3 +89,6 @@ empty = Audio.silent (Audio.Frames 0) 44100 2
 
 
 type Audio = Audio.AudioSource (Resource.ResourceT IO) Float
+
+toAudioTime :: RealTime.RealTime -> Audio.Duration
+toAudioTime = Audio.Seconds . RealTime.to_seconds

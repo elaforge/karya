@@ -414,7 +414,7 @@ im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
 im_play_msgs start (wdev, chan) =
     map (LEvent.Event . Midi.WriteMessage wdev start
             . Midi.ChannelMessage chan)
-        (Im.Play.prepare start ++ [Im.Play.start])
+        (Im.Play.encode_time start ++ [Im.Play.start])
 
 -- | Merge a finite list of notes with an infinite list of MTC.
 merge_midi :: [LEvent.LEvent Midi.WriteMessage]

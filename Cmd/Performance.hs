@@ -44,6 +44,7 @@ import qualified Derive.Stream as Stream
 import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.RealTime as RealTime
 import qualified Instrument.Inst as Inst
+import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
 import Global
 import Types
@@ -222,7 +223,7 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: Maybe Cmd.ImConfig
+evaluate_performance :: Maybe Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> BlockId -> Cmd.Performance -> IO ()
 evaluate_performance im_config lookup_inst wait send_status block_id perf = do
@@ -251,14 +252,14 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
-evaluate_im :: Maybe Cmd.ImConfig
+evaluate_im :: Maybe Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event
     -> IO (Maybe (Process.CreateProcess, Vector.Vector Score.Event))
 evaluate_im maybe_im_config lookup_inst events
     | Just im_config <- maybe_im_config, not (null im_events) = do
-        Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events
-        let proc = Process.proc (Cmd.im_binary im_config) []
+        Im.Convert.write lookup_inst (Shared.Config.notes im_config) im_events
+        let proc = Process.proc (Shared.Config.binary im_config) []
         return $ Just (proc, rest_events)
     | otherwise = return Nothing
     where
