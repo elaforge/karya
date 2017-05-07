@@ -16,7 +16,7 @@ import qualified Derive.Symbol as Symbol
 import Global
 
 
-type Note = Realize.Note Stroke
+type SNote = Sequence.Note (Realize.Note Stroke)
 
 data Stroke =
     Plak -- both
@@ -24,8 +24,8 @@ data Stroke =
     | Ka | Tut | Dag -- right
     deriving (Eq, Ord, Show)
 
-instrument :: [([Sequence.Note (Solkattu.Solkattu Stroke)], [Note])] -> Patterns
-    -> Either Text (Realize.Instrument Stroke)
+instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [SNote])]
+    -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
@@ -66,10 +66,10 @@ data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
     } deriving (Show)
 
-note :: stroke -> Realize.Note stroke
-note = Sequence.Note . Realize.Stroke
+note :: stroke -> Realize.SNote stroke
+note = Sequence.Note . Realize.Note
 
-notes :: Strokes Note
+notes :: Strokes SNote
 notes = Strokes
     { pk = note Plak
     , p = note Pak
@@ -86,7 +86,7 @@ notes = Strokes
 
 type Patterns = Realize.Patterns Stroke
 
-__ :: Note
+__ :: SNote
 __ = Sequence.Note Realize.Rest
 
 default_patterns :: Patterns
@@ -105,7 +105,7 @@ default_patterns_emphasis =
     Realize.map_patterns (map $ \s -> if s == p then a else s) default_patterns
     where Strokes {..} = notes
 
-nakatiku :: (Solkattu.Pattern, [Note])
+nakatiku :: (Solkattu.Pattern, [SNote])
 nakatiku = (Solkattu.Nakatiku, [t, o, u, k, p, k, a, k])
     where Strokes {..} = notes
 

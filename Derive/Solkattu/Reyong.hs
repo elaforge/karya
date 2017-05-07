@@ -16,10 +16,10 @@ import qualified Derive.Symbol as Symbol
 import Global
 
 
-type Note = Sequence.Note (Realize.Stroke Stroke)
+type SNote = Sequence.Note (Realize.Note Stroke)
 
-note :: stroke -> Realize.Note stroke
-note = Sequence.Note . Realize.Stroke
+note :: stroke -> Realize.SNote stroke
+note = Sequence.Note . Realize.Note
 
 -- Automatically infer two handed cek if they are isolated.
 -- Maybe infer light byut if there is a note immediately afterwards?
@@ -68,13 +68,12 @@ strokes = Strokes
     , x = CekO
     }
 
-notes :: Strokes Note
+notes :: Strokes SNote
 notes = note <$> strokes
 
 -- * instrument
 
-instrument ::
-    [([Sequence.Note (Solkattu.Solkattu Stroke)], [Realize.Note Stroke])]
+instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
@@ -91,10 +90,10 @@ standard_stroke_map = Realize.StrokeMap $ Map.fromList
 
 type Patterns = Realize.Patterns Stroke
 
-__ :: Note
+__ :: SNote
 __ = Sequence.Note Realize.Rest
 
-melodic_nakatiku :: (Solkattu.Pattern, [Note])
+melodic_nakatiku :: (Solkattu.Pattern, [SNote])
 melodic_nakatiku = (Solkattu.Nakatiku, [i, r3, i, r2, r3, i, r3, r2])
     where Strokes {..} = notes
 
@@ -116,7 +115,7 @@ rhythmic_patterns = Solkattu.check $ patterns
     , (9, [x, k, __, x, __, b, o, __, __])
     ] where Strokes {..} = notes
 
-patterns :: [(Sequence.Matra, [Realize.Note Stroke])]
+patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (melodic_nakatiku:)
     . map (first Solkattu.PatternM)

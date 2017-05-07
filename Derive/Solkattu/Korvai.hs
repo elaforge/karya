@@ -17,7 +17,7 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence = [Sequence.Note (Solkattu.Solkattu Stroke)]
+type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
 
 -- * korvai
 
@@ -66,7 +66,7 @@ reyong = GetInstrument
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
-    -> Either Text ([(Sequence.Tempo, Realize.Stroke stroke)], Text)
+    -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
 realize get realize_patterns korvai = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
@@ -136,6 +136,6 @@ instance (Pretty.Pretty stroke, ToStroke stroke) =>
     to_stroke n = errorStack $ "requires a note: " <> pretty n
 
 instance (Pretty.Pretty stroke, ToStroke stroke) =>
-        ToStroke (Realize.Stroke stroke) where
-    to_stroke (Realize.Stroke s) = to_stroke s
+        ToStroke (Realize.Note stroke) where
+    to_stroke (Realize.Note s) = to_stroke s
     to_stroke n = errorStack $ "requires a note: " <> pretty n

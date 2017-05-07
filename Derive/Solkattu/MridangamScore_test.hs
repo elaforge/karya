@@ -17,7 +17,7 @@ import Global
 test_korvais = do
     equal [err | Left err <- map realize MridangamScore.all_korvais] []
 
-realize :: Korvai.Korvai -> Either Text [Realize.Stroke Mridangam.Stroke]
+realize :: Korvai.Korvai -> Either Text [Realize.Note Mridangam.Stroke]
 realize korvai = do
     (notes, warning) <- Korvai.realize Korvai.mridangam True korvai
     if Text.null warning then Right (map snd notes) else Left warning

@@ -24,7 +24,7 @@ import Global
 -- Unlike everywhere else except some Utils, I use camelCase in here.  Since
 -- this is for a DSL, I try to save horizontal space.
 
-type Sequence stroke = [S.Note (Solkattu.Solkattu stroke)]
+type Sequence stroke = [S.Note (Solkattu.Note stroke)]
 
 -- * by Duration
 

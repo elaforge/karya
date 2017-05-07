@@ -18,10 +18,10 @@ import qualified Derive.Symbol as Symbol
 import Global
 
 
-type Note = Sequence.Note (Realize.Stroke Stroke)
+type SNote = Sequence.Note (Realize.Note Stroke)
 
-note :: stroke -> Realize.Note stroke
-note = Sequence.Note . Realize.Stroke
+note :: stroke -> Realize.SNote stroke
+note = Sequence.Note . Realize.Note
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
@@ -34,8 +34,7 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-instrument ::
-    [([Sequence.Note (Solkattu.Solkattu Stroke)], [Realize.Note Stroke])]
+instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
@@ -125,14 +124,14 @@ strokes = Strokes
     , od = Both Thom Din
     }
 
-notes :: Strokes Note
+notes :: Strokes SNote
 notes = note <$> strokes
 
-both :: Thoppi -> Valantalai -> Note
+both :: Thoppi -> Valantalai -> SNote
 both a b = note (Both a b)
 
-(&) :: CallStack.Stack => Note -> Note -> Note
-Sequence.Note (Realize.Stroke a) & Sequence.Note (Realize.Stroke b) =
+(&) :: CallStack.Stack => SNote -> SNote -> SNote
+Sequence.Note (Realize.Note a) & Sequence.Note (Realize.Note b) =
     note (both_strokes a b)
 a & b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
@@ -146,14 +145,14 @@ both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
 type Patterns = Realize.Patterns Stroke
 
-__ :: Note
+__ :: SNote
 __ = Sequence.Note Realize.Rest
 
-default_nakatiku :: (Solkattu.Pattern, [Note])
+default_nakatiku :: (Solkattu.Pattern, [SNote])
 default_nakatiku = (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
     where Strokes {..} = notes
 
-alternate_nakatiku :: [Note]
+alternate_nakatiku :: [SNote]
 alternate_nakatiku = [t, p, u, p, k, t, p, k]
     where Strokes {..} = notes
 
@@ -224,7 +223,7 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
     kp = [k, p]
     kpnp = [k, p, n, p]
 
-patterns :: [(Sequence.Matra, [Realize.Note Stroke])]
+patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (default_nakatiku:)
     . map (first Solkattu.PatternM)

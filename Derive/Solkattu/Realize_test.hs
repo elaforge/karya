@@ -18,7 +18,7 @@ import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Score as Score
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import Derive.Solkattu.Solkattu (Solkattu(..), Sollu(..))
+import Derive.Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
@@ -27,7 +27,7 @@ import Global
 test_realize = do
     let f = second show_strokes . Realize.realize smap
             . map (Sequence.default_tempo,)
-        sollu s = Sollu s Solkattu.NotKarvai Nothing
+        sollu s = Note s Solkattu.NotKarvai Nothing
         smap = Realize.StrokeMap $ Map.fromList
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])
@@ -47,15 +47,15 @@ test_realize = do
 
     let chapu = Just (M.Valantalai M.Chapu)
     -- An explicit stroke will replace just that stroke.
-    equal (f [sollu Na, Sollu Din Solkattu.NotKarvai chapu])
+    equal (f [sollu Na, Note Din Solkattu.NotKarvai chapu])
         (Right "n u")
     -- Not found is ok if it has an explicit stroke.
-    equal (f [Sollu Tat Solkattu.NotKarvai chapu]) (Right "u")
+    equal (f [Note Tat Solkattu.NotKarvai chapu]) (Right "u")
 
-pattern :: Sequence.Matra -> Solkattu stroke
+pattern :: Sequence.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.PatternM
 
-rpattern :: Sequence.Matra -> Realize.Stroke stroke
+rpattern :: Sequence.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
 test_realize_patterns = do
@@ -79,7 +79,7 @@ test_patterns = do
     equal (f [(2, Dsl.faster [k, t, k, t])]) (Right ())
     equal (f [(2, [k, t])]) (Right ())
 
-show_strokes :: [(tempo, Realize.Stroke M.Stroke)] -> Text
+show_strokes :: [(tempo, Realize.Note M.Stroke)] -> Text
 show_strokes = Text.unwords . map (pretty . snd)
 
 test_stroke_map = do
@@ -100,7 +100,7 @@ test_format = do
     let f tala = e_format . Realize.format 80 tala
             . map (Sequence.default_tempo,)
         n4 = [k, t, Realize.Rest, n]
-        M.Strokes {..} = Realize.Stroke <$> M.strokes
+        M.Strokes {..} = Realize.Note <$> M.strokes
         rupaka = Tala.rupaka_fast
     -- Emphasize every 4.
     equal (f rupaka n4) "K t _ n"
@@ -223,7 +223,7 @@ test_format_speed = do
 -- * util
 
 realize :: Bool -> Tala.Tala -> Korvai.Sequence
-    -> Either Text ([(Sequence.Tempo, Realize.Stroke M.Stroke)], Text)
+    -> Either Text ([(Sequence.Tempo, Realize.Note M.Stroke)], Text)
 realize realize_patterns tala = Korvai.realize Korvai.mridangam realize_patterns
     . Korvai.korvai tala mridangam
 

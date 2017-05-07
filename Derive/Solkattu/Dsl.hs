@@ -64,7 +64,7 @@ import Derive.Solkattu.Tala (Akshara)
 import Global
 
 
-type Sequence stroke = [Sequence.Note (S.Solkattu stroke)]
+type Sequence stroke = [Sequence.Note (S.Note stroke)]
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -75,17 +75,17 @@ infixr 6 . -- same as <>
 (•) :: (b -> c) -> (a -> b) -> a -> c
 (•) = (Prelude..)
 
-make_note :: S.Solkattu stroke -> Sequence stroke
+make_note :: S.Note stroke -> Sequence stroke
 make_note n = [Sequence.Note n]
 
 sollu :: S.Sollu -> Sequence stroke
-sollu s = make_note (S.Sollu s S.NotKarvai Nothing)
+sollu s = make_note (S.Note s S.NotKarvai Nothing)
 
 -- ** sollus
 
 class Rest a where __ :: a
 instance Rest (Sequence stroke) where __ = make_note S.Rest
-instance Rest (Realize.Note stroke) where __ = Sequence.Note Realize.Rest
+instance Rest (Realize.SNote stroke) where __ = Sequence.Note Realize.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
@@ -108,8 +108,8 @@ __n n = repeat (n-1) __
 -- | Make a single sollu 'S.Karvai'.
 karv :: (CallStack.Stack, Pretty.Pretty stroke) =>
     Sequence stroke -> Sequence stroke
-karv [Sequence.Note (S.Sollu s _ stroke)] =
-    [Sequence.Note $ S.Sollu s S.Karvai stroke]
+karv [Sequence.Note (S.Note s _ stroke)] =
+    [Sequence.Note $ S.Note s S.Karvai stroke]
 karv ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
 
 dheem = sollu S.Dheem
@@ -168,8 +168,8 @@ stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
 stroke _ [] = errorStack "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
-    Sequence.Note (S.Sollu s karvai _) ->
-        Sequence.Note (S.Sollu s karvai (Just (Korvai.to_stroke stroke))) : ns
+    Sequence.Note (S.Note s karvai _) ->
+        Sequence.Note (S.Note s karvai (Just (Korvai.to_stroke stroke))) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
 
 -- | Add a specific stroke annotation to a sollu.

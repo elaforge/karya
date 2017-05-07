@@ -23,7 +23,7 @@ import Global
 
 
 type Seq = Sequence Korvai.Stroke -- TODO get rid of this?
-type Sequence stroke = [Sequence.Note (Solkattu.Solkattu stroke)]
+type Sequence stroke = [Sequence.Note (Solkattu.Note stroke)]
 
 Mridangam.Strokes {..} = Mridangam.notes
 
@@ -118,7 +118,7 @@ c_13_11_12 = korvai adi mridangam $
         , (ta.ka, [p, k])
         ]
 
-standard_strokes :: [(Sequence stroke, [Mridangam.Note])]
+standard_strokes :: [(Sequence stroke, [Mridangam.SNote])]
 standard_strokes =
     [ (ta.ka.din.na, [k, o, o, k])
     , (ta.din.gin.na.thom, [k, t, k, n, o])
@@ -771,7 +771,7 @@ s0 = slower
 
 -- * realize
 
-type MStrokes = [(Sequence Mridangam.Stroke, [Mridangam.Note])]
+type MStrokes = [(Sequence Mridangam.Stroke, [Mridangam.SNote])]
 
 make_mridangam :: CallStack.Stack => MStrokes -> Korvai.Instruments
 make_mridangam strokes = mempty
@@ -780,15 +780,14 @@ make_mridangam strokes = mempty
     }
 
 make_kendang1 :: CallStack.Stack =>
-    [(Sequence KendangTunggal.Stroke, [KendangTunggal.Note])]
+    [(Sequence KendangTunggal.Stroke, [KendangTunggal.SNote])]
     -> Korvai.Instruments
 make_kendang1 strokes = mempty
     { Korvai.inst_kendang_tunggal = check $
         KendangTunggal.instrument strokes KendangTunggal.default_patterns
     }
 
-make_reyong :: CallStack.Stack =>
-    [(Sequence Reyong.Stroke, [Reyong.Note])]
+make_reyong :: CallStack.Stack => [(Sequence Reyong.Stroke, [Reyong.SNote])]
     -> Korvai.Instruments
 make_reyong strokes = mempty
     { Korvai.inst_reyong = check $

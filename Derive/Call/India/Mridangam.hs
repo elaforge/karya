@@ -141,7 +141,7 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
             map (second (realize_mstroke (Args.context args))) notes
         m_sequence notes dur (Args.range args) (Args.orientation args)
 
-realize_mstroke :: Derive.Context Score.Event -> Realize.Stroke Mridangam.Stroke
+realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver
 realize_mstroke ctx = fmap realize . stroke_call
     where
@@ -149,9 +149,9 @@ realize_mstroke ctx = fmap realize . stroke_call
         call <- Eval.get_generator sym
         Eval.apply_generator ctx call []
 
-stroke_call :: Realize.Stroke Mridangam.Stroke -> Maybe BaseTypes.CallId
+stroke_call :: Realize.Note Mridangam.Stroke -> Maybe BaseTypes.CallId
 stroke_call stroke = case stroke of
-    Realize.Stroke stroke -> Just $ Symbol.to_call stroke
+    Realize.Note stroke -> Just $ Symbol.to_call stroke
     Realize.Rest -> Nothing
     Realize.Pattern p -> Just $ Symbol.to_call p
 
@@ -272,17 +272,16 @@ variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
     ("Variation name. Possibilities are: "
         <> Doc.commas (map Doc.literal (Map.keys variations)))
 
-to_pattern :: [Realize.Stroke Mridangam.Stroke] -> Either Text Text
+to_pattern :: [Realize.Note Mridangam.Stroke] -> Either Text Text
 to_pattern = fmap mconcat . traverse convert
     where
-    convert (Realize.Stroke stroke) =
-        Right $ Symbol.unsym $ Symbol.to_call stroke
+    convert (Realize.Note stroke) = Right $ Symbol.unsym $ Symbol.to_call stroke
     convert Realize.Rest = Right "_"
     convert (Realize.Pattern matras) = Left $
         "pattern with another p" <> showt matras <> " can't go in a string"
 
 infer_pattern :: Sequence.Matra -> Text
-    -> Either Text [(Sequence.Duration, Realize.Stroke Mridangam.Stroke)]
+    -> Either Text [(Sequence.Duration, Realize.Note Mridangam.Stroke)]
 infer_pattern dur variation = do
     patterns <- justErr ("unknown variation " <> showt variation) $
         Map.lookup variation variations

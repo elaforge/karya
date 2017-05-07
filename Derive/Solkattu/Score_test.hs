@@ -26,7 +26,7 @@ test_kandams = do
 test_koraippus = do
     equal [err | Left err <- map realize Score.koraippus] []
 
-realize :: Korvai.Korvai -> Either Text [Realize.Stroke Mridangam.Stroke]
+realize :: Korvai.Korvai -> Either Text [Realize.Note Mridangam.Stroke]
 realize korvai = do
     (notes, warning) <- Korvai.realize Korvai.mridangam True korvai
     if Text.null warning then Right (map snd notes) else Left warning

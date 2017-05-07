@@ -37,13 +37,13 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence = [Sequence.Note (Solkattu.Solkattu Mridangam.Stroke)]
+type Sequence = [Sequence.Note (Solkattu.Note Mridangam.Stroke)]
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
 a & b = make_note $ Mridangam.both_strokes (to_stroke a) (to_stroke b)
 
 to_stroke :: CallStack.Stack => Sequence -> Mridangam.Stroke
-to_stroke [Sequence.Note (Solkattu.Sollu _ _ (Just stroke))] = stroke
+to_stroke [Sequence.Note (Solkattu.Note _ _ (Just stroke))] = stroke
 to_stroke seq = errorStack $ "expected a single sollu: " <> showt seq
 
 korvai :: Tala.Tala -> Sequence -> Korvai.Korvai
@@ -61,7 +61,7 @@ instrument =
 
 make_note :: Mridangam.Stroke -> Sequence
 make_note stroke =
-    [Sequence.Note (Solkattu.Sollu Solkattu.NoSollu Solkattu.NotKarvai
+    [Sequence.Note (Solkattu.Note Solkattu.NoSollu Solkattu.NotKarvai
         (Just stroke))]
 
 mridangam_strokes :: Mridangam.Strokes Sequence
