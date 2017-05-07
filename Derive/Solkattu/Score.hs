@@ -618,8 +618,8 @@ misra_lead = korvai adi mridangam $ faster $
         , (tam, [od])
         ]
 
-misra_koraippu :: [Korvai]
-misra_koraippu = korvais adi mridangam $ map faster $ concat
+koraippu_misra :: [Korvai]
+koraippu_misra = korvais adi mridangam $ map faster $ concat
     [ map long [1..7] -- 2 avartanam
     , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
@@ -657,42 +657,65 @@ misra_koraippu = korvais adi mridangam $ map faster $ concat
         ]
 
 koraippu_janahan :: Korvai
-koraippu_janahan = korvai adi mridangam $ faster $ mconcat
-    [ front1
-        . repeat 4 takita . takadinna
-        . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
-    , front1 . repeat 3 takita . takadinna . tri p5 . thom.__4
-    , front1 . repeat 2 takita . takadinna . tri p6 . thom.__4
-    , front1 . repeat 1 takita . takadinna . tri p7 . thom.__4
-    , front2 . repeat 4 takita2 . faster nakatiku
-        -- . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
-        . faster nang_kita . ta.ka.din.__.tat.__.thom.__4
-    ]
+koraippu_janahan = korvai adi mridangam $ s2 $
+    let seq = sequence (ta.ki.ta) (ta.ka.din.na)
+    in mconcat
+        [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
+        , seq 3 . tri p5 . thom.__4
+        , seq 2 . tri p6 . thom.__4
+        , seq 1 . tri p7 . thom.__4
+        ]
+    ++ let seq = sequence (s2 (nang.__.ki.ta.ta.ka)) (s2 nakatiku)
+    in mconcat
+        [ seq 4 . s2 nang_kita_nakatiku . ta.ka.din.__.tat.__.thom.__4
+        , seq 3 . tri (s2 (thom.ki.ta.ka.na.ka.ki.ta.ta.ka)) . thom.__4
+        , seq 2 . tri (s2 nang_kita_nakatiku) . thom.__4
+        , seq 1 . tri (s2 (nang.__.ki.ta.ta.ka.nakatiku)) . thom.__4
+        ]
+    ++ let kitakita = s2 (ki.ta.ki.ta.ta.ka)
+        in sam.tam.__3 . kitakita . tam.__3
+            . kitakita . s2 (nakatiku . nang_kita_nakatiku) . tam.__3
+            . kitakita . s2 (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
+            . s2 nang_kita_nakatiku
+            . ta.ka.din.__.tat.__.thom.__4
     where
-    -- TODO surely there's a better way to replace takita and takadinna?
-    front1 = front (ta.ki.ta) takadinna
-    front2 = front takita2 (faster nakatiku)
-    front takita takadinna =
+    -- problems:
+    -- Realization varies based on context:
+    -- . First takitas are ktk, rest are npk.  Likewise, first takadinnas are
+    -- nook, but the last is kook.
+    -- . Some soft p in tam.__3.
+    -- . Maybe make the whole thing s2, but tam3 = s0 (tam.__3), where s0 sets
+    -- absolute speed.
+    -- . Variations, like ta.ka.ta.lang.__.ga, ga can be k or o.
+    --   . Emphasize ktkno with pk t k n o
+    sequence takita takadinna takitas =
         sam.tam.__3.takita.tam.__3.takita.takadinna.takita.takita.tam.__3
-        . takita.takadinna
-    takita = ta.ki.ta
-    takita2 = faster (nang.__.ki.ta.ta.ka)
-    takadinna = ta.ka.din.na
+            . takita.takadinna
+        . repeat takitas takita . takadinna
     mridangam = make_mridangam $ standard_strokes ++
         [ (tam, [od])
-        , (takita, [n, p, k])
+        , (ta.ki.ta, [n, p, k])
         , (ta.ka.ta.lang.ga, [p, k, p, u, k])
-        , (ta.ka.din.tat, [o, k, o, k])
+        , (ta.ka.din.tat, [p, k, o, k])
         , (thom, [od])
         , (nang.ki.ta.ta.ka, [n, k, t, p, k])
         , (nang.ki.ta, [o&n, p, k])
+
+        , (thom.ki.ta.ka.na.ka.ki.ta.ta.ka, [o, k, t, p, u, p, k, t, p, k])
+        , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
+        ]
+    janahan_mridangam = make_mridangam
+        [ (ta.ki.ta, [k, p, k])
+        , (ta.ka.din.na, [k, o, o, k])
+        , (ta.ki.ta . ta.ki.ta, [o, t, k, n, o, k])
+        , (ta.ki.ta, [k, t, k])
         ]
 
 koraippus :: [Korvai]
-koraippus = concat [misra_koraippu]
+koraippus = concat [koraippu_misra, [koraippu_janahan]]
 
-nang_kita :: Sequence a
-nang_kita = nang . __ . ki.ta.nakatiku
+nang_kita_nakatiku :: Sequence a
+nang_kita_nakatiku = nang . __ . ki.ta.nakatiku
 
 -- * tirmanam
 
@@ -739,6 +762,12 @@ tdgnt, td_gnt, t_d_gnt :: Sequence stroke
 tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
+
+s2 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
+s2 = faster
+
+s0 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
+s0 = slower
 
 -- * realize
 

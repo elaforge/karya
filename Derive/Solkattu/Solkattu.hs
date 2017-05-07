@@ -131,7 +131,7 @@ data Pattern =
 
 instance Pretty.Pretty Pattern where
     pretty (PatternM matras) = "p" <> showt matras
-    pretty Nakatiku = "na"
+    pretty Nakatiku = "4n"
 
 instance Symbol.ToCall Pattern where
     to_call (PatternM matras) = Symbol.Symbol $ "p " <> showt matras

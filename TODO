@@ -1707,7 +1707,7 @@ Derive:
           a group of three can be higher intensity.
           . It can also be a variant pattern, e.g.
             k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
-        - Notate Janahan's version of koraippu_janahan.  If I can get a lot
+        + Notate Janahan's version of koraippu_janahan.  If I can get a lot
           of realizations for standard sollus maybe I can start to recognize
           styles and get an automatic system for deriving strokes.
         * bug: formatting messed up with patterns: realizep koraippu_janahan
@@ -1817,6 +1817,11 @@ Derive:
               write?
         - dinga can be realized with a light tha, so maybe I need a "light"
           modification?
+          . Also need a heavy emphasis.
+          . It's attached to sollus, but needs to be propagated to the stroke.
+          . Notation can be the same as karvai, e.g. hv k.t.k.
+          . Too bad haskell doesn't support prefix operators.
+            I could hack it by combining with .: a .^ b = a . heavy b.
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
           777 777 777 -> 567 876 789.  Actually the latter seems not so
           interesting.
