@@ -73,8 +73,9 @@ notes = note <$> strokes
 
 -- * instrument
 
-instrument :: [(Realize.Sequence Stroke, [Realize.Note Stroke])] -> Patterns
-    -> Either Text (Realize.Instrument Stroke)
+instrument ::
+    [([Sequence.Note (Solkattu.Solkattu Stroke)], [Realize.Note Stroke])]
+    -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke

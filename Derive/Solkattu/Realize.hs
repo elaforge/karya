@@ -24,7 +24,6 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence stroke = [S.Note (Solkattu.Solkattu stroke)]
 type Note stroke = S.Note (Stroke stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
@@ -81,7 +80,8 @@ map_patterns f (Patterns p) = Patterns (f <$> p)
 newtype StrokeMap stroke = StrokeMap (Map [Solkattu.Sollu] [Maybe stroke])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
 
-stroke_map :: Pretty.Pretty stroke => [(Sequence stroke, [Note stroke])]
+stroke_map :: Pretty.Pretty stroke =>
+    [([S.Note (Solkattu.Solkattu stroke)], [Note stroke])]
     -> Either Text (StrokeMap stroke)
 stroke_map = unique <=< mapM verify
     where
@@ -122,7 +122,7 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Instrument stroke) where
         ]
 
 instrument :: Pretty.Pretty stroke => StrokeMap stroke
-    -> [(Sequence stroke, [Note stroke])] -> Patterns stroke
+    -> [([S.Note (Solkattu.Solkattu stroke)], [Note stroke])] -> Patterns stroke
     -> Either Text (Instrument stroke)
 instrument defaults strokes patterns = do
     smap <- stroke_map strokes

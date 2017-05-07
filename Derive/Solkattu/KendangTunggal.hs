@@ -24,7 +24,7 @@ data Stroke =
     | Ka | Tut | Dag -- right
     deriving (Eq, Ord, Show)
 
-instrument :: [(Realize.Sequence Stroke, [Note])] -> Patterns
+instrument :: [([Sequence.Note (Solkattu.Solkattu Stroke)], [Note])] -> Patterns
     -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
