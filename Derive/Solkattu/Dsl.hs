@@ -13,11 +13,6 @@ module Derive.Solkattu.Dsl (
     , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
     , karv
 
-    , dheem, dhom, di, din, dit, ga, gin, ka, ki
-    , ku, mi, na, nam, nang, ri, ta, tam, tat, tha, thom, ti
-    , tang, lang
-    , dinga
-
     -- ** directives
     , (!), (<+>)
     , hv, lt
@@ -30,7 +25,7 @@ module Derive.Solkattu.Dsl (
     , join, repeat, inter, spread
     -- * re-exports
     , module Derive.Solkattu.Sequence
-    , module Derive.Solkattu.Solkattu
+    , check, duration_of
     , module Derive.Solkattu.Notation
     , module Derive.Solkattu.Tala
     -- * mridangam
@@ -56,16 +51,16 @@ import Derive.Solkattu.Korvai (Korvai)
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Sequence as S
 import Derive.Solkattu.Sequence (Duration, Matra, Nadai)
-import qualified Derive.Solkattu.Solkattu as S
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (check, duration_of)
 import Derive.Solkattu.Tala (Akshara)
 
 import Global
 
 
-type Sequence stroke = [Sequence.Note (S.Note stroke)]
+type Sequence stroke = [S.Note (Solkattu.Note stroke)]
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -76,17 +71,14 @@ infixr 6 . -- same as <>
 (•) :: (b -> c) -> (a -> b) -> a -> c
 (•) = (Prelude..)
 
-make_note :: S.Note stroke -> Sequence stroke
-make_note n = [Sequence.Note n]
-
-sollu :: S.Sollu -> Sequence stroke
-sollu s = make_note (S.Note s S.NotKarvai Nothing)
+make_note :: a -> [S.Note a]
+make_note a = [S.Note a]
 
 -- ** sollus
 
 class Rest a where __ :: a
-instance Rest (Sequence stroke) where __ = make_note S.Rest
-instance Rest (Realize.SNote stroke) where __ = Sequence.Note Realize.Rest
+instance Rest (Sequence stroke) where __ = make_note Solkattu.Rest
+instance Rest (Realize.SNote stroke) where __ = S.Note Realize.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
@@ -106,46 +98,17 @@ __9 = __n 9
 __n :: Matra -> Sequence stroke
 __n n = repeat (n-1) __
 
--- | Make a single sollu 'S.Karvai'.
+-- | Make a single sollu 'Solkattu.Karvai'.
 karv :: (CallStack.Stack, Pretty.Pretty stroke) =>
     Sequence stroke -> Sequence stroke
-karv [Sequence.Note (S.Note s _ stroke)] =
-    [Sequence.Note $ S.Note s S.Karvai stroke]
+karv [S.Note (Solkattu.Note s _ stroke)] =
+    [S.Note $ Solkattu.Note s Solkattu.Karvai stroke]
 karv ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
-
-dheem = sollu S.Dheem
-dhom = sollu S.Dhom
-di = sollu S.Di
-din = sollu S.Din
-dit = sollu S.Dit
-ga = sollu S.Ga
-gin = sollu S.Gin
-ka = sollu S.Ka
-ki = sollu S.Ki
-ku = sollu S.Ku
-mi = sollu S.Mi
-na = sollu S.Na
-nam = sollu S.Nam
-nang = sollu S.Nang
-ri = sollu S.Ri
-ta = sollu S.Ta
-tam = sollu S.Tam
-tat = sollu S.Tat
-tha = sollu S.Tha
-thom = sollu S.Thom
-ti = sollu S.Ti
-
-tang, lang :: Sequence stroke
-tang = sollu S.Tang
-lang = sollu S.Lang
-
-dinga :: Sequence stroke
-dinga = din <> __ <> ga
 
 -- ** directives
 
 akshara :: Akshara -> Sequence stroke
-akshara n = make_note (S.Alignment n)
+akshara n = make_note (Solkattu.Alignment n)
 
 -- | Align at sam.
 sam :: Sequence stroke
@@ -153,14 +116,14 @@ sam = akshara 0
 
 -- | Align at the given akshara.
 (^) :: Sequence stroke -> Akshara -> Sequence stroke
-seq ^ n = make_note (S.Alignment n) <> seq
+seq ^ n = make_note (Solkattu.Alignment n) <> seq
 infix 9 ^
 
 pat :: Matra -> Sequence stroke
-pat d = make_note $ S.Pattern (S.PatternM d)
+pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 
 nakatiku :: Sequence stroke
-nakatiku = make_note $ S.Pattern S.Nakatiku
+nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
 -- ** strokes
 
@@ -169,8 +132,8 @@ stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
 stroke _ [] = errorStack "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
-    Sequence.Note (S.Note s karvai _) ->
-        Sequence.Note (S.Note s karvai (Just (Korvai.to_stroke stroke))) : ns
+    S.Note (Solkattu.Note s karvai _) ->
+        S.Note (Solkattu.Note s karvai (Just (Korvai.to_stroke stroke))) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
 
 -- | Add a specific stroke annotation to a sollu.
@@ -186,13 +149,13 @@ stroke stroke (n:ns) = case n of
 a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
 
 hv, lt :: (Pretty.Pretty stroke, CallStack.Stack) =>
-    Sequence.Note (Realize.Note stroke) -> Sequence.Note (Realize.Note stroke)
-hv (Sequence.Note (Realize.Note s)) =
-    Sequence.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
+    S.Note (Realize.Note stroke) -> S.Note (Realize.Note stroke)
+hv (S.Note (Realize.Note s)) =
+    S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
 hv n = errorStack $ "expected stroke: " <> pretty n
 
-lt (Sequence.Note (Realize.Note s)) =
-    Sequence.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
+lt (S.Note (Realize.Note s)) =
+    S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
 lt n = errorStack $ "expected stroke: " <> pretty n
 
 -- ** structures

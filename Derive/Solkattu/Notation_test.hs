@@ -6,13 +6,14 @@ module Derive.Solkattu.Notation_test where
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (faster, nadai)
+import qualified Derive.Solkattu.DslSollu as DslSollu
 import qualified Derive.Solkattu.Notation as Notation
 
 import Global
 
 
 di, ta, ka, ki :: Notation.Sequence ()
-(di, ta, ka, ki) = (Dsl.di, Dsl.ta, Dsl.ka, Dsl.ki)
+(di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
 
 test_matras_of = do
     let f = Notation.matrasOfE

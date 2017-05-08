@@ -8,7 +8,8 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, ki, tha, thom, __)
+import Derive.Solkattu.DslSollu (ta, di, ki, tha, thom)
+import Derive.Solkattu.Dsl (__)
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala

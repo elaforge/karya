@@ -10,6 +10,7 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Derive.Solkattu.Dsl
+import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai

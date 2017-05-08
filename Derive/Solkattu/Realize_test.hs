@@ -11,7 +11,8 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (ta, di, __)
+import Derive.Solkattu.Dsl (__)
+import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as M
 import qualified Derive.Solkattu.Realize as Realize
@@ -105,7 +106,7 @@ test_stroke_map = do
         ]
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(Dsl.tang <> Dsl.ga, [u, __, __])]) "differing lengths"
+    left_like (f [(tang <> ga, [u, __, __])]) "differing lengths"
     left_like (f [(ta <> [Sequence.Note $ pattern 5], [k])])
         "only have plain sollus"
 
@@ -218,7 +219,7 @@ test_format_nadai_change = do
 test_format_speed = do
     let f width = fmap (e_format . Realize.format width Tala.rupaka_fast)
             . Realize.realize stroke_map . Sequence.flatten
-        thoms n = mconcat (replicate n Dsl.thom)
+        thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
     equal (f 80 [nadai 3 $ thoms 6]) (Right "O o o O o o")
