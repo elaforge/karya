@@ -21,8 +21,9 @@ module Derive.Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku
     -- ** combinators
-    , tri, tri_, trin
+    , tri, tri_, trin, tri2
     , join, repeat, inter, spread
+    , cmap
     -- * re-exports
     , module Derive.Solkattu.Sequence
     , check, duration_of
@@ -173,6 +174,10 @@ trin :: Sequence stroke -> Sequence stroke -> Sequence stroke
     -> Sequence stroke -> Sequence stroke
 trin sep a b c = join sep [a, b, c]
 
+-- | Tirmanams with a variant final repeat.
+tri2 :: Sequence stroke -> Sequence stroke -> Sequence stroke -> Sequence stroke
+tri2 sep ab c = join sep [ab, ab, c]
+
 p5, p6, p7, p8, p9 :: Sequence stroke
 p5 = pat 5
 p6 = pat 6
@@ -198,6 +203,9 @@ inter sep (x:xs) = x : sep ++ inter sep xs
 
 spread :: Matra -> Sequence stroke -> Sequence stroke
 spread n = inter (__n n)
+
+cmap :: Monoid b => (a -> b) -> [a] -> b
+cmap = mconcatMap
 
 -- * realize
 

@@ -80,21 +80,23 @@ nakanadin = korvais (beats 2) $ map faster
 
 -- * korvais
 
-p16_12_06_sriram1 :: Korvai
-p16_12_06_sriram1 = korvai adi $ faster $
-    p&k.__4.p&t.__4.kitakina . tri (okto . n.o.o.k)
-        . od.__.od.__4 . p&u.__.p&u.__4 . od.__4
-    . p&t.__4.kitakina . tri okto . od.__4 . p&k.__4 . od.__4
-    . kitakina . tri (n.o.o.k) . od.__.k.__.od.__4
-    . utarangam_var2
+p16_12_06_sriram1 :: [Korvai]
+p16_12_06_sriram1 = korvais adi $ map faster $ map (purvangam.)
+    [ tri_ (u.__8) (k_kto . k.__.k_kto . k.__.t.__.k_kto)
+    -- TODO the gap is 8, but taka and takanaka should consume 2 and 4
+    , k_kto_s . u.__6 . taka.k_kto_s . i.__4 . takanaka . repeat 4 k_kto
+    , tri_ (u.__8) (p6 . taka.p6 . takanaka.p6)
+    -- Ganesh's variation.
+    , tri2 (u.__8) (p6 . taka.p6 . takanaka.p6) (repeat 4 p6)
+    ]
     where
-    _utarangam = tri_ (u.__8) (k_kto . k.__.k_kto . k.__.t.__.k_kto)
-    _utarangam_var1 =
-        k_kto . k.__.k_kto . k.__.t.__.k_kto . u.__6
-        . k.p . k_kto . k.__.k_kto . k.__.t.__.k_kto . i.__4
-        . k.p.n.p . repeat 4 k_kto
-    utarangam_var2 =
-        k_kto_s . u.__6 . k.p.k_kto_s . i.__4 . k.p.n.p . repeat 4 k_kto
+    purvangam =
+        p&k.__4.p&t.__4.kitakina . tri (okto . n.o.o.k)
+            . od.__.od.__4 . p&u.__.p&u.__4 . od.__4
+        . p&t.__4.kitakina . tri okto . od.__4 . p&k.__4 . od.__4
+        . kitakina . tri (n.o.o.k) . od.__.k.__.od.__4
+
+    -- TODO second expansion should be: t.__.k_kto -> k.__.k_kto
     k_kto_s = mconcat $ expand 3 2 (k.__.t.__.k_kto)
     k_kto = k.__.k.t.o.__
     okto = o.k.t.o. hv k .t.p.k
@@ -126,9 +128,9 @@ p16_12_06_janahan2 = korvai adi $ faster $
     tdgnt = spread 2 $ k.t.k.n.o
 
 all_korvais :: [Korvai]
-all_korvais =
-    [ p16_12_06_sriram1, p16_12_06_sriram2
-    , p16_12_06_janahan1, p16_12_06_janahan2
+all_korvais = concat
+    [ p16_12_06_sriram1
+    , [p16_12_06_sriram2, p16_12_06_janahan1, p16_12_06_janahan2]
     ]
 
 -- * korvai sequences
@@ -226,6 +228,10 @@ eddupu10 = korvais (beats 5)
 
 nang_kita :: Sequence
 nang_kita = o&n . __ . p.k.nakatiku
+
+taka, takanaka :: Sequence
+taka = k.p
+takanaka = k.p.n.p
 
 -- -- * realize
 
