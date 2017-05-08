@@ -3,10 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Reyong where
-import qualified Data.Map as Map
-
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -19,7 +18,7 @@ import Global
 type SNote = Sequence.Note (Realize.Note Stroke)
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note
+note = Sequence.Note . Realize.Note . Realize.stroke
 
 -- Automatically infer two handed cek if they are isolated.
 -- Maybe infer light byut if there is a note immediately afterwards?
@@ -50,6 +49,14 @@ instance Symbol.ToCall Stroke where
         CekC -> "X"
         CekO -> "/"
 
+instance Symbol.ToCall (Realize.Stroke Stroke) where
+    to_call (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Symbol.to_call stroke
+        Realize.Light ->
+            Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+        Realize.Heavy ->
+            Symbol.Symbol $ "v |" <> Symbol.unsym (Symbol.to_call stroke)
+
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a
     , b :: a, o :: a, k :: a, x :: a
@@ -78,7 +85,7 @@ instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.StrokeMap $ Map.fromList
+standard_stroke_map = Realize.simple_stroke_map
     [ ([Solkattu.Thom], [Just Byong])
     , ([Solkattu.Tam], [Just Byong])
     , ([Solkattu.Tang], [Just Byong])

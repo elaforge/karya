@@ -23,10 +23,11 @@ module Derive.Solkattu.MridangamDsl (
     , k, t, n, d, u, i, y, j, p, o, od
     , on, l
     , closed
+    , lt, hv
     , module Derive.Solkattu.Dsl
 ) where
 import qualified Util.CallStack as CallStack
-import Derive.Solkattu.Dsl hiding ((&))
+import Derive.Solkattu.Dsl hiding ((&), lt, hv)
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
@@ -37,12 +38,13 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence = [Sequence.Note (Solkattu.Note Mridangam.Stroke)]
+type Sequence =
+    [Sequence.Note (Solkattu.Note (Realize.Stroke Mridangam.Stroke))]
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
-a & b = make_note $ Mridangam.both_strokes (to_stroke a) (to_stroke b)
+a & b = make_note $ Mridangam.both_rstrokes (to_stroke a) (to_stroke b)
 
-to_stroke :: CallStack.Stack => Sequence -> Mridangam.Stroke
+to_stroke :: CallStack.Stack => Sequence -> Realize.Stroke Mridangam.Stroke
 to_stroke [Sequence.Note (Solkattu.Note _ _ (Just stroke))] = stroke
 to_stroke seq = errorStack $ "expected a single sollu: " <> showt seq
 
@@ -59,13 +61,13 @@ instrument =
     Solkattu.check $ Mridangam.instrument strokes Mridangam.default_patterns
     where strokes = []
 
-make_note :: Mridangam.Stroke -> Sequence
+make_note :: Realize.Stroke Mridangam.Stroke -> Sequence
 make_note stroke =
     [Sequence.Note (Solkattu.Note Solkattu.NoSollu Solkattu.NotKarvai
         (Just stroke))]
 
 mridangam_strokes :: Mridangam.Strokes Sequence
-mridangam_strokes = make_note <$> Mridangam.strokes
+mridangam_strokes = make_note • Realize.stroke <$> Mridangam.strokes
 
 Mridangam.Strokes {..} = mridangam_strokes
 
@@ -75,3 +77,18 @@ on = o&n
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
 closed = concatMap $ \note -> if [note] == o then t else [note]
+
+-- TODO not implemented yet
+-- In Dsl, these modify strokes and not sollus, but since here sollus are
+-- strokes, they need to modify sollus.
+lt, hv :: CallStack.Stack => Sequence -> Sequence
+lt [Sequence.Note (Solkattu.Note sollu karvai (Just stroke))] =
+    [ Sequence.Note (Solkattu.Note sollu karvai
+        (Just $ stroke { Realize._emphasis = Realize.Light }))
+    ]
+lt n = errorStack $ "expected a single note: " <> pretty n
+hv [Sequence.Note (Solkattu.Note sollu karvai (Just stroke))] =
+    [ Sequence.Note (Solkattu.Note sollu karvai
+        (Just $ stroke { Realize._emphasis = Realize.Heavy }))
+    ]
+hv n = errorStack $ "expected a single note: " <> pretty n

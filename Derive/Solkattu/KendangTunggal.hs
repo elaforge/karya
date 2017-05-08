@@ -3,10 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.KendangTunggal where
-import qualified Data.Map as Map
-
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -20,8 +19,8 @@ type SNote = Sequence.Note (Realize.Note Stroke)
 
 data Stroke =
     Plak -- both
-    | Pak | Pang | TutL | DagL -- left
-    | Ka | Tut | Dag -- right
+    | Pak | Pang | TutL | DeL -- left
+    | Ka | Tut | De -- right
     deriving (Eq, Ord, Show)
 
 instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [SNote])]
@@ -29,12 +28,12 @@ instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [SNote])]
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.StrokeMap $ Map.fromList
-    [ ([Solkattu.Thom], [Just Dag])
+standard_stroke_map = Realize.simple_stroke_map
+    [ ([Solkattu.Thom], [Just De])
     , ([Solkattu.Tam], [Just TutL])
     , ([Solkattu.Tang], [Just TutL])
     , ([Solkattu.Lang], [Just TutL])
-    , ([Solkattu.Dheem], [Just Dag])
+    , ([Solkattu.Dheem], [Just De])
     ]
 
 -- * strokes
@@ -45,10 +44,10 @@ instance Pretty.Pretty Stroke where
         Pak -> "p"
         Pang -> "t"
         TutL -> "u"
-        DagL -> "å"
+        DeL -> "å"
         Ka -> "k"
         Tut -> "o"
-        Dag -> "a"
+        De -> "a"
 
 -- | TODO should I make these consistent with 'Strokes'?
 instance Symbol.ToCall Stroke where
@@ -57,17 +56,30 @@ instance Symbol.ToCall Stroke where
         Pak -> "P"
         Pang -> "T"
         TutL -> "Ø"
-        DagL -> "`O+`"
+        DeL -> "`O+`"
         Ka -> ".."
         Tut -> "o"
-        Dag -> "+"
+        De -> "+"
+
+-- TODO unify with Local.Instrument.Kontakt.KendangBali.Stroke
+instance Symbol.ToCall (Realize.Stroke Stroke) where
+    to_call (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Symbol.to_call stroke
+        Realize.Light -> case stroke of
+            Pak -> "^"
+            TutL -> "ø"
+            Ka -> "."
+            De -> "-"
+            _ -> Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+        Realize.Heavy ->
+            Symbol.Symbol $ "v |" <> Symbol.unsym (Symbol.to_call stroke)
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
     } deriving (Show)
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note
+note = Sequence.Note . Realize.Note . Realize.stroke
 
 notes :: Strokes SNote
 notes = Strokes
@@ -75,10 +87,10 @@ notes = Strokes
     , p = note Pak
     , t = note Pang
     , u = note TutL
-    , å = note DagL
+    , å = note DeL
     , k = note Ka
     , o = note Tut
-    , a = note Dag
+    , a = note De
     }
 
 

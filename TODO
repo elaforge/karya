@@ -557,6 +557,22 @@ synth: im:
       for negative I'd have to decide how much, and besides reaper doesn't
       necessarily have negative time.
     . So I have to add a constant anyway.
+  cache / incremental rerender
+    . I want the sequencer to only send the damaged range, but the synthesizer
+      will have to rewind to the previous chunk boundary, since it can't just
+      put every note in its own sample.  I suppose a sampler could actually do
+      that, but presumably physical models couldn't.
+    . Though actually a model would need to save its state at chunk
+      boundaries, so if I go per-note, then I wind up with rendering each note
+      separately, with a header with the model's state at start time.  But
+      overlapping notes would influence each other, so it would have to be
+      chunks of overlapping notes.  Of course it's not guaranteed there will
+      be a gap, so it would have to break anyway over a threshold.
+    . This is all to say that the cache chunks are synthesizer dependent, so
+      it needs access to all the serialized notes and can rewind as much as it
+      wants.  If notes are saved individually and indexed by time then I just
+      need to re-save the damaged ones and either send the time range or infer
+      from file timestamps.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -1696,6 +1712,8 @@ Derive:
         reyong realization:
           - some way to select between melodic and rythmic realization, and
             transposition for melodic
+            . This could be the same as the emphasis mechanism, if I extend
+              it to attach Attributes.
           * implement n1 etc. calls in bali.reyong.solkattu
         - Emphasis or automatic variant versions of patterns, e.g.
           . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
@@ -1815,13 +1833,41 @@ Derive:
               variations.
             . Or maybe I should write them explicitly, but make them easier to
               write?
-        - dinga can be realized with a light tha, so maybe I need a "light"
+        * dinga can be realized with a light tha, so maybe I need a "light"
           modification?
           . Also need a heavy emphasis.
           . It's attached to sollus, but needs to be propagated to the stroke.
           . Notation can be the same as karvai, e.g. hv k.t.k.
           . Too bad haskell doesn't support prefix operators.
-            I could hack it by combining with .: a .^ b = a . heavy b.
+            I could hack it by combining with .: a .^ b = a . light b or
+            a ., b for heavy.  But 'v' is the normal heavy, so why not
+            a . v b.  Then can I do a letter for light?  h?  Or just hv and lt
+            to avoid conflicting with single letter stroke names.
+          . Actually this goes on strokes, not sollus, so it would go in
+            Patterns or StrokeMap: (ta.ka, [hv t, k]).
+        - I use Pretty for format, which is awkward for Realize.Stroke, since
+          I can tolerate some ambiguity for the same of a single letter width,
+          but Pretty shouldn't have such a restriction.  Add Format class?
+          But it still returns Text instead of Char since patterns have two
+          characters.
+        - This turns into a general way to represent unparsed expressions.
+          . Text shouldn't have ShowVal, it should be Symbol, and then CallId
+            should have a separate type, its ShowVal doesn't need quotes,
+            unless there is a space.
+          . Then Unparsed represents parseable text, so actually ShowVal
+            should return that.  Is it worth having a separate type over using
+            Text, though?
+          . I should be able to parse Expr Unparsed without the intervening
+            ShowVal by directly parsing the Unparsed vals.
+          - Make CallId its own type, so its ShowVal can be correct.
+          - Move BaseTypes.Expr etc. and the above to Derive.Expr where the
+            val is abstract, and BaseTypes specializes to Val.
+            . ToExpr should actually take Attributes -> a -> Expr.
+            . Then I'd want some general purpose fallback for e.g.
+              soft -> "^ |", loud -> "v |" if the stroke doesn't have more
+              specialized notation.
+          . This seems like a big deal, so try to do a hack first where I
+            pretend CallId is just a plain Unparsed.
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
           777 777 777 -> 567 876 789.  Actually the latter seems not so
           interesting.

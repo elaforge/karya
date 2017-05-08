@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Derive.Solkattu.Mridangam where
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -21,7 +21,7 @@ import Global
 type SNote = Sequence.Note (Realize.Note Stroke)
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note
+note = Sequence.Note . Realize.Note . Realize.stroke
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
@@ -39,7 +39,7 @@ instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
 instrument = Realize.instrument standard_stroke_map
 
 standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.StrokeMap $ Map.fromList
+standard_stroke_map = Realize.simple_stroke_map $
     [ ([Solkattu.Thom], [Just $ Thoppi Thom])
     , ([Solkattu.Tam], [Just $ Valantalai Chapu])
     , ([Solkattu.Tang], [Just $ Valantalai Chapu])
@@ -96,6 +96,27 @@ instance Symbol.ToCall Stroke where
             Thom -> "o"
             Tha -> "+"
 
+instance Symbol.ToCall (Realize.Stroke Stroke) where
+    to_call (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
+        (Realize.Normal, _) -> Symbol.to_call stroke
+        (Realize.Light, Thoppi Thom) -> "."
+        (Realize.Light, Thoppi Tha) -> "-"
+        -- TODO this is broken because a CallId is not an Expr, but will work
+        -- anyway for LSol because it just puts the text in the event.  To
+        -- make it work in general, I need to either abandon pretense of making
+        -- a CallId and make a Text expr, or make a ToExpr class.
+        (Realize.Light, _) ->
+            Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+        (Realize.Heavy, _) ->
+            Symbol.Symbol $ "v | " <> Symbol.unsym (Symbol.to_call stroke)
+
+-- instance Symbol.ToExpr (Realize.Stroke Stroke) where
+--     to_expr (Realize.Stroke emphasis stroke) = case emphasis of
+--         Realize.Normal -> Symbol.to_call stroke
+--         Realize.Light -> case stroke of
+--             Thoppi Thom -> "."
+--             Thoppi Tha -> "-"
+
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a
     , y :: a, j :: a
@@ -131,9 +152,14 @@ both :: Thoppi -> Valantalai -> SNote
 both a b = note (Both a b)
 
 (&) :: CallStack.Stack => SNote -> SNote -> SNote
-Sequence.Note (Realize.Note a) & Sequence.Note (Realize.Note b) =
-    note (both_strokes a b)
-a & b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+Sequence.Note (Realize.Note s1) & Sequence.Note (Realize.Note s2) =
+    Sequence.Note $ Realize.Note $ both_rstrokes s1 s2
+a & b = errorStack $ "requires notes: " <> showt (a, b)
+
+both_rstrokes :: Realize.Stroke Stroke -> Realize.Stroke Stroke
+    -> Realize.Stroke Stroke
+both_rstrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
+    Realize.Stroke (em1 <> em2) (both_strokes s1 s2)
 
 both_strokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
 both_strokes (Thoppi a) (Valantalai b) = Both a b

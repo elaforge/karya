@@ -28,7 +28,7 @@ test_realize = do
     let f = second show_strokes . Realize.realize smap
             . map (Sequence.default_tempo,)
         sollu s = Note s Solkattu.NotKarvai Nothing
-        smap = Realize.StrokeMap $ Map.fromList
+        smap = Realize.simple_stroke_map
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])
             , ([Ta], map Just [t])
@@ -45,12 +45,23 @@ test_realize = do
     equal (f [sollu Din, Rest, sollu Ga]) (Right "D _ _")
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
-    let chapu = Just (M.Valantalai M.Chapu)
+    let chapu = Just (Realize.stroke $ M.Valantalai M.Chapu)
     -- An explicit stroke will replace just that stroke.
-    equal (f [sollu Na, Note Din Solkattu.NotKarvai chapu])
-        (Right "n u")
+    equal (f [sollu Na, Note Din Solkattu.NotKarvai chapu]) (Right "n u")
     -- Not found is ok if it has an explicit stroke.
     equal (f [Note Tat Solkattu.NotKarvai chapu]) (Right "u")
+
+test_realize_emphasis = do
+    let f = second (map (fmap pretty . snd)) . Realize.realize smap
+            . map (Sequence.default_tempo,)
+        smap = expect_right $
+            Realize.stroke_map [(ta <> di, [Dsl.hv k, Dsl.lt t])]
+            where M.Strokes {..} = M.notes
+    let sollu s = Note s Solkattu.NotKarvai Nothing
+    equal (f [sollu Ta, sollu Di]) $ Right
+        [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
+        , Realize.Note $ Realize.Stroke Realize.Light "t"
+        ]
 
 pattern :: Sequence.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.PatternM
@@ -87,9 +98,11 @@ test_stroke_map = do
             . Realize.stroke_map
         M.Strokes {..} = M.notes
     equal (f []) (Right [])
-    equal (f [(ta <> di, [k, t])])
-        (Right [([Ta, Di],
-            [Just $ M.Valantalai M.Ki, Just $ M.Valantalai M.Ta])])
+    equal (f [(ta <> di, [k, t])]) $ Right
+        [ ( [Ta, Di]
+          , map (Just . Realize.stroke) [M.Valantalai M.Ki, M.Valantalai M.Ta]
+          )
+        ]
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(Dsl.tang <> Dsl.ga, [u, __, __])]) "differing lengths"
@@ -100,7 +113,7 @@ test_format = do
     let f tala = e_format . Realize.format 80 tala
             . map (Sequence.default_tempo,)
         n4 = [k, t, Realize.Rest, n]
-        M.Strokes {..} = Realize.Note <$> M.strokes
+        M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
     -- Emphasize every 4.
     equal (f rupaka n4) "K t _ n"

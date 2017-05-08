@@ -20,6 +20,7 @@ module Derive.Solkattu.Dsl (
 
     -- ** directives
     , (!), (<+>)
+    , hv, lt
     , akshara, sam, (^)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
@@ -183,6 +184,16 @@ stroke stroke (n:ns) = case n of
 
 (<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
 a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
+
+hv, lt :: (Pretty.Pretty stroke, CallStack.Stack) =>
+    Sequence.Note (Realize.Note stroke) -> Sequence.Note (Realize.Note stroke)
+hv (Sequence.Note (Realize.Note s)) =
+    Sequence.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
+hv n = errorStack $ "expected stroke: " <> pretty n
+
+lt (Sequence.Note (Realize.Note s)) =
+    Sequence.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
+lt n = errorStack $ "expected stroke: " <> pretty n
 
 -- ** structures
 

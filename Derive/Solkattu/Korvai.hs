@@ -2,9 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE FlexibleInstances #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
+import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
@@ -43,7 +45,7 @@ korvai tala instruments sequence = Korvai
 
 data GetInstrument stroke = GetInstrument {
     get_realization :: Instruments -> Realize.Instrument stroke
-    , get_stroke :: Stroke -> Maybe stroke
+    , get_stroke :: Stroke -> Maybe (Realize.Stroke stroke)
     }
 
 mridangam :: GetInstrument Mridangam.Stroke
@@ -108,9 +110,9 @@ instance Pretty.Pretty Instruments where
             ]
 
 data Stroke = Stroke {
-    s_mridangam :: !(Maybe Mridangam.Stroke)
-    , s_kendang_tunggal :: !(Maybe KendangTunggal.Stroke)
-    , s_reyong :: !(Maybe Reyong.Stroke)
+    s_mridangam :: !(Maybe (Realize.Stroke Mridangam.Stroke))
+    , s_kendang_tunggal :: !(Maybe (Realize.Stroke KendangTunggal.Stroke))
+    , s_reyong :: !(Maybe (Realize.Stroke Reyong.Stroke))
     } deriving (Eq, Ord, Show)
 
 instance Monoid Stroke where
@@ -122,12 +124,12 @@ instance Pretty.Pretty Stroke where
     pretty (Stroke m k r) = pretty (m, k, r)
 
 class ToStroke stroke where
-    to_stroke :: stroke -> Stroke
+    to_stroke :: CallStack.Stack => stroke -> Stroke
 instance ToStroke Stroke where
     to_stroke = id
-instance ToStroke Mridangam.Stroke where
+instance ToStroke (Realize.Stroke Mridangam.Stroke) where
     to_stroke s = mempty { s_mridangam = Just s }
-instance ToStroke KendangTunggal.Stroke where
+instance ToStroke (Realize.Stroke KendangTunggal.Stroke) where
     to_stroke s = mempty { s_kendang_tunggal = Just s }
 
 instance (Pretty.Pretty stroke, ToStroke stroke) =>
@@ -135,7 +137,17 @@ instance (Pretty.Pretty stroke, ToStroke stroke) =>
     to_stroke (Sequence.Note s) = to_stroke s
     to_stroke n = errorStack $ "requires a note: " <> pretty n
 
-instance (Pretty.Pretty stroke, ToStroke stroke) =>
-        ToStroke (Realize.Note stroke) where
+instance ToStroke (Realize.Note Mridangam.Stroke) where
     to_stroke (Realize.Note s) = to_stroke s
     to_stroke n = errorStack $ "requires a note: " <> pretty n
+
+instance ToStroke (Realize.Note KendangTunggal.Stroke) where
+    to_stroke (Realize.Note s) = to_stroke s
+    to_stroke n = errorStack $ "requires a note: " <> pretty n
+
+-- This generalizes the Realize.Note instances, but would require
+-- UndecidableInstances.
+-- instance (Pretty.Pretty stroke, ToStroke (Realize.Stroke stroke)) =>
+--         ToStroke (Realize.Note stroke) where
+--     to_stroke (Realize.Note s) = to_stroke s
+--     to_stroke n = errorStack $ "requires a note: " <> pretty n

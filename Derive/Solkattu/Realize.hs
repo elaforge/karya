@@ -27,8 +27,41 @@ import Global
 type SNote stroke = S.Note (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
-data Note stroke = Note stroke | Rest | Pattern !Solkattu.Pattern
+data Note stroke = Note (Stroke stroke) | Rest | Pattern !Solkattu.Pattern
     deriving (Eq, Show, Functor)
+
+data Stroke stroke = Stroke {
+    _emphasis :: !Emphasis
+    , _stroke :: !stroke
+    } deriving (Eq, Ord, Show, Functor)
+
+instance Pretty.Pretty stroke => Pretty.Pretty (Stroke stroke) where
+    pretty (Stroke emphasis stroke) = case emphasis of
+        -- This makes the output ambiguous since some strokes are already
+        -- capitalized.  But since Pretty is used for 'format', which will
+        -- doesn't understand about two-char strokes, I'll try the ambiguity
+        -- and make format smarter (and take twice the width) if necessary.
+        Heavy -> Text.toUpper $ pretty stroke
+        Normal -> pretty stroke
+        Light -> pretty stroke
+
+stroke :: stroke -> Stroke stroke
+stroke = Stroke Normal
+
+-- There's no general ToCall instance for Stroke because individual instruments
+-- may have special cases.
+
+-- | The emphasis will be propagated to the underlying stroke.
+data Emphasis = Light | Normal | Heavy deriving (Eq, Ord, Show)
+
+instance Monoid Emphasis where
+    mempty = Normal
+    mappend = max
+
+instance Pretty.Pretty Emphasis where
+    pretty Light = "^"
+    pretty Normal = ""
+    pretty Heavy = "v"
 
 note_matras :: Note stroke -> S.Matra
 note_matras n = case n of
@@ -77,8 +110,13 @@ map_patterns f (Patterns p) = Patterns (f <$> p)
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
-newtype StrokeMap stroke = StrokeMap (Map [Solkattu.Sollu] [Maybe stroke])
+newtype StrokeMap stroke =
+    StrokeMap (Map [Solkattu.Sollu] [Maybe (Stroke stroke)])
     deriving (Eq, Show, Pretty.Pretty, Monoid)
+
+-- | Directly construct a StrokeMap from strokes.
+simple_stroke_map :: [([Solkattu.Sollu], [Maybe stroke])] -> StrokeMap stroke
+simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
 
 stroke_map :: Pretty.Pretty stroke =>
     [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
@@ -136,7 +174,7 @@ instrument defaults strokes patterns = do
 type Event stroke = (S.Duration, Solkattu.Note stroke)
 
 realize :: forall stroke. Pretty.Pretty stroke =>
-    StrokeMap stroke -> [(S.Tempo, Solkattu.Note stroke)]
+    StrokeMap stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
     -> Either Text [(S.Tempo, Note stroke)]
 realize smap = format_error . go
     where
@@ -167,8 +205,8 @@ pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
 find_sequence :: StrokeMap stroke -> a -> Solkattu.Sollu
-    -> Maybe stroke -> [(a, Solkattu.Note stroke)]
-    -> Either Text ([(a, Note stroke)], [(a, Solkattu.Note stroke)])
+    -> Maybe (Stroke stroke) -> [(a, Solkattu.Note (Stroke stroke))]
+    -> Either Text ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
 find_sequence (StrokeMap smap) a sollu stroke notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
@@ -186,14 +224,15 @@ find_sequence (StrokeMap smap) a sollu stroke notes =
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
-replace_sollus :: [Maybe stroke] -> [(a, Solkattu.Note stroke)]
-    -> ([(a, Note stroke)], [(a, Solkattu.Note stroke)])
+replace_sollus :: [Maybe (Stroke stroke)]
+    -> [(a, Solkattu.Note (Stroke stroke))]
+    -> ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
 replace_sollus [] ns = ([], ns)
 replace_sollus (stroke : strokes) ((a, n) : ns) = case n of
     Solkattu.Note _ _ (Just stroke) ->
         first ((a, Note stroke) :) (replace_sollus strokes ns)
     Solkattu.Note _ _ Nothing ->
-        first ((a, maybe Rest Note stroke) :) (replace_sollus strokes ns)
+        first ((a, maybe Rest Note stroke) :) $ replace_sollus strokes ns
     Solkattu.Rest -> first ((a, Rest) :) next
     Solkattu.Alignment {} -> next
     -- This shouldn't happen because Seq.span_while is_sollu should have
@@ -206,8 +245,8 @@ replace_sollus (_:_) [] = ([], [])
     -- the same length as the RealizedNotes used to find them.
 
 realize_patterns :: Pretty.Pretty stroke =>
-    Patterns stroke -> [(S.Tempo, Solkattu.Note stroke)]
-    -> Either Text [(S.Tempo, Solkattu.Note stroke)]
+    Patterns stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
+    -> Either Text [(S.Tempo, Solkattu.Note (Stroke stroke))]
 realize_patterns pmap = format_error . concatMap realize
     where
     realize (tempo, n) = case n of
@@ -221,7 +260,7 @@ realize_patterns pmap = format_error . concatMap realize
         Left (vals, err) ->
             Left $ TextUtil.joinWith "\n" (pretty_words (map snd vals)) err
 
-to_solkattu :: Note stroke -> Solkattu.Note stroke
+to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
 to_solkattu n = case n of
     Note stroke ->
         Solkattu.Note Solkattu.NoSollu Solkattu.NotKarvai (Just stroke)

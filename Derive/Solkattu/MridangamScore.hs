@@ -97,7 +97,7 @@ p16_12_06_sriram1 = korvai adi $ faster $
         k_kto_s . u.__6 . k.p.k_kto_s . i.__4 . k.p.n.p . repeat 4 k_kto
     k_kto_s = mconcat $ expand 3 2 (k.__.t.__.k_kto)
     k_kto = k.__.k.t.o.__
-    okto = o.k.t.o. k .t.p.k
+    okto = o.k.t.o. hv k .t.p.k
     kitakina = k.t.k.n.o.k.o&t.k.nakatiku
 
 p16_12_06_sriram2 :: Korvai
