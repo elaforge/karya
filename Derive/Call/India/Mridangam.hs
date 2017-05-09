@@ -23,6 +23,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -31,7 +32,6 @@ import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Symbol as Symbol
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -151,9 +151,9 @@ realize_mstroke ctx = fmap realize . stroke_call
 
 stroke_call :: Realize.Note Mridangam.Stroke -> Maybe BaseTypes.CallId
 stroke_call stroke = case stroke of
-    Realize.Note stroke -> Just $ Symbol.to_call stroke
+    Realize.Note stroke -> Just $ Expr.to_call stroke
     Realize.Rest -> Nothing
-    Realize.Pattern p -> Just $ Symbol.to_call p
+    Realize.Pattern p -> Just $ Expr.to_call p
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
@@ -222,7 +222,7 @@ realize_stroke :: Derive.Context Score.Event -> Stroke
     -> Maybe Derive.NoteDeriver
 realize_stroke _ Rest = Nothing
 realize_stroke ctx (Stroke c) = Just $ do
-    call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
+    call <- Eval.get_generator (Expr.CallId (Text.singleton c))
     Eval.apply_generator ctx call []
 
 stretch_karvai :: [Stroke] -> [Stroke] -> ScoreTime -> ScoreTime
@@ -275,7 +275,7 @@ variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
 to_pattern :: [Realize.Note Mridangam.Stroke] -> Either Text Text
 to_pattern = fmap mconcat . traverse convert
     where
-    convert (Realize.Note stroke) = Right $ Symbol.unsym $ Symbol.to_call stroke
+    convert (Realize.Note stroke) = Right $ Expr.uncall $ Expr.to_call stroke
     convert Realize.Rest = Right "_"
     convert (Realize.Pattern matras) = Left $
         "pattern with another p" <> showt matras <> " can't go in a string"

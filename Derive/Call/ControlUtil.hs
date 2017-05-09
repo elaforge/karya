@@ -17,6 +17,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -89,7 +90,7 @@ interpolator_variations_ :: Derive.Taggable a =>
     (Derive.CallName -> get_arg -> InterpolatorTime a -> call)
     -> BaseTypes.CallId -> Derive.CallName -> get_arg
     -> [(BaseTypes.CallId, call)]
-interpolator_variations_ make (BaseTypes.Symbol sym) (Derive.CallName name)
+interpolator_variations_ make (Expr.CallId sym) (Derive.CallName name)
         get_arg =
     [ (mksym sym, make (Derive.CallName name) get_arg prev)
     , (mksym $ sym <> "<<",
@@ -102,7 +103,7 @@ interpolator_variations_ make (BaseTypes.Symbol sym) (Derive.CallName name)
             (Left next_time_arg))
     ]
     where
-    mksym = BaseTypes.Symbol
+    mksym = Expr.CallId
     next_time_arg = Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."

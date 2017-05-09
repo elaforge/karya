@@ -28,6 +28,8 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
+
 import Global
 import Types
 
@@ -225,7 +227,7 @@ rebase_call caller block_id = Id.id ns name
 get_block_calls :: Ui.M m => TrackId -> m [BaseTypes.CallId]
 get_block_calls track_id = do
     events <- Events.ascending <$> Ui.get_events track_id
-    return $ map BaseTypes.Symbol $
+    return $ map Expr.CallId $
         concatMap (NoteTrack.possible_block_calls . Event.text) events
 
 resolve_relative_call :: Id.Namespace -> BlockId -> BaseTypes.CallId

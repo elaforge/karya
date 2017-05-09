@@ -34,6 +34,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -165,7 +166,7 @@ keyswitches inputs = \msg -> do
     (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
-    Cmd.set_note_text (BaseTypes.unsym call)
+    Cmd.set_note_text (Expr.uncall call)
     return Cmd.Done
     where
     to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]

@@ -27,6 +27,7 @@ import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
@@ -120,7 +121,7 @@ compile_library (Parse.Definitions note control pitch val aliases) =
         (compile make_generator gen) (compile make_transformer trans)
     compile make = map $ \(fname, (call_id, expr)) ->
         (call_id, make fname (sym_to_name call_id) expr)
-    sym_to_name (BaseTypes.Symbol name) = Derive.CallName name
+    sym_to_name (Expr.CallId name) = Derive.CallName name
 
 make_generator :: Derive.Callable d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Generator d

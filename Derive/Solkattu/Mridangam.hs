@@ -13,7 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Symbol as Symbol
+import qualified Derive.Expr as Expr
 
 import Global
 
@@ -86,8 +86,8 @@ instance Pretty.Pretty Valantalai where
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
 -- the keyword @do@.  It would be nice if I could make the tracklang syntax
 -- consistent, but maybe not a huge deal at the moment.
-instance Symbol.ToCall Stroke where
-    to_call s = Symbol.Symbol $ case s of
+instance Expr.ToCall Stroke where
+    to_call s = Expr.CallId $ case s of
         Thoppi t -> thoppi t
         Valantalai v -> pretty v
         Both t v -> pretty v <> thoppi t
@@ -96,9 +96,9 @@ instance Symbol.ToCall Stroke where
             Thom -> "o"
             Tha -> "+"
 
-instance Symbol.ToCall (Realize.Stroke Stroke) where
+instance Expr.ToCall (Realize.Stroke Stroke) where
     to_call (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
-        (Realize.Normal, _) -> Symbol.to_call stroke
+        (Realize.Normal, _) -> Expr.to_call stroke
         (Realize.Light, Thoppi Thom) -> "."
         (Realize.Light, Thoppi Tha) -> "-"
         -- TODO this is broken because a CallId is not an Expr, but will work
@@ -106,16 +106,9 @@ instance Symbol.ToCall (Realize.Stroke Stroke) where
         -- make it work in general, I need to either abandon pretense of making
         -- a CallId and make a Text expr, or make a ToExpr class.
         (Realize.Light, _) ->
-            Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+            Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
         (Realize.Heavy, _) ->
-            Symbol.Symbol $ "v | " <> Symbol.unsym (Symbol.to_call stroke)
-
--- instance Symbol.ToExpr (Realize.Stroke Stroke) where
---     to_expr (Realize.Stroke emphasis stroke) = case emphasis of
---         Realize.Normal -> Symbol.to_call stroke
---         Realize.Light -> case stroke of
---             Thoppi Thom -> "."
---             Thoppi Tha -> "-"
+            Expr.CallId $ "v | " <> Expr.uncall (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a

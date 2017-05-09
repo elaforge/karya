@@ -871,7 +871,7 @@ cleanup:
   - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
     make sure it has the right specializations.
     . Or at least use mine in Util.Vector.
-  - BaseTypes.CallId should have a name more reminiscent of Symbol.
+  / BaseTypes.CallId should have a name more reminiscent of Symbol.
     CallSymbol?
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
@@ -1859,7 +1859,11 @@ Derive:
             Text, though?
           . I should be able to parse Expr Unparsed without the intervening
             ShowVal by directly parsing the Unparsed vals.
-          - Make CallId its own type, so its ShowVal can be correct.
+          * Make CallId its own type, so its ShowVal can be correct.
+          - Rename Symbol to Str
+          - Rename CallId to Symbol.
+          - Update references from BaseTypes.CallId to Expr.CallId
+          - Use generic Expr from Derive.Expr.
           - Move BaseTypes.Expr etc. and the above to Derive.Expr where the
             val is abstract, and BaseTypes specializes to Val.
             . ToExpr should actually take Attributes -> a -> Expr.

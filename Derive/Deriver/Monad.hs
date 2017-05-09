@@ -84,7 +84,8 @@ module Derive.Deriver.Monad (
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
-    , CallName(..), ArgName(..), sym_to_call_name, sym_to_arg_name
+    , CallName(..), ArgName(..)
+    , sym_to_call_name, str_to_call_name, sym_to_arg_name
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
@@ -145,10 +146,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 
 import qualified Ui.Event as Event
-import qualified Ui.Ui as Ui
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -157,6 +158,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -889,7 +891,7 @@ instance DeepSeq.NFData (Merger a) where
 -- *** control ops
 
 -- | The built-in set of control Mergers.
-mergers :: Map BaseTypes.CallId (Merger Signal.Control)
+mergers :: Map Expr.CallId (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     , Merger "max" Signal.sig_max (Signal.constant (-2^32))
@@ -897,7 +899,7 @@ mergers = Map.fromList $ map to_pair
     -- flip ensures that when samples collide, the later track wins.
     , Merger "interleave" (flip Signal.interleave) mempty
     ]
-    where to_pair merger = (BaseTypes.Symbol (ShowVal.show_val merger), merger)
+    where to_pair merger = (Expr.CallId (ShowVal.show_val merger), merger)
 
 merge_add, merge_sub, merge_mul  :: Merger Signal.Control
 merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
@@ -908,11 +910,11 @@ merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-pitch_mergers :: Map BaseTypes.CallId (Merger PSignal.PSignal)
+pitch_mergers :: Map Expr.CallId (Merger PSignal.PSignal)
 pitch_mergers = Map.fromList $ map to_pair
     [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
-    where to_pair merger = (BaseTypes.Symbol (ShowVal.show_val merger), merger)
+    where to_pair merger = (Expr.CallId (ShowVal.show_val merger), merger)
 
 
 -- * Collect
@@ -1294,8 +1296,11 @@ newtype CallName = CallName Text
 newtype ArgName = ArgName Text
     deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
 
-sym_to_call_name :: BaseTypes.Symbol -> CallName
-sym_to_call_name (BaseTypes.Symbol sym) = CallName sym
+sym_to_call_name :: Expr.CallId -> CallName
+sym_to_call_name (Expr.CallId sym) = CallName sym
+
+str_to_call_name :: Expr.Symbol -> CallName
+str_to_call_name (Expr.Symbol str) = CallName str
 
 sym_to_arg_name :: BaseTypes.Symbol -> ArgName
 sym_to_arg_name (BaseTypes.Symbol sym) = ArgName sym

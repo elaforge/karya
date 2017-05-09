@@ -17,10 +17,10 @@ import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -150,7 +150,7 @@ note_event :: Patch.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (BaseTypes.unsym $
+    (Expr.uncall $
         Map.findWithDefault "" (Score.event_attributes event) call_map)
 
 -- ** pitch

@@ -24,6 +24,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Sig as Sig
 
@@ -562,7 +563,7 @@ lookup_calls ctype = group . map (extract . go) . concatMap flatten
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go (Left pattern, call) = ("lookup: " <> pattern, call)
     go (Right sym, call) = (show_sym sym, call)
-    show_sym (BaseTypes.Symbol sym)
+    show_sym (Expr.CallId sym)
         | Text.null sym = "\"\""
         | otherwise = sym
     extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)

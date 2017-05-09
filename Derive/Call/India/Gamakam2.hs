@@ -27,6 +27,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -107,7 +108,7 @@ middle_calls = ("flat", c_flat)
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
     -> [(BaseTypes.CallId, call)]
 kampita_variations name call =
-    [ (BaseTypes.Symbol $ name <> Trill.direction_affix end, call end)
+    [ (Expr.CallId $ name <> Trill.direction_affix end, call end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.Low, Just Trill.High]
@@ -125,8 +126,7 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     where
     hardcoded name arg dir =
         [ (name, c_kampita doc arg dir)
-        , (BaseTypes.Symbol $ "n" <> BaseTypes.unsym name,
-            c_nkampita doc arg dir)
+        , (Expr.CallId $ "n" <> Expr.uncall name, c_nkampita doc arg dir)
         ]
     doc = Doc.Doc $ Text.unlines
         [ "These are hardcoded `k` variants:"
@@ -138,9 +138,9 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
 alias_prefix :: Text -> Text -> [(BaseTypes.CallId, call)]
     -> [(BaseTypes.CallId, call)]
 alias_prefix from to calls = do
-    (BaseTypes.Symbol name, call) <- calls
+    (Expr.CallId name, call) <- calls
     Just rest <- [Text.stripPrefix to name]
-    return (BaseTypes.Symbol (from <> rest), call)
+    return (Expr.CallId (from <> rest), call)
 
 end_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
@@ -382,8 +382,9 @@ parse_sequence exprs = postproc $
     to_expr [] = Nothing
     to_expr (call : args) = Just $ case call of
         BaseTypes.VQuoted (BaseTypes.Quoted expr) -> QuotedExpr expr
-        BaseTypes.VSymbol sym -> EvaluatedExpr sym args
-        _ -> EvaluatedExpr (BaseTypes.Symbol (ShowVal.show_val call)) args
+        BaseTypes.VSymbol (Expr.Symbol sym) ->
+            EvaluatedExpr (Expr.CallId sym) args
+        _ -> EvaluatedExpr (Expr.CallId (ShowVal.show_val call)) args
     is_separator BaseTypes.VSeparator = True
     is_separator _ = False
 

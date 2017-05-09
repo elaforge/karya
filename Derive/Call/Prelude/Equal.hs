@@ -25,6 +25,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -82,7 +83,7 @@ is_empty_expr (BaseTypes.Call "" [] :| []) = True
 is_empty_expr _ = False
 
 equal_expr :: BaseTypes.Call -> Maybe (BaseTypes.Symbol, BaseTypes.Val)
-equal_expr (BaseTypes.Call (BaseTypes.Symbol "=")
+equal_expr (BaseTypes.Call (Expr.CallId "=")
         [BaseTypes.Literal (BaseTypes.VSymbol sym), BaseTypes.Literal val]) =
     Just (sym, val)
 equal_expr _ = Nothing
@@ -298,8 +299,8 @@ override_call lhs rhs name generator transformer deriver
     where
     override_generator_scope call = Derive.with_scopes add deriver
         where
-        add = generator
-            %= Derive.add_priority Derive.PrioOverride (single_lookup lhs call)
+        add = generator %= Derive.add_priority Derive.PrioOverride
+            (single_lookup (Expr.CallId lhs) call)
 
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.PrioOverride' slot.
@@ -311,8 +312,8 @@ override_transformer lhs rhs name transformer deriver =
             quoted_transformer rhs
     where
     override_scope call = Derive.with_scopes
-        (transformer
-            %= Derive.add_priority Derive.PrioOverride (single_lookup lhs call))
+        (transformer %= Derive.add_priority Derive.PrioOverride
+            (single_lookup (Expr.CallId lhs) call))
         deriver
 
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
@@ -322,15 +323,16 @@ resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopePriority a)
     -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
 resolve_source name lens make_quoted rhs = case rhs of
     BaseTypes.VQuoted quoted -> return $ make_quoted quoted
-    BaseTypes.VSymbol call_id -> get_call name (lens #$) call_id
-    _ -> get_call name (lens #$) (BaseTypes.Symbol (ShowVal.show_val rhs))
+    BaseTypes.VSymbol (Expr.Symbol sym) ->
+        get_call name (lens #$) (Expr.CallId sym)
+    _ -> get_call name (lens #$) (Expr.CallId (ShowVal.show_val rhs))
 
 override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source "val" Derive.s_val quoted_val_call rhs
     let add = Derive.s_val %= Derive.add_priority Derive.PrioOverride
-            (single_val_lookup lhs call)
+            (single_val_lookup (Expr.CallId lhs) call)
     Derive.with_scopes add deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
@@ -339,14 +341,13 @@ get_call name get call_id =
     maybe (Derive.throw $ Eval.unknown_call_id name call_id)
         return =<< Derive.lookup_with get call_id
 
-single_lookup :: Text -> Derive.Call d
+single_lookup :: Expr.CallId -> Derive.Call d
     -> Derive.LookupCall (Derive.Call d)
-single_lookup name = Derive.LookupMap . Map.singleton (BaseTypes.Symbol name)
+single_lookup name = Derive.LookupMap . Map.singleton name
 
-single_val_lookup :: Text -> Derive.ValCall
+single_val_lookup :: Expr.CallId -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
-single_val_lookup name =
-    Derive.LookupMap . Map.singleton (BaseTypes.Symbol name)
+single_val_lookup name = Derive.LookupMap . Map.singleton name
 
 
 -- * quoted

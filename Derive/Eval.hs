@@ -40,6 +40,7 @@ import qualified Ui.Ui as Ui
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
@@ -236,22 +237,23 @@ require_call is_generator call_id name Nothing = do
         whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
     Derive.throw $ unknown_call_id name call_id
 
-unknown_call_id :: Text -> BaseTypes.CallId -> Text
-unknown_call_id name (BaseTypes.Symbol sym) = name <> " not found: " <> sym
+unknown_call_id :: Text -> Expr.CallId -> Text
+unknown_call_id name call_id =
+    name <> " not found: " <> ShowVal.show_val call_id
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
 call_to_block_id :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with -, this block is prepended to it.
-    -> BaseTypes.CallId -> Maybe BlockId
+    -> Expr.CallId -> Maybe BlockId
 call_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
     | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
     where
     relative
         | Just caller <- maybe_caller, is_relative sym =
-            Id.ident_text caller <> BaseTypes.unsym sym
-        | otherwise = BaseTypes.unsym sym
+            Id.ident_text caller <> Expr.uncall sym
+        | otherwise = Expr.uncall sym
 
 -- | Create the symbol to call a given block.
 block_id_to_call :: Bool -> BlockId -> BlockId -> Text
@@ -266,8 +268,8 @@ block_id_to_call relative parent child
     parent_name = Id.ident_name parent
 
 -- | True if this is a relative block call.
-is_relative :: BaseTypes.CallId -> Bool
-is_relative (BaseTypes.Symbol sym) = "-" `Text.isPrefixOf` sym
+is_relative :: Expr.CallId -> Bool
+is_relative = ("-" `Text.isPrefixOf`) . Expr.uncall
 
 -- | Make a block name relative to a parent block.
 make_relative :: BlockId -> Text -> Text
@@ -342,10 +344,10 @@ reapply_string ctx s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> reapply ctx expr
 
-reapply_call :: Derive.Callable d => Derive.Context d -> BaseTypes.Symbol
+reapply_call :: Derive.Callable d => Derive.Context d -> Expr.CallId
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
-reapply_call ctx call_id call_args =
-    reapply ctx (BaseTypes.call call_id call_args :| [])
+reapply_call ctx sym call_args =
+    reapply ctx (BaseTypes.call sym call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.  It's unknown if
 -- this pitch has been transposed or not.

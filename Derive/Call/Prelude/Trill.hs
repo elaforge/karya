@@ -62,6 +62,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -491,9 +492,9 @@ hold_env = Typecheck._real <$>
     Sig.environ (Derive.sym_to_arg_name EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first note."
 
-trill_variations :: [(BaseTypes.Symbol, Maybe Direction, Maybe Direction)]
+trill_variations :: [(Expr.CallId, Maybe Direction, Maybe Direction)]
 trill_variations =
-    [ (BaseTypes.Symbol $ "tr"
+    [ (Expr.CallId $ "tr"
             <> (if start == Nothing && end /= Nothing
                 then "-" else direction_affix start)
             <> direction_affix end,

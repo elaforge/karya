@@ -35,8 +35,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -272,7 +272,7 @@ block_call caller = fmap Seq.head . block_calls caller
 to_block_id :: Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
     -> (Maybe BlockId)
 to_block_id blocks ns caller =
-    valid <=< Eval.call_to_block_id ns caller . BaseTypes.Symbol
+    valid <=< Eval.call_to_block_id ns caller . Expr.CallId
     where
     valid block_id
         | Just _ <- Map.lookup block_id blocks = Just block_id

@@ -68,7 +68,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Tala as Tala
-import qualified Derive.Symbol as Symbol
+import qualified Derive.Expr as Expr
 
 import Global
 
@@ -131,8 +131,8 @@ instance Pretty.Pretty Pattern where
     pretty (PatternM matras) = "p" <> showt matras
     pretty Nakatiku = "4n"
 
-instance Symbol.ToCall Pattern where
-    to_call (PatternM matras) = Symbol.Symbol $ "p " <> showt matras
+instance Expr.ToCall Pattern where
+    to_call (PatternM matras) = Expr.CallId $ "p " <> showt matras
     to_call Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the

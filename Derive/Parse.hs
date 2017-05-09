@@ -43,6 +43,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -77,7 +78,7 @@ parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 parse_call :: Text -> Maybe Text
 parse_call text = case parse_expr text of
     Right expr -> case NonEmpty.last expr of
-        BaseTypes.Call (BaseTypes.Symbol call) _ -> Just call
+        BaseTypes.Call (Expr.CallId call) _ -> Just call
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either Text a
@@ -191,7 +192,7 @@ p_toplevel_call toplevel =
 -- | Parse a 'unparsed_call'.
 p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
-    A.string $ BaseTypes.unsym unparsed_call
+    A.string $ Expr.uncall unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
     let arg = BaseTypes.Symbol $ Text.strip $ strip_comment text
     return $ BaseTypes.Call unparsed_call
@@ -206,7 +207,7 @@ p_unparsed_expr = do
 -- rest of the event expression is passed as a string.  The only characters
 -- that can't be used are ) and |, so an unparsed call can still be included in
 -- a sub expression.
-unparsed_call :: BaseTypes.Symbol
+unparsed_call :: Expr.CallId
 unparsed_call = "!"
 
 p_pipe :: A.Parser ()
@@ -214,20 +215,21 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser BaseTypes.Call
 p_equal = do
-    lhs <- p_string <|> p_call_symbol True
+    lhs <- (Expr.CallId . BaseTypes.unsym <$> p_string) <|> p_call_id True
     spaces
     A.char '='
-    sym <- A.option Nothing $ Just . BaseTypes.Symbol . Text.singleton
+    sym <- A.option Nothing $ Just . Text.singleton
         <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
     rhs <- A.many1 p_term
-    let mksym = BaseTypes.Literal . BaseTypes.VSymbol
     return $ BaseTypes.Call BaseTypes.c_equal $
-        mksym lhs : rhs ++ maybe [] (:[]) (mksym <$> sym)
+        to_sym (Expr.uncall lhs) : rhs ++ maybe [] (:[]) (to_sym <$> sym)
+    where
+    to_sym = BaseTypes.Literal . BaseTypes.VSymbol . BaseTypes.Symbol
 
 p_call :: Bool -> A.Parser BaseTypes.Call
 p_call toplevel =
-    BaseTypes.Call <$> lexeme (p_call_symbol toplevel) <*> A.many p_term
+    BaseTypes.Call <$> lexeme (p_call_id toplevel) <*> A.many p_term
 
 p_null_call :: A.Parser BaseTypes.Call
 p_null_call = return (BaseTypes.Call "" []) <?> "null call"
@@ -235,9 +237,9 @@ p_null_call = return (BaseTypes.Call "" []) <?> "null call"
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
-p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
-    -> A.Parser BaseTypes.Symbol
-p_call_symbol toplevel = BaseTypes.Symbol <$> p_word toplevel
+p_call_id :: Bool -- ^ A call at the top level can allow a ).
+    -> A.Parser Expr.CallId
+p_call_id toplevel = Expr.CallId <$> p_word toplevel
 
 p_term :: A.Parser BaseTypes.Term
 p_term = lexeme $
@@ -502,7 +504,7 @@ instance Monoid Definitions where
             (h1<>h2)
 
 -- | (defining_file, (call_sym, expr))
-type Definition = (FilePath, (BaseTypes.CallId, Expr))
+type Definition = (FilePath, (Expr.CallId, Expr))
 type LineNumber = Int
 
 {- | Parse a definitions file.  This file gives a way to define new calls
@@ -575,10 +577,10 @@ parse_ky filename text = do
     strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
 
 -- | The alias section allows only @alias = inst@ definitions.
-parse_alias :: (BaseTypes.CallId, Expr)
+parse_alias :: (Expr.CallId, Expr)
     -> Either Text (Score.Instrument, Score.Instrument)
 parse_alias (lhs, Expr (Call rhs [] :| [])) = Right (convert lhs, convert rhs)
-    where convert (BaseTypes.Symbol a) = Score.Instrument a
+    where convert (Expr.CallId a) = Score.Instrument a
 parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
     <> ShowVal.show_val expr
 
@@ -602,13 +604,13 @@ p_imports = A.skipMany empty_line *> A.many p_import <* A.skipMany empty_line
     p_import = A.string "import" *> spaces *> (untxt <$> p_single_quote_string)
         <* spaces <* A.char '\n'
 
-p_section :: A.Parser [(BaseTypes.CallId, Expr)]
+p_section :: A.Parser [(Expr.CallId, Expr)]
 p_section =
     A.skipMany empty_line *> A.many p_definition <* A.skipMany empty_line
 
-p_definition :: A.Parser (BaseTypes.CallId, Expr)
+p_definition :: A.Parser (Expr.CallId, Expr)
 p_definition = do
-    assignee <- p_call_symbol True
+    assignee <- p_call_id True
     spaces
     A.skip (=='=')
     spaces
@@ -624,7 +626,7 @@ p_definition = do
 -- parameterizing an AST.
 newtype Expr = Expr (NonEmpty Call)
     deriving (Show)
-data Call = Call !BaseTypes.CallId ![Term]
+data Call = Call !Expr.CallId ![Term]
     deriving (Show)
 data Term = VarTerm !Var | ValCall !Call | Literal !BaseTypes.Val
     deriving (Show)
@@ -673,7 +675,7 @@ p_sub_call_ky :: A.Parser Call
 p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky
 
 p_call_ky :: A.Parser Call
-p_call_ky = Call <$> lexeme (p_call_symbol False) <*> A.many p_term_ky
+p_call_ky = Call <$> lexeme (p_call_id False) <*> A.many p_term_ky
 
 p_term_ky :: A.Parser Term
 p_term_ky =

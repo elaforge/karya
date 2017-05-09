@@ -18,6 +18,7 @@ import qualified Util.Testing as Testing
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -30,46 +31,43 @@ import Global
 test_parse_expr = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
         vnum = VNum . Score.untyped
-    equal (f "a | b") $ Right
-        [Call (Symbol "a") [], Call (Symbol "b") []]
-    equal (f "a | b | c") $ Right $
-        [Call (Symbol "a") [], Call (Symbol "b") [], Call (Symbol "c") []]
+    equal (f "a | b") $ Right [Call "a" [], Call "b" []]
+    equal (f "a | b | c") $ Right $ [Call "a" [], Call "b" [], Call "c" []]
     -- Any word in call position is a symbol.
-    equal (f "4") $ Right [Call (Symbol "4") []]
-    equal (f "()") $ Right [Call (Symbol "()") []]
-    equal (f "4 4") $ Right [Call (Symbol "4") [Literal (vnum 4)]]
-    equal (f "4 (4)") $ Right [Call (Symbol "4") [val_call "4" []]]
+    equal (f "4") $ Right [Call "4" []]
+    equal (f "()") $ Right [Call "()" []]
+    equal (f "4 4") $ Right [Call "4" [Literal (vnum 4)]]
+    equal (f "4 (4)") $ Right [Call "4" [val_call "4" []]]
     -- So the only way to have a null call is a null expression.
-    equal (f "") $ Right [Call (Symbol "") []]
+    equal (f "") $ Right [Call "" []]
 
-    equal (f "a") $ Right [Call (Symbol "a") []]
-    equal (f "a 42") $ Right [Call (Symbol "a") [Literal (vnum 42)]]
-    equal (f "a | ") $ Right [Call (Symbol "a") [], Call (Symbol "") []]
+    equal (f "a") $ Right [Call "a" []]
+    equal (f "a 42") $ Right [Call "a" [Literal (vnum 42)]]
+    equal (f "a | ") $ Right [Call "a" [], Call "" []]
 
     equal (f "a | b = 4 | . sym %sig") $ Right
-        [ Call (Symbol "a") []
-        , Call (Symbol "=") (map Literal [VSymbol "b", vnum 4])
-        , Call (Symbol ".") (map Literal
-            [VSymbol (BaseTypes.Symbol "sym"),
-                VControlRef (LiteralControl "sig")])
+        [ Call "a" []
+        , Call "=" (map Literal [VSymbol "b", vnum 4])
+        , Call "." (map Literal
+            [VSymbol "sym", VControlRef (LiteralControl "sig")])
         ]
 
     -- A toplevel symbol can have anything except =.
-    equal (f "a|b\")") $ Right [Call (Symbol "a|b\")") []]
+    equal (f "a|b\")") $ Right [Call "a|b\")" []]
 
     -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
-        Right [Call (Symbol "a") [val_call "b" [], Literal (VSymbol "c")]]
+        Right [Call "a" [val_call "b" [], Literal (VSymbol "c")]]
     equal (f "a (()") $
-        Right [Call (Symbol "a") [val_call "(" []]]
+        Right [Call "a" [val_call "(" []]]
     -- Unbalanced parens.
     left_like (f "a (b") "parse error"
 
-    equal (f "") $ Right [Call (Symbol "") []]
-    equal (f "--") $ Right [Call (Symbol "") []]
-    equal (f "  a -- comment") $ Right [Call (Symbol "a") []]
+    equal (f "") $ Right [Call "" []]
+    equal (f "--") $ Right [Call "" []]
+    equal (f "  a -- comment") $ Right [Call "a" []]
     equal (f "a 'b -- c'--d") $ Right
-        [Call (Symbol "a") [Literal (VSymbol (Symbol "b -- c"))]]
+        [Call "a" [Literal (VSymbol (Symbol "b -- c"))]]
 
     equal (f "a;b") $ Right
         [Call "a" [Literal VSeparator, Literal (VSymbol "b")]]
@@ -128,11 +126,11 @@ invertible_vals =
     , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
     , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])
+        Call (Expr.CallId "a") [Literal (VSymbol (Symbol "b"))] :| [])
     , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Symbol "") [] :| [])
+        Call (Expr.CallId "") [] :| [])
     , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Symbol "a") [] :| [Call (Symbol "") []])
+        Call "a" [] :| [Call "" []])
 
     , ("$bad", Nothing)
     , ("_", Just VNotGiven)
@@ -216,7 +214,7 @@ test_lex1 = do
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
 
-val_call :: Symbol -> [Term] -> Term
+val_call :: Expr.CallId -> [Term] -> Term
 val_call sym args = ValCall (Call sym args)
 
 test_expand_macros = do

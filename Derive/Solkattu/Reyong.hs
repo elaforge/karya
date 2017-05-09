@@ -10,7 +10,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Symbol as Symbol
+import qualified Derive.Expr as Expr
 
 import Global
 
@@ -37,7 +37,7 @@ instance Pretty.Pretty Stroke where
         CekC -> "k"
         CekO -> "x"
 
-instance Symbol.ToCall Stroke where
+instance Expr.ToCall Stroke where
     to_call s = case s of
         N1 -> "n1"
         N2 -> "n2"
@@ -49,13 +49,13 @@ instance Symbol.ToCall Stroke where
         CekC -> "X"
         CekO -> "/"
 
-instance Symbol.ToCall (Realize.Stroke Stroke) where
+instance Expr.ToCall (Realize.Stroke Stroke) where
     to_call (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Symbol.to_call stroke
+        Realize.Normal -> Expr.to_call stroke
         Realize.Light ->
-            Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+            Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
         Realize.Heavy ->
-            Symbol.Symbol $ "v |" <> Symbol.unsym (Symbol.to_call stroke)
+            Expr.CallId $ "v |" <> Expr.uncall (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a

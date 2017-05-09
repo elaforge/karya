@@ -48,6 +48,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
@@ -140,7 +141,7 @@ get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Config -> Maybe BaseTypes.Symbol -> TrackTree.Track
+tempo_call :: Config -> Maybe Expr.CallId -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call config sym track sig_deriver deriver = do
@@ -170,7 +171,7 @@ tempo_call config sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid a => Config -> Maybe BaseTypes.Symbol
+dispatch_tempo :: Monoid a => Config -> Maybe Expr.CallId
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo config sym block_range maybe_track_id signal deriver =

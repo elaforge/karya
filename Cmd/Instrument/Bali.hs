@@ -15,7 +15,6 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Prelude.Articulation as Articulation
@@ -23,6 +22,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
@@ -71,7 +71,7 @@ zero_dur_mute_doc =
     " By default, this will emit a muted note, but the instrument can override\
     \ it as appropriate."
 
-zero_dur_reapply :: BaseTypes.Symbol -> Doc.Doc
+zero_dur_reapply :: Expr.CallId -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
 zero_dur_reapply mute_call doc note = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "note"

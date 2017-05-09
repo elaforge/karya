@@ -18,6 +18,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.Pitch as Pitch
@@ -65,7 +66,7 @@ both_calls = make_both left_notes right_notes special_names
     where
     special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
         ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDUVI"]
-    sym = BaseTypes.Symbol . Text.singleton
+    sym = Expr.CallId . Text.singleton
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
@@ -79,12 +80,12 @@ make_both left right special_names keys =
     ]
     where
     pairs =
-        [ (BaseTypes.Symbol $ u rcall <> u lcall, [rcall, lcall])
+        [ (Expr.CallId $ u rcall <> u lcall, [rcall, lcall])
         | lcall <- map Drums.note_name left
         , rcall <- map Drums.note_name right
         , Text.length (u lcall) == 1 && Text.length (u rcall) == 1
         ]
-    u = BaseTypes.unsym
+    u = Expr.uncall
 
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like

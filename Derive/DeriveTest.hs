@@ -47,6 +47,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -845,7 +846,7 @@ mkpitch scale p = case eval Ui.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ BaseTypes.call (BaseTypes.Symbol (txt p)) []
+        Eval.eval_pitch 0 $ BaseTypes.call (Expr.CallId (txt p)) []
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

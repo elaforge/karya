@@ -10,7 +10,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Symbol as Symbol
+import qualified Derive.Expr as Expr
 
 import Global
 
@@ -50,7 +50,7 @@ instance Pretty.Pretty Stroke where
         De -> "a"
 
 -- | TODO should I make these consistent with 'Strokes'?
-instance Symbol.ToCall Stroke where
+instance Expr.ToCall Stroke where
     to_call s = case s of
         Plak -> "PL"
         Pak -> "P"
@@ -62,17 +62,17 @@ instance Symbol.ToCall Stroke where
         De -> "+"
 
 -- TODO unify with Local.Instrument.Kontakt.KendangBali.Stroke
-instance Symbol.ToCall (Realize.Stroke Stroke) where
+instance Expr.ToCall (Realize.Stroke Stroke) where
     to_call (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Symbol.to_call stroke
+        Realize.Normal -> Expr.to_call stroke
         Realize.Light -> case stroke of
             Pak -> "^"
             TutL -> "ø"
             Ka -> "."
             De -> "-"
-            _ -> Symbol.Symbol $ "^ |" <> Symbol.unsym (Symbol.to_call stroke)
+            _ -> Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
         Realize.Heavy ->
-            Symbol.Symbol $ "v |" <> Symbol.unsym (Symbol.to_call stroke)
+            Expr.CallId $ "v |" <> Expr.uncall (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a

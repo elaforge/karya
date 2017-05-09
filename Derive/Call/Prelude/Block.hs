@@ -29,6 +29,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -189,10 +190,10 @@ d_block block_id = do
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> BaseTypes.Call
 call_from_block_id block_id =
-    BaseTypes.call (BaseTypes.Symbol $ Id.show_id $ Id.unpack_id block_id) []
+    BaseTypes.call (Expr.CallId $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
-call_to_block_id :: BaseTypes.Symbol -> Derive.Deriver (Maybe BlockId)
+call_to_block_id :: Expr.CallId -> Derive.Deriver (Maybe BlockId)
 call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config

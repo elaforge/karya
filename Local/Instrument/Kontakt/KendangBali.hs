@@ -26,6 +26,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -114,7 +115,7 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     right_open = "right-open"
 
 to_call :: Stroke -> Attrs.Attributes -> BaseTypes.CallId
-to_call stroke attrs = BaseTypes.Symbol $ case stroke of
+to_call stroke attrs = Expr.CallId $ case stroke of
     Plak -> "PL"
     -- left
     Pak -> if soft then "^" else "P"
@@ -213,8 +214,9 @@ c_pasang_calls =
 
 c_pasang_stroke :: BaseTypes.CallId -> PasangStroke
     -> Derive.Generator Derive.Note
-c_pasang_stroke call_id pstroke = Derive.generator Module.instrument name
-    Tags.inst "Dispatch to wadon or lanang." $ Sig.call pasang_env call
+c_pasang_stroke call_id pstroke = Derive.generator Module.instrument
+    (Derive.sym_to_call_name call_id) Tags.inst "Dispatch to wadon or lanang." $
+    Sig.call pasang_env call
     where
     call pasang args = case pstroke of
         Wadon stroke -> dispatch wadon stroke
@@ -223,7 +225,6 @@ c_pasang_stroke call_id pstroke = Derive.generator Module.instrument name
         where
         dispatch inst stroke_dyn = Derive.with_instrument (inst pasang) $
             Eval.reapply_generator args (stroke_dyn_to_call stroke_dyn)
-    name = Derive.CallName $ BaseTypes.unsym call_id
 
 both_calls :: [(BaseTypes.CallId, PasangStroke)]
 both_calls =
@@ -236,7 +237,7 @@ both_calls =
     ]
     where
     already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
-    a ^ b = BaseTypes.Symbol (BaseTypes.unsym a <> BaseTypes.unsym b)
+    a ^ b = Expr.CallId (Expr.uncall a <> Expr.uncall b)
 
 pasang_calls :: [(Char, BaseTypes.CallId, PasangStroke)]
 pasang_calls =
@@ -302,7 +303,7 @@ balinese_pasang_calls =
     open_dug = "᭴"      -- > dug   o tut
     closed_tak = "᭷"    -- ] tek   u kum
     closed_tuk = "᭶"    -- [ tak   U pung
-    quiet (BaseTypes.Symbol s) = BaseTypes.Symbol ("," <> s)
+    quiet (Expr.CallId s) = Expr.CallId ("," <> s)
     wadon stroke = Wadon (stroke, Loud)
     lanang stroke = Lanang (stroke, Loud)
 

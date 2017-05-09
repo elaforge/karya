@@ -18,6 +18,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -87,7 +88,7 @@ lookup_transformer = lookup_call $ \val ->
 
 lookup_call :: (Signal.Y -> Derive.Call d) -> Derive.LookupCall (Derive.Call d)
 lookup_call call = Derive.LookupPattern "numbers and hex" doc $
-    \(BaseTypes.Symbol sym) -> return $! case Parse.parse_num sym of
+    \(Expr.CallId sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ call val
     where doc = Derive.extract_doc (call 0)

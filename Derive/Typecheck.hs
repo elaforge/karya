@@ -18,6 +18,7 @@ import Derive.BaseTypes (Val(..))
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Deriver.Monad as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -503,6 +504,12 @@ instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
 
 -- ** text\/symbol
 
+instance Typecheck Expr.CallId where
+    from_val (VSymbol (Expr.Symbol sym)) = Val $ Just $ Expr.CallId sym
+    from_val _ = Val Nothing
+    to_type _ = ValType.TSymbol Nothing
+instance ToVal Expr.CallId where to_val = VSymbol . Expr.Symbol . Expr.uncall
+
 instance Typecheck BaseTypes.Symbol where
     from_val (VSymbol a) = Val $ Just a
     from_val _ = Val Nothing
@@ -592,11 +599,11 @@ instance Typecheck BaseTypes.Quoted where
     from_val val = case val of
         VQuoted a -> Val $ Just a
         VPitch {} -> Val Nothing
-        VSymbol sym -> to_quoted sym
-        _ -> to_quoted $ BaseTypes.Symbol (ShowVal.show_val val)
+        VSymbol (Expr.Symbol sym) -> to_quoted sym
+        _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $
-            BaseTypes.Quoted (BaseTypes.Call sym [] :| [])
+            BaseTypes.Quoted (BaseTypes.Call (Expr.CallId sym) [] :| [])
     to_type _ = ValType.TQuoted
 instance ToVal BaseTypes.Quoted where to_val = VQuoted
 

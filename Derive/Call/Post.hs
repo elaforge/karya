@@ -29,6 +29,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -319,8 +320,8 @@ delayed_event args = Score.modify_environ $
     Env.insert_val EnvKey.args (BaseTypes.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
-delayed_args :: BaseTypes.CallId -> Score.Event -> Maybe [BaseTypes.Val]
-delayed_args (BaseTypes.Symbol call) event
+delayed_args :: Expr.CallId -> Score.Event -> Maybe [BaseTypes.Val]
+delayed_args (Expr.CallId call) event
     | Seq.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =
         Env.maybe_val EnvKey.args (Score.event_environ event)

@@ -29,6 +29,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -84,7 +85,7 @@ lookup_attr_transformer = make_lookup_attr $ \attrs ->
 make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
     Derive.LookupPattern "attribute starting with `+` or `=`" doc $
-        \(BaseTypes.Symbol sym) -> parse_symbol sym
+        \(Expr.CallId sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of

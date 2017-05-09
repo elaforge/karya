@@ -51,6 +51,7 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -88,7 +89,7 @@ kampita_variations :: Text
     -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)
     -> [(BaseTypes.CallId, call)]
 kampita_variations name call =
-    [ (BaseTypes.Symbol $ affix s <> name <> affix e, call s e)
+    [ (Expr.CallId $ affix s <> name <> affix e, call s e)
     | s <- dirs, e <- dirs
     ]
     where

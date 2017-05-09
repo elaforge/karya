@@ -18,8 +18,8 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
@@ -31,6 +31,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
@@ -166,19 +167,22 @@ replace from to = do
         ModifyEvents.tracks_named ParseTitle.is_note_track $
         ModifyEvents.text $ replace_block_call from to
 
-map_symbol :: (BaseTypes.Symbol -> BaseTypes.Symbol) -> Text -> Text
-map_symbol f text =
-    either (const text) (ShowVal.show_val . BaseTypes.map_symbol f)
-        (Parse.parse_expr text)
-
 replace_block_call :: BlockId -> Id.Id -> Text -> Text
-replace_block_call from to =
-    map_symbol $ \(BaseTypes.Symbol sym) -> BaseTypes.Symbol (f sym)
+replace_block_call from to = map_symbol replace
     where
-    f sym
+    replace sym
         | sym == Id.ident_name from = Id.ident_name to
         | sym == Id.ident_text from = Id.ident_text to
         | otherwise = sym
+
+map_symbol :: (Text -> Text) -> Text -> Text
+map_symbol f text =
+    either (const text) (ShowVal.show_val . map_text f) (Parse.parse_expr text)
+
+-- | Transform both Symbols and Strs.
+map_text :: (Text -> Text) -> BaseTypes.Expr -> BaseTypes.Expr
+map_text f = fmap $ BaseTypes.map_call_id (Expr.CallId . f . Expr.uncall)
+    . BaseTypes.map_symbol (Expr.Symbol . f . Expr.unsym)
 
 -- * create
 

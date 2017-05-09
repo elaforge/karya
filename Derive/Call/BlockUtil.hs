@@ -33,8 +33,8 @@ import qualified Util.Tree
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
@@ -44,6 +44,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.EvalTrack as EvalTrack
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.PSignal as PSignal
@@ -115,7 +116,7 @@ check_control_tree block_end forest = case forest of
         <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.event 0 block_end (BaseTypes.unsym capture_null_control)
+        Event.event 0 block_end (Expr.uncall capture_null_control)
     capture_track = TrackTree.make_track ">" events block_end
 
 derive_control_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree

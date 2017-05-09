@@ -23,7 +23,6 @@ import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -33,6 +32,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
@@ -121,8 +121,8 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
 note_track :: Derive.Context Derive.Note -> Maybe Score.Instrument
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst deriver = do
-    let call_id = BaseTypes.Symbol $ ">" <> maybe "" Score.instrument_name inst
-    maybe_call <- Derive.lookup_transformer call_id
+    let sym = Expr.CallId $ ">" <> maybe "" Score.instrument_name inst
+    maybe_call <- Derive.lookup_transformer sym
     let transform = maybe id (call_transformer ctx) maybe_call
     maybe id Derive.with_instrument inst $ transform deriver
 

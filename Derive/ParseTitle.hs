@@ -17,11 +17,12 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -56,7 +57,7 @@ data ControlType =
     -- and sets the given pitch signal.
     | Pitch (Maybe BaseTypes.CallId) Pitch.ScaleId Score.PControl
     -- | Tempo track with an optional modifying symbol.
-    | Tempo (Maybe BaseTypes.Symbol)
+    | Tempo (Maybe BaseTypes.CallId)
     deriving (Show)
 
 instance Pretty.Pretty ControlType where
@@ -80,7 +81,7 @@ parse_control_vals vals = case vals of
         Right $ Pitch Nothing scale_id Score.default_pitch
     --  *twelve merge
     [scale -> Just scale_id, BaseTypes.VSymbol merge] ->
-        Right $ Pitch (Just merge) scale_id Score.default_pitch
+        Right $ Pitch (Just (to_call_id merge)) scale_id Score.default_pitch
     --  *twelve # -> default pitch track in twelve
     --  *twelve #name -> named pitch track
     [scale -> Just scale_id, pitch_control_of -> Just cont] ->
@@ -88,11 +89,11 @@ parse_control_vals vals = case vals of
     --  *twelve #name merge
     [scale -> Just scale_id, pitch_control_of -> Just cont,
             BaseTypes.VSymbol merge] ->
-        Right $ Pitch (Just merge) scale_id cont
+        Right $ Pitch (Just (to_call_id merge)) scale_id cont
     -- "tempo"
     [BaseTypes.VSymbol (BaseTypes.Symbol "tempo")] -> Right $ Tempo Nothing
     [BaseTypes.VSymbol (BaseTypes.Symbol "tempo"), BaseTypes.VSymbol sym] ->
-        Right $ Tempo (Just sym)
+        Right $ Tempo (Just (to_call_id sym))
     -- control
     --
     -- It would be more regular to require \"%control\" and \"add %control\"
@@ -101,7 +102,7 @@ parse_control_vals vals = case vals of
         Control Nothing <$> parse_control_type control
     -- add control -> relative control
     [BaseTypes.VSymbol merge, control_of -> Just control] ->
-        Control (Just merge) <$> parse_control_type control
+        Control (Just (to_call_id merge)) <$> parse_control_type control
     -- % -> default control
     -- It might be more regular to allow anything after %, but I'm a fan of
     -- only one way to do it, so only allow it for "".
@@ -116,7 +117,7 @@ parse_control_vals vals = case vals of
     -- add % -> relative default control
     [BaseTypes.VSymbol merge, BaseTypes.VControlRef
             (BaseTypes.LiteralControl control)] | control == Controls.null ->
-        Right $ Control (Just merge) (Score.untyped Controls.null)
+        Right $ Control (Just (to_call_id merge)) (Score.untyped Controls.null)
     _ -> Left $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
         \ got: " <> Text.unwords (map ShowVal.show_val vals)
@@ -133,6 +134,9 @@ parse_control_vals vals = case vals of
     pitch_control_of (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) =
         Just c
     pitch_control_of _ = Nothing
+
+to_call_id :: Expr.Symbol -> Expr.CallId
+to_call_id = Expr.CallId . Expr.unsym
 
 parse_control_type :: BaseTypes.Symbol
     -> Either Text (Score.Typed Score.Control)
@@ -170,7 +174,7 @@ unparse_control_vals ctype = case ctype of
         ]
     Tempo sym -> BaseTypes.VSymbol "tempo" : maybe_sym sym
     where
-    maybe_sym = maybe [] ((:[]) . BaseTypes.VSymbol)
+    maybe_sym = maybe [] ((:[]) . BaseTypes.VSymbol . Expr.Symbol . Expr.uncall)
     control_val c
         | c == Score.untyped Controls.null = empty_control
         | otherwise = BaseTypes.VSymbol $ BaseTypes.Symbol (unparse_typed c)
@@ -208,16 +212,16 @@ is_tempo_track title = case parse_control title of
 parse_note :: Text -> Either Text BaseTypes.Expr
 parse_note title = case Text.uncons title of
     Just ('>', rest) -> Parse.parse_expr (prefix <> rest)
-        where prefix = BaseTypes.unsym note_track_symbol <> " "
+        where prefix = Expr.uncall note_track_symbol <> " "
     _ -> Left $ "note track title should start with >: " <> showt title
 
 unparse_note :: BaseTypes.Expr -> Text
 unparse_note = strip . ShowVal.show_val
     where
     strip t = maybe t ((">"<>) . Text.stripStart) $
-        Text.stripPrefix (BaseTypes.unsym note_track_symbol) t
+        Text.stripPrefix (Expr.uncall note_track_symbol) t
 
-note_track_symbol :: BaseTypes.Symbol
+note_track_symbol :: Expr.CallId
 note_track_symbol = "note-track"
 
 -- | Convert a track title into its instrument.

@@ -60,7 +60,7 @@ import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
@@ -265,7 +265,7 @@ default_name = ""
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map Attrs.Attributes BaseTypes.CallId
+type CallMap = Map Attrs.Attributes Expr.CallId
 
 -- ** Scale
 

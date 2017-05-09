@@ -18,6 +18,7 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -44,10 +45,9 @@ note_calls = Derive.call_maps
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map $ trill_variations c_pitch_trill
 
-trill_variations :: (Maybe Trill.Direction -> call)
-    -> [(BaseTypes.Symbol, call)]
+trill_variations :: (Maybe Trill.Direction -> call) -> [(Expr.CallId, call)]
 trill_variations make =
-    [ (BaseTypes.Symbol $ "tr" <> Trill.direction_affix end, make end)
+    [ (Expr.CallId $ "tr" <> Trill.direction_affix end, make end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.High, Just Trill.Low]
