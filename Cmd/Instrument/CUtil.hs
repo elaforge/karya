@@ -57,12 +57,12 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: Cmd.M m => Map Char BaseTypes.CallId -> Msg.Msg -> m Cmd.Status
+insert_call :: Cmd.M m => Map Char Expr.Symbol -> Msg.Msg -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
     where to_expr call = BaseTypes.call call [] :| []
 
-notes_to_calls :: [Drums.Note] -> Map Char BaseTypes.CallId
+notes_to_calls :: [Drums.Note] -> Map Char Expr.Symbol
 notes_to_calls notes =
     Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
 
@@ -158,7 +158,7 @@ expr_to_midi block_id track_id pos expr = do
     I could use that to play an example note.  Wait until I have a "play
     current line" framework up for that.
 -}
-keyswitches :: Cmd.M m => [(Char, BaseTypes.CallId, Midi.Key)] -> Msg.Msg
+keyswitches :: Cmd.M m => [(Char, Expr.Symbol, Midi.Key)] -> Msg.Msg
     -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
@@ -166,7 +166,7 @@ keyswitches inputs = \msg -> do
     (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
-    Cmd.set_note_text (Expr.uncall call)
+    Cmd.set_note_text (Expr.unsym call)
     return Cmd.Done
     where
     to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
@@ -301,7 +301,7 @@ drum_pitched_notes notes keymap = (found, (not_found, unused))
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
 drum_calls :: Maybe Score.Control -> [Drums.Note]
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+    -> [(Expr.Symbol, Derive.Generator Derive.Note)]
 drum_calls maybe_tuning_control = map $ \note ->
     ( Drums.note_name note
     , drum_call maybe_tuning_control (Drums.note_dynamic note)
@@ -344,7 +344,7 @@ tuning_control args control deriver = do
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
 -- the given dynamic.
 resolve_strokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
-    -> [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
+    -> [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
     -> (PitchedNotes, [Text]) -- ^ also return errors
 resolve_strokes soft_dyn keymap =

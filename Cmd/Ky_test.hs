@@ -14,9 +14,9 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ky as Ky
 import qualified Cmd.PlayUtil as PlayUtil
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 
 import Global
@@ -81,7 +81,7 @@ test_check_cache = do
 
     -- TODO track imported files
 
-e_library :: Derive.Library -> [BaseTypes.CallId]
+e_library :: Derive.Library -> [Expr.Symbol]
 e_library lib = [name | Derive.LookupMap m <- gen, name <- Map.keys m]
     where Derive.CallMaps gen _trans = Derive.lib_note lib
 

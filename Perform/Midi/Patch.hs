@@ -265,7 +265,7 @@ default_name = ""
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map Attrs.Attributes Expr.CallId
+type CallMap = Map Attrs.Attributes Expr.Symbol
 
 -- ** Scale
 

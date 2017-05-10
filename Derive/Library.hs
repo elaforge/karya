@@ -9,13 +9,13 @@ import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 
 import Global
 
 
--- | Warnings for shadowed symbols.  ((call_type, module), call_ids)
-type Shadowed = ((Text, Module.Module), [BaseTypes.CallId])
+-- | Warnings for shadowed symbols.  ((call_type, module), symbols)
+type Shadowed = ((Text, Module.Module), [Expr.Symbol])
 
 shadowed :: Derive.Library -> [Shadowed]
 shadowed (Derive.Library note control pitch val _aliases) =
@@ -33,7 +33,7 @@ shadowed (Derive.Library note control pitch val _aliases) =
     add tag shadows = [((tag, module_), calls) | (module_, calls) <- shadows]
 
 get_shadows :: (call -> Derive.CallDoc) -> [Derive.LookupCall call]
-    -> [(Module.Module, [BaseTypes.CallId])]
+    -> [(Module.Module, [Expr.Symbol])]
 get_shadows get_doc = filter (not . null . snd) . map (second duplicates)
     . Seq.group_fst . concatMap (call_module get_doc)
 
@@ -44,9 +44,9 @@ duplicates = mapMaybe extract . Seq.group_sort id
     extract _ = Nothing
 
 call_module :: (call -> Derive.CallDoc) -> Derive.LookupCall call
-    -> [(Module.Module, BaseTypes.CallId)]
+    -> [(Module.Module, Expr.Symbol)]
 call_module _ (Derive.LookupPattern {}) = []
 call_module get_doc (Derive.LookupMap calls) =
-    [ (Derive.cdoc_module (get_doc call), call_id)
-    | (call_id, call) <- Map.toList calls
+    [ (Derive.cdoc_module (get_doc call), sym)
+    | (sym, call) <- Map.toList calls
     ]

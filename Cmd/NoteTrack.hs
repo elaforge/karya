@@ -272,7 +272,7 @@ block_call caller = fmap Seq.head . block_calls caller
 to_block_id :: Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
     -> (Maybe BlockId)
 to_block_id blocks ns caller =
-    valid <=< Eval.call_to_block_id ns caller . Expr.CallId
+    valid <=< Eval.call_to_block_id ns caller . Expr.Symbol
     where
     valid block_id
         | Just _ <- Map.lookup block_id blocks = Just block_id

@@ -26,10 +26,8 @@ import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
-
 import Global
 import Types
 
@@ -224,14 +222,13 @@ rebase_call caller block_id = Id.id ns name
             caller_name <> Text.dropWhile (/='.') old_name
         | otherwise = old_name
 
-get_block_calls :: Ui.M m => TrackId -> m [BaseTypes.CallId]
+get_block_calls :: Ui.M m => TrackId -> m [Expr.Symbol]
 get_block_calls track_id = do
     events <- Events.ascending <$> Ui.get_events track_id
-    return $ map Expr.CallId $
+    return $ map Expr.Symbol $
         concatMap (NoteTrack.possible_block_calls . Event.text) events
 
-resolve_relative_call :: Id.Namespace -> BlockId -> BaseTypes.CallId
-    -> Maybe BlockId
+resolve_relative_call :: Id.Namespace -> BlockId -> Expr.Symbol -> Maybe BlockId
 resolve_relative_call ns caller sym
     | Eval.is_relative sym = Eval.call_to_block_id ns (Just caller) sym
     | otherwise = Nothing

@@ -15,12 +15,12 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Bali.Gong as Gong
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 
@@ -60,7 +60,7 @@ kajar_pitched_notes :: CUtil.PitchedNotes
 (kajar_pitched_notes, kajar_resolve_errors) =
     CUtil.resolve_strokes 0.35 keymap kajar_strokes
 
-kajar_special :: [(Char, BaseTypes.CallId, Derive.Generator Derive.Note)]
+kajar_special :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
 kajar_special =
     [ ('c', "oo", DUtil.doubled_call "o" "oo" DUtil.After
         (RealTime.seconds 0.09) 0.75)
@@ -73,7 +73,7 @@ c_nruk = Gong.nruk_generator Module.instrument "nruk" "Nruktuk on `o`." $
         gen <- Eval.get_generator "o"
         Eval.apply_generator (Derive.passed_ctx args) gen []
 
-kajar_strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
+kajar_strokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
 kajar_stops :: [(Drums.Group, [Drums.Group])]
 (kajar_stops, kajar_strokes) = (,) stops
     [ ('q', "P", rim <> closed,             s_closed)

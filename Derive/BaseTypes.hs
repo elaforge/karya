@@ -28,10 +28,7 @@
     > signal    Signal.Control            PSignal.PSignal
     > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
 -}
-module Derive.BaseTypes (
-    module Derive.BaseTypes
-    , CallId
-) where
+module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
@@ -48,7 +45,6 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Expr as Expr
-import Derive.Expr (CallId(..))
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
@@ -302,7 +298,7 @@ lookup name (Environ env) = Map.lookup name env
 type Key = Expr.Str
 
 -- | Call used by the infix @=@ syntax.
-c_equal :: CallId
+c_equal :: Expr.Symbol
 c_equal = "="
 
 -- ** Val
@@ -472,8 +468,8 @@ to_scale_id :: Val -> Maybe Pitch.ScaleId
 to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
 to_scale_id _ = Nothing
 
-quoted :: CallId -> [Val] -> Quoted
-quoted call_id args = Quoted $ literal_call call_id args :| []
+quoted :: Expr.Symbol -> [Val] -> Quoted
+quoted sym args = Quoted $ literal_call sym args :| []
 
 -- ** Ref
 
@@ -544,7 +540,7 @@ constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
 
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = NonEmpty Call
-data Call = Call CallId [Term] deriving (Show)
+data Call = Call Expr.Symbol [Term] deriving (Show)
 -- | TODO this is weird, in that Literal is evaluated but ValCall is not.
 -- Why is it so weird?
 data Term = ValCall Call | Literal Val deriving (Show)
@@ -566,7 +562,7 @@ instance ShowVal.ShowVal Expr where
     show_val expr = Text.stripEnd $
         Text.intercalate " | " (map ShowVal.show_val (NonEmpty.toList expr))
 instance ShowVal.ShowVal Call where
-    show_val (Call (CallId sym) terms) =
+    show_val (Call (Expr.Symbol sym) terms) =
         sym <> if null terms then ""
             else " " <> Text.unwords (map ShowVal.show_val terms)
 instance ShowVal.ShowVal Term where
@@ -576,7 +572,7 @@ instance ShowVal.ShowVal Term where
 instance Pretty.Pretty Call where pretty = ShowVal.show_val
 
 instance DeepSeq.NFData Call where
-    rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
+    rnf (Call sym terms) = sym `seq` DeepSeq.rnf terms
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
@@ -593,13 +589,13 @@ scale_id_to_str (Pitch.ScaleId s) = Expr.Str s
 map_str :: (Expr.Str -> Expr.Str) -> Call -> Call
 map_str f = call
     where
-    call (Call call_id terms) = Call call_id (map term terms)
+    call (Call sym terms) = Call sym (map term terms)
     term (ValCall c) = ValCall (call c)
     term (Literal (VStr str)) = Literal (VStr (f str))
     term (Literal lit) = Literal lit
 
-map_call_id :: (CallId -> CallId) -> Call -> Call
-map_call_id f (Call call args) = Call (f call) args
+map_symbol :: (Expr.Symbol -> Expr.Symbol) -> Call -> Call
+map_symbol f (Call call args) = Call (f call) args
 
 -- | Transform the arguments in an expression.  This affects only vals in
 -- argument position.
@@ -610,24 +606,24 @@ map_args f = fmap call
     term (ValCall c) = ValCall (call c)
     term (Literal lit) = Literal (f lit)
 
--- | Transform only the CallId in the generator position.
-map_generator :: (CallId -> CallId) -> Expr -> Expr
+-- | Transform only the Expr.Symbol in the generator position.
+map_generator :: (Expr.Symbol -> Expr.Symbol) -> Expr -> Expr
 map_generator f (call1 :| calls) = case calls of
-    [] -> map_call_id f call1 :| []
-    _ : _ -> call1 :| Seq.map_last (map_call_id f) calls
+    [] -> map_symbol f call1 :| []
+    _ : _ -> call1 :| Seq.map_last (map_symbol f) calls
 
 -- | Convenient constructor for Call.
-call :: CallId -> [Term] -> Call
+call :: Expr.Symbol -> [Term] -> Call
 call = Call
 
-call0 :: CallId -> Call
-call0 call_id = Call call_id []
+call0 :: Expr.Symbol -> Call
+call0 sym = Call sym []
 
-literal_call :: CallId -> [Val] -> Call
-literal_call call_id args = call call_id (map Literal args)
+literal_call :: Expr.Symbol -> [Val] -> Call
+literal_call sym args = call sym (map Literal args)
 
-val_call :: CallId -> [Val] -> Term
-val_call call_id args = ValCall (literal_call call_id args)
+val_call :: Expr.Symbol -> [Val] -> Term
+val_call sym args = ValCall (literal_call sym args)
 
 
 -- * Derive.Score

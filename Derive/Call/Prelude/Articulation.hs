@@ -69,7 +69,7 @@ note_calls = Make.call_maps
         ]
     <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
 
-mute_call :: BaseTypes.CallId
+mute_call :: Expr.Symbol
 mute_call = "m"
 
 -- * lookp attr
@@ -85,7 +85,7 @@ lookup_attr_transformer = make_lookup_attr $ \attrs ->
 make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
     Derive.LookupPattern "attribute starting with `+` or `=`" doc $
-        \(Expr.CallId sym) -> parse_symbol sym
+        \(Expr.Symbol sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of

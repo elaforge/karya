@@ -10,9 +10,9 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Stroke(..))
+import qualified Derive.Expr as Expr
 
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Util as Util
@@ -43,7 +43,7 @@ pitched_notes :: CUtil.PitchedNotes
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-both_calls :: [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)]
+both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
 both_calls = Mridangam.make_both left_notes right_notes special_names
     [ ("D", 'c')
     , ("T", 'f')

@@ -127,7 +127,7 @@ in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
 -- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
 -- Since the control call emits signal which then goes in a control track,
 -- a merge operator would wind up being applied twice.
-get_merger :: Score.Control -> Maybe BaseTypes.CallId
+get_merger :: Score.Control -> Maybe Expr.Symbol
     -> Derive.Deriver (Derive.Merger Signal.Control)
 get_merger control merge = case merge of
     Nothing
@@ -135,13 +135,13 @@ get_merger control merge = case merge of
         | otherwise -> Derive.get_default_merger control
     Just sym -> Derive.get_control_merge sym
 
-get_pitch_merger :: Maybe BaseTypes.CallId
+get_pitch_merger :: Maybe Expr.Symbol
     -> Derive.Deriver (Derive.Merger PSignal.PSignal)
 get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Config -> Maybe Expr.CallId -> TrackTree.Track
+tempo_call :: Config -> Maybe Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call config sym track sig_deriver deriver = do
@@ -171,7 +171,7 @@ tempo_call config sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid a => Config -> Maybe Expr.CallId
+dispatch_tempo :: Monoid a => Config -> Maybe Expr.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo config sym block_range maybe_track_id signal deriver =

@@ -117,7 +117,7 @@ test_c_note = do
 
     let (evts, logs) = run ">i" [(0, 1, "n +a 42")]
     equal evts []
-    strings_like logs ["expected Symbol or Attributes"]
+    strings_like logs ["expected Str or Attributes"]
 
     let (evts, logs) = run ">i" [(0, 1, "x (")]
     equal evts []

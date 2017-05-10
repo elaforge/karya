@@ -16,7 +16,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -149,7 +148,7 @@ realize_mstroke ctx = fmap realize . stroke_call
         call <- Eval.get_generator sym
         Eval.apply_generator ctx call []
 
-stroke_call :: Realize.Note Mridangam.Stroke -> Maybe BaseTypes.CallId
+stroke_call :: Realize.Note Mridangam.Stroke -> Maybe Expr.Symbol
 stroke_call stroke = case stroke of
     Realize.Note stroke -> Just $ Expr.to_call stroke
     Realize.Rest -> Nothing
@@ -222,7 +221,7 @@ realize_stroke :: Derive.Context Score.Event -> Stroke
     -> Maybe Derive.NoteDeriver
 realize_stroke _ Rest = Nothing
 realize_stroke ctx (Stroke c) = Just $ do
-    call <- Eval.get_generator (Expr.CallId (Text.singleton c))
+    call <- Eval.get_generator (Expr.Symbol (Text.singleton c))
     Eval.apply_generator ctx call []
 
 stretch_karvai :: [Stroke] -> [Stroke] -> ScoreTime -> ScoreTime
@@ -275,7 +274,7 @@ variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
 to_pattern :: [Realize.Note Mridangam.Stroke] -> Either Text Text
 to_pattern = fmap mconcat . traverse convert
     where
-    convert (Realize.Note stroke) = Right $ Expr.uncall $ Expr.to_call stroke
+    convert (Realize.Note stroke) = Right $ Expr.unsym $ Expr.to_call stroke
     convert Realize.Rest = Right "_"
     convert (Realize.Pattern matras) = Left $
         "pattern with another p" <> showt matras <> " can't go in a string"

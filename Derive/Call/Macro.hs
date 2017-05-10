@@ -27,6 +27,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -55,13 +56,13 @@ val_call module_ name tags doc call_expr =
         Sig.call (make_signature (extract_vars expr)) (val_macro call_expr)
     where expr = Parse.Expr (call_expr :| [])
 
-extract_vars :: Parse.Expr -> [(Parse.Var, BaseTypes.CallId, Int)]
+extract_vars :: Parse.Expr -> [(Parse.Var, Expr.Symbol, Int)]
 extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
     where
-    extract_call (Parse.Call call_id args) =
-        concatMap (extract_arg call_id) (zip [0..] args)
-    extract_arg call_id (argnum, arg) = case arg of
-        Parse.VarTerm var -> [(var, call_id, argnum)]
+    extract_call (Parse.Call sym args) =
+        concatMap (extract_arg sym) (zip [0..] args)
+    extract_arg sym (argnum, arg) = case arg of
+        Parse.VarTerm var -> [(var, sym, argnum)]
         Parse.Literal _ -> []
         Parse.ValCall call -> extract_call call
 
@@ -100,15 +101,13 @@ split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
 split_expr = Seq.ne_viewr
 
 eval_args :: Derive.Taggable a => Derive.Context a -> BaseTypes.Call
-    -> Derive.Deriver (BaseTypes.CallId, [BaseTypes.Val])
-eval_args ctx (BaseTypes.Call call_id args) =
-    (,) call_id <$> mapM (Eval.eval ctx) args
+    -> Derive.Deriver (Expr.Symbol, [BaseTypes.Val])
+eval_args ctx (BaseTypes.Call sym args) = (,) sym <$> mapM (Eval.eval ctx) args
 
 substitute_vars :: [BaseTypes.Val] -> Parse.Expr -> Either Text BaseTypes.Expr
 substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
     where
-    sub_call (Parse.Call call_id args) =
-        BaseTypes.Call call_id <$> mapM sub_arg args
+    sub_call (Parse.Call sym args) = BaseTypes.Call sym <$> mapM sub_arg args
     sub_arg term = case term of
         Parse.VarTerm (Parse.Var _) -> BaseTypes.Literal <$> pop
         Parse.Literal val -> return (BaseTypes.Literal val)
@@ -131,8 +130,7 @@ substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
 -- TODO these are all required, but should I support optional args?  But isn't
 -- the whole point of doing this in haskell that I don't get tied up in more
 -- and more hacky language features?
-make_signature :: [(Parse.Var, BaseTypes.CallId, Int)]
-    -> Sig.Parser [BaseTypes.Val]
+make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [BaseTypes.Val]
 make_signature vars = Sig.required_vals (map doc vars)
     where
     doc (Parse.Var var, call, argnum) = Derive.ArgDoc

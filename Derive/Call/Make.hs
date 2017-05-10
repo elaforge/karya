@@ -17,6 +17,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -31,7 +32,7 @@ import Global
 -- together.  The rationale is described in 'Derive.CallMaps'.
 type Calls d = (Derive.Generator d, Derive.Transformer d)
 
-call_maps :: [(BaseTypes.CallId, Calls d)] -> Derive.CallMaps d
+call_maps :: [(Expr.Symbol, Calls d)] -> Derive.CallMaps d
 call_maps calls = Derive.call_maps gs ts
     where
     gs = zip (map fst calls) (map (fst . snd) calls)

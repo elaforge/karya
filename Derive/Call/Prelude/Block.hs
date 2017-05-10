@@ -58,10 +58,10 @@ global_transform = transform_if_present ctx "GLOBAL"
     where ctx = Derive.dummy_context 0 1 "<GLOBAL transform>"
 
 transform_if_present :: Derive.Callable a => Derive.Context a
-    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream a)
+    -> Expr.Symbol -> Derive.Deriver (Stream.Stream a)
     -> Derive.Deriver (Stream.Stream a)
-transform_if_present ctx call_id deriver = do
-    maybe_call <- Derive.lookup_transformer call_id
+transform_if_present ctx sym deriver = do
+    maybe_call <- Derive.lookup_transformer sym
     case maybe_call of
         Nothing -> deriver
         Just call -> Eval.apply_transformer ctx call [] deriver
@@ -190,10 +190,10 @@ d_block block_id = do
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> BaseTypes.Call
 call_from_block_id block_id =
-    BaseTypes.call (Expr.CallId $ Id.show_id $ Id.unpack_id block_id) []
+    BaseTypes.call (Expr.Symbol $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
-call_to_block_id :: Expr.CallId -> Derive.Deriver (Maybe BlockId)
+call_to_block_id :: Expr.Symbol -> Derive.Deriver (Maybe BlockId)
 call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config

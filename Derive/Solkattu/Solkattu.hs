@@ -132,7 +132,7 @@ instance Pretty.Pretty Pattern where
     pretty Nakatiku = "4n"
 
 instance Expr.ToCall Pattern where
-    to_call (PatternM matras) = Expr.CallId $ "p " <> showt matras
+    to_call (PatternM matras) = Expr.Symbol $ "p " <> showt matras
     to_call Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the

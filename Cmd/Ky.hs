@@ -119,9 +119,9 @@ compile_library (Parse.Definitions note control pitch val aliases) =
     where
     call_maps (gen, trans) = Derive.call_maps
         (compile make_generator gen) (compile make_transformer trans)
-    compile make = map $ \(fname, (call_id, expr)) ->
-        (call_id, make fname (sym_to_name call_id) expr)
-    sym_to_name (Expr.CallId name) = Derive.CallName name
+    compile make = map $ \(fname, (sym, expr)) ->
+        (sym, make fname (sym_to_name sym) expr)
+    sym_to_name (Expr.Symbol name) = Derive.CallName name
 
 make_generator :: Derive.Callable d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Generator d
@@ -158,9 +158,9 @@ simple_generator fname name expr =
     Derive.generator Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
-        Just call_id ->
+        Just sym ->
             Sig.call (Sig.many_vals "arg" "Args parsed by reapplied call.") $
-                \_vals args -> Eval.reapply_generator args call_id
+                \_vals args -> Eval.reapply_generator args sym
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
 simple_transformer :: Derive.Callable d => FilePath -> Derive.CallName
@@ -169,15 +169,15 @@ simple_transformer fname name expr =
     Derive.transformer Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
-        Just call_id ->
+        Just sym ->
             Sig.callt (Sig.many_vals "arg" "Args parsed by reapplied call.") $
-                \_vals -> reapply call_id
+                \_vals -> reapply sym
     where
     transformer args deriver =
         Eval.eval_transformers (Derive.passed_ctx args)
             (NonEmpty.toList expr) deriver
-    reapply call_id args deriver = do
-        call <- Eval.get_transformer call_id
+    reapply sym args deriver = do
+        call <- Eval.get_transformer sym
         Eval.apply_transformer (Derive.passed_ctx args) call
             (Derive.passed_vals args) deriver
 
@@ -188,13 +188,13 @@ simple_val_call fname name call_expr =
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args ->
             Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
-        Just call_id ->
+        Just sym ->
             Sig.call (Sig.many_vals "arg" "Args parsed by reapplied call.") $
-                \_vals -> call_args call_id
+                \_vals -> call_args sym
     where
     expr = call_expr :| []
-    call_args call_id args = do
-        call <- Eval.get_val_call call_id
+    call_args sym args = do
+        call <- Eval.get_val_call sym
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
 
@@ -207,8 +207,8 @@ broken_val_call name msg = Derive.make_val_call Module.local name mempty
 no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr
 no_free_vars (Parse.Expr expr) = traverse convent_call expr
     where
-    convent_call (Parse.Call call_id terms) =
-        BaseTypes.Call call_id <$> traverse convert_term terms
+    convent_call (Parse.Call sym terms) =
+        BaseTypes.Call sym <$> traverse convert_term terms
     convert_term (Parse.VarTerm _) = Nothing
     convert_term (Parse.ValCall call) = BaseTypes.ValCall <$> convent_call call
     convert_term (Parse.Literal val) = Just $ BaseTypes.Literal val
@@ -220,6 +220,6 @@ make_doc fname name expr = Doc.Doc $
 -- | If there are arguments in the definition, then don't accept any in the
 -- score.  I could do partial application, but it seems confusing, so
 -- I won't add it unless I need it.
-assign_symbol :: BaseTypes.Expr -> Maybe BaseTypes.CallId
-assign_symbol (BaseTypes.Call call_id [] :| []) = Just call_id
+assign_symbol :: BaseTypes.Expr -> Maybe Expr.Symbol
+assign_symbol (BaseTypes.Call sym [] :| []) = Just sym
 assign_symbol _ = Nothing

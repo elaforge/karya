@@ -16,16 +16,16 @@ test_equal = do
     let run title evts = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks "" [(title, evts)]
     strings_like (snd $ run ">" [(0, 1, "%c = i |")])
-        ["expected *, but got Symbol"]
+        ["expected *, but got Str"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = 42" [(0, 1, "")]
     equal evts []
-    strings_like logs ["expected Symbol"]
+    strings_like logs ["expected Str"]
 
     -- only the event with the error is omitted
     let (evts, logs) = run ">" [(0, 1, "inst = 42 |"), (1, 1, "")]
     equal evts [(1, "")]
-    strings_like logs ["expected Symbol"]
+    strings_like logs ["expected Str"]
 
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = i2 |"), (2, 1, "n i1 |")])
         ([(0, "i"), (1, "i2"), (2, "i1")], [])

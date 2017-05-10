@@ -320,8 +320,8 @@ delayed_event args = Score.modify_environ $
     Env.insert_val EnvKey.args (BaseTypes.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
-delayed_args :: Expr.CallId -> Score.Event -> Maybe [BaseTypes.Val]
-delayed_args (Expr.CallId call) event
+delayed_args :: Expr.Symbol -> Score.Event -> Maybe [BaseTypes.Val]
+delayed_args (Expr.Symbol call) event
     | Seq.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =
         Env.maybe_val EnvKey.args (Score.event_environ event)

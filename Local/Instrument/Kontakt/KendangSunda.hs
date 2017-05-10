@@ -14,12 +14,12 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
@@ -39,8 +39,8 @@ patches =
         <> MidiInst.note_generators
             (replace_det $ CUtil.drum_calls (Just tuning_control) notes)
 
-replace_det :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+replace_det :: [(Expr.Symbol, Derive.Generator Derive.Note)]
+    -> [(Expr.Symbol, Derive.Generator Derive.Note)]
 replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
     where
     calls =
@@ -103,7 +103,7 @@ pitch_control = "pitch"
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
 
-strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
+strokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]
 (stops, strokes) = (,) stops
     -- TODO paired strokes:

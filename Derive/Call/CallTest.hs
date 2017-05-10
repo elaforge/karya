@@ -12,17 +12,18 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -68,34 +69,34 @@ run_control_dur events = extract $
 --
 -- > DeriveTest.derive_tracks_setup (CallTest.with_note_generator "g" c_gen)
 -- > where c_gen = CallTest.generator $ \args -> do ...
-with_note_generator :: BaseTypes.CallId -> Derive.Generator Derive.Note
+with_note_generator :: Expr.Symbol -> Derive.Generator Derive.Note
     -> DeriveTest.SetupA a
 with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_note %= override (single_lookup name call)
 
-with_pitch_generator :: BaseTypes.CallId -> Derive.Generator Derive.Pitch
+with_pitch_generator :: Expr.Symbol -> Derive.Generator Derive.Pitch
     -> DeriveTest.SetupA a
 with_pitch_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_pitch %= override (single_lookup name call)
 
-with_control_generator :: BaseTypes.CallId -> Derive.Generator Derive.Control
+with_control_generator :: Expr.Symbol -> Derive.Generator Derive.Control
     -> DeriveTest.SetupA a
 with_control_generator name call =
     DeriveTest.with_deriver $ Derive.with_scopes $
         Derive.s_generator#Derive.s_control
             %= override (single_lookup name call)
 
-with_note_generators :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+with_note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> DeriveTest.SetupA a
 with_note_generators calls = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_note %= override (lookup_map calls)
 
-with_note_transformer :: BaseTypes.CallId -> Derive.Transformer Derive.Note
+with_note_transformer :: Expr.Symbol -> Derive.Transformer Derive.Note
     -> DeriveTest.SetupA a
 with_note_transformer name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_transformer#Derive.s_note %= override (single_lookup name call)
 
-with_val_call :: BaseTypes.CallId -> Derive.ValCall -> DeriveTest.SetupA a
+with_val_call :: Expr.Symbol -> Derive.ValCall -> DeriveTest.SetupA a
 with_val_call name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_val %= override (single_lookup name call)
 
@@ -103,10 +104,10 @@ override :: Derive.LookupCall call -> Derive.ScopePriority call
     -> Derive.ScopePriority call
 override = Derive.add_priority Derive.PrioOverride
 
-single_lookup :: BaseTypes.CallId -> call -> Derive.LookupCall call
+single_lookup :: Expr.Symbol -> call -> Derive.LookupCall call
 single_lookup name = Derive.LookupMap . Map.singleton name
 
-lookup_map :: [(BaseTypes.CallId, call)] -> Derive.LookupCall call
+lookup_map :: [(Expr.Symbol, call)] -> Derive.LookupCall call
 lookup_map = Derive.LookupMap . Map.fromList
 
 -- * calls

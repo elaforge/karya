@@ -54,7 +54,7 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.transformer_call_map
     [("=", c_equal), (default_merge, c_default_merge)]
 
-default_merge :: BaseTypes.CallId
+default_merge :: Expr.Symbol
 default_merge = "default-merge"
 
 -- * util
@@ -83,7 +83,7 @@ is_empty_expr (BaseTypes.Call "" [] :| []) = True
 is_empty_expr _ = False
 
 equal_expr :: BaseTypes.Call -> Maybe (Expr.Str, BaseTypes.Val)
-equal_expr (BaseTypes.Call (Expr.CallId "=")
+equal_expr (BaseTypes.Call (Expr.Symbol "=")
         [BaseTypes.Literal (BaseTypes.VStr str), BaseTypes.Literal val]) =
     Just (str, val)
 equal_expr _ = Nothing
@@ -121,20 +121,20 @@ merge_doc = "Merge operator. This can be `default` to use the default for the\
     <> " There are also symbolic aliases, to support `=+` syntax: "
     <> Doc.pretty symbol_to_merge
 
-data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
+data Merge = Default | Set | Merge Expr.Symbol deriving (Show)
 
 instance ShowVal.ShowVal Merge where
     show_val Default = "default"
     show_val Set = "set"
     show_val (Merge sym) = ShowVal.show_val sym
 
-parse_merge :: BaseTypes.CallId -> Merge
+parse_merge :: Expr.Symbol -> Merge
 parse_merge name
     | name == "set" = Set
     | name == "default" = Default
     | otherwise = Merge $ Map.findWithDefault name name symbol_to_merge
 
-symbol_to_merge :: Map BaseTypes.CallId BaseTypes.CallId
+symbol_to_merge :: Map Expr.Symbol Expr.Symbol
 symbol_to_merge = Map.fromList
     [ ("+", "add")
     , ("-", "sub")
@@ -282,7 +282,7 @@ get_pitch_merger merge = case merge of
 parse_val :: Expr.Str -> Maybe BaseTypes.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . Expr.unstr
 
--- | Look up a call with the given CallId and add it as an override to the
+-- | Look up a call with the given Symbol and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
 override_call :: (Derive.Callable d1, Derive.Callable d2) =>
@@ -300,7 +300,7 @@ override_call lhs rhs name generator transformer deriver
     override_generator_scope call = Derive.with_scopes add deriver
         where
         add = generator %= Derive.add_priority Derive.PrioOverride
-            (single_lookup (Expr.CallId lhs) call)
+            (single_lookup (Expr.Symbol lhs) call)
 
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.PrioOverride' slot.
@@ -313,7 +313,7 @@ override_transformer lhs rhs name transformer deriver =
     where
     override_scope call = Derive.with_scopes
         (transformer %= Derive.add_priority Derive.PrioOverride
-            (single_lookup (Expr.CallId lhs) call))
+            (single_lookup (Expr.Symbol lhs) call))
         deriver
 
 -- | A VQuoted becomes a call, a Str is expected to name a call, and
@@ -323,28 +323,28 @@ resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopePriority a)
     -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
 resolve_source name lens make_quoted rhs = case rhs of
     BaseTypes.VQuoted quoted -> return $ make_quoted quoted
-    BaseTypes.VStr (Expr.Str sym) -> get_call name (lens #$) (Expr.CallId sym)
-    _ -> get_call name (lens #$) (Expr.CallId (ShowVal.show_val rhs))
+    BaseTypes.VStr (Expr.Str sym) -> get_call name (lens #$) (Expr.Symbol sym)
+    _ -> get_call name (lens #$) (Expr.Symbol (ShowVal.show_val rhs))
 
 override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source "val" Derive.s_val quoted_val_call rhs
     let add = Derive.s_val %= Derive.add_priority Derive.PrioOverride
-            (single_val_lookup (Expr.CallId lhs) call)
+            (single_val_lookup (Expr.Symbol lhs) call)
     Derive.with_scopes add deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
-    -> BaseTypes.CallId -> Derive.Deriver call
-get_call name get call_id =
-    maybe (Derive.throw $ Eval.unknown_call_id name call_id)
-        return =<< Derive.lookup_with get call_id
+    -> Expr.Symbol -> Derive.Deriver call
+get_call name get sym =
+    maybe (Derive.throw $ Eval.unknown_symbol name sym)
+        return =<< Derive.lookup_with get sym
 
-single_lookup :: Expr.CallId -> Derive.Call d
+single_lookup :: Expr.Symbol -> Derive.Call d
     -> Derive.LookupCall (Derive.Call d)
 single_lookup name = Derive.LookupMap . Map.singleton name
 
-single_val_lookup :: Expr.CallId -> Derive.ValCall
+single_val_lookup :: Expr.Symbol -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
 single_val_lookup name = Derive.LookupMap . Map.singleton name
 

@@ -88,7 +88,7 @@ lookup_transformer = lookup_call $ \val ->
 
 lookup_call :: (Signal.Y -> Derive.Call d) -> Derive.LookupCall (Derive.Call d)
 lookup_call call = Derive.LookupPattern "numbers and hex" doc $
-    \(Expr.CallId sym) -> return $! case Parse.parse_num sym of
+    \(Expr.Symbol sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ call val
     where doc = Derive.extract_doc (call 0)

@@ -53,9 +53,9 @@ instance Expr.ToCall (Realize.Stroke Stroke) where
     to_call (Realize.Stroke emphasis stroke) = case emphasis of
         Realize.Normal -> Expr.to_call stroke
         Realize.Light ->
-            Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
+            Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
         Realize.Heavy ->
-            Expr.CallId $ "v |" <> Expr.uncall (Expr.to_call stroke)
+            Expr.Symbol $ "v |" <> Expr.unsym (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a

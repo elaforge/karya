@@ -36,6 +36,7 @@ import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
@@ -363,10 +364,10 @@ reapply ctx expr notes = Eval.reapply subs expr
             Just $ map (map (\(Event s d n) -> (s, d, n))) notes
         }
 
-reapply_call :: Derive.Context Score.Event -> BaseTypes.CallId
+reapply_call :: Derive.Context Score.Event -> Expr.Symbol
     -> [BaseTypes.Term] -> [[Event]] -> Derive.NoteDeriver
-reapply_call ctx call_id call_args =
-    reapply ctx (BaseTypes.call call_id call_args :| [])
+reapply_call ctx sym call_args =
+    reapply ctx (BaseTypes.call sym call_args :| [])
 
 {- NOTE [under-invert]
     . To make 'lift' to an absolute pitch work outside of inversion, I'd need

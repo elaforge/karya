@@ -8,7 +8,7 @@
 module Cmd.Instrument.Drums where
 import qualified Util.Pretty as Pretty
 import Derive.Attrs
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 import qualified Perform.Signal as Signal
 import Global
 
@@ -19,7 +19,7 @@ import Global
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
 data Note = Note {
-    note_name :: !BaseTypes.CallId
+    note_name :: !Expr.Symbol
     , note_attrs :: !Attributes
     , note_char :: !Char
     -- | Scale the dynamic by this value.  This is for drums that have
@@ -31,7 +31,7 @@ data Note = Note {
 -- | An arbitrary symbol.  A group can stop other groups from sounding.
 type Group = Text
 
-note :: Char -> BaseTypes.CallId -> Attributes -> Note
+note :: Char -> Expr.Symbol -> Attributes -> Note
 note char name attrs = Note
     { note_name = name
     , note_attrs = attrs
@@ -40,7 +40,7 @@ note char name attrs = Note
     , note_group = ""
     }
 
-note_dyn :: Char -> BaseTypes.CallId -> Attributes -> Signal.Y -> Note
+note_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Note
 note_dyn char name attrs dyn = (note char name attrs) { note_dynamic = dyn }
 
 instance Pretty.Pretty Note where

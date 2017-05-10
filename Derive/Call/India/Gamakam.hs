@@ -87,9 +87,9 @@ control_calls = Derive.generator_call_map $
 
 kampita_variations :: Text
     -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)
-    -> [(BaseTypes.CallId, call)]
+    -> [(Expr.Symbol, call)]
 kampita_variations name call =
-    [ (Expr.CallId $ affix s <> name <> affix e, call s e)
+    [ (Expr.Symbol $ affix s <> name <> affix e, call s e)
     | s <- dirs, e <- dirs
     ]
     where

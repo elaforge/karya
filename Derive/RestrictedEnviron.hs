@@ -102,15 +102,14 @@ instance ToVal Expr where to_val = VQuoted
 -- * call
 
 type Expr = NonEmpty Call
-data Call = Call BaseTypes.CallId [Term] deriving (Eq, Read, Show)
+data Call = Call Expr.Symbol [Term] deriving (Eq, Read, Show)
 data Term = ValCall Call | Literal Val deriving (Eq, Read, Show)
 
 convert_expr :: Expr -> BaseTypes.Expr
 convert_expr = NonEmpty.map convert_call
 
 convert_call :: Call -> BaseTypes.Call
-convert_call (Call call_id terms) =
-    BaseTypes.Call call_id (map convert_term terms)
+convert_call (Call sym terms) = BaseTypes.Call sym (map convert_term terms)
 
 convert_term :: Term -> BaseTypes.Term
 convert_term (ValCall call) = BaseTypes.ValCall (convert_call call)

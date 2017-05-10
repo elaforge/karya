@@ -36,7 +36,6 @@ import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
@@ -94,7 +93,7 @@ control_deriver block_id = do
             derive_control_tree block_range tree
 
 -- | Name of the call for the control deriver hack.
-capture_null_control :: BaseTypes.CallId
+capture_null_control :: Expr.Symbol
 capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
@@ -116,7 +115,7 @@ check_control_tree block_end forest = case forest of
         <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.event 0 block_end (Expr.uncall capture_null_control)
+        Event.event 0 block_end (Expr.unsym capture_null_control)
     capture_track = TrackTree.make_track ">" events block_end
 
 derive_control_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree

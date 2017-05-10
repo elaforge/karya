@@ -504,11 +504,11 @@ instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
 
 -- ** text\/symbol
 
-instance Typecheck Expr.CallId where
-    from_val (VStr (Expr.Str sym)) = Val $ Just $ Expr.CallId sym
+instance Typecheck Expr.Symbol where
+    from_val (VStr (Expr.Str sym)) = Val $ Just $ Expr.Symbol sym
     from_val _ = Val Nothing
     to_type _ = ValType.TStr Nothing
-instance ToVal Expr.CallId where to_val = VStr . Expr.Str . Expr.uncall
+instance ToVal Expr.Symbol where to_val = VStr . Expr.Str . Expr.unsym
 
 instance Typecheck Expr.Str where
     from_val (VStr a) = Val $ Just a
@@ -603,7 +603,7 @@ instance Typecheck BaseTypes.Quoted where
         _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $
-            BaseTypes.Quoted (BaseTypes.Call (Expr.CallId sym) [] :| [])
+            BaseTypes.Quoted (BaseTypes.Call (Expr.Symbol sym) [] :| [])
     to_type _ = ValType.TQuoted
 instance ToVal BaseTypes.Quoted where to_val = VQuoted
 

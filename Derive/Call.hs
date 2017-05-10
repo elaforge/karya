@@ -330,7 +330,7 @@ eval_pitch show_pitch start pitch = do
 -- Transposed, or at least should be an absolute pitch.
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Transposed
 eval_note pos note = Eval.eval_pitch pos $
-    BaseTypes.call (Expr.CallId (Pitch.note_text note)) []
+    BaseTypes.call (Expr.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver

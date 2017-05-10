@@ -561,7 +561,7 @@ lookup_calls ctype = group . map (extract . go) . concatMap flatten
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go (Left pattern, call) = ("lookup: " <> pattern, call)
     go (Right sym, call) = (show_sym sym, call)
-    show_sym (Expr.CallId sym)
+    show_sym (Expr.Symbol sym)
         | Text.null sym = "\"\""
         | otherwise = sym
     extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)

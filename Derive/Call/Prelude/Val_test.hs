@@ -21,7 +21,7 @@ test_env = do
     equal (run Nothing "e x 42") (Just (BaseTypes.num 42), [])
     equal (run (Just "x = 42") "e x") (Just (BaseTypes.num 42), [])
     equal (run (Just "x = 42") "e x str")
-        (Nothing, ["Error: env x expected Symbol but got Num"])
+        (Nothing, ["Error: env x expected Str but got Num"])
 
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $
@@ -78,7 +78,7 @@ test_timestep = do
             (cycle [Meter.r_1, Meter.r_4, Meter.r_4, Meter.r_4])
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
-    strings_like logs ["expected Symbol"]
+    strings_like logs ["expected Str"]
 
     -- Whole note in the first measure is 4.
     equal (run 0 "w") ([4], [])

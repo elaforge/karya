@@ -87,7 +87,7 @@ instance Pretty.Pretty Valantalai where
 -- the keyword @do@.  It would be nice if I could make the tracklang syntax
 -- consistent, but maybe not a huge deal at the moment.
 instance Expr.ToCall Stroke where
-    to_call s = Expr.CallId $ case s of
+    to_call s = Expr.Symbol $ case s of
         Thoppi t -> thoppi t
         Valantalai v -> pretty v
         Both t v -> pretty v <> thoppi t
@@ -101,14 +101,14 @@ instance Expr.ToCall (Realize.Stroke Stroke) where
         (Realize.Normal, _) -> Expr.to_call stroke
         (Realize.Light, Thoppi Thom) -> "."
         (Realize.Light, Thoppi Tha) -> "-"
-        -- TODO this is broken because a CallId is not an Expr, but will work
+        -- TODO this is broken because a Symbol is not an Expr, but will work
         -- anyway for LSol because it just puts the text in the event.  To
         -- make it work in general, I need to either abandon pretense of making
-        -- a CallId and make a Text expr, or make a ToExpr class.
+        -- a Symbol and make a Text expr, or make a ToExpr class.
         (Realize.Light, _) ->
-            Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
+            Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
         (Realize.Heavy, _) ->
-            Expr.CallId $ "v | " <> Expr.uncall (Expr.to_call stroke)
+            Expr.Symbol $ "v | " <> Expr.unsym (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a

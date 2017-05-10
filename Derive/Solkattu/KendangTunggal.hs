@@ -70,9 +70,9 @@ instance Expr.ToCall (Realize.Stroke Stroke) where
             TutL -> "ø"
             Ka -> "."
             De -> "-"
-            _ -> Expr.CallId $ "^ |" <> Expr.uncall (Expr.to_call stroke)
+            _ -> Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
         Realize.Heavy ->
-            Expr.CallId $ "v |" <> Expr.uncall (Expr.to_call stroke)
+            Expr.Symbol $ "v |" <> Expr.unsym (Expr.to_call stroke)
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a

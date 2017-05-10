@@ -33,6 +33,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note
 import qualified Derive.ParseTitle as ParseTitle
@@ -52,7 +53,7 @@ import Types
 
 -- | Specialized version of 'derive_expr' for note calls with no arguments.
 derive_note_call :: Cmd.M m => BlockId -> TrackId -> TrackTime
-    -> BaseTypes.CallId -> m (Either Text [Score.Event], [Log.Msg])
+    -> Expr.Symbol -> m (Either Text [Score.Event], [Log.Msg])
 derive_note_call block_id track_id pos call =
     derive_expr block_id track_id pos (BaseTypes.Call call [] :| [])
 

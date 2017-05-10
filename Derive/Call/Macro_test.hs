@@ -11,6 +11,7 @@ import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -67,6 +68,6 @@ var = Parse.VarTerm . Parse.Var
 attr :: Text -> Parse.Term
 attr = Parse.Literal . Typecheck.to_val . Attrs.attr
 
-make_expr :: [(BaseTypes.CallId, [Parse.Term])] -> Parse.Expr
+make_expr :: [(Expr.Symbol, [Parse.Term])] -> Parse.Expr
 make_expr calls = Parse.Expr $ c :| cs
     where c : cs = map (uncurry Parse.Call) calls

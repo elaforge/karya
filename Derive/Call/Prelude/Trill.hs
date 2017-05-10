@@ -492,9 +492,9 @@ hold_env = Typecheck._real <$>
     Sig.environ (Derive.str_to_arg_name EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first note."
 
-trill_variations :: [(Expr.CallId, Maybe Direction, Maybe Direction)]
+trill_variations :: [(Expr.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =
-    [ (Expr.CallId $ "tr"
+    [ (Expr.Symbol $ "tr"
             <> (if start == Nothing && end /= Nothing
                 then "-" else direction_affix start)
             <> direction_affix end,

@@ -87,10 +87,10 @@ when_ly inverted vals args deriver = case vals of
     [] -> when_lily deriver mempty
     call : vals -> when_lily (apply args (to_sym call) vals deriver) deriver
     where
-    to_sym = Expr.CallId . BaseTypes.show_call_val
+    to_sym = Expr.Symbol . BaseTypes.show_call_val
     when_lily = if inverted then flip Lily.when_lilypond else Lily.when_lilypond
-    apply args call_id vals deriver = do
-        call <- Eval.get_transformer call_id
+    apply args sym vals deriver = do
+        call <- Eval.get_transformer sym
         Eval.apply_transformer (Derive.passed_ctx args) call vals deriver
 
 c_ly_global :: Derive.Transformer Derive.Note

@@ -21,7 +21,6 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs (soft)
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -114,8 +113,8 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     right_closed = "right-closed"
     right_open = "right-open"
 
-to_call :: Stroke -> Attrs.Attributes -> BaseTypes.CallId
-to_call stroke attrs = Expr.CallId $ case stroke of
+to_call :: Stroke -> Attrs.Attributes -> Expr.Symbol
+to_call stroke attrs = Expr.Symbol $ case stroke of
     Plak -> "PL"
     -- left
     Pak -> if soft then "^" else "P"
@@ -206,16 +205,15 @@ pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
 pasang_cmd = CUtil.insert_call $ Map.fromList
     [(char, name) | (char, name, _) <- pasang_calls]
 
-c_pasang_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+c_pasang_calls :: [(Expr.Symbol, Derive.Generator Derive.Note)]
 c_pasang_calls =
     [ (name, c_pasang_stroke name stroke)
     | (name, stroke) <- map (\(_, a, b) -> (a, b)) pasang_calls ++ both_calls
     ]
 
-c_pasang_stroke :: BaseTypes.CallId -> PasangStroke
-    -> Derive.Generator Derive.Note
-c_pasang_stroke call_id pstroke = Derive.generator Module.instrument
-    (Derive.sym_to_call_name call_id) Tags.inst "Dispatch to wadon or lanang." $
+c_pasang_stroke :: Expr.Symbol -> PasangStroke -> Derive.Generator Derive.Note
+c_pasang_stroke sym pstroke = Derive.generator Module.instrument
+    (Derive.sym_to_call_name sym) Tags.inst "Dispatch to wadon or lanang." $
     Sig.call pasang_env call
     where
     call pasang args = case pstroke of
@@ -226,7 +224,7 @@ c_pasang_stroke call_id pstroke = Derive.generator Module.instrument
         dispatch inst stroke_dyn = Derive.with_instrument (inst pasang) $
             Eval.reapply_generator args (stroke_dyn_to_call stroke_dyn)
 
-both_calls :: [(BaseTypes.CallId, PasangStroke)]
+both_calls :: [(Expr.Symbol, PasangStroke)]
 both_calls =
     ("PLPL", Both (Plak, Loud) (Plak, Loud)) :
     [ (wadon ^ lanang, Both wstroke lstroke)
@@ -237,9 +235,9 @@ both_calls =
     ]
     where
     already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
-    a ^ b = Expr.CallId (Expr.uncall a <> Expr.uncall b)
+    a ^ b = Expr.Symbol (Expr.unsym a <> Expr.unsym b)
 
-pasang_calls :: [(Char, BaseTypes.CallId, PasangStroke)]
+pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
 pasang_calls =
     [ ('b', "PL", lanang Plak)
     , ('t', "Ø", lanang TutL)
@@ -268,7 +266,7 @@ pasang_calls =
 
 -- | Unicode has some kendang notation, but it's harder to type and I'm not
 -- sure if I'll wind up using it.
-balinese_pasang_calls :: [(Char, BaseTypes.CallId, PasangStroke)]
+balinese_pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
 balinese_pasang_calls =
     [ ('b', "PL",           wadon Plak)
     , ('t', open_ping,      lanang TutL)
@@ -303,7 +301,7 @@ balinese_pasang_calls =
     open_dug = "᭴"      -- > dug   o tut
     closed_tak = "᭷"    -- ] tek   u kum
     closed_tuk = "᭶"    -- [ tak   U pung
-    quiet (Expr.CallId s) = Expr.CallId ("," <> s)
+    quiet (Expr.Symbol s) = Expr.Symbol ("," <> s)
     wadon stroke = Wadon (stroke, Loud)
     lanang stroke = Lanang (stroke, Loud)
 
@@ -385,7 +383,7 @@ data Stroke =
     | Ka | Tut | De | Dag | Tek -- right
     deriving (Eq, Ord, Show)
 
-stroke_dyn_to_call :: (Stroke, Dyn) -> BaseTypes.CallId
+stroke_dyn_to_call :: (Stroke, Dyn) -> Expr.Symbol
 stroke_dyn_to_call (stroke, dyn) =
     to_call stroke (if dyn == Soft then Attrs.soft else mempty)
 

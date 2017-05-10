@@ -20,7 +20,6 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Articulation as Articulation
@@ -29,6 +28,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -236,8 +236,7 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Attrs.Attributes, Midi.Key, Maybe BaseTypes.CallId,
-    Maybe Char)]
+hang_strokes :: [(Attrs.Attributes, Midi.Key, Maybe Expr.Symbol, Maybe Char)]
 hang_strokes =
     [ (Attrs.center,  Key.c2,     Just "",   Just 'Z')
     , (Attrs.edge,    Key.cs2,    Just "旁", Just 'X')

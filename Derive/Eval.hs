@@ -19,7 +19,7 @@ module Derive.Eval (
 
     -- * lookup call
     , get_generator, get_transformer
-    , unknown_call_id, call_to_block_id, block_id_to_call
+    , unknown_symbol, call_to_block_id, block_id_to_call
     , is_relative, make_relative
 
     -- * util
@@ -87,9 +87,9 @@ normalize_event ctx = ctx
 
 eval_generator :: forall d. Derive.Callable d => Derive.Context d
     -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
-eval_generator ctx (BaseTypes.Call call_id args) = do
+eval_generator ctx (BaseTypes.Call sym args) = do
     vals <- mapM (eval ctx) args
-    call <- get_generator call_id
+    call <- get_generator sym
     apply_generator ctx call vals
 
 -- | Like 'eval_generator', but for when the args are already parsed and
@@ -137,9 +137,9 @@ eval_transformers :: Derive.Callable d => Derive.Context d
 eval_transformers ctx calls deriver = go calls
     where
     go [] = deriver
-    go (BaseTypes.Call call_id args : calls) = do
+    go (BaseTypes.Call sym args : calls) = do
         vals <- mapM (eval ctx) args
-        call <- get_transformer call_id
+        call <- get_transformer sym
         apply_transformer ctx call vals (go calls)
 
 -- | Parse and apply a transformer expression.
@@ -182,15 +182,15 @@ apply_transformers :: Derive.Callable d => Derive.Context d
     -> [(Derive.Transformer d, [BaseTypes.Val])]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformers ctx calls deriver = foldr apply deriver calls
-    where apply (call_id, args) = apply_transformer ctx call_id args
+    where apply (sym, args) = apply_transformer ctx sym args
 
 -- ** val calls
 
 eval :: Derive.Taggable a => Derive.Context a -> BaseTypes.Term
     -> Derive.Deriver BaseTypes.Val
 eval _ (BaseTypes.Literal val) = return val
-eval ctx (BaseTypes.ValCall (BaseTypes.Call call_id terms)) = do
-    call <- get_val_call call_id
+eval ctx (BaseTypes.ValCall (BaseTypes.Call sym terms)) = do
+    call <- get_val_call sym
     apply (Derive.tag_context ctx) call terms
 
 apply :: Derive.Context Derive.Tagged -> Derive.ValCall
@@ -206,27 +206,27 @@ apply ctx call args = do
 
 -- * lookup call
 
-get_val_call :: BaseTypes.CallId -> Derive.Deriver Derive.ValCall
-get_val_call call_id =
-    require_call False call_id "val call" =<< Derive.lookup_val_call call_id
+get_val_call :: Expr.Symbol -> Derive.Deriver Derive.ValCall
+get_val_call sym =
+    require_call False sym "val call" =<< Derive.lookup_val_call sym
 
 get_generator :: forall d. Derive.Callable d =>
-    BaseTypes.CallId -> Derive.Deriver (Derive.Generator d)
-get_generator call_id =
-    require_call True call_id (name <> " generator")
-        =<< Derive.lookup_generator call_id
+    Expr.Symbol -> Derive.Deriver (Derive.Generator d)
+get_generator sym =
+    require_call True sym (name <> " generator")
+        =<< Derive.lookup_generator sym
     where name = Derive.callable_name (Proxy :: Proxy d)
 
 get_transformer :: forall d. Derive.Callable d =>
-    BaseTypes.CallId -> Derive.Deriver (Derive.Transformer d)
-get_transformer call_id =
-    require_call False call_id (name <> " transformer")
-        =<< Derive.lookup_transformer call_id
+    Expr.Symbol -> Derive.Deriver (Derive.Transformer d)
+get_transformer sym =
+    require_call False sym (name <> " transformer")
+        =<< Derive.lookup_transformer sym
     where name = Derive.callable_name (Proxy :: Proxy d)
 
-require_call :: Bool -> BaseTypes.CallId -> Text -> Maybe a -> Derive.Deriver a
+require_call :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a
 require_call _ _ _ (Just a) = return a
-require_call is_generator call_id name Nothing = do
+require_call is_generator sym name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
     -- doesn't exist yet.  If it is created later, I have to know that this
     -- block depends on it, otherwise it won't be rederived and hence won't
@@ -234,26 +234,25 @@ require_call is_generator call_id name Nothing = do
     when is_generator $ do
         caller <- Internal.lookup_current_block_id
         ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config
-        whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
-    Derive.throw $ unknown_call_id name call_id
+        whenJust (call_to_block_id ns caller sym) Internal.add_block_dep
+    Derive.throw $ unknown_symbol name sym
 
-unknown_call_id :: Text -> Expr.CallId -> Text
-unknown_call_id name call_id =
-    name <> " not found: " <> ShowVal.show_val call_id
+unknown_symbol :: Text -> Expr.Symbol -> Text
+unknown_symbol name sym = name <> " not found: " <> ShowVal.show_val sym
 
--- | Given a CallId, try to come up with the BlockId of the block it could be
+-- | Given a Symbol, try to come up with the BlockId of the block it could be
 -- a call for.
 call_to_block_id :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with -, this block is prepended to it.
-    -> Expr.CallId -> Maybe BlockId
+    -> Expr.Symbol -> Maybe BlockId
 call_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
     | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
     where
     relative
         | Just caller <- maybe_caller, is_relative sym =
-            Id.ident_text caller <> Expr.uncall sym
-        | otherwise = Expr.uncall sym
+            Id.ident_text caller <> Expr.unsym sym
+        | otherwise = Expr.unsym sym
 
 -- | Create the symbol to call a given block.
 block_id_to_call :: Bool -> BlockId -> BlockId -> Text
@@ -268,8 +267,8 @@ block_id_to_call relative parent child
     parent_name = Id.ident_name parent
 
 -- | True if this is a relative block call.
-is_relative :: Expr.CallId -> Bool
-is_relative = ("-" `Text.isPrefixOf`) . Expr.uncall
+is_relative :: Expr.Symbol -> Bool
+is_relative = ("-" `Text.isPrefixOf`) . Expr.unsym
 
 -- | Make a block name relative to a parent block.
 make_relative :: BlockId -> Text -> Text
@@ -306,20 +305,20 @@ eval_event event = case Parse.parse_expr (Event.text event) of
         -- TODO eval it separately to catch any exception?
         eval_one_at False (Event.start event) (Event.duration event) expr
 
--- | Evaluate a generator, reusing the passed args but replacing the CallId.
+-- | Evaluate a generator, reusing the passed args but replacing the Symbol.
 -- Generators can use this to delegate to other generators.
 reapply_generator :: Derive.Callable d => Derive.PassedArgs d
-    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
-reapply_generator args call_id = do
+    -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
+reapply_generator args sym = do
     let ctx = Derive.passed_ctx args
-    call <- get_generator call_id
+    call <- get_generator sym
     apply_generator ctx call (Derive.passed_vals args)
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
 -- essential if you want to shift or stretch the note.
 reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
-    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
+    -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
 reapply_generator_normalized args = reapply_generator $ args
     { Derive.passed_ctx = ctx
         { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
@@ -344,7 +343,7 @@ reapply_string ctx s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> reapply ctx expr
 
-reapply_call :: Derive.Callable d => Derive.Context d -> Expr.CallId
+reapply_call :: Derive.Callable d => Derive.Context d -> Expr.Symbol
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx sym call_args =
     reapply ctx (BaseTypes.call sym call_args :| [])

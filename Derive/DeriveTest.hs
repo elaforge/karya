@@ -845,7 +845,7 @@ mkpitch scale p = case eval Ui.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ BaseTypes.call (Expr.CallId (txt p)) []
+        Eval.eval_pitch 0 $ BaseTypes.call (Expr.Symbol (txt p)) []
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

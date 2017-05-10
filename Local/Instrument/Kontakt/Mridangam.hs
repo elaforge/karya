@@ -17,7 +17,6 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 
@@ -38,7 +37,7 @@ patches = map (MidiInst.code #= code)
     code = make_code all_notes both_calls
 
 make_code :: [Drums.Note]
-    -> [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)] -> MidiInst.Code
+    -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> MidiInst.Code
 make_code notes both =
     MidiInst.note_generators generators
         <> MidiInst.note_transformers transformers
@@ -57,7 +56,7 @@ make_code notes both =
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
-both_calls :: [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)]
+both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
 both_calls = make_both left_notes right_notes special_names
     [ ("N", 'g'), ("D", 'b')
     , ("K", 'h'), ("T", 'n')
@@ -66,26 +65,25 @@ both_calls = make_both left_notes right_notes special_names
     where
     special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
         ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDUVI"]
-    sym = Expr.CallId . Text.singleton
+    sym = Expr.Symbol . Text.singleton
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
 make_both :: [Drums.Note] -> [Drums.Note]
-    -> [(BaseTypes.CallId, [BaseTypes.CallId])] -- ^ special names for pairs
-    -> [(BaseTypes.CallId, Char)]
-    -> [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)]
+    -> [(Expr.Symbol, [Expr.Symbol])] -- ^ special names for pairs
+    -> [(Expr.Symbol, Char)] -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
 make_both left right special_names keys =
     [ (call, subcalls, lookup call keys)
     | (call, subcalls) <- special_names ++ pairs
     ]
     where
     pairs =
-        [ (Expr.CallId $ u rcall <> u lcall, [rcall, lcall])
+        [ (Expr.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | lcall <- map Drums.note_name left
         , rcall <- map Drums.note_name right
         , Text.length (u lcall) == 1 && Text.length (u rcall) == 1
         ]
-    u = Expr.uncall
+    u = Expr.unsym
 
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like

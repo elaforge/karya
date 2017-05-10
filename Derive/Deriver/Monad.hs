@@ -217,7 +217,7 @@ data CallError =
         !(Maybe BaseTypes.Val) -- received val
         !(Maybe Error) -- derive error
     -- | Couldn't even call the thing because the name was not found.
-    | CallNotFound !BaseTypes.CallId
+    | CallNotFound !Expr.Symbol
     -- | Calling error that doesn't fit into the above categories.
     | ArgError !Text
     deriving (Show)
@@ -247,7 +247,7 @@ instance Pretty.Pretty CallError where
                 Literal -> ""
                 Quoted call -> " from " <> ShowVal.show_val call
         ArgError err -> "ArgError: " <> err
-        CallNotFound call_id -> "CallNotFound: " <> pretty call_id
+        CallNotFound sym -> "CallNotFound: " <> pretty sym
         where
         -- The srcpos and stack of the derive error is probably not
         -- interesting, so I strip those out.
@@ -277,8 +277,8 @@ throw_error err = do
 -- this a class method, I can figure out which scope to look in just from
 -- the type.
 class (Show d, Taggable d) => Callable d where
-    lookup_generator :: BaseTypes.CallId -> Deriver (Maybe (Generator d))
-    lookup_transformer :: BaseTypes.CallId -> Deriver (Maybe (Transformer d))
+    lookup_generator :: Expr.Symbol -> Deriver (Maybe (Generator d))
+    lookup_transformer :: Expr.Symbol -> Deriver (Maybe (Transformer d))
     callable_name :: Proxy d -> Text
 
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
@@ -736,14 +736,14 @@ extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
 
 -- ** lookup
 
-lookup_val_call :: BaseTypes.CallId -> Deriver (Maybe ValCall)
+lookup_val_call :: Expr.Symbol -> Deriver (Maybe ValCall)
 lookup_val_call = lookup_with scopes_val
 
 lookup_with :: (Scopes -> ScopePriority call)
-    -> (BaseTypes.CallId -> Deriver (Maybe call))
-lookup_with get call_id = do
+    -> (Expr.Symbol -> Deriver (Maybe call))
+lookup_with get sym = do
     lookups <- get_scopes get
-    lookup_scopes lookups call_id
+    lookup_scopes lookups sym
 
 get_scopes :: (Scopes -> ScopePriority call) -> Deriver [LookupCall call]
 get_scopes get = do
@@ -752,13 +752,12 @@ get_scopes get = do
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.
-lookup_scopes :: [LookupCall call] -> (BaseTypes.CallId -> Deriver (Maybe call))
-lookup_scopes lookups call_id =
-    firstJusts $ map (flip lookup_call call_id) lookups
+lookup_scopes :: [LookupCall call] -> (Expr.Symbol -> Deriver (Maybe call))
+lookup_scopes lookups sym = firstJusts $ map (flip lookup_call sym) lookups
 
-lookup_call :: LookupCall call -> BaseTypes.CallId -> Deriver (Maybe call)
-lookup_call (LookupMap calls) call_id = return $ Map.lookup call_id calls
-lookup_call (LookupPattern _ _ lookup) call_id = lookup call_id
+lookup_call :: LookupCall call -> Expr.Symbol -> Deriver (Maybe call)
+lookup_call (LookupMap calls) sym = return $ Map.lookup sym calls
+lookup_call (LookupPattern _ _ lookup) sym = lookup sym
 
 -- ** mode
 
@@ -788,8 +787,8 @@ data Constant = Constant {
     state_ui :: !Ui.State
     , state_library :: !Library
     -- | Global map of signal mergers.  Unlike calls, this is static.
-    , state_mergers :: !(Map BaseTypes.CallId (Merger Signal.Control))
-    , state_pitch_mergers :: !(Map BaseTypes.CallId (Merger PSignal.PSignal))
+    , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
+    , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -891,7 +890,7 @@ instance DeepSeq.NFData (Merger a) where
 -- *** control ops
 
 -- | The built-in set of control Mergers.
-mergers :: Map Expr.CallId (Merger Signal.Control)
+mergers :: Map Expr.Symbol (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     , Merger "max" Signal.sig_max (Signal.constant (-2^32))
@@ -899,7 +898,7 @@ mergers = Map.fromList $ map to_pair
     -- flip ensures that when samples collide, the later track wins.
     , Merger "interleave" (flip Signal.interleave) mempty
     ]
-    where to_pair merger = (Expr.CallId (ShowVal.show_val merger), merger)
+    where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 
 merge_add, merge_sub, merge_mul  :: Merger Signal.Control
 merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
@@ -910,11 +909,11 @@ merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-pitch_mergers :: Map Expr.CallId (Merger PSignal.PSignal)
+pitch_mergers :: Map Expr.Symbol (Merger PSignal.PSignal)
 pitch_mergers = Map.fromList $ map to_pair
     [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
-    where to_pair merger = (Expr.CallId (ShowVal.show_val merger), merger)
+    where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 
 
 -- * Collect
@@ -1089,12 +1088,11 @@ instance Monoid (CallDuration a) where
 -- ** calls
 
 data LookupCall call =
-    LookupMap !(Map BaseTypes.CallId call)
-    -- | Text description of the CallIds accepted.  The function is in Deriver
-    -- because some calls want to look at the state to know if the CallId is
+    LookupMap !(Map Expr.Symbol call)
+    -- | Text description of the Symbols accepted.  The function is in Deriver
+    -- because some calls want to look at the state to know if the Symbol is
     -- valid, e.g. block calls.
-    | LookupPattern !Text !DocumentedCall
-        !(BaseTypes.CallId -> Deriver (Maybe call))
+    | LookupPattern !Text !DocumentedCall !(Expr.Symbol -> Deriver (Maybe call))
 
 instance Pretty.Pretty (LookupCall call) where
     format c = case c of
@@ -1125,19 +1123,19 @@ instance Pretty.Pretty (CallMaps d) where
 -- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
 -- are all singletons since names are allowed to overlap when declaring calls.
 -- It is only when they are imported into a scope that the maps are combined.
-call_map :: [(BaseTypes.CallId, call)] -> [LookupCall call]
+call_map :: [(Expr.Symbol, call)] -> [LookupCall call]
 call_map = map (LookupMap . uncurry Map.singleton)
 
 -- | Bundle generators and transformers up together for convenience.
-call_maps :: [(BaseTypes.CallId, Generator d)]
-    -> [(BaseTypes.CallId, Transformer d)] -> CallMaps d
+call_maps :: [(Expr.Symbol, Generator d)] -> [(Expr.Symbol, Transformer d)]
+    -> CallMaps d
 call_maps generators transformers =
     CallMaps (call_map generators) (call_map transformers)
 
-generator_call_map :: [(BaseTypes.CallId, Generator d)] -> CallMaps d
+generator_call_map :: [(Expr.Symbol, Generator d)] -> CallMaps d
 generator_call_map generators = call_maps generators []
 
-transformer_call_map :: [(BaseTypes.CallId, Transformer d)] -> CallMaps d
+transformer_call_map :: [(Expr.Symbol, Transformer d)] -> CallMaps d
 transformer_call_map = call_maps []
 
 -- | Data passed to a 'Call'.
@@ -1296,8 +1294,8 @@ newtype CallName = CallName Text
 newtype ArgName = ArgName Text
     deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
 
-sym_to_call_name :: Expr.CallId -> CallName
-sym_to_call_name (Expr.CallId sym) = CallName sym
+sym_to_call_name :: Expr.Symbol -> CallName
+sym_to_call_name (Expr.Symbol sym) = CallName sym
 
 str_to_call_name :: Expr.Str -> CallName
 str_to_call_name (Expr.Str str) = CallName str

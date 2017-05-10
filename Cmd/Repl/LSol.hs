@@ -63,7 +63,7 @@ strokes_to_events :: Expr.ToCall (Realize.Stroke a) =>
     [(Sequence.Tempo, Realize.Note a)] -> [Event.Event]
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
-        (Expr.uncall call)
+        (Expr.unsym call)
     | (start, dur, Just (call, has_dur)) <- zip3 starts durs (map to_call notes)
     ]
     where

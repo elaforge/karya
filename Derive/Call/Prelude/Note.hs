@@ -121,7 +121,7 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
 note_track :: Derive.Context Derive.Note -> Maybe Score.Instrument
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst deriver = do
-    let sym = Expr.CallId $ ">" <> maybe "" Score.instrument_name inst
+    let sym = Expr.Symbol $ ">" <> maybe "" Score.instrument_name inst
     maybe_call <- Derive.lookup_transformer sym
     let transform = maybe id (call_transformer ctx) maybe_call
     maybe id Derive.with_instrument inst $ transform deriver

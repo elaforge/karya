@@ -125,9 +125,9 @@ invertible_vals =
     , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
     , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Expr.CallId "a") [Literal (VStr "b")] :| [])
+        Call (Expr.Symbol "a") [Literal (VStr "b")] :| [])
     , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Expr.CallId "") [] :| [])
+        Call (Expr.Symbol "") [] :| [])
     , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
         Call "a" [] :| [Call "" []])
 
@@ -213,7 +213,7 @@ test_lex1 = do
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
 
-val_call :: Expr.CallId -> [Term] -> Term
+val_call :: Expr.Symbol -> [Term] -> Term
 val_call sym args = ValCall (Call sym args)
 
 test_expand_macros = do
@@ -270,10 +270,9 @@ test_load_ky = do
           ]
         )
 
-e_expr :: Parse.Expr -> [(BaseTypes.CallId, [Text])]
+e_expr :: Parse.Expr -> [(Expr.Symbol, [Text])]
 e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls
-    where
-    e_call (Parse.Call call_id terms) = (call_id, map ShowVal.show_val terms)
+    where e_call (Parse.Call sym terms) = (sym, map ShowVal.show_val terms)
 
 test_parse_ky = do
     let f extract = (untxt *** extract) . Parse.parse_ky "fname.ky"

@@ -18,7 +18,6 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
@@ -27,6 +26,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -117,15 +117,15 @@ postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
     append_doc text (Derive.CallDoc tags module_ doc args) =
         Derive.CallDoc tags module_ (doc <> "\n" <> text) args
 
-multiple_calls :: [(BaseTypes.CallId, [BaseTypes.CallId])]
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+multiple_calls :: [(Expr.Symbol, [Expr.Symbol])]
+    -> [(Expr.Symbol, Derive.Generator Derive.Note)]
 multiple_calls calls =
     [ (call, multiple_call (Derive.sym_to_call_name call) subcalls)
     | (call, subcalls) <- calls
     ]
 
 -- | Create a call that just dispatches to other calls.
-multiple_call :: Derive.CallName -> [BaseTypes.CallId]
+multiple_call :: Derive.CallName -> [Expr.Symbol]
     -> Derive.Generator Derive.Note
 multiple_call name calls = generator0 name
     -- I intentionally omit the calls from the doc string, so they will
@@ -137,7 +137,7 @@ multiple_call name calls = generator0 name
 -- | The grace note falls either before or after the beat.
 data Placement = Before | After deriving (Show, Eq)
 
-doubled_call :: BaseTypes.CallId -> Derive.CallName -> Placement -> RealTime
+doubled_call :: Expr.Symbol -> Derive.CallName -> Placement -> RealTime
     -> Signal.Y -> Derive.Generator Derive.Note
 doubled_call callee name place default_time default_dyn_scale = generator name
     ("Doubled call. The grace note falls "
@@ -174,7 +174,7 @@ composite_doc = "Composite instrument calls create notes for multiple\
 -- a secondary pitch as a resonance.
 data Composite = Composite {
     -- | Dispatch to this call.
-    c_call :: !BaseTypes.CallId
+    c_call :: !Expr.Symbol
     -- | And this instrument.
     , c_instrument :: !Score.Instrument
     , c_pitch :: !Pitch
@@ -199,8 +199,8 @@ type Controls = Maybe (Set Score.Control)
 show_controls :: Controls -> Doc.Doc
 show_controls = Doc.Doc . maybe "(all)" pretty
 
-redirect_pitch :: Derive.CallName -> BaseTypes.CallId -> Controls
-    -> BaseTypes.CallId -> Controls -> Derive.Generator Derive.Note
+redirect_pitch :: Derive.CallName -> Expr.Symbol -> Controls
+    -> Expr.Symbol -> Controls -> Derive.Generator Derive.Note
 redirect_pitch name pitched_call pitched_controls unpitched_call
         unpitched_controls =
     generator name ("A composite instrument splits pitch and controls to\

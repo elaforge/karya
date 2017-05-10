@@ -27,7 +27,7 @@ UNSORTED
       a score integrate.
     . This is also the way to get text language to integrate in general.
     . Also it's visualization for text language.
-    . StateConfig can have 'dsl_integrate :: Map CallId Code', then repl cmds
+    . StateConfig can have 'dsl_integrate :: Map Symbol Code', then repl cmds
       to edit them.  This is then haskell, which means I need some way to get
       it into the REPL, and some standard environment in which it is executed.
     . I can actually do this currently but I have to run a repl cmd, e.g.
@@ -36,7 +36,7 @@ UNSORTED
       save.  I should do that first, and think about a more automatic way
       if it's too awkward.
     . The common building block is a manual score integrate like
-      integrate :: CallId -> Track [Ui.Event] | Block Ruler [Ui.Event]
+      integrate :: Symbol -> Track [Ui.Event] | Block Ruler [Ui.Event]
     ? Remind myself about how score integrate works.
       . Manually call LIntegrate.score_block
       . Which sets (source_block, ScoreDestinations []) on the dest block.
@@ -1861,8 +1861,8 @@ Derive:
             ShowVal by directly parsing the Unparsed vals.
           * Make CallId its own type, so its ShowVal can be correct.
           * Rename Symbol to Str, VSymbol to VStr
-          - Rename CallId to Symbol.
-          - Update references from BaseTypes.CallId to Expr.CallId
+          * Rename CallId to Symbol.
+          * Update references from BaseTypes.CallId to Expr.CallId
           - Use generic Expr from Derive.Expr.
           - Move BaseTypes.Expr etc. and the above to Derive.Expr where the
             val is abstract, and BaseTypes specializes to Val.

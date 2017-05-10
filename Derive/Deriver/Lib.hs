@@ -178,7 +178,7 @@ with_imported empty_ok module_ deriver = do
     with_scopes (import_library lib) deriver
 
 -- | Import only the given symbols from the module.
-with_imported_symbols :: Module.Module -> Set Expr.CallId -> Deriver a
+with_imported_symbols :: Module.Module -> Set Expr.Symbol -> Deriver a
     -> Deriver a
 with_imported_symbols module_ syms deriver = do
     lib <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
@@ -215,7 +215,7 @@ extract_module module_ (Library note control pitch val _aliases) =
 -- | Filter out calls that don't match the predicate.  LookupCalls are also
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
-extract_symbols :: (Expr.CallId -> Bool) -> Library -> Library
+extract_symbols :: (Expr.Symbol -> Bool) -> Library -> Library
 extract_symbols wanted (Library note control pitch val _aliases) =
     Library (extract2 note) (extract2 control) (extract2 pitch) (extract val)
         mempty
@@ -228,7 +228,7 @@ extract_symbols wanted (Library note control pitch val _aliases) =
         where include = Util.Map.filter_key wanted calls
     has_name (LookupPattern {}) = Nothing
 
-library_symbols :: Library -> [Expr.CallId]
+library_symbols :: Library -> [Expr.Symbol]
 library_symbols (Library note control pitch val _aliases) =
     extract2 note <> extract2 control <> extract2 pitch <> extract val
     where
@@ -412,11 +412,11 @@ with_scale scale =
 
 scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
 scale_to_lookup scale convert =
-    LookupPattern name (scale_call_doc scale) $ \call_id ->
-        return $ convert <$> scale_note_to_call scale (to_note call_id)
+    LookupPattern name (scale_call_doc scale) $ \sym ->
+        return $ convert <$> scale_note_to_call scale (to_note sym)
     where
     name = pretty (scale_id scale) <> ": " <> scale_pattern scale
-    to_note (Expr.CallId sym) = Pitch.Note sym
+    to_note (Expr.Symbol sym) = Pitch.Note sym
 
 -- | Convert a val call to a pitch call.  This is used so scales can export
 -- their ValCalls to pitch generators.
@@ -662,7 +662,7 @@ resolve_merge :: Merge Signal.Control -> Score.Control
 resolve_merge DefaultMerge control = get_default_merger control
 resolve_merge (Merge merger) _ = return merger
 
-get_control_merge :: Expr.CallId -> Deriver (Merger Signal.Control)
+get_control_merge :: Expr.Symbol -> Deriver (Merger Signal.Control)
 get_control_merge name = do
     mergers <- gets (state_mergers . state_constant)
     require ("unknown control merger: " <> showt name) (Map.lookup name mergers)
@@ -797,7 +797,7 @@ resolve_pitch_merge :: Merge PSignal.PSignal -> Merger PSignal.PSignal
 resolve_pitch_merge DefaultMerge = Set
 resolve_pitch_merge (Merge merger) = merger
 
-get_pitch_merger :: Expr.CallId -> Deriver (Merger PSignal.PSignal)
+get_pitch_merger :: Expr.Symbol -> Deriver (Merger PSignal.PSignal)
 get_pitch_merger name = do
     mergers <- gets (state_pitch_mergers . state_constant)
     require ("unknown pitch merger: " <> showt name) (Map.lookup name mergers)

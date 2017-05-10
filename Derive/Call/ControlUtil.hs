@@ -88,9 +88,8 @@ curve_time_env = (,) <$> curve_env <*> time
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
     (Derive.CallName -> get_arg -> InterpolatorTime a -> call)
-    -> BaseTypes.CallId -> Derive.CallName -> get_arg
-    -> [(BaseTypes.CallId, call)]
-interpolator_variations_ make (Expr.CallId sym) (Derive.CallName name)
+    -> Expr.Symbol -> Derive.CallName -> get_arg -> [(Expr.Symbol, call)]
+interpolator_variations_ make (Expr.Symbol sym) (Derive.CallName name)
         get_arg =
     [ (mksym sym, make (Derive.CallName name) get_arg prev)
     , (mksym $ sym <> "<<",
@@ -103,7 +102,7 @@ interpolator_variations_ make (Expr.CallId sym) (Derive.CallName name)
             (Left next_time_arg))
     ]
     where
-    mksym = Expr.CallId
+    mksym = Expr.Symbol
     next_time_arg = Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."
@@ -135,15 +134,15 @@ get_prev_val args = do
         Nothing -> 0
         Just prev -> prev - start
 
-interpolator_variations :: BaseTypes.CallId -> Derive.CallName
+interpolator_variations :: Expr.Symbol -> Derive.CallName
     -> (Sig.Parser arg, arg -> Curve)
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Control)]
+    -> [(Expr.Symbol, Derive.Generator Derive.Control)]
 interpolator_variations = interpolator_variations_ interpolator_call
 
 standard_interpolators ::
-    (forall arg. BaseTypes.CallId -> Derive.CallName
+    (forall arg. Expr.Symbol -> Derive.CallName
         -> (Sig.Parser arg, arg -> Curve)
-        -> [(BaseTypes.CallId, Derive.Generator result)])
+        -> [(Expr.Symbol, Derive.Generator result)])
     -> Derive.CallMaps result
 standard_interpolators make = Derive.generator_call_map $ concat
     [ make "i" "linear" (pure (), const id)

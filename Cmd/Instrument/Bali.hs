@@ -71,7 +71,7 @@ zero_dur_mute_doc =
     " By default, this will emit a muted note, but the instrument can override\
     \ it as appropriate."
 
-zero_dur_reapply :: Expr.CallId -> Doc.Doc
+zero_dur_reapply :: Expr.Symbol -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
 zero_dur_reapply mute_call doc note = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "note"

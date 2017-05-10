@@ -69,7 +69,7 @@ pitch_calls = Derive.generator_call_map $ concat
     , end_aliases
     ]
 
-begin_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+begin_calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 begin_calls =
     [ ("set-pitch", c_set_pitch)
     , ("flat-start", c_flat_start)
@@ -85,7 +85,7 @@ begin_calls =
 -- | I don't want to take up short names for the whole track scope, but within
 -- a sequence call it seems reasonable.  In addition, I know if it's a begin or
 -- end call, and use the same name for logically similar things.
-begin_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+begin_aliases :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 begin_aliases = map (second (Derive.set_module begin_module))
     [ ("-", c_flat_start)
     , ("c", c_from PitchFromCurrent NoFade)
@@ -97,7 +97,7 @@ begin_aliases = map (second (Derive.set_module begin_module))
     , (fade_in_call, c_fade True)
     ]
 
-middle_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+middle_calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 middle_calls = ("flat", c_flat)
     : kampita_variations "kam" (c_kampita "" neighbor)
     ++ kampita_variations "kam2" (c_kampita "" Kampita2)
@@ -106,14 +106,14 @@ middle_calls = ("flat", c_flat)
     where neighbor = Kampita1 0
 
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
-    -> [(BaseTypes.CallId, call)]
+    -> [(Expr.Symbol, call)]
 kampita_variations name call =
-    [ (Expr.CallId $ name <> Trill.direction_affix end, call end)
+    [ (Expr.Symbol $ name <> Trill.direction_affix end, call end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.Low, Just Trill.High]
 
-middle_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+middle_aliases :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     [ ("-", c_flat)
     ] :
@@ -126,7 +126,7 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     where
     hardcoded name arg dir =
         [ (name, c_kampita doc arg dir)
-        , (Expr.CallId $ "n" <> Expr.uncall name, c_nkampita doc arg dir)
+        , (Expr.Symbol $ "n" <> Expr.unsym name, c_nkampita doc arg dir)
         ]
     doc = Doc.Doc $ Text.unlines
         [ "These are hardcoded `k` variants:"
@@ -135,14 +135,13 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
         , "`o*` avoids the swaram, like `k2_ -1 1`."
         ]
 
-alias_prefix :: Text -> Text -> [(BaseTypes.CallId, call)]
-    -> [(BaseTypes.CallId, call)]
+alias_prefix :: Text -> Text -> [(Expr.Symbol, call)] -> [(Expr.Symbol, call)]
 alias_prefix from to calls = do
-    (Expr.CallId name, call) <- calls
+    (Expr.Symbol name, call) <- calls
     Just rest <- [Text.stripPrefix to name]
-    return (Expr.CallId (from <> rest), call)
+    return (Expr.Symbol (from <> rest), call)
 
-end_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+end_calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 end_calls =
     [ ("flat-end", c_flat_end)
     , ("to", c_to NoFade)
@@ -150,7 +149,7 @@ end_calls =
     , ("fade-out", c_fade False)
     ]
 
-end_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+end_aliases :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 end_aliases = map (second (Derive.set_module end_module))
     [ ("-", c_flat_end)
     , ("t", c_to NoFade)
@@ -159,11 +158,11 @@ end_aliases = map (second (Derive.set_module end_module))
     ]
 
 -- | Special behaviour documented in 'sequence_doc'.
-fade_out_call :: BaseTypes.CallId
+fade_out_call :: Expr.Symbol
 fade_out_call = "->" -- The leading dash makes these parse as symbols.
 
 -- | Unlike 'fade_out_call', this doesn't need special treatment.
-fade_in_call :: BaseTypes.CallId
+fade_in_call :: Expr.Symbol
 fade_in_call = "-<"
 
 -- * sequence
@@ -327,8 +326,8 @@ place_event start dur ctx = ctx
 eval_expr :: Derive.Callable d => Derive.Context d -> Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_expr ctx (QuotedExpr expr) = Eval.eval_toplevel ctx expr
-eval_expr ctx (EvaluatedExpr call_id args) = do
-    call <- Eval.get_generator call_id
+eval_expr ctx (EvaluatedExpr sym args) = do
+    call <- Eval.get_generator sym
     Eval.apply_generator ctx call args
 
 with_empty_collect :: Derive.Deriver a
@@ -341,7 +340,7 @@ with_empty_collect = fmap (second Derive.collect_control_mods)
 data Expr =
     -- | This is a call which was embedded in the argument list of the sequence
     -- call, so its arguments have already been evaluated.
-    EvaluatedExpr BaseTypes.CallId [BaseTypes.Val]
+    EvaluatedExpr Expr.Symbol [BaseTypes.Val]
     -- | A call and its arguments can be protected from evaluation by quoting
     -- it.  This is also necessary to use a transformer, since @;@ has higher
     -- precedence than @|@ (actually it's just a value, not an operator).
@@ -349,8 +348,8 @@ data Expr =
     deriving Show
 
 instance Pretty.Pretty Expr where
-    format (EvaluatedExpr call_id vals) =
-        ("(" <> Pretty.format call_id) Pretty.<+> (Pretty.format vals <> ")")
+    format (EvaluatedExpr sym vals) =
+        ("(" <> Pretty.format sym) Pretty.<+> (Pretty.format vals <> ")")
     format (QuotedExpr quoted) = Pretty.format quoted
 
 -- | Parse the sequence call's arguments and substitute aliases.  If there is
@@ -382,8 +381,8 @@ parse_sequence exprs = postproc $
     to_expr [] = Nothing
     to_expr (call : args) = Just $ case call of
         BaseTypes.VQuoted (BaseTypes.Quoted expr) -> QuotedExpr expr
-        BaseTypes.VStr (Expr.Str sym) -> EvaluatedExpr (Expr.CallId sym) args
-        _ -> EvaluatedExpr (Expr.CallId (ShowVal.show_val call)) args
+        BaseTypes.VStr (Expr.Str sym) -> EvaluatedExpr (Expr.Symbol sym) args
+        _ -> EvaluatedExpr (Expr.Symbol (ShowVal.show_val call)) args
     is_separator BaseTypes.VSeparator = True
     is_separator _ = False
 

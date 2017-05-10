@@ -150,7 +150,7 @@ note_event :: Patch.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (Expr.uncall $
+    (Expr.unsym $
         Map.findWithDefault "" (Score.event_attributes event) call_map)
 
 -- ** pitch

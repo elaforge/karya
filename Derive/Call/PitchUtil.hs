@@ -16,6 +16,7 @@ import Derive.Call.ControlUtil (Curve, SRate)
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
@@ -72,9 +73,9 @@ prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
 prev_val from args = from <|> (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
-interpolator_variations :: BaseTypes.CallId -> Derive.CallName
+interpolator_variations :: Expr.Symbol -> Derive.CallName
     -> (Sig.Parser arg, arg -> Curve)
-    -> [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
+    -> [(Expr.Symbol, Derive.Generator Derive.Pitch)]
 interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 
 
