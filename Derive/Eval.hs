@@ -32,7 +32,6 @@ import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
@@ -59,7 +58,7 @@ eval_toplevel :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_toplevel ctx expr =
     eval_transformers ctx transform_calls (eval_generator ctx generator_call)
-    where (transform_calls, generator_call) = Seq.ne_viewr expr
+    where (transform_calls, generator_call) = Expr.split expr
 
 eval_quoted :: Derive.Callable d => Derive.Context d -> BaseTypes.Quoted
     -> Derive.Deriver (Stream.Stream d)
@@ -87,7 +86,7 @@ normalize_event ctx = ctx
 
 eval_generator :: forall d. Derive.Callable d => Derive.Context d
     -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
-eval_generator ctx (BaseTypes.Call sym args) = do
+eval_generator ctx (Expr.Call sym args) = do
     vals <- mapM (eval ctx) args
     call <- get_generator sym
     apply_generator ctx call vals
@@ -137,7 +136,7 @@ eval_transformers :: Derive.Callable d => Derive.Context d
 eval_transformers ctx calls deriver = go calls
     where
     go [] = deriver
-    go (BaseTypes.Call sym args : calls) = do
+    go (Expr.Call sym args : calls) = do
         vals <- mapM (eval ctx) args
         call <- get_transformer sym
         apply_transformer ctx call vals (go calls)
@@ -188,8 +187,8 @@ apply_transformers ctx calls deriver = foldr apply deriver calls
 
 eval :: Derive.Taggable a => Derive.Context a -> BaseTypes.Term
     -> Derive.Deriver BaseTypes.Val
-eval _ (BaseTypes.Literal val) = return val
-eval ctx (BaseTypes.ValCall (BaseTypes.Call sym terms)) = do
+eval _ (Expr.Literal val) = return val
+eval ctx (Expr.ValCall (Expr.Call sym terms)) = do
     call <- get_val_call sym
     apply (Derive.tag_context ctx) call terms
 
@@ -346,7 +345,7 @@ reapply_string ctx s = case Parse.parse_expr s of
 reapply_call :: Derive.Callable d => Derive.Context d -> Expr.Symbol
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx sym call_args =
-    reapply ctx (BaseTypes.call sym call_args :| [])
+    reapply ctx (Expr.generator $ Expr.Call sym call_args)
 
 -- | A version of 'eval' specialized to evaluate pitch calls.  It's unknown if
 -- this pitch has been transposed or not.
@@ -354,7 +353,7 @@ eval_pitch :: ScoreTime -> BaseTypes.PitchCall
     -> Derive.Deriver (PSignal.RawPitch a)
 eval_pitch pos call = do
     pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
-        =<< eval ctx (BaseTypes.ValCall call)
+        =<< eval ctx (Expr.ValCall call)
     return $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
     ctx :: Derive.Context Derive.Pitch

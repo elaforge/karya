@@ -13,6 +13,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
@@ -115,9 +116,9 @@ rename_environ from to deriver = do
 environ_from_to :: Env.Environ
     -> Either BaseTypes.PitchError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
-    from <- Scales.read_environ (Just . BaseTypes.str_to_scale_id) Nothing
+    from <- Scales.read_environ (Just . Expr.str_to_scale_id) Nothing
         scale_from env
-    to <- Scales.read_environ (Just . BaseTypes.str_to_scale_id) (Just from)
+    to <- Scales.read_environ (Just . Expr.str_to_scale_id) (Just from)
         scale_to env
     return (from, to)
 

@@ -270,7 +270,7 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = BaseTypes.str_to_scale_id <$> Derive.get_val EnvKey.scale
+get_scale_id = Expr.str_to_scale_id <$> Derive.get_val EnvKey.scale
 
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
 lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
@@ -330,11 +330,11 @@ eval_pitch show_pitch start pitch = do
 -- Transposed, or at least should be an absolute pitch.
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Transposed
 eval_note pos note = Eval.eval_pitch pos $
-    BaseTypes.call (Expr.Symbol (Pitch.note_text note)) []
+    Expr.call0 (Expr.Symbol (Pitch.note_text note))
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Eval.eval_one_call True $ BaseTypes.call "" []
+note = Eval.eval_one_call True $ Expr.call0 ""
 
 -- | Like 'note', but the note reuses the Context, which means it will inherit
 -- the caller's start and duration as well as sub-tracks and thus may apply
@@ -359,7 +359,7 @@ attribute_note attrs = add_attributes attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
-triggered_note = Eval.eval_one_at True 0 0 $ BaseTypes.call "" [] :| []
+triggered_note = Eval.eval_one_at True 0 0 $ Expr.generator0 ""
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent

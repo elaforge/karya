@@ -20,8 +20,8 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -38,6 +38,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
@@ -450,7 +451,7 @@ oct_pc oct pc = pitch oct pc 0
 
 set_scale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
 set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
-    [(EnvKey.scale, BaseTypes.VStr (BaseTypes.scale_id_to_str scale_id))]
+    [(EnvKey.scale, BaseTypes.VStr (Expr.scale_id_to_str scale_id))]
 
 -- | Fake up just enough Performance to have environ in it.
 set_env :: Cmd.M m => BlockId -> BlockId -> TrackId

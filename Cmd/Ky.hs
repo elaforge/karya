@@ -187,7 +187,7 @@ simple_val_call fname name call_expr =
     Derive.val_call Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args ->
-            Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
+            Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
         Just sym ->
             Sig.call (Sig.many_vals "arg" "Args parsed by reapplied call.") $
                 \_vals -> call_args sym
@@ -208,10 +208,10 @@ no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr
 no_free_vars (Parse.Expr expr) = traverse convent_call expr
     where
     convent_call (Parse.Call sym terms) =
-        BaseTypes.Call sym <$> traverse convert_term terms
+        Expr.Call sym <$> traverse convert_term terms
     convert_term (Parse.VarTerm _) = Nothing
-    convert_term (Parse.ValCall call) = BaseTypes.ValCall <$> convent_call call
-    convert_term (Parse.Literal val) = Just $ BaseTypes.Literal val
+    convert_term (Parse.ValCall call) = Expr.ValCall <$> convent_call call
+    convert_term (Parse.Literal val) = Just $ Expr.Literal val
 
 make_doc :: FilePath -> Derive.CallName -> BaseTypes.Expr -> Doc.Doc
 make_doc fname name expr = Doc.Doc $
@@ -220,6 +220,6 @@ make_doc fname name expr = Doc.Doc $
 -- | If there are arguments in the definition, then don't accept any in the
 -- score.  I could do partial application, but it seems confusing, so
 -- I won't add it unless I need it.
-assign_symbol :: BaseTypes.Expr -> Maybe Expr.Symbol
-assign_symbol (BaseTypes.Call sym [] :| []) = Just sym
+assign_symbol :: Expr.Expr a -> Maybe Expr.Symbol
+assign_symbol (Expr.Call sym [] :| []) = Just sym
 assign_symbol _ = Nothing

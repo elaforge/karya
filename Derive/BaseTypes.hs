@@ -34,10 +34,8 @@ import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
@@ -469,7 +467,7 @@ to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
 to_scale_id _ = Nothing
 
 quoted :: Expr.Symbol -> [Val] -> Quoted
-quoted sym args = Quoted $ literal_call sym args :| []
+quoted sym args = Quoted $ Expr.generator (Expr.call sym args)
 
 -- ** Ref
 
@@ -538,93 +536,33 @@ constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
 
 -- ** Call
 
--- | The only operator is @|@, so a list suffices for an AST.
-type Expr = NonEmpty Call
-data Call = Call Expr.Symbol [Term] deriving (Show)
--- | TODO this is weird, in that Literal is evaluated but ValCall is not.
--- Why is it so weird?
-data Term = ValCall Call | Literal Val deriving (Show)
+type Expr = Expr.Expr Val
+type Call = Expr.Call Val
+type Term = Expr.Term Val
 
 calls_equal :: Call -> Call -> Maybe Bool
-calls_equal (Call sym1 args1) (Call sym2 args2)
+calls_equal (Expr.Call sym1 args1) (Expr.Call sym2 args2)
     | sym1 /= sym2 = Just False
     | otherwise = lists_equal terms_equal args1 args2
 
 terms_equal :: Term -> Term -> Maybe Bool
-terms_equal (ValCall call1) (ValCall call2) = calls_equal call1 call2
-terms_equal (Literal val1) (Literal val2) = vals_equal val1 val2
+terms_equal (Expr.ValCall call1) (Expr.ValCall call2) = calls_equal call1 call2
+terms_equal (Expr.Literal val1) (Expr.Literal val2) = vals_equal val1 val2
 terms_equal _ _ = Just False
 
 -- | This is just a 'Call', but it's expected to return a VPitch.
 type PitchCall = Call
 
-instance ShowVal.ShowVal Expr where
-    show_val expr = Text.stripEnd $
-        Text.intercalate " | " (map ShowVal.show_val (NonEmpty.toList expr))
-instance ShowVal.ShowVal Call where
-    show_val (Call (Expr.Symbol sym) terms) =
-        sym <> if null terms then ""
-            else " " <> Text.unwords (map ShowVal.show_val terms)
-instance ShowVal.ShowVal Term where
-    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
-    show_val (Literal val) = ShowVal.show_val val
-
-instance Pretty.Pretty Call where pretty = ShowVal.show_val
-
-instance DeepSeq.NFData Call where
-    rnf (Call sym terms) = sym `seq` DeepSeq.rnf terms
-instance DeepSeq.NFData Term where
-    rnf (ValCall call) = DeepSeq.rnf call
-    rnf (Literal val) = DeepSeq.rnf val
-
 -- *** call utils
-
-str_to_scale_id :: Expr.Str -> Pitch.ScaleId
-str_to_scale_id = Pitch.ScaleId . Expr.unstr
-
-scale_id_to_str :: Pitch.ScaleId -> Expr.Str
-scale_id_to_str (Pitch.ScaleId s) = Expr.Str s
 
 -- | Transform the Symbols in a Call.
 map_str :: (Expr.Str -> Expr.Str) -> Call -> Call
 map_str f = call
     where
-    call (Call sym terms) = Call sym (map term terms)
-    term (ValCall c) = ValCall (call c)
-    term (Literal (VStr str)) = Literal (VStr (f str))
-    term (Literal lit) = Literal lit
-
-map_symbol :: (Expr.Symbol -> Expr.Symbol) -> Call -> Call
-map_symbol f (Call call args) = Call (f call) args
-
--- | Transform the arguments in an expression.  This affects only vals in
--- argument position.
-map_args :: (Val -> Val) -> Expr -> Expr
-map_args f = fmap call
-    where
-    call (Call sym terms) = Call sym (map term terms)
-    term (ValCall c) = ValCall (call c)
-    term (Literal lit) = Literal (f lit)
-
--- | Transform only the Expr.Symbol in the generator position.
-map_generator :: (Expr.Symbol -> Expr.Symbol) -> Expr -> Expr
-map_generator f (call1 :| calls) = case calls of
-    [] -> map_symbol f call1 :| []
-    _ : _ -> call1 :| Seq.map_last (map_symbol f) calls
-
--- | Convenient constructor for Call.
-call :: Expr.Symbol -> [Term] -> Call
-call = Call
-
-call0 :: Expr.Symbol -> Call
-call0 sym = Call sym []
-
-literal_call :: Expr.Symbol -> [Val] -> Call
-literal_call sym args = call sym (map Literal args)
-
-val_call :: Expr.Symbol -> [Val] -> Term
-val_call sym args = ValCall (literal_call sym args)
-
+    call (Expr.Call sym terms) = Expr.Call sym (map term terms)
+    term (Expr.ValCall c) = Expr.ValCall (call c)
+    term (Expr.Literal (VStr str)) = Expr.Literal (VStr (f str))
+    term (Expr.Literal lit) = Expr.Literal lit
 
 -- * Derive.Score
 

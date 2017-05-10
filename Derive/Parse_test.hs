@@ -17,7 +17,8 @@ import qualified Util.Testing as Testing
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Ref(..), Val(..), Call(..), Term(..))
+import Derive.BaseTypes (Ref(..), Val(..))
+import Derive.Expr (Call(..), Term(..))
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -37,7 +38,7 @@ test_parse_expr = do
     equal (f "4") $ Right [Call "4" []]
     equal (f "()") $ Right [Call "()" []]
     equal (f "4 4") $ Right [Call "4" [Literal (vnum 4)]]
-    equal (f "4 (4)") $ Right [Call "4" [val_call "4" []]]
+    equal (f "4 (4)") $ Right [Call "4" [Expr.val_call "4" []]]
     -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call "" []]
 
@@ -57,9 +58,9 @@ test_parse_expr = do
 
     -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
-        Right [Call "a" [val_call "b" [], Literal (VStr "c")]]
+        Right [Call "a" [Expr.val_call "b" [], Literal (VStr "c")]]
     equal (f "a (()") $
-        Right [Call "a" [val_call "(" []]]
+        Right [Call "a" [Expr.val_call "(" []]]
     -- Unbalanced parens.
     left_like (f "a (b") "parse error"
 
@@ -73,18 +74,17 @@ test_parse_expr = do
 
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
-        call = BaseTypes.Call
         vsym = Literal . BaseTypes.VStr
-        null_call = BaseTypes.Call "" []
+        null_call = Call "" []
     equal (f "!<>\"('|") $ Right
-        [call Parse.unparsed_call [vsym "<>\"('"], null_call]
+        [Call Parse.unparsed_call [vsym "<>\"('"], null_call]
     equal (f "hi \"(!blah)") $ Right
-        [call "hi" [BaseTypes.Literal $ BaseTypes.VQuoted $
-            BaseTypes.Quoted (call "!" [vsym "blah"] :| [])]]
+        [Call "hi" [Literal $ BaseTypes.VQuoted $
+            BaseTypes.Quoted (Call "!" [vsym "blah"] :| [])]]
     -- ! takes precedence over =
-    equal (f "!a=b") $ Right [call "!" [vsym "a=b"]]
+    equal (f "!a=b") $ Right [Call "!" [vsym "a=b"]]
     -- But comments are still comments.
-    equal (f "!'a' -- b") $ Right [call "!" [vsym "'a'"]]
+    equal (f "!'a' -- b") $ Right [Call "!" [vsym "'a'"]]
 
 -- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
 invertible_vals :: [(Text, Maybe Val)]
@@ -186,7 +186,7 @@ test_p_equal = do
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))
     equal (f "a = 10") (eq "a" (num 10))
-    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (VStr "c")]))
+    equal (f "a = (b c)") (eq "a" (Expr.val_call "b" [VStr "c"]))
     equal (f "a] = 1") (eq "a]" (num 1))
     equal (f "a) = 1") (eq "a)" (num 1))
     equal (f ">a = 1") (eq ">a" (num 1))
@@ -212,9 +212,6 @@ test_lex1 = do
     -- Incomplete parses get lexed.
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
-
-val_call :: Expr.Symbol -> [Term] -> Term
-val_call sym args = ValCall (Call sym args)
 
 test_expand_macros = do
     let f = Parse.expand_macros (\s -> "(" <> s <> ")")

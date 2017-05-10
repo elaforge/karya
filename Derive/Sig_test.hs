@@ -31,8 +31,7 @@ test_type_error = do
 test_eval_quoted = do
     let int :: Sig.Parser Int
         int = Sig.required "int" "doc"
-    let quoted sym = BaseTypes.VQuoted $ BaseTypes.Quoted $
-            BaseTypes.call0 sym :| []
+    let quoted sym = BaseTypes.VQuoted $ BaseTypes.Quoted $ Expr.generator0 sym
     let run val = call_with $ DeriveTest.setup_deriver $
             CallTest.with_val_call "v" (val_call val)
         val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
@@ -47,9 +46,9 @@ test_eval_quoted = do
     let quot :: Sig.Parser BaseTypes.Quoted
         quot = Sig.required "quot" "doc"
     equal (run (0 :: Int) quot [BaseTypes.VStr "x"])
-        (Right (BaseTypes.Quoted (BaseTypes.call0 "x" :| [])))
+        (Right (BaseTypes.Quoted (Expr.generator0 "x")))
     equal (run (0 :: Int) quot [quoted "v"])
-        (Right (BaseTypes.Quoted (BaseTypes.call0 "v" :| [])))
+        (Right (BaseTypes.Quoted (Expr.generator0 "v")))
 
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)

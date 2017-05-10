@@ -25,6 +25,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Env as Env
+import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
@@ -170,12 +171,12 @@ modify_expr :: (Text -> Either Text Text) -> Text -> Either Text Text
 modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
-        BaseTypes.Call sym (BaseTypes.ValCall _ : _) :| []
+        Expr.Call sym (Expr.ValCall _ : _) :| []
             | sym /= BaseTypes.c_equal ->
                 let (pre, within) = Text.break (=='(') text
                     (note, post) = break1 (==')') within
                 in (\n -> pre <> n <> post) <$> f note
-        BaseTypes.Call sym _ :| []
+        Expr.Call sym _ :| []
             | sym /= BaseTypes.c_equal ->
                 let (pre, post) = Text.break (==' ') text
                 in (<>post) <$> f pre

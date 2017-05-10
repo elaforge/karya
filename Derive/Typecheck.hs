@@ -603,7 +603,7 @@ instance Typecheck BaseTypes.Quoted where
         _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $
-            BaseTypes.Quoted (BaseTypes.Call (Expr.Symbol sym) [] :| [])
+            BaseTypes.Quoted (Expr.Call (Expr.Symbol sym) [] :| [])
     to_type _ = ValType.TQuoted
 instance ToVal BaseTypes.Quoted where to_val = VQuoted
 

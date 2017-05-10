@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
 -- | The Str and Symbol types, and ToExpr class, in a module with few
 -- dependencies so modules can make exprs without incurring a dependency on
 -- "Derive.BaseTypes", and more importantly, 'Derive.BaseTypes.Val', which
@@ -14,8 +15,11 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+
 import qualified Derive.ShowVal as ShowVal
+import qualified Perform.Pitch as Pitch
 import Global
 
 
@@ -23,8 +27,10 @@ import Global
 --
 -- This is parameterized by the val unparsed exprs are @Expr Text@ while parsed
 type Expr val = NonEmpty (Call val)
-data Call val = Call Symbol [Term val] deriving (Show)
-data Term val = ValCall (Call val) | Literal val deriving (Show)
+data Call val = Call Symbol [Term val]
+    deriving (Show, Read, Eq, Functor)
+data Term val = ValCall (Call val) | Literal val
+    deriving (Show, Read, Eq, Functor)
 
 instance ShowVal.ShowVal val => ShowVal.ShowVal (Expr val) where
     show_val = Text.intercalate " | " . map ShowVal.show_val . NonEmpty.toList
@@ -33,10 +39,14 @@ instance ShowVal.ShowVal val => ShowVal.ShowVal (Call val) where
     show_val (Call (Symbol sym) terms) =
         sym <> if null terms then ""
             else " " <> Text.unwords (map ShowVal.show_val terms)
+instance ShowVal.ShowVal val => Pretty.Pretty (Call val) where
+    pretty = ShowVal.show_val
 
 instance ShowVal.ShowVal val => ShowVal.ShowVal (Term val) where
     show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
     show_val (Literal val) = ShowVal.show_val val
+instance ShowVal.ShowVal val => Pretty.Pretty (Term val) where
+    pretty = ShowVal.show_val
 
 -- | Name of a call, used to look it up in the namespace.
 --
@@ -54,6 +64,21 @@ unsym (Symbol sym) = sym
 instance ShowVal.ShowVal Symbol where
     show_val (Symbol sym) = sym
 
+expr :: [Call val] -> Call val -> Expr val
+expr trans gen = hd :| tl
+    where hd : tl = trans ++ [gen]
+
+generator :: Call val -> Expr val
+generator = expr []
+
+-- | Generator with no arguments.
+generator0 :: Symbol -> Expr val
+generator0 = generator . call0
+
+-- | Split into (transformers, generator).  Inverse of 'expr'.
+split :: Expr val -> ([Call val], Call val)
+split = Seq.ne_viewr
+
 -- | Make a Call with Literal args.
 call :: Symbol -> [val] -> Call val
 call sym args = Call sym (map Literal args)
@@ -61,12 +86,29 @@ call sym args = Call sym (map Literal args)
 call0 :: Symbol -> Call val
 call0 sym = Call sym []
 
-expr :: [Call val] -> Call val -> Expr val
-expr trans gen = hd :| tl
-    where (hd : tl) = trans ++ [gen]
+val_call :: Symbol -> [a] -> Term a
+val_call sym args = ValCall (call sym args)
 
-expr1 :: Symbol -> Expr val
-expr1 = expr [] . call0
+-- ** transform
+
+str_to_scale_id :: Str -> Pitch.ScaleId
+str_to_scale_id = Pitch.ScaleId . unstr
+
+scale_id_to_str :: Pitch.ScaleId -> Str
+scale_id_to_str (Pitch.ScaleId s) = Str s
+
+map_symbol :: (Symbol -> Symbol) -> Call a -> Call a
+map_symbol f (Call call args) = Call (f call) args
+
+-- | Transform the 'Literal's in an expression.
+map_literals :: (a -> b) -> Expr a -> Expr b
+map_literals = fmap . fmap
+
+-- | Transform only the Symbol in the generator position.
+map_generator :: (Symbol -> Symbol) -> Expr a -> Expr a
+map_generator f (call1 :| calls) = case calls of
+    [] -> map_symbol f call1 :| []
+    _ : _ -> call1 :| Seq.map_last (map_symbol f) calls
 
 -- * ToExpr
 

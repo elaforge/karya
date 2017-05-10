@@ -47,7 +47,6 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -259,7 +258,7 @@ environ name val = common#Common.environ
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch
-default_scale = environ EnvKey.scale . BaseTypes.scale_id_to_str
+default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch

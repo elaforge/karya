@@ -126,7 +126,7 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
         _ -> id
     set_scale = case Env.get_val EnvKey.scale env of
         Right str -> \deriver -> do
-            scale <- get_scale (BaseTypes.str_to_scale_id str)
+            scale <- get_scale (Expr.str_to_scale_id str)
             with_scale scale deriver
         _ -> id
 
@@ -403,7 +403,7 @@ insert_env key val state = state
 -- it seems more likely to be confusing than useful.
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
-    with_val_raw EnvKey.scale (BaseTypes.scale_id_to_str (scale_id scale))
+    with_val_raw EnvKey.scale (Expr.scale_id_to_str (scale_id scale))
         . with_scopes (val . pitch)
     where
     pitch = s_generator#s_pitch %= replace [scale_to_lookup scale val_to_pitch]

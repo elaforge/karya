@@ -60,7 +60,7 @@ type Call = Text
 insert_call :: Cmd.M m => Map Char Expr.Symbol -> Msg.Msg -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
-    where to_expr call = BaseTypes.call call [] :| []
+    where to_expr call = Expr.generator0 call
 
 notes_to_calls :: [Drums.Note] -> Map Char Expr.Symbol
 notes_to_calls notes =

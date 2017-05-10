@@ -13,14 +13,15 @@ module Derive.TestInstances where
 #ifdef TESTING
 
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr -- needed for standalone deriving
 import qualified Derive.PSignal as PSignal
 import qualified Cmd.Cmd as Cmd
 
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
-deriving instance Eq BaseTypes.Val
-deriving instance Eq BaseTypes.Call
-deriving instance Eq BaseTypes.Term
+deriving instance {-# OVERLAPPING #-} Eq BaseTypes.Val
+deriving instance {-# OVERLAPPING #-} Eq BaseTypes.Call
+deriving instance {-# OVERLAPPING #-} Eq BaseTypes.Term
 deriving instance Eq BaseTypes.Quoted
 
 instance Eq PSignal.PSignal where

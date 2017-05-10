@@ -537,7 +537,7 @@ eval_quoted state (BaseTypes.Quoted expr) = result
         call <- case expr of
             call :| [] -> return call
             _ -> Derive.throw "expected a val call, but got a full expression"
-        Eval.eval (state_context state) (BaseTypes.ValCall call)
+        Eval.eval (state_context state) (Expr.ValCall call)
 
 lookup_default :: Derive.EnvironDefault -> State -> ArgName
     -> Maybe BaseTypes.Val

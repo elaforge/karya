@@ -7,7 +7,6 @@
 -- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
@@ -34,7 +33,7 @@ make :: [(BaseTypes.Key, Val)] -> Environ
 make = Environ . Map.fromList
 
 convert :: Environ -> BaseTypes.Environ
-convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
+convert (Environ env) = BaseTypes.Environ $ convert_val <$> env
 
 -- * val
 
@@ -55,16 +54,16 @@ convert_val val = case val of
     VControlRef v -> BaseTypes.VControlRef v
     VNotePitch v -> BaseTypes.VNotePitch v
     VStr v -> BaseTypes.VStr v
-    VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $ convert_expr v
+    VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $
+        Expr.map_literals convert_val v
     VList v -> BaseTypes.VList $ map convert_val v
 
-instance Pretty.Pretty Val where
-    format v = Pretty.format (convert_val v)
+instance Pretty.Pretty Val where format = Pretty.format . convert_val
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.
 --
--- TODO But I wish I could reuse Typecheck.ToVal TypecheckSymbol TovAl,
+-- TODO But I wish I could reuse Typecheck.ToVal TypecheckSymbol ToVal,
 -- otherwise I have to add an extra instance declaration for each type.
 class ToVal a where
     to_val :: a -> Val
@@ -101,19 +100,9 @@ instance ToVal Expr where to_val = VQuoted
 
 -- * call
 
-type Expr = NonEmpty Call
-data Call = Call Expr.Symbol [Term] deriving (Eq, Read, Show)
-data Term = ValCall Call | Literal Val deriving (Eq, Read, Show)
-
-convert_expr :: Expr -> BaseTypes.Expr
-convert_expr = NonEmpty.map convert_call
-
-convert_call :: Call -> BaseTypes.Call
-convert_call (Call sym terms) = BaseTypes.Call sym (map convert_term terms)
-
-convert_term :: Term -> BaseTypes.Term
-convert_term (ValCall call) = BaseTypes.ValCall (convert_call call)
-convert_term (Literal val) = BaseTypes.Literal (convert_val val)
+type Expr = Expr.Expr Val
+type Call = Expr.Call Val
+type Term = Expr.Term Val
 
 instance Serialize.Serialize Val where
     put val = case val of
@@ -139,14 +128,14 @@ instance Serialize.Serialize Val where
             _ -> Serialize.bad_tag "RestrictedEnviron.Val" tag
 
 instance Serialize.Serialize Call where
-    put (Call a b) = put a >> put b
-    get = Call <$> get <*> get
+    put (Expr.Call a b) = put a >> put b
+    get = Expr.Call <$> get <*> get
 
 instance Serialize.Serialize Term where
     put term = case term of
-        ValCall v -> Serialize.put_tag 0 >> put v
-        Literal v -> Serialize.put_tag 1 >> put v
+        Expr.ValCall v -> Serialize.put_tag 0 >> put v
+        Expr.Literal v -> Serialize.put_tag 1 >> put v
     get = Serialize.get_tag >>= \x -> case x of
-        0 -> ValCall <$> get
-        1 -> Literal <$> get
+        0 -> Expr.ValCall <$> get
+        1 -> Expr.Literal <$> get
         n -> Serialize.bad_tag "RestrictedEnviron.Term" n

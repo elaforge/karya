@@ -10,10 +10,10 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Expr as Expr
 
 import Global
 

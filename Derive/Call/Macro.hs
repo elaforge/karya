@@ -95,23 +95,23 @@ val_macro :: Parse.Call -> [BaseTypes.Val] -> Derive.PassedArgs Derive.Tagged
 val_macro call_expr vals args = do
     call_expr :| _ <- Derive.require_right id $
         substitute_vars vals (Parse.Expr (call_expr :| []))
-    Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
+    Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
 
 split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
 split_expr = Seq.ne_viewr
 
 eval_args :: Derive.Taggable a => Derive.Context a -> BaseTypes.Call
     -> Derive.Deriver (Expr.Symbol, [BaseTypes.Val])
-eval_args ctx (BaseTypes.Call sym args) = (,) sym <$> mapM (Eval.eval ctx) args
+eval_args ctx (Expr.Call sym args) = (,) sym <$> mapM (Eval.eval ctx) args
 
 substitute_vars :: [BaseTypes.Val] -> Parse.Expr -> Either Text BaseTypes.Expr
 substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
     where
-    sub_call (Parse.Call sym args) = BaseTypes.Call sym <$> mapM sub_arg args
+    sub_call (Parse.Call sym args) = Expr.Call sym <$> mapM sub_arg args
     sub_arg term = case term of
-        Parse.VarTerm (Parse.Var _) -> BaseTypes.Literal <$> pop
-        Parse.Literal val -> return (BaseTypes.Literal val)
-        Parse.ValCall call -> BaseTypes.ValCall <$> sub_call call
+        Parse.VarTerm (Parse.Var _) -> Expr.Literal <$> pop
+        Parse.Literal val -> return (Expr.Literal val)
+        Parse.ValCall call -> Expr.ValCall <$> sub_call call
     pop = do
         vals <- Monad.State.get
         case vals of

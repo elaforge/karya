@@ -367,7 +367,7 @@ reapply ctx expr notes = Eval.reapply subs expr
 reapply_call :: Derive.Context Score.Event -> Expr.Symbol
     -> [BaseTypes.Term] -> [[Event]] -> Derive.NoteDeriver
 reapply_call ctx sym call_args =
-    reapply ctx (BaseTypes.call sym call_args :| [])
+    reapply ctx $ Expr.generator $ Expr.Call sym call_args
 
 {- NOTE [under-invert]
     . To make 'lift' to an absolute pitch work outside of inversion, I'd need

@@ -181,7 +181,7 @@ map_symbol f text =
 
 -- | Transform both Symbols and Strs.
 map_text :: (Text -> Text) -> BaseTypes.Expr -> BaseTypes.Expr
-map_text f = fmap $ BaseTypes.map_symbol (Expr.Symbol . f . Expr.unsym)
+map_text f = fmap $ Expr.map_symbol (Expr.Symbol . f . Expr.unsym)
     . BaseTypes.map_str (Expr.Str . f . Expr.unstr)
 
 -- * create

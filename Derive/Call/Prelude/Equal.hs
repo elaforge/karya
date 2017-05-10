@@ -78,13 +78,13 @@ transform_expr expr deriver = do
             (equal_expr expr)
         Derive.require_right id $ parse_equal Set lhs rhs
 
-is_empty_expr :: BaseTypes.Expr -> Bool
-is_empty_expr (BaseTypes.Call "" [] :| []) = True
+is_empty_expr :: Expr.Expr a -> Bool
+is_empty_expr (Expr.Call "" [] :| []) = True
 is_empty_expr _ = False
 
 equal_expr :: BaseTypes.Call -> Maybe (Expr.Str, BaseTypes.Val)
-equal_expr (BaseTypes.Call (Expr.Symbol "=")
-        [BaseTypes.Literal (BaseTypes.VStr str), BaseTypes.Literal val]) =
+equal_expr (Expr.Call (Expr.Symbol "=")
+        [Expr.Literal (BaseTypes.VStr str), Expr.Literal val]) =
     Just (str, val)
 equal_expr _ = Nothing
 
@@ -375,7 +375,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
-            BaseTypes.Quoted (call :| []) -> return $ BaseTypes.ValCall call
+            BaseTypes.Quoted (call :| []) -> return $ Expr.ValCall call
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> ShowVal.show_val quoted

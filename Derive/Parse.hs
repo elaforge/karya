@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
--- | BaseTypes parsers using Text and Attoparsec.
+-- | Tracklang parsers.  Many of the parsers in here should be inverses of
+-- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
     parse_expr, parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
@@ -58,8 +59,7 @@ parse_expr = parse (p_expr True)
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: Text
-    -> Either Text ([BaseTypes.Val], [BaseTypes.Call])
+parse_control_title :: Text -> Either Text ([BaseTypes.Val], [BaseTypes.Call])
 parse_control_title = ParseText.parse p_control_title
 
 -- | Parse a single Val.
@@ -78,7 +78,7 @@ parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 parse_call :: Text -> Maybe Text
 parse_call text = case parse_expr text of
     Right expr -> case NonEmpty.last expr of
-        BaseTypes.Call (Expr.Symbol call) _ -> Just call
+        Expr.Call (Expr.Symbol call) _ -> Just call
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either Text a
@@ -195,8 +195,7 @@ p_unparsed_expr = do
     A.string $ Expr.unsym unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
     let arg = Expr.Str $ Text.strip $ strip_comment text
-    return $ BaseTypes.Call unparsed_call
-        [BaseTypes.Literal $ BaseTypes.VStr arg]
+    return $ Expr.Call unparsed_call [Expr.Literal $ BaseTypes.VStr arg]
     where
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
@@ -213,7 +212,7 @@ unparsed_call = "!"
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
 
-p_equal :: A.Parser BaseTypes.Call
+p_equal :: A.Parser (Expr.Call BaseTypes.Val)
 p_equal = do
     lhs <- (Expr.unstr <$> p_str) <|> (Expr.unsym <$> p_symbol True)
     spaces
@@ -222,17 +221,16 @@ p_equal = do
         <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
     rhs <- A.many1 p_term
-    return $ BaseTypes.Call BaseTypes.c_equal $
+    return $ Expr.Call BaseTypes.c_equal $
         to_str lhs : rhs ++ maybe [] (:[]) (to_str <$> sym)
     where
-    to_str = BaseTypes.Literal . BaseTypes.VStr . Expr.Str
+    to_str = Expr.Literal . BaseTypes.VStr . Expr.Str
 
-p_call :: Bool -> A.Parser BaseTypes.Call
-p_call toplevel =
-    BaseTypes.Call <$> lexeme (p_symbol toplevel) <*> A.many p_term
+p_call :: Bool -> A.Parser (Expr.Call BaseTypes.Val)
+p_call toplevel = Expr.Call <$> lexeme (p_symbol toplevel) <*> A.many p_term
 
-p_null_call :: A.Parser BaseTypes.Call
-p_null_call = return (BaseTypes.Call "" []) <?> "null call"
+p_null_call :: A.Parser (Expr.Call a)
+p_null_call = return (Expr.Call "" []) <?> "null call"
 
 -- | Any word in call position is considered a Str.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
@@ -241,11 +239,10 @@ p_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser Expr.Symbol
 p_symbol toplevel = Expr.Symbol <$> p_word toplevel
 
-p_term :: A.Parser BaseTypes.Term
-p_term = lexeme $
-    BaseTypes.Literal <$> p_val <|> BaseTypes.ValCall <$> p_sub_call
+p_term :: A.Parser (Expr.Term BaseTypes.Val)
+p_term = lexeme $ Expr.Literal <$> p_val <|> Expr.ValCall <$> p_sub_call
 
-p_sub_call :: A.Parser BaseTypes.Call
+p_sub_call :: A.Parser (Expr.Call BaseTypes.Val)
 p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
 p_val :: A.Parser BaseTypes.Val
@@ -619,7 +616,7 @@ p_definition = do
 
 -- ** types
 
--- | These are parallel to the 'BaseTypes.Expr' types, except they add
+-- | These are parallel to the 'Expr.Expr' types, except they add
 -- 'VarTerm'.  The duplication is unfortunate, but as long as this remains
 -- a simple AST it seems better than the various heavyweight techniques for
 -- parameterizing an AST.
@@ -649,8 +646,8 @@ instance ShowVal.ShowVal Var where
 
 -- ** parsers
 
--- | As 'Expr' parallels 'BaseTypes.Expr', these parsers parallel 'p_expr'
--- and so on.
+-- | As 'Expr' parallels 'Expr.Expr', these parsers parallel 'p_expr' and so
+-- on.
 p_expr_ky :: A.Parser Expr
 p_expr_ky = do
     -- It definitely matches at least one, because p_null_call always matches.
@@ -665,10 +662,10 @@ p_toplevel_call_ky =
     <|> call_to_ky <$> p_null_call
 
 call_to_ky :: BaseTypes.Call -> Call
-call_to_ky (BaseTypes.Call sym args) = Call sym (map convert args)
+call_to_ky (Expr.Call sym args) = Call sym (map convert args)
     where
-    convert (BaseTypes.Literal val) = Literal val
-    convert (BaseTypes.ValCall call) = ValCall (call_to_ky call)
+    convert (Expr.Literal val) = Literal val
+    convert (Expr.ValCall call) = ValCall (call_to_ky call)
 
 p_sub_call_ky :: A.Parser Call
 p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky

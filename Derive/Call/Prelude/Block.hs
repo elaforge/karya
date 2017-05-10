@@ -182,7 +182,7 @@ d_block block_id = do
         case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
             -- An empty title means no transformation.
-            Right (BaseTypes.Call call [] :| []) | call == "" -> deriver
+            Right (Expr.Call call [] :| []) | call == "" -> deriver
             Right expr ->
                 Eval.eval_transformers ctx (NonEmpty.toList expr) deriver
                 where ctx = Derive.dummy_context 0 1 "block title"
@@ -190,7 +190,7 @@ d_block block_id = do
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> BaseTypes.Call
 call_from_block_id block_id =
-    BaseTypes.call (Expr.Symbol $ Id.show_id $ Id.unpack_id block_id) []
+    Expr.call0 (Expr.Symbol $ Id.show_id $ Id.unpack_id block_id)
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
 call_to_block_id :: Expr.Symbol -> Derive.Deriver (Maybe BlockId)

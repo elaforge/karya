@@ -506,7 +506,7 @@ default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
     [ (EnvKey.srate, BaseTypes.num 1)
-    , (EnvKey.scale, BaseTypes.VStr (BaseTypes.scale_id_to_str Twelve.scale_id))
+    , (EnvKey.scale, BaseTypes.VStr (Expr.scale_id_to_str Twelve.scale_id))
     , (EnvKey.attributes, BaseTypes.VAttributes mempty)
     ]
 
@@ -845,7 +845,7 @@ mkpitch scale p = case eval Ui.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ BaseTypes.call (Expr.Symbol (txt p)) []
+        Eval.eval_pitch 0 $ Expr.call0 (Expr.Symbol (txt p))
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale
