@@ -6,10 +6,11 @@ module Perform.Lilypond.Lilypond_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -130,7 +131,7 @@ test_key = do
 test_ly_prepend_append = do
     let f env = LilypondTest.convert_measures [] $
             map LilypondTest.environ_event [(0, 12, "a", env)]
-        str :: BaseTypes.Symbol -> Text -> [(BaseTypes.Symbol, BaseTypes.Val)]
+        str :: Expr.Str -> Text -> [(Expr.Str, BaseTypes.Val)]
         str key val = [(key, Typecheck.to_val val)]
     equal (f []) $ Right "a1~ | a1~ | a1"
     equal (f (str Constants.v_ly_append_first "x")) $

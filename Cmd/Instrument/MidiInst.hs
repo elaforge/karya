@@ -258,7 +258,7 @@ environ name val = common#Common.environ
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch
-default_scale = environ EnvKey.scale . BaseTypes.scale_id_to_sym
+default_scale = environ EnvKey.scale . BaseTypes.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch

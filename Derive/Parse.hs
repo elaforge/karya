@@ -151,7 +151,7 @@ p_macro replacement = do
     where
     -- Strip escaped quotes, because 'show' will turn it back into haskell
     -- and re-add them.  This will mess up all the other zillion backslash
-    -- features in haskell strings, but I probably won't use those.  'p_string'
+    -- features in haskell strings, but I probably won't use those.  'p_str'
     -- would be simpler, but since it's for the REPL, I feel like haskell-ish
     -- strings will be less error-prone.
     unbackslash = txt . strip . untxt
@@ -173,7 +173,7 @@ p_hs_string =
 -- | See 'parse_control_title'.
 p_control_title :: A.Parser ([BaseTypes.Val], [BaseTypes.Call])
 p_control_title = do
-    vals <- A.many (lexeme $ BaseTypes.VSymbol <$> p_scale_id <|> p_val)
+    vals <- A.many (lexeme $ BaseTypes.VStr <$> p_scale_id <|> p_val)
     expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_expr True)
     return (vals, expr)
 
@@ -194,9 +194,9 @@ p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
     A.string $ Expr.uncall unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
-    let arg = BaseTypes.Symbol $ Text.strip $ strip_comment text
+    let arg = Expr.Str $ Text.strip $ strip_comment text
     return $ BaseTypes.Call unparsed_call
-        [BaseTypes.Literal $ BaseTypes.VSymbol arg]
+        [BaseTypes.Literal $ BaseTypes.VStr arg]
     where
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
@@ -215,7 +215,7 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser BaseTypes.Call
 p_equal = do
-    lhs <- (Expr.CallId . BaseTypes.unsym <$> p_string) <|> p_call_id True
+    lhs <- (Expr.unstr <$> p_str) <|> (Expr.uncall <$> p_call_id True)
     spaces
     A.char '='
     sym <- A.option Nothing $ Just . Text.singleton
@@ -223,9 +223,9 @@ p_equal = do
     spaces
     rhs <- A.many1 p_term
     return $ BaseTypes.Call BaseTypes.c_equal $
-        to_sym (Expr.uncall lhs) : rhs ++ maybe [] (:[]) (to_sym <$> sym)
+        to_str lhs : rhs ++ maybe [] (:[]) (to_str <$> sym)
     where
-    to_sym = BaseTypes.Literal . BaseTypes.VSymbol . BaseTypes.Symbol
+    to_str = BaseTypes.Literal . BaseTypes.VStr . Expr.Str
 
 p_call :: Bool -> A.Parser BaseTypes.Call
 p_call toplevel =
@@ -234,7 +234,7 @@ p_call toplevel =
 p_null_call :: A.Parser BaseTypes.Call
 p_null_call = return (BaseTypes.Call "" []) <?> "null call"
 
--- | Any word in call position is considered a Symbol.  This means that
+-- | Any word in call position is considered a Str.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
 p_call_id :: Bool -- ^ A call at the top level can allow a ).
@@ -253,13 +253,13 @@ p_val =
     BaseTypes.VAttributes <$> p_attributes
     <|> BaseTypes.VNum . Score.untyped <$> p_hex
     <|> BaseTypes.VNum <$> p_num
-    <|> BaseTypes.VSymbol <$> p_string
+    <|> BaseTypes.VStr <$> p_str
     <|> BaseTypes.VControlRef <$> p_control_ref
     <|> BaseTypes.VPControlRef <$> p_pcontrol_ref
     <|> BaseTypes.VQuoted <$> p_quoted
     <|> (A.char '_' >> return BaseTypes.VNotGiven)
     <|> (A.char ';' >> return BaseTypes.VSeparator)
-    <|> BaseTypes.VSymbol <$> p_symbol
+    <|> BaseTypes.VStr <$> p_unquoted_str
 
 p_num :: A.Parser Score.TypedVal
 p_num = do
@@ -303,8 +303,8 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
-p_string :: A.Parser BaseTypes.Symbol
-p_string = BaseTypes.Symbol <$> p_single_quote_string
+p_str :: A.Parser Expr.Str
+p_str = Expr.Str <$> p_single_quote_string
 
 p_single_quote_string :: A.Parser Text
 p_single_quote_string = do
@@ -342,10 +342,10 @@ p_quoted :: A.Parser BaseTypes.Quoted
 p_quoted = ParseText.between "\"(" ")" (BaseTypes.Quoted <$> p_expr False)
 
 -- | This is special syntax that's only allowed in control track titles.
-p_scale_id :: A.Parser BaseTypes.Symbol
+p_scale_id :: A.Parser Expr.Str
 p_scale_id = do
     A.char '*'
-    BaseTypes.Symbol . Text.cons '*' <$> A.option "" (p_identifier False "")
+    Expr.Str . Text.cons '*' <$> A.option "" (p_identifier False "")
     <?> "scale id"
 
 -- | Symbols can have anything in them but they have to start with a letter.
@@ -355,12 +355,11 @@ p_scale_id = do
 -- This should be a superset of what 'p_identifier' will accept, so if IDs use
 -- 'p_identifier' and 'Id.valid_symbol', they will also be parseable without
 -- quotes.
-p_symbol :: A.Parser BaseTypes.Symbol
-p_symbol = do
-    c <- A.satisfy $ \c -> c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
-        || c == '-'
+p_unquoted_str :: A.Parser Expr.Str
+p_unquoted_str = do
+    c <- A.satisfy ShowVal.is_unquoted_head
     rest <- p_null_word
-    return $ BaseTypes.Symbol $ Text.cons c rest
+    return $ Expr.Str $ Text.cons c rest
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
@@ -406,10 +405,10 @@ p_null_word = A.takeWhile is_word_char
 --
 -- I could get rid of the toplevel distinction by not allowing ) in calls
 -- even at the toplevel, but I have @ly-(@ and @ly-)@ calls and I kind of like
--- how those look.  I guess it's a crummy justification, but not need to change
+-- how those look.  I guess it's a crummy justification, but no need to change
 -- it unless toplevel gives more more trouble.
 is_toplevel_word_char :: Char -> Bool
-is_toplevel_word_char c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
+is_toplevel_word_char c = ShowVal.is_unquoted_body c
     && c /= ';' -- This is so the ; separator can appear anywhere.
     -- TODO remove it when I remove VSeparator
 
@@ -503,7 +502,7 @@ instance Monoid Definitions where
         Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
             (h1<>h2)
 
--- | (defining_file, (call_sym, expr))
+-- | (defining_file, (CallId, Expr))
 type Definition = (FilePath, (Expr.CallId, Expr))
 type LineNumber = Int
 

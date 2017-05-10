@@ -382,8 +382,7 @@ parse_sequence exprs = postproc $
     to_expr [] = Nothing
     to_expr (call : args) = Just $ case call of
         BaseTypes.VQuoted (BaseTypes.Quoted expr) -> QuotedExpr expr
-        BaseTypes.VSymbol (Expr.Symbol sym) ->
-            EvaluatedExpr (Expr.CallId sym) args
+        BaseTypes.VStr (Expr.Str sym) -> EvaluatedExpr (Expr.CallId sym) args
         _ -> EvaluatedExpr (Expr.CallId (ShowVal.show_val call)) args
     is_separator BaseTypes.VSeparator = True
     is_separator _ = False

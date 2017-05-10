@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
--- | The Symbol and CallId types, and ToExpr class, in a module with few
+-- | The Str and CallId types, and ToExpr class, in a module with few
 -- dependencies so modules can make exprs without incurring a dependency on
 -- "Derive.BaseTypes", and more importantly, 'Derive.BaseTypes.Val', which
 -- drags in tons of stuff.
@@ -76,15 +76,15 @@ expr1 = expr [] . call0
 class ToExpr a where
     to_expr :: a -> Expr Text
 
--- * Symbol
-
-newtype Symbol = Symbol Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
-        Serialize.Serialize, ShowVal.ShowVal)
-instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
-
-unsym :: Symbol -> Text
-unsym (Symbol sym) = sym
-
 class ToCall a where
     to_call :: a -> CallId
+
+-- * Str
+
+newtype Str = Str Text
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
+        Serialize.Serialize, ShowVal.ShowVal)
+instance Pretty.Pretty Str where pretty = ShowVal.show_val
+
+unstr :: Str -> Text
+unstr (Str str) = str

@@ -506,8 +506,7 @@ default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
     [ (EnvKey.srate, BaseTypes.num 1)
-    , (EnvKey.scale,
-        BaseTypes.VSymbol (BaseTypes.scale_id_to_sym Twelve.scale_id))
+    , (EnvKey.scale, BaseTypes.VStr (BaseTypes.scale_id_to_str Twelve.scale_id))
     , (EnvKey.attributes, BaseTypes.VAttributes mempty)
     ]
 
@@ -687,8 +686,8 @@ e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
 
 e_environ_like :: (String -> Bool) -> Score.Event -> [(Env.Key, String)]
 e_environ_like f event =
-    [ (BaseTypes.Symbol k, untxt $ ShowVal.show_val v)
-    | (BaseTypes.Symbol k, v) <- Env.to_list (Score.event_environ event)
+    [ (Expr.Str k, untxt $ ShowVal.show_val v)
+    | (Expr.Str k, v) <- Env.to_list (Score.event_environ event)
     , f (untxt k)
     ]
 

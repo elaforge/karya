@@ -17,6 +17,7 @@ import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Expr as Expr
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
@@ -42,7 +43,7 @@ data Val =
     | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VNotePitch !Pitch.Pitch
-    | VSymbol !BaseTypes.Symbol
+    | VStr !Expr.Str
     | VQuoted !Expr
     | VList ![Val]
     deriving (Eq, Read, Show)
@@ -53,7 +54,7 @@ convert_val val = case val of
     VAttributes v -> BaseTypes.VAttributes v
     VControlRef v -> BaseTypes.VControlRef v
     VNotePitch v -> BaseTypes.VNotePitch v
-    VSymbol v -> BaseTypes.VSymbol v
+    VStr v -> BaseTypes.VStr v
     VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $ convert_expr v
     VList v -> BaseTypes.VList $ map convert_val v
 
@@ -68,7 +69,7 @@ instance Pretty.Pretty Val where
 class ToVal a where
     to_val :: a -> Val
     default to_val :: ShowVal.ShowVal a => a -> Val
-    to_val = VSymbol . BaseTypes.Symbol . ShowVal.show_val
+    to_val = VStr . Expr.Str . ShowVal.show_val
 
 -- ** VNum
 
@@ -93,9 +94,9 @@ instance ToVal Attrs.Attributes where to_val = VAttributes
 instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal ScoreTypes.Instrument where
-    to_val (ScoreTypes.Instrument a) = VSymbol (BaseTypes.Symbol a)
-instance ToVal BaseTypes.Symbol where to_val = VSymbol
-instance ToVal Text where to_val = VSymbol . BaseTypes.Symbol
+    to_val (ScoreTypes.Instrument a) = VStr (Expr.Str a)
+instance ToVal Expr.Str where to_val = VStr
+instance ToVal Text where to_val = VStr . Expr.Str
 instance ToVal Expr where to_val = VQuoted
 
 -- * call
@@ -122,7 +123,7 @@ instance Serialize.Serialize Val where
         VControlRef v -> Serialize.put_tag 2 >> put v
         VNotePitch v -> Serialize.put_tag 3 >> put v
         -- tag 4 was VInstrument
-        VSymbol v -> Serialize.put_tag 5 >> put v
+        VStr v -> Serialize.put_tag 5 >> put v
         VQuoted v -> Serialize.put_tag 6 >> put v
         VList v -> Serialize.put_tag 7 >> put v
     get = do
@@ -132,8 +133,8 @@ instance Serialize.Serialize Val where
             1 -> VAttributes <$> get
             2 -> VControlRef <$> get
             3 -> VNotePitch <$> get
-            4 -> VSymbol <$> get -- tag 4 was VInstrument
-            5 -> VSymbol <$> get
+            4 -> VStr <$> get -- tag 4 was VInstrument
+            5 -> VStr <$> get
             6 -> VQuoted <$> get
             7 -> VList <$> get
             _ -> Serialize.bad_tag "RestrictedEnviron.Val" tag

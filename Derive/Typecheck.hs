@@ -128,12 +128,12 @@ data Checked a = Val (Maybe a)
 class Typecheck a where
     from_val :: Val -> Checked a
     default from_val :: TypecheckSymbol a => Val -> Checked a
-    from_val (VSymbol (BaseTypes.Symbol a)) = Val $ parse_symbol a
+    from_val (VStr str) = Val $ parse_symbol str
     from_val _ = Val Nothing
 
     to_type :: Proxy a -> ValType.Type
     default to_type :: TypecheckSymbol a => Proxy a -> ValType.Type
-    to_type proxy = ValType.TSymbol (symbol_values proxy)
+    to_type proxy = ValType.TStr (symbol_values proxy)
 
 -- | 'from_val', but evaluate if it's an Eval.
 from_val_eval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
@@ -158,29 +158,29 @@ class ToVal a where
     -- it to only apply when the type is explicitly in TypecheckSymbol, since
     -- it's not valid in general.
     default to_val :: TypecheckSymbol a => a -> Val
-    to_val = VSymbol . BaseTypes.Symbol . ShowVal.show_val
+    to_val = VStr . Expr.Str . ShowVal.show_val
 
 -- | This is for text strings which are parsed to call-specific types.  You
 -- can declare an instance and the default Typecheck instance will allow you
 -- to incorporate the type directly into the signature of the call.
 --
 -- If your type is a Bounded Enum, you get a default parser, and the enum
--- values go in the 'TSymbol' so the docs can mention them.
+-- values go in the 'ValType.TStr' so the docs can mention them.
 --
 -- So the type needs to be in (Bounded, Enum, ShowVal, TypecheckSymbol,
 -- Typecheck), though all of these can use default implementations.
 class ShowVal.ShowVal a => TypecheckSymbol a where
-    parse_symbol :: Text -> Maybe a
-    default parse_symbol :: (Bounded a, Enum a) => Text -> Maybe a
+    parse_symbol :: Expr.Str -> Maybe a
+    default parse_symbol :: (Bounded a, Enum a) => Expr.Str -> Maybe a
     parse_symbol = make_parse_enum [minBound :: a .. maxBound]
 
     symbol_values :: Proxy a -> Maybe [Text]
     default symbol_values :: (Bounded a, Enum a) => Proxy a -> Maybe [Text]
     symbol_values _ = Just $ map ShowVal.show_val [minBound :: a .. maxBound]
 
-make_parse_enum :: ShowVal.ShowVal a => [a] -> (Text -> Maybe a)
+make_parse_enum :: ShowVal.ShowVal a => [a] -> (Expr.Str -> Maybe a)
 make_parse_enum vals = flip Map.lookup m
-    where m = Map.fromList (zip (map ShowVal.show_val vals) vals)
+    where m = Map.fromList (zip (map (Expr.Str . ShowVal.show_val) vals) vals)
 
 -- | Make a ShowVal from a Show instance.
 enum_show_val :: Show a => a -> Text
@@ -505,39 +505,39 @@ instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
 -- ** text\/symbol
 
 instance Typecheck Expr.CallId where
-    from_val (VSymbol (Expr.Symbol sym)) = Val $ Just $ Expr.CallId sym
+    from_val (VStr (Expr.Str sym)) = Val $ Just $ Expr.CallId sym
     from_val _ = Val Nothing
-    to_type _ = ValType.TSymbol Nothing
-instance ToVal Expr.CallId where to_val = VSymbol . Expr.Symbol . Expr.uncall
+    to_type _ = ValType.TStr Nothing
+instance ToVal Expr.CallId where to_val = VStr . Expr.Str . Expr.uncall
 
-instance Typecheck BaseTypes.Symbol where
-    from_val (VSymbol a) = Val $ Just a
+instance Typecheck Expr.Str where
+    from_val (VStr a) = Val $ Just a
     from_val _ = Val Nothing
-    to_type _ = ValType.TSymbol Nothing
-instance ToVal BaseTypes.Symbol where to_val = VSymbol
+    to_type _ = ValType.TStr Nothing
+instance ToVal Expr.Str where to_val = VStr
 
 instance Typecheck Text where
-    from_val (VSymbol (BaseTypes.Symbol s)) = Val $ Just s
+    from_val (VStr (Expr.Str s)) = Val $ Just s
     from_val _ = Val Nothing
-    to_type _ = ValType.TSymbol Nothing
-instance ToVal Text where to_val = VSymbol . BaseTypes.Symbol
+    to_type _ = ValType.TStr Nothing
+instance ToVal Text where to_val = VStr . Expr.Str
 
 instance Typecheck Score.Control where
-    from_val (VSymbol (BaseTypes.Symbol s)) =
+    from_val (VStr (Expr.Str s)) =
         Val $ either (const Nothing) Just (Score.control s)
     from_val _ = Val Nothing
     to_type _ = ValType.TControl
 instance ToVal Score.Control where
-    to_val c = VSymbol (BaseTypes.Symbol (Score.control_name c))
+    to_val c = VStr (Expr.Str (Score.control_name c))
 
 instance Typecheck Score.PControl where
-    from_val (VSymbol (BaseTypes.Symbol s))
+    from_val (VStr (Expr.Str s))
         | Just name <- Text.stripPrefix "#" s =
             Val $ either (const Nothing) Just (Score.pcontrol name)
     from_val _ = Val Nothing
     to_type _ = ValType.TPControl
 instance ToVal Score.PControl where
-    to_val c = VSymbol (BaseTypes.Symbol (Score.pcontrol_name c))
+    to_val c = VStr (Expr.Str (Score.pcontrol_name c))
 
 -- ** other types
 
@@ -579,11 +579,11 @@ instance Typecheck Pitch.Pitch where
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 
 instance Typecheck Score.Instrument where
-    from_val (VSymbol (BaseTypes.Symbol a)) = Val $ Just (Score.Instrument a)
+    from_val (VStr (Expr.Str a)) = Val $ Just (Score.Instrument a)
     from_val _ = Val Nothing
-    to_type _ = ValType.TSymbol Nothing
+    to_type _ = ValType.TStr Nothing
 instance ToVal Score.Instrument where
-    to_val (Score.Instrument a) = VSymbol (BaseTypes.Symbol a)
+    to_val (Score.Instrument a) = VStr (Expr.Str a)
 
 instance Typecheck BaseTypes.ControlFunction where
     from_val (VControlFunction a) = Val $ Just a
@@ -599,7 +599,7 @@ instance Typecheck BaseTypes.Quoted where
     from_val val = case val of
         VQuoted a -> Val $ Just a
         VPitch {} -> Val Nothing
-        VSymbol (Expr.Symbol sym) -> to_quoted sym
+        VStr (Expr.Str sym) -> to_quoted sym
         _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $

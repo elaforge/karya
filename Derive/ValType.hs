@@ -21,7 +21,7 @@ data Type =
     TNum NumType NumValue
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
     -- | Text string, with enum values if it's an enum.
-    | TSymbol (Maybe [Text]) | TControl | TPControl
+    | TStr (Maybe [Text]) | TControl | TPControl
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type
     -- | This is the \"any\" type.
     | TVal
@@ -105,8 +105,7 @@ instance Pretty.Pretty Type where
     pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
     pretty (TNum typ val) = append_parens "Num" $
         TextUtil.joinWith ", " (pretty typ) (pretty val)
-    pretty (TSymbol enums) =
-        append_parens "Symbol" $ maybe "" Text.unwords enums
+    pretty (TStr enums) = append_parens "Str" $ maybe "" Text.unwords enums
     -- There is no corresponding Val type for these, so I might as well be
     -- clear about what they mean.
     pretty TControl = append_parens "Control" Id.symbol_description
@@ -159,7 +158,7 @@ infer_type_of specific val = case val of
     VPControlRef {} -> TPControlRef
     VPitch {} -> TPitch
     VNotePitch {} -> TNotePitch
-    VSymbol {} -> TSymbol Nothing
+    VStr {} -> TStr Nothing
     VQuoted {} -> TQuoted
     VControlFunction {} -> TControlFunction
     VNotGiven -> TNotGiven

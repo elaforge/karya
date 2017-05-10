@@ -85,7 +85,7 @@ module Derive.Deriver.Monad (
     , dummy_context, tag_context
     , Call(..), make_call
     , CallName(..), ArgName(..)
-    , sym_to_call_name, str_to_call_name, sym_to_arg_name
+    , sym_to_call_name, str_to_call_name, str_to_arg_name
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..)
     , WithArgDoc
     , PassedArgs(..)
@@ -223,7 +223,7 @@ data CallError =
     deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
-data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !BaseTypes.Symbol
+data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !Expr.Str
     deriving (Eq, Show)
 
 data EvalSource =
@@ -1279,9 +1279,9 @@ instance Pretty.Pretty (Call derived) where
 {- | Each call has an intrinsic name.  Since call IDs may be rebound
     dynamically, each call has its own name so that error msgs are unambiguous.
     It's also used along with 'ArgName' for argument defaulting, so if you want
-    that to work it should be short and parseable by 'Derive.Parse.p_symbol'.
-    The name is not necessarily unique, and in fact may be intentionally
-    non-unique to share defaults with another.
+    that to work it should be short and parseable by
+    'Derive.Parse.p_unquoted_str'.  The name is not necessarily unique, and in
+    fact may be intentionally non-unique to share defaults with another.
 
     The documentation for all calls that differ only in name are grouped
     together, so it's easier to read if small modifications are reflected in
@@ -1299,11 +1299,11 @@ newtype ArgName = ArgName Text
 sym_to_call_name :: Expr.CallId -> CallName
 sym_to_call_name (Expr.CallId sym) = CallName sym
 
-str_to_call_name :: Expr.Symbol -> CallName
-str_to_call_name (Expr.Symbol str) = CallName str
+str_to_call_name :: Expr.Str -> CallName
+str_to_call_name (Expr.Str str) = CallName str
 
-sym_to_arg_name :: BaseTypes.Symbol -> ArgName
-sym_to_arg_name (BaseTypes.Symbol sym) = ArgName sym
+str_to_arg_name :: Expr.Str -> ArgName
+str_to_arg_name (Expr.Str str) = ArgName str
 
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough

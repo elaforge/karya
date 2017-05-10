@@ -82,10 +82,10 @@ is_empty_expr :: BaseTypes.Expr -> Bool
 is_empty_expr (BaseTypes.Call "" [] :| []) = True
 is_empty_expr _ = False
 
-equal_expr :: BaseTypes.Call -> Maybe (BaseTypes.Symbol, BaseTypes.Val)
+equal_expr :: BaseTypes.Call -> Maybe (Expr.Str, BaseTypes.Val)
 equal_expr (BaseTypes.Call (Expr.CallId "=")
-        [BaseTypes.Literal (BaseTypes.VSymbol sym), BaseTypes.Literal val]) =
-    Just (sym, val)
+        [BaseTypes.Literal (BaseTypes.VStr str), BaseTypes.Literal val]) =
+    Just (str, val)
 equal_expr _ = Nothing
 
 -- * implementation
@@ -104,9 +104,9 @@ c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
         transform <- Derive.require_right id $ parse_equal merge lhs rhs
         transform . Sub.derive . concat =<< Sub.sub_events args
 
-equal_args :: Sig.Parser (BaseTypes.Symbol, BaseTypes.Val, Merge)
+equal_args :: Sig.Parser (Expr.Str, BaseTypes.Val, Merge)
 equal_args = (,,)
-    <$> Sig.required "lhs" "Assign to this. This looks like a Symbol, but\
+    <$> Sig.required "lhs" "Assign to this. This looks like a Str, but\
         \ can actualy contain any characters except `=`, due to the special\
         \ infix parsing for `=`. Symbolic prefixes determine what is\
         \ assigned, and the valid types for the rhs."
@@ -182,9 +182,9 @@ equal_doc =
     -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
-parse_equal :: Merge -> BaseTypes.Symbol -> BaseTypes.Val
+parse_equal :: Merge -> Expr.Str -> BaseTypes.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
-parse_equal Set (BaseTypes.Symbol lhs) rhs
+parse_equal Set (Expr.Str lhs) rhs
     -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
@@ -202,10 +202,10 @@ parse_equal Set (BaseTypes.Symbol lhs) rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
-parse_equal Set (BaseTypes.Symbol lhs) rhs
+parse_equal Set (Expr.Str lhs) rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
-        BaseTypes.VSymbol (BaseTypes.Symbol inst) -> Right $
+        BaseTypes.VStr (Expr.Str inst) -> Right $
             Derive.with_instrument_alias (Score.Instrument new)
                 (Score.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
@@ -279,8 +279,8 @@ get_pitch_merger merge = case merge of
     Default -> return Derive.Set
     Merge name -> Derive.get_pitch_merger name
 
-parse_val :: BaseTypes.Symbol -> Maybe BaseTypes.Val
-parse_val = either (const Nothing) Just . Parse.parse_val . BaseTypes.unsym
+parse_val :: Expr.Str -> Maybe BaseTypes.Val
+parse_val = either (const Nothing) Just . Parse.parse_val . Expr.unstr
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
@@ -316,15 +316,14 @@ override_transformer lhs rhs name transformer deriver =
             (single_lookup (Expr.CallId lhs) call))
         deriver
 
--- | A VQuoted becomes a call, a Symbol is expected to name a call, and
--- everything else is turned into a Symbol via ShowVal.  This will cause
+-- | A VQuoted becomes a call, a Str is expected to name a call, and
+-- everything else is turned into a Str via ShowVal.  This will cause
 -- a parse error for un-showable Vals, but what else is new?
 resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopePriority a)
     -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
 resolve_source name lens make_quoted rhs = case rhs of
     BaseTypes.VQuoted quoted -> return $ make_quoted quoted
-    BaseTypes.VSymbol (Expr.Symbol sym) ->
-        get_call name (lens #$) (Expr.CallId sym)
+    BaseTypes.VStr (Expr.Str sym) -> get_call name (lens #$) (Expr.CallId sym)
     _ -> get_call name (lens #$) (Expr.CallId (ShowVal.show_val rhs))
 
 override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a

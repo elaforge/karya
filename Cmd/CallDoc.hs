@@ -20,7 +20,6 @@ import qualified Util.TextUtil as TextUtil
 import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -82,7 +81,7 @@ call_bindings_text include_module (binds, ctype, call_doc) =
 environ_keys :: Derive.ArgName -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
     "[" <> Text.intercalate ", "
-        (map BaseTypes.unsym (Sig.environ_keys "*" name deflt))
+        (map Expr.unstr (Sig.environ_keys "*" name deflt))
     <> "]"
 
 write_doc :: Doc.Doc -> Format.Doc
@@ -352,10 +351,9 @@ binding_tags (binds, ctype, call_doc) =
     cdoc_tags = Tags.untag . Derive.cdoc_tags
     module_ (Module.Module m) = "m:" <> m
     arg_tags arg =
-        [ unsym $ Sig.prefixed_environ name (Derive.arg_name arg)
+        [ Expr.unstr $ Sig.prefixed_environ name (Derive.arg_name arg)
         | name <- names
         ] ++ arg_control_tags (Derive.arg_parser arg)
-    unsym (BaseTypes.Symbol sym) = sym
     -- An arg with a control signal default should look like "%sig,.5".
     -- This is a hack, since the default isn't stored in a structured way.
     arg_control_tags (Derive.Defaulted deflt)

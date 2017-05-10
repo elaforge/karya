@@ -9,9 +9,9 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.BaseTypes as BaseTypes
 
 
-test_map_symbol = do
-    let f modify = fmap (ShowVal.show_val . BaseTypes.map_symbol modify)
+test_map_str = do
+    let f modify = fmap (ShowVal.show_val . fmap (BaseTypes.map_str modify))
             . Parse.parse_expr
     -- Mostly this is testing that show_val is a proper inverse of
     -- Parse.parse_expr.
-    right_equal (f (const "1") "23 23 '23' | 42") "1 23 '1' | 1"
+    right_equal (f (const "1") "23 23 '23' | 42") "23 23 '1' | 42"

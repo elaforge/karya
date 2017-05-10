@@ -83,10 +83,9 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
 
 open_strings_env :: Sig.Parser [PSignal.Pitch]
 open_strings_env = Sig.check non_empty $
-    Sig.environ (unsym EnvKey.open_strings) Sig.Unprefixed []
+    Sig.environ (Derive.str_to_arg_name EnvKey.open_strings) Sig.Unprefixed []
         "Pitches of the open strings."
     where
-    unsym (BaseTypes.Symbol sym) = Derive.ArgName sym
     non_empty xs
         | null xs = Just "open-strings required"
         | otherwise = Nothing

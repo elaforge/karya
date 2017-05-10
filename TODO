@@ -1860,7 +1860,7 @@ Derive:
           . I should be able to parse Expr Unparsed without the intervening
             ShowVal by directly parsing the Unparsed vals.
           * Make CallId its own type, so its ShowVal can be correct.
-          - Rename Symbol to Str
+          * Rename Symbol to Str, VSymbol to VStr
           - Rename CallId to Symbol.
           - Update references from BaseTypes.CallId to Expr.CallId
           - Use generic Expr from Derive.Expr.

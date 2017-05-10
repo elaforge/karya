@@ -45,6 +45,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
+import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import Global
 
@@ -344,7 +345,10 @@ modify_transpose f t = case t of
 -- independent, and not every scale will have the same values for key and
 -- mode.
 newtype Key = Key Text
-    deriving (Eq, Ord, Read, Show, Serialize.Serialize, ShowVal.ShowVal)
+    deriving (Eq, Ord, Read, Show, Serialize.Serialize)
+
+instance ShowVal.ShowVal Key where
+    show_val = ShowVal.show_val . Expr.Str . key_text
 
 key_text :: Key -> Text
 key_text (Key t) = t

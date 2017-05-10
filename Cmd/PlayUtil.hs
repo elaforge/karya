@@ -59,8 +59,7 @@ initial_environ = Env.from_list
     -- Control interpolators rely on this.
     [ (EnvKey.srate, BaseTypes.num 0.015)
     -- Looking up any val call relies on having a scale in scope.
-    , (EnvKey.scale, BaseTypes.VSymbol
-        (BaseTypes.Symbol Config.default_scale_id))
+    , (EnvKey.scale, BaseTypes.str Config.default_scale_id)
     , (EnvKey.attributes, BaseTypes.VAttributes mempty)
     , (EnvKey.seed, BaseTypes.num 0)
     ]

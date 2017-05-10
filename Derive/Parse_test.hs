@@ -17,7 +17,7 @@ import qualified Util.Testing as Testing
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
+import Derive.BaseTypes (Ref(..), Val(..), Call(..), Term(..))
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -47,9 +47,9 @@ test_parse_expr = do
 
     equal (f "a | b = 4 | . sym %sig") $ Right
         [ Call "a" []
-        , Call "=" (map Literal [VSymbol "b", vnum 4])
+        , Call "=" (map Literal [VStr "b", vnum 4])
         , Call "." (map Literal
-            [VSymbol "sym", VControlRef (LiteralControl "sig")])
+            [VStr "sym", VControlRef (LiteralControl "sig")])
         ]
 
     -- A toplevel symbol can have anything except =.
@@ -57,7 +57,7 @@ test_parse_expr = do
 
     -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
-        Right [Call "a" [val_call "b" [], Literal (VSymbol "c")]]
+        Right [Call "a" [val_call "b" [], Literal (VStr "c")]]
     equal (f "a (()") $
         Right [Call "a" [val_call "(" []]]
     -- Unbalanced parens.
@@ -66,16 +66,15 @@ test_parse_expr = do
     equal (f "") $ Right [Call "" []]
     equal (f "--") $ Right [Call "" []]
     equal (f "  a -- comment") $ Right [Call "a" []]
-    equal (f "a 'b -- c'--d") $ Right
-        [Call "a" [Literal (VSymbol (Symbol "b -- c"))]]
+    equal (f "a 'b -- c'--d") $ Right [Call "a" [Literal (VStr "b -- c")]]
 
     equal (f "a;b") $ Right
-        [Call "a" [Literal VSeparator, Literal (VSymbol "b")]]
+        [Call "a" [Literal VSeparator, Literal (VStr "b")]]
 
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
         call = BaseTypes.Call
-        vsym = Literal . BaseTypes.VSymbol
+        vsym = Literal . BaseTypes.VStr
         null_call = BaseTypes.Call "" []
     equal (f "!<>\"('|") $ Right
         [call Parse.unparsed_call [vsym "<>\"('"], null_call]
@@ -103,13 +102,13 @@ invertible_vals =
     , ("+a", attrs ["a"])
     , ("+a+b", attrs ["a", "b"])
 
-    , ("sym", sym "sym")
-    , ("-sym", sym "-sym")
-    , ("-", sym "-")
-    , ("'space sym'", sym "space sym")
-    , ("'23'", sym "23")
-    , ("'quinn''s hat'", sym "quinn's hat")
-    , ("s!$_", sym "s!$_")
+    , ("sym", str "sym")
+    , ("-sym", str "-sym")
+    , ("-", str "-")
+    , ("'space sym'", str "space sym")
+    , ("'23'", str "23")
+    , ("'quinn''s hat'", str "quinn's hat")
+    , ("s!$_", str "s!$_")
     , ("'bad string", Nothing)
 
     , ("%", Just $ VControlRef $ LiteralControl "")
@@ -126,7 +125,7 @@ invertible_vals =
     , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
     , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
-        Call (Expr.CallId "a") [Literal (VSymbol (Symbol "b"))] :| [])
+        Call (Expr.CallId "a") [Literal (VStr "b")] :| [])
     , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
         Call (Expr.CallId "") [] :| [])
     , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
@@ -138,7 +137,7 @@ invertible_vals =
     ]
     where
     attrs = Just . VAttributes . Attrs.attrs
-    sym = Just . VSymbol
+    str = Just . VStr
 
 -- | Vals whose 'ShowVal.show_val' doesn't reproduce the parsed val.
 noninvertible_vals :: [(Text, Maybe Val)]
@@ -170,8 +169,8 @@ test_parse_val = do
 
 test_parse_control_title = do
     let f = Parse.parse_control_title
-    equal (f "*") $ Right ([VSymbol (Symbol "*")], [])
-    equal (f "*a") $ Right ([VSymbol (Symbol "*a")], [])
+    equal (f "*") $ Right ([VStr "*"], [])
+    equal (f "*a") $ Right ([VStr "*a"], [])
 
 test_parse_num = do
     let f = Parse.parse_num
@@ -181,21 +180,21 @@ test_parse_num = do
     left_like (f "`0x`000") "parse error"
 
 test_p_equal = do
-    let eq a b = Right (Call "=" [Literal (VSymbol a), b])
+    let eq a b = Right (Call "=" [Literal (VStr a), b])
         num = Literal . VNum . Score.untyped
     let f = ParseText.parse Parse.p_equal
-    equal (f "a = b") (eq "a" (Literal (VSymbol "b")))
-    equal (f "a=b") (eq "a" (Literal (VSymbol "b")))
+    equal (f "a = b") (eq "a" (Literal (VStr "b")))
+    equal (f "a=b") (eq "a" (Literal (VStr "b")))
     equal (f "a = 10") (eq "a" (num 10))
-    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (VSymbol "c")]))
+    equal (f "a = (b c)") (eq "a" (val_call "b" [Literal (VStr "c")]))
     equal (f "a] = 1") (eq "a]" (num 1))
     equal (f "a) = 1") (eq "a)" (num 1))
     equal (f ">a = 1") (eq ">a" (num 1))
     -- Quotes let you put '=' in the assignee.
     equal (f "'=>' = 1") (eq "=>" (num 1))
-    equal (f ".-i = t") (eq ".-i" (Literal (VSymbol "t")))
+    equal (f ".-i = t") (eq ".-i" (Literal (VStr "t")))
 
-    let eq_syms = Call "=" . map (Literal . VSymbol)
+    let eq_syms = Call "=" . map (Literal . VStr)
     equal (f "a = b c") $ Right (eq_syms ["a", "b", "c"])
     equal (f "i=+a") $ Right (eq_syms ["i", "a", "+"])
     equal (f "i =< a b") $ Right (eq_syms ["i", "a", "b", "<"])

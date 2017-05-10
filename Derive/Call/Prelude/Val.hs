@@ -3,10 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Val where
+import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -20,12 +23,14 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
@@ -177,22 +182,21 @@ c_hz = val_call "hz" mempty
         Right (Right nn) ->
             return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
-get_name_nn :: BaseTypes.Symbol -> Derive.Deriver Pitch.NoteNumber
-get_name_nn (BaseTypes.Symbol name) =
-    Derive.require ("unknown pitch: " <> showt name) $ name_to_nn (untxt name)
+get_name_nn :: Expr.Str -> Derive.Deriver Pitch.NoteNumber
+get_name_nn name =
+    Derive.require ("unknown pitch: " <> ShowVal.show_val name) $
+        name_to_nn (Expr.unstr name)
 
 -- | c-1 is 0, g9 is 127.
-name_to_nn :: String -> Maybe Pitch.NoteNumber
-name_to_nn (pc : name) =
-    make <$> Map.lookup pc pcs <*> return (Map.findWithDefault 1 oct_s octaves)
+name_to_nn :: Text -> Maybe Pitch.NoteNumber
+name_to_nn = either (const Nothing) Just . ParseText.parse parse
     where
-    make pc oct = Pitch.NoteNumber $ fromIntegral $ pc + sharp + oct * 12
-    (sharp, oct_s) = case name of
-        's' : rest -> (1, rest)
-        _ -> (0, name)
-    octaves = Map.fromList $ zip (map show [-1 .. 9]) [0..]
+    parse = do
+        pc <- maybe mzero return . (`Map.lookup` pcs) =<< A.anyChar
+        sharp <- A.option 0 (A.char 's' >> return 1)
+        oct <- ParseText.p_int
+        return $ Pitch.nn $ pc + sharp + oct * 12
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
-name_to_nn _ = Nothing
 
 c_list :: Derive.ValCall
 c_list = val_call "list" mempty "Create a list." $

@@ -30,7 +30,6 @@
 -}
 module Derive.BaseTypes (
     module Derive.BaseTypes
-    , Symbol(..), unsym
     , CallId
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -48,7 +47,8 @@ import qualified Util.TimeVector as TimeVector
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
-import Derive.Expr (CallId(..), Symbol(..), unsym)
+import qualified Derive.Expr as Expr
+import Derive.Expr (CallId(..))
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
@@ -299,7 +299,7 @@ lookup :: Key -> Environ -> Maybe Val
 lookup name (Environ env) = Map.lookup name env
 
 -- | Symbols to look up a val in the 'ValMap'.
-type Key = Symbol
+type Key = Expr.Str
 
 -- | Call used by the infix @=@ syntax.
 c_equal :: CallId
@@ -345,17 +345,11 @@ data Val =
     -- Literal: @(pitch 4 0 1)@ -> 4c#.
     | VNotePitch !Pitch.Pitch
 
-    -- | A string, which is interpreted as a call if it's at the front of an
-    -- expression.  Parsing a symbol is somewhat complicated.  If it occurs
-    -- at the front of an expression, it can have anything in it except
-    -- spaces or parens: 'Derive.ParseBs.p_call_symbol'.  If it's in the
-    -- argument position, it can be surrounded with single quotes and contain
-    -- anything, and a single quote is encoded as two single quotes:
-    -- 'Derive.ParseBs.p_string'.  Or if it starts with a hyphen, letter, or
-    -- @*@, it doesn't need quotes at all: 'Derive.ParseBs.p_symbol'.
+    -- | A string.  There is an unquoted and a quoted form, parsed at
+    -- 'Derive.Parse.p_unquoted_str' and 'Derive.Parse.p_str'.
     --
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
-    | VSymbol !Symbol
+    | VStr !Expr.Str
 
     -- | A quoted expression.  Quoted calls are resolved by "Derive.Sig" when
     -- it typechecks arguments.  This way you can set an argument default to
@@ -394,7 +388,7 @@ vals_equal x y = case (x, y) of
     (VPControlRef _, VPControlRef _) -> Nothing
     (VPitch a, VPitch b) -> Just $ pitches_equal a b
     (VNotePitch a, VNotePitch b) -> Just $ a == b
-    (VSymbol a, VSymbol b) -> Just $ a == b
+    (VStr a, VStr b) -> Just $ a == b
     (VQuoted (Quoted a), VQuoted (Quoted b)) ->
         lists_equal calls_equal (NonEmpty.toList a) (NonEmpty.toList b)
     (VControlFunction _, VControlFunction _) -> Nothing
@@ -412,7 +406,7 @@ lists_equal eq = go
 
 -- | This instance is actually invalid due to showing VPitch, which has no
 -- literal, and for 'Val', showing 'PControlRef', which amounts to the same
--- thing.  I use this to treat any Val as a Symbol to re-evaluate it.  Being
+-- thing.  I use this to treat any Val as a Str to re-evaluate it.  Being
 -- invalid means that a VPitch or VPControlRef with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
 instance ShowVal.ShowVal Val where
@@ -423,7 +417,7 @@ instance ShowVal.ShowVal Val where
         VPControlRef control -> ShowVal.show_val control
         VPitch pitch -> ShowVal.show_val pitch
         VNotePitch pitch -> ShowVal.show_val pitch
-        VSymbol sym -> ShowVal.show_val sym
+        VStr str -> ShowVal.show_val str
         VQuoted quoted -> ShowVal.show_val quoted
         VControlFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
@@ -435,7 +429,7 @@ instance Pretty.Pretty Val where
 
 instance DeepSeq.NFData Val where
     rnf (VNum d) = DeepSeq.rnf d
-    rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
+    rnf (VStr s) = DeepSeq.rnf s
     rnf _ = ()
 
 newtype Quoted = Quoted Expr deriving (Show)
@@ -447,10 +441,10 @@ instance ShowVal.ShowVal Quoted where
     show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
 instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
 
--- | Show a symbol intended for call position.  Call position is special in
+-- | Show a str intended for call position.  Call position is special in
 -- that it can contain any character except space and equals without quoting.
 show_call_val :: Val -> Text
-show_call_val (VSymbol (Symbol sym)) = sym
+show_call_val (VStr (Expr.Str sym)) = sym
 show_call_val val = ShowVal.show_val val
 
 -- ** val utils
@@ -460,7 +454,7 @@ num :: Double -> Val
 num = VNum . ScoreTypes.untyped
 
 str :: Text -> Val
-str = VSymbol . Symbol
+str = VStr . Expr.Str
 
 score_time :: ScoreTime -> Val
 score_time = VNum . ScoreTypes.Typed ScoreTypes.Score . ScoreTime.to_double
@@ -475,7 +469,7 @@ transposition t = VNum $ case t of
     Pitch.Nn d -> ScoreTypes.Typed ScoreTypes.Nn d
 
 to_scale_id :: Val -> Maybe Pitch.ScaleId
-to_scale_id (VSymbol (Symbol a)) = Just (Pitch.ScaleId a)
+to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
 to_scale_id _ = Nothing
 
 quoted :: CallId -> [Val] -> Quoted
@@ -589,29 +583,21 @@ instance DeepSeq.NFData Term where
 
 -- *** call utils
 
-sym_to_scale_id :: Symbol -> Pitch.ScaleId
-sym_to_scale_id (Symbol s) = Pitch.ScaleId s
+str_to_scale_id :: Expr.Str -> Pitch.ScaleId
+str_to_scale_id = Pitch.ScaleId . Expr.unstr
 
-scale_id_to_sym :: Pitch.ScaleId -> Symbol
-scale_id_to_sym (Pitch.ScaleId s) = Symbol s
+scale_id_to_str :: Pitch.ScaleId -> Expr.Str
+scale_id_to_str (Pitch.ScaleId s) = Expr.Str s
 
 -- | Transform the Symbols in a Call.
-map_symbol :: (Symbol -> Symbol) -> Call -> Call
-map_symbol f = call
+map_str :: (Expr.Str -> Expr.Str) -> Call -> Call
+map_str f = call
     where
     call (Call call_id terms) = Call call_id (map term terms)
     term (ValCall c) = ValCall (call c)
-    term (Literal (VSymbol sym)) = Literal (VSymbol (f sym))
+    term (Literal (VStr str)) = Literal (VStr (f str))
     term (Literal lit) = Literal lit
 
--- map_call_id :: (CallId -> CallId) -> Expr -> Expr
--- map_call_id f = fmap call
---     where
---     call (Call sym terms) = Call (f sym) (map term terms)
---     term (ValCall c) = ValCall (call c)
---     term (Literal lit) = Literal lit
-
--- TODO only transform the first one, what about the rest?
 map_call_id :: (CallId -> CallId) -> Call -> Call
 map_call_id f (Call call args) = Call (f call) args
 

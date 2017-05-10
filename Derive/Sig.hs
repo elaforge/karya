@@ -105,6 +105,7 @@ import qualified Derive.Derive as Derive
 import Derive.Derive (EnvironDefault(..), ArgName, CallName)
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.ScoreTypes as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
@@ -552,11 +553,11 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.Both -> [unprefixed, prefixed]
     where
     prefixed = prefixed_environ call_name arg_name
-    unprefixed = BaseTypes.Symbol ((\(Derive.ArgName n) -> n) arg_name)
+    unprefixed = Expr.Str ((\(Derive.ArgName n) -> n) arg_name)
 
 prefixed_environ :: CallName -> ArgName -> Env.Key
 prefixed_environ (Derive.CallName call_name) (Derive.ArgName arg_name) =
-    BaseTypes.Symbol $ call_name <> "-" <> arg_name
+    Expr.Str $ call_name <> "-" <> arg_name
 
 
 -- * call

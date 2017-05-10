@@ -80,7 +80,7 @@ parse_control_vals vals = case vals of
     [scale -> Just scale_id] ->
         Right $ Pitch Nothing scale_id Score.default_pitch
     --  *twelve merge
-    [scale -> Just scale_id, BaseTypes.VSymbol merge] ->
+    [scale -> Just scale_id, BaseTypes.VStr merge] ->
         Right $ Pitch (Just (to_call_id merge)) scale_id Score.default_pitch
     --  *twelve # -> default pitch track in twelve
     --  *twelve #name -> named pitch track
@@ -88,11 +88,11 @@ parse_control_vals vals = case vals of
         Right $ Pitch Nothing scale_id cont
     --  *twelve #name merge
     [scale -> Just scale_id, pitch_control_of -> Just cont,
-            BaseTypes.VSymbol merge] ->
+            BaseTypes.VStr merge] ->
         Right $ Pitch (Just (to_call_id merge)) scale_id cont
     -- "tempo"
-    [BaseTypes.VSymbol (BaseTypes.Symbol "tempo")] -> Right $ Tempo Nothing
-    [BaseTypes.VSymbol (BaseTypes.Symbol "tempo"), BaseTypes.VSymbol sym] ->
+    [BaseTypes.VStr (Expr.Str "tempo")] -> Right $ Tempo Nothing
+    [BaseTypes.VStr (Expr.Str "tempo"), BaseTypes.VStr sym] ->
         Right $ Tempo (Just (to_call_id sym))
     -- control
     --
@@ -101,7 +101,7 @@ parse_control_vals vals = case vals of
     [control_of -> Just control] ->
         Control Nothing <$> parse_control_type control
     -- add control -> relative control
-    [BaseTypes.VSymbol merge, control_of -> Just control] ->
+    [BaseTypes.VStr merge, control_of -> Just control] ->
         Control (Just (to_call_id merge)) <$> parse_control_type control
     -- % -> default control
     -- It might be more regular to allow anything after %, but I'm a fan of
@@ -115,32 +115,30 @@ parse_control_vals vals = case vals of
         | control == Controls.null ->
             Right $ Control Nothing (Score.untyped Controls.null)
     -- add % -> relative default control
-    [BaseTypes.VSymbol merge, BaseTypes.VControlRef
+    [BaseTypes.VStr merge, BaseTypes.VControlRef
             (BaseTypes.LiteralControl control)] | control == Controls.null ->
         Right $ Control (Just (to_call_id merge)) (Score.untyped Controls.null)
     _ -> Left $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
         \ got: " <> Text.unwords (map ShowVal.show_val vals)
     where
-    scale (BaseTypes.VSymbol (BaseTypes.Symbol sym)) =
-        case Text.uncons sym of
-            Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
-            _ -> Nothing
+    scale (BaseTypes.VStr (Expr.Str str)) = case Text.uncons str of
+        Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
+        _ -> Nothing
     scale _ = Nothing
-    control_of :: BaseTypes.Val -> Maybe BaseTypes.Symbol
-    control_of (BaseTypes.VSymbol sym) = Just sym
+    control_of :: BaseTypes.Val -> Maybe Expr.Str
+    control_of (BaseTypes.VStr str) = Just str
     control_of _ = Nothing
     pitch_control_of :: BaseTypes.Val -> Maybe Score.PControl
     pitch_control_of (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) =
         Just c
     pitch_control_of _ = Nothing
 
-to_call_id :: Expr.Symbol -> Expr.CallId
-to_call_id = Expr.CallId . Expr.unsym
+to_call_id :: Expr.Str -> Expr.CallId
+to_call_id = Expr.CallId . Expr.unstr
 
-parse_control_type :: BaseTypes.Symbol
-    -> Either Text (Score.Typed Score.Control)
-parse_control_type (BaseTypes.Symbol name) = case Text.uncons post of
+parse_control_type :: Expr.Str -> Either Text (Score.Typed Score.Control)
+parse_control_type (Expr.Str name) = case Text.uncons post of
     Just (':', t) -> do
         control <- Score.control pre
         typ <- justErr ("unknown type on control track: " <> showt t) $
@@ -165,19 +163,19 @@ unparse_control = Text.unwords . map ShowVal.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [BaseTypes.Val]
 unparse_control_vals ctype = case ctype of
-    Control merge control -> maybe_sym merge ++ [control_val control]
+    Control merge control -> maybe_str merge ++ [control_val control]
     Pitch merge (Pitch.ScaleId scale_id) pcontrol -> concat
-        [ [BaseTypes.VSymbol (BaseTypes.Symbol (Text.cons '*' scale_id))]
+        [ [BaseTypes.VStr (Expr.Str (Text.cons '*' scale_id))]
         , if pcontrol == Score.default_pitch then []
             else [BaseTypes.VPControlRef $ BaseTypes.LiteralControl pcontrol]
-        , maybe_sym merge
+        , maybe_str merge
         ]
-    Tempo sym -> BaseTypes.VSymbol "tempo" : maybe_sym sym
+    Tempo str -> BaseTypes.VStr "tempo" : maybe_str str
     where
-    maybe_sym = maybe [] ((:[]) . BaseTypes.VSymbol . Expr.Symbol . Expr.uncall)
+    maybe_str = maybe [] ((:[]) . BaseTypes.VStr . Expr.Str . Expr.uncall)
     control_val c
         | c == Score.untyped Controls.null = empty_control
-        | otherwise = BaseTypes.VSymbol $ BaseTypes.Symbol (unparse_typed c)
+        | otherwise = BaseTypes.VStr $ Expr.Str (unparse_typed c)
     empty_control = BaseTypes.VControlRef $
         BaseTypes.LiteralControl Controls.null
 

@@ -115,9 +115,9 @@ rename_environ from to deriver = do
 environ_from_to :: Env.Environ
     -> Either BaseTypes.PitchError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
-    from <- Scales.read_environ (Just . BaseTypes.sym_to_scale_id) Nothing
+    from <- Scales.read_environ (Just . BaseTypes.str_to_scale_id) Nothing
         scale_from env
-    to <- Scales.read_environ (Just . BaseTypes.sym_to_scale_id) (Just from)
+    to <- Scales.read_environ (Just . BaseTypes.str_to_scale_id) (Just from)
         scale_to env
     return (from, to)
 

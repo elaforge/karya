@@ -80,15 +80,15 @@ hardcoded_types :: Map Key ValType.Type
 hardcoded_types = Map.fromList
     [ (EnvKey.attributes,  ValType.TAttributes)
     , (EnvKey.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)
-    , (EnvKey.control,     ValType.TSymbol Nothing)
-    , (EnvKey.instrument,  ValType.TSymbol Nothing)
-    , (EnvKey.key,         ValType.TSymbol Nothing)
-    , (EnvKey.merge,       ValType.TSymbol Nothing)
-    , (EnvKey.scale,       ValType.TSymbol Nothing)
+    , (EnvKey.control,     ValType.TStr Nothing)
+    , (EnvKey.instrument,  ValType.TStr Nothing)
+    , (EnvKey.key,         ValType.TStr Nothing)
+    , (EnvKey.merge,       ValType.TStr Nothing)
+    , (EnvKey.scale,       ValType.TStr Nothing)
     , (EnvKey.seed,        ValType.TNum ValType.TUntyped ValType.TAny)
     , (EnvKey.srate,       ValType.TNum ValType.TUntyped ValType.TAny)
     , (EnvKey.suppress_until, ValType.TNum ValType.TRealTime ValType.TAny)
-    , (EnvKey.tuning,      ValType.TSymbol Nothing)
+    , (EnvKey.tuning,      ValType.TStr Nothing)
     , (EnvKey.voice,       ValType.TNum ValType.TUntyped ValType.TAny)
     ]
 

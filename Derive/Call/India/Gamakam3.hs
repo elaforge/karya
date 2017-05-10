@@ -37,6 +37,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -686,7 +687,7 @@ pc_flat = PCall Sig.no_args $ \() ctx -> do
 pc_relative :: Bool -> PCall
 pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
     $ \arg ctx -> case arg of
-        Left (BaseTypes.Symbol sym)
+        Left (Expr.Str sym)
             | sym == "-" -> do
                 (start, end) <- ctx_range ctx
                 pitch <- get_from
@@ -758,10 +759,10 @@ pc_set_pitch_relative from_current = PCall (Sig.required "to" "To pitch.") $
                 else get_from
         return mempty
 
-parse_transpose :: Either Pitch.Transpose BaseTypes.Symbol
+parse_transpose :: Either Pitch.Transpose Expr.Str
     -> Derive.Deriver Pitch.Transpose
 parse_transpose (Left t) = return t
-parse_transpose (Right (BaseTypes.Symbol sym)) = case untxt sym of
+parse_transpose (Right (Expr.Str sym)) = case untxt sym of
     [c] | 'a' <= c && c <= 'z' -> return $ Pitch.Diatonic $ fromIntegral $
         fromEnum 'a' - fromEnum c - 1
     _ -> Derive.throw $ "expected a lowercase letter: " <> showt sym

@@ -4,7 +4,6 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.ShowVal where
-import qualified Data.Char as Char
 import qualified Data.Text as Text
 import qualified Numeric
 
@@ -63,21 +62,21 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 instance ShowVal Bool where
     show_val b = if b then "t" else "f"
 
+-- | This should be the inverse of 'Derive.Parse.p_str' and
+-- 'Derive.Parse.p_unquoted_str'.
 instance ShowVal Text where
-    -- TODO This is actually kind of error prone.  The problem is that symbols
-    -- at the beginning of an expression are parsed as-is and cannot have
-    -- quotes.  Only ones as arguments need quotes.  Symbols are rarely
-    -- arguments, but strings frequently are.  Maybe I should go back to
-    -- separate types for symbols and strings?
     show_val s
-        | parseable = s
+        | bare = s
         | otherwise = "'" <> Text.concatMap quote s <> "'"
         where
-        -- This should be the same as ParseBs.p_symbol.  I can't use it
-        -- directly because that would be a circular import.
-        parseable = case Text.uncons s of
-            Just (c, cs) -> (Char.isAlpha c || c == '-' || c == '*')
-                && Text.all (\c -> c /= ' ' && c /= ')' && c /= '=') cs
+        bare = case Text.uncons s of
+            Just (c, cs) -> is_unquoted_head c && Text.all is_unquoted_body cs
             Nothing -> False
         quote '\'' = "''"
         quote c = Text.singleton c
+
+is_unquoted_head :: Char -> Bool
+is_unquoted_head c = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-'
+
+is_unquoted_body :: Char -> Bool
+is_unquoted_body c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='

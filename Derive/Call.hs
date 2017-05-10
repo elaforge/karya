@@ -270,7 +270,7 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = BaseTypes.sym_to_scale_id <$> Derive.get_val EnvKey.scale
+get_scale_id = BaseTypes.str_to_scale_id <$> Derive.get_val EnvKey.scale
 
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
 lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
