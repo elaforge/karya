@@ -7,10 +7,11 @@
 -- | Realize an abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Reyong where
 import qualified Util.Pretty as Pretty
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Expr as Expr
+import qualified Derive.Symbols as Symbols
 
 import Global
 
@@ -37,8 +38,8 @@ instance Pretty.Pretty Stroke where
         CekC -> "k"
         CekO -> "x"
 
-instance Expr.ToCall Stroke where
-    to_call s = case s of
+instance Expr.ToExpr Stroke where
+    to_expr s = case s of
         N1 -> "n1"
         N2 -> "n2"
         N3 -> "n3"
@@ -49,13 +50,11 @@ instance Expr.ToCall Stroke where
         CekC -> "X"
         CekO -> "/"
 
-instance Expr.ToCall (Realize.Stroke Stroke) where
-    to_call (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_call stroke
-        Realize.Light ->
-            Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
-        Realize.Heavy ->
-            Expr.Symbol $ "v |" <> Expr.unsym (Expr.to_call stroke)
+instance Expr.ToExpr (Realize.Stroke Stroke) where
+    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.to_expr stroke
+        Realize.Light -> Expr.with Symbols.weak stroke
+        Realize.Heavy -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a

@@ -101,16 +101,6 @@ test_pattern = do
     equal (run [(0, 5, "dur=1 | p _")]) (zip (Seq.range_ 0 1) ktkno, [])
     equal (run [(0, 6, "dur=1 | p _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
 
-test_infer_pattern = do
-    let run title = DeriveTest.extract extract . derive_tracks title
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run " | sequence = \"(infer _ 1)" [(1, 5, "seq (infer _ 1)")])
-        (zip [1, 2, 3, 4, 5] ktkno, [])
-    equal (run " | sequence = \"(infer _ 1)" [(1, 6, "seq")])
-        (zip [1, 2, 4, 5, 6] ktkno, [])
-    equal (run " | sequence = \"(infer _ 1)" [(1, 7, "seq")])
-        (zip [1, 3, 5, 6, 7] ktkno, [])
-
 ktkno :: [String]
 ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
 

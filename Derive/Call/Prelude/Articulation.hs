@@ -35,6 +35,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
+import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -46,13 +47,13 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Make.call_maps
     [ ("o", Make.attributed_note Module.prelude Attrs.harm)
-    , (mute_call, Make.attributed_note Module.prelude Attrs.mute)
+    , (Symbols.mute, Make.attributed_note Module.prelude Attrs.mute)
     , (".", Make.attributed_note Module.prelude Attrs.staccato)
     , ("{", Make.attributed_note Module.prelude Attrs.porta)
     -- I'd use '>', but then it overrides the empty instrument call in note
     -- tracks.  Besides, this way it has a nice symmetry with '^'.
-    , ("v", c_accent)
-    , ("^", c_weak)
+    , (Symbols.accent, c_accent)
+    , (Symbols.weak, c_weak)
 
     , ("-", c_shorten_lengthen True)
     , ("+", c_shorten_lengthen False)
@@ -68,9 +69,6 @@ note_calls = Make.call_maps
         , ("sus", c_sustain)
         ]
     <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
-
-mute_call :: Expr.Symbol
-mute_call = "m"
 
 -- * lookp attr
 

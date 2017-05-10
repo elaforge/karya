@@ -66,9 +66,10 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Expr as Expr
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Tala as Tala
-import qualified Derive.Expr as Expr
 
 import Global
 
@@ -131,9 +132,10 @@ instance Pretty.Pretty Pattern where
     pretty (PatternM matras) = "p" <> showt matras
     pretty Nakatiku = "4n"
 
-instance Expr.ToCall Pattern where
-    to_call (PatternM matras) = Expr.Symbol $ "p " <> showt matras
-    to_call Nakatiku = "na"
+instance Expr.ToExpr Pattern where
+    to_expr (PatternM matras) =
+        Expr.generator (Expr.call "p" [ShowVal.show_val matras])
+    to_expr Nakatiku = "na"
 
 -- | If it's a karvai stroke, and it's followed by a rest, it will replace the
 -- rest.  Otherwise, it will be replaced by a note.

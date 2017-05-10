@@ -7,10 +7,11 @@
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.KendangTunggal where
 import qualified Util.Pretty as Pretty
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Expr as Expr
+import qualified Derive.Symbols as Symbols
 
 import Global
 
@@ -50,8 +51,8 @@ instance Pretty.Pretty Stroke where
         De -> "a"
 
 -- | TODO should I make these consistent with 'Strokes'?
-instance Expr.ToCall Stroke where
-    to_call s = case s of
+instance Expr.ToExpr Stroke where
+    to_expr s = case s of
         Plak -> "PL"
         Pak -> "P"
         Pang -> "T"
@@ -62,17 +63,16 @@ instance Expr.ToCall Stroke where
         De -> "+"
 
 -- TODO unify with Local.Instrument.Kontakt.KendangBali.Stroke
-instance Expr.ToCall (Realize.Stroke Stroke) where
-    to_call (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_call stroke
+instance Expr.ToExpr (Realize.Stroke Stroke) where
+    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.to_expr stroke
         Realize.Light -> case stroke of
             Pak -> "^"
             TutL -> "ø"
             Ka -> "."
             De -> "-"
-            _ -> Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
-        Realize.Heavy ->
-            Expr.Symbol $ "v |" <> Expr.unsym (Expr.to_call stroke)
+            _ -> Expr.with Symbols.weak stroke
+        Realize.Heavy -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a

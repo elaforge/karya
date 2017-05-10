@@ -29,6 +29,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
@@ -172,12 +173,12 @@ modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
         Expr.Call sym (Expr.ValCall _ : _) :| []
-            | sym /= BaseTypes.c_equal ->
+            | sym /= Symbols.equal ->
                 let (pre, within) = Text.break (=='(') text
                     (note, post) = break1 (==')') within
                 in (\n -> pre <> n <> post) <$> f note
         Expr.Call sym _ :| []
-            | sym /= BaseTypes.c_equal ->
+            | sym /= Symbols.equal ->
                 let (pre, post) = Text.break (==' ') text
                 in (<>post) <$> f pre
         _ -> Right text

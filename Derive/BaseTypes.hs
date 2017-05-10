@@ -295,10 +295,6 @@ lookup name (Environ env) = Map.lookup name env
 -- | Symbols to look up a val in the 'ValMap'.
 type Key = Expr.Str
 
--- | Call used by the infix @=@ syntax.
-c_equal :: Expr.Symbol
-c_equal = "="
-
 -- ** Val
 
 -- | This is the type of first class values in the tracklang.  It's main

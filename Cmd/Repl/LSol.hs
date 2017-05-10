@@ -18,6 +18,7 @@ import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.Expr as Expr
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Score
@@ -38,7 +39,7 @@ insert_r = insert Korvai.reyong
 
 -- | Insert the korvai at the selection.
 insert ::
-    (Expr.ToCall (Realize.Stroke stroke), Pretty.Pretty stroke, Cmd.M m) =>
+    (Expr.ToExpr (Realize.Stroke stroke), Pretty.Pretty stroke, Cmd.M m) =>
     Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert instrument realize_patterns akshara_dur korvai = do
     (_, _, track_id, at) <- Selection.get_insert
@@ -50,7 +51,7 @@ insert instrument realize_patterns akshara_dur korvai = do
     Ui.insert_events track_id events
 
 realize_korvai ::
-    (Expr.ToCall (Realize.Stroke stroke), Pretty.Pretty stroke, Ui.M m) =>
+    (Expr.ToExpr (Realize.Stroke stroke), Pretty.Pretty stroke, Ui.M m) =>
     Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai
     -> m Events.Events
 realize_korvai instrument realize_patterns korvai = do
@@ -59,17 +60,17 @@ realize_korvai instrument realize_patterns korvai = do
     unless (Text.null warning) $ Ui.throw warning
     return $ Events.from_list $ strokes_to_events strokes
 
-strokes_to_events :: Expr.ToCall (Realize.Stroke a) =>
+strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
     [(Sequence.Tempo, Realize.Note a)] -> [Event.Event]
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
-        (Expr.unsym call)
-    | (start, dur, Just (call, has_dur)) <- zip3 starts durs (map to_call notes)
+        (ShowVal.show_val expr)
+    | (start, dur, Just (expr, has_dur)) <- zip3 starts durs (map to_expr notes)
     ]
     where
     starts = scanl (+) 0 durs
     (durs, notes) = unzip $ Realize.tempo_to_duration strokes
-    to_call s = case s of
-        Realize.Note stroke -> Just (Expr.to_call stroke, False)
-        Realize.Pattern p -> Just (Expr.to_call p, True)
+    to_expr s = case s of
+        Realize.Note stroke -> Just (Expr.to_expr stroke, False)
+        Realize.Pattern p -> Just (Expr.to_expr p, True)
         Realize.Rest -> Nothing

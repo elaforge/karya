@@ -6,7 +6,7 @@
 -- | Tracklang parsers.  Many of the parsers in here should be inverses of
 -- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
-    parse_expr, parse_control_title
+    parse_expr, parse_expr_text, parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
     , unparsed_call
@@ -48,6 +48,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Signal as Signal
 import Global
@@ -55,6 +56,13 @@ import Global
 
 parse_expr :: Text -> Either Text BaseTypes.Expr
 parse_expr = parse (p_expr True)
+
+parse_expr_text :: Expr.Expr Text -> Either Text BaseTypes.Expr
+parse_expr_text = traverse call
+    where
+    call (Expr.Call sym terms) = Expr.Call <$> pure sym <*> traverse term terms
+    term (Expr.Literal val) = Expr.Literal <$> parse_val val
+    term (Expr.ValCall c) = Expr.ValCall <$> call c
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
@@ -221,7 +229,7 @@ p_equal = do
         <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
     rhs <- A.many1 p_term
-    return $ Expr.Call BaseTypes.c_equal $
+    return $ Expr.Call Symbols.equal $
         to_str lhs : rhs ++ maybe [] (:[]) (to_str <$> sym)
     where
     to_str = Expr.Literal . BaseTypes.VStr . Expr.Str

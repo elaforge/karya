@@ -1864,7 +1864,7 @@ Derive:
           * Rename CallId to Symbol.
           * Update references from BaseTypes.CallId to Expr.CallId
           * Use generic Expr from Derive.Expr.
-          - Use Expr.ToExpr instead of ToCall.
+          * Use Expr.ToExpr instead of ToCall.
             . ToExpr should actually take Attributes -> a -> Expr.
             . Then I'd want some general purpose fallback for e.g.
               soft -> "^ |", loud -> "v |" if the stroke doesn't have more

@@ -6,7 +6,7 @@
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply
-    eval_toplevel, eval_quoted, eval_quoted_normalized
+    eval_toplevel, eval_quoted, eval_quoted_normalized, eval_expr_text
     -- ** generator
     , apply_generator
     -- ** transformer
@@ -81,6 +81,13 @@ normalize_event ctx = ctx
     , Derive.ctx_prev_events = []
     , Derive.ctx_next_events = []
     }
+
+eval_expr_text :: Derive.Callable d => Derive.Context d -> Expr.Expr Text
+    -> Derive.Deriver (Stream.Stream d)
+eval_expr_text ctx expr = do
+    expr <- Derive.require_right (("parsing " <> ShowVal.show_val expr)<>) $
+        Parse.parse_expr_text expr
+    eval_toplevel ctx expr
 
 -- ** generator
 

@@ -17,7 +17,6 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
-import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
@@ -26,6 +25,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -51,11 +51,11 @@ pasang_thru _attrs input = do
             InputNote.multiply_note_id 1 input
 
 zero_dur_mute :: MidiInst.Code
-zero_dur_mute = zero_dur_reapply Articulation.mute_call
+zero_dur_mute = zero_dur_reapply Symbols.mute
     zero_dur_mute_doc (Note.default_note Note.use_attributes)
 
 gangsa_note :: Maybe Scale.Range -> MidiInst.Code
-gangsa_note maybe_range = zero_dur_reapply Articulation.mute_call
+gangsa_note maybe_range = zero_dur_reapply Symbols.mute
     (zero_dur_mute_doc <> doc maybe_range)
     $ \args -> maybe id (\top -> wrap top (Args.start args)) maybe_range $
         Note.default_note Note.use_attributes args

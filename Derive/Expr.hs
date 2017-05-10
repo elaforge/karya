@@ -32,8 +32,14 @@ data Call val = Call Symbol [Term val]
 data Term val = ValCall (Call val) | Literal val
     deriving (Show, Read, Eq, Functor)
 
+instance String.IsString (Call val) where
+    fromString = call0 . String.fromString
+instance String.IsString (Expr val) where
+    fromString = generator0 . String.fromString
+
 instance ShowVal.ShowVal val => ShowVal.ShowVal (Expr val) where
-    show_val = Text.intercalate " | " . map ShowVal.show_val . NonEmpty.toList
+    show_val = Text.strip . Text.intercalate " | " . map ShowVal.show_val
+        . NonEmpty.toList
 
 instance ShowVal.ShowVal val => ShowVal.ShowVal (Call val) where
     show_val (Call (Symbol sym) terms) =
@@ -89,6 +95,16 @@ call0 sym = Call sym []
 val_call :: Symbol -> [a] -> Term a
 val_call sym args = ValCall (call sym args)
 
+transform :: Call a -> Expr a -> Expr a
+transform call (hd :| tl) = call :| (hd : tl)
+
+transform0 :: Symbol -> Expr a -> Expr a
+transform0 = transform . call0
+
+-- | Shortcut to transform an Expr.
+with :: ToExpr a => Symbol -> a -> Expr Text
+with sym = transform0 sym . to_expr
+
 -- ** transform
 
 str_to_scale_id :: Str -> Pitch.ScaleId
@@ -117,9 +133,6 @@ map_generator f (call1 :| calls) = case calls of
 -- calls.
 class ToExpr a where
     to_expr :: a -> Expr Text
-
-class ToCall a where
-    to_call :: a -> Symbol
 
 -- * Str
 

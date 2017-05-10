@@ -54,11 +54,6 @@ note_calls = Derive.generator_call_map
     where
     p = pure . parse_sequence
 
-val_calls :: [Derive.LookupCall Derive.ValCall]
-val_calls = Derive.call_map
-    [ ("infer", c_infer_pattern)
-    ]
-
 module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
@@ -131,7 +126,10 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
     <$> (fmap Typecheck.positive
         <$> Sig.required "n" "Number of strokes. If not given, and dur > 0,\
             \ then infer the number of strokes as the event_duration / dur.")
-    <*> variation_arg <*> dur_arg
+    <*> Sig.defaulted_env "var" Sig.Both default_variation
+        ("Variation name. Possibilities are: "
+            <> Doc.commas (map Doc.literal (Map.keys variations)))
+    <*> dur_arg
     ) $ \(maybe_strokes, variation, dur) -> Sub.inverting $ \args -> do
         strokes <- maybe (infer_strokes dur (Args.duration args)) return
             maybe_strokes
@@ -140,25 +138,45 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
             map (second (realize_mstroke (Args.context args))) notes
         m_sequence notes dur (Args.range args) (Args.orientation args)
 
+infer_pattern :: Sequence.Matra -> Text
+    -> Either Text [(Sequence.Duration, Realize.Note Mridangam.Stroke)]
+infer_pattern dur variation = do
+    patterns <- justErr ("unknown variation " <> showt variation) $
+        Map.lookup variation variations
+    notes <- justErr
+        ("variation " <> showt variation <> " doesn't have duration: "
+            <> showt dur)
+        (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
+    -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
+    -- duration in matras.
+    return $ map (first (*4)) $ Realize.tempo_to_duration $
+        Sequence.flatten notes
+
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver
-realize_mstroke ctx = fmap realize . stroke_call
-    where
-    realize sym = do
-        call <- Eval.get_generator sym
-        Eval.apply_generator ctx call []
+realize_mstroke ctx = fmap (Eval.eval_expr_text ctx) . stroke_expr
 
-stroke_call :: Realize.Note Mridangam.Stroke -> Maybe Expr.Symbol
-stroke_call stroke = case stroke of
-    Realize.Note stroke -> Just $ Expr.to_call stroke
+stroke_expr :: Realize.Note Mridangam.Stroke -> Maybe (Expr.Expr Text)
+stroke_expr stroke = case stroke of
+    Realize.Note stroke -> Just $ Expr.to_expr stroke
     Realize.Rest -> Nothing
-    Realize.Pattern p -> Just $ Expr.to_call p
+    Realize.Pattern p -> Just $ Expr.to_expr p
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur
     | dur > 0 = return $ floor (event_dur / dur)
     | otherwise = Derive.throw "can't infer both number of strokes and\
         \ duration of strokes simultaneously"
+
+default_variation :: Text
+default_variation = "d"
+
+variations :: Map Text Mridangam.Patterns
+variations = Map.fromList $
+    [ (default_variation, Mridangam.default_patterns)
+    , ("kt_kn_o", Mridangam.kt_kn_o)
+    ] ++
+    [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]
 
 -- * c_tirmanam
 
@@ -253,52 +271,3 @@ stretch_karvai sequence karvai matra_dur event_dur = if
         [s] | s /= Rest -> True
         _ -> False
     to_dur = (*matra_dur) . fromIntegral
-
-
--- * c_infer_pattern
-
-c_infer_pattern :: Derive.ValCall
-c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
-    "Pick a pattern based on the event duration."
-    $ Sig.call ((,) <$> variation_arg <*> dur_arg) $
-    \(variation, dur) args -> do
-        let notes = round $ Args.duration args / dur
-        Derive.require_right id $
-            to_pattern . map snd =<< infer_pattern notes variation
-
-variation_arg :: Sig.Parser Text
-variation_arg = Sig.defaulted_env "var" Sig.Both default_variation
-    ("Variation name. Possibilities are: "
-        <> Doc.commas (map Doc.literal (Map.keys variations)))
-
-to_pattern :: [Realize.Note Mridangam.Stroke] -> Either Text Text
-to_pattern = fmap mconcat . traverse convert
-    where
-    convert (Realize.Note stroke) = Right $ Expr.unsym $ Expr.to_call stroke
-    convert Realize.Rest = Right "_"
-    convert (Realize.Pattern matras) = Left $
-        "pattern with another p" <> showt matras <> " can't go in a string"
-
-infer_pattern :: Sequence.Matra -> Text
-    -> Either Text [(Sequence.Duration, Realize.Note Mridangam.Stroke)]
-infer_pattern dur variation = do
-    patterns <- justErr ("unknown variation " <> showt variation) $
-        Map.lookup variation variations
-    notes <- justErr
-        ("variation " <> showt variation <> " doesn't have duration: "
-            <> showt dur)
-        (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
-    -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
-    -- duration in matras.
-    return $ map (first (*4)) $ Realize.tempo_to_duration $
-        Sequence.flatten notes
-
-default_variation :: Text
-default_variation = "d"
-
-variations :: Map Text Mridangam.Patterns
-variations = Map.fromList $
-    [ (default_variation, Mridangam.default_patterns)
-    , ("kt_kn_o", Mridangam.kt_kn_o)
-    ] ++
-    [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]

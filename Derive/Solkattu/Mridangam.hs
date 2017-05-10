@@ -14,6 +14,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Symbols as Symbols
 
 import Global
 
@@ -86,8 +87,8 @@ instance Pretty.Pretty Valantalai where
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
 -- the keyword @do@.  It would be nice if I could make the tracklang syntax
 -- consistent, but maybe not a huge deal at the moment.
-instance Expr.ToCall Stroke where
-    to_call s = Expr.Symbol $ case s of
+instance Expr.ToExpr Stroke where
+    to_expr s = Expr.generator0 $ Expr.Symbol $ case s of
         Thoppi t -> thoppi t
         Valantalai v -> pretty v
         Both t v -> pretty v <> thoppi t
@@ -96,19 +97,13 @@ instance Expr.ToCall Stroke where
             Thom -> "o"
             Tha -> "+"
 
-instance Expr.ToCall (Realize.Stroke Stroke) where
-    to_call (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
-        (Realize.Normal, _) -> Expr.to_call stroke
+instance Expr.ToExpr (Realize.Stroke Stroke) where
+    to_expr (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
+        (Realize.Normal, _) -> Expr.to_expr stroke
         (Realize.Light, Thoppi Thom) -> "."
         (Realize.Light, Thoppi Tha) -> "-"
-        -- TODO this is broken because a Symbol is not an Expr, but will work
-        -- anyway for LSol because it just puts the text in the event.  To
-        -- make it work in general, I need to either abandon pretense of making
-        -- a Symbol and make a Text expr, or make a ToExpr class.
-        (Realize.Light, _) ->
-            Expr.Symbol $ "^ |" <> Expr.unsym (Expr.to_call stroke)
-        (Realize.Heavy, _) ->
-            Expr.Symbol $ "v | " <> Expr.unsym (Expr.to_call stroke)
+        (Realize.Light, _) -> Expr.with Symbols.weak stroke
+        (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a
