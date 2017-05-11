@@ -232,6 +232,41 @@ c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
         , (ta.ka.na.ka, [k, p, n, p])
         ]
 
+c_17_05_10 :: Korvai
+c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
+    map (\n -> ta.__n n) [4, 3, 2, 1] `append` (ta.__.ki.ta.takadinna.dinga)
+        . ta.__.ki.ta.takadinna.dinga
+    .  map (\n -> ta.__n n) [3, 2, 1] `append` (takadinna.dinga)
+        . reduceTo 1 3 (takadinna.dinga)
+    . tri (spread 4 tdgnt . tdgnt)
+
+    -- TODO an alternate way to this is a reduceTo that makes a list,
+    -- then zipWith a replacePrefix, e.g.:
+    -- reduceTo 1 3 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
+    --     [ ø, ta.__3, ta.__2, ta.__1, ø
+    --     , ø, ta.__3 , ta.__
+    --     ]
+    -- This is less code, but maybe not very obvious?
+    -- ta.__4 . ta.__.ki.ta.takadinna.dinga
+    -- ta.__3 . ta.__.ki.ta.takadinna.dinga
+    -- ta.__2 . ta.__.ki.ta.takadinna.dinga
+    --     ta . ta.__.ki.ta.takadinna.dinga
+    --          ta.__.ki.ta.takadinna.dinga
+    --             ta.__.__.takadinna.dinga
+    --                ta.__.takadinna.dinga
+    --                   ta.takadinna.dinga
+    where
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (ta, [k])
+        , (ki.ta, [t, k])
+        , (dinga, [od, __])
+        -- TODO these are only needed because realize doesn't understand
+        -- reduction.
+        , (ka.din.na, [o, o, k])
+        , (din.na, [o, k])
+        , (na, [k])
+        ]
+
 chatusrams :: [Korvai]
 chatusrams = concat
     [ c1s, [c2_yt1, c_13_10_29, c_16_09_28, c_17_02_06]
@@ -367,10 +402,10 @@ t_sarva1 =
 
 t1s :: [Korvai]
 t1s = map ganesh $ korvais adi mridangam $ map (nadai 6)
-    [ reduce (tat.__.dit.__.ta.ka.din.na.din.__.__)   . utarangam p5
-    , reduce (tat.__.dit.__.ta.ka.din.na.din.__)      . utarangam p6
-    , reduce (tat.__.dit.__.ta.ka.din.na.din!p)       . utarangam p7
-    , reduce (tat.__.dit.__.ta.ka.din.na)             . utarangam p8
+    [ reduce (tat.__.dit.__.takadinna.din.__.__)   . utarangam p5
+    , reduce (tat.__.dit.__.takadinna.din.__)      . utarangam p6
+    , reduce (tat.__.dit.__.takadinna.din!p)       . utarangam p7
+    , reduce (tat.__.dit.__.takadinna)             . utarangam p8
     , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
     ]
     where
@@ -379,7 +414,7 @@ t1s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
-        , (ta.ka.din.na, [k, o, o, k])
+        , (takadinna, [k, o, o, k])
         , (ta.ka.din, [k, o, o])
         , (din, [od])
         , (tang.ga, [u, __])
@@ -387,12 +422,12 @@ t1s = map ganesh $ korvais adi mridangam $ map (nadai 6)
 
 t2s :: [Korvai]
 t2s = map ganesh $ korvais adi mridangam $ map (nadai 6)
-    [ reduce (tat.__.dit.__.ta.ka.din.na.dheem.__5) . tri p5
-    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__4) . tri p6
-    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__3) . tri p7
-    , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__)  . tri (ta.din.__.p5)
-    , reduce (tat.__.dit.__.ta.ka.din.na.din!p)     . tri (ta.__.din.__.p5)
-    , reduce (tat.__.dit.__.ta.ka.din.na)           . tri (ta.ka.ta.din.__.p5)
+    [ reduce (tat.__.dit.__.takadinna.dheem.__5) . tri p5
+    , reduce (tat.__.dit.__.takadinna.dheem.__4) . tri p6
+    , reduce (tat.__.dit.__.takadinna.dheem.__3) . tri p7
+    , reduce (tat.__.dit.__.takadinna.dheem.__)  . tri (ta.din.__.p5)
+    , reduce (tat.__.dit.__.takadinna.din!p)     . tri (ta.__.din.__.p5)
+    , reduce (tat.__.dit.__.takadinna)           . tri (ta.ka.ta.din.__.p5)
     , reduce (tat.__.dit.__.ta.ka.din)             . tri (ta.ka.__.ta.din.__.p5)
 
     , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.dinga.p7)
@@ -407,7 +442,7 @@ t2s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
-        , (ta.ka.din.na, [k, o, o, k])
+        , (takadinna, [k, o, o, k])
         , (ta.ka.din, [k, o, o])
         , (tha, [p])
         , (ta.ka, [k, p])
@@ -419,9 +454,9 @@ t2s = map ganesh $ korvais adi mridangam $ map (nadai 6)
 
 t3s :: [Korvai]
 t3s = map ganesh $ korvais adi mridangam $ map (nadai 6)
-    [ reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
-    , reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
-    , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
+    [ reduce (tat.__.dit.__.takadinna.__.ka.din.na.dinga) . utarangam p5
+    , reduce (tat.__.dit.__.takadinna.__.dinga) . utarangam p6
+    , reduce (tat.__.dit.__.takadinna.__) . utarangam p7
 
     , variation (5, 5, 5) (6, 6, 6) (7, 7, 7)
     , variation (7, 7, 7) (6, 6, 6) (5, 5, 5)
@@ -429,16 +464,16 @@ t3s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     , variation (7, 6, 5) (7, 6, 5) (7, 6, 5)
     , variation (5, 6, 7) (6, 6, 6) (7, 6, 5)
     ]
-    -- tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga
-    --       .dit.__.ta.ka.din.na.__.ka.din.na.dinga
-    --              .ta.ka.din.na.__.ka.din.na.dinga
-    -- tat.__.dit.__.ta.ka.din.na.__.dinga
-    --       .dit.__.ta.ka.din.na.__.dinga
-    --              .ta.ka.din.na.__.dinga
+    -- tat.__.dit.__.takadinna.__.ka.din.na.dinga
+    --       .dit.__.takadinna.__.ka.din.na.dinga
+    --              .takadinna.__.ka.din.na.dinga
+    -- tat.__.dit.__.takadinna.__.dinga
+    --       .dit.__.takadinna.__.dinga
+    --              .takadinna.__.dinga
     where
     utarangam p = trin (tang.__.ga) (tri p) (tri_ __ p) (tri_ __3 p)
     variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
-        reduce (tat.__.dit.__.ta.ka.din.na.__.dinga)
+        reduce (tat.__.dit.__.takadinna.__.dinga)
         . trin (tang.__.ga)
             (trin mempty (pat a1) (pat a2) (pat a3))
             (trin __ (pat b1) (pat b2) (pat b3))
@@ -447,7 +482,7 @@ t3s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
-        , (ta.ka.din.na, [k, o, o, k])
+        , (takadinna, [k, o, o, k])
         , (ka.din.na, [o, o, k])
         , (din, [od])
         , (dinga, [od, __])
@@ -523,12 +558,12 @@ t4s3 = map ganesh $ korvais adi mridangam $ map (nadai 6)
         ] ++ m_ta_katakita
 
 ta_katakita :: Sequence stroke
-ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.ta.ka.din.na
+ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.takadinna
 
 m_ta_katakita :: MStrokes
 m_ta_katakita =
     [ (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
-    , (ta.ka.din.na, [k, o, o, k])
+    , (takadinna, [k, o, o, k])
     ]
 
 t5s :: [Korvai]
@@ -578,14 +613,14 @@ c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
     [   tat.__3 . din.__3 . tadimi
       . ta.ta.ka. din.__3 . tadimi
       . utarangam 3 (ta.ki.ta) (ta.ta.ka)
-    , utarangam 4 (ta.ka.din.na) (ta.ka.din.na)
+    , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
     , utarangam 6 td_gnt td_gnt
     ]
     where
     utarangam n p p2 =
         spread 4 p . spread 3 p . spread 2 p . tri_ (din.__n n) p2
-    tadimi = ta.di.mi.ta.ta.ka.din.na
+    tadimi = ta.di.mi.ta.takadinna
     mridangam = make_mridangam
         [ (tat.din, [k, od])
         , (ta.ta.ka.din, [o&n, o&n, k, od])
@@ -595,7 +630,7 @@ c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
         , (tdgnt, [k, t, k, n, o])
         , (ta.ki.ta, [p, k, od])
         , (ta.ta.ka, [o&n, o&n, k])
-        , (ta.ka.din.na, [k, od, od, k])
+        , (takadinna, [k, od, od, k])
         ]
 
 -- * koraippu
@@ -604,18 +639,18 @@ c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
 -- tisram: tri (ta ka takitataka nakadit thom) spread 3 tdgnt ...
 -- wait 2, repeat until tan7: od.__.p.k.n.o.o.k
 --
--- wait 2, tri_ (thom.__0) (ta.ka.din.na)
---      . repeat 2 (ta.__3.ta.ta.ka.din.na)
+-- wait 2, tri_ (thom.__0) (takadinna)
+--      . repeat 2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
 misra_lead = korvai adi mridangam $ faster $
-    rest 8 . tri_ (tam.__) (ta.ka.din.na)
-     . repeat 2 (ta.__3.ta.ta.ka.din.na)
+    rest 8 . tri_ (tam.__) takadinna
+     . repeat 2 (ta.__3.ta.takadinna)
      . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
      where
      mridangam = make_mridangam
-        [ (ta.ka.din.na, [k, o, o, k])
-        , (ta.ta.ta.ka.din.na, [od, k, n, o, o, k])
+        [ (takadinna, [k, o, o, k])
+        , (ta.ta.takadinna, [od, k, n, o, o, k])
         , (ta.din.na, [o&n, o&n, k])
         , (tam, [od])
         ]
@@ -661,7 +696,7 @@ koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
 
 koraippu_janahan :: Korvai
 koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ s2 $
-    let seq = sequence (ta.ki.ta) (ta.ka.din.na)
+    let seq = sequence (ta.ki.ta) takadinna
     in mconcat
         [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
         , seq 3 . tri p5 . thom.__4
@@ -709,7 +744,7 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ s2 $
         ]
     janahan_mridangam = make_mridangam
         [ (ta.ki.ta, [k, p, k])
-        , (ta.ka.din.na, [k, o, o, k])
+        , (takadinna, [k, o, o, k])
         , (ta.ki.ta . ta.ki.ta, [o, t, k, n, o, k])
         , (ta.ki.ta, [k, t, k])
         ]
@@ -751,6 +786,16 @@ e_spacing = map exercise $ korvais adi mridangam $ map (align adi) $
     geometric seq = spread 4 seq . spread 2 seq . tri seq
     mridangam = make_mridangam standard_strokes
 
+-- * fragments
+
+tdgnt, td_gnt, t_d_gnt :: Sequence stroke
+tdgnt = ta.din.gin.na.thom
+td_gnt = ta.din.__.gin.na.thom
+t_d_gnt = ta.__.din.__.gin.na.thom
+
+takadinna :: Sequence stroke
+takadinna = ta.ka.din.na
+
 -- * util
 
 vary :: Korvai -> [Korvai]
@@ -761,11 +806,6 @@ rest dur = repeat dur __
 
 pad :: Matra -> Sequence stroke
 pad dur = repeat (64 - dur) __
-
-tdgnt, td_gnt, t_d_gnt :: Sequence stroke
-tdgnt = ta.din.gin.na.thom
-td_gnt = ta.din.__.gin.na.thom
-t_d_gnt = ta.__.din.__.gin.na.thom
 
 s2 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
 s2 = faster

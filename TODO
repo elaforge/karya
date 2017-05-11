@@ -1728,6 +1728,11 @@ Derive:
       solkattu:
         - MridangamScore.ksequence is messed up, I think replaceStart is
           changing the speed.
+        - Reduce leads to fragmented sollu sequences, whose strokes then need
+          to be enumerated.  It should be able to figure out the strokes as
+          a suffix of an existing one, but I'd need to tag the sollu with
+          the whole sequence with n dropped.  Realize would then match the
+          whole sequence and drop the same number of matras.
         * Add tags to Korvai, e.g. date, source.
           - Others can be derived like tala, avartanams, nadai, speed,
             instruments.

@@ -20,7 +20,7 @@ module Derive.Solkattu.Dsl (
     -- ** combinators
     , tri, tri_, trin, tri2
     , join, repeat, inter, spread
-    , cmap
+    , cmap, for, cfor, append
     -- * re-exports
     , module Derive.Solkattu.Korvai
     , module Derive.Solkattu.Sequence
@@ -206,6 +206,15 @@ spread n = inter (__n n)
 
 cmap :: Monoid b => (a -> b) -> [a] -> b
 cmap = mconcatMap
+
+for :: [a] -> (a -> b) -> [b]
+for = flip map
+
+cfor :: Monoid b => [a] -> (a -> b) -> b
+cfor xs f = mconcatMap f xs
+
+append :: Monoid a => [a] -> a -> a
+append prefixes suffix = mconcat [prefix <> suffix | prefix <- prefixes]
 
 -- * realize
 
