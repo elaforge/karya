@@ -33,7 +33,7 @@ Mridangam.Strokes {..} = Mridangam.notes
 -- ** chatusra nadai
 
 c1s :: [Korvai]
-c1s = korvais adi (mridangam <> kendang)
+c1s = map ganesh $ korvais adi (mridangam <> kendang)
     [            theme 2 1 . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
@@ -96,7 +96,7 @@ c2_yt1 = korvai adi mridangam $
 
 -- | 3 avartanams of chatusram -> 2 avartanams of tisram.
 c_13_10_29 :: Korvai
-c_13_10_29 = korvai adi mridangam $
+c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam $
     reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     where
@@ -107,7 +107,7 @@ c_13_10_29 = korvai adi mridangam $
         ]
 
 c_13_11_12 :: Korvai
-c_13_11_12 = korvai adi mridangam $
+c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam $
     seq . dropM 2 seq . ta.ka.dheem.__4 . dropM 4 seq
         . repeat 2 (ta.ka.dheem.__4)
         . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
@@ -127,7 +127,7 @@ standard_strokes =
     ]
 
 c_16_09_28 :: Korvai
-c_16_09_28 = korvai adi mridangam $
+c_16_09_28 = date 2016 9 28 $ ganesh $ korvai adi mridangam $
     tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
           .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
                  .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
@@ -162,7 +162,7 @@ c_nnnd = korvais adi mridangam
         ]
 
 c_17_02_06 :: Korvai
-c_17_02_06 = korvai adi mridangam $
+c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $
     tri_ (din.__.p6.p6) (ta.ki.ta.dinga.din.__.ta.__.ka.__)
     where
     mridangam = make_mridangam
@@ -172,11 +172,10 @@ c_17_02_06 = korvai adi mridangam $
         ]
 
 c_17_03_20 :: Korvai
-c_17_03_20 = korvai adi (mridangam <> kendang <> reyong) $ faster $
-    reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
-        -- . slower (slower td_gnt) . slower td_gnt . tri_ (__2.ga) td_gnt
+c_17_03_20 = date 2017 3 20 $ ganesh $
+    korvai adi (mridangam <> kendang <> reyong) $ faster $
+        reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
         . slower (slower p6) . slower p6 . tri_ (__2.ga) p6
-        -- . spread 4 td_gnt . spread 2 td_gnt
     where
     mridangam = make_mridangam $ standard_strokes ++
         [ (tat, [k])
@@ -184,7 +183,7 @@ c_17_03_20 = korvai adi (mridangam <> kendang <> reyong) $ faster $
         , (na.ka.dit, [n, o, k])
         , (dit, [k])
         , (ta.lang.ga, [o, u, k])
-        , (ga, [o]) -- TODO soft
+        , (ga, [lt o])
         , (din.na, [o, k])
         ]
     kendang = make_kendang1
@@ -209,7 +208,8 @@ c_17_03_20 = korvai adi (mridangam <> kendang <> reyong) $ faster $
         ] where Reyong.Strokes {..} = Reyong.notes
 
 c_17_04_23 :: [Korvai]
-c_17_04_23 = korvais adi mridangam $ map slower -- remove for melkalam
+c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
+    map slower -- remove for melkalam
     [ purvangam . utarangam (ta.ka.tdgnt) (ta.ka.tdgnt)
     , purvangam . utarangam (faster (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     , purvangam . faster (r32111 tdgnt . r32111 (ta.ka.tdgnt)
@@ -241,7 +241,7 @@ chatusrams = concat
 -- ** kanda nadai
 
 make_k1 :: Seq -> Korvai
-make_k1 = korvai adi k1_mridangam • nadai 5
+make_k1 = ganesh • korvai adi k1_mridangam • nadai 5
 
 make_k1_1 :: Seq -> Seq -> Korvai
 make_k1_1 pt gap = make_k1 $
@@ -366,7 +366,7 @@ t_sarva1 =
     -- are implicit.
 
 t1s :: [Korvai]
-t1s = korvais adi mridangam $ map (nadai 6)
+t1s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.din.__.__)   . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.din.__)      . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.din!p)       . utarangam p7
@@ -386,7 +386,7 @@ t1s = korvais adi mridangam $ map (nadai 6)
         ]
 
 t2s :: [Korvai]
-t2s = korvais adi mridangam $ map (nadai 6)
+t2s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.dheem.__5) . tri p5
     , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__4) . tri p6
     , reduce (tat.__.dit.__.ta.ka.din.na.dheem.__3) . tri p7
@@ -418,7 +418,7 @@ t2s = korvais adi mridangam $ map (nadai 6)
         ]
 
 t3s :: [Korvai]
-t3s = korvais adi mridangam $ map (nadai 6)
+t3s = map ganesh $ korvais adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.ta.ka.din.na.__.ka.din.na.dinga) . utarangam p5
     , reduce (tat.__.dit.__.ta.ka.din.na.__.dinga) . utarangam p6
     , reduce (tat.__.dit.__.ta.ka.din.na.__) . utarangam p7
@@ -455,7 +455,7 @@ t3s = korvais adi mridangam $ map (nadai 6)
         ]
 
 t4s :: [Korvai]
-t4s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
+t4s = map ganesh $ korvais adi mridangam $ map (nadai 6 • (purvangam.))
     [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
     , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
@@ -482,7 +482,7 @@ t4s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
         ] ++ m_ta_katakita
 
 t4s2 :: [Korvai]
-t4s2 = korvais adi mridangam $ map (nadai 6)
+t4s2 = map ganesh $ korvais adi mridangam $ map (nadai 6)
     [ purvangam1 . tri (ta.din.__.p5)
     , purvangam1 . ta.ka.p5 . ta.din.__.p5 . ta.ka.din.__.p5
 
@@ -508,7 +508,7 @@ t4s2 = korvais adi mridangam $ map (nadai 6)
         ] ++ m_ta_katakita
 
 t4s3 :: [Korvai]
-t4s3 = korvais adi mridangam $ map (nadai 6)
+t4s3 = map ganesh $ korvais adi mridangam $ map (nadai 6)
     [ ta_katakita . tri (tat.__3.din.__3) . __7
         . ta_katakita . tri (tat.__.din.__3) . __7
         . ta_katakita . tri (tat.din.__3) . __7
@@ -532,7 +532,7 @@ m_ta_katakita =
     ]
 
 t5s :: [Korvai]
-t5s = korvais adi mridangam $ map (nadai 6 • (purvangam.))
+t5s = map ganesh $ korvais adi mridangam $ map (nadai 6 • (purvangam.))
     [ t123 p6 (tat.__6.din.__6)
     , t123 p7 (tat.__.ka.din.__.ta.din.__.ka)
     , t123 (ta.din.__2.p5) (tat.__3.din.__3)
@@ -573,7 +573,8 @@ tisrams = concat
 -- * misra chapu
 
 c_17_04_04 :: [Korvai]
-c_17_04_04 = korvais Tala.misra_chapu mridangam $ map slower
+c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
+    korvais Tala.misra_chapu mridangam $ map slower
     [   tat.__3 . din.__3 . tadimi
       . ta.ta.ka. din.__3 . tadimi
       . utarangam 3 (ta.ki.ta) (ta.ta.ka)
@@ -620,7 +621,8 @@ misra_lead = korvai adi mridangam $ faster $
         ]
 
 koraippu_misra :: [Korvai]
-koraippu_misra = korvais adi mridangam $ map faster $ concat
+koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
+    map faster $ concat
     [ map long [1..7] -- 2 avartanam
     , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
@@ -658,7 +660,7 @@ koraippu_misra = korvais adi mridangam $ map faster $ concat
         ]
 
 koraippu_janahan :: Korvai
-koraippu_janahan = korvai adi mridangam $ s2 $
+koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ s2 $
     let seq = sequence (ta.ki.ta) (ta.ka.din.na)
     in mconcat
         [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
@@ -721,7 +723,7 @@ nang_kita_nakatiku = nang . __ . ki.ta.nakatiku
 -- * tirmanam
 
 tir_18 :: [Korvai]
-tir_18 = korvais adi mridangam $ map (faster • (pad 18 .))
+tir_18 = map tirmanam $ korvais adi mridangam $ map (faster • (pad 18 .))
     [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     ]
     where
@@ -734,10 +736,11 @@ tir_18 = korvais adi mridangam $ map (faster • (pad 18 .))
 -- * exercise
 
 e_spacing :: [Korvai]
-e_spacing = korvais adi mridangam $ map (align adi) $ map faster $ concat
-    [ map arithmetic [p5, p6, p7, p8, p9]
-    , map geometric [p5, p6, p7, p8, p9]
-    ]
+e_spacing = map exercise $ korvais adi mridangam $ map (align adi) $
+    map faster $ concat
+        [ map arithmetic [p5, p6, p7, p8, p9]
+        , map geometric [p5, p6, p7, p8, p9]
+        ]
     where
     p5 = tdgnt
     p6 = td_gnt
@@ -770,6 +773,9 @@ s2 = faster
 s0 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
 s0 = slower
 
+ganesh :: Korvai -> Korvai
+ganesh = source "ganesh"
+
 -- * realize
 
 type MStrokes = [(Sequence Mridangam.Stroke, [Mridangam.SNote])]
@@ -795,11 +801,12 @@ make_reyong strokes = mempty
         Reyong.instrument strokes Reyong.rhythmic_patterns
     }
 
-korvais :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Seq]
-    -> [Korvai]
+korvais :: CallStack.Stack => Tala.Tala -> Korvai.Instruments
+    -> [Seq] -> [Korvai]
 korvais tala realizations = map (korvai tala realizations)
 
-korvai :: Tala.Tala -> Korvai.Instruments -> Seq -> Korvai.Korvai
+korvai :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> Seq
+    -> Korvai.Korvai
 korvai = Korvai.korvai
 
 adi :: Tala.Tala

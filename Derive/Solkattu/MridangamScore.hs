@@ -16,8 +16,8 @@ import qualified Derive.Solkattu.Tala as Tala
 
 -- * exercises
 
-sriram :: [Korvai]
-sriram = korvais adi
+sriram_exercise :: [Korvai]
+sriram_exercise = map exercise $ korvais adi
     -- TODO not right
     [ o&n.__.p.k.t.k . tri (n.k.t.p.k.t.k)
         . repeat 4 (o.t.k.n . faster (k.t.p.k))
@@ -33,11 +33,12 @@ c_exercises =
 -- ** tisram
 
 ganesh_16_11_14 :: Korvai
-ganesh_16_11_14 = korvai adi $ nadai 6 $
+ganesh_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai adi $ nadai 6 $
     tri (reduce3 1 mempty (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
 
 ganesh_17_02_13 :: [Korvai]
-ganesh_17_02_13 = korvais adi $ map (nadai 6)
+ganesh_17_02_13 = map (date 2017 2 13 • ganesh • sarvalaghu) $
+    korvais adi $ map (nadai 6)
     [ takitadin.kadin . takitadin.kadin . takitatin.katin
         . takitatin.k.takitatin.k
     , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
@@ -52,7 +53,7 @@ ganesh_17_02_13 = korvais adi $ map (nadai 6)
 -- * sarvalaghu
 
 din_nadin :: [Korvai]
-din_nadin = korvais adi
+din_nadin = map (sarvalaghu • ganesh) $ korvais adi
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
     , faster $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
     , faster $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
@@ -68,20 +69,19 @@ namita_dimita_dimi =
     ]
     where kt = faster (k.t)
 
-janahan :: [Korvai]
-janahan = korvais adi
-    [ o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
-    ]
+janahan_exercise :: Korvai
+janahan_exercise = exercise $ janahan $ korvai adi $
+    o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
 
-nakanadin :: [Korvai]
-nakanadin = korvais (beats 2) $ map faster
-    [ d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
-    ]
+nakanadin :: Korvai
+nakanadin = sarvalaghu $ korvai (beats 2) $ faster $
+    d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
 
 -- * korvais
 
 p16_12_06_sriram1 :: [Korvai]
-p16_12_06_sriram1 = korvais adi $ map faster $ map (purvangam.)
+p16_12_06_sriram1 = map (date 2016 12 6 • sriram) $ korvais adi $ map faster $
+    map (purvangam.)
     [ tri_ (u.__8) (k_kto . k.__.k_kto . k.__.t.__.k_kto)
     -- TODO the gap is 8, but taka and takanaka should consume 2 and 4
     , k_kto_s . u.__6 . taka.k_kto_s . i.__4 . takanaka . repeat 4 k_kto
@@ -103,7 +103,7 @@ p16_12_06_sriram1 = korvais adi $ map faster $ map (purvangam.)
     kitakina = k.t.k.n.o.k.o&t.k.nakatiku
 
 p16_12_06_sriram2 :: Korvai
-p16_12_06_sriram2 = korvai adi $ nadai 7 $
+p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai adi $ nadai 7 $
       repeat 2 kook . od.__.k.d.__.k.__                                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__.o.o.k.d.__.k.__.p&u.__7
@@ -111,14 +111,14 @@ p16_12_06_sriram2 = korvai adi $ nadai 7 $
     where kook = k.o.o.k.n.p.k
 
 p16_12_06_janahan1 :: Korvai
-p16_12_06_janahan1 = korvai adi $ faster $
+p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai adi $ faster $
     tri (op_od_ . on.k.op_od_ . on.k.o&t.k.op_od_)
         . trin __ (tri p5) (tri p6) (tri p7)
     where
     op_od_ = on.p.k.od.__.o
 
 p16_12_06_janahan2 :: Korvai
-p16_12_06_janahan2 = korvai adi $ faster $
+p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai adi $ faster $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
         . tdgnt . p6
         . tdgnt . p6 . k.p.p6
@@ -135,7 +135,9 @@ all_korvais = concat
 
 -- * korvai sequences
 
-ksequence = korvais adi $
+-- TODO use this as a template to fill in various themes
+ksequence :: [Korvai]
+ksequence = map ganesh $ korvais adi $
     [ sarva `replaceEnd` theme
     , takeD 4 sarva `replaceEnd` theme
         . rtakeD 4 sarva `replaceEnd` theme
@@ -164,7 +166,7 @@ ksequence = korvais adi $
 -- * farans
 
 farans :: [Korvai]
-farans = korvais adi $ map faster $ concat
+farans = map faran $ korvais adi $ map faster $ concat
     [ map (make (p.n.p.k) (p.n.p.k . t.k))
         [ k.t.k.n.p.k.t.k
         , o.o.k.n.p.k.t.k
@@ -251,3 +253,8 @@ realizep = realize_ False
 
 realize_ :: Bool -> Korvai.Korvai -> IO ()
 realize_ = realize_instrument Korvai.mridangam
+
+ganesh, janahan, sriram :: Korvai -> Korvai
+ganesh = source "ganesh"
+janahan = source "janahan"
+sriram = source "sriram"

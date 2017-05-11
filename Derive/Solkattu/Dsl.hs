@@ -6,10 +6,7 @@
 -- | Provide short names and operators for writing korvais in haskell.
 -- This module is meant to be imported unqualified.
 module Derive.Solkattu.Dsl (
-    -- * solkattu
-    Korvai
-    -- ** sollus
-    , (.), (•)
+    (.), (•)
     , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
     , karv
 
@@ -25,6 +22,7 @@ module Derive.Solkattu.Dsl (
     , join, repeat, inter, spread
     , cmap
     -- * re-exports
+    , module Derive.Solkattu.Korvai
     , module Derive.Solkattu.Sequence
     , check, duration_of
     , module Derive.Solkattu.Notation
@@ -48,7 +46,9 @@ import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
 
 import qualified Derive.Solkattu.Korvai as Korvai
-import Derive.Solkattu.Korvai (Korvai)
+import Derive.Solkattu.Korvai
+    (Korvai, date, source, koraippu, mohra, sarvalaghu, tirmanam, faran,
+     exercise)
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize

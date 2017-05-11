@@ -46,14 +46,31 @@ UNSORTED
       another ID which can link it with the source.  So for code it would be
       defining file or expression.  I also need identifying stacks for the
       generated events.
-
     . I have to load the module with the dsl.  If that's supposed to be
       per-score then I need to get that into an .hs file and get the repl to
       add that to the targets.  The file should be .hs and loadable anyway so
       I can use ghci on it.
-    . But I'll likely have multiple DSLs, so 
+    . But I'll likely have multiple DSLs, so it needs some configurable
+      boilderplate, i.e. imports.
     . Two cases: EDSL means it's haskell with a special "prelude", like
-      solkattu.  DSL means text with a parser.
+      solkattu.  DSL means text with a parser, e.g. Derive.Text.TScore.
+    Make this work for solkattu:
+      . Make solkattu set Event.stack.  It should have the sollu and position
+        as a TrackTime.
+      . The score has a link to a module name, e.g. Local.Score.Xyz.  If it
+        doesn't exist, create one with the standard set of imports.
+      . On refresh, have the REPL load that module, and pull out every symbol
+        with the right name, e.g. _xyz.  Each of those should be of Block type,
+        and will be used to create score integrate to a block of the same name.
+        I do the integrate for everything, since it will detect if there were
+        changes.
+      - Figure out how to make the GHC API load a specific module and find
+        symbols.  I need to verify their types too.  Trigger like :dsl X.Y.Z
+      - Make a Block type, and hook it up with score itegrate, and :dsl.
+      - Make solkattu realization retain the original sollu.
+      - Add the "dsl modules" score field.
+      - Make a REPL cmd to open vi with the file and bind save to the :dsl
+        cmd.
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
@@ -1709,6 +1726,12 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - MridangamScore.ksequence is messed up, I think replaceStart is
+          changing the speed.
+        * Add tags to Korvai, e.g. date, source.
+          - Others can be derived like tala, avartanams, nadai, speed,
+            instruments.
+        - I could have duration assertions, e.g. dur 4 (ta.ka.din.na)
         reyong realization:
           - some way to select between melodic and rythmic realization, and
             transposition for melodic

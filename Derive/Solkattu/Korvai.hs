@@ -6,8 +6,12 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
+import qualified Data.Map as Map
+
 import qualified Util.CallStack as CallStack
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
@@ -27,20 +31,23 @@ data Korvai = Korvai {
     korvai_sequence :: !Sequence
     , korvai_instruments :: !Instruments
     , korvai_tala :: !Tala.Tala
+    , korvai_metadata :: !Metadata
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Korvai where
-    format (Korvai sequence instruments tala) = Pretty.record "Korvai"
+    format (Korvai sequence instruments tala metadata) = Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
         , ("instruments", Pretty.format instruments)
         , ("tala", Pretty.format tala)
+        , ("metadata", Pretty.format metadata)
         ]
 
 korvai :: Tala.Tala -> Instruments -> Sequence -> Korvai
-korvai tala instruments sequence = Korvai
+korvai tala instruments sequence = korvai_t $ Korvai
     { korvai_sequence = sequence
     , korvai_instruments = instruments
     , korvai_tala = tala
+    , korvai_metadata = mempty
     }
 
 data GetInstrument stroke = GetInstrument {
@@ -87,6 +94,79 @@ realize get realize_patterns korvai = do
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =
     [korvai { korvai_sequence = new } | new <- modify (korvai_sequence korvai)]
+
+-- ** metadata
+
+-- | Attach some metadata to a Korvai.  Someday I'll put them in some kind of
+-- searchable database and then this should be useful.
+data Metadata = Metadata {
+    _date :: !(Maybe Date)
+    , _tags :: !Tags
+    } deriving (Eq, Show)
+
+instance Monoid Metadata where
+    mempty = Metadata Nothing mempty
+    mappend (Metadata date1 tags1) (Metadata date2 tags2) =
+        Metadata (date1 <|> date2) (tags1 <> tags2)
+
+instance Pretty.Pretty Metadata where
+    format (Metadata date tags) = Pretty.record "Metadata"
+        [ ("date", Pretty.format date)
+        , ("tags", Pretty.format tags)
+        ]
+
+type Tags = Map Text Text
+
+-- | Year, month, day.
+data Date = Date !Int !Int !Int
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Date where
+    pretty (Date y m d) = showt y <> "-" <> showt m <> "-" <> showt d
+
+make_date :: CallStack.Stack => Int -> Int -> Int -> Date
+make_date y m d
+    | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
+        Date y m d
+    | otherwise = errorStack $ "invalid date: " <> showt (y, m, d)
+
+date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
+date y m d = with_metadata $ mempty { _date = Just date }
+    where !date = make_date y m d
+
+source :: Text -> Korvai -> Korvai
+source = with_tag "source"
+
+korvai_t :: Korvai -> Korvai
+korvai_t = with_type "korvai"
+
+koraippu :: Korvai -> Korvai
+koraippu = with_type "koraippu"
+
+mohra :: Korvai -> Korvai
+mohra = with_type "mohra"
+
+sarvalaghu :: Korvai -> Korvai
+sarvalaghu = with_type "sarvalaghu"
+
+tirmanam :: Korvai -> Korvai
+tirmanam = with_type "tirmanam"
+
+faran :: Korvai -> Korvai
+faran = with_type "faran"
+
+exercise :: Korvai -> Korvai
+exercise = with_type "exercise"
+
+with_type :: Text -> Korvai -> Korvai
+with_type = with_tag "type"
+
+with_tag :: Text -> Text -> Korvai -> Korvai
+with_tag k v = with_metadata $ mempty { _tags = Map.singleton k v }
+
+with_metadata :: Metadata -> Korvai -> Korvai
+with_metadata meta korvai =
+    korvai { korvai_metadata = meta <> korvai_metadata korvai }
 
 -- * types
 
