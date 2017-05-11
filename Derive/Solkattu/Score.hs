@@ -72,7 +72,7 @@ c1s = map ganesh $ korvais adi (mridangam <> kendang)
     pat9 = ta.__.ka.__.p5
 
 c2_yt1 :: Korvai
-c2_yt1 = korvai adi mridangam $
+c2_yt1 = source "youtube" $ korvai adi mridangam $
     -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --              .ta.ka.din.na.thom.__.tat.__.din.__4
@@ -81,7 +81,7 @@ c2_yt1 = korvai adi mridangam $
     --                                   .tat.__.din.__4 -- ta ka din
     --                                          .din.__4
     -- TODO ... `replace` (tat.__.din.__4) (ta.ka.din.__4)
-    reduceTo 2 4 (tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4)
+    reduceTo 4 2 (tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4)
     . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
     where
     mridangam = make_mridangam
@@ -174,7 +174,7 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $
 c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $
     korvai adi (mridangam <> kendang <> reyong) $ faster $
-        reduceTo 2 4 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
+        reduceTo 4 2 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
         . slower (slower p6) . slower p6 . tri_ (__2.ga) p6
     where
     mridangam = make_mridangam $ standard_strokes ++
@@ -237,12 +237,12 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
     map (\n -> ta.__n n) [4, 3, 2, 1] `append` (ta.__.ki.ta.takadinna.dinga)
         . ta.__.ki.ta.takadinna.dinga
     .  map (\n -> ta.__n n) [3, 2, 1] `append` (takadinna.dinga)
-        . reduceTo 1 3 (takadinna.dinga)
+        . reduceTo 3 1 (takadinna.dinga)
     . tri (spread 4 tdgnt . tdgnt)
 
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
-    -- reduceTo 1 3 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
+    -- reduceTo 3 1 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
     --     [ ø, ta.__3, ta.__2, ta.__1, ø
     --     , ø, ta.__3 , ta.__
     --     ]

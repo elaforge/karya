@@ -116,7 +116,7 @@ reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 -- | Reduce by a duration until a final duration.
 reduceTo :: (CallStack.Stack, Pretty.Pretty stroke) => Matra -> Matra
     -> Sequence stroke -> Sequence stroke
-reduceTo by to seq
+reduceTo to by seq
     | (matrasOf seq - to) `mod` by /= 0 =
         errorStack $ showt (matrasOf seq) <> " can't reduce by "
             <> showt by <> " to " <> showt to
