@@ -124,19 +124,22 @@ ruler_meter (Ruler tala sections avartanams nadai dur) =
     total_dur = dur * fromIntegral (anga_claps tala * avartanams * sections)
 
 tala_to_meter :: Tala -> AbstractMeter
-tala_to_meter (Tala angas jati) =
-    D [D (replicate (Tala.anga_aksharas jati anga) T) | anga <- angas]
+tala_to_meter tala = D
+    [ D (replicate (Tala.anga_aksharas (Tala._jati tala) anga) T)
+    | anga <- Tala._angas tala
+    ]
 
 anga_claps :: Tala -> Int
-anga_claps (Tala angas jati) = sum (map (Tala.anga_aksharas jati) angas)
+anga_claps tala =
+    sum (map (Tala.anga_aksharas (Tala._jati tala)) (Tala._angas tala))
 
 tala_labels :: Tala -> [Meter.Label]
-tala_labels (Tala angas jati) = map Meter.big_label $ concatMap mk angas
+tala_labels tala = map Meter.big_label $ concatMap mk (Tala._angas tala)
     where
     mk anga = case anga of
         Tala.Clap n -> "X" : replicate (n-1) "-"
         Tala.Wave n -> "O" : replicate (n-1) "-"
-        Tala.I -> take jati (Meter.count_from 0)
+        Tala.I -> take (Tala._jati tala) (Meter.count_from 0)
         Tala.O -> ["X", "O"]
         Tala.U -> ["X"]
 

@@ -22,7 +22,7 @@ import Global
 test_realize = do
     let f realize_patterns = second (first (map extract))
             . Korvai.realize Korvai.mridangam realize_patterns
-            . korvai (Tala.Tala Tala.eka 2)
+            . korvai (Tala.Tala "eka" Tala.eka 2)
         extract (tempo, stroke) = pretty tempo <> ":" <> pretty stroke
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4

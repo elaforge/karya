@@ -280,7 +280,7 @@ multiply_duration :: Duration -> Double -> Duration
 multiply_duration (RealDuration t) n = RealDuration (t * RealTime.seconds n)
 multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 
--- * tracklang types
+-- * Environ
 
 newtype Environ = Environ (Map Key Val)
     deriving (Show, Monoid, Pretty.Pretty, DeepSeq.NFData)
@@ -295,7 +295,7 @@ lookup name (Environ env) = Map.lookup name env
 -- | Symbols to look up a val in the 'ValMap'.
 type Key = Expr.Str
 
--- ** Val
+-- * Val
 
 -- | This is the type of first class values in the tracklang.  It's main
 -- purpose is the type for arguments to tracklang calls, and val calls' return
@@ -530,7 +530,7 @@ real_control c deflt = DefaultedControl c $
 constant_control :: Signal.Y -> ControlRef
 constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
 
--- ** Call
+-- * Expr
 
 type Expr = Expr.Expr Val
 type Call = Expr.Call Val

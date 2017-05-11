@@ -20,9 +20,13 @@ anga_aksharas jati anga = case anga of
     U -> 1
 
 tala_aksharas :: Tala -> [Akshara]
-tala_aksharas (Tala angas jati) = map (anga_aksharas jati) angas
+tala_aksharas tala = map (anga_aksharas (_jati tala)) (_angas tala)
 
-data Tala = Tala ![Anga] !Jati deriving (Show, Eq)
+data Tala = Tala {
+    _name :: !Text
+    , _angas :: ![Anga]
+    , _jati :: !Jati
+    } deriving (Show, Eq)
 
 instance Pretty.Pretty Tala where pretty = showt
 
@@ -47,23 +51,23 @@ eka = [I]
 -- | Talas with default jati.
 dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala,
     eka_tala :: Tala
-dhruva_tala = Tala dhruva 4
-matya_tala = Tala matya 4
-rupaka_tala = Tala rupaka 4
-jhampa_tala = Tala jhampa 7
-triputa_tala = Tala triputa 3
-ata_tala = Tala ata 5
-eka_tala = Tala eka 4
+dhruva_tala = Tala "dhruva" dhruva 4
+matya_tala = Tala "matya" matya 4
+rupaka_tala = Tala "rupaka" rupaka 4
+jhampa_tala = Tala "jhampa" jhampa 7
+triputa_tala = Tala "triputa" triputa 3
+ata_tala = Tala "ata" ata 5
+eka_tala = Tala "eka" eka 4
 
 adi_tala :: Tala
-adi_tala = Tala triputa 4 -- chatusra jati triputa tala
+adi_tala = Tala "adi" triputa 4 -- chatusra jati triputa tala
 
 misra_chapu :: Tala
-misra_chapu = Tala [Wave 1, Wave 2, Clap 2, Clap 2] 0
+misra_chapu = Tala "misra chapu" [Wave 1, Wave 2, Clap 2, Clap 2] 0
     -- These have no laghu, so jati doesn't matter.
 
 khanda_chapu :: Tala
-khanda_chapu = Tala [Clap 2, Clap 1, Clap 2] 0
+khanda_chapu = Tala "khanda chapu" [Clap 2, Clap 1, Clap 2] 0
 
 rupaka_fast :: Tala
-rupaka_fast = Tala [Clap 1, Clap 1, Wave 1] 0
+rupaka_fast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0

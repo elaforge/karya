@@ -6,11 +6,14 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Mridangam as Mridangam
@@ -43,7 +46,7 @@ instance Pretty.Pretty Korvai where
         ]
 
 korvai :: Tala.Tala -> Instruments -> Sequence -> Korvai
-korvai tala instruments sequence = korvai_t $ Korvai
+korvai tala instruments sequence = infer_metadata $ korvai_t $ Korvai
     { korvai_sequence = sequence
     , korvai_instruments = instruments
     , korvai_tala = tala
@@ -83,13 +86,20 @@ realize get realize_patterns korvai = do
             korvai_sequence korvai
     (notes, align_error) <- return $
         Solkattu.verify_alignment (korvai_tala korvai) notes
-    let inst = get_realization get (korvai_instruments korvai)
+    realized <- realize_instrument get (korvai_instruments korvai)
+        realize_patterns notes
+    return (realized, fromMaybe "" align_error)
+
+realize_instrument :: Pretty.Pretty stroke => GetInstrument stroke
+    -> Instruments -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
+    -> Either Text [(Sequence.Tempo, Realize.Note stroke)]
+realize_instrument get instruments realize_patterns notes = do
+    let inst = get_realization get instruments
     notes <- return $ map (Solkattu.map_stroke (get_stroke get =<<)) notes
     notes <- if realize_patterns
         then Realize.realize_patterns (Realize.inst_patterns inst) notes
         else return notes
-    realized <- Realize.realize (Realize.inst_stroke_map inst) notes
-    return (realized, fromMaybe "" align_error)
+    Realize.realize (Realize.inst_stroke_map inst) notes
 
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =
@@ -115,7 +125,12 @@ instance Pretty.Pretty Metadata where
         , ("tags", Pretty.format tags)
         ]
 
-type Tags = Map Text Text
+newtype Tags = Tags (Map Text [Text])
+    deriving (Eq, Show, Pretty.Pretty)
+
+instance Monoid Tags where
+    mempty = Tags mempty
+    mappend (Tags t1) (Tags t2) = Tags (Util.Map.mappend t1 t2)
 
 -- | Year, month, day.
 data Date = Date !Int !Int !Int
@@ -162,11 +177,43 @@ with_type :: Text -> Korvai -> Korvai
 with_type = with_tag "type"
 
 with_tag :: Text -> Text -> Korvai -> Korvai
-with_tag k v = with_metadata $ mempty { _tags = Map.singleton k v }
+with_tag k v = with_metadata $ mempty { _tags = Tags (Map.singleton k [v]) }
 
 with_metadata :: Metadata -> Korvai -> Korvai
 with_metadata meta korvai =
     korvai { korvai_metadata = meta <> korvai_metadata korvai }
+
+-- ** infer
+
+infer_metadata :: Korvai -> Korvai
+infer_metadata korvai =
+    with_metadata (mempty { _tags = infer_tags korvai }) korvai
+
+infer_tags :: Korvai -> Tags
+infer_tags korvai = Tags $ Util.Map.multimap $ concat
+    [ [ ("tala", Tala._name tala)
+      , ("avartanams", pretty $ Solkattu.duration_of seq / aksharas)
+      ]
+    , map ("nadai",) (map showt nadais)
+    , map ("speed",) (map showt speeds)
+    , map ("instrument",) [name | (name, True) <- instruments]
+    ]
+    where
+    tala = korvai_tala korvai
+    aksharas = fromIntegral (sum (Tala.tala_aksharas tala))
+
+    seq = korvai_sequence korvai
+    notes = Solkattu.cancel_karvai $ Sequence.flatten seq
+    nadais = Seq.unique_sort $ map (Sequence.nadai . fst) notes
+    speeds = Seq.unique_sort $ map (Sequence.speed . fst) notes
+
+    instruments =
+        [ ("mridangam", has_realization mridangam)
+        , ("kendang_tunggal", has_realization kendang_tunggal)
+        , ("reyong", has_realization reyong)
+        ]
+    has_realization get = Either.isRight $
+        realize_instrument get (korvai_instruments korvai) False notes
 
 -- * types
 

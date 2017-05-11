@@ -1734,7 +1734,7 @@ Derive:
           the whole sequence with n dropped.  Realize would then match the
           whole sequence and drop the same number of matras.
         * Add tags to Korvai, e.g. date, source.
-          - Others can be derived like tala, avartanams, nadai, speed,
+          * Others can be derived like tala, avartanams, nadai, speed,
             instruments.
         - I could have duration assertions, e.g. dur 4 (ta.ka.din.na)
         reyong realization:

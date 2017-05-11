@@ -132,7 +132,7 @@ test_format = do
         "K o o k k o o k K o o k K o o k k o o k"
 
 tala4 :: Tala.Tala
-tala4 = Tala.Tala [Tala.O, Tala.O] 0
+tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
 test_format_ruler = do
     let run = fmap (first (capitalize_emphasis . Realize.format 80 tala4))
