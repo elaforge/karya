@@ -32,7 +32,7 @@ module Derive.Solkattu.Dsl (
     -- * misc
     , pprint
     -- * realize
-    , realize_instrument, many
+    , realize_instrument, realize_konnakol, many
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -44,11 +44,12 @@ import qualified Data.Text.IO as Text.IO
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
+import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai
-    (Korvai, date, source, koraippu, mohra, sarvalaghu, tirmanam, faran,
-     exercise)
+       (Korvai, date, source, koraippu, mohra, sarvalaghu, tirmanam, sequence_t,
+        faran, exercise)
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize
@@ -223,11 +224,20 @@ realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
 realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize instrument realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
-        Right (notes, warning) ->
-            Realize.format width (Korvai.korvai_tala korvai) notes
-            <> if Text.null warning then "" else "\n" <> warning
-    where
-    width = 78
+        Right (notes, warning) -> TextUtil.joinWith "\n"
+            (Realize.format width Nothing (Korvai.korvai_tala korvai) notes)
+            warning
+
+realize_konnakol :: Bool -> Korvai -> IO ()
+realize_konnakol realize_patterns korvai = Text.IO.putStrLn $
+    case Korvai.realize_konnakol realize_patterns korvai of
+        Left err -> "ERROR:\n" <> err
+        Right (notes, warning) -> TextUtil.joinWith "\n"
+            (Realize.format width (Just 4) (Korvai.korvai_tala korvai) notes)
+            warning
+
+width :: Int
+width = 78
 
 many :: (a -> IO ()) -> [a] -> IO ()
 many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)

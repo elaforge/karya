@@ -281,19 +281,23 @@ speed_scale speed n
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Pretty.Pretty stroke => Int -> Tala.Tala -> [(S.Tempo, Note stroke)]
-    -> Text
-format width tala notes = Text.stripEnd $ attach_ruler ruler_avartanams
+format :: Pretty.Pretty stroke => Int -> Maybe Int -> Tala.Tala
+    -> [(S.Tempo, Note stroke)] -> Text
+format width override_stroke_width tala notes =
+    Text.stripEnd $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
         [ (infer_ruler stroke_width (head lines),
             Text.unlines $ map format_line lines)
         | lines <- avartanam_lines
         ]
-    (avartanam_lines, stroke_width) = case format_lines 1 width tala notes of
-        ([line] : _) | sum (map (Text.length . snd) line) <= width `div` 2 ->
-            (format_lines 2 width tala notes, 2)
-        result -> (result, 1)
+    (avartanam_lines, stroke_width) = case override_stroke_width of
+        Just n -> (format_lines n width tala notes, n)
+        Nothing -> case format_lines 1 width tala notes of
+            ([line] : _)
+                | sum (map (Text.length . snd) line) <= width `div` 2 ->
+                    (format_lines 2 width tala notes, 2)
+            result -> (result, 1)
     format_line :: [(S.State, Text)] -> Text
     format_line = Text.stripEnd . mconcat . map snd
         . map_with_fst emphasize_akshara

@@ -16,6 +16,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Konnakol as Konnakol
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Reyong as Reyong
@@ -82,13 +83,15 @@ realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
 realize get realize_patterns korvai = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
-    let notes = Solkattu.cancel_karvai $ Sequence.flatten $
-            korvai_sequence korvai
-    (notes, align_error) <- return $
-        Solkattu.verify_alignment (korvai_tala korvai) notes
+    let (notes, align_error) = verify_alignment korvai
     realized <- realize_instrument get (korvai_instruments korvai)
         realize_patterns notes
     return (realized, fromMaybe "" align_error)
+
+verify_alignment :: Korvai
+    -> ([(Sequence.Tempo, Solkattu.Note Stroke)], Maybe Text)
+verify_alignment korvai = Solkattu.verify_alignment (korvai_tala korvai) $
+    Solkattu.cancel_karvai $ Sequence.flatten $ korvai_sequence korvai
 
 realize_instrument :: Pretty.Pretty stroke => GetInstrument stroke
     -> Instruments -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
@@ -104,6 +107,29 @@ realize_instrument get instruments realize_patterns notes = do
 vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
 vary modify korvai =
     [korvai { korvai_sequence = new } | new <- modify (korvai_sequence korvai)]
+
+-- ** konnakol
+
+realize_konnakol :: Bool -> Korvai
+    -> Either Text ([(Sequence.Tempo, Realize.Note Solkattu.Sollu)], Text)
+realize_konnakol realize_patterns korvai = do
+    let (notes, align_error) = verify_alignment korvai
+    notes <- return $ map (Solkattu.map_stroke (const Nothing)) notes
+    notes <- if realize_patterns
+        then Realize.realize_patterns Konnakol.default_patterns notes
+        else return notes
+    return (to_konnakol notes, fromMaybe "" align_error)
+
+to_konnakol :: [(tempo, Solkattu.Note (Realize.Stroke Solkattu.Sollu))]
+    -> [(tempo, Realize.Note Solkattu.Sollu)]
+to_konnakol = mapMaybe convert
+    where
+    convert (tempo, note) = (tempo,) <$> case note of
+        Solkattu.Note sollu _ maybe_stroke ->
+            Just $ Realize.Note (fromMaybe (Realize.stroke sollu) maybe_stroke)
+        Solkattu.Rest -> Just Realize.Rest
+        Solkattu.Pattern p -> Just $ Realize.Pattern p
+        Solkattu.Alignment {} -> Nothing
 
 -- ** metadata
 
