@@ -167,6 +167,10 @@ sarvalaghu = with_type "sarvalaghu"
 tirmanam :: Korvai -> Korvai
 tirmanam = with_type "tirmanam"
 
+-- | A development sequence leading to a korvai.
+sequence_t :: Korvai -> Korvai
+sequence_t = with_type "sequence"
+
 faran :: Korvai -> Korvai
 faran = with_type "faran"
 

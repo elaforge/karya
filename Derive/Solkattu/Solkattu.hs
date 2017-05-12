@@ -58,6 +58,7 @@
     \"Sequence\" is an alias for a list of those, but is abstractly the monoid
     where you can put together notation to form a score.
 -}
+{-# LANGUAGE DeriveFunctor #-}
 module Derive.Solkattu.Solkattu where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -81,7 +82,7 @@ data Note stroke =
     | Rest
     | Pattern !Pattern
     | Alignment !Tala.Akshara
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Functor)
 
 instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
     pretty n = case n of

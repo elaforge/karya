@@ -198,7 +198,7 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
     [ [k, t, k, n, o]
     , [k, t, __, k, n, o]
     , [k, __, t, __, k, n, o]
-    ] : map (map s2)
+    ] : map (map su)
     [ [ [k, __, t, __, k, __, k, t, o, __]
       , [k, __, t, __, __, __, k, __, k, t, o, __]
       , [k, __, __, __, t, __, __, __, k, __, k, t, o, __]
@@ -242,5 +242,5 @@ patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
 patterns = Realize.patterns . (default_nakatiku:)
     . map (first Solkattu.PatternM)
 
-s2 :: [Sequence.Note a] -> [Sequence.Note a]
-s2 = (:[]) . Sequence.faster
+su :: [Sequence.Note a] -> [Sequence.Note a]
+su = (:[]) . Sequence.faster

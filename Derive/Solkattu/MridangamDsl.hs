@@ -76,7 +76,13 @@ on = o&n
 
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
-closed = concatMap $ \note -> if [note] == o then t else [note]
+closed = map_stroke $ \s -> case s of
+    Mridangam.Thoppi Mridangam.Thom -> Mridangam.Thoppi Mridangam.Tha
+    Mridangam.Both Mridangam.Thom a -> Mridangam.Both Mridangam.Tha a
+    _ -> s
+
+map_stroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
+map_stroke = fmap • fmap • fmap • fmap
 
 -- TODO not implemented yet
 -- In Dsl, these modify strokes and not sollus, but since here sollus are

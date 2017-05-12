@@ -1726,13 +1726,15 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - MridangamScore.ksequence is messed up, I think replaceStart is
+        * MridangamScore.ksequence is messed up, I think replaceStart is
           changing the speed.
         - Reduce leads to fragmented sollu sequences, whose strokes then need
           to be enumerated.  It should be able to figure out the strokes as
           a suffix of an existing one, but I'd need to tag the sollu with
           the whole sequence with n dropped.  Realize would then match the
           whole sequence and drop the same number of matras.
+          . Also can I think apply special reduction rules, e.g. if ktk is
+            reduced to tk, it should be played kk.
         * Add tags to Korvai, e.g. date, source.
           * Others can be derived like tala, avartanams, nadai, speed,
             instruments.

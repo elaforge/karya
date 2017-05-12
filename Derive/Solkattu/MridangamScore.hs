@@ -136,8 +136,10 @@ all_korvais = concat
 -- * korvai sequences
 
 -- TODO use this as a template to fill in various themes
-ksequence :: [Korvai]
-ksequence = map ganesh $ korvais adi $
+ksequence :: Korvai
+ksequence = date 2013 10 24 $ ganesh $ sequence_t $ korvai adi $
+    mconcat $ map (sam.)
+    -- TODO put the whole thing in su?
     [ sarva `replaceEnd` theme
     , takeD 4 sarva `replaceEnd` theme
         . rtakeD 4 sarva `replaceEnd` theme
@@ -149,7 +151,11 @@ ksequence = map ganesh $ korvais adi $
     , theme . od . theme.me . od . theme.me.me
     , repeat 2 (theme.od.__2 . eme.od.__2 . eme . od.__2)
         . theme.od.__2 . eme.od . me.od.me
-    -- , tri_ (o.__4) (theme . eme . closed eme . eme . closed eme)
+
+    -- 1st variation
+    , tri_ (o.__2) (ptheme . me . pme . ome . pme . su (k.o))
+    -- 2nd variation
+    , tri_ (o.__2) (ptheme . pme . ome . pme . ome)
     ]
     where
     sarva = sd $
@@ -159,9 +165,14 @@ ksequence = map ganesh $ korvais adi $
     --       on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
     --     . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
     theme = su $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
-    ptheme = su $ t `replaceStart` theme
-    eme = su $ rtakeM 8 theme
-    me = su $ rtakeM 4 theme
+    -- TODO not quite right, this has to be ptheme when not on an som or arudi
+    ptheme = su t `replaceStart` theme
+    eme = rtakeM 4 theme
+    me = rtakeM 2 theme
+
+    -- TODO these seem to vary irregularly
+    ome = su $ k.o.o.u.__.k
+    pme = su $ k.o.p.u.__.k
 
 -- * farans
 

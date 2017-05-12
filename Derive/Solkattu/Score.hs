@@ -219,6 +219,7 @@ c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
     r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
     purvangam = tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
         -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
+        -- TODO an elide directive?
         . dropM 5 (tri_ (din.__2) (ta.ta.ka.din.na))
     utarangam p7 p7' = mconcat
         [ sd p7 . p7 . su end
@@ -239,7 +240,6 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
     .  map (\n -> ta.__n n) [3, 2, 1] `append` (takadinna.dinga)
         . reduceTo 3 1 (takadinna.dinga)
     . tri (spread 4 tdgnt . tdgnt)
-
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
     -- reduceTo 3 1 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
@@ -247,6 +247,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
     --     , ø, ta.__3 , ta.__
     --     ]
     -- This is less code, but maybe not very obvious?
+
     -- ta.__4 . ta.__.ki.ta.takadinna.dinga
     -- ta.__3 . ta.__.ki.ta.takadinna.dinga
     -- ta.__2 . ta.__.ki.ta.takadinna.dinga
@@ -609,15 +610,15 @@ tisrams = concat
 
 c_17_04_04 :: [Korvai]
 c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
-    korvais Tala.misra_chapu mridangam $ map sd
-    [   tat.__3 . din.__3 . tadimi
-      . ta.ta.ka. din.__3 . tadimi
-      . utarangam 3 (ta.ki.ta) (ta.ta.ka)
+    korvais Tala.misra_chapu mridangam $ map (sd • (purvangam.))
+    [ utarangam 3 (ta.ki.ta) (ta.ta.ka)
     , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
     , utarangam 6 td_gnt td_gnt
     ]
     where
+    purvangam = tat.__3 . din.__3 . tadimi
+              . ta.ta.ka. din.__3 . tadimi
     utarangam n p p2 =
         spread 4 p . spread 3 p . spread 2 p . tri_ (din.__n n) p2
     tadimi = ta.di.mi.ta.takadinna
@@ -665,7 +666,6 @@ koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
     , [ __ . repeat 5 p7 . nadai 3 (tri p7) ]
     -- to mohra korvai sequence
     ]
-
     where
     group2 seq = map mconcat (Seq.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
