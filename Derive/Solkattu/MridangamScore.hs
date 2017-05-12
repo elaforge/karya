@@ -20,8 +20,8 @@ sriram_exercise :: [Korvai]
 sriram_exercise = map exercise $ korvais adi
     -- TODO not right
     [ o&n.__.p.k.t.k . tri (n.k.t.p.k.t.k)
-        . repeat 4 (o.t.k.n . faster (k.t.p.k))
-        . repeat 4 (n . faster (k.t.p.k)  . o.t.k)
+        . repeat 4 (o.t.k.n . su (k.t.p.k))
+        . repeat 4 (n . su (k.t.p.k)  . o.t.k)
         . o&n.__.p.k . nakatiku . tri (p.k.p.t.p.k . nakatiku)
     ]
 
@@ -55,8 +55,8 @@ ganesh_17_02_13 = map (date 2017 2 13 • ganesh • sarvalaghu) $
 din_nadin :: [Korvai]
 din_nadin = map (sarvalaghu • ganesh) $ korvais adi
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
-    , faster $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
-    , faster $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    , su $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
+    , su $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
 -- ** sarvalaghu fills
@@ -67,20 +67,20 @@ namita_dimita_dimi =
     , k.t.k.t . k.t.k.n.kt.p.k . o.t.k.n.kt.p.k . o.n.kt.p.k
     -- goes past sam: previous . o.t.k.o&n.kt.p.k
     ]
-    where kt = faster (k.t)
+    where kt = su (k.t)
 
 janahan_exercise :: Korvai
 janahan_exercise = exercise $ janahan $ korvai adi $
     o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
 
 nakanadin :: Korvai
-nakanadin = sarvalaghu $ korvai (beats 2) $ faster $
+nakanadin = sarvalaghu $ korvai (beats 2) $ su $
     d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
 
 -- * korvais
 
 p16_12_06_sriram1 :: [Korvai]
-p16_12_06_sriram1 = map (date 2016 12 6 • sriram) $ korvais adi $ map faster $
+p16_12_06_sriram1 = map (date 2016 12 6 • sriram) $ korvais adi $ map su $
     map (purvangam.)
     [ tri_ (u.__8) (k_kto . k.__.k_kto . k.__.t.__.k_kto)
     -- TODO the gap is 8, but taka and takanaka should consume 2 and 4
@@ -111,14 +111,14 @@ p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai adi $ nadai 7 $
     where kook = k.o.o.k.n.p.k
 
 p16_12_06_janahan1 :: Korvai
-p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai adi $ faster $
+p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai adi $ su $
     tri (op_od_ . on.k.op_od_ . on.k.o&t.k.op_od_)
         . trin __ (tri p5) (tri p6) (tri p7)
     where
     op_od_ = on.p.k.od.__.o
 
 p16_12_06_janahan2 :: Korvai
-p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai adi $ faster $
+p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai adi $ su $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
         . tdgnt . p6
         . tdgnt . p6 . k.p.p6
@@ -152,21 +152,21 @@ ksequence = map ganesh $ korvais adi $
     -- , tri_ (o.__4) (theme . eme . closed eme . eme . closed eme)
     ]
     where
-    -- sarva = slower $
-    --       on.od.od.on . faster (on.on) . od.od.on
-    --     . p&n.d.d.n       . n       .od.od.on
-    sarva =
-          on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
-        . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
-    theme = faster $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
-    ptheme = faster $ t `replaceStart` theme
-    eme = faster $ rtakeM 8 theme
-    me = faster $ rtakeM 4 theme
+    sarva = sd $
+          on.od.od.on. su (on.on) .od.od.on
+        . p&n.d.d.n  . n          .od.od.on
+    -- sarva =
+    --       on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
+    --     . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
+    theme = su $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
+    ptheme = su $ t `replaceStart` theme
+    eme = su $ rtakeM 8 theme
+    me = su $ rtakeM 4 theme
 
 -- * farans
 
 farans :: [Korvai]
-farans = map faran $ korvais adi $ map faster $ concat
+farans = map faran $ korvais adi $ map su $ concat
     [ map (make (p.n.p.k) (p.n.p.k . t.k))
         [ k.t.k.n.p.k.t.k
         , o.o.k.n.p.k.t.k
@@ -219,7 +219,7 @@ eddupu6 = korvais (beats 3)
     , repeat 2 (o.o.t.__.k.__)
     , k.p.k.__.t.__.k.t.__.k.n.o
     , __.__.u.__3.k.o.o&t.k.n.o.k
-    , faster $ repeat 2 nang_kita
+    , su $ repeat 2 nang_kita
     ]
 
 eddupu10 :: [Korvai]

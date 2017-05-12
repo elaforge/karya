@@ -87,8 +87,8 @@ test_patterns = do
     let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
-    equal (f [(2, Dsl.slower [k])]) (Right ())
-    equal (f [(2, Dsl.faster [k, t, k, t])]) (Right ())
+    equal (f [(2, Dsl.sd [k])]) (Right ())
+    equal (f [(2, Dsl.su [k, t, k, t])]) (Right ())
     equal (f [(2, [k, t])]) (Right ())
 
 show_strokes :: [(tempo, Realize.Note M.Stroke)] -> Text
@@ -202,7 +202,7 @@ test_format_nadai_change = do
     let f tala realize_patterns =
             fmap (first (capitalize_emphasis . Realize.format 50 tala))
             . realize realize_patterns tala
-    let sequence = Dsl.faster (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
+    let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
     equal (Text.lines out)
@@ -223,12 +223,12 @@ test_format_speed = do
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
     equal (f 80 [nadai 3 $ thoms 6]) (Right "O o o O o o")
-    equal (f 80 $ slower (thoms 4)) (Right "O _ o _ O _ o _")
-    equal (f 80 $ thoms 2 <> faster (thoms 4) <> thoms 1)
+    equal (f 80 $ sd (thoms 4)) (Right "O _ o _ O _ o _")
+    equal (f 80 $ thoms 2 <> su (thoms 4) <> thoms 1)
         (Right "O _ o _ o o o o O _")
-    equal (f 80 $ thoms 2 <> faster (faster (thoms 8)) <> thoms 1)
+    equal (f 80 $ thoms 2 <> su (su (thoms 8)) <> thoms 1)
         (Right "O _ _ _ o _ _ _ o o o o o o o o O _ _ _")
-    equal (f 80 $ slower (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
+    equal (f 80 $ sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
     equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "P5------==p5----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
@@ -251,8 +251,8 @@ mridangam = mempty
             M.default_patterns
     }
 
-slower = (:[]) . Sequence.slower
-faster = (:[]) . Sequence.faster
+sd = (:[]) . Sequence.slower
+su = (:[]) . Sequence.faster
 
 nadai :: Sequence.Nadai -> [Sequence.Note a] -> Sequence.Note a
 nadai n = Sequence.TempoChange (Sequence.Nadai n)

@@ -150,7 +150,7 @@ c_16_09_28 = date 2016 9 28 $ ganesh $ korvai adi mridangam $
 c_nnnd :: [Korvai]
 c_nnnd = korvais adi mridangam
     [ make (na.na.na.din.__)
-    , make (faster (dhom.ka.ta.ka.na.ka) . din.__)
+    , make (su (dhom.ka.ta.ka.na.ka) . din.__)
     ]
     where
     make theme = tri_ (tam.__3) (tri theme . tri p5)
@@ -173,9 +173,9 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $
 
 c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $
-    korvai adi (mridangam <> kendang <> reyong) $ faster $
+    korvai adi (mridangam <> kendang <> reyong) $ su $
         reduceTo 4 2 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
-        . slower (slower p6) . slower p6 . tri_ (__2.ga) p6
+        . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
     where
     mridangam = make_mridangam $ standard_strokes ++
         [ (tat, [k])
@@ -209,10 +209,10 @@ c_17_03_20 = date 2017 3 20 $ ganesh $
 
 c_17_04_23 :: [Korvai]
 c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
-    map slower -- remove for melkalam
+    map sd -- remove for melkalam
     [ purvangam . utarangam (ta.ka.tdgnt) (ta.ka.tdgnt)
-    , purvangam . utarangam (faster (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
-    , purvangam . faster (r32111 tdgnt . r32111 (ta.ka.tdgnt)
+    , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
+    , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
         . r32111 (ta.ka.na.ka.tdgnt))
     ]
     where
@@ -221,7 +221,7 @@ c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
         -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
         . dropM 5 (tri_ (din.__2) (ta.ta.ka.din.na))
     utarangam p7 p7' = mconcat
-        [ slower p7 . p7 . faster end
+        [ sd p7 . p7 . su end
         | end <- [p7', p7'.p7', p7'.p7'.p7']
         -- TODO some kind of x, xx, xxx function
         ]
@@ -365,7 +365,7 @@ k3s = korvais adi mridangam $ map (nadai 5)
       . tri_ __ p6
     ]
     where
-    tangkita = faster (tang . __ . kitataka . tarikitataka)
+    tangkita = su (tang . __ . kitataka . tarikitataka)
     kitataka = ki.ta.tha.ka
     tarikitataka = ta.ri.kitataka
     mridangam = make_mridangam
@@ -609,7 +609,7 @@ tisrams = concat
 
 c_17_04_04 :: [Korvai]
 c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
-    korvais Tala.misra_chapu mridangam $ map slower
+    korvais Tala.misra_chapu mridangam $ map sd
     [   tat.__3 . din.__3 . tadimi
       . ta.ta.ka. din.__3 . tadimi
       . utarangam 3 (ta.ki.ta) (ta.ta.ka)
@@ -643,7 +643,7 @@ c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
 --      . repeat 2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
-misra_lead = korvai adi mridangam $ faster $
+misra_lead = korvai adi mridangam $ su $
     rest 8 . tri_ (tam.__) takadinna
      . repeat 2 (ta.__3.ta.takadinna)
      . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
@@ -657,7 +657,7 @@ misra_lead = korvai adi mridangam $ faster $
 
 koraippu_misra :: [Korvai]
 koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
-    map faster $ concat
+    map su $ concat
     [ map long [1..7] -- 2 avartanam
     , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
@@ -695,7 +695,7 @@ koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
         ]
 
 koraippu_janahan :: Korvai
-koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ s2 $
+koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
     let seq = sequence (ta.ki.ta) takadinna
     in mconcat
         [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
@@ -703,18 +703,18 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ s2 $
         , seq 2 . tri p6 . thom.__4
         , seq 1 . tri p7 . thom.__4
         ]
-    ++ let seq = sequence (s2 (nang.__.ki.ta.ta.ka)) (s2 nakatiku)
+    ++ let seq = sequence (su (nang.__.ki.ta.ta.ka)) (su nakatiku)
     in mconcat
-        [ seq 4 . s2 nang_kita_nakatiku . ta.ka.din.__.tat.__.thom.__4
-        , seq 3 . tri (s2 (thom.ki.ta.ka.na.ka.ki.ta.ta.ka)) . thom.__4
-        , seq 2 . tri (s2 nang_kita_nakatiku) . thom.__4
-        , seq 1 . tri (s2 (nang.__.ki.ta.ta.ka.nakatiku)) . thom.__4
+        [ seq 4 . su nang_kita_nakatiku . ta.ka.din.__.tat.__.thom.__4
+        , seq 3 . tri (su (thom.ki.ta.ka.na.ka.ki.ta.ta.ka)) . thom.__4
+        , seq 2 . tri (su nang_kita_nakatiku) . thom.__4
+        , seq 1 . tri (su (nang.__.ki.ta.ta.ka.nakatiku)) . thom.__4
         ]
-    ++ let kitakita = s2 (ki.ta.ki.ta.ta.ka)
+    ++ let kitakita = su (ki.ta.ki.ta.ta.ka)
         in sam.tam.__3 . kitakita . tam.__3
-            . kitakita . s2 (nakatiku . nang_kita_nakatiku) . tam.__3
-            . kitakita . s2 (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
-            . s2 nang_kita_nakatiku
+            . kitakita . su (nakatiku . nang_kita_nakatiku) . tam.__3
+            . kitakita . su (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
+            . su nang_kita_nakatiku
             . ta.ka.din.__.tat.__.thom.__4
     where
     -- problems:
@@ -758,7 +758,7 @@ nang_kita_nakatiku = nang . __ . ki.ta.nakatiku
 -- * tirmanam
 
 tir_18 :: [Korvai]
-tir_18 = map tirmanam $ korvais adi mridangam $ map (faster • (pad 18 .))
+tir_18 = map tirmanam $ korvais adi mridangam $ map (su • (pad 18 .))
     [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     ]
     where
@@ -772,7 +772,7 @@ tir_18 = map tirmanam $ korvais adi mridangam $ map (faster • (pad 18 .))
 
 e_spacing :: [Korvai]
 e_spacing = map exercise $ korvais adi mridangam $ map (align adi) $
-    map faster $ concat
+    map su $ concat
         [ map arithmetic [p5, p6, p7, p8, p9]
         , map geometric [p5, p6, p7, p8, p9]
         ]
@@ -806,12 +806,6 @@ rest dur = repeat dur __
 
 pad :: Matra -> Sequence stroke
 pad dur = repeat (64 - dur) __
-
-s2 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
-s2 = faster
-
-s0 :: [Sequence.Note stroke] -> [Sequence.Note stroke]
-s0 = slower
 
 ganesh :: Korvai -> Korvai
 ganesh = source "ganesh"

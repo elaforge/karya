@@ -145,11 +145,10 @@ speed :: S.Speed -> [S.Note stroke] -> [S.Note stroke]
 speed _ [] = []
 speed change seq = [S.TempoChange (S.ChangeSpeed change) seq]
 
-faster :: [S.Note stroke] -> [S.Note stroke]
-faster = speed 1
-
-slower :: [S.Note stroke] -> [S.Note stroke]
-slower = speed (-1)
+-- | Mnemonic: speed up, slow down.
+su, sd :: [S.Note stroke] -> [S.Note stroke]
+su = speed 1
+sd = speed (-1)
 
 nadai :: Matra -> [S.Note stroke] -> [S.Note stroke]
 nadai _ [] = []
@@ -177,7 +176,7 @@ restD nadai aksharas
         errorStack $ pretty aksharas <> " aksharas can't be represented at s2"
     | otherwise = rest matras
     where
-    rest (m:ms) = map S.Note (replicate m Solkattu.Rest) <> faster (rest ms)
+    rest (m:ms) = map S.Note (replicate m Solkattu.Rest) <> su (rest ms)
     rest [] = mempty
     matras = take 4 $ decompose (aksharas * fromIntegral nadai)
     decompose :: Duration -> [Matra]
