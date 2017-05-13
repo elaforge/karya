@@ -16,9 +16,7 @@ import qualified Data.List as List
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
-
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
@@ -563,7 +561,7 @@ default_timestep args step =
 -- | This is for arguments which can be high or low.
 data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
 
-instance Pretty.Pretty UpDown where pretty = showt
+instance Pretty UpDown where pretty = showt
 instance Typecheck.Typecheck UpDown
 instance Typecheck.TypecheckSymbol UpDown
 instance ShowVal.ShowVal UpDown where

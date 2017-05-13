@@ -8,10 +8,8 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.TextUtil as TextUtil
-
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (__)
 import Derive.Solkattu.DslSollu
@@ -279,6 +277,6 @@ state_pos state =
     , Sequence.state_matra state
     )
 
-format :: Pretty.Pretty stroke => Int -> Tala.Tala
+format :: Pretty stroke => Int -> Tala.Tala
     -> [(Sequence.Tempo, Realize.Note stroke)] -> Text
 format = Realize.format Nothing

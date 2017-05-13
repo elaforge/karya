@@ -8,7 +8,6 @@
 module Ui.UiMsg where
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
@@ -105,7 +104,7 @@ data MouseState = MouseMove | MouseDrag Types.MouseButton
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty UiMsg where
+instance Pretty UiMsg where
     pretty ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
             Mouse mstate mods coords clicks is_click -> Text.unwords
@@ -121,7 +120,7 @@ instance Pretty.Pretty UiMsg where
             Unhandled x -> "Unhandled: " <> showt x
         UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, pretty ctx]
 
-instance Pretty.Pretty Context where
+instance Pretty Context where
     pretty (Context focus track floating_input) = "{" <> contents <> "}"
         where
         contents = Text.unwords $ filter (not . Text.null)
@@ -133,7 +132,7 @@ instance Pretty.Pretty Context where
             "track=" <> showt tnum <> ":" <> pretty track
         show_maybe desc = maybe "" (\v -> desc <> "=" <> showt v)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     pretty (Track pos) = "track:" <> pretty pos
     pretty Divider = "div"
     pretty SkeletonDisplay = "skel"

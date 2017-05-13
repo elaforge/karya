@@ -37,8 +37,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Map as Map
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Scale.Theory as Theory
@@ -78,8 +76,7 @@ data GenericInput pitch =
     | PitchChange NoteId pitch
     deriving (Eq, Show)
 
-instance (Show pitch, Pretty.Pretty pitch) =>
-        Pretty.Pretty (GenericInput pitch) where
+instance (Show pitch, Pretty pitch) => Pretty (GenericInput pitch) where
     pretty (NoteOn id pitch vel) = Text.unwords
         ["NoteOn", "(" <> showt id <> ")", pretty pitch, pretty vel]
     pretty input = showt input

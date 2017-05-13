@@ -133,7 +133,7 @@ tinfo_prev_val :: TrackInfo d -> Maybe d -> Stream.Stream d -> Maybe d
 tinfo_prev_val tinfo prev_val levents =
     tinfo_get_last_val tinfo (Stream.events_of levents) <|> prev_val
 
-instance Pretty.Pretty (TrackInfo d) where
+instance Pretty (TrackInfo d) where
     format (TrackInfo track subs ttype _) = Pretty.record "TrackInfo"
         [ ("track", Pretty.format track)
         , ("sub_tracks", Pretty.format subs)

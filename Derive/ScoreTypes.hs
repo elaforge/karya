@@ -33,7 +33,7 @@ import Types
 newtype Instrument = Instrument Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
-instance Pretty.Pretty Instrument where pretty = ShowVal.show_val
+instance Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = inst
 
@@ -50,7 +50,7 @@ newtype Control = Control Text
 control_name :: Control -> Text
 control_name (Control name) = name
 
-instance Pretty.Pretty Control where pretty = ShowVal.show_val
+instance Pretty Control where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Control where show_val (Control c) = Text.cons '%' c
 
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
@@ -66,7 +66,7 @@ newtype PControl = PControl Text
 pcontrol_name :: PControl -> Text
 pcontrol_name (PControl name) = name
 
-instance Pretty.Pretty PControl where pretty = ShowVal.show_val
+instance Pretty PControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PControl where show_val (PControl c) = Text.cons '#' c
 
 -- ** Warp
@@ -94,7 +94,7 @@ id_warp_signal = Signal.signal
     -- but then I'd need complicated special cases for 'warp_to_signal' and
     -- 'compose_warps', so don't bother.
 
-instance Pretty.Pretty Warp where
+instance Pretty Warp where
     format (Warp sig shift stretch) =
         Pretty.record (Pretty.text "Warp"
                 Pretty.<+> Pretty.format (shift, stretch))
@@ -110,7 +110,7 @@ instance DeepSeq.NFData Warp where
 data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
     deriving (Eq, Enum, Ord, Read, Show)
 
-instance Pretty.Pretty Type where pretty = showt
+instance Pretty Type where pretty = showt
 
 instance Serialize.Serialize Type where
     put = Serialize.put . fromEnum
@@ -159,7 +159,7 @@ instance Monoid a => Monoid (Typed a) where
     mempty = Typed mempty mempty
     mappend (Typed t1 v1) (Typed t2 v2) = Typed (t1<>t2) (v1<>v2)
 
-instance Pretty.Pretty a => Pretty.Pretty (Typed a) where
+instance Pretty a => Pretty (Typed a) where
     format (Typed typ val) =
         Pretty.text (if Text.null c then "" else c <> ":") <> Pretty.format val
         where c = type_to_code typ

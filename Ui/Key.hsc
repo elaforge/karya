@@ -10,8 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Foreign.C
 import qualified System.Info
-
-import qualified Util.Pretty as Pretty
+import Global
 
 -- Actually I just need FL/Fl_Enumerations.H
 #include "Ui/c_interface.h"
@@ -33,7 +32,7 @@ data Key = Char Char.Char
 data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
     deriving (Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Key where
+instance Pretty Key where
     pretty (Char ' ') = "␠" -- unicode space symbol
     pretty (Char c) = Text.singleton c
     pretty key = Text.toLower $ Text.pack $ show key

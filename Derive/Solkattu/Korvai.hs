@@ -38,7 +38,7 @@ data Korvai = Korvai {
     , korvai_metadata :: !Metadata
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Korvai where
+instance Pretty Korvai where
     format (Korvai sequence instruments tala metadata) = Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
         , ("instruments", Pretty.format instruments)
@@ -78,7 +78,7 @@ reyong = GetInstrument
     }
 
 -- | Realize a Korvai on a particular instrument.
-realize :: Pretty.Pretty stroke => GetInstrument stroke -> Bool -> Korvai
+realize :: Pretty stroke => GetInstrument stroke -> Bool -> Korvai
     -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
 realize get realize_patterns korvai = do
     -- Continue to realize even if there are align errors.  Misaligned notes
@@ -93,7 +93,7 @@ verify_alignment :: Korvai
 verify_alignment korvai = Solkattu.verify_alignment (korvai_tala korvai) $
     Solkattu.cancel_karvai $ Sequence.flatten $ korvai_sequence korvai
 
-realize_instrument :: Pretty.Pretty stroke => GetInstrument stroke
+realize_instrument :: Pretty stroke => GetInstrument stroke
     -> Instruments -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
     -> Either Text [(Sequence.Tempo, Realize.Note stroke)]
 realize_instrument get instruments realize_patterns notes = do
@@ -145,14 +145,14 @@ instance Monoid Metadata where
     mappend (Metadata date1 tags1) (Metadata date2 tags2) =
         Metadata (date1 <|> date2) (tags1 <> tags2)
 
-instance Pretty.Pretty Metadata where
+instance Pretty Metadata where
     format (Metadata date tags) = Pretty.record "Metadata"
         [ ("date", Pretty.format date)
         , ("tags", Pretty.format tags)
         ]
 
 newtype Tags = Tags (Map Text [Text])
-    deriving (Eq, Show, Pretty.Pretty)
+    deriving (Eq, Show, Pretty)
 
 instance Monoid Tags where
     mempty = Tags mempty
@@ -162,7 +162,7 @@ instance Monoid Tags where
 data Date = Date !Int !Int !Int
     deriving (Eq, Show)
 
-instance Pretty.Pretty Date where
+instance Pretty Date where
     pretty (Date y m d) = showt y <> "-" <> showt m <> "-" <> showt d
 
 make_date :: CallStack.Stack => Int -> Int -> Int -> Date
@@ -258,7 +258,7 @@ instance Monoid Instruments where
     mappend (Instruments a1 a2 a3) (Instruments b1 b2 b3) =
         Instruments (a1<>b1) (a2<>b2) (a3<>b3)
 
-instance Pretty.Pretty Instruments where
+instance Pretty Instruments where
     format (Instruments mridangam kendang_tunggal reyong) =
         Pretty.record "Instruments"
             [ ("mridangam", Pretty.format mridangam)
@@ -277,7 +277,7 @@ instance Monoid Stroke where
     mappend (Stroke a1 a2 a3) (Stroke b1 b2 b3) =
         Stroke (a1<|>b1) (a2<|>b2) (a3<|>b3)
 
-instance Pretty.Pretty Stroke where
+instance Pretty Stroke where
     pretty (Stroke m k r) = pretty (m, k, r)
 
 class ToStroke stroke where
@@ -289,7 +289,7 @@ instance ToStroke (Realize.Stroke Mridangam.Stroke) where
 instance ToStroke (Realize.Stroke KendangTunggal.Stroke) where
     to_stroke s = mempty { s_kendang_tunggal = Just s }
 
-instance (Pretty.Pretty stroke, ToStroke stroke) =>
+instance (Pretty stroke, ToStroke stroke) =>
         ToStroke (Sequence.Note stroke) where
     to_stroke (Sequence.Note s) = to_stroke s
     to_stroke n = errorStack $ "requires a note: " <> pretty n
@@ -304,7 +304,7 @@ instance ToStroke (Realize.Note KendangTunggal.Stroke) where
 
 -- This generalizes the Realize.Note instances, but would require
 -- UndecidableInstances.
--- instance (Pretty.Pretty stroke, ToStroke (Realize.Stroke stroke)) =>
+-- instance (Pretty stroke, ToStroke (Realize.Stroke stroke)) =>
 --         ToStroke (Realize.Note stroke) where
 --     to_stroke (Realize.Note s) = to_stroke s
 --     to_stroke n = errorStack $ "requires a note: " <> pretty n

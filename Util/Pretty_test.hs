@@ -14,7 +14,7 @@ import Util.Test
 import Global
 
 
-render :: Pretty.Pretty a => Int -> a -> [String]
+render :: Pretty a => Int -> a -> [String]
 render width = map untxt . Text.lines . Lazy.toStrict
     . Pretty.render "  " width . Pretty.format
 

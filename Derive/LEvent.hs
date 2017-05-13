@@ -24,7 +24,7 @@ import Global
 data LEvent a = Event !a | Log !Log.Msg
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
-instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
+instance Pretty d => Pretty (LEvent d) where
     format = either Pretty.format format_log
 
 instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where

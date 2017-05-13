@@ -6,7 +6,6 @@
 module Instrument.InstTypes where
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Global
 
@@ -17,7 +16,7 @@ import Global
 -- of an instrument in a particular score.
 data Qualified = Qualified SynthName Name deriving (Show, Eq, Ord)
 
-instance Pretty.Pretty Qualified where pretty = show_qualified
+instance Pretty Qualified where pretty = show_qualified
 
 instance Serialize.Serialize Qualified where
     put (Qualified a b) = Serialize.put a >> Serialize.put b

@@ -122,7 +122,7 @@ patch_to_config patch = config (patch_defaults patch)
 merge_defaults :: Patch -> Config -> Config
 merge_defaults patch = settings %= (<> patch_defaults patch)
 
-instance Pretty.Pretty Config where
+instance Pretty Config where
     format (Config alloc scale control_defaults initialization) =
         Pretty.record "Config"
             [ ("allocation", Pretty.format alloc)
@@ -138,7 +138,7 @@ data Initialization =
     | NrpnTuning -- ^ Configure tuning with 'Midi.nrpn_tuning'.
     | Midi -- ^ Send 'InitializePatch'.
     deriving (Read, Show, Eq, Ord, Bounded, Enum)
-instance Pretty.Pretty Initialization where pretty = showt
+instance Pretty Initialization where pretty = showt
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
@@ -164,7 +164,7 @@ data Settings = Settings {
     , config_pitch_bend_range :: !Control.PbRange
     } deriving (Eq, Read, Show)
 
-instance Pretty.Pretty Settings where
+instance Pretty Settings where
     format (Settings flags scale decay pb_range) = Pretty.record "Settings"
         [ ("flags", Pretty.format flags)
         , ("scale", Pretty.format scale)
@@ -224,7 +224,7 @@ data Patch = Patch {
     , patch_defaults :: !Settings
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Patch where
+instance Pretty Patch where
     format (Patch name cmap init attr_map call_map defaults) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
@@ -286,7 +286,7 @@ data Scale = Scale {
     , scale_key_to_nn :: !(Unboxed.Vector Double)
     } deriving (Eq, Read, Show)
 
-instance Pretty.Pretty Scale where
+instance Pretty Scale where
     format (Scale name key_to_nn) = Pretty.record "Patch.Scale"
         [ ("name", Pretty.format name)
         , ("key_to_nn", Pretty.format key_to_nn)
@@ -402,7 +402,7 @@ data Flag =
     | ResumePlay
     deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
-instance Pretty.Pretty Flag where pretty = showt
+instance Pretty Flag where pretty = showt
 instance Serialize.Serialize Flag where
     put = Serialize.put_enum
     get = Serialize.get_enum
@@ -425,7 +425,7 @@ data InitializePatch =
     | NoInitialization
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty InitializePatch where
+instance Pretty InitializePatch where
     format (InitializeMidi msgs) =
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
     format init = Pretty.text (showt init)
@@ -453,7 +453,7 @@ data Keymap =
     | PitchedKeymap !Midi.Key !Midi.Key !Midi.Key
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Keymap where
+instance Pretty Keymap where
     pretty (UnpitchedKeymap k) = pretty k
     pretty (PitchedKeymap low high nn) = pretty low <> "--"
         <> pretty high <> "(" <> pretty nn <> ")"
@@ -478,7 +478,7 @@ instance DeepSeq.NFData Keymap where
 instance DeepSeq.NFData Keyswitch where
     rnf k = k `seq` () -- already strict
 
-instance Pretty.Pretty Keyswitch where
+instance Pretty Keyswitch where
     format (Keyswitch key) = "key:" <> Pretty.format key
     format (ControlSwitch cc val) =
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val

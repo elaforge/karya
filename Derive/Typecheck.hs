@@ -8,7 +8,6 @@ module Derive.Typecheck where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Ruler.Meter as Meter
@@ -84,7 +83,7 @@ newtype NonNegative a = NonNegative { non_negative :: a }
 
 -- | 0 <= x <= 1
 newtype Normalized = Normalized { normalized :: Double }
-    deriving (Show, Eq, ShowVal.ShowVal, Pretty.Pretty)
+    deriving (Show, Eq, ShowVal.ShowVal, Pretty)
 
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
@@ -634,7 +633,7 @@ instance ToVal NotGiven where
 
 data TimeType = Real | Score deriving (Eq, Show)
 
-instance Pretty.Pretty TimeType where pretty = showt
+instance Pretty TimeType where pretty = showt
 
 time_type :: TimeType -> Score.Type -> Maybe TimeType
 time_type deflt typ = case typ of
@@ -645,7 +644,7 @@ time_type deflt typ = case typ of
 
 data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 
-instance Pretty.Pretty TransposeType where pretty = showt
+instance Pretty TransposeType where pretty = showt
 
 transpose_type :: TransposeType -> Score.Type -> Maybe TransposeType
 transpose_type deflt typ = case typ of

@@ -18,7 +18,6 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector.Unboxed.Mutable as Mutable
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import Perform.RealTime (RealTime)
 import Global
@@ -79,7 +78,7 @@ data Message =
     | AllDevices !RealTime ![Midi.Message]
     deriving (Show)
 
-instance Pretty.Pretty Message where
+instance Pretty Message where
     pretty msg = case msg of
         Midi msg -> pretty msg
         AllNotesOff time ->

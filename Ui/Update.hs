@@ -126,7 +126,7 @@ instance DeepSeq.NFData (Update t u) where
         Ruler ruler_id -> ruler_id `seq` ()
         State u -> u `seq` ()
 
-instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
+instance (Pretty t, Pretty u) => Pretty (Update t u) where
     format upd = case upd of
         View view_id update -> Pretty.constructor "View"
             [Pretty.format view_id, Pretty.format update]
@@ -137,7 +137,7 @@ instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
         Ruler ruler_id -> Pretty.constructor "Ruler" [Pretty.format ruler_id]
         State update -> Pretty.constructor "State" [Pretty.format update]
 
-instance Pretty.Pretty View where
+instance Pretty View where
     format update = case update of
         CreateView -> Pretty.text "CreateView"
         DestroyView -> Pretty.text "DestroyView"
@@ -153,7 +153,7 @@ instance Pretty.Pretty View where
         TitleFocus tracknum ->
             Pretty.constructor "TitleFocus" [Pretty.format tracknum]
 
-instance Pretty.Pretty t => Pretty.Pretty (Block t) where
+instance Pretty t => Pretty (Block t) where
     format update = case update of
         BlockTitle s -> Pretty.constructor "BlockTitle"
             [Pretty.format s]
@@ -168,7 +168,7 @@ instance Pretty.Pretty t => Pretty.Pretty (Block t) where
         BlockTrack n t -> Pretty.constructor "BlockTrack"
             [Pretty.format n, Pretty.format t]
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     format update = case update of
         TrackEvents s e -> Pretty.constructor "TrackEvents"
             [Pretty.format s, Pretty.format e]
@@ -178,7 +178,7 @@ instance Pretty.Pretty Track where
         TrackRender config -> Pretty.constructor "TrackTitle"
             [Pretty.format config]
 
-instance Pretty.Pretty State where
+instance Pretty State where
     format update = case update of
         Config config -> Pretty.constructor "Config" [Pretty.format config]
         CreateBlock block_id _ -> Pretty.constructor "CreateBlock"
@@ -194,7 +194,7 @@ instance Pretty.Pretty State where
         DestroyRuler ruler_id -> Pretty.constructor "DestroyRuler"
             [Pretty.format ruler_id]
 
-instance Pretty.Pretty CmdUpdate where
+instance Pretty CmdUpdate where
     pretty = showt
 
 update_id :: Update t State -> Maybe Id.Id

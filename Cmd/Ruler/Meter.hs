@@ -29,7 +29,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -75,7 +74,7 @@ data LabeledMark = LabeledMark {
     , m_label :: !Label
     } deriving (Show)
 
-instance Pretty.Pretty LabeledMark where
+instance Pretty LabeledMark where
     pretty (LabeledMark rank dur label) = pretty (rank, dur, label)
 
 -- | Duration between ruler marks.  Since these are added together, there is

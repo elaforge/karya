@@ -9,7 +9,6 @@ module Derive.Solkattu.Mridangam where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Pretty as Pretty
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -50,7 +49,7 @@ standard_stroke_map = Realize.simple_stroke_map $
 
 -- * strokes
 
-instance Pretty.Pretty Stroke where
+instance Pretty Stroke where
     pretty (Thoppi t) = pretty t
     pretty (Valantalai v) = pretty v
     pretty (Both t v) = case t of
@@ -66,12 +65,12 @@ instance Pretty.Pretty Stroke where
             Tan -> "p^"
         Thom -> Text.toUpper (pretty v)
 
-instance Pretty.Pretty Thoppi where
+instance Pretty Thoppi where
     pretty n = case n of
         Thom -> "o"
         Tha -> "p"
 
-instance Pretty.Pretty Valantalai where
+instance Pretty Valantalai where
     pretty n = case n of
         Ki -> "k"
         Ta -> "t"

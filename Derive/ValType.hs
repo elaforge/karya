@@ -9,11 +9,10 @@
 module Derive.ValType where
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.Id as Id
-import qualified Derive.Score as Score
 import Derive.BaseTypes (Val(..))
+import qualified Derive.Score as Score
 import Global
 
 
@@ -99,7 +98,7 @@ subtypes_of n
     where
     transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
 
-instance Pretty.Pretty Type where
+instance Pretty Type where
     pretty (TMaybe typ) = "Maybe " <> pretty typ
     pretty (TEither a b) = pretty a <> " or " <> pretty b
     pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
@@ -120,7 +119,7 @@ append_parens name desc
     | Text.null desc = name
     | otherwise = name <> " (" <> desc <> ")"
 
-instance Pretty.Pretty NumType where
+instance Pretty NumType where
     pretty t = case t of
         TUntyped -> ""
         TInt -> "integral"
@@ -134,7 +133,7 @@ instance Pretty.Pretty NumType where
         TScoreTime -> "ScoreTime"
         TNoteNumber -> "NN"
 
-instance Pretty.Pretty NumValue where
+instance Pretty NumValue where
     pretty t = case t of
         TAny -> ""
         TNonNegative -> ">=0"

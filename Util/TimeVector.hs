@@ -142,7 +142,7 @@ constant_val vec = case uncons vec of
 to_pair :: Sample y -> (X, y)
 to_pair (Sample x y) = (x, y)
 
-instance Pretty.Pretty y => Pretty.Pretty (Sample y) where
+instance Pretty y => Pretty (Sample y) where
     format (Sample x y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
 -- | TimeVectors should be sorted by the X value.  Return warnings for where

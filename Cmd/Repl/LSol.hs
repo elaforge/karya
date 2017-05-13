@@ -10,7 +10,6 @@ module Cmd.Repl.LSol (
 ) where
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
@@ -38,8 +37,7 @@ insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert_r = insert Korvai.reyong
 
 -- | Insert the korvai at the selection.
-insert ::
-    (Expr.ToExpr (Realize.Stroke stroke), Pretty.Pretty stroke, Cmd.M m) =>
+insert :: (Expr.ToExpr (Realize.Stroke stroke), Pretty stroke, Cmd.M m) =>
     Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai -> m ()
 insert instrument realize_patterns akshara_dur korvai = do
     (_, _, track_id, at) <- Selection.get_insert
@@ -51,7 +49,7 @@ insert instrument realize_patterns akshara_dur korvai = do
     Ui.insert_events track_id events
 
 realize_korvai ::
-    (Expr.ToExpr (Realize.Stroke stroke), Pretty.Pretty stroke, Ui.M m) =>
+    (Expr.ToExpr (Realize.Stroke stroke), Pretty stroke, Ui.M m) =>
     Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai
     -> m Events.Events
 realize_korvai instrument realize_patterns korvai = do

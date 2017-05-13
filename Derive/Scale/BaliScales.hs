@@ -17,7 +17,6 @@ import Data.Vector ((!?))
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -265,7 +264,7 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
 
 data Tuning = Umbang | Isep deriving (Enum, Bounded, Show)
 
-instance Pretty.Pretty Tuning where pretty = showt
+instance Pretty Tuning where pretty = showt
 instance Typecheck.Typecheck Tuning
 instance Typecheck.TypecheckSymbol Tuning
 instance RestrictedEnviron.ToVal Tuning

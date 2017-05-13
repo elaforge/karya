@@ -86,7 +86,7 @@ import Types
 -- flavors of signal below, but it really is just documentation and anyone who
 -- wants to operate on a generic signal can take a @Signal y@.
 newtype Signal y = Signal { sig_vec :: TimeVector.Unboxed }
-    deriving (DeepSeq.NFData, Pretty.Pretty, Eq, Serialize.Serialize)
+    deriving (DeepSeq.NFData, Pretty, Eq, Serialize.Serialize)
 
 instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (TimeVector.unsignal vec)

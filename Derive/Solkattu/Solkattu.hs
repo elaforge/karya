@@ -64,9 +64,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Sequence as S
@@ -84,7 +82,7 @@ data Note stroke =
     | Alignment !Tala.Akshara
     deriving (Eq, Ord, Show, Functor)
 
-instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
+instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
         Note NoSollu karvai (Just stroke) -> mconcat
             [ pretty stroke
@@ -129,7 +127,7 @@ data Pattern =
     | Nakatiku
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Pattern where
+instance Pretty Pattern where
     pretty (PatternM matras) = "p" <> showt matras
     pretty Nakatiku = "4n"
 
@@ -150,7 +148,7 @@ data Sollu =
     | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Sollu where
+instance Pretty Sollu where
     pretty = Text.toLower . showt
 
 -- * durations
@@ -183,7 +181,7 @@ drop_next_rest [] = (False, [])
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verify_alignment :: Pretty.Pretty stroke =>
+verify_alignment :: Pretty stroke =>
     Tala.Tala -> [(S.Tempo, Note stroke)]
     -> ([(S.Tempo, Note stroke)], Maybe Error)
     -- ^ If there's an error, still return the elemnts leading up to it.

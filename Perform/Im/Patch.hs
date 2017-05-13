@@ -26,7 +26,7 @@ patch = Patch
     , patch_flags = mempty
     }
 
-instance Pretty.Pretty Patch where
+instance Pretty Patch where
     format (Patch controls attr_map flags) = Pretty.record "Patch"
         [ ("controls", Pretty.format controls)
         , ("attribute_map", Pretty.format attr_map)
@@ -47,4 +47,4 @@ data Flag =
     Triggered
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Flag where pretty = showt
+instance Pretty Flag where pretty = showt

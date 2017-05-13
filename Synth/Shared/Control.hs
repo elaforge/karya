@@ -7,15 +7,13 @@ module Synth.Shared.Control where
 import qualified Data.Aeson as Aeson
 import qualified Data.String as String
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Global
 
 
 newtype Control = Control Text
     deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
-        Aeson.ToJSONKey, Aeson.FromJSONKey,
-        Serialize.Serialize, Pretty.Pretty)
+        Aeson.ToJSONKey, Aeson.FromJSONKey, Serialize.Serialize, Pretty)
 
 envelope :: Control
 envelope = "envelope"

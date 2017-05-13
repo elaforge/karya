@@ -217,7 +217,7 @@ data KotekanPattern = KotekanPattern {
     , kotekan_interlock_pat :: !(Pasang [Maybe Pitch.Step])
     } deriving (Eq, Show)
 
-instance Pretty.Pretty KotekanPattern where
+instance Pretty KotekanPattern where
     format (KotekanPattern telu pat itelu ipat) = Pretty.record "KotekanPattern"
         [ ("telu", Pretty.format telu)
         , ("pat", Pretty.format pat)
@@ -230,7 +230,7 @@ data Pasang a = Pasang {
     , sangsih :: a
     } deriving (Eq, Show)
 
-instance Pretty.Pretty a => Pretty.Pretty (Pasang a) where
+instance Pretty a => Pretty (Pasang a) where
     format (Pasang polos sangsih) = Pretty.record "Pasang"
         [ ("polos", Pretty.format polos)
         , ("sangsih", Pretty.format sangsih)
@@ -788,7 +788,7 @@ data Atom = Gap -- ^ a gap in the kotekan pattern
     | Low | High
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Atom where
+instance Pretty Atom where
     format = Pretty.char . to_char
     formatList cs =
         "make_kernel \"" <> Pretty.text (txt (map to_char cs)) <> "\""
@@ -929,7 +929,7 @@ find_kernel kernel = lookup kernel variants
 -- ** implementation
 
 data Repeat = Repeat | Once deriving (Show)
-instance Pretty.Pretty Repeat where pretty = showt
+instance Pretty Repeat where pretty = showt
 
 -- | (interlocking pattern, non-interlocking pattern)
 --
@@ -944,7 +944,7 @@ data Note a = Note {
     , note_data :: !a
     } deriving (Functor, Show)
 
-instance Pretty.Pretty a => Pretty.Pretty (Note a) where
+instance Pretty a => Pretty (Note a) where
     format (Note start dur flags d) = Pretty.format (start, dur, flags, d)
 
 add_flag :: Flags.Flags -> Note a -> Note a
@@ -970,7 +970,7 @@ kotekan_note inst steps = KotekanNote
 muted_note :: KotekanNote -> KotekanNote
 muted_note note = note { note_muted = True }
 
-instance Pretty.Pretty KotekanNote where
+instance Pretty KotekanNote where
     format (KotekanNote inst steps muted) =
         Pretty.format (inst, steps, if muted then "+mute" else "+open" :: Text)
 

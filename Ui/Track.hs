@@ -33,7 +33,7 @@ data Track = Track {
     , track_render :: !RenderConfig
     } deriving (Eq, Show, Read)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     format (Track title events _bg render) = Pretty.record "Track"
         [ ("title", Pretty.format title)
         , ("render", Pretty.format render)
@@ -86,7 +86,7 @@ no_render = RenderConfig NoRender Config.track_signal_color
 line_render :: RenderConfig
 line_render = RenderConfig (Line Nothing) Config.track_signal_color
 
-instance Pretty.Pretty RenderConfig where
+instance Pretty RenderConfig where
     pretty (RenderConfig style color) = pretty (style, color)
 
 -- | RenderStyles can take an optional source which says which control the
@@ -106,10 +106,10 @@ data RenderStyle = NoRender | Line !(Maybe RenderSource)
 data RenderSource = Control Score.Control | Pitch Score.PControl
     deriving (Eq, Read, Show)
 
-instance Pretty.Pretty RenderSource where
+instance Pretty RenderSource where
     pretty (Control c) = "Control " <> pretty c
     pretty (Pitch c) = "Pitch " <> pretty c
-instance Pretty.Pretty RenderStyle where pretty = showt
+instance Pretty RenderStyle where pretty = showt
 
 set_render_style :: RenderStyle -> Track -> Track
 set_render_style style track =
@@ -140,7 +140,7 @@ data TrackSignal = TrackSignal {
 empty_track_signal :: TrackSignal
 empty_track_signal = TrackSignal Signal.empty 0 1
 
-instance Pretty.Pretty TrackSignal where
+instance Pretty TrackSignal where
     format (TrackSignal sig shift stretch) =
         Pretty.record ("TrackSignal" Pretty.<+> Pretty.format (shift, stretch))
             [("signal", Pretty.format sig)]

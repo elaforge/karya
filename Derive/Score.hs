@@ -313,7 +313,7 @@ instance DeepSeq.NFData Event where
             `seq` rnf logs
             -- I can't force Dynamic, so leave off _delayed_args.
 
-instance Pretty.Pretty Event where
+instance Pretty Event where
     format (Event start dur text controls pitch pitches coffset stack highlight
             inst env flags delayed_args logs) =
         Pretty.record ("Event"

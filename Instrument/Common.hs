@@ -56,7 +56,7 @@ common code = Common
     , common_doc = ""
     }
 
-instance Pretty.Pretty code => Pretty.Pretty (Common code) where
+instance Pretty code => Pretty (Common code) where
     format (Common code env tags doc) = Pretty.record "Instrument"
         [ ("code", Pretty.format code)
         , ("restricted_environ", Pretty.format env)
@@ -83,7 +83,7 @@ instance Pretty.Pretty code => Pretty.Pretty (Common code) where
     make sure that can't happen.
 -}
 newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
-    deriving (Eq, Show, Pretty.Pretty, Serialize.Serialize)
+    deriving (Eq, Show, Pretty, Serialize.Serialize)
 
 attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
 attribute_map = sort_attribute_map . AttributeMap
@@ -165,7 +165,7 @@ mute = Lens.lens config_mute
 solo = Lens.lens config_solo
     (\f r -> r { config_solo = f (config_solo r) })
 
-instance Pretty.Pretty Config where
+instance Pretty Config where
     format (Config environ controls mute solo) = Pretty.record "Config"
         [ ("environ", Pretty.format environ)
         , ("controls", Pretty.format controls)

@@ -111,7 +111,7 @@ instance Monoid (Stream PSignal.PSignal) where
 instance DeepSeq.NFData a => DeepSeq.NFData (Stream a) where
     rnf = DeepSeq.rnf . to_list
 
-instance Pretty.Pretty a => Pretty.Pretty (Stream a) where
+instance Pretty a => Pretty (Stream a) where
     -- format (Stream sorted events) =
     --     Pretty.text (showt sorted) Pretty.<+> Pretty.format events
     format (Stream events) = Pretty.format events

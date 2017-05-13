@@ -66,7 +66,7 @@ import Types
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
 newtype PSignal = PSignal { sig_vec :: TimeVector.Boxed Pitch }
-    deriving (Show, Pretty.Pretty)
+    deriving (Show, Pretty)
 
 instance Monoid PSignal where
     mempty = PSignal mempty
@@ -188,7 +188,7 @@ data Scale = Scale {
     , pscale_transposers :: !(Set ScoreTypes.Control)
     } deriving (Show)
 
-instance Pretty.Pretty Scale where
+instance Pretty Scale where
     pretty = pretty . pscale_scale_id
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
@@ -201,7 +201,7 @@ instance Show (RawPitch a) where
     show p = either show prettys (pitch_nn (coerce p))
 
 -- | Will look like: 62.95nn,4i(*wayang)
-instance Pretty.Pretty (RawPitch a) where
+instance Pretty (RawPitch a) where
     pretty p = either showt pretty (pitch_nn (coerce p)) <> ","
         <> either showt Pitch.note_text (pitch_note (coerce p))
         <> "(" <> pretty (pitch_scale p) <> ")"
@@ -237,7 +237,7 @@ data PitchError =
 out_of_range :: PitchError
 out_of_range = OutOfRange Nothing mempty
 
-instance Pretty.Pretty PitchError where
+instance Pretty PitchError where
     pretty err = case err of
         UnparseableNote -> "unparseable note"
         OutOfRange nn vals -> maybe "" ((<>" is ") . pretty) nn
@@ -249,7 +249,7 @@ instance Pretty.Pretty PitchError where
         NotImplemented -> "not implemented"
         PitchError msg -> msg
 
-instance Pretty.Pretty PitchConfig where
+instance Pretty PitchConfig where
     format (PitchConfig env controls) = Pretty.record "PitchConfig"
         [ ("environ", Pretty.format env)
         , ("controls", Pretty.format controls)
@@ -270,7 +270,7 @@ instance ShowVal.ShowVal Duration where
     show_val (RealDuration x) = ShowVal.show_val x
     show_val (ScoreDuration x) = ShowVal.show_val x
 
-instance Pretty.Pretty Duration where
+instance Pretty Duration where
     pretty (RealDuration t) = pretty t
     pretty (ScoreDuration t) = pretty t
 
@@ -283,7 +283,7 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 -- * Environ
 
 newtype Environ = Environ (Map Key Val)
-    deriving (Show, Monoid, Pretty.Pretty, DeepSeq.NFData)
+    deriving (Show, Monoid, Pretty, DeepSeq.NFData)
 
 -- | Insert a val directly, with no typechecking.
 insert :: Key -> Val -> Environ -> Environ
@@ -414,7 +414,7 @@ instance ShowVal.ShowVal Val where
         VSeparator -> ";"
         VList vals -> ShowVal.show_val vals
 
-instance Pretty.Pretty Val where
+instance Pretty Val where
     pretty = ShowVal.show_val
 
 instance DeepSeq.NFData Val where
@@ -429,7 +429,7 @@ newtype Quoted = Quoted Expr deriving (Show)
 -- so it shouldn't have anything unshowable, like pitches.
 instance ShowVal.ShowVal Quoted where
     show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
-instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
+instance Pretty Quoted where pretty = ShowVal.show_val
 
 -- | Show a str intended for call position.  Call position is special in
 -- that it can contain any character except space and equals without quoting.
@@ -499,7 +499,7 @@ instance ShowVal.ShowVal ControlRef where
     show_val = show_control $ \(ScoreTypes.Typed typ sig) ->
         ShowVal.show_val (Signal.at 0 sig) <> ScoreTypes.type_to_code typ
 
-instance Pretty.Pretty ControlRef where pretty = ShowVal.show_val
+instance Pretty ControlRef where pretty = ShowVal.show_val
 
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.
@@ -512,7 +512,7 @@ instance ShowVal.ShowVal PControlRef where
     show_val = show_control
         (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
 
-instance Pretty.Pretty PControlRef where pretty = ShowVal.show_val
+instance Pretty PControlRef where pretty = ShowVal.show_val
 
 show_control :: ShowVal.ShowVal control => (sig -> Text) -> Ref control sig
     -> Text
@@ -609,7 +609,7 @@ data ControlFunction =
         !(ScoreTypes.Control -> Dynamic -> RealTime -> ScoreTypes.TypedVal)
 
 instance Show ControlFunction where show = untxt . ShowVal.show_val
-instance Pretty.Pretty ControlFunction where pretty = showt
+instance Pretty ControlFunction where pretty = showt
 -- | Not parseable.
 instance ShowVal.ShowVal ControlFunction where
     show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"

@@ -451,13 +451,13 @@ data Modify = Position !ScoreTime | Duration !ScoreTime
     | Set !Text | Prefix !Text
     deriving (Eq, Show)
 
-instance Pretty.Pretty Edit where
+instance Pretty Edit where
     format (Add event) =
         Pretty.constructor "Add" [Pretty.format event]
     format (Edit key mods) = Pretty.constructor "Edit"
         [Pretty.format key, Pretty.format mods]
 
-instance Pretty.Pretty Modify where pretty = showt
+instance Pretty Modify where pretty = showt
 
 is_modified :: Edit -> Bool
 is_modified (Edit _ mods) = not (null mods)

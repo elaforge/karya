@@ -48,7 +48,7 @@ data Msg =
     | Socket IO.Handle ReplProtocol.Query
     deriving (Show)
 
-instance Pretty.Pretty Msg where
+instance Pretty Msg where
     pretty (Ui msg) = "Ui: " <> pretty msg
     pretty (Midi msg) = "Midi: " <> pretty msg
     pretty (InputNote msg) = "Input: " <> showt msg
@@ -65,7 +65,7 @@ data DeriveStatus =
     | DeriveComplete Performance
     deriving (Show)
 
-instance Pretty.Pretty DeriveStatus where pretty = showt
+instance Pretty DeriveStatus where pretty = showt
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 
@@ -115,7 +115,7 @@ instance Show Performance where
         -- Show events and logs.  This way there's a hint to look at logs if
         -- there are mysteriously no events.
 
-instance Pretty.Pretty Performance where
+instance Pretty Performance where
     format (Performance cache events logs logs_written track_dynamic
             integrated damage warps track_signals) = Pretty.record "Performance"
         [ ("cache", Pretty.format $ Map.keys $ (\(Derive.Cache c) -> c) cache)

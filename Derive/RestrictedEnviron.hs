@@ -27,7 +27,7 @@ import Types
 
 
 newtype Environ = Environ (Map BaseTypes.Key Val)
-    deriving (Read, Show, Eq, Monoid, Pretty.Pretty, Serialize.Serialize)
+    deriving (Read, Show, Eq, Monoid, Pretty, Serialize.Serialize)
 
 make :: [(BaseTypes.Key, Val)] -> Environ
 make = Environ . Map.fromList
@@ -58,7 +58,7 @@ convert_val val = case val of
         Expr.map_literals convert_val v
     VList v -> BaseTypes.VList $ map convert_val v
 
-instance Pretty.Pretty Val where format = Pretty.format . convert_val
+instance Pretty Val where format = Pretty.format . convert_val
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.

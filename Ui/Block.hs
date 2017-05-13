@@ -84,7 +84,7 @@ data Block = Block {
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
-instance Pretty.Pretty Block where
+instance Pretty Block where
     format (Block title _config tracks skel integrated integrated_tracks meta) =
         Pretty.record "Block"
             [ ("title", Pretty.format title)
@@ -128,7 +128,7 @@ data TrackDestinations =
 -}
 type ScoreDestinations = [(TrackId, (TrackId, EventIndex))]
 
-instance Pretty.Pretty TrackDestinations where
+instance Pretty TrackDestinations where
     format (DeriveDestinations dests) =
         "DeriveDestinations" Pretty.<+> Pretty.format dests
     format (ScoreDestinations dests) =
@@ -148,7 +148,7 @@ data DeriveDestination = DeriveDestination {
 -- the block I can figure out user edits.
 type EventIndex = Map Event.IndexKey Event.Event
 
-instance Pretty.Pretty DeriveDestination where
+instance Pretty DeriveDestination where
     format (DeriveDestination note controls) = Pretty.record "DeriveDestination"
         [ ("note", Pretty.format note)
         , ("controls", Pretty.format controls)
@@ -211,7 +211,7 @@ default_config = Config
     , config_sb_box = box Config.bconfig_box
     } where box = uncurry Box
 
-instance Pretty.Pretty Config where
+instance Pretty Config where
     format (Config skel track sb) = Pretty.record "Config"
         [ ("skel", Pretty.format skel)
         , ("track", Pretty.format track)
@@ -222,7 +222,7 @@ instance Pretty.Pretty Config where
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }
     deriving (Eq, Show, Read)
 
-instance Pretty.Pretty Box where
+instance Pretty Box where
     pretty (Box color c) =
         pretty color <> if c == ' ' then "" else " '" <> Text.singleton c <> "'"
 
@@ -248,7 +248,7 @@ data Track = Track {
 track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     pretty (Track tid width flags merged) = pretty tid <> ": "
         <> Text.unwords [pretty width, pretty flags, pretty merged]
 
@@ -295,7 +295,7 @@ data DisplayTrack = DisplayTrack {
     , dtrack_event_brightness :: !Double
     } deriving (Eq, Show, Read)
 
-instance Pretty.Pretty DisplayTrack where
+instance Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
         Pretty.record "DisplayTrack"
             [ ("tracklike_id", Pretty.format tlike_id)
@@ -309,8 +309,7 @@ instance Pretty.Pretty DisplayTrack where
 data Status = Status !String !Color.Color
     deriving (Eq, Show, Read)
 
-instance Pretty.Pretty Status where
-    pretty (Status cs color) = pretty (cs, color)
+instance Pretty Status where pretty (Status cs color) = pretty (cs, color)
 
 empty_status :: Status
 empty_status = Status "" Color.black
@@ -331,7 +330,7 @@ data TrackFlag =
     | Disable
     deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
-instance Pretty.Pretty TrackFlag where pretty = showt
+instance Pretty TrackFlag where pretty = showt
 
 -- | Convert logical block level tracks to display tracks.
 block_display_tracks :: Block -> [DisplayTrack]
@@ -398,7 +397,7 @@ data TracklikeId =
     | DId Divider
     deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty TracklikeId where
+instance Pretty TracklikeId where
     pretty tlike_id = case tlike_id of
         TId tid rid -> pretty tid <> "/" <> pretty rid
         RId rid -> pretty rid
@@ -464,7 +463,7 @@ data View = View {
     , view_selections :: !(Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty View where
+instance Pretty View where
     format (View block rect padding status tscroll zoom sels) =
         Pretty.record "View"
             [ ("block", Pretty.format block)
@@ -510,7 +509,7 @@ data Padding = Padding {
     -- Right padding is not necessary, because I can add up track widths.
     } deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Padding where
+instance Pretty Padding where
     pretty (Padding left top bottom) = pretty (left, top, bottom)
 
 default_padding :: Block -> Padding

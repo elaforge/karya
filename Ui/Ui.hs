@@ -229,7 +229,7 @@ clear state = state { state_views = Map.map clear_view (state_views state) }
                 Map.lookup Config.insert_selnum (Block.view_selections view)
         }
 
-instance Pretty.Pretty State where
+instance Pretty State where
     format (State views blocks tracks rulers config) = Pretty.record "State"
         [ ("views", Pretty.format views)
         , ("blocks", Pretty.format blocks)
@@ -251,7 +251,7 @@ instance DeepSeq.NFData State where
 data Track = Track !BlockId !TrackNum
     deriving (Eq, Show)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     pretty (Track block_id tracknum) =
         pretty block_id <> "/" <> showt tracknum
 
@@ -261,7 +261,7 @@ instance Pretty.Pretty Track where
 data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
     deriving (Eq, Show)
 
-instance Pretty.Pretty Range where
+instance Pretty Range where
     pretty (Range maybe_block_id track_id start end) =
         Stack.log_ui_frame (maybe_block_id, Just track_id, Just (start, end))
 
@@ -275,7 +275,7 @@ data TrackInfo = TrackInfo {
     , track_block :: !Block.Track
     } deriving (Eq, Show)
 
-instance Pretty.Pretty TrackInfo where
+instance Pretty TrackInfo where
     pretty (TrackInfo title track_id tracknum _) =
         "(" <> Text.unwords
             ["TrackInfo", showt title, showt track_id, showt tracknum]
@@ -400,7 +400,7 @@ exec_rethrow msg state =
 -- much bother at the moment.
 data Error = Error !GHC.Stack.CallStack !Text | Abort deriving (Show)
 
-instance Pretty.Pretty Error where
+instance Pretty Error where
     pretty (Error stack msg) =
         CallStack.showCaller (CallStack.caller stack) <> " " <> msg
     pretty Abort = "(abort)"

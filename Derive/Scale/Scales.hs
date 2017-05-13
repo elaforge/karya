@@ -95,7 +95,7 @@ data DegreeMap = DegreeMap {
     , dm_start_pc :: Pitch.PitchClass
     } deriving (Show)
 
-instance Pretty.Pretty DegreeMap where
+instance Pretty DegreeMap where
     format dmap = Pretty.format $ Map.fromList $ do
         (note, semis) <- Map.toList (dm_to_semis dmap)
         return (semis, (note, dm_to_nn dmap !? semis))

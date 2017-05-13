@@ -6,7 +6,6 @@
 module Ui.Zoom (Zoom(..), to_pixels, to_time) where
 import Util.ForeignC
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 
 import qualified Ui.ScoreTime as ScoreTime
 import Ui.ScoreTime (TrackTime)
@@ -23,7 +22,7 @@ data Zoom = Zoom {
     , factor :: !Double
     } deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Zoom where
+instance Pretty Zoom where
     pretty (Zoom offset factor) =
         "+" <> pretty offset <> "*" <> Num.showFloat 1 factor
 

@@ -195,7 +195,7 @@ initialize_log_msg msg = case Log.msg_stack msg of
 data Error = Error !GHC.Stack.CallStack !Stack.Stack !ErrorVal
     deriving (Show)
 
-instance Pretty.Pretty Error where
+instance Pretty Error where
     pretty (Error call_stack stack val) =
         CallStack.showCaller (CallStack.caller call_stack)
             <> " " <> pretty stack <> ": " <> pretty val
@@ -203,7 +203,7 @@ instance Pretty.Pretty Error where
 data ErrorVal = GenericError !Text | CallError !CallError
     deriving (Show)
 
-instance Pretty.Pretty ErrorVal where
+instance Pretty ErrorVal where
     pretty (GenericError s) = s
     pretty (CallError err) = pretty err
 
@@ -233,7 +233,7 @@ data EvalSource =
     | Quoted !BaseTypes.Quoted
     deriving (Show)
 
-instance Pretty.Pretty CallError where
+instance Pretty CallError where
     pretty err = case err of
         TypeError place source (ArgName arg_name) expected received
                 derive_error ->
@@ -255,7 +255,7 @@ instance Pretty.Pretty CallError where
             " (the type conversion required derivation, which crashed: "
             <> pretty error_val <> ")"
 
-instance Pretty.Pretty ErrorPlace where
+instance Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
@@ -288,12 +288,12 @@ data Tagged = TagEvent Score.Event | TagControl Signal.Control
     | TagPitch PSignal.PSignal
     deriving (Show)
 
-instance Pretty.Pretty Tagged where
+instance Pretty Tagged where
     format (TagEvent a) = Pretty.format a
     format (TagControl a) = Pretty.format a
     format (TagPitch a) = Pretty.format a
 
-class (Show a, Pretty.Pretty a) => Taggable a where
+class (Show a, Pretty a) => Taggable a where
     to_tagged :: a -> Tagged
     from_tagged :: Tagged -> Maybe a
 
@@ -485,7 +485,7 @@ data Inversion =
     -- is captured here.
     | InversionInProgress !NoteDeriver
 
-instance Pretty.Pretty Inversion where
+instance Pretty Inversion where
     pretty NotInverted = "NotInverted"
     pretty (InversionInProgress {}) = "InversionInProgress"
 
@@ -536,7 +536,7 @@ initial_control_merge_defaults =
 default_dynamic :: Signal.Y
 default_dynamic = 1
 
-instance Pretty.Pretty Dynamic where
+instance Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
             aliases damage _under_invert inversion pitch_map
             note_track stack mode) =
@@ -592,7 +592,7 @@ instance Monoid Library where
             -- Put aliases2 first so it takes priority.
 
 instance Show Library where show _ = "((Library))"
-instance Pretty.Pretty Library where
+instance Pretty Library where
     format (Library note control pitch val aliases) = Pretty.record "Library"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
@@ -623,7 +623,7 @@ s_transformer = Lens.lens scopes_transformer
 s_val = Lens.lens scopes_val
     (\f r -> r { scopes_val = f (scopes_val r) })
 
-instance Pretty.Pretty Scopes where
+instance Pretty Scopes where
     format (Scopes g t v) = Pretty.record "Scopes"
         [ ("generator", Pretty.format g)
         , ("transformer", Pretty.format t)
@@ -651,8 +651,8 @@ s_pitch = Lens.lens scope_pitch
 empty_scope :: Scope a b c
 empty_scope = Scope mempty mempty mempty
 
-instance (Pretty.Pretty note, Pretty.Pretty control, Pretty.Pretty pitch) =>
-        Pretty.Pretty (Scope note control pitch) where
+instance (Pretty note, Pretty control, Pretty pitch) =>
+        Pretty (Scope note control pitch) where
     format (Scope note control pitch) = Pretty.record "Scope"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
@@ -676,7 +676,7 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 -}
 newtype ScopePriority call =
     ScopePriority (Map CallPriority [LookupCall call])
-    deriving (Pretty.Pretty)
+    deriving (Pretty)
 
 instance Monoid (ScopePriority call) where
     mempty = ScopePriority mempty
@@ -704,7 +704,7 @@ data CallPriority =
     | PrioLibrary
     deriving (Show, Eq, Ord)
 
-instance Pretty.Pretty CallPriority where pretty = showt
+instance Pretty CallPriority where pretty = showt
 
 scope_priority :: [(CallPriority, [LookupCall call])] -> ScopePriority call
 scope_priority = ScopePriority . Map.fromList
@@ -776,7 +776,7 @@ data Mode =
     | Lilypond !Lilypond.Types.Config
     deriving (Show)
 
-instance Pretty.Pretty Mode where
+instance Pretty Mode where
     format (Lilypond config) = "Lilypond" Pretty.<+> Pretty.format config
     format mode = Pretty.text (showt mode)
 
@@ -844,7 +844,7 @@ instance Show InstrumentCalls where
         "((InstrumentCalls " <> show (length gen, length trans, length val)
             <> "))"
 
-instance Pretty.Pretty InstrumentCalls where
+instance Pretty InstrumentCalls where
     format (InstrumentCalls gen trans val) = Pretty.record "InstrumentCalls"
         [ ("generator", Pretty.format gen)
         , ("transformer", Pretty.format trans)
@@ -864,7 +864,7 @@ data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
     | Merge !(Merger sig) -- ^ Merge with a specific operator.
     deriving (Show)
 
-instance Pretty.Pretty (Merge a) where pretty = showt
+instance Pretty (Merge a) where pretty = showt
 instance DeepSeq.NFData (Merge a) where rnf _ = ()
 
 -- | Combine two signals.  The element should be an identity, like mempty.
@@ -881,7 +881,7 @@ data Merger sig =
 instance ShowVal.ShowVal (Merger a) where
     show_val Set = "set"
     show_val (Merger name _ _) = name
-instance Pretty.Pretty (Merger a) where pretty = ShowVal.show_val
+instance Pretty (Merger a) where pretty = ShowVal.show_val
 instance Show (Merger a) where
     show merger = "((Merger " ++ untxt (ShowVal.show_val merger) ++ "))"
 instance DeepSeq.NFData (Merger a) where
@@ -959,7 +959,7 @@ data Collect = Collect {
 -- ensures a trimmed earlier fragment won't replace a more complete later one.
 type SignalFragments = Map (BlockId, TrackId) (Map TrackTime Signal.Control)
 
-instance Pretty.Pretty Collect where
+instance Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
             integrated cmods call_dur call_end) =
         Pretty.record "Collect"
@@ -1005,7 +1005,7 @@ data ControlMod =
     ControlMod !Score.Control !Signal.Control !(Merger Signal.Control)
     deriving (Show)
 
-instance Pretty.Pretty ControlMod where
+instance Pretty ControlMod where
     format (ControlMod control signal merge) =
         Pretty.constructor "ControlMod"
             [Pretty.format control, Pretty.format signal, Pretty.format merge]
@@ -1016,7 +1016,7 @@ data Integrated = Integrated {
     , integrated_events :: !(Stream.Stream Score.Event)
     } deriving (Show)
 
-instance Pretty.Pretty Integrated where
+instance Pretty Integrated where
     format (Integrated source events) = Pretty.record "Integrated"
         [ ("source", Pretty.format source)
         , ("events", Pretty.format events)
@@ -1074,7 +1074,7 @@ type TrackDynamic = Map (BlockId, TrackId) Dynamic
 data CallDuration a = Unknown | CallDuration !a
     deriving (Eq, Show)
 
-instance Show a => Pretty.Pretty (CallDuration a) where pretty = showt
+instance Show a => Pretty (CallDuration a) where pretty = showt
 
 -- I think it would be more correct to take the stack depth, and pick the one
 -- with the shallower stack, and then the max.  But it's more expensive and
@@ -1094,7 +1094,7 @@ data LookupCall call =
     -- valid, e.g. block calls.
     | LookupPattern !Text !DocumentedCall !(Expr.Symbol -> Deriver (Maybe call))
 
-instance Pretty.Pretty (LookupCall call) where
+instance Pretty (LookupCall call) where
     format c = case c of
         LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
         LookupPattern doc _ _ -> "Pattern: " <> Pretty.text doc
@@ -1114,7 +1114,7 @@ instance Monoid (CallMaps d) where
     mappend (CallMaps gs1 ts1) (CallMaps gs2 ts2) =
         CallMaps (gs1 <> gs2) (ts1 <> ts2)
 
-instance Pretty.Pretty (CallMaps d) where
+instance Pretty (CallMaps d) where
     format (CallMaps gs ts) = Pretty.record "CallMaps"
         [ ("generators", Pretty.format gs)
         , ("transformers", Pretty.format ts)
@@ -1149,7 +1149,7 @@ data PassedArgs val = PassedArgs {
     , passed_ctx :: !(Context val)
     }
 
-instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
+instance Pretty val => Pretty (PassedArgs val) where
     format (PassedArgs vals call_name info) = Pretty.record "PassedArgs"
         [ ("vals", Pretty.format vals)
         , ("call_name", Pretty.format call_name)
@@ -1215,7 +1215,7 @@ ctx_track_range :: Context a -> (TrackTime, TrackTime)
 ctx_track_range info = (shifted, shifted + ctx_event_end info)
     where shifted = ctx_track_shifted info
 
-instance Pretty.Pretty val => Pretty.Pretty (Context val) where
+instance Pretty val => Pretty (Context val) where
     format (Context prev_val event prev_events next_events event_end
             track_range sub_tracks sub_events track_type) =
         Pretty.record "Context"
@@ -1271,7 +1271,7 @@ type Transformer d = Call (TransformerF d)
 
 instance Show (Call derived) where
     show (Call name _ _) = "((Call " <> show name <> "))"
-instance Pretty.Pretty (Call derived) where
+instance Pretty (Call derived) where
     pretty (Call (CallName name) _ _) = name
 
 {- | Each call has an intrinsic name.  Since call IDs may be rebound
@@ -1287,12 +1287,12 @@ instance Pretty.Pretty (Call derived) where
     used to set default arguments.
 -}
 newtype CallName = CallName Text
-    deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
+    deriving (Eq, Ord, Show, Pretty, String.IsString)
 
 -- | Each call argument has its own name, which is used for documentation as
 -- well as argument defaulting, as documented in "Derive.Sig".
 newtype ArgName = ArgName Text
-    deriving (Eq, Ord, Show, Pretty.Pretty, String.IsString)
+    deriving (Eq, Ord, Show, Pretty, String.IsString)
 
 sym_to_call_name :: Expr.Symbol -> CallName
 sym_to_call_name (Expr.Symbol sym) = CallName sym
@@ -1469,7 +1469,7 @@ make_val_call module_ name tags doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map CacheKey Cached)
-    deriving (Monoid, Pretty.Pretty, DeepSeq.NFData)
+    deriving (Monoid, Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
@@ -1489,14 +1489,14 @@ cache_size (Cache c) = Map.size c
     generators within a single event also have unique stacks.
 -}
 newtype CacheKey = CacheKey { key_stack :: Stack.Stack }
-    deriving (Eq, Ord, Show, DeepSeq.NFData, Pretty.Pretty)
+    deriving (Eq, Ord, Show, DeepSeq.NFData, Pretty)
 
 -- | When cache entries are invalidated by ScoreDamage, a marker is left in
 -- their place.  This is just for a nicer log msg that can tell the difference
 -- between never evaluated and damaged.
 data Cached = Cached !CacheEntry | Invalid
 
-instance Pretty.Pretty Cached where
+instance Pretty Cached where
     format Invalid = Pretty.text "Invalid"
     format (Cached entry) = Pretty.format entry
 
@@ -1512,7 +1512,7 @@ data CacheEntry =
     | CachedControl !(CallType Signal.Control)
     | CachedPitch !(CallType PSignal.PSignal)
 
-instance Pretty.Pretty CacheEntry where
+instance Pretty CacheEntry where
     format (CachedEvents (CallType _ events)) = Pretty.format events
     format (CachedControl (CallType _ events)) = Pretty.format events
     format (CachedPitch (CallType _ events)) = Pretty.format events
@@ -1532,7 +1532,7 @@ instance DeepSeq.NFData d => DeepSeq.NFData (CallType d) where
 -- ** deps
 
 newtype BlockDeps = BlockDeps (Set BlockId)
-    deriving (Pretty.Pretty, Monoid, Show, Eq, DeepSeq.NFData)
+    deriving (Pretty, Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
 
@@ -1557,7 +1557,7 @@ instance Monoid ScoreDamage where
         ScoreDamage (Map.mappend tracks1 tracks2)
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 
-instance Pretty.Pretty ScoreDamage where
+instance Pretty ScoreDamage where
     format (ScoreDamage tracks track_blocks blocks) =
         Pretty.record "ScoreDamage"
             [ ("tracks", Pretty.format tracks)
@@ -1594,7 +1594,7 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
-    deriving (Pretty.Pretty, Monoid, Eq, Show, DeepSeq.NFData)
+    deriving (Pretty, Monoid, Eq, Show, DeepSeq.NFData)
 
 -- * util
 
@@ -1671,7 +1671,7 @@ data Scale = Scale {
     , scale_call_doc :: !DocumentedCall
     }
 
-instance Pretty.Pretty Scale where
+instance Pretty Scale where
     pretty = pretty . scale_id
 
 -- | A scale can configure itself by looking in the environment and by looking

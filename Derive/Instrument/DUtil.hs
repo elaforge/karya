@@ -14,8 +14,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
-
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -181,7 +179,7 @@ data Composite = Composite {
     , c_controls :: !Controls
     } deriving (Show)
 
-instance Pretty.Pretty Composite where
+instance Pretty Composite where
     pretty (Composite call inst pitch controls) = Text.unwords
         [ pretty inst <> ":", pretty call, ppitch
         , maybe "(all)" pretty controls

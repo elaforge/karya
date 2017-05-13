@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -112,7 +111,7 @@ parse_sequence = map parse . Text.unpack
 data Stroke = Rest | Stroke Char
     deriving (Eq, Show)
 
-instance Pretty.Pretty Stroke where pretty = ShowVal.show_val
+instance Pretty Stroke where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Stroke where
     show_val Rest = "_"
     show_val (Stroke c) = Text.singleton c

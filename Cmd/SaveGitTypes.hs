@@ -26,7 +26,7 @@ data SaveHistory =
     SaveHistory !Ui.State !(Maybe GitTypes.Commit) [Update.UiUpdate] ![Text]
     deriving (Show)
 
-instance Pretty.Pretty SaveHistory where
+instance Pretty SaveHistory where
     format (SaveHistory _state commit updates cmds) =
         Pretty.record "SaveHistory"
             [ ("commit", Pretty.format commit)

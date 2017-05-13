@@ -65,7 +65,6 @@ import qualified Util.ApproxEq as ApproxEq
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -106,7 +105,7 @@ instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
 instance ShowVal.ShowVal RealTime where
     show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_seconds
 
-instance Pretty.Pretty RealTime where
+instance Pretty RealTime where
     pretty t = Num.showFloat 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime

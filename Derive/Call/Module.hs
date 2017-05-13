@@ -6,7 +6,6 @@ module Derive.Call.Module where
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import Global
 
 
@@ -15,8 +14,7 @@ import Global
 newtype Module = Module Text.Text
     deriving (Eq, Ord, Show, String.IsString)
 
-instance Pretty.Pretty Module where
-    pretty (Module m) = m
+instance Pretty Module where pretty (Module m) = m
 
 instance Monoid Module where
     mempty = ""

@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Reyong where
-import qualified Util.Pretty as Pretty
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -26,7 +25,7 @@ note = Sequence.Note . Realize.Note . Realize.stroke
 data Stroke = N1 | N2 | N3 | N4 | N14 | Byut | Byong | CekC | CekO
     deriving (Show, Eq, Ord)
 
-instance Pretty.Pretty Stroke where
+instance Pretty Stroke where
     pretty s = case s of
         N1 -> "1"
         N2 -> "2"

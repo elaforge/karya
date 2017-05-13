@@ -46,8 +46,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
 import qualified Util.File as File
-import qualified Util.Pretty as Pretty
-
 import Global
 
 
@@ -100,7 +98,7 @@ unserialize magic fname = catch $ do
             -- the contents of the Either is forced to whnf.
     where catch = fmap (either (Left . IOError) id) . Exception.try
 
-instance Pretty.Pretty UnserializeError where
+instance Pretty UnserializeError where
     pretty e = case e of
         BadMagic expected got -> "expected file magic " <> showt expected
             <> " but got " <> showt got

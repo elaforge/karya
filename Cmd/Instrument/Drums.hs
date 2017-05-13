@@ -43,7 +43,7 @@ note char name attrs = Note
 note_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Note
 note_dyn char name attrs dyn = (note char name attrs) { note_dynamic = dyn }
 
-instance Pretty.Pretty Note where
+instance Pretty Note where
     format (Note name attrs char dyn group) = Pretty.record "Note"
         [ ("name", Pretty.format name)
         , ("attrs", Pretty.format attrs)

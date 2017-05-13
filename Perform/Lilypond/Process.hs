@@ -18,7 +18,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Env as Env
@@ -619,7 +618,7 @@ ly_duration ly = case ly of
     LyRest rest -> rest_time rest
     _ -> 0
 
-instance Pretty.Pretty Ly where pretty = to_lily
+instance Pretty Ly where pretty = to_lily
 
 instance ToLily Ly where
     to_lily ly = case ly of
@@ -755,7 +754,7 @@ default_key = Key "c" "major"
 
 -- | Each Ly list should be the same duration and have the same number of
 -- barlines.
-newtype Voices = Voices (VoiceMap Ly) deriving (Pretty.Pretty, Show)
+newtype Voices = Voices (VoiceMap Ly) deriving (Pretty, Show)
 
 -- | Voices shouldn't be repeated, so this would be more appropriate as a
 -- @Map Voice [a]@, but it turns out all the consumers work best with a list
@@ -770,7 +769,7 @@ instance ToLily Voice where
         VoiceOne -> "\\voiceOne"; VoiceTwo -> "\\voiceTwo"
         VoiceThree -> "\\voiceThree"; VoiceFour -> "\\voiceFour"
 
-instance Pretty.Pretty Voice where pretty = showt
+instance Pretty Voice where pretty = showt
 
 parse_voice :: Int -> Maybe Voice
 parse_voice v = case v of

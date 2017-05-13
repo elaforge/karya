@@ -42,7 +42,6 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Pretty as Pretty
 import Util.Pretty (pprint)
 import qualified Util.TextUtil as TextUtil
 
@@ -101,7 +100,7 @@ __n :: Matra -> Sequence stroke
 __n n = repeat (n-1) __
 
 -- | Make a single sollu 'Solkattu.Karvai'.
-karv :: (CallStack.Stack, Pretty.Pretty stroke) =>
+karv :: (CallStack.Stack, Pretty stroke) =>
     Sequence stroke -> Sequence stroke
 karv [S.Note (Solkattu.Note s _ stroke)] =
     [S.Note $ Solkattu.Note s Solkattu.Karvai stroke]
@@ -130,7 +129,7 @@ nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 -- ** strokes
 
 -- | Add a specific stroke annotation to a sollu.
-stroke :: (CallStack.Stack, Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
+stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
 stroke _ [] = errorStack "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
@@ -143,14 +142,14 @@ stroke stroke (n:ns) = case n of
 -- If e.g. mridangam strokes are \"imported\" via @Strokes {..} = ...@, then
 -- just @sollu ! d@ works.  For non-imported, it would have to be
 -- @sollu ! d <+> K.p@.
-(!) :: (Pretty.Pretty stroke, Korvai.ToStroke stroke) =>
+(!) :: (Pretty stroke, Korvai.ToStroke stroke) =>
     Sequence Korvai.Stroke -> stroke -> Sequence Korvai.Stroke
 (!) = flip stroke
 
 (<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
 a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
 
-hv, lt :: (Pretty.Pretty stroke, CallStack.Stack) =>
+hv, lt :: (Pretty stroke, CallStack.Stack) =>
     S.Note (Realize.Note stroke) -> S.Note (Realize.Note stroke)
 hv (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
@@ -219,7 +218,7 @@ append prefixes suffix = mconcat [prefix <> suffix | prefix <- prefixes]
 
 -- * realize
 
-realize_instrument :: Pretty.Pretty stroke => Korvai.GetInstrument stroke
+realize_instrument :: Pretty stroke => Korvai.GetInstrument stroke
     -> Bool -> Korvai.Korvai -> IO ()
 realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize instrument realize_patterns korvai of

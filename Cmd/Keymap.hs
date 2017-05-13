@@ -31,7 +31,6 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -301,7 +300,7 @@ mouse_on = maybe Elsewhere on . UiMsg.ctx_track
     on (_, UiMsg.Divider) = OnDivider
     on (_, UiMsg.SkeletonDisplay) = OnSkeleton
 
-instance Pretty.Pretty MouseOn where
+instance Pretty MouseOn where
     pretty OnTrack = "track"
     pretty OnDivider = "divider"
     pretty OnSkeleton = "skeleton"
@@ -310,7 +309,7 @@ instance Pretty.Pretty MouseOn where
 
 -- * pretty printing
 
-instance Pretty.Pretty KeySpec where
+instance Pretty KeySpec where
     pretty (KeySpec mods bindable) =
         Seq.join2 " " (show_mods mods) (show_bindable True bindable)
         where show_mods = Text.intercalate " + " . map show_mod . Set.toList
@@ -324,7 +323,7 @@ show_mod m = case m of
     Cmd.MouseMod button _ -> "mouse " <> showt button
     Cmd.MidiMod chan key -> "midi " <> showt key <> " chan " <> showt chan
 
-instance Pretty.Pretty Bindable where
+instance Pretty Bindable where
     pretty = show_bindable True
 
 show_bindable :: Bool -> Bindable -> Text

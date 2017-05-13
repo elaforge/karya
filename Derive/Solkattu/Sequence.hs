@@ -37,7 +37,7 @@ import Global
 data Note a = Note !a | TempoChange TempoChange ![Note a]
     deriving (Eq, Ord, Show, Functor)
 
-instance Pretty.Pretty a => Pretty.Pretty (Note a) where
+instance Pretty a => Pretty (Note a) where
     format n = case n of
         Note a -> Pretty.format a
         TempoChange change notes ->
@@ -47,14 +47,14 @@ instance Pretty.Pretty a => Pretty.Pretty (Note a) where
 
 -- | A single Duration unit is equivalent to 1 Akshara.
 newtype Duration = Duration Ratio.Rational
-    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty.Pretty)
+    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
 -- | Relative speed change.  Each positive number doubles the number of
 -- 'Matra's per akshara.  Negative numbers half them.
 data TempoChange = ChangeSpeed Speed | Nadai Nadai
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty TempoChange where
+instance Pretty TempoChange where
     pretty (ChangeSpeed s) =
         "s" <> (if s > 0 then "+" else "-") <> showt (abs s)
     pretty (Nadai s) = "n" <> showt s
@@ -101,7 +101,7 @@ tempo_to_state note_matras tala = snd . List.mapAccumL process initial_state
 data Stroke a = Attack a | Sustain | Rest
     deriving (Show, Eq)
 
-instance Pretty.Pretty a => Pretty.Pretty (Stroke a) where
+instance Pretty a => Pretty (Stroke a) where
     pretty s = case s of
         Attack a -> pretty a
         Sustain -> "-"
@@ -145,7 +145,7 @@ tempo_to_duration note_matras = map $ \(tempo, note) ->
 data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai }
     deriving (Eq, Show)
 
-instance Pretty.Pretty Tempo where
+instance Pretty Tempo where
     pretty (Tempo speed nadai) = "s" <> pretty speed <> "n" <> pretty nadai
 
 default_tempo :: Tempo
@@ -177,7 +177,7 @@ data State = State {
     , state_nadai :: !Nadai
     } deriving (Show)
 
-instance Pretty.Pretty State where
+instance Pretty State where
     format (State avartanam akshara matra akshara_nadai speed nadai) =
         Pretty.record "State"
             [ ("avartanam", Pretty.format avartanam)

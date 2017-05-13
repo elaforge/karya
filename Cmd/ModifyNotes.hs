@@ -114,7 +114,7 @@ note_orientation = Event.orientation_of . note_duration
 -- it came from, or should be written to.
 type Index = Int
 
-instance Pretty.Pretty Note where
+instance Pretty Note where
     format (Note start dur text controls index control_track_ids) =
         Pretty.record title $
             (if text == mempty then [] else [("text", Pretty.format text)]) ++
@@ -137,7 +137,7 @@ type Controls = Map Control Events.Events
 data Control = Control Score.Control | Pitch Pitch.ScaleId
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Control where
+instance Pretty Control where
     pretty = control_to_title
 
 control_to_title :: Control -> Text

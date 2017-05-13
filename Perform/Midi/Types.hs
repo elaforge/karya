@@ -66,7 +66,7 @@ instance DeepSeq.NFData Patch where
     -- don't bother with the rest since instruments are constructed all at once
     rnf inst = DeepSeq.rnf (patch_keyswitch inst)
 
-instance Pretty.Pretty Patch where
+instance Pretty Patch where
     format (Patch name keyswitch hold_keyswitch cmap pb_range decay) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
@@ -106,7 +106,7 @@ instance DeepSeq.NFData Event where
         rnf :: DeepSeq.NFData a => a -> ()
         rnf = DeepSeq.rnf
 
-instance Pretty.Pretty Event where
+instance Pretty Event where
     format (Event start dur patch controls pitch svel evel stack) =
         Pretty.record "Event"
             [ ("start", Pretty.format start)

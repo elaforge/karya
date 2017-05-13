@@ -347,7 +347,7 @@ data Expr =
     | QuotedExpr !BaseTypes.Expr
     deriving Show
 
-instance Pretty.Pretty Expr where
+instance Pretty Expr where
     format (EvaluatedExpr sym vals) =
         ("(" <> Pretty.format sym) Pretty.<+> (Pretty.format vals <> ")")
     format (QuotedExpr quoted) = Pretty.format quoted

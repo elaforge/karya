@@ -43,7 +43,7 @@ instrument dir samples = Patch
     , samples = Map.fromList samples
     }
 
-instance Pretty.Pretty Patch where
+instance Pretty Patch where
     format (Patch dir common samples) = Pretty.record "Patch"
         [ ("sampleDirectory", Pretty.format dir)
         , ("karyaCommon", Pretty.format common)
@@ -63,7 +63,7 @@ sample = Sample Nothing mempty
 pitchedSample :: Pitch.NoteNumber -> Sample
 pitchedSample pitch = Sample (Just pitch) mempty
 
-instance Pretty.Pretty Sample where
+instance Pretty Sample where
     format (Sample pitch attrs) = Pretty.constructor "Sample"
         [Pretty.format pitch, Pretty.format attrs]
 

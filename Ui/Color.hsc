@@ -8,7 +8,6 @@ import qualified Data.Text as Text
 import Util.ForeignC
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Ui.Util as Util
 
 import Global
@@ -39,7 +38,7 @@ instance Monoid Highlight where
 data Color = Color !Double !Double !Double !Double
     deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Color where
+instance Pretty Color where
     pretty (Color r g b a) = "rgba:"
         <> Text.intercalate "/" (map (Num.showFloat 2) [r, g, b, a])
 

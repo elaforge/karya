@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 import Data.Vector.Unboxed ((!))
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
@@ -39,7 +38,7 @@ find_rank start rank = fmap ((+ (start + 1)) . Time)
     . Vector.findIndex (<= max 0 rank)
     . Vector.drop (fromIntegral start + 1) . meter_ranks
 
-instance Pretty.Pretty Meter where pretty = Types.to_lily
+instance Pretty Meter where pretty = Types.to_lily
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
         showt (sum nums) <> "/" <> Types.to_lily denom

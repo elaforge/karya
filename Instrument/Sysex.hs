@@ -153,7 +153,7 @@ spec_to_rmap = foldl' add Map.empty
         Enum (enum : _) -> Map.insert name (RStr enum) rec
         Enum [] -> error $ name <> " had an empty Enum"
 
-instance Pretty.Pretty Record where
+instance Pretty Record where
     format rec = case rec of
         RMap x -> Pretty.format x
         RNum x -> Pretty.format x

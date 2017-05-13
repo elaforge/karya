@@ -138,7 +138,7 @@ infixl 1 $> -- put it above ($) but below everything else
 infixl 9 .>
 
 -- | Pretty-print the result of a cmd with 'Pretty.format'.
-pp :: Pretty.Pretty a => Cmd.CmdL a -> Cmd.CmdL Text
+pp :: Pretty a => Cmd.CmdL a -> Cmd.CmdL Text
 pp = fmap Pretty.formatted
 
 quit :: Cmd.CmdL ()

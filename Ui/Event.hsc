@@ -112,11 +112,11 @@ type IndexKey = TrackTime
 instance DeepSeq.NFData Event where
     rnf = DeepSeq.rnf . stack
 
-instance Pretty.Pretty Event where
+instance Pretty Event where
     format (Event start dur bs _style stack) =
         "Event" <> Pretty.format (start, dur, bs, stack)
 
-instance Pretty.Pretty Stack where
+instance Pretty Stack where
     format (Stack stack key) =
         Pretty.format (Pretty.format stack, Pretty.format key)
 
@@ -229,7 +229,7 @@ data Orientation = Negative | Positive
     deriving (Eq, Ord, Read, Show, Enum, Bounded)
     -- The Negative to Positive order is important, because that affects the
     -- EventMap's sort order, which functions in "Ui.Events" rely on.
-instance Pretty.Pretty Orientation where pretty = showt
+instance Pretty Orientation where pretty = showt
 
 invert :: Orientation -> Orientation
 invert Positive = Negative

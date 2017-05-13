@@ -25,10 +25,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Derive.ShowVal as ShowVal
-
 import Global
 
 
@@ -41,7 +39,7 @@ newtype Attributes = Attributes (Set Attribute)
     deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
         Aeson.ToJSON, Aeson.FromJSON)
 
-instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
+instance Pretty Attributes where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
     show_val = ("+"<>) . Text.intercalate "+" . to_list
 

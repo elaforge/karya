@@ -608,7 +608,7 @@ data SyncConfig = SyncConfig {
     , sync_frame_rate :: !Midi.FrameRate
     } deriving (Show)
 
-instance Pretty.Pretty SyncConfig where
+instance Pretty SyncConfig where
     format (SyncConfig dev dev_id mtc rate) = Pretty.record "SyncConfig"
         [ ("device", Pretty.format dev)
         , ("device_id", Pretty.format dev_id)
@@ -704,7 +704,7 @@ initial_edit_state = EditState {
 -- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
 data EditMode = NoEdit | ValEdit | MethodEdit deriving (Eq, Show)
-instance Pretty.Pretty EditMode where pretty = showt
+instance Pretty EditMode where pretty = showt
 
 type RecordedActions = Map Char Action
 
@@ -720,7 +720,7 @@ data Action =
     | ReplaceText !Text | PrependText !Text | AppendText !Text
     deriving (Show, Eq)
 
-instance Pretty.Pretty Action where
+instance Pretty Action where
     pretty act = case act of
         InsertEvent maybe_dur text ->
             pretty text <> " (" <> pretty maybe_dur <> ")"
@@ -816,7 +816,7 @@ type ThruFunction = Attrs.Attributes -> InputNote.Input -> CmdId ()
 type InstrumentPostproc = Score.Event -> Score.Event
 
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
-instance Pretty.Pretty InstrumentCode where
+instance Pretty InstrumentCode where
     format (InstrumentCode calls _ cmds thru) = Pretty.record "InstrumentCode"
         [ ("calls", Pretty.format calls)
         , ("cmds", Pretty.format cmds)
@@ -935,7 +935,7 @@ data HistoryEntry = HistoryEntry {
 empty_history_entry :: Ui.State -> HistoryEntry
 empty_history_entry state = HistoryEntry state [] [] Nothing
 
-instance Pretty.Pretty History where
+instance Pretty History where
     format (History past present future last_cmd) = Pretty.record "History"
         [ ("past", Pretty.format past)
         , ("present", Pretty.format present)
@@ -943,18 +943,18 @@ instance Pretty.Pretty History where
         , ("last_cmd", Pretty.text (showt last_cmd))
         ]
 
-instance Pretty.Pretty HistoryEntry where
+instance Pretty HistoryEntry where
     format (HistoryEntry _state updates commands commit) =
         Pretty.format commit Pretty.<+> Pretty.textList commands
         Pretty.<+> Pretty.format updates
 
-instance Pretty.Pretty HistoryConfig where
+instance Pretty HistoryConfig where
     format (HistoryConfig keep last_commit) = Pretty.record "HistoryConfig"
         [ ("keep", Pretty.format keep)
         , ("last_commit", Pretty.format last_commit)
         ]
 
-instance Pretty.Pretty HistoryCollect where
+instance Pretty HistoryCollect where
     format (HistoryCollect names edit suppressed) =
         Pretty.record "HistoryCollect"
             [ ("names", Pretty.format names)
@@ -1109,7 +1109,7 @@ data ResolvedInstrument = ResolvedInstrument {
     , inst_backend :: !(Maybe Backend)
     } deriving (Show)
 
-instance Pretty.Pretty ResolvedInstrument where
+instance Pretty ResolvedInstrument where
     format (ResolvedInstrument instrument qualified common_config backend) =
         Pretty.record "ResolvedInstrument"
             [ ("instrument", Pretty.format instrument)
@@ -1121,7 +1121,7 @@ instance Pretty.Pretty ResolvedInstrument where
 data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config | Im !Im.Patch.Patch
     deriving (Show)
 
-instance Pretty.Pretty Backend where
+instance Pretty Backend where
     format (Midi patch config) = Pretty.format (patch, config)
     format (Im patch) = Pretty.format patch
 

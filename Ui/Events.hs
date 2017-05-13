@@ -78,7 +78,7 @@ data Range =
     | Point !TrackTime !Event.Orientation
     deriving (Eq, Show)
 
-instance Pretty.Pretty Range where
+instance Pretty Range where
     pretty r = case r of
         Range s e -> pretty s <> "--" <> pretty e
         Point p orient ->
@@ -310,7 +310,7 @@ data Key = Key !TrackTime !Event.Orientation
 
 instance DeepSeq.NFData Key where rnf _ = ()
 
-instance Pretty.Pretty Key where
+instance Pretty Key where
     pretty (Key t o) = pretty t <> case o of
         Event.Negative -> "-"
         Event.Positive -> "+"
@@ -328,7 +328,7 @@ to_asc_list = map snd . Map.toAscList
 to_desc_list :: EventMap -> [Event.Event]
 to_desc_list = map snd . Map.toDescList
 
-instance Pretty.Pretty Events where
+instance Pretty Events where
     format = Pretty.format . map event . ascending
         where
         event e = Pretty.text $

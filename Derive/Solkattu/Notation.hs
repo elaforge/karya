@@ -11,8 +11,6 @@ import qualified Data.List as List
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
-
 import qualified Derive.Solkattu.Sequence as S
 import Derive.Solkattu.Sequence (Duration, Matra)
 import qualified Derive.Solkattu.Solkattu as Solkattu
@@ -87,7 +85,7 @@ takeM matras = takeD (fromIntegral matras * matra_duration)
 rtakeM :: Matra -> Sequence stroke -> Sequence stroke
 rtakeM matras = reverse . takeM matras . reverse
 
-matrasOf :: (CallStack.Stack, Pretty.Pretty stroke) => Sequence stroke -> Matra
+matrasOf :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Matra
 matrasOf = Solkattu.check . matrasOfE
 
 -- | Get the number of sollu-matras.  Whether or not this corresponds to
@@ -114,7 +112,7 @@ reduce3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 
 -- | Reduce by a duration until a final duration.
-reduceTo :: (CallStack.Stack, Pretty.Pretty stroke) => Matra -> Matra
+reduceTo :: (CallStack.Stack, Pretty stroke) => Matra -> Matra
     -> Sequence stroke -> Sequence stroke
 reduceTo to by seq
     | (matrasOf seq - to) `mod` by /= 0 =

@@ -105,7 +105,7 @@ strip_match pattern str = go pattern str
         _ -> str
     strip = dropWhile Char.isSpace
 
-pprint_mode :: (Pretty.Pretty a) => a -> String
+pprint_mode :: Pretty.Pretty a => a -> String
 pprint_mode = Pretty.prettyPrintStyleMode pp_style Pretty.defaultMode
     where
     pp_style = PrettyPrint.style

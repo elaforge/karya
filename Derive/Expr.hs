@@ -14,10 +14,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
-
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
 import Global
@@ -45,13 +43,13 @@ instance ShowVal.ShowVal val => ShowVal.ShowVal (Call val) where
     show_val (Call (Symbol sym) terms) =
         sym <> if null terms then ""
             else " " <> Text.unwords (map ShowVal.show_val terms)
-instance ShowVal.ShowVal val => Pretty.Pretty (Call val) where
+instance ShowVal.ShowVal val => Pretty (Call val) where
     pretty = ShowVal.show_val
 
 instance ShowVal.ShowVal val => ShowVal.ShowVal (Term val) where
     show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
     show_val (Literal val) = ShowVal.show_val val
-instance ShowVal.ShowVal val => Pretty.Pretty (Term val) where
+instance ShowVal.ShowVal val => Pretty (Term val) where
     pretty = ShowVal.show_val
 
 -- | Name of a call, used to look it up in the namespace.
@@ -62,7 +60,7 @@ instance ShowVal.ShowVal val => Pretty.Pretty (Term val) where
 -- up expression.
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
-        Pretty.Pretty, Serialize.Serialize)
+        Pretty, Serialize.Serialize)
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
@@ -139,7 +137,7 @@ class ToExpr a where
 newtype Str = Str Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize, ShowVal.ShowVal)
-instance Pretty.Pretty Str where pretty = ShowVal.show_val
+instance Pretty Str where pretty = ShowVal.show_val
 
 unstr :: Str -> Text
 unstr (Str str) = str

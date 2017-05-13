@@ -66,7 +66,6 @@ import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 
 import Util.ForeignC
-import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
@@ -102,7 +101,7 @@ debug = False
 -- | Put a fltk action in the Fltk monad.  Since Fltk derives Monad, do syntax
 -- will also do that implicitly, but this also annotates IO exceptions, which
 -- can happen on a bad ViewId, and perhaps someday from C++ exceptions.
-fltk :: Pretty.Pretty args => String -> args -> IO a -> Fltk a
+fltk :: Pretty args => String -> args -> IO a -> Fltk a
 fltk name args action = do
     when debug $
         liftIO $ putStrLn $ name <> " " <> prettys args
@@ -519,11 +518,11 @@ data Selection = Selection {
 data SelectionOrientation = None | Negative | Positive | Both
     deriving (Show, Eq, Ord)
 
-instance Pretty.Pretty Selection where
+instance Pretty Selection where
     pretty (Selection color start cur orientation) =
         "Selection " <> pretty (color, start, cur, orientation)
 
-instance Pretty.Pretty SelectionOrientation where pretty = showt
+instance Pretty SelectionOrientation where pretty = showt
 
 instance CStorable Selection where
     sizeOf _ = #size Selection

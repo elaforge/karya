@@ -317,7 +317,7 @@ calculate_signature (Pitch.Degree pc accs) layout intervals =
 key_is_diatonic :: Key -> Bool
 key_is_diatonic = Maybe.isJust . key_signature
 
-instance Pretty.Pretty Key where
+instance Pretty Key where
     format key@(Key tonic name ints sig _table _layout) = Pretty.record title
         [ ("intervals",
             Pretty.format (Vector.take (key_steps_per_octave key) ints))

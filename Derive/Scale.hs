@@ -10,7 +10,6 @@
 module Derive.Scale (module Derive.Derive, module Derive.Scale) where
 import qualified Data.Vector.Unboxed as Vector
 
-import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
@@ -110,7 +109,7 @@ data Range = Range {
 in_range :: Range -> Pitch.Pitch -> Bool
 in_range (Range bottom top) pitch = bottom <= pitch && pitch <= top
 
-instance Pretty.Pretty Range where
+instance Pretty Range where
     pretty (Range bottom top) = pretty bottom <> "--" <> pretty top
 
 -- * pitches

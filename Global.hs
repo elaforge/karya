@@ -23,7 +23,7 @@ module Global (
     , errorStack, errorIO
     , justErr, tryJust, tryRight
     -- * pretty
-    , pretty, prettys
+    , Pretty, pretty, prettys
 
     -- * lens
     , Lens, (#)
@@ -59,7 +59,7 @@ import Data.Traversable (Traversable, traverse)
 import Data.Foldable (Foldable, foldMap)
 
 import Util.Lens
-import Util.Pretty (pretty, prettys)
+import Util.Pretty (Pretty, pretty, prettys)
 import Util.Control
 
 

@@ -73,7 +73,6 @@ import qualified Text.Read as Read
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put, get_tag, put_tag)
 
@@ -99,8 +98,7 @@ instance DeepSeq.NFData Msg where
 msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
 
-instance Pretty.Pretty Msg where
-    pretty = format_msg
+instance Pretty Msg where pretty = format_msg
 
 -- ** data
 

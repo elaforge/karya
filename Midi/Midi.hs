@@ -93,10 +93,10 @@ data ReadMessage = ReadMessage {
 instance DeepSeq.NFData WriteMessage where rnf _ = ()
 instance DeepSeq.NFData ReadMessage where rnf _ = ()
 
-instance Pretty.Pretty ReadMessage where
+instance Pretty ReadMessage where
     pretty (ReadMessage dev ts msg) =
         pretty dev <> " " <> pretty ts <> ": " <> pretty msg
-instance Pretty.Pretty WriteMessage where
+instance Pretty WriteMessage where
     pretty (WriteMessage dev ts msg) =
         pretty dev <> " " <> pretty ts <> ": " <> pretty msg
 
@@ -137,8 +137,8 @@ with_wdev (WriteDevice dev) = ByteString.useAsCString dev
 with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
 with_rdev (ReadDevice dev) = ByteString.useAsCString dev
 
-instance Pretty.Pretty ReadDevice where pretty = read_device_text
-instance Pretty.Pretty WriteDevice where pretty = write_device_text
+instance Pretty ReadDevice where pretty = read_device_text
+instance Pretty WriteDevice where pretty = write_device_text
 
 add_timestamp :: RealTime -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
@@ -298,7 +298,7 @@ data Message =
     | UnknownMessage !Word8 !Word8 !Word8
     deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Message where
+instance Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
         "sysex " <> manufacturer_name manuf
             <> " <" <> showt (ByteString.length bytes) <> " bytes>"
@@ -328,7 +328,7 @@ instance Serialize.Serialize Key where
     put key = Serialize.put (from_key key :: Word8)
     get = (to_key :: Word8 -> Key) <$> Serialize.get
 
-instance Pretty.Pretty Key where
+instance Pretty Key where
     pretty (Key key) = note <> showt (oct - 1) <> "(" <> showt key <> ")"
         where
         (oct, k) = key `divMod` 12
@@ -389,7 +389,7 @@ instance DeepSeq.NFData ChannelMessage where rnf _ = ()
 instance DeepSeq.NFData CommonMessage where rnf _ = ()
 instance DeepSeq.NFData RealtimeMessage where rnf _ = ()
 
-instance Pretty.Pretty ChannelMessage where
+instance Pretty ChannelMessage where
     format msg = case msg of
         NoteOff key vel -> "NoteOff" <+> format key <+> format vel
         NoteOn key vel -> "NoteOn" <+> format key <+> format vel

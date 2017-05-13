@@ -15,9 +15,7 @@ import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Midi.State as MState
 import Midi.State (Addr)
@@ -253,7 +251,7 @@ pretty_state (State _chan active notes warns _) = Text.intercalate "\n" $ concat
     , ["", "notes:"], map pretty notes
     ]
 
-instance Pretty.Pretty dur => Pretty.Pretty (NoteT dur) where
+instance Pretty dur => Pretty (NoteT dur) where
     pretty (Note start dur _key vel pitch pitches controls (dev, chan)) =
         Text.unwords $ filter (not . Text.null)
             [ addr_s, pretty (round_cents pitch)

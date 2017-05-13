@@ -69,7 +69,7 @@ type Name = Text
 -- since different meters follow different rules.
 type MeterType = Text
 
-instance Pretty.Pretty Ruler where
+instance Pretty Ruler where
     format (Ruler mlists bg show_names align_to_bottom) = Pretty.record "Ruler"
         [ ("marklists", Pretty.format mlists)
         , ("bg", Pretty.format bg)
@@ -193,7 +193,7 @@ instance Eq Marklist where
     m1 == m2 = marklist_vec m1 == marklist_vec m2
 instance Show Marklist where
     show m = "Ruler.marklist " ++ show (ascending 0 m)
-instance Pretty.Pretty Marklist where
+instance Pretty Marklist where
     pretty m = "((" <> showt (TimeVector.length (marklist_vec m)) <> " marks))"
 
 -- | This should be opaque, but it needs to be exported for RulerC.  Don't look
@@ -288,6 +288,6 @@ instance DeepSeq.NFData Mark where
     rnf (Mark rank width color name name_zoom zoom) = rank `seq` width
         `seq` color `seq` name `seq` name_zoom `seq` zoom `seq` ()
 
-instance Pretty.Pretty Mark where
+instance Pretty Mark where
     pretty m = "(mark " <> showt (mark_rank m) <> name <> ")"
         where name = if Text.null (mark_name m) then "" else " " <> mark_name m

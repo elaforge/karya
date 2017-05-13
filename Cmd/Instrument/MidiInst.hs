@@ -108,7 +108,7 @@ data Code = Code {
     , code_thru :: Maybe Cmd.ThruFunction
     }
 
-instance Pretty.Pretty Code where
+instance Pretty Code where
     format (Code note_gens note_trans val_calls _postproc cmds thru) =
         Pretty.record "Code"
             [ ("note_generators", Pretty.format $ length note_gens)
@@ -185,7 +185,7 @@ patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
 common = Lens.lens patch_common
     (\f r -> r { patch_common = f (patch_common r) })
 
-instance Pretty.Pretty Patch where
+instance Pretty Patch where
     format (Patch patch common) = Pretty.record "Patch"
         [ ("patch", Pretty.format patch)
         , ("common", Pretty.format common)

@@ -24,7 +24,7 @@ import qualified Midi.Midi as Midi
 import Global
 
 
-newtype State = State (Map Addr Channel) deriving (Eq, Show, Pretty.Pretty)
+newtype State = State (Map Addr Channel) deriving (Eq, Show, Pretty)
 
 empty :: State
 empty = State Map.empty
@@ -41,7 +41,7 @@ empty_channel = Channel Map.empty 0 Map.empty
 get_channel :: Addr -> State -> Channel
 get_channel addr (State chans) = Map.findWithDefault empty_channel addr chans
 
-instance Pretty.Pretty Channel where
+instance Pretty Channel where
     format (Channel notes pb controls) = Pretty.record "Channel"
         [ ("notes", Pretty.format notes)
         , ("pb", Pretty.format pb)
@@ -53,7 +53,7 @@ data Control = CC Midi.Control | Aftertouch Midi.Key | Pressure
 type Addr = (Midi.WriteDevice, Midi.Channel)
 type Message = (Midi.WriteDevice, Midi.Message)
 
-instance Pretty.Pretty Control where
+instance Pretty Control where
     pretty (CC cc) = pretty cc
     pretty (Aftertouch key) = "at:" <> pretty key
     pretty Pressure = "pressure"

@@ -38,7 +38,7 @@ instance Serialize.Serialize Note where
     put (Note a b c d e) = put a *> put b *> put c *> put d *> put e
     get = Note <$> get <*> get <*> get <*> get <*> get
 
-instance Pretty.Pretty Note where
+instance Pretty Note where
     format (Note inst start dur controls attrs) = Pretty.record "Note"
         [ ("instrument", Pretty.format inst)
         , ("start", Pretty.format start)

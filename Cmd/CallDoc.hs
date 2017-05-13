@@ -13,7 +13,6 @@ import qualified Util.Doc as Doc
 import Util.Doc (html, tag)
 import qualified Util.Format as Format
 import Util.Format ((<+>), (</>), (<//>), (<+/>))
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -407,7 +406,7 @@ type SymbolName = Text
 data CallType = ValCall | GeneratorCall | TransformerCall
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty CallType where
+instance Pretty CallType where
     pretty ctype = case ctype of
         ValCall -> "val"
         GeneratorCall -> "generator"

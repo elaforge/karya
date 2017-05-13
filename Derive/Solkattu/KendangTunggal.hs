@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.KendangTunggal where
-import qualified Util.Pretty as Pretty
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -39,7 +38,7 @@ standard_stroke_map = Realize.simple_stroke_map
 
 -- * strokes
 
-instance Pretty.Pretty Stroke where
+instance Pretty Stroke where
     pretty s = case s of
         Plak -> "P"
         Pak -> "p"

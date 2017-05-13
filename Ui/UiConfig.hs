@@ -139,7 +139,7 @@ verify_allocation backend instrument alloc =
         Inst.Im {} -> "im"
 
 newtype Allocations = Allocations (Map Score.Instrument Allocation)
-    deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
+    deriving (Eq, Show, Pretty, Monoid.Monoid)
 
 -- | Make Allocations with no verification.  This should probably only be used
 -- for tests, allocations from user input should use 'allocate'.
@@ -174,7 +174,7 @@ data Allocation = Allocation {
 allocation :: InstTypes.Qualified -> Backend -> Allocation
 allocation qualified backend = Allocation qualified Common.empty_config backend
 
-instance Pretty.Pretty Allocation where
+instance Pretty Allocation where
     format (Allocation qualified config backend) = Pretty.record "Allocation"
         [ ("qualified", Pretty.format qualified)
         , ("config", Pretty.format config)
@@ -196,7 +196,7 @@ data Backend =
     | Dummy
     deriving (Eq, Show)
 
-instance Pretty.Pretty Backend where
+instance Pretty Backend where
     format (Midi config) = Pretty.format config
     format Im = "Im"
     format Dummy = "Dummy"
@@ -279,7 +279,7 @@ tempo = Lens.lens default_tempo
 empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
-instance Pretty.Pretty Config where
+instance Pretty Config where
     format (Config namespace meta root allocations lily dflt saved_views ky) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
@@ -292,7 +292,7 @@ instance Pretty.Pretty Config where
             , ("ky", Pretty.format ky)
             ]
 
-instance Pretty.Pretty Meta where
+instance Pretty Meta where
     format (Meta creation last_save notes midi_perf lily_perf) =
         Pretty.record "Meta"
         [ ("creation", Pretty.format creation)
@@ -302,21 +302,21 @@ instance Pretty.Pretty Meta where
         , ("lilypond performances", Pretty.format lily_perf)
         ]
 
-instance Pretty.Pretty MidiPerformance where
+instance Pretty MidiPerformance where
     format (Performance midi creation patch) = Pretty.record "MidiPerformance"
         [ ("events", Pretty.format $ Vector.length midi)
         , ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text patch)
         ]
 
-instance Pretty.Pretty LilypondPerformance where
+instance Pretty LilypondPerformance where
     format (Performance ly creation patch) = Pretty.record "LilypondPerformance"
         [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
         , ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text patch)
         ]
 
-instance Pretty.Pretty Default where
+instance Pretty Default where
     format (Default tempo) = Pretty.record "Default"
         [ ("tempo", Pretty.format tempo) ]
 

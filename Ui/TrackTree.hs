@@ -156,7 +156,7 @@ data Track = Track {
 track_range :: Track -> (TrackTime, TrackTime)
 track_range track = (track_shifted track, track_shifted track + track_end track)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     format (Track title events track_id block_id start end sliced
             around shifted voice) =
         Pretty.record "Track"
@@ -199,7 +199,7 @@ data Sliced =
     | Inversion
     deriving (Eq, Show)
 
-instance Pretty.Pretty Sliced where pretty = showt
+instance Pretty Sliced where pretty = showt
 
 block_track_id :: Track -> Maybe (BlockId, TrackId)
 block_track_id track = do

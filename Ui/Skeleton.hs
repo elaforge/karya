@@ -30,7 +30,6 @@ import qualified Data.List as List
 import qualified Data.Tree as Tree
 
 import qualified Util.Graph as Graph
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -45,8 +44,7 @@ import Types
 newtype Skeleton = Skeleton Graph.Graph
     deriving (Read, Show, Serialize.Serialize)
 
-instance Pretty.Pretty Skeleton where
-    pretty = pretty . flatten
+instance Pretty Skeleton where pretty = pretty . flatten
 
 -- Data.Graph is just a type synonym to Data.Array, which means that
 -- 'make [(1, 2), (1, 3)]' compare inequal even though they describe the same

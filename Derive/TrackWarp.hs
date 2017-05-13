@@ -35,7 +35,7 @@ import Types
 data Track = Track !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
     deriving (Eq, Show)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     format (Track start end warp block_id track_id) =
         Pretty.format (start, end, warp, block_id, track_id)
 
@@ -59,7 +59,7 @@ data TrackWarp = TrackWarp {
     , tw_warp :: !Score.Warp
     } deriving (Eq, Show)
 
-instance Pretty.Pretty TrackWarp where
+instance Pretty TrackWarp where
     format (TrackWarp start end block tracks warp) = Pretty.record "TrackWarp"
         [ ("start", Pretty.format start)
         , ("end", Pretty.format end)

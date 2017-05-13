@@ -15,7 +15,6 @@ import qualified System.Mem
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import Util.Testing
 
 import qualified Ui.Ui as Ui
@@ -95,7 +94,7 @@ newtype Bytes = Bytes Int
 megabyte :: Int -> Bytes
 megabyte n = Bytes (n * 1024^2)
 
-instance Pretty.Pretty Bytes where
+instance Pretty Bytes where
     pretty = (<>"mb") . Num.showFloat 2 . megabytes
 
 megabytes :: Bytes -> Double

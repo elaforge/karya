@@ -59,8 +59,7 @@ newtype Note = Note Text deriving (Eq, Ord, Show, String.IsString)
 note_text :: Note -> Text
 note_text (Note s) = s
 
-instance Pretty.Pretty Note where
-    pretty (Note n) = n
+instance Pretty Note where pretty (Note n) = n
 
 
 -- * pitch
@@ -76,7 +75,7 @@ data Pitch = Pitch {
 pitch :: Enum pc => Octave -> pc -> Pitch
 pitch oct pc = Pitch oct (Degree (fromEnum pc) 0)
 
-instance Pretty.Pretty Pitch where
+instance Pretty Pitch where
     pretty (Pitch oct degree) = showt oct <> "-" <> pretty degree
 
 -- | This relies on the presence of a @pitch@ val call.
@@ -96,7 +95,7 @@ data Degree = Degree {
     , degree_accidentals :: !Accidentals
     } deriving (Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Degree where
+instance Pretty Degree where
     pretty (Degree pc acc) = showt pc
         <> if acc < 0 then Text.replicate (abs acc) "b"
             else Text.replicate acc "#"
@@ -207,7 +206,7 @@ data KbdType =
 -- implies equal temperedness.
 type Frac = Double
 
-instance Pretty.Pretty Input where
+instance Pretty Input where
     pretty (Input kbd pitch frac) = showt kbd <> ":" <> pretty pitch
         <> if frac == 0 then "" else "+" <> pretty frac
 
@@ -235,7 +234,7 @@ instance ShowVal.ShowVal NoteNumber where
     show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
     -- The suffix should be the same as BaseTypes.type_to_code Nn
 
-instance Pretty.Pretty NoteNumber where pretty = showt
+instance Pretty NoteNumber where pretty = showt
 
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
@@ -301,8 +300,7 @@ middle_c_hz = nn_to_hz 60
 newtype ScaleId = ScaleId Text
     deriving (Eq, Ord, Read, Show, String.IsString, Serialize.Serialize)
 
-instance Pretty.Pretty ScaleId where
-    pretty (ScaleId s) = s
+instance Pretty ScaleId where pretty (ScaleId s) = s
 
 -- | Usually this means to use the scale currently in scope.
 empty_scale :: ScaleId
@@ -319,7 +317,7 @@ data Transpose = Chromatic Double | Diatonic Double
     | Nn Double
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Transpose where pretty = ShowVal.show_val
+instance Pretty Transpose where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
     -- TODO convert to a Score.TypedVal and use its ShowVal
     show_val (Chromatic d) = ShowVal.show_val d <> "c"
@@ -352,5 +350,4 @@ instance ShowVal.ShowVal Key where
 key_text :: Key -> Text
 key_text (Key t) = t
 
-instance Pretty.Pretty Key where
-    format (Key s) = Pretty.text s
+instance Pretty Key where format (Key s) = Pretty.text s

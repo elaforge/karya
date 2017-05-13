@@ -4,7 +4,6 @@
 
 -- | The 'Tala' type, which describes a Carnatic tala.
 module Derive.Solkattu.Tala where
-import qualified Util.Pretty as Pretty
 import Global
 
 
@@ -39,14 +38,14 @@ data Tala = Tala {
     , _jati :: !Jati
     } deriving (Show, Eq)
 
-instance Pretty.Pretty Tala where pretty = showt
+instance Pretty Tala where pretty = showt
 
 data Anga = Clap !Akshara | Wave !Akshara
     -- | laghu, drutam, anudrutam
     | I | O | U
     deriving (Show, Eq)
 
-instance Pretty.Pretty Anga where pretty = showt
+instance Pretty Anga where pretty = showt
 
 type Jati = Int
 

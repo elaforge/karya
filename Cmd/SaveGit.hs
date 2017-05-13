@@ -42,7 +42,6 @@ import qualified Util.File as File
 import qualified Util.Git as Git
 import Util.GitTypes (Commit, Repo)
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -89,7 +88,7 @@ set_save_tag repo commit = try "set_save_tag" $ do
                 else write_save_ref repo save commit >> return save
 
 -- | Stored in reverse order as in the ref name.
-newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty.Pretty)
+newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty)
 
 -- | Create a tag for the given commit.
 write_save_ref :: Git.Repo -> SavePoint -> Commit -> IO ()

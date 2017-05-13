@@ -218,7 +218,7 @@ dyn_call_map = Map.fromList $
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
 
-instance Pretty.Pretty DynState where
+instance Pretty DynState where
     format (DynState from_dyn) = Pretty.recordTitle "DynState"
         [ ("from_dyn", Pretty.format from_dyn)
         ]
@@ -277,7 +277,7 @@ data PitchState = PitchState {
     , state_transition :: !Typecheck.Normalized
     }
 
-instance Pretty.Pretty PitchState where
+instance Pretty PitchState where
     format (PitchState from_pitch cur prev next transition) =
         Pretty.recordTitle "PitchState"
             [ ("from_pitch", Pretty.format from_pitch)
@@ -550,7 +550,7 @@ pc_relative_move swaram_relative transpose = PCall Sig.no_args $ \() ctx -> do
     move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
-instance Pretty.Pretty PitchDirection where pretty = showt
+instance Pretty PitchDirection where pretty = showt
 
 get_direction_pitch :: PitchDirection -> M PitchState PSignal.Pitch
 get_direction_pitch dir = case dir of

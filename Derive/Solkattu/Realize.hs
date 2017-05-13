@@ -38,7 +38,7 @@ data Stroke stroke = Stroke {
     , _stroke :: !stroke
     } deriving (Eq, Ord, Show, Functor)
 
-instance Pretty.Pretty stroke => Pretty.Pretty (Stroke stroke) where
+instance Pretty stroke => Pretty (Stroke stroke) where
     pretty (Stroke emphasis stroke) = case emphasis of
         -- This makes the output ambiguous since some strokes are already
         -- capitalized.  But since Pretty is used for 'format', which will
@@ -61,7 +61,7 @@ instance Monoid Emphasis where
     mempty = Normal
     mappend = max
 
-instance Pretty.Pretty Emphasis where
+instance Pretty Emphasis where
     pretty Light = "^"
     pretty Normal = ""
     pretty Heavy = "v"
@@ -72,7 +72,7 @@ note_matras n = case n of
     Rest -> 1
     Pattern p -> Solkattu.pattern_matras p
 
-instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
+instance Pretty stroke => Pretty (Note stroke) where
     pretty Rest = "_"
     pretty (Note s) = pretty s
     pretty (Pattern p) = pretty p
@@ -81,10 +81,10 @@ instance Pretty.Pretty stroke => Pretty.Pretty (Note stroke) where
 -- 'S.Matra's should the same duration as the the list in the default tempo.
 -- This is enforced in the constructor 'patterns'.
 newtype Patterns stroke = Patterns (Map Solkattu.Pattern [SNote stroke])
-    deriving (Eq, Show, Pretty.Pretty, Monoid)
+    deriving (Eq, Show, Pretty, Monoid)
 
 -- | Make a Patterns while checking that the durations match.
-patterns :: Pretty.Pretty stroke =>
+patterns :: Pretty stroke =>
     [(Solkattu.Pattern, [SNote stroke])] -> Either Text (Patterns stroke)
 patterns pairs
     | null errors = Right $ Patterns $ Map.fromList pairs
@@ -115,13 +115,13 @@ map_patterns f (Patterns p) = Patterns (f <$> p)
 -- sequences like dinga.
 newtype StrokeMap stroke =
     StrokeMap (Map [Solkattu.Sollu] [Maybe (Stroke stroke)])
-    deriving (Eq, Show, Pretty.Pretty, Monoid)
+    deriving (Eq, Show, Pretty, Monoid)
 
 -- | Directly construct a StrokeMap from strokes.
 simple_stroke_map :: [([Solkattu.Sollu], [Maybe stroke])] -> StrokeMap stroke
 simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
 
-stroke_map :: Pretty.Pretty stroke =>
+stroke_map :: Pretty stroke =>
     [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
     -> Either Text (StrokeMap stroke)
 stroke_map = unique <=< mapM verify
@@ -156,13 +156,13 @@ instance Monoid (Instrument stroke) where
     mempty = Instrument mempty mempty
     mappend (Instrument a1 b1) (Instrument a2 b2) = Instrument (a1<>a2) (b1<>b2)
 
-instance Pretty.Pretty stroke => Pretty.Pretty (Instrument stroke) where
+instance Pretty stroke => Pretty (Instrument stroke) where
     format (Instrument stroke_map patterns) = Pretty.record "Instrument"
         [ ("stroke_map", Pretty.format stroke_map)
         , ("patterns", Pretty.format patterns)
         ]
 
-instrument :: Pretty.Pretty stroke => StrokeMap stroke
+instrument :: Pretty stroke => StrokeMap stroke
     -> [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
     -> Patterns stroke -> Either Text (Instrument stroke)
 instrument defaults strokes patterns = do
@@ -176,7 +176,7 @@ instrument defaults strokes patterns = do
 
 type Event stroke = (S.Duration, Solkattu.Note stroke)
 
-realize :: forall stroke. Pretty.Pretty stroke =>
+realize :: forall stroke. Pretty stroke =>
     StrokeMap stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
     -> Either Text [(S.Tempo, Note stroke)]
 realize smap = format_error . go
@@ -202,7 +202,7 @@ realize smap = format_error . go
 tempo_to_duration :: [(S.Tempo, Note stroke)] -> [(S.Duration, Note stroke)]
 tempo_to_duration = S.tempo_to_duration note_matras
 
-pretty_words :: Pretty.Pretty a => [a] -> Text
+pretty_words :: Pretty a => [a] -> Text
 pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 
 -- | Find the longest matching sequence and return the match and unconsumed
@@ -247,7 +247,7 @@ replace_sollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
 
-realize_patterns :: Pretty.Pretty stroke =>
+realize_patterns :: Pretty stroke =>
     Patterns stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
     -> Either Text [(S.Tempo, Solkattu.Note (Stroke stroke))]
 realize_patterns pmap = format_error . concatMap realize
@@ -279,7 +279,7 @@ to_solkattu n = case n of
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Pretty.Pretty stroke => Maybe Int -> Int -> Tala.Tala
+format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> Text
 format override_stroke_width width tala notes =
     Text.stripEnd $ attach_ruler ruler_avartanams
@@ -321,7 +321,7 @@ thin_rests = zipWith thin [0..]
         | otherwise = (state, stroke)
 
 -- | Break into [avartanam], where avartanam = [line].
-format_lines :: Pretty.Pretty stroke => Int -> Int -> Tala.Tala
+format_lines :: Pretty stroke => Int -> Int -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> [[[(S.State, Text)]]]
 format_lines stroke_width width tala =
     map (break_line width) . break_avartanams
@@ -410,11 +410,11 @@ emphasize word
 
 -- * format html
 
-write_html :: Pretty.Pretty stroke => FilePath -> Tala.Tala
+write_html :: Pretty stroke => FilePath -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> IO ()
 write_html fname tala = Text.IO.writeFile fname . Doc.un_html . format_html tala
 
-format_html :: Pretty.Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+format_html :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
     -> Doc.Html
 format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
     where
@@ -422,7 +422,7 @@ format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
     akshara (n, spaces) = n : replicate (spaces-1) ""
     body = map thin_rests $ format_table tala notes
 
-format_table :: Pretty.Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+format_table :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
     -> [[(S.State, Doc.Html)]]
 format_table tala =
     break_avartanams

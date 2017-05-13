@@ -86,7 +86,7 @@ add_bass_staff = Lens.lens staff_add_bass_staff
 
 type Instrument = Text
 
-instance Pretty.Pretty Config where
+instance Pretty Config where
     format (Config quarter quantize dotted staves) = Pretty.record "Config"
         [ ("quarter_duration", Pretty.format quarter)
         , ("quantize", Pretty.format quantize)
@@ -94,7 +94,7 @@ instance Pretty.Pretty Config where
         , ("staves", Pretty.format staves)
         ]
 
-instance Pretty.Pretty StaffConfig where
+instance Pretty StaffConfig where
     format (StaffConfig long short code display add_bass) =
         Pretty.record "StaffConfig"
             [ ("long", Pretty.format long)
@@ -143,7 +143,7 @@ global_staff_code =
 data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
     deriving (Enum, Bounded, Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Duration where pretty = showt
+instance Pretty Duration where pretty = showt
 instance ToLily Duration where to_lily = txt . drop 1 . show
 
 read_duration :: String -> Maybe Duration
@@ -224,7 +224,7 @@ time_to_note_durs t
 -- is 128th of a whole note.
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
-instance Pretty.Pretty Time where
+instance Pretty Time where
     pretty t = Num.showFloat 10
         (fromIntegral t / fromIntegral time_per_whole) <> "t"
 
@@ -258,7 +258,7 @@ event_end event = event_start event + event_duration event
 event_attributes :: Event -> Attrs.Attributes
 event_attributes = Score.environ_attributes . event_environ
 
-instance Pretty.Pretty Event where
+instance Pretty Event where
     format (Event start dur pitch inst attrs _stack _clipped) =
         Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
             Pretty.text pitch, Pretty.format inst, Pretty.format attrs]

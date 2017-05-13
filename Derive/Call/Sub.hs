@@ -24,7 +24,6 @@ module Derive.Call.Sub (
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -220,7 +219,7 @@ stretch factor = place 0 factor
 at :: ScoreTime -> GenericEvent a -> GenericEvent a
 at shift (Event start dur note) = Event (start + shift) dur note
 
-instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
+instance Pretty a => Pretty (GenericEvent a) where
     pretty (Event start dur note) =
         "Event " <> showt start <> " " <> showt dur
             <> " (" <> pretty note <> ")"

@@ -45,7 +45,7 @@ data Track = Track {
     , track_events :: ![Event.Event]
     } deriving (Show)
 
-instance Pretty.Pretty Track where
+instance Pretty Track where
     format (Track title events) = Pretty.record "Track"
         [ ("title", Pretty.format title)
         , ("events", Pretty.format events)

@@ -126,7 +126,7 @@ dump_score flag state = case flag of
     DumpConfig -> format $ Ui.state_config state
     DumpCalls -> extract_calls state ++ extract_event_text state
     where
-    format :: Pretty.Pretty a => a -> [Text]
+    format :: Pretty a => a -> [Text]
     format = (:[]) . strip_name . Pretty.formatted
 
 dump_midi :: Vector.Vector Midi.WriteMessage -> [Text]

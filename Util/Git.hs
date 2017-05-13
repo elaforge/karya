@@ -61,7 +61,6 @@ import qualified System.Exit as Exit
 import System.FilePath ((</>))
 
 import Util.GitTypes (Commit(..), Repo)
-import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 
@@ -102,9 +101,9 @@ cuchar_to_oid bytes = alloca $ \oidp -> do
 newtype Blob = Blob OID deriving (Eq, Ord, Show)
 newtype Tree = Tree OID deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Blob where
+instance Pretty Blob where
     pretty (Blob (OID oid)) = txt $ Char8.unpack oid
-instance Pretty.Pretty Tree where
+instance Pretty Tree where
     pretty (Tree (OID oid)) = txt $ Char8.unpack oid
 
 -- | Repo-internal path.
@@ -180,7 +179,7 @@ read_blob_repo repop (Blob blob) =
 data Modification = Remove FilePath | Add FilePath ByteString
     deriving (Eq, Show)
 
-instance Pretty.Pretty Modification where
+instance Pretty Modification where
     pretty (Remove fn) = "rm " <> txt fn
     pretty (Add fn bytes) = "add" <> txt fn
         <> " {" <> showt (Char8.length bytes) <> "}"

@@ -9,7 +9,6 @@ import Prelude hiding (min, max)
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import Global
 import Types
@@ -37,7 +36,7 @@ data Selection = Selection {
     , orientation :: !Orientation
     } deriving (Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Selection where
+instance Pretty Selection where
     pretty (Selection strack spos ctrack cpos orientation) =
         "Selection" <> o <> pretty (strack, spos) <> "--"
             <> pretty (ctrack, cpos)

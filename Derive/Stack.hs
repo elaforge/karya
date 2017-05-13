@@ -176,10 +176,10 @@ type Serial = Int
 instance DeepSeq.NFData Frame where
     rnf f = f `seq` ()
 
-instance Pretty.Pretty Stack where
+instance Pretty Stack where
     format = Pretty.formatList . outermost
 
-instance Pretty.Pretty Frame where
+instance Pretty Frame where
     pretty (Block bid) = showt bid
     pretty (Track tid) = showt tid
     pretty (Region s e) = pretty s <> "--" <> pretty e

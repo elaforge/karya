@@ -36,9 +36,7 @@ import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
 import Util.Crc32Instances () -- Text instance
-import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
-
 import Global
 
 
@@ -76,8 +74,8 @@ instance CRC32.CRC32 Id where
     crc32Update n (Id ns name) =
         n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
-instance Pretty.Pretty Namespace where pretty = un_namespace
-instance Pretty.Pretty Id where pretty = show_id
+instance Pretty Namespace where pretty = un_namespace
+instance Pretty Id where pretty = show_id
 
 instance DeepSeq.NFData Id where
     rnf (Id ns name) = ns `seq` name `seq` ()
@@ -262,10 +260,10 @@ instance Show ViewId where show = show_ident
 instance Show TrackId where show = show_ident
 instance Show RulerId where show = show_ident
 
-instance Pretty.Pretty BlockId where pretty = showt
-instance Pretty.Pretty ViewId where pretty = showt
-instance Pretty.Pretty TrackId where pretty = showt
-instance Pretty.Pretty RulerId where pretty = showt
+instance Pretty BlockId where pretty = showt
+instance Pretty ViewId where pretty = showt
+instance Pretty TrackId where pretty = showt
+instance Pretty RulerId where pretty = showt
 
 instance Read BlockId where readPrec = require read_ident
 instance Read ViewId where readPrec = require read_ident

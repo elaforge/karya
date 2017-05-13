@@ -65,7 +65,7 @@ backend = Lens.lens inst_backend
     (\f r -> r { inst_backend = f (inst_backend r) })
 common = Lens.lens inst_common (\f r -> r { inst_common = f (inst_common r) })
 
-instance Pretty.Pretty code => Pretty.Pretty (Inst code) where
+instance Pretty code => Pretty (Inst code) where
     format (Inst backend common) = Pretty.record "Inst"
         [ ("backend", Pretty.format backend)
         , ("common", Pretty.format common)
@@ -74,7 +74,7 @@ instance Pretty.Pretty code => Pretty.Pretty (Inst code) where
 data Backend = Dummy | Midi !Midi.Patch.Patch | Im Im.Patch.Patch
     deriving (Show)
 
-instance Pretty.Pretty Backend where
+instance Pretty Backend where
     format Dummy = "Dummy"
     format (Midi inst) = Pretty.format inst
     format (Im inst) = Pretty.format inst
@@ -95,7 +95,7 @@ inst_attributes inst = case inst_backend inst of
 -- * Db
 
 newtype Db code = Db (Map InstTypes.SynthName (Synth code))
-    deriving (Show, Pretty.Pretty)
+    deriving (Show, Pretty)
 
 data Synth code = Synth {
     -- | Full name, just for documentation.
@@ -105,7 +105,7 @@ data Synth code = Synth {
 
 insts = Lens.lens synth_insts (\f r -> r { synth_insts = f (synth_insts r) })
 
-instance Pretty.Pretty code => Pretty.Pretty (Synth code) where
+instance Pretty code => Pretty (Synth code) where
     format (Synth _ insts) = Pretty.format insts
 
 empty :: Db code
@@ -134,7 +134,7 @@ data SynthDecl code =
     SynthDecl !InstTypes.SynthName !Text ![(InstTypes.Name, Inst code)]
     deriving (Show)
 
-instance Pretty.Pretty code => Pretty.Pretty (SynthDecl code) where
+instance Pretty code => Pretty (SynthDecl code) where
     format (SynthDecl name doc insts) = Pretty.record "SynthDecl"
         [ ("name", Pretty.format name)
         , ("doc", Pretty.format doc)

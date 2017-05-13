@@ -7,7 +7,6 @@ module Derive.Flags where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Set as Set
 
-import qualified Util.Pretty as Pretty
 import Global
 
 
@@ -20,7 +19,7 @@ type Flags = Set Flag
 newtype Flag = Flag Text
     deriving (Eq, Ord, Show, DeepSeq.NFData)
 
-instance Pretty.Pretty Flag where pretty (Flag t) = t
+instance Pretty Flag where pretty (Flag t) = t
 
 flag :: Text -> Flags
 flag = Set.singleton . Flag

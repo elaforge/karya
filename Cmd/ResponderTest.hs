@@ -114,7 +114,7 @@ data Result = Result {
 
 type Seconds = Double
 
-instance Pretty.Pretty Result where
+instance Pretty Result where
     format result = Pretty.format (result_msg result) <> " -> "
         <> Pretty.format (CmdTest.result_logs (result_cmd result))
 

@@ -16,7 +16,6 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -588,7 +587,7 @@ type NoteTable = Map Char Chord
 
 -- | Pentatonic pitch degree.
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
-instance Pretty.Pretty Degree where pretty = showt
+instance Pretty Degree where pretty = showt
 
 to_pc :: Degree -> Pitch.PitchClass
 to_pc = fromEnum
@@ -788,7 +787,7 @@ undamped :: Attrs.Attributes
 undamped = Attrs.attr "undamped"
 
 data Hand = L | R deriving (Eq, Show)
-instance Pretty.Pretty Hand where pretty = showt
+instance Pretty Hand where pretty = showt
 
 other :: Hand -> Hand
 other L = R

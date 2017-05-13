@@ -11,7 +11,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -247,7 +246,7 @@ data Key = Key {
     , key_ratios :: Ratios
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Key where
+instance Pretty Key where
     pretty (Key tonic ratios) =
         "(Key " <> showt tonic <> " [" <> show_ratios ratios <> "])"
 

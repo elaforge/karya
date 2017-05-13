@@ -186,7 +186,7 @@ data DynState = DynState {
     , state_dyn_transition :: !Typecheck.Normalized
     } deriving (Show)
 
-instance Pretty.Pretty DynState where
+instance Pretty DynState where
     format (DynState from_dyn dyn_transition) = Pretty.recordTitle "DynState"
         [ ("from_dyn", Pretty.format from_dyn)
         , ("dyn_transition", Pretty.format dyn_transition)
@@ -274,7 +274,7 @@ data State = State {
     , state_dyn :: !DynState
     }
 
-instance Pretty.Pretty State where
+instance Pretty State where
     format (State from_pitch transition cur prev next dyn) =
         Pretty.recordTitle "State"
             [ ("from_pitch", Pretty.format from_pitch)
@@ -704,7 +704,7 @@ pc_relative_move transpose = PCall Sig.no_args $ \() ctx -> do
     move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
-instance Pretty.Pretty PitchDirection where pretty = showt
+instance Pretty PitchDirection where pretty = showt
 
 get_direction_pitch :: PitchDirection -> M State PSignal.Pitch
 get_direction_pitch dir = case dir of

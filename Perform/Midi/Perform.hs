@@ -113,7 +113,7 @@ data State = State {
     , state_perform :: !PerformState
     } deriving (Eq, Show)
 
-instance Pretty.Pretty State where
+instance Pretty State where
     format (State channelize allot perform) = Pretty.record "State"
         [ ("channelize", Pretty.format channelize)
         , ("allot", Pretty.format allot)
@@ -314,7 +314,7 @@ data AllotState = AllotState {
     , ast_allotted :: !(Map AllotKey Allotted)
     } deriving (Eq, Show)
 
-instance Pretty.Pretty AllotState where
+instance Pretty AllotState where
     format (AllotState available allotted) = Pretty.record "AllotState"
         [ ("available", Pretty.format available)
         , ("allotted", Pretty.format allotted)
@@ -335,7 +335,7 @@ data Allotted = Allotted {
     , _allotted_voice_count :: !Patch.Voices
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Allotted where
+instance Pretty Allotted where
     format (Allotted addr voices voice_count) = Pretty.record "Allotted"
         [ ("addr", Pretty.format addr)
         , ("voices", Pretty.format voices)

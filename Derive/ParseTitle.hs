@@ -16,7 +16,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Expr as Expr
@@ -39,7 +38,7 @@ parse_block = Parse.parse_expr
 data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
     deriving (Eq, Show)
 
-instance Pretty.Pretty Type where pretty = showt
+instance Pretty Type where pretty = showt
 
 track_type :: Text -> Type
 track_type title
@@ -60,7 +59,7 @@ data ControlType =
     | Tempo (Maybe Expr.Symbol)
     deriving (Show)
 
-instance Pretty.Pretty ControlType where
+instance Pretty ControlType where
     pretty = unparse_control
 
 parse_control :: Text -> Either Text ControlType

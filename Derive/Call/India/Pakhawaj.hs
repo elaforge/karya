@@ -10,7 +10,6 @@ import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 
 import qualified Util.Doc as Doc
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -101,7 +100,7 @@ data Stroke =
     | Ka | Ge
     deriving (Show, Eq)
 
-instance Pretty.Pretty Stroke where pretty = Text.toLower . showt
+instance Pretty Stroke where pretty = Text.toLower . showt
 
 data Bol = One Stroke | Together Stroke Stroke | Flam Stroke Stroke
     deriving (Show, Eq)
@@ -121,13 +120,13 @@ strokes_of bol = case bol of
     Together b1 b2 -> [b1, b2]
     Flam b1 b2 -> [b1, b2]
 
-instance Pretty.Pretty Bol where
+instance Pretty Bol where
     pretty bol = case bol of
         One b -> pretty b
         Together b1 b2 -> pretty b1 <> "+" <> pretty b2
         Flam b1 b2 -> pretty b1 <> "/" <> pretty b2
 
-instance Pretty.Pretty a => Pretty.Pretty (Note a) where
+instance Pretty a => Pretty (Note a) where
     pretty Rest = "-"
     pretty (Note bol) = pretty bol
     pretty (Notes note) = "(" <> pretty note <> ")"
