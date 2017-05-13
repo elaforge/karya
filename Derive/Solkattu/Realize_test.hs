@@ -8,8 +8,10 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (__)
 import Derive.Solkattu.DslSollu
@@ -80,7 +82,7 @@ test_realize_patterns = do
     left_like (f (M.families567 !! 0) [pattern 3]) "no pattern for p3"
 
     let p = expect_right $ realize (M.families567 !! 1) [pattern 5]
-    equal (e_format $ Realize.format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
+    equal (e_format $ format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
     -- TODO when format is ok with 1 width it should be "k t k kto "
 
 test_patterns = do
@@ -111,8 +113,7 @@ test_stroke_map = do
         "only have plain sollus"
 
 test_format = do
-    let f tala = e_format . Realize.format 80 tala
-            . map (Sequence.default_tempo,)
+    let f tala = e_format . format 80 tala . map (Sequence.default_tempo,)
         n4 = [k, t, Realize.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
@@ -135,29 +136,29 @@ tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
 test_format_ruler = do
-    let run = fmap (first (capitalize_emphasis . Realize.format 80 tala4))
+    let run = fmap (first (capitalize_emphasis . format 80 tala4))
             . realize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equal (run (tas 2 8)) $ Right
-        ( "0   1   2   3   4\n\
+        ( "X   O   X   O   |\n\
           \K k k k K k k k"
         , ""
         )
     equal (run (tas 2 16)) $ Right
-        ( "0   1   2   3   4\n\
+        ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \K k k k K k k k"
         , ""
         )
     equal (run (tas 3 12)) $ Right
-        ( "0     1     2     3     4\n\
+        ( "X     O     X     O     |\n\
           \K k k k k k K k k k k k"
         , ""
         )
     equal (run (tas 2 12 <> tas 3 6)) $ Right
-        ( "0   1   2   3   4\n\
+        ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
-          \0   1   2     3     4\n\
+          \X   O   X     O     |\n\
           \K k k k K k k k k k"
         , ""
         )
@@ -186,27 +187,26 @@ test_format_lines = do
     equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
 
 test_format_break_lines = do
-    let run width =
-            fmap (capitalize_emphasis . Realize.format width tala4 . fst)
+    let run width = fmap (capitalize_emphasis . format width tala4 . fst)
             . realize False tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
-        "0       1       2       3       4\n\
+        "X       O       X       O       |\n\
         \K k k k k k k k K k k k k k k k"
     equal (run 10 (tas 16)) $ Right
-        "0   1   2\n\
+        "X   O   X\n\
         \Kkkkkkkk\n\
         \Kkkkkkkk"
 
 test_format_nadai_change = do
     let f tala realize_patterns =
-            fmap (first (capitalize_emphasis . Realize.format 50 tala))
+            fmap (first (capitalize_emphasis . format 50 tala))
             . realize realize_patterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
     equal (Text.lines out)
-        [ "0       1       2       3       4"
+        [ "0       1       2       3       X"
         , "_k_t_knok t knok_t_knok t knok_t"
         -- TODO should be a ruler here
         , "_knok _ t _ k n o k _ T _ k n o k _ t _ k n o"
@@ -217,7 +217,7 @@ test_format_nadai_change = do
     -- _k_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_kno
 
 test_format_speed = do
-    let f width = fmap (e_format . Realize.format width Tala.rupaka_fast)
+    let f width = fmap (e_format . format width Tala.rupaka_fast)
             . Realize.realize stroke_map . Sequence.flatten
         thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
@@ -262,7 +262,9 @@ e_format = capitalize_emphasis . drop_rulers
 
 drop_rulers :: Text -> Text
 drop_rulers = Text.strip . Text.unlines . filter (not . is_ruler) . Text.lines
-    where is_ruler = Text.all Char.isDigit . Text.take 1
+    where
+    is_ruler t = Text.all Char.isDigit (Text.take 1 t)
+        || "X" `Text.isPrefixOf` t
 
 -- | Replace emphasis with capitals, so spacing is preserved.
 capitalize_emphasis :: Text -> Text
@@ -276,3 +278,7 @@ state_pos state =
     , Sequence.state_akshara state
     , Sequence.state_matra state
     )
+
+format :: Pretty.Pretty stroke => Int -> Tala.Tala
+    -> [(Sequence.Tempo, Realize.Note stroke)] -> Text
+format = Realize.format Nothing

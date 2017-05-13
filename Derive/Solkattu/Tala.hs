@@ -19,8 +19,19 @@ anga_aksharas jati anga = case anga of
     O -> 2
     U -> 1
 
+anga_labels :: Jati -> Anga -> [Text]
+anga_labels jati anga = case anga of
+    Clap n -> "X" : replicate (n-1) "-"
+    Wave n -> "O" : replicate (n-1) "-"
+    I -> take jati (map showt [0..])
+    O -> ["X", "O"]
+    U -> ["X"]
+
 tala_aksharas :: Tala -> [Akshara]
 tala_aksharas tala = map (anga_aksharas (_jati tala)) (_angas tala)
+
+tala_labels :: Tala -> [Text]
+tala_labels tala = concatMap (anga_labels (_jati tala)) (_angas tala)
 
 data Tala = Tala {
     _name :: !Text

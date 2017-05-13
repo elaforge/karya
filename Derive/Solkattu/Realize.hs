@@ -7,11 +7,14 @@
 -- 'Note's.
 module Derive.Solkattu.Realize where
 import qualified Data.List as List
+import qualified Data.String as String
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
+import qualified Util.Doc as Doc
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -268,12 +271,7 @@ to_solkattu n = case n of
     Pattern matras -> Solkattu.Pattern matras
 
 
--- * format
-
-speed_scale :: Int -> Int -> Int
-speed_scale speed n
-    | speed > 0 = n `div` 2^speed
-    | otherwise = n * n ^ abs speed
+-- * format text
 
 -- | Format the notes according to the tala.
 --
@@ -281,13 +279,13 @@ speed_scale speed n
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Pretty.Pretty stroke => Int -> Maybe Int -> Tala.Tala
+format :: Pretty.Pretty stroke => Maybe Int -> Int -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> Text
-format width override_stroke_width tala notes =
+format override_stroke_width width tala notes =
     Text.stripEnd $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
-        [ (infer_ruler stroke_width (head lines),
+        [ (infer_ruler_text tala stroke_width (head lines),
             Text.unlines $ map format_line lines)
         | lines <- avartanam_lines
         ]
@@ -300,40 +298,47 @@ format width override_stroke_width tala notes =
             result -> (result, 1)
     format_line :: [(S.State, Text)] -> Text
     format_line = Text.stripEnd . mconcat . map snd
-        . map_with_fst emphasize_akshara
-        . zipWith thin_rests [0..]
+        . map_with_fst emphasize_akshara . thin_rests
     emphasize_akshara state word
-        | S.state_matra state == 0 && should_emphasize state = emphasize word
+        | should_emphasize aksharas state = emphasize word
         | otherwise = word
-        where
-        should_emphasize = (`Set.member` aksharas) . S.state_akshara
-            where
-            aksharas = Set.fromList $ scanl (+) 0 $ Tala.tala_aksharas tala
+        where aksharas = akshara_set tala
+
+should_emphasize :: Set Tala.Akshara -> S.State -> Bool
+should_emphasize aksharas state =
+    S.state_matra state == 0 && Set.member (S.state_akshara state) aksharas
+
+akshara_set :: Tala.Tala -> Set Tala.Akshara
+akshara_set = Set.fromList . scanl (+) 0 . Tala.tala_aksharas
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.
-thin_rests :: Int -> (s, Text) -> (s, Text)
-thin_rests column (state, stroke)
-    | stroke == "_" && odd column = (state, " ")
-    | otherwise = (state, stroke)
+thin_rests :: (Eq str, String.IsString str) => [(a, str)] -> [(a, str)]
+thin_rests = zipWith thin [0..]
+    where
+    thin column (state, stroke)
+        | stroke == "_" && odd column = (state, " ")
+        | otherwise = (state, stroke)
 
 -- | Break into [avartanam], where avartanam = [line].
 format_lines :: Pretty.Pretty stroke => Int -> Int -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> [[[(S.State, Text)]]]
 format_lines stroke_width width tala =
-    map (break_line width) . break_avartanam
+    map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
         . map (second show_stroke)
         . S.normalize_speed note_matras tala
     where
-    break_avartanam = dropWhile null . Seq.split_with (is_sam . fst)
     combine (prev, (state, text)) = (state, Text.drop overlap text)
         where overlap = maybe 0 (subtract stroke_width . Text.length . snd) prev
     show_stroke s = case s of
         S.Attack a -> Text.justifyLeft stroke_width ' ' (pretty a)
         S.Sustain -> Text.replicate stroke_width "-"
         S.Rest -> Text.justifyLeft stroke_width ' ' "_"
-    is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
+
+break_avartanams :: [(S.State, a)] -> [[(S.State, a)]]
+break_avartanams = dropWhile null . Seq.split_with (is_sam . fst)
+    where is_sam state = S.state_matra state == 0 && S.state_akshara state == 0
 
 -- | Strip duplicate rulers and attach to the notation lines.  Avartanams which
 -- were broken due to width are separated with two newlines to make that
@@ -382,16 +387,18 @@ break_before max_width = go . dropWhile null . Seq.split_with at_akshara
 break_fst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 break_fst f = (map snd *** map snd) . break (f . fst)
 
+infer_ruler_text :: Tala.Tala -> Int -> [(S.State, Text)] -> Text
+infer_ruler_text tala stroke_width = mconcatMap fmt . infer_ruler tala
+    where
+    fmt (label, spaces) = Text.justifyLeft (spaces * stroke_width) ' ' label
+
+infer_ruler :: Tala.Tala -> [(S.State, a)] -> [(Text, Int)]
+infer_ruler tala = zip (Tala.tala_labels tala ++ ["|"])
+    . (++[0]) . map length . dropWhile null
+    . Seq.split_with at_akshara
+
 at_akshara :: (S.State, a) -> Bool
 at_akshara = (==0) . S.state_matra . fst
-
-infer_ruler :: Int -> [(S.State, Text)] -> Text
-infer_ruler stroke_width =
-    count . (++[0]) . map ((*stroke_width) . length) . dropWhile null
-        . Seq.split_with at_akshara
-    where
-    count = mconcatMap (\(n, spaces) -> Text.justifyLeft spaces ' ' (showt n))
-        . zip [0..]
 
 emphasize :: Text -> Text
 emphasize word
@@ -400,3 +407,45 @@ emphasize word
     | word == "_ " = emphasize "_|"
     | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
     where (pre, post) = Text.break (==' ') word
+
+-- * format html
+
+write_html :: Pretty.Pretty stroke => FilePath -> Tala.Tala
+    -> [(S.Tempo, Note stroke)] -> IO ()
+write_html fname tala = Text.IO.writeFile fname . Doc.un_html . format_html tala
+
+format_html :: Pretty.Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+    -> Doc.Html
+format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
+    where
+    ruler = maybe [] (concatMap akshara . infer_ruler tala) (Seq.head body)
+    akshara (n, spaces) = n : replicate (spaces-1) ""
+    body = map thin_rests $ format_table tala notes
+
+format_table :: Pretty.Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+    -> [[(S.State, Doc.Html)]]
+format_table tala =
+    break_avartanams
+        . map_with_fst emphasize_akshara
+        . map (second show_stroke)
+        . S.normalize_speed note_matras tala
+    where
+    show_stroke s = case s of
+        S.Attack a -> Doc.html (pretty a)
+        S.Sustain -> "&mdash;"
+        S.Rest -> "_"
+    emphasize_akshara state word
+        | should_emphasize aksharas state = "<b>" <> word <> "</b>"
+        | otherwise = word
+    aksharas = akshara_set tala
+
+to_table :: Int -> [Doc.Html] -> [[Doc.Html]] -> Doc.Html
+to_table col_width header rows = mconcatMap (<>"\n") $
+    [ "<table cellpadding=0 cellspacing=0 style=\"table-layout: fixed\">"
+    , "<tr>" <> mconcatMap th header <> "</tr>\n"
+    ] ++ map row rows
+    ++ ["</table>"]
+    where
+    th col = Doc.tag_attrs "th" [("width", showt col_width), ("align", "left")]
+        (Just col)
+    row cols = "<tr>" <> mconcatMap (Doc.tag "td") cols <> "</tr>"

@@ -1726,6 +1726,10 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - The same sequence, like takita, can be different in different
+          places.  One way is an optional tag, e.g. ta^1.ki.ta and ta^2.ki.ta,
+          and a ta^1.ki.ta mapping will be considered a better match, though
+          ta.ki.ta still matches.
         * MridangamScore.ksequence is messed up, I think replaceStart is
           changing the speed.
         - Reduce leads to fragmented sollu sequences, whose strokes then need
@@ -1735,6 +1739,9 @@ Derive:
           whole sequence and drop the same number of matras.
           . Also can I think apply special reduction rules, e.g. if ktk is
             reduced to tk, it should be played kk.
+          . Also maybe I can use this to use this to emphasize the starts of
+            sections, though the reduce function could also put a tag on the
+            first note.
         * Add tags to Korvai, e.g. date, source.
           * Others can be derived like tala, avartanams, nadai, speed,
             instruments.

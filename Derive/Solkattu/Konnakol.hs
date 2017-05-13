@@ -25,6 +25,15 @@ default_patterns = Solkattu.check $ patterns
     , (9, [Ta, __, Din, __, Gin, __, Na, __, Thom])
     ]
 
+alternate_patterns :: Realize.Patterns Sollu
+alternate_patterns = Solkattu.check $ patterns
+    [ (5, [Ta, Di, Ki, Tha, Thom])
+    , (6, [Ta, Di, __, Ki, Tha, Thom])
+    , (7, [Ta, __, Di, __, Ki, Tha, Thom])
+    , (8, [Ta, Di, __, Ki, __, Tha, __, Thom])
+    , (9, [Ta, __, Di, __, Ki, __, Tha, __, Thom])
+    ]
+
 __ :: Sollu
 __ = NoSollu
 

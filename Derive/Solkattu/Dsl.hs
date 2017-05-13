@@ -32,7 +32,7 @@ module Derive.Solkattu.Dsl (
     -- * misc
     , pprint
     -- * realize
-    , realize_instrument, realize_konnakol, many
+    , realize_instrument, realize_konnakol, realize_konnakol_html, many
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -225,7 +225,7 @@ realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize instrument realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
         Right (notes, warning) -> TextUtil.joinWith "\n"
-            (Realize.format width Nothing (Korvai.korvai_tala korvai) notes)
+            (Realize.format Nothing width (Korvai.korvai_tala korvai) notes)
             warning
 
 realize_konnakol :: Bool -> Korvai -> IO ()
@@ -233,8 +233,17 @@ realize_konnakol realize_patterns korvai = Text.IO.putStrLn $
     case Korvai.realize_konnakol realize_patterns korvai of
         Left err -> "ERROR:\n" <> err
         Right (notes, warning) -> TextUtil.joinWith "\n"
-            (Realize.format width (Just 4) (Korvai.korvai_tala korvai) notes)
+            (Realize.format (Just 4) width (Korvai.korvai_tala korvai) notes)
             warning
+
+realize_konnakol_html :: Bool -> Korvai -> IO ()
+realize_konnakol_html realize_patterns korvai =
+    case Korvai.realize_konnakol realize_patterns korvai of
+        Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
+        Right (notes, warning)
+            | not (Text.null warning) -> Text.IO.putStrLn warning
+            | otherwise -> Realize.write_html "konnakol.html"
+                (Korvai.korvai_tala korvai) notes
 
 width :: Int
 width = 78
