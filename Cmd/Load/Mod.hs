@@ -276,5 +276,6 @@ p_note = parens $ do
     return $ Note pitch inst (filter ((/=0) . fst) [fx1, fx2])
 
 p_effects = parens ((,) <$> number <*> number)
-parens = ParseText.between (ParseText.lexeme (A.char '(')) (ParseText.lexeme (A.char ')'))
+parens = ParseText.between
+    (ParseText.lexeme (A.char '(')) (ParseText.lexeme (A.char ')'))
 number = ParseText.lexeme ParseText.p_nat

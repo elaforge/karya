@@ -55,8 +55,9 @@ p_qualified =
     where chars = txt <$> Parsec.many1 (Parsec.satisfy Id.is_id_char)
 
 p_tag :: Parser st Tag.Tag
-p_tag = (,) <$> (txt <$> Parsec.many1 tag_char)
-        <*> (txt <$> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char))
+p_tag =
+    (,) <$> (txt <$> Parsec.many1 tag_char)
+    <*> (txt <$> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char))
     where tag_char = Parsec.alphaNum <|> Parsec.char '-'
 
 lexeme :: Parser st a -> Parser st a

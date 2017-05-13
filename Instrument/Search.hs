@@ -104,7 +104,8 @@ parse :: Text -> Query
 parse = Query . map clause . Text.words
     where
     clause word
-        | Just ('!', pre) <- Text.uncons pre = Clause True pre (Text.drop 1 post)
+        | Just ('!', pre) <- Text.uncons pre =
+            Clause True pre (Text.drop 1 post)
         | otherwise = Clause False pre (Text.drop 1 post)
         where (pre, post) = Text.break (=='=') word
 
