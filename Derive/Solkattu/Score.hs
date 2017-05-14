@@ -743,27 +743,19 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
         .tam.__3 . 1^takita.tam.__3 . 1^takita.takadinna.takita.takita.tam.__3
             . takita.takadinna
         . repeat takitas takita . takadinna
-    mridangam = make_mridangam
-        [ (tam, [od])
-        , (1^takita, [k, t, k])
+    mridangam = make_mridangam $ strokes ++
+        [ (1^takita, [k, t, k])
         , (takita, [n, p, k])
         , (takadinna, [n, o, o, k])
-        , (ta.ka.ta.lang.ga, [p, k, p, u, k])
-        , (ta.ka.din.tat, [p, k, o, k])
-        , (thom, [od])
-        , (nang.ki.ta.ta.ka, [n, k, t, p, k])
-        , (nang.ki.ta, [o&n, p, k])
-
-        , (thom.ki.ta.ka.na.ka.ki.ta.ta.ka, [o, k, t, p, u, p, k, t, p, k])
-        , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
         ]
-    janahan_mridangam = make_mridangam
+    janahan_mridangam = make_mridangam $ strokes ++
         [ (1^takita, [k, p, k])
         , (takita . takita, [o, t, k, n, o, k])
         , (takita, [k, t, k])
         , (takadinna, [k, o, o, k])
-
-        , (tam, [od])
+        ]
+    strokes =
+        [ (tam, [od])
         , (ta.ka.ta.lang.ga, [p, k, p, u, k])
         , (ta.ka.din.tat, [p, k, o, k])
         , (thom, [od])

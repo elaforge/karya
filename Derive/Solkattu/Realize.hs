@@ -8,15 +8,14 @@
 -- 'Note's.
 module Derive.Solkattu.Realize where
 import qualified Data.List as List
-import qualified Data.String as String
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
-import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -128,7 +127,7 @@ simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
 stroke_map :: Pretty stroke =>
     [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
     -> Either Text (StrokeMap stroke)
-stroke_map = unique <=< mapM verify
+stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
     where
     verify (sollus, strokes) = do
         let throw = Left
@@ -147,10 +146,6 @@ stroke_map = unique <=< mapM verify
                 \ sollu rests"
         -- TODO warn if there are inconsistent tags?
         return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
-    unique pairs
-        | null dups = Right (StrokeMap smap)
-        | otherwise = Left $ "duplicate StrokeMap keys: " <> pretty dups
-        where (smap, dups) = Util.Map.unique2 pairs
 
 best_match :: Maybe Solkattu.Tag -> [Solkattu.Sollu] -> StrokeMap stroke
     -> Maybe [Maybe (Stroke stroke)]

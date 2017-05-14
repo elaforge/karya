@@ -122,9 +122,11 @@ test_stroke_map = do
           , map (Just . Realize.stroke) [M.Valantalai M.Ki, M.Valantalai M.Ta]
           )
         ]
+    -- Last one wins.
+    equal (f [(ta, [k]), (ta, [t])]) $ Right
+        [((Nothing, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ta))])]
     equal (f [(1 ^ ta, [k])]) $ Right
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
-    left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(tang <> ga, [u, __, __])]) "differing lengths"
     left_like (f [(ta <> [Sequence.Note $ pattern 5], [k])])
