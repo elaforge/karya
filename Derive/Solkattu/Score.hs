@@ -163,10 +163,10 @@ c_nnnd = korvais adi mridangam
 
 c_17_02_06 :: Korvai
 c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $
-    tri_ (din.__.p6.p6) (ta.ki.ta.dinga.din.__.ta.__.ka.__)
+    tri_ (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
     where
     mridangam = make_mridangam
-        [ (ta.ki.ta.dinga.din, [k, p, k, od, k, od])
+        [ (takita.dinga.din, [k, p, k, od, k, od])
         , (ta.ka, [o&n, k])
         , (din, [od])
         ]
@@ -243,7 +243,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
     -- reduceTo 3 1 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
-    --     [ ø, ta.__3, ta.__2, ta.__1, ø
+    --     [ ø, ta.__3, ta.__2, ta.__, ta, ø
     --     , ø, ta.__3 , ta.__
     --     ]
     -- This is less code, but maybe not very obvious?
@@ -251,6 +251,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
     -- ta.__4 . ta.__.ki.ta.takadinna.dinga
     -- ta.__3 . ta.__.ki.ta.takadinna.dinga
     -- ta.__2 . ta.__.ki.ta.takadinna.dinga
+    -- ta.__  . ta.__.ki.ta.takadinna.dinga
     --     ta . ta.__.ki.ta.takadinna.dinga
     --          ta.__.ki.ta.takadinna.dinga
     --             ta.__.__.takadinna.dinga
@@ -334,8 +335,6 @@ k1_mridangam = make_mridangam
     , (ta.ka.di.ki.ta, [k, p, t, k, n])
     , (din, [od])
     ]
-
-k1_test = make_k1 $ nadai 5 (ta.__.di.__.ki.ta .__.thom.__.ta.din)
 
 k2 :: Bool -> Korvai
 k2 chatusram_transition = korvai adi k1_mridangam $ nadai 5 $
@@ -532,9 +531,8 @@ t4s2 = map ganesh $ korvais adi mridangam $ map (nadai 6)
         . ta_katakita . repeat 2 (takita) . tam.__6
         . ta_katakita . repeat 3 (takita) . tam.__6
     purvangam2 gap = tri (ta_katakita . takita.__2 . tam.__n gap)
-    takita = ta.ki.ta
     mridangam = make_mridangam $
-        [ (ta.ki.ta, [o&n, p, k])
+        [ (takita, [o&n, p, k])
         , (tam, [od])
         , (ta.din, [k, od])
         , (ta.ka, [k, p])
@@ -563,7 +561,7 @@ ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.takadinna
 
 m_ta_katakita :: MStrokes
 m_ta_katakita =
-    [ (ta.ka.(ta.ki.ta).(ta.ka), [k, p, k, t, k, t, k])
+    [ (ta.ka.takita.(ta.ka), [k, p, k, t, k, t, k])
     , (takadinna, [k, o, o, k])
     ]
 
@@ -629,7 +627,7 @@ m_sriram1 = source "sriram" $ date 2017 5 11 $ korvai adi mridangam $ nadai 7 $
 c_17_04_04 :: [Korvai]
 c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
     korvais Tala.misra_chapu mridangam $ map (sd • (purvangam.))
-    [ utarangam 3 (ta.ki.ta) (ta.ta.ka)
+    [ utarangam 3 takita (ta.ta.ka)
     , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
     , utarangam 6 td_gnt td_gnt
@@ -647,7 +645,7 @@ c_17_04_04 = map (source "subash chandran" • date 2017 4 4) $
 
         , (din, [od])
         , (tdgnt, [k, t, k, n, o])
-        , (ta.ki.ta, [p, k, od])
+        , (takita, [p, k, od])
         , (ta.ta.ka, [o&n, o&n, k])
         , (takadinna, [k, od, od, k])
         ]
@@ -714,7 +712,7 @@ koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
 
 koraippu_janahan :: Korvai
 koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
-    let seq = sequence (ta.ki.ta) takadinna
+    let seq = sequence takita takadinna
     in mconcat
         [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
         , seq 3 . tri p5 . thom.__4
@@ -750,7 +748,7 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
         . repeat takitas takita . takadinna
     mridangam = make_mridangam $ standard_strokes ++
         [ (tam, [od])
-        , (ta.ki.ta, [n, p, k])
+        , (takita, [n, p, k])
         , (ta.ka.ta.lang.ga, [p, k, p, u, k])
         , (ta.ka.din.tat, [p, k, o, k])
         , (thom, [od])
@@ -761,10 +759,10 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
         , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
         ]
     janahan_mridangam = make_mridangam
-        [ (ta.ki.ta, [k, p, k])
+        [ (takita, [k, p, k])
         , (takadinna, [k, o, o, k])
-        , (ta.ki.ta . ta.ki.ta, [o, t, k, n, o, k])
-        , (ta.ki.ta, [k, t, k])
+        , (takita . takita, [o, t, k, n, o, k])
+        , (takita, [k, t, k])
         ]
 
 koraippus :: [Korvai]
