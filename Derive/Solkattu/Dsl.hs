@@ -13,7 +13,7 @@ module Derive.Solkattu.Dsl (
     -- ** directives
     , (!), (<+>)
     , hv, lt
-    , akshara, sam, (^)
+    , akshara, sam, (^), (§)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku
@@ -116,9 +116,9 @@ sam :: Sequence stroke
 sam = akshara 0
 
 -- | Align at the given akshara.
-(^) :: Sequence stroke -> Akshara -> Sequence stroke
-seq ^ n = make_note (Solkattu.Alignment n) <> seq
-infix 9 ^
+(§) :: Sequence stroke -> Akshara -> Sequence stroke
+seq § n = make_note (Solkattu.Alignment n) <> seq
+infix 9 §
 
 pat :: Matra -> Sequence stroke
 pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
@@ -126,24 +126,42 @@ pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 nakatiku :: Sequence stroke
 nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
+-- * modify sollus
+
+(^) :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
+    -> Sequence stroke
+(^) = set_tag
+infix 9 ^
+
+set_tag :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
+    -> Sequence stroke
+set_tag tag = modify_note $ Solkattu.modify_note $
+    \note -> note { Solkattu._tag = Just tag }
+
+modify_note :: (CallStack.Stack, Pretty stroke) =>
+    (Solkattu.Note stroke -> Solkattu.Note stroke)
+    -> Sequence stroke -> Sequence stroke
+modify_note modify (n:ns) = case n of
+    S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
+    S.TempoChange change sub ->
+        S.TempoChange change (modify_note modify sub) : ns
+    _ -> errorStack $ "expected a note: " <> pretty n
+modify_note _ [] = errorStack "expected a note, but got []"
+
 -- ** strokes
 
 -- | Add a specific stroke annotation to a sollu.
 stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
-stroke _ [] = errorStack "stroke: empty sequence"
-stroke stroke (n:ns) = case n of
-    S.Note note@(Solkattu.Note {}) ->
-        S.Note (set (Korvai.to_stroke stroke) note) : ns
-    _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
-    where set s = Solkattu.modify_stroke (const (Just s))
+stroke s = modify_note $
+    Solkattu.modify_stroke (const (Just (Korvai.to_stroke s)))
 
 -- | Add a specific stroke annotation to a sollu.
 --
 -- If e.g. mridangam strokes are \"imported\" via @Strokes {..} = ...@, then
 -- just @sollu ! d@ works.  For non-imported, it would have to be
 -- @sollu ! d <+> K.p@.
-(!) :: (Pretty stroke, Korvai.ToStroke stroke) =>
+(!) :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
     Sequence Korvai.Stroke -> stroke -> Sequence Korvai.Stroke
 (!) = flip stroke
 

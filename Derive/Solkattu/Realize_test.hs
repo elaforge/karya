@@ -4,6 +4,7 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Derive.Solkattu.Realize_test where
+import Prelude hiding ((^))
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -11,7 +12,7 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.Dsl (__)
+import Derive.Solkattu.Dsl ((^), __)
 import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as M
@@ -63,6 +64,21 @@ test_realize_emphasis = do
         , Realize.Note $ Realize.Stroke Realize.Light "t"
         ]
 
+test_realize_tag = do
+    let smap = expect_right $ Realize.stroke_map
+            [ (ta <> ta, [p, p])
+            , (ta, [k])
+            , (1^ta, [t])
+            ]
+        M.Strokes {..} = M.notes
+    let f = second show_strokes . Realize.realize smap
+            . Sequence.flatten
+    equal (f ta) (Right "k")
+    equal (f (ta <> ta)) (Right "p p")
+    -- Having a tag is more important than a longer match.
+    equal (f (1^ta <> ta)) (Right "t k")
+    equal (f (2^ta)) (Right "k")
+
 sollu :: Sollu -> Note stroke
 sollu s = Solkattu.Note (Solkattu.note s Nothing)
 
@@ -102,10 +118,12 @@ test_stroke_map = do
         M.Strokes {..} = M.notes
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])]) $ Right
-        [ ( [Ta, Di]
+        [ ( (Nothing, [Ta, Di])
           , map (Just . Realize.stroke) [M.Valantalai M.Ki, M.Valantalai M.Ta]
           )
         ]
+    equal (f [(1 ^ ta, [k])]) $ Right
+        [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
     left_like (f (replicate 2 (ta <> di, [k, t]))) "duplicate StrokeMap keys"
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(tang <> ga, [u, __, __])]) "differing lengths"

@@ -96,38 +96,43 @@ data NoteT stroke = NoteT {
     , _karvai :: !Bool
     , _stroke :: !(Maybe stroke)
     -- | Tag a sequence for alternate realization.
-    , _tag :: !Int
+    , _tag :: !(Maybe Tag)
     } deriving (Eq, Ord, Show, Functor)
+
+type Tag = Int
 
 note :: Sollu -> Maybe stroke -> NoteT stroke
 note sollu stroke =
-    NoteT { _sollu = sollu, _karvai = False, _stroke = stroke, _tag = 0 }
+    NoteT { _sollu = sollu, _karvai = False, _stroke = stroke, _tag = Nothing }
 
 instance Pretty stroke => Pretty (NoteT stroke) where
     pretty (NoteT sollu karvai stroke tag) = mconcat $ case (sollu, stroke) of
         (NoSollu, Just stroke) ->
-            [ pretty stroke
+            [ pretty_tag tag
+            , pretty stroke
             , pretty_karvai karvai
-            , pretty_tag tag
             ]
         _ ->
-            [ pretty sollu
+            [ pretty_tag tag
+            , pretty sollu
             , pretty_karvai karvai
             , maybe "" (("!"<>) . pretty) stroke
-            , pretty_tag tag
             ]
         where
         pretty_karvai k = if k then "(k)" else ""
-        pretty_tag t = if t == 0 then "" else "^" <> showt t
+        pretty_tag = maybe "" ((<>"^") . showt)
 
 modify_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
-modify_stroke f n = case n of
-    Note note -> Note $ note { _stroke = f (_stroke note) }
+modify_stroke f = modify_note (\n -> n { _stroke = f (_stroke n) })
+    -- I'd rather use the the Functor instance, but putting the Maybe in the
+    -- type parameter would also be annoying.
+
+modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
+modify_note f n = case n of
+    Note note -> Note (f note)
     Rest -> Rest
     Pattern p -> Pattern p
     Alignment n -> Alignment n
-    -- I'd rather use the the Functor instance, but putting the Maybe in the
-    -- type parameter would also be annoying.
 
 note_matras :: Note stroke -> S.Matra
 note_matras s = case s of

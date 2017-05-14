@@ -1726,7 +1726,9 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - The same sequence, like takita, can be different in different
+        - I should be able to add multiple realizations of the same
+          instrument, keyed by string.
+        * The same sequence, like takita, can be different in different
           places.  One way is an optional tag, e.g. ta^1.ki.ta and ta^2.ki.ta,
           and a ta^1.ki.ta mapping will be considered a better match, though
           ta.ki.ta still matches.

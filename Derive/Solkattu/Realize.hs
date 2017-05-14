@@ -111,16 +111,19 @@ map_patterns :: ([SNote stroke] -> [SNote stroke]) -> Patterns stroke
     -> Patterns stroke
 map_patterns f (Patterns p) = Patterns (f <$> p)
 
+-- ** StrokeMap
+
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'stroke_map'.  Nothing is a rest, which applies to longer
 -- sequences like dinga.
-newtype StrokeMap stroke =
-    StrokeMap (Map [Solkattu.Sollu] [Maybe (Stroke stroke)])
+newtype StrokeMap stroke = StrokeMap
+    (Map (Maybe Solkattu.Tag, [Solkattu.Sollu]) [Maybe (Stroke stroke)])
     deriving (Eq, Show, Pretty, Monoid)
 
 -- | Directly construct a StrokeMap from strokes.
 simple_stroke_map :: [([Solkattu.Sollu], [Maybe stroke])] -> StrokeMap stroke
 simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
+    . map (first (Nothing,))
 
 stroke_map :: Pretty stroke =>
     [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
@@ -130,8 +133,9 @@ stroke_map = unique <=< mapM verify
     verify (sollus, strokes) = do
         let throw = Left
                 . (("stroke map " <> pretty (sollus, strokes) <> ": ") <>)
-        sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
-            S.Note (Solkattu.Note note) -> Right (Just (Solkattu._sollu note))
+        (tags, sollus) <- fmap (unzip . Maybe.catMaybes) $ forM sollus $ \case
+            S.Note (Solkattu.Note note) ->
+                Right $ Just (Solkattu._tag note, Solkattu._sollu note)
             S.Note Solkattu.Rest -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
@@ -141,11 +145,24 @@ stroke_map = unique <=< mapM verify
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths after removing\
                 \ sollu rests"
-        return (sollus, strokes)
+        -- TODO warn if there are inconsistent tags?
+        return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
     unique pairs
         | null dups = Right (StrokeMap smap)
         | otherwise = Left $ "duplicate StrokeMap keys: " <> pretty dups
         where (smap, dups) = Util.Map.unique2 pairs
+
+best_match :: Maybe Solkattu.Tag -> [Solkattu.Sollu] -> StrokeMap stroke
+    -> Maybe [Maybe (Stroke stroke)]
+best_match tag sollus (StrokeMap smap) =
+    -- Try with the specific tag, otherwise fall back to no tag.
+    Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
+    where
+    find tag = mapMaybe (\s -> Map.lookup (tag, s) smap)
+    prefixes = reverse $ drop 1 $ List.inits $ take longest sollus
+    longest = fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
+
+-- ** Instrument
 
 -- | Sollu to instrument stroke mapping.
 data Instrument stroke = Instrument {
@@ -188,8 +205,8 @@ realize smap = format_error . go
         Solkattu.Rest -> first ((tempo, Rest) :) (go rest)
         -- Patterns are realized separately with 'realize_patterns'.
         Solkattu.Pattern p -> first ((tempo, Pattern p) :) (go rest)
-        Solkattu.Note (Solkattu.NoteT {_sollu, _stroke}) ->
-            case find_sequence smap tempo _sollu _stroke rest of
+        Solkattu.Note (Solkattu.NoteT {_sollu, _stroke, _tag}) ->
+            case find_sequence smap tempo _sollu _tag _stroke rest of
                 Left err -> case _stroke of
                     Nothing -> ([], Just err)
                     -- If it's not part of a sequence, but has a hardcoded
@@ -208,11 +225,11 @@ pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
-find_sequence :: StrokeMap stroke -> a -> Solkattu.Sollu
+find_sequence :: StrokeMap stroke -> a -> Solkattu.Sollu -> Maybe Solkattu.Tag
     -> Maybe (Stroke stroke) -> [(a, Solkattu.Note (Stroke stroke))]
     -> Either Text ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
-find_sequence (StrokeMap smap) a sollu stroke notes =
-    case longest_match (sollu : sollus) of
+find_sequence smap a sollu tag stroke notes =
+    case best_match tag (sollu : sollus) smap of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes -> Right $ replace_sollus strokes $
             (a, Solkattu.Note (Solkattu.note sollu stroke)) : notes
@@ -223,8 +240,6 @@ find_sequence (StrokeMap smap) a sollu stroke notes =
     is_sollu Solkattu.Rest = Just Nothing
     is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
-    longest_match = Seq.head . mapMaybe (flip Map.lookup smap) . reverse
-        . drop 1 . List.inits
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.

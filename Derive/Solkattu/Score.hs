@@ -349,11 +349,11 @@ k2 chatusram_transition = korvai adi k1_mridangam $ nadai 5 $
 
 k3s :: [Korvai]
 k3s = korvais adi mridangam $ map (nadai 5)
-    [   dit . __  . tangkita . dit   . tat . din^2 . __
-      . dit . tat . tangkita . dit^4 . tat . din . __
+    [   dit . __  . tangkita . dit   . tat . din§2 . __
+      . dit . tat . tangkita . dit§4 . tat . din . __
       . ta . __ . dit . tat . din . __
-      . ta^6.ka.dit.tat.din.__
-      . ta.ki.ta.ta.ki^0.ta
+      . ta§6.ka.dit.tat.din.__
+      . ta.ki.ta.ta.ki§0.ta
       . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
 
     ,   dit . __  . tangkita . din . __4
@@ -734,21 +734,20 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
             . ta.ka.din.__.tat.__.thom.__4
     where
     -- problems:
-    -- Realization varies based on context:
-    -- . First takitas are ktk, rest are npk.  Likewise, first takadinnas are
-    -- nook, but the last is kook.
     -- . Some soft p in tam.__3.
     -- . Maybe make the whole thing s2, but tam3 = s0 (tam.__3), where s0 sets
     -- absolute speed.
     -- . Variations, like ta.ka.ta.lang.__.ga, ga can be k or o.
     --   . Emphasize ktkno with pk t k n o
-    sequence takita takadinna takitas =
-        sam.tam.__3.takita.tam.__3.takita.takadinna.takita.takita.tam.__3
+    sequence takita takadinna takitas = sam
+        .tam.__3 . 1^takita.tam.__3 . 1^takita.takadinna.takita.takita.tam.__3
             . takita.takadinna
         . repeat takitas takita . takadinna
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (tam, [od])
+        , (1^takita, [k, t, k])
         , (takita, [n, p, k])
+        , (takadinna, [n, o, o, k])
         , (ta.ka.ta.lang.ga, [p, k, p, u, k])
         , (ta.ka.din.tat, [p, k, o, k])
         , (thom, [od])
@@ -759,10 +758,19 @@ koraippu_janahan = koraippu $ source "janahan" $ korvai adi mridangam $ su $
         , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
         ]
     janahan_mridangam = make_mridangam
-        [ (takita, [k, p, k])
-        , (takadinna, [k, o, o, k])
+        [ (1^takita, [k, p, k])
         , (takita . takita, [o, t, k, n, o, k])
         , (takita, [k, t, k])
+        , (takadinna, [k, o, o, k])
+
+        , (tam, [od])
+        , (ta.ka.ta.lang.ga, [p, k, p, u, k])
+        , (ta.ka.din.tat, [p, k, o, k])
+        , (thom, [od])
+        , (nang.ki.ta.ta.ka, [n, k, t, p, k])
+        , (nang.ki.ta, [o&n, p, k])
+        , (thom.ki.ta.ka.na.ka.ki.ta.ta.ka, [o, k, t, p, u, p, k, t, p, k])
+        , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
         ]
 
 koraippus :: [Korvai]
