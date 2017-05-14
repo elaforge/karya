@@ -1737,7 +1737,7 @@ Derive:
           a suffix of an existing one, but I'd need to tag the sollu with
           the whole sequence with n dropped.  Realize would then match the
           whole sequence and drop the same number of matras.
-          . Also can I think apply special reduction rules, e.g. if ktk is
+          . Also maybe it can apply special reduction rules, e.g. if ktk is
             reduced to tk, it should be played kk.
           . Also maybe I can use this to use this to emphasize the starts of
             sections, though the reduce function could also put a tag on the

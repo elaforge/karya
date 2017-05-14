@@ -235,9 +235,9 @@ c_17_04_23 = map (date 2017 4 23 • ganesh) $ korvais adi mridangam $
 
 c_17_05_10 :: Korvai
 c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $
-    map (\n -> ta.__n n) [4, 3, 2, 1] `append` (ta.__.ki.ta.takadinna.dinga)
+    map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.ki.ta.takadinna.dinga)
         . ta.__.ki.ta.takadinna.dinga
-    .  map (\n -> ta.__n n) [3, 2, 1] `append` (takadinna.dinga)
+    .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
         . reduceTo 3 1 (takadinna.dinga)
     . tri (spread 4 tdgnt . tdgnt)
     -- TODO an alternate way to this is a reduceTo that makes a list,
@@ -606,6 +606,24 @@ tisrams = concat
     [ t1s, t2s, t3s, t4s, t4s2, t4s3, t5s
     ]
 
+-- ** misra nadai
+
+m_sriram1 :: Korvai
+m_sriram1 = source "sriram" $ date 2017 5 11 $ korvai adi mridangam $ nadai 7 $
+    circum (repeat 2 (takadinna.takita)) (accumulate
+        [ din.__.ta.din.__.tat.__
+        , takita.din.__.tat.__
+        , thom.thom.ka.din.__.tat.__
+        ]) (tam.__7)
+    . tri (p5.tam.__ . p5.tam.__.tam.__ . p5)
+    where
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (takita, [n, p, k])
+        , (din.ta.din.tat, [o&n, k, d, k])
+        , (din.tat, [d, k])
+        , (thom.thom.ka, [o, o, k])
+        ]
+
 -- * misra chapu
 
 c_17_04_04 :: [Korvai]
@@ -795,6 +813,9 @@ t_d_gnt = ta.__.din.__.gin.na.thom
 
 takadinna :: Sequence stroke
 takadinna = ta.ka.din.na
+
+takita :: Sequence stroke
+takita = ta.ki.ta
 
 -- * util
 

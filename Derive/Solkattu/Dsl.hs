@@ -20,7 +20,8 @@ module Derive.Solkattu.Dsl (
     -- ** combinators
     , tri, tri_, trin, tri2
     , join, repeat, inter, spread
-    , cmap, for, cfor, append
+    , cmap, for, cfor, prefixes, suffixes, circum
+    , accumulate
     -- * re-exports
     , module Derive.Solkattu.Korvai
     , module Derive.Solkattu.Sequence
@@ -213,8 +214,19 @@ for = flip map
 cfor :: Monoid b => [a] -> (a -> b) -> b
 cfor xs f = mconcatMap f xs
 
-append :: Monoid a => [a] -> a -> a
-append prefixes suffix = mconcat [prefix <> suffix | prefix <- prefixes]
+-- | Multiple prefixes on a single suffix.
+prefixes :: Monoid a => [a] -> a -> a
+prefixes prefixes suffix = mconcatMap (<>suffix) prefixes
+
+suffixes :: Monoid a => a -> [a] -> a
+suffixes prefix suffixes = mconcatMap (prefix<>) suffixes
+
+circum :: Monoid a => a -> [a] -> a -> a
+circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids
+
+-- | Succesively accumulate suffixes.
+accumulate :: Monoid a => [a] -> [a]
+accumulate = map mconcat • drop 1 • List.inits
 
 -- * realize
 
