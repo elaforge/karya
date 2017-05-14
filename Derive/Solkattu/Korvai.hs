@@ -98,7 +98,8 @@ realize_instrument :: Pretty stroke => GetInstrument stroke
     -> Either Text [(Sequence.Tempo, Realize.Note stroke)]
 realize_instrument get instruments realize_patterns notes = do
     let inst = get_realization get instruments
-    notes <- return $ map (Solkattu.map_stroke (get_stroke get =<<)) notes
+    notes <- return $
+        map (fmap (Solkattu.modify_stroke (get_stroke get =<<))) notes
     notes <- if realize_patterns
         then Realize.realize_patterns (Realize.inst_patterns inst) notes
         else return notes
@@ -114,7 +115,7 @@ realize_konnakol :: Bool -> Korvai
     -> Either Text ([(Sequence.Tempo, Realize.Note Solkattu.Sollu)], Text)
 realize_konnakol realize_patterns korvai = do
     let (notes, align_error) = verify_alignment korvai
-    notes <- return $ map (Solkattu.map_stroke (const Nothing)) notes
+    notes <- return $ map (fmap (Solkattu.modify_stroke (const Nothing))) notes
     notes <- if realize_patterns
         then Realize.realize_patterns Konnakol.default_patterns notes
         else return notes
@@ -125,8 +126,9 @@ to_konnakol :: [(tempo, Solkattu.Note (Realize.Stroke Solkattu.Sollu))]
 to_konnakol = mapMaybe convert
     where
     convert (tempo, note) = (tempo,) <$> case note of
-        Solkattu.Note sollu _ maybe_stroke ->
-            Just $ Realize.Note (fromMaybe (Realize.stroke sollu) maybe_stroke)
+        Solkattu.Note note -> Just $ Realize.Note $
+            fromMaybe (Realize.stroke (Solkattu._sollu note))
+                (Solkattu._stroke note)
         Solkattu.Rest -> Just Realize.Rest
         Solkattu.Pattern p -> Just $ Realize.Pattern p
         Solkattu.Alignment {} -> Nothing

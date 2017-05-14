@@ -38,14 +38,15 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence =
-    [Sequence.Note (Solkattu.Note (Realize.Stroke Mridangam.Stroke))]
+type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
+type Stroke = Realize.Stroke Mridangam.Stroke
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
 a & b = make_note $ Mridangam.both_rstrokes (to_stroke a) (to_stroke b)
 
-to_stroke :: CallStack.Stack => Sequence -> Realize.Stroke Mridangam.Stroke
-to_stroke [Sequence.Note (Solkattu.Note _ _ (Just stroke))] = stroke
+to_stroke :: CallStack.Stack => Sequence -> Stroke
+to_stroke [Sequence.Note
+    (Solkattu.Note (Solkattu.NoteT {_stroke = Just stroke }))] = stroke
 to_stroke seq = errorStack $ "expected a single sollu: " <> showt seq
 
 korvai :: Tala.Tala -> Sequence -> Korvai.Korvai
@@ -54,17 +55,16 @@ korvai tala sequence = Korvai.korvai tala
     (convert sequence)
 
 convert :: Sequence -> Korvai.Sequence
-convert = map (Solkattu.map_stroke (fmap Korvai.to_stroke))
+convert = map (fmap (fmap Korvai.to_stroke))
 
 instrument :: Realize.Instrument Mridangam.Stroke
 instrument =
     Solkattu.check $ Mridangam.instrument strokes Mridangam.default_patterns
     where strokes = []
 
-make_note :: Realize.Stroke Mridangam.Stroke -> Sequence
-make_note stroke =
-    [Sequence.Note (Solkattu.Note Solkattu.NoSollu Solkattu.NotKarvai
-        (Just stroke))]
+make_note :: Stroke -> Sequence
+make_note stroke = [Sequence.Note $ Solkattu.Note $
+    Solkattu.note Solkattu.NoSollu (Just stroke)]
 
 mridangam_strokes :: Mridangam.Strokes Sequence
 mridangam_strokes = make_note • Realize.stroke <$> Mridangam.strokes
@@ -84,17 +84,14 @@ closed = map_stroke $ \s -> case s of
 map_stroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
 map_stroke = fmap • fmap • fmap • fmap
 
--- TODO not implemented yet
--- In Dsl, these modify strokes and not sollus, but since here sollus are
--- strokes, they need to modify sollus.
 lt, hv :: CallStack.Stack => Sequence -> Sequence
-lt [Sequence.Note (Solkattu.Note sollu karvai (Just stroke))] =
-    [ Sequence.Note (Solkattu.Note sollu karvai
-        (Just $ stroke { Realize._emphasis = Realize.Light }))
-    ]
-lt n = errorStack $ "expected a single note: " <> pretty n
-hv [Sequence.Note (Solkattu.Note sollu karvai (Just stroke))] =
-    [ Sequence.Note (Solkattu.Note sollu karvai
-        (Just $ stroke { Realize._emphasis = Realize.Heavy }))
-    ]
-hv n = errorStack $ "expected a single note: " <> pretty n
+lt = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
+hv = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
+
+modify_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
+modify_stroke modify
+    [n@(Sequence.Note (Solkattu.Note (Solkattu.NoteT { _stroke = Just _ })))] =
+        [fmap (fmap modify) n]
+    -- Actually just fmap would do this, but I want to crash if it doesn't
+    -- exist.
+modify_stroke _ ns = errorStack $ "expected a single note: " <> pretty ns

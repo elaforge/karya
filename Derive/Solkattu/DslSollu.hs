@@ -19,7 +19,7 @@ import Global
 type Sequence stroke = [Sequence.Note (Solkattu.Note stroke)]
 
 sollu :: Solkattu.Sollu -> Sequence stroke
-sollu s = make_note (Solkattu.Note s Solkattu.NotKarvai Nothing)
+sollu s = make_note (Solkattu.Note (Solkattu.note s Nothing))
 
 make_note :: a -> [Sequence.Note a]
 make_note a = [Sequence.Note a]

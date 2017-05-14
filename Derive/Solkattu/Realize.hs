@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE LambdaCase, ScopedTypeVariables, DeriveFunctor #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- | Realize an abstract solkattu 'S.Sequence' to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
@@ -130,7 +131,7 @@ stroke_map = unique <=< mapM verify
         let throw = Left
                 . (("stroke map " <> pretty (sollus, strokes) <> ": ") <>)
         sollus <- fmap Maybe.catMaybes $ forM sollus $ \case
-            S.Note (Solkattu.Note s _ _) -> Right (Just s)
+            S.Note (Solkattu.Note note) -> Right (Just (Solkattu._sollu note))
             S.Note Solkattu.Rest -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
@@ -187,9 +188,9 @@ realize smap = format_error . go
         Solkattu.Rest -> first ((tempo, Rest) :) (go rest)
         -- Patterns are realized separately with 'realize_patterns'.
         Solkattu.Pattern p -> first ((tempo, Pattern p) :) (go rest)
-        Solkattu.Note sollu _ stroke ->
-            case find_sequence smap tempo sollu stroke rest of
-                Left err -> case stroke of
+        Solkattu.Note (Solkattu.NoteT {_sollu, _stroke}) ->
+            case find_sequence smap tempo _sollu _stroke rest of
+                Left err -> case _stroke of
                     Nothing -> ([], Just err)
                     -- If it's not part of a sequence, but has a hardcoded
                     -- stroke then I know what to do with it already.
@@ -214,11 +215,11 @@ find_sequence (StrokeMap smap) a sollu stroke notes =
     case longest_match (sollu : sollus) of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes -> Right $ replace_sollus strokes $
-            (a, Solkattu.Note sollu Solkattu.NotKarvai stroke) : notes
+            (a, Solkattu.Note (Solkattu.note sollu stroke)) : notes
     where
     -- Collect only sollus and rests, and strip the rests.
     sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
-    is_sollu (Solkattu.Note s _ _) = Just (Just s)
+    is_sollu (Solkattu.Note note) = Just (Just (Solkattu._sollu note))
     is_sollu Solkattu.Rest = Just Nothing
     is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
@@ -232,10 +233,9 @@ replace_sollus :: [Maybe (Stroke stroke)]
     -> ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
 replace_sollus [] ns = ([], ns)
 replace_sollus (stroke : strokes) ((a, n) : ns) = case n of
-    Solkattu.Note _ _ (Just stroke) ->
-        first ((a, Note stroke) :) (replace_sollus strokes ns)
-    Solkattu.Note _ _ Nothing ->
-        first ((a, maybe Rest Note stroke) :) $ replace_sollus strokes ns
+    Solkattu.Note snote -> first ((a, rnote) :) (replace_sollus strokes ns)
+        where
+        rnote = maybe (maybe Rest Note stroke) Note (Solkattu._stroke snote)
     Solkattu.Rest -> first ((a, Rest) :) next
     Solkattu.Alignment {} -> next
     -- This shouldn't happen because Seq.span_while is_sollu should have
@@ -265,8 +265,7 @@ realize_patterns pmap = format_error . concatMap realize
 
 to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
 to_solkattu n = case n of
-    Note stroke ->
-        Solkattu.Note Solkattu.NoSollu Solkattu.NotKarvai (Just stroke)
+    Note stroke -> Solkattu.Note $ Solkattu.note Solkattu.NoSollu (Just stroke)
     Rest -> Solkattu.Rest
     Pattern matras -> Solkattu.Pattern matras
 

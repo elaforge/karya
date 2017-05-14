@@ -691,7 +691,7 @@ koraippu_misra = map (koraippu • ganesh) $ korvais adi mridangam $
     -- 4 + 4*7 (1 + 3)
     short n = rest 4 . tan7 . tri (fill n)
     half n = rest 2 . tan7 . fill n
-    fill n = fills !! (n-1) . karv din
+    fill n = fills !! (n-1) . karvai din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
         [ ta
         , ta.ka

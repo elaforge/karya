@@ -28,7 +28,6 @@ import Global
 test_realize = do
     let f = second show_strokes . Realize.realize smap
             . map (Sequence.default_tempo,)
-        sollu s = Note s Solkattu.NotKarvai Nothing
         smap = Realize.simple_stroke_map
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])
@@ -47,10 +46,11 @@ test_realize = do
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
     let chapu = Just (Realize.stroke $ M.Valantalai M.Chapu)
+    let set_chapu = Solkattu.modify_stroke (const chapu)
     -- An explicit stroke will replace just that stroke.
-    equal (f [sollu Na, Note Din Solkattu.NotKarvai chapu]) (Right "n u")
+    equal (f [sollu Na, set_chapu (sollu Din)]) (Right "n u")
     -- Not found is ok if it has an explicit stroke.
-    equal (f [Note Tat Solkattu.NotKarvai chapu]) (Right "u")
+    equal (f [set_chapu (sollu Tat)]) (Right "u")
 
 test_realize_emphasis = do
     let f = second (map (fmap pretty . snd)) . Realize.realize smap
@@ -58,11 +58,13 @@ test_realize_emphasis = do
         smap = expect_right $
             Realize.stroke_map [(ta <> di, [Dsl.hv k, Dsl.lt t])]
             where M.Strokes {..} = M.notes
-    let sollu s = Note s Solkattu.NotKarvai Nothing
     equal (f [sollu Ta, sollu Di]) $ Right
         [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
         , Realize.Note $ Realize.Stroke Realize.Light "t"
         ]
+
+sollu :: Sollu -> Note stroke
+sollu s = Solkattu.Note (Solkattu.note s Nothing)
 
 pattern :: Sequence.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.PatternM

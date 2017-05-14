@@ -60,9 +60,9 @@ test_cancel_karvai = do
         f = Text.unwords . map (pretty . snd) . Solkattu.cancel_karvai
             . Sequence.flatten
     equal (f (ta <> thom)) "ta thom"
-    equal (f (ta <> Dsl.karv thom)) "ta"
-    equal (f (ta <> Dsl.karv thom <> __)) "ta thom"
-    equal (f (ta <> Dsl.karv thom <> di)) "ta di"
+    equal (f (ta <> Dsl.karvai thom)) "ta"
+    equal (f (ta <> Dsl.karvai thom <> __)) "ta thom"
+    equal (f (ta <> Dsl.karvai thom <> di)) "ta di"
 
 verify_alignment :: Tala.Tala -> [Sequence.Note (Solkattu.Note ())]
     -> [Text]

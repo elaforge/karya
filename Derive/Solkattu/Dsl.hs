@@ -8,7 +8,7 @@
 module Derive.Solkattu.Dsl (
     (.), (•)
     , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
-    , karv
+    , karvai
 
     -- ** directives
     , (!), (<+>)
@@ -101,11 +101,10 @@ __n :: Matra -> Sequence stroke
 __n n = repeat (n-1) __
 
 -- | Make a single sollu 'Solkattu.Karvai'.
-karv :: (CallStack.Stack, Pretty stroke) =>
-    Sequence stroke -> Sequence stroke
-karv [S.Note (Solkattu.Note s _ stroke)] =
-    [S.Note $ Solkattu.Note s Solkattu.Karvai stroke]
-karv ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
+karvai :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Sequence stroke
+karvai [S.Note (Solkattu.Note note)] =
+    [S.Note $ Solkattu.Note $ note { Solkattu._karvai = True }]
+karvai ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
 
 -- ** directives
 
@@ -134,9 +133,10 @@ stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
 stroke _ [] = errorStack "stroke: empty sequence"
 stroke stroke (n:ns) = case n of
-    S.Note (Solkattu.Note s karvai _) ->
-        S.Note (Solkattu.Note s karvai (Just (Korvai.to_stroke stroke))) : ns
+    S.Note note@(Solkattu.Note {}) ->
+        S.Note (set (Korvai.to_stroke stroke) note) : ns
     _ -> errorStack $ "stroke: can't add stroke to " <> pretty n
+    where set s = Solkattu.modify_stroke (const (Just s))
 
 -- | Add a specific stroke annotation to a sollu.
 --

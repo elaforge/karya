@@ -76,7 +76,7 @@ import Global
 type Error = Text
 
 data Note stroke =
-    Note Sollu Karvai (Maybe stroke)
+    Note (NoteT stroke)
     | Rest
     | Pattern !Pattern
     | Alignment !Tala.Akshara
@@ -84,34 +84,55 @@ data Note stroke =
 
 instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
-        Note NoSollu karvai (Just stroke) -> mconcat
-            [ pretty stroke
-            , pretty_karvai karvai
-            ]
-        Note sollu karvai stroke -> mconcat
-            [ pretty sollu
-            , pretty_karvai karvai
-            , maybe "" (("!"<>) . pretty) stroke
-            ]
+        Note note -> pretty note
         Rest -> "__"
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
-        where
-        pretty_karvai Karvai = "(k)"
-        pretty_karvai NotKarvai = ""
 
-map_stroke :: Functor f => (Maybe a -> Maybe b) -> f (Note a) -> f (Note b)
-map_stroke f = fmap $ \n -> case n of
+data NoteT stroke = NoteT {
+    _sollu :: !Sollu
+    -- | If it's a karvai stroke, and it's followed by a rest, it will replace
+    -- the rest.  Otherwise, it will be replaced by a note.
+    , _karvai :: !Bool
+    , _stroke :: !(Maybe stroke)
+    -- | Tag a sequence for alternate realization.
+    , _tag :: !Int
+    } deriving (Eq, Ord, Show, Functor)
+
+note :: Sollu -> Maybe stroke -> NoteT stroke
+note sollu stroke =
+    NoteT { _sollu = sollu, _karvai = False, _stroke = stroke, _tag = 0 }
+
+instance Pretty stroke => Pretty (NoteT stroke) where
+    pretty (NoteT sollu karvai stroke tag) = mconcat $ case (sollu, stroke) of
+        (NoSollu, Just stroke) ->
+            [ pretty stroke
+            , pretty_karvai karvai
+            , pretty_tag tag
+            ]
+        _ ->
+            [ pretty sollu
+            , pretty_karvai karvai
+            , maybe "" (("!"<>) . pretty) stroke
+            , pretty_tag tag
+            ]
+        where
+        pretty_karvai k = if k then "(k)" else ""
+        pretty_tag t = if t == 0 then "" else "^" <> showt t
+
+modify_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
+modify_stroke f n = case n of
+    Note note -> Note $ note { _stroke = f (_stroke note) }
     Rest -> Rest
-    Pattern a -> Pattern a
-    Alignment a -> Alignment a
-    Note sollu karvai stroke -> Note sollu karvai (f stroke)
+    Pattern p -> Pattern p
+    Alignment n -> Alignment n
+    -- I'd rather use the the Functor instance, but putting the Maybe in the
+    -- type parameter would also be annoying.
 
 note_matras :: Note stroke -> S.Matra
 note_matras s = case s of
     -- Karvai notes are cancelled out, so they logically have 0 duration.
-    Note _ Karvai _ -> 0
-    Note {} -> 1
+    Note note -> if _karvai note then 0 else 1
     Rest -> 1
     Pattern p -> pattern_matras p
     Alignment {} -> 0
@@ -136,8 +157,6 @@ instance Expr.ToExpr Pattern where
         Expr.generator (Expr.call "p" [ShowVal.show_val matras])
     to_expr Nakatiku = "na"
 
--- | If it's a karvai stroke, and it's followed by a rest, it will replace the
--- rest.  Otherwise, it will be replaced by a note.
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
 data Sollu =
@@ -165,9 +184,10 @@ duration_of = sum . map (S.note_duration note_matras S.default_tempo)
 cancel_karvai :: [(a, Note stroke)] -> [(a, Note stroke)]
 cancel_karvai = go
     where
-    go ((a, Note sollu Karvai stroke) : rest) = case drop_next_rest rest of
-        (True, rest) -> (a, Note sollu NotKarvai stroke) : go rest
-        (False, rest) -> go rest
+    go ((a, Note note) : notes)
+        | _karvai note = case drop_next_rest notes of
+            (True, rest) -> (a, Note $ note { _karvai = False}) : go rest
+            (False, rest) -> go rest
     go (n:ns) = n : go ns
     go [] = []
 
