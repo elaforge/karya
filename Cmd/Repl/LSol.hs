@@ -27,34 +27,36 @@ import Global
 import Types
 
 
-insert_m :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
+insert_m :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Int -> m ()
 insert_m = insert Korvai.mridangam
 
-insert_k1 :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
+insert_k1 :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Int -> m ()
 insert_k1 = insert Korvai.kendang_tunggal
 
-insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> m ()
+insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Int -> m ()
 insert_r = insert Korvai.reyong
 
 -- | Insert the korvai at the selection.
 insert :: (Expr.ToExpr (Realize.Stroke stroke), Pretty stroke, Cmd.M m) =>
-    Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai -> m ()
-insert instrument realize_patterns akshara_dur korvai = do
+    Korvai.GetInstrument stroke -> Bool -> TrackTime -> Korvai.Korvai
+    -> Int -> m ()
+insert instrument realize_patterns akshara_dur korvai index = do
     (_, _, track_id, at) <- Selection.get_insert
     let place = (Event.start_ %= ((+at) . (*akshara_dur)))
             . (Event.duration_ %= (*akshara_dur))
     events <- map place . Events.ascending
-        <$> realize_korvai instrument realize_patterns korvai
+        <$> realize_korvai instrument realize_patterns korvai index
     Ui.remove_events track_id events
     Ui.insert_events track_id events
 
 realize_korvai ::
     (Expr.ToExpr (Realize.Stroke stroke), Pretty stroke, Ui.M m) =>
-    Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai
+    Korvai.GetInstrument stroke -> Bool -> Korvai.Korvai -> Int
     -> m Events.Events
-realize_korvai instrument realize_patterns korvai = do
+realize_korvai instrument realize_patterns korvai index = do
     (strokes, warning) <- Ui.require_right id $
         Korvai.realize instrument realize_patterns korvai
+            !! index
     unless (Text.null warning) $ Ui.throw warning
     return $ Events.from_list $ strokes_to_events strokes
 

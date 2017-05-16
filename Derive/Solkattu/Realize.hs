@@ -420,8 +420,10 @@ emphasize word
 -- * format html
 
 write_html :: Pretty stroke => FilePath -> Tala.Tala
-    -> [(S.Tempo, Note stroke)] -> IO ()
-write_html fname tala = Text.IO.writeFile fname . Doc.un_html . format_html tala
+    -> [[(S.Tempo, Note stroke)]] -> IO ()
+write_html fname tala =
+    Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
+    . map (Doc.un_html . format_html tala)
 
 format_html :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
     -> Doc.Html

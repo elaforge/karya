@@ -32,7 +32,7 @@ type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
 -- * korvai
 
 data Korvai = Korvai {
-    korvai_sequence :: !Sequence
+    korvai_sequences :: ![Sequence]
     , korvai_instruments :: !Instruments
     , korvai_tala :: !Tala.Tala
     , korvai_metadata :: !Metadata
@@ -46,9 +46,9 @@ instance Pretty Korvai where
         , ("metadata", Pretty.format metadata)
         ]
 
-korvai :: Tala.Tala -> Instruments -> Sequence -> Korvai
-korvai tala instruments sequence = infer_metadata $ korvai_t $ Korvai
-    { korvai_sequence = sequence
+korvai :: Tala.Tala -> Instruments -> [Sequence] -> Korvai
+korvai tala instruments sequences = infer_metadata $ korvai_t $ Korvai
+    { korvai_sequences = sequences
     , korvai_instruments = instruments
     , korvai_tala = tala
     , korvai_metadata = mempty
@@ -79,19 +79,27 @@ reyong = GetInstrument
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty stroke => GetInstrument stroke -> Bool -> Korvai
+    -> [Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)]
+realize get realize_patterns korvai =
+    map (realize1 get realize_patterns (korvai_instruments korvai)
+            (korvai_tala korvai))
+        (korvai_sequences korvai)
+
+-- | Realize a Korvai on a particular instrument.
+realize1 :: Pretty stroke => GetInstrument stroke -> Bool
+    -> Instruments -> Tala.Tala -> Sequence
     -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
-realize get realize_patterns korvai = do
+realize1 get realize_patterns instruments tala sequence = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
-    let (notes, align_error) = verify_alignment korvai
-    realized <- realize_instrument get (korvai_instruments korvai)
-        realize_patterns notes
+    let (notes, align_error) = verify_alignment tala sequence
+    realized <- realize_instrument get instruments realize_patterns notes
     return (realized, fromMaybe "" align_error)
 
-verify_alignment :: Korvai
+verify_alignment :: Tala.Tala -> Sequence
     -> ([(Sequence.Tempo, Solkattu.Note Stroke)], Maybe Text)
-verify_alignment korvai = Solkattu.verify_alignment (korvai_tala korvai) $
-    Solkattu.cancel_karvai $ Sequence.flatten $ korvai_sequence korvai
+verify_alignment tala sequence = Solkattu.verify_alignment tala $
+    Solkattu.cancel_karvai $ Sequence.flatten sequence
 
 realize_instrument :: Pretty stroke => GetInstrument stroke
     -> Instruments -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
@@ -105,21 +113,26 @@ realize_instrument get instruments realize_patterns notes = do
         else return notes
     Realize.realize (Realize.inst_stroke_map inst) notes
 
-vary :: (Sequence -> [Sequence]) -> Korvai -> [Korvai]
-vary modify korvai =
-    [korvai { korvai_sequence = new } | new <- modify (korvai_sequence korvai)]
+vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
+vary modify korvai = korvai
+    { korvai_sequences = concatMap modify (korvai_sequences korvai) }
 
 -- ** konnakol
 
 realize_konnakol :: Bool -> Korvai
-    -> Either Text ([(Sequence.Tempo, Realize.Note Solkattu.Sollu)], Text)
-realize_konnakol realize_patterns korvai = do
-    let (notes, align_error) = verify_alignment korvai
-    notes <- return $ map (fmap (Solkattu.modify_stroke (const Nothing))) notes
-    notes <- if realize_patterns
-        then Realize.realize_patterns Konnakol.default_patterns notes
-        else return notes
-    return (to_konnakol notes, fromMaybe "" align_error)
+    -> [Either Text ([(Sequence.Tempo, Realize.Note Solkattu.Sollu)], Text)]
+realize_konnakol realize_patterns korvai =
+    map realize1 (korvai_sequences korvai)
+    where
+    realize1 sequence = do
+        let (notes, align_error) =
+                verify_alignment (korvai_tala korvai) sequence
+        notes <- return $
+            map (fmap (Solkattu.modify_stroke (const Nothing))) notes
+        notes <- if realize_patterns
+            then Realize.realize_patterns Konnakol.default_patterns notes
+            else return notes
+        return (to_konnakol notes, fromMaybe "" align_error)
 
 to_konnakol :: [(tempo, Solkattu.Note (Realize.Stroke Solkattu.Sollu))]
     -> [(tempo, Realize.Note Solkattu.Sollu)]
@@ -223,9 +236,8 @@ infer_metadata korvai =
 
 infer_tags :: Korvai -> Tags
 infer_tags korvai = Tags $ Util.Map.multimap $ concat
-    [ [ ("tala", Tala._name tala)
-      , ("avartanams", pretty $ Solkattu.duration_of seq / aksharas)
-      ]
+    [ [("tala", Tala._name tala)]
+    , map (("avartanams",) . pretty . (/aksharas) . Solkattu.duration_of) seqs
     , map ("nadai",) (map showt nadais)
     , map ("speed",) (map showt speeds)
     , map ("instrument",) [name | (name, True) <- instruments]
@@ -234,18 +246,18 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
     tala = korvai_tala korvai
     aksharas = fromIntegral (sum (Tala.tala_aksharas tala))
 
-    seq = korvai_sequence korvai
-    notes = Solkattu.cancel_karvai $ Sequence.flatten seq
-    nadais = Seq.unique_sort $ map (Sequence.nadai . fst) notes
-    speeds = Seq.unique_sort $ map (Sequence.speed . fst) notes
+    seqs = korvai_sequences korvai
+    notes = map (Solkattu.cancel_karvai . Sequence.flatten) seqs
+    nadais = Seq.unique_sort $ concatMap (map (Sequence.nadai . fst)) notes
+    speeds = Seq.unique_sort $ concatMap (map (Sequence.speed . fst)) notes
 
     instruments =
         [ ("mridangam", has_realization mridangam)
         , ("kendang_tunggal", has_realization kendang_tunggal)
         , ("reyong", has_realization reyong)
         ]
-    has_realization get = Either.isRight $
-        realize_instrument get (korvai_instruments korvai) False notes
+    has_realization get = any (Either.isRight . realize get) notes
+    realize get = realize_instrument get (korvai_instruments korvai) False
 
 -- * types
 

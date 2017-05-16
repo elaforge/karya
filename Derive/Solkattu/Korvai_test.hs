@@ -20,9 +20,9 @@ import Global
 
 
 test_realize = do
-    let f realize_patterns = second (first (map extract))
+    let f realize_patterns = second (first (map extract)) . head
             . Korvai.realize Korvai.mridangam realize_patterns
-            . korvai (Tala.Tala "eka" Tala.eka 2)
+            . korvai (Tala.Tala "eka" Tala.eka 2) . (:[])
         extract (tempo, stroke) = pretty tempo <> ":" <> pretty stroke
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
@@ -40,7 +40,7 @@ test_realize = do
 chars :: [Char] -> [Text]
 chars = map Text.singleton
 
-korvai :: Tala.Tala -> Korvai.Sequence -> Korvai.Korvai
+korvai :: Tala.Tala -> [Korvai.Sequence] -> Korvai.Korvai
 korvai tala = Korvai.korvai tala mridangam
 
 mridangam :: Korvai.Instruments

@@ -49,10 +49,10 @@ to_stroke [Sequence.Note
     (Solkattu.Note (Solkattu.NoteT {_stroke = Just stroke }))] = stroke
 to_stroke seq = errorStack $ "expected a single sollu: " <> showt seq
 
-korvai :: Tala.Tala -> Sequence -> Korvai.Korvai
-korvai tala sequence = Korvai.korvai tala
+korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
+korvai tala sequences = Korvai.korvai tala
     (mempty { Korvai.inst_mridangam = instrument })
-    (convert sequence)
+    (map convert sequences)
 
 convert :: Sequence -> Korvai.Sequence
 convert = map (fmap (fmap Korvai.to_stroke))

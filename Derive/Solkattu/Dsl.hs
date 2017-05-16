@@ -33,7 +33,8 @@ module Derive.Solkattu.Dsl (
     -- * misc
     , pprint
     -- * realize
-    , realize_instrument, realize_konnakol, realize_konnakol_html, many
+    , realize_instrument, realize_konnakol, realize_konnakol_html
+    , index
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -248,35 +249,51 @@ accumulate = map mconcat • drop 1 • List.inits
 
 -- * realize
 
+-- TODO move this to... Realize?
+
 realize_instrument :: Pretty stroke => Korvai.GetInstrument stroke
     -> Bool -> Korvai.Korvai -> IO ()
-realize_instrument instrument realize_patterns korvai = Text.IO.putStrLn $
-    case Korvai.realize instrument realize_patterns korvai of
-        Left err -> "ERROR:\n" <> err
-        Right (notes, warning) -> TextUtil.joinWith "\n"
-            (Realize.format Nothing width (Korvai.korvai_tala korvai) notes)
-            warning
+realize_instrument instrument realize_patterns korvai =
+    show_results Nothing korvai $
+        Korvai.realize instrument realize_patterns korvai
 
 realize_konnakol :: Bool -> Korvai -> IO ()
-realize_konnakol realize_patterns korvai = Text.IO.putStrLn $
-    case Korvai.realize_konnakol realize_patterns korvai of
-        Left err -> "ERROR:\n" <> err
-        Right (notes, warning) -> TextUtil.joinWith "\n"
-            (Realize.format (Just 4) width (Korvai.korvai_tala korvai) notes)
-            warning
+realize_konnakol realize_patterns korvai =
+    show_results (Just 4) korvai $
+        Korvai.realize_konnakol realize_patterns korvai
 
 realize_konnakol_html :: Bool -> Korvai -> IO ()
 realize_konnakol_html realize_patterns korvai =
-    case Korvai.realize_konnakol realize_patterns korvai of
+    case sequence (Korvai.realize_konnakol realize_patterns korvai) of
         Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
-        Right (notes, warning)
-            | not (Text.null warning) -> Text.IO.putStrLn warning
+        Right results
+            | any (not • Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> Realize.write_html "konnakol.html"
                 (Korvai.korvai_tala korvai) notes
+            where (notes, warnings) = unzip results
+
+index :: Int -> Korvai -> Korvai
+index i korvai =
+    korvai { Korvai.korvai_sequences = [Korvai.korvai_sequences korvai !! i] }
+
+show_results :: Pretty stroke => Maybe Int -> Korvai
+    -> [Either Text ([(S.Tempo, Realize.Note stroke)], Text)] -> IO ()
+show_results override_stroke_width korvai = print_list • map show1
+    where
+    show1 (Left err) = "ERROR:\n" <> err
+    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
+        (Realize.format override_stroke_width width tala notes)
+        warning
+    tala = Korvai.korvai_tala korvai
 
 width :: Int
 width = 78
 
-many :: (a -> IO ()) -> [a] -> IO ()
-many f xs = sequence_ $ List.intersperse (putChar '\n') $ map put (zip [0..] xs)
-    where put (i, x) = putStrLn ("---- " ++ show i) >> f x
+print_list :: [Text] -> IO ()
+print_list [] = return ()
+print_list [x] = Text.IO.putStrLn x
+print_list xs = mapM_ print1 (zip [1..] xs)
+    where
+    print1 (i, x) = do
+        putStrLn $ "---- " <> show i
+        Text.IO.putStrLn x

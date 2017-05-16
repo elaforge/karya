@@ -258,8 +258,10 @@ test_format_speed = do
 
 realize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([(Sequence.Tempo, Realize.Note M.Stroke)], Text)
-realize realize_patterns tala = Korvai.realize Korvai.mridangam realize_patterns
+realize realize_patterns tala =
+    head . Korvai.realize Korvai.mridangam realize_patterns
     . Korvai.korvai tala mridangam
+    . (:[])
 
 stroke_map :: Realize.StrokeMap M.Stroke
 stroke_map = Realize.inst_stroke_map $ expect_right $ M.instrument [] mempty

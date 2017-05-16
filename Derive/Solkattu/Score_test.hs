@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Solkattu.Score_test where
-import qualified Data.Text as Text
+import qualified Data.Either as Either
 
 import Util.Test
 import qualified Derive.Solkattu.Korvai as Korvai
@@ -26,7 +26,12 @@ test_kandams = do
 test_koraippus = do
     equal [err | Left err <- map realize Score.koraippus] []
 
-realize :: Korvai.Korvai -> Either Text [Realize.Note Mridangam.Stroke]
-realize korvai = do
-    (notes, warning) <- Korvai.realize Korvai.mridangam True korvai
-    if Text.null warning then Right (map snd notes) else Left warning
+realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
+realize korvai
+    | not (null errors) = Left errors
+    | not (null warnings) = Left warnings
+    | otherwise = Right $ map (map snd) notes
+    where
+    (errors, results) = Either.partitionEithers $
+        Korvai.realize Korvai.mridangam True korvai
+    (notes, warnings) = second (filter (/="")) $ unzip results
