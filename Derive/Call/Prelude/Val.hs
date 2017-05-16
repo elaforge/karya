@@ -185,16 +185,16 @@ c_hz = val_call "hz" mempty
 get_name_nn :: Expr.Str -> Derive.Deriver Pitch.NoteNumber
 get_name_nn name =
     Derive.require ("unknown pitch: " <> ShowVal.show_val name) $
-        name_to_nn (Expr.unstr name)
+        parse_pitch_name (Expr.unstr name)
 
--- | c-1 is 0, g9 is 127.
-name_to_nn :: Text -> Maybe Pitch.NoteNumber
-name_to_nn = either (const Nothing) Just . ParseText.parse parse
+-- | c-1 is 0, g9 is 127.  The octave is optional, and defaults to 1.
+parse_pitch_name :: Text -> Maybe Pitch.NoteNumber
+parse_pitch_name = either (const Nothing) Just . ParseText.parse parse
     where
     parse = do
         pc <- maybe mzero return . (`Map.lookup` pcs) =<< A.anyChar
-        sharp <- A.option 0 (A.char 's' >> return 1)
-        oct <- ParseText.p_int
+        sharp <- A.option 0 $ A.char 's' >> return 1
+        oct <- A.option 1 $ ParseText.p_int
         return $ Pitch.nn $ pc + sharp + oct * 12
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
 
