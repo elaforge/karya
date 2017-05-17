@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Utilities to deal with processes.
 module Util.Process where
 import qualified Control.Concurrent as Concurrent
@@ -100,7 +101,11 @@ exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n
 
 handleToPid :: Internals.ProcessHandle -> IO (Maybe Posix.ProcessID)
+#if GHC_VERSION < 80200
 handleToPid (Internals.ProcessHandle mvar _) =
+#else
+handleToPid (Internals.ProcessHandle mvar _ _) =
+#endif
     MVar.readMVar mvar >>= \x -> case x of
         Internals.OpenHandle pid -> return (Just pid)
         _ -> return Nothing

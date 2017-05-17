@@ -84,7 +84,9 @@ complete (Session chan) prefix = do
 -- | Initialize the GHC API and run the interpreter loop.
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
+#if GHC_VERSION < 80200
     GHC.parseStaticFlags [] -- not sure if this is necessary
+#endif
     flags <- File.tryIO (readFile ghci_flags)
     args <- case flags of
         Left exc -> do
