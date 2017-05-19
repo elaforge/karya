@@ -144,6 +144,45 @@ c_16_09_28 = date 2016 9 28 $ ganesh $ korvai adi mridangam $ (:[]) $
         , (ta.ka.na.ka, [k, p, n, p])
         ]
 
+c_16_12_06_sriram1 :: Korvai
+c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
+    map su $ map (purvangam.)
+    [ tri_ (dheem.__4) ta_takadin
+    , tri_ (dheem.__4) (su $ p6 . ta.ka.p6 . ta.ka.na.ka.p6)
+    -- All variations can get taka and takanaka in the karvai, and
+    -- 345 345 345 can become 345 345 3333
+    ]
+    where
+    purvangam =
+        1^tat.__.1^dit.__ . su (kitakina.nakatiku . tri (dinnaka.takadinna))
+            . din.din.__.tat.tat.__.thom.__
+                .1^dit.__ . su (kitakina.nakatiku . tri dinnaka)
+            . din.__.tat.__.thom.__
+                          . su (kitakina.nakatiku . tri takadinna)
+            . din.tat.thom.__
+
+    dinnaka = din.na.ka.din.na.ka.ta.ka
+    kitakina = ki.ta.ki.na.ta.ki.ta.ka
+
+    ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su (ta.ka) . din)
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (1^tat, [p&k])
+        , (1^dit, [p&t])
+        , (kitakina, [k, t, k, n, o, k, t&o, k])
+        , (dinnaka, [o, k, t, o, hv k, t, o, k])
+        , (din, [o])
+        -- reduction
+        , (tat, [k])
+        , (dit, [t])
+        , (dit.ta, [k, k])
+        , (tat.dit, [k, t])
+        , (ta, [k])
+        , (ta.ka, [k, t])
+        , (thom, [od])
+        -- TODO taka, takanaka in that context should be kp kpnp
+        , (ta.ka.na.ka, [k, p, n, p])
+        ]
+
 -- TODO: reduction pattern, forwards and backwards
 -- c_14_01_14 -- 14_02_20
 
@@ -211,9 +250,9 @@ c_17_04_23 :: Korvai
 c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
     map sd -- remove for melkalam
     [ purvangam . utarangam (ta.ka.tdgnt) (ta.ka.tdgnt)
-    , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
         . r32111 (ta.ka.na.ka.tdgnt))
+    , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     ]
     where
     r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
@@ -742,7 +781,7 @@ koraippu_janahan =
     --   . Emphasize ktkno with pk t k n o
     sequence takita takadinna takitas = sam
         .tam.__3 . 1^takita.tam.__3 . 1^takita.takadinna.takita.takita.tam.__3
-            . takita.takadinna
+            . 1^takita.takadinna
         . repeat takitas takita . takadinna
     mridangam = make_mridangam $ strokes ++
         [ (1^takita, [k, t, k])
@@ -768,9 +807,6 @@ koraippu_janahan =
 
 koraippus :: [Korvai]
 koraippus = [koraippu_misra, koraippu_janahan]
-
-nang_kita_nakatiku :: Sequence a
-nang_kita_nakatiku = nang . __ . ki.ta.nakatiku
 
 -- * tirmanam
 
@@ -804,6 +840,9 @@ e_spacing = exercise $ korvai adi mridangam $ map (align adi) $
     mridangam = make_mridangam standard_strokes
 
 -- * fragments
+
+nang_kita_nakatiku :: Sequence stroke
+nang_kita_nakatiku = nang . __ . ki.ta.nakatiku
 
 tdgnt, td_gnt, t_d_gnt :: Sequence stroke
 tdgnt = ta.din.gin.na.thom

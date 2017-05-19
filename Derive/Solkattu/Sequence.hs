@@ -15,7 +15,7 @@ module Derive.Solkattu.Sequence (
     , Tempo(..), default_tempo
     , change_tempo
     -- * realize
-    , flatten, flatten_with
+    , notes, flatten, flatten_with
     , tempo_to_state, tempo_to_duration
     , Stroke(..), normalize_speed
     -- * State
@@ -79,6 +79,9 @@ slower = TempoChange (ChangeSpeed (-1))
 faster = TempoChange (ChangeSpeed 1)
 
 -- ** realize
+
+notes :: [Note a] -> [a]
+notes = map snd . flatten
 
 flatten :: [Note a] -> [(Tempo, a)]
 flatten = flatten_with default_tempo

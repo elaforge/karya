@@ -565,8 +565,8 @@ synth: im:
       omits those.
   csound backend:
     . Use csound-expression?
-  ? Why does compiling build/opt/sampler compile Cmd.Cmd?
-    . Because Synth.Sampler.Patch uses Cmd.InstrumentCode.
+    . writeSnd "A.aiff" $ setDur 10 $ osc 440
+
   / The start time should be in fractions of a second instead of sample
     frames, so I'm not dependent on sample rate.  Also, will I need to emit
     negative time?
@@ -1726,6 +1726,31 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - There are taka.x, and takanaka.x / takatiku.x prefixes that are
+          always played kp kpnp, and I don't want it to interfere with
+          per-korvai ta.ka mapping.  This is like a nakatiku pattern, but is
+          there a lighter weight way to add a these than just another Pattern
+          type?
+        - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
+          any arithmetic progression.
+        - I want results of reductions or expansions to be recognized as
+          Patterns for the purpose of variation.  So I think they have to have
+          score representation, for this and for strokes.
+        . If I have a generalized way to notate patterns as a duration
+          plus a possible specific realization, I should be able to unify it
+          with Pattern.  So p5 is just a 5 without sollus, but takadinna is
+          a 4 with sollus.  I already have this actually, but I don't preserve
+          the group boundaries.  So maybe I can have
+          'Group Matras (Maybe (Reduction (Front|Back))) Sequence'
+        - Ornaments to fill in karvai, e.g. with taka and takatiku
+        - Alternate karvai stroke for middle karvai variation.
+        - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.333.
+        * Put multiple sequences in a Korvai?
+          . They all have the same tala and instruments / stroke map anyway,
+            and this way I can group them in a search.
+          . But the avartanams tag is per-sequence, and so could nadai and
+            speed.  And I can group in a search by the binding name already,
+            I just have to recognize both ':: Korvai' and ':: [Korvai]'.
         - I should be able to add multiple realizations of the same
           instrument, keyed by string.
         * The same sequence, like takita, can be different in different
@@ -2159,6 +2184,19 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    - How to represent sangitas?
+      . Also what about accumulating phrases, as in kuvalaya dala or mosaboku?
+      . Maybe define a time range, then an edit in that time range will cause
+        a score derive to be appended to the end of the range.  Since the
+        "repeat" mark is also included, as soon as you edit the next section,
+        it appends another one, unless you delete the repeat mark.  Editing
+        a section will cause integrates down the line.
+      . This would be a new kind of score derive that integrates into the
+        same block and tracks, just at a time offset.  I could do the same
+        thing with blocks, and maybe I should to avoid the additional
+        complexity of a new "within track" integrate.
+    - Bowing ornamonts.
+      . gradual attack, and "puff" attack, ...?
     - I think Gamakam4 doesn't test next event pitch, e.g.
       Gamakam3_test.test_sequence on '!!-v-'
     dyn:

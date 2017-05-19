@@ -79,29 +79,6 @@ nakanadin = sarvalaghu $ korvai (beats 2) $ (:[]) $ su $
 
 -- * korvais
 
-p16_12_06_sriram1 :: Korvai
-p16_12_06_sriram1 = date 2016 12 6 $ sriram $ korvai adi $ map su $
-    map (purvangam.)
-    [ tri_ (u.__8) (k_kto . k.__.k_kto . k.__.t.__.k_kto)
-    -- TODO the gap is 8, but taka and takanaka should consume 2 and 4
-    , k_kto_s . u.__6 . taka.k_kto_s . i.__4 . takanaka . repeat 4 k_kto
-    , tri_ (u.__8) (p6 . taka.p6 . takanaka.p6)
-    -- Ganesh's variation.
-    , tri2 (u.__8) (p6 . taka.p6 . takanaka.p6) (repeat 4 p6)
-    ]
-    where
-    purvangam =
-        p&k.__4.p&t.__4.kitakina . tri (okto . n.o.o.k)
-            . od.__.od.__4 . p&u.__.p&u.__4 . od.__4
-        . p&t.__4.kitakina . tri okto . od.__4 . p&k.__4 . od.__4
-        . kitakina . tri (n.o.o.k) . od.__.k.__.od.__4
-
-    -- TODO second expansion should be: t.__.k_kto -> k.__.k_kto
-    k_kto_s = mconcat $ expand 3 2 (k.__.t.__.k_kto)
-    k_kto = k.__.k.t.o.__
-    okto = o.k.t.o. hv k .t.p.k
-    kitakina = k.t.k.n.o.k.o&t.k.nakatiku
-
 p16_12_06_sriram2 :: Korvai
 p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai adi $ (:[]) $ nadai 7 $
       repeat 2 kook . od.__.k.d.__.k.__                                .od.__7

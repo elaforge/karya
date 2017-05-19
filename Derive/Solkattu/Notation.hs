@@ -128,7 +128,7 @@ reduceR n = iterate (rdropM n)
 reduceR3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
 
--- | Start fully reduced, and expand to the given sequence.
+-- | Start fully reduced, and expand n times by the given duration.
 expand :: Int -> Matra -> Sequence stroke -> [Sequence stroke]
 expand times dur = Prelude.reverse . take times . iterate (dropM dur)
 
