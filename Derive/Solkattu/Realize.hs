@@ -131,12 +131,17 @@ stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
     where
     verify (sollus, strokes) = do
         let throw = Left
-                . (("stroke map " <> pretty (sollus, strokes) <> ": ") <>)
-        (tags, sollus) <- fmap (unzip . Maybe.catMaybes) $ forM sollus $ \case
-            S.Note (Solkattu.Note note) ->
-                Right $ Just (Solkattu._tag note, Solkattu._sollu note)
-            S.Note Solkattu.Rest -> Right Nothing
-            s -> throw $ "should only have plain sollus: " <> pretty s
+                . (("stroke map " <> pretty sollus <> " to " <> pretty strokes
+                    <> ": ") <>)
+        (tags, sollus) <- fmap (unzip . Maybe.catMaybes) $
+            -- Allow but ignore TempoChanges.  This makes it convenient to use
+            -- a sequence like 'nakataka = su (na.ka.ta.ka)' in both notation
+            -- and the stroke map.
+            forM (S.notes sollus) $ \case
+                Solkattu.Note note ->
+                    Right $ Just (Solkattu._tag note, Solkattu._sollu note)
+                Solkattu.Rest -> Right Nothing
+                s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
             S.Note (Note s) -> Right (Just s)
             S.Note Rest -> Right Nothing
