@@ -169,7 +169,7 @@ data Sollu =
     | Dheem | Dhom | Di | Din | Dit
     | Ga | Gin | Ka | Ki | Ku | Lang
     | Mi | Na | Nam | Nang | Ri | Ta | Tam | Tang
-    | Tat | Tha | Thom | Ti
+    | Tat | Tha | Thom | Ti | Kum
     deriving (Eq, Ord, Show)
 
 instance Pretty Sollu where

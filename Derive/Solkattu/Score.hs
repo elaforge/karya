@@ -72,7 +72,7 @@ c1s = ganesh $ korvai adi (mridangam <> kendang)
     pat9 = ta.__.ka.__.p5
 
 c2_yt1 :: Korvai
-c2_yt1 = source "youtube" $ korvai adi mridangam $ (:[]) $
+c2_yt1 = source "youtube" $ korvai1 adi mridangam $
     -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --              .ta.ka.din.na.thom.__.tat.__.din.__4
@@ -96,7 +96,7 @@ c2_yt1 = source "youtube" $ korvai adi mridangam $ (:[]) $
 
 -- | 3 avartanams of chatusram -> 2 avartanams of tisram.
 c_13_10_29 :: Korvai
-c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam $ (:[]) $
+c_13_10_29 = date 2013 10 29 $ ganesh $ korvai1 adi mridangam $
     reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     where
@@ -107,7 +107,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam $ (:[]) $
         ]
 
 c_13_11_12 :: Korvai
-c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam $ (:[]) $
+c_13_11_12 = date 2013 11 12 $ ganesh $ korvai1 adi mridangam $
     seq . dropM 2 seq . ta.ka.dheem.__4 . dropM 4 seq
         . repeat 2 (ta.ka.dheem.__4)
         . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
@@ -127,7 +127,7 @@ standard_strokes =
     ]
 
 c_16_09_28 :: Korvai
-c_16_09_28 = date 2016 9 28 $ ganesh $ korvai adi mridangam $ (:[]) $
+c_16_09_28 = date 2016 9 28 $ ganesh $ korvai1 adi mridangam $
     tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
           .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
                  .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
@@ -201,7 +201,7 @@ c_nnnd = korvai adi mridangam
         ]
 
 c_17_02_06 :: Korvai
-c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $ (:[]) $
+c_17_02_06 = date 2017 2 6 $ ganesh $ korvai1 adi mridangam $
     tri_ (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
     where
     mridangam = make_mridangam
@@ -212,7 +212,7 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvai adi mridangam $ (:[]) $
 
 c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $
-    korvai adi (mridangam <> kendang <> reyong) $ (:[]) $ su $
+    korvai1 adi (mridangam <> kendang <> reyong) $ su $
         reduceTo 4 2 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
         . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
     where
@@ -273,7 +273,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
         ]
 
 c_17_05_10 :: Korvai
-c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $ (:[]) $
+c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
     map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.ki.ta.takadinna.dinga)
         . ta.__.ki.ta.takadinna.dinga
     .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
@@ -306,6 +306,26 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai adi mridangam $ (:[]) $
         , (ka.din.na, [o, o, k])
         , (din.na, [o, k])
         , (na, [k])
+        ]
+
+c_17_05_19_janahan :: Korvai
+c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
+    tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
+        . repeat 2 (tat.__4.tam.__2.ta) . tat.__3
+        . tri (takadinna.takita) -- TODO p7
+    where
+    tat_din_din_tam a b =
+          tat.__4        .din.__4.din.__n a . tam.__n b . ta
+        . tat.__2.kum.__2.din.__4.din.__n a . tam.__n b . ta
+        -- TODO with thom
+    mridangam = make_mridangam
+        [ (tat, [o&k])
+        , (din, [d])
+        , (tam, [n])
+        , (ta, [k])
+        , (kum, [o])
+        , (takadinna, [k, o, o&t, k])
+        , (takita, [n, p, k])
         ]
 
 chatusrams :: [Korvai]
@@ -360,7 +380,7 @@ k1_3 = make_k1 $ (:[]) $
     where
     tata_dindin_ = ta.__.ta.__3.din.__.din.__3
 
-k1_a, k1_a' :: Sequence stroke
+k1_a, k1_a' :: Seq
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
@@ -375,7 +395,7 @@ k1_mridangam = make_mridangam
     ]
 
 k2 :: Bool -> Korvai
-k2 chatusram_transition = korvai adi k1_mridangam $ (:[]) $ nadai 5 $
+k2 chatusram_transition = korvai1 adi k1_mridangam $ nadai 5 $
       din.__3 . p5.tam.__4.p6.ta.__
     . din.__3 . p5.tam.__4.p6.ta.__.ta.__
     . din.__3 . p5
@@ -645,7 +665,7 @@ tisrams =
 -- ** misra nadai
 
 m_sriram1 :: Korvai
-m_sriram1 = source "sriram" $ date 2017 5 11 $ korvai adi mridangam $ (:[]) $
+m_sriram1 = source "sriram" $ date 2017 5 11 $ korvai1 adi mridangam $
     nadai 7 $
     circum (repeat 2 (takadinna.takita)) (accumulate
         [ din.__.ta.din.__.tat.__
@@ -699,7 +719,7 @@ c_17_04_04 = source "subash chandran" $ date 2017 4 4 $
 --      . repeat 2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
-misra_lead = korvai adi mridangam $ (:[]) $ su $
+misra_lead = korvai1 adi mridangam $ su $
     rest 8 . tri_ (tam.__) takadinna
     . repeat 2 (ta.__3.ta.takadinna)
     . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
@@ -751,7 +771,7 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
 
 koraippu_janahan :: Korvai
 koraippu_janahan =
-    koraippu $ source "janahan" $ korvai adi mridangam $ (:[]) $ su $
+    koraippu $ source "janahan" $ korvai1 adi mridangam $ su $
     let seq = sequence takita takadinna
     in mconcat
         [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
@@ -839,6 +859,12 @@ e_spacing = exercise $ korvai adi mridangam $ map (align adi) $
     geometric seq = spread 4 seq . spread 2 seq . tri seq
     mridangam = make_mridangam standard_strokes
 
+e_17_05_19 :: Korvai
+e_17_05_19 = exercise $ date 2017 5 15 $ korvai1 adi mridangam $
+    tri (tri p8 . tri (ki.ta.thom)) . tri p8 . p5
+    where
+    mridangam = make_mridangam [(ki.ta.thom, [k, n, o])]
+
 -- * fragments
 
 nang_kita_nakatiku :: Sequence stroke
@@ -893,6 +919,9 @@ make_reyong strokes = mempty
     { Korvai.inst_reyong = check $
         Reyong.instrument strokes Reyong.rhythmic_patterns
     }
+
+korvai1 :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> Seq -> Korvai
+korvai1 tala inst seq = Korvai.korvai tala inst [seq]
 
 korvai :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Seq] -> Korvai
 korvai = Korvai.korvai

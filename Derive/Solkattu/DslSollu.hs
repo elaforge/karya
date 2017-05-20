@@ -6,7 +6,7 @@
 -- them along with "Derive.Solkattu.Dsl".
 module Derive.Solkattu.DslSollu (
     dheem, dhom, di, din, dit, ga, gin, ka, ki, ku, mi, na, nam, nang, ri, ta,
-    tam, tat, tha, thom, ti
+    tam, tat, tha, thom, ti, kum
     , tang, lang
     , dinga
 ) where
@@ -45,6 +45,7 @@ tat = sollu Tat
 tha = sollu Tha
 thom = sollu Thom
 ti = sollu Ti
+kum = sollu Kum
 
 tang = sollu Tang
 lang = sollu Lang

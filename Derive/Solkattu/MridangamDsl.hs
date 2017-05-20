@@ -19,7 +19,7 @@
 module Derive.Solkattu.MridangamDsl (
     Sequence
     , (&)
-    , korvai
+    , korvai, korvai1
     , k, t, n, d, u, i, y, j, p, o, od
     , on, l
     , closed
@@ -53,6 +53,9 @@ korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
 korvai tala sequences = Korvai.korvai tala
     (mempty { Korvai.inst_mridangam = instrument })
     (map convert sequences)
+
+korvai1 :: Tala.Tala -> Sequence -> Korvai.Korvai
+korvai1 tala sequence = korvai tala [sequence]
 
 convert :: Sequence -> Korvai.Sequence
 convert = map (fmap (fmap Korvai.to_stroke))

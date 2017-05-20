@@ -32,8 +32,7 @@ c_exercises =
 -- ** tisram
 
 ganesh_16_11_14 :: Korvai
-ganesh_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai adi $ (:[]) $
-    nadai 6 $
+ganesh_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai1 adi $ nadai 6 $
     tri (reduce3 1 mempty (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
 
 ganesh_17_02_13 :: Korvai
@@ -59,6 +58,11 @@ din_nadin = sarvalaghu $ ganesh $ korvai adi
     , su $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
+nadin_ka :: Korvai
+nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvai1 adi $
+    on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
+    -- 4 nd to switch to kandam
+
 -- ** sarvalaghu fills
 
 namita_dimita_dimi :: [Sequence]
@@ -70,17 +74,17 @@ namita_dimita_dimi =
     where kt = su (k.t)
 
 janahan_exercise :: Korvai
-janahan_exercise = exercise $ janahan $ korvai adi $ (:[]) $
+janahan_exercise = exercise $ janahan $ korvai1 adi $
     o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
 
 nakanadin :: Korvai
-nakanadin = sarvalaghu $ korvai (beats 2) $ (:[]) $ su $
+nakanadin = sarvalaghu $ korvai1 (beats 2) $ su $
     d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
 
 -- * korvais
 
 p16_12_06_sriram2 :: Korvai
-p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai adi $ (:[]) $ nadai 7 $
+p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai1 adi $ nadai 7 $
       repeat 2 kook . od.__.k.d.__.k.__                                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__                .od.__7
     . repeat 2 kook . od.__.k.d.__.k.__.n.p.k.d.__.k.__.o.o.k.d.__.k.__.p&u.__7
@@ -88,14 +92,14 @@ p16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai adi $ (:[]) $ nadai 7 $
     where kook = k.o.o.k.n.p.k
 
 p16_12_06_janahan1 :: Korvai
-p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai adi $ (:[]) $ su $
+p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     tri (op_od_ . on.k.op_od_ . on.k.o&t.k.op_od_)
         . trin __ (tri p5) (tri p6) (tri p7)
     where
     op_od_ = on.p.k.od.__.o
 
 p16_12_06_janahan2 :: Korvai
-p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai adi $ (:[]) $ su $
+p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
         . tdgnt . p6
         . tdgnt . p6 . k.p.p6
@@ -106,15 +110,14 @@ p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai adi $ (:[]) $ su $
 
 all_korvais :: [Korvai]
 all_korvais =
-    [ p16_12_06_sriram1
-    , p16_12_06_sriram2, p16_12_06_janahan1, p16_12_06_janahan2
+    [ p16_12_06_sriram2, p16_12_06_janahan1, p16_12_06_janahan2
     ]
 
 -- * korvai sequences
 
 -- TODO use this as a template to fill in various themes
 ksequence :: Korvai
-ksequence = date 2013 10 24 $ ganesh $ sequence_t $ korvai adi $ (:[]) $
+ksequence = date 2013 10 24 $ ganesh $ sequence_t $ korvai1 adi $
     mconcat $ map (sam.)
     -- TODO put the whole thing in su?
     [ sarva `replaceEnd` theme
