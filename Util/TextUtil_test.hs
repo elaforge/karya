@@ -25,7 +25,7 @@ test_extractDelimited = do
 test_interpolate = do
     let f = TextUtil.interpolate "hi ${var1} there ${var2}: ${var1}"
             . Map.fromList
-    left_like (f []) "not in variables: var1, var2"
+    left_like (f []) "template variable not given: var1, var2"
     equal (f [("var1", "a"), ("var2", "b")]) (Right "hi a there b: a")
     left_like (f [("var1", "a"), ("var2", "b"), ("var3", "c")])
         "not in template: var3"

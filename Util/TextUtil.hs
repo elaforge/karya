@@ -127,9 +127,9 @@ extractDelimited withSpaces delimiter = go
 -- | Replace @${variable}@.
 interpolate :: Text -> Map.Map Text Text -> Either Text Text
 interpolate template variables
-    | notInTemplate /= mempty = Left $ "variables not in template: "
+    | notInTemplate /= mempty = Left $ "given variables not in template: "
         <> commas (Set.toList notInTemplate)
-    | notInVariables /= mempty = Left $ "template holes not in variables: "
+    | notInVariables /= mempty = Left $ "template variable not given: "
         <> commas (Set.toList notInVariables)
     | otherwise = Right $ replaceMany
         [("${" <> k <> "}", v) | (k, v) <- Map.toList variables] template
