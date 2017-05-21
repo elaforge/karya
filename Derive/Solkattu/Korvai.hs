@@ -7,7 +7,6 @@
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
 import qualified Data.Either as Either
-import qualified Data.Map as Map
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Map
@@ -47,7 +46,7 @@ instance Pretty Korvai where
         ]
 
 korvai :: Tala.Tala -> Instruments -> [Sequence] -> Korvai
-korvai tala instruments sequences = infer_metadata $ korvai_t $ Korvai
+korvai tala instruments sequences = infer_metadata $ Korvai
     { korvai_sequences = sequences
     , korvai_instruments = instruments
     , korvai_tala = tala
@@ -146,7 +145,7 @@ to_konnakol = mapMaybe convert
         Solkattu.Pattern p -> Just $ Realize.Pattern p
         Solkattu.Alignment {} -> Nothing
 
--- ** metadata
+-- * Metadata
 
 -- | Attach some metadata to a Korvai.  Someday I'll put them in some kind of
 -- searchable database and then this should be useful.
@@ -186,48 +185,6 @@ make_date y m d
         Date y m d
     | otherwise = errorStack $ "invalid date: " <> showt (y, m, d)
 
-date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
-date y m d = with_metadata $ mempty { _date = Just date }
-    where !date = make_date y m d
-
-source :: Text -> Korvai -> Korvai
-source = with_tag "source"
-
-korvai_t :: Korvai -> Korvai
-korvai_t = with_type "korvai"
-
-koraippu :: Korvai -> Korvai
-koraippu = with_type "koraippu"
-
-mohra :: Korvai -> Korvai
-mohra = with_type "mohra"
-
-sarvalaghu :: Korvai -> Korvai
-sarvalaghu = with_type "sarvalaghu"
-
-tirmanam :: Korvai -> Korvai
-tirmanam = with_type "tirmanam"
-
--- | A development sequence leading to a korvai.
-sequence_t :: Korvai -> Korvai
-sequence_t = with_type "sequence"
-
-faran :: Korvai -> Korvai
-faran = with_type "faran"
-
-exercise :: Korvai -> Korvai
-exercise = with_type "exercise"
-
-with_type :: Text -> Korvai -> Korvai
-with_type = with_tag "type"
-
-with_tag :: Text -> Text -> Korvai -> Korvai
-with_tag k v = with_metadata $ mempty { _tags = Tags (Map.singleton k [v]) }
-
-with_metadata :: Metadata -> Korvai -> Korvai
-with_metadata meta korvai =
-    korvai { korvai_metadata = meta <> korvai_metadata korvai }
-
 -- ** infer
 
 infer_metadata :: Korvai -> Korvai
@@ -258,6 +215,10 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
         ]
     has_realization get = any (Either.isRight . realize get) notes
     realize get = realize_instrument get (korvai_instruments korvai) False
+
+with_metadata :: Metadata -> Korvai -> Korvai
+with_metadata meta korvai =
+    korvai { korvai_metadata = meta <> korvai_metadata korvai }
 
 -- * types
 

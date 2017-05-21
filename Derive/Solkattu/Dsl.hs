@@ -24,6 +24,7 @@ module Derive.Solkattu.Dsl (
     , accumulate
     -- * re-exports
     , module Derive.Solkattu.Korvai
+    , module Derive.Solkattu.Metadata
     , module Derive.Solkattu.Sequence
     , check, duration_of
     , module Derive.Solkattu.Notation
@@ -48,9 +49,8 @@ import Util.Pretty (pprint)
 import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Solkattu.Korvai as Korvai
-import Derive.Solkattu.Korvai
-       (Korvai, date, source, koraippu, mohra, sarvalaghu, tirmanam, sequence_t,
-        faran, exercise)
+import Derive.Solkattu.Korvai (Korvai)
+import Derive.Solkattu.Metadata
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize
