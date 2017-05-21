@@ -310,18 +310,21 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
 
 c_17_05_19_janahan :: Korvai
 c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
-    tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
+    1^tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
         . repeat 2 (tat.__4.tam.__2.ta) . tat.__3
         . tri (takadinna.takita) -- TODO p7
     where
     tat_din_din_tam a b =
-          tat.__4        .din.__4.din.__n a . tam.__n b . ta
-        . tat.__2.kum.__2.din.__4.din.__n a . tam.__n b . ta
+          tat.__4         .    din.__4.din.__n a . tam.__n b . ta
+        . tat.__2.kum.__2 . 1^(din.__4.din.__n a . tam.__n b . ta)
         -- TODO with thom
     mridangam = make_mridangam
-        [ (tat, [o&k])
+        [ (tat, [k])
         , (din, [d])
         , (tam, [n])
+        , (1^tat, [o&k])
+        , (1^din, [od])
+        , (1^tam, [o&n])
         , (ta, [k])
         , (kum, [o])
         , (takadinna, [k, o, o&t, k])

@@ -99,6 +99,9 @@ data NoteT stroke = NoteT {
     , _tag :: !(Maybe Tag)
     } deriving (Eq, Ord, Show, Functor)
 
+-- | A sollu can have a tag attached.  This is used to map certain sets of
+-- sollus to a different realization.  The idea is that even though the sollus
+-- are the same, they may be realized different ways in different contexts.
 type Tag = Int
 
 note :: Sollu -> Maybe stroke -> NoteT stroke

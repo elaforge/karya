@@ -1726,6 +1726,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        * If 1^(...) applies to everything, then I can mark a bunch of sollus
+          at once.
         - There are taka.x, and takanaka.x / takatiku.x prefixes that are
           always played kp kpnp, and I don't want it to interfere with
           per-korvai ta.ka mapping.  This is like a nakatiku pattern, but is

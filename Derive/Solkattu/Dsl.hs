@@ -129,6 +129,7 @@ nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
 -- * modify sollus
 
+-- | Infix operator to 'Solkattu.Tag' all of the sollus it applies to.
 (^) :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
     -> Sequence stroke
 (^) = set_tag
@@ -136,25 +137,25 @@ infix 9 ^
 
 set_tag :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
     -> Sequence stroke
-set_tag tag = modify_note $ Solkattu.modify_note $
+set_tag tag = fmap $ fmap $ Solkattu.modify_note $
     \note -> note { Solkattu._tag = Just tag }
 
-modify_note :: (CallStack.Stack, Pretty stroke) =>
+modify_single_note :: (CallStack.Stack, Pretty stroke) =>
     (Solkattu.Note stroke -> Solkattu.Note stroke)
     -> Sequence stroke -> Sequence stroke
-modify_note modify (n:ns) = case n of
+modify_single_note modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
-        S.TempoChange change (modify_note modify sub) : ns
+        S.TempoChange change (modify_single_note modify sub) : ns
     _ -> errorStack $ "expected a note: " <> pretty n
-modify_note _ [] = errorStack "expected a note, but got []"
+modify_single_note _ [] = errorStack "expected a note, but got []"
 
 -- ** strokes
 
 -- | Add a specific stroke annotation to a sollu.
 stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
     stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
-stroke s = modify_note $
+stroke s = modify_single_note $
     Solkattu.modify_stroke (const (Just (Korvai.to_stroke s)))
 
 -- | Add a specific stroke annotation to a sollu.
