@@ -224,7 +224,7 @@ adi = Tala.adi_tala
 
 -- | For a fragment which fits a certain number of beats.
 beats :: Akshara -> Tala.Tala
-beats aksharas = Tala.Tala "beats" (replicate aksharas (Tala.Clap 1)) 0
+beats aksharas = Tala.Tala "beats" [Tala.I] aksharas
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realize_ True

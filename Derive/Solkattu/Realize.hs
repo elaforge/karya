@@ -457,6 +457,8 @@ format_table tala =
 
 to_table :: Int -> [Doc.Html] -> [[Doc.Html]] -> Doc.Html
 to_table col_width header rows = mconcatMap (<>"\n") $
+    -- TODO the idea is that the cell widths should all be fixed, but it
+    -- doesn't work, because I don't understand HTML.  Fix this some day.
     [ "<table cellpadding=0 cellspacing=0 style=\"table-layout: fixed\">"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
     ] ++ map row rows
