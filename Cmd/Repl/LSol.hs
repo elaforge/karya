@@ -2,11 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for solkattu.  This re-exports "Derive.Solkattu.Score" so I can
--- write korvais there and directly insert them into the score from here.
+-- | Utilities for solkattu.  This re-exports "Derive.Solkattu.Db" so I can
+-- find pre-defined korvais.
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
-    , module Derive.Solkattu.Score
+    , module Derive.Solkattu.Db
 ) where
 import qualified Data.Text as Text
 
@@ -20,7 +20,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
-import Derive.Solkattu.Score
+import Derive.Solkattu.Db
 import qualified Derive.Solkattu.Sequence as Sequence
 
 import Global

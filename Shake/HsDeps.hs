@@ -4,7 +4,8 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.HsDeps (
-    importsOf, transitiveImportsOf
+    Generated
+    , importsOf, transitiveImportsOf
     , importsPackagagesOf_
     , loadPackageDb, savePackageDb
 ) where
@@ -32,18 +33,25 @@ import qualified Shake.Util as Util
 type Package = String
 type ModuleName = B.ByteString
 
+-- | Normally 'importsOf' and 'transitiveImportsOf' filter out files that don't
+-- exist, under the assumption that they belong to external packages.  This
+-- set contains exceptions to that, so they will get a need call, so they can
+-- be generated.
+type Generated = Set.Set FilePath
+
 -- | Find files of modules this module imports, in the form A/B.hs or A/B.hsc.
 -- Paths that don't exist are assumed to be package imports and are omitted.
-importsOf :: Maybe [String] -> FilePath -> Shake.Action [FilePath]
-importsOf cppFlags fn = do
+importsOf :: Generated -> Maybe [String] -> FilePath -> Shake.Action [FilePath]
+importsOf generated cppFlags fn = do
     Shake.need [fn]
-    Trans.liftIO (importsOf_ cppFlags fn)
+    Trans.liftIO (importsOf_ generated cppFlags fn)
 
-importsOf_ :: Maybe [String] -- ^ If Just, first run CPP with these flags.
+importsOf_ :: Generated
+    -> Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO [FilePath]
-importsOf_ cppFlags fn = do
+importsOf_ generated cppFlags fn = do
     mods <- parseImports <$> preprocess cppFlags fn
-    Maybe.catMaybes <$> mapM fileOf mods
+    Maybe.catMaybes <$> mapM (fileOf generated) mods
 
 -- * PackageDb
 
@@ -56,11 +64,11 @@ type PackageDb = Map.Map ModuleName Package
 -- basic implementation here in case I change my mind.  This still needs to
 -- be integrated with 'importsOf' and 'transitiveImportsOf'.
 importsPackagagesOf_ :: PackageDb
-    -> Maybe [String] -- ^ If Just, first run CPP with these flags.
+    -> Generated -> Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO ([FilePath], [Package])
-importsPackagagesOf_ packageDb cppFlags fn = do
+importsPackagagesOf_ packageDb generated cppFlags fn = do
     mods <- parseImports <$> preprocess cppFlags fn
-    files <- Maybe.catMaybes <$> mapM fileOf mods
+    files <- Maybe.catMaybes <$> mapM (fileOf generated) mods
     return (files, Maybe.mapMaybe (`Map.lookup` packageDb) mods)
 
 -- | Load cached module to package db.
@@ -103,29 +111,28 @@ getExposedModules package =
 -- TODO Technically I should run CPP on the output of hsc2hs, which means
 -- this should map the module names to the appropriate .hs and 'need' it.
 -- Otherwise the '#include' that belongs to hsc2hs will get processed by CPP.
-transitiveImportsOf :: (FilePath -> Maybe [String]) -> FilePath
-    -> Shake.Action [FilePath]
-transitiveImportsOf cppFlagsOf fn = do
+transitiveImportsOf :: Generated -> (FilePath -> Maybe [String])
+    -> FilePath -> Shake.Action [FilePath]
+transitiveImportsOf generated cppFlagsOf fn = do
     Shake.need [fn]
-    Trans.liftIO $ transitiveImportsOf_ cppFlagsOf fn
+    Trans.liftIO $ transitiveImportsOf_ generated cppFlagsOf fn
 
-transitiveImportsOf_ :: (FilePath -> Maybe [String]) -> FilePath
-    -> IO [FilePath]
-transitiveImportsOf_ cppFlagsOf fn = go Set.empty [fn]
+transitiveImportsOf_ :: Generated -> (FilePath -> Maybe [String])
+    -> FilePath -> IO [FilePath]
+transitiveImportsOf_ generated cppFlagsOf fn = go Set.empty [fn]
     where
     go checked (fn:fns)
         | fn `Set.member` checked = go checked fns
         | otherwise = do
-            imports <- importsOf_ (cppFlagsOf fn) fn
+            imports <- importsOf_ generated (cppFlagsOf fn) fn
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
     go checked [] = return (Set.toList checked)
 
-fileOf :: ModuleName -> IO (Maybe FilePath)
-fileOf mod =
-    Util.ifM (Directory.doesFileExist fn) (return (Just fn)) $
-    Util.ifM (Directory.doesFileExist (fn ++ "c")) (return (Just (fn ++ "c")))
-        (return Nothing)
+fileOf :: Set.Set FilePath -> ModuleName -> IO (Maybe FilePath)
+fileOf generated mod
+    | fn `Set.member` generated = return $ Just fn
+    | otherwise = findExistingFile [fn, fn ++ "c"]
     where
     fn = B.unpack $ B.map slash mod `B.append` ".hs"
     slash c = if c == '.' then '/' else c
@@ -176,3 +183,9 @@ loggedProcess create = do
     binaryOf create = case Process.cmdspec create of
         Process.RawCommand fn _ -> fn
         Process.ShellCommand cmd -> takeWhile (/=' ') cmd
+
+findExistingFile :: [FilePath] -> IO (Maybe FilePath)
+findExistingFile (fn:fns) =
+    Util.ifM (Directory.doesFileExist fn) (return (Just fn))
+        (findExistingFile fns)
+findExistingFile [] = return Nothing

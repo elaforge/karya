@@ -5,8 +5,12 @@
 -- | Functions to deal with 'Korvai.Metadata'.  The type itself has to be
 -- defined in "Derive.Solkattu.Korvai" to avoid a circular import.
 module Derive.Solkattu.Metadata (
-    date, source, korvai_t, koraippu, mohra, sarvalaghu, tirmanam
+    -- * query
+    get, get_location
+    -- * add
+    , date, source, korvai_t, koraippu, mohra, sarvalaghu, tirmanam
     , sequence_t, faran, exercise
+    , variable_name, module_, line_number
 ) where
 import qualified Data.Map as Map
 
@@ -15,6 +19,23 @@ import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai)
 import Global
 
+
+-- * query
+
+get :: Text -> Korvai -> [Text]
+get tag = Map.findWithDefault [] tag . untags . Korvai._tags
+    . Korvai.korvai_metadata
+    where
+    untags (Korvai.Tags tags) = tags
+
+get_location :: Korvai -> Text
+get_location korvai = case (g "module", g "line_number", g "variable_name") of
+    (module_:_, line:_, name:_) -> name <> " (" <> module_ <> ":" <> line <> ")"
+    _ -> "<unknown>"
+    where
+    g = flip get korvai
+
+-- * add
 
 date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
 date y m d = Korvai.with_metadata $ mempty { Korvai._date = Just date }
@@ -55,3 +76,18 @@ with_type = with_tag "type"
 with_tag :: Text -> Text -> Korvai -> Korvai
 with_tag k v = Korvai.with_metadata $
     mempty { Korvai._tags = Korvai.Tags (Map.singleton k [v]) }
+
+-- ** added automatically
+
+-- | Variable name the korvai is bound to.  Probably not much meaning except
+-- to find the source.
+variable_name :: Text -> Korvai -> Korvai
+variable_name = with_tag "variable_name"
+
+-- | Defining module.
+module_ :: Text -> Korvai -> Korvai
+module_ = with_tag "module"
+
+-- | Line number in defining module.
+line_number :: Int -> Korvai -> Korvai
+line_number = with_tag "line_number" . showt

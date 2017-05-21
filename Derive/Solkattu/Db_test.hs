@@ -2,20 +2,24 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Solkattu.MridangamScore_test where
+module Derive.Solkattu.Db_test where
 import qualified Data.Either as Either
+import qualified Data.Text as Text
 
 import Util.Test
+import qualified Derive.Solkattu.All as All
 import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Metadata as Metadata
 import qualified Derive.Solkattu.Mridangam as Mridangam
-import qualified Derive.Solkattu.MridangamScore as MridangamScore
 import qualified Derive.Solkattu.Realize as Realize
 
 import Global
 
-
-test_korvais = do
-    equal [err | Left err <- map realize MridangamScore.all_korvais] []
+test_all = do
+    forM_ All.korvais $ \korvai -> case realize korvai of
+        Right _ -> return True
+        Left errs -> failure $ Metadata.get_location korvai <> ": "
+            <> Text.unlines errs
 
 realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
 realize korvai

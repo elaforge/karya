@@ -85,7 +85,8 @@ roundDigits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))
 
 -- | Round up to the nearest factor above the given number.
 roundUp :: (Integral factor, Real a) => factor -> a -> factor
-roundUp factor n = ceiling (realToFrac n / fromIntegral (abs factor)) * abs factor
+roundUp factor n =
+    ceiling (realToFrac n / fromIntegral (abs factor)) * abs factor
 
 -- | Clamp a value to be between @low@ and @high@.
 clamp :: Ord a => a -> a -> a -> a

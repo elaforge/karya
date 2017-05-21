@@ -4,7 +4,7 @@
 
 {-# LANGUAGE RecordWildCards #-}
 -- | Korvais expressed in "Derive.Solkattu.Dsl".
-module Derive.Solkattu.Score where
+module Derive.Solkattu.Score.Score where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.CallStack as CallStack
@@ -118,13 +118,6 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvai1 adi mridangam $
         , (dit, [k])
         , (ta.ka, [p, k])
         ]
-
-standard_strokes :: [(Sequence stroke, [Mridangam.SNote])]
-standard_strokes =
-    [ (ta.ka.din.na, [k, o, o, k])
-    , (ta.din.gin.na.thom, [k, t, k, n, o])
-    , (dheem, [od])
-    ]
 
 c_16_09_28 :: Korvai
 c_16_09_28 = date 2016 9 28 $ ganesh $ korvai1 adi mridangam $
@@ -899,6 +892,13 @@ ganesh :: Korvai -> Korvai
 ganesh = source "ganesh"
 
 -- * realize
+
+standard_strokes :: [(Sequence stroke, [Mridangam.SNote])]
+standard_strokes =
+    [ (ta.ka.din.na, [k, o, o, k])
+    , (ta.din.gin.na.thom, [k, t, k, n, o])
+    , (dheem, [od])
+    ]
 
 type MStrokes = [(Sequence Mridangam.Stroke, [Mridangam.SNote])]
 

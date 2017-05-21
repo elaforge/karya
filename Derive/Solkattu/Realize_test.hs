@@ -17,7 +17,6 @@ import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as M
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Score as Score
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Note(..), Sollu(..))
@@ -269,8 +268,7 @@ stroke_map = Realize.inst_stroke_map $ expect_right $ M.instrument [] mempty
 mridangam :: Korvai.Instruments
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
-        M.instrument (Score.standard_strokes ++ [(ta, [M.k M.notes])])
-            M.default_patterns
+        M.instrument [(ta, [M.k M.notes])] M.default_patterns
     }
 
 sd = (:[]) . Sequence.slower

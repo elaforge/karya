@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>))
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
@@ -256,6 +257,7 @@ hsBinaries =
     -- having to link in all that stuff anyway.
     , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
     , plain "generate_run_tests" "Util/GenerateRunTests.hs"
+    , plain "extract_korvais" "Derive/Solkattu/ExtractKorvais.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
@@ -328,6 +330,10 @@ cppFlags config fn
 -- lists so it should be faster to hardcode them.
 cppFiles :: [FilePath]
 cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
+
+-- | Generated hs files.
+generatedHs :: HsDeps.Generated
+generatedHs = Set.fromList [generatedKorvais]
 
 -- | True for binaries that depend, transitively, on 'hsconfigH'.  Since
 -- hsconfigH is generated, I need to generate it first before chasing
@@ -633,6 +639,7 @@ main = do
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
+        generateKorvais
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
@@ -947,7 +954,7 @@ buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
 buildHs config rtsFlags libs extraPackages hs fn = do
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
-    srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
+    srcs <- HsDeps.transitiveImportsOf generatedHs (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
@@ -1038,6 +1045,18 @@ binaryWithPrefix :: FilePath -> FilePath -> Bool
 binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
     && null (FilePath.takeExtension fn)
 
+-- * generated haskell
+
+generateKorvais :: Shake.Rules ()
+generateKorvais = generatedKorvais %> \_ -> do
+    inputs <- Shake.getDirectoryFiles "" ["Derive/Solkattu/Score/*.hs"]
+    let generate = modeToDir Opt </> "extract_korvais"
+    need $ generate : inputs
+    Util.system generate (generatedKorvais : inputs)
+
+generatedKorvais :: FilePath
+generatedKorvais = "Derive/Solkattu/All.hs"
+
 -- * markdown
 
 markdownRule :: FilePath -> Shake.Rules ()
@@ -1063,7 +1082,7 @@ hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     let config = infer obj
     isHsc <- liftIO $ Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    imports <- HsDeps.importsOf (cppFlags config hs) hs
+    imports <- HsDeps.importsOf generatedHs (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsOHiRule" config [] hs else return []
     let his = map (objToHi . srcToObj config) imports

@@ -12,7 +12,6 @@ import Derive.Solkattu.DslSollu (ta, ka, din, na)
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Score as Score
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
@@ -46,9 +45,10 @@ korvai tala = Korvai.korvai tala mridangam
 mridangam :: Korvai.Instruments
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
-        Mridangam.instrument Score.standard_strokes patterns
+        Mridangam.instrument [(ta <> ka <> din <> na, [k, o, o, k])] patterns
     }
     where
+    Mridangam.Strokes {..} = Mridangam.notes
     patterns = Solkattu.check $ Realize.patterns $
         map (first Solkattu.PatternM) [(4, [p, k, o, n])]
         where Mridangam.Strokes {..} = Mridangam.notes

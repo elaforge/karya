@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | This is analogous to "Derive.Solkattu.Score", except for mridangam specific
 -- scores.
-module Derive.Solkattu.MridangamScore where
+module Derive.Solkattu.Score.MridangamScore where
 import Prelude hiding ((.), repeat)
 
 import qualified Derive.Solkattu.Korvai as Korvai
@@ -14,15 +14,6 @@ import qualified Derive.Solkattu.Tala as Tala
 
 
 -- * exercises
-
-sriram_exercise :: Korvai
-sriram_exercise = exercise $ korvai adi
-    -- TODO not right
-    [ o&n.__.p.k.t.k . tri (n.k.t.p.k.t.k)
-        . repeat 4 (o.t.k.n . su (k.t.p.k))
-        . repeat 4 (n . su (k.t.p.k)  . o.t.k)
-        . o&n.__.p.k . nakatiku . tri (p.k.p.t.p.k . nakatiku)
-    ]
 
 c_exercises :: [Sequence]
 c_exercises =
@@ -52,14 +43,14 @@ ganesh_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $
 -- * sarvalaghu
 
 din_nadin :: Korvai
-din_nadin = sarvalaghu $ ganesh $ korvai adi
+din_nadin = sarvalaghu $ ganesh $ korvai (beats 4)
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
-    , su $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
-    , su $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    , su $ repeat 2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
+    , su $ repeat 2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
 nadin_ka :: Korvai
-nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvai1 adi $
+nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvai1 (beats 4) $
     on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
     -- 4 nd to switch to kandam
 
