@@ -672,7 +672,7 @@ main = do
         criterionRules (modeConfig Profile)
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
         hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
-        hsORule infer
+        hsOHiRule infer
         ccORule infer
         dispatch modeConfig targets
 
@@ -1056,8 +1056,8 @@ docToHtml = (buildDocDir </>) . FilePath.takeFileName . (++".html")
 
 -- * hs
 
-hsORule :: InferConfig -> Shake.Rules ()
-hsORule infer = matchHsObj ?>> \fns -> do
+hsOHiRule :: InferConfig -> Shake.Rules ()
+hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
     Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
     let config = infer obj
@@ -1065,18 +1065,17 @@ hsORule infer = matchHsObj ?>> \fns -> do
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
     imports <- HsDeps.importsOf (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
-        then includesOf "hsORule" config [] hs else return []
-    need includes
+        then includesOf "hsOHiRule" config [] hs else return []
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
-    logDeps config "hs" obj (hs:his)
+    logDeps config "*.hs.o *.hi" obj (hs : includes ++ his)
     Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages) config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
-matchHsObj :: FilePath -> Maybe [FilePath]
-matchHsObj fn
+matchHsObjHi :: FilePath -> Maybe [FilePath]
+matchHsObjHi fn
     | any (`List.isSuffixOf` fn) [".hs.o", ".hi"]
             && "build/" `List.isPrefixOf` fn =
         if isMain then Just [suffixless ++ ".hs.o"]
@@ -1197,7 +1196,7 @@ ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do
             findFlags config obj
         localIncludes = filter ("-I" `List.isPrefixOf`) flags
     includes <- includesOf "ccORule" config localIncludes cc
-    logDeps config "cc" obj (cc:includes)
+    logDeps config "*.cc.o" obj (cc:includes)
     Util.cmdline $ compileCc config flags cc obj
 
 -- | Find which CcBinary has the obj file in its 'ccDeps' and get its
@@ -1230,7 +1229,7 @@ hsRule :: Config -> Shake.Rules ()
 hsRule config = hscDir config </> "**/*.hs" %> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config [] hsc
-    logDeps config "hsc" hs (hsc : includes)
+    logDeps config "*.hsc" hs (hsc : includes)
     Util.cmdline $ hsc2hs config hs hsc
 
 hsc2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
@@ -1313,10 +1312,12 @@ moduleToPath :: String -> FilePath
 moduleToPath = map $ \c -> if c == '.' then '/' else c
 
 logDeps :: Config -> String -> FilePath -> [FilePath] -> Shake.Action ()
-logDeps config stage fn deps = do
-    need deps
-    Shake.putLoud $ "***" ++ stage ++ ": " ++ fn ++ " <- "
-        ++ unwords (map (dropDir (oDir config)) deps)
+logDeps config stage fn deps
+    | null deps = return ()
+    | otherwise = do
+        need deps
+        Shake.putLoud $ ">>> " ++ stage ++ ": " ++ fn ++ " <- "
+            ++ unwords (map (dropDir (oDir config)) deps)
 
 includesOf :: String -> Config -> [Flag] -> FilePath -> Shake.Action [FilePath]
 includesOf caller config moreIncludes fn = do
