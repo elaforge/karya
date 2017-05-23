@@ -34,6 +34,7 @@ import qualified Data.Text.Encoding as Encoding
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Time as Time
+import qualified Data.Time.Calendar as Calendar
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
@@ -140,6 +141,7 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
 
 instance Pretty Time.UTCTime where pretty = showt
 instance Pretty Dynamic.Dynamic where pretty = showt
+instance Pretty Calendar.Day where pretty = showt
 
 -- ** containers
 

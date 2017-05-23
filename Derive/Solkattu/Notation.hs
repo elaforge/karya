@@ -45,7 +45,7 @@ splitD dur = snd . go S.default_tempo dur
         -- or just error
         | otherwise = errorStack $
             "can't split on a fractional duration: " <> pretty dur
-        where ndur = S.note_duration Solkattu.note_matras tempo n
+        where ndur = S.note_duration tempo n
     tempo_change tempo dur change subs ns
         | dur_left <= 0 =
             (dur_left, (make_tempo sub_pre, make_tempo sub_post ++ ns))
@@ -100,7 +100,7 @@ matrasOfE = integral <=< justErr "nadai change" . of_sequence
     -- If the whole thing is in a certain nadai that's not really a change.
     of_sequence [S.TempoChange (S.Nadai _) notes] = of_sequence notes
     of_sequence notes = sum <$> traverse of_note notes
-    of_note (S.Note note) = Just $ fromIntegral $ Solkattu.note_matras note
+    of_note (S.Note note) = Just $ fromIntegral $ S.matras_of note
     of_note (S.TempoChange change notes) = case change of
         S.ChangeSpeed speed -> (/ S.speed_factor speed) <$> of_sequence notes
         S.Nadai _ -> Nothing

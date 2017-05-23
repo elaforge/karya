@@ -69,7 +69,7 @@ strokes_to_events strokes =
     ]
     where
     starts = scanl (+) 0 durs
-    (durs, notes) = unzip $ Realize.tempo_to_duration strokes
+    (durs, notes) = unzip $ Sequence.tempo_to_duration strokes
     to_expr s = case s of
         Realize.Note stroke -> Just (Expr.to_expr stroke, False)
         Realize.Pattern p -> Just (Expr.to_expr p, True)

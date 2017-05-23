@@ -137,18 +137,18 @@ modify_note f n = case n of
     Pattern p -> Pattern p
     Alignment n -> Alignment n
 
-note_matras :: Note stroke -> S.Matra
-note_matras s = case s of
-    -- Karvai notes are cancelled out, so they logically have 0 duration.
-    Note note -> if _karvai note then 0 else 1
-    Rest -> 1
-    Pattern p -> pattern_matras p
-    Alignment {} -> 0
+instance S.HasMatras (Note stroke) where
+    matras_of s = case s of
+        -- Karvai notes are cancelled out, so they logically have 0 duration.
+        Note note -> if _karvai note then 0 else 1
+        Rest -> 1
+        Pattern p -> S.matras_of p
+        Alignment {} -> 0
 
-pattern_matras :: Pattern -> S.Matra
-pattern_matras p = case p of
-    PatternM m -> m
-    Nakatiku -> 8
+instance S.HasMatras Pattern where
+    matras_of p = case p of
+        PatternM m -> m
+        Nakatiku -> 8
 
 data Pattern =
     PatternM !S.Matra
@@ -181,7 +181,7 @@ instance Pretty Sollu where
 -- * durations
 
 duration_of :: [S.Note (Note stroke)] -> S.Duration
-duration_of = sum . map (S.note_duration note_matras S.default_tempo)
+duration_of = sum . map (S.note_duration S.default_tempo)
 
 -- * functions
 
@@ -215,7 +215,7 @@ verify_alignment :: Pretty stroke =>
     -- ^ If there's an error, still return the elemnts leading up to it.
 verify_alignment tala =
     first (filter (not . is_alignment . snd)) . S.right_until_left
-        . map verify . S.tempo_to_state note_matras tala
+        . map verify . S.tempo_to_state tala
         . (++[(S.default_tempo, Alignment 0)])
     where
     verify (state, Alignment akshara)

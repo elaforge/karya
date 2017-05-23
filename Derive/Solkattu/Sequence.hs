@@ -11,6 +11,7 @@ module Derive.Solkattu.Sequence (
     Note(..), TempoChange(..)
     , Duration, Matra, Speed, Nadai, speed_factor
     , slower, faster
+    , HasMatras(..)
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
@@ -78,6 +79,9 @@ slower, faster :: [Note a] -> Note a
 slower = TempoChange (ChangeSpeed (-1))
 faster = TempoChange (ChangeSpeed 1)
 
+class HasMatras a where
+    matras_of :: a -> Matra
+
 -- ** realize
 
 notes :: [Note a] -> [a]
@@ -93,13 +97,13 @@ flatten_with tempo = concatMap $ \n -> case n of
         flatten_with (change_tempo change tempo) notes
 
 -- | Calculate Tala position for each note.
-tempo_to_state :: (a -> Matra) -> Tala.Tala -> [(Tempo, a)] -> [(State, a)]
-tempo_to_state note_matras tala = snd . List.mapAccumL process initial_state
+tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)] -> [(State, a)]
+tempo_to_state tala = snd . List.mapAccumL process initial_state
     where
     process state (tempo, note) = (next_state, (set_tempo tempo state, note))
         where
         next_state = advance_state_by tala
-            (matra_duration tempo * fromIntegral (note_matras note)) state
+            (matra_duration tempo * fromIntegral (matras_of note)) state
 
 data Stroke a = Attack a | Sustain | Rest
     deriving (Show, Eq)
@@ -111,39 +115,39 @@ instance Pretty a => Pretty (Stroke a) where
         Rest -> "_"
 
 -- | Normalize to the fastest speed, then mark position in the Tala.
-normalize_speed :: (a -> Matra) -> Tala.Tala -> [(Tempo, a)]
+normalize_speed :: HasMatras a => Tala.Tala -> [(Tempo, a)]
     -> [(State, Stroke a)]
-normalize_speed note_matras tala notes =
+normalize_speed tala notes =
     snd $ List.mapAccumL process initial_state by_nadai
     where
     process state (nadai, stroke) =
         (next_state, (state { state_nadai = nadai }, stroke))
         where
         next_state = advance_state_by tala (min_dur / fromIntegral nadai) state
-    (by_nadai, min_dur) = flatten_speed note_matras notes
+    (by_nadai, min_dur) = flatten_speed notes
 
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
 -- Speed 0 always gets at least one Stroke, even if everything it's not the
 -- slowest.
-flatten_speed :: (a -> Matra) -> [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
-flatten_speed note_matras notes = (concatMap flatten notes, min_dur)
+flatten_speed :: HasMatras a => [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
+flatten_speed notes = (concatMap flatten notes, min_dur)
     where
     flatten (tempo, note) = map (nadai tempo,) $
         Attack note : replicate (spaces - 1)
             (if has_duration then Sustain else Rest)
         where
-        spaces = note_matras note * 2 ^ (max_speed - speed tempo)
+        spaces = matras_of note * 2 ^ (max_speed - speed tempo)
         -- I don't actually distinguish between 0 dur and >0 dur notes, but
-        -- in practice only note_matras > 1 notes should be drawn with
+        -- in practice only matras_of > 1 notes should be drawn with
         -- a sustain line.
-        has_duration = note_matras note > 1
+        has_duration = matras_of note > 1
     -- The smallest duration is a note at max speed.
     min_dur = 1 / speed_factor max_speed
     max_speed = maximum $ 0 : map (speed . fst) notes
 
-tempo_to_duration :: (a -> Matra) -> [(Tempo, a)] -> [(Duration, a)]
-tempo_to_duration note_matras = map $ \(tempo, note) ->
-    (fromIntegral (note_matras note) * matra_duration tempo, note)
+tempo_to_duration :: HasMatras a => [(Tempo, a)] -> [(Duration, a)]
+tempo_to_duration = map $ \(tempo, note) ->
+    (fromIntegral (matras_of note) * matra_duration tempo, note)
 
 data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai }
     deriving (Eq, Show)
@@ -227,20 +231,20 @@ show_position state =
 -- * functions
 
 -- | Flatten the note and return its Duration.
-note_duration :: (a -> Matra) -> Tempo -> Note a -> Duration
-note_duration note_matras tempo n = case n of
+note_duration :: HasMatras a => Tempo -> Note a -> Duration
+note_duration tempo n = case n of
     TempoChange change notes ->
-        sum $ map (note_duration note_matras (change_tempo change tempo)) notes
-    Note n -> matra_duration tempo * fromIntegral (note_matras n)
+        sum $ map (note_duration (change_tempo change tempo)) notes
+    Note n -> matra_duration tempo * fromIntegral (matras_of n)
 
 -- | Duration of one matra in the given tempo.
 matra_duration :: Tempo -> Duration
 matra_duration tempo =
     1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)
 
-map_time :: (a -> Matra) -> Tala.Tala -> (State -> a -> [Either Text b])
+map_time :: HasMatras a => Tala.Tala -> (State -> a -> [Either Text b])
     -> [Note a] -> [Either Text b]
-map_time note_matras tala f =
+map_time tala f =
     concat . snd . List.mapAccumL process initial_state
     where
     process state note = case note of
@@ -249,11 +253,11 @@ map_time note_matras tala f =
             Right state -> (next_state, concat results)
                 where (next_state, results) = List.mapAccumL process state notes
         Note n -> (next_state, f state n)
-        where next_state = advance_state note_matras tala note state
+        where next_state = advance_state tala note state
 
-advance_state :: (a -> Matra) -> Tala.Tala -> Note a -> State -> State
-advance_state note_matras tala note state = advance_state_by tala matras state
-    where matras = note_duration note_matras (state_tempo state) note
+advance_state :: HasMatras a => Tala.Tala -> Note a -> State -> State
+advance_state tala note state = advance_state_by tala matras state
+    where matras = note_duration (state_tempo state) note
 
 advance_state_by :: Tala.Tala -> Duration -> State -> State
 advance_state_by tala matras state = state

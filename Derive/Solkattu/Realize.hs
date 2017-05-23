@@ -66,11 +66,11 @@ instance Pretty Emphasis where
     pretty Normal = ""
     pretty Heavy = "v"
 
-note_matras :: Note stroke -> S.Matra
-note_matras n = case n of
-    Note {} -> 1
-    Rest -> 1
-    Pattern p -> Solkattu.pattern_matras p
+instance S.HasMatras (Note stroke) where
+    matras_of n = case n of
+        Note {} -> 1
+        Rest -> 1
+        Pattern p -> S.matras_of p
 
 instance Pretty stroke => Pretty (Note stroke) where
     pretty Rest = "_"
@@ -92,15 +92,14 @@ patterns pairs
     where
     errors = mapMaybe check pairs
     check (p, notes)
-        | notes_matras /= fromIntegral p_matras =
-            Just $ "pattern matras " <> pretty p_matras
+        | notes_matras /= fromIntegral (S.matras_of p) =
+            Just $ "pattern matras " <> pretty (S.matras_of p)
                 <> " /= realization matras " <> pretty notes_matras
                 <> " for " <> showt p
         | otherwise = Nothing
         where
-        p_matras = Solkattu.pattern_matras p
         notes_matras = notes_duration / S.matra_duration S.default_tempo
-        notes_duration = sum $ map (S.note_duration note_matras S.default_tempo)
+        notes_duration = sum $ map (S.note_duration S.default_tempo)
             notes
 
 lookup_pattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [SNote stroke]
@@ -216,9 +215,6 @@ realize smap = format_error . go
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
-
-tempo_to_duration :: [(S.Tempo, Note stroke)] -> [(S.Duration, Note stroke)]
-tempo_to_duration = S.tempo_to_duration note_matras
 
 pretty_words :: Pretty a => [a] -> Text
 pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
@@ -341,7 +337,7 @@ format_lines stroke_width width tala =
     map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
         . map (second show_stroke)
-        . S.normalize_speed note_matras tala
+        . S.normalize_speed tala
     where
     combine (prev, (state, text)) = (state, Text.drop overlap text)
         where overlap = maybe 0 (subtract stroke_width . Text.length . snd) prev
@@ -444,7 +440,7 @@ format_table tala =
     break_avartanams
         . map_with_fst emphasize_akshara
         . map (second show_stroke)
-        . S.normalize_speed note_matras tala
+        . S.normalize_speed tala
     where
     show_stroke s = case s of
         S.Attack a -> Doc.html (pretty a)

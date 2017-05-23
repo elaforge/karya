@@ -73,6 +73,7 @@ c1s = ganesh $ korvai adi (mridangam <> kendang)
 
 c2_yt1 :: Korvai
 c2_yt1 = source "youtube" $ korvai1 adi mridangam $
+    -- TODO should be tat dit takadanna din tat tam
     -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --              .ta.ka.din.na.thom.__.tat.__.din.__4
@@ -81,12 +82,11 @@ c2_yt1 = source "youtube" $ korvai1 adi mridangam $
     --                                   .tat.__.din.__4 -- ta ka din
     --                                          .din.__4
     -- TODO ... `replace` (tat.__.din.__4) (ta.ka.din.__4)
-    reduceTo 4 2 (tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4)
+    reduceTo 4 2 (tat.__.dit.__.takadinna.thom.__.tat.__.din.__4)
     . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
     where
-    mridangam = make_mridangam
+    mridangam = make_mridangam $ standard_strokes ++
         [ (tat.dit, [k, t])
-        , (ta.ka.din.na, [k, o, o, k])
         , (din.na, [o, k])
         , (thom.tat.din, [o&n, k, od])
         , (dit, [k])

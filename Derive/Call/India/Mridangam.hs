@@ -148,7 +148,7 @@ infer_pattern dur variation = do
         (Realize.lookup_pattern (Solkattu.PatternM dur) patterns)
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
-    return $ map (first (*4)) $ Realize.tempo_to_duration $
+    return $ map (first (*4)) $ Sequence.tempo_to_duration $
         Sequence.flatten notes
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
