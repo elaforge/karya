@@ -931,16 +931,3 @@ korvai = Korvai.korvai
 
 adi :: Tala.Tala
 adi = Tala.adi_tala
-
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realize_ True
-realizep = realize_ False
-
-realize_ :: Bool -> Korvai.Korvai -> IO ()
-realize_ = realize_instrument Korvai.mridangam
-
-realize_k1 :: Bool -> Korvai.Korvai -> IO ()
-realize_k1 = realize_instrument Korvai.kendang_tunggal
-
-realize_r :: Bool -> Korvai.Korvai -> IO ()
-realize_r = realize_instrument Korvai.reyong

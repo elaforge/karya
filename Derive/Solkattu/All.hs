@@ -18,43 +18,43 @@ korvais :: [Korvai.Korvai]
 korvais =
     [ variable_name "ganesh_16_11_14" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 25 Derive.Solkattu.Score.MridangamScore.ganesh_16_11_14
+        line_number 24 Derive.Solkattu.Score.MridangamScore.ganesh_16_11_14
     , variable_name "ganesh_17_02_13" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 29 Derive.Solkattu.Score.MridangamScore.ganesh_17_02_13
+        line_number 28 Derive.Solkattu.Score.MridangamScore.ganesh_17_02_13
     , variable_name "din_nadin" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 45 Derive.Solkattu.Score.MridangamScore.din_nadin
+        line_number 44 Derive.Solkattu.Score.MridangamScore.din_nadin
     , variable_name "nadin_ka" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 52 Derive.Solkattu.Score.MridangamScore.nadin_ka
+        line_number 51 Derive.Solkattu.Score.MridangamScore.nadin_ka
     , variable_name "janahan_exercise" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 67 Derive.Solkattu.Score.MridangamScore.janahan_exercise
+        line_number 66 Derive.Solkattu.Score.MridangamScore.janahan_exercise
     , variable_name "nakanadin" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 71 Derive.Solkattu.Score.MridangamScore.nakanadin
+        line_number 70 Derive.Solkattu.Score.MridangamScore.nakanadin
     , variable_name "p16_12_06_sriram2" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 77 Derive.Solkattu.Score.MridangamScore.p16_12_06_sriram2
+        line_number 76 Derive.Solkattu.Score.MridangamScore.p16_12_06_sriram2
     , variable_name "p16_12_06_janahan1" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 85 Derive.Solkattu.Score.MridangamScore.p16_12_06_janahan1
+        line_number 84 Derive.Solkattu.Score.MridangamScore.p16_12_06_janahan1
     , variable_name "p16_12_06_janahan2" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 92 Derive.Solkattu.Score.MridangamScore.p16_12_06_janahan2
+        line_number 91 Derive.Solkattu.Score.MridangamScore.p16_12_06_janahan2
     , variable_name "ksequence" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 110 Derive.Solkattu.Score.MridangamScore.ksequence
+        line_number 109 Derive.Solkattu.Score.MridangamScore.ksequence
     , variable_name "farans" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 150 Derive.Solkattu.Score.MridangamScore.farans
+        line_number 149 Derive.Solkattu.Score.MridangamScore.farans
     , variable_name "eddupu6" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 196 Derive.Solkattu.Score.MridangamScore.eddupu6
+        line_number 195 Derive.Solkattu.Score.MridangamScore.eddupu6
     , variable_name "eddupu10" $
         module_ "Derive.Solkattu.Score.MridangamScore" $
-        line_number 207 Derive.Solkattu.Score.MridangamScore.eddupu10
+        line_number 206 Derive.Solkattu.Score.MridangamScore.eddupu10
     , variable_name "c1s" $
         module_ "Derive.Solkattu.Score.Score" $
         line_number 35 Derive.Solkattu.Score.Score.c1s

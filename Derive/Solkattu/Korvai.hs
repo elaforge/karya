@@ -7,12 +7,16 @@
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
 import qualified Data.Either as Either
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Konnakol as Konnakol
@@ -150,7 +154,7 @@ to_konnakol = mapMaybe convert
 -- | Attach some metadata to a Korvai.  Someday I'll put them in some kind of
 -- searchable database and then this should be useful.
 data Metadata = Metadata {
-    _date :: !(Maybe Date)
+    _date :: !(Maybe Calendar.Day)
     , _tags :: !Tags
     } deriving (Eq, Show)
 
@@ -172,17 +176,10 @@ instance Monoid Tags where
     mempty = Tags mempty
     mappend (Tags t1) (Tags t2) = Tags (Util.Map.mappend t1 t2)
 
--- | Year, month, day.
-data Date = Date !Int !Int !Int
-    deriving (Eq, Show)
-
-instance Pretty Date where
-    pretty (Date y m d) = showt y <> "-" <> showt m <> "-" <> showt d
-
-make_date :: CallStack.Stack => Int -> Int -> Int -> Date
-make_date y m d
+date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
+date y m d
     | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
-        Date y m d
+        Calendar.fromGregorian (fromIntegral y) m d
     | otherwise = errorStack $ "invalid date: " <> showt (y, m, d)
 
 -- ** infer
@@ -283,3 +280,47 @@ instance ToStroke (Realize.Note KendangTunggal.Stroke) where
 --         ToStroke (Realize.Note stroke) where
 --     to_stroke (Realize.Note s) = to_stroke s
 --     to_stroke n = errorStack $ "requires a note: " <> pretty n
+
+
+-- * print score
+
+print_instrument :: Pretty stroke => GetInstrument stroke -> Bool -> Korvai
+    -> IO ()
+print_instrument instrument realize_patterns korvai =
+    print_results Nothing korvai $ realize instrument realize_patterns korvai
+
+print_konnakol :: Bool -> Korvai -> IO ()
+print_konnakol realize_patterns korvai =
+    print_results (Just 4) korvai $ realize_konnakol realize_patterns korvai
+
+print_konnakol_html :: Bool -> Korvai -> IO ()
+print_konnakol_html realize_patterns korvai =
+    case sequence (realize_konnakol realize_patterns korvai) of
+        Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
+        Right results
+            | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
+            | otherwise -> Realize.write_html "konnakol.html"
+                (korvai_tala korvai) notes
+            where (notes, warnings) = unzip results
+
+print_results :: Pretty stroke => Maybe Int -> Korvai
+    -> [Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)] -> IO ()
+print_results override_stroke_width korvai = print_list . map show1
+    where
+    show1 (Left err) = "ERROR:\n" <> err
+    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
+        (Realize.format override_stroke_width width tala notes)
+        warning
+    tala = korvai_tala korvai
+
+width :: Int
+width = 78
+
+print_list :: [Text] -> IO ()
+print_list [] = return ()
+print_list [x] = Text.IO.putStrLn x
+print_list xs = mapM_ print1 (zip [1..] xs)
+    where
+    print1 (i, x) = do
+        putStrLn $ "---- " <> show i
+        Text.IO.putStrLn x

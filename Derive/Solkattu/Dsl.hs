@@ -34,22 +34,19 @@ module Derive.Solkattu.Dsl (
     -- * misc
     , pprint
     -- * realize
-    , realize_instrument, realize_konnakol, realize_konnakol_html
     , index
+    , realize, realizep
+    , realize_m, realize_k1, realize_r
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
-import qualified Util.TextUtil as TextUtil
-
 import qualified Derive.Solkattu.Korvai as Korvai
-import Derive.Solkattu.Korvai (Korvai)
+import Derive.Solkattu.Korvai (Korvai, print_konnakol)
 import Derive.Solkattu.Metadata
 import Derive.Solkattu.Mridangam ((&))
 import Derive.Solkattu.Notation hiding (Sequence)
@@ -103,9 +100,8 @@ __n n = repeat (n-1) __
 
 -- | Make a single sollu 'Solkattu.Karvai'.
 karvai :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Sequence stroke
-karvai [S.Note (Solkattu.Note note)] =
-    [S.Note $ Solkattu.Note $ note { Solkattu._karvai = True }]
-karvai ns = errorStack $ "can only add karvai to a single stroke: " <> pretty ns
+karvai = modify_single_note $ Solkattu.modify_note $
+    \note -> note { Solkattu._karvai = True }
 
 -- ** directives
 
@@ -116,7 +112,8 @@ akshara n = make_note (Solkattu.Alignment n)
 sam :: Sequence stroke
 sam = akshara 0
 
--- | Align at the given akshara.
+-- | Align at the given akshara.  I use § because I don't use it so often,
+-- and it's opt-6 on OS X.
 (§) :: Sequence stroke -> Akshara -> Sequence stroke
 seq § n = make_note (Solkattu.Alignment n) <> seq
 infix 9 §
@@ -147,8 +144,8 @@ modify_single_note modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
         S.TempoChange change (modify_single_note modify sub) : ns
-    _ -> errorStack $ "expected a note: " <> pretty n
-modify_single_note _ [] = errorStack "expected a note, but got []"
+    _ -> errorStack $ "expected a single note: " <> pretty n
+modify_single_note _ [] = errorStack "expected a single note, but got []"
 
 -- ** strokes
 
@@ -167,6 +164,7 @@ stroke s = modify_single_note $
     Sequence Korvai.Stroke -> stroke -> Sequence Korvai.Stroke
 (!) = flip stroke
 
+-- | Combine strokes from different instruments.
 (<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
 a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
 
@@ -248,53 +246,21 @@ circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids
 accumulate :: Monoid a => [a] -> [a]
 accumulate = map mconcat • drop 1 • List.inits
 
--- * realize
-
--- TODO move this to... Realize?
-
-realize_instrument :: Pretty stroke => Korvai.GetInstrument stroke
-    -> Bool -> Korvai.Korvai -> IO ()
-realize_instrument instrument realize_patterns korvai =
-    show_results Nothing korvai $
-        Korvai.realize instrument realize_patterns korvai
-
-realize_konnakol :: Bool -> Korvai -> IO ()
-realize_konnakol realize_patterns korvai =
-    show_results (Just 4) korvai $
-        Korvai.realize_konnakol realize_patterns korvai
-
-realize_konnakol_html :: Bool -> Korvai -> IO ()
-realize_konnakol_html realize_patterns korvai =
-    case sequence (Korvai.realize_konnakol realize_patterns korvai) of
-        Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
-        Right results
-            | any (not • Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
-            | otherwise -> Realize.write_html "konnakol.html"
-                (Korvai.korvai_tala korvai) notes
-            where (notes, warnings) = unzip results
+-- * realize util
 
 index :: Int -> Korvai -> Korvai
 index i korvai =
     korvai { Korvai.korvai_sequences = [Korvai.korvai_sequences korvai !! i] }
 
-show_results :: Pretty stroke => Maybe Int -> Korvai
-    -> [Either Text ([(S.Tempo, Realize.Note stroke)], Text)] -> IO ()
-show_results override_stroke_width korvai = print_list • map show1
-    where
-    show1 (Left err) = "ERROR:\n" <> err
-    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
-        (Realize.format override_stroke_width width tala notes)
-        warning
-    tala = Korvai.korvai_tala korvai
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realize_m True
+realizep = realize_m False
 
-width :: Int
-width = 78
+realize_m :: Bool -> Korvai.Korvai -> IO ()
+realize_m = Korvai.print_instrument Korvai.mridangam
 
-print_list :: [Text] -> IO ()
-print_list [] = return ()
-print_list [x] = Text.IO.putStrLn x
-print_list xs = mapM_ print1 (zip [1..] xs)
-    where
-    print1 (i, x) = do
-        putStrLn $ "---- " <> show i
-        Text.IO.putStrLn x
+realize_k1 :: Bool -> Korvai.Korvai -> IO ()
+realize_k1 = Korvai.print_instrument Korvai.kendang_tunggal
+
+realize_r :: Bool -> Korvai.Korvai -> IO ()
+realize_r = Korvai.print_instrument Korvai.reyong

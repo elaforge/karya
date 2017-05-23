@@ -1774,7 +1774,7 @@ Derive:
         * Add tags to Korvai, e.g. date, source.
           * Others can be derived like tala, avartanams, nadai, speed,
             instruments.
-        - I could have duration assertions, e.g. dur 4 (ta.ka.din.na)
+        - Duration assertions, e.g. dur 4 (ta.ka.din.na)
         reyong realization:
           - some way to select between melodic and rythmic realization, and
             transposition for melodic
@@ -1791,7 +1791,7 @@ Derive:
           a group of three can be higher intensity.
           . It can also be a variant pattern, e.g.
             k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
-        + Notate Janahan's version of koraippu_janahan.  If I can get a lot
+        * Notate Janahan's version of koraippu_janahan.  If I can get a lot
           of realizations for standard sollus maybe I can start to recognize
           styles and get an automatic system for deriving strokes.
         * bug: formatting messed up with patterns: realizep koraippu_janahan

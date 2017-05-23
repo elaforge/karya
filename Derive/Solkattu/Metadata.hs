@@ -6,7 +6,7 @@
 -- defined in "Derive.Solkattu.Korvai" to avoid a circular import.
 module Derive.Solkattu.Metadata (
     -- * query
-    get, get_location
+    get, get_location, location_tags
     -- * add
     , date, source, korvai_t, koraippu, mohra, sarvalaghu, tirmanam
     , sequence_t, faran, exercise
@@ -32,14 +32,16 @@ get_location :: Korvai -> Text
 get_location korvai = case (g "module", g "line_number", g "variable_name") of
     (module_:_, line:_, name:_) -> name <> " (" <> module_ <> ":" <> line <> ")"
     _ -> "<unknown>"
-    where
-    g = flip get korvai
+    where g = flip get korvai
+
+location_tags :: [Text]
+location_tags = ["module", "line_number", "variable_name"]
 
 -- * add
 
 date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
 date y m d = Korvai.with_metadata $ mempty { Korvai._date = Just date }
-    where !date = Korvai.make_date y m d
+    where !date = Korvai.date y m d
 
 -- | Where or from who I learned it.
 source :: Text -> Korvai -> Korvai

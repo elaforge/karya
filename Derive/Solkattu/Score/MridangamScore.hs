@@ -8,7 +8,6 @@
 module Derive.Solkattu.Score.MridangamScore where
 import Prelude hiding ((.), repeat)
 
-import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.MridangamDsl
 import qualified Derive.Solkattu.Tala as Tala
 
@@ -225,13 +224,6 @@ adi = Tala.adi_tala
 -- | For a fragment which fits a certain number of beats.
 beats :: Akshara -> Tala.Tala
 beats aksharas = Tala.Tala "beats" [Tala.I] aksharas
-
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realize_ True
-realizep = realize_ False
-
-realize_ :: Bool -> Korvai.Korvai -> IO ()
-realize_ = realize_instrument Korvai.mridangam
 
 ganesh, janahan, sriram :: Korvai -> Korvai
 ganesh = source "ganesh"
