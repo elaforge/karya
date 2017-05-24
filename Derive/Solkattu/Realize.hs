@@ -193,38 +193,43 @@ instrument defaults strokes patterns = do
 
 type Event stroke = (S.Duration, Solkattu.Note stroke)
 
-realize :: forall stroke. Pretty stroke =>
-    StrokeMap stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
+realize :: forall stroke. Pretty stroke => StrokeMap stroke
+    -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
     -> Either Text [(S.Tempo, Note stroke)]
-realize smap = format_error . go
+realize smap = format_error . first concat . map_until_left realize
     where
-    go [] = ([], Nothing)
-    go ((tempo, note) : rest) = case note of
-        Solkattu.Alignment {} -> go rest
-        Solkattu.Rest -> first ((tempo, Rest) :) (go rest)
+    realize (tempo, note) notes = case note of
+        Solkattu.Alignment {} -> Right ([], notes)
+        Solkattu.Rest -> Right ([(tempo, Rest)], notes)
         -- Patterns are realized separately with 'realize_patterns'.
-        Solkattu.Pattern p -> first ((tempo, Pattern p) :) (go rest)
-        Solkattu.Note (Solkattu.NoteT {_sollu, _stroke, _tag}) ->
-            case find_sequence smap tempo _sollu _tag _stroke rest of
-                Left err -> case _stroke of
-                    Nothing -> ([], Just err)
-                    -- If it's not part of a sequence, but has a hardcoded
-                    -- stroke then I know what to do with it already.
-                    Just stroke -> first ((tempo, Note stroke) :) (go rest)
-                Right (strokes, rest) -> first (strokes++) (go rest)
+        Solkattu.Pattern p -> Right ([(tempo, Pattern p)], notes)
+        Solkattu.Note n -> case find_sequence smap tempo n notes of
+            Left err -> case Solkattu._stroke n of
+                Nothing -> Left err
+                -- If it's not part of a sequence, but has a hardcoded
+                -- stroke then I know what to do with it already.
+                Just stroke -> Right ([(tempo, Note stroke)], notes)
+            Right (strokes, rest) -> Right (strokes, rest)
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
 
-pretty_words :: Pretty a => [a] -> Text
-pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
+-- | Apply the function until it returns Left.  The function can consume a
+-- variable number of elements.
+map_until_left :: (a -> [a] -> Either err (b, [a])) -> [a] -> ([b], Maybe err)
+map_until_left f = go
+    where
+    go [] = ([], Nothing)
+    go (x:xs) = case f x xs of
+        Left err -> ([], Just err)
+        Right (val, rest) -> first (val:) (go rest)
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
-find_sequence :: StrokeMap stroke -> a -> Solkattu.Sollu -> Maybe Solkattu.Tag
-    -> Maybe (Stroke stroke) -> [(a, Solkattu.Note (Stroke stroke))]
+find_sequence :: StrokeMap stroke -> a
+    -> Solkattu.NoteT (Stroke stroke) -> [(a, Solkattu.Note (Stroke stroke))]
     -> Either Text ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
-find_sequence smap a sollu tag stroke notes =
+find_sequence smap a (Solkattu.NoteT sollu _ stroke tag) notes =
     case best_match tag (sollu : sollus) smap of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes -> Right $ replace_sollus strokes $
@@ -273,6 +278,9 @@ realize_patterns pmap = format_error . concatMap realize
         Right vals -> Right vals
         Left (vals, err) ->
             Left $ TextUtil.joinWith "\n" (pretty_words (map snd vals)) err
+
+pretty_words :: Pretty a => [a] -> Text
+pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 
 to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
 to_solkattu n = case n of

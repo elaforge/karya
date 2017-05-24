@@ -130,6 +130,7 @@ modify_stroke f = modify_note (\n -> n { _stroke = f (_stroke n) })
     -- I'd rather use the the Functor instance, but putting the Maybe in the
     -- type parameter would also be annoying.
 
+-- TODO if I make NoteT the parameter, then this is fmap
 modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
 modify_note f n = case n of
     Note note -> Note (f note)
