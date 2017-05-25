@@ -13,11 +13,15 @@ import qualified Synth.Shared.Note as Note
 
 import qualified Synth.Faust.DriverC as DriverC
 
+import Global
+
 
 main :: IO ()
 main = do
     patches <- DriverC.getPatches
-    print (Map.keys patches)
+    forM_ (Map.toList patches) $ \(name, patch) -> do
+        print name
+        print =<< DriverC.getControls patch
     -- args <- Environment.getArgs
     -- case args of
     --     [notesJson] -> process Config.cache =<< loadJson notesJson

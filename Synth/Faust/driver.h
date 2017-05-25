@@ -16,23 +16,23 @@ typedef dsp *Instrument;
 extern "C" {
 
 // Get all instruments and their names.  Return the count.
-int get_patches(const char ***names, Patch **patches);
+int faust_patches(const char ***names, Patch **patches);
 
 // Get an array of null-terminated control strings.  This is the number of
 // inputs.
-int get_controls(Patch inst, const char ***controls);
+int faust_metadata(Patch inst, const char ***keys, const char ***values);
 
 // Initilaize a new instrument.
-Instrument initialize(Patch patch, int sample_rate);
-void destroy(Instrument instrument);
+Instrument faust_initialize(Patch patch, int sample_rate);
+void faust_destroy(Instrument instrument);
 
 // Same as struct ControlSample, aka Storable (TimeVector Double).
 struct Point { double x, y; };
 
 // Pass a Point array for each control.  Interpolate controls from start_frame
 // to end_frame, passing them to inst->compute, and writing output.
-void render(Instrument inst, int start_frame, int end_frame, Point **controls,
-    float **output);
+void faust_render(Instrument inst, int start_frame, int end_frame,
+    Point **controls, float **output);
 
 }
 

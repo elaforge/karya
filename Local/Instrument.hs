@@ -39,6 +39,7 @@ import qualified Local.Instrument.Vl1 as Vl1
 import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
+import qualified Synth.Faust.PatchDb as Faust.PatchDb
 import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 import qualified App.Config as Config
 import Global
@@ -70,7 +71,11 @@ midi_synths =
     ]
 
 im_synths :: [MidiInst.Synth]
-im_synths = [Perform.Im.Play.play_cache_synth, Sampler.PatchDb.synth]
+im_synths =
+    [ Perform.Im.Play.play_cache_synth
+    , Sampler.PatchDb.synth
+    , Faust.PatchDb.synth
+    ]
 
 internal_synths :: [MidiInst.Synth]
 internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]

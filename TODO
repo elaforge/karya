@@ -564,7 +564,7 @@ synth: im:
     . Per-instrument or per-track rendering.  The synth tags rendered chunks
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
-  faust: backend:
+  faust:
     * Test a plucked string dsp, get the UI stuff working.
       . install qt, and try faust2caqt
       . too much bother, try faust2asmjs
@@ -575,7 +575,7 @@ synth: im:
       . build/faust_all.cc <- build/faust/*.cc, but get list from *.dsp
       . build/faust_all.h <- build/faust_all.cc
       . Synth/Faust/patches.cc includes faust_all.h
-    + implement reading patch db, export to Local.Instrument
+    * implement reading patch db, export to Local.Instrument
     - FaustIm reads notes and renders, implement process()
     - Implement some simple instruments, with control signals.
     - Test end to end.
@@ -590,7 +590,7 @@ synth: im:
         number of dsps by cloning them, and allocate Notes among them.
       . Call compute dsp startFrame endFrame controlsp outputp for each time
         range, and mix the output into a wav.
-  csound backend:
+  csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
 
@@ -640,6 +640,8 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  - I should probably exclude Synth modules from Local.Instrument when Synth
+    is disabled.
   . To get a path between two rules:
     ancestorOf('Synth/Sampler/Main') && descendantOf('Cmd/Cmd')
   - use new system calls and logging levels

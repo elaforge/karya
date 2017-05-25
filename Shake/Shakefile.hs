@@ -644,7 +644,7 @@ main = do
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
-        faustRules
+        when Config.enableSynth faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig

@@ -1,7 +1,7 @@
 import("stdfaust.lib");
 
 declare description "Simple sine wave.";
-declare c1 "pitch";
-declare c2 "amp";
+declare control0_pitch "Pitch signal.";
+declare control1_amp "Amplitude signal.";
 
 process(pitch, amp) = amp * os.osc(pitch);
