@@ -286,7 +286,9 @@ hsBinaries =
         { hsRtsFlags = ["-N", "-A8m"] }
     ]
     ++ if not Config.enableSynth then [] else
-        [ plain "sampler" "Synth/Sampler/Main.hs" ]
+        [ plain "sampler" "Synth/Sampler/Main.hs"
+        , plain "faust-im" "Synth/Faust/FaustIm.hs"
+        ]
     where
     plain name main = HsBinary
         { hsName = name
@@ -366,9 +368,12 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
-    ] ++ [(hsc, ["Ui/c_interface.cc"])
-        | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
-            "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
+    , ("Synth/Faust/DriverC.hsc", ["Synth/Faust/driver.cc"])
+    ] ++
+    [ (hsc, ["Ui/c_interface.cc"])
+    | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
+              "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]
+    ]
 
 criterionHsSuffix :: FilePath
 criterionHsSuffix = "_criterion.hs"
@@ -639,6 +644,7 @@ main = do
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
+        faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
@@ -669,7 +675,7 @@ main = do
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let iconset = "doc/icon" </> replaceExt fn "iconset"
-            icons <- Shake.getDirectoryFiles "" [iconset <> "/*"]
+            icons <- Shake.getDirectoryFiles "" [iconset </> "*"]
             need icons
             Util.system "iconutil" ["-c", "icns", "-o", fn, iconset]
         forM_ extractableDocs $ \fn ->
@@ -1056,6 +1062,81 @@ generateKorvais = generatedKorvais %> \_ -> do
 
 generatedKorvais :: FilePath
 generatedKorvais = "Derive/Solkattu/All.hs"
+
+-- * faust
+
+faustDspDir, faustSrcDir :: FilePath
+faustDspDir = "Synth/Faust/dsp"
+faustSrcDir = build </> "faust"
+
+faustRules :: Shake.Rules ()
+faustRules = faustRule *> faustAllRule
+
+faustRule :: Shake.Rules ()
+faustRule = faustSrcDir </> "*.cc" %> \output -> do
+    need [srcToDsp output]
+    Util.cmdline $ faustCmdline output (srcToDsp output)
+
+faustAllRule :: Shake.Rules ()
+faustAllRule = build </> "faust_all.cc" %> \output -> do
+    dsps <- Shake.getDirectoryFiles "" [faustDspDir </> "*.dsp"]
+    need $ map dspToSrc dsps
+    Shake.writeFileChanged output $ faustAll dsps
+
+faustAll :: [FilePath] -> String
+faustAll dsps = unlines
+    -- For some reason faust assumes these are global.
+    [ "#include <algorithm>"
+    , "using std::min;"
+    , "using std::max;"
+    , ""
+    , unlines (map ("#include "<>) includes)
+    , "static const int all_count = " <> show (length names) <> ";"
+    , ""
+    , "static const char *all_names[] ="
+    , "    { " <> Seq.join "\n    , " (map show names)
+    , "    };"
+    , ""
+    -- , unlines (map constructor names)
+    -- , "typedef dsp *(*Make)();"
+    -- , "static const Make all_dsps[] ="
+    -- , "    { " <> Seq.join "\n    , " (map ("make_"<>) names)
+    -- , "    , nullptr };"
+    , "static const dsp *all_dsps[] ="
+    , "    { " <> Seq.join "\n    , " (map new names)
+    , "    };"
+    ]
+    where
+    new name = "new __faust_" <> name <> "()"
+    -- constructor name =
+    --     "static dsp *make_" <> name <> "() { return new __faust_" <> name
+    --         <> "(); }"
+    names = map dspToName dsps
+    includes =
+        "<faust/gui/UI.h>" : "<faust/gui/meta.h>" : "<faust/dsp/dsp.h>"
+        : map (show . dspToSrc) dsps
+
+faustCmdline :: FilePath -> FilePath -> Util.Cmdline
+faustCmdline output input =
+    ( "FAUST"
+    , output
+    , ["faust", input, "--class-name", "__faust_" <> dspToName input
+      , "-o", output
+      ]
+    )
+
+dspToName :: FilePath -> String
+dspToName = FilePath.dropExtension . FilePath.takeFileName
+
+-- | build/faust/x.cc -> Synth/Faust/dsp/x.dsp
+srcToDsp :: FilePath -> FilePath
+srcToDsp src = faustDspDir
+    </> FilePath.replaceExtension (FilePath.takeFileName src) ".dsp"
+
+-- | Synth/Faust/dsp/x.dsp -> build/faust/x.cc
+dspToSrc :: FilePath -> FilePath
+dspToSrc dsp = faustSrcDir
+    </> FilePath.replaceExtension (FilePath.takeFileName dsp) ".cc"
 
 -- * markdown
 

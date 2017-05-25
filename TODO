@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Will TimeVectorStorable.Sample Double have both fields unpacked?
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
     . Ideally it could be a modifier to any scale, so it would modify input
@@ -563,6 +564,32 @@ synth: im:
     . Per-instrument or per-track rendering.  The synth tags rendered chunks
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
+  faust: backend:
+    * Test a plucked string dsp, get the UI stuff working.
+      . install qt, and try faust2caqt
+      . too much bother, try faust2asmjs
+      . doesn't work, maybe FaustLive... does work
+    * Make shakefile convert .dsp and compile the resulting .cc files, and
+      collect into a table.
+      . build/faust/*.cc <- Synth/Faust/dsp/*.dsp
+      . build/faust_all.cc <- build/faust/*.cc, but get list from *.dsp
+      . build/faust_all.h <- build/faust_all.cc
+      . Synth/Faust/patches.cc includes faust_all.h
+    + implement reading patch db, export to Local.Instrument
+    - FaustIm reads notes and renders, implement process()
+    - Implement some simple instruments, with control signals.
+    - Test end to end.
+    plan:
+      . Faust has a bunch of *.dsp files.
+      . shakefile runs faust to generate .cc from the result, and then collect
+        into a map of (name, *dsp)
+      . Export a Load function that introspects all of those for the inst db.
+        If there is karya code, it gets attached by name just like Sampler.
+      . faust_driver loads Notes, and maps PatchName to dsp pointers.
+      . Based on patch config (polyphonic, strings, etc.), allocate a certain
+        number of dsps by cloning them, and allocate Notes among them.
+      . Call compute dsp startFrame endFrame controlsp outputp for each time
+        range, and mix the output into a wav.
   csound backend:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
@@ -1746,7 +1773,13 @@ Derive:
           'Group Matras (Maybe (Reduction (Front|Back))) Sequence'
         - Ornaments to fill in karvai, e.g. with taka and takatiku
         - Alternate karvai stroke for middle karvai variation.
-        - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.333.
+        - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
+          end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
+          . Variation markers put a branch in the realization, so now I have
+            multiple realizations, and I need some way to not just enumerate
+            them, but choose a certain path.
+          . This is also part of the intensity pattern, where the final repeat
+            may have an alternate more intense realization.
         * Put multiple sequences in a Korvai?
           . They all have the same tala and instruments / stroke map anyway,
             and this way I can group them in a search.
@@ -2519,6 +2552,11 @@ long term:
 faust:
   https://ccrma.stanford.edu/~rmichon/faustDay2017/
     . http://faust.grame.fr/faustplayground/
+  . Basic job is to write a wrapper that loads Notes and drives the faust
+    instruments.
+  . Can I call C++ output via FFI?  Or use C backend?
+  . Write a [(Time, Y)] breakpoint interpolator in faust.  If it reads the
+    binary format directly I can pass a ForeignPtr without copying.
 
 planning / research
   text score: doc/dev_notes/text-score.md
