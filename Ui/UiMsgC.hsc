@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.UiMsgC (get_ui_msgs) where
+import qualified Util.CUtil as CUtil
 import Util.ForeignC
 
 import qualified Ui.Block as Block
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Util as Util
 import Types
 
 
@@ -124,7 +124,7 @@ peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_input) -> do
         ctext <- (#peek UiMsg, input.text) msgp :: IO CString
         text <- if ctext == nullPtr then return Nothing
-            else Just <$> Util.peekCString ctext
+            else Just <$> CUtil.peekCString ctext
         return $ UiMsg.UpdateInput text
     (#const UiMsg::msg_track_scroll) -> do
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int

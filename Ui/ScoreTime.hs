@@ -16,11 +16,11 @@ import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Crc32Instances ()
+import qualified Util.CUtil as CUtil
 import qualified Util.ForeignC as C
 import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 
-import qualified Ui.Util as Util
 import qualified Derive.ShowVal as ShowVal
 import Global
 
@@ -81,8 +81,8 @@ divisor = 2^7 * 3^3 * 5^2 * 7
 instance C.CStorable ScoreTime where
     sizeOf _ = C.sizeOf (0 :: C.CDouble)
     alignment _ = C.alignment (0 :: C.CDouble)
-    poke p (ScoreTime d) = C.poke (C.castPtr p) (Util.c_double d)
-    peek p = ScoreTime . Util.hs_double <$> C.peek (C.castPtr p)
+    poke p (ScoreTime d) = C.poke (C.castPtr p) (CUtil.c_double d)
+    peek p = ScoreTime . CUtil.hs_double <$> C.peek (C.castPtr p)
 
 instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec

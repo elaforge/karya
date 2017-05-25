@@ -19,10 +19,10 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Foreign
 
+import qualified Util.CUtil as CUtil
 import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiMsgC as UiMsgC
-import qualified Ui.Util as Util
 
 import Global
 
@@ -53,7 +53,7 @@ type QuitRequest = MVar.MVar ()
 -- When the app exits, the ui loop will be aborted.
 event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
 event_loop ui_chan quit_request msg_chan = do
-    finalizer <- c_make_free_fun_ptr Util.free_fun_ptr
+    finalizer <- c_make_free_fun_ptr CUtil.free_fun_ptr
     c_initialize finalizer
     while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         fltk_event_loop ui_chan msg_chan

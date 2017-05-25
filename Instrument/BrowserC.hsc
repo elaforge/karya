@@ -6,8 +6,8 @@ module Instrument.BrowserC where
 import Data.Text (Text)
 
 import Util.ForeignC
+import qualified Util.CUtil as CUtil
 import qualified Util.Fltk as Fltk
-import qualified Ui.Util
 
 #include "Instrument/interface.h"
 
@@ -23,7 +23,7 @@ foreign import ccall "create_browser"
         -> FunPtr Fltk.MsgCallback -> IO (Ptr Window)
 
 insert_line :: Window -> Int -> Text -> Fltk.Fltk ()
-insert_line win n line = Fltk.action $ Ui.Util.withText line $ \linep ->
+insert_line win n line = Fltk.action $ CUtil.withText line $ \linep ->
     c_insert_line (Fltk.win_ptr win) (fromIntegral n) linep
 foreign import ccall "insert_line"
     c_insert_line :: Ptr Window -> CInt -> CString -> IO ()
@@ -35,7 +35,7 @@ remove_line win n = Fltk.action $
 foreign import ccall "remove_line" c_remove_line :: Ptr Window -> CInt -> IO ()
 
 set_info :: Window -> Text -> Fltk.Fltk ()
-set_info win info = Fltk.action $ Ui.Util.withText info $ \infop ->
+set_info win info = Fltk.action $ CUtil.withText info $ \infop ->
     c_set_info (Fltk.win_ptr win) infop
 
 foreign import ccall "set_info" c_set_info :: Ptr Window -> CString -> IO ()

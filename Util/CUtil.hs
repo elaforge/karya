@@ -2,15 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Utilities for the SomethingC layer.
-
-    - Fltk monad
+{- | Utilities for C wrappers.
 
     - Functions to convert between haskell and c types.
 
     - Generic UI debugging functions.
 -}
-module Ui.Util where
+module Util.CUtil where
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as Unsafe
 import qualified Data.Text as Text

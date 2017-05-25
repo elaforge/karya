@@ -27,6 +27,7 @@ import Data.Word (Word8)
 import qualified Numeric
 import qualified System.FilePath as FilePath
 
+import qualified Util.CUtil as CUtil
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -35,7 +36,6 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Encode
 import qualified Midi.Midi as Midi
-import qualified Ui.Util
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
@@ -456,7 +456,7 @@ decode config = decode_from []
             either throw (return . (:[]) . (,) name) $ decode_range num range
         Str chars -> do
             str <- Get.getByteString chars
-            return [(name, RStr $ Text.strip $ Ui.Util.decodeUtf8 str)]
+            return [(name, RStr $ Text.strip $ CUtil.decodeUtf8 str)]
         SubSpec specs -> do
             subs <- rmap (name : path) [] specs
             return [(name, RMap subs)]

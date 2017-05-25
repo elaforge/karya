@@ -5,10 +5,10 @@
 module Ui.Color where
 import Data.Bits
 import qualified Data.Text as Text
-import Util.ForeignC
 
+import qualified Util.CUtil as CUtil
+import Util.ForeignC
 import qualified Util.Num as Num
-import qualified Ui.Util as Util
 
 import Global
 
@@ -107,4 +107,4 @@ poke_color colorp (Color r g b a) = do
     (#poke Color, g) colorp (c g)
     (#poke Color, b) colorp (c b)
     (#poke Color, a) colorp (c a)
-    where c double = Util.c_uchar (floor (double*255))
+    where c double = CUtil.c_uchar (floor (double*255))

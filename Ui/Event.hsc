@@ -52,15 +52,15 @@ import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Util.ForeignC
 
+import qualified Util.CUtil as CUtil
+import Util.ForeignC
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
-import qualified Ui.Util as Util
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
@@ -326,7 +326,8 @@ instance CStorable Event where
 poke_event :: Ptr Event -> Event -> IO ()
 poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrack::draw_area.
-    textp <- if Text.null text then return nullPtr else Util.textToCString0 text
+    textp <- if Text.null text
+        then return nullPtr else CUtil.textToCString0 text
     (#poke Event, start) eventp start
     (#poke Event, duration) eventp dur
     (#poke Event, text) eventp textp

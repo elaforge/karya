@@ -11,9 +11,11 @@
 module Util.TimeVectorStorable where
 import qualified Data.Aeson as Aeson
 import Foreign
+
+import qualified Util.CUtil as CUtil
 import qualified Util.ForeignC as C
 import qualified Util.Serialize as Serialize
-import qualified Ui.Util as Util
+
 import qualified Perform.RealTime as RealTime
 
 
@@ -31,11 +33,11 @@ instance Storable (Sample Double) where
     alignment _ = alignment (0 :: C.CDouble)
     poke sp (Sample time val) = do
         (#poke ControlSample, time) sp time
-        (#poke ControlSample, val) sp (Util.c_double val)
+        (#poke ControlSample, val) sp (CUtil.c_double val)
     peek sp = do
         time <- (#peek ControlSample, time) sp
         val <- (#peek ControlSample, val) sp
-        return $ Sample time (Util.hs_double val)
+        return $ Sample time (CUtil.hs_double val)
 
 instance C.CStorable (Sample Double) where
     sizeOf = sizeOf

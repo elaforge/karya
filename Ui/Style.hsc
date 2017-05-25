@@ -12,10 +12,10 @@ module Ui.Style (
 import qualified Data.List as List
 import qualified Data.Word as Word
 
+import qualified Util.CUtil as CUtil
 import Util.ForeignC
 import qualified Util.Serialize as Serialize
 import qualified Ui.Color as Color
-import qualified Ui.Util as Util
 
 
 data Style = Style {
@@ -49,8 +49,8 @@ instance CStorable Style where
 
 poke_text_style stylep (Style font face size text_color event_color) = do
     (#poke EventStyle, font) stylep
-        (Util.c_int (font_code font + face_code face))
-    (#poke EventStyle, size) stylep (Util.c_nat size)
+        (CUtil.c_int (font_code font + face_code face))
+    (#poke EventStyle, size) stylep (CUtil.c_nat size)
     (#poke EventStyle, text_color) stylep text_color
     (#poke EventStyle, event_color) stylep event_color
 

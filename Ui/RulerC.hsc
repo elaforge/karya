@@ -12,10 +12,11 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.CUtil as CUtil
 import Util.ForeignC
 import qualified Util.TimeVector as TimeVector
+
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Util as Util
 import Types
 
 
@@ -23,7 +24,7 @@ with_ruler :: Ruler.Ruler
     -> (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a) -> IO a
 with_ruler ruler f =
     with ruler $ \rulerp -> with_marklists marklists $ \len mlists ->
-        f rulerp mlists (Util.c_int len)
+        f rulerp mlists (CUtil.c_int len)
     where marklists = map snd $ Map.elems $ Ruler.ruler_marklists ruler
 
 no_ruler :: (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a)
@@ -38,7 +39,7 @@ with_marklists :: [Ruler.Marklist] -> (Int -> Ptr (Ptr Ruler.Marklist) -> IO a)
     -> IO a
 with_marklists mlists f = do
     fptrs <- mapM marklist_fptr mlists
-    Util.with_foreign_ptrs fptrs $ \ptrs -> do
+    CUtil.with_foreign_ptrs fptrs $ \ptrs -> do
         mapM_ c_marklist_incref ptrs
         withArrayLen ptrs f
 
@@ -55,7 +56,7 @@ marklist_fptr mlist = MVar.modifyMVar (extract mlist) create
 create_marklist :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
 create_marklist mlist = do
     marksp <- newArray $ map PosMark $ Ruler.ascending 0 mlist
-    mlistp <- c_create_marklist marksp $ Util.c_int $
+    mlistp <- c_create_marklist marksp $ CUtil.c_int $
         TimeVector.length $ Ruler.marklist_vec mlist
     newForeignPtr c_marklist_decref mlistp
 
@@ -87,14 +88,14 @@ instance CStorable Ruler.Ruler where
 poke_ruler :: Ptr Ruler.Ruler -> Ruler.Ruler -> IO ()
 poke_ruler rulerp ruler@(Ruler.Ruler _ bg show_names align_to_bottom) = do
     (#poke RulerConfig, bg) rulerp bg
-    (#poke RulerConfig, show_names) rulerp (Util.c_bool show_names)
+    (#poke RulerConfig, show_names) rulerp (CUtil.c_bool show_names)
     -- The haskell layer no longer differentiates between ruler track rulers
     -- and event track overlay rulers, so these are hardcoded.  This way the
     -- fltk layer doesn't have to know anything about that and simply does
     -- what it's told.
-    (#poke RulerConfig, use_alpha) rulerp (Util.c_bool True)
-    (#poke RulerConfig, full_width) rulerp (Util.c_bool True)
-    (#poke RulerConfig, align_to_bottom) rulerp (Util.c_bool align_to_bottom)
+    (#poke RulerConfig, use_alpha) rulerp (CUtil.c_bool True)
+    (#poke RulerConfig, full_width) rulerp (CUtil.c_bool True)
+    (#poke RulerConfig, align_to_bottom) rulerp (CUtil.c_bool align_to_bottom)
     (#poke RulerConfig, last_mark_pos) rulerp (Ruler.time_end ruler)
 
 instance CStorable Ruler.Mark where
@@ -114,10 +115,10 @@ poke_mark markp (Ruler.Mark
     }) = do
         -- Must be freed by the caller.
         namep <- if Text.null name then return nullPtr
-            else Util.textToCString0 name
-        (#poke Mark, rank) markp (Util.c_int rank)
-        (#poke Mark, width) markp (Util.c_int width)
+            else CUtil.textToCString0 name
+        (#poke Mark, rank) markp (CUtil.c_int rank)
+        (#poke Mark, width) markp (CUtil.c_int width)
         (#poke Mark, color) markp color
         (#poke Mark, name) markp namep
-        (#poke Mark, name_zoom_level) markp (Util.c_double name_zoom_level)
-        (#poke Mark, zoom_level) markp (Util.c_double zoom_level)
+        (#poke Mark, name_zoom_level) markp (CUtil.c_double name_zoom_level)
+        (#poke Mark, zoom_level) markp (CUtil.c_double zoom_level)

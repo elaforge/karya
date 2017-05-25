@@ -62,13 +62,13 @@ import qualified Foreign
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
+import qualified Util.CUtil as CUtil
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Util as Util
 import qualified Derive.ShowVal as ShowVal
 import Global
 
@@ -90,8 +90,8 @@ newtype RealTime = RealTime Double deriving
 instance Foreign.Storable RealTime where
     sizeOf _ = Foreign.sizeOf (0 :: C.CDouble)
     alignment _ = Foreign.alignment (0 :: C.CDouble)
-    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (Util.c_double d)
-    peek p = RealTime . Util.hs_double <$> Foreign.peek (Foreign.castPtr p)
+    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (CUtil.c_double d)
+    peek p = RealTime . CUtil.hs_double <$> Foreign.peek (Foreign.castPtr p)
 
 instance C.CStorable RealTime where
     sizeOf = Foreign.sizeOf
