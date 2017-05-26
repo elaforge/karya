@@ -20,7 +20,17 @@ int faust_patches(const char ***names, Patch **patches);
 
 // Get an array of null-terminated control strings.  This is the number of
 // inputs.
+//
+// The arrays are allocated, so the caller must free them.  The strings
+// themselves are static.
 int faust_metadata(Patch inst, const char ***keys, const char ***values);
+
+// Get UI controls, with docs, and pointers to their values for modification.
+//
+// The arrays are allocated.  Control strings are static, but docs are also
+// allocated.
+int faust_controls(Patch patch, const char ***out_controls,
+    char ***out_docs, FAUSTFLOAT ***out_vals);
 
 // Initilaize a new instrument.
 Instrument faust_initialize(Patch patch, int sample_rate);

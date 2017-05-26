@@ -576,6 +576,14 @@ synth: im:
       . build/faust_all.h <- build/faust_all.cc
       . Synth/Faust/patches.cc includes faust_all.h
     * implement reading patch db, export to Local.Instrument
+    + If I use GUI elements for controls then they update at "control rate",
+      which is probably actually enough actually.  It also means I can reuse
+      the GUI controls.
+      . But faust has to resample those to a-rate anyway, so if I use controls
+        I do that twice in a complicated way and add some latency, for no
+        other benefit.
+      . Wait and see if interactive GUI experimentation plus compatibility is
+        worth it.  Also MIDI is "GUI."  Probably yes.
     - FaustIm reads notes and renders, implement process()
     - Implement some simple instruments, with control signals.
     - Test end to end.
@@ -590,6 +598,8 @@ synth: im:
         number of dsps by cloning them, and allocate Notes among them.
       . Call compute dsp startFrame endFrame controlsp outputp for each time
         range, and mix the output into a wav.
+    . https://ccrma.stanford.edu/~rmichon/faustDay2017/
+    . http://faust.grame.fr/faustplayground/
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
@@ -2550,15 +2560,6 @@ long term:
   - Unify environ, controls, and pitch signals by making signals of
     arbitrary type.
   - print scores
-
-faust:
-  https://ccrma.stanford.edu/~rmichon/faustDay2017/
-    . http://faust.grame.fr/faustplayground/
-  . Basic job is to write a wrapper that loads Notes and drives the faust
-    instruments.
-  . Can I call C++ output via FFI?  Or use C backend?
-  . Write a [(Time, Y)] breakpoint interpolator in faust.  If it reads the
-    binary format directly I can pass a ForeignPtr without copying.
 
 planning / research
   text score: doc/dev_notes/text-score.md

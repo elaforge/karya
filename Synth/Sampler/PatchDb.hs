@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.PatchDb where
+-- | Export a 'synth' with all the supported patches.
+module Synth.Sampler.PatchDb (db, synth) where
 import qualified Data.Map as Map
 
 import qualified Cmd.Cmd as Cmd

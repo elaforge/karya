@@ -7,8 +7,6 @@ module Synth.Faust.FaustIm (main) where
 import qualified Data.Map as Map
 import qualified System.Environment as Environment
 
-import qualified Synth.Sampler.Config as Config
-import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Shared.Note as Note
 
 import qualified Synth.Faust.DriverC as DriverC
@@ -22,6 +20,7 @@ main = do
     forM_ (Map.toList patches) $ \(name, patch) -> do
         print name
         print =<< DriverC.getControls patch
+        print =<< DriverC.getUiControls patch
     -- args <- Environment.getArgs
     -- case args of
     --     [notesJson] -> process Config.cache =<< loadJson notesJson
