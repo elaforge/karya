@@ -17,9 +17,6 @@ import qualified Synth.Shared.Control as Control
 
 import Global
 
-#include "Synth/Faust/driver.h"
-
-
 
 -- | A patch can be used to create 'Instrument's.
 type Patch = Ptr DspP
