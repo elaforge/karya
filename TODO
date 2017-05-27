@@ -587,7 +587,6 @@ synth: im:
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
     * FaustIm reads notes and renders, implement process()
-    - Make Notes into sample sources, then mix to the output.
     - Implement some simple instruments, with control signals.
     - Test end to end.
     - Assert that inst->getNumInputs() == length controls.

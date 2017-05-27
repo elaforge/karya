@@ -11,8 +11,8 @@
 module Synth.Shared.Config where
 import System.FilePath ((</>))
 
-
 #include "config.h"
+
 
 data Config = Config {
     -- | Path to the binary.
@@ -23,7 +23,7 @@ data Config = Config {
 
 defaultConfig :: Config
 defaultConfig = Config
-    { binary = "build/opt/sampler"
+    { binary = "build/opt/sampler-im"
     , notes = dataDir </> "notes"
     }
 

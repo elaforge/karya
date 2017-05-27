@@ -286,7 +286,7 @@ hsBinaries =
         { hsRtsFlags = ["-N", "-A8m"] }
     ]
     ++ if not Config.enableSynth then [] else
-        [ plain "sampler" "Synth/Sampler/Main.hs"
+        [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
         , plain "faust-im" "Synth/Faust/FaustIm.hs"
         ]
     where

@@ -4,7 +4,7 @@
 
 {-# LANGUAGE LambdaCase #-}
 -- | Offline sampler.
-module Synth.Sampler.Main (main) where
+module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
