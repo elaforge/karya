@@ -292,8 +292,6 @@ instance LogMonad IO where
         when (prio <= msg_priority log_msg) $ do
             log_msg <- add_time log_msg
             write_msg log_msg
-            when (msg_priority log_msg >= Error) $
-                Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
