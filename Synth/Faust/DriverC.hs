@@ -2,18 +2,29 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Low level binding to driver.cc.
 module Synth.Faust.DriverC (
     Patch, Instrument
     , getPatches
     , getControls
     , getUiControls
+    -- * Instrument
+    , withInstrument, instrumentInputs, instrumentOutputs
+    , render
 ) where
+import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Vector.Storable as Vector.Storable
+
+import qualified Foreign
+
 import qualified Util.CUtil as CUtil
 import Util.ForeignC
-
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Signal as Signal
+import qualified Synth.Shared.Types as Types
 
 import Global
 
@@ -27,7 +38,7 @@ type Instrument = Ptr DspI
 data DspI
 
 -- | Get all patches and their names.
-getPatches :: IO (Map Text Patch)
+getPatches :: IO (Map Types.PatchName Patch)
 getPatches = alloca $ \namespp -> alloca $ \patchpp -> do
     count <- fromIntegral <$> c_faust_patches namespp patchpp
     names <- peekTexts count =<< peek namespp
@@ -91,16 +102,57 @@ foreign import ccall "faust_controls"
     c_faust_controls :: Patch -> Ptr (Ptr CString) -> Ptr (Ptr CString)
         -> Ptr (Ptr (Ptr CFloat)) -> IO CInt
 
--- dsp *faust_initialize(Patch dsp, int sample_rate);
+withInstrument :: Patch -> (Instrument -> IO a) -> IO a
+withInstrument patch = Exception.bracket (initialize patch) destroy
+
+initialize :: Patch -> IO Instrument
+initialize patch = c_faust_initialize patch (CUtil.c_int Config.samplingRate)
+
+-- Instrument faust_initialize(Patch dsp, int sample_rate);
 foreign import ccall "faust_initialize"
     c_faust_initialize :: Patch -> CInt -> IO Instrument
 
--- void faust_destroy(dsp *instrument);
-foreign import ccall "faust_destroy"
-    c_faust_destroy :: Instrument -> IO ()
+destroy :: Instrument -> IO ()
+destroy = c_faust_destroy
+-- void faust_destroy(Instrument instrument);
+foreign import ccall "faust_destroy" c_faust_destroy :: Instrument -> IO ()
+
+instrumentInputs, instrumentOutputs :: Instrument -> IO Int
+instrumentInputs = fmap fromIntegral . c_faust_num_inputs
+instrumentOutputs = fmap fromIntegral . c_faust_num_outputs
+
+foreign import ccall "faust_num_inputs"
+    c_faust_num_inputs :: Instrument -> IO CInt
+foreign import ccall "faust_num_outputs"
+    c_faust_num_outputs :: Instrument -> IO CInt
+
+type Frames = Int
+type Sample = Signal.Sample Double
+
+render :: Instrument  -> Frames -> Frames -> [(Ptr Sample, Int)]
+    -> IO [Vector.Storable.Vector Float]
+render inst start end controlLengths = do
+    let (controls, lens) = unzip controlLengths
+    let frames = end - start
+    outputs <- instrumentOutputs inst
+    buffer_fptrs <- mapM Foreign.mallocForeignPtrArray
+        (replicate outputs frames)
+    -- Holy manual memory management, Batman.
+    CUtil.withForeignPtrs buffer_fptrs $ \buffer_ptrs ->
+        withArray buffer_ptrs $ \bufferp ->
+        withArray controls $ \controlsp ->
+        withArray (map CUtil.c_int lens) $ \lensp ->
+            c_faust_render inst (CUtil.c_int start) (CUtil.c_int end)
+                controlsp lensp bufferp
+    return $ map (\fptr -> Vector.Storable.unsafeFromForeignPtr0 fptr frames)
+        buffer_fptrs
 
 -- void faust_render(Instrument inst, int start_frame, int end_frame,
---     Point **controls, float **output);
+--     const ControlSample **controls, const int *control_lengths,
+--     float **output)
+foreign import ccall "faust_render"
+    c_faust_render :: Instrument -> CInt -> CInt
+        -> Ptr (Ptr Sample) -> Ptr CInt -> Ptr (Ptr Float) -> IO ()
 
 -- * util
 

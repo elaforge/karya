@@ -11,6 +11,9 @@
 
 #include "build/faust_all.cc"
 
+// TODO split DEBUG and ASSERT out.
+#include "fltk/util.h"
+
 
 extern "C" {
 
@@ -143,10 +146,101 @@ faust_destroy(Instrument instrument)
     delete instrument;
 }
 
-void
-faust_render(Instrument inst, int start_frame, int end_frame, Point **controls,
-    float **output)
+int
+faust_num_inputs(Instrument instrument)
 {
+    return instrument->getNumInputs();
+}
+
+int
+faust_num_outputs(Instrument instrument)
+{
+    return instrument->getNumOutputs();
+}
+
+// render //////////////////////////////
+
+static RealTime
+frame_to_second(int srate, int frame)
+{
+    return double(frame) / double(srate);
+}
+
+// TODO copied from fltk/EventTrack.cc.  Make a TimeVector class with things
+// like this.
+
+static bool
+compare_control_sample(const ControlSample &s1, const ControlSample &s2)
+{
+    return s1.time < s2.time;
+}
+
+static int
+find_sample(const ControlSample *samples, int length, RealTime start)
+{
+    if (!samples)
+        return 0;
+    ControlSample sample(start, 0);
+    const ControlSample *found = std::lower_bound(
+        samples, samples + length, sample, compare_control_sample);
+    // Back up one to make sure I have the sample before start.
+    if (found > samples)
+        found--;
+    return found - samples;
+}
+
+static FAUSTFLOAT
+interpolate(const ControlSample *samples, int length, int index, RealTime time)
+{
+    if (index >= length)
+        return 0;
+    const ControlSample &prev = samples[index];
+    if (index + 1 >= length)
+        return prev.val;
+    const ControlSample &next = samples[index + 1];
+    return (next.val - prev.val) / (next.time - prev.time)
+        * (time - prev.time) + prev.val;
+}
+
+static FAUSTFLOAT *
+interpolate_control(int srate, const ControlSample *samples, int length,
+    int start_frame, int end_frame)
+{
+    // TODO these should also always be the same size, so I can allocate once.
+    // Maybe stash them in Instrument.
+    FAUSTFLOAT *out =
+        (FAUSTFLOAT *) calloc(end_frame - start_frame, sizeof(FAUSTFLOAT));
+
+    RealTime start = frame_to_second(srate, start_frame);
+    int index = find_sample(samples, length, start);
+    for (int frame = start_frame; frame < end_frame; frame++) {
+        RealTime time = frame_to_second(srate, frame);
+        while (index+1 < length && samples[index+1].time <= time)
+            index++;
+        out[frame - start_frame] = interpolate(samples, length, index, time);
+    }
+    return out;
+}
+
+void
+faust_render(Instrument inst, int start_frame, int end_frame,
+    const ControlSample **controls, const int *control_lengths, float **output)
+{
+    ASSERT(end_frame >= start_frame);
+
+    int controls_length = inst->getNumInputs();
+    FAUSTFLOAT **input =
+        (FAUSTFLOAT **) calloc(controls_length, sizeof(FAUSTFLOAT *));
+    for (int i = 0; i < controls_length; i++) {
+        input[i] = interpolate_control(
+            inst->getSampleRate(), controls[i], control_lengths[i],
+            start_frame, end_frame);
+    }
+    inst->compute(end_frame - start_frame, input, output);
+    for (int i = 0; i < controls_length; i++) {
+        free(input[i]);
+    }
+    free(input);
 }
 
 }

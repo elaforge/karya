@@ -19,15 +19,9 @@
 #include "Track.h"
 #include "RulerOverlay.h"
 #include "SelectionOverlay.h"
+#include "TimeVector.h"
 #include "types.h"
 
-
-// TODO make these const, except test_block wants to initialize them...
-struct ControlSample {
-    RealTime time;
-    double val;
-    ControlSample(RealTime time, double val) : time(time), val(val) {}
-};
 
 class TrackSignal {
 public:

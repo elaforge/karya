@@ -584,9 +584,32 @@ synth: im:
         other benefit.
       . Wait and see if interactive GUI experimentation plus compatibility is
         worth it.  Also MIDI is "GUI."  Probably yes.
-    - FaustIm reads notes and renders, implement process()
+      . UI metadata like [key1: val][key2: val] winds up as calls to
+        ui->metadata("key1", "val")
+    * FaustIm reads notes and renders, implement process()
+    - Make Notes into sample sources, then mix to the output.
     - Implement some simple instruments, with control signals.
     - Test end to end.
+    - Assert that inst->getNumInputs() == length controls.
+    - Make an instrument into a conduit source.  Then I can render
+      progressively instead of a whole note.
+    - How to know when to drop notes?  I think I have to use a heuristic
+      like >1s of audio under a threshold after note off.
+    - Then I can use controls by setting controls at the audio chunk rate.
+      - Store persistent buffers in Instrument.
+    - Instruments with explicit voice assignments (e.g. strings) use Attribues
+      to assign the string, and create a set number of Instruments which are
+      reused.
+    cleanup:
+      - Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
+        geometry stuff for it.
+      - Put find_sample into a TimeVector.cc library.
+    . Standard control names for MIDI: freq (pitch), gain (amp), gate (note on)
+    - More efficient conduit-audio:
+      . I think I have to modify conduit-audio to have a time offset, and then
+        I can implement silent efficiently.
+      . Also, Audio.mix pads with zeroes on the end too, it should be able to
+        drop (and close) the source.
     plan:
       . Faust has a bunch of *.dsp files.
       . shakefile runs faust to generate .cc from the result, and then collect
@@ -598,6 +621,19 @@ synth: im:
         number of dsps by cloning them, and allocate Notes among them.
       . Call compute dsp startFrame endFrame controlsp outputp for each time
         range, and mix the output into a wav.
+
+      ? How does FAUST handle global things like a reverb bus?  I guess I have
+        to pipe around the samples myself.  But what if you have multiple
+        strings with resonance?  I guess it has to have inputs for each one,
+        as one giant list of input channels.  But since they're all
+        interleaved samples, I can't just leave some empty, or not easily at
+        least.
+        . A polyphonic instrument could export controls like pitch-1 pitch-2
+          etc.  But does it know to turn off the ones that aren't in use?
+      ?  Where does the state go?  I.e. how do I save and restore energy in
+        strings, etc?
+        . It looks like the state winds up in instance variables, so I should
+          be able to just save those.
     . https://ccrma.stanford.edu/~rmichon/faustDay2017/
     . http://faust.grame.fr/faustplayground/
   csound:

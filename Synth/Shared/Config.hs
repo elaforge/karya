@@ -5,9 +5,9 @@
 {-# LANGUAGE CPP #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 --
--- TODO Currently paths they rely on you being in the right directory, but
--- should probably have some more robust configuration at some point.  Of
--- course 'App.Config.app_dir' is just return '.' too.
+-- TODO Currently paths rely on you being in the right directory, but should
+-- probably have some more robust configuration at some point.  Of course
+-- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
 import System.FilePath ((</>))
 

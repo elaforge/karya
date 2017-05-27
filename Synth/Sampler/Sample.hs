@@ -5,22 +5,21 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
-import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Aeson as Aeson
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.SampleRate as SampleRate
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
 
 import qualified GHC.Generics as Generics
-import qualified Sound.File.Sndfile as File.Sndfile
 import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import qualified Perform.RealTime as RealTime
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
+
 import Global
 
 
@@ -46,19 +45,15 @@ instance Aeson.ToJSON Sample
 instance Aeson.FromJSON Sample
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Sample -> IO Audio
+realize :: Sample -> IO AUtil.Audio
 realize (Sample start filename offset env ratio) = do
-    audio <- Sndfile.sourceSndFrom (toAudioTime offset)
+    audio <- Sndfile.sourceSndFrom (AUtil.toAudioTime offset)
         (Config.instrumentDbDir </> filename)
-    return $ Audio.padStart (toAudioTime start) $
+    return $ Audio.padStart (AUtil.toAudioTime start) $
         resample (fromMaybe 0 $ Signal.at start ratio) $
         applyEnvelope start env audio
 
-catchSndfile :: IO a -> IO (Either Text a)
-catchSndfile = fmap try . Exception.try
-    where try = either (Left . txt . File.Sndfile.errorString) Right
-
-resample :: Double -> Audio -> Audio
+resample :: Double -> AUtil.Audio -> AUtil.Audio
 resample ratio audio
     -- Don't do any work if it's close enough to 1.
     | ApproxEq.eq closeEnough ratio 1 = audio
@@ -71,24 +66,10 @@ resample ratio audio
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-applyEnvelope :: RealTime.RealTime -> Signal.Signal -> Audio -> Audio
+applyEnvelope :: RealTime.RealTime -> Signal.Signal -> AUtil.Audio
+    -> AUtil.Audio
 applyEnvelope start sig
     | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val
     where val = Num.d2f (fromMaybe 0 $ Signal.at start sig)
     -- TODO scale by envelope, and shorten the audio if the 'sig' ends on 0
-
-empty :: Audio
-empty = Audio.silent (Audio.Frames 0) 44100 2
-
--- mix :: [(Time, Audio)] -> Audio
--- mix [] = empty
-    -- emit silence while there are no Audios in scope
-    -- otherwise, keep track of frame for each Audio and emit a chunk with it
-    -- mixed.
-
-
-type Audio = Audio.AudioSource (Resource.ResourceT IO) Float
-
-toAudioTime :: RealTime.RealTime -> Audio.Duration
-toAudioTime = Audio.Seconds . RealTime.to_seconds

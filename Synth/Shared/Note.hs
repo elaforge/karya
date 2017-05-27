@@ -7,7 +7,9 @@
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Map.Strict as Map
+
 import qualified GHC.Generics as Generics
 
 import qualified Util.Pretty as Pretty
@@ -15,10 +17,11 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
 import qualified Synth.Shared.Types as Types
+import Synth.Types
 
 import Global
 
@@ -27,12 +30,15 @@ import Global
 -- one or more 'Sample.Sample's.
 data Note = Note {
     instrument :: !Types.PatchName
-    , start :: !RealTime.RealTime
-    , duration :: !RealTime.RealTime
+    , start :: !RealTime
+    , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
-    , controls :: !(Map.Map Control.Control Signal.Signal)
+    , controls :: !(Map Control.Control Signal.Signal)
     , attributes :: !Types.Attributes
     } deriving (Show, Generics.Generic, Aeson.ToJSON, Aeson.FromJSON)
+
+end :: Note -> RealTime
+end n = start n + duration n
 
 instance Serialize.Serialize Note where
     put (Note a b c d e) = put a *> put b *> put c *> put d *> put e
@@ -47,7 +53,7 @@ instance Pretty Note where
         , ("attributes", Pretty.format attrs)
         ]
 
-note :: Types.PatchName -> RealTime.RealTime -> RealTime.RealTime -> Note
+note :: Types.PatchName -> RealTime -> RealTime -> Note
 note inst start duration = Note
     { instrument = inst
     , start = start
@@ -73,3 +79,11 @@ unserialize  = Serialize.unserialize notes_magic
 
 notes_magic :: Serialize.Magic [Note]
 notes_magic = Serialize.Magic 's' 'a' 'm' 'p'
+
+unserializeJson :: FilePath -> IO (Maybe [Note])
+unserializeJson filename = Aeson.decode <$> ByteString.Lazy.readFile filename
+
+load :: Maybe FilePath -> IO (Either Text [Note])
+load notesJson =
+    maybe (first pretty <$> unserialize (Config.notes Config.defaultConfig))
+        (fmap (justErr "can't load json") . unserializeJson) notesJson

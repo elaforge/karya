@@ -1,0 +1,7 @@
+[ { "instrument": "sine", "start": 0, "duration": 2,
+    "controls": {"pitch": [[0, 440], [1, 660]], "amp": [[0, 0.15]]},
+    "attributes": [] },
+  { "instrument": "sine", "start": 1, "duration": 2,
+    "controls": {"pitch": [[1, 330]], "amp": [[0, 0.15]]},
+    "attributes": [] }
+]
