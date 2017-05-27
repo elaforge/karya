@@ -22,6 +22,8 @@ import Foreign.C
 import qualified Util.Num as Num
 
 
+-- * convert
+
 c_int :: Int -> CInt
 c_int = fromIntegral -- c ints should be at least as big as hs ones
 
@@ -49,29 +51,6 @@ c_bool :: Bool -> CChar
 c_bool True = 1
 c_bool False = 0
 
-with_foreign_ptrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b)
-    -> IO b
-with_foreign_ptrs fps f = withfp [] fps f
-    where
-    withfp ps [] f = f (reverse ps)
-    withfp ps (fp:rest) f = Foreign.withForeignPtr
-        fp (\p -> withfp (p:ps) rest f)
-
--- | Forgetting to call freeHaskellFunPtr is an easy way to leak memory.
--- So all FunPtrs should be created with this function, and always bee freed
--- with 'free_fun_ptr'.  That way I can log creates and frees to ensure they
--- are balanced.  Use @tools/track_funptr.py@ to automate that.
-make_fun_ptr :: String -> IO (Foreign.FunPtr a) -> IO (Foreign.FunPtr a)
-make_fun_ptr _name make = do
-    fptr <- make
-    -- putStrLn $ "+ " ++ show fptr ++ " " ++ _name
-    return fptr
-
-free_fun_ptr :: Foreign.FunPtr a -> IO ()
-free_fun_ptr fptr = do
-    -- putStrLn $ "- " ++ show fptr
-    Foreign.freeHaskellFunPtr fptr
-
 -- | Copy the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.
 bytesToCString0 :: ByteString.ByteString -> IO CString
@@ -98,3 +77,30 @@ withText = ByteString.useAsCString . Encoding.encodeUtf8
 
 decodeUtf8 :: ByteString.ByteString -> Text.Text
 decodeUtf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode
+
+-- * ForeignPtr
+
+withForeignPtrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b)
+    -> IO b
+withForeignPtrs fps = withfp [] fps
+    where
+    withfp ps [] action = action (reverse ps)
+    withfp ps (fp:rest) action =
+        Foreign.withForeignPtr fp (\p -> withfp (p:ps) rest action)
+
+-- * FunPtr
+
+-- | Forgetting to call freeHaskellFunPtr is an easy way to leak memory.
+-- So all FunPtrs should be created with this function, and always bee freed
+-- with 'freeFunPtr'.  That way I can log creates and frees to ensure they
+-- are balanced.  Use @tools/track_funptr.py@ to automate that.
+makeFunPtr :: String -> IO (Foreign.FunPtr a) -> IO (Foreign.FunPtr a)
+makeFunPtr _name make = do
+    fptr <- make
+    -- putStrLn $ "+ " ++ show fptr ++ " " ++ _name
+    return fptr
+
+freeFunPtr :: Foreign.FunPtr a -> IO ()
+freeFunPtr fptr = do
+    -- putStrLn $ "- " ++ show fptr
+    Foreign.freeHaskellFunPtr fptr

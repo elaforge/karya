@@ -50,7 +50,7 @@ poke_find_events trackp event_style event_lists = do
     (#poke EventTrackConfig, time_end) trackp time_end
 
 make_find_events :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events event_style event_lists = CUtil.make_fun_ptr "find_events" $
+make_find_events event_style event_lists = CUtil.makeFunPtr "find_events" $
     c_make_find_events (cb_find_events event_style event_lists)
 
 instance CStorable Track.RenderConfig where

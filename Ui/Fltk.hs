@@ -53,7 +53,7 @@ type QuitRequest = MVar.MVar ()
 -- When the app exits, the ui loop will be aborted.
 event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
 event_loop ui_chan quit_request msg_chan = do
-    finalizer <- c_make_free_fun_ptr CUtil.free_fun_ptr
+    finalizer <- c_make_free_fun_ptr CUtil.freeFunPtr
     c_initialize finalizer
     while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         fltk_event_loop ui_chan msg_chan

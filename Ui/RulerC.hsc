@@ -39,7 +39,7 @@ with_marklists :: [Ruler.Marklist] -> (Int -> Ptr (Ptr Ruler.Marklist) -> IO a)
     -> IO a
 with_marklists mlists f = do
     fptrs <- mapM marklist_fptr mlists
-    CUtil.with_foreign_ptrs fptrs $ \ptrs -> do
+    CUtil.withForeignPtrs fptrs $ \ptrs -> do
         mapM_ c_marklist_incref ptrs
         withArrayLen ptrs f
 
