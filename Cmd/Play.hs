@@ -380,7 +380,6 @@ from_realtime block_id repeat_at start_ = do
     let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
     play_cache_addr <- lookup_play_cache_addr
-
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
     -- when starting from 0, and then I have to shift the start time back to
@@ -396,19 +395,28 @@ from_realtime block_id repeat_at start_ = do
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)
 
-lookup_play_cache_addr :: Ui.M m => m (Maybe Patch.Addr)
+-- | If there are im instruments, find the 'Im.Play.play_cache_synth'
+-- allocation.
+lookup_play_cache_addr :: Cmd.M m => m (Maybe Patch.Addr)
 lookup_play_cache_addr = do
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
-    let is_im = (==Im.Play.qualified) . UiConfig.alloc_qualified
-    case List.find is_im (Map.elems allocs) of
-        Nothing -> return Nothing
-        Just alloc -> case UiConfig.alloc_backend alloc of
-            UiConfig.Midi config -> case Patch.config_addrs config of
-                [] -> Ui.throw $
-                    pretty Im.Play.qualified <> " allocation with no addrs"
-                addr : _ -> return $ Just addr
-            _ -> Ui.throw $
-                    pretty Im.Play.qualified <> " with non-MIDI allocation"
+    let is_play_cache = (==Im.Play.qualified) . UiConfig.alloc_qualified
+        is_im UiConfig.Im = True
+        is_im _ = False
+    if not (any (is_im . UiConfig.alloc_backend) allocs)
+        then return Nothing
+        else case List.find is_play_cache (Map.elems allocs) of
+            Nothing -> do
+                Log.warn $ "im allocations but no play-cache, so they won't\
+                    \play, allocate with LInst.add_play_cache"
+                return Nothing
+            Just alloc -> case UiConfig.alloc_backend alloc of
+                UiConfig.Midi config -> case Patch.config_addrs config of
+                    [] -> Ui.throw $
+                        pretty Im.Play.qualified <> " allocation with no addrs"
+                    addr : _ -> return $ Just addr
+                _ -> Ui.throw $
+                        pretty Im.Play.qualified <> " with non-MIDI allocation"
 
 im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
 im_play_msgs start (wdev, chan) =

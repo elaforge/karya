@@ -16,9 +16,9 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
@@ -36,6 +36,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -185,6 +186,16 @@ add_im inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
         UiConfig.allocation qualified UiConfig.Im
+
+-- | Add the play-cache instrument.  This is a dummy instrument used to
+-- trigger the play-cache vst.  It's emitted automatically if there are im
+-- instruments, but needs a channel allocation.
+add_play_cache :: Text -> Midi.Channel -> Cmd.CmdL ()
+add_play_cache wdev chan =
+    allocate (Util.instrument "play-cache") $
+        UiConfig.allocation Im.Play.qualified (UiConfig.Midi config)
+    where
+    config = Patch.config mempty [((Midi.write_device wdev, chan), Nothing)]
 
 -- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
