@@ -195,7 +195,8 @@ add_play_cache wdev chan =
     allocate (Util.instrument "play-cache") $
         UiConfig.allocation Im.Play.qualified (UiConfig.Midi config)
     where
-    config = Patch.config mempty [((Midi.write_device wdev, chan), Nothing)]
+    config = Patch.config (Patch.make_settings (0, 0))
+        [((Midi.write_device wdev, chan), Nothing)]
 
 -- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
