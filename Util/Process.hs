@@ -20,6 +20,7 @@ import qualified System.Posix as Posix
 import qualified System.Process as Process
 import qualified System.Process.Internals as Internals
 
+import qualified Util.File as File
 import qualified Util.Log as Log
 
 
@@ -70,6 +71,15 @@ multiple_supervised creates action = go [] creates
     go pids (create : creates) = supervised create $ \pid ->
         go (pid:pids) creates
 
+wait :: Text.Text -> Process.ProcessHandle -> IO ()
+wait name hdl = do
+    code <- File.ignoreEnoent $ Process.waitForProcess hdl
+    case code of
+        Just (Exit.ExitFailure c) -> Log.warn $
+            "subprocess " <> name <> " exited: "
+            <> if c == 127 then "binary not found" else showt c
+        _ -> return ()
+
 -- | Like 'Process.createProcess', but log if the binary wasn't found or
 -- failed.
 logged :: Process.CreateProcess
@@ -77,13 +87,7 @@ logged :: Process.CreateProcess
         Process.ProcessHandle)
 logged create = do
     r@(_, _, _, hdl) <- Process.createProcess create
-    Concurrent.forkIO $ do
-        code <- Process.waitForProcess hdl
-        case code of
-            Exit.ExitFailure c -> Log.error $
-                "subprocess " <> showt (binaryOf create) <> " exited: "
-                <> if c == 127 then "binary not found" else showt c
-            _ -> return ()
+    Concurrent.forkIO $ wait (showt (binaryOf create)) hdl
     return r
 
 binaryOf :: Process.CreateProcess -> FilePath

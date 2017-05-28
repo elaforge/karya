@@ -196,7 +196,7 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
     read_perf chan = do
         (block_id, status) <- Chan.readChan chan
         case status of
-            Msg.DeriveComplete perf -> return (block_id, perf)
+            Msg.DeriveComplete perf _ -> return (block_id, perf)
             _ -> read_perf chan
 
 -- | Run several cmds, threading the state through.  The first cmd that fails

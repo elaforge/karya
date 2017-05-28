@@ -13,16 +13,13 @@ module Cmd.Performance (
     SendStatus, update_performance, derive_blocks, performance, derive
 ) where
 import qualified Control.Concurrent as Concurrent
-import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as Monad.State
-
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
 import qualified Util.Log as Log
@@ -243,22 +240,21 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
         Just config -> evaluate_im config lookup_inst (Cmd.perf_events perf)
-    subprocesses procs $
-        send_status block_id $ Msg.DeriveComplete $
-            perf { Cmd.perf_events = events }
+    send_status block_id $ Msg.DeriveComplete
+        (perf { Cmd.perf_events = events })
+        (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
+    subprocesses procs
+    unless (null procs) $
+        send_status block_id Msg.ImComplete
 
-subprocesses :: [Process.CreateProcess] -> IO a -> IO a
-subprocesses [] action = action
-subprocesses procs action = do
-    Log.notice $ "starting: "
-        <> Text.intercalate ", " (map (txt . Util.Process.binaryOf) procs)
+subprocesses :: [Process.CreateProcess] -> IO ()
+subprocesses [] = return ()
+subprocesses procs = do
+    let names = map (showt . Util.Process.binaryOf) procs
+    Log.notice $ "starting: " <> Text.intercalate ", " names
     Util.Process.multiple_supervised procs $ \pids ->
-        action <* Exception.catch (mapM_ Process.waitForProcess pids) catch
-    where
-    catch :: Exception.IOException -> IO ()
-    catch exc
-        | IO.Error.isDoesNotExistError exc = return ()
-        | otherwise = Log.warn $ "waiting for im process: " <> showt exc
+        mapM_ (uncurry Util.Process.wait) (zip names pids)
+        -- I wait so I can kill the subprocess if I get killed.
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.

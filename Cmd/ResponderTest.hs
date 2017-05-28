@@ -123,7 +123,7 @@ print_results :: [Result] -> IO ()
 print_results = mapM_ $ \result -> do
     Pretty.pprint (result_msg result)
     case result_msg result of
-        Msg.DeriveStatus _ (Msg.DeriveComplete perf) ->
+        Msg.DeriveStatus _ (Msg.DeriveComplete perf _) ->
             mapM_ Pretty.pprint (Cmd.perf_logs perf)
         _ -> return ()
     let logs = CmdTest.result_logs (result_cmd result)
@@ -152,7 +152,7 @@ get_perf chan = do
     msg <- read_msg 3 chan
     case msg of
         Nothing -> errorIO "get_perf: time out reading chan"
-        Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) ->
+        Just (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) ->
             return (block_id, perf)
         Just _ -> get_perf chan
 

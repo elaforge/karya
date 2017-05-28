@@ -83,7 +83,7 @@ cmd_play_msg ui_chan msg = do
         -- because it has lazy fields, and a less-forced version could keep
         -- data alive.
         case status of
-            Msg.DeriveComplete _ -> do
+            Msg.DeriveComplete {} -> do
                 current <- Cmd.gets $
                     Cmd.state_current_performance . Cmd.state_play
                 whenJust (Map.lookup block_id current) $ \perf -> do
@@ -98,7 +98,10 @@ cmd_play_msg ui_chan msg = do
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
         Msg.Deriving {} -> Just Config.busy_color
-        Msg.DeriveComplete {} -> Just Config.box_color
+        Msg.DeriveComplete _ Msg.ImStarted ->
+            Just $ Color.brightness 0.5 Config.busy_color
+        Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
+        Msg.ImComplete -> Just Config.box_color
 
 set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =

@@ -554,10 +554,13 @@ synth: im:
       the right start times and start pitches.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will then play a sample, starting at the right time.
-  - When I start render subprocesses, send DeriveComplete immediately so the
+  * When I start render subprocesses, send DeriveComplete immediately so the
     UI can use it, but with a flag that says there is still rendering going
     on.  When the subprocesses complete, send another DeriveComplete just to
     change the status color.
+  - Play doesn't work:
+    . Play from start doesn't get a playback cursor.
+    . Play from another point does, briefly, but sound is inconsistent.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those

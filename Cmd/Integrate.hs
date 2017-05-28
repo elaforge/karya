@@ -77,7 +77,7 @@ import Types
 -- blocks or tracks which are marked as integrate destinations.  A special
 -- derive call captures events and saves them in 'Cmd.perf_integrated'.
 cmd_integrate :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
+cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) = do
     -- If a block or track wants to integrate twice with different events,
     -- I don't know which ones to give to the destinations, and wind up
     -- creating a new track every time.

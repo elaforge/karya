@@ -62,10 +62,15 @@ data DeriveStatus =
     -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
     OutOfDate
     | Deriving
-    | DeriveComplete Performance
+    | DeriveComplete !Performance !ImStatus
+    | ImComplete
     deriving (Show)
 
 instance Pretty DeriveStatus where pretty = showt
+
+data ImStatus = ImStarted -- ^ im subprocess in progress
+    | ImUnnecessary -- ^ no im notes, so no subprocesses started
+    deriving (Show)
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 
