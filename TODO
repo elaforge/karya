@@ -594,8 +594,7 @@ synth: im:
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
     * FaustIm reads notes and renders, implement process()
-    - Update play_cache to read from im/cache/out.wav.
-    - Karya play back should work even if there are only im instruments.
+    * Update play_cache to read from im/cache/out.wav.
     - Add plucked string and woodwind instruments, with control signals.
     - Assert that inst->getNumInputs() == length controls.
     - How to know when to drop notes?  I think I have to use a heuristic

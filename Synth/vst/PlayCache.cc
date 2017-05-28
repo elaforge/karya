@@ -28,7 +28,7 @@ enum {
 
 // VST_BASE_DIR must be defined when compiling.
 static const char *log_filename = VST_BASE_DIR "/PlayCache.log";
-static const char *sample_filename = VST_BASE_DIR "/sample.wav";
+static const char *sample_filename = VST_BASE_DIR "/cache/out.wav";
 
 AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 {
@@ -39,16 +39,11 @@ PlayCache::PlayCache(audioMasterCallback audioMaster) :
     AudioEffectX(audioMaster, 1, 1),
     offsetFrames(0), playing(false), delta(0), volume(1),
     log(log_filename, std::ios::app),
-    sample(sample_filename)
+    sample(nullptr)
 {
     if (!log.good()) {
         // Wait, how am I supposed to report this?  Can I put it in the GUI?
         // LOG("couldn't open " << log_filename);
-    }
-    char buf[1024];
-    LOG("cwd: " << getcwd(buf, sizeof buf));
-    if (!sample.error().empty()) {
-        LOG("error opening same: " << sample.error());
     }
     if (audioMaster) {
         setNumInputs(0);
@@ -57,9 +52,15 @@ PlayCache::PlayCache(audioMasterCallback audioMaster) :
         isSynth();
         setUniqueID('bdpm');
     }
+    LOG("started");
 }
 
-PlayCache::~PlayCache() {}
+PlayCache::~PlayCache()
+{
+    LOG("quitting");
+    if (sample)
+        delete sample;
+}
 
 // configure
 
@@ -163,6 +164,20 @@ void PlayCache::getParameterName(VstInt32 index, char *text)
 
 // process
 
+void
+PlayCache::start(VstInt32 delta)
+{
+    if (sample)
+        delete sample;
+    sample = new Sample(sample_filename);
+    if (!sample->error().empty()) {
+        LOG("error opening sample: " << sample->error());
+    }
+    LOG("start playing at " << delta << " from " << offsetFrames);
+    this->delta = delta;
+    this->playing = true;
+}
+
 VstInt32 PlayCache::processEvents(VstEvents *events)
 {
     for (VstInt32 i = 0; i < events->numEvents; i++) {
@@ -180,8 +195,7 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
             this->offsetFrames = 0;
             this->playing = false;
         } else if (status == 0x90) {
-            this->delta = event->deltaFrames;
-            this->playing = true;
+            start(event->deltaFrames);
         } else if (status == 0xa0 && data[1] < 5) {
             // Use aftertouch on keys 0--4 to set offsetFrames bits 0--35.
             unsigned int index = int(data[1]) * 7;
@@ -204,20 +218,20 @@ void PlayCache::processReplacing(
     memset(out2, 0, processFrames * sizeof(float));
 
     // TODO fade out if this makes a nasty click.
-    if (!sample.error().empty() || !this->playing)
+    if (!sample || !sample->error().empty() || !this->playing)
         return;
 
     float *samples;
-    sf_count_t framesLeft = sample.read(offsetFrames, &samples);
+    sf_count_t framesLeft = sample->read(offsetFrames, &samples);
     if (framesLeft == 0) {
         LOG("out of samples");
         this->playing = false;
         return;
     }
 
-    if (this->sample.samplerate() != this->sampleRate) {
+    if (this->sample->samplerate() != this->sampleRate) {
         LOG("vst has sample rate " << sampleRate << " but sample has "
-            << sample.samplerate());
+            << sample->samplerate());
         return;
     }
 

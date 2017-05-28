@@ -64,6 +64,7 @@ public:
     virtual VstInt32 processEvents(VstEvents *events);
 
 private:
+    void start(VstInt32 delta);
     // Playing from this sample, in frames since the beginning of the score.
     unsigned int offsetFrames;
     // True if I am playing, or should start playing once delta is 0.
@@ -77,5 +78,5 @@ private:
 
     std::ofstream log;
 
-    Sample sample;
+    Sample *sample;
 };
