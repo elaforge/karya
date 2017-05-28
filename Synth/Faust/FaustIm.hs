@@ -38,8 +38,9 @@ main = do
             Text.IO.putStrLn name
             print =<< DriverC.getControls patch
             print =<< DriverC.getUiControls patch
-        [notesJson] -> process_ =<< Note.load (Just notesJson)
-        [] -> process_ =<< Note.load Nothing
+        [notesJson] -> process_ =<< Note.unserializeJson notesJson
+        [] -> process_ . first pretty
+            =<< Note.unserialize (Config.notes Config.faust)
         _ -> errorIO $ "usage: faust-im [notes.json | print-patches]"
 
 process :: Map Types.PatchName DriverC.Patch -> FilePath -> [Note.Note] -> IO ()

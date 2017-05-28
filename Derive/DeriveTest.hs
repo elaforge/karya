@@ -55,12 +55,14 @@ import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
@@ -74,6 +76,7 @@ import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
 import qualified Synth.Shared.Config as Shared.Config
+import qualified Synth.Shared.Control as Control
 import qualified App.Config as Config
 import Global
 import Types
@@ -478,15 +481,34 @@ cmd_config inst_db = Cmd.Config
     , config_library = Call.All.library
     , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = Config.highlight_colors
-    , config_im = Shared.Config.Config
-        { binary = "/usr/bin/true"
-        , notes = default_im_notes
-        }
+    , config_im = Shared.Config.Config $ Map.fromList
+        [ ("im-synth", Shared.Config.Synth
+            { binary = "/usr/bin/true"
+            , notes = default_im_notes
+            })
+        ]
     , config_git_user = SaveGit.User "name" "email"
     }
 
 default_im_notes :: FilePath
 default_im_notes = Testing.tmp_base_dir </> "im_notes"
+
+default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode
+default_im_synth = im_synth "im-synth"
+
+im_synth :: InstTypes.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
+im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
+    where
+    inst = Inst.Inst
+        { inst_backend = Inst.Im $ Im.Patch.patch
+            { Im.Patch.patch_controls = Map.fromList
+                [ (c Control.pitch, "pitch")
+                , (c Control.amp, "amp")
+                ]
+            }
+        , inst_common = Common.common Cmd.empty_code
+        }
+    c (Control.Control a) = ScoreTypes.Control a
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Scale.All.lookup_scale

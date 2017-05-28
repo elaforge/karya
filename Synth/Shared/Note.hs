@@ -17,7 +17,6 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
 import qualified Synth.Shared.Types as Types
@@ -80,10 +79,6 @@ unserialize  = Serialize.unserialize notes_magic
 notes_magic :: Serialize.Magic [Note]
 notes_magic = Serialize.Magic 's' 'a' 'm' 'p'
 
-unserializeJson :: FilePath -> IO (Maybe [Note])
-unserializeJson filename = Aeson.decode <$> ByteString.Lazy.readFile filename
-
-load :: Maybe FilePath -> IO (Either Text [Note])
-load notesJson =
-    maybe (first pretty <$> unserialize (Config.notes Config.defaultConfig))
-        (fmap (justErr "can't load json") . unserializeJson) notesJson
+unserializeJson :: FilePath -> IO (Either Text [Note])
+unserializeJson filename =
+    first txt . Aeson.eitherDecode <$> ByteString.Lazy.readFile filename

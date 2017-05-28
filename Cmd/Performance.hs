@@ -17,7 +17,9 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified System.IO.Error as IO.Error
@@ -28,6 +30,7 @@ import qualified Util.Map as Map
 import qualified Util.Process
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
+import qualified Util.Vector
 
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
@@ -186,8 +189,8 @@ generate_performance ui_state wait send_status block_id = do
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
     thread_id <- liftIO $ Thread.start $ do
-        let im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let allocs = Ui.config#Ui.allocations #$ ui_state
+            im_config = Cmd.config_im (Cmd.state_config cmd_state)
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_resolve_instrument ui_state cmd_state)
@@ -237,13 +240,20 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
         Log.notice $ "derived " <> showt block_id <> " in "
             <> pretty (RealTime.seconds cpu_secs) <> " cpu, "
             <> pretty (RealTime.seconds wall_secs) <> " wall"
-    im <- evaluate_im im_config lookup_inst (Cmd.perf_events perf)
-    case im of
-        Nothing -> send_status block_id $ Msg.DeriveComplete perf
-        Just (proc, rest_events) -> Util.Process.supervised proc $ \pid -> do
-            send_status block_id $ Msg.DeriveComplete $
-                perf { Cmd.perf_events = rest_events }
-            Exception.catch (void $ Process.waitForProcess pid) catch
+    (procs, events) <-  case im_config of
+        Nothing -> return ([], Cmd.perf_events perf)
+        Just config -> evaluate_im config lookup_inst (Cmd.perf_events perf)
+    subprocesses procs $
+        send_status block_id $ Msg.DeriveComplete $
+            perf { Cmd.perf_events = events }
+
+subprocesses :: [Process.CreateProcess] -> IO a -> IO a
+subprocesses [] action = action
+subprocesses procs action = do
+    Log.notice $ "starting: "
+        <> Text.intercalate ", " (map (txt . Util.Process.binaryOf) procs)
+    Util.Process.multiple_supervised procs $ \pids ->
+        action <* Exception.catch (mapM_ Process.waitForProcess pids) catch
     where
     catch :: Exception.IOException -> IO ()
     catch exc
@@ -252,22 +262,34 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
-evaluate_im :: Maybe Shared.Config.Config
+evaluate_im :: Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event
-    -> IO (Maybe (Process.CreateProcess, Vector.Vector Score.Event))
-evaluate_im maybe_im_config lookup_inst events
-    | Just im_config <- maybe_im_config, not (null im_events) = do
-        Im.Convert.write lookup_inst (Shared.Config.notes im_config) im_events
-        let proc = Process.proc (Shared.Config.binary im_config) []
-        return $ Just (proc, rest_events)
-    | otherwise = return Nothing
+    -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
+evaluate_im config lookup_inst events
+    | null im_events = return ([], events)
+    | otherwise = do
+        cmds <- Maybe.catMaybes <$> mapM cmd_for by_synth
+        return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
-    (im_events, rest_events) =
-        Vector.partition (is_im . Score.event_instrument) events
-    is_im inst = case Cmd.inst_instrument <$> lookup_inst inst of
-        Just (Inst.Inst (Inst.Im {}) _) -> True
-        _ -> False
+    im_events = events
+    by_synth = Util.Vector.partition_on im_synth events
+    im_synth event = case lookup_inst (Score.event_instrument event) of
+        Just inst -> case Cmd.inst_instrument inst of
+            Inst.Inst (Inst.Im {}) _ -> Just (Cmd.inst_synth inst)
+            _ -> Nothing
+        Nothing -> Nothing
+
+    cmd_for (Just synth, events) =
+        case Map.lookup synth (Shared.Config.synths config) of
+            Just config -> do
+                Im.Convert.write lookup_inst (Shared.Config.notes config) events
+                return $ Just $ Process.proc (Shared.Config.binary config) []
+            Nothing -> do
+                Log.warn $ "unknown im synth " <> synth <> " with "
+                    <> showt (Vector.length events) <> " events"
+                return Nothing
+    cmd_for (Nothing, _) = return Nothing
 
 -- | If there are no UiConfig.Im instruments, then I don't need to bother to
 -- partition out its events.  However, it means I won't get errors if there

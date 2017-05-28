@@ -15,8 +15,10 @@ newtype Control = Control Text
     deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
         Aeson.ToJSONKey, Aeson.FromJSONKey, Serialize.Serialize, Pretty)
 
-envelope :: Control
-envelope = "envelope"
+-- | Volume amplitude.
+amp :: Control
+amp = "amp"
 
+-- | Pitch in NoteNumbers.
 pitch :: Control
 pitch = "pitch"

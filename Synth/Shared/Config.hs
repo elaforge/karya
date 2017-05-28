@@ -9,22 +9,48 @@
 -- probably have some more robust configuration at some point.  Of course
 -- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
+import qualified Data.Map as Map
 import System.FilePath ((</>))
+
+import Global
 
 #include "config.h"
 
 
-data Config = Config {
+newtype Config = Config { synths :: Map SynthName Synth }
+    deriving (Eq, Show)
+
+config :: Config
+config = Config $ Map.fromList
+    [ (samplerName, sampler)
+    , (faustName, faust)
+    ]
+
+data Synth = Synth {
     -- | Path to the binary.
     binary :: !FilePath
     -- | Write serialized notes to this file.
     , notes :: !FilePath
-    } deriving (Show)
+    } deriving (Eq, Show)
 
-defaultConfig :: Config
-defaultConfig = Config
+type SynthName = Text
+
+samplerName :: SynthName
+samplerName = "sampler"
+
+sampler :: Synth
+sampler = Synth
     { binary = "build/opt/sampler-im"
-    , notes = dataDir </> "notes"
+    , notes = dataDir </> "sampler-notes"
+    }
+
+faustName :: SynthName
+faustName = "faust"
+
+faust :: Synth
+faust = Synth
+    { binary = "build/opt/faust-im"
+    , notes = dataDir </> "faust-notes"
     }
 
 -- | All of the data files used by the Im backend are based in this directory.

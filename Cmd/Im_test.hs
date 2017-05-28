@@ -17,7 +17,6 @@ import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
-import qualified Local.Instrument
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -28,17 +27,20 @@ import Global
 test_respond = do
     let states = (add_allocation *** set_db) $ ResponderTest.mkstates $
             UiTest.note_spec
-                ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
+                ( "im"
+                , [(0, 1, "4c"), (1, 1, "4d")]
+                , [("dyn", [(0, ".5")]), ("unsupported", [(0, ".25")])]
+                )
         add_allocation = Ui.config#Ui.allocations #= allocs
         allocs = UiConfig.Allocations $ Map.fromList
             [ (Score.Instrument "im", UiConfig.allocation
-                (InstTypes.Qualified "sampler" "inst") UiConfig.Im)
+                (InstTypes.Qualified "im-synth" "") UiConfig.Im)
             ]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
                 { Cmd.config_instrument_db = db }
             }
-        (db, warns) = Inst.db Local.Instrument.im_synths
+        (db, warns) = Inst.db [DeriveTest.default_im_synth]
     equal warns []
     results <- respond states (return ())
     ResponderTest.print_results results
@@ -46,10 +48,10 @@ test_respond = do
     right_equal (map Note.start <$> notes) [0, 1]
     right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
             <$> notes)
-        [ [ (Control.envelope, [(0, 0.5)])
+        [ [ (Control.amp, [(0, 0.5)])
           , (Control.pitch, [(0, realToFrac NN.c4)])
           ]
-        , [ (Control.envelope, [(0, 0.5)])
+        , [ (Control.amp, [(0, 0.5)])
           , (Control.pitch, [(1, realToFrac NN.d4)])
           ]
         ]

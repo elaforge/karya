@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Types as Types
 import Synth.Shared.Types (attribute)
 
@@ -32,5 +33,5 @@ attrs attrs sample = sample { Patch.attributes = attrs }
 
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
-synth = Inst.SynthDecl "sampler" "音 sampler"
+synth = Inst.SynthDecl Config.samplerName "音 sampler"
     [(name, Patch.makeInst patch) | (name, patch) <- Map.toList db]

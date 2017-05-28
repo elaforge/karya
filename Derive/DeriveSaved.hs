@@ -8,7 +8,6 @@ import qualified Control.Monad.Except as Except
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
@@ -189,10 +188,7 @@ cmd_config inst_db = do
         , config_library = Call.All.library
         , config_lookup_scale = Scale.All.lookup_scale
         , config_highlight_colors = mempty
-        , config_im = Shared.Config.Config
-            { binary = "/usr/bin/true"
-            , notes = Testing.tmp_base_dir </> "im_notes"
-            }
+        , config_im = Shared.Config.Config mempty
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
         , config_git_user = SaveGit.User "name" "email"

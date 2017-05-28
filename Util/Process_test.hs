@@ -18,5 +18,13 @@ manual_test_supervised = do
         Thread.delay 1
         putStrLn "thread done"
     -- With the kill, I shouldn't see "sub done".
+    Thread.delay 0.1
     Concurrent.killThread tid
     putStrLn "done"
+    Thread.delay 0.1
+
+manual_test_multiple_supervised = do
+    let f cmds = Process.multiple_supervised (map System.Process.shell cmds)
+    f ["sleep 1; echo 1", "sleep 2; echo 2"] $ \hdls -> do
+        putStrLn $ "hdls: " ++ show (length hdls)
+    Thread.delay 3

@@ -78,3 +78,16 @@ highest_index key x vec
         | x >= key (Generic.unsafeIndex vec mid) = go (mid+1) high
         | otherwise = go low mid
         where mid = (low + high) `div` 2
+
+-- | Partition on a key.  This is the vector version of
+-- 'Util.Seq.keyed_group_stable'.
+partition_on :: (Eq key, Generic.Vector v a) => (a -> key) -> v a
+    -> [(key, v a)]
+partition_on key = go
+    where
+    go v
+        | Generic.null v = []
+        | otherwise = (k, equal) : go unequal
+            where
+            (equal, unequal) = Generic.partition ((==k) . key) v
+            k = key (Generic.head v)

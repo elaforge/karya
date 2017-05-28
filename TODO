@@ -554,6 +554,10 @@ synth: im:
       the right start times and start pitches.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will then play a sample, starting at the right time.
+  - When I start render subprocesses, send DeriveComplete immediately so the
+    UI can use it, but with a flag that says there is still rendering going
+    on.  When the subprocesses complete, send another DeriveComplete just to
+    change the status color.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those
@@ -587,23 +591,29 @@ synth: im:
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
     * FaustIm reads notes and renders, implement process()
-    - Implement some simple instruments, with control signals.
-    - Test end to end.
+    - Update play_cache to read from im/cache/out.wav.
+    - Karya play back should work even if there are only im instruments.
+    - Add plucked string and woodwind instruments, with control signals.
     - Assert that inst->getNumInputs() == length controls.
-    - Make an instrument into a conduit source.  Then I can render
-      progressively instead of a whole note.
     - How to know when to drop notes?  I think I have to use a heuristic
       like >1s of audio under a threshold after note off.
-    - Then I can use controls by setting controls at the audio chunk rate.
-      - Store persistent buffers in Instrument.
     - Instruments with explicit voice assignments (e.g. strings) use Attribues
       to assign the string, and create a set number of Instruments which are
       reused.
+    - MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
+    support faust ui controls:
+      - convert to standard control names:
+        . Convert pitch NoteNumber to freq Hz
+        . amp -> gain
+        . note-on + duration -> gate
+      - Make an instrument into a conduit source.  Then I can render
+        progressively instead of a whole note.
+        - Then I can use controls by setting controls at the audio chunk rate.
+        - Store persistent buffers in Instrument.
     cleanup:
       - Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
         geometry stuff for it.
       - Put find_sample into a TimeVector.cc library.
-    . Standard control names for MIDI: freq (pitch), gain (amp), gate (note on)
     - More efficient conduit-audio:
       . I think I have to modify conduit-audio to have a time offset, and then
         I can implement silent efficiently.
@@ -620,7 +630,6 @@ synth: im:
         number of dsps by cloning them, and allocate Notes among them.
       . Call compute dsp startFrame endFrame controlsp outputp for each time
         range, and mix the output into a wav.
-
       ? How does FAUST handle global things like a reverb bus?  I guess I have
         to pipe around the samples myself.  But what if you have multiple
         strings with resonance?  I guess it has to have inputs for each one,

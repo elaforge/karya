@@ -59,13 +59,22 @@ supervised create action = Exception.mask $ \restore -> do
     Exception.onException (restore (action hdl)) $ do
         pid <- handleToPid hdl
         Log.warn $ "received exception, killing " <> showt (binaryOf create)
-            <> maybe "" ((" "<>) . showt) pid
+            <> maybe "" ((<>")") . (" (pid "<>) . showt) pid
         Process.terminateProcess hdl
+
+multiple_supervised :: [Process.CreateProcess]
+    -> ([Process.ProcessHandle] -> IO a) -> IO a
+multiple_supervised creates action = go [] creates
+    where
+    go pids [] = action (reverse pids)
+    go pids (create : creates) = supervised create $ \pid ->
+        go (pid:pids) creates
 
 -- | Like 'Process.createProcess', but log if the binary wasn't found or
 -- failed.
-logged :: Process.CreateProcess -> IO (Maybe IO.Handle,
-       Maybe IO.Handle, Maybe IO.Handle, Process.ProcessHandle)
+logged :: Process.CreateProcess
+    -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
+        Process.ProcessHandle)
 logged create = do
     r@(_, _, _, hdl) <- Process.createProcess create
     Concurrent.forkIO $ do

@@ -1109,6 +1109,9 @@ data ResolvedInstrument = ResolvedInstrument {
     , inst_backend :: !(Maybe Backend)
     } deriving (Show)
 
+inst_synth :: ResolvedInstrument -> InstTypes.SynthName
+inst_synth  = InstTypes.synth . inst_qualified
+
 instance Pretty ResolvedInstrument where
     format (ResolvedInstrument instrument qualified common_config backend) =
         Pretty.record "ResolvedInstrument"

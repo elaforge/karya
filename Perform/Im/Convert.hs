@@ -89,7 +89,7 @@ convert_signal = Perform.Signal.sig_vec
 
 convert_controls :: Score.ControlMap -> Map Control.Control Signal.Signal
 convert_controls controls = Map.fromList $ concat
-    [ [ (Control.envelope, convert_signal (Score.typed_val sig))
+    [ [ (Control.amp, convert_signal (Score.typed_val sig))
       | Just sig <- [Map.lookup Controls.dynamic controls]
       ]
     ]

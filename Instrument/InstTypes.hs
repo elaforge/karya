@@ -16,6 +16,12 @@ import Global
 -- of an instrument in a particular score.
 data Qualified = Qualified SynthName Name deriving (Show, Eq, Ord)
 
+synth :: Qualified -> SynthName
+synth (Qualified synth _) = synth
+
+name :: Qualified -> Name
+name (Qualified _ name) = name
+
 instance Pretty Qualified where pretty = show_qualified
 
 instance Serialize.Serialize Qualified where

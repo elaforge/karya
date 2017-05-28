@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Export a 'synth' with all the supported patches.
-module Synth.Faust.PatchDb (synthName, synth) where
-import qualified System.IO.Unsafe as Unsafe
+module Synth.Faust.PatchDb (synth) where
 import qualified Data.Map as Map
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
 import qualified Cmd.Cmd as Cmd
@@ -14,14 +14,12 @@ import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Types as Types
 
 import Global
 
-
-synthName :: Text
-synthName = "faust"
 
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Unsafe.unsafePerformIO $ do
@@ -35,7 +33,7 @@ synth = Unsafe.unsafePerformIO $ do
 -- | Declaration for "Local.Instrument".
 makeSynth :: [(Types.PatchName, (Text, [(Control.Control, Text)]))]
     -> Inst.SynthDecl Cmd.InstrumentCode
-makeSynth patches = Inst.SynthDecl synthName "音 faust synthesizer"
+makeSynth patches = Inst.SynthDecl Config.faustName "音 faust synthesizer"
     [ (name, makeInst description controls)
     | (name, (description, controls)) <- patches
     ]

@@ -29,8 +29,9 @@ main = do
     let process_ = process Config.cache <=< either errorIO return
     args <- Environment.getArgs
     case args of
-        [notesJson] -> process_ =<< Note.load (Just notesJson)
-        [] -> process_ =<< Note.load Nothing
+        [notesJson] -> process_ =<< Note.unserializeJson notesJson
+        [] -> process_ . first pretty
+            =<< Note.unserialize (Config.notes Config.sampler)
         _ -> errorIO $ "usage: sampler notes.json"
 
 process :: FilePath -> [Note.Note] -> IO ()

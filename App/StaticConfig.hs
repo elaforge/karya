@@ -99,7 +99,7 @@ cmd_config app_dir interface config git_user = Cmd.Config
     , config_library = library config
     , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = highlight_colors config
-    , config_im = Shared.Config.defaultConfig
+    , config_im = Shared.Config.config
     , config_git_user = git_user
     }
     where midi_config = midi config
