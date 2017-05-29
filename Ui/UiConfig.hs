@@ -181,6 +181,11 @@ instance Pretty Allocation where
         , ("backend", Pretty.format backend)
         ]
 
+is_im_allocation :: Allocation -> Bool
+is_im_allocation alloc = case alloc_backend alloc of
+    Im -> True
+    _ -> False
+
 -- | Backend-specific config.  This should match the 'Inst.Backend' of the
 -- instrument in question, ensured by 'verify_allocation'.
 --

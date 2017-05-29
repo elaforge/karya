@@ -33,9 +33,9 @@ import qualified Util.Thread as Thread
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Fltk as Fltk
-import qualified Ui.Ui as Ui
 import qualified Ui.Sync as Sync
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -205,7 +205,7 @@ event_highlights derived_block_id colors
 play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
-        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at) = do
+        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at im_end) = do
     (play_ctl, monitor_ctl) <-
         Midi.Play.play transport_info mmc name msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
@@ -213,8 +213,11 @@ play ui_chan ui_state transport_info
     MVar.modifyMVar_ (Transport.info_state transport_info) $
         const (return ui_state)
     liftIO $ void $ Thread.start $ case maybe_inv_tempo of
-        Just inv_tempo -> play_monitor_thread ui_chan transport_info
-            monitor_ctl inv_tempo repeat_at
+        Just inv_tempo -> do
+            state <- monitor_state ui_chan transport_info play_ctl monitor_ctl
+                inv_tempo repeat_at im_end
+            play_monitor_thread (Transport.info_send_status transport_info)
+                state
         Nothing -> passive_play_monitor_thread
             (Transport.info_send_status transport_info) monitor_ctl
     return play_ctl
@@ -229,44 +232,55 @@ passive_play_monitor_thread send monitor_ctl =
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual
 -- state diff folderol.
-play_monitor_thread :: Fltk.Channel -> Transport.Info
-    -> Transport.PlayMonitorControl -> Transport.InverseTempoFunction
-    -> Maybe RealTime -> IO ()
-play_monitor_thread ui_chan transport_info ctl inv_tempo_func repeat_at = do
-    let get_now = Transport.info_get_current_time transport_info
-    -- This won't be exactly the same as the renderer's ts offset, but it's
-    -- probably close enough.
-    offset <- get_now
-    let state = UpdaterState
-            { monitor_ctl = ctl
-            , monitor_offset = offset
-            , monitor_get_now = get_now
-            , monitor_inv_tempo_func = inv_tempo_func
-            , monitor_active_sels = Set.empty
-            , monitor_ui_state = Transport.info_state transport_info
-            , monitor_repeat_at = repeat_at
-            , monitor_ui_channel = ui_chan
-            }
+play_monitor_thread :: (Transport.Status -> IO ()) -> MonitorState -> IO ()
+play_monitor_thread send_status state = do
     ui_state <- MVar.readMVar (monitor_ui_state state)
-    Sync.clear_play_position ui_chan $ Map.keys $ Ui.state_views ui_state
+    Sync.clear_play_position (monitor_ui_channel state) $
+        Map.keys $ Ui.state_views ui_state
     Exception.bracket_
-        (Transport.info_send_status transport_info Transport.Playing)
-        (Transport.info_send_status transport_info Transport.Stopped)
+        (send_status Transport.Playing) (send_status Transport.Stopped)
         (monitor_loop state)
 
-data UpdaterState = UpdaterState {
-    monitor_ctl :: Transport.PlayMonitorControl
+monitor_state :: Fltk.Channel -> Transport.Info
+    -> Transport.PlayControl
+    -> Transport.PlayMonitorControl
+    -> Transport.InverseTempoFunction
+    -> Maybe RealTime -> Maybe RealTime
+    -> IO MonitorState
+monitor_state ui_chan transport_info play_ctl monitor_ctl inv_tempo_func
+        repeat_at im_end = do
+    let get_now = Transport.info_get_current_time transport_info
+    -- This won't be exactly the same as the renderer's ts offset, but
+    -- it's probably close enough.
+    offset <- get_now
+    return $ MonitorState
+        { monitor_ctl = monitor_ctl
+        , monitor_play_ctl = play_ctl
+        , monitor_offset = offset
+        , monitor_get_now = get_now
+        , monitor_inv_tempo_func = inv_tempo_func
+        , monitor_active_sels = Set.empty
+        , monitor_ui_state = Transport.info_state transport_info
+        , monitor_repeat_at = repeat_at
+        , monitor_ui_channel = ui_chan
+        , monitor_im_end = im_end
+        }
+
+data MonitorState = MonitorState {
+    monitor_ctl :: !Transport.PlayMonitorControl
+    , monitor_play_ctl :: !Transport.PlayControl
     -- | When the monitor thread started.
-    , monitor_offset :: RealTime
-    , monitor_get_now :: IO RealTime
-    , monitor_inv_tempo_func :: Transport.InverseTempoFunction
-    , monitor_active_sels :: Set (ViewId, [TrackNum])
-    , monitor_ui_state :: MVar.MVar Ui.State
-    , monitor_repeat_at :: Maybe RealTime
-    , monitor_ui_channel :: Fltk.Channel
+    , monitor_offset :: !RealTime
+    , monitor_get_now :: !(IO RealTime)
+    , monitor_inv_tempo_func :: !Transport.InverseTempoFunction
+    , monitor_active_sels :: !(Set (ViewId, [TrackNum]))
+    , monitor_ui_state :: !(MVar.MVar Ui.State)
+    , monitor_repeat_at :: !(Maybe RealTime)
+    , monitor_ui_channel :: !Fltk.Channel
+    , monitor_im_end :: !(Maybe RealTime)
     }
 
-monitor_loop :: UpdaterState -> IO ()
+monitor_loop :: MonitorState -> IO ()
 monitor_loop state = do
     now <- maybe id (flip Num.fmod) (monitor_repeat_at state)
         . subtract (monitor_offset state) <$> monitor_get_now state
@@ -284,24 +298,28 @@ monitor_loop state = do
         Set.difference (monitor_active_sels state) active_sels
     state <- return $ state { monitor_active_sels = active_sels }
 
-    stopped <- Transport.poll_player_stopped (monitor_ctl state)
-    -- If repeat_at is on, then playback will never stop on its own, even if
-    -- I run out of tempo map (which happens if the repeat point is at or past
-    -- the end of the score).  When the monitor thread stops, it sends Stopped
-    -- on the transport, which clears out the player ctl which will make the
-    -- player unstoppable, if it's still going.
-    if stopped || (null block_pos && Maybe.isNothing (monitor_repeat_at state))
+    midi_stopped <- Transport.poll_player_stopped (monitor_ctl state)
+    -- If repeat_at is on, then the MIDI player will never stop on its own,
+    -- even if I run out of tempo map (which happens if the repeat point is at
+    -- or past the end of the score).  When the monitor thread stops, it sends
+    -- Stopped on the transport, which clears out the player ctl which will
+    -- make the player unstoppable, if it's still going.
+    let out_of_score = null block_pos
+            && Maybe.isNothing (monitor_repeat_at state)
+    -- Since im playback is done by the VST, I don't directly control it as I
+    -- do with the MIDI player.  Instead, infer that it's complete if either
+    -- we've gone past its last note, or the user requested a stop.
+    im_stopped <- orM
+            [ return $ maybe True (now>) (monitor_im_end state)
+            , Transport.poll_stop_player 0 (monitor_play_ctl state)
+            ]
+    if (midi_stopped && im_stopped) || out_of_score
         then do
             Sync.clear_play_position (monitor_ui_channel state) $ map fst $
                 Set.toList (monitor_active_sels state)
-            unless stopped $ wait_for_stop $
-                Transport.poll_player_stopped (monitor_ctl state)
+            unless midi_stopped $
+                Transport.wait_player_stopped (monitor_ctl state)
         else Thread.delay 0.05 >> monitor_loop state
-    where
-    wait_for_stop ctl = do
-        Thread.delay 0.1
-        stopped <- ctl
-        unless stopped $ wait_for_stop ctl
 
 -- | If there's a playback on track 1 but not on track 0, then track 0 is
 -- probably a ruler.  If I put a playback there too, then the playback position

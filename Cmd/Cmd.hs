@@ -140,9 +140,17 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 --
 -- Mmc config, descriptive name, events, tempo func to display play position,
 -- optional time to repeat at.
-data PlayMidiArgs = PlayMidiArgs !(Maybe SyncConfig) !Text
-    !Midi.Perform.MidiEvents !(Maybe Transport.InverseTempoFunction)
-    !(Maybe RealTime)
+data PlayMidiArgs = PlayMidiArgs {
+    play_sync :: !(Maybe SyncConfig)
+    -- | Description of what is being played for logging.
+    , play_name :: !Text
+    , play_midi :: !Midi.Perform.MidiEvents
+    , play_inv_tempo :: !(Maybe Transport.InverseTempoFunction)
+    , play_repeat_at :: !(Maybe RealTime)
+    -- | If there are im notes, this is the end of the last one.  This is so
+    -- the play monitor thread knows when im will be done.
+    , play_im_end :: !(Maybe RealTime)
+    }
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
 
 data FloatingInput =

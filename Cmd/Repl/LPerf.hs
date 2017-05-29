@@ -414,8 +414,14 @@ logs_matching perf_block block_id track_ids start end = do
 
 play_midi :: Perform.MidiEvents -> Cmd.CmdL ()
 play_midi msgs = do
-    let status = Cmd.PlayMidi $ Cmd.PlayMidiArgs Nothing "repl" (to_zero msgs)
-            Nothing Nothing
+    let status = Cmd.PlayMidi $ Cmd.PlayMidiArgs
+            { play_sync = Nothing
+            , play_name = "repl"
+            , play_midi = to_zero msgs
+            , play_inv_tempo = Nothing
+            , play_repeat_at = Nothing
+            , play_im_end = Nothing
+            }
     Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
     where
     to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs

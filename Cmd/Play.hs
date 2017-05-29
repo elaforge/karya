@@ -13,43 +13,48 @@
     - The score is preprocessed by adding the current absolute time to it
     and skipping notes based on the start offset.
 
-    - The score is sent to the Performer, which starts a MIDI play thread
-    and returns a transport control mutable that can be used to stop the
-    play thread.
+    - The score is sent to the Performer, which starts
+    'Perform.Midi.Play.player_thread' and returns a
+    'Transport.PlayControl' and a 'Transport.PlayMonitorControl'.  The
+    PlayControl is just to stop the player_thread, and the PlayMonitorControl
+    is so the player_thread can signal that it's done.
 
-    - The transport and tempo map are passed to a play monitor thread, which
-    uses the tempo map to display the play position in the various blocks, and
-    aborts along with the player if the transport says to stop.  It's not
-    synchronized to the playback in any way, but of course they are both
-    working from the same score.
+    - The PlayMonitorControl and tempo map are passed to
+    'Cmd.PlayC.play_monitor_thread', which uses the tempo map to display the
+    play position in the various blocks.  It stops when it runs out of tempo
+    map (which corresponds with running off the end of the score), or the
+    player_thread sends a stop.  It's not synchronized to the playback in any
+    way, but of course they are both working from the same score.
 
-    - There are three threads involved: the player is scheduling MIDI msgs, the
-    play monitor sweeps the play position along, and the app event handler is
-    waiting for events in the responder.
+    - A stop from the user sets 'Transport.stop_player', which causes the
+    player_thread to quit, which in turn tells the monitor thread.
 
-    - A stop means to set 'Transport.stop_player'.  The play thread will notice
-    this and quit.
+    So, there are three threads involved: the player_thread is scheduling MIDI
+    msgs, the play_monitor_thread sweeps the play position along, and the app
+    event handler is waiting for events in the responder.
 
-    The player returns controls to communicate with the player and the play
-    monitor.  If the responder sets the stop player control, the player will
-    quit.  The player stopping causes it to set the
-    'Transport.PlayMonitorControl', which causes the monitor to quit.
+    The player_thread also gets the event loopback channel in
+    'Transport.info_send_status', so it can send 'Cmd.Msg.Transport' msgs
+    through the event loop.  They're picked up by 'Cmd.PlayC.cmd_play_msg',
+    which can use them to set UI state like changing the play box color and
+    logging.
 
-    There's a third control, which is a channel given to the player by the
-    responder.  Both the player and the monitor use it to send transport msgs
-    to the responder.  All the player sends is a Died msg which can be logged
-    when the player as started and stopped.  Transport msgs wind up in
-    'cmd_play_msg', which can use them to set UI state like changing the
-    play box color and logging.
+    The play_monitor_thread is kicked off simultaneously with the
+    player_thread, and advances the play selection in its own loop, using the
+    tempo map from the deriver.  It will keep running until it gets a stop msg
+    from the control or the tempo map tells it there is no more score to
+    \"play\".  While the monitor doesn't actually play anything, it's the one
+    that sends Playing and Stopped transport msgs to indicate player status.
+    If all goes well, the monitor and the player will run to completion, the
+    monitor will send Stopped, and the player will exit on its own.
 
-    The play monitor is kicked off simultaneously with the player, and
-    advances the play selection in its own loop, using the tempo map from the
-    deriver.  It will keep running until it gets a stop msg from the control or
-    the tempo map tells it there is no more score to \"play\".  While the
-    monitor doesn't actually play anything, it's the one that sends Playing and
-    Stopped transport msgs to indicate player status.  If all goes well, the
-    monitor and the player will run to completion, the monitor will send
-    Stopped, and the player will exit on its own.
+    The im backend complicates things a bit.  If 'lookup_im_config' notices
+    im events, it adds a specially formatted MIDI msg to the play-cache vst.
+    Since the play_monitor_thread can't get any signals from the vst, it
+    assumes play-cache is playing until time passes the last im event, or
+    there is a stop request via 'Transport.stop_player'.  TODO Come to think of
+    it, this would probably work for MIDI events too, so maybe I could simplify
+    things by getting rid of all the monitor and player communication.
 
     For example:
 
@@ -58,8 +63,8 @@
     monitor will send Stopped, which will clear the player control from the
     responder Cmd.State, which is how the UI knows whether playing is in
     progress.  The player is assumed to have completed and exited on its own,
-    probably even before the playback audio is completed, since it likely
-    schedules in advance.
+    probably even before the playback audio is completed, since it schedules in
+    advance.
 
     If the player dies on an error, it sends a Died to the responder chan.  As
     mentioned above, it will also tell the monitor to stop.  The monitor will
@@ -81,6 +86,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Vector
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -98,6 +105,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Cache as Cache
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Im.Play as Im.Play
@@ -379,7 +387,7 @@ from_realtime block_id repeat_at start_ = do
     -- further in advance.
     let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
-    play_cache_addr <- lookup_play_cache_addr
+
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
     -- when starting from 0, and then I have to shift the start time back to
@@ -388,12 +396,47 @@ from_realtime block_id repeat_at start_ = do
     start <- let mstart = PlayUtil.first_time msgs
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
+
+    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    (im_insts, play_cache_addr) <- case lookup_im_config allocs of
+        Right (im_insts, play_cache_addr) ->
+            return (im_insts, Just play_cache_addr)
+        Left Nothing -> return (mempty, Nothing)
+        Left (Just msg) -> Cmd.throw msg
     let im_msgs = maybe [] (im_play_msgs start) play_cache_addr
+
     -- See doc for "Cmd.PlayC" for why I return a magic value.
-    return $ Cmd.PlayMidiArgs maybe_sync (pretty block_id)
-        (im_msgs ++ merge_midi msgs mtc)
-        (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
-        ((*multiplier) . subtract start <$> repeat_at)
+    return $ Cmd.PlayMidiArgs
+        { play_sync = maybe_sync
+        , play_name = pretty block_id
+        , play_midi = im_msgs ++ merge_midi msgs mtc
+        , play_inv_tempo =
+            Just $ Cmd.perf_inv_tempo perf . (+start) . (/multiplier)
+        , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
+        , play_im_end = if Set.null im_insts then Nothing
+            else Score.event_end <$> Util.Vector.find_end
+                ((`Set.member` im_insts) . Score.event_instrument)
+                (Cmd.perf_events perf)
+        }
+
+lookup_im_config :: Map Score.Instrument UiConfig.Allocation
+    -> Either (Maybe Text) (Set Score.Instrument, Patch.Addr)
+lookup_im_config allocs = do
+    when (Set.null im_insts) $ Left Nothing
+    alloc <- justErr (Just "im allocations but no play-cache alloc, so they\
+        \ won't play, allocate with LInst.add_play_cache") $
+            List.find is_play_cache (Map.elems allocs)
+    case UiConfig.alloc_backend alloc of
+        UiConfig.Midi config -> case Patch.config_addrs config of
+            [] -> Left $ Just $
+                pretty Im.Play.qualified <> " allocation with no addrs"
+            addr : _ -> return (im_insts, addr)
+        _ -> Left $ Just $
+            pretty Im.Play.qualified <> " with non-MIDI allocation"
+    where
+    is_play_cache = (==Im.Play.qualified) . UiConfig.alloc_qualified
+    im_insts = Set.fromList $ map fst $
+        filter (UiConfig.is_im_allocation . snd) $ Map.toList allocs
 
 -- | If there are im instruments, find the 'Im.Play.play_cache_synth'
 -- allocation.
@@ -401,9 +444,7 @@ lookup_play_cache_addr :: Cmd.M m => m (Maybe Patch.Addr)
 lookup_play_cache_addr = do
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     let is_play_cache = (==Im.Play.qualified) . UiConfig.alloc_qualified
-        is_im UiConfig.Im = True
-        is_im _ = False
-    if not (any (is_im . UiConfig.alloc_backend) allocs)
+    if not (any (UiConfig.is_im_allocation) allocs)
         then return Nothing
         else case List.find is_play_cache (Map.elems allocs) of
             Nothing -> do

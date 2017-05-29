@@ -10,8 +10,22 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector as V
 
 
+-- * search
+
 count :: Generic.Vector v a => (a -> Bool) -> v a -> Int
 count f = Generic.foldl' (\c a -> if f a then succ c else c) 0
+
+-- | Like 'Generic.find', but from the end.
+{-# SPECIALIZE find_end :: (a -> Bool) -> V.Vector a -> Maybe a #-}
+{-# INLINEABLE find_end #-}
+find_end :: Generic.Vector v a => (a -> Bool) -> v a -> Maybe a
+find_end f vec = go (Generic.length vec - 1)
+    where
+    go i
+        | i < 0 = Nothing
+        | f val = Just val
+        | otherwise = go (i-1)
+        where val = Generic.unsafeIndex vec i
 
 to_reverse_list :: Generic.Vector v a => v a -> [a]
 to_reverse_list vec = map (Generic.unsafeIndex vec) [from, from-1 .. 0]
@@ -44,6 +58,9 @@ bracket vec a = case Generic.findIndex (>=a) vec of
 
 -- | Binary search for the lowest index of the given value, or where it would
 -- be if it were present.
+--
+-- TODO this is likely the same as
+-- Data.Vector.Algorithms.Search.binarySearchLBy
 {-# SPECIALIZE lowest_index ::
     Ord key => (a -> key) -> key -> V.Vector a -> Int #-}
 {-# SPECIALIZE lowest_index ::
