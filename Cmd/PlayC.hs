@@ -298,7 +298,7 @@ monitor_loop state = do
         Set.difference (monitor_active_sels state) active_sels
     state <- return $ state { monitor_active_sels = active_sels }
 
-    midi_stopped <- Transport.poll_player_stopped (monitor_ctl state)
+    midi_stopped <- Transport.poll_player_stopped 0 (monitor_ctl state)
     -- If repeat_at is on, then the MIDI player will never stop on its own,
     -- even if I run out of tempo map (which happens if the repeat point is at
     -- or past the end of the score).  When the monitor thread stops, it sends
@@ -310,13 +310,14 @@ monitor_loop state = do
     -- do with the MIDI player.  Instead, infer that it's complete if either
     -- we've gone past its last note, or the user requested a stop.
     im_stopped <- orM
-            [ return $ maybe True (now>) (monitor_im_end state)
-            , Transport.poll_stop_player 0 (monitor_play_ctl state)
-            ]
+        [ return $ maybe True (now>) (monitor_im_end state)
+        , Transport.poll_stop_player 0 (monitor_play_ctl state)
+        ]
     if (midi_stopped && im_stopped) || out_of_score
         then do
             Sync.clear_play_position (monitor_ui_channel state) $ map fst $
                 Set.toList (monitor_active_sels state)
+            -- Don't send a Transport.Stopped until the MIDI thread is done.
             unless midi_stopped $
                 Transport.wait_player_stopped (monitor_ctl state)
         else Thread.delay 0.05 >> monitor_loop state

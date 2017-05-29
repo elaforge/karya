@@ -581,8 +581,11 @@ synth: im:
       but play until the end of the sample otherwise.
     . I can do it by ignoring NoteOff and requiring AllNotesOff.  Stop doesn't
       send that though, because it relies on NoteOff.
-  - repeat_at doesn't work for play-cache.
-  - What's more, it makes the monitor thread get stuck forever.
+  * repeat_at doesn't work for play-cache.
+    . I can send the repeat_at time in the same way as the start time.
+    . It already works!?  Because it loops back to the play-cache init msg
+      which makes play-cache restart.
+  * What's more, it makes the monitor thread get stuck forever.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those

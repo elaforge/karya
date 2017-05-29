@@ -133,7 +133,7 @@ play_loop state msgs = do
             then maybe now Midi.wmsg_ts (Seq.last (LEvent.events_of chunk))
                 - now
             else write_ahead
-    stop <- Transport.poll_stop_player (RealTime.to_seconds timeout)
+    stop <- Transport.poll_stop_player (RealTime.to_diff timeout)
         (state_play_control state)
     let reset_midi = state_write state (Interface.AllNotesOff now)
     case (stop, rest) of

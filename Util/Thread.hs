@@ -6,7 +6,8 @@ module Util.Thread (
     start, start_logged
     , Seconds, delay
     , timeout
-    , take_tmvar_timeout
+    -- * Flag
+    , Flag, flag, set, wait, poll
     -- * util
     , time_action
 ) where
@@ -16,6 +17,8 @@ import qualified Control.Exception as Exception
 
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import qualified Data.Time as Time
+
 import qualified GHC.Conc as Conc
 import qualified System.CPUTime as CPUTime
 import qualified System.Timeout as Timeout
@@ -39,32 +42,44 @@ start_logged name thread = do
 start :: IO () -> IO Concurrent.ThreadId
 start = Concurrent.forkIO
 
-type Seconds = Double
+-- | This is just NominalDiffTime, but with a name I might remember.
+type Seconds = Time.NominalDiffTime
 
--- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
+-- | Delay in seconds.
 delay :: Seconds -> IO ()
-delay = Concurrent.threadDelay . s_to_ms
+delay = Concurrent.threadDelay . to_usec
 
 timeout :: Seconds -> IO a -> IO (Maybe a)
-timeout = Timeout.timeout . s_to_ms
+timeout = Timeout.timeout . to_usec
 
-s_to_ms :: Seconds -> Int
-s_to_ms = round . (*1000000)
+to_usec :: Seconds -> Int
+to_usec = round . (*1000000)
 
--- | Isn't there a simpler way to do this?  All I really want to do is return
--- when a shared value has changed, or it's timed out.
-take_tmvar_timeout :: Seconds -> STM.TMVar a -> IO (Maybe a)
-take_tmvar_timeout seconds tmvar = do
-    res <- STM.newEmptyTMVarIO
-    th1 <- Concurrent.forkIO $ STM.atomically $
-        STM.takeTMVar tmvar >>= STM.putTMVar res . Just
-    th2 <- Concurrent.forkIO $ do
-        Concurrent.threadDelay (floor (seconds * 1000000))
-        STM.atomically (STM.putTMVar res Nothing)
-    val <- STM.atomically (STM.takeTMVar res)
-    Concurrent.killThread th1
-    Concurrent.killThread th2
-    return val
+-- * Flag
+
+-- | A Flag starts False, and can eventually become True.  It never goes back
+-- to False again.
+newtype Flag = Flag (STM.TVar Bool)
+
+instance Show Flag where show _ = "((Flag))"
+
+flag :: IO Flag
+flag = Flag <$> STM.newTVarIO False
+
+set :: Flag -> IO ()
+set (Flag var) = STM.atomically $ STM.writeTVar var True
+
+-- | Wait a finite amount of time for the flag to become true.
+poll :: Seconds -> Flag -> IO Bool
+poll time (Flag var)
+    | time <= 0 = STM.readTVarIO var
+    | otherwise = maybe False (const True) <$> timeout time (wait (Flag var))
+
+-- | Wait until the flag becomes true.
+wait :: Flag -> IO ()
+wait (Flag var) = STM.atomically $ do
+    val <- STM.readTVar var
+    if val then return () else STM.retry
 
 -- * util
 

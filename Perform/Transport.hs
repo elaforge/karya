@@ -18,13 +18,11 @@ module Perform.Transport (
     , TempoFunction, ClosestWarpFunction, InverseTempoFunction
 ) where
 import qualified Control.Concurrent.MVar as MVar
-import qualified Control.Concurrent.STM as STM
 
 import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Ui.Ui as Ui
 import qualified Derive.Score as Score
-import Global
 import Types
 
 
@@ -56,48 +54,37 @@ data Info = Info {
 
 -- | Communication from the responder to the player, to tell the player to
 -- stop.
-newtype PlayControl = PlayControl (STM.TMVar ())
-
--- Make Cmd.State showable for debugging.
-instance Show PlayControl where
-    show _ = "((PlayControl))"
+newtype PlayControl = PlayControl Thread.Flag deriving (Show)
 
 play_control :: IO PlayControl
-play_control = PlayControl <$> STM.newEmptyTMVarIO
+play_control = PlayControl <$> Thread.flag
 
 -- | Signal to the player that you'd like it to start stopping doing whatever
 -- it is that it's doing and just like stop now ok?  Is that ok?
-stop_player :: PlayControl -> IO Bool
-stop_player (PlayControl mv) = STM.atomically (STM.tryPutTMVar mv ())
+stop_player :: PlayControl -> IO ()
+stop_player (PlayControl flag) = Thread.set flag
 
-poll_stop_player :: Double -> PlayControl -> IO Bool
-poll_stop_player timeout (PlayControl mv) = do
-    val <- Thread.take_tmvar_timeout timeout mv
-    return $ case val of
-        Nothing -> False
-        Just _ -> True
+poll_stop_player :: Thread.Seconds -> PlayControl -> IO Bool
+poll_stop_player timeout (PlayControl flag) = Thread.poll timeout flag
 
 -- * play monitor control
 
 -- | Communication from the player to the responder, to say when it's stopped.
-newtype PlayMonitorControl = PlayMonitorControl (STM.TVar Bool)
+newtype PlayMonitorControl = PlayMonitorControl Thread.Flag
 
 play_monitor_control :: IO PlayMonitorControl
-play_monitor_control = PlayMonitorControl <$> STM.newTVarIO False
+play_monitor_control = PlayMonitorControl <$> Thread.flag
 
 -- | Signal that the player has stopped.
 player_stopped :: PlayMonitorControl -> IO ()
-player_stopped (PlayMonitorControl var) =
-    STM.atomically $ STM.writeTVar var True
+player_stopped (PlayMonitorControl flag) = Thread.set flag
 
 -- | True if the player has stopped.
-poll_player_stopped :: PlayMonitorControl -> IO Bool
-poll_player_stopped (PlayMonitorControl var) = STM.readTVarIO var
+poll_player_stopped :: Thread.Seconds -> PlayMonitorControl -> IO Bool
+poll_player_stopped timeout (PlayMonitorControl flag) = Thread.poll timeout flag
 
 wait_player_stopped :: PlayMonitorControl -> IO ()
-wait_player_stopped (PlayMonitorControl var) = STM.atomically $ do
-    stopped <- STM.readTVar var
-    unless stopped STM.retry
+wait_player_stopped (PlayMonitorControl flag) = Thread.wait flag
 
 
 -- * play timing

@@ -528,7 +528,7 @@ e_ts_chan_msg = map (\(a, (b, c)) -> (a, b, c))
     .  PerformTest.extract_msg_ts PerformTest.e_chan_msg
 
 -- TODO move to a more general purpose place?
-run_timeout :: Double -> IO a -> IO (Maybe a)
+run_timeout :: Thread.Seconds -> IO a -> IO (Maybe a)
 run_timeout timeout action = do
     mvar <- Concurrent.newEmptyMVar
     th1 <- Concurrent.forkIO $ do

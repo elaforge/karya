@@ -46,7 +46,7 @@ module Perform.RealTime (
     -- * convert from
     , seconds, milliseconds, microseconds, score
     -- * convert to
-    , to_seconds, to_milliseconds, to_microseconds, to_score
+    , to_diff, to_seconds, to_milliseconds, to_microseconds, to_score
     -- * misc
     , eta, (==), (>), (<=)
 ) where
@@ -56,6 +56,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
+import qualified Data.Time as Time
 import qualified Data.Typeable as Typeable
 
 import qualified Foreign
@@ -149,6 +150,9 @@ score :: ScoreTime.ScoreTime -> RealTime
 score = seconds . ScoreTime.to_double
 
 -- * convert to
+
+to_diff :: RealTime -> Time.NominalDiffTime
+to_diff = realToFrac
 
 to_seconds :: RealTime -> Double
 to_seconds (RealTime s) = s
