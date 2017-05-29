@@ -53,7 +53,7 @@ player_thread maybe_sync start name state msgs = do
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Play
         _ -> return ()
-    play_msgs state msgs
+    play_loop state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
@@ -104,7 +104,7 @@ make_state info = do
         , state_info = info
         }
 
--- | 'play_msgs' tries to not get too far ahead of now both to avoid flooding
+-- | 'play_loop' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.
 write_ahead :: RealTime
 write_ahead = RealTime.seconds 1
@@ -117,8 +117,8 @@ state_write_midi state = state_write state . Interface.Midi
 
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
-play_msgs :: State -> Messages -> IO ()
-play_msgs state msgs = do
+play_loop :: State -> Messages -> IO ()
+play_loop state msgs = do
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
     now <- Transport.info_get_current_time (state_info state)
@@ -141,4 +141,4 @@ play_msgs state msgs = do
             Transport.info_midi_abort (state_info state)
             reset_midi
         (_, []) -> reset_midi
-        _ -> play_msgs state rest
+        _ -> play_loop state rest

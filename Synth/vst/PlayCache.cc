@@ -173,10 +173,18 @@ PlayCache::start(VstInt32 delta)
     if (!sample->error().empty()) {
         LOG("error opening sample: " << sample->error());
     }
-    LOG("start playing at " << delta << " from " << offsetFrames);
+    LOG("start playing at delta " << delta << " from frame " << offsetFrames);
     this->delta = delta;
     this->playing = true;
 }
+
+enum {
+    NoteOff = 0x80,
+    ControlChange = 0xb0,
+    AllSoundOff = 0x78,
+    ResetAllControllers = 0x79,
+    AllNotesOff = 0x7b
+};
 
 VstInt32 PlayCache::processEvents(VstEvents *events)
 {
@@ -189,9 +197,11 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
 
         // Parse the protocol emitted by Perform.Im.Play.
         int status = data[0] & 0xf0;
-        if (status == 0x80
-                || (status == 0xb0 && (data[1] == 0x78 || data[1] == 0x7b))) {
-            // AllSoundOff = 0x78, AllNotesOff = 0x7b.
+        if (status == ControlChange
+                && (data[1] == AllSoundOff || data[1] == AllNotesOff
+                    || data[i] == ResetAllControllers)) {
+            // See NOTE [play-im] for why I stop on these msgs, but not
+            // NoteOff.
             this->offsetFrames = 0;
             this->playing = false;
         } else if (status == 0x90) {
@@ -218,7 +228,7 @@ void PlayCache::processReplacing(
     memset(out2, 0, processFrames * sizeof(float));
 
     // TODO fade out if this makes a nasty click.
-    if (!sample || !sample->error().empty() || !this->playing)
+    if (!this->playing || !sample || !sample->error().empty())
         return;
 
     float *samples;

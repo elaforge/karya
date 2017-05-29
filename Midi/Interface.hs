@@ -81,8 +81,7 @@ data Message =
 instance Pretty Message where
     pretty msg = case msg of
         Midi msg -> pretty msg
-        AllNotesOff time ->
-            Text.unwords ["AllNotesOff", pretty time]
+        AllNotesOff time -> Text.unwords ["AllNotesOff", pretty time]
         AllDevices time msgs ->
             Text.unwords ["AllDevices", pretty time, pretty msgs]
 

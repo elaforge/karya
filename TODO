@@ -570,7 +570,19 @@ synth: im:
       . But it is nice how the playback stops when I run out of notes, not
         score.  I could have a im-watcher thread like the MIDI one that
         doesn't play anything, but sends stopped when the notes run out.
-  - Play from another point does, briefly, but sound is inconsistent.
+  * Play from another point does, briefly, but sound is inconsistent.
+    . The problem is that the midi interface automatically sends a NoteOff
+      when the player thread stops, which makes play-cache stop.
+    . If I put the NoteOff at the im stop time, I can get rid of the
+      im-specific stuff in the monitor thread, because a MIDI note is being
+      held, but where do I put the note-off?  If it's at im_end, then I get
+      a hard cutoff.
+    . What I need is a way to tell play-cache to do a cutoff when I hit stop,
+      but play until the end of the sample otherwise.
+    . I can do it by ignoring NoteOff and requiring AllNotesOff.  Stop doesn't
+      send that though, because it relies on NoteOff.
+  - repeat_at doesn't work for play-cache.
+  - What's more, it makes the monitor thread get stuck forever.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those

@@ -48,13 +48,7 @@
     If all goes well, the monitor and the player will run to completion, the
     monitor will send Stopped, and the player will exit on its own.
 
-    The im backend complicates things a bit.  If 'lookup_im_config' notices
-    im events, it adds a specially formatted MIDI msg to the play-cache vst.
-    Since the play_monitor_thread can't get any signals from the vst, it
-    assumes play-cache is playing until time passes the last im event, or
-    there is a stop request via 'Transport.stop_player'.  TODO Come to think of
-    it, this would probably work for MIDI events too, so maybe I could simplify
-    things by getting rid of all the monitor and player communication.
+    The im backend complicates things a bit.  See NOTE [play-im].
 
     For example:
 
@@ -129,9 +123,7 @@ modify_play_multiplier f = Cmd.modify_play_state $ \st ->
 -- else.
 cmd_context_stop :: Cmd.CmdT IO Bool
 cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
-    Just ctl -> do
-        liftIO $ Transport.stop_player ctl
-        return True
+    Just ctl -> stop ctl >> return True
     Nothing -> do
         step_playing <- Cmd.gets $
             Maybe.isJust . Cmd.state_step . Cmd.state_play
@@ -142,8 +134,18 @@ cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
     maybe_ctl <- gets Cmd.state_play_control
-    whenJust maybe_ctl (void . liftIO . Transport.stop_player)
+    whenJust maybe_ctl stop
     return Cmd.Done
+
+stop :: Transport.PlayControl -> Cmd.CmdT IO ()
+stop ctl = do
+    liftIO $ Transport.stop_player ctl
+    -- Stop im note, if playing.  See NOTE [play-im].
+    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    case lookup_im_config allocs of
+        Right (_, (wdev, chan)) ->
+            Cmd.midi wdev $ Midi.ChannelMessage chan Midi.AllNotesOff
+        Left _ -> return ()
 
 -- * play
 
@@ -461,9 +463,9 @@ lookup_play_cache_addr = do
 
 im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
 im_play_msgs start (wdev, chan) =
-    map (LEvent.Event . Midi.WriteMessage wdev start
-            . Midi.ChannelMessage chan)
-        (Im.Play.encode_time start ++ [Im.Play.start])
+    map msg $ Im.Play.encode_time start ++ [Im.Play.start]
+    where
+    msg = LEvent.Event . Midi.WriteMessage wdev 0 . Midi.ChannelMessage chan
 
 -- | Merge a finite list of notes with an infinite list of MTC.
 merge_midi :: [LEvent.LEvent Midi.WriteMessage]
@@ -499,3 +501,29 @@ lookup_current_performance block_id =
 
 gets :: Cmd.M m => (Cmd.PlayState -> a) -> m a
 gets f = Cmd.gets (f . Cmd.state_play)
+
+
+{- NOTE [play-im]
+
+    Im is the general name for the offline synthesizer framework.  The overall
+    setup is that when the sequencer wants to play notes with an im allocation,
+    it serializes them to a file and invokes the external synthesizer.  Said
+    synthesizer then renders sound to the audio cache, which is a directory of
+    sound files.  Those sound files will be played by the PlayCache VST, which
+    just streams them into whatever VST host is in use.
+
+    When it's time to play, and 'lookup_im_config' notices im events, it adds
+    a specially formatted MIDI msgs to tell PlayCache where to start playing.
+    Since the play_monitor_thread can't get any signals from the vst, it
+    assumes PlayCache is playing until time passes the last im event, or
+    there is a stop request via 'Transport.stop_player'.  TODO Come to think of
+    it, this would probably work for MIDI events too, so maybe I could simplify
+    things by getting rid of all the monitor and player communication.
+
+    The sequencer sends AllNotesOff when the user requests a stop, which means
+    PlayCache should stop playing right away.  Otherwise, it keeps playing
+    until the end of the sample, because who knows how much decay that last
+    note may have.  The sequencer also sends ResetAllControllers on a stop when
+    already stopped, so I can use that too as a signal to stop even if there is
+    decay.
+-}

@@ -37,7 +37,7 @@ const sf_count_t Sample::read(sf_count_t fromFrame, float **frames) const {
     if (!error().empty() || fromFrame >= info.frames)
         return 0;
 
-    *frames = this->frames.get() + (fromFrame * info.channels);
+    *frames = this->frames.get() + fromFrame * info.channels;
     return info.frames - fromFrame;
 }
 
