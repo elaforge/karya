@@ -57,7 +57,7 @@ default_velocity = 0.79
 -- apply to.  Some synthesizers (kontakt at least) will occasionally not notice
 -- a keyswitch that comes too close to its note.
 keyswitch_lead_time :: RealTime
-keyswitch_lead_time = RealTime.milliseconds 6
+keyswitch_lead_time = RealTime.milliseconds 10
 
 -- | Most synths don't respond to control change and pitch bend instantly, but
 -- smooth it out, so if you set pitch bend immediately before playing the note

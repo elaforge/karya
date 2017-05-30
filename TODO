@@ -108,7 +108,7 @@ UNSORTED
     only absolute updates to the skeleton.
     . Can't reproduce this now.
     . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-  - bug: I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
+  * bug: I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
     . Also telek ugal, before pengawak.
     . I think it's still kontakt's fault, since if I record in reaper and play
       back I get non-deterministic results.  Try moving the keyswitch back
@@ -642,10 +642,20 @@ synth: im:
     - Assert that inst->getNumInputs() == length controls.
     - How to know when to drop notes?  I think I have to use a heuristic
       like >1s of audio under a threshold after note off.
+      . I think this has to go in the driver.  Implement a gate signal, and
+        the driver renders until the output gets low enough and gate is 0.
+      . For instruments that play multiple notes, I can use this to suspend
+        processing.
     - Instruments with explicit voice assignments (e.g. strings) use Attribues
       to assign the string, and create a set number of Instruments which are
       reused.
     - MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
+      . If I support faust controls, I can reuse existing OSC or MIDI bindings
+        for an accurate thru.  But I'd have to build the faust library as a
+        VST and then have some way to address it.  MIDI would be more
+        convenient for reusing existing thru, but OSC could be more convenient
+        for communicating with the thru-VST, so I could just address patches
+        by name and I don't to fuss with MIDI channels.
     support faust ui controls:
       - convert to standard control names:
         . Convert pitch NoteNumber to freq Hz
