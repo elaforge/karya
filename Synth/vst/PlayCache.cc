@@ -27,8 +27,8 @@ enum {
 };
 
 // VST_BASE_DIR must be defined when compiling.
-static const char *log_filename = VST_BASE_DIR "/PlayCache.log";
-static const char *sample_filename = VST_BASE_DIR "/cache/out.wav";
+static const char *logFilename = VST_BASE_DIR "/PlayCache.log";
+static const char *cacheDir = VST_BASE_DIR "/cache/";
 
 AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 {
@@ -38,12 +38,14 @@ AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 PlayCache::PlayCache(audioMasterCallback audioMaster) :
     AudioEffectX(audioMaster, 1, 1),
     offsetFrames(0), playing(false), delta(0), volume(1),
-    log(log_filename, std::ios::app),
+    log(logFilename, std::ios::app),
     sample(nullptr)
 {
+    // Try to avoid some allocation, not that I'm consistent about that.
+    blockId.reserve(64);
     if (!log.good()) {
         // Wait, how am I supposed to report this?  Can I put it in the GUI?
-        // LOG("couldn't open " << log_filename);
+        // LOG("couldn't open " << logFilename);
     }
     if (audioMaster) {
         setNumInputs(0);
@@ -169,11 +171,14 @@ PlayCache::start(VstInt32 delta)
 {
     if (sample)
         delete sample;
-    sample = new Sample(sample_filename);
+    LOG("start playing at delta " << delta << " block '" << blockId
+        << "' from frame " << offsetFrames);
+    std::string filename = std::string(cacheDir) + blockId + ".wav";
+    sample = new Sample(filename.c_str());
     if (!sample->error().empty()) {
         LOG("error opening sample: " << sample->error());
     }
-    LOG("start playing at delta " << delta << " from frame " << offsetFrames);
+    this->blockId.clear();
     this->delta = delta;
     this->playing = true;
 }
@@ -213,6 +218,22 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
             // Turn off bits in the range, then replace them.
             this->offsetFrames &= ~(0x7f << index);
             this->offsetFrames |= val << index;
+        } else if (status == 0xe0) {
+            // The name will never have nulls, so I can ignore these.  It seems
+            // the VST host tends to send a (0, 64) for who knows why.
+            if (data[1] == 0 || data[2] == 2)
+                continue;
+            // Sent at the beginning as an explicit clear, in case stray pitch
+            // bend has accumulated junk.
+            if (data[1] == 0x7f)
+                blockId.clear();
+            else
+                blockId.push_back(data[1]);
+            // If there are an odd number of letters, it will pad with space.
+            if (data[2] != ' ')
+                blockId.push_back(data[2]);
+            LOG("text: " << int(data[1]) << " + " << int(data[2])
+                << " -> '" << blockId << "'");
         }
     }
     return 1;

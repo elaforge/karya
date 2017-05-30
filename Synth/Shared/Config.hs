@@ -30,7 +30,7 @@ data Synth = Synth {
     -- | Path to the binary.
     binary :: !FilePath
     -- | Write serialized notes to this file.
-    , notes :: !FilePath
+    , notesDir :: !FilePath
     } deriving (Eq, Show)
 
 type SynthName = Text
@@ -41,7 +41,7 @@ samplerName = "sampler"
 sampler :: Synth
 sampler = Synth
     { binary = "build/opt/sampler-im"
-    , notes = dataDir </> "sampler-notes"
+    , notesDir = dataDir </> "sampler-notes"
     }
 
 faustName :: SynthName
@@ -50,7 +50,7 @@ faustName = "faust"
 faust :: Synth
 faust = Synth
     { binary = "build/opt/faust-im"
-    , notes = dataDir </> "faust-notes"
+    , notesDir = dataDir </> "faust-notes"
     }
 
 -- | All of the data files used by the Im backend are based in this directory.
@@ -59,8 +59,8 @@ faust = Synth
 dataDir :: FilePath
 dataDir = "im"
 
-cache :: FilePath
-cache = dataDir </> "cache"
+cacheDir :: FilePath
+cacheDir = dataDir </> "cache"
 
 -- | All im synths render at this sampling rate, and the sequencer sets the
 -- start time by it.

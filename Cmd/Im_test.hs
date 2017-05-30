@@ -44,7 +44,7 @@ test_respond = do
     equal warns []
     results <- respond states (return ())
     ResponderTest.print_results results
-    notes <- Note.unserialize DeriveTest.default_im_notes
+    notes <- Note.unserialize (DeriveTest.default_im_notes <> "/test-b1")
     right_equal (map Note.start <$> notes) [0, 1]
     right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
             <$> notes)

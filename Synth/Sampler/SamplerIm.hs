@@ -12,6 +12,7 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import qualified System.Environment as Environment
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
@@ -26,33 +27,38 @@ import Global
 
 main :: IO ()
 main = do
-    let process_ = process Config.cache <=< either errorIO return
+    let process_ name = process Config.cacheDir name <=< either errorIO return
     args <- Environment.getArgs
     case args of
-        [notesJson] -> process_ =<< Note.unserializeJson notesJson
-        [] -> process_ . first pretty
-            =<< Note.unserialize (Config.notes Config.sampler)
+        [fname]
+            | ".json" `List.isSuffixOf` fname ->
+                process_ name =<< Note.unserializeJson fname
+            | otherwise ->
+                process_ name . first pretty =<< Note.unserialize fname
+            where name = FilePath.takeFileName fname
         _ -> errorIO $ "usage: sampler notes.json"
 
-process :: FilePath -> [Note.Note] -> IO ()
-process outputDir notes = do
+process :: FilePath -> String -> [Note.Note] -> IO ()
+process outputDir name notes = do
     samples <- either errorIO return $ mapM Convert.noteToSample notes
     mapM_ print samples
-    realizeSamples outputDir samples
+    realizeSamples outputDir name samples
 
-realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
-realizeSamples outputDir samples = do
-    putStrLn $ "load " <> show (length samples) <> " samples"
+realizeSamples :: FilePath -> String -> [Sample.Sample] -> IO ()
+realizeSamples outputDir name samples = do
+    put $ "load " <> show (length samples) <> " samples"
     audios <- mapM realizeSample samples
-    putStrLn "processing"
+    put "processing"
     result <- AUtil.catchSndfile $ Resource.runResourceT $
-        Sndfile.sinkSnd (outputDir </> "out.wav") AUtil.outputFormat
+        Sndfile.sinkSnd (outputDir </> name <> ".wav") AUtil.outputFormat
             (mixAll (Maybe.catMaybes audios))
     case result of
         Left err -> Log.error $ "writing to output: "
-            <> showt (outputDir </> "out.wav") <> ": " <> err
+            <> showt (outputDir </> name <> ".wav") <> ": " <> err
         Right () -> return ()
-    putStrLn "done"
+    put "done"
+    where
+    put = putStrLn . ((name <> ": ")<>)
 
 realizeSample :: Sample.Sample -> IO (Maybe AUtil.Audio)
 realizeSample sample = AUtil.catchSndfile (Sample.realize sample) >>= \case

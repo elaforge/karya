@@ -4,6 +4,7 @@
 
 #pragma once
 #include <fstream>
+#include <string>
 
 #include "public.sdk/source/vst2.x/audioeffectx.h"
 
@@ -77,6 +78,7 @@ private:
     float volume;
 
     std::ofstream log;
-
     Sample *sample;
+    // Current playing block.
+    std::string blockId;
 };

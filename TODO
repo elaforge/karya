@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - QuickCheck for Midi.Encode_test just for practice
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
@@ -559,17 +560,17 @@ synth: im:
     on.  When the subprocesses complete, send another DeriveComplete just to
     change the status color.
   * Play from start doesn't get a playback cursor.
-      . This is because I stop the monitor as soon as the MIDI thread says
-        it's done.  But why do this at all?  I can keep playing as long as
-        there is still tempo map, and the MIDI player is alive.
-      . I wouldn't get immediate notification of a "no notes" problem though,
-        so maybe I can only do that if there are im allocations.
-      . I think the transport might have support for multiple players.  But
-        it looks like I'll never actually have those, so I might as well drop
-        the pretense and simplify.
-      . But it is nice how the playback stops when I run out of notes, not
-        score.  I could have a im-watcher thread like the MIDI one that
-        doesn't play anything, but sends stopped when the notes run out.
+    . This is because I stop the monitor as soon as the MIDI thread says
+      it's done.  But why do this at all?  I can keep playing as long as
+      there is still tempo map, and the MIDI player is alive.
+    . I wouldn't get immediate notification of a "no notes" problem though,
+      so maybe I can only do that if there are im allocations.
+    . I think the transport might have support for multiple players.  But
+      it looks like I'll never actually have those, so I might as well drop
+      the pretense and simplify.
+    . But it is nice how the playback stops when I run out of notes, not
+      score.  I could have a im-watcher thread like the MIDI one that
+      doesn't play anything, but sends stopped when the notes run out.
   * Play from another point does, briefly, but sound is inconsistent.
     . The problem is that the midi interface automatically sends a NoteOff
       when the player thread stops, which makes play-cache stop.
@@ -586,6 +587,23 @@ synth: im:
     . It already works!?  Because it loops back to the play-cache init msg
       which makes play-cache restart.
   * What's more, it makes the monitor thread get stuck forever.
+  - Emit signal discontinuities explicitly.
+    . If I say signals are now have linear interpolation by default, then
+      the linear interpolator can just emit one sample, but now MIDI needs
+      interpolation.  I'd have to put srate in the event so it can be
+      configured.
+    . Leaving as nominally non-interpolated, but with explicit discontinuities
+      since im actually is interpolated is not so pretty, but doesn't seem
+      so bad in practice.
+  * Support multiple blocks.  I think I have to number them, then write in
+    a numbered cache .wav, and then send the number along with note on.
+    . Save to im/faust-notes/block-name, then run faust-im with that argument.
+    . It writes to im/cache/block-name.wav.
+    . I can encode a string in MIDI by encoding ascii, e.g. each PitchBend
+      can have two 7-bit characters.
+  - Use a gate signal for note duration.
+  - Handle amp outside of faust, just by multiplying the signal.  That way all
+    instruments support it uniformly.  'dyn' should go to 'dynamic' or 'gain'.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those

@@ -20,6 +20,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import System.FilePath ((</>))
 import qualified System.Process as Process
 
 import qualified Util.Log as Log
@@ -42,7 +43,9 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Im.Convert as Im.Convert
+import qualified Perform.Im.Play as Im.Play
 import qualified Perform.RealTime as RealTime
+
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
@@ -239,7 +242,8 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
             <> pretty (RealTime.seconds wall_secs) <> " wall"
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
-        Just config -> evaluate_im config lookup_inst (Cmd.perf_events perf)
+        Just config ->
+            evaluate_im config lookup_inst block_id (Cmd.perf_events perf)
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
@@ -260,12 +264,13 @@ subprocesses procs = do
 -- render them, and the non-Im events.
 evaluate_im :: Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> BlockId
     -> Vector.Vector Score.Event
     -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
-evaluate_im config lookup_inst events
+evaluate_im config lookup_inst block_id events
     | null im_events = return ([], events)
     | otherwise = do
-        cmds <- Maybe.catMaybes <$> mapM cmd_for by_synth
+        cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
         return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
     im_events = events
@@ -276,16 +281,19 @@ evaluate_im config lookup_inst events
             _ -> Nothing
         Nothing -> Nothing
 
-    cmd_for (Just synth, events) =
+    write_notes (Just synth, events) =
         case Map.lookup synth (Shared.Config.synths config) of
             Just config -> do
-                Im.Convert.write lookup_inst (Shared.Config.notes config) events
-                return $ Just $ Process.proc (Shared.Config.binary config) []
+                let notes = Shared.Config.notesDir config
+                        </> Im.Play.block_filename block_id
+                Im.Convert.write lookup_inst notes events
+                return $ Just $
+                    Process.proc (Shared.Config.binary config) [notes]
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth <> " with "
                     <> showt (Vector.length events) <> " events"
                 return Nothing
-    cmd_for (Nothing, _) = return Nothing
+    write_notes (Nothing, _) = return Nothing
 
 -- | If there are no UiConfig.Im instruments, then I don't need to bother to
 -- partition out its events.  However, it means I won't get errors if there

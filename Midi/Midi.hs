@@ -306,21 +306,24 @@ instance Pretty Message where
         "chan:" <> showt chan <> " " <> pretty msg
     pretty msg = showt msg
 
--- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
--- On the other hand, these all have 7 bit ranges, so I can still check for
--- out of range values, at least until it wraps.
-type Channel = Word8 -- actually 4 bits
-type Velocity = Word8
+-- | These will be encoded with 7-bits, via the usual truncation.  It's not
+-- exactly safe, but then it's not like haskell checks for overflow anywhere
+-- else either.
+type Word7 = Word8
+type Word4 = Word8
+
+type Channel = Word4
+type Velocity = Word7
 type Control = CC.Control
-type Program = Word8
-type ControlValue = Word8
+type Program = Word7
+type ControlValue = Word7
 -- | This is converted to and from the -0x2000 and +0x2000 range by the parser.
 type PitchBendValue = Float
-type Manufacturer = Word8
+type Manufacturer = Word7
 
 newtype Key = Key Int deriving (Eq, Ord, Num, Enum, Show, Read)
-    -- This was initially a Word8 to match MIDI's range, but unlike the other
-    -- types, I sometimes do math on these, and Word8's tiny range is kind of
+    -- This was initially a Word7 to match MIDI's range, but unlike the other
+    -- types, I sometimes do math on these, and Word7's tiny range is kind of
     -- scary for that.
 
 instance Serialize.Serialize Key where
@@ -362,12 +365,15 @@ data ChannelMessage =
     | ProgramChange !Program
     | ChannelPressure !ControlValue
     | PitchBend !PitchBendValue
+    -- | This is PitchBend, but with precise control over the bytes sent.
+    | PitchBendInt !Word7 !Word7
     -- | channel mode messages (special control values)
     | AllSoundOff
     | ResetAllControls
     | LocalControl !Bool
     | AllNotesOff
-    | UndefinedChannelMode !Word8 !Word8
+    -- | There are a few values in the ChannelMode range left undefined.
+    | UndefinedChannelMode !Word7 !Word7
     deriving (Eq, Ord, Show, Read)
 
 data CommonMessage =
@@ -398,7 +404,7 @@ instance Pretty ChannelMessage where
 
 -- * MTC
 
-data Mtc = Mtc !SmpteFragment !Word8 -- actually Word4
+data Mtc = Mtc !SmpteFragment !Word4
     deriving (Eq, Ord, Show, Read)
 data FrameRate = Frame24 | Frame25 | Frame29_97df | Frame30
     deriving (Enum, Show)
@@ -437,7 +443,7 @@ frame_to_smpte rate frame = Smpte (w7 hours) (w7 mins) (w7 secs) (w7 t3)
     (hours, t1) = undrop_frames rate frame `divMod` (60 * 60 * fps)
     (mins, t2) = t1 `divMod` (60 * fps)
     (secs, t3) = t2 `divMod` fps
-    w7 :: Int -> Word8
+    w7 :: Int -> Word7
     w7 = fromIntegral . Num.clamp 0 0x7f
 
 seconds_to_smpte :: FrameRate -> Seconds -> Smpte
@@ -506,7 +512,7 @@ realtime_tuning nns = realtime_sysex $ ByteString.pack $
     [generic_device, 8, 2, 0, fromIntegral (length nns)]
         ++ concatMap (uncurry retune_key) nns
     where
-    retune_key :: Key -> NoteNumber -> [Word8]
+    retune_key :: Key -> NoteNumber -> [Word7]
     retune_key key nn = [from_key key, nn_key, msb, lsb]
         where
         (lsb, msb) = split14 $ round $ frac * 2^14
@@ -515,26 +521,26 @@ realtime_tuning nns = realtime_sysex $ ByteString.pack $
 -- * util
 
 -- | Split an Int into two 7 bit words.
-split14 :: Int -> (Word8, Word8) -- ^ (LSB, MSB)
+split14 :: Int -> (Word7, Word7) -- ^ (LSB, MSB)
 split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (Bits.shiftR i 7 .&. 0x7f))
 
 -- | Join (LSB, MSB) 7-bit words into an int.
-join14 :: Word8 -> Word8 -> Int
+join14 :: Word7 -> Word7 -> Int
 join14 lsb msb =
     Bits.shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
 
 -- | Split a Word8 into (msb, lsb) nibbles, and join back.
-split4 :: Word8 -> (Word8, Word8)
+split4 :: Word8 -> (Word4, Word4)
 split4 word = (Bits.shiftR word 4 .&. 0xf, word .&. 0xf)
 
--- | Join msb and lsb into a Word8.
-join4 :: Word8 -> Word8 -> Word8
+-- | Join msb and lsb into a Word7.
+join4 :: Word4 -> Word4 -> Word7
 join4 d1 d2 = (Bits.shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 
 -- * constants
 
 -- | Softsynths don't care about device ID, so use this.
-generic_device :: Word8
+generic_device :: Word7
 generic_device = 0x7f
 
 manufacturer_name :: Manufacturer -> Text

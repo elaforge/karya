@@ -5,12 +5,15 @@
 -- | Fire up the play-cache vst.
 module Perform.Im.Play (
     play_cache_synth, qualified
-    , encode_time, decode_time, start, stop
+    , encode_time, block_filename, encode_block, decode_time, start, stop
 ) where
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
+import qualified Data.Char as Char
+import qualified Data.Text as Text
 
 import qualified Midi.Midi as Midi
+import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
@@ -62,6 +65,23 @@ encode_time t = [at 0, at 1, at 2, at 3]
         (fromIntegral $ Bits.shiftR pos (i * 7) .&. 0x7f)
     pos = to_sample t
 
+block_filename :: BlockId -> FilePath
+block_filename = untxt . Text.replace "/" "-" . Id.ident_text
+
+encode_block :: BlockId -> [Midi.ChannelMessage]
+encode_block = encode_string . block_filename
+
+encode_string :: String -> [Midi.ChannelMessage]
+encode_string str = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
+    where
+    ord = fromIntegral . Char.ord
+    -- Prepend 0x7f to tell PlayCache to clear any accumulated junk.  It
+    -- happens to be \DEL, which is a nice coincidence.
+    name = pairs ('\DEL' : str)
+    pairs (x:y:xs) = (x, y) : pairs xs
+    pairs [x] = [(x, ' ')]
+    pairs [] = []
+
 -- | Just to test 'encode_time'.  play_cache does this internally.
 decode_time :: [Midi.ChannelMessage] -> Int
 decode_time = foldr go 0
@@ -84,4 +104,4 @@ start :: Midi.ChannelMessage
 start = Midi.NoteOn 1 1
 
 stop :: Midi.ChannelMessage
-stop = Midi.NoteOff 1 1
+stop = Midi.AllNotesOff

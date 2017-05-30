@@ -144,7 +144,7 @@ stop ctl = do
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     case lookup_im_config allocs of
         Right (_, (wdev, chan)) ->
-            Cmd.midi wdev $ Midi.ChannelMessage chan Midi.AllNotesOff
+            Cmd.midi wdev $ Midi.ChannelMessage chan Im.Play.stop
         Left _ -> return ()
 
 -- * play
@@ -405,7 +405,7 @@ from_realtime block_id repeat_at start_ = do
             return (im_insts, Just play_cache_addr)
         Left Nothing -> return (mempty, Nothing)
         Left (Just msg) -> Cmd.throw msg
-    let im_msgs = maybe [] (im_play_msgs start) play_cache_addr
+    let im_msgs = maybe [] (im_play_msgs block_id start) play_cache_addr
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs
@@ -461,11 +461,19 @@ lookup_play_cache_addr = do
                 _ -> Ui.throw $
                         pretty Im.Play.qualified <> " with non-MIDI allocation"
 
-im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
-im_play_msgs start (wdev, chan) =
-    map msg $ Im.Play.encode_time start ++ [Im.Play.start]
+im_play_msgs :: BlockId -> RealTime -> Patch.Addr
+    -> [LEvent.LEvent Midi.WriteMessage]
+im_play_msgs block_id start (wdev, chan) =
+    zipWith msg ts $ Im.Play.encode_time start ++ Im.Play.encode_block block_id
+        ++ [Im.Play.start]
     where
-    msg = LEvent.Event . Midi.WriteMessage wdev 0 . Midi.ChannelMessage chan
+    msg t = LEvent.Event . Midi.WriteMessage wdev t . Midi.ChannelMessage chan
+    -- 'encode_time' includes the bit position so it doesn't depend on order,
+    -- but encode_block does.  With CoreMIDI it seems msgs stay in order even
+    -- when they have the same timestamp, I'll put on a timestamp just in case.
+    -- They're all in the past, so they should still be "as fast as possible",
+    -- and not 10ms, or whatever it winds up being.
+    ts = map RealTime.milliseconds [0..]
 
 -- | Merge a finite list of notes with an infinite list of MTC.
 merge_midi :: [LEvent.LEvent Midi.WriteMessage]

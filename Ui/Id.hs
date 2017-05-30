@@ -19,7 +19,7 @@ module Ui.Id (
     -- * Ident
     , Ident(..)
     , show_ident, read_ident
-    , ident_string, ident_text, ident_name, ident_namespace
+    , ident_text, ident_name, ident_namespace
 
     -- * constants
     , global, global_namespace
@@ -206,9 +206,6 @@ read_ident = do
     return $ make (read_id (txt str))
 
 -- | SomethingId -> "ns/name"
-ident_string :: Ident a => a -> String
-ident_string = untxt . show_id . unpack_id
-
 ident_text :: Ident a => a -> Text
 ident_text = show_id . unpack_id
 

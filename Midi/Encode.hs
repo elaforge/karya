@@ -11,6 +11,8 @@ import Data.Word (Word8)
 import Midi.Midi
 
 
+type Word7 = Word8
+
 decode :: B.ByteString -> Message
 decode bytes = case B.length bytes of
         0 -> UnknownMessage 0 0 0
@@ -78,12 +80,13 @@ encode (ChannelMessage chan msg) = B.pack $ join1 $ case msg of
         ProgramChange v -> [0xc, v]
         ChannelPressure v -> [0xd, v]
         PitchBend v -> let (d1, d2) = encode_pb v in [0xe, d1, d2]
+        PitchBendInt d1 d2 -> [0xe, d1, d2]
         -- channel mode msgs
         AllSoundOff -> [0xb, 0x78, 0]
         ResetAllControls -> [0xb, 0x79, 0]
         LocalControl on -> [0xb, 0x7a, if on then 0xff else 0]
         AllNotesOff -> [0xb, 0x7b, 0]
-        _ -> error $ "Midi encode: unknown ChannelMessage " ++ show msg
+        UndefinedChannelMode d1 d2 -> [0xb, d1, d2]
     where
     join1 (b:bs) = join4 b chan : bs
     join1 [] = []
@@ -116,30 +119,30 @@ encode (CommonMessage msg) = case msg of
 encode (UnknownMessage st d1 d2) =
     error $ "Midi encode: UnknownMessage: " ++ show (st, d1, d2)
 
-sox_byte, eox_byte :: Word8
+sox_byte, eox_byte :: Word7
 sox_byte = 0xf0
 eox_byte = 0xf7
 
 -- * util
 
-decode_mtc :: Word8 -> Mtc
+decode_mtc :: Word7 -> Mtc
 decode_mtc byte = Mtc (toEnum (fromIntegral frag)) val
     where (frag, val) = split4 byte
 
-encode_mtc :: Mtc -> Word8
+encode_mtc :: Mtc -> Word7
 encode_mtc (Mtc frag val) = join4 (fromIntegral (fromEnum frag)) val
 
 -- | I map a 2s complement range to inclusive -1--1, so this is a little
 -- tricky.
-decode_pb :: Word8 -> Word8 -> PitchBendValue
+decode_pb :: Word7 -> Word7 -> PitchBendValue
 decode_pb d1 d2
     | v < 0x2000 = (v - 0x2000) / 0x2000
     | otherwise = (v - 0x2000) / (0x2000-1)
     where v = fromIntegral (join14 d1 d2)
 
-encode_pb :: PitchBendValue -> (Word8, Word8)
+encode_pb :: PitchBendValue -> (Word7, Word7)
 encode_pb v = split14 (floor (v*m + 0x2000))
     where m = if v < 0 then 0x2000 else 0x2000 - 1
 
-encode_key :: Key -> Word8
+encode_key :: Key -> Word7
 encode_key = from_key . min 127 . max 0

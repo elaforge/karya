@@ -484,7 +484,7 @@ cmd_config inst_db = Cmd.Config
     , config_im = Shared.Config.Config $ Map.fromList
         [ ("im-synth", Shared.Config.Synth
             { binary = "/usr/bin/true"
-            , notes = default_im_notes
+            , notesDir = default_im_notes
             })
         ]
     , config_git_user = SaveGit.User "name" "email"

@@ -9,11 +9,13 @@ import qualified Data.Conduit as Conduit
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
 import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Storable as Storable
 
 import qualified System.Environment as Environment
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
@@ -23,8 +25,8 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Types as Types
-
 import Synth.Types
+
 import Global
 
 
@@ -32,32 +34,39 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     patches <- DriverC.getPatches
-    let process_ = process patches Config.cache <=< either errorIO return
+    let process_ name =
+            process patches Config.cacheDir name <=< either errorIO return
     case args of
         ["print-patches"] -> forM_ (Map.toList patches) $ \(name, patch) -> do
             Text.IO.putStrLn name
             print =<< DriverC.getControls patch
             print =<< DriverC.getUiControls patch
-        [notesJson] -> process_ =<< Note.unserializeJson notesJson
-        [] -> process_ . first pretty
-            =<< Note.unserialize (Config.notes Config.faust)
+        [fname]
+            | ".json" `List.isSuffixOf` fname ->
+                process_ name =<< Note.unserializeJson fname
+            | otherwise ->
+                process_ name . first pretty =<< Note.unserialize fname
+            where name = FilePath.takeFileName fname
         _ -> errorIO $ "usage: faust-im [notes.json | print-patches]"
 
-process :: Map Types.PatchName DriverC.Patch -> FilePath -> [Note.Note] -> IO ()
-process patches outputDir notes = do
-    let output = outputDir </> "out.wav"
-    putStrLn "processing"
+process :: Map Types.PatchName DriverC.Patch -> FilePath -> String
+    -> [Note.Note] -> IO ()
+process patches outputDir name notes = do
+    let output = outputDir </> name ++ ".wav"
+    put $ "processing " <> showt (length notes) <> " notes"
     (errs, rendered) <- Either.partitionEithers <$>
         mapM (renderNote patches) notes
-    mapM_ Text.IO.putStrLn errs
-    putStrLn $ "writing " <> output
+    mapM_ put errs
+    put $ "writing " <> txt output
     result <- AUtil.catchSndfile $ Resource.runResourceT $
         Sndfile.sinkSnd output AUtil.outputFormat (AUtil.mix rendered)
     case result of
         Left err -> Log.error $
             "writing to output: " <> showt output <> ": " <> err
         Right () -> return ()
-    putStrLn "done"
+    put "done"
+    where
+    put = Text.IO.putStrLn . ((txt name <> ": ")<>)
 
 -- | Render samples for a single note.
 renderNote :: Map Types.PatchName DriverC.Patch -> Note.Note
