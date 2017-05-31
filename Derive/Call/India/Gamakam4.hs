@@ -107,8 +107,7 @@ initial_pitch_state transition args =
         maybe_prev <- Args.lookup_prev_note_pitch args
         maybe_next <- Args.lookup_next_note_pitch args
         return $ Just $ PitchState
-            { state_from_pitch =
-                fromMaybe cur (prev_pitch <|> context_pitch)
+            { state_from_pitch = fromMaybe cur (prev_pitch <|> context_pitch)
             , state_current_pitch = cur
             , state_previous_pitch = fromMaybe cur maybe_prev
             , state_next_pitch = fromMaybe cur maybe_next
@@ -142,18 +141,14 @@ pitch_call_map :: Map Char [PitchCall]
 pitch_call_map = resolve $ Map.unique $ concat
     [ [pcall '=' "Hold flat pitch." pc_flat]
     -- relative motion
-    , [parse_name $ pcall c "Relative motion." (pc_relative True)
-        | c <- "0123456789"]
-    , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
+    , [parse_name $ pcall c "Relative motion." pc_relative | c <- "0123456789"]
+    , [parse_name $ pcall '-' "Negative relative motion." pc_relative]
     , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
 
-    -- TODO do I need a swaram_relative=True version?
-    , [pcall 'e' "Pitch up by 1nn." (pc_relative_move False (Pitch.Nn 1))]
-    , [pcall 'f' "Pitch down by 1nn."
-        (pc_relative_move False (Pitch.Nn (-1)))]
-    , [pcall 'g' "Pitch up by .5nn." (pc_relative_move False (Pitch.Nn 0.5))]
-    , [pcall 'h' "Pitch down by .5nn."
-        (pc_relative_move False (Pitch.Nn (-0.5)))]
+    , [pcall 'e' "Pitch up by 1nn." (pc_relative_move (Pitch.Nn 1))]
+    , [pcall 'f' "Pitch down by 1nn." (pc_relative_move (Pitch.Nn (-1)))]
+    , [pcall 'g' "Pitch up by .5nn." (pc_relative_move (Pitch.Nn 0.5))]
+    , [pcall 'h' "Pitch down by .5nn." (pc_relative_move (Pitch.Nn (-0.5)))]
     , [alias 'n' 0.5 ["e", "f"]]
     , [alias 'u' 0.5 ["f", "e"]]
 
@@ -462,8 +457,8 @@ data PitchCall = PitchCall {
     }
 
 -- | Argument parser and call function.
-data PCall = forall a. PCall (Sig.Parser a)
-    (a -> Context -> M PitchState PSignal.PSignal)
+data PCall = forall a. PCall
+    (Sig.Parser a) (a -> Context -> M PitchState PSignal.PSignal)
 
 pcall_arg :: PitchCall -> Char -> Text -> Text
 pcall_arg pcall name arg
@@ -529,24 +524,17 @@ pc_flat = PCall Sig.no_args $ \() ctx -> do
     (start, end) <- ctx_range ctx
     return $ PSignal.signal [(start, pitch), (end, pitch)]
 
-pc_relative :: Bool -> PCall
-pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
-    $ \arg ctx -> case arg of
-        Left (Expr.Str sym)
-            | sym == "-" -> do
-                (start, end) <- ctx_range ctx
-                pitch <- get_from
-                return $ PSignal.signal [(start, pitch), (end, pitch)]
-            | otherwise -> lift $ Derive.throw $ "unknown move: " <> showt sym
-        Right (Typecheck.DefaultDiatonic transpose) -> do
-            from_pitch <- if swaram_relative
-                then State.gets state_current_pitch else get_from
-            move_to ctx (Pitches.transpose transpose from_pitch)
+-- | Move relative to the note's swaram.
+pc_relative :: PCall
+pc_relative = PCall (Sig.required "to" "To pitch.") $
+    \(Typecheck.DefaultDiatonic transpose) ctx -> do
+        from_pitch <- State.gets state_current_pitch
+        move_to ctx (Pitches.transpose transpose from_pitch)
 
-pc_relative_move :: Bool -> Pitch.Transpose -> PCall
-pc_relative_move swaram_relative transpose = PCall Sig.no_args $ \() ctx -> do
-    from_pitch <- if swaram_relative
-        then State.gets state_current_pitch else get_from
+-- | Move relative to the current pitch.
+pc_relative_move :: Pitch.Transpose -> PCall
+pc_relative_move transpose = PCall Sig.no_args $ \() ctx -> do
+    from_pitch <- get_from
     move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
