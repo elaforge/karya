@@ -1942,6 +1942,11 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - 'pad' should be able to align a tirmanam to sam
+        - Allow korvais to include the final note on sam, since it's sometimes
+          more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
+          tri_ (din . su kitataka) tat.  Maybe strip trailing rests, so
+          tri_ (tat.din.__) (su kitataka) works.
         * If 1^(...) applies to everything, then I can mark a bunch of sollus
           at once.
         - There are taka.x, and takanaka.x / takatiku.x prefixes that are
@@ -1976,7 +1981,8 @@ Derive:
             speed.  And I can group in a search by the binding name already,
             I just have to recognize both ':: Korvai' and ':: [Korvai]'.
         - I should be able to add multiple realizations of the same
-          instrument, keyed by string.
+          instrument, keyed by string, e.g. for different mridangists
+          realizations.
         * The same sequence, like takita, can be different in different
           places.  One way is an optional tag, e.g. ta^1.ki.ta and ta^2.ki.ta,
           and a ta^1.ki.ta mapping will be considered a better match, though

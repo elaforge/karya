@@ -837,6 +837,21 @@ tir_18 = tirmanam $ korvai adi mridangam $ map (su • (pad 18 .))
         , (din, [od])
         ]
 
+janahan_17_06_02 :: Korvai
+janahan_17_06_02 = tirmanam $ date 2017 6 2 $ source "janahan" $
+        korvai1 adi mridangam $
+    __n 9 . tri_ (din . su (ki.ta.ta.ka)) (din.din . su (ta.ka) . din.din.tat)
+    -- TODO actually the din is at sam, I should have a way to allow avartanam
+    -- + sam.
+    where
+    mridangam = make_mridangam
+        [ (din, [od])
+        , (ta.ka, [p, k])
+        , (tat, [k])
+        , (ki.ta.ta.ka, [p, k, n, o])
+        ]
+
+
 -- * exercise
 
 e_spacing :: Korvai
@@ -885,6 +900,9 @@ vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
 rest :: Matra -> Sequence stroke
 rest dur = repeat dur __
 
+-- TODO this should take the sequence and align to the end
+-- so I need duration_of plus rest by akshara
+-- or matras_of and to know the nadai somehow
 pad :: Matra -> Sequence stroke
 pad dur = repeat (64 - dur) __
 

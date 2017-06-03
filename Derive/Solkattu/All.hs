@@ -139,10 +139,13 @@ korvais =
     , variable_name "tir_18" $
         module_ "Derive.Solkattu.Score.Score" $
         line_number 829 Derive.Solkattu.Score.Score.tir_18
+    , variable_name "janahan_17_06_02" $
+        module_ "Derive.Solkattu.Score.Score" $
+        line_number 840 Derive.Solkattu.Score.Score.janahan_17_06_02
     , variable_name "e_spacing" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 842 Derive.Solkattu.Score.Score.e_spacing
+        line_number 857 Derive.Solkattu.Score.Score.e_spacing
     , variable_name "e_17_05_19" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 858 Derive.Solkattu.Score.Score.e_17_05_19
+        line_number 873 Derive.Solkattu.Score.Score.e_17_05_19
     ]
