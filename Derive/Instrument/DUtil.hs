@@ -88,7 +88,7 @@ is_zero_duration args
         -- It turns out it's hard to figure out if a note has zero
         -- duration, and isn't just an infer-duration note.
         stack <- Internal.get_stack
-        environ <- Internal.get_environ
+        environ <- Derive.get_environ
         zero <- (==0) <$> Args.real_duration args
         let flags = Note.note_flags zero stack environ
         return $ zero && not (flags `Flags.has` Flags.infer_duration)

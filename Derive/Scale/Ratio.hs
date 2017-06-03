@@ -20,7 +20,6 @@ import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -70,7 +69,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $
     \hz args -> do
         start <- Args.real_start args
-        env <- Internal.get_environ
+        env <- Derive.get_environ
         nn <- Derive.require
             ("ratio scale requires " <> ShowVal.show_val pcontrol_ref)
             =<< Derive.named_nn_at pcontrol start

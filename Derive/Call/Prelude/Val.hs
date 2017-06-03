@@ -21,7 +21,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
@@ -239,7 +238,7 @@ make_pitch (Right name_pitch) pc accs
             Right pitch -> (,)
                 <$> Pitches.pitch_note (PSignal.coerce pitch)
                 <*> Derive.get_scale (PSignal.pitch_scale_id pitch)
-        env <- Internal.get_environ
+        env <- Derive.get_environ
         either (Derive.throw . pretty) return $
             Scale.scale_read scale env note
 

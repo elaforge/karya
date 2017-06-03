@@ -22,7 +22,6 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -255,7 +254,7 @@ direct_input_to_nn pos (Pitch.Input _ pitch frac) = do
 computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> InputToNn
 computed_input_to_nn input_to_note note_to_call pos input = do
-    env <- Internal.get_environ
+    env <- Derive.get_environ
     case get_call env of
         Left err -> return $ Left err
         Right call -> do

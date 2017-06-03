@@ -291,7 +291,7 @@ get_pitch_functions :: Derive.Deriver
     )
 get_pitch_functions = do
     scale <- get_scale
-    env <- Internal.get_environ
+    env <- Derive.get_environ
     let transpose transposition steps =
             to_maybe . Scale.scale_transpose scale transposition env steps
     return

@@ -23,7 +23,6 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -47,7 +46,7 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
     Sig.call (Sig.defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output.")
     $ \frac _args -> do
-        env <- Internal.get_environ
+        env <- Derive.get_environ
         let config = PSignal.PitchConfig env controls
             controls = if frac == 0 then mempty
                 else Map.singleton Controls.chromatic (frac / 100)
@@ -86,7 +85,7 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     $ Sig.call (Sig.many "interval" (interval_arg_doc named_intervals))
     $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
-        env <- Internal.get_environ
+        env <- Derive.get_environ
         return $! PSignal.pitch scale
             (\config -> modify (extra_interval*interval) config <$>
                 pitch_nn config)
