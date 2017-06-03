@@ -38,6 +38,8 @@
     This solves the problem for 'constant' and for tracks in the same way, and
     doesn't result in any ugly arbitrary -bignum values suddenly showing up in
     signals.
+
+    NOTE [signal-discontinuity] TODO
 -}
 module Util.TimeVector (
     module Util.TimeVector
@@ -45,20 +47,21 @@ module Util.TimeVector (
     , module Data.Vector.Generic
 ) where
 import Prelude hiding (head, last, take)
+import qualified Control.Monad.State.Strict as State
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
 import Data.Vector.Generic
-    (all, drop, foldl', length, null, take, toList, unsafeIndex)
+       (all, drop, foldl', length, null, take, toList, unsafeIndex)
 import qualified Data.Vector.Storable as Storable
+
 import qualified Foreign
-import qualified Control.Monad.State.Strict as State
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Perform.RealTime as RealTime
 import Util.TimeVectorStorable (X, Sample(..))
 
+import qualified Perform.RealTime as RealTime
 import Global
 
 
@@ -124,6 +127,19 @@ signal = V.fromList . map (uncurry Sample)
 
 unsignal :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
 unsignal = map to_pair . V.toList
+
+-- | Like 'unsignal', but filter out explicit discontinuities, so each
+-- X is unique.  This is for tests, where they're just clutter if I'm not
+-- explicitly testing them.  NOTE [signal-discontinuity]
+unsignal_unique :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
+unsignal_unique = Seq.drop_initial_dups fst . unsignal
+
+-- | Set the signal value, with a discontinuity.  See
+-- NOTE [signal-discontinuity].
+set :: V.Vector v (Sample y) => Maybe y -> X -> y -> v (Sample y)
+-- set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
+-- TODO enable when I've figured out gamakam
+set prev_y x y = signal [(x, y)]
 
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
@@ -302,14 +318,18 @@ drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)
 
 -- | Like 'drop_before_strict', except if there is no sample at @x@, keep one
--- sample before it to preserve the value at @x@.
+-- sample before it to preserve the value at @x@.  If there are multiple
+-- samples at @x@, drop all but the last one.  This is because they indicate
+-- a discontinuity, but if you don't care about the previous value, then you
+-- don't need the discontinuity.
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 {-# INLINEABLE drop_before #-}
 drop_before :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
-    | i < V.length vec && sx (V.unsafeIndex vec i) == x = V.drop i vec
-    | otherwise = V.drop (i-1) vec
-    where i = lowest_index x vec
+    | i == -1 = vec
+    | i < V.length vec = V.drop i vec
+    | otherwise = V.drop (V.length vec - 1) vec
+    where i = highest_index x vec
 
 -- | The reverse of 'drop_at_after': trim a signal's head up until, but not
 -- including, the given X.
@@ -432,7 +452,7 @@ x_at x0 y0 x1 y1 y
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
 -- | Binary search for the lowest index of the given X, or where it would be if
--- it were present.  So the next value is guaranteed to be >= the given X.
+-- it were present.  So the next value is guaranteed to be >=X.
 {-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE lowest_index :: X -> Boxed y -> Int #-}
 {-# INLINEABLE lowest_index #-}
@@ -446,7 +466,7 @@ lowest_index x vec = go 0 (V.length vec)
         where mid = (low + high) `div` 2
 
 -- | Binary search for the highest index of the given X.  So the next value is
--- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
+-- guaranteed to be >X, if it exists.  Return -1 if @x@ is before
 -- the first element.  'RealTime.eta' is added to @x@, so a sample that's
 -- almost the same will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}

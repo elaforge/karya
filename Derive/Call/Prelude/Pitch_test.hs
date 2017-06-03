@@ -17,6 +17,27 @@ import Global
 import Types
 
 
+test_set_and_val_to_pitch = do
+    -- This also tests Derive.Deriver.Lib.val_to_pitch, but they should have
+    -- the same behaviour.
+    let run modify notes pitches = DeriveTest.extract extract $
+            DeriveTest.derive_tracks ""
+                [ (">", [(s, d, "") | (s, d) <- notes])
+                , ("*", [(s, 0, modify p) | (s, p) <- pitches])
+                ]
+        extract = fst . DeriveTest.e_nns_errors
+    forM_ [id, \p -> "set (" <> p <> ")"] $ \modify -> do
+        equal (run modify [(0, 1), (1, 1)] [(0, "4c"), (1, "4d")])
+            ([[(0, NN.c4)], [(1, NN.d4)]], [])
+        -- A set emits an explicit discontinuity.
+        equal (run modify [(0, 2)] [(0, "4c"), (1, "4d")])
+            ([[(0, NN.c4), (1, NN.c4), (1, NN.d4)]], [])
+
+test_set = do
+    equal (run [(0, "set (4c)")]) [(0, 60)]
+    equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
+        [(0, 60), (1, 61), (2, 60)]
+
 test_multiply = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
             . UiTest.note_track
@@ -85,11 +106,6 @@ test_linear = do
         [(0, 60), (3, 61), (4, 60)]
     equal (run [(0, "4c"), (2, "i> (>)"), (4, "4d")])
         [(0, 60), (3, 61), (4, 62)]
-
-test_set = do
-    equal (run [(0, "set (4c)")]) [(0, 60)]
-    equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
-        [(0, 60), (1, 61), (2, 60)]
 
 test_porta = do
     equal (run [(0, "4c"), (2, "porta-place=1 | p (4d) 2s")])

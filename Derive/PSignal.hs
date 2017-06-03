@@ -6,7 +6,7 @@ module Derive.PSignal (
     PSignal, sig_scale_id
     , Scale(Scale), no_scale
     -- * construct and convert
-    , constant, signal, unsignal, to_nn
+    , constant, signal, unsignal, unsignal_unique, set, to_nn
     , unfoldr
     -- * apply controls
     , apply_controls, apply_control, apply_environ
@@ -86,6 +86,13 @@ signal = PSignal . TimeVector.signal
 
 unsignal :: PSignal -> [(RealTime, Pitch)]
 unsignal = TimeVector.unsignal . sig_vec
+
+unsignal_unique :: PSignal -> [(RealTime, Pitch)]
+unsignal_unique = TimeVector.unsignal_unique . sig_vec
+
+-- | Set the signal value, with a discontinuity.
+set :: Maybe Pitch -> RealTime -> Pitch -> PSignal
+set prev_y x y = PSignal $ TimeVector.set prev_y x y
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])

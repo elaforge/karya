@@ -111,6 +111,9 @@ test_interleave = do
     equal (f [(0, 0)] [(1, 1)]) [(0, 0), (1, 1)]
     equal (f [(0, 0), (2, 2)] [(1, 1)]) [(0, 0), (1, 1), (2, 2)]
 
+    -- This would be if I made interleave understand discontinuities.
+    -- equal (f [(0, 0), (2, 0)] [(1, 1)]) [(0, 0), (1, 0), (1, 1)]
+
 test_prepend = do
     let f v1 v2 = unsignal $ V.prepend (signal v1) (signal v2)
     equal (f [] []) []
@@ -142,6 +145,8 @@ test_drop_before = do
     equal (f 4 vec) [(4, 1)]
     equal (f 900 vec) [(4, 1)]
     equal (f 1 []) []
+
+    equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1)]) [(1, 1), (2, 1)]
 
 test_drop_before_strict = do
     let f x = unsignal $ V.drop_before_strict x (signal [(2, 0), (4, 1)])

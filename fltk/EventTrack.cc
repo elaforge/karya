@@ -116,10 +116,11 @@ TrackSignal::calculate_val_bounds(const char *track_name)
         val_max = std::max(val_max, s->val);
         val_min = std::min(val_min, s->val);
         // Since I'm iterating over the signal I might as well check this.
-        // Unsorted samples will cause drawing glitches.
-        if (s->time <= last_time) {
-            DEBUG("track " << track_name << ": sample time didn't increase: "
-                << s->time << " <= " << last_time);
+        // Unsorted samples will cause drawing glitches.  Coincident samples
+        // are explicit discontinuities, so they're ok.
+        if (s->time < last_time) {
+            DEBUG("track " << track_name << ": sample time decreased: "
+                << s->time << " < " << last_time);
         }
         last_time = s->time;
     }

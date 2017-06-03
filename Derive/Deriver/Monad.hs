@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
 {-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE DeriveFunctor #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -1147,7 +1148,7 @@ data PassedArgs val = PassedArgs {
     -- those functions.
     , passed_call_name :: !CallName
     , passed_ctx :: !(Context val)
-    }
+    } deriving (Functor)
 
 instance Pretty val => Pretty (PassedArgs val) where
     format (PassedArgs vals call_name info) = Pretty.record "PassedArgs"
@@ -1208,7 +1209,7 @@ data Context val = Context {
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
     , ctx_track_type :: !(Maybe ParseTitle.Type)
-    }
+    } deriving (Functor)
 
 -- | Range of the event in TrackTime.
 ctx_track_range :: Context a -> (TrackTime, TrackTime)

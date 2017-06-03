@@ -21,7 +21,7 @@ module Perform.Signal (
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construction / deconstruction
-    , signal, unsignal, constant, unfoldr
+    , signal, unsignal, unsignal_unique, set, constant, unfoldr
     , length, null
     , coerce
     , with_ptr
@@ -183,6 +183,13 @@ signal = Signal . TimeVector.signal
 -- | The inverse of the 'signal' function.
 unsignal :: Signal y -> [(X, Y)]
 unsignal = TimeVector.unsignal . sig_vec
+
+unsignal_unique :: Signal y -> [(X, Y)]
+unsignal_unique = TimeVector.unsignal_unique . sig_vec
+
+-- | Set the signal value, with a discontinuity.
+set :: Maybe Y -> X -> Y -> Signal y
+set prev_y x y = Signal $ TimeVector.set prev_y x y
 
 constant :: Y -> Signal y
 constant = Signal . TimeVector.constant

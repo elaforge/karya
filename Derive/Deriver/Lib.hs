@@ -434,9 +434,13 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-            return $ Stream.from_event $ PSignal.signal [(pos, pitch)]
+            return $ Stream.from_event $ PSignal.set (prev_pitch args) pos pitch
         _ -> throw $ "scale call " <> pretty name
             <> " returned non-pitch: " <> ShowVal.show_val val
+    -- This is like Args.prev_pitch, but importing Args would make a circular
+    -- import.
+    prev_pitch = fmap snd . PSignal.last <=< from_tagged
+        <=< ctx_prev_val . passed_ctx
 
 -- | Run the a deriver with the given instrument in scope.  In addition to
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls

@@ -61,7 +61,7 @@ test_derive_track_signals = do
                 <> DeriveTest.with_linear)
             ""
         extract = Map.toList
-            . Map.map (Signal.unsignal . Track.ts_signal)
+            . Map.map (Signal.unsignal_unique . Track.ts_signal)
             . Derive.r_track_signals
         pitch = Just (Track.Pitch Score.default_pitch)
     equal (run 1 pitch $ UiTest.regular_notes 4)

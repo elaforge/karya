@@ -61,7 +61,7 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
         let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
-        return $ PSignal.signal [(pos, pitch)]
+        return $ PSignal.set (snd <$> Args.prev_pitch args) pos pitch
 
 c_set_transformer :: Derive.Transformer Derive.Pitch
 c_set_transformer = Derive.transformer Module.prelude "set" mempty

@@ -653,7 +653,7 @@ e_instrument :: Score.Event -> Text
 e_instrument = Score.instrument_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control event = maybe [] (Signal.unsignal . Score.typed_val) $
+e_control control event = maybe [] (Signal.unsignal_unique . Score.typed_val) $
     Map.lookup control (Score.event_transformed_controls event)
 
 e_start_control :: Score.Control -> Score.Event -> Maybe Signal.Y
@@ -666,12 +666,14 @@ e_dyn = e_control Score.c_dynamic
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = map (second (Num.roundDigits 2)) . e_dyn
 
--- | Like 'e_nns_errors', but throw an exception if there are errors.
+-- | Like 'e_nns_errors', but throw an exception if there are errors.  Also
+-- drops duplicate samples for reasons described in
+-- 'Util.TimeVector.unsignal_unique'.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
     | not (null errs) = errorStack $
         "DeriveTest.e_nns: errors flattening signal: " <> showt errs
-    | otherwise = sig
+    | otherwise = Seq.drop_initial_dups fst sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'Score.initial_nn', except it transposes the pitch so you see the
@@ -721,7 +723,7 @@ e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
         . Derive.r_track_signals
-    where tsig t = Signal.unsignal $ Track.ts_signal t
+    where tsig t = Signal.unsignal_unique $ Track.ts_signal t
 
 e_tsig_logs :: Derive.Result -> [String]
 e_tsig_logs = filter ("Track signal: " `List.isPrefixOf`) . map show_log
