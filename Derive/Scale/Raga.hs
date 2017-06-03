@@ -154,6 +154,11 @@ janya = map assert_valid_name
             Different [M, G, M, N, D, N, P, D, N] [N, D, M, G])
                 -- Or [N, D, M, G, M, P, G, R]
         ])
+    -- , ("mayamalavagoula",
+    -- TODO web page says it's from mayamalavagoula, but it has m2
+    , ("kamavardhini",
+        [ ("goulipantu", Different [R, M, P, N] [N, D, P, M, D, M, G, R])
+        ])
     ]
     where
     -- up = [R .. N]
@@ -166,23 +171,41 @@ assert_valid_name val@(name, _)
 
 melakarta_names :: [Text]
 melakarta_names =
-    [ "kanakanki", "ratnangi", "ganamurti", "vanaspati"
-    , "manavati", "tanarupi", "senavati", "hanumatodi"
-    , "dhenuka", "natakapriya", "kokilapriya", "rupavati"
-    , "gayakapriya", "vakulabharanam", "mayamalavagoula", "chakravaham"
-    , "suryakantam", "hatakambhari", "jhankaradhwani", "natabhairavi"
-    , "kiravani", "kharaharapriya", "gourimanohari", "varunapriya"
-    , "mararanjani", "charukesi", "sarasangi", "harikambhoji"
-    , "dheerashankarabharanam", "naganandini", "yagapriya", "ragavardhini"
-    , "gangeyabhusani", "vagadheeswari", "sulini", "chalanattai"
+    -- shuddha madhyama
+    [ "kanakanki", "ratnangi", "ganamurti" -- r1 g1
+    , "vanaspati", "manavati", "tanarupi"
 
-    , "salagam", "jalarnavam", "jhalavarali", "navaneetam"
-    , "pavani", "raghupriya", "gavambodhi", "bhavapriya"
-    , "subhapantuvarali", "shadvigamargini", "suvarnangi", "divyamani"
-    , "dhavalambari", "namanarayani", "kamavardhini", "ramapriya"
-    , "gamanasrama", "viswambhari", "syamalangi", "shanmukhapriya"
-    , "simhendramadhyamam", "hemavati", "dharamavai", "nitimati"
-    , "kantamani", "rishabhapriya", "latangi", "vachaspati"
-    , "mechakalyani", "chitrambhari", "sucharitra", "jyotiswarupini"
-    , "dhatuvardhini", "nasikabhusani", "kosalam", "rasikapriya"
+    , "senavati", "hanumatodi", "dhenuka" -- r1 g2
+    , "natakapriya", "kokilapriya", "rupavati"
+
+    , "gayakapriya", "vakulabharanam", "mayamalavagoula" -- r1 g3
+    , "chakravaham", "suryakantam", "hatakambhari"
+
+    , "jhankaradhwani", "natabhairavi", "kiravani" -- r2 g2
+    , "kharaharapriya", "gourimanohari", "varunapriya"
+
+    , "mararanjani", "charukesi", "sarasangi" -- r2 g3
+    , "harikambhoji", "dheerashankarabharanam", "naganandini"
+
+    , "yagapriya", "ragavardhini", "gangeyabhusani" -- r3 g3
+    , "vagadheeswari", "sulini", "chalanattai"
+
+    -- prati madhyama
+    , "salagam", "jalarnavam", "jhalavarali" -- r1 g1
+    , "navaneetam", "pavani", "raghupriya"
+
+    , "gavambodhi", "bhavapriya", "subhapantuvarali" -- r1 g2
+    , "shadvigamargini", "suvarnangi", "divyamani"
+
+    , "dhavalambari", "namanarayani", "kamavardhini" -- r1 g3
+    , "ramapriya", "gamanasrama", "viswambhari"
+
+    , "syamalangi", "shanmukhapriya", "simhendramadhyamam" -- r2 g2
+    , "hemavati", "dharamavai", "nitimati"
+
+    , "kantamani", "rishabhapriya", "latangi" -- r2 g3
+    , "vachaspati" , "mechakalyani", "chitrambhari"
+
+    , "sucharitra", "jyotiswarupini", "dhatuvardhini" -- r3 g3
+    , "nasikabhusani", "kosalam", "rasikapriya"
     ]
