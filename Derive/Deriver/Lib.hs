@@ -171,11 +171,15 @@ with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
 with_imported empty_ok module_ deriver = do
     lib <- Internal.get_constant state_library
     lib <- case extract_module module_ lib of
-        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) [] _aliases
-            | not empty_ok -> -- Likely the module name was typoed.
+        Library note control pitch val _aliases
+            | and [is_empty note, is_empty control, is_empty pitch, null val]
+                    && not empty_ok ->
                 throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
     with_scopes (import_library lib) deriver
+    where
+    is_empty (Scopes [] [] [] ()) = True
+    is_empty _ = False
 
 -- | Import only the given symbols from the module.
 with_imported_symbols :: Module.Module -> Set Expr.Symbol -> Deriver a
@@ -196,12 +200,20 @@ with_scopes modify = Internal.local $ \state ->
 
 -- | Filter out any calls that aren't in the given modules.
 extract_module :: Module.Module -> Library -> Library
-extract_module module_ (Library note control pitch val _aliases) =
-    Library (extract2 note) (extract2 control) (extract2 pitch)
-        (extract vcall_doc val) mempty
+extract_module module_ (Library note control pitch val _aliases) = Library
+    { lib_note = extract2 note
+    , lib_control = extract2 control
+    , lib_pitch = extract2 pitch
+    , lib_val = extract vcall_doc val
+    , lib_instrument_aliases = mempty
+    }
     where
-    extract2 (CallMaps gs ts) =
-        CallMaps (extract call_doc gs) (extract call_doc ts)
+    extract2 (Scopes gen trans track ()) = Scopes
+        { scopes_generator = extract call_doc gen
+        , scopes_transformer = extract call_doc trans
+        , scopes_track = extract tcall_doc track
+        , scopes_val = ()
+        }
     extract get_doc = mapMaybe (has_module get_doc)
     has_module get_doc (LookupMap calls)
         | Map.null include = Nothing
@@ -216,11 +228,20 @@ extract_module module_ (Library note control pitch val _aliases) =
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
 extract_symbols :: (Expr.Symbol -> Bool) -> Library -> Library
-extract_symbols wanted (Library note control pitch val _aliases) =
-    Library (extract2 note) (extract2 control) (extract2 pitch) (extract val)
-        mempty
+extract_symbols wanted (Library note control pitch val _aliases) = Library
+    { lib_note = extract2 note
+    , lib_control = extract2 control
+    , lib_pitch = extract2 pitch
+    , lib_val = extract val
+    , lib_instrument_aliases = mempty
+    }
     where
-    extract2 (CallMaps gs ts) = CallMaps (extract gs) (extract ts)
+    extract2 (Scopes gen trans track ()) = Scopes
+        { scopes_generator = extract gen
+        , scopes_transformer = extract trans
+        , scopes_track = extract track
+        , scopes_val = ()
+        }
     extract = mapMaybe has_name
     has_name (LookupMap calls)
         | Map.null include = Nothing
@@ -232,31 +253,45 @@ library_symbols :: Library -> [Expr.Symbol]
 library_symbols (Library note control pitch val _aliases) =
     extract2 note <> extract2 control <> extract2 pitch <> extract val
     where
-    extract2 (CallMaps gs ts) = extract gs <> extract ts
+    extract2 (Scopes gen trans track ()) =
+        extract gen <> extract trans <> extract track
     extract = concatMap names_of
     names_of (LookupMap calls) = Map.keys calls
     names_of (LookupPattern {}) = []
 
 import_library :: Library -> Scopes -> Scopes
 import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
-        (Scopes gen trans val) =
+        scopes@(Scopes gen trans track val) =
+    -- It seems like I should be able to refactor this, but it's hard to get
+    -- the types to work out.
     Scopes
         { scopes_generator = Scope
-            { scope_note = insert (gen_of lib_note) (scope_note gen)
-            , scope_control = insert (gen_of lib_control) (scope_control gen)
-            , scope_pitch = insert (gen_of lib_pitch) (scope_pitch gen)
+            { scope_note =
+                insert (scopes_generator lib_note) (scope_note gen)
+            , scope_control =
+                insert (scopes_generator lib_control) (scope_control gen)
+            , scope_pitch =
+                insert (scopes_generator lib_pitch) (scope_pitch gen)
             }
         , scopes_transformer = Scope
-            { scope_note = insert (trans_of lib_note) (scope_note trans)
+            { scope_note =
+                insert (scopes_transformer lib_note) (scope_note trans)
             , scope_control =
-                insert (trans_of lib_control) (scope_control trans)
-            , scope_pitch = insert (trans_of lib_pitch) (scope_pitch trans)
+                insert (scopes_transformer lib_control) (scope_control trans)
+            , scope_pitch =
+                insert (scopes_transformer lib_pitch) (scope_pitch trans)
+            }
+        , scopes_track = Scope
+            { scope_note =
+                insert (scopes_track lib_note) (scope_note track)
+            , scope_control =
+                insert (scopes_track lib_control) (scope_control track)
+            , scope_pitch =
+                insert (scopes_track lib_pitch) (scope_pitch track)
             }
         , scopes_val = insert lib_val val
         }
     where
-    gen_of (CallMaps gs _) = gs
-    trans_of (CallMaps _ ts) = ts
     insert lookups = (imported (merge_lookups lookups) <>)
     imported lookups = scope_priority
         [ (PrioBlock, prio_block)
@@ -458,11 +493,12 @@ with_instrument inst deriver = do
         with_environ (inst_environ derive_inst) deriver
     where
     -- Replace the calls in the instrument scope type.
-    set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
-            (Scopes gen trans val) =
+    set_scopes (Scopes inst_gen inst_trans inst_track inst_val)
+            (Scopes gen trans track val) =
         Scopes
             { scopes_generator = (s_note %= replace inst_gen) gen
             , scopes_transformer = (s_note %= replace inst_trans) trans
+            , scopes_track = (s_note %= replace inst_track) track
             , scopes_val = replace inst_val val
             }
     replace = replace_priority PrioInstrument

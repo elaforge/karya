@@ -26,9 +26,10 @@ shadowed (Derive.Library note control pitch val _aliases) =
         , add "val" $ get_shadows Derive.vcall_doc val
         ]
     where
-    call_maps tag (Derive.CallMaps gen trans) = concat
+    call_maps tag (Derive.Scopes gen trans track ()) = concat
         [ add (tag <> " generator") $ get_shadows Derive.call_doc gen
         , add (tag <> " transformer") $ get_shadows Derive.call_doc trans
+        , add (tag <> " track") $ get_shadows Derive.tcall_doc track
         ]
     add tag shadows = [((tag, module_), calls) | (module_, calls) <- shadows]
 

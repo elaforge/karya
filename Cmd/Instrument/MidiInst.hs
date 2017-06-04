@@ -86,9 +86,9 @@ make_inst (Patch patch common) = Inst.Inst
     }
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer val postproc cmds thru) =
+make_code (Code generator transformer track val postproc cmds thru) =
     Cmd.InstrumentCode
-        { inst_calls = Derive.InstrumentCalls generator transformer val
+        { inst_calls = Derive.Scopes generator transformer track val
         , inst_postproc = postproc
         , inst_cmds = cmds
         , inst_thru = thru
@@ -102,6 +102,7 @@ data Code = Code {
     code_note_generators :: [Derive.LookupCall (Derive.Generator Derive.Note)]
     , code_note_transformers ::
         [Derive.LookupCall (Derive.Transformer Derive.Note)]
+    , code_track_calls :: [Derive.LookupCall (Derive.TrackCall Derive.Note)]
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
     , code_postproc :: Cmd.InstrumentPostproc
     , code_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
@@ -109,21 +110,22 @@ data Code = Code {
     }
 
 instance Pretty Code where
-    format (Code note_gens note_trans val_calls _postproc cmds thru) =
+    format (Code gen trans track val _postproc cmds thru) =
         Pretty.record "Code"
-            [ ("note_generators", Pretty.format $ length note_gens)
-            , ("note_transformers", Pretty.format $ length note_trans)
-            , ("val_calls", Pretty.format $ length val_calls)
+            [ ("note_generators", Pretty.format $ length gen)
+            , ("note_transformers", Pretty.format $ length trans)
+            , ("track_calls", Pretty.format $ length track)
+            , ("val_calls", Pretty.format $ length val)
             , ("cmds", Pretty.format $ length cmds)
             , ("thru", Pretty.format thru)
             ]
 
 instance Monoid Code where
-    mempty = Code [] [] mempty id [] Nothing
-    mappend (Code g1 t1 v1 post1 cmds1 thru1)
-            (Code g2 t2 v2 post2 cmds2 thru2) =
-        Code (g1<>g2) (t1<>t2) (v1<>v2) (post1 . post2) (cmds1<>cmds2)
-            (thru1<|>thru2)
+    mempty = Code [] [] [] mempty id [] Nothing
+    mappend (Code gen1 trans1 track1 val1 post1 cmds1 thru1)
+            (Code gen2 trans2 track2 val2 post2 cmds2 thru2) =
+        Code (gen1<>gen2) (trans1<>trans2) (track1<>track2) (val1<>val2)
+            (post1 . post2) (cmds1<>cmds2) (thru1<|>thru2)
 
 -- ** code constructors
 

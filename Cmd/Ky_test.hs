@@ -83,7 +83,7 @@ test_check_cache = do
 
 e_library :: Derive.Library -> [Expr.Symbol]
 e_library lib = [name | Derive.LookupMap m <- gen, name <- Map.keys m]
-    where Derive.CallMaps gen _trans = Derive.lib_note lib
+    where gen = Derive.scopes_generator $ Derive.lib_note lib
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text = Cmd.modify $ \st -> st

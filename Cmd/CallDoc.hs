@@ -403,7 +403,7 @@ type Binding = (SymbolName, Derive.CallName)
 -- | This is the name the call is bound to.
 type SymbolName = Text
 
-data CallType = ValCall | GeneratorCall | TransformerCall
+data CallType = ValCall | GeneratorCall | TransformerCall | TrackCall
     deriving (Eq, Ord, Show)
 
 instance Pretty CallType where
@@ -411,6 +411,7 @@ instance Pretty CallType where
         ValCall -> "val"
         GeneratorCall -> "generator"
         TransformerCall -> "transformer"
+        TrackCall -> "track"
 
 
 -- ** implementation
@@ -467,30 +468,37 @@ convert_call = fmap_lookup Derive.extract_doc
 convert_val_call :: Derive.LookupCall Derive.ValCall -> LookupCall
 convert_val_call = fmap_lookup Derive.extract_val_doc
 
+convert_track_call :: Derive.LookupCall (Derive.TrackCall d) -> LookupCall
+convert_track_call = fmap_lookup Derive.extract_track_doc
+
 fmap_lookup :: (a -> b) -> Derive.LookupCall a -> Derive.LookupCall b
 fmap_lookup extract_doc (Derive.LookupMap calls) = Derive.LookupMap $
     Map.map extract_doc calls
 fmap_lookup _ (Derive.LookupPattern pattern doc _) =
     Derive.LookupPattern pattern doc (const (return Nothing))
 
--- | Create docs for generator and transformer calls, and merge and sort them.
+-- | Create docs for generator, transformer, and track calls, and merge and
+-- sort them.
 call_maps :: Derive.CallMaps d -> [ScopeDoc]
-call_maps (Derive.CallMaps generator transformer) = merge_scope_docs $
+call_maps (Derive.Scopes generator transformer track ()) = merge_scope_docs $
     imported_scope_doc GeneratorCall (convert generator)
     ++ imported_scope_doc TransformerCall (convert transformer)
+    ++ imported_scope_doc TrackCall (map convert_track_call track)
     where convert = map convert_call
 
 -- ** instrument doc
 
 -- | Get docs for the calls introduced by an instrument.
 instrument_calls :: Derive.InstrumentCalls -> Document
-instrument_calls (Derive.InstrumentCalls gs ts vals) =
+instrument_calls (Derive.Scopes gen trans track vals) =
     [ ("note", [(Just Derive.PrioInstrument,
-        lookup GeneratorCall gs ++ lookup TransformerCall ts)])
+        lookup GeneratorCall gen ++ lookup TransformerCall trans ++ track_doc)])
     , ("val", [(Just Derive.PrioInstrument,
         lookup_calls ValCall (map convert_val_call vals))])
     ]
-    where lookup ctype = lookup_calls ctype . map convert_call
+    where
+    lookup ctype = lookup_calls ctype . map convert_call
+    track_doc = lookup_calls TrackCall (map convert_track_call track)
 
 -- ** track doc
 
@@ -505,19 +513,23 @@ track block_id track_id = do
 -- | This is an alternate doc extraction path which extracts the docs from
 -- 'Derive.Scopes' instead of 'Derive.Library'.
 track_sections :: ParseTitle.Type -> Derive.Scopes -> [Section]
-track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
-        (Derive.Scope tnote tcontrol tpitch) val_) =
-    (\d -> [d, ("val", scope_type ValCall val)]) $ case ttype of
-        ParseTitle.NoteTrack ->
-            ("note", merged_scope_docs (convert gnote) (convert tnote))
-        ParseTitle.ControlTrack ->
-            ("control", merged_scope_docs (convert gcontrol) (convert tcontrol))
-        ParseTitle.TempoTrack ->
-            ("tempo", merged_scope_docs (convert gcontrol) (convert tcontrol))
-        ParseTitle.PitchTrack ->
-            ("pitch", merged_scope_docs (convert gpitch) (convert tpitch))
+track_sections ttype (Derive.Scopes
+        (Derive.Scope gen_n gen_c gen_p)
+        (Derive.Scope trans_n trans_c trans_p)
+        (Derive.Scope track_n track_c track_p)
+        val_) =
+    (\d -> [d, ("val", val_doc)]) $ case ttype of
+        ParseTitle.NoteTrack -> ("note", merge3 gen_n trans_n track_n)
+        ParseTitle.ControlTrack -> ("control", merge3 gen_c trans_c track_c)
+        ParseTitle.TempoTrack -> ("tempo", merge3 gen_c trans_c track_c)
+        ParseTitle.PitchTrack -> ("pitch", merge3 gen_p trans_p track_p)
     where
-    val = convert_scope convert_val_call val_
+    merge3 gen trans track = merged_scope_docs
+        [ (GeneratorCall, convert gen)
+        , (TransformerCall, convert trans)
+        , (TrackCall, convert_scope convert_track_call track)
+        ]
+    val_doc = scope_type ValCall $ convert_scope convert_val_call val_
     convert = convert_scope convert_call
 
 convert_scope :: (Derive.LookupCall call -> LookupCall)
@@ -526,11 +538,9 @@ convert_scope convert (Derive.ScopePriority prio_map) =
     Derive.ScopePriority (map convert <$> prio_map)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
-merged_scope_docs :: Derive.ScopePriority Derive.DocumentedCall
-    -> Derive.ScopePriority Derive.DocumentedCall -> [ScopeDoc]
-merged_scope_docs generator transformer =
-    merge_scope_docs $ scope_type GeneratorCall generator
-        ++ scope_type TransformerCall transformer
+merged_scope_docs :: [(CallType, Derive.ScopePriority Derive.DocumentedCall)]
+    -> [ScopeDoc]
+merged_scope_docs = merge_scope_docs . concatMap (uncurry scope_type)
 
 merge_scope_docs :: [ScopeDoc] -> [ScopeDoc]
 merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst

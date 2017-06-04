@@ -68,7 +68,10 @@ note_calls = Make.call_maps
         [ ("sus-a", c_sustain_abs)
         , ("sus", c_sustain)
         ]
-    <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
+    <> (mempty :: Derive.CallMaps Derive.Note)
+        { Derive.scopes_generator = [lookup_attr_generator]
+        , Derive.scopes_transformer = [lookup_attr_transformer]
+        }
 
 -- * lookp attr
 

@@ -842,7 +842,7 @@ make_derive_instrument resolved = Derive.Instrument
 
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
-    { inst_calls = Derive.InstrumentCalls [] [] []
+    { inst_calls = mempty
     , inst_postproc = id
     , inst_cmds = []
     , inst_thru = Nothing

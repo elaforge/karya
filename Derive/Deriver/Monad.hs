@@ -53,15 +53,18 @@ module Derive.Deriver.Monad (
 
     -- ** scope
     , Library(..)
-    , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
+    , Scopes, ScopesT(..), empty_scopes
+    , s_generator, s_transformer, s_track, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
     , ScopePriority(..), CallPriority(..)
     , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
     , LookupCall(..)
-    , extract_doc, extract_val_doc
+    , extract_doc, extract_val_doc, extract_track_doc
     , lookup_val_call, lookup_with
+    -- ** TrackCall
+    , TrackCall(..)
 
     -- ** constant
     , Constant(..), initial_constant
@@ -69,7 +72,7 @@ module Derive.Deriver.Monad (
     , mergers, merge_add, merge_sub, merge_mul, merge_scale
 
     -- ** instrument
-    , Instrument(..), InstrumentCalls(..)
+    , Instrument(..), InstrumentCalls
 
     -- ** control
     , Merge(..), Merger(..)
@@ -80,7 +83,7 @@ module Derive.Deriver.Monad (
     , TrackDynamic, CallDuration(..)
 
     -- * calls
-    , CallMaps(..), call_map
+    , CallMaps, call_map
     , call_maps, generator_call_map, transformer_call_map
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
@@ -573,6 +576,7 @@ instance DeepSeq.NFData Dynamic where
 -- | This is the library of built-in calls.  The 'prio_library' Scope fields
 -- are imported from this.
 data Library = Library {
+    -- TODO maybe use Scope here?
     lib_note :: !(CallMaps Note)
     , lib_control :: !(CallMaps Control)
     , lib_pitch :: !(CallMaps Pitch)
@@ -591,6 +595,7 @@ instance Monoid Library where
         Library (note1<>note2) (control1<>control2) (pitch1<>pitch2)
             (val1<>val2) (aliases2<>aliases1)
             -- Put aliases2 first so it takes priority.
+            -- TODO why aliases and not the rest?  why not reverse the mappend?
 
 instance Show Library where show _ = "((Library))"
 instance Pretty Library where
@@ -608,33 +613,68 @@ instance Pretty Library where
 --
 -- Perhaps this should be called Namespaces, but Id.Namespace is already taken
 -- and Scopes is shorter.
-data Scopes = Scopes {
-    scopes_generator :: !GeneratorScope
-    , scopes_transformer :: !TransformerScope
-    , scopes_val :: !(ScopePriority ValCall)
-    }
+type Scopes = ScopesT
+    GeneratorScope TransformerScope TrackScope (ScopePriority ValCall)
 
-empty_scopes :: Scopes
-empty_scopes = Scopes empty_scope empty_scope mempty
+-- | TODO this could probably now do with a more general name
+-- maybe CallType for this, and CallKind for 'Scope'?
+-- This is arg type, 'Scope' is return type, or maybe TrackType.
+--
+-- Calls are in scope by expression position (generator, transformer, track,
+-- val) and then by track type (note, control, pitch).  Expression position
+-- also determines the the argument type (generator: nothing, transformer:
+-- deriver, track: 'TrackTree.EventsTree'), while track type determines the
+-- return type (Deriver 'Note', Deriver 'Control', Deriver 'Pitch').
+--
+-- Val calls are special in that they always have the same type (Args -> Val),
+-- and are in scope in val call exrpession position for all track types.
+--
+-- names: EScope, TScope for ExpressionScope and TrackScope?
+-- ExprScope, TrackScope?  I'd want to update the names in CallDoc too.
+data ScopesT gen trans track val = Scopes {
+    scopes_generator :: !gen
+    , scopes_transformer :: !trans
+    , scopes_track :: !track
+    , scopes_val :: !val
+    }
 
 s_generator = Lens.lens scopes_generator
     (\f r -> r { scopes_generator = f (scopes_generator r) })
 s_transformer = Lens.lens scopes_transformer
     (\f r -> r { scopes_transformer = f (scopes_transformer r) })
+s_track = Lens.lens scopes_track
+    (\f r -> r { scopes_track = f (scopes_track r) })
 s_val = Lens.lens scopes_val
     (\f r -> r { scopes_val = f (scopes_val r) })
 
-instance Pretty Scopes where
-    format (Scopes g t v) = Pretty.record "Scopes"
-        [ ("generator", Pretty.format g)
-        , ("transformer", Pretty.format t)
-        , ("val", Pretty.format v)
+instance (Pretty gen, Pretty trans, Pretty track, Pretty val) =>
+        Pretty (ScopesT gen trans track val) where
+    format (Scopes gen trans track val) = Pretty.record "Scopes"
+        [ ("generator", Pretty.format gen)
+        , ("transformer", Pretty.format trans)
+        , ("track", Pretty.format track)
+        , ("val", Pretty.format val)
         ]
+
+instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
+        Monoid (ScopesT gen trans track val) where
+    mempty = Scopes mempty mempty mempty mempty
+    mappend (Scopes a1 a2 a3 a4) (Scopes b1 b2 b3 b4) =
+        Scopes (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+
+empty_scopes :: Scopes
+empty_scopes = Scopes
+    { scopes_generator = empty_scope
+    , scopes_transformer = empty_scope
+    , scopes_track = empty_scope
+    , scopes_val = mempty
+    }
 
 type GeneratorScope =
     Scope (Generator Note) (Generator Control) (Generator Pitch)
 type TransformerScope =
     Scope (Transformer Note) (Transformer Control) (Transformer Pitch)
+type TrackScope = Scope (TrackCall Note) (TrackCall Control) (TrackCall Pitch)
 
 data Scope note control pitch = Scope {
     scope_note :: !(ScopePriority note)
@@ -734,6 +774,22 @@ extract_doc call = DocumentedCall (call_name call) (call_doc call)
 
 extract_val_doc :: ValCall -> DocumentedCall
 extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
+
+extract_track_doc :: TrackCall d -> DocumentedCall
+extract_track_doc tcall = DocumentedCall (tcall_name tcall) (tcall_doc tcall)
+
+-- ** TrackCall
+
+data TrackCall d = TrackCall {
+    tcall_name :: !CallName
+    , tcall_doc :: !CallDoc
+    , tcall_func :: TrackTree.EventsTree -> NoteDeriver
+    }
+
+instance Show (TrackCall d) where
+    show tcall = "((TrackCall " <> show (tcall_name tcall) <> "))"
+instance Pretty (TrackCall d) where
+    pretty = pretty . tcall_name
 
 -- ** lookup
 
@@ -835,28 +891,19 @@ data Instrument = Instrument {
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
 -- type.
-data InstrumentCalls = InstrumentCalls
+--
+-- This is like 'CallMaps', except that it has 'ValCall's.
+type InstrumentCalls = ScopesT
     [LookupCall (Generator Note)]
     [LookupCall (Transformer Note)]
+    [LookupCall (TrackCall Note)]
     [LookupCall ValCall]
 
 instance Show InstrumentCalls where
-    show (InstrumentCalls gen trans val) =
-        "((InstrumentCalls " <> show (length gen, length trans, length val)
+    show (Scopes gen trans tracks val) =
+        "((InstrumentCalls "
+            <> show (length gen, length trans, length tracks, length val)
             <> "))"
-
-instance Pretty InstrumentCalls where
-    format (InstrumentCalls gen trans val) = Pretty.record "InstrumentCalls"
-        [ ("generator", Pretty.format gen)
-        , ("transformer", Pretty.format trans)
-        , ("val", Pretty.format val)
-        ]
-
-instance Monoid InstrumentCalls where
-    mempty = InstrumentCalls mempty mempty mempty
-    mappend (InstrumentCalls a1 b1 c1) (InstrumentCalls a2 b2 c2) =
-        InstrumentCalls (a1<>a2) (b1<>b2) (c1<>c2)
-
 
 -- ** control
 
@@ -1107,19 +1154,15 @@ instance Pretty (LookupCall call) where
     want both generator and transformer versions, and it's convenient to be
     able to deal with those together.
 -}
-data CallMaps d = CallMaps ![LookupCall (Generator d)]
-    ![LookupCall (Transformer d)]
+type CallMaps d = ScopesT
+    [LookupCall (Generator d)]
+    [LookupCall (Transformer d)]
+    [LookupCall (TrackCall d)]
+    () -- no ValCall, because that's at the Library level.
 
-instance Monoid (CallMaps d) where
-    mempty = CallMaps [] []
-    mappend (CallMaps gs1 ts1) (CallMaps gs2 ts2) =
-        CallMaps (gs1 <> gs2) (ts1 <> ts2)
-
-instance Pretty (CallMaps d) where
-    format (CallMaps gs ts) = Pretty.record "CallMaps"
-        [ ("generators", Pretty.format gs)
-        , ("transformers", Pretty.format ts)
-        ]
+instance Show (CallMaps d) where
+    show (Scopes gen trans tracks ()) =
+        "((CallMaps " <> show (length gen, length trans, length tracks) <> "))"
 
 -- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
 -- are all singletons since names are allowed to overlap when declaring calls.
@@ -1130,8 +1173,12 @@ call_map = map (LookupMap . uncurry Map.singleton)
 -- | Bundle generators and transformers up together for convenience.
 call_maps :: [(Expr.Symbol, Generator d)] -> [(Expr.Symbol, Transformer d)]
     -> CallMaps d
-call_maps generators transformers =
-    CallMaps (call_map generators) (call_map transformers)
+call_maps generators transformers = Scopes
+    { scopes_generator = call_map generators
+    , scopes_transformer = call_map transformers
+    , scopes_track = mempty
+    , scopes_val = ()
+    }
 
 generator_call_map :: [(Expr.Symbol, Generator d)] -> CallMaps d
 generator_call_map generators = call_maps generators []
@@ -1270,10 +1317,10 @@ data Call func = Call {
 type Generator d = Call (GeneratorFunc d)
 type Transformer d = Call (TransformerF d)
 
-instance Show (Call derived) where
-    show (Call name _ _) = "((Call " <> show name <> "))"
-instance Pretty (Call derived) where
-    pretty (Call (CallName name) _ _) = name
+instance Show (Call d) where
+    show call = "((Call " <> show (call_name call) <> "))"
+instance Pretty (Call d) where
+    pretty = pretty . call_name
 
 {- | Each call has an intrinsic name.  Since call IDs may be rebound
     dynamically, each call has its own name so that error msgs are unambiguous.

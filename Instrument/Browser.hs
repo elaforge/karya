@@ -140,6 +140,8 @@ common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
         (map CallDoc.convert_call note_generators))
     , ("Note transformers", show_calls CallDoc.TransformerCall
         (map CallDoc.convert_call note_transformers))
+    , ("Track calls", show_calls CallDoc.TrackCall
+        (map CallDoc.convert_track_call track_calls))
     , ("Val calls", show_calls CallDoc.ValCall
         (map CallDoc.convert_val_call val_calls))
     -- info
@@ -148,7 +150,7 @@ common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
     -- TODO lost the patch_file field
     ]
     where
-    Derive.InstrumentCalls note_generators note_transformers val_calls =
+    Derive.Scopes note_generators note_transformers track_calls val_calls =
         Cmd.inst_calls code
 
 instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]

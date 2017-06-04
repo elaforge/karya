@@ -56,7 +56,10 @@ control_calls = Derive.generator_call_map
     , ("swell", c_swell)
     ]
     <> ControlUtil.standard_interpolators ControlUtil.interpolator_variations
-    <> Derive.CallMaps [lookup_generator] [lookup_transformer]
+    <> (mempty :: Derive.CallMaps Derive.Control)
+        { Derive.scopes_generator = [lookup_generator]
+        , Derive.scopes_transformer = [lookup_transformer]
+        }
 
 -- | This is a special lookup for control tracks that lets you directly type
 -- a number, and have that be interpreted as setting the control to that value.

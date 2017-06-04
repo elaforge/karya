@@ -3,6 +3,31 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - track calls / track macros:
+    * Add TrackCall to Monad.Scopes.
+      . Kind: Note, Control, Pitch, Val -- return type
+      . Type: Generator, Transformer, Val -- argument type
+    - More general and descriptive names for Derive.Scopes and Scope.
+    - Use Scopes in Derive.Library
+    - Implement calling TrackCalls.
+    - Write a TrackCall for gamakam4.  ! calls quote the argument and pass
+      to gamakam call.  Or I could invert it and use ! for non-gamakam calls.
+      Copy pitch calls over.
+    . Maybe this is how to do macros: track title is a lookup in
+      a track-macros namespace.  If 'name' isn't found, then it defaults
+      to '%name' ala LookupPattern.  Track call namespace should also be
+      in the CallMaps and Library so it can be imported with modules.
+      Also I think it needs note, pitch, and control variants in the same
+      way.
+    . As long as I'm doing this I can go back to using pitches for
+      gamakam, and just copy over from the pitch track.  Not sure if
+      I should though.
+    . old notes:
+      . consider track calls and block calls:
+        note_track :: TrackTree.EventsNode -> Derive.EventDeriver
+        derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
+      . I could use this to implement is-ly and no-ly, and also totally custom
+        track types and block types.
   - QuickCheck for Midi.Encode_test just for practice
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
   - I'd like to make a local scale derived from another one but some notes
@@ -587,7 +612,7 @@ synth: im:
     . It already works!?  Because it loops back to the play-cache init msg
       which makes play-cache restart.
   * What's more, it makes the monitor thread get stuck forever.
-  - Emit signal discontinuities explicitly.
+  + Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
       the linear interpolator can just emit one sample, but now MIDI needs
       interpolation.  I'd have to put srate in the event so it can be
@@ -623,8 +648,6 @@ synth: im:
               [(Control, Signal)] return value.  It's actually similar to
               ControlMod except without biased towards any particular Control.
           . So try a Gamakam5: build fragments of transpose signals.
-          . What would it take to make prev and next pitch more robust?
-            ?
         . But can I really use t-dia?  How do I reresent alternate ga or
           something?  I think the most straightforward way is treat them as
           chromatic notes.  Then it become t-chrom.  But I think I can do
@@ -662,13 +685,6 @@ synth: im:
         . As long as I'm doing this I can go back to using pitches for
           gamakam, and just copy over from the pitch track.  Not sure if
           I should though.
-        . How should ragams look anyway?
-          . Absolute chromatic scale with all pitches, and g[123] notation to
-            explicitly choose one.  Arohana and avarohana show how to infer
-            given plain g.  If >1 exist, then try to infer based on the
-            previous pitch.  Also g^ and g_ chooses between 2, if applicable.
-          . I need inference for gamakam, but I'll need an override, maybe
-            ^_ postfix for numbers?
 
         . Which of these would be best for possible future kinds of notation,
           or further extension?
@@ -1887,12 +1903,6 @@ Derive:
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
 
-  - consider track calls and block calls:
-    note_track :: TrackTree.EventsNode -> Derive.EventDeriver
-    derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
-    I could use this to implement is-ly and no-ly, and also totally custom
-    track types and block types.
-
   tempo track:
     - Nested tempo tracks at the toplevel block should normalize like they do
       when called.
@@ -2517,7 +2527,7 @@ pitch: scales: scale:
       . Use scale_alternate to switch a note between alternates, bind to the
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
-    raga:
+    raga: ragam:
       - Support arohana and avarohana by treating them as enharmonics
         Is this really a good idea, since they aren't anything like
         enharmonics?  Maybe I should just use the flip-enharmonic key, but
@@ -2536,6 +2546,13 @@ pitch: scales: scale:
         . So I would model as a chromatic scale but with a custom number of
           accidentals per degree:
             s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
+        . How should ragams look anyway?
+          . Absolute chromatic scale with all pitches, and g[123] notation to
+            explicitly choose one.  Arohana and avarohana show how to infer
+            given plain g.  If >1 exist, then try to infer based on the
+            previous pitch.  Also g^ and g_ chooses between 2, if applicable.
+          . I need inference for gamakam, but I'll need an override, maybe
+            ^_ postfix for numbers?
 
     - letter and jianpu but with implicit accidentals based on the key
   intonation: think about how to do e.g. meantone melody, with just harmony

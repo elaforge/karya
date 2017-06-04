@@ -72,7 +72,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls =
     Derive.generator_call_map
         [(BlockUtil.capture_null_control, c_capture_null_control)]
-    <> Derive.CallMaps [lookup_note_block] []
+    <> (Derive.s_generator #= [lookup_note_block]) mempty
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_note_block = Derive.LookupPattern "block name"
@@ -207,7 +207,7 @@ call_to_block_id sym = do
 -- * control calls
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.CallMaps [lookup_control_block] []
+control_calls = Derive.s_generator #= [lookup_control_block] $ mempty
 
 lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_control_block = Derive.LookupPattern "block id"
