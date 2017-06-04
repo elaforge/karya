@@ -42,6 +42,9 @@ transpose :: Pitch.Transpose -> PSignal.RawPitch a -> PSignal.RawPitch a
 transpose t = PSignal.add_control control val
     where (val, control) = Controls.transpose_control t
 
+transpose_nn :: Pitch.NoteNumber -> PSignal.RawPitch a -> PSignal.RawPitch a
+transpose_nn = transpose . Pitch.Nn . realToFrac
+
 transpose_d :: Pitch.Step -> PSignal.RawPitch a -> PSignal.RawPitch a
 transpose_d = transpose . Pitch.Diatonic . fromIntegral
 

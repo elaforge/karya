@@ -282,6 +282,8 @@ lookup_instrument = Derive.lookup_val EnvKey.instrument
 get_attributes :: Derive.Deriver Attrs.Attributes
 get_attributes = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
 
+-- * parsing pitches
+
 -- | Get symbolic pitch manipulating functions for the current scale.  This
 -- is for calls that want to work with symbolic pitches.
 get_pitch_functions :: Derive.Deriver
@@ -306,6 +308,25 @@ parse_pitch :: (Pitch.Note -> Maybe a) -> PSignal.Transposed
 parse_pitch parse pitch = do
     note <- Pitches.pitch_note pitch
     Derive.require "unparseable pitch" $ parse note
+
+chromatic_difference :: PSignal.Transposed -> PSignal.Transposed
+    -> Derive.Deriver Pitch.Semi
+chromatic_difference = pitch_difference Scale.chromatic_difference
+
+diatonic_difference :: PSignal.Transposed -> PSignal.Transposed
+    -> Derive.Deriver Pitch.PitchClass
+diatonic_difference = pitch_difference Scale.diatonic_difference
+
+pitch_difference :: (Scale.Layout -> Pitch.Pitch -> Pitch.Pitch -> a)
+    -> PSignal.Transposed -> PSignal.Transposed -> Derive.Deriver a
+pitch_difference difference p1 p2 = do
+    scale <- get_scale
+    env <- Derive.get_environ
+    let parse scale env = Scale.scale_read scale env <=< PSignal.pitch_note
+    let msg = pretty p1 <> " - " <> pretty p2 <> ": "
+    Derive.require_right ((msg<>) . pretty) $
+        difference (Scale.scale_layout scale) <$>
+            parse scale env p1 <*> parse scale env p2
 
 -- * note
 
