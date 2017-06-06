@@ -261,7 +261,7 @@ library_symbols (Library note control pitch val _aliases) =
 
 import_library :: Library -> Scopes -> Scopes
 import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
-        scopes@(Scopes gen trans track val) =
+        (Scopes gen trans track val) =
     -- It seems like I should be able to refactor this, but it's hard to get
     -- the types to work out.
     Scopes

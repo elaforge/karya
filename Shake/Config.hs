@@ -24,8 +24,8 @@ enableEventLog = False
 -- | If True, compile the im offline synthesizers and PlayCache VST-using from
 -- the Synth hierarchy.  This requires a number of hackage dependencies,
 -- including the VST SDK, which has to be downloaded separately.
-enableSynth :: Bool
-enableSynth = False
+enableIm :: Bool
+enableIm = False
 
 
 -- * paths
@@ -43,6 +43,6 @@ globalIncludes = ["-I/Users/elaforge/homebrew/include"]
 globalLibDirs :: [Flag]
 globalLibDirs = ["-L/Users/elaforge/homebrew/lib"]
 
--- | Root of the VST SDK.  Only used if 'enableSynth' is true.
+-- | Root of the VST SDK.  Only used if 'enableIm' is true.
 vstBase :: FilePath
 vstBase = "/usr/local/src/music/vst3-sdk"

@@ -106,7 +106,7 @@ synthPackages = concat
 enabledPackages :: [(Package, String)]
 enabledPackages = concat
     [ basicPackages
-    , if Config.enableSynth then synthPackages else []
+    , if Config.enableIm then synthPackages else []
     , if Config.enableEkg then ekgPackages else []
     ]
 
@@ -285,7 +285,7 @@ hsBinaries =
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }
     ]
-    ++ if not Config.enableSynth then [] else
+    ++ if not Config.enableIm then [] else
         [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
         , plain "faust-im" "Synth/Faust/FaustIm.hs"
         ]
@@ -421,7 +421,7 @@ ccBinaries =
         , "fltk/f_util.cc.o"
         ]
     ]
-    ++ if not Config.enableSynth then [] else
+    ++ if not Config.enableIm then [] else
     [ CcBinary
         { ccName = "play_cache"
         , ccRelativeDeps =
@@ -651,7 +651,7 @@ main = do
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
-        when Config.enableSynth faustRules
+        when Config.enableIm faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> hsconfigHRule
         let infer = inferConfig modeConfig
@@ -763,7 +763,7 @@ hsconfigHRule fn = do
         , define useRepl "INTERPRETER_GHC"
         , define (not (null midiDriver)) midiDriver
         , define Config.enableEkg "USE_EKG"
-        , define Config.enableSynth "ENABLE_IM"
+        , define Config.enableIm "ENABLE_IM"
         , "#endif"
         ]
     where
@@ -943,7 +943,7 @@ wantsHaddock midi hs = not $ or
     , Char.isLower $ head hs
     -- Synth/* modules have deps that might not be installed.
     -- TODO NOTE [no-package]
-    , not Config.enableSynth && "Synth/" `List.isPrefixOf` hs
+    , not Config.enableIm && "Synth/" `List.isPrefixOf` hs
     ]
 
 -- ** packages
@@ -1022,7 +1022,7 @@ generateTestHs suffix fn = do
 wantsTest :: FilePath -> Bool
 wantsTest hs = not $ or
     -- TODO NOTE [no-package]
-    [ not Config.enableSynth && "Synth/" `List.isPrefixOf` hs
+    [ not Config.enableIm && "Synth/" `List.isPrefixOf` hs
     ]
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
