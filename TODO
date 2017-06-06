@@ -843,7 +843,10 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
-  - I should probably exclude Synth modules from Local.Instrument when Synth
+  - in HsDeps and CcDeps, if I need every intermediate file, then
+    I think I don't need Generated.
+  - determine Shakefile.cppFiles automatically.
+  * I should probably exclude Synth modules from Local.Instrument when Synth
     is disabled.
   . To get a path between two rules:
     ancestorOf('Synth/Sampler/Main') && descendantOf('Cmd/Cmd')

@@ -50,6 +50,7 @@ importsOf_ :: Generated
     -> Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO [FilePath]
 importsOf_ generated cppFlags fn = do
+    -- TODO get CcDeps.includesOf so I can need them too.
     mods <- parseImports <$> preprocess cppFlags fn
     Maybe.catMaybes <$> mapM (fileOf generated) mods
 

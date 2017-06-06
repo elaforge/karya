@@ -320,7 +320,7 @@ runTests = modeToDir Test </> "RunTests"
 -- deps.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
-    | fn `elem` cppFiles = Just $
+    | fn `elem` cppInImports = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
 
@@ -330,8 +330,12 @@ cppFlags config fn
 -- It would be more robust to always run CPP if the file includes
 -- 'LANGUAGE .*CPP' but there aren't many modules with CPP in their import
 -- lists so it should be faster to hardcode them.
-cppFiles :: [FilePath]
-cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
+--
+-- TODO this is error-prone, maybe I should have a hack in HsDeps to look for
+-- #include in the import block.
+cppInImports :: [FilePath]
+cppInImports =
+    ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Local/Instrument.hs"]
 
 -- | Generated src files.
 generatedSrc :: HsDeps.Generated
@@ -345,9 +349,12 @@ generatedSrc = Set.fromList [generatedKorvais, generatedFaustAll]
 -- deps and 'need' it there, but that would mean interleaving logic in
 -- 'HsDeps.transitiveImportsOf' which seems like too much bother for just a few
 -- binaries.
+--
+-- TODO I should do that, and then I can put build/$mode/hsconfig.h in
+-- generatedSrc.
 isHsconfigBinary :: FilePath -> Bool
 isHsconfigBinary fn =
-    FilePath.takeFileName fn `elem` ["seq", "test_midi"]
+    FilePath.takeFileName fn `elem` ["seq", "test_midi", "browser"]
     || runProfile `List.isPrefixOf` fn
     || runTests `List.isPrefixOf` fn
 
@@ -646,7 +653,7 @@ main = do
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
         when Config.enableSynth faustRules
         generateKorvais
-        matchBuildDir hsconfigH ?> configHeaderRule
+        matchBuildDir hsconfigH ?> hsconfigHRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         matchObj "fltk/fltk.a" ?> \fn -> do
@@ -743,8 +750,8 @@ hsconfigPath config = buildDir config </> hsconfigH
 --
 -- It's in a separate file so that the relevant haskell files can include it.
 -- This way only those files will recompile when the config changes.
-configHeaderRule :: FilePath -> Shake.Action ()
-configHeaderRule fn = do
+hsconfigHRule :: FilePath -> Shake.Action ()
+hsconfigHRule fn = do
     Shake.alwaysRerun
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
@@ -756,10 +763,11 @@ configHeaderRule fn = do
         , define useRepl "INTERPRETER_GHC"
         , define (not (null midiDriver)) midiDriver
         , define Config.enableEkg "USE_EKG"
+        , define Config.enableSynth "ENABLE_IM"
         , "#endif"
         ]
     where
-    define b name = if b then "#define " ++ name else ""
+    define b name = (if b then "#define " else "#undef ") ++ name
 
 -- | Match a file in @build/<mode>/obj/@ or @build/<mode>/@.
 matchObj :: Shake.FilePattern -> FilePath -> Bool

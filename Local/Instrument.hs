@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Load the instrument db.  This collects together all the local instrument
     definitions.
 
@@ -39,8 +40,12 @@ import qualified Local.Instrument.Vl1 as Vl1
 import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
+#include "hsconfig.h"
+#ifdef ENABLE_IM
 import qualified Synth.Faust.PatchDb as Faust.PatchDb
 import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
+#endif
+
 import qualified App.Config as Config
 import Global
 
@@ -73,8 +78,10 @@ midi_synths =
 im_synths :: [MidiInst.Synth]
 im_synths =
     [ Perform.Im.Play.play_cache_synth
+#ifdef ENABLE_IM
     , Sampler.PatchDb.synth
     , Faust.PatchDb.synth
+#endif
     ]
 
 internal_synths :: [MidiInst.Synth]
