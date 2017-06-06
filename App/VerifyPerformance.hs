@@ -6,6 +6,7 @@
 -- msgs or lilypond code as the last saved performance.
 module App.VerifyPerformance (main) where
 import qualified Control.Monad.Except as Except
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -82,13 +83,20 @@ main = Git.initialize $ do
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
             fnames <- concatMapM expand_verify_me args
-            fmap sum $ forM fnames $ \fname -> do
+            results <- forM fnames $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
                 fails <- run $ verify_performance out_dir cmd_config fname
                 putStrLn $ if fails == 0
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
-                return fails
+                return (fname, fails)
+            when (length results > 1) $ do
+                let (failed, ok) = List.partition ((>0) . snd) results
+                unless (null ok) $
+                    putStr $ "    passed:\n" <> unlines (map fst ok)
+                unless (null failed) $
+                    putStr $ "    failed:\n" <> unlines (map fst failed)
+            return $ sum $ map snd results
         Save -> run $ concat <$> mapM (save cmd_config out_dir) args
         Profile -> run $ concat <$> mapM (perform Nothing cmd_config) args
         Perform ->
