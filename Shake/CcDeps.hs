@@ -41,39 +41,46 @@ enableDefines fn defines undefs = do
 
 -- * includes
 
-includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
-includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
+-- | Same as 'Shake.HsDeps.Generated'.
+type Generated = Set.Set FilePath
+
+includesOf :: Generated -> [FilePath] -> FilePath
+    -> Shake.Action ([FilePath], [FilePath])
+includesOf generated dirs fn =
+    Shake.need [fn] >> Trans.liftIO (includesOf_ generated dirs fn)
 
 -- | Find files this files includes, transitively.  Includes the given file.
 --
--- Can also be used for .hsc files since it looks for @^#include@.
-transitiveIncludesOf :: [FilePath] -> FilePath
-    -> Shake.Action ([FilePath], [FilePath]) -- ^ (found, notfound)
-transitiveIncludesOf dirs fn =
-    Shake.need [fn] >> Trans.liftIO (transitiveIncludesOf_ dirs fn)
-
-transitiveIncludesOf_ :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
-transitiveIncludesOf_ dirs fn = go Set.empty Set.empty [fn]
+-- Can also be used for .hsc files since it looks for @^#include@.  There isn't
+-- an IO version because it 'Shake.need's the intermediate files.
+transitiveIncludesOf :: Generated -> [FilePath] -> FilePath
+    -> Shake.Action ([FilePath], [FilePath]) -- ^ ([found], [notFound])
+transitiveIncludesOf generated dirs fn = go Set.empty Set.empty [fn]
     where
-    go checked notfound (fn:fns)
-        | fn `Set.member` checked || fn `Set.member` notfound =
-            go checked notfound fns
+    go checked notFound (fn:fns)
+        | fn `Set.member` checked || fn `Set.member` notFound =
+            go checked notFound fns
         | otherwise = do
-            (includes, fnNotfound) <- includesOf_ dirs fn
+            (includes, fnNotfound) <- includesOf generated dirs fn
             let checked' = Set.insert fn checked
-            go checked' (Set.union notfound (Set.fromList fnNotfound))
+            go checked' (Set.union notFound (Set.fromList fnNotfound))
                 (fns ++ filter (`Set.notMember` checked') includes)
-    go checked notfound [] = return
-        (map FilePath.normalise (Set.toList checked), Set.toList notfound)
+    go checked notFound [] = return
+        (map FilePath.normalise (Set.toList checked), Set.toList notFound)
 
-includesOf_ :: [FilePath] -> FilePath -> IO ([FilePath], [FilePath])
-includesOf_ dirs fn = do
+includesOf_ :: Generated -> [FilePath] -> FilePath
+    -> IO ([FilePath], [FilePath])
+includesOf_ generated dirs fn = do
     includes <- readIncludes fn
     -- @#include "x"@ starts searching from the same directory as the source
     -- file.
-    paths <- mapM (find (FilePath.dropFileName fn : dirs)) includes
+    paths <- mapM find1 includes
     return $ Either.partitionEithers
         [maybe (Right inc) Left path | (path, inc) <- zip paths includes]
+    where
+    find1 include
+        | include `Set.member` generated = return $ Just include
+        | otherwise = find (FilePath.dropFileName fn : dirs) include
 
 find :: [FilePath] -> FilePath -> IO (Maybe FilePath)
 find [] _ = return Nothing

@@ -333,9 +333,9 @@ cppFlags config fn
 cppFiles :: [FilePath]
 cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
 
--- | Generated hs files.
-generatedHs :: HsDeps.Generated
-generatedHs = Set.fromList [generatedKorvais]
+-- | Generated src files.
+generatedSrc :: HsDeps.Generated
+generatedSrc = Set.fromList [generatedKorvais, generatedFaustAll]
 
 -- | True for binaries that depend, transitively, on 'hsconfigH'.  Since
 -- hsconfigH is generated, I need to generate it first before chasing
@@ -960,7 +960,7 @@ buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
 buildHs config rtsFlags libs extraPackages hs fn = do
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
-    srcs <- HsDeps.transitiveImportsOf generatedHs (cppFlags config) hs
+    srcs <- HsDeps.transitiveImportsOf generatedSrc (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
@@ -1078,10 +1078,13 @@ faustRule = faustSrcDir </> "*.cc" %> \output -> do
     Util.cmdline $ faustCmdline output (srcToDsp output)
 
 faustAllRule :: Shake.Rules ()
-faustAllRule = build </> "faust_all.cc" %> \output -> do
+faustAllRule = generatedFaustAll %> \output -> do
     dsps <- Shake.getDirectoryFiles "" [faustDspDir </> "*.dsp"]
     need $ map dspToSrc dsps
     Shake.writeFileChanged output $ faustAll dsps
+
+generatedFaustAll :: FilePath
+generatedFaustAll = build </> "faust_all.cc"
 
 faustAll :: [FilePath] -> String
 faustAll dsps = unlines
@@ -1163,7 +1166,7 @@ hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     let config = infer obj
     isHsc <- liftIO $ Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    imports <- HsDeps.importsOf generatedHs (cppFlags config hs) hs
+    imports <- HsDeps.importsOf generatedSrc (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsOHiRule" config [] hs else return []
     let his = map (objToHi . srcToObj config) imports
@@ -1423,7 +1426,8 @@ includesOf :: String -> Config -> [Flag] -> FilePath -> Shake.Action [FilePath]
 includesOf caller config moreIncludes fn = do
     let dirs =
             [dir | '-':'I':dir <- cInclude (configFlags config) ++ moreIncludes]
-    (includes, notFound) <- hsconfig <$> CcDeps.transitiveIncludesOf dirs fn
+    (includes, notFound) <-
+        hsconfig <$> CcDeps.transitiveIncludesOf generatedSrc dirs fn
     unless (null notFound) $
         liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show notFound

@@ -129,7 +129,7 @@ transitiveImportsOf_ generated cppFlagsOf fn = go Set.empty [fn]
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
     go checked [] = return (Set.toList checked)
 
-fileOf :: Set.Set FilePath -> ModuleName -> IO (Maybe FilePath)
+fileOf :: Generated -> ModuleName -> IO (Maybe FilePath)
 fileOf generated mod
     | fn `Set.member` generated = return $ Just fn
     | otherwise = findExistingFile [fn, fn ++ "c"]
