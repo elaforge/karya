@@ -64,7 +64,7 @@ module Derive.Deriver.Monad (
     , extract_doc, extract_val_doc, extract_track_doc
     , lookup_val_call, lookup_with
     -- ** TrackCall
-    , TrackCall(..)
+    , TrackCall(..), track_call
 
     -- ** constant
     , Constant(..), initial_constant
@@ -783,13 +783,27 @@ extract_track_doc tcall = DocumentedCall (tcall_name tcall) (tcall_doc tcall)
 data TrackCall d = TrackCall {
     tcall_name :: !CallName
     , tcall_doc :: !CallDoc
-    , tcall_func :: TrackTree.EventsTree -> NoteDeriver
+    , tcall_func :: !(TrackCallFunc d)
     }
+type TrackCallFunc d = TrackTree.EventsTree -> Deriver d
 
 instance Show (TrackCall d) where
     show tcall = "((TrackCall " <> show (tcall_name tcall) <> "))"
 instance Pretty (TrackCall d) where
     pretty = pretty . tcall_name
+
+track_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
+    -> TrackCallFunc d -> TrackCall d
+track_call module_ name tags doc call = TrackCall
+    { tcall_name = name
+    , tcall_doc = CallDoc
+        { cdoc_module = module_
+        , cdoc_tags = tags
+        , cdoc_doc = doc
+        , cdoc_args = mempty
+        }
+    , tcall_func = call
+    }
 
 -- ** lookup
 

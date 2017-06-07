@@ -565,7 +565,7 @@ track_control block_id track_id pos =
             return $ show_val ctype (Track.ts_signal tsig) $
                 Track.signal_at pos tsig
     where
-    parse_title = either (const Nothing) Just . ParseTitle.parse_control
+    parse_title = either (const Nothing) Just . ParseTitle.parse_control_type
     show_val ctype sig = case ctype of
         ParseTitle.Tempo {} -> ShowVal.show_val
         _

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 {- | Support for high level score modifications.  This is companion to
     "Cmd.ModifyEvents", which is for low level transformations.
 
@@ -141,17 +142,17 @@ instance Pretty Control where
     pretty = control_to_title
 
 control_to_title :: Control -> Text
-control_to_title control = ParseTitle.unparse_control $ case control of
-    Control c -> ParseTitle.Control Nothing (Score.untyped c)
-    Pitch scale_id -> ParseTitle.Pitch Nothing scale_id Score.default_pitch
+control_to_title control = case control of
+    Control c -> ParseTitle.control_to_title $ Score.untyped c
+    Pitch scale_id -> ParseTitle.scale_to_title scale_id
 
 type Error = Text
 
 title_to_control :: Text -> Either Error Control
-title_to_control title = ParseTitle.parse_control title >>= \x -> case x of
-    ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
+title_to_control title = ParseTitle.parse_control_type title >>= \case
+    ParseTitle.Control (Right (Score.Typed Score.Untyped c)) Nothing ->
         return $ Control c
-    ParseTitle.Pitch Nothing scale_id pcontrol
+    ParseTitle.Pitch scale_id pcontrol Nothing _
         | pcontrol == Score.default_pitch -> return $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> title
 

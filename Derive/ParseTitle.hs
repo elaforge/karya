@@ -12,14 +12,16 @@
 -- needed.  Control tracks titles are just a hardcoded list of special cases,
 -- though they are parsed as tracklang Vals.
 module Derive.ParseTitle where
+import qualified Data.Attoparsec.Text as A
+import Data.Attoparsec.Text ((<?>))
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.ParseText as ParseText
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Controls as Controls
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
+import Derive.Parse (lexeme)
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -47,149 +49,136 @@ track_type title
     | is_tempo_track title = TempoTrack
     | otherwise = ControlTrack
 
--- ** control
+-- ** note track
+
+parse_note_track :: Text -> Either Text (Score.Instrument, Maybe TrackCall)
+parse_note_track = ParseText.parse p_note_track
+
+-- > >inst !track-call
+p_note_track :: A.Parser (Score.Instrument, Maybe TrackCall)
+p_note_track = (,)
+    <$> (A.char '>' *> (Score.Instrument <$> Parse.p_identifier True ""))
+    <*> ParseText.optional p_track_call
+
+-- ** control track
+
+-- | Parse the first part of the control track title.  This is special syntax,
+-- and is not the usual call plus list of argument values.
+parse_control_type :: Text -> Either Text ControlType
+parse_control_type = fmap fst . parse_control_title
+
+parse_control_title :: Text -> Either Text (ControlType, [BaseTypes.Call])
+parse_control_title = ParseText.parse p_control_title
 
 data ControlType =
-    -- | Control track with an optional combining operator.
-    Control (Maybe Expr.Symbol) (Score.Typed Score.Control)
+    -- | Tempo track with an optional modifying symbol.
+    Tempo (Maybe Expr.Symbol)
     -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
     -- and sets the given pitch signal.
-    | Pitch (Maybe Expr.Symbol) Pitch.ScaleId Score.PControl
-    -- | Tempo track with an optional modifying symbol.
-    | Tempo (Maybe Expr.Symbol)
-    deriving (Show)
+    | Pitch Pitch.ScaleId Score.PControl (Maybe Merge) (Maybe TrackCall)
+    -- | Control track with an optional combining operator.
+    | Control (Either TrackCall (Score.Typed Score.Control)) (Maybe Merge)
+    deriving (Eq, Show)
 
-instance Pretty ControlType where
-    pretty = unparse_control
+type Merge = Expr.Symbol
+type TrackCall = Expr.Symbol
 
-parse_control :: Text -> Either Text ControlType
-parse_control = fmap fst . parse_control_expr
+instance ShowVal.ShowVal ControlType where
+    show_val = control_type_to_title
 
-parse_control_expr :: Text -> Either Text (ControlType, [BaseTypes.Call])
-parse_control_expr title = do
-    (vals, expr) <- Parse.parse_control_title title
-    ctrack <- parse_control_vals vals
-    return (ctrack, expr)
+p_control_title :: A.Parser (ControlType, [BaseTypes.Call])
+p_control_title = do
+    ctype <- p_control_type
+    expr <- A.option [] (Parse.p_pipe >> NonEmpty.toList <$> Parse.p_expr True)
+    return (ctype, expr)
 
--- TODO this parsing is all very ad-hoc, and there's no guarantee that it won't
--- overlap, or that 'unparse_control_vals' is really an inverse.
-parse_control_vals :: [BaseTypes.Val] -> Either Text ControlType
-parse_control_vals vals = case vals of
-    --  *twelve -> default pitch track in twelve
-    [scale -> Just scale_id] ->
-        Right $ Pitch Nothing scale_id Score.default_pitch
-    --  *twelve merge
-    [scale -> Just scale_id, BaseTypes.VStr merge] ->
-        Right $ Pitch (Just (to_symbol merge)) scale_id Score.default_pitch
-    --  *twelve # -> default pitch track in twelve
-    --  *twelve #name -> named pitch track
-    [scale -> Just scale_id, pitch_control_of -> Just cont] ->
-        Right $ Pitch Nothing scale_id cont
-    --  *twelve #name merge
-    [scale -> Just scale_id, pitch_control_of -> Just cont,
-            BaseTypes.VStr merge] ->
-        Right $ Pitch (Just (to_symbol merge)) scale_id cont
-    -- "tempo"
-    [BaseTypes.VStr (Expr.Str "tempo")] -> Right $ Tempo Nothing
-    [BaseTypes.VStr (Expr.Str "tempo"), BaseTypes.VStr sym] ->
-        Right $ Tempo (Just (to_symbol sym))
-    -- control
-    --
-    -- It would be more regular to require \"%control\" and \"add %control\"
-    -- for control tracks, but it looks nicer without the extra noise.
-    [control_of -> Just control] ->
-        Control Nothing <$> parse_control_type control
-    -- add control -> relative control
-    [BaseTypes.VStr merge, control_of -> Just control] ->
-        Control (Just (to_symbol merge)) <$> parse_control_type control
-    -- % -> default control
-    -- It might be more regular to allow anything after %, but I'm a fan of
-    -- only one way to do it, so only allow it for "".
-    --
-    -- The empty scale * defaults to the current scale id, because there's no
-    -- real meaning to an empty scale id.  However, Controls.null is a valid
-    -- control like any other and is simply used as a special name by the
-    -- control block call hack in "Derive.Call.Block".
-    [BaseTypes.VControlRef (BaseTypes.LiteralControl control)]
-        | control == Controls.null ->
-            Right $ Control Nothing (Score.untyped Controls.null)
-    -- add % -> relative default control
-    [BaseTypes.VStr merge, BaseTypes.VControlRef
-            (BaseTypes.LiteralControl control)] | control == Controls.null ->
-        Right $ Control (Just (to_symbol merge)) (Score.untyped Controls.null)
-    _ -> Left $ "control track must be one of [\"tempo\", control,\
-        \ op control, %, op %, *scale, *scale #name, op #, op #name],\
-        \ got: " <> Text.unwords (map ShowVal.show_val vals)
-    where
-    scale (BaseTypes.VStr (Expr.Str str)) = case Text.uncons str of
-        Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
-        _ -> Nothing
-    scale _ = Nothing
-    control_of :: BaseTypes.Val -> Maybe Expr.Str
-    control_of (BaseTypes.VStr str) = Just str
-    control_of _ = Nothing
-    pitch_control_of :: BaseTypes.Val -> Maybe Score.PControl
-    pitch_control_of (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) =
-        Just c
-    pitch_control_of _ = Nothing
+p_control_type :: A.Parser ControlType
+p_control_type = p_tempo <|> p_pitch <|> p_control
 
-to_symbol :: Expr.Str -> Expr.Symbol
-to_symbol = Expr.Symbol . Expr.unstr
+p_tempo :: A.Parser ControlType
+p_tempo = Tempo <$>
+    (lexeme (A.string "tempo") *> ParseText.optional (lexeme p_merge))
 
-parse_control_type :: Expr.Str -> Either Text (Score.Typed Score.Control)
-parse_control_type (Expr.Str name) = case Text.uncons post of
-    Just (':', t) -> do
-        control <- Score.control pre
-        typ <- justErr ("unknown type on control track: " <> showt t) $
-            Score.code_to_type (untxt t)
-        return $ Score.Typed typ control
-    _ -> Score.untyped <$> Score.control name
-    where (pre, post) = Text.break (==':') name
+-- | *twelve #name merge !track-call
+p_pitch :: A.Parser ControlType
+p_pitch = Pitch
+    <$> lexeme p_scale_id
+    <*> A.option Score.default_pitch (lexeme Parse.p_pcontrol)
+    <*> ParseText.optional (lexeme p_merge)
+    <*> ParseText.optional (lexeme p_track_call)
 
-unparse_typed :: Score.Typed Score.Control -> Text
-unparse_typed (Score.Typed typ c) =
-    Score.control_name c <> if Text.null code then "" else ":" <> code
-    where code = Score.type_to_code typ
+-- | (!track-call | % | control:typ) merge
+p_control :: A.Parser ControlType
+p_control = Control
+    <$> (lexeme $ A.choice
+        [ Left <$> p_track_call
+        , A.char '%'
+            *> pure (Right $ Score.untyped $ Score.unchecked_control "")
+        , Right <$> p_typed_control
+        ])
+    <*> ParseText.optional (lexeme p_merge)
 
-unparse_control_expr :: ControlType -> [BaseTypes.Call] -> Text
-unparse_control_expr ctype calls
-    | Text.null call_expr = unparse_control ctype
-    | otherwise = unparse_control ctype <> " | " <> call_expr
-    where call_expr = maybe "" ShowVal.show_val $ NonEmpty.nonEmpty calls
+p_typed_control :: A.Parser (Score.Typed Score.Control)
+p_typed_control = (flip Score.Typed)
+    <$> (Score.unchecked_control <$> Parse.p_identifier False ":")
+    <*> A.option Score.Untyped p_type_annotation
 
-unparse_control :: ControlType -> Text
-unparse_control =
-    Text.unwords . map (either id ShowVal.show_val) . unparse_control_vals
+p_type_annotation :: A.Parser Score.Type
+p_type_annotation = do
+    A.char ':'
+    typ <- Parse.p_identifier False ""
+    case Score.code_to_type typ of
+        Nothing -> fail $ "unknown type: " <> show typ
+        Just typ -> return typ
 
-unparse_control_vals :: ControlType -> [Either Text BaseTypes.Val]
-    -- ^ The control title is not exactly tracklang syntax, namely *scale-id,
-    -- so I can't represent everything as a Val, or I'd get '*scale-id'.
-unparse_control_vals ctype = case ctype of
-    Control merge control -> maybe_str merge ++ [Right $ control_val control]
-    Pitch merge (Pitch.ScaleId scale_id) pcontrol -> concat
-        [ [Left ("*" <> scale_id)]
-        , map Right $ if pcontrol == Score.default_pitch then []
-            else [BaseTypes.VPControlRef $ BaseTypes.LiteralControl pcontrol]
-        , maybe_str merge
+-- ** unparse
+
+control_type_to_title :: ControlType -> Text
+control_type_to_title ctype = Text.unwords $ case ctype of
+    Tempo sym -> "tempo" : maybe_sym sym
+    Pitch (Pitch.ScaleId scale_id) pcontrol merge tcall -> concat
+        [ ["*" <> scale_id]
+        , [ShowVal.show_val pcontrol | pcontrol /= ""]
+        , show_merge merge
+        , maybe [] ((:[]) . show_tcall) tcall
         ]
-    Tempo str -> Left "tempo" : maybe_str str
+    Control c merge -> either show_tcall control_to_title c : show_merge merge
     where
-    maybe_str = map Right
-        . maybe [] ((:[]) . BaseTypes.VStr . Expr.Str . Expr.unsym)
-    control_val c
-        | c == Score.untyped Controls.null = empty_control
-        | otherwise = BaseTypes.VStr $ Expr.Str (unparse_typed c)
-    empty_control = BaseTypes.VControlRef $
-        BaseTypes.LiteralControl Controls.null
+    maybe_sym = maybe [] ((:[]) . Expr.unsym)
+    show_merge = maybe [] ((:[]) . ShowVal.show_val)
+    show_tcall = ("!"<>) . ShowVal.show_val
+
+-- | This is different from ShowVal (Typed Control) because the control doesn't
+-- need a % in the control track title.
+control_to_title :: Score.Typed Score.Control -> Text
+control_to_title (Score.Typed typ c)
+    | c == "" = "%"
+    | otherwise = Score.control_name c
+        <> if typ == Score.Untyped then ""
+            else ":" <> Score.type_to_code typ
+
+-- ** parse util
+
+p_merge :: A.Parser Merge
+p_merge = Expr.Symbol <$> Parse.p_identifier False ""
+
+p_track_call :: A.Parser Expr.Symbol
+p_track_call = A.char '!' *> Parse.p_symbol True
+
+-- | This is special syntax that's only allowed in control track titles.
+p_scale_id :: A.Parser Pitch.ScaleId
+p_scale_id = do
+    A.char '*'
+    Pitch.ScaleId <$> A.option "" (Parse.p_identifier True "")
+    <?> "scale id"
+
+-- * util
 
 -- | Convert a track title to its control.
 title_to_control :: Text -> Maybe Score.Control
-title_to_control title = case parse_control title of
-    Right (Control _ cont) -> Just (Score.typed_val cont)
+title_to_control title = case parse_control_type title of
+    Right (Control (Right control) _) -> Just (Score.typed_val control)
     _ -> Nothing
-
-control_to_title :: Score.Control -> Text
-control_to_title = Score.control_name
 
 -- | A pitch track is also considered a control track.
 is_control_track :: Text -> Bool
@@ -197,12 +186,13 @@ is_control_track = not . is_note_track
 
 -- | This is like 'is_control_track' but doesn't include pitch tracks.
 is_signal_track :: Text -> Bool
-is_signal_track title = is_control_track title && case parse_control title of
-    Right (Control {}) -> True
-    _ -> False
+is_signal_track title =
+    is_control_track title && case parse_control_type title of
+        Right (Control {}) -> True
+        _ -> False
 
 is_tempo_track :: Text -> Bool
-is_tempo_track title = case parse_control title of
+is_tempo_track title = case parse_control_type title of
     Right (Tempo {}) -> True
     _ -> False
 
@@ -226,12 +216,9 @@ note_track_symbol :: Expr.Symbol
 note_track_symbol = "note-track"
 
 -- | Convert a track title into its instrument.
---
--- This is a hack because the track title is actually code and I'm trying to
--- pick an instrument out without executing it.
 title_to_instrument :: Text -> Maybe Score.Instrument
-title_to_instrument title = case Text.uncons title of
-    Just ('>', name) -> Just $ Score.Instrument $ strip_expr name
+title_to_instrument title = case parse_note_track title of
+    Right (inst, _) -> Just inst
     _ -> Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
@@ -239,7 +226,7 @@ instrument_to_title :: Score.Instrument -> Text
 instrument_to_title (Score.Instrument a) = ">" <> a
 
 is_note_track :: Text -> Bool
-is_note_track = Maybe.isJust . title_to_instrument
+is_note_track = (">" `Text.isPrefixOf`)
 
 strip_expr :: Text -> Text
 strip_expr = Text.stripEnd . Text.takeWhile (/='|')
@@ -247,13 +234,13 @@ strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 -- ** pitch
 
 title_to_scale :: Text -> Maybe Pitch.ScaleId
-title_to_scale title = case parse_control title of
-    Right (Pitch _ scale_id _) -> Just scale_id
+title_to_scale title = case parse_control_type title of
+    Right (Pitch scale_id _ _ _) -> Just scale_id
     _ -> Nothing
 
 scale_to_title :: Pitch.ScaleId -> Text
 scale_to_title scale_id =
-    unparse_control (Pitch Nothing scale_id Score.default_pitch)
+    ShowVal.show_val (Pitch scale_id Score.default_pitch Nothing Nothing)
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)

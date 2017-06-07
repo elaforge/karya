@@ -167,11 +167,6 @@ test_parse_val = do
                     void $ equal (ShowVal.show_val val) expr
             _ -> void $ success $ showt res <> " == " <> showt expected
 
-test_parse_control_title = do
-    let f = Parse.parse_control_title
-    equal (f "*") $ Right ([VStr "*"], [])
-    equal (f "*a") $ Right ([VStr "*a"], [])
-
 test_parse_num = do
     let f = Parse.parse_num
     equal (f "`0x`00") (Right 0)

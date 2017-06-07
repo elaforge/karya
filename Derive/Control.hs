@@ -78,7 +78,7 @@ d_control_track config track deriver = do
     let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
-            return (ParseTitle.parse_control_expr title)
+            return (ParseTitle.parse_control_title title)
         eval_track config track expr ctype deriver
 
 -- * eval_track
@@ -94,13 +94,15 @@ eval_track config track expr ctype deriver = case ctype of
                     (Score.control_name Controls.tempo) "compose"
                     (in_normal_mode $ derive_control True track transform)
         tempo_call config maybe_sym track sig_deriver deriver
-    ParseTitle.Control maybe_merge typed_control -> do
+    ParseTitle.Control (Right typed_control) maybe_merge -> do
         let control = Score.typed_val typed_control
         merger <- get_merger control maybe_merge
         let sig_deriver = with_control_env (Score.control_name control)
                 (ShowVal.show_val merger) (derive_control False track transform)
         control_call track typed_control merger sig_deriver deriver
-    ParseTitle.Pitch maybe_merge scale_id pcontrol -> do
+    ParseTitle.Control (Left track_call) maybe_merge ->
+        Derive.throw "track call not supported yet"
+    ParseTitle.Pitch scale_id pcontrol maybe_merge track_call -> do
         merger <- get_pitch_merger maybe_merge
         pitch_call config track pcontrol merger scale_id transform deriver
     where

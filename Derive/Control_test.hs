@@ -40,7 +40,7 @@ test_control_track = do
     -- various failures
     let (val, logs) = run ("*bork *bork *bork", events)
     equal val []
-    strings_like logs ["track title: control track must be one of"]
+    strings_like logs ["track title: parse error"]
 
     strings_like (snd (run ("cont", [(0, 0, "abc"), (1, 0, "def")])))
         ["not found: abc", "not found: def"]
@@ -141,12 +141,12 @@ test_pitch_track = do
 --             [(1, 0, "4f")])
 --         ([[(0, NN.c4)], [(1, NN.f4)], [(2, NN.e4)]], [])
 
-test_relative_control = do
+test_control_merge = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""
             [ (">", [(0, 5, "")])
             , ("*", [(0, 0, "4c")])
             , ("cont" <> suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
-            , ("add cont" <> add_suf, [(0, 0, "1")])
+            , ("cont" <> add_suf <> " add", [(0, 0, "1")])
             ]
         extract = DeriveTest.extract $
             (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
@@ -169,10 +169,10 @@ test_relative_control = do
             , (c2, [(0, 0, v2)])
             ]
         extract = DeriveTest.extract $ DeriveTest.e_control "cont"
-    equal (run2 "add cont" "1" "add cont" "1") ([[(0, 2)]], [])
+    equal (run2 "cont add" "1" "cont add" "1") ([[(0, 2)]], [])
     -- Default is multiply, set replaces.
     equal (run2 "cont" ".5" "cont" ".5") ([[(0, 0.25)]], [])
-    equal (run2 "cont" ".5" "set cont" ".5") ([[(0, 0.5)]], [])
+    equal (run2 "cont" ".5" "cont set" ".5") ([[(0, 0.5)]], [])
 
 test_default_merge = do
     let run control = DeriveTest.extract (DeriveTest.e_control control) $

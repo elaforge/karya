@@ -294,7 +294,8 @@ create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
     Ui.splice_skeleton_below block_id dyn note
-    Ui.set_track_title tid (ParseTitle.control_to_title Score.c_dynamic)
+    Ui.set_track_title tid $
+        ParseTitle.control_to_title (Score.untyped Score.c_dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

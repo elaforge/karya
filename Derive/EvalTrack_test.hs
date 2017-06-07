@@ -161,7 +161,7 @@ test_environ_across_tracks = do
     let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
     equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
         ([interpolated], [])
-    equal (run [("set cont | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
+    equal (run [("cont set | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
         ([[(1, 0), (3, 0.5), (5, 1)]], [])
 
     -- now make sure srate in one track doesn't affect another

@@ -129,7 +129,7 @@ type_to_code typ = case typ of
     Score -> Text.singleton ScoreTime.suffix -- t for time
     Real -> Text.singleton RealTime.suffix -- s for seconds
 
-code_to_type :: String -> Maybe Type
+code_to_type :: Text -> Maybe Type
 code_to_type s = case s of
     "c" -> Just Chromatic
     "d" -> Just Diatonic
@@ -163,6 +163,9 @@ instance Pretty a => Pretty (Typed a) where
     format (Typed typ val) =
         Pretty.text (if Text.null c then "" else c <> ":") <> Pretty.format val
         where c = type_to_code typ
+
+instance ShowVal.ShowVal (Typed Control) where
+    show_val (Typed typ c) = ShowVal.show_val c <> ":" <> type_to_code typ
 
 instance Serialize.Serialize a => Serialize.Serialize (Typed a) where
     put (Typed a b) = Serialize.put a >> Serialize.put b

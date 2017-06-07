@@ -252,7 +252,7 @@ test_subderive_error = do
             ]
     let (events, logs) = run [(0, 1, "sub")]
     equal events []
-    strings_like logs ["track title: control track must be one of"]
+    strings_like logs ["track title: parse error"]
 
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly

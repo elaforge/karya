@@ -705,7 +705,8 @@ resolve_merge (Merge merger) _ = return merger
 get_control_merge :: Expr.Symbol -> Deriver (Merger Signal.Control)
 get_control_merge name = do
     mergers <- gets (state_mergers . state_constant)
-    require ("unknown control merger: " <> showt name) (Map.lookup name mergers)
+    require ("unknown control merger: " <> ShowVal.show_val name)
+        (Map.lookup name mergers)
 
 -- | Get the default merger for this control, or 'merge_mul' if there is none.
 get_default_merger :: Score.Control -> Deriver (Merger Signal.Control)

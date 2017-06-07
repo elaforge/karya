@@ -207,7 +207,7 @@ control_events events =
 
 control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
 control_track events control =
-    make_track (ParseTitle.unparse_typed control) ui_events
+    make_track (ParseTitle.control_to_title control) ui_events
     where
     ui_events = drop_dyn $ tidy_controls $
         map (signal_events (Score.typed_val control)) events

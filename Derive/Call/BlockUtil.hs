@@ -166,7 +166,7 @@ derive_tracks = mconcatMap (derive_track False)
 
 -- | Derive a single track node and any tracks below it.
 derive_track :: Bool -- ^ True if this is the single topmost track and is
-    -- a tempo track.  Ultimately it gets threaded all the way down to
+    -- a tempo track.  Ultimately this flag gets threaded all the way down to
     -- "Derive.Tempo".
     -> TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track toplevel node@(Tree.Node track subs)

@@ -6,11 +6,13 @@
 -- | Tracklang parsers.  Many of the parsers in here should be inverses of
 -- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
-    parse_expr, parse_expr_text, parse_control_title
+    parse_expr, parse_expr_text
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
     , unparsed_call
 
+    -- * parsers
+    , lexeme, p_pipe, p_expr, p_pcontrol, p_identifier, p_symbol
     -- * expand macros
     , expand_macros
     -- * ky file
@@ -63,12 +65,6 @@ parse_expr_text = traverse call
     call (Expr.Call sym terms) = Expr.Call <$> pure sym <*> traverse term terms
     term (Expr.Literal val) = Expr.Literal <$> parse_val val
     term (Expr.ValCall c) = Expr.ValCall <$> call c
-
--- | Parse a control track title.  The first expression in the composition is
--- parsed simply as a list of values, not a Call.  Control track titles don't
--- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: Text -> Either Text ([BaseTypes.Val], [BaseTypes.Call])
-parse_control_title = ParseText.parse p_control_title
 
 -- | Parse a single Val.
 parse_val :: Text -> Either Text BaseTypes.Val
@@ -178,13 +174,6 @@ p_hs_string =
 
 -- * toplevel parsers
 
--- | See 'parse_control_title'.
-p_control_title :: A.Parser ([BaseTypes.Val], [BaseTypes.Call])
-p_control_title = do
-    vals <- A.many (lexeme $ BaseTypes.VStr <$> p_scale_id <|> p_val)
-    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_expr True)
-    return (vals, expr)
-
 p_expr :: Bool -> A.Parser BaseTypes.Expr
 p_expr toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
@@ -260,7 +249,7 @@ p_val =
     <|> BaseTypes.VNum <$> p_num
     <|> BaseTypes.VStr <$> p_str
     <|> BaseTypes.VControlRef <$> p_control_ref
-    <|> BaseTypes.VPControlRef <$> p_pcontrol_ref
+    <|> BaseTypes.VPControlRef . BaseTypes.LiteralControl <$> p_pcontrol
     <|> BaseTypes.VQuoted <$> p_quoted
     <|> (A.char '_' >> return BaseTypes.VNotGiven)
     <|> (A.char ';' >> return BaseTypes.VSeparator)
@@ -336,22 +325,14 @@ p_control_ref = do
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @pitch-control@ val
 -- call.
-p_pcontrol_ref :: A.Parser BaseTypes.PControlRef
-p_pcontrol_ref = do
+p_pcontrol :: A.Parser ScoreTypes.PControl
+p_pcontrol = do
     A.char '#'
-    BaseTypes.LiteralControl . Score.unchecked_pcontrol <$>
-        A.option "" (p_identifier False "")
+    Score.unchecked_pcontrol <$> p_identifier True ""
     <?> "pitch control"
 
 p_quoted :: A.Parser BaseTypes.Quoted
 p_quoted = ParseText.between "\"(" ")" (BaseTypes.Quoted <$> p_expr False)
-
--- | This is special syntax that's only allowed in control track titles.
-p_scale_id :: A.Parser Expr.Str
-p_scale_id = do
-    A.char '*'
-    Expr.Str . Text.cons '*' <$> A.option "" (p_identifier False "")
-    <?> "scale id"
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be

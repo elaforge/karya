@@ -144,7 +144,7 @@ convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     convert (inst, NoteTrack notes pitches controls) =
         (ParseTitle.instrument_to_title inst, notes)
         : ("*", pitches)
-        : [(ParseTitle.control_to_title control, track)
+        : [(ParseTitle.control_to_title (Score.untyped control), track)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]

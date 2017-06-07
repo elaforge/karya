@@ -10,6 +10,11 @@ UNSORTED
     - More general and descriptive names for Derive.Scopes and Scope.
     - Use Scopes in Derive.Library
     - Implement calling TrackCalls.
+      . Overloading 'x' to mean a call to x or a control %x might cause some
+        problems.  E.g. title_to_control can't know unless it looks
+      . If I just use a symbol there's no way to tell if it's a control,
+        pitch, or note track.  So I need to keep the syntactic clues.
+      . Maybe control: '!call', note: '> !call', pitch '*xyz !call'?
     - Write a TrackCall for gamakam4.  ! calls quote the argument and pass
       to gamakam call.  Or I could invert it and use ! for non-gamakam calls.
       Copy pitch calls over.
