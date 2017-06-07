@@ -427,7 +427,7 @@ ccBinaries =
         , ccRelativeDeps =
             map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
         , ccCompileFlags = \config ->
-            [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "Synth/vst") ++ "\""
+            [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
             , "-I" ++ Config.vstBase
             ]
         , ccLinkFlags = const $ "-bundle" : "-lsndfile"
