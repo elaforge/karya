@@ -178,6 +178,8 @@ pitch_nn smap relative (PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
     key <- read_key smap maybe_key
     pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key relative
+    when (base_hz == 0) $
+        Left $ PSignal.ControlError just_base_control "==0"
     let hz = transpose_to_hz per_octave base_hz key
             (octave * fromIntegral per_octave + chromatic + diatonic) pitch
     return $ Pitch.hz_to_nn hz

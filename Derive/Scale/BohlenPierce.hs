@@ -16,10 +16,10 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -75,7 +75,8 @@ semis_to_nn (PSignal.PitchConfig env controls) fsemi =
     hz1 = degree_to_hz base_hz tonic degree
     hz2 = degree_to_hz base_hz tonic (degree + 1)
     (degree, frac) = properFraction fsemi
-    base_hz = Map.findWithDefault default_base_hz just_base_control controls
+    base_hz = Map.findWithDefault default_base_hz JustScales.just_base_control
+        controls
     tonic = Theory.degree_to_semis layout $ Theory.key_tonic key
     key = fromMaybe default_key $ do
         key <- Scales.environ_key env
@@ -93,9 +94,6 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 
 default_base_hz :: Pitch.Hz
 default_base_hz = Pitch.middle_c_hz
-
-just_base_control :: Score.Control
-just_base_control = "just-base"
 
 scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree = ScaleDegree.scale_degree_just pscale named_intervals 1
