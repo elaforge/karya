@@ -16,7 +16,7 @@ module Derive.Solkattu.Dsl (
     , akshara, sam, (^), (§)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
-    , nakatiku
+    , nakatiku, tk, tknk
     -- ** combinators
     , tri, tri_, trin, tri2
     , join, repeat, inter, spread
@@ -123,6 +123,10 @@ pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 
 nakatiku :: Sequence stroke
 nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
+
+tk, tknk :: Sequence stroke
+tk = make_note $ Solkattu.Pattern Solkattu.Taka
+tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 
 -- * modify sollus
 

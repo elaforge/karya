@@ -161,8 +161,12 @@ type Patterns = Realize.Patterns Stroke
 __ :: SNote
 __ = Sequence.Note Realize.Rest
 
-default_nakatiku :: (Solkattu.Pattern, [SNote])
-default_nakatiku = (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
+default_nakatiku :: [(Solkattu.Pattern, [SNote])]
+default_nakatiku =
+    [ (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
+    , (Solkattu.Taka, [k, p])
+    , (Solkattu.Takanaka, [k, p, n, p])
+    ]
     where Strokes {..} = notes
 
 alternate_nakatiku :: [SNote]
@@ -238,7 +242,7 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
 
 patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
-patterns = Realize.patterns . (default_nakatiku:)
+patterns = Realize.patterns . (default_nakatiku++)
     . map (first Solkattu.PatternM)
 
 su :: [Sequence.Note a] -> [Sequence.Note a]

@@ -150,21 +150,33 @@ instance S.HasMatras Pattern where
     matras_of p = case p of
         PatternM m -> m
         Nakatiku -> 8
+        Taka -> 2
+        Takanaka -> 4
 
 data Pattern =
     PatternM !S.Matra
     -- | 4-matra faran nakatikutarikita
     | Nakatiku
+    -- | Common ornaments.
+    -- TODO there should be a lighter weight way to declare these, so I can
+    -- put them per-korvai as generic groups.
+    | Taka | Takanaka -- TODO I actually like takatiku more, but it becomes tktk
     deriving (Eq, Ord, Show)
 
 instance Pretty Pattern where
-    pretty (PatternM matras) = "p" <> showt matras
-    pretty Nakatiku = "4n"
+    pretty p = case p of
+        PatternM matras -> "p" <> showt matras
+        Nakatiku -> "4n"
+        Taka -> "tk"
+        Takanaka -> "tknk"
 
 instance Expr.ToExpr Pattern where
-    to_expr (PatternM matras) =
-        Expr.generator (Expr.call "p" [ShowVal.show_val matras])
-    to_expr Nakatiku = "na"
+    to_expr p = case p of
+        PatternM matras ->
+            Expr.generator (Expr.call "p" [ShowVal.show_val matras])
+        Nakatiku -> "na"
+        Taka -> "tk"
+        Takanaka -> "tknk"
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 

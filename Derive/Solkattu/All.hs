@@ -75,77 +75,77 @@ korvais =
         line_number 140 Derive.Solkattu.Score.Score.c_16_12_06_sriram1
     , variable_name "c_nnnd" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 182 Derive.Solkattu.Score.Score.c_nnnd
+        line_number 180 Derive.Solkattu.Score.Score.c_nnnd
     , variable_name "c_17_02_06" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 196 Derive.Solkattu.Score.Score.c_17_02_06
+        line_number 194 Derive.Solkattu.Score.Score.c_17_02_06
     , variable_name "c_17_03_20" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 206 Derive.Solkattu.Score.Score.c_17_03_20
+        line_number 204 Derive.Solkattu.Score.Score.c_17_03_20
     , variable_name "c_17_04_23" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 242 Derive.Solkattu.Score.Score.c_17_04_23
+        line_number 240 Derive.Solkattu.Score.Score.c_17_04_23
     , variable_name "c_17_05_10" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 268 Derive.Solkattu.Score.Score.c_17_05_10
+        line_number 267 Derive.Solkattu.Score.Score.c_17_05_10
     , variable_name "c_17_05_19_janahan" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 304 Derive.Solkattu.Score.Score.c_17_05_19_janahan
+        line_number 303 Derive.Solkattu.Score.Score.c_17_05_19_janahan
     , variable_name "k1_1" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 338 Derive.Solkattu.Score.Score.k1_1
+        line_number 337 Derive.Solkattu.Score.Score.k1_1
     , variable_name "k1_2" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 355 Derive.Solkattu.Score.Score.k1_2
+        line_number 354 Derive.Solkattu.Score.Score.k1_2
     , variable_name "k1_3" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 368 Derive.Solkattu.Score.Score.k1_3
+        line_number 367 Derive.Solkattu.Score.Score.k1_3
     , variable_name "k3s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 404 Derive.Solkattu.Score.Score.k3s
+        line_number 401 Derive.Solkattu.Score.Score.k3s
     , variable_name "t1s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 457 Derive.Solkattu.Score.Score.t1s
+        line_number 454 Derive.Solkattu.Score.Score.t1s
     , variable_name "t2s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 477 Derive.Solkattu.Score.Score.t2s
+        line_number 474 Derive.Solkattu.Score.Score.t2s
     , variable_name "t3s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 509 Derive.Solkattu.Score.Score.t3s
+        line_number 506 Derive.Solkattu.Score.Score.t3s
     , variable_name "t4s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 546 Derive.Solkattu.Score.Score.t4s
+        line_number 543 Derive.Solkattu.Score.Score.t4s
     , variable_name "t4s2" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 573 Derive.Solkattu.Score.Score.t4s2
+        line_number 568 Derive.Solkattu.Score.Score.t4s2
     , variable_name "t4s3" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 598 Derive.Solkattu.Score.Score.t4s3
+        line_number 593 Derive.Solkattu.Score.Score.t4s3
     , variable_name "t5s" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 622 Derive.Solkattu.Score.Score.t5s
+        line_number 617 Derive.Solkattu.Score.Score.t5s
     , variable_name "m_sriram1" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 663 Derive.Solkattu.Score.Score.m_sriram1
+        line_number 658 Derive.Solkattu.Score.Score.m_sriram1
     , variable_name "c_17_04_04" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 682 Derive.Solkattu.Score.Score.c_17_04_04
+        line_number 677 Derive.Solkattu.Score.Score.c_17_04_04
     , variable_name "koraippu_misra" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 730 Derive.Solkattu.Score.Score.koraippu_misra
+        line_number 725 Derive.Solkattu.Score.Score.koraippu_misra
     , variable_name "koraippu_janahan" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 768 Derive.Solkattu.Score.Score.koraippu_janahan
+        line_number 763 Derive.Solkattu.Score.Score.koraippu_janahan
     , variable_name "tir_18" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 829 Derive.Solkattu.Score.Score.tir_18
+        line_number 824 Derive.Solkattu.Score.Score.tir_18
     , variable_name "janahan_17_06_02" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 840 Derive.Solkattu.Score.Score.janahan_17_06_02
+        line_number 835 Derive.Solkattu.Score.Score.janahan_17_06_02
     , variable_name "e_spacing" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 857 Derive.Solkattu.Score.Score.e_spacing
+        line_number 852 Derive.Solkattu.Score.Score.e_spacing
     , variable_name "e_17_05_19" $
         module_ "Derive.Solkattu.Score.Score" $
-        line_number 873 Derive.Solkattu.Score.Score.e_17_05_19
+        line_number 868 Derive.Solkattu.Score.Score.e_17_05_19
     ]

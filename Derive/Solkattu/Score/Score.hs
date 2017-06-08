@@ -141,7 +141,7 @@ c_16_12_06_sriram1 :: Korvai
 c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     map su $ map (purvangam.)
     [ tri_ (dheem.__4) ta_takadin
-    , tri_ (dheem.__4) (su $ p6 . ta.ka.p6 . ta.ka.na.ka.p6)
+    , tri_ (dheem.__4) (su $ p6 . tk.p6 . tknk.p6)
     -- All variations can get taka and takanaka in the karvai, and
     -- 345 345 345 can become 345 345 3333
     ]
@@ -172,8 +172,6 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
         , (ta, [k])
         , (ta.ka, [k, t])
         , (thom, [od])
-        -- TODO taka, takanaka in that context should be kp kpnp
-        , (ta.ka.na.ka, [k, p, n, p])
         ]
 
 -- TODO: reduction pattern, forwards and backwards
@@ -242,7 +240,7 @@ c_17_03_20 = date 2017 3 20 $ ganesh $
 c_17_04_23 :: Korvai
 c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
     map sd -- remove for melkalam
-    [ purvangam . utarangam (ta.ka.tdgnt) (ta.ka.tdgnt)
+    [ purvangam . utarangam (tk.tdgnt) (tk.tdgnt)
     , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
         . r32111 (ta.ka.na.ka.tdgnt))
     , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
@@ -261,6 +259,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
     mridangam = make_mridangam $ standard_strokes ++
         [ (ta, [k])
         , (din, [od])
+        -- TODO spread doesn't work with standard patterns, but it should
         , (ta.ka.tdgnt, [k, p, k, t, k, n, o])
         , (ta.ka.na.ka, [k, p, n, p])
         ]
@@ -361,17 +360,17 @@ k1_2 = make_k1 $ (:[]) $
           . ta_din_ . tri (tadin_ . p7)
           . ta_din_ . tri (tadin_ . tadin_ . p7)
     where
-    p7 = ta.ka.p5
+    p7 = tk.p5
     ta_din_ = ta.__.din.__
     tadin_ = ta.din.__
 
 k1_3 :: Korvai
 k1_3 = make_k1 $ (:[]) $
       k1_a  . __ . tata_dindin_ . p6 . __
-    . k1_a' . __ . tata_dindin_ . ta.ka.p6 . __
+    . k1_a' . __ . tata_dindin_ . tk.p6 . __
     . k1_a . __ . k1_a' . __ . tata_dindin_
-    . tri_ __ (ta.ka.ti.ku.p6)
-    . tri_ __ (ta.ka.p6)
+    . tri_ __ (tknk.p6)
+    . tri_ __ (tk.p6)
     . tri_ __ p6
     where
     tata_dindin_ = ta.__.ta.__3.din.__.din.__3
@@ -383,8 +382,6 @@ k1_a' = ta.ka.di.__.ki.ta.__.thom
 k1_mridangam :: Korvai.Instruments
 k1_mridangam = make_mridangam
     [ (ta, [k])
-    , (ta.ka, [k, p])
-    , (ta.ka.ti.ku, [k, p, n, p])
     , (ta.di.ki.ta, [k, t, k, n])
     , (ta.ka.di.ki.ta, [k, p, t, k, n])
     , (din, [od])
@@ -460,7 +457,7 @@ t1s = ganesh $ korvai adi mridangam $ map (nadai 6)
     , reduce (tat.__.dit.__.takadinna.din.__)      . utarangam p6
     , reduce (tat.__.dit.__.takadinna.din!p)       . utarangam p7
     , reduce (tat.__.dit.__.takadinna)             . utarangam p8
-    , reduce (tat.__.dit.__.ta.ka.din)                . utarangam p9
+    , reduce (tat.__.dit.__.ta.ka.din)             . utarangam p9
     ]
     where
     utarangam = tri_ (tang.__.ga)
@@ -482,7 +479,7 @@ t2s = ganesh $ korvai adi mridangam $ map (nadai 6)
     , reduce (tat.__.dit.__.takadinna.dheem.__)  . tri (ta.din.__.p5)
     , reduce (tat.__.dit.__.takadinna.din!p)     . tri (ta.__.din.__.p5)
     , reduce (tat.__.dit.__.takadinna)           . tri (ta.ka.ta.din.__.p5)
-    , reduce (tat.__.dit.__.ta.ka.din)             . tri (ta.ka.__.ta.din.__.p5)
+    , reduce (tat.__.dit.__.ta.ka.din)           . tri (ta.ka.__.ta.din.__.p5)
 
     , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.dinga.p7)
     , let tadin_ n = repeat n (ta.din.__) in
@@ -553,7 +550,7 @@ t4s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
 
     , p123 p5 (tat.__3.din.__3)
     , let dinga s = din!s . __ . ga
-        in p5.dinga u . ta.ka . p5.p5. dinga i . ta.ka.ti.ku . p5.p5.p5
+        in p5.dinga u . tk.p5.p5. dinga i . tknk.p5.p5.p5
     , tri (tat.dinga . tat.__.dinga.p5)
     ]
     where
@@ -565,8 +562,6 @@ t4s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
         , (dheem, [u])
         , (din, [od])
         , (tat, [k])
-        , (ta.ka.ti.ku, [k, p, n, p])
-        , (ta.ka, [k, p])
         , (dinga, [od, p])
         ] ++ m_ta_katakita
 

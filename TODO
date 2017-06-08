@@ -2015,11 +2015,13 @@ Derive:
           tri_ (tat.din.__) (su kitataka) works.
         * If 1^(...) applies to everything, then I can mark a bunch of sollus
           at once.
-        - There are taka.x, and takanaka.x / takatiku.x prefixes that are
+        * There are taka.x, and takanaka.x / takatiku.x prefixes that are
           always played kp kpnp, and I don't want it to interfere with
           per-korvai ta.ka mapping.  This is like a nakatiku pattern, but is
           there a lighter weight way to add a these than just another Pattern
           type?
+          . I can already do that with MridangamScore, so maybe I can do
+            the same thing by bundling sollus with realization.
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.
         - I want results of reductions or expansions to be recognized as

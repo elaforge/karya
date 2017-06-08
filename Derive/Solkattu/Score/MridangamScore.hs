@@ -92,8 +92,8 @@ p16_12_06_janahan2 :: Korvai
 p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
         . tdgnt . p6
-        . tdgnt . p6 . k.p.p6
-        . tdgnt . p6 . k.p.p6 . k.p.n.p.p6
+        . tdgnt . p6 . tk.p6
+        . tdgnt . p6 . k.p.p6 . tknk.p6
     where
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
@@ -211,10 +211,6 @@ eddupu10 = korvai (beats 5)
 
 nang_kita :: Sequence
 nang_kita = o&n . __ . p.k.nakatiku
-
-taka, takanaka :: Sequence
-taka = k.p
-takanaka = k.p.n.p
 
 -- -- * realize
 
