@@ -18,6 +18,7 @@ import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.India.Gamakam3 as Gamakam3
 import qualified Derive.Call.India.Gamakam4 as Gamakam4
+import qualified Derive.Call.India.Gamakam5 as Gamakam5
 import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import qualified Derive.Call.Post.Idiom as Idiom
@@ -72,6 +73,7 @@ note_maps = mconcat
     , Gamakam2.note_calls
     , Gamakam3.note_calls
     , Gamakam4.note_calls
+    , Gamakam5.note_calls
     , Gangsa.note_calls
     , Gender.note_calls
     , Gong.note_calls
@@ -112,6 +114,7 @@ control_maps = mconcat
     , Gamakam.control_calls
     , Gamakam3.control_calls
     , Gamakam4.control_calls
+    , Gamakam5.control_calls
     , Import.calls
     , Conditional.control_calls
     , Random.control_calls
