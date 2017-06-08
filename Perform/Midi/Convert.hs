@@ -14,7 +14,9 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.TextUtil as TextUtil
 import qualified Util.TimeVector as TimeVector
+
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Controls as Controls
@@ -175,8 +177,8 @@ convert_pitch :: Log.LogMonad m => Env.Environ
 convert_pitch env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
             PSignal.apply_environ env psig
-    unless (null nn_errs) $ Log.warn $
-        "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
+    unless (null nn_errs) $ Log.warn $ "convert pitch: "
+        <> Text.intercalate ", " (TextUtil.ellipsisList 4 (map pretty nn_errs))
     return sig
 
 apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> Signal.NoteNumber

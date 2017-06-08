@@ -408,7 +408,7 @@ annotate_call_doc transposers doc fields = prepend_doc extra_doc
     transposers_field =
         [("transposers", Doc.Doc $ pretty transposers) |
             not (Set.null transposers)]
-    join = TextUtil.list
+    join = TextUtil.enumeration
         . map (\(k, v) -> k <> ": " <> v) . filter ((/="") . snd)
 
 add_doc :: Doc.Doc -> Scale.Scale -> Scale.Scale

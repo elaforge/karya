@@ -54,7 +54,7 @@ make_scale scale_id smap =
         \ different tunings.  It defaults to "
         <> ShowVal.doc (smap_default_laras smap)
         <> ". Laras:\n"
-        <> TextUtil.list
+        <> TextUtil.enumeration
             [ ShowVal.doc name <> " - " <> laras_doc laras
             | (name, laras) <- Map.toList (smap_laras smap)
             ]

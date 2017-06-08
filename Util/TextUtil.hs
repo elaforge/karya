@@ -69,8 +69,14 @@ ellipsis maxWidth text
     | Text.length text <= maxWidth = text
     | otherwise = Text.take (maxWidth - 3) text <> "..."
 
-list :: (Textlike a, Monoid a, String.IsString a) => [a] -> a
-list = join "\n" . map ("- "<>)
+ellipsisList :: Int -> [Text] -> [Text]
+ellipsisList max xs
+    | null post = xs
+    | otherwise = pre ++ ["..."]
+    where (pre, post) = splitAt max xs
+
+enumeration :: (Textlike a, Monoid a, String.IsString a) => [a] -> a
+enumeration = join "\n" . map ("- "<>)
 
 -- | Format the given rows into columns, aligned vertically.
 formatColumns :: Int -> [[Text]] -> [Text]
