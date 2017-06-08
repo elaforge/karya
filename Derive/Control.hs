@@ -100,11 +100,17 @@ eval_track config track expr ctype deriver = case ctype of
         let sig_deriver = with_control_env (Score.control_name control)
                 (ShowVal.show_val merger) (derive_control False track transform)
         control_call track typed_control merger sig_deriver deriver
-    ParseTitle.Control (Left track_call) maybe_merge ->
-        Derive.throw "track call not supported yet"
-    ParseTitle.Pitch scale_id pcontrol maybe_merge track_call -> do
+    ParseTitle.Control (Left tcall) maybe_merge -> do
+        (typed_control, sig) <- track_call tcall track
+        merger <- get_merger (Score.typed_val typed_control) maybe_merge
+        control_call track typed_control merger (return (sig, [])) deriver
+    ParseTitle.Pitch scale_id pcontrol_tcall maybe_merge -> do
         merger <- get_pitch_merger maybe_merge
-        pitch_call config track pcontrol merger scale_id transform deriver
+        case pcontrol_tcall of
+            Right pcontrol -> pitch_call config track pcontrol merger scale_id
+                transform deriver
+            -- TODO have to refactor pitch_call
+            Left _tcall -> Derive.throw "unimplemented"
     where
     transform :: Derive.Callable d => Derive.Deriver (Stream.Stream d)
         -> Derive.Deriver (Stream.Stream d)
@@ -113,6 +119,12 @@ eval_track config track expr ctype deriver = case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
         ParseTitle.Pitch {} -> "pitch track"
+
+track_call :: Derive.Callable d => Expr.Symbol -> TrackTree.Track
+    -> Derive.Deriver (Score.Typed Score.Control, d)
+track_call sym track = do
+    call <- Eval.get_track_call sym
+    Derive.tcall_func call track
 
 -- | Switch 'Derive.RealDurationQuery' to 'Derive.Normal'.  A RealDurationQuery
 -- needs to evaluate until the tempo track of the callee block.  But if I leave
@@ -191,18 +203,19 @@ dispatch_tempo config sym block_range maybe_track_id signal deriver =
 
 control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> Derive.Merger Signal.Control
-    -> (Derive.Deriver (TrackResults Signal.Control))
+    -- TODO doesn't need to be a Deriver
+    -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-control_call track control merger control_deriver deriver = do
-    (signal, logs) <- control_deriver
+control_call track control merger sig_deriver deriver = do
+    (signal, logs) <- sig_deriver
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
     end <- Derive.real $ TrackTree.track_end track
     Derive.eval_control_mods end $ merge_logs logs $ with_damage $
         with_merger control merger signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
-    -- from the end of 'control_deriver'.  To make these parallelize, I need to
-    -- run control_deriver as a sub-derive, then mappend the Collect.
+    -- from the end of 'sig_deriver'.  To make these parallelize, I need to
+    -- run sig_deriver as a sub-derive, then mappend the Collect.
     where
     with_damage = with_control_damage
         (TrackTree.block_track_id track) (TrackTree.track_range track)

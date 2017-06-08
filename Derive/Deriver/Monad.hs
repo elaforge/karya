@@ -283,6 +283,7 @@ throw_error err = do
 class (Show d, Taggable d) => Callable d where
     lookup_generator :: Expr.Symbol -> Deriver (Maybe (Generator d))
     lookup_transformer :: Expr.Symbol -> Deriver (Maybe (Transformer d))
+    lookup_track_call :: Expr.Symbol -> Deriver (Maybe (TrackCall d))
     callable_name :: Proxy d -> Text
 
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
@@ -319,6 +320,7 @@ instance Taggable Score.Event where
 instance Callable Score.Event where
     lookup_generator = lookup_with (scope_note . scopes_generator)
     lookup_transformer = lookup_with (scope_note . scopes_transformer)
+    lookup_track_call = lookup_with (scope_note . scopes_track)
     callable_name _ = "note"
 
 instance Monoid NoteDeriver where
@@ -340,6 +342,7 @@ instance Taggable Control where
 instance Callable Signal.Control where
     lookup_generator = lookup_with (scope_control . scopes_generator)
     lookup_transformer = lookup_with (scope_control . scopes_transformer)
+    lookup_track_call = lookup_with (scope_control . scopes_track)
     callable_name _ = "control"
 
 -- ** pitch
@@ -356,6 +359,7 @@ instance Taggable Pitch where
 instance Callable PSignal.PSignal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
     lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
+    lookup_track_call = lookup_with (scope_pitch . scopes_track)
     callable_name _ = "pitch"
 
 -- * state
@@ -785,7 +789,7 @@ data TrackCall d = TrackCall {
     , tcall_doc :: !CallDoc
     , tcall_func :: !(TrackCallFunc d)
     }
-type TrackCallFunc d = TrackTree.EventsTree -> Deriver d
+type TrackCallFunc d = TrackTree.Track -> Deriver (Score.Typed Score.Control, d)
 
 instance Show (TrackCall d) where
     show tcall = "((TrackCall " <> show (tcall_name tcall) <> "))"

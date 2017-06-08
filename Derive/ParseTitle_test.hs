@@ -21,15 +21,13 @@ test_p_tempo = do
 
 test_p_pitch = do
     let f = ParseText.parse ParseTitle.p_control_type
-    equal (f "*") $ Right (Pitch "" "" Nothing Nothing)
-    equal (f "*hi") $ Right (Pitch "hi" "" Nothing Nothing)
-    equal (f "*hi #pc") $ Right (Pitch "hi" "pc" Nothing Nothing)
-    equal (f "*hi merge") $ Right (Pitch "hi" "" (Just "merge") Nothing)
-    equal (f "*hi #pc merge") $ Right (Pitch "hi" "pc" (Just "merge") Nothing)
-    equal (f "*hi !tc") $ Right (Pitch "hi" "" Nothing (Just "tc"))
-    equal (f "*hi # !tc") $ Right (Pitch "hi" "" Nothing (Just "tc"))
-    equal (f "*hi #pc merge !tc") $
-        Right (Pitch "hi" "pc" (Just "merge") (Just "tc"))
+    equal (f "*") $ Right (Pitch "" (Right "") Nothing)
+    equal (f "*hi") $ Right (Pitch "hi" (Right "") Nothing)
+    equal (f "*hi #pc") $ Right (Pitch "hi" (Right "pc") Nothing)
+    equal (f "*hi merge") $ Right (Pitch "hi" (Right "") (Just "merge"))
+    equal (f "*hi #pc merge") $ Right (Pitch "hi" (Right "pc") (Just "merge"))
+    equal (f "*hi !tc") $ Right (Pitch "hi" (Left "tc") Nothing)
+    equal (f "*hi !tc merge") $ Right (Pitch "hi" (Left "tc") (Just "merge"))
 
 test_p_control = do
     let f = ParseText.parse ParseTitle.p_control_type
@@ -54,12 +52,14 @@ test_parse_unparse_control = do
     uncurry equal (round_trip "*scale #name")
     uncurry equal (round_trip "*a merge")
     uncurry equal (round_trip "*a #name merge")
+    uncurry equal (round_trip "*a !tc merge")
     uncurry equal (round_trip "tempo")
     uncurry equal (round_trip "a-b")
     uncurry equal (round_trip "a-b add")
     uncurry equal (round_trip "c")
     uncurry equal (round_trip "c:d")
     uncurry equal (round_trip "c:d add")
+    uncurry equal (round_trip "!tc add")
     left_like (f "c:q") "parse error"
     uncurry equal (round_trip "%")
     uncurry equal (round_trip "% add")

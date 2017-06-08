@@ -75,7 +75,7 @@ data ControlType =
     Tempo (Maybe Expr.Symbol)
     -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
     -- and sets the given pitch signal.
-    | Pitch Pitch.ScaleId Score.PControl (Maybe Merge) (Maybe TrackCall)
+    | Pitch Pitch.ScaleId (Either TrackCall Score.PControl) (Maybe Merge)
     -- | Control track with an optional combining operator.
     | Control (Either TrackCall (Score.Typed Score.Control)) (Maybe Merge)
     deriving (Eq, Show)
@@ -99,13 +99,13 @@ p_tempo :: A.Parser ControlType
 p_tempo = Tempo <$>
     (lexeme (A.string "tempo") *> ParseText.optional (lexeme p_merge))
 
--- | *twelve #name merge !track-call
+-- | *twelve (#name | !track-call) merge
 p_pitch :: A.Parser ControlType
 p_pitch = Pitch
     <$> lexeme p_scale_id
-    <*> A.option Score.default_pitch (lexeme Parse.p_pcontrol)
+    <*> (lexeme $ (Left <$> p_track_call)
+        <|> (Right <$> A.option Score.default_pitch (lexeme Parse.p_pcontrol)))
     <*> ParseText.optional (lexeme p_merge)
-    <*> ParseText.optional (lexeme p_track_call)
 
 -- | (!track-call | % | control:typ) merge
 p_control :: A.Parser ControlType
@@ -136,17 +136,16 @@ p_type_annotation = do
 control_type_to_title :: ControlType -> Text
 control_type_to_title ctype = Text.unwords $ case ctype of
     Tempo sym -> "tempo" : maybe_sym sym
-    Pitch (Pitch.ScaleId scale_id) pcontrol merge tcall -> concat
-        [ ["*" <> scale_id]
-        , [ShowVal.show_val pcontrol | pcontrol /= ""]
-        , show_merge merge
-        , maybe [] ((:[]) . show_tcall) tcall
-        ]
+    Pitch (Pitch.ScaleId scale_id) pcontrol merge ->
+        "*" <> scale_id
+        : either ((:[]) . show_tcall) show_pcontrol pcontrol
+        ++ show_merge merge
     Control c merge -> either show_tcall control_to_title c : show_merge merge
     where
     maybe_sym = maybe [] ((:[]) . Expr.unsym)
     show_merge = maybe [] ((:[]) . ShowVal.show_val)
     show_tcall = ("!"<>) . ShowVal.show_val
+    show_pcontrol pcontrol = [ShowVal.show_val pcontrol | pcontrol /= ""]
 
 -- | This is different from ShowVal (Typed Control) because the control doesn't
 -- need a % in the control track title.
@@ -235,12 +234,12 @@ strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 
 title_to_scale :: Text -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control_type title of
-    Right (Pitch scale_id _ _ _) -> Just scale_id
+    Right (Pitch scale_id _ _) -> Just scale_id
     _ -> Nothing
 
 scale_to_title :: Pitch.ScaleId -> Text
 scale_to_title scale_id =
-    ShowVal.show_val (Pitch scale_id Score.default_pitch Nothing Nothing)
+    ShowVal.show_val (Pitch scale_id (Right Score.default_pitch) Nothing)
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)

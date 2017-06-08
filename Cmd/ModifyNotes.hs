@@ -152,7 +152,7 @@ title_to_control :: Text -> Either Error Control
 title_to_control title = ParseTitle.parse_control_type title >>= \case
     ParseTitle.Control (Right (Score.Typed Score.Untyped c)) Nothing ->
         return $ Control c
-    ParseTitle.Pitch scale_id pcontrol Nothing _
+    ParseTitle.Pitch scale_id (Right pcontrol) Nothing
         | pcontrol == Score.default_pitch -> return $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> title
 

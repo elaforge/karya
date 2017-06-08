@@ -18,7 +18,7 @@ module Derive.Eval (
     , get_val_call
 
     -- * lookup call
-    , get_generator, get_transformer
+    , get_generator, get_transformer, get_track_call
     , unknown_symbol, call_to_block_id, block_id_to_call
     , is_relative, make_relative
 
@@ -190,7 +190,7 @@ apply_transformers :: Derive.Callable d => Derive.Context d
 apply_transformers ctx calls deriver = foldr apply deriver calls
     where apply (sym, args) = apply_transformer ctx sym args
 
--- ** val calls
+-- ** val call
 
 eval :: Derive.Taggable a => Derive.Context a -> BaseTypes.Term
     -> Derive.Deriver BaseTypes.Val
@@ -228,6 +228,13 @@ get_transformer :: forall d. Derive.Callable d =>
 get_transformer sym =
     require_call False sym (name <> " transformer")
         =<< Derive.lookup_transformer sym
+    where name = Derive.callable_name (Proxy :: Proxy d)
+
+get_track_call :: forall d. Derive.Callable d =>
+    Expr.Symbol -> Derive.Deriver (Derive.TrackCall d)
+get_track_call sym =
+    require_call False sym (name <> " track call")
+        =<< Derive.lookup_track_call sym
     where name = Derive.callable_name (Proxy :: Proxy d)
 
 require_call :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a

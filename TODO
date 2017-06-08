@@ -15,6 +15,16 @@ UNSORTED
       . If I just use a symbol there's no way to tell if it's a control,
         pitch, or note track.  So I need to keep the syntactic clues.
       . Maybe control: '!call', note: '> !call', pitch '*xyz !call'?
+      . I'd like to be able to abstract control, e.g. '!gamakam', and the t-nn
+        is an implementation detail.  But I can't have track calls return
+        (Control, d), because that's only control tracks.
+      . I could have it set a control with the same name as the track call,
+        and then some way to rename it.  But what is that way?
+      . Or I could just fake it by returning Score.Control, and pitch tracks
+        just use Score.Control, and note tracks just ignore it.
+      . It seems awkward that this is simultaneously giving a way to abstract
+        syntax and control name, and they don't seem naturally related.  Can't
+        I have an orthogonal way to make 'gamak' an alias to t-nn?
     - Write a TrackCall for gamakam4.  ! calls quote the argument and pass
       to gamakam call.  Or I could invert it and use ! for non-gamakam calls.
       Copy pitch calls over.
@@ -810,21 +820,59 @@ synth: im:
       necessarily have negative time.
     . So I have to add a constant anyway.
   cache / incremental rerender
-    . I want the sequencer to only send the damaged range, but the synthesizer
-      will have to rewind to the previous chunk boundary, since it can't just
-      put every note in its own sample.  I suppose a sampler could actually do
-      that, but presumably physical models couldn't.
-    . Though actually a model would need to save its state at chunk
-      boundaries, so if I go per-note, then I wind up with rendering each note
-      separately, with a header with the model's state at start time.  But
-      overlapping notes would influence each other, so it would have to be
-      chunks of overlapping notes.  Of course it's not guaranteed there will
-      be a gap, so it would have to break anyway over a threshold.
-    . This is all to say that the cache chunks are synthesizer dependent, so
-      it needs access to all the serialized notes and can rewind as much as it
-      wants.  If notes are saved individually and indexed by time then I just
-      need to re-save the damaged ones and either send the time range or infer
-      from file timestamps.
+    notes
+      . I want the sequencer to only send the damaged range, but the synthesizer
+        will have to rewind to the previous chunk boundary, since it can't just
+        put every note in its own sample.  I suppose a sampler could actually do
+        that, but presumably physical models couldn't.
+      . Though actually a model would need to save its state at chunk
+        boundaries, so if I go per-note, then I wind up with rendering each note
+        separately, with a header with the model's state at start time.  But
+        overlapping notes would influence each other, so it would have to be
+        chunks of overlapping notes.  Of course it's not guaranteed there will
+        be a gap, so it would have to break anyway over a threshold.
+      . This is all to say that the cache chunks are synthesizer dependent, so
+        it needs access to all the serialized notes and can rewind as much as it
+        wants.  If notes are saved individually and indexed by time then I just
+        need to re-save the damaged ones and either send the time range or infer
+        from file timestamps.
+    - Include DamageRange RealTime RealTime in the notes dump.
+      . This is assuming a always serialize all notes, but I'd also want to do
+        that in chunks.  But I would have to expand the damage range out to
+        all overlapping notes, which is not great if there's a drone + control
+        and you modify the control in the middle.
+      . I should just have to emit the notes with overlapping damage, but only
+        rerender the time range.
+      . Say I make each note is its own file:
+        <start-time>-<instrument>-<voice>, where voice is just a number for
+        otherwise overlapping notes.  If there's damage from s to e, I get
+        the set of overlapping notes.  I delete everything in the damaged
+        range, all all (start, instrument) at the times of overlapping notes
+        before the range, and then write overlapping notes.
+            |----------->|--->
+                |--->
+                |--->
+                XXXXXXX damage
+        . This is like Ui.Diff, except that it's RealTime and for
+          Score.Events.
+        . I also need to turn ScoreDamage into RealTime.  Maybe not trivial?
+      . Actually first let's not bother with incremental, and just rewrite the
+        whole dump each time.  The real saving is in not rerendering audio.
+    - faust-im breaks output into chunks of n seconds.
+      . Chunk = (startTime, InstrumentState, samples)
+      . InstrumentState = Map (Instrument, Voice) DspState
+      . Voice = Int -- assigned by polyphony, but how can I keep it stable?
+        . For unlimited polyphony instruments, it doesn't matter, since it
+          doesn't affect the output.  For limited voice, I just map it to
+          different instruments.  So no Voice needed.  The difference is
+          whether I allocate a new instrument for every note or not.
+      . DspState = ByteString -- raw serialization of dsp class.
+      . Or I could do a memoize thing where I memoize
+        (startTime, Instrument, Controls, DspState) -> Samples.
+    - PlayCache can sequence multiple .wav files.  The filenames need to have
+      a timestamp so it can know how to seek.
+    - As PlayCache does fancier stuff, maybe I need to put the sample
+      streaming into a separate thread.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
