@@ -18,12 +18,11 @@ import Global
 import Types
 
 
-test_apply_controls = do
-    let f controls psig = unsignal $ PSignal.apply_controls
-            (mkcontrols controls) (mksignal psig)
-        mkcontrols = Map.fromList . map (second (Score.untyped . Signal.signal))
+test_apply_controls_transpose = do
+    let f controls sig = unsignal $ PSignal.apply_controls
+            (mkcontrols controls) (mksignal sig)
         err = Left "bad transpose"
-    -- No effect.
+    -- Non transposing control doesn't make the signal resample.
     equal (f [("normal", [(1, 1), (2, 2), (3, 3)])] [(0, 1)]) [(0, Right 1)]
     equal (f [(trans1, [(1, 1), (2, 2), (3, 3)])] [(0, 2)])
         [(0, Right 2), (1, Right 3), (2, err), (3, err)]
@@ -36,6 +35,21 @@ test_apply_controls = do
         [(0, Right 0), (1, Right 1), (2, Right 1), (3, Right 3)]
     -- Transposition won't create pitch where none existed.
     equal (f [(trans1, [(0, 1)])] [(2, 2)]) [(2, Right 3)]
+
+test_apply_controls = do
+    let f controls sig = map (second (controls_of . PSignal.pitch_config)) $
+            PSignal.unsignal $
+            PSignal.apply_controls (mkcontrols controls) (mksignal sig)
+        controls_of (PSignal.PitchConfig _ cmap) = Map.toList cmap
+    -- A non-transpose control still gets its value.
+    equal (f [("const", [(0, 220)]), (trans1, [(1, 0)])] [(1, 1)])
+        [(1, [("const", 220), (trans1, 0)])]
+    equal (f [("const", [(0, 220)]), (trans1, [(1, 0), (2, 1)])] [(1, 1)])
+        [ (1, [("const", 220), (trans1, 0)])
+        , (2, [("const", 220), (trans1, 1)])
+        ]
+    -- Transposition won't create pitch where none existed.
+    equal (f [(trans1, [(0, 1)])] [(1, 1)]) [(1, [(trans1, 1)])]
 
 test_apply_environ = do
     let f env1 env2 = unsignal $ PSignal.apply_environ (mkenv env1) $
@@ -56,6 +70,9 @@ env_pitch env =
     pitch_note (PSignal.PitchConfig env _) =
         Right $ Pitch.Note $ fromMaybe "?" $ Env.maybe_val "tuning" env
 
+mkcontrols :: [(Score.Control, [(Signal.X, Signal.Y)])]
+    -> Map Score.Control (Score.Typed Signal.Control)
+mkcontrols = Map.fromList . map (second (Score.untyped . Signal.signal))
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.PSignal
 mksignal = PSignal.signal . map (second mkpitch)

@@ -123,26 +123,26 @@ apply_controls controls sig
     where
     resample x = TimeVector.sig_op_poly initial_controls initial_pitch
         (\vmap -> coerce . apply vmap)
-        (sample_controls (trim x controls) (sig_transposers sig))
+        (sample_controls x (trim x controls) (sig_transposers sig))
         (sig_vec sig)
-    -- Trim away control samples before the first pitch sample.  Otherwise,
-    -- a transpose signal can cause the pitch signal to be extended to where
-    -- previously no pitch existed.  In practice this causes a problem when
-    -- flattening a PSignal for the track signal, where a transpose signal can
-    -- cause every pitch signal fragment to start at 0.
-    trim = fmap . fmap . Signal.drop_before_strict
+    trim = fmap . fmap . Signal.drop_before
     Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     initial_controls = controls_at start controls
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
-sample_controls :: ControlMap -> Set Score.Control
+sample_controls :: RealTime -> ControlMap -> Set Score.Control
     -> TimeVector.Boxed Score.ControlValMap
-sample_controls controls transposers =
+sample_controls start controls transposers =
     TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
     where
     xs = Seq.drop_dups id $ Seq.merge_lists id (map xs_of sigs)
     sigs = mapMaybe (\c -> Map.lookup c controls) (Set.toList transposers)
-    xs_of = map fst . Signal.unsignal . Score.typed_val
+    -- dropWhile (<start) because the xs may start before the start time to
+    -- get initial values, but I don't want to extend the pitch signal to
+    -- before where it originally started.  This would cause a problem when
+    -- flattening a PSignal for the track signal, where a transpose signal
+    -- could cause every pitch signal fragment to start at 0.
+    xs_of = dropWhile (<start) . map fst . Signal.unsignal . Score.typed_val
     -- If the tsigs are dense, then it's wasteful to keep looking up all
     -- the values instead of stepping along in order, but if the tsigs are
     -- sparse then it's probably more efficient to sample.  I expect in many
