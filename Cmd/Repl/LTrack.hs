@@ -79,12 +79,14 @@ replace from to = map_titles $ Text.replace from to
 -- | Find all tracks with the given string in their title.  You can use
 -- 'Ui.blocks_with_track_id' to find the blocks with the tracks, and
 -- 'map_titles' or 'replace' to change the titles.
-find :: Text -> Cmd.CmdL [(TrackId, Text)]
-find search = do
+find :: Cmd.M m => Text -> m [(TrackId, Text)]
+find search = find_f (search `Text.isInfixOf`)
+
+find_f :: Cmd.M m => (Text -> Bool) -> m [(TrackId, Text)]
+find_f matches = do
     tids <- Ui.all_track_ids
     titles <- mapM Ui.get_track_title tids
-    return [(tid, title) | (tid, title) <- zip tids titles,
-        search `Text.isInfixOf` title]
+    return [(tid, title) | (tid, title) <- zip tids titles, matches title]
 
 -- * manipulation
 
