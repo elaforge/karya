@@ -721,7 +721,7 @@ setupOracle env config = do
     return ()
     where
     midiDriver = case midiFromEnv env of
-        StubMidi -> ""
+        StubMidi -> "STUB_MIDI"
         JackMidi -> "JACK_MIDI"
         CoreMidi -> "CORE_MIDI"
 
@@ -761,7 +761,7 @@ hsconfigHRule fn = do
         , "#ifndef __HSCONFIG_H"
         , "#define __HSCONFIG_H"
         , define useRepl "INTERPRETER_GHC"
-        , define (not (null midiDriver)) midiDriver
+        , define True midiDriver
         , define Config.enableEkg "USE_EKG"
         , define Config.enableIm "ENABLE_IM"
         , "#endif"
