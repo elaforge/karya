@@ -122,7 +122,8 @@ SymbolTable::draw(const string &text, IPoint pos, Style style) const
 
 
 DPoint
-SymbolTable::measure(const string &text, int start, int end, Style style) const
+SymbolTable::measure(const string &text, size_t start, size_t end, Style style)
+    const
 {
     return draw_or_measure(text, start, end, IPoint(0, 0), style, true);
 }
@@ -205,8 +206,8 @@ SymbolTable::draw_backticks(
 
 
 DPoint
-SymbolTable::draw_or_measure(const string &text, int start, int end, IPoint pos,
-    Style style, bool measure) const
+SymbolTable::draw_or_measure(const string &text, size_t start, size_t end,
+    IPoint pos, Style style, bool measure) const
 {
     size_t i, j;
 
@@ -290,10 +291,10 @@ SymbolTable::measure_glyph(const char *p, int size) const
 }
 
 
-static int
-next_split(const string &text, int start)
+static size_t
+next_split(const string &text, size_t start)
 {
-    int i = start;
+    size_t i = start;
     while (i < text.length() && text[i] == ' ')
         i++;
     while (i < text.length() && text[i] != ' ')
@@ -302,11 +303,11 @@ next_split(const string &text, int start)
 }
 
 
-static int
-next_symbol(const string &text, int start)
+static size_t
+next_symbol(const string &text, size_t start)
 {
     if (text[start] == '`') {
-        int end = start + 1;
+        size_t end = start + 1;
         while (end < text.length() && text[end] != '`')
             end++;
         if (end == text.length()) { // unclosed `
@@ -330,11 +331,11 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
     // Otherwise glyphs will overlap the edge a bit anyway.
     wrap_width--;
 
-    int start = 0;
+    size_t start = 0;
     DPoint line_box(0, 0);
     // DEBUG("text: " << text << " (" << text.length() << ")");
     while (start < text.length()) {
-        int end = next_split(text, start);
+        size_t end = next_split(text, start);
         DPoint word_box = this->measure(text, start, end, style);
         if (line_box.x + word_box.x <= wrap_width) {
             // DEBUG(start << "--" << end << ": " << word_box << " <= "
@@ -384,10 +385,10 @@ SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
     int wrap_width, int *wrap_at) const
 {
     // Always include at least one symbol, otherwise I could loop forever.
-    int end = next_symbol(text, start);
+    size_t end = next_symbol(text, start);
     DPoint prev_box = this->measure(text, start, end, style);
     DPoint box;
-    for (int prev_end = end; end < text.length();
+    for (size_t prev_end = end; end < text.length();
             prev_end = end, prev_box = box) {
         end = next_symbol(text, end);
         box = this->measure(text, start, end, style);

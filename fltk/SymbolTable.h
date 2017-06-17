@@ -120,8 +120,8 @@ public:
     // doesn't include descenders, because those can generally overlap.
     DPoint draw(const std::string &text, IPoint pos, Style style) const;
     // Like 'draw' but just measure, don't actually draw.
-    DPoint measure(const std::string &text, int start, int end, Style style)
-        const;
+    DPoint measure(const std::string &text, size_t start, size_t end,
+        Style style) const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.
@@ -132,7 +132,7 @@ public:
     static SymbolTable *get();
 private:
     DPoint draw_or_measure(
-        const std::string &text, int start, int end, IPoint pos,
+        const std::string &text, size_t start, size_t end, IPoint pos,
         Style style, bool measure) const;
     DPoint draw_backticks(
         const std::string &text, IPoint pos, const Style &style, bool measure)

@@ -179,7 +179,7 @@ bool
 WrappedInput::wrap_text()
 {
     // Just for memory management.
-    std::auto_ptr<char> text_ptr(strdup(this->value()));
+    std::unique_ptr<char> text_ptr(strdup(this->value()));
     char *text = &*text_ptr;
     char *end = text + strlen(text);
     bool changed = false;
