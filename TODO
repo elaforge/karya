@@ -3,7 +3,23 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * bind page up / page down. What about home and end?
+  selection-orientation branch cleanup:
+    . do these still apply?
+    - It's surprising how positive always wins to negative.  This means adding
+      a positive events with +END will destroy all negative ones below it.
+    - set_duration: If I have ><---|, I can't set the negative event back to the
+      zero dur event because it sets the previous positive event, regardless of
+      selection orientation.
+    - Slice range should be Events.Range so it can remember the orientation.
+      Otherwise I think -0 note slices don't work.
+    - I think Slice.events_in_range should get an orientation, which in turn
+      means checked_slice_notes needs one.  Otherwise don't negative notes
+      not get the end event?  But Sekar maybe relies on include_end.
+    - Perhaps related, I removed include_end since negative should work for
+      that, but Sekar used it.  Can I use Sekar with negative events to get
+      end bias back?
+    - Remove Sel.selection constructor, record syntax is actually nicer.
+
   - track calls / track macros:
     * Add TrackCall to Monad.Scopes.
       . Kind: Note, Control, Pitch, Val -- return type
@@ -54,7 +70,6 @@ UNSORTED
       Scale from a val call would be better, but I think that runs into the
       big Derive / Val circular dependency problem.
     . Do as a Make for now.
-  * Someday switch UiTest.EventSpec to use Text.
   - Bind keys to Edit.insert_block_time and Edit.delete_block_time?
     . Or a key to expand the selection to all tracks?
     . A downside is that I might want to go back to my original selection.
@@ -149,11 +164,6 @@ UNSORTED
     only absolute updates to the skeleton.
     . Can't reproduce this now.
     . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-  * bug: I still get stuck mutes, e.g. ugal in semara-dana, @dim-pok
-    . Also telek ugal, before pengawak.
-    . I think it's still kontakt's fault, since if I record in reaper and play
-      back I get non-deterministic results.  Try moving the keyswitch back
-      again.
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
@@ -249,19 +259,6 @@ UNSORTED
     . Suppose the selection could be either negative or positively oriented.
       Maybe I could even use it for e.g. set duration vs. set begin, and move
       up vs. move down.  It would have to be easy to switch directions though.
-  * Replace global transform with UiConfig.ky
-    . I could implicitly wrap everything in 'global', and set it with
-      "note transformer: global = ...".
-    . The only thing is that this doesn't display so compactly in logview.
-      But it's not like I look at that a lot anyway.
-    . Maybe call at 'GLOBAL' so it's visually distinct.
-    . This once again changes randomization because a new GLOBAL in the stack.
-      How can I stop doing that?
-    . I could add a hack to skip it.  It works but is obviously not
-      a general solution.
-    . I could mitigate by not including calls, just blocks and tracks and
-      region.  That way just setting an env var won't change everything under
-      it.  Is there a case where I would want it to be different but isn't?
   - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
@@ -394,9 +391,6 @@ UNSORTED
     the rest reset to 0.
 
 IN PROGRESS
-  * Make negative events less awkward. Make selection directional, and key
-    events on (TrackTime, Orientation), so I can have |<--|.
-    . branch directional-select
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -412,9 +406,6 @@ IN PROGRESS
     . Also simplify or unify various types in Derive.ScoreTypes,
       Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
       and move simple types to Derive.T.
-  * Make solkattu use a generalized rhythmic framework, and support speed and
-    nadai change.
-    . branch solkattu
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
     . Maybe I should fix the formatting bugs first.
@@ -455,113 +446,6 @@ TASKS:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
 
-solkattu branch:
-  * Make generalize Sequence module with just the rhythmic part.
-  . I can't reduce to Duration before formatting because I don't have
-    fractional spacing, so I actually want to do spacing based on nadai, not
-    absolute timing.  This is in conflict with treating 's (-1) (a.b)' the
-    same as 'a.__.b.__', but presumably I could do a simplification step that
-    looks for such binary reductions.
-  . Can't I still flatten the notes?  It's awkward to find subsequences in
-    nested data.  And once I'm in realize, I don't care about dropM stuff.
-    If I realize by inserting Tempos into a flat stream, then I can do both
-    format and realize to Duration as necessary, and the stream is still flat.
-  * Realize.Patterns should map to Sequence.Notes for tempo changes.
-  * Fix tests.
-  * It seems like realize_patterns destroys the tempo?
-    . Do tests that check that.
-
-  * Document structure:
-    Realize -> Solkattu -> Sequence -> Tala
-
-selection-orientation branch:
-  . How should selection work?
-    . Events fully within the selection are affected no matter what.
-    . An event with its trigger at the beginning or end of the selection is
-      affected based on the selection's orientation.
-    . A point selection affects events at the point and with the same
-      orientation.  If there is one with the wrong orientation, select that.
-
-    . If events have orientation, do I need orientation on the selection?
-      I do need some way to say if I'm editing the positive or negative if
-      both coincide, but for a range I think I can just say get a positive
-      event at the beginning, and a negative one at the end.
-  . Events.split puts a negative event in pre.  Will that lead to confusing
-    results, or expected ones?  At least for Factor.split_time_at it seems to
-    be right, since the negative one will go before.
-  . So can I go back to negative durations for events?  I think so, and in
-    fact orientation is only needed to differentiate 0 and -0.  Maybe I could
-    even make a newtype around ScoreTime for that?
-    . No wait that's totally wrong, the negative is in the duration.
-    . It's just that the event itself should now have a negative duration
-      again, instead of Event.orientation.  Or rather, Event.orientation
-      calculates from the duration.
-  * Selection.events takes the previous event for point selection, but could
-    take the next one for Negative orientation.
-  * Add visual orientation to fltk and Selection type.
-  * Add orientation to haskell Selection.
-  Add orientation support to Cmd.Selection.
-    * Make orientation affect selected events.
-    * Test that selection orientation works, in Cmd.Selection_test
-  Cmd.Edit
-    * Compile
-    * Fix definitions
-    * Tests.
-  * Ui.Events events keyed by (Orientation, TrackTime).
-  * Fix Serialize Selection instance
-  * Can't modify text on negative events.
-    . Because new negative events lose to old ones.
-    . I can fix it by sorting new events so they get priority.
-  - It's surprising how positive always wins to negative.  This means adding
-    a positive events with +END will destroy all negative ones below it.
-  * Invert duration should swap the places of (n, -0), (n, 0).
-  - set_duration: If I have ><---|, I can't set the negative event back to the
-    zero dur event because it sets the previous positive event, regardless of
-    selection orientation.
-  * Floating input should be above or below depending on orientation.
-
-  . I tend to lose -0 ScoreTime because they show up as (==).  Also can't
-    test 0 vs. -0 for the same reason.  I could modify ScoreTime's Eq to
-    differentiate, but then things that check zero dur with (==0) would need
-    to also have (== -0).  So if it's going to be error-prone either way, I
-    might as well be standard.
-  cleanup:
-    * highlight_errors might be hard to see now, especially if zero dur.
-    * ModifyEvents.selection_expanded still has a confusing name because
-      it sounds like Selection.around_events.  Maybe selection_visible?
-    * Verify I can use control set at -0 and 0 to get interpolate to, then
-      jump.  I think that means the specialized controls are now obsolete,
-      though they might be less work to use anyway.
-    - Make cmd_set_start apply to overlapping events.  The problem is that
-      this makes moving event + controls messed up, so it has to do the
-      ModifyNote thing.  This was broken before too.
-    / Rename Event.set_start and set_end to move_start and move_end.  Set
-      winds up being the lens.
-    * Change Selection.get_insert to Selection.point as appropriate.
-    * Selection.get should just return the selection, Selection.view can
-      return (ViewId, Selection).
-    / Events shouldn't export split_lists, callers can use split
-      . Nah, it's useful.
-    * In Ui.Event, rather than ad-hoc modify functions with hard to remember
-      names, why not export lenses?
-      . This will break everywhere that uses Event.start event.  Can I have
-        lens variant, e.g. Event.start_?
-    - Slice range should be Events.Range so it can remember the orientation.
-      Otherwise I think -0 note slices don't work.
-    - I think Slice.events_in_range should get an orientation, which in turn
-      means checked_slice_notes needs one.  Otherwise don't negative notes
-      not get the end event?  But Sekar maybe relies on include_end.
-    - Perhaps related, I removed include_end since negative should work for
-      that, but Sekar used it.  Can I use Sekar with negative events to get
-      end bias back?
-    - Remove Sel.selection constructor, record syntax is actually nicer.
-    / lots of calls to Selection.tracks ignore range.  Make simpler versions?
-    / Maybe the arrows should go at the top or bottom to represent range, and
-      the "current" end should get a highlight to indicate where motion
-      happens.
-      . Now that selection orientation isn't really range orientation maybe I
-        don't care so much about this.
-
 ----------------------------------------------------------------------
 
 documentation:
@@ -596,38 +480,6 @@ synth: im:
       the right start times and start pitches.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will then play a sample, starting at the right time.
-  * When I start render subprocesses, send DeriveComplete immediately so the
-    UI can use it, but with a flag that says there is still rendering going
-    on.  When the subprocesses complete, send another DeriveComplete just to
-    change the status color.
-  * Play from start doesn't get a playback cursor.
-    . This is because I stop the monitor as soon as the MIDI thread says
-      it's done.  But why do this at all?  I can keep playing as long as
-      there is still tempo map, and the MIDI player is alive.
-    . I wouldn't get immediate notification of a "no notes" problem though,
-      so maybe I can only do that if there are im allocations.
-    . I think the transport might have support for multiple players.  But
-      it looks like I'll never actually have those, so I might as well drop
-      the pretense and simplify.
-    . But it is nice how the playback stops when I run out of notes, not
-      score.  I could have a im-watcher thread like the MIDI one that
-      doesn't play anything, but sends stopped when the notes run out.
-  * Play from another point does, briefly, but sound is inconsistent.
-    . The problem is that the midi interface automatically sends a NoteOff
-      when the player thread stops, which makes play-cache stop.
-    . If I put the NoteOff at the im stop time, I can get rid of the
-      im-specific stuff in the monitor thread, because a MIDI note is being
-      held, but where do I put the note-off?  If it's at im_end, then I get
-      a hard cutoff.
-    . What I need is a way to tell play-cache to do a cutoff when I hit stop,
-      but play until the end of the sample otherwise.
-    . I can do it by ignoring NoteOff and requiring AllNotesOff.  Stop doesn't
-      send that though, because it relies on NoteOff.
-  * repeat_at doesn't work for play-cache.
-    . I can send the repeat_at time in the same way as the start time.
-    . It already works!?  Because it loops back to the play-cache init msg
-      which makes play-cache restart.
-  * What's more, it makes the monitor thread get stuck forever.
   + Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
       the linear interpolator can just emit one sample, but now MIDI needs
@@ -704,12 +556,6 @@ synth: im:
 
         . Which of these would be best for possible future kinds of notation,
           or further extension?
-  * Support multiple blocks.  I think I have to number them, then write in
-    a numbered cache .wav, and then send the number along with note on.
-    . Save to im/faust-notes/block-name, then run faust-im with that argument.
-    . It writes to im/cache/block-name.wav.
-    . I can encode a string in MIDI by encoding ascii, e.g. each PitchBend
-      can have two 7-bit characters.
   - Use a gate signal for note duration.
   - Handle amp outside of faust, just by multiplying the signal.  That way all
     instruments support it uniformly.  'dyn' should go to 'dynamic' or 'gain'.
@@ -728,13 +574,6 @@ synth: im:
       . install qt, and try faust2caqt
       . too much bother, try faust2asmjs
       . doesn't work, maybe FaustLive... does work
-    * Make shakefile convert .dsp and compile the resulting .cc files, and
-      collect into a table.
-      . build/faust/*.cc <- Synth/Faust/dsp/*.dsp
-      . build/faust_all.cc <- build/faust/*.cc, but get list from *.dsp
-      . build/faust_all.h <- build/faust_all.cc
-      . Synth/Faust/patches.cc includes faust_all.h
-    * implement reading patch db, export to Local.Instrument
     + If I use GUI elements for controls then they update at "control rate",
       which is probably enough actually.  It also means I can reuse the GUI
       controls.
@@ -745,8 +584,6 @@ synth: im:
         worth it.  Also MIDI is "GUI."  Probably yes.
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
-    * FaustIm reads notes and renders, implement process()
-    * Update play_cache to read from im/cache/out.wav.
     - Add plucked string and woodwind instruments, with control signals.
     - Assert that inst->getNumInputs() == length controls.
     - How to know when to drop notes?  I think I have to use a heuristic
@@ -887,10 +724,10 @@ synth: im:
     . Ideally I'd have resolution independent signals, so just functions.
       Not totally sure what that would entail, but it would be a big change.
   more efficient Perform.Im.Convert
-    * Zero-copy conversion for the signals.
-      . But first I have to decide how I want to handle interpolation.
-      . This doesn't matter as long as the synth doesn't support signals.
     - Trim signals.
+    - I can probably serialize more efficiently by just mmaping the signal
+      pointers, or at least directly copying their contents.  But maybe not
+      worth it if I can just write the changed bits.
   Is it possible to do physical modelling on GPU?
     . http://futhark-lang.org/index.html
     . http://halide-lang.org/
@@ -900,8 +737,6 @@ shakefile: build:
   - in HsDeps and CcDeps, if I need every intermediate file, then
     I think I don't need Generated.
   - determine Shakefile.cppFiles automatically.
-  * I should probably exclude Synth modules from Local.Instrument when Synth
-    is disabled.
   . To get a path between two rules:
     ancestorOf('Synth/Sampler/Main') && descendantOf('Cmd/Cmd')
   - use new system calls and logging levels
@@ -1648,24 +1483,6 @@ test: testing:
       performance.  Mostly because just one more allocation is probably not a
       big deal, but also maybe if I inline the interpretation function then
       the allocation goes away.
-  * Some way to associate a custom pretty-printer with test input or output,
-    e.g.:
-      annotate :: (Eq a, Show a) => (a -> Text) -> (a -> a) -> a -> a -> IO Bool
-      annotate format f input expected
-          | output == expected = equal input output
-          | otherwise = do
-              equal input output
-              putStrLn "input:" >> putStrLn (format input)
-              putStrLn "ouput:" >> putStrLn (format output)
-              putStrLn "expected:" >> putStrLn (format expected)
-              return False
-          where output = f input
-      ...
-      let equal = annotate draw Module.function
-    . It feels bogus to duplicate the (==) comparison.  Maybe have an
-      parameterized version of 'equal'?
-    . Use this with Events.draw_events, it should be useful for all event
-      triplets.
   - delete build/test/tmp on every test run to avoid test contamination
     . test/run_tests will clear it out, but sometimes I run them directly
     . But this is pretty much limited to expecting a file in a certain
@@ -1993,9 +1810,6 @@ Derive:
           oO -> byong
         . I could also have shift up, shift down annotations, like speed or
           nadai.
-      * india.mridangam: 'tri' call with variable karvai, and an error if it
-        doesn't line up
-        . Maybe 'tri' should be called 'tir' for tirmanam?
       - Perhaps mridangam should automatically transpose the octave to be within
         its range.
         . I can use something like Cmd.Instrument.Bali.wrap
@@ -2015,17 +1829,9 @@ Derive:
         - 'pad' should be able to align a tirmanam to sam
         - Allow korvais to include the final note on sam, since it's sometimes
           more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
-          tri_ (din . su kitataka) tat.  Maybe strip trailing rests, so
+          tri_ (din . su kitataka) tat.  Ignore trailing rests, so
           tri_ (tat.din.__) (su kitataka) works.
-        * If 1^(...) applies to everything, then I can mark a bunch of sollus
-          at once.
-        * There are taka.x, and takanaka.x / takatiku.x prefixes that are
-          always played kp kpnp, and I don't want it to interfere with
-          per-korvai ta.ka mapping.  This is like a nakatiku pattern, but is
-          there a lighter weight way to add a these than just another Pattern
-          type?
-          . I can already do that with MridangamScore, so maybe I can do
-            the same thing by bundling sollus with realization.
+        ? rename tri to tir, for tirmanam?
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.
         - I want results of reductions or expansions to be recognized as
@@ -2046,21 +1852,11 @@ Derive:
             them, but choose a certain path.
           . This is also part of the intensity pattern, where the final repeat
             may have an alternate more intense realization.
-        * Put multiple sequences in a Korvai?
-          . They all have the same tala and instruments / stroke map anyway,
-            and this way I can group them in a search.
-          . But the avartanams tag is per-sequence, and so could nadai and
-            speed.  And I can group in a search by the binding name already,
-            I just have to recognize both ':: Korvai' and ':: [Korvai]'.
+        - I may want different tags for different patterns, e.g. for
+          performance and exercise variants.
         - I should be able to add multiple realizations of the same
           instrument, keyed by string, e.g. for different mridangists
           realizations.
-        * The same sequence, like takita, can be different in different
-          places.  One way is an optional tag, e.g. ta^1.ki.ta and ta^2.ki.ta,
-          and a ta^1.ki.ta mapping will be considered a better match, though
-          ta.ki.ta still matches.
-        * MridangamScore.ksequence is messed up, I think replaceStart is
-          changing the speed.
         - Reduce leads to fragmented sollu sequences, whose strokes then need
           to be enumerated.  It should be able to figure out the strokes as
           a suffix of an existing one, but I'd need to tag the sollu with
@@ -2071,16 +1867,12 @@ Derive:
           . Also maybe I can use this to use this to emphasize the starts of
             sections, though the reduce function could also put a tag on the
             first note.
-        * Add tags to Korvai, e.g. date, source.
-          * Others can be derived like tala, avartanams, nadai, speed,
-            instruments.
         - Duration assertions, e.g. dur 4 (ta.ka.din.na)
         reyong realization:
           - some way to select between melodic and rythmic realization, and
             transposition for melodic
             . This could be the same as the emphasis mechanism, if I extend
               it to attach Attributes.
-          * implement n1 etc. calls in bali.reyong.solkattu
         - Emphasis or automatic variant versions of patterns, e.g.
           . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
             pu_ pu_ ktkto
@@ -2091,27 +1883,8 @@ Derive:
           a group of three can be higher intensity.
           . It can also be a variant pattern, e.g.
             k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
-        * Notate Janahan's version of koraippu_janahan.  If I can get a lot
-          of realizations for standard sollus maybe I can start to recognize
-          styles and get an automatic system for deriving strokes.
-        * bug: formatting messed up with patterns: realizep koraippu_janahan
-          . Because I get p7----- when stroke_width=2.
         - Can I put StrokeMap and Patterns together?  Then I can put standard
           strokes along with the stroke map, and override them together.
-        * For MridangamDsl, all of the Korvai stuff should be unnecessary
-          except Tala, and the whole sollu to stroke mapping is annoying.
-          Also it makes ppr output not very useful.  If I generalize Sollu
-          out of Solkattu, I can directly replace it with a Stroke and all of
-          that goes away.
-          . Can I cut down on the types by using this for Realize.Stroke as
-            well?  Then I have Alignment... but I want to keep that for
-            MridangamDsl as well.
-          . I can't generalize Solkattu.Solkattu to replace Sollu because then
-            I can't do cancel_karvai.  I can generalize Solkattu.Solkattu's
-            Sollu to put a Stroke in there, but then all the Korvai.realize
-            stuff does't work and it seems like a pain to redo that.  Instead,
-            I just use NoSollu and have pretty not show that, and it's much
-            simpler and almost as good.
         - format: if the ruler changes after an avartanam line break, show the
           partial ruler, e.g. Realize_test.test_format_nadai_change
         - I could have an 'elide' annotation.  It deletes the previous notes
@@ -2129,15 +1902,6 @@ Derive:
             up being integral.  So nadai 4 -> 8 would be equivalent to a speed
             change, which is good.  But 4 -> 6 will also be valid matras if
             I have a multiple of 3.
-        * Notation rdropM and probably rdrop is broken for tempo changes.
-        * Realize.format: matra_width should be able to go to 1 for speed > 0.
-          I think for this I have Realize.flatten_speed max_speed start at 1,
-          but then I have to fix two character strokes like p5.
-          . Ruler marks should also move back for an overlapping note.
-          . Just have infer_ruler count each note as 1.
-        * Realize.format: ruler and emphasis gets messed up when a single
-          note spans a beat.  I should first normalize to matras.
-        * format could combine rests to avoid k___ type stuff.
         - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
           . use this in koraippu_janahan
         / I think I need an absolute SetSpeed, so I can pad a number of
@@ -2153,37 +1917,8 @@ Derive:
           . Actually since align is used at the top level, I can assume s0.
         / speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
           . Not any more.  Maybe I just had things messed up?
-        * Realize.format: break long lines
-        * special Patterns for nakatiku (p4) and tangkita nakatiku (p6)
-        * Realize.format: Emit a new ruler if the nadai changes.  I can do it
-          by making a ruler for each line and filtering out the repeats.
-        * Tala doesn't support chapu talas.
-        * remove arudi and nadai from Tala.  I've hardly ever used arudi
-          alignment, and not all talams have one.  And nadai can just default
-          to 4, as an attribute of the solkattu, not the talam.
-        * various take and drop functions should retain the speed
-        * Realize.format should be able to fit an adi 4 avartanam on one line.
         - extend Karvai to take a minimum number of Rests before it applies.
           Default to 2, but a chapu might require 3.
-        * Why does format make the S2 sequence in
-          Realize_test.test_realize_pattern have underscores?
-          . S2 (k.__.t.__) should be equivalent to S1 (k.t).
-          . It's a hassle to manipulate speeds when there is just S1-4.  If
-            I make it just an integer, then I can always go negative.
-          . Then I can make speed a relative change, so to slow /2 I can just
-            wrap in Speed -1.  Then all the s2 stuff is just up or down.
-          . Then the first step in realization is to normalize to the fastest
-            speed, where 0 is akshara/nadai.
-        * explicit strokes via (!) should not require a valid entry in the
-          StrokeMap, so I can have irregular sequences manually, e.g.
-          ta_ta.din_din.gin_gin.na_na.thom_thom
-          . But I still need ones that are in the StrokeMap to use it because
-            of when it's a known sequence, only with one stroke replaced.
-            So it if there's no match in the StrokeMap, then use the stroke
-            and move on.
-          . Of course the other way to do that is just put the exact manual
-            sequence in the StrokeMap, but it's a duplication, but minus
-            the rests.
         - Apply common variation patterns.
             transformations:
               . karvai u u u -> u i u
@@ -2199,18 +1934,6 @@ Derive:
               variations.
             . Or maybe I should write them explicitly, but make them easier to
               write?
-        * dinga can be realized with a light tha, so maybe I need a "light"
-          modification?
-          . Also need a heavy emphasis.
-          . It's attached to sollus, but needs to be propagated to the stroke.
-          . Notation can be the same as karvai, e.g. hv k.t.k.
-          . Too bad haskell doesn't support prefix operators.
-            I could hack it by combining with .: a .^ b = a . light b or
-            a ., b for heavy.  But 'v' is the normal heavy, so why not
-            a . v b.  Then can I do a letter for light?  h?  Or just hv and lt
-            to avoid conflicting with single letter stroke names.
-          . Actually this goes on strokes, not sollus, so it would go in
-            Patterns or StrokeMap: (ta.ka, [hv t, k]).
         - I use Pretty for format, which is awkward for Realize.Stroke, since
           I can tolerate some ambiguity for the same of a single letter width,
           but Pretty shouldn't have such a restriction.  Add Format class?
@@ -2225,18 +1948,6 @@ Derive:
             Text, though?
           . I should be able to parse Expr Unparsed without the intervening
             ShowVal by directly parsing the Unparsed vals.
-          * Make CallId its own type, so its ShowVal can be correct.
-          * Rename Symbol to Str, VSymbol to VStr
-          * Rename CallId to Symbol.
-          * Update references from BaseTypes.CallId to Expr.CallId
-          * Use generic Expr from Derive.Expr.
-          * Use Expr.ToExpr instead of ToCall.
-            . ToExpr should actually take Attributes -> a -> Expr.
-            . Then I'd want some general purpose fallback for e.g.
-              soft -> "^ |", loud -> "v |" if the stroke doesn't have more
-              specialized notation.
-          . This seems like a big deal, so try to do a hack first where I
-            pretend CallId is just a plain Unparsed.
         - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
           777 777 777 -> 567 876 789.  Actually the latter seems not so
           interesting.
@@ -2282,7 +1993,6 @@ Derive:
         alternate realization
           - kendang pasangan
           - kajar
-          * reyong
           - gangsa / marimba
         ? Crazy idea: it might be nice to use underline or double underline
           for faster.  Is there a way I could get the editor to display
@@ -2831,8 +2541,6 @@ planning / research
         them.  If I turn the whole thing into one call, then I can still fit it
         into a global timeline, and apply transformations or tempo there.
       . If there is meter information in the text score, I can derive a ruler.
-    * Perhaps I should have a ToCall class, for types which can turn into
-      tracklang CallIds.  Used by KendangBali.to_call, and Derive.Solkattu.*.
     . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
       have per_octave built-in, but I could still use Int for generic cases.
     . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
