@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * bind page up / page down. What about home and end?
   - track calls / track macros:
     * Add TrackCall to Monad.Scopes.
       . Kind: Note, Control, Pitch, Val -- return type
@@ -2008,6 +2009,9 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Set patterns like Nakatiku and Taka don't behave with spread.
+          They should be sollus like any other, but with a standard
+          realization.
         - 'pad' should be able to align a tirmanam to sam
         - Allow korvais to include the final note on sam, since it's sometimes
           more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of

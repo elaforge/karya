@@ -332,6 +332,10 @@ view_config_bindings = concat
 
     , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
     , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
+    , bind_key [] Key.Home "scroll home" ViewConfig.scroll_to_home
+    , bind_key [] Key.End "scroll end" ViewConfig.scroll_to_end
+    , bind_key [] Key.PageDown "scroll forward" $ ViewConfig.scroll_pages 0.75
+    , bind_key [] Key.PageUp "scroll backward" $ ViewConfig.scroll_pages (-0.75)
     ]
     where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 

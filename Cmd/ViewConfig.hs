@@ -81,6 +81,14 @@ scroll_pages pages = do
         offset = Zoom.offset $ Block.view_zoom view
     Views.set_time_offset view_id (offset + pages * visible)
 
+scroll_to_end :: Cmd.M m => m ()
+scroll_to_end = do
+    view_id <- Cmd.get_focused_view
+    Views.set_time_offset view_id =<< Views.block_end view_id
+
+scroll_to_home :: Cmd.M m => m ()
+scroll_to_home = flip Views.set_time_offset 0 =<< Cmd.get_focused_view
+
 -- * resize
 
 resize_all :: Cmd.M m => m ()

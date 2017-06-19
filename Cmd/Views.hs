@@ -16,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified App.Config as Config
 import Types
+import Global
 
 
 maximize_and_zoom :: Cmd.M m => ViewId -> m ()
@@ -28,8 +29,7 @@ maximize_and_zoom view_id = do
 -- | Set zoom on the given view to make the entire block visible.
 zoom_to_ruler :: Cmd.M m => ViewId -> m ()
 zoom_to_ruler view_id = do
-    view <- Ui.get_view view_id
-    block_end <- Ui.block_end (Block.view_block view)
+    block_end <- block_end view_id
     factor <- zoom_factor view_id block_end
     set_zoom view_id $ Zoom.Zoom { offset = 0, factor = factor }
 
@@ -94,3 +94,8 @@ set_track_rect :: Ui.M m => ViewId -> Rect.Rect -> m ()
 set_track_rect view_id rect = do
     view <- Ui.get_view view_id
     Ui.set_view_rect view_id $ Block.set_track_rect view rect
+
+-- * util
+
+block_end :: Ui.M m => ViewId -> m TrackTime
+block_end = Ui.block_end . Block.view_block <=< Ui.get_view
