@@ -1823,6 +1823,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        * Split Dsl.Score up by year, to keep modules small and so the
+          line_numbers don't keep changing.
         - Set patterns like Nakatiku and Taka don't behave with spread.
           They should be sollus like any other, but with a standard
           realization.

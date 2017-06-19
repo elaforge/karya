@@ -3,12 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
--- | This is analogous to "Derive.Solkattu.Score", except for mridangam specific
+-- | This is analogous to the solkattu scores, except for mridangam specific
 -- scores.
-module Derive.Solkattu.Score.MridangamScore where
+module Derive.Solkattu.Score.MridangamOld where
 import Prelude hiding ((.), repeat)
 
-import Derive.Solkattu.MridangamDsl
+import Derive.Solkattu.MridangamGlobal
 import qualified Derive.Solkattu.Tala as Tala
 
 

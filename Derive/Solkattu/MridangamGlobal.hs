@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
-{- | This is analogous to "Derive.Solkattu.Dsl", except it exports
+{- | This is analogous to "Derive.Solkattu.SolkattuGlobal", except it exports
     a mridangam-specific notation without using sollus at all.
 
     It uses 'Solkattu.Solkattu' with 'Solkattu.NoSollu' and explicit strokes,
@@ -16,7 +16,7 @@
     with a hack in Pretty Solkattu to omit NoSollu when there is an explicit
     stroke.  This way is simpler and almost as good.
 -}
-module Derive.Solkattu.MridangamDsl (
+module Derive.Solkattu.MridangamGlobal (
     Sequence
     , (&)
     , korvai, korvai1
