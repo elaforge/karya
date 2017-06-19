@@ -323,11 +323,20 @@ c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
         , (takita, [n, p, k])
         ]
 
-chatusrams :: [Korvai]
-chatusrams =
-    [ c1s, c2_yt1, c_13_10_29, c_16_09_28, c_17_02_06
-    , c_17_03_20, c_17_04_23
+c_17_06_15 :: Korvai
+c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
+    [ mconcat [suffix sequence (thom.__n gap) | gap <- [4, 3, 2]]
+    , join (1^ta) [suffix sequence (thom.__n gap) | gap <- [2, 3, 4]]
     ]
+    where
+    sequence = [takadinna, takita, ta.ka, ta]
+    mridangam = make_mridangam $ standard_strokes ++
+        [ (takita, [o, o, k])
+        , (ta.ka, [o, k])
+        , (ta, [k])
+        , (1^ta, [p])
+        , (thom, [od])
+        ]
 
 -- ** kanda nadai
 
@@ -429,14 +438,6 @@ k3s = korvai adi mridangam $ map (nadai 5)
         , (din, [od])
         , (ta, [k])
         ]
-
-kandams :: [Korvai]
-kandams =
-    [ k1_1
-    , k1_2, k1_3
-    , k2 False, k2 True
-    , k3s
-    ]
 
 -- ** tisra nadai
 
@@ -648,11 +649,6 @@ t5s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
         , (ta.ka.ta, [k, p, k])
         ]
 
-tisrams :: [Korvai]
-tisrams =
-    [ t1s, t2s, t3s, t4s, t4s2, t4s3, t5s
-    ]
-
 -- ** misra nadai
 
 m_sriram1 :: Korvai
@@ -815,9 +811,6 @@ koraippu_janahan =
         , (thom.ki.ta.ka.na.ka.ki.ta.ta.ka, [o, k, t, p, u, p, k, t, p, k])
         , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
         ]
-
-koraippus :: [Korvai]
-koraippus = [koraippu_misra, koraippu_janahan]
 
 -- * tirmanam
 

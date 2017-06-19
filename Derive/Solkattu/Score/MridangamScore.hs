@@ -98,11 +98,6 @@ p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
 
-all_korvais :: [Korvai]
-all_korvais =
-    [ p16_12_06_sriram2, p16_12_06_janahan1, p16_12_06_janahan2
-    ]
-
 -- * korvai sequences
 
 -- TODO use this as a template to fill in various themes

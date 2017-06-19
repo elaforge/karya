@@ -20,7 +20,7 @@ module Derive.Solkattu.Dsl (
     -- ** combinators
     , tri, tri_, trin, tri2
     , join, repeat, inter, spread
-    , cmap, for, cfor, prefixes, suffixes, circum
+    , cmap, for, cfor, prefixes, suffixes, circum, prefix, suffix
     , accumulate
     -- * re-exports
     , module Derive.Solkattu.Korvai
@@ -216,6 +216,8 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
+-- * sequences
+
 join :: Sequence stroke -> [Sequence stroke] -> Sequence stroke
 join = List.intercalate
 
@@ -245,6 +247,12 @@ suffixes prefix suffixes = mconcatMap (prefix<>) suffixes
 
 circum :: Monoid a => a -> [a] -> a -> a
 circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids
+
+suffix :: Monoid a => [a] -> a -> a
+suffix seqs suf = mconcat $ map (<>suf) seqs
+
+prefix :: Monoid a => a -> [a] -> a
+prefix pref seqs = mconcat $ map (pref<>) seqs
 
 -- | Succesively accumulate suffixes.
 accumulate :: Monoid a => [a] -> [a]
