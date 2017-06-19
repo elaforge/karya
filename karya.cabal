@@ -29,6 +29,7 @@ library
         QuickCheck,
         aeson >=1.1.0.0,
         array,
+        async,
         attoparsec,
         base >=4.6,
         binary,

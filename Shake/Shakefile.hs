@@ -72,6 +72,7 @@ basicPackages = concat
     -- shakefile
     , [("shake", ">=0.13"), ("binary", ""), ("hashable", "")]
     -- Util
+    , w "async" -- Util.Process
     , w "pretty haskell-src" -- Util.PPrint
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , [("Diff", ">=0.2")] -- Util.Test

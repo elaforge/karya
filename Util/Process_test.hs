@@ -13,18 +13,19 @@ import qualified Util.Thread as Thread
 -- It's kind of annoying to test this automatically, so just make sure it looks
 -- right when run by hand.
 manual_test_supervised = do
-    let f cmd = Process.supervised (System.Process.shell cmd)
-    tid <- Concurrent.forkIO $ f "sleep 1; echo sub done" $ \_ -> do
-        Thread.delay 1
-        putStrLn "thread done"
+    tid <- Concurrent.forkIO $
+        Process.supervised (System.Process.shell "sleep 1; echo sub done")
     -- With the kill, I shouldn't see "sub done".
     Thread.delay 0.1
     Concurrent.killThread tid
-    putStrLn "done"
-    Thread.delay 0.1
+
+manual_test_supervised_no_binary =
+    Process.supervised (System.Process.proc "aoeu" [])
 
 manual_test_multiple_supervised = do
-    let f cmds = Process.multiple_supervised (map System.Process.shell cmds)
-    f ["sleep 1; echo 1", "sleep 2; echo 2"] $ \hdls -> do
-        putStrLn $ "hdls: " ++ show (length hdls)
-    Thread.delay 3
+    let cmds = ["sleep 1; echo 1", "sleep 2; echo 2"]
+    tid <- Concurrent.forkIO $
+        Process.multipleSupervised (map System.Process.shell cmds)
+    -- Should see two 'killing' messages.
+    Thread.delay 0.1
+    Concurrent.killThread tid

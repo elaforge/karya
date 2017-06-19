@@ -256,8 +256,7 @@ subprocesses [] = return ()
 subprocesses procs = do
     let names = map (showt . Util.Process.binaryOf) procs
     Log.notice $ "starting: " <> Text.intercalate ", " names
-    Util.Process.multiple_supervised procs $ \pids ->
-        mapM_ (uncurry Util.Process.wait) (zip names pids)
+    Util.Process.multipleSupervised procs
         -- I wait so I can kill the subprocess if I get killed.
 
 -- | If there are Im events, serialize them and return a CreateProcess to

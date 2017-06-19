@@ -3,15 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 -- | Utilities to deal with processes.
 module Util.Process where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
 import qualified Data.ByteString as ByteString
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import Data.Text (Text)
 
 import qualified System.Exit as Exit
 import qualified System.IO as IO
@@ -50,48 +53,76 @@ readProcessWithExitCode env cmd args stdin = do
     ex <- Process.waitForProcess hdl
     return (ex, out, err)
 
--- | Start a subprocess in the background, and kill it if an exception is
--- raised.
-supervised :: Process.CreateProcess -> (Process.ProcessHandle -> IO a) -> IO a
-supervised create action = Exception.mask $ \restore -> do
-    -- I hope this mask means that I can't get killed after starting the
+-- | Start a subprocess, wait for it to complete, and kill it if this thread
+-- is killed.  This is like 'Async.withAsync', except for a subprocess, and
+-- it's hardcoded to wait for the subprocess.
+supervised :: Process.CreateProcess -> IO ()
+supervised proc = Exception.mask $ \restore -> do
+    -- Hopefully this mask means that I can't get killed after starting the
     -- process but before installing the exception handler.
-    (_, _, _, hdl) <- logged create
-    Exception.onException (restore (action hdl)) $ do
-        pid <- handleToPid hdl
-        Log.warn $ "received exception, killing " <> showt (binaryOf create)
-            <> maybe "" ((<>")") . (" (pid "<>) . showt) pid
-        Process.terminateProcess hdl
+    (_, _, _, hdl) <- create proc
+    Exception.onException (restore (waitAndLog proc hdl)) $ case hdl of
+        Nothing -> return ()
+        Just hdl -> do
+            pid <- handleToPid hdl
+            Log.warn $ "received exception, killing " <> showt (cmdOf proc)
+                <> maybe "" ((<>")") . (" (pid "<>) . showt) pid
+            Process.terminateProcess hdl
 
-multiple_supervised :: [Process.CreateProcess]
-    -> ([Process.ProcessHandle] -> IO a) -> IO a
-multiple_supervised creates action = go [] creates
+-- | Start multiple processes, and kill them all if this thread is killed.
+multipleSupervised :: [Process.CreateProcess] -> IO ()
+multipleSupervised = Async.mapConcurrently_ supervised
+
+-- | Wait for the process (if it started) and log if it didn't exit
+-- successfully.
+waitAndLog :: Process.CreateProcess -> Maybe Process.ProcessHandle -> IO ()
+waitAndLog proc hdl = maybe (return ()) Log.warn =<< waitError proc hdl
+
+waitError :: Process.CreateProcess -> Maybe Process.ProcessHandle
+    -> IO (Maybe Text)
+waitError proc maybeHdl = fmap annotate <$> case maybeHdl of
+    -- If the binary doesn't exist, sometimes 'create' notices, and sometimes
+    -- waitForProcess notices.  I think it's dependent on GHC version.
+    Nothing -> return noBinary
+    Just hdl -> do
+        result <- File.ignoreEnoent (Process.waitForProcess hdl)
+        return $ case result of
+            Nothing -> Nothing
+            Just code -> case code of
+                Exit.ExitSuccess -> Nothing
+                Exit.ExitFailure c
+                    | c == 127 -> noBinary
+                    | otherwise -> Just $ "process failed: " <> showt c
     where
-    go pids [] = action (reverse pids)
-    go pids (create : creates) = supervised create $ \pid ->
-        go (pid:pids) creates
-
-wait :: Text.Text -> Process.ProcessHandle -> IO ()
-wait name hdl = do
-    code <- File.ignoreEnoent $ Process.waitForProcess hdl
-    case code of
-        Just (Exit.ExitFailure c) -> Log.warn $
-            "subprocess " <> name <> " exited: "
-            <> if c == 127 then "binary not found" else showt c
-        _ -> return ()
+    noBinary = Just "binary not found"
+    annotate msg = msg <> ": " <> Text.pack (cmdOf proc)
 
 -- | Like 'Process.createProcess', but log if the binary wasn't found or
 -- failed.
 logged :: Process.CreateProcess
     -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
-        Process.ProcessHandle)
-logged create = do
-    r@(_, _, _, hdl) <- Process.createProcess create
-    Concurrent.forkIO $ wait (showt (binaryOf create)) hdl
+        Maybe Process.ProcessHandle)
+logged proc = do
+    r@(_, _, _, hdl) <- create proc
+    waitAndLog proc hdl
     return r
 
+-- | Like 'Process.createProcess', but return a Nothing instead of a pid if
+-- the binary doesn't exist.
+create :: Process.CreateProcess
+    -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
+        Maybe Process.ProcessHandle)
+create proc = File.ignoreEnoent (Process.createProcess proc) >>= \case
+    Nothing -> return (Nothing, Nothing, Nothing, Nothing)
+    Just (inh, outh, errh, hdl) -> return (inh, outh, errh, Just hdl)
+
+cmdOf :: Process.CreateProcess -> String
+cmdOf proc = case Process.cmdspec proc of
+    Process.RawCommand fn args -> unwords $ fn : args
+    Process.ShellCommand cmd -> cmd
+
 binaryOf :: Process.CreateProcess -> FilePath
-binaryOf create = case Process.cmdspec create of
+binaryOf proc = case Process.cmdspec proc of
     Process.RawCommand fn _ -> fn
     Process.ShellCommand cmd -> takeWhile (/=' ') cmd
 
@@ -123,5 +154,5 @@ handleToPid (Internals.ProcessHandle mvar _ _) =
         Internals.OpenHandle pid -> return (Just pid)
         _ -> return Nothing
 
-showt :: Show a => a -> Text.Text
+showt :: Show a => a -> Text
 showt = Text.pack . show
