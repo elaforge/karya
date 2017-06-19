@@ -1829,10 +1829,15 @@ Derive:
           They should be sollus like any other, but with a standard
           realization.
         - 'pad' should be able to align a tirmanam to sam
-        - Allow korvais to include the final note on sam, since it's sometimes
+        * Allow korvais to include the final note on sam, since it's sometimes
           more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
           tri_ (din . su kitataka) tat.  Ignore trailing rests, so
           tri_ (tat.din.__) (su kitataka) works.
+          . It's not so simple because I can't just strip trailing rests,
+            because I still want to verify the last rest if it's not part of
+            a final note.  I can't tell the difference without an annotation.
+          . I can check the last non-rest for at sam, or final state is sam.
+          - Make format display final stroke inline.
         ? rename tri to tir, for tirmanam?
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.

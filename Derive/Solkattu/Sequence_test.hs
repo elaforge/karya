@@ -19,21 +19,19 @@ test_flatten = do
         [default_tempo, Sequence.Tempo 1 4, default_tempo]
 
 test_tempo_to_state = do
-    let f = map (e_state . fst)
+    let f = map (e_state . fst) . snd
             . Sequence.tempo_to_state Tala.adi_tala . Sequence.flatten
-    -- equal (f [note, note, note, note, note])
-    --     [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]
+    equal (f [note, note, note, note, note])
+        [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]
 
     -- Mixed nadai.
     equal (f [note, note, nadai 6 [note, note, note], note, note])
         [(0, 0), (0, 1/4), (0, 2/4), (0, 4/6), (0, 5/6), (1, 0), (1, 1/4)]
-    pprint (f [note, note, note, nadai 6 [note, note, note]])
 
-    -- -- pprint (f [note, TempoChange (Sequence.Nadai 6) [note, note, note], note, note])
-    -- -- Change speed.
-    -- equal (f [TempoChange (Sequence.SpeedChange (-1)) [note, note],
-    --         TempoChange (Sequence.SpeedChange 2) [note, note]])
-    --     [(0, 0), (0, 1/2), (1, 0), (1, 1/16)]
+    -- Change speed.
+    equal (f [TempoChange (Sequence.ChangeSpeed (-1)) [note, note],
+            TempoChange (Sequence.ChangeSpeed 2) [note, note]])
+        [(0, 0), (0, 1/2), (1, 0), (1, 1/16)]
 
 test_normalize_speed = do
     let f = map (first e_state . second pretty_stroke)

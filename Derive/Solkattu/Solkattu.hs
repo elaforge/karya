@@ -226,18 +226,31 @@ verify_alignment :: Pretty stroke =>
     Tala.Tala -> [(S.Tempo, Note stroke)]
     -> ([(S.Tempo, Note stroke)], Maybe Error)
     -- ^ If there's an error, still return the elemnts leading up to it.
-verify_alignment tala =
-    first (filter (not . is_alignment . snd)) . S.right_until_left
-        . map verify . S.tempo_to_state tala
-        . (++[(S.default_tempo, Alignment 0)])
+verify_alignment tala notes =
+    first (map (first S.state_tempo)) $ S.right_until_left $
+        append_ends_on_sam $ mapMaybe (strip . verify) states
     where
+    (final_state, states) = S.tempo_to_state tala notes
+    -- Either final_state one is at 0, or the last non-rest note is.
+    append_ends_on_sam
+        | at_akshara 0 final_state || maybe False (at_akshara 0) final_note = id
+        | otherwise =
+            (++[Left $ "korvai should end on or before sam: "
+                <> S.show_position final_state])
+        where
+        final_note = fst <$> List.find (not . is_rest . snd) (reverse states)
+    strip (Right Nothing) = Nothing
+    strip (Right (Just x)) = Just (Right x)
+    strip (Left x) = Just (Left x)
     verify (state, Alignment akshara)
-        | S.state_akshara state /= akshara || S.state_matra state /= 0 =
-            Left $ "expected akshara " <> showt akshara
-                <> ", but at " <> S.show_position state
-    verify (state, note) = Right (S.state_tempo state, note)
-    is_alignment (Alignment {}) = True
-    is_alignment _ = False
+        | at_akshara akshara state = Right Nothing
+        | otherwise = Left $ "expected akshara " <> showt akshara
+            <> ", but at " <> S.show_position state
+    verify (state, note) = Right $ Just (state, note)
+    is_rest Rest = True
+    is_rest _ = False
+    at_akshara akshara state =
+        S.state_akshara state == akshara && S.state_matra state == 0
 
 -- * vary
 

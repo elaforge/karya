@@ -97,8 +97,9 @@ flatten_with tempo = concatMap $ \n -> case n of
         flatten_with (change_tempo change tempo) notes
 
 -- | Calculate Tala position for each note.
-tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)] -> [(State, a)]
-tempo_to_state tala = snd . List.mapAccumL process initial_state
+tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]
+    -> (State, [(State, a)])
+tempo_to_state tala = List.mapAccumL process initial_state
     where
     process state (tempo, note) = (next_state, (set_tempo tempo state, note))
         where

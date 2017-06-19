@@ -21,10 +21,15 @@ test_verify_alignment = do
     let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) []
-    strings_like (f ta) ["ta", "akshara 0, matra 1"]
+    strings_like (f (ta <> ta)) ["ta ta", "end on or before sam"]
     strings_like (f (take 6 tdkt)) ["ta di ki ta", "akshara 1, matra 2"]
     equal (f (take (8*4) tdkt)) []
     equal (f (Dsl.speed (-2) $ take 8 tdkt)) []
+    -- Ok to end on sam, even with trailing rests.
+    equal (f (Dsl.speed (-2) $ take 9 tdkt <> __ <> __)) []
+    -- But I don't drop rests because sometimes they make it line up.
+    equal (f (Dsl.speed (-2) $ take 7 tdkt <> __)) []
+
     equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt)) []
     strings_like (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt))
         [ "ta di ki"
