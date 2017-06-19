@@ -23,13 +23,16 @@ const char *
 show_key(int key)
 {
     static char buf[32];
-    if (isprint(key))
-        sprintf(buf, "'%c'", key);
-    else if (isprint(key < FL_KP_Last && key - FL_KP))
-        sprintf(buf, "kp-%c", key - FL_KP);
-    else if (isprint(FL_F <= key && key < FL_F_Last))
-        sprintf(buf, "fn-%d", key - FL_F);
-    else {
+    if (key <= 0x7f) {
+        if (isprint(key))
+            snprintf(buf, sizeof buf, "'%c'", key);
+        else
+            snprintf(buf, sizeof buf, "<%d>", key);
+    } else if (FL_KP <= key && key < FL_KP_Last && key - FL_KP) {
+        snprintf(buf, sizeof buf, "KP%c", key - FL_KP);
+    } else if (FL_F <= key && key < FL_F_Last) {
+        snprintf(buf, sizeof buf, "FN%d", key - FL_F);
+    } else {
         const char *e = "unknown";
         #define K(KEY, STR) case FL_##KEY: e = #STR; break
         switch (key) {
