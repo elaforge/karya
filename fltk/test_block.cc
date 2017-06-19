@@ -284,17 +284,20 @@ add_symbols()
     // test.
     SymbolTable *t = SymbolTable::get();
 
-    // TODO: use Noto on linux too
-
 #ifdef __linux__
-    Fl_Font chinese = t->font(" AR PL UKai TW");
-    Fl_Font tamil = t->font(" Lohit Tamil");
+    Fl_Font chinese = t->font("Noto Serif CJK TC");
+    Fl_Font tamil = t->font("Noto Serif Tamil");
+    Fl_Font bali = t->font("Noto Sans Balinese");
 #endif
 #ifdef __APPLE__
-    // Fl_Font chinese = t->font("LiSongPro");
+    // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
+    // OS X has font character substitution, so it can figure out which font
+    // has the glyphs.
     Fl_Font chinese = t->font("NotoSerif");
     Fl_Font tamil = t->font("NotoSerif");
+    Fl_Font bali = t->font("NotoSans");
 #endif
+    Fl_Font bravura = t->font("Bravura");
 
     SymbolTable::Symbol zerox = SymbolTable::Symbol(
         SymbolTable::Glyph("x", Config::font, -2, DPoint(0, -.4)));
@@ -321,7 +324,6 @@ add_symbols()
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
-    Fl_Font bravura = t->font("Bravura");
     t->insert("arp-up", SymbolTable::Symbol(
         // arrow
         SymbolTable::Glyph("\xee\xaa\xad", bravura, 8, DPoint(0, -0.25), 90),
@@ -333,9 +335,6 @@ add_symbols()
         // wiggle
         SymbolTable::Glyph("\xee\xaa\xaa", bravura, 8, DPoint(0, 0), -90)));
 
-
-    // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
-    Fl_Font bali = t->font("NotoSans");
 
     t->insert("ding", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe1\xad\xa6", bali, 8)));

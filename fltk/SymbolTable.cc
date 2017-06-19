@@ -31,9 +31,15 @@ SymbolTable::font(const char *name) const
 {
     if (!name)
         return Config::font;
-    std::map<string, Font>::const_iterator it = font_map.find(string(name));
+    std::string sname(name);
+#ifdef __linux__
+    // fltk on linux does this weird scheme where it prepends ' ' for normal,
+    // 'B' for bold, 'I' for italic, and 'P' for bold+italic.
+    sname.insert(0, " ");
+#endif
+    std::map<string, Font>::const_iterator it = font_map.find(sname);
     if (it == font_map.end()) {
-        DEBUG("font not found: " << name);
+        DEBUG("font not found: '" << name << "'");
         return font_not_found;
     } else
         return it->second;
