@@ -1837,7 +1837,8 @@ Derive:
             because I still want to verify the last rest if it's not part of
             a final note.  I can't tell the difference without an annotation.
           . I can check the last non-rest for at sam, or final state is sam.
-          - Make format display final stroke inline.
+          * Make format display final stroke inline.
+          - Suppress the extra ruler when that happens.
         ? rename tri to tir, for tirmanam?
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.

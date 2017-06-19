@@ -216,9 +216,8 @@ c_17_04_04 = source "subash chandran" $ date 2017 4 4 $
 janahan_17_06_02 :: Korvai
 janahan_17_06_02 = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvai1 adi mridangam $
-    __n 9 . tri_ (din . su (ki.ta.ta.ka)) (din.din . su (ta.ka) . din.din.tat)
-    -- TODO actually the din is at sam, I should have a way to allow avartanam
-    -- + sam.
+    __n 9 . tri_ (su (ki.ta.ta.ka)) (din.din . su (ta.ka) . din.din.tat.din)
+    -- TODO use align or pad to sam
     where
     mridangam = make_mridangam
         [ (din, [od])

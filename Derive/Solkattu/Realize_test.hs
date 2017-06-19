@@ -141,7 +141,7 @@ test_format = do
     equal (f rupaka (n4 <> n4)) "K t _ n K t _ n"
     -- Emphasis works in patterns.
     equal (f rupaka (n4 <> [rpattern 5] <> n4))
-        "K t _ n P5------==k t _\nN"
+        "K t _ n P5------==k t _ N"
     -- Patterns are wrapped properly.
     equal (f rupaka (n4 <> [rpattern 5] <> n4 <> [rpattern 5]))
         "K t _ n P5------==k t _\n\
@@ -188,10 +188,23 @@ test_format_lines = do
             . realize False tala
         extract = map (map (Text.strip . mconcat . map snd))
     let tas n = Dsl.repeat n ta
-    equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
 
+    equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
     -- Even aksharas break in the middle.
     equal (f 2 14 tala4 (tas 8)) $ Right [["k k k k", "k k k k"]]
+
+    -- Break multiple avartanams and lines.
+    let ta2 = "k _ _ _ k _ _ _"
+    equal (f 2 8 tala4 (sd (sd (tas 8)))) $ Right
+        [ [ta2, ta2]
+        , [ta2, ta2]
+        ]
+    -- If there's a final stroke on sam, append it to the previous line.
+    equal (f 2 8 tala4 (sd (sd (tas 9)))) $ Right
+        [ [ta2, ta2]
+        , [ta2, ta2 <> " k"]
+        ]
+
     -- Uneven ones break before the width.
     equal (f 2 24 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k k k k k k k k k"]]

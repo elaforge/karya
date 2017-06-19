@@ -338,11 +338,24 @@ thin_rests = zipWith thin [0..]
         | stroke == "_" && odd column = (state, " ")
         | otherwise = (state, stroke)
 
+-- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
+-- onto the next line.
+format_final_avartanam:: [[[(S.State, Text)]]] -> [[[(S.State, Text)]]]
+format_final_avartanam avartanams = case reverse avartanams of
+    [final : rests] : penultimate : prevs
+        | not (is_rest (snd final)) && all (is_rest . snd) rests ->
+            reverse $ (Seq.map_last (++[final]) penultimate) : prevs
+        | otherwise -> avartanams
+    _ -> avartanams
+    where
+    -- This should be (==Rest), but I have to show_stroke first to break lines.
+    is_rest = (=="_") . Text.strip
+
 -- | Break into [avartanam], where avartanam = [line].
 format_lines :: Pretty stroke => Int -> Int -> Tala.Tala
     -> [(S.Tempo, Note stroke)] -> [[[(S.State, Text)]]]
 format_lines stroke_width width tala =
-    map (break_line width) . break_avartanams
+    format_final_avartanam . map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
         . map (second show_stroke)
         . S.normalize_speed tala
