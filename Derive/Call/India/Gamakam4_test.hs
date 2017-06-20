@@ -25,7 +25,8 @@ test_call_maps = do
 
 -- * pitch
 
-test_sequence = do
+-- signal-discontinutiy
+_test_sequence = do
     let run c = derive_tracks DeriveTest.e_nns_rounded $
             make_2notes (4, "--") (2, c)
         output nns = ([[(0, NN.c4)], nns, [(6, NN.e4)]], [])
@@ -87,16 +88,17 @@ test_prev_pitch = do
             [(0, 0, "4c")]
             [(0, 0, "!T1="), (1, 0, "!=")])
         ([[(0, NN.cs4), (1, NN.cs4), (2, NN.cs4)]], [])
+    -- signal-discontinutiy
     -- Prev pitch comes from prev event.
-    equal (run (make_2notes (4, "--") (2, "!-1")))
-        ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
+    -- equal (run (make_2notes (4, "--") (2, "!-1")))
+    --     ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
     -- Prev pitch comes from the parent pitch track.
-    equal (run $ note_pitch_gamakam
-            [(0, 1, ""), (1, 2, "")]
-            [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
-            [(0, 0, "!T1="), (2, 0, "!0")])
-        -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
-        ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
+    -- equal (run $ note_pitch_gamakam
+    --         [(0, 1, ""), (1, 2, "")]
+    --         [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
+    --         [(0, 0, "!T1="), (2, 0, "!0")])
+    --     -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
+    --     ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
 
     -- TODO
     -- equal (run $ note_pitch_gamakam
@@ -145,10 +147,11 @@ test_note_end = do
         [((UiTest.default_block_id, UiTest.mk_tid 4),
             [(0, 0), (1, 0.58), (2, 0.84), (3, 0.96), (4, 1)])]
 
-test_sequence_interleave = do
-    let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
-        extract = DeriveTest.e_nns_rounded
-    equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
+-- signal-discontinutiy
+-- test_sequence_interleave = do
+--     let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
+--         extract = DeriveTest.e_nns_rounded
+--     equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
 
 test_alias = do
     let run dur g = derive_tracks DeriveTest.e_nns_rounded $
