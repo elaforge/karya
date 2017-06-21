@@ -18,6 +18,12 @@ import Global
 
 -- * chatusra nadai
 
+c_13_07_23 = date 2013 7 23 $ ganesh $ korvai1 adi mridangam $
+    trin tat_din__ (tri p5) (tri p6) (tri p7)
+    where
+    tat_din__ = tat.__.din.__3
+    mridangam = make_mridangam [(tat_din__, [k, od])]
+
 c1s :: Korvai
 c1s = ganesh $ korvai adi (mridangam <> kendang)
     [            theme 2 1 . p5
@@ -71,7 +77,7 @@ c2_yt1 = source "youtube" $ korvai1 adi mridangam $
     reduceTo 4 2 (tat.__.dit.__.takadinna.thom.__.tat.__.din.__4)
     . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
     where
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (din.na, [o, k])
         , (thom.tat.din, [o&n, k, od])
@@ -86,7 +92,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai1 adi mridangam $
     reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     where
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (tam, [u])
@@ -99,7 +105,7 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvai1 adi mridangam $
         . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     where
     seq = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka, [p, k])
@@ -113,7 +119,7 @@ c_16_09_28 = date 2016 9 28 $ ganesh $ korvai1 adi mridangam $
     . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
     where
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (tat.dit, [k&p, t])
         , (dit, [k])
         , (kitakina, [k, t, k, n, o, k, t&o, k])
@@ -144,7 +150,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
 
     ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su (ta.ka) . din)
-    mridangam = make_mridangam $ standard_strokes ++
+    mridangam = make_mridangam
         [ (1^tat, [p&k])
         , (1^dit, [p&t])
         , (kitakina, [k, t, k, n, o, k, t&o, k])

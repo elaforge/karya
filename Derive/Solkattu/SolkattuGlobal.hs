@@ -47,8 +47,9 @@ type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]
 
 make_mridangam :: CallStack.Stack => MStrokes -> Korvai.Instruments
 make_mridangam strokes = mempty
-    { Korvai.inst_mridangam =
-        check $ Mridangam.instrument strokes Mridangam.default_patterns
+    { Korvai.inst_mridangam = check $
+        Mridangam.instrument (_standard_mridangam ++ strokes)
+            Mridangam.default_patterns
     }
 
 make_kendang1 :: CallStack.Stack =>
@@ -74,8 +75,9 @@ korvai :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Sequence]
     -> Korvai
 korvai = Korvai.korvai
 
-standard_strokes :: [(Seq stroke, [Mridangam.SNote])]
-standard_strokes =
+-- | 'make_mridangam' gives this to all mridangam stroke maps.
+_standard_mridangam :: [(Seq stroke, [Mridangam.SNote])]
+_standard_mridangam =
     [ (takadinna, [k, o, o, k])
     , (tdgnt, [k, t, k, n, o])
     , (dheem, [od])

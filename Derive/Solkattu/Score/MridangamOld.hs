@@ -25,6 +25,8 @@ ganesh_16_11_14 :: Korvai
 ganesh_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai1 adi $ nadai 6 $
     tri (reduce3 1 mempty (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
 
+-- * sarvalaghu
+
 ganesh_17_02_13 :: Korvai
 ganesh_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $
     map (nadai 6)
@@ -38,8 +40,6 @@ ganesh_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $
     takitatin   = k.p.k. d.__
     kadin = k.od.__.o&n.__.k.__
     katin = k. d.__.  n.__.k.__
-
--- * sarvalaghu
 
 din_nadin :: Korvai
 din_nadin = sarvalaghu $ ganesh $ korvai (beats 4)
