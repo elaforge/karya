@@ -32,10 +32,15 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 
+import qualified System.Console.GetOpt as GetOpt
+import qualified System.Environment
+import qualified System.Exit
+
 import qualified Text.Printf as Printf
 
 import qualified Util.Doc as Doc
 import qualified Util.Fltk as Fltk
+import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Format as Format
 import qualified Util.Seq as Seq
 
@@ -60,11 +65,33 @@ import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
+data Flag = Help | Geometry FltkUtil.Geometry
+    deriving (Eq, Show)
+
+options :: [GetOpt.OptDescr Flag]
+options =
+    [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
+    , FltkUtil.option Geometry
+    ]
+
+default_geometry :: Maybe FltkUtil.Geometry -> (Int, Int, Int, Int)
+default_geometry = FltkUtil.xywh 50 50 550 600
+
 main :: IO ()
 main = ReplProtocol.initialize $ do
+    args <- System.Environment.getArgs
+    (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
+        (flags, args, []) -> return (flags, args)
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+    unless (null args) $
+        usage ("unparsed args: " ++ show args)
+    when (Help `elem` flags) (usage "usage:")
+
     db <- Local.Instrument.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
-    win <- Fltk.run_action $ BrowserC.create 50 50 550 600
+    let geometry = Seq.head [g | Geometry g <- flags]
+        (x, y, w, h) = default_geometry geometry
+    win <- Fltk.run_action $ BrowserC.create x y w h
     let index_db = Db db (Search.make_index db)
     chan <- Fltk.new_channel
     Concurrent.forkFinally (handle_msgs chan win index_db) $ \result -> do
@@ -73,6 +100,13 @@ main = ReplProtocol.initialize $ do
                 (result :: Either Exception.SomeException ())
         Fltk.quit chan
     Fltk.event_loop chan
+
+usage :: String -> IO a
+usage msg = do
+    putStrLn $ "ERROR: " ++ msg
+    putStrLn "usage: browser [ flags ]"
+    putStr (GetOpt.usageInfo "" options)
+    System.Exit.exitFailure
 
 -- | Bundle a Db along with its search index.
 data Db = Db {

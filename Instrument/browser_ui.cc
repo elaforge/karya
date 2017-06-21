@@ -40,12 +40,12 @@ BrowserInput::handle(int evt)
     return Fl_Input::handle(evt);
 }
 
-Browser::Browser(int X, int Y, int W, int H, MsgCallback cb) :
-    Fl_Tile::Fl_Tile(X, Y, W, H),
-    info_pane(X+browser_width, Y, W-browser_width, H),
-    select_pane(X, Y, browser_width, H),
-        query(X, Y, browser_width, 20, &matches, cb),
-        matches(X, Y+20, browser_width, H-20),
+Browser::Browser(int x, int y, int w, int h, MsgCallback cb) :
+    Fl_Tile::Fl_Tile(x, y, w, h),
+    info_pane(x+browser_width, y, w-browser_width, h),
+    select_pane(x, y, browser_width, h),
+        query(x, y, browser_width, 20, &matches, cb),
+        matches(x, y+20, browser_width, h-20),
 
     msg_callback(cb)
 {
@@ -104,11 +104,14 @@ Browser::matches_cb(Fl_Widget *w, void *vp)
 }
 
 
-BrowserWindow::BrowserWindow(int X, int Y, int W, int H, const char *title,
+BrowserWindow::BrowserWindow(int x, int y, int w, int h, const char *title,
         MsgCallback cb) :
-    Fl_Double_Window(0, 0, W, H, title), browser(0, 0, W, H, cb)
+    // TODO for some reason fltk on linux subtracts 100 from width and height
+    Fl_Double_Window(0, 0, w+100, h+100, title),
+    browser(0, 0, w+100, h+100, cb)
 {
     Fl::dnd_text_ops(false); // turn off annoying text drag and drop
     Fl::visible_focus(false);
     this->resizable(this);
+    this->position(x, y);
 }

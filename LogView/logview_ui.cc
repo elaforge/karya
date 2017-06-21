@@ -45,13 +45,13 @@ style_unfinished_cb(int n, void *p)
 
 // LogView /////////////////////////////
 
-LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
-    Fl_Group(X, Y, W, H),
+LogView::LogView(int x, int y, int w, int h, MsgCallback cb, int max_bytes) :
+    Fl_Group(x, y, w, h),
     msg_callback(cb),
-    status(X, Y, W, status_height),
-    command(X, Y + status_height, W, command_height),
-    display(X, Y + status_height + command_height,
-            W, H - status_height - command_height),
+    status(x, y, w, status_height),
+    command(x, y + status_height, w, command_height),
+    display(x, y + status_height + command_height,
+            w, h - status_height - command_height),
     max_bytes(max_bytes)
 {
     this->resizable(display);
@@ -286,11 +286,14 @@ LogView::command_cb(Fl_Widget *_w, void *vp)
 }
 
 
-LogViewWindow::LogViewWindow(int X, int Y, int W, int H, const char *label,
+LogViewWindow::LogViewWindow(int x, int y, int w, int h, const char *label,
         MsgCallback cb, int max_bytes) :
-    Fl_Double_Window(0, 0, W, H, label), view(0, 0, W, H, cb, max_bytes)
+    // TODO for some reason fltk on linux subtracts 100 from width and height
+    Fl_Double_Window(0, 0, w + 100, h + 100, label),
+    view(0, 0, w + 100, h + 100, cb, max_bytes)
 {
     this->resizable(this);
+    this->position(x, y);
     Fl::dnd_text_ops(false); // turn off annoying text drag and drop
     Fl::visible_focus(false);
 }

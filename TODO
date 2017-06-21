@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - why does fltk on linux subtract 100 from window width and height?
   selection-orientation branch cleanup:
     . do these still apply?
     - It's surprising how positive always wins to negative.  This means adding
@@ -1829,6 +1830,10 @@ Derive:
           They should be sollus like any other, but with a standard
           realization.
         - 'pad' should be able to align a tirmanam to sam
+          . Since it's used at the top level I can assume speed 0, but I still
+            don't know the tala or nadai.
+          . Maybe I can attach a flag to the Sequence, which triggers a
+            align step before verify_alignment.
         * Allow korvais to include the final note on sam, since it's sometimes
           more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
           tri_ (din . su kitataka) tat.  Ignore trailing rests, so
@@ -1962,36 +1967,6 @@ Derive:
         - Implement PatternFamilies so I can have 6 8 6 7 6 5, or even just
           distinct realizations within a single korvai.
         - Repeat oriented variation, e.g. 3 5 33 5 333 -> 333 5 33 5 3
-        speed
-          . I can't represent double speed without changing the talam, which
-            then makes me write everything with spaces between.
-          . I also can't represent a shift from kandam to chatusram.
-          . It seems I could solve both by allowing the talam to change in the
-            middle of a Sequence.  But I still wonder if changing nadai from
-            e.g. 5 to 10 would throw off the talam calculation?  Of course I
-            don't actually have a talam calculation beyond where is arudi.
-          . But then when does this actually get realized?  If the main use
-            now is to display as text, then it needs to go all the way
-            through to [MNote], because otherwise I can't display a different
-            gati in ascii.
-          . Changing nadai is easy to display, just change emphasis groups.
-            For speed 2, I think I would want to double the letter density.
-            So they are different.
-          . At Speed > S1 I can have fractional Matras.  But then I can't make
-            RRests for each one, unless rests all have a duration.
-          . But it's just the duration that's fractional, Matras themselves
-            have variable duration.  I could say that at S2 I just fit *2
-            matras in.
-          . I think I can get rid of the variable karvai concept, it
-            complicates alignment and doesn't seem to be that useful.
-            verify_alignment should just be step through notes and complain if
-            the count isn't right when I hit any alignment marker.
-          . I can get rid of RealizedNotes entirely, and just have
-            verify_duration.
-          . This means karvai is just another kind of pattern, but I want to
-            retain the distunction... or why even do that?
-          . Often (always?) you count the stroke along with its duration, so
-            d__ is a 3.
         - Should I change mridangam notes to be consistent with Solkattu.Dsl?
           I have to put thoppi on the left, for 'od' instead of the keyword
           'do'.  And I have to change tha to p instead of +.

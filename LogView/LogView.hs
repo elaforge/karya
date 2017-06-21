@@ -45,6 +45,7 @@ import qualified System.Posix as Posix
 
 import qualified Util.File as File
 import qualified Util.Fltk as Fltk
+import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Util.Seq as Seq
@@ -90,6 +91,7 @@ default_max_bytes :: Int
 default_max_bytes = default_history * 100
 
 data Flag = Help | Seek (Maybe Integer) | Print | History Int | File FilePath
+    | Geometry FltkUtil.Geometry
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
@@ -106,6 +108,7 @@ options =
         "remember this many lines"
     , GetOpt.Option [] ["file"] (GetOpt.ReqArg File "seq.log")
         "read from this file"
+    , FltkUtil.option Geometry
     ]
 
 type LogChan = TChan.TChan Log.Msg
@@ -146,7 +149,8 @@ logview flags = do
         maybe (Concurrent.killThread main_thread) Fltk.quit gui_chan
     case gui_chan of
         Nothing -> print_logs log_chan
-        Just chan -> gui chan log_chan filename history
+        Just chan -> gui geometry chan log_chan filename history
+            where geometry = Seq.head [g | Geometry g <- flags]
     where
     tail_loop log_chan hdl = do
         (msg, hdl) <- Tail.tail hdl
@@ -172,12 +176,14 @@ write_pid = do
         ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
     return existing
 
-gui :: Fltk.Channel -> LogChan -> FilePath -> Int -> IO ()
-gui chan log_chan filename history = do
+gui :: Maybe FltkUtil.Geometry -> Fltk.Channel -> LogChan -> FilePath -> Int
+    -> IO ()
+gui geometry chan log_chan filename history = do
     filename <- Directory.canonicalizePath filename
+    let (x, y, w, h) =
+            FltkUtil.xywh 20 20 (fst initial_size) (snd initial_size) geometry
     win <- Fltk.run_action $
-        LogViewC.create 20 20 (fst initial_size) (snd initial_size)
-            filename default_max_bytes
+        LogViewC.create x y w h filename default_max_bytes
     Fltk.run_action $ LogViewC.set_filter win initial_filter
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
