@@ -16,7 +16,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Call.All as Call.All
-import qualified Local.Config.Archy as Archy
+import qualified Local.Config.Mehitabel as Mehitabel
 import qualified Local.Config.Tammananny as Tammananny
 import qualified Local.Instrument
 import qualified Local.Setup as Setup
@@ -61,7 +61,7 @@ get_midi_config db = do
     full_host <- Network.BSD.getHostName
     case takeWhile (/='.') full_host of
         "tammananny" -> return $ Tammananny.midi_config db
-        "archy" -> return $ Archy.midi_config db
+        "mehitabel" -> return $ Mehitabel.midi_config db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
           return StaticConfig.empty_midi

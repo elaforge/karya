@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Local.Config.Archy where
+module Local.Config.Mehitabel where
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified App.StaticConfig as StaticConfig
