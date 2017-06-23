@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | This is analogous to the solkattu scores, except for mridangam specific
 -- scores.
-module Derive.Solkattu.Score.MridangamOld where
+module Derive.Solkattu.Score.Mridangam2013 where
 import Prelude hiding ((.), repeat)
 
 import Derive.Solkattu.MridangamGlobal
@@ -101,43 +101,76 @@ p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
 -- * korvai sequences
 
 -- TODO use this as a template to fill in various themes
-ksequence :: Korvai
-ksequence = date 2013 10 24 $ ganesh $ sequence_t $ korvai1 adi $
-    mconcat $ map (sam.)
-    -- TODO put the whole thing in su?
-    [ sarva `replaceEnd` theme
-    , takeD 4 sarva `replaceEnd` theme
-        . rtakeD 4 sarva `replaceEnd` theme
+dinnagina_sequence :: Korvai
+dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
+    su $ mconcat $ map (sam.)
+    [ sarva `replaceEnd` ptheme
+    , takeD 8 sarva `replaceEnd` ptheme
+        . rtakeD 8 sarva `replaceEnd` ptheme
+    -- start sarvalaghu with o k D D ...
+    -- o k oktkoktkpktkt k oktkoktkoktk     x2
     , theme . ptheme . theme . ptheme
-    , tri_ (od.__4) theme
-    , theme . od.__4 . theme . od.__2 . eme . od.__2 . eme
-    , theme . od.__4 . theme . od.__2 . eme . od . me . od . me
-    , tri_ od (theme.me)
-    , theme . od . theme.me . od . theme.me.me
-    , repeat 2 (theme.od.__2 . eme.od.__2 . eme . od.__2)
-        . theme.od.__2 . eme.od . me.od.me
+    , trin (od.__8) theme ptheme ptheme
+    , theme . od.__8 . ptheme . od.__4 . eme . od.__4 . eme
+    , theme . od.__8 . ptheme . od.__4 . eme . od.__2 . me . od.__2 . me
+    -- the pattern is theme on sam and arudi, ptheme otherwise.
+    , trin (od.__) (theme.me) (ptheme.me) (ptheme.me)
+    , trin (od.__) theme (ptheme.me) (ptheme.me.me)
+    , repeat 2 (theme.od.__4 . eme.od.__4 . eme . od.__4)
+        . theme.od.__4 . eme.od.__ . me.od.__.me
 
     -- 1st variation
-    , tri_ (o.__2) (ptheme . me . pme . ome . pme . su (k.o))
+    -- 0   1   2   3   o3  . p   . o   . p   .
+    -- o k oktkoktkoktkoktkokpktkpkoktkokpktkpk|o
+    -- t k oktkokokou_kou_kkopu_kkoou_kkopu_kko|o
+    -- t k oktkokokou_kkopu kkoou kkopu kkoou k|o
+    -- 0   1   2   3   o3  . p   . o   . p   .
+    -- , tri_ (o.__4) (ptheme . me . pme . ome . pme . k.o)
+    , tri_ (o.__4) (theme . eme3b . pme3b . eme3b . pme3b)
     -- 2nd variation
-    , tri_ (o.__2) (ptheme . pme . ome . pme . ome)
+    -- 0   1   2   3   p3  . o   . p   . o   .
+    -- t k oktkokokou_kkopu kkoou kkopu kkoou k|o
+    --   k oktkokokkk____pkk____okk____pkk__okk_
+    , tri_ (o.__4) (theme . pme3b' . eme3b' . pme3b' . eme3b')
     ]
     where
-    sarva = sd $
+    sarva = sd $ sd $
           on.od.od.on. su (on.on) .od.od.on
         . p&n.d.d.n  . n          .od.od.on
-    -- sarva =
-    --       on.__.od.__.od.__.on.__.(on.on) . od.__.od.__.on.__
-    --     . p&n.__.d.__.d.__.n.__ . n.__    . od.__.od.__.on.__
-    theme = su $ o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
-    -- TODO not quite right, this has to be ptheme when not on an som or arudi
-    ptheme = su t `replaceStart` theme
-    eme = rtakeM 4 theme
-    me = rtakeM 2 theme
+    -- dhom ka dinnagina takataka talang ga
+    theme = o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
+    -- TODO not quite right, this has to be ptheme when not on an sam or arudi
+    ptheme = t `replaceStart` theme
+    eme = rtakeM 8 theme
+    me = rtakeM 4 theme
 
-    -- TODO these seem to vary irregularly
-    ome = su $ k.o.o.u.__.k
-    pme = su $ k.o.p.u.__.k
+    eme3a = o.k.t.k.o.k
+    pme3a = p.k.t.k.p.k
+
+    eme3b = o.u.__.k.k.o
+    pme3b = p.u.__.k.k.o
+
+    eme3b' = k.o.o.u.__.k
+    pme3b' = k.o.p.u.__.k
+
+    -- themes:
+    -- dhom ka dinnagina dinnagina dinnagina (tanagina)
+    -- o_k_ oktk oktk oktk (pktk)
+    -- dhom ka dinnagina dinnagina takataka
+    -- o_k_ oktk oktk okok (pkpk)
+    -- dhom ka dinnagina takataka talang ga -- 2013 9 18
+    -- o_k_ oktk okok ou_k
+    -- dhom ka dinnagina dinnadinna dinnatat_ (drop next dhom) -- 2013 10 9
+    -- o_k_ oktk okok okk__ (pkk__)
+    -- dhom ka dinnagina dinnadinna dinnataka -- 2013 10 24
+    -- o_k_ oktk okok okko
+    --
+    -- o_k_ookn ookn ookn (ppkn) -- 2013 10 29
+    -- o_knookn o_kn ookn
+    -- mix and match oktk, okok, ookn
+    --
+    -- ktnoktknokt kno -- 2013 11 5, progression different
+    -- su: o t k n ktok
 
 -- * farans
 

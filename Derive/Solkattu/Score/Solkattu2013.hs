@@ -4,7 +4,7 @@
 
 {-# LANGUAGE RecordWildCards #-}
 -- | Korvais expressed in "Derive.Solkattu.Dsl".
-module Derive.Solkattu.Score.SolkattuOld where
+module Derive.Solkattu.Score.Solkattu2013 where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.Seq as Seq
@@ -24,8 +24,8 @@ c_13_07_23 = date 2013 7 23 $ ganesh $ korvai1 adi mridangam $
     tat_din__ = tat.__.din.__3
     mridangam = make_mridangam [(tat_din__, [k, od])]
 
-c1s :: Korvai
-c1s = ganesh $ korvai adi (mridangam <> kendang)
+c_13_08_14 :: Korvai
+c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
     [            theme 2 1 . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
@@ -63,8 +63,8 @@ c1s = ganesh $ korvai adi (mridangam <> kendang)
     pat8 = ta.ka.__.p5
     pat9 = ta.__.ka.__.p5
 
-c2_yt1 :: Korvai
-c2_yt1 = source "youtube" $ korvai1 adi mridangam $
+c_yt1 :: Korvai
+c_yt1 = source "youtube" $ korvai1 adi mridangam $
     -- TODO should be tat dit takadanna din tat tam
     -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
     --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
@@ -86,12 +86,15 @@ c2_yt1 = source "youtube" $ korvai1 adi mridangam $
         , (din, [od])
         ]
 
--- | 3 avartanams of chatusram -> 2 avartanams of tisram.
 c_13_10_29 :: Korvai
-c_13_10_29 = date 2013 10 29 $ ganesh $ korvai1 adi mridangam $
-    reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
-        . tri_ (tam.__6) (p6.p6.p6)
+c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
+    [ sequence
+    , nadai 6 sequence
+    ]
     where
+    sequence =
+        reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
+        . tri_ (tam.__6) (p6.p6.p6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
