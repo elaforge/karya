@@ -36,13 +36,15 @@ fltkConfig :: FilePath
 fltkConfig = "/usr/local/bin/fltk-config"
 
 -- | Extra -I flags that all compiles get, including haskell cpp and hsc2hs.
+-- E.g. ["-I/Users/me/homebrew/include"]
 globalIncludes :: [Flag]
-globalIncludes = ["-I/Users/elaforge/homebrew/include"]
+globalIncludes = []
 
 -- | Extra -L flags for the C++ link.
+-- E.g. ["-I/Users/me/homebrew/include"]
 globalLibDirs :: [Flag]
-globalLibDirs = ["-L/Users/elaforge/homebrew/lib"]
+globalLibDirs = []
 
 -- | Root of the VST SDK.  Only used if 'enableIm' is true.
 vstBase :: FilePath
-vstBase = "/usr/local/src/music/vst3-sdk"
+vstBase = "/usr/local/src/music/vstsdk2.4"

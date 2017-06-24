@@ -66,9 +66,13 @@ you need flags:
         % cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
 
+- Also maybe openssl for hlibgit2 and `--extra-include-dirs
+/usr/local/opt/openssl/include --extra-lib-dirs /usr/local/opt/openssl/lib`.
+
 - lilypond for the lilypond backend.  This is optional.
 
-- The bravura font for music symbols: <http://www.smufl.org/fonts/>
+- The bravura font for music symbols: <http://www.smufl.org/fonts/> and
+Noto for any other kind of symbol: <https://www.google.com/get/noto/>
 
     OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 
@@ -90,15 +94,19 @@ support.
 
 These are all names for the incomplete offline synthesizer.  It requires a bunch
 of extra dependencies.  To build, turn on Shake.Config.enableSynth, and install
-the VST3 SDK from Steinberg's website.  You'll need additional dependencies,
-and apparently cabal doesn't let you pick the .cabal file, so:
+the VST.  You'll need additional dependencies, and apparently cabal doesn't let
+you pick the .cabal file, so:
 
 ```
     % cp doc/all-deps.cabal karya.cabal
     % cabal install --only-dependencies
 ```
 
-The VST3 SDK is now at github: https://github.com/steinbergmedia/vst3sdk
+Unfortunately Steinberg is trying to get rid of VST 2, by trying to get rid of
+the headers.  If you search for vstplugmain.cpp though, you can still find
+a few copies around.
+
+In the longer term I'll have to port to VST3 or AU.
 
 ## MISC
 
