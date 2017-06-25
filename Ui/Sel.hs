@@ -50,19 +50,13 @@ instance Pretty Selection where
 data Orientation = None | Positive | Negative
     deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
-selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Orientation
-    -> Selection
-selection start_track start_pos cur_track cur_pos orientation = Selection
-    { start_track = start_track
-    , start_pos = start_pos
-    , cur_track = cur_track
-    , cur_pos = cur_pos
-    , orientation = orientation
-    }
-
 -- | A point is a selection with no duration.
 point :: TrackNum -> TrackTime -> Orientation -> Selection
-point tracknum pos orientation = selection tracknum pos tracknum pos orientation
+point tracknum pos orientation = Selection
+    { start_track = tracknum, start_pos = pos
+    , cur_track = tracknum, cur_pos = pos
+    , orientation = orientation
+    }
 
 is_point :: Selection -> Bool
 is_point sel = start_pos sel == cur_pos sel

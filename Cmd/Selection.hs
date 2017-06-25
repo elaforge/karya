@@ -107,8 +107,12 @@ set_block _ [] = return ()
 set_block block_id ((_, pos) : _) = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     forM_ view_ids $ \view_id ->
-        Ui.set_selection view_id Config.play_position_selnum
-            (Just (Sel.selection 0 pos 999 pos Sel.Positive))
+        Ui.set_selection view_id Config.play_position_selnum $ Just $
+            Sel.Selection
+                { start_track = 0, start_pos = pos
+                , cur_track = 999, cur_pos = pos
+                , orientation = Sel.Positive
+                }
 
 -- | Figure out how much to scroll to keep the selection visible and with
 -- reasonable space around it.
@@ -179,8 +183,11 @@ step_with steps move step = do
         Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = case move of
-            Extend ->
-                Sel.selection start_track start_pos cur_track new_pos orient
+            Extend -> Sel.Selection
+                { start_track = start_track, start_pos = start_pos
+                , cur_track = cur_track, cur_pos = new_pos
+                , orientation = orient
+                }
             Move -> Sel.move (new_pos - cur_pos) old
             Replace -> Sel.point cur_track new_pos orient
     set_and_scroll view_id Config.insert_selnum new_sel
@@ -279,7 +286,11 @@ select_track_all block_end tracks sel
     select_tracks = until_end $ sel { Sel.cur_pos = 0 }
     select_all = until_end $ track_selection 1 (tracks - 1)
     until_end = select_until_end block_end
-    track_selection from to = Sel.selection from 0 to 0 (Sel.orientation sel)
+    track_selection from to = Sel.Selection
+        { start_track = from, start_pos = 0
+        , cur_track = to, cur_pos = 0
+        , orientation = Sel.orientation sel
+        }
 
 cmd_tracks :: Cmd.M m => m ()
 cmd_tracks = do
@@ -301,7 +312,11 @@ select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
 select_tracks selnum view_id from to = do
     block_end <- Ui.block_end =<< Ui.block_id_of view_id
     set_selnum view_id selnum $ Just $ select_until_end block_end $
-        Sel.selection from 0 to 0 Sel.Positive
+        Sel.Selection
+            { start_track = from, start_pos = 0
+            , cur_track = to, cur_pos = 0
+            , orientation = Sel.Positive
+            }
 
 -- | Extend the selection to the end of then block.  This sets 'Sel.start_pos',
 -- with the assumption that 'Sel.cur_pos' is onscreen.  This is so
@@ -324,8 +339,11 @@ cmd_mouse_selection btn selnum extend msg = do
             (True, Just (Sel.Selection tracknum pos _ _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
     orientation <- get_orientation
-    let sel = Sel.selection start_tracknum start_pos mouse_tracknum mouse_pos
-            orientation
+    let sel = Sel.Selection
+            { start_track = start_tracknum, start_pos = start_pos
+            , cur_track = mouse_tracknum, cur_pos = mouse_pos
+            , orientation = orientation
+            }
     set_and_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
@@ -344,10 +362,16 @@ cmd_snap_selection btn selnum extend msg = do
     orientation <- get_orientation
     let sel = case old_sel of
             _ | old_sel == Nothing || Msg.mouse_down msg && not extend ->
-                Sel.selection down_tracknum snap_pos mouse_tracknum snap_pos
-                    orientation
-            Just (Sel.Selection tracknum pos _ _ orient) ->
-                Sel.selection tracknum pos mouse_tracknum snap_pos orient
+                Sel.Selection
+                    { start_track = down_tracknum, start_pos = snap_pos
+                    , cur_track = mouse_tracknum, cur_pos = snap_pos
+                    , orientation = orientation
+                    }
+            Just (Sel.Selection tracknum pos _ _ orient) -> Sel.Selection
+                { start_track = tracknum, start_pos = pos
+                , cur_track = mouse_tracknum, cur_pos = snap_pos
+                , orientation = orient
+                }
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
     set_and_scroll view_id selnum sel

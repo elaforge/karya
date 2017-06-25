@@ -515,4 +515,7 @@ sync st1 st2 cmd_updates = do
         Nothing -> putStrLn "synced"
 
 selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Sel.Selection
-selection a b c d = Sel.selection a b c d Sel.Positive
+selection a b c d = Sel.Selection
+    { start_track = a, start_pos = b, cur_track = c, cur_pos = d
+    , orientation = Sel.Positive
+    }

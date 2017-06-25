@@ -250,9 +250,16 @@ set_selections view_ids pos tracks = sequence_
     -- I can't display disjoint selections so assume the tracks are
     -- contiguous.
     sel pos = Just $ if null tracks
-        then Sel.selection 0 pos 999 pos Sel.Positive
-        else Sel.selection (minimum tracks) pos (maximum tracks) pos
-            Sel.Positive
+        then Sel.Selection
+            { start_track = 0, start_pos = pos
+            , cur_track = 999, cur_pos = pos
+            , orientation = Sel.Positive
+            }
+        else Sel.Selection
+            { start_track = minimum tracks, start_pos = pos
+            , cur_track = maximum tracks, cur_pos = pos
+            , orientation = Sel.Positive
+            }
 
 get :: Cmd.M m => m (Maybe Cmd.StepState)
 get = Cmd.gets (Cmd.state_step . Cmd.state_play)

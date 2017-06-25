@@ -5,8 +5,8 @@ LEGEND
 UNSORTED
   * save/bali/gabor segfault
   - why does fltk on linux subtract 100 from window width and height?
+    . does os x? nope
   selection-orientation branch cleanup:
-    . do these still apply?
     - It's surprising how positive always wins to negative.  This means adding
       a positive events with +END will destroy all negative ones below it.
     - set_duration: If I have ><---|, I can't set the negative event back to the
@@ -20,7 +20,7 @@ UNSORTED
     - Perhaps related, I removed include_end since negative should work for
       that, but Sekar used it.  Can I use Sekar with negative events to get
       end bias back?
-    - Remove Sel.selection constructor, record syntax is actually nicer.
+    * Remove Sel.selection constructor, record syntax is actually nicer.
 
   - track calls / track macros:
     * Add TrackCall to Monad.Scopes.
@@ -2181,6 +2181,11 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    . Get rid of gamakam1-4:
+      - Convert gamakam4 to 5 and make sure they sound right.
+      - Remove gamakam4.
+      - Save what I want from 1-3 and remove.
+      - Remove ; syntax.
     - How to represent sangitas?
       . Also what about accumulating phrases, as in kuvalaya dala or mosaboku?
       . Maybe define a time range, then an edit in that time range will cause
