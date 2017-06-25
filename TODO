@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * save/bali/gabor segfault
   - why does fltk on linux subtract 100 from window width and height?
   selection-orientation branch cleanup:
     . do these still apply?
@@ -1824,6 +1825,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - transcribe: from 2013-11-12
         * Split Dsl.Score up by year, to keep modules small and so the
           line_numbers don't keep changing.
         - Set patterns like Nakatiku and Taka don't behave with spread.

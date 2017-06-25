@@ -390,7 +390,8 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
 {
     printf("%.2f-%.2f: %d events:", start.scale(1), end.scale(1), count);
     for (int i = 0; i < count; i++) {
-        printf(" (%.2f %s)", events[i].start.scale(1), events[i].text);
+        printf(" (%.2f '%s')", events[i].start.scale(1),
+            events[i].text ? events[i].text : "");
     }
     printf("\n");
 }
@@ -867,7 +868,7 @@ drawable_pixels(
             size_t prev = index + 1;
             while (prev < boxes.size() && events[prev].start == event.start)
                 prev++;
-            for (--prev; prev >= 0; --prev) {
+            for (--prev;; --prev) {
                 if (prev == index)
                     continue;
                 if (is_left && boxes[prev].align == EventTrack::Right)
@@ -905,11 +906,11 @@ drawable_pixels(
                         return pixels;
                     } else if (prev_box.b() <= event_box.y) {
                         TEXT("fits, continue, pixels += " << event_box.h);
-                        prev = -1; // break outer loop
-                        break;
+                        goto done; // break outer loop
                     }
                 }
             }
+            done: continue;
         }
     } else {
         for (auto event_line = boxes[index].lines.begin();
@@ -925,7 +926,7 @@ drawable_pixels(
             }
             // Rewind to find all events starting here.
             size_t next = index - 1;
-            while (next >= 0 && events[next].start == event.start)
+            while (events[next].start == event.start)
                 --next;
             for (++next; next < boxes.size(); ++next) {
                 if (next == index)
@@ -1045,6 +1046,7 @@ EventTrack::draw_upper_layer(
     if (drawable <= 0 || boxes[index].lines.empty()) {
         // drawable_pixels will return 0 if there isn't room for at least one
         // line.
+        // Draw boxes for the omitted text to debug:
         // for (auto &line : boxes[index].lines)
         //     f_util::draw_rect(line.second, Color(0, 0, 0xff));
     } else if (event.is_negative()) {
