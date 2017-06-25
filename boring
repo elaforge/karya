@@ -1,7 +1,7 @@
 # Not generated, but also not in source control:
 ^save($|/)
 ^bug.*
-^inst_db/
+^inst_db($|/)
 ^log/
 ^im/?
 ^\.repl$
