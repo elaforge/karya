@@ -106,9 +106,7 @@ Browser::matches_cb(Fl_Widget *w, void *vp)
 
 BrowserWindow::BrowserWindow(int x, int y, int w, int h, const char *title,
         MsgCallback cb) :
-    // TODO for some reason fltk on linux subtracts 100 from width and height
-    Fl_Double_Window(0, 0, w+100, h+100, title),
-    browser(0, 0, w+100, h+100, cb)
+    Fl_Double_Window(0, 0, w, h, title), browser(0, 0, w, h, cb)
 {
     Fl::dnd_text_ops(false); // turn off annoying text drag and drop
     Fl::visible_focus(false);

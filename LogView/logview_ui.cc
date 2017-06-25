@@ -288,9 +288,7 @@ LogView::command_cb(Fl_Widget *_w, void *vp)
 
 LogViewWindow::LogViewWindow(int x, int y, int w, int h, const char *label,
         MsgCallback cb, int max_bytes) :
-    // TODO for some reason fltk on linux subtracts 100 from width and height
-    Fl_Double_Window(0, 0, w + 100, h + 100, label),
-    view(0, 0, w + 100, h + 100, cb, max_bytes)
+    Fl_Double_Window(0, 0, w, h, label), view(0, 0, w, h, cb, max_bytes)
 {
     this->resizable(this);
     this->position(x, y);

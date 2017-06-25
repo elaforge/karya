@@ -9,6 +9,7 @@ module Util.FltkUtil where
 import qualified Data.Char as Char
 import Data.Maybe (fromMaybe)
 import qualified System.Console.GetOpt as GetOpt
+import qualified System.Info
 
 
 type Pixels = Int
@@ -30,8 +31,11 @@ xywh :: Pixels -> Pixels -> Pixels -> Pixels -> Maybe Geometry
 xywh x y w h Nothing = (x, y, w, h)
 xywh x y w h (Just (Geometry dimensions mx my)) =
     ( fromMaybe x mx, fromMaybe y my
-    , maybe w fst dimensions, maybe h snd dimensions
+    , maybe w fst dimensions + bump, maybe h snd dimensions + bump
     )
+    where
+    -- TODO for some reason fltk on linux subtracts 100 from width and height
+    bump = if System.Info.os == "linux" then 100 else 0
 
 -- | Parse 1x2+3+4, or 1x2 or +3+4
 geometry :: String -> Maybe Geometry
