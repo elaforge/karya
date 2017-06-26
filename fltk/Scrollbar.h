@@ -6,7 +6,7 @@
 #include <FL/Fl_Box.H>
 
 #include "f_util.h"
-#include "util.h"
+#include "global.h"
 
 
 // Simple scrollbar.

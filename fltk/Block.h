@@ -47,9 +47,9 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include "Track.h"
 #include "TrackTile.h"
 #include "WrappedInput.h"
-#include "config.h"
-#include "types.h"
 #include "utf8.h"
+#include "config.h"
+#include "global.h"
 
 
 struct BlockBox {

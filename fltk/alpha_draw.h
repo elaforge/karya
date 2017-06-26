@@ -6,7 +6,7 @@
 #define __ALPHA_RECTF_H
 
 #include "Color.h"
-#include "util.h"
+#include "global.h"
 
 
 void alpha_rectf(IRect r, Color c);

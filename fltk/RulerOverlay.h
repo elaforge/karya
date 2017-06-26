@@ -5,10 +5,10 @@
 #ifndef __RULER_OVERLAY_H
 #define __RULER_OVERLAY_H
 
-#include "util.h"
-#include "f_util.h"
-#include "types.h"
 #include "Color.h"
+#include "f_util.h"
+
+#include "global.h"
 
 
 struct Mark {

@@ -20,7 +20,7 @@
 #include "RulerOverlay.h"
 #include "SelectionOverlay.h"
 #include "TimeVector.h"
-#include "types.h"
+#include "global.h"
 
 
 class TrackSignal {

@@ -8,7 +8,7 @@
 #include <string>
 #include <FL/Fl_Multiline_Input.H>
 
-#include "util.h"
+#include "global.h"
 
 
 // A customized Fl_Multiline_Input that wraps its text.

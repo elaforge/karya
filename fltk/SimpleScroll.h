@@ -14,7 +14,7 @@ Actualy, for now it's just Fl_Scroll that modifies resize();
 
 #include <FL/Fl_Scroll.H>
 
-#include "util.h"
+#include "global.h"
 
 // This class assumes it has only one child, which is the same size as itself.
 // When it resizes, the child will be resized along its right and bottom edges.

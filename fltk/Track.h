@@ -23,7 +23,7 @@
 #include "Color.h"
 #include "Selection.h"
 #include "f_util.h"
-#include "types.h"
+#include "global.h"
 
 // Since I want to keep RulerConfig and RulerTrack in the same file, instead of
 // splitting them, I have to forward declare this.

@@ -16,8 +16,7 @@
 #include <FL/Fl_Box.H>
 
 #include "StyleTable.h"
-#include "types.h"
-#include "util.h"
+#include "global.h"
 
 
 struct Event {

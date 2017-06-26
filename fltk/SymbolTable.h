@@ -12,6 +12,7 @@
 #include <FL/fl_draw.H>
 
 #include "config.h"
+#include "global.h"
 
 
 // This class is responsible for drawing text, mapping specially quoted
@@ -41,7 +42,7 @@ public:
     // A glyph is an indivisible graphic made from a string, font, and size.
     struct Glyph {
         Glyph(const char *utf8, Font font = Config::font, Size size = 0,
-                DPoint align = DPoint(), int rotate = 0) :
+                geom::DPoint align = DPoint(), int rotate = 0) :
             utf8(utf8), font(font), size(size),
             align_x(align.x), align_y(align.y), rotate(rotate)
         {

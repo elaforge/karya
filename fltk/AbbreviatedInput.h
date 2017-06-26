@@ -8,7 +8,7 @@
 #include <string>
 #include <FL/Fl_Multiline_Input.H>
 
-#include "util.h"
+#include "global.h"
 
 
 // Just like Fl_Multiline_Input, but draw a blue bar if the text exceeds the

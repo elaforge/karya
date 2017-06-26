@@ -9,8 +9,7 @@
 
 #include <FL/Enumerations.H>
 
-#include "types.h"
-#include "util.h"
+#include "global.h"
 
 
 namespace Config {

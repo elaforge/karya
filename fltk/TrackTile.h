@@ -27,7 +27,7 @@
 #include "MoveTile.h"
 #include "Track.h"
 #include "f_util.h"
-#include "util.h"
+#include "global.h"
 
 
 class TrackTile : public MoveTile {

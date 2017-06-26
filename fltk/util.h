@@ -8,11 +8,9 @@
 #include <string>
 #include <string.h>
 #include <utility>
+#include <vector>
+#include <iostream>
 #include <execinfo.h>
-
-#include "geom.h"
-
-using namespace geom;
 
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \

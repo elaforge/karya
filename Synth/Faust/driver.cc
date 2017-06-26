@@ -11,7 +11,6 @@
 
 #include "build/faust_all.cc"
 
-// TODO split DEBUG and ASSERT out.
 #include "fltk/util.h"
 
 

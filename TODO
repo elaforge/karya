@@ -615,7 +615,7 @@ synth: im:
         . amp -> gain
         . note-on + duration -> gate
     cleanup:
-      - Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
+      * Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
         geometry stuff for it.
       - Put find_sample into a TimeVector.cc library.
     - More efficient conduit-audio:

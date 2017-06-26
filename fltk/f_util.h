@@ -14,6 +14,7 @@
 #include <FL/Fl_Widget.H>
 
 #include "Color.h"
+#include "global.h"
 
 
 namespace f_util {
