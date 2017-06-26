@@ -18,6 +18,7 @@ import Global
 
 -- * chatusra nadai
 
+c_13_07_23 :: Korvai
 c_13_07_23 = date 2013 7 23 $ ganesh $ korvai1 adi mridangam $
     trin tat_din__ (tri p5) (tri p6) (tri p7)
     where
@@ -101,72 +102,30 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
         , (tam, [u])
         ]
 
-c_13_11_12 :: Korvai
-c_13_11_12 = date 2013 11 12 $ ganesh $ korvai1 adi mridangam $
-    seq . dropM 2 seq . ta.ka.dheem.__4 . dropM 4 seq
-        . repeat 2 (ta.ka.dheem.__4)
-        . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+c_13_11_05 :: Korvai
+c_13_11_05 = date 2013 11 5 $ ganesh $ korvai1 adi mridangam $
+    tri_ (tam.__4) theme
+    . theme . tam.__4 . theme . tam.__3 . su p6.tam.__3 . su p6
     where
-    seq = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
+    theme = su $ p5.p5.p6
+    mridangam = make_mridangam
+        [ (tam, [u])
+        ]
+
+c_13_11_12 :: Korvai
+c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
+    [ sequence, nadai 6 sequence
+    ]
+    where
+    sequence =
+        theme . dropM 2 theme . ta.ka.dheem.__4 . dropM 4 theme
+            . repeat 2 (ta.ka.dheem.__4)
+            . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+    theme = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka, [p, k])
-        ]
-
-c_16_09_28 :: Korvai
-c_16_09_28 = date 2016 9 28 $ ganesh $ korvai1 adi mridangam $
-    tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
-          .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
-                 .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
-    . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
-    where
-    kitakina = ki.ta.ki.na.ta.ki.ta.ka
-    mridangam = make_mridangam
-        [ (tat.dit, [k&p, t])
-        , (dit, [k])
-        , (kitakina, [k, t, k, n, o, k, t&o, k])
-        , (na.ka, [n, p])
-        , (ta.ka.dheem, [p, k, o&d])
-        , (ta.ka, [k, p])
-        , (ta.ka.na.ka, [k, p, n, p])
-        ]
-
-c_16_12_06_sriram1 :: Korvai
-c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
-    map su $ map (purvangam.)
-    [ tri_ (dheem.__4) ta_takadin
-    , tri_ (dheem.__4) (su $ p6 . tk.p6 . tknk.p6)
-    -- All variations can get taka and takanaka in the karvai, and
-    -- 345 345 345 can become 345 345 3333
-    ]
-    where
-    purvangam =
-        1^tat.__.1^dit.__ . su (kitakina.nakatiku . tri (dinnaka.takadinna))
-            . din.din.__.tat.tat.__.thom.__
-                .1^dit.__ . su (kitakina.nakatiku . tri dinnaka)
-            . din.__.tat.__.thom.__
-                          . su (kitakina.nakatiku . tri takadinna)
-            . din.tat.thom.__
-
-    dinnaka = din.na.ka.din.na.ka.ta.ka
-    kitakina = ki.ta.ki.na.ta.ki.ta.ka
-
-    ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su (ta.ka) . din)
-    mridangam = make_mridangam
-        [ (1^tat, [p&k])
-        , (1^dit, [p&t])
-        , (kitakina, [k, t, k, n, o, k, t&o, k])
-        , (dinnaka, [o, k, t, o, hv k, t, o, k])
-        , (din, [o])
-        -- reduction
-        , (tat, [k])
-        , (dit, [t])
-        , (dit.ta, [k, k])
-        , (tat.dit, [k, t])
-        , (ta, [k])
-        , (ta.ka, [k, t])
-        , (thom, [od])
         ]
 
 -- TODO: reduction pattern, forwards and backwards

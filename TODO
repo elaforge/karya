@@ -1826,6 +1826,17 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - transcribe: from 2013-11-12
+        - sarvalaghu substitution: this could be a variable-length pattern,
+          e.g. sarva------->, which can be substituted with whatever
+          sarvalaghu.
+          . Then I need annotations to align to end points, like 'pad'.
+          . Or use replaceEnd?  But I would want to be able to split rests,
+            so maybe extend replaceEnd to do that.
+        ? Sarvalaghu patterns are end-weighted.  How could I integrate that?
+          . I can just add a rest to the beginning, but I still need to
+            take duration from the previous note, e.g.
+              d.d.n.n . su (n.d) .d.n.n
+            should be ' d d n nnd d n n'
         * Split Dsl.Score up by year, to keep modules small and so the
           line_numbers don't keep changing.
         - Set patterns like Nakatiku and Taka don't behave with spread.
@@ -2182,7 +2193,7 @@ Derive:
           two neighboring notes at a time.
   india: gamakam:
     . Get rid of gamakam1-4:
-      - Convert gamakam4 to 5 and make sure they sound right.
+      - Convert gamakam4 to gamakam5 and make sure they sound right.
       - Remove gamakam4.
       - Save what I want from 1-3 and remove.
       - Remove ; syntax.
