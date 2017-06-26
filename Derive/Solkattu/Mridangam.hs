@@ -143,8 +143,8 @@ Sequence.Note (Realize.Note s1) & Sequence.Note (Realize.Note s2) =
     Sequence.Note $ Realize.Note $ both_rstrokes s1 s2
 a & b = errorStack $ "requires notes: " <> showt (a, b)
 
-both_rstrokes :: Realize.Stroke Stroke -> Realize.Stroke Stroke
-    -> Realize.Stroke Stroke
+both_rstrokes :: CallStack.Stack => Realize.Stroke Stroke
+    -> Realize.Stroke Stroke -> Realize.Stroke Stroke
 both_rstrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
     Realize.Stroke (em1 <> em2) (both_strokes s1 s2)
 
@@ -186,6 +186,13 @@ default_patterns = Solkattu.check $ patterns
 default_patterns_emphasis :: Patterns
 default_patterns_emphasis =
     Realize.map_patterns (map $ \s -> if s == t then i else s) default_patterns
+    where Strokes {..} = notes
+
+-- | Misc patterns I should figure out how to integrate some day.
+misc :: [(Sequence.Matra, [SNote])]
+misc =
+    [ (7, su [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
+    ]
     where Strokes {..} = notes
 
 kt_kn_o :: Patterns

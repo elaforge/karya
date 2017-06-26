@@ -27,6 +27,7 @@ module Derive.Solkattu.MridangamGlobal (
     , module Derive.Solkattu.Dsl
 ) where
 import qualified Util.CallStack as CallStack
+import qualified Util.Seq as Seq
 import Derive.Solkattu.Dsl hiding ((&), lt, hv)
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Mridangam as Mridangam
@@ -42,12 +43,33 @@ type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
 type Stroke = Realize.Stroke Mridangam.Stroke
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
-a & b = make_note $ Mridangam.both_rstrokes (to_stroke a) (to_stroke b)
+(&) = merge
 
-to_stroke :: CallStack.Stack => Sequence -> Stroke
-to_stroke [Sequence.Note
-    (Solkattu.Note (Solkattu.NoteT {_stroke = Just stroke }))] = stroke
-to_stroke seq = errorStack $ "expected a single sollu: " <> showt seq
+-- | Merge left and right hand strokes.  Both sequences must be the same length
+-- and structure.
+merge :: CallStack.Stack => Sequence -> Sequence -> Sequence
+merge as bs
+    | not (null trailing) = errorStack $ "trailing strokes: " <> pretty trailing
+    | otherwise = map merge1 pairs
+    where
+    merge1 (Sequence.TempoChange t1 n1, Sequence.TempoChange t2 n2)
+        | t1 == t2 = Sequence.TempoChange t1 (merge n1 n2)
+        | otherwise = errorStack $ "differing tempos: " <> pretty t1 <> " /= "
+            <> pretty t2
+    merge1 (a, b)
+        | is_rest a = b
+        | is_rest b = a
+        | otherwise = make_note1 $
+            Mridangam.both_rstrokes (to_stroke1 a) (to_stroke1 b)
+    (pairs, trailing) = second (either id id) $ Seq.zip_remainder as bs
+    is_rest (Sequence.Note Solkattu.Rest) = True
+    is_rest _ = False
+
+to_stroke1 :: (CallStack.Stack, Pretty a) =>
+    Sequence.Note (Solkattu.Note a) -> a
+to_stroke1 (Sequence.Note
+    (Solkattu.Note (Solkattu.NoteT {_stroke = Just stroke }))) = stroke
+to_stroke1 note = errorStack $ "expected sollu: " <> pretty note
 
 korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
 korvai tala sequences = Korvai.korvai tala
@@ -65,9 +87,12 @@ instrument =
     Solkattu.check $ Mridangam.instrument strokes Mridangam.default_patterns
     where strokes = []
 
+make_note1 :: stroke -> Sequence.Note (Solkattu.Note stroke)
+make_note1 stroke = Sequence.Note $ Solkattu.Note $
+    Solkattu.note Solkattu.NoSollu (Just stroke)
+
 make_note :: Stroke -> Sequence
-make_note stroke = [Sequence.Note $ Solkattu.Note $
-    Solkattu.note Solkattu.NoSollu (Just stroke)]
+make_note stroke = [make_note1 stroke]
 
 mridangam_strokes :: Mridangam.Strokes Sequence
 mridangam_strokes = make_note • Realize.stroke <$> Mridangam.strokes
