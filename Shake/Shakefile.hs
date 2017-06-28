@@ -93,6 +93,7 @@ basicPackages = concat
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs
+    , w "unmed2" -- for Cmd.Load.Med
     ]
     where w = map (\p -> (p, "")) . words
 

@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - load octamed files
+    - I'll need a port pitch cmd that moves to a pitch at a certain speed
+      until it reaches it, then stops.
   * save/bali/gabor segfault
   - why does fltk on linux subtract 100 from window width and height?
     . does os x? nope
@@ -1832,6 +1835,7 @@ Derive:
           . Then I need annotations to align to end points, like 'pad'.
           . Or use replaceEnd?  But I would want to be able to split rests,
             so maybe extend replaceEnd to do that.
+          . So sarva should split like rests.
         ? Sarvalaghu patterns are end-weighted.  How could I integrate that?
           . I can just add a rest to the beginning, but I still need to
             take duration from the previous note, e.g.
