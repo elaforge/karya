@@ -3,9 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - load octamed files
+  load octamed files
+    - extend 0s for commands
+    - apply default default instrument volume
+    - Portamento suppresses note start
+    - implement
+    - use a 4/4 ruler
+    - I use 1 for each line, scale by some value, e.g. 1/8.
     - I'll need a port pitch cmd that moves to a pitch at a certain speed
       until it reaches it, then stops.
+    - implement set tempo and set frames cmds
   * save/bali/gabor segfault
   - why does fltk on linux subtract 100 from window width and height?
     . does os x? nope

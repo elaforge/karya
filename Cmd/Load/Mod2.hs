@@ -3,15 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Load.Mod2 where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -31,8 +28,6 @@ import Global
 import Types
 
 
-type M a = Logger.LoggerT Log Identity.Identity a
-
 data Log = UnknownCommand !Int !Int
     deriving (Eq, Show)
 
@@ -45,27 +40,26 @@ data State = State {
 -- Make IntMap Instrument
 -- map convert_block
 -- make @score block using _block_order
-convert :: Id.Namespace -> M.Module -> (Either Ui.Error Ui.State, [Log])
-convert ns mod = (ui, logs)
+convert :: Id.Namespace -> M.Module -> Either Ui.Error Ui.State
+convert ns mod = Ui.exec Ui.empty $ do
+    Ui.set_namespace ns
+    bids <- forM blocks $ \(tracks, skel) -> do
+        bid <- Create.block ruler_id
+        forM_ tracks $ \track ->
+            Create.track_events bid ruler_id 999 40 track
+        Ui.set_skeleton bid skel
+        return bid
+    block_ends <- mapM Ui.block_end bids
+    let block_map = IntMap.fromList $ zip [0..] (zip bids block_ends)
+    scores <- forM (M._block_order mod) $ \(name, indices) -> do
+        score <- Create.named_block (Id.id ns name) ruler_id
+        Create.track_events score ruler_id 1 40 $ score_track block_map indices
+        return score
+    whenJust (Seq.head scores) Ui.set_root_id
     where
+    -- TODO use a basic 4/4
     ruler_id = Ui.no_ruler
-    ui = Ui.exec Ui.empty $ do
-        Ui.set_namespace ns
-        bids <- forM blocks $ \(tracks, skel) -> do
-            bid <- Create.block ruler_id
-            forM_ tracks $ \track ->
-                Create.track_events bid ruler_id 999 40 track
-            Ui.set_skeleton bid skel
-            return bid
-        block_ends <- mapM Ui.block_end bids
-        let block_map = IntMap.fromList $ zip [0..] (zip bids block_ends)
-        scores <- forM (M._block_order mod) $ \(name, indices) -> do
-            score <- Create.named_block (Id.id ns name) ruler_id
-            Create.track_events score ruler_id 1 40 $
-                score_track block_map indices
-            return score
-        whenJust (Seq.head scores) Ui.set_root_id
-    (blocks, logs) = Logger.run_id $ mapM (convert_block state) (M._blocks mod)
+    blocks = map (convert_block state) (M._blocks mod)
     state = State
         { _tempo = M._default_tempo mod
         , _instruments = IntMap.fromList $ zip [0..] (M._instruments mod)
@@ -86,12 +80,12 @@ score_track blocks indices = Track.track ">" $ Events.from_list
 
 -- | Figure out block length from min (max lines) (first cut_block)
 -- map convert_track, merge Notes
-convert_block :: State -> M.Block -> M ([Track.Track], Skeleton.Skeleton)
-convert_block state block = do
-    ntracks <- mapM (convert_track state block_len) (M._tracks block)
-    let ctracks = map merge_notes ntracks
-    return (map (uncurry Track.track) (concat ctracks), make_skeleton ctracks)
+convert_block :: State -> M.Block -> ([Track.Track], Skeleton.Skeleton)
+convert_block state block =
+    (map (uncurry Track.track) (concat ctracks), make_skeleton ctracks)
     where
+    ctracks = map (merge_notes . convert_track state block_len)
+        (M._tracks block)
     block_len = fromMaybe (fromIntegral (M._block_length block)) $
         Seq.minimum $ mapMaybe track_len (M._tracks block)
     track_len = Seq.head . mapMaybe cut_block . zip [0..]
@@ -154,22 +148,22 @@ type LineNum = Double
 
 -- |
 -- - Lookup instrument.
-convert_track :: State -> LineNum -> [M.Line] -> M [Note]
+convert_track :: State -> LineNum -> [M.Line] -> [Note]
 convert_track state block_len = go . zip [0..]
     where
     -- TODO extend 0s for commands that do that: 1 2 3 4 5 6 7
     -- TODO apply default volume
     go ((_, M.Line Nothing _ _) : lines) = go lines
     go ((linenum, M.Line (Just pitch) instnum cmds) : lines) =
-        (:) <$> convert_note block_len (_tempo state) instrument linenum pitch
+        convert_note block_len (_tempo state) instrument linenum pitch
             cmds lines
-        <*> go lines
+        : go lines
         where
         instrument = fromMaybe no_instrument $
             IntMap.lookup instnum (_instruments state)
         no_instrument = M.Instrument (ScoreTypes.Instrument (showt instnum))
             Nothing
-    go [] = return []
+    go [] = []
 
 -- |
 -- Figure out note duration: min of time until next line with Pitch>0, or 0fff,
@@ -179,8 +173,8 @@ convert_track state block_len = go . zip [0..]
 --
 -- - Interpret timing cmds like 1f.
 convert_note :: LineNum -> M.Tempo -> M.Instrument -> LineNum
-    -> Pitch.NoteNumber -> [M.Command] -> [(LineNum, M.Line)] -> M Note
-convert_note block_len tempo instrument linenum pitch cmds lines = return $ Note
+    -> Pitch.NoteNumber -> [M.Command] -> [(LineNum, M.Line)] -> Note
+convert_note block_len tempo instrument linenum pitch cmds lines = Note
     { _start = start
     , _duration = end - start
     , _instrument = instrument
