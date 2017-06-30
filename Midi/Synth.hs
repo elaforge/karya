@@ -256,7 +256,7 @@ instance Pretty dur => Pretty (NoteT dur) where
         Text.unwords $ filter (not . Text.null)
             [ addr_s, pretty (round_cents pitch)
             , pretty start <> "--" <> pretty dur <> ":"
-            , "vel:" <> txt (Num.hex vel)
+            , "vel:" <> Num.hex 2 vel
             , if null pitches then "" else " p:" <> pretty pitches
             , if Map.null controls then ""
                 else " c:" <> pretty_controls controls

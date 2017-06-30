@@ -5,6 +5,7 @@
 -- | ApproxEq class for comparing floating point numbers.
 module Util.ApproxEq (ApproxEq(eq), compare) where
 import Prelude hiding (compare)
+import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 
@@ -22,6 +23,8 @@ instance ApproxEq Float where
     eq eta x y = abs (x - y) <= Num.d2f eta
 instance ApproxEq Double where
     eq eta x y = abs (x - y) <= eta
+
+-- * prelude types
 
 instance ApproxEq Char where eq _ = (==)
 instance ApproxEq Int where eq _ = (==)
@@ -53,3 +56,7 @@ instance (ApproxEq a, ApproxEq b, ApproxEq c, ApproxEq d) =>
         ApproxEq (a, b, c, d) where
     eq eta (a, b, c, d) (a', b', c', d') =
         eq eta a a' && eq eta b b' && eq eta c c' && eq eta d d'
+
+-- * hackage types
+
+instance ApproxEq Text.Text where eq _ = (==)

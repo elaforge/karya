@@ -33,8 +33,9 @@ binary b = case Bits.bitSizeMaybe b of
     where
     extract i = if Bits.testBit b i then '1' else '0'
 
-hex :: (Integral a, Show a) => a -> String
-hex n = Numeric.showHex n ""
+hex :: (Integral a, Show a) => Int -> a -> Text
+hex pad n = Text.replicate (pad - Text.length s) "0" <> s
+    where s = Text.pack $ Numeric.showHex n ""
 
 showHigit :: Int -> Maybe Char
 showHigit c = case c of

@@ -179,7 +179,7 @@ record_sysex read_msg = loop 0
         wrote <- case msg of
             Midi.CommonMessage (Midi.SystemExclusive manuf bytes) -> do
                 let fn = "record-sysex" ++ show n ++ ".syx"
-                putStrLn $ "sysex " ++ Num.hex manuf ++ " "
+                putStrLn $ "sysex " ++ untxt (Num.hex 2 manuf) ++ " "
                     ++ show (ByteString.length bytes) ++ " bytes -> "
                     ++ fn
                 ByteString.writeFile fn (Midi.Encode.encode msg)
