@@ -14,6 +14,7 @@ import qualified Unmed2.MED as MED
 import qualified Unmed2.MEDBlock as MEDBlock
 import qualified Unmed2.MEDInstrument as MEDInstrument
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Load.ModTypes as M
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -28,7 +29,10 @@ type M a = Writer.WriterT (Set Log) Identity.Identity a
 data Log = IgnoredCommand !Int !Int
     deriving (Eq, Ord, Show)
 
-convert :: MED.MED -> (M.Module, (Set Log))
+instance Pretty Log where
+    pretty (IgnoredCommand cmd val) = "0x" <> Num.hex 2 cmd <> Num.hex 2 val
+
+convert :: MED.MED -> (M.Module, Set Log)
 convert med = Writer.runWriter $ do
     blocks <- mapM block (MED.blocks med)
     return $ M.Module
@@ -36,7 +40,7 @@ convert med = Writer.runWriter $ do
         , _default_tempo = M.Tempo 33 6 -- TODO
         , _blocks = blocks
         , _block_order =
-            [(name, indices) | MED.PlaySeq name indices <- MED.playseqs med]
+            [(txt name, indices) | MED.PlaySeq name indices <- MED.playseqs med]
         }
 
 instrument :: MEDInstrument.MEDInstrument -> M.Instrument

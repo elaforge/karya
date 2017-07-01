@@ -10,7 +10,6 @@ import qualified Data.Either as Either
 import Data.Word (Word8)
 
 import qualified Derive.ScoreTypes as ScoreTypes
-import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -49,7 +48,7 @@ data Line = Line {
 pitch :: Int -> Maybe Pitch.NoteNumber
 pitch p
     | p == 0 = Nothing
-    | otherwise = Just $ NN.c1 + fromIntegral (p - 1)
+    | otherwise = Just $ fromIntegral (p - 1)
 
 data Command =
     SlideUp !Int

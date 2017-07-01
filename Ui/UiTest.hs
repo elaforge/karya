@@ -429,6 +429,10 @@ add_pitches = go ""
 
 -- * state to spec
 
+dump_blocks :: Ui.State -> [(BlockId, (BlockSpec, [Skeleton.Edge]))]
+dump_blocks state = zip block_ids (map (flip dump_block state) block_ids)
+    where block_ids = Map.keys (Ui.state_blocks state)
+
 dump_block :: BlockId -> Ui.State -> (BlockSpec, [Skeleton.Edge])
 dump_block block_id state =
     ((name <> if Text.null title then "" else " -- " <> title,

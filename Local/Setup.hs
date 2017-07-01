@@ -6,14 +6,18 @@
 -- Mostly just testing hackery.
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
+import qualified System.FilePath as FilePath
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Load.Med as Med
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Load.Mod as Load.Mod
+import qualified Cmd.Load.Mod2 as Mod2
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
@@ -21,14 +25,26 @@ import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import Global
 
 
+load_med :: FilePath -> Cmd.CmdT IO Cmd.Status
+load_med fn = do
+    (mod, logs) <- liftIO $ Med.load fn
+    unless (null logs) $
+        Log.warn $ "unrecognized cmds: " <> pretty logs
+    state <- Cmd.require_right pretty $ Mod2.convert (fn_to_ns fn) mod
+    Ui.put state
+    return Cmd.Done
+
 load_mod :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_mod fn = do
     blocks <- either Cmd.throw return =<< Trans.liftIO (Load.Mod.parse fn)
     let blocks2 = map
             (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
-    Load.Mod.create (Id.namespace $ txt $ head $ Seq.split "." fn)
+    Load.Mod.create (fn_to_ns fn)
         (Load.Mod.convert_blocks 0.25 blocks2)
     return Cmd.Done
+
+fn_to_ns :: FilePath -> Id.Namespace
+fn_to_ns = Id.namespace . txt . head . Seq.split "." . FilePath.takeFileName
 
 load_midi :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_midi fn = do

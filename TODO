@@ -4,12 +4,15 @@ LEGEND
 
 UNSORTED
   load octamed files
+    - Or for calls other than vol, I can put them in as comments, and fix by
+      hand, since it's a bit annoying to get things like 0d right.
+    - Put instrument default vol in 'ky' file instead of on each instrument.
     - extend 0s for commands
-    - apply default default instrument volume
+    * apply default instrument volume
     - Portamento suppresses note start
-    - implement
-    - use a 4/4 ruler
-    - I use 1 for each line, scale by some value, e.g. 1/8.
+    - get song tempo
+    * use a 4/4 ruler
+    * I use 1 for each line, scale by some value, e.g. 1/8.
     - I'll need a port pitch cmd that moves to a pitch at a certain speed
       until it reaches it, then stops.
     - implement set tempo and set frames cmds

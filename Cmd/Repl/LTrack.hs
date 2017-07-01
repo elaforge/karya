@@ -73,6 +73,9 @@ map_titles f = do
     tids <- Ui.all_track_ids
     mapM_ (flip Ui.modify_track_title f) tids
 
+rename_instruments :: [(Text, Text)] -> Cmd.CmdL ()
+rename_instruments renames = map_titles $ \t -> fromMaybe t $ lookup t renames
+
 replace :: Text -> Text -> Cmd.CmdL ()
 replace from to = map_titles $ Text.replace from to
 

@@ -69,6 +69,7 @@ library
         time,
         transformers >=0.4,
         unix,
+        unmed2,
         utf8-string,
         vector,
         wcwidth,
