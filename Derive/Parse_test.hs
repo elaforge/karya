@@ -307,3 +307,4 @@ test_p_definition = do
     left_like (f "a =\n b\nc = d\n") ""
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
+    equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))

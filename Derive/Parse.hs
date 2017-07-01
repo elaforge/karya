@@ -211,17 +211,21 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser (Expr.Call BaseTypes.Val)
 p_equal = do
+    (lhs, sym, rhs) <- p_equal_generic p_term
+    return $ Expr.Call Symbols.equal $
+        literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
+    where literal = Expr.Literal . BaseTypes.VStr
+
+p_equal_generic :: A.Parser a -> A.Parser (Expr.Str, Maybe Expr.Str, [a])
+p_equal_generic rhs_term = do
     lhs <- (Expr.unstr <$> p_str) <|> (Expr.unsym <$> p_symbol True)
     spaces
     A.char '='
     sym <- A.option Nothing $ Just . Text.singleton
         <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
     spaces
-    rhs <- A.many1 p_term
-    return $ Expr.Call Symbols.equal $
-        to_str lhs : rhs ++ maybe [] (:[]) (to_str <$> sym)
-    where
-    to_str = Expr.Literal . BaseTypes.VStr . Expr.Str
+    rhs <- A.many1 rhs_term
+    return (Expr.Str lhs, Expr.Str <$> sym, rhs)
 
 p_call :: Bool -> A.Parser (Expr.Call BaseTypes.Val)
 p_call toplevel = Expr.Call <$> lexeme (p_symbol toplevel) <*> A.many p_term
@@ -492,11 +496,10 @@ instance Monoid Definitions where
 type Definition = (FilePath, (Expr.Symbol, Expr))
 type LineNumber = Int
 
-{- | Parse a definitions file.  This file gives a way to define new calls
-    in the tracklang language, which is less powerful but more concise than
-    haskell.
+{- | Parse a ky file.  This file gives a way to define new calls in the
+    tracklang language, which is less powerful but more concise than haskell.
 
-    The syntax is a sequence of @import path\/to\/file@ lines followed by
+    The syntax is a sequence of @import 'path\/to\/file'@ lines followed by
     a sequence of sections.  A section is a @header:@ line followed by
     definitions.  The header determines the type of the calls defined after it,
     e.g.:
@@ -513,13 +516,17 @@ type LineNumber = Int
     or @alias:@.  A line is continued if it is indented, and @--@ comments
     until the end of the line.
 
-    This is similar to the "Derive.Call.Equal" call, but not quite the same.
-    Firstly, it uses headers for the call type instead of equal's weirdo
-    sigils.  Secondly, the syntax is different because the arguments to equal
-    are evaluated in place, while a file is all quoted by nature.  E.g. a
-    definition @x = a b c@ is equivalent to an equal @^x = \"(a b c)@.
-    @x = a@ (no arguments) is equivalent to @^x = a@, in that @x@ can take the
-    same arguments as @a@.
+    This is similar to the "Derive.Call.Equal" call, but not quite the same:
+
+    - It uses headers for the call type instead of equal's weird sigils.
+
+    - The syntax is different because the arguments to equal are evaluated in
+    place, while a file is all quoted by nature.  E.g. a definition @x = a b c@
+    is equivalent to an equal @^x = \"(a b c)@.  @x = a@ (no arguments) is
+    equivalent to @^x = a@, in that @x@ can take the same arguments as @a@.
+
+    - Calls are defined as "Derive.Call.Macro"s, which means they can include
+    $variables, which become arguments to the call.
 -}
 parse_ky :: FilePath -> Text -> Either Text ([FilePath], Definitions)
 parse_ky filename text = do
@@ -615,6 +622,7 @@ data Call = Call !Expr.Symbol ![Term]
     deriving (Show)
 data Term = VarTerm !Var | ValCall !Call | Literal !BaseTypes.Val
     deriving (Show)
+-- | A variable to be substituted via the "Derive.Call.Macro" mechanism.
 newtype Var = Var Text deriving (Show)
 
 instance ShowVal.ShowVal Expr where
@@ -646,7 +654,7 @@ p_expr_ky = do
 p_toplevel_call_ky :: A.Parser Call
 p_toplevel_call_ky =
     call_to_ky <$> p_unparsed_expr
-    <|> call_to_ky <$> p_equal
+    <|> p_equal_ky
     <|> p_call_ky
     <|> call_to_ky <$> p_null_call
 
@@ -655,6 +663,13 @@ call_to_ky (Expr.Call sym args) = Call sym (map convert args)
     where
     convert (Expr.Literal val) = Literal val
     convert (Expr.ValCall call) = ValCall (call_to_ky call)
+
+p_equal_ky :: A.Parser Call
+p_equal_ky = do
+    (lhs, sym, rhs) <- p_equal_generic p_term_ky
+    return $ Call Symbols.equal $
+        literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
+    where literal = Literal . BaseTypes.VStr
 
 p_sub_call_ky :: A.Parser Call
 p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky
