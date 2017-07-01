@@ -6,7 +6,6 @@
 module Cmd.Load.ModTypes where
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.))
-import qualified Data.Either as Either
 import Data.Word (Word8)
 
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -28,7 +27,7 @@ data Tempo = Tempo {
 
 data Instrument = Instrument {
     _instrument_name :: !ScoreTypes.Instrument
-    , _volume :: !(Maybe Int)
+    , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
 
 data Block = Block {
@@ -44,32 +43,30 @@ data Line = Line {
     } deriving (Eq, Show)
 
 -- | 0 = no note
--- 1 = NN.c_1
+-- 1 = NN.c_1.  This is right for MIDI instruments, but not for samples.
 pitch :: Int -> Maybe Pitch.NoteNumber
 pitch p
     | p == 0 = Nothing
     | otherwise = Just $ fromIntegral (p - 1)
 
 data Command =
-    SlideUp !Int
-    | SlideDown !Int
-    | Portamento !Int
+    Command !Word8 !Word8
     | SetFrames !Int
-    | Volume !Int
-    | Crescendo !Int | Decrescendo !Int -- 0d xy
+    | Volume !Double -- ^ 0 to 1
+    | VolumeSlide !Int -- ^ positive for up, negative for down
     | CutBlock
     | CutNote
-    | DelayRepeat !Int !Int -- delay frames, repeat each n frames
+    | DelayRepeat !Int !Int -- ^ delay frames, repeat each n frames
     deriving (Eq, Show)
 
-commands :: [(Int, Int)] -> ([Command], [(Int, Int)])
-commands = Either.partitionEithers . mapMaybe make
+commands :: [(Int, Int)] -> [Command]
+commands = mapMaybe make
     where
     make (0, _) = Nothing
-    make (cmd, val) = Just $ maybe (Right (cmd, val)) Left
-        (command (fromIntegral cmd) (fromIntegral val))
+    make (cmd, val) = Just $ command (fromIntegral cmd) (fromIntegral val)
 
 {- | Parse a Command.
+
     @
     01 xx -- slide up, 0 uses previous value
     02 xx -- slide down, 0 uses previous value
@@ -111,20 +108,23 @@ commands = Either.partitionEithers . mapMaybe make
     1f xx - delay
     @
 -}
-command :: Word8 -> Word8 -> Maybe Command
+command :: Word8 -> Word8 -> Command
 command cmd val = case cmd of
-    0x03 -> Just $ Portamento $ int val
-    0x0c -> Just $ Volume $ int val
+    0x0c -> Volume $ volume val
     0x0d
-        | val .&. 0x0f /= 0 -> Just $ Decrescendo $ int $ val .&. 0x0f
-        | otherwise -> Just $ Crescendo $ int $ Bits.shiftR val 4 .&. 0x0f
-    0x1f -> Just $ uncurry DelayRepeat $ split4 val
+        | val .&. 0x0f /= 0 -> VolumeSlide $ negate $ int $ val .&. 0x0f
+        | otherwise -> VolumeSlide $ int $ Bits.shiftR val 4 .&. 0x0f
+    0x1f -> uncurry DelayRepeat $ split4 val
     0x0f
-        | val == 0xff -> Just CutNote
-        | val == 0x00 -> Just CutBlock
-    _ -> Nothing
+        | val == 0xff -> CutNote
+        | val == 0x00 -> CutBlock
+    _ -> Command cmd val
     where
     int = fromIntegral
+
+-- | MED volume goes from 0 to 0x64 (aka 100) instead of 0 to 0x40.
+volume :: Integral a => a -> Double
+volume = (/0x64) . fromIntegral
 
 split4 :: Word8 -> (Int, Int)
 split4 w = (fromIntegral $ Bits.shiftR w 4 .&. 0xf, fromIntegral $ w .&. 0xf)

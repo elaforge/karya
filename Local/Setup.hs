@@ -6,9 +6,9 @@
 -- Mostly just testing hackery.
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
@@ -27,12 +27,54 @@ import Global
 
 load_med :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_med fn = do
-    (mod, logs) <- liftIO $ Med.load fn
-    unless (null logs) $
-        Log.warn $ "unrecognized cmds: " <> pretty logs
+    let inst_map = Map.findWithDefault mempty (FilePath.takeFileName fn)
+            inst_maps
+    mod <- liftIO $ Med.load inst_map fn
     state <- Cmd.require_right pretty $ Mod2.convert (fn_to_ns fn) mod
     Ui.put state
     return Cmd.Done
+
+inst_maps :: Map FilePath (Map Text Text)
+inst_maps = Map.fromList
+    [ ("underwater", Map.fromList
+        [ ("Takerimba", "marim")
+        , ("SoftShake", "shake")
+        , ("Thumb Bass", "bass")
+        , ("HeavyBassDrum", "bd")
+        , ("SD1", "sd")
+        , ("FireHiSyn", "lead")
+        , ("VCO Bass", "synb")
+        , ("Chin-PanFluteLooped", "pan")
+        , ("WoodPf (4/29)", "wood")
+        , ("RainyHiMajor", "maj")
+        , ("RainyHiMinor", "min")
+        , ("technoRush-loud", "rush1")
+        , ("technoRush2", "rush2")
+        , ("D50-PizzaGogo", "pizz")
+        , ("filter.maj", "fmaj")
+        ])
+    , ("piano", Map.fromList
+        [ ("UpPiano (4/1)", "pno")
+        , ("UprtBass (6/20)", "bass")
+        , ("Glockn2 (6/36)", "glock")
+        , ("BigPipe (7/13)", "pipe")
+        , ("String2 (5/17)", "string")
+        , ("TubeBe1 (6/37)", "bell")
+        ])
+    , ("Elektrodes", Map.fromList
+        [ ("Elektrodes", "elec")
+        , ("Jazz Man", "bass")
+        , ("440thick-bk", "bd")
+        , ("AquaSnare", "sn")
+        , ("AlesisHihatC", "hh-c")
+        , ("AlesisHihatO", "hh-o")
+        , ("AlesisHihatM", "hh-m")
+        , ("CheckHiSyn-loud", "syn")
+        , ("ClassPiano", "pno")
+        , ("BstTom", "tom")
+        , ("SundanceJazzHit", "hit")
+        ])
+    ]
 
 load_mod :: FilePath -> Cmd.CmdT IO Cmd.Status
 load_mod fn = do

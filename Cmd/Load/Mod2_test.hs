@@ -22,8 +22,7 @@ import Types
 
 
 load = do
-    (mod, logs) <- Med.load "underwater"
-    prettyp logs
+    mod <- Med.load mempty "underwater"
     let bs = M._blocks mod
     -- pprint b
     -- pprint $ Mod2.convert_block initial_state b
@@ -41,7 +40,7 @@ tempo :: M.Tempo
 tempo = M.Tempo 33 6
 
 inst :: M.Instrument
-inst = M.Instrument (ScoreTypes.Instrument "inst") (Just 0x32)
+inst = M.Instrument (ScoreTypes.Instrument "inst") (Just 0.5)
 
 initial_state :: Mod2.State
 initial_state = Mod2.State
@@ -72,9 +71,6 @@ test_convert_note = do
 
     -- DelayRepeat
     equal (f 0 [M.DelayRepeat 3 0] []) (0, 4, "d 3/48t |")
-    -- equal (f 1 [M.DelayRepeat 0 3] []) [(1, 0.5), (1.5, 14.5)]
-    -- equalf 0.001 (f 1 [M.DelayRepeat 2 3] [])
-    --     [(1 + 2/6, 3/6), (1 + 5/6, 15 - 5/6)]
 
 test_convert_note_controls = do
     let f linenum cmds lines =
@@ -82,14 +78,33 @@ test_convert_note_controls = do
         extract (s, d, _, _, _, controls) = (s, d, controls)
     let next = [(16, M.Line (Just 1) 0 [])]
         cmd c = M.Line Nothing 0 [c]
-    equal (f 0 [M.Volume 0x32] next) (0, 2, [("dyn", [(0, 0, "`0x`80")])])
-    equal (f 0 [] ((8, cmd (M.Volume 0x16)) : next
-            ++ [(64, cmd (M.Volume 0x40))]))
-        (0, 2, [("dyn", [(0, 0, "`0x`80"), (1, 0, "`0x`38")])])
-    -- TODO broken, but maybe I want to do comments instead
-    -- equal (f 0 [M.Volume 0, M.Crescendo 1]
-    --         [(1, cmd (M.Crescendo 1)), (2, cmd (M.Crescendo 2))])
-    --     [(0, 4, [("dyn", [(0, 2/8, "u 1"), (2/8, 3/8, "u 2")])])]
+    equal (f 0 [M.Volume 0.5] next) (0, 2, [("dyn", [(0, 0, "`0x`80")])])
+    equal (f 0 [] ((8, cmd (M.Volume 0.25)) : next
+            ++ [(64, cmd (M.Volume 0.75))]))
+        (0, 2, [("dyn", [(0, 0, "`0x`80"), (1, 0, "`0x`40")])])
+
+    let e_controls (_, _, a) = a
+    let up = M.VolumeSlide 1
+    equal (e_controls $ f 0 [up] []) [("dyn", [(0, 1/8, "from=`0x`80 | u 1")])]
+    -- volume + crescendo
+    equal (e_controls $ f 0 [M.Volume 0, up] [])
+        [("dyn", [(0, 1/8, "from=`0x`00 | u 1")])]
+    -- grouping
+    equal (e_controls $ f 0 [up] [(1, cmd up), (2, cmd (M.VolumeSlide 2))])
+        [ ( "dyn"
+          , [ (0, 1/8, "from=`0x`80 | u 1")
+            , (1/8, 1/8, "u 1")
+            , (2/8, 1/8, "u 2")
+            ]
+          )
+        ]
+    equal (e_controls $ f 0 [] [(1, cmd up), (2, cmd up)])
+        [("dyn", [(0, 0, "`0x`80"), (1/8, 2/8, "u 1")])]
+    equal (e_controls $ f 0 [] [(1, cmd up), (3, cmd up)])
+        [("dyn", [(0, 0, "`0x`80"), (1/8, 1/8, "u 1"), (3/8, 1/8, "u 1")])]
+
+    -- pprint (Mod2.merge_notes $ (:[]) $
+    --     convert_note 0 [] [(1, cmd up), (3, cmd up), (5, cmd up)])
 
 convert_note :: Mod2.LineNum -> [M.Command] -> [(Mod2.LineNum, M.Line)]
     -> Mod2.Note

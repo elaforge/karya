@@ -3,23 +3,33 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The EvalTrack rule that skips a all comment event is confusing, because
-    you have to replace a note with 'n -- blah'.  Make the "skip totally"
-    triggered by '--|'.
+  - It would be nice to have a text interpolation syntax
+    . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
+    . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
+    . text-format: requires importing a bunch of formatters, type-unsafe
+      . format "from={} | {} {}" ('val vol, 'str c, 'val val)
+    . formatting: import a bunch of formatters plus (%), type-safe
+      . Probably worse errors.
+      . format ("from="%'val%" | "%'str%" "%'val) vol c val
+    . fmt: even more operators and imports
+  - save/bug/align-right: right side text redraws inconsistently
+  - The EvalTrack rule that skips events that are all comment event is
+    confusing, because you have to replace a note with 'n -- blah'.
+    . Make the "skip totally" triggered by '--|'.
     . Search dumps for '--', update doc/*.
     . Except control tracks don't have a "" call, so plain '--' is available.
       But maybe not do that anyway, for consistency.
   load octamed files
-    - Or for calls other than vol, I can put them in as comments, and fix by
+    * Or for calls other than vol, I can put them in as comments, and fix by
       hand, since it's a bit annoying to get things like 0d right.
-    - Put instrument default vol in 'ky' file instead of on each instrument.
-    - extend 0s for commands
+    / Put instrument default vol in 'ky' file instead of on each instrument.
+    * extend 0s for commands
     * apply default instrument volume
-    - Portamento suppresses note start
+    / Portamento suppresses note start
     - get song tempo
     * use a 4/4 ruler
     * I use 1 for each line, scale by some value, e.g. 1/8.
-    - I'll need a port pitch cmd that moves to a pitch at a certain speed
+    / I'll need a port pitch cmd that moves to a pitch at a certain speed
       until it reaches it, then stops.
     - implement set tempo and set frames cmds
   * save/bali/gabor segfault
