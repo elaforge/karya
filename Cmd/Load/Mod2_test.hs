@@ -61,46 +61,49 @@ test_make_skeleton = do
     equal (f [['a', 'b'], ['c', 'd', 'e']]) [(1, 2), (3, 4), (4, 5)]
 
 test_convert_note = do
-    let f = convert_note (\(s, d, _, _, _) -> (s, d))
-    equal (f 1 [] []) [(1/8, 4 - 1/8)]
+    let f linenum cmds lines =
+            extract $ e_note $ convert_note linenum cmds lines
+        extract (s, d, _inst, call, _, _) = (s, d, call)
+    equal (f 1 [] []) (1/8, 4 - 1/8, "")
     -- stops at next note
-    equal (f 8 [] [(16, M.Line (Just 1) 0 [])]) [(1, 1)]
+    equal (f 8 [] [(16, M.Line (Just 1) 0 [])]) (1, 1, "")
     -- unless it's empty
-    equal (f 8 [] [(16, M.Line Nothing 0 [])]) [(1, 3)]
-    -- -- next note delayed
-    -- equal (f 1 [] [(2, M.Line (Just 1) 0 [M.DelayRepeat 3 0])]) [(1, 1.5)]
-    --
-    -- -- DelayRepeat
-    -- equal (f 1 [M.DelayRepeat 3 0] []) [(1.5, 14.5)]
+    equal (f 8 [] [(16, M.Line Nothing 0 [])]) (1, 3, "")
+
+    -- DelayRepeat
+    equal (f 0 [M.DelayRepeat 3 0] []) (0, 4, "d 3/48t |")
     -- equal (f 1 [M.DelayRepeat 0 3] []) [(1, 0.5), (1.5, 14.5)]
     -- equalf 0.001 (f 1 [M.DelayRepeat 2 3] [])
     --     [(1 + 2/6, 3/6), (1 + 5/6, 15 - 5/6)]
 
 test_convert_note_controls = do
-    let f = convert_note (\(s, d, _, _, controls) -> (s, d, controls))
+    let f linenum cmds lines =
+            extract $ e_note $ convert_note linenum cmds lines
+        extract (s, d, _, _, _, controls) = (s, d, controls)
     let next = [(16, M.Line (Just 1) 0 [])]
         cmd c = M.Line Nothing 0 [c]
-    equal (f 0 [M.Volume 0x32] next) [(0, 2, [("dyn", [(0, 0, "`0x`80")])])]
+    equal (f 0 [M.Volume 0x32] next) (0, 2, [("dyn", [(0, 0, "`0x`80")])])
     equal (f 0 [] ((8, cmd (M.Volume 0x16)) : next
             ++ [(64, cmd (M.Volume 0x40))]))
-        [(0, 2, [("dyn", [(0, 0, "`0x`80"), (1, 0, "`0x`38")])])]
+        (0, 2, [("dyn", [(0, 0, "`0x`80"), (1, 0, "`0x`38")])])
+    -- TODO broken, but maybe I want to do comments instead
     -- equal (f 0 [M.Volume 0, M.Crescendo 1]
     --         [(1, cmd (M.Crescendo 1)), (2, cmd (M.Crescendo 2))])
     --     [(0, 4, [("dyn", [(0, 2/8, "u 1"), (2/8, 3/8, "u 2")])])]
 
-
--- test_convert_note_group_controls = do
---     let f = convert_note (\(s, d, _, _, controls) -> (s, d, controls))
---     pprint (f 0 
-
-convert_note extract linenum cmds lines = map (extract . e_note) $
+convert_note :: Mod2.LineNum -> [M.Command] -> [(Mod2.LineNum, M.Line)]
+    -> Mod2.Note
+convert_note linenum cmds lines =
     Mod2.convert_note 32 tempo inst linenum 60 cmds lines
 
 
-e_note :: Mod2.Note -> (TrackTime, TrackTime, Text, Pitch.NoteNumber,
+e_note :: Mod2.Note -> (TrackTime, TrackTime, Text, Text, Pitch.NoteNumber,
     [(Text, [(TrackTime, TrackTime, Text)])])
-e_note (Mod2.Note start dur inst pitch controls) =
-    ( start, dur, pretty (M._instrument_name inst), pitch
+e_note (Mod2.Note start dur inst call pitch controls) =
+    ( start, dur
+    , pretty (M._instrument_name inst)
+    , call
+    , pitch
     , Map.toList $ map e_event <$> controls
     )
 

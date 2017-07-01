@@ -5,10 +5,14 @@
 module Cmd.Load.Mod2 where
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
+import qualified Util.Debug as Debug
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -152,9 +156,10 @@ clean_track (title, events)
     | otherwise = Just (title, Seq.drop_dups Event.text events)
 
 note_event :: Bool -> Note -> Event.Event
-note_event set_instrument n = Event.event (_start n) (_duration n)
-    (if set_instrument then "i " <> ShowVal.show_val inst <> " |" else "")
-    where inst = M._instrument_name (_instrument n)
+note_event set_instrument n = Event.event (_start n) (_duration n) call
+    where
+    call = (if set_instrument then set_inst else "") <> _call n
+    set_inst = "i " <> ShowVal.show_val (M._instrument_name (_instrument n))
 
 note_pitches :: Note -> [Event.Event]
 note_pitches n = Event.event (_start n) 0 (nn_to_call (_pitch n))
@@ -173,6 +178,8 @@ data Note = Note {
     _start :: !TrackTime
     , _duration :: !TrackTime
     , _instrument :: !M.Instrument
+    -- | Note call text.
+    , _call :: !Text
     , _pitch :: !Pitch.NoteNumber
     , _controls :: !(Map Control [Event.Event])
     } deriving (Eq, Show)
@@ -190,7 +197,7 @@ convert_track state block_len = go . zip [0..]
     go ((linenum, M.Line (Just pitch) instnum cmds) : lines) =
         convert_note block_len (_tempo state) instrument linenum pitch
             cmds lines
-        ++  go lines
+        : go lines
         where
         instrument = fromMaybe no_instrument $
             IntMap.lookup instnum (_instruments state)
@@ -206,28 +213,29 @@ convert_track state block_len = go . zip [0..]
 --
 -- - Interpret timing cmds like 1f.
 convert_note :: LineNum -> M.Tempo -> M.Instrument -> LineNum
-    -> Pitch.NoteNumber -> [M.Command] -> [(LineNum, M.Line)] -> [Note]
-convert_note block_len tempo instrument linenum pitch cmds lines =
-    zipWith note starts ends
+    -> Pitch.NoteNumber -> [M.Command] -> [(LineNum, M.Line)] -> Note
+convert_note block_len tempo instrument linenum pitch cmds lines = Note
+    { _start = start
+    , _duration = end - start
+    , _instrument = instrument
+    , _call = note_call (M._frames tempo) cmds
+    , _pitch = pitch
+    , _controls = Map.fromList $ convert_commands instrument start cmds $
+        takeWhile ((==Nothing) . cut_note) lines
+    }
     where
-    note start end = Note
-        { _start = start
-        , _duration = end - start
-        , _instrument = instrument
-        , _pitch = pitch
-        , _controls = Map.fromList $ convert_commands instrument start cmds $
-            takeWhile ((==Nothing) . cut_note frames) lines
-        }
-    starts = map frames_to_time $
-        case [(delay, repeat) | M.DelayRepeat delay repeat <- cmds] of
-            (delay, repeat) : _
-                | repeat > 0 -> Seq.range' delay frames repeat
-                | otherwise -> [delay]
-            _ -> [0]
-    ends = drop 1 starts ++ [next]
-    next = fromMaybe (line_start block_len) $ msum (map (cut_note frames) lines)
-    frames_to_time f = line_start linenum + fromIntegral f / fromIntegral frames
-    frames = M._frames tempo
+    start = line_start linenum
+    end = fromMaybe (line_start block_len) $ msum (map cut_note lines)
+
+note_call :: Int -> [M.Command] -> Text
+note_call frames cmds =
+    Text.strip $ Text.intercalate " | " $ Maybe.catMaybes [d, r, Just ""]
+    where
+    d = if delay == 0 then Nothing else
+        Just $ "d " <> showt delay <> "/" <> showt (frames * lines_per_t) <> "t"
+    r = Nothing -- TODO?
+    (delay, repeat) = fromMaybe (0, 0) $
+        Seq.head [(delay, repeat) | M.DelayRepeat delay repeat <- cmds]
 
 convert_commands :: M.Instrument -> TrackTime -> [M.Command]
     -> [(LineNum, M.Line)] -> [(Control, [Event.Event])]
@@ -292,19 +300,17 @@ c_dyn, c_pitch :: Control
 c_dyn = "dyn"
 c_pitch = "*"
 
-cut_note :: Int -> (LineNum, M.Line) -> Maybe TrackTime
-cut_note frames (linenum, line)
-    | not $ null [() | M.Portamento _ <- M._commands line] = Nothing
-    | Just _ <- M._pitch line =
-        Just $ note_start frames linenum (M._commands line)
-    | any (`elem` [M.CutNote, M.CutBlock]) (M._commands line) =
-        Just $ note_start frames linenum []
+cut_note :: (LineNum, M.Line) -> Maybe TrackTime
+cut_note (linenum, line)
+    -- | not $ null [() | M.Portamento _ <- M._commands line] = Nothing
+    | Just _ <- M._pitch line = Just $ line_start linenum
+    | M.CutNote `elem` M._commands line = Just $ line_start linenum
+    | M.CutBlock `elem` M._commands line = Just $ line_start (linenum+1)
     | otherwise = Nothing
 
 line_start :: LineNum -> TrackTime
-line_start = (/8) . ScoreTime.double
+line_start = (/ fromIntegral lines_per_t) . ScoreTime.double
 
-note_start :: Int -> LineNum -> [M.Command] -> TrackTime
-note_start frames linenum cmds =
-    line_start linenum + maybe 0 (/ fromIntegral frames) delay
-    where delay = Seq.head [fromIntegral delay | M.DelayRepeat delay _ <- cmds]
+-- | Lines per 1 TrackTime.
+lines_per_t :: Int
+lines_per_t = 8
