@@ -80,7 +80,7 @@ note_call :: Derive.CallName -> Doc.Doc -> Tags.Tags -> GenerateNote
     -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
-    Sig.call (Sig.many "attribute" "Change the instrument or attributes.") $
+    Sig.call (Sig.many "attribute" "Add attributes.") $
     \vals -> Sub.inverting
         (apply_instrument_controls . transform_note vals . generate)
     where

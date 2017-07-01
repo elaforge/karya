@@ -35,7 +35,7 @@ newtype Instrument = Instrument Text
 
 instance Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
-    show_val (Instrument inst) = inst
+    show_val (Instrument inst) = ShowVal.show_val inst
 
 -- | A control is an abstract parameter that influences derivation.  Some of
 -- them affect performance and will be rendered as MIDI controls or note

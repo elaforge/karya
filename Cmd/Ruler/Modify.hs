@@ -24,7 +24,10 @@ modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
         where
         new = Meter.labeled_marklist $ renumber $ modify $
             Meter.marklist_labeled mlist
-    where (mtype, mlist) = Ruler.get_marklist Ruler.meter ruler
+    where
+    (mtype, mlist)
+        | ruler == Ruler.no_ruler = (Just Meter.mtype, Ruler.empty_marklist)
+        | otherwise = Ruler.get_marklist Ruler.meter ruler
 
 -- | In order to perform generic operations on meters, such as doubling the
 -- length, I need a way to renumber them.  So rulers keep track of their

@@ -13,7 +13,7 @@ module Ui.Ruler (
     , bounds, set_bounds, get_bounds, bounds_of
     -- * Marklist
     , Marklist, MarklistVector, PosMark
-    , marklist, marklist_from_vector, marklist_vec
+    , marklist, empty_marklist, marklist_from_vector, marklist_vec
     , marklist_fptr -- This should only be used from Ui.RulerC.
     , to_list, ascending, descending
     , marklist_end, marklist_start
