@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Load.Mod2_test where
+module Cmd.Load.Mod_test where
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 
@@ -12,7 +12,7 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Load.Med as Med
-import qualified Cmd.Load.Mod2 as Mod2
+import qualified Cmd.Load.Mod as Mod
 import qualified Cmd.Load.ModTypes as M
 
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -25,7 +25,7 @@ load = do
     mod <- Med.load mempty "underwater"
     let bs = M._blocks mod
     -- pprint b
-    -- pprint $ Mod2.convert_block initial_state b
+    -- pprint $ Mod.convert_block initial_state b
 
     let e = convert mod
     pprint ((!!1) <$> e)
@@ -34,7 +34,7 @@ load = do
 
 convert :: M.Module
     -> Either Text [(BlockId, (UiTest.BlockSpec, [Skeleton.Edge]))]
-convert = (pretty *** UiTest.dump_blocks) . Mod2.convert UiTest.test_ns
+convert = (pretty *** UiTest.dump_blocks) . Mod.convert UiTest.test_ns
 
 tempo :: M.Tempo
 tempo = M.Tempo 33 6
@@ -42,19 +42,19 @@ tempo = M.Tempo 33 6
 inst :: M.Instrument
 inst = M.Instrument (ScoreTypes.Instrument "inst") (Just 0.5)
 
-initial_state :: Mod2.State
-initial_state = Mod2.State
+initial_state :: Mod.State
+initial_state = Mod.State
     { _tempo = M.Tempo 33 6
     , _instruments = IntMap.fromList [(0, inst)]
     }
 
 test_convert_block = do
-    let f = Mod2.convert_block initial_state
+    let f = Mod.convert_block initial_state
     let empty = M.Line Nothing 0 []
     pprint (f (M.Block [[empty, empty], [empty, empty]] 2))
 
 test_make_skeleton = do
-    let f = Skeleton.flatten . Mod2.make_skeleton
+    let f = Skeleton.flatten . Mod.make_skeleton
     equal (f []) []
     equal (f [['a'], ['b', 'c']]) [(2, 3)]
     equal (f [['a', 'b'], ['c', 'd', 'e']]) [(1, 2), (3, 4), (4, 5)]
@@ -103,18 +103,18 @@ test_convert_note_controls = do
     equal (e_controls $ f 0 [] [(1, cmd up), (3, cmd up)])
         [("dyn", [(0, 0, "`0x`80"), (1/8, 1/8, "u 1"), (3/8, 1/8, "u 1")])]
 
-    -- pprint (Mod2.merge_notes $ (:[]) $
+    -- pprint (Mod.merge_notes $ (:[]) $
     --     convert_note 0 [] [(1, cmd up), (3, cmd up), (5, cmd up)])
 
-convert_note :: Mod2.LineNum -> [M.Command] -> [(Mod2.LineNum, M.Line)]
-    -> Mod2.Note
+convert_note :: Mod.LineNum -> [M.Command] -> [(Mod.LineNum, M.Line)]
+    -> Mod.Note
 convert_note linenum cmds lines =
-    Mod2.convert_note 32 tempo inst linenum 60 cmds lines
+    Mod.convert_note 32 tempo inst linenum 60 cmds lines
 
 
-e_note :: Mod2.Note -> (TrackTime, TrackTime, Text, Text, Pitch.NoteNumber,
+e_note :: Mod.Note -> (TrackTime, TrackTime, Text, Text, Pitch.NoteNumber,
     [(Text, [(TrackTime, TrackTime, Text)])])
-e_note (Mod2.Note start dur inst call pitch controls) =
+e_note (Mod.Note start dur inst call pitch controls) =
     ( start, dur
     , pretty (M._instrument_name inst)
     , call

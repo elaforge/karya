@@ -72,7 +72,6 @@ parse_args argv = case argv of
     -- Load a template.
     ["-t", fn] -> Save.load_template fn >> return Cmd.Done
     ["med", fn] -> Setup.load_med fn
-    ["mod", fn] -> Setup.load_mod fn
     ["midi", fn] -> Setup.load_midi fn
     [fn] -> Save.load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do

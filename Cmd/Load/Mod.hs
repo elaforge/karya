@@ -1,281 +1,326 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2017 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Load mod dumps from hacked up xmp.
+-- | Convert a 'M.Module' to 'Ui.State'.
 module Cmd.Load.Mod where
-import qualified Control.Applicative as A (many)
-import qualified Data.Attoparsec.Text as A
-import qualified Data.Bits as Bits
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Text.IO as Text.IO
+import qualified Data.Set as Set
+import qualified Data.Text as Text
 
-import qualified Util.Map as Map
-import qualified Util.ParseText as ParseText
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.Then as Then
-
-import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Ui as Ui
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
-import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Create as Create
+import qualified Cmd.Load.ModTypes as M
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
-import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
+import Derive.ShowVal (show_val)
+
+import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
 
--- not implemented:
--- - initial tempo and tempo changes, along with frames / row
--- - instruments (one instrument is hardcoded)
--- - most effects
--- - order list, so repeats are expanded
+data State = State {
+    _tempo :: !M.Tempo
+    , _instruments :: IntMap.IntMap M.Instrument
+    } deriving (Eq, Show)
 
--- * create ui state
-
-create :: Ui.M m => Id.Namespace -> [UiBlock] -> m ()
-create name ui_blocks = do
-    Ui.set_namespace name
-    let mkid = Id.id name
-    rid <- Create.ruler "meter44" $
-        RulerUtil.meter_ruler Meter.default_config 16 (replicate 4 Meters.m44_4)
-    block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
-    root <- create_order_block mkid block_ids
-    Ui.set_root_id root
-    Create.unfitted_view root
-    return ()
-
-create_block :: Ui.M m => (Text -> Id.Id) -> RulerId
-    -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
-create_block mkid rid inst num (ui_block, block_rows) = do
-    block_id <- make_block mkid rid ("b" <> showt num)
-        (concatMap mktrack ui_block)
-    return (block_id, block_rows)
-    where mktrack (ntrack, ctracks) = ('>' : inst, ntrack) : ctracks
-
-create_order_block :: Ui.M m => (Text -> Id.Id)
-    -> [(BlockId, BlockRows)] -> m BlockId
-create_order_block mkid block_ids = do
-    rid <- Create.ruler "order" $ Meters.ruler (order_meter block_rows)
-    make_block mkid rid "order" [("tempo", tempo), (">pianoteq/c1", events)]
+make_ruler :: TrackTime -> Ruler.Ruler
+make_ruler end =
+    clip_ruler end $ Meter.make_measures Meter.default_config 1 Meters.m44
+        sections (ceiling end)
     where
-    block_rows = map snd block_ids
-    tempo = [Event.event 0 0 "6"]
-    starts = scanl (+) 0 block_rows
-    events =
-        [ Event.event (fromIntegral start) (fromIntegral dur)
-            (Id.ident_name bid)
-        | (start, (bid, dur)) <- zip starts block_ids
+    sections = 1
+
+clip_ruler :: TrackTime -> Ruler.Ruler -> Ruler.Ruler
+clip_ruler at = Ruler.modify_marklist Ruler.meter (const clip)
+    where clip = Ruler.marklist . takeWhile ((<=at) . fst) . Ruler.to_list
+
+-- |
+-- Make IntMap Instrument
+-- map convert_block
+-- make @score block using _block_order
+convert :: Id.Namespace -> M.Module -> Either Ui.Error Ui.State
+convert ns mod = Ui.exec Ui.empty $ do
+    Ui.set_namespace ns
+    bids <- forM blocks $ \(tracks, block_end, skel) -> do
+        bid <- Create.block Ui.no_ruler
+        rid <- Ui.create_ruler (Id.unpack_id bid) (make_ruler block_end)
+        Create.set_block_ruler rid bid
+        forM_ tracks $ \track -> do
+            tid <- Create.track_events bid rid 999 40 track
+            Ui.set_render_style (Track.Line Nothing) tid
+        Ui.set_skeleton bid skel
+        return bid
+    mapM_ Ui.destroy_ruler =<< Create.orphan_rulers
+
+    let block_ends = [t | (_, t, _) <- blocks]
+    let block_map = IntMap.fromList $ zip [0..] (zip bids block_ends)
+    scores <- forM (M._block_order mod) $ \(name_, indices) -> do
+        let name = if name_ == "" then "score" else name_
+        -- TODO LRuler.extract_meters
+        let ruler_id = Ui.no_ruler
+        score <- Create.named_block (Id.id ns name) ruler_id
+        Create.track_events score ruler_id 1 40 $ score_track block_map indices
+        Create.unfitted_view score
+        return score
+    whenJust (Seq.head scores) Ui.set_root_id
+    Ui.modify_config $ UiConfig.ky #= ky
+    where
+    blocks = map (convert_block state) (M._blocks mod)
+    state = State
+        { _tempo = M._default_tempo mod
+        , _instruments = IntMap.fromList $ zip [1..] (M._instruments mod)
+        }
+
+ky :: Text
+ky = Text.unlines
+    [ "note generator:"
+    , "i = inst = $inst |"
+    ]
+
+-- | Make a score track with calls to the blocks.
+score_track :: IntMap.IntMap (BlockId, TrackTime) -> [Int] -> Track.Track
+score_track blocks indices = Track.track ">" $ Events.from_list
+    [ Event.event start (end - start) call
+    | (start, end, call) <- zip3 starts (drop 1 starts) calls
+    ]
+    where
+    starts = scanl (+) 0 durs
+    (calls, durs) = unzip $ map call_of indices
+    call_of idx = case IntMap.lookup idx blocks of
+        Just (bid, end) -> (Id.ident_name bid, end)
+        Nothing -> ("block" <> showt idx, 1) -- order number with no block
+
+-- | Figure out block length from min (max lines) (first cut_block)
+-- map convert_track, merge Notes
+convert_block :: State -> M.Block
+    -> ([Track.Track], TrackTime, Skeleton.Skeleton)
+convert_block state block =
+    ( map (uncurry Track.track) (concat ctracks)
+    , line_start block_len
+    , make_skeleton ctracks
+    )
+    where
+    ctracks = map (merge_notes . convert_track state block_len)
+        (M._tracks block)
+    block_len = fromMaybe (fromIntegral (M._block_length block)) $
+        Seq.minimum $ mapMaybe track_len (M._tracks block)
+    track_len = Seq.head . mapMaybe cut_block . zip [0..]
+    cut_block (linenum, line)
+        | M.CutBlock `elem` M._commands line = Just linenum
+        | otherwise = Nothing
+
+make_skeleton :: [[track]] -> Skeleton.Skeleton
+make_skeleton track_groups =
+    Skeleton.make $ concat $ zipWith make tracknums (drop 1 tracknums)
+    where
+    tracknums = scanl (+) 1 (map length track_groups)
+    make start end = zip ts (drop 1 ts)
+        where ts = Seq.range' start end 1
+
+merge_notes :: [Note] -> [(Text, Events.Events)]
+merge_notes notes =
+    map (second Events.from_list) $ mapMaybe clean_track $
+        note_track : pitch_track : control_tracks
+    where
+    note_track = case instruments of
+        [inst] ->
+            (ParseTitle.instrument_to_title inst, map (note_event False) notes)
+        _ -> (">", map (note_event True) notes)
+    pitch_track = ("*", concatMap note_pitches notes)
+    control_tracks =
+        [ (c, concatMap (Map.findWithDefault [] c . _controls) notes)
+        | c <- controls
         ]
+    controls = Set.toList $ Set.delete "*" $ Set.unions $
+        map (Map.keysSet . _controls) notes
+    instruments = Seq.unique $ map (M._instrument_name . _instrument) notes
 
-order_meter :: [BlockRows] -> Ruler.Marklist
-order_meter =
-    Meter.meter_marklist Meter.default_config . Meter.make_meter 1 . (:[])
-    . Meter.D . map mkd
-    where mkd dur = Meter.D (replicate dur Meter.T)
+clean_track :: (Text, [Event.Event]) -> Maybe (Text, [Event.Event])
+clean_track (title, events)
+    | null events = Nothing
+    | ParseTitle.is_note_track title || ParseTitle.is_pitch_track title =
+        Just (title, events)
+    | otherwise = Just (title, Seq.drop_with idempotent events)
+    where
+    idempotent e1 e2 = "`0x`" `Text.isPrefixOf` a && a == b
+        where
+        (a, b) = (Event.text e1, Event.text e2)
 
-make_block :: Ui.M m => (Text -> Id.Id) -> RulerId -> Text
-    -> [(String, [Event.Event])] -> m BlockId
-make_block mkid rid name tracks = do
-    tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
-        Ui.create_track (mkid (name <> ".t" <> showt i)) $
-            Track.track (txt title) (Events.from_list events)
-    let block_tracks = Block.track (Block.RId rid) 20
-            : [Block.track (Block.TId tid rid) 25 | tid <- tids]
-    block_id <- Ui.create_block (mkid name) "" block_tracks
-    Ui.set_skeleton block_id =<<
-        ParseSkeleton.default_parser <$> TrackTree.tracks_of block_id
-    BlockConfig.toggle_merge_all block_id
-    return block_id
+note_event :: Bool -> Note -> Event.Event
+note_event set_instrument n = Event.event (_start n) (_duration n) call
+    where
+    call = (if set_instrument then set_inst else "") <> _call n
+    set_inst = "i " <> show_val (M._instrument_name (_instrument n))
+
+note_pitches :: Note -> [Event.Event]
+note_pitches n = Event.event (_start n) 0 (nn_to_call (_pitch n))
+    : Map.findWithDefault [] "*" (_controls n)
+
+-- | TODO surely this exists elsewhere?
+nn_to_call :: Pitch.NoteNumber -> Text
+nn_to_call nn = showt (oct-1) <> steps !! step
+    where
+    (oct, step) = floor nn `divMod` 12
+    steps = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
 
 -- * convert
 
--- test = do
---     Right bs <- parse "test.dump"
---     -- Right bs <- parse "bloom.dump"
---     let bs2 = map (map_block (add_default_volume 1 38)) bs
---     pprint $ convert_blocks 1 bs2
---     -- pprint $ convert_track (head (to_tracks (head bs)))
---     -- pprint $ convert_notes (head (to_tracks (head bs)))
---     -- where to_tracks (Block rows) = Seq.rotate (map (\(Row ns) -> ns)  rows)
-
--- | An intermediate representation, between the row-oriented Block and
--- Ui.State.
-type UiBlock = ([(NoteTrack, [ControlTrack])], BlockRows)
-type NoteTrack = [Event.Event]
--- | (title, [event])
-type ControlTrack = (String, [Event.Event])
--- | How many rows in a block.
-type BlockRows = Int
-
--- | Convert parsed Blocks into UiBlocks.  Each row is given the ScoreTime
--- passed.
-convert_blocks :: ScoreTime -> [Block] -> [UiBlock]
-convert_blocks row_time = map (map_times (*row_time) . convert_block)
-
-map_times :: (ScoreTime -> ScoreTime) -> UiBlock -> UiBlock
-map_times f = first $ map $ \(ntrack, ctracks) ->
-    (map modify ntrack, map (second (map (Event.start_ %= f))) ctracks)
-    where modify = (Event.start_ %= f) . (Event.duration_ %= f)
-
-convert_block :: Block -> UiBlock
-convert_block (Block rows) = (map convert_track clipped, block_length)
-    where
-    to_tracks rows = Seq.rotate (map (\(Row ns) -> ns) rows)
-    tracks = to_tracks rows
-    block_length = fromMaybe 0 $ Seq.minimum (map track_length tracks)
-    clipped = map (take block_length) tracks
-
-track_length :: [Note] -> BlockRows
-track_length = length . takeWhile (not . any (==cut_block) . note_effects)
-
-convert_track :: [Note] -> (NoteTrack, [ControlTrack])
-convert_track notes = (convert_notes notes, convert_controls notes)
-
-convert_notes :: [Note] -> NoteTrack
-convert_notes = Maybe.catMaybes . Then.mapAccumL go (Nothing, 0) final
-    where
-    go (prev, at) note = ((next, at+1), event)
-        where (event, next) = convert_note prev at note
-    final (prev, at) =
-        [fst $ convert_note prev at (Note 0 0 [cut_note])]
-
-convert_note :: Maybe Event.Event -> ScoreTime -> Note
-    -> (Maybe Event.Event, Maybe Event.Event)
-convert_note maybe_prev at (Note pitch _ effects)
-    | pitch /= 0 = (note, Just (Event.event start 0 ""))
-    | any (== cut_note) effects = (note, Nothing)
-    | otherwise = (Nothing, maybe_prev)
-    where
-    start = note_start effects at
-    note = case maybe_prev of
-        Just event ->
-            Just $ Event.duration_ #= (start - Event.start event) $ event
-        Nothing -> Nothing
-
--- | Find the note start, taking the delay effect into account.  The delay
--- is actually in frames which are in the song config (and set by effects), but
--- I just hardcode it for the moment.
-note_start :: [Effect] -> ScoreTime -> ScoreTime
-note_start effects at =
-    at + recip frames * ScoreTime.double (fromIntegral delay)
-    where
-    delay = fromMaybe 0 $ Seq.maximum $ map delay_effect effects
-    frames = 8
-
--- TODO retrigger not implemented, it's the lower 4 bits
-delay_effect :: Effect -> Int
-delay_effect (fx, arg)
-    | fx == fx_delay = Bits.shiftR arg 4
-    | otherwise = 0
-
-convert_controls :: [Note] -> [ControlTrack]
-convert_controls notes = Map.assocs cont_vals
-    where
-    cont_vals = Map.map (map to_event) $
-        Map.multimap (concat (zipWith mkcont (Seq.range_ 0 1) notes))
-    mkcont at note = [(cont, (note_start (note_effects note) at, val))
-        | (cont, val) <- note_controls note]
-    to_event (pos, val) = Event.event pos 0 (txt val)
-
-note_controls :: Note -> [(String, String)]
-note_controls note = Maybe.maybeToList (convert_pitch note)
-    ++ mapMaybe convert_effect (note_effects note)
-
-convert_pitch :: Note -> Maybe (String, String)
-convert_pitch (Note pitch _ _)
-    | pitch == 0 = Nothing
-    | otherwise =
-        Just ("*", fromMaybe "?" $ Map.lookup pitch degree_to_note)
-
-convert_effect :: Effect -> Maybe (String, String)
-convert_effect (fx, arg)
-    | fx == fx_volume = Just ("vel", c arg)
-    | fx == fx_vibrato = Just ("mod", c arg)
-    | otherwise = Nothing
-    where
-    c = untxt . (ShowVal.show_val :: Double -> Text) . (/127) . fromIntegral
-
-cut_note = (0x0f, 0xff)
-cut_block = (0x0f, 0)
-fx_extended = 0x0e
-fx_vibrato = 0x04
-fx_volume = 0x0c
-ex_cut = 0xc3
-fx_delay = 0x1f
-
-degree_to_note :: Map Int String
-degree_to_note = Map.fromList $ zip [0..127] notes
-    where notes = [show o ++ d | o <- [-1..9], d <- note_degrees]
-
--- | I could use `sharp` in here, but it's simpler to have plain text if
--- possible.
-note_degrees :: [String]
-note_degrees = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"]
-
-
--- * parse
-
-newtype Block = Block [Row] deriving (Show)
-newtype Row = Row [Note] deriving (Show)
 data Note = Note {
-    note_pitch :: Int
-    , note_inst :: Int
-    , note_effects :: [Effect]
-    }
-    deriving (Show)
-type Effect = (Int, Int)
+    _start :: !TrackTime
+    , _duration :: !TrackTime
+    , _instrument :: !M.Instrument
+    -- | Note call text.
+    , _call :: !Text
+    , _pitch :: !Pitch.NoteNumber
+    , _controls :: !(Map Control [Event.Event])
+    } deriving (Eq, Show)
 
-add_default_volume :: Int -> Int -> Note -> Note
-add_default_volume inst vol note@(Note pitch note_inst effects)
-    | pitch /= 0 && note_inst == inst && not has_vol =
-        note { note_effects = (fx_volume, vol) : effects }
-    | otherwise = note
-    where has_vol = any ((==fx_volume) . fst) effects
+type LineNum = Double
 
-map_block :: (Note -> Note) -> Block -> Block
-map_block f (Block rows) = Block (map map_row rows)
-    where map_row (Row notes) = Row (map f notes)
-
-with_fx blocks = filter (not . null . note_effects)
-    (concatMap block_notes blocks)
-
-block_notes :: Block -> [Note]
-block_notes = concatMap row_notes . block_rows
+-- |
+-- - Lookup instrument.
+convert_track :: State -> LineNum -> [M.Line] -> [Note]
+convert_track state block_len = go . zip [0..]
     where
-    block_rows (Block rows) = rows
-    row_notes (Row notes) = notes
+    go ((_, M.Line Nothing _ _) : lines) = go lines
+    go ((linenum, M.Line (Just pitch) instnum cmds) : lines) =
+        convert_note block_len (_tempo state) instrument linenum pitch
+            cmds lines
+        : go lines
+        where
+        instrument = fromMaybe no_instrument $
+            IntMap.lookup instnum (_instruments state)
+        no_instrument = M.Instrument (ScoreTypes.Instrument (showt instnum))
+            Nothing
+    go [] = []
 
-parse :: FilePath -> IO (Either Text [Block])
-parse fn = ParseText.parse p_blocks <$> Text.IO.readFile fn
+-- |
+-- Figure out note duration: min of time until next line with Pitch>0, or 0fff,
+-- or...?  Convert Pitch. Collect cmds and convert to Command.
+--
+-- Convert 0d to linear, 01 02 to pitch 'u' or 'd', 03 to pitch linear.
+--
+-- - Interpret timing cmds like 1f.
+convert_note :: LineNum -> M.Tempo -> M.Instrument -> LineNum
+    -> Pitch.NoteNumber -> [M.Command] -> [(LineNum, M.Line)] -> Note
+convert_note block_len tempo instrument linenum pitch cmds lines = Note
+    { _start = start
+    , _duration = end - start
+    , _instrument = instrument
+    , _call = note_call (M._frames tempo) cmds
+    , _pitch = pitch
+    , _controls = Map.fromListWith (Seq.merge_on Event.start) $
+        convert_commands instrument start cmds $
+        takeWhile ((==Nothing) . cut_note) lines
+    }
+    where
+    start = line_start linenum
+    end = fromMaybe (line_start block_len) $ msum (map cut_note lines)
 
-p_blocks = A.many p_block
-p_block = Block <$> parens (A.many p_row)
-p_row = Row <$> parens (A.many p_note)
+note_call :: Int -> [M.Command] -> Text
+note_call frames cmds =
+    Text.strip $ Text.intercalate " | " $ Maybe.catMaybes [d, r, Just ""]
+    where
+    d = if delay == 0 then Nothing else
+        Just $ "d " <> showt delay <> "/" <> showt (frames * lines_per_t) <> "t"
+    r = Nothing -- TODO?
+    (delay, _repeat) = fromMaybe (0, 0) $
+        Seq.head [(delay, repeat) | M.DelayRepeat delay repeat <- cmds]
 
-p_note :: A.Parser Note
-p_note = parens $ do
-    pitch <- number
-    inst <- number
-    _vol <- number
-    fx1 <- p_effects
-    fx2 <- p_effects
-    return $ Note pitch inst (filter ((/=0) . fst) [fx1, fx2])
+convert_commands :: M.Instrument -> TrackTime -> [M.Command]
+    -> [(LineNum, M.Line)] -> [(Control, [Event.Event])]
+convert_commands instrument start cmds lines = group_controls controls
+    where
+    inst_vol = fromMaybe 1 $ M._volume instrument
+    volume = if null [() | M.Volume _ <- cmds] then [M.Volume inst_vol] else []
+    controls = map (start,) (commands_to_controls (volume ++ cmds))
+        ++ concatMap line_controls lines
+    line_controls (linenum, line) = map (line_start linenum,) $
+        commands_to_controls (M._commands line)
 
-p_effects = parens ((,) <$> number <*> number)
-parens = ParseText.between
-    (ParseText.lexeme (A.char '(')) (ParseText.lexeme (A.char ')'))
-number = ParseText.lexeme ParseText.p_nat
+group_controls :: [(TrackTime, (CommandType, Control, Text))]
+    -> [(Control, [Event.Event])]
+group_controls controls =
+    map make_control $ Seq.keyed_group_sort (key . snd) controls
+    where
+    make_control (Left control, vals) =
+        (control, [Event.event start 0 call | (start, (_, _, call)) <- vals])
+    make_control (Right (control, call), vals) =
+        ( control
+        , [Event.event t (last run + one_line - t) call | run@(t:_) <- runs]
+        )
+        where
+        runs = Seq.split_between (\t1 t2 -> t2 > t1 + one_line) (map fst vals)
+        one_line = 1 / fromIntegral lines_per_t
+    -- All Singles are in one group so they each get a 0 dur event.
+    key (Single, control, _) = Left control
+    key (Grouped, control, call) = Right (control, call)
+
+type Control = Text
+data Call = Call !Text !Double
+    deriving (Eq, Ord, Show)
+
+-- | Single cmds emit a single 0 dur event.  Grouped cmds emit an event with
+-- the given duration as long as they stay the same.
+data CommandType = Single | Grouped
+    deriving (Eq, Ord, Show)
+
+commands_to_controls :: [M.Command] -> [(CommandType, Control, Text)]
+commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
+    where
+    convert (cmds, c) = case c of
+        -- The slope is not accurate, and I'd need a ScoreTime slope for 'u'
+        -- and 'd' to make it accurate.  Too much bother.
+        M.VolumeSlide val
+            | vol : _ <- [vol | M.Volume vol <- cmds] -> Just
+                ( Grouped
+                , c_dyn
+                , "from=" <> ShowVal.show_hex_val vol
+                    <> " | " <> c <> " " <> show_val (abs val)
+                )
+            | otherwise -> Just (Grouped, c_dyn, c <> " " <> show_val (abs val))
+            where c = if val >= 0 then "u" else "d"
+        M.Volume val
+            | null [() | M.VolumeSlide _ <- cmds] ->
+                Just (Single, c_dyn, ShowVal.show_hex_val val)
+            | otherwise -> Nothing
+        M.Command cmd val ->
+            Just (Single, "cmd", "--|" <> Num.hex 2 cmd <> Num.hex 2 val)
+        _ -> Nothing
+
+c_dyn, c_pitch :: Control
+c_dyn = "dyn"
+c_pitch = "*"
+
+cut_note :: (LineNum, M.Line) -> Maybe TrackTime
+cut_note (linenum, line)
+    | Just _ <- M._pitch line = Just $ line_start linenum
+    | M.CutNote `elem` M._commands line = Just $ line_start linenum
+    | M.CutBlock `elem` M._commands line = Just $ line_start (linenum+1)
+    | otherwise = Nothing
+
+line_start :: LineNum -> TrackTime
+line_start = (/ fromIntegral lines_per_t) . ScoreTime.double
+
+-- | Lines per 1 TrackTime.
+lines_per_t :: Int
+lines_per_t = 8
