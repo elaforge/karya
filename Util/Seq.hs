@@ -619,9 +619,9 @@ span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
 span_while f = go
     where
     go [] = ([], [])
-    go (x:xs) = case f x of
-        Nothing -> ([], x : xs)
-        Just y -> let (ys, rest) = go xs in (y:ys, rest)
+    go (a:as) = case f a of
+        Just b -> Arrow.first (b:) (go as)
+        Nothing -> ([], a : as)
 
 -- | 'span_while' from the end of the list.
 span_end_while :: (a -> Maybe b) -> [a] -> ([a], [b])

@@ -86,8 +86,8 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
 
 c_13_11_19 :: Korvai
 c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi $ mconcat
-    [ repeat 3 sarva . theme
-    , sarva . theme . sarva . theme
+    [ __sam adi theme
+    , __a 4 theme . __a 4 theme
     , repeat 4 theme -- every other is pd k instead of D k
     ]
     where
@@ -96,7 +96,6 @@ c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi $ mconcat
     sarva_lh = o.__2.o.__2.o.__
     theme = n . su (k.t.o.k) . od.n.__.od.k
     -- nang kitattakadin tat.__.din.ka
-    -- TODO use pad
 
 -- ** tisram
 
@@ -158,8 +157,8 @@ nadindin_negative = sarvalaghu $ korvai adi $ map sd
     where
     -- For this to work right, I need the the duration of each note to be
     -- negative.
-    rh1 = su n . d.d.n
-    lh1 = su o . o.o.o
+    rh1 = su (n.d) . d.n -- should be: su n . d.d.n
+    lh1 = su (o.o) . o.o -- should be: su o . o.o.o
     rh = d.d.n.n
     lh = o.o.o.o
 

@@ -10,8 +10,10 @@
 module Derive.Solkattu.Sequence (
     Note(..), TempoChange(..)
     , Duration, Matra, Speed, Nadai, speed_factor
-    , slower, faster
+    , change_speed
     , HasMatras(..)
+    -- * transform
+    , simplify
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
@@ -31,6 +33,7 @@ import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Derive.Solkattu.Tala as Tala
 import Global
 
@@ -75,14 +78,41 @@ speed_factor s
     | s > 0 = 2^s
     | otherwise = 1 / (2 ^ abs s)
 
-slower, faster :: [Note a] -> Note a
-slower = TempoChange (ChangeSpeed (-1))
-faster = TempoChange (ChangeSpeed 1)
+change_speed :: Speed -> [Note a] -> Note a
+change_speed = TempoChange . ChangeSpeed
 
 class HasMatras a where
     matras_of :: a -> Matra
 
--- ** realize
+-- * transform
+
+-- | Drop empty TempoChanges, combine nested ones.
+simplify :: [Note a] -> [Note a]
+simplify = merge . concatMap cancel
+    where
+    cancel (Note a) = [Note a]
+    cancel (TempoChange _ []) = []
+    cancel (TempoChange (ChangeSpeed s) xs) | s == 0 = xs
+    cancel (TempoChange (ChangeSpeed s) xs) = concatMap (cancel_speed s) xs
+    cancel (TempoChange (Nadai n) xs) = concatMap (cancel_nadai n) xs
+
+    cancel_speed s1 (TempoChange (ChangeSpeed s2) xs) =
+        cancel (TempoChange (ChangeSpeed (s1+s2)) xs)
+    cancel_speed s1 x = [TempoChange (ChangeSpeed s1) [x]]
+    cancel_nadai _ (TempoChange (Nadai n) xs) =
+        cancel (TempoChange (Nadai n) xs)
+    cancel_nadai n x = [TempoChange (Nadai n) [x]]
+
+    -- Merge adjacent TempoChanges.
+    merge (TempoChange c sub : ns) =
+        TempoChange c (concat (sub : same)) : merge rest
+        where (same, rest) = Seq.span_while (same_change c) ns
+    merge (Note a : ns) = Note a : merge ns
+    merge [] = []
+    same_change change (TempoChange c ns) | change == c = Just ns
+    same_change _ _ = Nothing
+
+-- * realize
 
 notes :: [Note a] -> [a]
 notes = map snd . flatten
@@ -93,8 +123,7 @@ flatten = flatten_with default_tempo
 flatten_with :: Tempo -> [Note a] -> [(Tempo, a)]
 flatten_with tempo = concatMap $ \n -> case n of
     Note note -> [(tempo, note)]
-    TempoChange change notes ->
-        flatten_with (change_tempo change tempo) notes
+    TempoChange change notes -> flatten_with (change_tempo change tempo) notes
 
 -- | Calculate Tala position for each note.
 tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]

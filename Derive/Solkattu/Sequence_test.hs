@@ -6,7 +6,7 @@
 module Derive.Solkattu.Sequence_test where
 import Util.Test
 import qualified Derive.Solkattu.Sequence as Sequence
-import Derive.Solkattu.Sequence (Note(..), default_tempo, faster, slower)
+import Derive.Solkattu.Sequence (Note(..), default_tempo)
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
@@ -15,7 +15,7 @@ import Global
 test_flatten = do
     let f = map fst . Sequence.flatten
     equal (f [note]) [default_tempo]
-    equal (f [note, faster [note], note])
+    equal (f [note, su [note], note])
         [default_tempo, Sequence.Tempo 1 4, default_tempo]
 
 test_tempo_to_state = do
@@ -29,8 +29,7 @@ test_tempo_to_state = do
         [(0, 0), (0, 1/4), (0, 2/4), (0, 4/6), (0, 5/6), (1, 0), (1, 1/4)]
 
     -- Change speed.
-    equal (f [TempoChange (Sequence.ChangeSpeed (-1)) [note, note],
-            TempoChange (Sequence.ChangeSpeed 2) [note, note]])
+    equal (f [speed (-1) [note, note], speed 2 [note, note]])
         [(0, 0), (0, 1/2), (1, 0), (1, 1/16)]
 
 test_normalize_speed = do
@@ -39,22 +38,38 @@ test_normalize_speed = do
             . Sequence.flatten
         n matras = Sequence.Note (matras :: Sequence.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
-    equal (f [slower [n 1, n 1]])
+    equal (f [sd [n 1, n 1]])
         [((0, 0), '+'), ((0, 1/4), '_'), ((0, 2/4), '+'), ((0, 3/4), '_')]
-    equal (f [faster [n 1, n 1], n 1, n 1])
+    equal (f [su [n 1, n 1], n 1, n 1])
         [ ((0, 0), '+'), ((0, 1/8), '+')
         , ((0, 2/8), '+'), ((0, 3/8), '_')
         , ((0, 4/8), '+'), ((0, 5/8), '_')
         ]
     equal (f [nadai 5 [n 1, n 1]]) [((0, 0), '+'), ((0, 1/5), '+')]
     equal (f [n 2, n 1]) [((0, 0), '+'), ((0, 1/4), '-'), ((0, 2/4), '+')]
-    equal (f [faster [n 1], n 2])
+    equal (f [su [n 1], n 2])
         [ ((0, 0), '+')
         , ((0, 1/8), '+'), ((0, 2/8), '-'), ((0, 3/8), '-'), ((0, 4/8), '-')
         ]
-    equal (map snd $ f [faster [faster [n 1]], n 1]) "++___"
+    equal (map snd $ f [su [su [n 1]], n 1]) "++___"
 
-    equal (map snd $ f [slower [n 1, n 2, n 1]]) "+_+---+_"
+    equal (map snd $ f [sd [n 1, n 2, n 1]]) "+_+---+_"
+
+test_simplify = do
+    let f = Sequence.simplify
+    equal (f [su [note, note]]) [su [note, note]]
+    equal (f [su [note], su [note]]) [su [note, note]]
+
+    equal (f [su [su [note]], note]) [speed 2 [note], note]
+    equal (f [su [sd [note]], note]) [note, note]
+    equal (f [su [], note]) [note]
+    equal (f [su [sd [note], sd [note]]]) [note, note]
+
+    equal (f [nadai 1 [nadai 2 [note], nadai 1 [note]]])
+        [nadai 2 [note], nadai 1 [note]]
+
+    equal (f [speed (-2) [speed 1 [note], speed 2 [note]]])
+        [speed (-1) [note], note]
 
 pretty_stroke :: Sequence.Stroke a -> Char
 pretty_stroke s = case s of
@@ -74,3 +89,9 @@ instance Sequence.HasMatras Sequence.Matra where
 
 nadai :: Sequence.Nadai -> [Note a] -> Note a
 nadai = TempoChange . Sequence.Nadai
+
+speed :: Sequence.Speed -> [Note a] -> Note a
+speed = Sequence.change_speed
+
+su = speed 1
+sd = speed (-1)

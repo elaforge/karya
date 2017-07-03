@@ -75,7 +75,7 @@ nang_kita_nakatiku :: Seq stroke
 nang_kita_nakatiku = nang.__.ki.ta.nakatiku
 
 e_spacing :: Korvai
-e_spacing = exercise $ korvai adi (make_mridangam []) $ map (align adi) $
+e_spacing = exercise $ korvai adi (make_mridangam []) $ map (__sam adi) $
     map su $ concat
         [ map arithmetic [p5, p6, p7, p8, p9]
         , map geometric [p5, p6, p7, p8, p9]

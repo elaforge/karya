@@ -519,8 +519,8 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
 -- * tirmanam
 
 tir_18 :: Korvai
-tir_18 = tirmanam $ korvai adi mridangam $ map (su • (pad 18 .))
-    [ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
+tir_18 = tirmanam $ korvai adi mridangam $ map su
+    [ __sam adi $ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     ]
     where
     mridangam = make_mridangam
@@ -533,9 +533,3 @@ tir_18 = tirmanam $ korvai adi mridangam $ map (su • (pad 18 .))
 
 rest :: Matra -> Seq stroke
 rest dur = repeat dur __
-
--- TODO this should take the sequence and align to the end
--- so I need duration_of plus rest by akshara
--- or matras_of and to know the nadai somehow
-pad :: Matra -> Seq stroke
-pad dur = repeat (64 - dur) __

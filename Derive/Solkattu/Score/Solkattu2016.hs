@@ -8,9 +8,6 @@ module Derive.Solkattu.Score.Solkattu2016 where
 import Prelude hiding ((.), (^), repeat)
 
 import Derive.Solkattu.SolkattuGlobal
-import qualified Derive.Solkattu.Tala as Tala
-
-import Global
 
 
 c_16_09_28 :: Korvai

@@ -253,4 +253,4 @@ patterns = Realize.patterns . (default_nakatiku++)
     . map (first Solkattu.PatternM)
 
 su :: [Sequence.Note a] -> [Sequence.Note a]
-su = (:[]) . Sequence.faster
+su = (:[]) . Sequence.change_speed 1

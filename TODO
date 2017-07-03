@@ -1862,6 +1862,20 @@ Derive:
           . Or use replaceEnd?  But I would want to be able to split rests,
             so maybe extend replaceEnd to do that.
           . So sarva should split like rests.
+          * First implement pad for rests.
+            . One way:
+              rest (4*4) `replaceEnd` theme . rest (4*4) `replaceEnd` theme
+            . Another way:
+              endAt 4 __ theme . endAt 8 __ theme
+            . #1 requires me to calculate the duration manually, is
+              dependent on tempo, and replaceEnd needs to split rests.
+            . #2 is higher level, but requires some special support for
+              alignment.
+          - Add absolute SetSpeed, otherwise restD and __sam can't work under
+            a tempo change.
+            . Couldn't I use this to make all the *D functions work in
+              absolute Durations?
+          - Add a flag to Rest that makes it Sarvalaghu.
         ? Sarvalaghu patterns are end-weighted.  How could I integrate that?
           . I can just add a rest to the beginning, but I still need to
             take duration from the previous note, e.g.
@@ -1869,14 +1883,12 @@ Derive:
             should be ' d d n nnd d n n'
         * Split Dsl.Score up by year, to keep modules small and so the
           line_numbers don't keep changing.
-        - Set patterns like Nakatiku and Taka don't behave with spread.
-          They should be sollus like any other, but with a standard
-          realization.
         - 'pad' should be able to align a tirmanam to sam
           . Since it's used at the top level I can assume speed 0, but I still
             don't know the tala or nadai.
           . Maybe I can attach a flag to the Sequence, which triggers a
             align step before verify_alignment.
+          . Or maybe it's a flag on Align.
         * Allow korvais to include the final note on sam, since it's sometimes
           more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
           tri_ (din . su kitataka) tat.  Ignore trailing rests, so
@@ -1890,15 +1902,29 @@ Derive:
         ? rename tri to tir, for tirmanam?
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.
-        - I want results of reductions or expansions to be recognized as
-          Patterns for the purpose of variation.  So I think they have to have
-          score representation, for this and for strokes.
-        . If I have a generalized way to notate patterns as a duration
-          plus a possible specific realization, I should be able to unify it
-          with Pattern.  So p5 is just a 5 without sollus, but takadinna is
-          a 4 with sollus.  I already have this actually, but I don't preserve
-          the group boundaries.  So maybe I can have
-          'Group Matras (Maybe (Reduction (Front|Back))) Sequence'
+        groups:
+          - I want results of reductions or expansions to be recognized as
+            Patterns for the purpose of variation.  So I think they have to have
+            score representation, for this and for strokes.
+          . If I have a generalized way to notate patterns as a duration
+            plus a possible specific realization, I should be able to unify it
+            with Pattern.  So p5 is just a 5 without sollus, but takadinna is
+            a 4 with sollus.  I already have this actually, but I don't preserve
+            the group boundaries.  So maybe I can have
+            'Group Matras (Maybe (Reduction (Front|Back))) Sequence'
+          - Reduce leads to fragmented sollu sequences, whose strokes then need
+            to be enumerated.  It should be able to figure out the strokes as
+            a suffix of an existing one, but I'd need to tag the sollu with
+            the whole sequence with n dropped.  Realize would then match the
+            whole sequence and drop the same number of matras.
+            . Also maybe it can apply special reduction rules, e.g. if ktk is
+              reduced to tk, it should be played kk.
+            . Also maybe I can use this to use this to emphasize the starts of
+              sections, though the reduce function could also put a tag on the
+              first note.
+          - Set patterns like Nakatiku and Taka don't behave with spread.
+            They should be sollus like any other, but with a standard
+            realization.
         - Ornaments to fill in karvai, e.g. with taka and takatiku
         - Alternate karvai stroke for middle karvai variation.
         - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
@@ -1913,16 +1939,6 @@ Derive:
         - I should be able to add multiple realizations of the same
           instrument, keyed by string, e.g. for different mridangists
           realizations.
-        - Reduce leads to fragmented sollu sequences, whose strokes then need
-          to be enumerated.  It should be able to figure out the strokes as
-          a suffix of an existing one, but I'd need to tag the sollu with
-          the whole sequence with n dropped.  Realize would then match the
-          whole sequence and drop the same number of matras.
-          . Also maybe it can apply special reduction rules, e.g. if ktk is
-            reduced to tk, it should be played kk.
-          . Also maybe I can use this to use this to emphasize the starts of
-            sections, though the reduce function could also put a tag on the
-            first note.
         - Duration assertions, e.g. dur 4 (ta.ka.din.na)
         reyong realization:
           - some way to select between melodic and rythmic realization, and

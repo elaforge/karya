@@ -284,8 +284,8 @@ mridangam = mempty
         M.instrument [(ta, [M.k M.notes])] M.default_patterns
     }
 
-sd = (:[]) . Sequence.slower
-su = (:[]) . Sequence.faster
+sd = (:[]) . Sequence.change_speed (-1)
+su = (:[]) . Sequence.change_speed 1
 
 nadai :: Sequence.Nadai -> [Sequence.Note a] -> Sequence.Note a
 nadai n = Sequence.TempoChange (Sequence.Nadai n)

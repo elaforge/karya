@@ -119,6 +119,3 @@ default_patterns_emphasis =
 nakatiku :: (Solkattu.Pattern, [SNote])
 nakatiku = (Solkattu.Nakatiku, [t, o, u, k, p, k, a, k])
     where Strokes {..} = notes
-
-s2 :: [Sequence.Note a] -> [Sequence.Note a]
-s2 = (:[]) . Sequence.faster

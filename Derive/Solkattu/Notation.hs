@@ -34,17 +34,18 @@ takeD dur = fst . splitD dur
 
 splitD :: CallStack.Stack => Duration -> Sequence stroke
     -> (Sequence stroke, Sequence stroke)
-splitD dur = snd . go S.default_tempo dur
+splitD dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
     where
     go _ _ [] = (0, ([], []))
     go tempo dur (n:ns)
         | dur <= 0 = (0, ([], n:ns))
         | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
         | S.TempoChange change subs <- n = tempo_change tempo dur change subs ns
+        | S.Note Solkattu.Rest <- n =
+            (0, (restD tempo dur, restD tempo (ndur - dur) <> ns))
         -- TODO drop a Pattern, replace with rests
         -- or just error
-        | otherwise = errorStack $
-            "can't split on a fractional duration: " <> pretty dur
+        | otherwise = errorStack $ "can't split a note: " <> pretty (dur / ndur)
         where ndur = S.note_duration tempo n
     tempo_change tempo dur change subs ns
         | dur_left <= 0 =
@@ -63,6 +64,27 @@ rdropD dur = reverse . dropD dur . reverse
 
 rtakeD :: Duration -> Sequence stroke -> Sequence stroke
 rtakeD dur = reverse . takeD dur . reverse
+
+restD :: CallStack.Stack => S.Tempo -> Duration -> Sequence stroke
+restD tempo dur = concatMap generate $ decompose s0_matras
+    where
+    generate s = speed (s - S.speed tempo) [S.Note Solkattu.Rest]
+    -- Cancel out the nadai.  So d is now in s0 matras.
+    s0_matras = dur * fromIntegral (S.nadai tempo)
+
+-- | Given a duration, return the speeds needed to add up to that duration.
+-- Crash if the speed went past 4, which means the duration probably isn't
+-- binary.
+decompose :: CallStack.Stack => Duration -> [S.Speed]
+decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
+    where
+    go speed left
+        | left == 0 = []
+        | speed > 4 = errorStack $ "not a binary multiple: " <> pretty dur
+        | matra <= left = speed : go (speed+1) (left - matra)
+        | otherwise = go (speed+1) left
+        -- where factor = S.speed_factor speed
+        where matra = 1 / S.speed_factor speed
 
 reverse :: [S.Note a] -> [S.Note a]
 reverse = map sub . Prelude.reverse
@@ -132,16 +154,20 @@ reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
 expand :: Int -> Matra -> Sequence stroke -> [Sequence stroke]
 expand times dur = Prelude.reverse . take times . iterate (dropM dur)
 
-replaceEnd :: Sequence stroke -> Sequence stroke -> Sequence stroke
+replaceEnd :: CallStack.Stack => Sequence stroke -> Sequence stroke
+    -> Sequence stroke
 replaceEnd seq suffix = rdropD (Solkattu.duration_of suffix) seq <> suffix
 
-replaceStart :: Sequence stroke -> Sequence stroke -> Sequence stroke
+replaceStart :: CallStack.Stack => Sequence stroke -> Sequence stroke
+    -> Sequence stroke
 replaceStart prefix seq = prefix <> dropD (Solkattu.duration_of prefix) seq
 
--- | Increase speed by a multiple by incrementing Speeds.
+-- | Set relative speed.
 speed :: S.Speed -> [S.Note stroke] -> [S.Note stroke]
 speed _ [] = []
-speed change seq = [S.TempoChange (S.ChangeSpeed change) seq]
+speed change seq
+    | change == 0 = seq
+    | otherwise = [S.TempoChange (S.ChangeSpeed change) seq]
 
 -- | Mnemonic: speed up, slow down.
 su, sd :: [S.Note stroke] -> [S.Note stroke]
@@ -158,25 +184,14 @@ matra_duration = S.matra_duration S.default_tempo
 
 -- * align
 
--- | Align to the end of the avartanam.
-align :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
-align tala seq = restD nadai (fromIntegral end - dur) <> seq
+-- | Align to the end of the avartanam, with rests.
+__sam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
+__sam tala seq = __a (fromIntegral end) seq
     where
-    nadai = S.nadai S.default_tempo
     dur = Solkattu.duration_of seq
-    end = Num.roundUp aksharas dur
     aksharas = sum (Tala.tala_aksharas tala)
+    end = Num.roundUp aksharas dur
 
--- | Rest for a certain Duration.
-restD :: CallStack.Stack => S.Nadai -> Duration -> Sequence stroke
-restD nadai aksharas
-    | length matras == 4 =
-        errorStack $ pretty aksharas <> " aksharas can't be represented at s2"
-    | otherwise = rest matras
-    where
-    rest (m:ms) = map S.Note (replicate m Solkattu.Rest) <> su (rest ms)
-    rest [] = mempty
-    matras = take 4 $ decompose (aksharas * fromIntegral nadai)
-    decompose :: Duration -> [Matra]
-    decompose dur = int : if frac == 0 then [] else decompose (frac * 2)
-        where (int, frac) = properFraction dur
+-- | Align to the end of the given number of aksharams.
+__a :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
+__a dur seq = replaceEnd (restD S.default_tempo dur) seq

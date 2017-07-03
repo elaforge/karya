@@ -15,6 +15,7 @@ import qualified Derive.Solkattu.Realize as Realize
 
 import Global
 
+
 test_all = do
     forM_ All.korvais $ \korvai -> case realize korvai of
         Right _ -> return True
