@@ -21,7 +21,14 @@ import qualified Data.Aeson as Aeson
 
 -- | Add this to the context of a function to give stack-aware functions access
 -- to its caller.
-type Stack = (?stack :: Stack.CallStack)
+#if GHC_VERSION < 80000
+type Stack = (?callStack :: Stack.CallStack)
+#else
+type Stack = Stack.HasCallStack
+#endif
+
+callStack :: Stack => Stack.CallStack
+callStack = ?callStack
 
 -- | Simplified stack with just the immediate caller.
 data Caller = Caller !FilePath !Int | NoCaller deriving (Eq, Show, Read)
@@ -53,13 +60,13 @@ showStack :: Stack.CallStack -> Text.Text
 showStack = showCaller . caller
 
 getStack :: Stack => Text.Text
-getStack = showStack ?stack
+getStack = showStack ?callStack
 
 -- | Just like 'error', except show the caller's location.
 errorStack :: Stack => Text.Text -> a
-errorStack msg = error $ Text.unpack $ showStack ?stack <> ": " <> msg
+errorStack msg = error $ Text.unpack $ showStack ?callStack <> ": " <> msg
 
 -- | Like 'errorStack', except run in IO.
 errorIO :: Stack => Trans.MonadIO m => Text.Text -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
-    . Text.unpack . ((showStack ?stack <> ": ") <>)
+    . Text.unpack . ((showStack ?callStack <> ": ") <>)

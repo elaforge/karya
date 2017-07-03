@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Control flow and monadic utilities.
 module Util.Control (
     module Util.Control, module Control.Monad.Extra, module Util.CallStack

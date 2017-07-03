@@ -5,7 +5,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Basic testing utilities.
@@ -355,7 +354,8 @@ expect_right (Right v) = v
 
 -- | Like 'error', but with the caller's position.
 error_stack :: Stack => String -> a
-error_stack msg = error $ Text.unpack (show_stack "" ?stack) <> ": " <> msg
+error_stack msg =
+    error $ Text.unpack (show_stack "" Stack.callStack) <> ": " <> msg
 
 -- * profiling
 
@@ -401,13 +401,13 @@ pprint val = s `DeepSeq.deepseq` putStr s
 -- | Print a msg with a special tag indicating a passing test.
 success :: Stack => Text -> IO Bool
 success msg = do
-    print_test_line ?stack success_color "++-> " msg
+    print_test_line Stack.callStack success_color "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
 failure :: Stack => Text -> IO Bool
 failure msg = do
-    print_test_line ?stack failure_color "__-> " msg
+    print_test_line Stack.callStack failure_color "__-> " msg
     return False
 
 print_test_line :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()

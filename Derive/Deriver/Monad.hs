@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
-{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE DeriveFunctor #-}
 {- | Implementation for the Deriver monad.
 
@@ -272,7 +271,7 @@ throw_arg_error = throw_error . CallError . ArgError
 throw_error :: CallStack.Stack => ErrorVal -> Deriver a
 throw_error err = do
     stack <- gets (state_stack . state_dynamic)
-    DeriveM.throw (Error ?stack stack err)
+    DeriveM.throw (Error CallStack.callStack stack err)
 
 
 -- * derived types

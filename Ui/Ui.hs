@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -325,7 +324,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     throw_error = StateT . lift . lift . Except.throwError
 
 throw :: (CallStack.Stack, M m) => Text -> m a
-throw msg = throw_error $ Error ?stack msg
+throw msg = throw_error $ Error CallStack.callStack msg
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get

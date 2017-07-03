@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ImplicitParams #-}
 -- | A static macro is like a "Derive.Call.Macro", except that its calls
 -- are given directly in haskell, instead of looked up as strings during
 -- evaluation.  This means that the calls can't be rebound, but on the other

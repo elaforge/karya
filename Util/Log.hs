@@ -4,7 +4,6 @@
 
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveGeneric, BangPatterns #-}
-{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status
@@ -231,7 +230,7 @@ data Priority =
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
 msg :: CallStack.Stack => Priority -> Maybe Stack.Stack -> Text -> Msg
-msg = msg_call_stack ?stack
+msg = msg_call_stack CallStack.callStack
 
 -- | Like 'msg' but when you already have a CallStack.
 msg_call_stack :: GHC.Stack.CallStack -> Priority -> Maybe Stack.Stack -> Text
