@@ -74,7 +74,7 @@ test_simplify = do
 pretty_stroke :: Sequence.Stroke a -> Char
 pretty_stroke s = case s of
     Sequence.Attack _ -> '+'
-    Sequence.Sustain -> '-'
+    Sequence.Sustain {} -> '-'
     Sequence.Rest -> '_'
 
 
@@ -86,6 +86,7 @@ note = Sequence.Note 1
 
 instance Sequence.HasMatras Sequence.Matra where
     matras_of = id
+    has_duration n = n > 1
 
 nadai :: Sequence.Nadai -> [Note a] -> Note a
 nadai = TempoChange . Sequence.Nadai

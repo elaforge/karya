@@ -77,15 +77,21 @@ type Error = Text
 
 data Note stroke =
     Note (NoteT stroke)
-    | Rest
+    | Space !Space
     | Pattern !Pattern
     | Alignment !Tala.Akshara
     deriving (Eq, Ord, Show, Functor)
 
+-- | A note that can take up a variable amount of space.  Since it doesn't have
+-- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
+data Space = Rest | Sarva
+    deriving (Eq, Ord, Show)
+
 instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
         Note note -> pretty note
-        Rest -> "__"
+        Space Rest -> "__"
+        Space Sarva -> "=="
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
@@ -134,17 +140,22 @@ modify_stroke f = modify_note (\n -> n { _stroke = f (_stroke n) })
 modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
 modify_note f n = case n of
     Note note -> Note (f note)
-    Rest -> Rest
+    Space space -> Space space
     Pattern p -> Pattern p
     Alignment n -> Alignment n
 
 instance S.HasMatras (Note stroke) where
-    matras_of s = case s of
+    matras_of n = case n of
         -- Karvai notes are cancelled out, so they logically have 0 duration.
         Note note -> if _karvai note then 0 else 1
-        Rest -> 1
+        Space {} -> 1
         Pattern p -> S.matras_of p
         Alignment {} -> 0
+    has_duration n = case n of
+        Note {} -> False
+        Space {} -> True
+        Pattern {} -> True
+        Alignment {} -> False
 
 instance S.HasMatras Pattern where
     matras_of p = case p of
@@ -152,6 +163,7 @@ instance S.HasMatras Pattern where
         Nakatiku -> 8
         Taka -> 2
         Takanaka -> 4
+    has_duration _ = True
 
 data Pattern =
     PatternM !S.Matra
@@ -198,7 +210,7 @@ duration_of = sum . map (S.note_duration S.default_tempo)
 
 -- * functions
 
--- | A Karvai Note followed by a Rest will replace the rest, if followed by
+-- | A Karvai Note followed by a Space will replace the rest, if followed by
 -- a Note or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
 -- logically has no duration, if it's the last note it will be dropped
 -- entirely.
@@ -214,7 +226,8 @@ cancel_karvai = go
 
 drop_next_rest :: [(a, Note stroke)] -> (Bool, [(a, Note stroke)])
 drop_next_rest (n : ns) = case snd n of
-    Rest -> (True, ns)
+    Space Rest -> (True, ns)
+    Space Sarva -> (False, n:ns)
     Note {} -> (False, n:ns)
     Pattern {} -> (False, n:ns)
     Alignment {} -> second (n:) $ drop_next_rest ns
@@ -238,7 +251,7 @@ verify_alignment tala notes =
             (++[Left $ "korvai should end on or before sam: "
                 <> S.show_position final_state])
         where
-        final_note = fst <$> List.find (not . is_rest . snd) (reverse states)
+        final_note = fst <$> List.find (not . is_space . snd) (reverse states)
     strip (Right Nothing) = Nothing
     strip (Right (Just x)) = Just (Right x)
     strip (Left x) = Just (Left x)
@@ -247,8 +260,8 @@ verify_alignment tala notes =
         | otherwise = Left $ "expected akshara " <> showt akshara
             <> ", but at " <> S.show_position state
     verify (state, note) = Right $ Just (state, note)
-    is_rest Rest = True
-    is_rest _ = False
+    is_space (Space _) = True
+    is_space _ = False
     at_akshara akshara state =
         S.state_akshara state == akshara && S.state_matra state == 0
 

@@ -158,7 +158,7 @@ realize_mstroke ctx = fmap (Eval.eval_expr_text ctx) . stroke_expr
 stroke_expr :: Realize.Note Mridangam.Stroke -> Maybe (Expr.Expr Text)
 stroke_expr stroke = case stroke of
     Realize.Note stroke -> Just $ Expr.to_expr stroke
-    Realize.Rest -> Nothing
+    Realize.Space {} -> Nothing
     Realize.Pattern p -> Just $ Expr.to_expr p
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int

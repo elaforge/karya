@@ -53,4 +53,4 @@ lang = sollu Lang
 dinga = din <> __ <> ga
 
 __ :: Sequence a
-__ = make_note Solkattu.Rest
+__ = make_note (Solkattu.Space Solkattu.Rest)

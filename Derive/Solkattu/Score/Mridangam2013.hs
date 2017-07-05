@@ -86,8 +86,8 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
 
 c_13_11_19 :: Korvai
 c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi $ mconcat
-    [ __sam adi theme
-    , __a 4 theme . __a 4 theme
+    [ sarvaSam adi theme
+    , sarvaA 4 theme . sarvaA 4 theme
     , repeat 4 theme -- every other is pd k instead of D k
     ]
     where

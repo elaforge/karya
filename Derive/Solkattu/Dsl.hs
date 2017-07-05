@@ -77,8 +77,10 @@ make_note a = [S.Note a]
 -- ** sollus
 
 class Rest a where __ :: a
-instance Rest (Sequence stroke) where __ = make_note Solkattu.Rest
-instance Rest (Realize.SNote stroke) where __ = S.Note Realize.Rest
+instance Rest (Sequence stroke) where
+    __ = make_note (Solkattu.Space Solkattu.Rest)
+instance Rest (Realize.SNote stroke) where
+    __ = Realize.rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
@@ -93,8 +95,6 @@ __7 = __n 7
 __8 = __n 8
 __9 = __n 9
 
--- | 'Realize.Note' is not a monoid like 'Sequence', so this can't emit
--- a Rest.
 __n :: Matra -> Sequence stroke
 __n n = repeat (n-1) __
 

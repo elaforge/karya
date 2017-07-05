@@ -83,6 +83,10 @@ change_speed = TempoChange . ChangeSpeed
 
 class HasMatras a where
     matras_of :: a -> Matra
+    -- | True if this note has a duration in time.  Otherwise, it's a single
+    -- stroke, which logically has zero duration.  So far, this only affects
+    -- how the note is drawn.
+    has_duration :: a -> Bool
 
 -- * transform
 
@@ -135,13 +139,13 @@ tempo_to_state tala = List.mapAccumL process initial_state
         next_state = advance_state_by tala
             (matra_duration tempo * fromIntegral (matras_of note)) state
 
-data Stroke a = Attack a | Sustain | Rest
+data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
 
 instance Pretty a => Pretty (Stroke a) where
     pretty s = case s of
         Attack a -> pretty a
-        Sustain -> "-"
+        Sustain _ -> "-"
         Rest -> "_"
 
 -- | Normalize to the fastest speed, then mark position in the Tala.
@@ -164,13 +168,9 @@ flatten_speed notes = (concatMap flatten notes, min_dur)
     where
     flatten (tempo, note) = map (nadai tempo,) $
         Attack note : replicate (spaces - 1)
-            (if has_duration then Sustain else Rest)
+            (if has_duration note then Sustain note else Rest)
         where
         spaces = matras_of note * 2 ^ (max_speed - speed tempo)
-        -- I don't actually distinguish between 0 dur and >0 dur notes, but
-        -- in practice only matras_of > 1 notes should be drawn with
-        -- a sustain line.
-        has_duration = matras_of note > 1
     -- The smallest duration is a note at max speed.
     min_dur = 1 / speed_factor max_speed
     max_speed = maximum $ 0 : map (speed . fst) notes

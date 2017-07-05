@@ -62,7 +62,7 @@ merge as bs
         | otherwise = make_note1 $
             Mridangam.both_rstrokes (to_stroke1 a) (to_stroke1 b)
     (pairs, trailing) = second (either id id) $ Seq.zip_remainder as bs
-    is_rest (Sequence.Note Solkattu.Rest) = True
+    is_rest (Sequence.Note (Solkattu.Space Solkattu.Rest)) = True
     is_rest _ = False
 
 to_stroke1 :: (CallStack.Stack, Pretty a) =>

@@ -38,11 +38,13 @@ test_realize = do
         t = M.Valantalai M.Ta
         od = M.Both M.Thom M.Din
         n = M.Valantalai M.Nam
-    equal (f [Rest, sollu Ta, Rest, Rest, sollu Din]) (Right "_ k _ _ D")
-    equal (f [pattern 5, Rest, sollu Ta, sollu Din]) (Right "p5 _ k D")
+        rest = Space Solkattu.Rest
+    equal (f [rest, sollu Ta, rest, rest, sollu Din]) (Right "_ k _ _ D")
+    equal (f (replicate 4 (Space Solkattu.Sarva))) (Right "= = = =")
+    equal (f [pattern 5, rest, sollu Ta, sollu Din]) (Right "p5 _ k D")
     equal (f [sollu Ta, sollu Ta]) (Right "t t")
     equal (f [sollu Din, sollu Ga]) (Right "D _")
-    equal (f [sollu Din, Rest, sollu Ga]) (Right "D _ _")
+    equal (f [sollu Din, rest, sollu Ga]) (Right "D _ _")
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
     let chapu = Just (Realize.stroke $ M.Valantalai M.Chapu)
@@ -104,8 +106,8 @@ test_patterns = do
     let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
-    equal (f [(2, Dsl.sd [k])]) (Right ())
-    equal (f [(2, Dsl.su [k, t, k, t])]) (Right ())
+    equal (f [(2, sd [k])]) (Right ())
+    equal (f [(2, su [k, t, k, t])]) (Right ())
     equal (f [(2, [k, t])]) (Right ())
 
 show_strokes :: [(tempo, Realize.Note M.Stroke)] -> Text
@@ -133,7 +135,7 @@ test_stroke_map = do
 
 test_format = do
     let f tala = e_format . format 80 tala . map (Sequence.default_tempo,)
-        n4 = [k, t, Realize.Rest, n]
+        n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
     -- Emphasize every 4.
@@ -284,6 +286,7 @@ mridangam = mempty
         M.instrument [(ta, [M.k M.notes])] M.default_patterns
     }
 
+sd, su :: [Sequence.Note a] -> [Sequence.Note a]
 sd = (:[]) . Sequence.change_speed (-1)
 su = (:[]) . Sequence.change_speed 1
 

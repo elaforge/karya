@@ -1855,6 +1855,8 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - transcribe: from 2013-11-12
+        - Realize.thin_rests doesn't work when there are multiple characters
+          per matra, because it gets __.
         - sarvalaghu substitution: this could be a variable-length pattern,
           e.g. sarva------->, which can be substituted with whatever
           sarvalaghu.
@@ -1875,8 +1877,8 @@ Derive:
             a tempo change.
             . Couldn't I use this to make all the *D functions work in
               absolute Durations?
-          - Add a flag to Rest that makes it Sarvalaghu.
-        ? Sarvalaghu patterns are end-weighted.  How could I integrate that?
+          * Add a flag to Rest that makes it Sarvalaghu.
+        ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
           . I can just add a rest to the beginning, but I still need to
             take duration from the previous note, e.g.
               d.d.n.n . su (n.d) .d.n.n

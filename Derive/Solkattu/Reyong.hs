@@ -96,7 +96,7 @@ standard_stroke_map = Realize.simple_stroke_map
 type Patterns = Realize.Patterns Stroke
 
 __ :: SNote
-__ = Sequence.Note Realize.Rest
+__ = Realize.rest
 
 melodic_nakatiku :: (Solkattu.Pattern, [SNote])
 melodic_nakatiku = (Solkattu.Nakatiku, [i, r3, i, r2, r3, i, r3, r2])

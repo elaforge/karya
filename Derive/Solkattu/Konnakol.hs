@@ -13,7 +13,7 @@ import Global
 
 
 note :: Sollu -> Realize.SNote Sollu
-note NoSollu = Sequence.Note Realize.Rest
+note NoSollu = Realize.rest
 note sollu = Sequence.Note (Realize.Note (Realize.stroke sollu))
 
 default_patterns :: Realize.Patterns Sollu

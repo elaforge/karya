@@ -159,7 +159,7 @@ both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 type Patterns = Realize.Patterns Stroke
 
 __ :: SNote
-__ = Sequence.Note Realize.Rest
+__ = Realize.rest
 
 default_nakatiku :: [(Solkattu.Pattern, [SNote])]
 default_nakatiku =

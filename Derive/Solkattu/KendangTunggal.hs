@@ -98,7 +98,7 @@ notes = Strokes
 type Patterns = Realize.Patterns Stroke
 
 __ :: SNote
-__ = Sequence.Note Realize.Rest
+__ = Realize.rest
 
 default_patterns :: Patterns
 default_patterns = Solkattu.check $ Realize.patterns $

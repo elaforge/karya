@@ -41,8 +41,8 @@ splitD dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
         | dur <= 0 = (0, ([], n:ns))
         | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
         | S.TempoChange change subs <- n = tempo_change tempo dur change subs ns
-        | S.Note Solkattu.Rest <- n =
-            (0, (restD tempo dur, restD tempo (ndur - dur) <> ns))
+        | S.Note (Solkattu.Space space) <- n =
+            (0, (spaceD space tempo dur, spaceD space tempo (ndur - dur) <> ns))
         -- TODO drop a Pattern, replace with rests
         -- or just error
         | otherwise = errorStack $ "can't split a note: " <> pretty (dur / ndur)
@@ -65,10 +65,15 @@ rdropD dur = reverse . dropD dur . reverse
 rtakeD :: Duration -> Sequence stroke -> Sequence stroke
 rtakeD dur = reverse . takeD dur . reverse
 
-restD :: CallStack.Stack => S.Tempo -> Duration -> Sequence stroke
-restD tempo dur = concatMap generate $ decompose s0_matras
+restD, sarvaD :: CallStack.Stack => S.Tempo -> Duration -> Sequence stroke
+restD = spaceD Solkattu.Rest
+sarvaD = spaceD Solkattu.Sarva
+
+spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
+    -> Sequence stroke
+spaceD space tempo dur = concatMap generate $ decompose s0_matras
     where
-    generate s = speed (s - S.speed tempo) [S.Note Solkattu.Rest]
+    generate s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
     -- Cancel out the nadai.  So d is now in s0 matras.
     s0_matras = dur * fromIntegral (S.nadai tempo)
 
@@ -186,12 +191,20 @@ matra_duration = S.matra_duration S.default_tempo
 
 -- | Align to the end of the avartanam, with rests.
 __sam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
-__sam tala seq = __a (fromIntegral end) seq
+__sam tala seq = __a (next_sam tala seq) seq
+
+next_sam :: Tala.Tala -> Sequence stroke -> S.Duration
+next_sam tala seq = fromIntegral $ Num.roundUp aksharas dur
     where
     dur = Solkattu.duration_of seq
     aksharas = sum (Tala.tala_aksharas tala)
-    end = Num.roundUp aksharas dur
 
 -- | Align to the end of the given number of aksharams.
 __a :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
 __a dur seq = replaceEnd (restD S.default_tempo dur) seq
+
+sarvaSam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
+sarvaSam tala seq = sarvaA (next_sam tala seq) seq
+
+sarvaA :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
+sarvaA dur seq = replaceEnd (sarvaD S.default_tempo dur) seq

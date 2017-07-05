@@ -30,7 +30,10 @@ import Global
 type SNote stroke = S.Note (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
-data Note stroke = Note (Stroke stroke) | Rest | Pattern !Solkattu.Pattern
+data Note stroke =
+    Note (Stroke stroke)
+    | Space !Solkattu.Space
+    | Pattern !Solkattu.Pattern
     deriving (Eq, Show, Functor)
 
 data Stroke stroke = Stroke {
@@ -51,6 +54,9 @@ instance Pretty stroke => Pretty (Stroke stroke) where
 stroke :: stroke -> Stroke stroke
 stroke = Stroke Normal
 
+rest :: SNote stroke
+rest = S.Note (Space Solkattu.Rest)
+
 -- There's no general ToCall instance for Stroke because individual instruments
 -- may have special cases.
 
@@ -69,11 +75,16 @@ instance Pretty Emphasis where
 instance S.HasMatras (Note stroke) where
     matras_of n = case n of
         Note {} -> 1
-        Rest -> 1
+        Space {} -> 1
         Pattern p -> S.matras_of p
+    has_duration n = case n of
+        Note {} -> False
+        Space {} -> True
+        Pattern {} -> True
 
 instance Pretty stroke => Pretty (Note stroke) where
-    pretty Rest = "_"
+    pretty (Space Solkattu.Rest) = "_"
+    pretty (Space Solkattu.Sarva) = "="
     pretty (Note s) = pretty s
     pretty (Pattern p) = pretty p
 
@@ -139,11 +150,11 @@ stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
             forM (S.notes sollus) $ \case
                 Solkattu.Note note ->
                     Right $ Just (Solkattu._tag note, Solkattu._sollu note)
-                Solkattu.Rest -> Right Nothing
+                Solkattu.Space {} -> Right Nothing
                 s -> throw $ "should only have plain sollus: " <> pretty s
         strokes <- forM strokes $ \case
             S.Note (Note s) -> Right (Just s)
-            S.Note Rest -> Right Nothing
+            S.Note (Space {}) -> Right Nothing
             s -> throw $ "should have plain strokes: " <> pretty s
         unless (length sollus == length strokes) $
             throw "sollus and strokes have differing lengths after removing\
@@ -200,7 +211,7 @@ realize smap = format_error . first concat . map_until_left realize
     where
     realize (tempo, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
-        Solkattu.Rest -> Right ([(tempo, Rest)], notes)
+        Solkattu.Space space -> Right ([(tempo, Space space)], notes)
         -- Patterns are realized separately with 'realize_patterns'.
         Solkattu.Pattern p -> Right ([(tempo, Pattern p)], notes)
         Solkattu.Note n -> case find_sequence smap tempo n notes of
@@ -238,7 +249,7 @@ find_sequence smap a (Solkattu.NoteT sollu _ stroke tag) notes =
     -- Collect only sollus and rests, and strip the rests.
     sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
     is_sollu (Solkattu.Note note) = Just (Just (Solkattu._sollu note))
-    is_sollu Solkattu.Rest = Just Nothing
+    is_sollu (Solkattu.Space {}) = Just Nothing
     is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
 
@@ -251,8 +262,9 @@ replace_sollus [] ns = ([], ns)
 replace_sollus (stroke : strokes) ((a, n) : ns) = case n of
     Solkattu.Note snote -> first ((a, rnote) :) (replace_sollus strokes ns)
         where
-        rnote = maybe (maybe Rest Note stroke) Note (Solkattu._stroke snote)
-    Solkattu.Rest -> first ((a, Rest) :) next
+        rnote = maybe (maybe (Space Solkattu.Rest) Note stroke) Note
+            (Solkattu._stroke snote)
+    Solkattu.Space space -> first ((a, Space space) :) next
     Solkattu.Alignment {} -> next
     -- This shouldn't happen because Seq.span_while is_sollu should have
     -- stopped when it saw this.
@@ -285,7 +297,7 @@ pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
 to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
 to_solkattu n = case n of
     Note stroke -> Solkattu.Note $ Solkattu.note Solkattu.NoSollu (Just stroke)
-    Rest -> Solkattu.Rest
+    Space space -> Solkattu.Space space
     Pattern matras -> Solkattu.Pattern matras
 
 
@@ -348,7 +360,8 @@ format_final_avartanam avartanams = case reverse avartanams of
         | otherwise -> avartanams
     _ -> avartanams
     where
-    -- This should be (==Rest), but I have to show_stroke first to break lines.
+    -- This should be (== Space Rest), but I have to show_stroke first to break
+    -- lines.
     is_rest = (=="_") . Text.strip
 
 -- | Break into [avartanam], where avartanam = [line].
@@ -364,7 +377,9 @@ format_lines stroke_width width tala =
         where overlap = maybe 0 (subtract stroke_width . Text.length . snd) prev
     show_stroke s = case s of
         S.Attack a -> Text.justifyLeft stroke_width ' ' (pretty a)
-        S.Sustain -> Text.replicate stroke_width "-"
+        S.Sustain a -> Text.replicate stroke_width $ case a of
+            Pattern {} -> "-"
+            _ -> pretty a
         S.Rest -> Text.justifyLeft stroke_width ' ' "_"
 
 break_avartanams :: [(S.State, a)] -> [[(S.State, a)]]
@@ -465,7 +480,9 @@ format_table tala =
     where
     show_stroke s = case s of
         S.Attack a -> Doc.html (pretty a)
-        S.Sustain -> "&mdash;"
+        S.Sustain a -> Doc.html $ case a of
+            Pattern {} -> "&mdash;"
+            _ -> pretty a
         S.Rest -> "_"
     emphasize_akshara state word
         | should_emphasize aksharas state = "<b>" <> word <> "</b>"

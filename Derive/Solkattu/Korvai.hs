@@ -145,7 +145,7 @@ to_konnakol = mapMaybe convert
         Solkattu.Note note -> Just $ Realize.Note $
             fromMaybe (Realize.stroke (Solkattu._sollu note))
                 (Solkattu._stroke note)
-        Solkattu.Rest -> Just Realize.Rest
+        Solkattu.Space space -> Just (Realize.Space space)
         Solkattu.Pattern p -> Just $ Realize.Pattern p
         Solkattu.Alignment {} -> Nothing
 

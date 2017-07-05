@@ -18,10 +18,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
+import Derive.Solkattu.Db
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
-import Derive.Solkattu.Db
 import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
 import Types
@@ -73,4 +74,5 @@ strokes_to_events strokes =
     to_expr s = case s of
         Realize.Note stroke -> Just (Expr.to_expr stroke, False)
         Realize.Pattern p -> Just (Expr.to_expr p, True)
-        Realize.Rest -> Nothing
+        Realize.Space Solkattu.Rest -> Nothing
+        Realize.Space Solkattu.Sarva -> Nothing -- TODO
