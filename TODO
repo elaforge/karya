@@ -1855,7 +1855,7 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - transcribe: from 2013-11-12
-        - Realize.thin_rests doesn't work when there are multiple characters
+        * Realize.thin_rests doesn't work when there are multiple characters
           per matra, because it gets __.
         - sarvalaghu substitution: this could be a variable-length pattern,
           e.g. sarva------->, which can be substituted with whatever

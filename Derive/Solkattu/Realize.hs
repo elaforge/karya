@@ -11,7 +11,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -343,12 +342,15 @@ akshara_set = Set.fromList . scanl (+) 0 . Tala.tala_aksharas
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.
-thin_rests :: (Eq str, String.IsString str) => [(a, str)] -> [(a, str)]
-thin_rests = zipWith thin [0..]
+thin_rests :: [(a, Text)] -> [(a, Text)]
+thin_rests = snd . List.mapAccumL thin 0
     where
     thin column (state, stroke)
-        | stroke == "_" && odd column = (state, " ")
-        | otherwise = (state, stroke)
+        | Text.all (=='_') stroke =
+            let (column2, stroke2) = Text.mapAccumL clear column stroke
+            in (column2, (state, stroke2))
+        | otherwise = (column + Text.length stroke, (state, stroke))
+    clear column _ = (column+1, if even column then '_' else ' ')
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
@@ -468,7 +470,8 @@ format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
     where
     ruler = maybe [] (concatMap akshara . infer_ruler tala) (Seq.head body)
     akshara (n, spaces) = n : replicate (spaces-1) ""
-    body = map thin_rests $ format_table tala notes
+    body = map (map (second Doc.Html) . thin_rests . map (second Doc.un_html)) $
+        format_table tala notes
 
 format_table :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
     -> [[(S.State, Doc.Html)]]

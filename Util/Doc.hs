@@ -2,7 +2,7 @@
 module Util.Doc (
     Doc(..), pretty, literal, commas
     -- * HTML
-    , Html, html, un_html
+    , Html(..), html, un_html
     -- ** create
     , tag, tag_class, link, tag_attrs
     , html_doc
