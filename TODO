@@ -1857,7 +1857,7 @@ Derive:
         - transcribe: from 2013-11-12
         * Realize.thin_rests doesn't work when there are multiple characters
           per matra, because it gets __.
-        - sarvalaghu substitution: this could be a variable-length pattern,
+        . sarvalaghu substitution: this could be a variable-length pattern,
           e.g. sarva------->, which can be substituted with whatever
           sarvalaghu.
           . Then I need annotations to align to end points, like 'pad'.
@@ -1873,10 +1873,20 @@ Derive:
               dependent on tempo, and replaceEnd needs to split rests.
             . #2 is higher level, but requires some special support for
               alignment.
-          - Add absolute SetSpeed, otherwise restD and __sam can't work under
+          / Add absolute SetSpeed, otherwise restD and __sam can't work under
             a tempo change.
             . Couldn't I use this to make all the *D functions work in
               absolute Durations?
+            . I think my problem is also that duration_of is wrong under su.
+            . Can I make current tempo available somehow?  Then I could make
+              duration_of work absolutely.
+            . But then, I'd only need this for absolute time things, which is
+              just align, at least for now.  So maybe it's just simpler insist
+              that align only works at the top level.
+          . Could I make this simpler by tagging some notes with explicit
+            durations, and only inferring duration for the untagged ones?
+            . I think I still have the same problem with not knowing the
+              duration of subsequences.
           * Add a flag to Rest that makes it Sarvalaghu.
         ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
           . I can just add a rest to the beginning, but I still need to

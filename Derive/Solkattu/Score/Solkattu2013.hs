@@ -519,9 +519,8 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
 -- * tirmanam
 
 tir_18 :: Korvai
-tir_18 = tirmanam $ korvai adi mridangam $ map su
-    [ __sam adi $ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
-    ]
+tir_18 = tirmanam $ korvai1 adi mridangam $
+    __sam adi $ su $ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
     where
     mridangam = make_mridangam
         [ (dhom.ka, [o, k])

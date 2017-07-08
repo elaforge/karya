@@ -190,6 +190,9 @@ matra_duration = S.matra_duration S.default_tempo
 -- * align
 
 -- | Align to the end of the avartanam, with rests.
+--
+-- This should only be used at the top level, since it gets the timing wrong
+-- under a tempo change.
 __sam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
 __sam tala seq = __a (next_sam tala seq) seq
 
