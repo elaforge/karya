@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
-module Derive.Solkattu.Mridangam where
+module Derive.Solkattu.Instrument.Mridangam where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack

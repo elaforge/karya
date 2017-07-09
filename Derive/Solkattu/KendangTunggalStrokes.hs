@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | This is just a namespace for "Derive.Solkattu.KendangTunggal" strokes.
 module Derive.Solkattu.KendangTunggalStrokes where
-import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 
 
 KendangTunggal.Strokes {..} = KendangTunggal.notes

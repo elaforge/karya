@@ -26,7 +26,7 @@ import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu

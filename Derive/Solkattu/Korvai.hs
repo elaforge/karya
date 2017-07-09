@@ -18,11 +18,11 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
-import qualified Derive.Solkattu.Konnakol as Konnakol
-import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.Konnakol as Konnakol
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
+import qualified Derive.Solkattu.Instrument.Reyong as Reyong
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Reyong as Reyong
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala

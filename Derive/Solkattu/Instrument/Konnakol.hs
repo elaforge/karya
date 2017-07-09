@@ -4,7 +4,7 @@
 
 -- | Realize to konnakol.  This is simpler than instruments since I just use
 -- the sollus directly, but I still need realizations for 'Patterns'.
-module Derive.Solkattu.Konnakol where
+module Derive.Solkattu.Instrument.Konnakol where
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu

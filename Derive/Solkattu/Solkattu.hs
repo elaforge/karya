@@ -33,8 +33,9 @@
     is the result of resolving the sollus.  The stroke type is still abstract
     since it's polymorphic over the specific instrument.
 
-    "Derive.Solkattu.Mridangam", "Derive.Solkattu.KendangTunggal", etc. - These
-    describe specific instruments for Realize.
+    "Derive.Solkattu.Instrument.Mridangam",
+    "Derive.Solkattu.Instrument.KendangTunggal", etc. - These describe specific
+    instruments for Realize.
 
     "Derive.Solkattu.Korvai" - A Korvai unifies the instrument-specific
     Patterns and StrokeMaps together with Tala and a solkattu sequence.  So I
@@ -42,15 +43,15 @@
     stroke types into a single type, and projects out the specific strokes
     depending on which instrument is being realized.
 
-    "Derive.Solkattu.Dsl", "Derive.Solkattu.Notation" - Functions for creating
-    solkattu scores.  Dsl defines (or replaces) various operators to make
-    scores look nicer.
+    "Derive.Solkattu.Dsl", "Derive.Solkattu.SolkattuGlobal",
+    "Derive.Solkattu.Notation" - Functions for creating solkattu scores.  Dsl
+    defines (or replaces) various operators to make scores look nicer.
 
-    "Derive.Solkattu.Score" - Instrument-independent korvais.
+    Derive.Solkattu.Score.Solkattu* - Instrument-independent korvais.
 
-    "Derive.Solkattu.MridangamDsl", "Derive.Solkattu.MridangamScore" - These
-    are similar to Dsl and Score, except they use concrete mridangam strokes
-    instead of abstract sollus.
+    "Derive.Solkattu.MridangamGlobal", Derive.Solkattu.Score.Mridangam* - These
+    are similar to Dsl and Score.Solkattu*, except they use concrete mridangam
+    strokes instead of abstract sollus.
 
     The naming convention is that \"Note\" is the level-specific
     value, itself may have a \"Note\" constructor with the "next level" of

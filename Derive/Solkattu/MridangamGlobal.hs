@@ -29,8 +29,8 @@ module Derive.Solkattu.MridangamGlobal (
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Derive.Solkattu.Dsl hiding ((&), lt, hv)
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
-import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu

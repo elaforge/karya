@@ -6,7 +6,7 @@ module Derive.Solkattu.MridangamGlobal_test where
 import Prelude hiding ((.))
 
 import Util.Test
-import qualified Derive.Solkattu.Mridangam as Mridangam
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.MridangamGlobal as MridangamGlobal
 import Derive.Solkattu.MridangamGlobal ((&), o, k, __, (.), su)
 import qualified Derive.Solkattu.Realize as Realize

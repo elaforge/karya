@@ -8,9 +8,9 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Solkattu.All as All
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Metadata as Metadata
-import qualified Derive.Solkattu.Mridangam as Mridangam
 import qualified Derive.Solkattu.Realize as Realize
 
 import Global

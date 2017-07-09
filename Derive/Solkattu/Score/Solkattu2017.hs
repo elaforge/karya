@@ -7,8 +7,8 @@
 module Derive.Solkattu.Score.Solkattu2017 where
 import Prelude hiding ((.), (^), repeat)
 
-import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
-import qualified Derive.Solkattu.Reyong as Reyong
+import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.Reyong as Reyong
 import Derive.Solkattu.SolkattuGlobal
 import qualified Derive.Solkattu.Tala as Tala
 

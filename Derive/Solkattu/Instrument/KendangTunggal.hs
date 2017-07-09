@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
-module Derive.Solkattu.KendangTunggal where
+module Derive.Solkattu.Instrument.KendangTunggal where
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence

@@ -8,7 +8,7 @@ module Derive.Solkattu.Score.Solkattu2013 where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.Seq as Seq
-import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.KendangTunggalStrokes as K
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.SolkattuGlobal

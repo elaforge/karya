@@ -14,10 +14,10 @@ import Prelude hiding ((.))
 import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
 import Derive.Solkattu.DslSollu
-import qualified Derive.Solkattu.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
+import qualified Derive.Solkattu.Instrument.Reyong as Reyong
 import qualified Derive.Solkattu.Korvai as Korvai
-import qualified Derive.Solkattu.Mridangam as Mridangam
-import qualified Derive.Solkattu.Reyong as Reyong
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
