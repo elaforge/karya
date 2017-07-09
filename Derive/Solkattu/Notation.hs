@@ -65,9 +65,9 @@ rdropD dur = reverse . dropD dur . reverse
 rtakeD :: Duration -> Sequence stroke -> Sequence stroke
 rtakeD dur = reverse . takeD dur . reverse
 
-restD, sarvaD :: CallStack.Stack => S.Tempo -> Duration -> Sequence stroke
-restD = spaceD Solkattu.Rest
-sarvaD = spaceD Solkattu.Sarva
+restD, sarvaD :: CallStack.Stack => Duration -> Sequence stroke
+restD = spaceD Solkattu.Rest S.default_tempo
+sarvaD = spaceD Solkattu.Sarva S.default_tempo
 
 spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
     -> Sequence stroke
@@ -138,15 +138,19 @@ matrasOfE = integral <=< justErr "nadai change" . of_sequence
 reduce3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 
--- | Reduce by a duration until a final duration.
+-- | 'reduceToL', except mconcat the result.
 reduceTo :: (CallStack.Stack, Pretty stroke) => Matra -> Matra
     -> Sequence stroke -> Sequence stroke
-reduceTo to by seq
+reduceTo to by = mconcat . reduceToL to by
+
+-- | Reduce by a duration until a final duration.
+reduceToL :: (CallStack.Stack, Pretty stroke) => Matra -> Matra
+    -> Sequence stroke -> [Sequence stroke]
+reduceToL to by seq
     | (matrasOf seq - to) `mod` by /= 0 =
         errorStack $ showt (matrasOf seq) <> " can't reduce by "
             <> showt by <> " to " <> showt to
-    | otherwise = mconcat $ takeWhile ((>=to) . matrasOf) $
-        iterate (dropM by) seq
+    | otherwise = takeWhile ((>=to) . matrasOf) $ iterate (dropM by) seq
 
 -- | Reduce by dropping the end.
 reduceR :: Matra -> Sequence stroke -> [Sequence stroke]
@@ -204,10 +208,10 @@ next_sam tala seq = fromIntegral $ Num.roundUp aksharas dur
 
 -- | Align to the end of the given number of aksharams.
 __a :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
-__a dur seq = replaceEnd (restD S.default_tempo dur) seq
+__a dur seq = replaceEnd (restD dur) seq
 
 sarvaSam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
 sarvaSam tala seq = sarvaA (next_sam tala seq) seq
 
 sarvaA :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
-sarvaA dur seq = replaceEnd (sarvaD S.default_tempo dur) seq
+sarvaA dur seq = replaceEnd (sarvaD dur) seq

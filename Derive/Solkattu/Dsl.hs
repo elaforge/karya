@@ -240,10 +240,10 @@ cfor xs f = mconcatMap f xs
 
 -- | Multiple prefixes on a single suffix.
 prefixes :: Monoid a => [a] -> a -> a
-prefixes prefixes suffix = mconcatMap (<>suffix) prefixes
+prefixes prefs suffix = mconcatMap (<>suffix) prefs
 
 suffixes :: Monoid a => a -> [a] -> a
-suffixes prefix suffixes = mconcatMap (prefix<>) suffixes
+suffixes prefix sufs = mconcatMap (prefix<>) sufs
 
 circum :: Monoid a => a -> [a] -> a -> a
 circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids

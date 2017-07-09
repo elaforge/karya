@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Solkattu.Notation_test where
-import qualified Util.CallStack as CallStack
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl (su, sd, nadai, __)
 import qualified Derive.Solkattu.DslSollu as DslSollu
 import qualified Derive.Solkattu.Notation as Notation
 import qualified Derive.Solkattu.Sequence as S
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
@@ -46,11 +46,9 @@ flatten = map snd . S.normalize_speed Tala.adi_tala . S.flatten
 speed :: S.Speed -> [S.Note a] -> S.Note a
 speed = S.change_speed
 
-restD :: CallStack.Stack => S.Tempo -> S.Duration -> Notation.Sequence ()
-restD = Notation.restD
-
-test_restD = do
-    let f tempo = sum . map (S.note_duration tempo) . restD tempo
+test_spaceD = do
+    let f tempo = sum . map (S.note_duration tempo)
+            . Notation.spaceD Solkattu.Rest tempo
     equal (f S.default_tempo 0) 0
     equal (f S.default_tempo 1) 1
     equal (f S.default_tempo (3/4)) (3/4)

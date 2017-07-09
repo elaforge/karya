@@ -41,6 +41,12 @@ takadinna = ta.ka.din.na
 takita :: Seq stroke
 takita = ta.ki.ta
 
+kita :: Seq stroke
+kita = ki.ta
+
+on :: Mridangam.SNote
+on = o & n
+
 -- * realize
 
 type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]

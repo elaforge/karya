@@ -1861,7 +1861,9 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - transcribe: from 2013-11-19
+        transcribe:
+          * from 2013-11-19
+          - from 2013-02-20, tisram
         sarvalaghu:
           . Fill it in based on position in the tala.
           . Sometimes there's a final note, e.g. D that replaces the first 1.5
@@ -1928,6 +1930,10 @@ Derive:
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.
         groups:
+          . I should also mark group boundaries in the notation to make
+            reductions visually apparent.
+          . dropM and the like could be like single-element reductions, so
+            I don't have to add an extra stroke map entry.
           - I want results of reductions or expansions to be recognized as
             Patterns for the purpose of variation.  So I think they have to have
             score representation, for this and for strokes.
@@ -1959,8 +1965,11 @@ Derive:
             them, but choose a certain path.
           . This is also part of the intensity pattern, where the final repeat
             may have an alternate more intense realization.
-        - I may want different tags for different patterns, e.g. for
-          performance and exercise variants.
+        - Different tags for patterns within a Korvai, e.g. for performance
+          and exercise variants.
+          . Also useful to mark the sections, e.g. development, and related
+            sequences.  Ideally I could have separate stroke maps, but maybe
+            that's overkill.
         - I should be able to add multiple realizations of the same
           instrument, keyed by string, e.g. for different mridangists
           realizations.

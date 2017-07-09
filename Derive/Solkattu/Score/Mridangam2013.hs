@@ -84,19 +84,6 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
     -- ktnoktknokt kno -- 2013 11 5, progression different
     -- su: o t k n ktok
 
-c_13_11_19 :: Korvai
-c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi $ mconcat
-    [ sarvaSam adi theme
-    , sarvaA 4 theme . sarvaA 4 theme
-    , repeat 4 theme -- every other is pd k instead of D k
-    ]
-    where
-    sarva = sarva_rh
-    sarva_rh = n.l.d.d.l.d.d.l
-    sarva_lh = o.__2.o.__2.o.__
-    theme = n . su (k.t.o.k) . od.n.__.od.k
-    -- nang kitattakadin tat.__.din.ka
-
 -- ** tisram
 
 c_16_11_14 :: Korvai

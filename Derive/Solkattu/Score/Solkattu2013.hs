@@ -81,7 +81,7 @@ c_yt1 = source "youtube" $ korvai1 adi mridangam $
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (din.na, [o, k])
-        , (thom.tat.din, [o&n, k, od])
+        , (thom.tat.din, [on, k, od])
         , (dit, [k])
         , (tat, [k])
         , (din, [od])
@@ -99,7 +99,6 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
-        , (tam, [u])
         ]
 
 c_13_11_05 :: Korvai
@@ -108,9 +107,7 @@ c_13_11_05 = date 2013 11 5 $ ganesh $ korvai1 adi mridangam $
     . theme . tam.__4 . theme . tam.__3 . su p6.tam.__3 . su p6
     where
     theme = su $ p5.p5.p6
-    mridangam = make_mridangam
-        [ (tam, [u])
-        ]
+    mridangam = make_mridangam []
 
 c_13_11_12 :: Korvai
 c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
@@ -128,8 +125,38 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
         , (ta.ka, [p, k])
         ]
 
--- TODO: reduction pattern, forwards and backwards
--- c_14_01_14 -- 14_02_20
+c_13_12_11 :: Korvai
+c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
+    -- development for theme14
+    [ sarvaD 8 . sarvaSam adi theme14
+        . sarvaSam adi theme14, sarvaSam adi theme14
+        . __a 4 theme14 . __a 4 theme14
+        . __a 4 theme14 . repeat 2 (__.__.tat.__.ka.din.na.__)
+    -- development for three together
+    , mconcat [sarvaD 8 . sarvaSam adi t | t <- themes]
+        . mconcat [sarvaSam adi t | t <- themes]
+        . repeat 2 (__a 4 theme14 . __a 4 theme16)
+    , structure theme14 (din.__6)
+    , structure theme16 (din.__4)
+    , structure theme18 (din.__2)
+    , structure theme20 mempty
+    ]
+    where
+    structure theme karvai =
+                theme . karvai . p5
+         . tk.  theme . karvai . p5.p5
+         . tknk.theme . karvai . p5.p5.p5
+    themes = [theme14, theme16, theme18]
+    theme14 = ta.di.__.kita.kita.ta.tat.__.ka.din.tat.__
+    theme16 = ta.di.__.kita.__.kita.ta.tat.__.ka.din.__.tat.__
+    theme18 = ta.di.__.ki.__.ta.__.kita.ta.tat.__.ka.__.din.__.tat.__
+    -- theme20 is on 2014 1 1
+    theme20 = ta.di.__3.ki.__.ta.__.kita.ta.tat.__3.ka.__.din.__.tat.__
+    mridangam = make_mridangam
+        [ (theme14, [k, t, p, k, t, k, t, k, o, od, k])
+        , (tat.ka.din.na, [k, o, od, k])
+        , (din, [od])
+        ]
 
 c_nnnd :: Korvai
 c_nnnd = korvai adi mridangam
@@ -139,7 +166,7 @@ c_nnnd = korvai adi mridangam
     where
     make theme = tri_ (tam.__3) (tri theme . tri p5)
     mridangam = make_mridangam
-        [ (na.na.na.din, [o&n, o&n, o&n, od])
+        [ (na.na.na.din, [on, on, on, od])
         , (tam, [i])
         , (dhom.ka.ta.ka.na.ka, [o, n, p, k, n, o])
         , (din, [od])
@@ -389,7 +416,7 @@ t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
         . ta_katakita . repeat 3 (takita) . tam.__6
     purvangam2 gap = tri (ta_katakita . takita.__2 . tam.__n gap)
     mridangam = make_mridangam $
-        [ (takita, [o&n, p, k])
+        [ (takita, [on, p, k])
         , (tam, [od])
         , (ta.din, [k, od])
         , (ta.ka, [k, p])
@@ -474,7 +501,7 @@ misra_lead = korvai1 adi mridangam $ su $
     mridangam = make_mridangam
        [ (takadinna, [k, o, o, k])
        , (ta.ta.takadinna, [od, k, n, o, o, k])
-       , (ta.din.na, [o&n, o&n, k])
+       , (ta.din.na, [on, on, k])
        , (tam, [od])
        ]
 
@@ -507,12 +534,12 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
         ]
     tan7 = tang.__.ga.din.__.ga.din
     mridangam = make_mridangam
-        [ (tang.ga, [o&n, k])
+        [ (tang.ga, [on, k])
         , (din.ga, [od, k])
         , (din, [od])
         , (ta, [k])
         , (ta.ka, [p, k])
-        , (ta.din.na, [o&n, o&n, k])
+        , (ta.din.na, [on, on, k])
         , (ta.ka.din.na, [k, o, o, k])
         ]
 
