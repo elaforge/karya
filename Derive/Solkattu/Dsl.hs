@@ -2,12 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Provide short names and operators for writing korvais in haskell.
--- This module is meant to be imported unqualified.
+-- This module is the shared global namespace between
+-- "Derive.Solkattu.SolkattuGlobal" and "Derive.Solkattu.MridangamGlobal".
 module Derive.Solkattu.Dsl (
     (.), (•)
-    , __, __2, __3, __4, __5, __6, __7, __8, __9, __n
     , karvai
 
     -- ** directives
@@ -17,11 +16,6 @@ module Derive.Solkattu.Dsl (
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku, tk, tknk
-    -- ** combinators
-    , tri, tri_, trin, tri2
-    , join, repeat, inter, spread
-    , cmap, for, cfor, prefixes, suffixes, circum, prefix, suffix
-    , accumulate
     -- * re-exports
     , module Derive.Solkattu.Korvai
     , module Derive.Solkattu.Metadata
@@ -40,7 +34,6 @@ module Derive.Solkattu.Dsl (
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
-import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
@@ -76,28 +69,6 @@ make_note a = [S.Note a]
 
 -- ** sollus
 
-class Rest a where __ :: a
-instance Rest (Sequence stroke) where
-    __ = make_note (Solkattu.Space Solkattu.Rest)
-instance Rest (Realize.SNote stroke) where
-    __ = Realize.rest
-
--- | These are meant to suffix a sollu.  Since the sollu is considered part of
--- the duration, the number is one higher than the number of rests.  E.g.
--- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__2, __3, __4, __5, __6, __7, __8, __9 :: Sequence stroke
-__2 = __
-__3 = __n 3
-__4 = __n 4
-__5 = __n 5
-__6 = __n 6
-__7 = __n 7
-__8 = __n 8
-__9 = __n 9
-
-__n :: Matra -> Sequence stroke
-__n n = repeat (n-1) __
-
 -- | Make a single sollu 'Solkattu.Karvai'.
 karvai :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Sequence stroke
 karvai = modify_single_note $ Solkattu.modify_note $
@@ -117,16 +88,6 @@ sam = akshara 0
 (§) :: Sequence stroke -> Akshara -> Sequence stroke
 seq § n = make_note (Solkattu.Alignment n) <> seq
 infix 9 §
-
-pat :: Matra -> Sequence stroke
-pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
-
-nakatiku :: Sequence stroke
-nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
-
-tk, tknk :: Sequence stroke
-tk = make_note $ Solkattu.Pattern Solkattu.Taka
-tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 
 -- * modify sollus
 
@@ -182,24 +143,10 @@ lt (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
 lt n = errorStack $ "expected stroke: " <> pretty n
 
--- ** structures
+-- * patterns
 
--- | Repeat thrice, with no karvai.
-tri :: Sequence stroke -> Sequence stroke
-tri = tri_ mempty
-
--- | Repeat thrice, with the given separator.
-tri_ :: Sequence stroke -> Sequence stroke -> Sequence stroke
-tri_ sep seq = join sep [seq, seq, seq]
-
--- | Three different patterns with the same separator.
-trin :: Sequence stroke -> Sequence stroke -> Sequence stroke
-    -> Sequence stroke -> Sequence stroke
-trin sep a b c = join sep [a, b, c]
-
--- | Tirmanams with a variant final repeat.
-tri2 :: Sequence stroke -> Sequence stroke -> Sequence stroke -> Sequence stroke
-tri2 sep ab c = join sep [ab, ab, c]
+pat :: Matra -> Sequence stroke
+pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 
 p5, p6, p7, p8, p9 :: Sequence stroke
 p5 = pat 5
@@ -213,50 +160,13 @@ p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
-repeat :: Monoid a => Int -> a -> a
-repeat n p = mconcat (replicate n p)
+nakatiku :: Sequence stroke
+nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
--- * sequences
+tk, tknk :: Sequence stroke
+tk = make_note $ Solkattu.Pattern Solkattu.Taka
+tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 
-join :: Sequence stroke -> [Sequence stroke] -> Sequence stroke
-join = List.intercalate
-
--- | Intersperse between each stroke.
-inter :: Sequence stroke -> Sequence stroke -> Sequence stroke
-inter _ [] = []
-inter sep (x:xs) = x : sep ++ inter sep xs
-
-spread :: Matra -> Sequence stroke -> Sequence stroke
-spread n = inter (__n n)
-
-cmap :: Monoid b => (a -> b) -> [a] -> b
-cmap = mconcatMap
-
-for :: [a] -> (a -> b) -> [b]
-for = flip map
-
-cfor :: Monoid b => [a] -> (a -> b) -> b
-cfor xs f = mconcatMap f xs
-
--- | Multiple prefixes on a single suffix.
-prefixes :: Monoid a => [a] -> a -> a
-prefixes prefs suffix = mconcatMap (<>suffix) prefs
-
-suffixes :: Monoid a => a -> [a] -> a
-suffixes prefix sufs = mconcatMap (prefix<>) sufs
-
-circum :: Monoid a => a -> [a] -> a -> a
-circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids
-
-suffix :: Monoid a => [a] -> a -> a
-suffix seqs suf = mconcat $ map (<>suf) seqs
-
-prefix :: Monoid a => a -> [a] -> a
-prefix pref seqs = mconcat $ map (pref<>) seqs
-
--- | Succesively accumulate suffixes.
-accumulate :: Monoid a => [a] -> [a]
-accumulate = map mconcat • drop 1 • List.inits
 
 -- * realize util
 
