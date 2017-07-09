@@ -354,7 +354,7 @@ thin_rests = snd . List.mapAccumL thin 0
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
-format_final_avartanam:: [[[(S.State, Text)]]] -> [[[(S.State, Text)]]]
+format_final_avartanam :: [[[(S.State, Text)]]] -> [[[(S.State, Text)]]]
 format_final_avartanam avartanams = case reverse avartanams of
     [final : rests] : penultimate : prevs
         | not (is_rest (snd final)) && all (is_rest . snd) rests ->
@@ -436,7 +436,9 @@ break_fst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 break_fst f = (map snd *** map snd) . break (f . fst)
 
 infer_ruler_text :: Tala.Tala -> Int -> [(S.State, Text)] -> Text
-infer_ruler_text tala stroke_width = mconcatMap fmt . infer_ruler tala
+infer_ruler_text tala stroke_width =
+    -- A final stroke will cause a trailing space, so stripEnd.
+    Text.stripEnd . mconcatMap fmt . infer_ruler tala
     where
     fmt (label, spaces) = Text.justifyLeft (spaces * stroke_width) ' ' label
 

@@ -9,8 +9,10 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.CallStack as CallStack
 import Util.Test
 import qualified Util.TextUtil as TextUtil
+
 import qualified Derive.Solkattu.Dsl as Dsl
 import Derive.Solkattu.Dsl ((^), __)
 import Derive.Solkattu.DslSollu
@@ -160,29 +162,40 @@ test_format_ruler = do
     let run = fmap (first (capitalize_emphasis . format 80 tala4))
             . realize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
-    equal (run (tas 2 8)) $ Right
+    equal_t (run (tas 2 8)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k"
         , ""
         )
-    equal (run (tas 2 16)) $ Right
+    equal_t (run (tas 2 16)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \K k k k K k k k"
         , ""
         )
-    equal (run (tas 3 12)) $ Right
+    equal_t (run (tas 3 12)) $ Right
         ( "X     O     X     O     |\n\
           \K k k k k k K k k k k k"
         , ""
         )
-    equal (run (tas 2 12 <> tas 3 6)) $ Right
+    equal_t (run (tas 2 12 <> tas 3 6)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \X   O   X     O     |\n\
           \K k k k K k k k k k"
         , ""
         )
+    -- A final stroke won't cause the ruler to reappear.
+    equal_t (run (tas 2 16 <> ta)) $ Right
+        ( "X   O   X   O   |\n\
+          \K k k k K k k k\n\
+          \K k k k K k k k K"
+        , ""
+        )
+
+equal_t :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
+    -> Either Text (Text, a) -> IO Bool
+equal_t = equal_fmt (either id fst)
 
 test_format_lines = do
     let f stroke_width width tala =

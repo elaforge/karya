@@ -590,6 +590,13 @@ synth: im:
   - Use a gate signal for note duration.
   - Handle amp outside of faust, just by multiplying the signal.  That way all
     instruments support it uniformly.  'dyn' should go to 'dynamic' or 'gain'.
+  efficient conduit-audio:
+    . Currently I mix [(RealTime, Audio)] by padding all to their start time,
+      and mixing them all.  This is inefficient because it generates and adds
+      tons of 0s.
+    . I'd prefer to have a mix that waits until the start time, allocates
+      any resources needed (open source file, allocate synthesizer), and then
+      emits samples.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those
@@ -1854,7 +1861,13 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
-        - transcribe: from 2013-11-12
+        - transcribe: from 2013-11-19
+        sarvalaghu:
+          . Fill it in based on position in the tala.
+          . Sometimes there's a final note, e.g. D that replaces the first 1.5
+            aksharas.  I don't have a way to notate it.  Maybe a sequence
+            needs a separate final stroke, which is played when leading back
+            to sarva.
         * Realize.thin_rests doesn't work when there are multiple characters
           per matra, because it gets __.
         . sarvalaghu substitution: this could be a variable-length pattern,
@@ -1895,7 +1908,7 @@ Derive:
             should be ' d d n nnd d n n'
         * Split Dsl.Score up by year, to keep modules small and so the
           line_numbers don't keep changing.
-        - 'pad' should be able to align a tirmanam to sam
+        * 'pad' should be able to align a tirmanam to sam
           . Since it's used at the top level I can assume speed 0, but I still
             don't know the tala or nadai.
           . Maybe I can attach a flag to the Sequence, which triggers a
@@ -1910,7 +1923,7 @@ Derive:
             a final note.  I can't tell the difference without an annotation.
           . I can check the last non-rest for at sam, or final state is sam.
           * Make format display final stroke inline.
-          - Suppress the extra ruler when that happens.
+          * Suppress the extra ruler when that happens.
         ? rename tri to tir, for tirmanam?
         - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
           any arithmetic progression.
