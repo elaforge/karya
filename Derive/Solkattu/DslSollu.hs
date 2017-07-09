@@ -8,7 +8,7 @@ module Derive.Solkattu.DslSollu (
     dheem, dhom, di, din, dit, ga, gin, ka, ki, ku, mi, na, nam, nang, ri, ta,
     tam, tat, tha, thom, ti, kum
     , tang, lang
-    , dinga
+    , dinga, tanga
 ) where
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
@@ -51,6 +51,7 @@ tang = sollu Tang
 lang = sollu Lang
 
 dinga = din <> __ <> ga
+tanga = tang <> __ <> ga
 
 __ :: Sequence a
 __ = make_note (Solkattu.Space Solkattu.Rest)

@@ -25,14 +25,14 @@ koraippu_janahan =
         , seq 2 . tri p6 . thom.__4
         , seq 1 . tri p7 . thom.__4
         ]
-    ++ let seq = sequence (su (nang.__.ki.ta.ta.ka)) (su nakatiku)
+    ++ let seq = sequence (su (nang.__.kita.ta.ka)) (su nakatiku)
     in mconcat
         [ seq 4 . su nang_kita_nakatiku . ta.ka.din.__.tat.__.thom.__4
-        , seq 3 . tri (su (thom.ki.ta.ka.na.ka.ki.ta.ta.ka)) . thom.__4
+        , seq 3 . tri (su (thom.kita.ka.na.ka.kita.ta.ka)) . thom.__4
         , seq 2 . tri (su nang_kita_nakatiku) . thom.__4
-        , seq 1 . tri (su (nang.__.ki.ta.ta.ka.nakatiku)) . thom.__4
+        , seq 1 . tri (su (nang.__.kita.ta.ka.nakatiku)) . thom.__4
         ]
-    ++ let kitakita = su (ki.ta.ki.ta.ta.ka)
+    ++ let kitakita = su (kita.kita.ta.ka)
         in sam.tam.__3 . kitakita . tam.__3
             . kitakita . su (nakatiku . nang_kita_nakatiku) . tam.__3
             . kitakita . su (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
@@ -65,14 +65,14 @@ koraippu_janahan =
         , (ta.ka.ta.lang.ga, [p, k, p, u, k])
         , (ta.ka.din.tat, [p, k, o, k])
         , (thom, [od])
-        , (nang.ki.ta.ta.ka, [n, k, t, p, k])
-        , (nang.ki.ta, [o&n, p, k])
-        , (thom.ki.ta.ka.na.ka.ki.ta.ta.ka, [o, k, t, p, u, p, k, t, p, k])
-        , (ki.ta.ki.ta.ta.ka, [k, t, k, t, p, k])
+        , (nang.kita.ta.ka, [n, k, t, p, k])
+        , (nang.kita, [o&n, p, k])
+        , (thom.kita.ka.na.ka.kita.ta.ka, [o, k, t, p, u, p, k, t, p, k])
+        , (kita.kita.ta.ka, [k, t, k, t, p, k])
         ]
 
 nang_kita_nakatiku :: Seq stroke
-nang_kita_nakatiku = nang.__.ki.ta.nakatiku
+nang_kita_nakatiku = nang.__.kita.nakatiku
 
 e_spacing :: Korvai
 e_spacing = exercise $ korvai adi (make_mridangam []) $ map (__sam adi) $
@@ -190,32 +190,32 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
 
 c_17_05_10 :: Korvai
 c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
-    map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.ki.ta.takadinna.dinga)
-        . ta.__.ki.ta.takadinna.dinga
+    map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.kita.takadinna.dinga)
+        . ta.__.kita.takadinna.dinga
     .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
         . reduceTo 3 1 (takadinna.dinga)
     . tri (spread 4 tdgnt . tdgnt)
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
-    -- reduceTo 3 1 (ta.__4 . ta.__.ki.ta.takadinna.dinga) `with`
+    -- reduceTo 3 1 (ta.__4 . ta.__.kita.takadinna.dinga) `with`
     --     [ ø, ta.__3, ta.__2, ta.__, ta, ø
     --     , ø, ta.__3 , ta.__
     --     ]
     -- This is less code, but maybe not very obvious?
 
-    -- ta.__4 . ta.__.ki.ta.takadinna.dinga
-    -- ta.__3 . ta.__.ki.ta.takadinna.dinga
-    -- ta.__2 . ta.__.ki.ta.takadinna.dinga
-    -- ta.__  . ta.__.ki.ta.takadinna.dinga
-    --     ta . ta.__.ki.ta.takadinna.dinga
-    --          ta.__.ki.ta.takadinna.dinga
+    -- ta.__4 . ta.__.kita.takadinna.dinga
+    -- ta.__3 . ta.__.kita.takadinna.dinga
+    -- ta.__2 . ta.__.kita.takadinna.dinga
+    -- ta.__  . ta.__.kita.takadinna.dinga
+    --     ta . ta.__.kita.takadinna.dinga
+    --          ta.__.kita.takadinna.dinga
     --             ta.__.__.takadinna.dinga
     --                ta.__.takadinna.dinga
     --                   ta.takadinna.dinga
     where
     mridangam = make_mridangam
         [ (ta, [k])
-        , (ki.ta, [t, k])
+        , (kita, [t, k])
         , (dinga, [od, __])
         -- TODO these are only needed because realize doesn't understand
         -- reduction.
@@ -243,9 +243,9 @@ m_17_05_11 = date 2017 5 11 $ source "sriram" $ korvai1 adi mridangam $
 
 e_17_05_19 :: Korvai
 e_17_05_19 = date 2017 5 15 $ exercise $ korvai1 adi mridangam $
-    tri (tri p8 . tri (ki.ta.thom)) . tri p8 . p5
+    tri (tri p8 . tri (kita.thom)) . tri p8 . p5
     where
-    mridangam = make_mridangam [(ki.ta.thom, [k, n, o])]
+    mridangam = make_mridangam [(kita.thom, [k, n, o])]
 
 c_17_05_19_janahan :: Korvai
 c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
@@ -273,14 +273,14 @@ c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
 janahan_17_06_02 :: Korvai
 janahan_17_06_02 = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvai1 adi mridangam $
-    __n 9 . tri_ (su (ki.ta.ta.ka)) (din.din . su (ta.ka) . din.din.tat.din)
+    __n 9 . tri_ (su (kita.ta.ka)) (din.din . su (ta.ka) . din.din.tat.din)
     -- TODO use align or pad to sam
     where
     mridangam = make_mridangam
         [ (din, [od])
         , (ta.ka, [p, k])
         , (tat, [k])
-        , (ki.ta.ta.ka, [p, k, n, o])
+        , (kita.ta.ka, [p, k, n, o])
         ]
 
 c_17_06_15 :: Korvai
@@ -296,4 +296,42 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
         , (ta, [k])
         , (1^ta, [p])
         , (thom, [od])
+        ]
+
+c_17_06_19 :: Korvai
+c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi mridangam $
+    reduce3 2 mempty (tat.__.dit.__.takadinna.din.__3.p5)
+        -- TODO elide p5
+        -- . trin (tam.__3) p5 (tk.p5) (tknk.p5)
+        . tam.__3 . join (tam.__3) [tk.p5, tknk.p5]
+    where
+    mridangam = make_mridangam
+        [ (tat.dit, [k, t])
+        , (din, [od])
+        -- TODO reduction
+        , (dit, [k])
+        ]
+
+c_17_06_19_koraippu :: Korvai
+c_17_06_19_koraippu = korvai adi mridangam $ map (restD 2 .)
+    [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . tk.tdgnt
+    , repeat 2 $ tri (tat.__4.din.__3) . tk.tdgnt
+    , repeat 2 $ tri (tat.__4) . tri (din.__3) . tk.tdgnt
+    , repeat 2 $ tri (tat.__3) . tri (din.__4) . tk.tdgnt
+
+    -- 6 + 15
+    , repeat 2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . tk.tdgnt
+
+    -- 334353
+    , repeat 2 $ tanga.dinga . ta.tanga.dinga . ta.ka.tanga.dinga . tk.tdgnt
+    ]
+    where
+    tanga7 = tanga.dinga.din.__
+    mridangam = make_mridangam
+        [ (tanga, [on, k])
+        , (dinga, [od, k])
+        , (tat, [on])
+        , (ta, [k])
+        , (ta.ka, [p, k])
+        , (din, [od])
         ]
