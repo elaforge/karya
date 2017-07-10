@@ -93,8 +93,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
     , nadai 6 sequence
     ]
     where
-    sequence =
-        reduce3 2 mempty (tat.__.dit.__.ta.ka.din.na.dheem.__4)
+    sequence = reduce3 2 ø (tat.__.dit.__.ta.ka.din.na.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
@@ -139,7 +138,7 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
     , structure theme14 (din.__6)
     , structure theme16 (din.__4)
     , structure theme18 (din.__2)
-    , structure theme20 mempty
+    , structure theme20 ø
     ]
     where
     structure theme karvai =
@@ -180,7 +179,7 @@ make_k1 = ganesh • korvai adi k1_mridangam • map (nadai 5)
 k1_1 :: Korvai
 k1_1 = make_k1 [sequence p g | g <- gaps, p <- [p5, p6, p7]]
     where
-    gaps = [thom.__.ta.__, thom.__3, thom.__, thom, mempty]
+    gaps = [thom.__.ta.__, thom.__3, thom.__, thom, ø]
     sequence pt gap =
           sam . k1_a  . __ . ta . din . __n (10 - pdur) . pt
               . k1_a' . __ . ta . din . __n (10 - pdur) . pt
@@ -296,7 +295,7 @@ t1s = ganesh $ korvai adi mridangam $ map (nadai 6)
     ]
     where
     utarangam = tri_ (tang.__.ga)
-    reduce = reduce3 2 mempty
+    reduce = reduce3 2 ø
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -324,7 +323,7 @@ t2s = ganesh $ korvai adi mridangam $ map (nadai 6)
     , reduce (tat.__.dit.__.ta.ka.din) . tri (ta.din.__.p8)
     ]
     where
-    reduce = reduce3 2 mempty
+    reduce = reduce3 2 ø
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -361,10 +360,10 @@ t3s = ganesh $ korvai adi mridangam $ map (nadai 6)
     variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
         reduce (tat.__.dit.__.takadinna.__.dinga)
         . trin (tang.__.ga)
-            (trin mempty (pat a1) (pat a2) (pat a3))
+            (trin ø (pat a1) (pat a2) (pat a3))
             (trin __ (pat b1) (pat b2) (pat b3))
             (trin __3 (pat c1) (pat c2) (pat c3))
-    reduce = reduce3 2 mempty
+    reduce = reduce3 2 ø
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
@@ -547,7 +546,7 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
 
 tir_18 :: Korvai
 tir_18 = tirmanam $ korvai1 adi mridangam $
-    __sam adi $ su $ reduce3 2 mempty (dhom.ka.dhom.ka.ta.lang.__.ga)
+    __sam adi $ su $ reduce3 2 ø (dhom.ka.dhom.ka.ta.lang.__.ga)
     where
     mridangam = make_mridangam
         [ (dhom.ka, [o, k])

@@ -50,11 +50,11 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvai adi mridangam
     , tri_ (tam.__) expand
 
     -- date 2014 1 23
-    , reduce1 mempty . utarangam 4
+    , reduce1 ø . utarangam 4
     , reduce1 __2 . utarangam 3
     , reduce1 __3 . utarangam 2
 
-    , expand1 mempty . utarangam 4
+    , expand1 ø . utarangam 4
     , expand1 __2 . utarangam 3
     , expand1 __3 . utarangam 2
     ]
@@ -103,7 +103,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
         . dropM 1 theme . tri (tat.__.din.__3)
         . dropM 2 theme . tri (tat.din.__3)
     purvangam karv seqs =
-        join karv $ zipWith (.) [mempty, su tk, su tknk] seqs
+        join karv $ zipWith (.) [ø, su tk, su tknk] seqs
     theme = tha.ki.ta.ta . su kita . thom
     ta_kitathom = dropM 3 theme
     mridangam = make_mridangam

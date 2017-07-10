@@ -6,7 +6,7 @@
 -- This module is the shared global namespace between
 -- "Derive.Solkattu.SolkattuGlobal" and "Derive.Solkattu.MridangamGlobal".
 module Derive.Solkattu.Dsl (
-    (.), (•)
+    (.), (•), ø
     , karvai
 
     -- ** directives
@@ -63,6 +63,11 @@ infixr 6 . -- same as <>
 -- | Composition is still useful though.
 (•) :: (b -> c) -> (a -> b) -> a -> c
 (•) = (Prelude..)
+
+-- | Synonym for mempty.  Opt-o on OS X.  It looks a little bit nicer when
+-- the empty case takes less horizontal space than the non-empty case.
+ø :: Monoid a => a
+ø = mempty
 
 make_note :: a -> [S.Note a]
 make_note a = [S.Note a]

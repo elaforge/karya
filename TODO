@@ -1870,6 +1870,7 @@ Derive:
             aksharas.  I don't have a way to notate it.  Maybe a sequence
             needs a separate final stroke, which is played when leading back
             to sarva.
+        - Sarva fill === gets some spaces in there.
         * Realize.thin_rests doesn't work when there are multiple characters
           per matra, because it gets __.
         . sarvalaghu substitution: this could be a variable-length pattern,
@@ -2067,6 +2068,13 @@ Derive:
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
         alternate realization
+          - sargam, for pitched notes
+            . Or I could just use text, and emit it directly.  But maybe
+              pitches are useful because I can transpose sequences, e.g.
+              each pattern with a different transposition.
+            . But I'd want a general purpose way to apply a transform so I
+              can put e.g. +mute, and if I can do that then I can put
+              transpose on.
           - kendang pasangan
           - kajar
           - gangsa / marimba
