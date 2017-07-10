@@ -98,3 +98,7 @@ e_cc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
 e_cc cc (Midi.ChannelMessage _ (Midi.ControlChange msg_cc val))
     | cc == msg_cc = Just val
 e_cc _ _ = Nothing
+
+e_pitchbend :: Midi.Message -> Maybe Midi.PitchBendValue
+e_pitchbend (Midi.ChannelMessage _ (Midi.PitchBend n)) = Just n
+e_pitchbend _ = Nothing

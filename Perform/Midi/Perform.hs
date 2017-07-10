@@ -701,7 +701,7 @@ perform_signal prev_note_off start end sig = initial : pairs
     where
     -- The signal should already be trimmed to the event start, except that
     -- it may have a leading sample, due to 'Signal.drop_before'.
-    pairs = Signal.unsignal $
+    pairs = Seq.drop_initial_dups fst $ Signal.unsignal $
         Signal.drop_while ((<= start) . Signal.sx) $
         maybe id Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this

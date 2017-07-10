@@ -2282,6 +2282,15 @@ Derive:
   india: gamakam:
     . Get rid of gamakam1-4:
       - Convert gamakam4 to gamakam5 and make sure they sound right.
+        . LState.ky add import india.gamakam5
+        . change '* interleave' to 't-nn | gamak'
+        . 'dyn' to 'dyn | dyn'
+        * evvari
+          . The sample at note start winds up being too high: 16.67s:70.649
+          . Maybe due to how pitch transposition is applied.
+          . t-nn goes from 0 to 16.67s:2.669, for some reason the first sample
+            is different.
+          . Save the untransposed pitch and t-nn.
       - Remove gamakam4.
       - Save what I want from 1-3 and remove.
       - Remove ; syntax.

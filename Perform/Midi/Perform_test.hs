@@ -159,6 +159,22 @@ test_aftertouch = do
         , (1 - gap, 0, NoteOff Key.cs4 100)
         ]
 
+test_controls = do
+    let f extract = first extract . perform inst_addrs1
+            . map mkpevent . (:[])
+        e_pitch = PerformTest.extract_msg_ts PerformTest.e_pitchbend
+        e_control = PerformTest.extract_msg_ts (PerformTest.e_cc 1)
+    equal (f e_pitch (0, 4, [(0, 60), (1, 60.5)], []))
+        ([(-min_cc_lead, 0), (1, 0.5)], [])
+    -- Ignore discontinuities, MIDI is already discontinuous.
+    equal (f e_pitch (0, 4, [(0, 60), (1, 60), (1, 60.5)], []))
+        ([(-min_cc_lead, 0), (1, 0.5)], [])
+    equal (f e_control (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0.5)])]))
+        ([(-min_cc_lead, 0), (1, 64)], [])
+    -- Ignore discontinuities, MIDI is already discontinuous.
+    equal (f e_control (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0), (1, 0.5)])]))
+        ([(-min_cc_lead, 0), (1, 64)], [])
+
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
