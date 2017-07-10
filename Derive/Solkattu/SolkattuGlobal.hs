@@ -95,6 +95,9 @@ _standard_mridangam =
 ganesh :: Korvai -> Korvai
 ganesh = source "ganesh"
 
+janahan :: Korvai -> Korvai
+janahan = source "janahan"
+
 -- * misc
 
 adi :: Tala.Tala

@@ -156,8 +156,9 @@ stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
             S.Note (Space {}) -> Right Nothing
             s -> throw $ "should have plain strokes: " <> pretty s
         unless (length sollus == length strokes) $
-            throw "sollus and strokes have differing lengths after removing\
-                \ sollu rests"
+            throw $ "sollus and strokes have differing lengths after removing\
+                \ rests: sollus " <> showt (length sollus)
+                <> " /= strokes " <> showt (length strokes)
         -- TODO warn if there are inconsistent tags?
         return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
 

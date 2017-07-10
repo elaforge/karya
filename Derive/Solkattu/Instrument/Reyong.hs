@@ -4,7 +4,7 @@
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
--- | Realize an abstract solkattu Notes to concrete reyong 'Note's.
+-- | Realize abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Instrument.Reyong where
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
