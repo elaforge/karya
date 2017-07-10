@@ -20,7 +20,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.Debug as Debug
 import qualified Util.Doc as Doc
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText

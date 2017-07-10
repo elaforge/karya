@@ -3,14 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - It's easy to leave vi open on a ky file and change scores.  Maybe it could
+    send the score name, and reject if it's changed.
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
+    . But printf style can't work for typeclasses without dependent typing
+      because it doesn't know which one to select.
     . text-format: requires importing a bunch of formatters, type-unsafe
       . format "from={} | {} {}" ('val vol, 'str c, 'val val)
+      . I don't like it because the format type is out of context.
     . formatting: import a bunch of formatters plus (%), type-safe
       . Probably worse errors.
       . format ("from="%'val%" | "%'str%" "%'val) vol c val
+      . Still much noisier than "from=%v | %s %v".
     . fmt: even more operators and imports
   - save/bug/align-right: right side text redraws inconsistently
   - The EvalTrack rule that skips events that are all comment event is
@@ -2281,10 +2287,10 @@ Derive:
           two neighboring notes at a time.
   india: gamakam:
     . Get rid of gamakam1-4:
-      - Convert gamakam4 to gamakam5 and make sure they sound right.
+      * Convert gamakam4 to gamakam5 and make sure they sound right.
         . LState.ky add import india.gamakam5
         . change '* interleave' to 't-nn | gamak'
-        . 'dyn' to 'dyn | dyn'
+        . 'dyn' to 'dyn mul | dyn'
         * evvari
           . The sample at note start winds up being too high: 16.67s:70.649
           . Maybe due to how pitch transposition is applied.
@@ -2292,7 +2298,23 @@ Derive:
             is different.
           . Save the untransposed pitch and t-nn.
       - Remove gamakam4.
-      - Save what I want from 1-3 and remove.
+      Save what I want from 1-3 and remove.
+        - gamakam1:
+          . kampita and nkampita implementations
+        - gamakam2:
+          . use @ begin; middle;* end
+          . middle can be kam, to get multiple oscillations + lilt as
+            appropriate
+          . It has a separate implementation of kampita, which might be more
+            modern.  Also I still like the idea of a stretchy middle section,
+            and I think I'll need something like that to write higher-level
+            gamakam.
+        * gamakam3:
+          . Like gamakam5 with pitch and dyn integrated into one syntax.
+          . It also has a notion of expr and "compact expr", where the compact
+            one is not space separated.
+        * gamakam4:
+          . Like gamakam5, but emits pitches instead of a transpose signal.
       - Remove ; syntax.
     - How to represent sangitas?
       . Also what about accumulating phrases, as in kuvalaya dala or mosaboku?

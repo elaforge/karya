@@ -16,8 +16,6 @@ import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
-import qualified Derive.Call.India.Gamakam3 as Gamakam3
-import qualified Derive.Call.India.Gamakam4 as Gamakam4
 import qualified Derive.Call.India.Gamakam5 as Gamakam5
 import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
@@ -71,8 +69,6 @@ note_maps = mconcat
     , Delay.note_calls
     , Equal.note_calls
     , Gamakam2.note_calls
-    , Gamakam3.note_calls
-    , Gamakam4.note_calls
     , Gamakam5.note_calls
     , Gangsa.note_calls
     , Gender.note_calls
@@ -112,8 +108,6 @@ control_maps = mconcat
     , Control.control_calls
     , Equal.control_calls
     , Gamakam.control_calls
-    , Gamakam3.control_calls
-    , Gamakam4.control_calls
     , Gamakam5.control_calls
     , Import.calls
     , Conditional.control_calls
@@ -128,8 +122,6 @@ pitch_maps = mconcat
     , Equal.pitch_calls
     , Gamakam.pitch_calls
     , Gamakam2.pitch_calls
-    , Gamakam3.pitch_calls
-    , Gamakam4.pitch_calls
     , Grace.pitch_calls
     , Import.calls
     , Conditional.pitch_calls
