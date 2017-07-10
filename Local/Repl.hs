@@ -9,11 +9,9 @@ module Local.Repl where
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Repl.LInst as LInst
-import qualified Cmd.Repl.LTrack as LTrack
 
 import qualified Local.Instrument.Kontakt.ScGamelan as Kontakt.ScGamelan
 import qualified Local.Instrument.Kontakt.Wayang as Kontakt.Wayang
-import Global
 
 
 test_cmd :: Cmd.CmdL ()

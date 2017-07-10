@@ -41,7 +41,7 @@ import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
 #include "hsconfig.h"
-#ifdef ENABLE_IM
+#if defined(ENABLE_IM) && !defined(TESTING)
 import qualified Synth.Faust.PatchDb as Faust.PatchDb
 import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 #endif
@@ -78,7 +78,7 @@ midi_synths =
 im_synths :: [MidiInst.Synth]
 im_synths =
     [ Perform.Im.Play.play_cache_synth
-#ifdef ENABLE_IM
+#if defined(ENABLE_IM) && !defined(TESTING)
     , Sampler.PatchDb.synth
     , Faust.PatchDb.synth
 #endif
