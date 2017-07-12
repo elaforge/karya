@@ -90,18 +90,5 @@ _standard_mridangam =
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
--- * metadata
-
-ganesh :: Korvai -> Korvai
-ganesh = source "ganesh"
-
-janahan :: Korvai -> Korvai
-janahan = source "janahan"
-
--- * misc
-
-adi :: Tala.Tala
-adi = Tala.adi_tala
-
 vary :: Korvai -> Korvai
 vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])

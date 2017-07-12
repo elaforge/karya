@@ -31,6 +31,9 @@ module Derive.Solkattu.Dsl (
     , index
     , realize, realizep
     , realize_m, realize_k1, realize_r
+    -- * conveniences
+    , ganesh, janahan, sriram
+    , adi
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -48,6 +51,7 @@ import qualified Derive.Solkattu.Sequence as S
 import Derive.Solkattu.Sequence (Duration, Matra, Nadai)
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (check, duration_of)
+import qualified Derive.Solkattu.Tala as Tala
 import Derive.Solkattu.Tala (Akshara)
 
 import Global
@@ -191,3 +195,14 @@ realize_k1 = Korvai.print_instrument Korvai.kendang_tunggal
 
 realize_r :: Bool -> Korvai.Korvai -> IO ()
 realize_r = Korvai.print_instrument Korvai.reyong
+
+
+-- * conveniences
+
+ganesh, janahan, sriram :: Korvai -> Korvai
+ganesh = source "ganesh"
+janahan = source "janahan"
+sriram = source "sriram"
+
+adi :: Tala.Tala
+adi = Tala.adi_tala

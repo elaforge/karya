@@ -160,7 +160,7 @@ make_mohra2 inst (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi inst $
 c_mohra :: Korvai
 c_mohra = ganesh $ make_mohra2 mridangam (a1, a2, a1) (b1, b2, b3)
     where
-    a1 = dit.__4.tang.__.kita.nakatiku
+    a1 = dit.__4      .tang.__.kita.nakatiku
     a2 = na.ka.dit.__2.tang.__.kita.nakatiku
     b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
     b2 = ta.langa.dheem.__4

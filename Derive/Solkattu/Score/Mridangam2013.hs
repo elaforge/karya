@@ -86,15 +86,14 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
 
 -- ** tisram
 
-c_16_11_14 :: Korvai
-c_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai1 adi $ nadai 6 $
+t_16_11_14 :: Korvai
+t_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvai1 adi $ nadai 6 $
     tri (reduce3 1 ø (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
 
 -- * sarvalaghu
 
-ganesh_17_02_13 :: Korvai
-ganesh_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $
-    map (nadai 6)
+t_17_02_13 :: Korvai
+t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $ map (nadai 6)
     [ takitadin.kadin . takitadin.kadin . takitatin.katin
         . takitatin.k.takitatin.k
     , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
@@ -201,8 +200,6 @@ p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     kook = k.o.o.k
     tdgnt = spread 2 $ k.t.k.n.o
 
--- * korvai sequences
-
 -- * farans
 
 farans :: Korvai
@@ -271,16 +268,8 @@ eddupu10 = korvai (beats 5)
 nang_kita :: Sequence
 nang_kita = o&n . __ . p.k.nakatiku
 
--- -- * realize
-
-adi :: Tala.Tala
-adi = Tala.adi_tala
+-- * realize
 
 -- | For a fragment which fits a certain number of beats.
 beats :: Akshara -> Tala.Tala
 beats aksharas = Tala.Tala "beats" [Tala.I] aksharas
-
-ganesh, janahan, sriram :: Korvai -> Korvai
-ganesh = source "ganesh"
-janahan = source "janahan"
-sriram = source "sriram"
