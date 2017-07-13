@@ -335,7 +335,8 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai
-c_17_06_19_koraippu = korvai adi mridangam $ map (restD 2 .)
+c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
+    korvai adi mridangam $ map (restD 2 .)
     [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . tk.tdgnt
     , repeat 2 $ tri (tat.__4.din.__3) . tk.tdgnt
     , repeat 2 $ tri (tat.__4) . tri (din.__3) . tk.tdgnt
@@ -356,4 +357,35 @@ c_17_06_19_koraippu = korvai adi mridangam $ map (restD 2 .)
         , (ta, [k])
         , (ta.ka, [p, k])
         , (din, [od])
+        ]
+
+c_17_07_13 :: Korvai
+c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $
+    -- TODO when I can do branches, any dintaka can go with any purvangam:
+    -- utarangam (any dintakas) . purvangam (any dintakas)
+    map utarangam dintakas ++ [purvangam (head dintakas)]
+    where
+    dintakas = -- each is 6 beats -- TODO map assert dur == 6
+        [ din.taka.din.taka
+        , din . su (taka).din.din.taka
+        , din . su (taka).din.din . su taka . din
+        , n6 (din.taka).din.din.taka
+        , n6 (din.taka).din . n6 (din.taka).din
+        , n6 (din.taka).din. su (din.ta) . ka.din
+        ]
+    n6 = nadai 6
+    utarangam dintaka =
+        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (kita.taka)
+        . dintaka.din.__.tat.__.tat.__.din.__4
+    purvangam dintaka = tri
+        (ta.__.kita.taka . din.tat . dintaka.din.__.tat.__.tat.__.din.__2)
+    mridangam = make_mridangam
+        [ (ta.kita.taka, [k, k, t, k, o])
+        , (din.taka.din.taka, [o, k, o, o, k, o])
+        , (din.tat.tat.din, [od, on, on, v])
+        , (kita.taka, [k, t, o, k])
+
+        , (taka, [k, k])
+        , (din, [o])
+        , (din.tat, [od, k])
         ]

@@ -29,7 +29,10 @@ data Thoppi = Tha | Thom
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
-    | Nam | Din | Chapu | Dheem
+    | Nam | Din
+    | AraiChapu -- ^ whole-hand chapu
+    | MuruChapu -- ^ pinky chapu
+    | Dheem
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
@@ -41,9 +44,9 @@ instrument = Realize.instrument standard_stroke_map
 standard_stroke_map :: Realize.StrokeMap Stroke
 standard_stroke_map = Realize.simple_stroke_map $
     [ ([Solkattu.Thom], [Just $ Thoppi Thom])
-    , ([Solkattu.Tam], [Just $ Valantalai Chapu])
-    , ([Solkattu.Tang], [Just $ Valantalai Chapu])
-    , ([Solkattu.Lang], [Just $ Valantalai Chapu])
+    , ([Solkattu.Tam], [Just $ Valantalai AraiChapu])
+    , ([Solkattu.Tang], [Just $ Valantalai AraiChapu])
+    , ([Solkattu.Lang], [Just $ Valantalai AraiChapu])
     , ([Solkattu.Dheem], [Just $ Valantalai Dheem])
     ]
 
@@ -59,7 +62,8 @@ instance Pretty Stroke where
             Mi -> "pl"
             Nam -> "A"
             Din -> "O"
-            Chapu -> "V"
+            AraiChapu -> "pu"
+            MuruChapu -> "pv"
             Dheem -> "pi" -- These are pretty rare.
             Kin -> "p,"
             Tan -> "p^"
@@ -77,7 +81,8 @@ instance Pretty Valantalai where
         Mi -> "l"
         Nam -> "n"
         Din -> "d"
-        Chapu -> "u"
+        AraiChapu -> "u"
+        MuruChapu -> "v"
         Dheem -> "i"
         Kin -> ","
         Tan -> "^"
@@ -105,7 +110,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
-    k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, i :: a
+    k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, v :: a, i :: a
     , y :: a, j :: a
     , p :: a, o :: a
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
@@ -123,7 +128,8 @@ strokes = Strokes
     , l = Valantalai Mi
     , n = Valantalai Nam
     , d = Valantalai Din
-    , u = Valantalai Chapu
+    , u = Valantalai AraiChapu
+    , v = Valantalai MuruChapu
     , i = Valantalai Dheem
     , y = Valantalai Kin
     , j = Valantalai Tan

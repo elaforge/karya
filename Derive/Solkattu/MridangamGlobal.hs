@@ -20,7 +20,7 @@ module Derive.Solkattu.MridangamGlobal (
     Sequence
     , (&)
     , korvai, korvai1
-    , k, t, n, d, u, i, y, j, p, o, od
+    , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l
     , closed
     , lt, hv

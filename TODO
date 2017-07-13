@@ -601,6 +601,8 @@ synth: im:
     . I'd prefer to have a mix that waits until the start time, allocates
       any resources needed (open source file, allocate synthesizer), and then
       emits samples.
+    . Author is nonresponsive.  Maybe I should just write my own:
+      . Only one sample rate, only one channel, support only Float.
   TODO
     . Cache / incremental rendering.  Karya has to also emit damage ranges,
       and the synth has to expand that to notes and rerender just those
@@ -662,11 +664,6 @@ synth: im:
       * Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
         geometry stuff for it.
       - Put find_sample into a TimeVector.cc library.
-    - More efficient conduit-audio:
-      . I think I have to modify conduit-audio to have a time offset, and then
-        I can implement silent efficiently.
-      . Also, Audio.mix pads with zeroes on the end too, it should be able to
-        drop (and close) the source.
     plan:
       . Faust has a bunch of *.dsp files.
       . shakefile runs faust to generate .cc from the result, and then collect
@@ -1874,6 +1871,7 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - Use a typeclass for format-conversion, instead of Pretty.
+          . Use underline for tha+x instead of ad-hoc letters.
         transcribe:
           * from 2013-11-19
           - from 2013-02-20, tisram

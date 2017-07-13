@@ -56,6 +56,9 @@ make_code notes both =
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
+-- | Single symbols for two strokes together.  thom+x becomes a capital X,
+-- and there are a few ad-hoc capital letters for more common tha+x
+-- combinations.
 both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
 both_calls = make_both left_notes right_notes special_names
     [ ("N", 'g'), ("D", 'b')
@@ -125,8 +128,8 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 'u' "^" (meetu <> ta) 1
             ]
         , group v_chapu
-            [ n '5' "v" muru 1
-            , n 't' "u" arai 1
+            [ n '5' "v" muruchapu 1
+            , n 't' "u" araichapu 1
             ]
         , group v_dheem [n 'y' "i" dheem 1]
         ]
@@ -165,7 +168,7 @@ make_notes root_nn = CUtil.drum_pitched_notes all_notes $
     , [ta]
     , [nam]
     , [din]
-    , [arai, muru]
+    , [araichapu, muruchapu]
     , [meetu <> ki, dheem]
     , [meetu <> ta]
     ]
@@ -193,8 +196,8 @@ pitched_notes_old :: CUtil.PitchedNotes
     , (din, (Key.g5, Key.e6))
     , (din <> Attrs.v2, (Key.g6, Key.e7))
     , (dheem, (Key.g7, Key.e8))
-    , (arai, (Key.g8, Key.e9))
-    , (muru, (Key.g9, Key.g9))
+    , (araichapu, (Key.g8, Key.e9))
+    , (muruchapu, (Key.g9, Key.g9))
     ]
     where make (attrs, (low, high)) = (attrs, ([], low, high, Key.e4))
 
@@ -207,8 +210,8 @@ ta = Attrs.attr "ta"
 nam = Attrs.attr "nam"
 din = Attrs.attr "din"
 dheem = Attrs.attr "dheem"
-arai = Attrs.attr "arai"
-muru = Attrs.attr "muru"
+araichapu = Attrs.attr "araichapu"
+muruchapu = Attrs.attr "muruchapu"
 meetu = Attrs.attr "meetu"
 
 gumki = Attrs.attr "gumki"

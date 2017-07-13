@@ -46,6 +46,9 @@ takita = ta.ki.ta
 kita :: Seq stroke
 kita = ki.ta
 
+taka :: Seq stroke
+taka = ta.ka
+
 on :: Mridangam.SNote
 on = o & n
 

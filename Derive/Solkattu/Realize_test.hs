@@ -49,7 +49,7 @@ test_realize = do
     equal (f [sollu Din, rest, sollu Ga]) (Right "D _ _")
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
-    let chapu = Just (Realize.stroke $ M.Valantalai M.Chapu)
+    let chapu = Just (Realize.stroke $ M.Valantalai M.AraiChapu)
     let set_chapu = Solkattu.modify_stroke (const chapu)
     -- An explicit stroke will replace just that stroke.
     equal (f [sollu Na, set_chapu (sollu Din)]) (Right "n u")
