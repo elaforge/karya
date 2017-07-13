@@ -4,7 +4,10 @@
 
 -- | Offline synthesizer that uses FAUST.
 module Synth.Faust.FaustIm (main) where
+import qualified Control.Concurrent as Concurrent
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
+
 import qualified Data.Conduit as Conduit
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
@@ -17,6 +20,8 @@ import qualified Data.Vector.Storable as Storable
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.Posix.Process as Posix.Process
+import qualified System.Posix.Signals as Signals
 
 import qualified Util.Log as Log
 import qualified Synth.Faust.Convert as Convert
@@ -36,6 +41,10 @@ main = do
     patches <- DriverC.getPatches
     let process_ name =
             process patches Config.cacheDir name <=< either errorIO return
+    -- Make sure I get some output if the process is killed.
+    thread <- Concurrent.myThreadId
+    Signals.installHandler Signals.sigTERM
+        (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
         ["print-patches"] -> forM_ (Map.toList patches) $ \(name, patch) -> do
             Text.IO.putStrLn name
@@ -47,26 +56,30 @@ main = do
             | otherwise ->
                 process_ name . first pretty =<< Note.unserialize fname
             where name = FilePath.takeFileName fname
-        _ -> errorIO $ "usage: faust-im [notes.json | print-patches]"
+        _ -> errorIO $ "usage: faust-im [notes | notes.json | print-patches]"
 
 process :: Map Types.PatchName DriverC.Patch -> FilePath -> String
     -> [Note.Note] -> IO ()
 process patches outputDir name notes = do
+    pid <- Posix.Process.getProcessID
+    let put = Text.IO.putStrLn . ((showt pid <> ": " <> txt name <> ": ")<>)
     let output = outputDir </> name ++ ".wav"
-    put $ "processing " <> showt (length notes) <> " notes"
-    (errs, rendered) <- Either.partitionEithers <$>
-        mapM (renderNote patches) notes
-    mapM_ put errs
-    put $ "writing " <> txt output
-    result <- AUtil.catchSndfile $ Resource.runResourceT $
-        Sndfile.sinkSnd output AUtil.outputFormat (AUtil.mix rendered)
-    case result of
-        Left err -> Log.error $
-            "writing to output: " <> showt output <> ": " <> err
-        Right () -> return ()
-    put "done"
-    where
-    put = Text.IO.putStrLn . ((txt name <> ": ")<>)
+    let sigint :: Exception.AsyncException -> IO ()
+        sigint exc = put $ "exception: " <> showt exc
+    Exception.handle sigint $ do
+        put $ "processing " <> showt (length notes) <> " notes"
+        (errs, rendered) <- Either.partitionEithers <$>
+            mapM (\(i, n) -> when (i `mod` 10 == 0) (put $ "note " <> showt i)
+                >> renderNote patches n) (zip [0..] notes)
+        mapM_ put errs
+        put $ "writing " <> txt output
+        result <- AUtil.catchSndfile $ Resource.runResourceT $
+            Sndfile.sinkSnd output AUtil.outputFormat (AUtil.mix rendered)
+        case result of
+            Left err -> Log.error $
+                "writing to output: " <> showt output <> ": " <> err
+            Right () -> return ()
+        put "done"
 
 -- | Render samples for a single note.
 renderNote :: Map Types.PatchName DriverC.Patch -> Note.Note

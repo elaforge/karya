@@ -254,7 +254,7 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 subprocesses :: [Process.CreateProcess] -> IO ()
 subprocesses [] = return ()
 subprocesses procs = do
-    let names = map (showt . Util.Process.binaryOf) procs
+    let names = map (showt . Util.Process.cmdOf) procs
     Log.notice $ "starting: " <> Text.intercalate ", " names
     Util.Process.multipleSupervised procs
         -- I wait so I can kill the subprocess if I get killed.

@@ -3,8 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - It's easy to leave vi open on a ky file and change scores.  Maybe it could
-    send the score name, and reject if it's changed.
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
@@ -614,8 +612,10 @@ synth: im:
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
   faust:
-    - faust-im seems to get stuck on long renders.  Add a progress display on
+    * faust-im seems to get stuck on long renders.  Add a progress display on
       stdout so I can see what it's doing.
+      . It's not stuck, just taking a long time to write the file.  Probably
+        due to conduit-audio being inefficient.
     * Test a plucked string dsp, get the UI stuff working.
       . install qt, and try faust2caqt
       . too much bother, try faust2asmjs
@@ -1565,6 +1565,10 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - It would still be useful to save a single unified history.  Then use
+    something like :h to search it.
+  - It's easy to leave vi open on a ky file and change scores.  Maybe it could
+    send the score name, and reject if it's changed.
   - Now that save file is a poll instead of being pushed, it takes a return
     to notice a change.  Can I restore the notification thing?  Or maybe it's
     enough to make sure I write the history to the new name?
