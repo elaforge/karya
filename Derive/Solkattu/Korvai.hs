@@ -6,7 +6,6 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
-import qualified Data.Either as Either
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
@@ -206,12 +205,11 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
     speeds = Seq.unique_sort $ concatMap (map (Sequence.speed . fst)) notes
 
     instruments =
-        [ ("mridangam", has_realization mridangam)
-        , ("kendang_tunggal", has_realization kendang_tunggal)
-        , ("reyong", has_realization reyong)
+        [ ("mridangam", has_instrument inst_mridangam)
+        , ("kendang_tunggal", has_instrument inst_kendang_tunggal)
+        , ("reyong", has_instrument inst_reyong)
         ]
-    has_realization get = any (Either.isRight . realize get) notes
-    realize get = realize_instrument get (korvai_instruments korvai) False
+    has_instrument get = get (korvai_instruments korvai) /= mempty
 
 with_metadata :: Metadata -> Korvai -> Korvai
 with_metadata meta korvai =
