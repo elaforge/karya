@@ -65,9 +65,11 @@ sargam_degree (Pitch.Degree pc _accs) =
     fromMaybe (showt pc) (degrees Vector.!? pc)
     where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 
+-- COMBINING DOT ABOVE
 dot_above :: Text
 dot_above = "\x0307"
 
+-- COMBINING DOT BELOW
 dot_below :: Text
 dot_below = "\x0323"
 

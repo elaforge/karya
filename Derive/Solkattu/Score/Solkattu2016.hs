@@ -52,7 +52,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     mridangam = make_mridangam
         [ (1^tat, [p&k])
         , (1^dit, [p&t])
-        , (kitakina, [k, t, k, n, o, k, t&o, k])
+        , (kitakina, [k, t, k, n, o, k, o&t, k])
         , (dinnaka, [o, k, t, o, hv k, t, o, k])
         , (din, [o])
         -- reduction

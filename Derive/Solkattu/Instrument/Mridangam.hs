@@ -59,15 +59,12 @@ instance Pretty Stroke where
         Tha -> case v of
             Ki -> "P"
             Ta -> "X"
-            Mi -> "pl"
-            Nam -> "A"
-            Din -> "O"
-            AraiChapu -> "pu"
-            MuruChapu -> "pv"
-            Dheem -> "pi" -- These are pretty rare.
-            Kin -> "p,"
-            Tan -> "p^"
+            _ -> pretty v <> macron_below
         Thom -> Text.toUpper (pretty v)
+
+-- COMBINING MACRON BELOW
+macron_below :: Text
+macron_below = "\x0331"
 
 instance Pretty Thoppi where
     pretty n = case n of

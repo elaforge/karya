@@ -1871,7 +1871,7 @@ Derive:
         - subdivide at slower speeds
       solkattu:
         - Use a typeclass for format-conversion, instead of Pretty.
-          . Use underline for tha+x instead of ad-hoc letters.
+        * Use underline for tha+x instead of ad-hoc letters.
         transcribe:
           * from 2013-11-19
           - from 2013-02-20, tisram
