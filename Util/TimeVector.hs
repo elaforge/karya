@@ -137,9 +137,7 @@ unsignal_unique = Seq.drop_initial_dups fst . unsignal
 -- | Set the signal value, with a discontinuity.  See
 -- NOTE [signal-discontinuity].
 set :: V.Vector v (Sample y) => Maybe y -> X -> y -> v (Sample y)
--- set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
--- TODO enable when I've figured out gamakam
-set prev_y x y = signal [(x, y)]
+set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
 
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
