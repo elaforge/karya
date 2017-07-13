@@ -614,6 +614,8 @@ synth: im:
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
   faust:
+    - faust-im seems to get stuck on long renders.  Add a progress display on
+      stdout so I can see what it's doing.
     * Test a plucked string dsp, get the UI stuff working.
       . install qt, and try faust2caqt
       . too much bother, try faust2asmjs
@@ -1867,6 +1869,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - Use a typeclass for format-conversion, instead of Pretty.
         transcribe:
           * from 2013-11-19
           - from 2013-02-20, tisram
@@ -2074,16 +2077,20 @@ Derive:
         . Conditional derivation that depends on position in the tala, e.g.
           thali / khali.
         alternate realization
-          - sargam, for pitched notes
+          * sargam, for pitched notes
             . Or I could just use text, and emit it directly.  But maybe
               pitches are useful because I can transpose sequences, e.g.
               each pattern with a different transposition.
             . But I'd want a general purpose way to apply a transform so I
               can put e.g. +mute, and if I can do that then I can put
               transpose on.
+            . Also I have to know to put pitches in the pitch track.  I could
+              have Note { start, dur, pitch, controls }.
+            . N { start, dur :: TrackTime, transforms :: Map Text (Maybe Text) }
+              {"*": ..., "+mute": ""}
           - kendang pasangan
           - kajar
-          - gangsa / marimba
+          - gangsa
         ? Crazy idea: it might be nice to use underline or double underline
           for faster.  Is there a way I could get the editor to display
           special brackets as underline, and then turn those special brackets

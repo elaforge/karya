@@ -7,6 +7,7 @@
 -- | Realize an abstract solkattu 'S.Sequence' to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -19,9 +20,11 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
+import qualified Derive.Symbols as Symbols
 
 import Global
 
@@ -39,6 +42,12 @@ data Stroke stroke = Stroke {
     _emphasis :: !Emphasis
     , _stroke :: !stroke
     } deriving (Eq, Ord, Show, Functor)
+
+to_expr :: Expr.ToExpr a => Stroke a -> Expr.Expr Text
+to_expr (Stroke emphasis stroke) = case emphasis of
+    Normal -> Expr.to_expr stroke
+    Light -> Expr.with Symbols.weak stroke
+    Heavy -> Expr.with Symbols.accent stroke
 
 instance Pretty stroke => Pretty (Stroke stroke) where
     pretty (Stroke emphasis stroke) = case emphasis of
@@ -323,7 +332,7 @@ format override_stroke_width width tala notes =
         Just n -> (format_lines n width tala notes, n)
         Nothing -> case format_lines 1 width tala notes of
             ([line] : _)
-                | sum (map (Text.length . snd) line) <= width `div` 2 ->
+                | sum (map (text_length . snd) line) <= width `div` 2 ->
                     (format_lines 2 width tala notes, 2)
             result -> (result, 1)
     format_line :: [(S.State, Text)] -> Text
@@ -350,7 +359,7 @@ thin_rests = snd . List.mapAccumL thin 0
         | Text.all (=='_') stroke =
             let (column2, stroke2) = Text.mapAccumL clear column stroke
             in (column2, (state, stroke2))
-        | otherwise = (column + Text.length stroke, (state, stroke))
+        | otherwise = (column + text_length stroke, (state, stroke))
     clear column _ = (column+1, if even column then '_' else ' ')
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
@@ -377,7 +386,7 @@ format_lines stroke_width width tala =
         . S.normalize_speed tala
     where
     combine (prev, (state, text)) = (state, Text.drop overlap text)
-        where overlap = maybe 0 (subtract stroke_width . Text.length . snd) prev
+        where overlap = maybe 0 (subtract stroke_width . text_length . snd) prev
     show_stroke s = case s of
         S.Attack a -> Text.justifyLeft stroke_width ' ' (pretty a)
         S.Sustain a -> Text.replicate stroke_width $ case a of
@@ -414,7 +423,7 @@ break_line max_width notes
     | even aksharas = break_at (aksharas `div` 2) notes
     | otherwise = break_before max_width notes
     where
-    width = sum $ map (Text.length . snd) notes
+    width = sum $ map (text_length . snd) notes
     aksharas = Seq.count at_akshara notes
     break_at akshara =
         pair_to_list . break ((==akshara) . S.state_akshara . fst)
@@ -431,7 +440,7 @@ break_before max_width = go . dropWhile null . Seq.split_with at_akshara
             ([], post:posts) -> post : go posts
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
-    running_width = drop 1 . scanl (+) 0 . map (sum . map (Text.length . snd))
+    running_width = drop 1 . scanl (+) 0 . map (sum . map (text_length . snd))
 
 break_fst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 break_fst f = (map snd *** map snd) . break (f . fst)
@@ -458,6 +467,15 @@ emphasize word
     | word == "_ " = emphasize "_|"
     | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
     where (pre, post) = Text.break (==' ') word
+
+text_length :: Text -> Int
+text_length = sum . map len . untxt
+    where
+    -- Combining characters don't contribute to the width.  I'm sure it's way
+    -- more complicated than this, but for the moment this seems to work.
+    len c
+        | Char.isMark c = 0
+        | otherwise = 1
 
 -- * format html
 

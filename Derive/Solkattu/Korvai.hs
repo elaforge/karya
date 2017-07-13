@@ -21,6 +21,8 @@ import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Instrument.Konnakol as Konnakol
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Instrument.Reyong as Reyong
+import qualified Derive.Solkattu.Instrument.Sargam as Sargam
+import qualified Derive.Solkattu.Instrument.ToScore as ToScore
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
@@ -56,27 +58,40 @@ korvai tala instruments sequences = infer_metadata $ Korvai
     , korvai_metadata = mempty
     }
 
+-- | TODO the name is awkward.  This is really just ties together all the
+-- instrument-specific code.
 data GetInstrument stroke = GetInstrument {
     get_realization :: Instruments -> Realize.Instrument stroke
     , get_stroke :: Stroke -> Maybe (Realize.Stroke stroke)
+    , get_to_score :: ToScore.ToScore stroke
     }
 
 mridangam :: GetInstrument Mridangam.Stroke
 mridangam = GetInstrument
     { get_realization = inst_mridangam
     , get_stroke = s_mridangam
+    , get_to_score = ToScore.to_score
     }
 
 kendang_tunggal :: GetInstrument KendangTunggal.Stroke
 kendang_tunggal = GetInstrument
     { get_realization = inst_kendang_tunggal
     , get_stroke = s_kendang_tunggal
+    , get_to_score = ToScore.to_score
     }
 
 reyong :: GetInstrument Reyong.Stroke
 reyong = GetInstrument
     { get_realization = inst_reyong
     , get_stroke = s_reyong
+    , get_to_score = ToScore.to_score
+    }
+
+sargam :: GetInstrument Sargam.Stroke
+sargam = GetInstrument
+    { get_realization = inst_sargam
+    , get_stroke = s_sargam
+    , get_to_score = Sargam.to_score
     }
 
 -- | Realize a Korvai on a particular instrument.
@@ -208,6 +223,7 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
         [ ("mridangam", has_instrument inst_mridangam)
         , ("kendang_tunggal", has_instrument inst_kendang_tunggal)
         , ("reyong", has_instrument inst_reyong)
+        , ("sargam", has_instrument inst_sargam)
         ]
     has_instrument get = get (korvai_instruments korvai) /= mempty
 
@@ -221,34 +237,39 @@ data Instruments = Instruments {
     inst_mridangam :: Realize.Instrument Mridangam.Stroke
     , inst_kendang_tunggal :: Realize.Instrument KendangTunggal.Stroke
     , inst_reyong :: Realize.Instrument Reyong.Stroke
+    , inst_sargam :: Realize.Instrument Sargam.Stroke
     } deriving (Eq, Show)
 
 instance Monoid Instruments where
-    mempty = Instruments mempty mempty mempty
-    mappend (Instruments a1 a2 a3) (Instruments b1 b2 b3) =
-        Instruments (a1<>b1) (a2<>b2) (a3<>b3)
+    mempty = Instruments mempty mempty mempty mempty
+    mappend (Instruments a1 a2 a3 a4) (Instruments b1 b2 b3 b4) =
+        Instruments (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
 
 instance Pretty Instruments where
-    format (Instruments mridangam kendang_tunggal reyong) =
+    format (Instruments mridangam kendang_tunggal reyong sargam) =
         Pretty.record "Instruments"
             [ ("mridangam", Pretty.format mridangam)
             , ("kendang_tunggal", Pretty.format kendang_tunggal)
             , ("reyong", Pretty.format reyong)
+            , ("sargam", Pretty.format sargam)
             ]
 
 data Stroke = Stroke {
-    s_mridangam :: !(Maybe (Realize.Stroke Mridangam.Stroke))
-    , s_kendang_tunggal :: !(Maybe (Realize.Stroke KendangTunggal.Stroke))
-    , s_reyong :: !(Maybe (Realize.Stroke Reyong.Stroke))
+    s_mridangam :: !(RStroke Mridangam.Stroke)
+    , s_kendang_tunggal :: !(RStroke KendangTunggal.Stroke)
+    , s_reyong :: !(RStroke Reyong.Stroke)
+    , s_sargam :: !(RStroke Sargam.Stroke)
     } deriving (Eq, Ord, Show)
 
+type RStroke a = Maybe (Realize.Stroke a)
+
 instance Monoid Stroke where
-    mempty = Stroke Nothing Nothing Nothing
-    mappend (Stroke a1 a2 a3) (Stroke b1 b2 b3) =
-        Stroke (a1<|>b1) (a2<|>b2) (a3<|>b3)
+    mempty = Stroke Nothing Nothing Nothing Nothing
+    mappend (Stroke a1 a2 a3 a4) (Stroke b1 b2 b3 b4) =
+        Stroke (a1<|>b1) (a2<|>b2) (a3<|>b3) (a4<|>b4)
 
 instance Pretty Stroke where
-    pretty (Stroke m k r) = pretty (m, k, r)
+    pretty (Stroke m k r s) = pretty (m, k, r, s)
 
 class ToStroke stroke where
     to_stroke :: CallStack.Stack => stroke -> Stroke

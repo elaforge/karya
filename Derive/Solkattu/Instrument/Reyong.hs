@@ -10,7 +10,6 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Symbols as Symbols
 
 import Global
 
@@ -49,11 +48,7 @@ instance Expr.ToExpr Stroke where
         CekC -> "X"
         CekO -> "/"
 
-instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
-        Realize.Normal -> Expr.to_expr stroke
-        Realize.Light -> Expr.with Symbols.weak stroke
-        Realize.Heavy -> Expr.with Symbols.accent stroke
+instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.to_expr
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a

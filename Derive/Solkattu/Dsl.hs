@@ -30,7 +30,7 @@ module Derive.Solkattu.Dsl (
     -- * realize
     , index
     , realize, realizep
-    , realize_m, realize_k1, realize_r
+    , realize_m, realize_k1, realize_r, realize_sargam
     -- * conveniences
     , ganesh, janahan, sriram
     , adi
@@ -195,6 +195,9 @@ realize_k1 = Korvai.print_instrument Korvai.kendang_tunggal
 
 realize_r :: Bool -> Korvai.Korvai -> IO ()
 realize_r = Korvai.print_instrument Korvai.reyong
+
+realize_sargam :: Bool -> Korvai.Korvai -> IO ()
+realize_sargam = Korvai.print_instrument Korvai.sargam
 
 
 -- * conveniences

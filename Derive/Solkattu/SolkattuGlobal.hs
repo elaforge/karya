@@ -17,7 +17,9 @@ import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Instrument.Reyong as Reyong
+import qualified Derive.Solkattu.Instrument.Sargam as Sargam
 import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
@@ -47,7 +49,7 @@ kita = ki.ta
 on :: Mridangam.SNote
 on = o & n
 
--- * realize
+-- * instruments
 
 type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]
 
@@ -71,6 +73,14 @@ make_reyong :: CallStack.Stack => [(Seq Reyong.Stroke, [Reyong.SNote])]
 make_reyong strokes = mempty
     { Korvai.inst_reyong = check $
         Reyong.instrument strokes Reyong.rhythmic_patterns
+    }
+
+make_sargam :: CallStack.Stack => [(Seq Sargam.Stroke, [Sargam.SNote])]
+    -> [(Solkattu.Pattern, [Realize.SNote Sargam.Stroke])]
+    -> Korvai.Instruments
+make_sargam strokes patterns = mempty
+    { Korvai.inst_sargam = check $
+        Sargam.instrument strokes (check $ Realize.patterns patterns)
     }
 
 korvai1 :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> Sequence

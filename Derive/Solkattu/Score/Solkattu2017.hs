@@ -9,6 +9,8 @@ import Prelude hiding ((.), (^), repeat)
 
 import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Instrument.Reyong as Reyong
+import qualified Derive.Solkattu.Instrument.Sargam as Sargam
+import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.SolkattuGlobal
 import qualified Derive.Solkattu.Tala as Tala
 
@@ -299,18 +301,38 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
         ]
 
 c_17_06_19 :: Korvai
-c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi mridangam $
+c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
     reduce3 2 mempty (tat.__.dit.__.takadinna.din.__3.p5)
         -- TODO elide p5
         -- . trin (tam.__3) p5 (tk.p5) (tknk.p5)
         . tam.__3 . join (tam.__3) [tk.p5, tknk.p5]
     where
+    inst = mridangam <> kendang <> sargam
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (din, [od])
         -- TODO reduction
         , (dit, [k])
         ]
+    kendang = make_kendang1
+        [ (tat.dit, [p, t])
+        , (din, [a])
+        -- TODO reduction
+        , (dit, [p])
+        -- TODO put in standard stroke map
+        , (takadinna, [p, o, a, p])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+    sargam = make_sargam
+        [ (tat.dit, [p, m])
+        , (takadinna, [p, m, r, m])
+        , (din, [hv s])
+        , (dit, [m])
+        , (tam, [hv s_])
+        ]
+        [ ( Solkattu.PatternM 5, su [d_, s, d_, n_] . [s, n_, p_])
+        , ( Solkattu.Taka, [s, p_])
+        , ( Solkattu.Takanaka, [s, p_, r, p_])
+        ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai
 c_17_06_19_koraippu = korvai adi mridangam $ map (restD 2 .)
