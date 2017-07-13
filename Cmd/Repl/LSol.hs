@@ -4,6 +4,11 @@
 
 -- | Utilities for solkattu.  This re-exports "Derive.Solkattu.Db" so I can
 -- find pre-defined korvais.
+--
+-- E.g.:
+-- > return $ LSol.search $ LSol.has_instrument "kendang_tunggal"
+-- > 59: .... etc
+-- > LSol.insert_k1 True 0 (LSol.korvais !! 59) 0
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Derive.Solkattu.Db

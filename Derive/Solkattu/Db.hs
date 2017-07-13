@@ -40,13 +40,20 @@ around_date date days =
 of_type :: Text -> Korvai.Korvai -> Bool
 of_type type_ = (type_ `elem`) . Metadata.get "type"
 
+has_instrument :: Text -> Korvai.Korvai -> Bool
+has_instrument inst = (inst `elem`) . Metadata.get "instrument"
+
 -- * search
 
-search :: (Korvai.Korvai -> Bool) -> IO ()
-search predicate = mapM_ printk $ filter (predicate . snd) $ zip [0..] korvais
+searchp :: (Korvai.Korvai -> Bool) -> IO ()
+searchp = Text.IO.putStrLn . search
 
-printk :: (Int, Korvai.Korvai) -> IO ()
-printk (i, korvai) = Text.IO.putStr $
+search :: (Korvai.Korvai -> Bool) -> Text
+search predicate = Text.stripEnd $
+    Text.unlines $ map format $ filter (predicate . snd) $ zip [0..] korvais
+
+format :: (Int, Korvai.Korvai) -> Text
+format (i, korvai) =
     showt i <> ": " <> Metadata.get_location korvai <> "\n" <> tags_text
     where
     tags_text = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
