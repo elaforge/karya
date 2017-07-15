@@ -40,7 +40,7 @@ test_serialize = do
         msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)
     equal perf (recode perf)
 
-    let tdest = Block.DeriveDestination (UiTest.tid "tid", mempty) mempty
+    let tdest = Block.NoteDestination (UiTest.tid "tid", mempty) mempty
     equal tdest (recode tdest)
     let flags = [minBound .. maxBound] :: [Block.TrackFlag]
     equal flags (recode flags)

@@ -51,7 +51,7 @@
     integration that simply copies score events directly, without the
     intervening derive step.
 -}
-module Cmd.Integrate (cmd_integrate, score_integrate) where
+module Cmd.Integrate (cmd_integrate, score_integrate, manual_integrate) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -237,3 +237,21 @@ needs_track_score_integrate updates state = Seq.unique $
             Block.block_integrated_tracks block
         , track_id == dest_track_id
         ]
+
+-- * manual integrate
+
+-- | Find blocks with the source key, and merge the given tracks into them.
+manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track
+    -> [Convert.Track] -> m ()
+manual_integrate key note controls = do
+    dests <- manual_destinations key . Map.toList <$> Ui.gets Ui.state_blocks
+    forM_ dests $ \(block_id, dests) -> do
+        new_dests <- forM dests $ \dest ->
+            Merge.merge_tracks block_id [(note, controls)] [dest]
+        Ui.set_integrated_manual block_id key (Just (concat new_dests))
+
+-- | Find all manual derive destinations with the given key.
+manual_destinations :: Block.SourceKey -> [(a, Block.Block)]
+    -> [(a, [Block.NoteDestination])]
+manual_destinations key = filter (not . null . snd)
+    . map (second (Map.findWithDefault [] key . Block.block_integrated_manual))

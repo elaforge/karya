@@ -55,9 +55,9 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
@@ -70,14 +70,14 @@ import Types
 -- * block
 
 create_block :: Ui.M m => BlockId -> Convert.Tracks
-    -> m (BlockId, [Block.DeriveDestination])
+    -> m (BlockId, [Block.NoteDestination])
 create_block source_id tracks = do
     ruler_id <- Ui.block_ruler source_id
     dest_id <- Create.block ruler_id
     (,) dest_id <$> merge_block dest_id tracks []
 
 merge_block :: Ui.M m => BlockId -> Convert.Tracks
-    -> [Block.DeriveDestination] -> m [Block.DeriveDestination]
+    -> [Block.NoteDestination] -> m [Block.NoteDestination]
 merge_block = merge_tracks
 
 score_merge_block :: Ui.M m => BlockId -> BlockId -> Block.ScoreDestinations
@@ -94,15 +94,17 @@ score_merge_block source_id dest_id dests = do
 -- an integrating track can have >=1 destinations, so this is called once per
 -- (source, destination) pair.
 merge_tracks :: Ui.M m => BlockId -> Convert.Tracks
-    -> [Block.DeriveDestination] -> m [Block.DeriveDestination]
+    -> [Block.NoteDestination] -> m [Block.NoteDestination]
 merge_tracks block_id tracks dests = do
     track_ids <- all_block_tracks block_id
     new_dests <- mapMaybeM (merge_pairs block_id) $
         pair_tracks track_ids tracks dests
+    -- TODO doesn't this combine with the old skeleton?  Why isn't that
+    -- a problem?
     add_derive_skeleton block_id new_dests
     return new_dests
 
-add_derive_skeleton :: Ui.M m => BlockId -> [Block.DeriveDestination] -> m ()
+add_derive_skeleton :: Ui.M m => BlockId -> [Block.NoteDestination] -> m ()
 add_derive_skeleton block_id dests = do
     track_ids <- all_block_tracks block_id
     skel <- Ui.require "integrate somehow created a cyclic skeleton"
@@ -110,11 +112,11 @@ add_derive_skeleton block_id dests = do
             Ui.get_skeleton block_id
     Ui.set_skeleton block_id skel
 
-track_edges :: [Maybe TrackId] -> [Block.DeriveDestination]
+track_edges :: [Maybe TrackId] -> [Block.NoteDestination]
     -> [(TrackNum, TrackNum)]
 track_edges track_ids = concatMap edges
     where
-    edges (Block.DeriveDestination (track_id, _) controls) =
+    edges (Block.NoteDestination (track_id, _) controls) =
         case tracknum_of track_id of
             Nothing -> []
             Just tracknum ->
@@ -123,6 +125,7 @@ track_edges track_ids = concatMap edges
                 in zip (tracknum : control_nums) control_nums
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
 
+-- | Tracks in tracknum order.  Nothing for non-event tracks, like rulers.
 all_block_tracks :: Ui.M m => BlockId -> m [Maybe TrackId]
 all_block_tracks block_id =
     map Block.track_id . Block.block_tracks <$> Ui.get_block block_id
@@ -141,7 +144,7 @@ score_merge_tracks block_id source_id dests = do
 score_merge :: Ui.M m => BlockId -> TrackTree.TrackTree
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
 score_merge block_id tree dests = do
-    remove <- destination_edges block_id dests
+    remove <- destination_edges block_id (map (fst . snd) dests)
     Ui.modify_skeleton block_id (Skeleton.remove_edges remove)
     track_ids <- all_block_tracks block_id
     tracks <- get_children tree
@@ -173,11 +176,9 @@ source_to_dest block_id dests = mapM $ Traversable.mapM $ \track_id -> do
 -- remains.  This only returns edges where both ends are in the destination
 -- tracks, so if you manually add a non-integrated parent or child it should
 -- remain that way.
-destination_edges :: Ui.M m => BlockId -> Block.ScoreDestinations
-    -> m [Skeleton.Edge]
-destination_edges block_id dests = do
-    tracknums <- mapM (\(_, (dest_id, _)) -> dest_tracknum block_id dest_id)
-        dests
+destination_edges :: Ui.M m => BlockId -> [TrackId] -> m [Skeleton.Edge]
+destination_edges block_id track_ids = do
+    tracknums <- mapM (dest_tracknum block_id) track_ids
     edges <- Skeleton.flatten <$> Ui.get_skeleton block_id
     return $ filter (\(p, c) -> p `elem` tracknums && c `elem` tracknums) edges
 
@@ -195,18 +196,19 @@ add_skeleton block_id tree = do
 -- ** merge
 
 -- | Merge together TrackPairs, modifying the underlying tracks, and return
--- a DeriveDestination.  The head of the TrackPairs is assumed to be the note
+-- a NoteDestination.  The head of the TrackPairs is assumed to be the note
 -- track, and the rest are its controls.
 merge_pairs :: Ui.M m => BlockId -> [TrackPair]
-    -> m (Maybe Block.DeriveDestination)
+    -> m (Maybe Block.NoteDestination)
 merge_pairs block_id pairs = do
     triples <- mapMaybeM (merge_pair block_id) pairs
     return $ case triples of
         [] -> Nothing
         (_, note_id, note_index) : controls ->
-            Just $ Block.DeriveDestination (note_id, note_index)
-                (Map.fromList [(title, (track_id, index))
-                    | (title, track_id, index) <- controls])
+            Just $ Block.NoteDestination (note_id, note_index) $ Map.fromList
+                [ (title, (track_id, index))
+                | (title, track_id, index) <- controls
+                ]
 
 merge_pair :: Ui.M m => BlockId -> TrackPair
     -> m (Maybe (Text, TrackId, Block.EventIndex))
@@ -315,25 +317,19 @@ type Dest = (TrackId, Block.EventIndex)
     tracks should be added adjacent to their sisters, and the first integrate
     will append the generated tracks to the end of the block.
 -}
-pair_tracks :: [Maybe TrackId] -- ^ tracks in the block, in tracknum order
-    -> Convert.Tracks -> [Block.DeriveDestination] -> [[TrackPair]]
+pair_tracks :: [Maybe TrackId] -- ^ Tracks in the block, in tracknum order.
+    -- Nothing for non-event tracks like rulers.
+    -> Convert.Tracks -> [Block.NoteDestination] -> [[TrackPair]]
+    -- ^ Each [TrackPair] is (note : controls).
 pair_tracks track_ids tracks dests = map (filter is_valid) $
     snd $ List.mapAccumL resolve1 (length track_ids) $ map pairs_of $
         Seq.zip_padded tracks dests
     where
     -- Pair up the tracks.
     pairs_of (Seq.First (note, controls)) = map Seq.First (note : controls)
-    pairs_of (Seq.Second (Block.DeriveDestination note controls)) =
+    pairs_of (Seq.Second (Block.NoteDestination note controls)) =
         map Seq.Second (note : Map.elems controls)
-    pairs_of (Seq.Both (note, controls)
-            (Block.DeriveDestination note_dest control_dests)) =
-        Seq.Both note note_dest : pair_controls controls control_dests
-    pair_controls tracks dests =
-        map snd $ Seq.pair_sorted keyed_tracks (Map.toAscList dests)
-        where
-        -- TODO pair_sorted only works if tracks is sorted, it's easier to
-        -- prove that if it's a Map instead of [Track]
-        keyed_tracks = Seq.sort_on fst (Seq.key_on Convert.track_title tracks)
+    pairs_of (Seq.Both track dest) = pair_destination track dest
 
     resolve1 next_tracknum pairs = List.mapAccumL resolve next_tracknum pairs
     -- Figure out tracknums.
@@ -350,6 +346,16 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
     is_valid (Nothing, Left _) = False
     is_valid _ = True
+
+pair_destination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
+    -> [Seq.Paired Convert.Track (TrackId, Block.EventIndex)]
+pair_destination (note, controls)
+        (Block.NoteDestination note_dest control_dests) =
+    Seq.Both note note_dest : pair_controls controls control_dests
+    where
+    pair_controls tracks dests =
+        map snd $ Seq.pair_sorted (Seq.sort_on fst keyed) (Map.toAscList dests)
+        where keyed = Seq.key_on Convert.track_title tracks
 
 -- | Pair up tracks in an analogous way to 'pair_tracks'.  The difference is
 -- that ScoreDestinations are matched up by TrackId, so I don't have to do any

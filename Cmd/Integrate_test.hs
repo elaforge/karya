@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
@@ -16,10 +17,14 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
+import qualified Cmd.Integrate as Integrate
+import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.ResponderTest as ResponderTest
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Stack as Stack
+
 import qualified App.Config as Config
 import Global
 import Types
@@ -294,6 +299,43 @@ e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
 --             , (">i1", [(0, 1, ""), (1, 1, "")])
 --             ])
 --         ]
+
+-- * manual integration
+
+test_manual_integrate = do
+    let key = "key"
+    let f state note controls = UiTest.exec state $
+            Integrate.manual_integrate key (mktrack note) (map mktrack controls)
+        extract = first snd . UiTest.dump_block UiTest.default_block_id
+    let initial = UiTest.exec Ui.empty $ do
+            (block_id, [tid1, tid2]) <- UiTest.mkblock
+                (UiTest.default_block_name, [(">", []), (">", [])])
+            Ui.set_integrated_manual block_id key $ Just
+                [Block.empty_destination tid1, Block.empty_destination tid2]
+    equal (extract initial) ([(">", []), (">", [])], [])
+    let state = f initial (">i", [(0, 1, "hi")]) []
+    equal (extract state) ([(">", [(0, 1, "hi")]), (">", [(0, 1, "hi")])], [])
+    state <- return $ f state (">i", [(0, 1, "hi"), (1, 1, "there")])
+        [("c", [(0, 1, "1")])]
+    equal (extract state)
+        ( [ (">", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
+          , (">", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
+          ]
+        , [(1, 2), (3, 4)]
+        )
+
+
+type Event = (TrackTime, TrackTime, Text)
+
+mktrack :: (Text, [Event]) -> Convert.Track
+mktrack (title, events) = Convert.Track title (map mkevent events)
+
+mkevent :: Event -> Event.Event
+mkevent (start, dur, text) = Event.stack_ #= Just (mkstack start text) $
+    Event.event start dur text
+
+mkstack :: TrackTime -> Text -> Event.Stack
+mkstack start text = Event.Stack (Stack.add (Stack.Call text) Stack.empty) start
 
 -- * implementation
 

@@ -228,8 +228,8 @@ instance Serialize Ui.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = Serialize.put_version 11
-        >> put a >> put b >> put c >> put d >> put e >> put f
+    put (Block.Block a _config b c d e f g) = Serialize.put_version 12
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
     get = do
         v <- Serialize.get_version
         case v of
@@ -241,7 +241,17 @@ instance Serialize Block.Block where
                 itracks :: [(TrackId, Block.TrackDestinations)] <- get
                 meta :: Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
-                    iblock itracks meta
+                    iblock itracks mempty meta
+            12 -> do
+                title :: Text <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+                itracks :: [(TrackId, Block.TrackDestinations)] <- get
+                dtracks :: Block.ManualDestinations <- get
+                meta :: Map Text Text <- get
+                return $ Block.Block title Block.default_config tracks skel
+                    iblock itracks dtracks meta
             _ -> Serialize.bad_version "Block.Block" v
 
 instance Serialize Block.TrackDestinations where
@@ -254,12 +264,12 @@ instance Serialize Block.TrackDestinations where
             1 -> Block.ScoreDestinations <$> get
             _ -> bad_tag "Block.TrackDestinations" tag
 
-instance Serialize Block.DeriveDestination where
-    put (Block.DeriveDestination a b) = put a >> put b
+instance Serialize Block.NoteDestination where
+    put (Block.NoteDestination a b) = put a >> put b
     get = do
         note :: (TrackId, Block.EventIndex) <- get
         controls :: (Map Text (TrackId, Block.EventIndex)) <- get
-        return $ Block.DeriveDestination note controls
+        return $ Block.NoteDestination note controls
 
 instance Serialize Block.Track where
     put (Block.Track a b c d) = Serialize.put_version 3

@@ -68,7 +68,7 @@ module Ui.Ui (
     , block_of, block_id_of, views_of
     , get_block_title, set_block_title
     , modify_block_meta
-    , set_integrated_block, modify_integrated_tracks
+    , set_integrated_block, modify_integrated_tracks, set_integrated_manual
     , set_block_config
     , set_edit_box, set_play_box
     , block_ruler_end, block_event_end, block_end, block_logical_range
@@ -649,6 +649,16 @@ modify_integrated_tracks block_id modify = do
             modify (Block.block_integrated_tracks block) }
     block <- get_block block_id
     validate "modify_integrated_tracks" (fix_integrated_tracks block_id block)
+
+set_integrated_manual :: M m => BlockId -> Block.SourceKey
+    -> Maybe [Block.NoteDestination] -> m ()
+set_integrated_manual block_id key dests = do
+    modify_block block_id $ \block -> block
+        { Block.block_integrated_manual =
+            maybe (Map.delete key) (Map.insert key) dests
+                (Block.block_integrated_manual block)
+        }
+    -- TODO validate?
 
 set_block_config :: M m => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
@@ -1688,10 +1698,10 @@ fix_track_destinations err_msg source_track_ids track_ids d = case d of
     errs invalid = ["integrated " <> err_msg
         <> ": track destination has track ids not in the right block: "
         <> pretty dest | dest <- invalid]
-    derive_track_ids (Block.DeriveDestination note controls) =
+    derive_track_ids (Block.NoteDestination note controls) =
         fst note : map fst (Map.elems controls)
     score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)
-    derive_valid (Block.DeriveDestination note controls) =
+    derive_valid (Block.NoteDestination note controls) =
         all (`elem` track_ids) (fst note : map fst (Map.elems controls))
     score_valid (source_id, (dest_id, _index)) =
         source_id `elem` source_track_ids && dest_id `elem` track_ids

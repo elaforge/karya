@@ -115,7 +115,33 @@ UNSORTED
     . For drags, don't record until mouse-up.
     . ^o is still available, but it would become alt-o on linux.
     . Also this tracks focused ViewId and focus changes.
-  - Integrate from dsl.
+  Integrate from dsl.
+    simple version:
+      . Edit Solkattu.Score.*.  Save triggers a :reload, and then re-integrate
+        the korvai.
+      Implement manual integrate, e.g. LSol.integrate korvai
+        * I need a Block.EventIndex to do the diff.  ScoreDestinations requires
+          a source TrackId, so I need a ManualDestinations without one.
+        . Since 'to_score' returns (note, controls), I can assume track
+          derivation.
+        . I need some kind of key to distinguish between sources.  For
+          solkattu, that would be the source korvai.  So make it Text.
+        . I need at least some kind of stack since Merge uses that to tell
+          the difference between generated and user-added events.  But the
+          actual diffing is based solely on Event.IndexKey, which is just
+          TrackTime.
+        - validate Block.ManualDestinations from Ui.set_integrated_manual
+        - If I put a TrackTime offset into the ManualDestination, I could have
+          multiple destinations on a single track.  But then I'd have to also
+          know to move things around if they change size, and it seems
+          complicated.  Maybe it would be better to put them in their own
+          block, and then implement a way to nudge calls when one changes
+          size.
+        - If I put the destination on its own block, I could automatically
+          adjust the ruler.
+      - cmd to edit a korvai's source file along with the vi save hook
+        . 'gz' is normal so I can load in ghci, but 'gs' saves and sends
+          a re-integrate for that korvai.
     . I'd like to be able to edit e.g. solkattu dsl, then save triggers
       a score integrate.
     . This is also the way to get text language to integrate in general.

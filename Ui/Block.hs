@@ -5,7 +5,9 @@
 module Ui.Block (
     -- * Block
     Block(..)
-    , Meta, TrackDestinations(..), ScoreDestinations, DeriveDestination(..)
+    , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
+    , empty_destination
+    , ManualDestinations, SourceKey
     , EventIndex
     , integrate_skeleton
     , block_tracklike_ids, block_track_ids, block_ruler_ids
@@ -81,17 +83,20 @@ data Block = Block {
     -- block_integrated, if the TrackDestinations is empty, then new integrated
     -- tracks should be created.
     , block_integrated_tracks :: ![(TrackId, TrackDestinations)]
+    , block_integrated_manual :: !ManualDestinations
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
 instance Pretty Block where
-    format (Block title _config tracks skel integrated integrated_tracks meta) =
+    format (Block title _config tracks skel integrated integrated_tracks
+            integrated_manual meta) =
         Pretty.record "Block"
             [ ("title", Pretty.format title)
             , ("tracks", Pretty.format tracks)
             , ("skel", Pretty.format skel)
             , ("integrated", Pretty.format integrated)
             , ("integrated_tracks", Pretty.format integrated_tracks)
+            , ("integrated_manual", Pretty.format integrated_manual)
             , ("meta", Pretty.format meta)
             ]
 
@@ -108,9 +113,9 @@ type Meta = Map Text Text
 
 data TrackDestinations =
     -- | A derive integrate can produce multiple note tracks, and each one gets
-    -- its own DeriveDestination.  The TrackIds in here should point to tracks
+    -- its own NoteDestination.  The TrackIds in here should point to tracks
     -- within the block that contains the TrackDestinations.
-    DeriveDestinations ![DeriveDestination]
+    DeriveDestinations ![NoteDestination]
     -- | A score integrate is always just one track along with its descendents.
     -- It's not necessarily a note track.
     | ScoreDestinations !ScoreDestinations
@@ -128,6 +133,13 @@ data TrackDestinations =
 -}
 type ScoreDestinations = [(TrackId, (TrackId, EventIndex))]
 
+-- | Destinations for a manually-invoked integration.  A single SourceKey
+-- can have destinations on multiple tracks within the block.
+type ManualDestinations = Map SourceKey [NoteDestination]
+
+-- | Arbitrary text used to identify the source of this integration.
+type SourceKey = Text
+
 instance Pretty TrackDestinations where
     format (DeriveDestinations dests) =
         "DeriveDestinations" Pretty.<+> Pretty.format dests
@@ -136,20 +148,24 @@ instance Pretty TrackDestinations where
 
 -- | This holds the 'EventIndex' for one note track, along with its dependent
 -- control tracks.
-data DeriveDestination = DeriveDestination {
+data NoteDestination = NoteDestination {
     -- | (dest_track, index)
     dest_note :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
     , dest_controls :: !(Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
+-- | Create an empty destination for the first integration.
+empty_destination :: TrackId -> NoteDestination
+empty_destination track_id = NoteDestination (track_id, mempty) mempty
+
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
 type EventIndex = Map Event.IndexKey Event.Event
 
-instance Pretty DeriveDestination where
-    format (DeriveDestination note controls) = Pretty.record "DeriveDestination"
+instance Pretty NoteDestination where
+    format (NoteDestination note controls) = Pretty.record "NoteDestination"
         [ ("note", Pretty.format note)
         , ("controls", Pretty.format controls)
         ]
@@ -194,6 +210,7 @@ block config title tracks = Block
     , block_skeleton = Skeleton.empty
     , block_integrated = Nothing
     , block_integrated_tracks = []
+    , block_integrated_manual = mempty
     , block_meta = Map.empty
     }
 
