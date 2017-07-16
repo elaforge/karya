@@ -293,7 +293,7 @@ realize realize_patterns tala =
 stroke_map :: Realize.StrokeMap M.Stroke
 stroke_map = Realize.inst_stroke_map $ expect_right $ M.instrument [] mempty
 
-mridangam :: Korvai.Instruments
+mridangam :: Korvai.StrokeMaps
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
         M.instrument [(ta, [M.k M.notes])] M.default_patterns

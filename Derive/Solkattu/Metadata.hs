@@ -11,6 +11,7 @@ module Derive.Solkattu.Metadata (
     , date, source, korvai_t, koraippu, mohra, sarvalaghu, tirmanam
     , sequence_t, faran, exercise
     , variable_name, module_, line_number
+    , t_variable_name, t_module, t_line_number
 ) where
 import qualified Data.Map as Map
 
@@ -29,13 +30,13 @@ get tag = Map.findWithDefault [] tag . untags . Korvai._tags
     untags (Korvai.Tags tags) = tags
 
 get_location :: Korvai -> Text
-get_location korvai = case (g "module", g "line_number", g "variable_name") of
+get_location korvai = case (g t_module, g t_line_number, g t_variable_name) of
     (module_:_, line:_, name:_) -> name <> " (" <> module_ <> ":" <> line <> ")"
     _ -> "<unknown>"
     where g = flip get korvai
 
 location_tags :: [Text]
-location_tags = ["module", "line_number", "variable_name"]
+location_tags = [t_module, t_line_number, t_variable_name]
 
 -- * add
 
@@ -81,15 +82,20 @@ with_tag k v = Korvai.with_metadata $
 
 -- ** added automatically
 
+t_variable_name, t_module, t_line_number :: Text
+t_variable_name = "variable_name"
+t_module = "module"
+t_line_number = "line_number"
+
 -- | Variable name the korvai is bound to.  Probably not much meaning except
 -- to find the source.
 variable_name :: Text -> Korvai -> Korvai
-variable_name = with_tag "variable_name"
+variable_name = with_tag t_variable_name
 
 -- | Defining module.
 module_ :: Text -> Korvai -> Korvai
-module_ = with_tag "module"
+module_ = with_tag t_module
 
 -- | Line number in defining module.
 line_number :: Int -> Korvai -> Korvai
-line_number = with_tag "line_number" . showt
+line_number = with_tag t_line_number . showt

@@ -314,7 +314,7 @@ splice_below = do
     let sel_tracknum = maximum (1 : sel_tracknums)
     block <- Ui.get_block block_id
     let tracknum = track_after block sel_tracknum
-    track_id <- focused_track block_id tracknum
+    track_id <- focused_track tracknum
     -- If you create from track 0, it'll be (1, 1) here.
     when (tracknum /= sel_tracknum) $
         Ui.splice_skeleton_below block_id tracknum sel_tracknum
@@ -325,7 +325,7 @@ splice_above = do
     -- This doesn't need to avoid a merged track like 'splice_below', because
     -- it inserts to the left.
     (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- focused_track block_id tracknum
+    track_id <- focused_track tracknum
     Ui.splice_skeleton_above block_id tracknum (tracknum+1)
     return track_id
 
@@ -366,7 +366,7 @@ splice_above_ancestors = do
     tree <- TrackTree.track_tree_of block_id
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require "no selected tracks" $ Seq.minimum ancestors
-    track_id <- focused_track block_id insert_at
+    track_id <- focused_track insert_at
     Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
     return track_id
     where
@@ -438,22 +438,26 @@ insert_track_right = do
         Nothing -> append_track
         Just (_, (block_id, tracknum, _)) -> do
             block <- Ui.get_block block_id
-            focused_track block_id (track_after block tracknum)
+            focused_track (track_after block tracknum)
 
 append_track :: Cmd.M m => m TrackId
-append_track = do
-    block_id <- Cmd.get_focused_block
-    focused_track block_id 99999
+append_track = focused_track 99999
 
--- | Add a new track, give keyboard focus to the title, and widen the view
--- to make sure it's visible.
-focused_track :: Cmd.M m => BlockId -> TrackNum -> m TrackId
-focused_track block_id tracknum = do
-    track_id <- track block_id tracknum "" Events.empty
+-- | Add a new track, and widen the view to make sure it's visible.  Give
+-- keyboard focus to the title.
+focused_track :: Cmd.M m => TrackNum -> m TrackId
+focused_track tracknum = do
     view_id <- Cmd.get_focused_view
+    track_and_widen True view_id tracknum
+
+track_and_widen :: Ui.M m => Bool -> ViewId -> TrackNum -> m TrackId
+track_and_widen focus view_id tracknum = do
+    block_id <- Ui.block_id_of view_id
+    track_id <- track block_id tracknum "" Events.empty
     widen view_id
     tracknum <- clip_tracknum block_id tracknum
-    Ui.update $ Update.CmdTitleFocus view_id (Just tracknum)
+    when focus $
+        Ui.update $ Update.CmdTitleFocus view_id (Just tracknum)
     return track_id
 
 -- | Expand the view horizontally to to fit all tracks.

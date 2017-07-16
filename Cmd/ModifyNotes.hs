@@ -133,9 +133,12 @@ notes_overlap n1 n2 =
 -- * controls
 
 type Controls = Map Control Events.Events
+
 -- | A simplified version of 'ParseTitle.ControlType', since Notes don't
--- support all the forms of control tracks.
-data Control = Control Score.Control | Pitch Pitch.ScaleId
+-- support all the forms of control tracks.  Put Pitch first so it sorts first,
+-- to support the convention of putting the pitch track right after the note
+-- track.
+data Control = Pitch Pitch.ScaleId | Control Score.Control
     deriving (Eq, Ord, Show)
 
 instance Pretty Control where

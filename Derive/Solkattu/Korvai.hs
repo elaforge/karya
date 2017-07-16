@@ -3,9 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Derive.Solkattu.Korvai where
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
@@ -37,23 +39,23 @@ type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
 
 data Korvai = Korvai {
     korvai_sequences :: ![Sequence]
-    , korvai_instruments :: !Instruments
+    , korvai_stroke_maps :: !StrokeMaps
     , korvai_tala :: !Tala.Tala
     , korvai_metadata :: !Metadata
     } deriving (Eq, Show)
 
 instance Pretty Korvai where
-    format (Korvai sequence instruments tala metadata) = Pretty.record "Korvai"
+    format (Korvai sequence stroke_maps tala metadata) = Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
-        , ("instruments", Pretty.format instruments)
+        , ("stroke_maps", Pretty.format stroke_maps)
         , ("tala", Pretty.format tala)
         , ("metadata", Pretty.format metadata)
         ]
 
-korvai :: Tala.Tala -> Instruments -> [Sequence] -> Korvai
-korvai tala instruments sequences = infer_metadata $ Korvai
+korvai :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
+korvai tala stroke_maps sequences = infer_metadata $ Korvai
     { korvai_sequences = sequences
-    , korvai_instruments = instruments
+    , korvai_stroke_maps = stroke_maps
     , korvai_tala = tala
     , korvai_metadata = mempty
     }
@@ -61,7 +63,7 @@ korvai tala instruments sequences = infer_metadata $ Korvai
 -- | TODO the name is awkward.  This is really just ties together all the
 -- instrument-specific code.
 data GetInstrument stroke = GetInstrument {
-    get_realization :: Instruments -> Realize.Instrument stroke
+    get_realization :: StrokeMaps -> Realize.Instrument stroke
     , get_stroke :: Stroke -> Maybe (Realize.Stroke stroke)
     , get_to_score :: ToScore.ToScore stroke
     }
@@ -94,23 +96,37 @@ sargam = GetInstrument
     , get_to_score = Sargam.to_score
     }
 
+-- | An existential type to capture the Pretty instance.
+data GInstrument =
+    forall stroke. Pretty stroke => GInstrument (GetInstrument stroke)
+
+instruments :: Map Text GInstrument
+instruments = Map.fromList
+    [ ("mridangam", GInstrument mridangam)
+    , ("kendang_tunggal", GInstrument kendang_tunggal)
+    , ("reyong", GInstrument reyong)
+    , ("sargam", GInstrument sargam)
+    ]
+
+-- instruments
+
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty stroke => GetInstrument stroke -> Bool -> Korvai
     -> [Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)]
 realize get realize_patterns korvai =
-    map (realize1 get realize_patterns (korvai_instruments korvai)
+    map (realize1 get realize_patterns (korvai_stroke_maps korvai)
             (korvai_tala korvai))
         (korvai_sequences korvai)
 
 -- | Realize a Korvai on a particular instrument.
 realize1 :: Pretty stroke => GetInstrument stroke -> Bool
-    -> Instruments -> Tala.Tala -> Sequence
+    -> StrokeMaps -> Tala.Tala -> Sequence
     -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
-realize1 get realize_patterns instruments tala sequence = do
+realize1 get realize_patterns stroke_maps tala sequence = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
     let (notes, align_error) = verify_alignment tala sequence
-    realized <- realize_instrument get instruments realize_patterns notes
+    realized <- realize_instrument get stroke_maps realize_patterns notes
     return (realized, fromMaybe "" align_error)
 
 verify_alignment :: Tala.Tala -> Sequence
@@ -119,10 +135,10 @@ verify_alignment tala sequence = Solkattu.verify_alignment tala $
     Solkattu.cancel_karvai $ Sequence.flatten sequence
 
 realize_instrument :: Pretty stroke => GetInstrument stroke
-    -> Instruments -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
+    -> StrokeMaps -> Bool -> [(Sequence.Tempo, Solkattu.Note Stroke)]
     -> Either Text [(Sequence.Tempo, Realize.Note stroke)]
-realize_instrument get instruments realize_patterns notes = do
-    let inst = get_realization get instruments
+realize_instrument get smaps realize_patterns notes = do
+    let inst = get_realization get smaps
     notes <- return $
         map (fmap (Solkattu.modify_stroke (get_stroke get =<<))) notes
     notes <- if realize_patterns
@@ -225,7 +241,7 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
         , ("reyong", has_instrument inst_reyong)
         , ("sargam", has_instrument inst_sargam)
         ]
-    has_instrument get = get (korvai_instruments korvai) /= mempty
+    has_instrument get = get (korvai_stroke_maps korvai) /= mempty
 
 with_metadata :: Metadata -> Korvai -> Korvai
 with_metadata meta korvai =
@@ -233,21 +249,21 @@ with_metadata meta korvai =
 
 -- * types
 
-data Instruments = Instruments {
+data StrokeMaps = StrokeMaps {
     inst_mridangam :: Realize.Instrument Mridangam.Stroke
     , inst_kendang_tunggal :: Realize.Instrument KendangTunggal.Stroke
     , inst_reyong :: Realize.Instrument Reyong.Stroke
     , inst_sargam :: Realize.Instrument Sargam.Stroke
     } deriving (Eq, Show)
 
-instance Monoid Instruments where
-    mempty = Instruments mempty mempty mempty mempty
-    mappend (Instruments a1 a2 a3 a4) (Instruments b1 b2 b3 b4) =
-        Instruments (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+instance Monoid StrokeMaps where
+    mempty = StrokeMaps mempty mempty mempty mempty
+    mappend (StrokeMaps a1 a2 a3 a4) (StrokeMaps b1 b2 b3 b4) =
+        StrokeMaps (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
 
-instance Pretty Instruments where
-    format (Instruments mridangam kendang_tunggal reyong sargam) =
-        Pretty.record "Instruments"
+instance Pretty StrokeMaps where
+    format (StrokeMaps mridangam kendang_tunggal reyong sargam) =
+        Pretty.record "StrokeMaps"
             [ ("mridangam", Pretty.format mridangam)
             , ("kendang_tunggal", Pretty.format kendang_tunggal)
             , ("reyong", Pretty.format reyong)

@@ -42,7 +42,7 @@ chars = map Text.singleton
 korvai :: Tala.Tala -> [Korvai.Sequence] -> Korvai.Korvai
 korvai tala = Korvai.korvai tala mridangam
 
-mridangam :: Korvai.Instruments
+mridangam :: Korvai.StrokeMaps
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
         Mridangam.instrument [(ta <> ka <> din <> na, [k, o, o, k])] patterns

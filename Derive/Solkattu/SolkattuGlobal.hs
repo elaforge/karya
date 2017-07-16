@@ -56,7 +56,7 @@ on = o & n
 
 type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]
 
-make_mridangam :: CallStack.Stack => MStrokes -> Korvai.Instruments
+make_mridangam :: CallStack.Stack => MStrokes -> Korvai.StrokeMaps
 make_mridangam strokes = mempty
     { Korvai.inst_mridangam = check $
         Mridangam.instrument (_standard_mridangam ++ strokes)
@@ -65,14 +65,14 @@ make_mridangam strokes = mempty
 
 make_kendang1 :: CallStack.Stack =>
     [(Seq KendangTunggal.Stroke, [KendangTunggal.SNote])]
-    -> Korvai.Instruments
+    -> Korvai.StrokeMaps
 make_kendang1 strokes = mempty
     { Korvai.inst_kendang_tunggal = check $
         KendangTunggal.instrument strokes KendangTunggal.default_patterns
     }
 
 make_reyong :: CallStack.Stack => [(Seq Reyong.Stroke, [Reyong.SNote])]
-    -> Korvai.Instruments
+    -> Korvai.StrokeMaps
 make_reyong strokes = mempty
     { Korvai.inst_reyong = check $
         Reyong.instrument strokes Reyong.rhythmic_patterns
@@ -80,17 +80,17 @@ make_reyong strokes = mempty
 
 make_sargam :: CallStack.Stack => [(Seq Sargam.Stroke, [Sargam.SNote])]
     -> [(Solkattu.Pattern, [Realize.SNote Sargam.Stroke])]
-    -> Korvai.Instruments
+    -> Korvai.StrokeMaps
 make_sargam strokes patterns = mempty
     { Korvai.inst_sargam = check $
         Sargam.instrument strokes (check $ Realize.patterns patterns)
     }
 
-korvai1 :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> Sequence
+korvai1 :: CallStack.Stack => Tala.Tala -> Korvai.StrokeMaps -> Sequence
     -> Korvai
 korvai1 tala inst seq = Korvai.korvai tala inst [seq]
 
-korvai :: CallStack.Stack => Tala.Tala -> Korvai.Instruments -> [Sequence]
+korvai :: CallStack.Stack => Tala.Tala -> Korvai.StrokeMaps -> [Sequence]
     -> Korvai
 korvai = Korvai.korvai
 

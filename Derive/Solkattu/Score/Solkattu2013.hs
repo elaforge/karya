@@ -221,7 +221,7 @@ k1_a, k1_a' :: Sequence
 k1_a  = ta.__.di.__.ki.ta.__.thom
 k1_a' = ta.ka.di.__.ki.ta.__.thom
 
-k1_mridangam :: Korvai.Instruments
+k1_mridangam :: Korvai.StrokeMaps
 k1_mridangam = make_mridangam
     [ (ta, [k])
     , (ta.di.ki.ta, [k, t, k, n])

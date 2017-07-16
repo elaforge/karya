@@ -138,9 +138,9 @@ c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi mridangam $ mconcat
         , (1^theme, [on, k, t, o, k, od, n, p&d, k])
         ]
 
-make_mohra :: Korvai.Instruments -> (Sequence, Sequence, Sequence)
+make_mohra :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra inst (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi inst $ su $
+make_mohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
       a123.b1 . a123.b1
     . a123.b2
     . a1.b2
@@ -148,9 +148,9 @@ make_mohra inst (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi inst $ su $
     where a123 = a1.a2.a3
 
 -- | Alternate melkalam and kirkalam.
-make_mohra2 :: Korvai.Instruments -> (Sequence, Sequence, Sequence)
+make_mohra2 :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra2 inst (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi inst $
+make_mohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
       a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
     . a123.b2 . su (a123.b2)
     . a1.b2 . su (a1.b2)

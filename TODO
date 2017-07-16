@@ -139,9 +139,27 @@ UNSORTED
           size.
         - If I put the destination on its own block, I could automatically
           adjust the ruler.
+      * connect LSol.realize to manual integrate
+        . LSol.integrate_track (LSol.korvais !! 59) 0 "mridangam"
+      - make block version of LSol.integrate_track, where integrate also adjusts
+        the block ruler to the right length.
+        . I need to understand the tala, not just for the ruler, but to know
+          if there's a final stroke.
       - cmd to edit a korvai's source file along with the vi save hook
         . 'gz' is normal so I can load in ghci, but 'gs' saves and sends
           a re-integrate for that korvai.
+        . I have a bunch of state to remember:
+          . Korvai, Index
+          . Instrument, realize patterns, akshara_dur
+        . In general a manual integrate may need all kinds of dsl-specific
+          configuration, so maybe I can put these in a Dynamic in
+          ManualDestinations.
+        . Instrument is the problem because it's 'GetInstrument stroke'.
+          Can I use an existential?
+    - Get rid of Korvai index, it gets more annoying as time goes on.  Just
+      have separate korvais, and I can tie them together with variable_name if
+      necessary.  But I still need a way to distinguish for SourceKey, so
+      maybe I still need it but as another tag, added by 'korvais'.
     . I'd like to be able to edit e.g. solkattu dsl, then save triggers
       a score integrate.
     . This is also the way to get text language to integrate in general.
