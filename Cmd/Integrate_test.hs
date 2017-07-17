@@ -314,12 +314,12 @@ test_manual_integrate = do
                 [Block.empty_destination tid1, Block.empty_destination tid2]
     equal (extract initial) ([(">", []), (">", [])], [])
     let state = f initial (">i", [(0, 1, "hi")]) []
-    equal (extract state) ([(">", [(0, 1, "hi")]), (">", [(0, 1, "hi")])], [])
+    equal (extract state) ([(">i", [(0, 1, "hi")]), (">i", [(0, 1, "hi")])], [])
     state <- return $ f state (">i", [(0, 1, "hi"), (1, 1, "there")])
         [("c", [(0, 1, "1")])]
     equal (extract state)
-        ( [ (">", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
-          , (">", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
+        ( [ (">i", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
+          , (">i", [(0, 1, "hi"), (1, 1, "there")]), ("c", [(0, 1, "1")])
           ]
         , [(1, 2), (3, 4)]
         )

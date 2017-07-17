@@ -149,9 +149,7 @@ handle_result (ReplProtocol.Format text) = do
     unless (Text.null (Text.strip text)) $
         putStr $ PPrint.format_str $ untxt text
     return Continue
-handle_result (ReplProtocol.Edit text return_prefix) =
-    maybe Continue (\edited -> Command $ return_prefix <> " " <> showt edited)
-        <$> edit (Just return_prefix) text
+handle_result (ReplProtocol.Edit editor) = edit editor >> return Continue
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do
@@ -199,51 +197,80 @@ plain_bg = "\ESC[39;49m"
 
 -- * editor
 
--- | Open an editor on the given text, and return what it saves.
--- TODO maybe use $EDITOR instead of hardcoding vi.
-edit :: Maybe Text -- ^ if given, send the file with this cmd prefix on save
-    -> Text -> IO (Maybe Text)
-edit return_prefix text =
-    edit_temp_file "repl-" text "vi" (\tmp -> save_cmd ++ [tmp])
+-- | Open an editor as requested by 'ReplProtocol.Editor'.
+edit :: ReplProtocol.Editor -> IO ()
+edit (ReplProtocol.Editor file line mb_on_save mb_on_send) = case file of
+    ReplProtocol.Text content -> with_temp "repl-" content edit_file
+    ReplProtocol.FileName fname -> edit_file fname
     where
-    save_cmd = case return_prefix of
-        Nothing -> []
-        Just prefix ->
-            -- I don't know that it's ky syntax, but so far it is.
-            [ "-c", "source ky-syntax.vim"
-            , "-c", "source vim-functions.vim"
-            , "-c", "nmap gz :call Send('" <> untxt prefix <> "')<cr>"
-            ]
-
--- | Open the given file, and return the selected line.
-edit_line :: FilePath -> IO (Maybe Text)
-edit_line fname = edit_temp_file "repl-edit-history-" "" "vi" cmdline
-    where
-    cmdline tmp =
-        [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
-        , "-c", "set nowrite"
-        , fname
+    editor = "vi"
+    edit_file fname = do
+        let args = commands ++ ["+" <> show line, fname]
+        ok <- wait_for_command editor args
+        when ok $ whenJust mb_on_save $ \on_save ->
+            send_file fname on_save
+    commands = concatMap (\x -> ["-c", x]) $ concat
+        [ ["source vim-functions.vim"]
+        , case file of
+            -- I don't know that it's ky syntax, but so far ReplProtocol.Text
+            -- always is.
+            ReplProtocol.Text {} -> ["source ky-syntax.vim"]
+            _ -> []
+        , save_cmd
+        , send_cmd
         ]
 
-edit_temp_file :: FilePath -> Text -> FilePath -> (FilePath -> [String])
-    -> IO (Maybe Text)
-edit_temp_file prefix contents cmd args = do
+    save_cmd = case mb_on_save of
+        Just on_save -> ["nmap gz :call Send('" <> untxt on_save <> "')<cr>"]
+        Nothing -> []
+    send_cmd = case mb_on_send of
+        Just on_send -> ["nmap gs :call Send('" <> untxt on_send <> "')<cr>"]
+        Nothing -> []
+
+send_file :: FilePath -> Text -> IO ()
+send_file fname cmd = do
+    -- The 'send' cmd substitutes stdin for %s.
+    content <- if "%s" `Text.isInfixOf` cmd
+        -- vim will add a final newline.
+        then Text.stripEnd <$> Text.IO.readFile fname
+        else return ""
+    stdout <- Process.readProcess "build/opt/send" [untxt cmd]
+        (untxt content)
+    unless (null stdout) $
+        putStrLn $ "send: " <> stdout
+
+-- | Run the action with a temp file, and delete it afterwards.
+with_temp :: FilePath -> Text -> (FilePath -> IO a) -> IO a
+with_temp prefix contents action = do
     (path, hdl) <- Posix.Temp.mkstemp prefix
     Text.IO.hPutStr hdl contents
     Text.IO.hPutStr hdl "\n" -- otherwise vim doesn't like no final newline
     IO.hClose hdl
     action path
         `Exception.finally` File.ignoreEnoent (Directory.removeFile path)
-    where
-    action path = do
-        pid <- Process.spawnProcess cmd (args path)
-        code <- Process.waitForProcess pid
-        case code of
-            Exit.ExitSuccess -> do
-                edited <- Text.IO.readFile path
-                -- vim will add a final newline.
-                return $ Just (Text.stripEnd edited)
-            Exit.ExitFailure code -> do
-                Log.warn $ "non-zero exit code from editor "
-                    <> showt (cmd : args path) <> ": " <> showt code
-                return Nothing
+
+-- | Open the given file, and return the selected line.
+edit_line :: FilePath -> IO (Maybe Text)
+edit_line fname = with_temp "repl-edit-history-" "" $ \tmp -> do
+    let cmdline =
+            [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
+            , "-c", "set nowrite"
+            , fname
+            ]
+    ok <- wait_for_command "vi" cmdline
+    if ok
+        then Just . Text.strip <$> Text.IO.readFile tmp
+        else return Nothing
+
+wait_for_command :: FilePath -> [String] -> IO Bool
+wait_for_command cmd args = do
+    pid <- Process.spawnProcess cmd args
+    code <- Process.waitForProcess pid
+    case code of
+        Exit.ExitSuccess -> return True
+        Exit.ExitFailure code -> do
+            -- Maybe the binary wasn't found, but vim seems to return
+            -- 1 unpredictably.
+            Log.warn $ "non-zero exit code from "
+                <> showt (cmd : args) <> ": " <> showt code
+            return False

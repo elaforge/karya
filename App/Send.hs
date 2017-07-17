@@ -18,12 +18,13 @@ import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
+import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
-data Flag = Help | Timing | Cmd String
+data Flag = Help | Timing
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
@@ -31,9 +32,6 @@ options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["timing"] (GetOpt.NoArg Timing)
         "show cmd completion time"
-    , GetOpt.Option [] ["cmd"] (GetOpt.ReqArg Cmd "LState.some_cmd")
-        "Read text from stdin, quote it as a string, and send it as the\
-        \ given cmd's only argument."
     ]
 
 main :: IO ()
@@ -43,32 +41,33 @@ main = ReplProtocol.initialize $ do
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ unlines errs
     when (Help `elem` flags) (usage "usage:")
-    msgs <- case [cmd | Cmd cmd <- flags] of
-        [cmd]
-            | not (null args) -> usage "--cmd expects stdin"
-            | otherwise -> do
-                input <- getContents
-                return [cmd <> " " ++ show input]
-        []
-            | null args -> lines <$> getContents
-            | otherwise -> return [unwords args]
-        _ -> usage "there should be exactly zero or one --cmd"
+    when (null args) (usage "usage:")
+    args <- substitute $ map Text.strip $ Text.splitOn ";" $ mconcatMap txt args
 
-    forM_ msgs $ \msg -> do
+    forM_ args $ \cmd -> do
         if Timing `elem` flags then do
-            putStrLn $ "send: " ++ msg
-            (response, time) <- timed $ query (Text.pack msg)
+            Text.IO.putStrLn $ "send: " <> cmd
+            (response, time) <- timed $ query cmd
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            response <- query (Text.pack msg)
+            response <- query cmd
             unless (Text.null response) $
                 Text.IO.putStrLn response
     where
     usage msg = do
-        putStrLn $ "ERROR: " ++ msg
-        putStrLn "usage: send [ flags ]"
-        putStr (GetOpt.usageInfo "" options)
+        putStrLn $ "ERROR: " ++ Seq.strip msg
+        putStrLn "usage: send [ flags ] cmd ..."
+        let doc = "Cmds are split on ;.  If a cmd has a %s in it, then read\
+                \ from stdin, and replace the %s with stdin quoted as a string."
+        putStr (GetOpt.usageInfo doc options)
         System.Exit.exitFailure
+
+substitute :: [Text] -> IO [Text]
+substitute args
+    | any ("%s" `Text.isInfixOf`) args = do
+        content <- Text.IO.getContents
+        return $ map (Text.replace "%s" (showt content)) args
+    | otherwise = return args
 
 query :: Text -> IO Text
 query = fmap ReplProtocol.format_result

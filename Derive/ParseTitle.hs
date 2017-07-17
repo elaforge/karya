@@ -230,6 +230,9 @@ is_note_track = (">" `Text.isPrefixOf`)
 strip_expr :: Text -> Text
 strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 
+note_track :: Text
+note_track = ">"
+
 -- ** pitch
 
 title_to_scale :: Text -> Maybe Pitch.ScaleId
@@ -245,3 +248,6 @@ is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)
     -- Previously it was 'Maybe.isJust . title_to_scale', but this is called
     -- a lot during slicing so efficiency matters.
+
+pitch_track :: Text
+pitch_track = "*"

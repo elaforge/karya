@@ -738,11 +738,14 @@ events :: Cmd.M m => m SelectedEvents
 events = around_to_events <$> events_around
 
 -- | Like 'events', but only for the 'sel_point_track'.
-track_events :: Cmd.M m => m SelectedEvents
+track_events :: Cmd.M m => m (TrackId, [Event.Event])
 track_events = do
     (block_id, track_id) <- event_track
     sel <- get
-    around_to_events <$> events_around_tracks block_id [track_id] sel
+    -- events_around_tracks output should be 1:1 with TrackIds.
+    [events] <- around_to_events <$>
+        events_around_tracks block_id [track_id] sel
+    return events
 
 -- | 'events_around_tracks' for the selection.
 events_around :: Cmd.M m => m SelectedAround

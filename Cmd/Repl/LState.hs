@@ -87,7 +87,12 @@ set_default_tempo t = Ui.modify_config $ Ui.default_#Ui.tempo #= t
 ky :: Cmd.CmdL ReplProtocol.Result
 ky = do
     ky <- get_ky
-    return $ ReplProtocol.Edit ky "LState.set_ky"
+    return $ ReplProtocol.Edit $ ReplProtocol.Editor
+        { _file = ReplProtocol.Text ky
+        , _line_number = 0
+        , _on_save = Just "LState.set_ky %s"
+        , _on_send = Nothing
+        }
 
 get_ky :: Cmd.CmdL Text
 get_ky = Ui.config#Ui.ky <#> Ui.get

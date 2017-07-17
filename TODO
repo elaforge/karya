@@ -145,17 +145,15 @@ UNSORTED
         the block ruler to the right length.
         . I need to understand the tala, not just for the ruler, but to know
           if there's a final stroke.
-      - cmd to edit a korvai's source file along with the vi save hook
+      * cmd to edit a korvai's source file along with the vi save hook
         . 'gz' is normal so I can load in ghci, but 'gs' saves and sends
           a re-integrate for that korvai.
-        . I have a bunch of state to remember:
-          . Korvai, Index
-          . Instrument, realize patterns, akshara_dur
-        . In general a manual integrate may need all kinds of dsl-specific
-          configuration, so maybe I can put these in a Dynamic in
-          ManualDestinations.
-        . Instrument is the problem because it's 'GetInstrument stroke'.
-          Can I use an existential?
+        . It also needs to trigger a reload, but 'send' should work for that
+          too.
+      - Solkattu realize with an alignment error should still realize, just
+        emit a warning.
+      - On vim 'gs', output from 'send' messes up the draw.  Maybe bring it
+        back to vi and do :echo?
     - Get rid of Korvai index, it gets more annoying as time goes on.  Just
       have separate korvais, and I can tie them together with variable_name if
       necessary.  But I still need a way to distinguish for SourceKey, so
@@ -201,12 +199,12 @@ UNSORTED
         and will be used to create score integrate to a block of the same name.
         I do the integrate for everything, since it will detect if there were
         changes.
-      - Figure out how to make the GHC API load a specific module and find
+      . Figure out how to make the GHC API load a specific module and find
         symbols.  I need to verify their types too.  Trigger like :dsl X.Y.Z
-      - Make a Block type, and hook it up with score itegrate, and :dsl.
-      - Make solkattu realization retain the original sollu.
-      - Add the "dsl modules" score field.
-      - Make a REPL cmd to open vi with the file and bind save to the :dsl
+      . Make a Block type, and hook it up with score itegrate, and :dsl.
+      . Make solkattu realization retain the original sollu.
+      . Add the "dsl modules" score field.
+      . Make a REPL cmd to open vi with the file and bind save to the :dsl
         cmd.
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like

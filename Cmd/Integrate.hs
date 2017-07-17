@@ -246,7 +246,10 @@ manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track
 manual_integrate key note controls = do
     dests <- manual_destinations key . Map.toList <$> Ui.gets Ui.state_blocks
     forM_ dests $ \(block_id, dests) -> do
-        new_dests <- forM dests $ \dest ->
+        new_dests <- forM dests $ \dest -> do
+            -- Integration doesn't change the title.
+            Ui.set_track_title (fst (Block.dest_note dest)) $
+                Convert.track_title note
             Merge.merge_tracks block_id [(note, controls)] [dest]
         Ui.set_integrated_manual block_id key (Just (concat new_dests))
 

@@ -15,6 +15,7 @@ import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
+import qualified Data.Char as Char
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -135,16 +136,16 @@ interpreter (Session chan) = do
 
 respond :: [String] -> Query -> GHC.GhcT IO Response
 respond toplevel_modules (QCommand e) = RCommand <$> case untxt e of
-    ':' : colon -> colon_cmd colon
+    ':' : colon -> colon_cmd (map Char.toLower colon)
     expr -> (`GHC.gcatch` catch) $ make_response <$> compile expr
     where
     catch (exc :: Exception.SomeException) =
         return $ return $ ReplProtocol.error_result $ "Exception: " <> showt exc
     colon_cmd :: String -> Ghc Cmd
-    colon_cmd "r" = make_response <$> reload toplevel_modules
-    colon_cmd "R" = make_response <$> reload toplevel_modules
-    colon_cmd colon = return $ return $
-        ReplProtocol.error_result $ "Unknown colon command: " <> showt colon
+    colon_cmd cmd
+        | cmd `elem` ["r", "reload"] = make_response <$> reload toplevel_modules
+        | otherwise = return $ return $
+            ReplProtocol.error_result $ "Unknown colon command: " <> showt cmd
 respond _ (QCompletion prefix) = RCompletion <$>
     -- Don't bother with 50 zillion completions.
     if prefix == "" then return [] else do

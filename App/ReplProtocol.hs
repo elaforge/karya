@@ -6,7 +6,7 @@
 -- | Define the protocol between the sequencer's repl port and the repl client.
 module App.ReplProtocol (
     -- * types
-    Query(..), Response(..), CmdResult(..), Result(..)
+    Query(..), Response(..), CmdResult(..), Result(..), Editor(..), File(..)
     , empty_result, error_result, raw
     -- * protocol
     , initialize
@@ -48,14 +48,25 @@ data CmdResult = CmdResult !Result ![Log.Msg]
     deriving (Eq, Show)
 
 data Result =
-    -- | Print this text directly, without formatting it.
-    Raw !Text
-    -- | Format and print.
-    | Format !Text
-    -- | Open an editor on the first text, then prefix the second and send it
-    -- back in a QCommand.  E.g. @Edit "hi" "report"@ would edit "hi", then
-    -- @QCommand "report \\\"edited hi\\\""@.
-    | Edit !Text !Text
+    Raw !Text -- ^ Print this text directly, without formatting it.
+    | Format !Text -- ^ Format and print.
+    | Edit !Editor
+    deriving (Eq, Show)
+
+-- | Open an editor locally.
+data Editor = Editor {
+    _file :: !File
+    -- | Start editing on this line.
+    , _line_number :: !Int
+    -- | Send QCommands when the editor saves or quits.  A %s is replaced by
+    -- the edited text.
+    , _on_save :: !(Maybe Text)
+    -- | Send on an explicit send cmd, \'gs\' in vi.
+    , _on_send :: !(Maybe Text)
+    } deriving (Eq, Show)
+
+data File = FileName !FilePath -- ^ open this file
+    | Text !Text -- ^ open this text in a temp file
     deriving (Eq, Show)
 
 empty_result :: Result
@@ -160,7 +171,7 @@ format_result (CmdResult response logs_) =
 format :: Result -> Text
 format (Raw val) = val
 format (Format val) = txt $ PPrint.format_str $ untxt val
-format (Edit text _) = "Edit: " <> text
+format (Edit editor) = "Edit: " <> showt (_file editor)
 
 abbreviate_package_loads :: [Log.Msg] -> [Log.Msg]
 abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
@@ -204,12 +215,24 @@ instance Serialize.Serialize CmdResult where
 instance Serialize.Serialize Result where
     put (Raw a) = put_tag 0 >> put a
     put (Format a) = put_tag 1 >> put a
-    put (Edit a b) = put_tag 2 >> put a >> put b
+    put (Edit a) = put_tag 2 >> put a
     get = get_tag >>= \tag -> case tag of
         0 -> Raw <$> get
         1 -> Format <$> get
-        2 -> Edit <$> get <*> get
+        2 -> Edit <$> get
         _ -> Serialize.bad_tag "Result" tag
+
+instance Serialize.Serialize Editor where
+    put (Editor a b c d) = put a >> put b >> put c >> put d
+    get = Editor <$> get <*> get <*> get <*> get
+
+instance Serialize.Serialize File where
+    put (FileName a) = put_tag 0 >> put a
+    put (Text a) = put_tag 1 >> put a
+    get = get_tag >>= \tag -> case tag of
+        0 -> FileName <$> get
+        1 -> Text <$> get
+        _ -> Serialize.bad_tag "File" tag
 
 instance DeepSeq.NFData CmdResult where
     rnf (CmdResult a b) = a `seq` b `seq` ()

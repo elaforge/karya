@@ -77,7 +77,8 @@ selection_visible modify = modify_selected False modify =<< Selection.events
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()
-selected_track modify = modify_selected False modify =<< Selection.track_events
+selected_track modify =
+    modify_selected False modify . (:[]) =<< Selection.track_events
     -- Don't affect collapsed tracks because why would the point selection be
     -- on one of those?
 

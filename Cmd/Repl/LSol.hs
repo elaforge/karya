@@ -47,6 +47,7 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
+import qualified App.ReplProtocol as ReplProtocol
 import Global
 import Types
 
@@ -124,6 +125,38 @@ strokes_to_events strokes =
 
 -- * integrate
 
+-- | Find the korvai, do 'integrate_track' for it, and open an editor on the
+-- source file.  The editor has bindings to 'reintegrate' after an edit.
+edit_new :: Cmd.M m => Korvai.Korvai -> Index -> Text -> m ReplProtocol.Result
+edit_new korvai index instrument = do
+    key <- integrate_track korvai index instrument
+    edit key
+
+-- | Find the SourceKey of integrated events around the cursor.
+get_key :: Cmd.M m => m Block.SourceKey
+get_key = do
+    (_, events) <- Selection.track_events
+    Cmd.require "no key" $ msum $ map event_key events
+
+edit :: Ui.M m => Block.SourceKey -> m ReplProtocol.Result
+edit key = do
+    (korvai, _, _) <- Ui.require ("no korvai for " <> showt key) $
+        get_by_key key
+    let line_number = fromMaybe 0 $ ParseText.maybe_parse ParseText.p_nat
+            =<< Seq.head (Metadata.get Metadata.t_line_number korvai)
+        fname = module_to_fname <$>
+            Seq.head (Metadata.get Metadata.t_module korvai)
+    return $ ReplProtocol.Edit $ ReplProtocol.Editor
+        { _file =
+            maybe (ReplProtocol.Text "no file") ReplProtocol.FileName fname
+        , _line_number = line_number
+        , _on_save = Nothing
+        , _on_send = Just $ ":reload; LSol.reintegrate " <> showt key
+        }
+
+module_to_fname :: Text -> FilePath
+module_to_fname = untxt . (<>".hs") . Text.replace "." "/"
+
 reintegrate :: Ui.M m => Block.SourceKey -> m ()
 reintegrate key = do
     (korvai, index, inst) <- Ui.require ("no korvai for " <> showt key) $
@@ -155,8 +188,14 @@ convert_note_track key (ModifyNotes.NoteTrack notes controls) =
 add_stack :: Block.SourceKey -> Event.Event -> Event.Event
 add_stack key event =
     Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event
-    where
-    stack = Stack.add (Stack.Call key) Stack.empty
+    where stack = Stack.add (Stack.Call key) Stack.empty
+
+event_key :: Event.Event -> Maybe Block.SourceKey
+event_key event = case Event.stack event of
+    Just (Event.Stack stack _) -> case Stack.innermost stack of
+        Stack.Call key : _ -> Just key
+        _ -> Nothing
+    Nothing -> Nothing
 
 -- | Get the SourceKey, create an empty track with that.
 integrate_track :: Cmd.M m => Korvai.Korvai -> Index -> Text

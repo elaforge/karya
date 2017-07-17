@@ -11,5 +11,5 @@ endfunction
 
 function! Send(cmd)
     silent w
-    call ExecuteQuietly('build/opt/send --cmd ' . a:cmd . ' < ' . expand('%'))
+    call ExecuteQuietly('build/opt/send ''' . a:cmd . ''' < ' . expand('%'))
 endfunction
