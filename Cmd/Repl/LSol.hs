@@ -7,6 +7,7 @@
 --
 -- E.g.:
 -- > return $ LSol.search $ LSol.has_instrument "kendang_tunggal"
+-- > return $ LSol.search $ LSol.around_date (LSol.date 2017 7 10) 10
 -- > 59: .... etc
 -- > LSol.insert_k1 True 0 (LSol.korvais !! 59) 0
 module Cmd.Repl.LSol (
@@ -167,7 +168,7 @@ reintegrate key = do
             realize inst True korvai index akshara_dur start
     Integrate.manual_integrate key notes controls
     where
-    akshara_dur = 1/4
+    akshara_dur = 1
     start = 0
 
 convert_note_track :: Block.SourceKey -> ModifyNotes.NoteTrack

@@ -116,96 +116,97 @@ UNSORTED
     . ^o is still available, but it would become alt-o on linux.
     . Also this tracks focused ViewId and focus changes.
   Integrate from dsl.
-    simple version:
-      . Edit Solkattu.Score.*.  Save triggers a :reload, and then re-integrate
-        the korvai.
-      Implement manual integrate, e.g. LSol.integrate korvai
-        * I need a Block.EventIndex to do the diff.  ScoreDestinations requires
-          a source TrackId, so I need a ManualDestinations without one.
-        . Since 'to_score' returns (note, controls), I can assume track
-          derivation.
-        . I need some kind of key to distinguish between sources.  For
-          solkattu, that would be the source korvai.  So make it Text.
-        . I need at least some kind of stack since Merge uses that to tell
-          the difference between generated and user-added events.  But the
-          actual diffing is based solely on Event.IndexKey, which is just
-          TrackTime.
-        - validate Block.ManualDestinations from Ui.set_integrated_manual
-        - If I put a TrackTime offset into the ManualDestination, I could have
-          multiple destinations on a single track.  But then I'd have to also
-          know to move things around if they change size, and it seems
-          complicated.  Maybe it would be better to put them in their own
-          block, and then implement a way to nudge calls when one changes
-          size.
-        - If I put the destination on its own block, I could automatically
-          adjust the ruler.
-      * connect LSol.realize to manual integrate
-        . LSol.integrate_track (LSol.korvais !! 59) 0 "mridangam"
-      - make block version of LSol.integrate_track, where integrate also adjusts
-        the block ruler to the right length.
-        . I need to understand the tala, not just for the ruler, but to know
-          if there's a final stroke.
-      * cmd to edit a korvai's source file along with the vi save hook
-        . 'gz' is normal so I can load in ghci, but 'gs' saves and sends
-          a re-integrate for that korvai.
-        . It also needs to trigger a reload, but 'send' should work for that
-          too.
-      - Solkattu realize with an alignment error should still realize, just
-        emit a warning.
-      - On vim 'gs', output from 'send' messes up the draw.  Maybe bring it
-        back to vi and do :echo?
+    - I tend to use multiple korvai sequences as versions of a single korvai.
+      Maybe use index -1 to concatenate them all?  Or have a general way to
+      concatenate multiple korvais?
+    Implement manual integrate, e.g. LSol.integrate korvai
+      * I need a Block.EventIndex to do the diff.  ScoreDestinations requires
+        a source TrackId, so I need a ManualDestinations without one.
+      . Since 'to_score' returns (note, controls), I can assume track
+        derivation.
+      . I need some kind of key to distinguish between sources.  For
+        solkattu, that would be the source korvai.  So make it Text.
+      . I need at least some kind of stack since Merge uses that to tell
+        the difference between generated and user-added events.  But the
+        actual diffing is based solely on Event.IndexKey, which is just
+        TrackTime.
+    - validate Block.ManualDestinations from Ui.set_integrated_manual
+    - If I put a TrackTime offset into the ManualDestination, I could have
+      multiple destinations on a single track.  But then I'd have to also
+      know to move things around if they change size, and it seems
+      complicated.  Maybe it would be better to put them in their own
+      block, and then implement a way to nudge calls when one changes
+      size.
+    - If I put the destination on its own block, I could automatically
+      adjust the ruler.
+    * connect LSol.realize to manual integrate
+      . LSol.integrate_track (LSol.korvais !! 59) 0 "mridangam"
+    - make block version of LSol.integrate_track, where integrate also adjusts
+      the block ruler to the right length.
+      . I need to understand the tala, not just for the ruler, but to know
+        if there's a final stroke.
+    * cmd to edit a korvai's source file along with the vi save hook
+      . 'gz' is normal so I can load in ghci, but 'gs' saves and sends
+        a re-integrate for that korvai.
+      . It also needs to trigger a reload, but 'send' should work for that
+        too.
+    - Solkattu realize with an alignment error should still realize, just
+      emit a warning.
+    - On vim 'gs', output from 'send' messes up the draw.  Maybe bring it
+      back to vi and do :echo?
     - Get rid of Korvai index, it gets more annoying as time goes on.  Just
       have separate korvais, and I can tie them together with variable_name if
       necessary.  But I still need a way to distinguish for SourceKey, so
       maybe I still need it but as another tag, added by 'korvais'.
-    . I'd like to be able to edit e.g. solkattu dsl, then save triggers
-      a score integrate.
-    . This is also the way to get text language to integrate in general.
-    . Also it's visualization for text language.
-    . StateConfig can have 'dsl_integrate :: Map Symbol Code', then repl cmds
-      to edit them.  This is then haskell, which means I need some way to get
-      it into the REPL, and some standard environment in which it is executed.
-    . I can actually do this currently but I have to run a repl cmd, e.g.
-      LSol.integrate Score.xyz
-    . So simpler way would be to hook the editor so it does 'send ...' on
-      save.  I should do that first, and think about a more automatic way
-      if it's too awkward.
-    . The common building block is a manual score integrate like
-      integrate :: Symbol -> Track [Ui.Event] | Block Ruler [Ui.Event]
-    ? Remind myself about how score integrate works.
-      . Manually call LIntegrate.score_block
-      . Which sets (source_block, ScoreDestinations []) on the dest block.
-      . score_track adds (source_track, ScoreDestinations []) to dest
-        block_integrated_tracks.
-    . Dsl integration won't have a source track or block.  Instead it needs
-      another ID which can link it with the source.  So for code it would be
-      defining file or expression.  I also need identifying stacks for the
-      generated events.
-    . I have to load the module with the dsl.  If that's supposed to be
-      per-score then I need to get that into an .hs file and get the repl to
-      add that to the targets.  The file should be .hs and loadable anyway so
-      I can use ghci on it.
-    . But I'll likely have multiple DSLs, so it needs some configurable
-      boilderplate, i.e. imports.
-    . Two cases: EDSL means it's haskell with a special "prelude", like
-      solkattu.  DSL means text with a parser, e.g. Derive.Text.TScore.
-    Make this work for solkattu:
-      . Make solkattu set Event.stack.  It should have the sollu and position
-        as a TrackTime.
-      . The score has a link to a module name, e.g. Local.Score.Xyz.  If it
-        doesn't exist, create one with the standard set of imports.
-      . On refresh, have the REPL load that module, and pull out every symbol
-        with the right name, e.g. _xyz.  Each of those should be of Block type,
-        and will be used to create score integrate to a block of the same name.
-        I do the integrate for everything, since it will detect if there were
-        changes.
-      . Figure out how to make the GHC API load a specific module and find
-        symbols.  I need to verify their types too.  Trigger like :dsl X.Y.Z
-      . Make a Block type, and hook it up with score itegrate, and :dsl.
-      . Make solkattu realization retain the original sollu.
-      . Add the "dsl modules" score field.
-      . Make a REPL cmd to open vi with the file and bind save to the :dsl
-        cmd.
+    notes:
+      . I'd like to be able to edit e.g. solkattu dsl, then save triggers
+        a score integrate.
+      . This is also the way to get text language to integrate in general.
+      . Also it's visualization for text language.
+      . StateConfig can have 'dsl_integrate :: Map Symbol Code', then repl cmds
+        to edit them.  This is then haskell, which means I need some way to get
+        it into the REPL, and some standard environment in which it is executed.
+      . I can actually do this currently but I have to run a repl cmd, e.g.
+        LSol.integrate Score.xyz
+      . So simpler way would be to hook the editor so it does 'send ...' on
+        save.  I should do that first, and think about a more automatic way
+        if it's too awkward.
+      . The common building block is a manual score integrate like
+        integrate :: Symbol -> Track [Ui.Event] | Block Ruler [Ui.Event]
+      ? Remind myself about how score integrate works.
+        . Manually call LIntegrate.score_block
+        . Which sets (source_block, ScoreDestinations []) on the dest block.
+        . score_track adds (source_track, ScoreDestinations []) to dest
+          block_integrated_tracks.
+      . Dsl integration won't have a source track or block.  Instead it needs
+        another ID which can link it with the source.  So for code it would be
+        defining file or expression.  I also need identifying stacks for the
+        generated events.
+      . I have to load the module with the dsl.  If that's supposed to be
+        per-score then I need to get that into an .hs file and get the repl to
+        add that to the targets.  The file should be .hs and loadable anyway so
+        I can use ghci on it.
+      . But I'll likely have multiple DSLs, so it needs some configurable
+        boilderplate, i.e. imports.
+      . Two cases: EDSL means it's haskell with a special "prelude", like
+        solkattu.  DSL means text with a parser, e.g. Derive.Text.TScore.
+      Make this work for solkattu:
+        . Make solkattu set Event.stack.  It should have the sollu and position
+          as a TrackTime.
+        . The score has a link to a module name, e.g. Local.Score.Xyz.  If it
+          doesn't exist, create one with the standard set of imports.
+        . On refresh, have the REPL load that module, and pull out every symbol
+          with the right name, e.g. _xyz.  Each of those should be of Block
+          type, and will be used to create score integrate to a block of the
+          same name.  I do the integrate for everything, since it will detect
+          if there were changes.
+        . Figure out how to make the GHC API load a specific module and find
+          symbols.  I need to verify their types too.  Trigger like :dsl X.Y.Z
+        . Make a Block type, and hook it up with score itegrate, and :dsl.
+        . Make solkattu realization retain the original sollu.
+        . Add the "dsl modules" score field.
+        . Make a REPL cmd to open vi with the file and bind save to the :dsl
+          cmd.
   - ControlFunctions are still super confusing.
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
@@ -1912,6 +1913,17 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - LSol.insert_* doesn't clear and replace existing notes
+        - insert for patterns is messed up, I get p '5' with 0 dur.
+          . '5' is because I use Expr Text, and it uses ShowVal, which loses
+            the type, so everything becomes a Str.
+          . It's Text because I want to avoid relying on Val.
+          . Which in turn is because I wanted to emit expressions like (4d)
+            and have it be evaluated.
+          . But I can do that, just skip parsing, right?  Maybe a Expr MiniVal
+            instead of Expr Text.
+          . Can I use RestrictedEnviron.Val?
+          - Change Expr.ToExpr to be Expr RestrictedEnviron.Val
         - Use a typeclass for format-conversion, instead of Pretty.
         * Use underline for tha+x instead of ad-hoc letters.
         transcribe:

@@ -22,6 +22,7 @@ type ToScore stroke =
     [(Sequence.Duration, Realize.Note stroke)] -> ([Event], [(Text, [Event])])
     -- ^ (note_events, [(control, control_events)]).  A control named "*"
     -- becomes a pitch track.
+
 type Event = (Sequence.Duration, Sequence.Duration, Text)
 
 
@@ -30,10 +31,11 @@ type Event = (Sequence.Duration, Sequence.Duration, Text)
 to_score :: Expr.ToExpr (Realize.Stroke stroke) => ToScore stroke
 to_score strokes = (events, [])
     where
-    events =
-        [ (start, 0, ShowVal.show_val expr)
-        | (start, Just expr) <- zip starts (map to_expr notes)
-        ]
+    events = do
+        (start, dur, note) <- zip3 starts durs notes
+        Just expr <- return $ to_expr note
+        let d = if Sequence.has_duration note then dur else 0
+        return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes
     to_expr s = case s of
