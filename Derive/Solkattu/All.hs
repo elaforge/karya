@@ -184,26 +184,26 @@ korvais =
         line_number 193 Derive.Solkattu.Score.Solkattu2017.c_17_05_10
     , variable_name "m_17_05_11" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 229 Derive.Solkattu.Score.Solkattu2017.m_17_05_11
+        line_number 243 Derive.Solkattu.Score.Solkattu2017.m_17_05_11
     , variable_name "e_17_05_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 246 Derive.Solkattu.Score.Solkattu2017.e_17_05_19
+        line_number 270 Derive.Solkattu.Score.Solkattu2017.e_17_05_19
     , variable_name "c_17_05_19_janahan" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 252 Derive.Solkattu.Score.Solkattu2017.c_17_05_19_janahan
+        line_number 276 Derive.Solkattu.Score.Solkattu2017.c_17_05_19_janahan
     , variable_name "janahan_17_06_02" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 275 Derive.Solkattu.Score.Solkattu2017.janahan_17_06_02
+        line_number 299 Derive.Solkattu.Score.Solkattu2017.janahan_17_06_02
     , variable_name "c_17_06_15" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 288 Derive.Solkattu.Score.Solkattu2017.c_17_06_15
+        line_number 312 Derive.Solkattu.Score.Solkattu2017.c_17_06_15
     , variable_name "c_17_06_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 303 Derive.Solkattu.Score.Solkattu2017.c_17_06_19
+        line_number 327 Derive.Solkattu.Score.Solkattu2017.c_17_06_19
     , variable_name "c_17_06_19_koraippu" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 337 Derive.Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
+        line_number 361 Derive.Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
     , variable_name "c_17_07_13" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 362 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
+        line_number 386 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
     ]

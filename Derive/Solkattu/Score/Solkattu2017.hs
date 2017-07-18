@@ -191,7 +191,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
         ]
 
 c_17_05_10 :: Korvai
-c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
+c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
     map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.kita.takadinna.dinga)
         . ta.__.kita.takadinna.dinga
     .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
@@ -215,6 +215,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
     --                ta.__.takadinna.dinga
     --                   ta.takadinna.dinga
     where
+    insts = mridangam <> kendang <> sargam
     mridangam = make_mridangam
         [ (ta, [k])
         , (kita, [t, k])
@@ -225,10 +226,36 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi mridangam $
         , (din.na, [o, k])
         , (na, [k])
         ]
+    kendang = make_kendang1
+        [ (ta, [p])
+        , (kita, [p, k])
+        , (takadinna, [t, o, o, p])
+        , (dinga, [a, lt k])
+        , (tdgnt, [p, k, t, a, o])
+        -- TODO these are only needed because realize doesn't understand
+        -- reduction.
+        , (ka.din.na, [o, o, p])
+        , (din.na, [o, p])
+        , (na, [p])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+    sargam = make_sargam
+        [ (ta, [s1])
+        , (kita, [n, s1])
+        , (takadinna, [d, n, p, d])
+        , (dinga, [hv g, s])
+        , (tdgnt, [hv r, g, hv p, m, n])
+        -- TODO these are only needed because realize doesn't understand
+        -- reduction.
+        , (ka.din.na, [n, p, d])
+        , (din.na, [p, d])
+        , (na, [d])
+        ]
+        [
+        ] where Sargam.Strokes {..} = Sargam.notes
 
 m_17_05_11 :: Korvai
-m_17_05_11 = date 2017 5 11 $ source "sriram" $ korvai1 adi mridangam $
-    nadai 7 $
+m_17_05_11 = date 2017 5 11 $ source "sriram" $
+    korvai1 adi (mridangam<>sargam) $ nadai 7 $
     circum (repeat 2 (takadinna.takita)) (accumulate
         [ din.__.ta.din.__.tat.__
         , takita.din.__.tat.__
@@ -242,6 +269,16 @@ m_17_05_11 = date 2017 5 11 $ source "sriram" $ korvai1 adi mridangam $
         , (din.tat, [d, k])
         , (thom.thom.ka, [o, o, k])
         ]
+    sargam = make_sargam
+        [ (takadinna, [hv p, m, r, m])
+        , (takita, [hv s, r, d_])
+        , (din.ta.din.tat, [s, n, s, d])
+        , (din.tat, [r, n])
+        , (thom.thom.ka, [hv m_, m_, s])
+        , (tam, [hv s])
+        ]
+        [ ( Solkattu.PatternM 5, [hv n_, s, d_, n_, p_])
+        ] where Sargam.Strokes {..} = Sargam.notes
 
 e_17_05_19 :: Korvai
 e_17_05_19 = date 2017 5 15 $ exercise $ korvai1 adi mridangam $
@@ -360,15 +397,15 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         ]
 
 c_17_07_13 :: Korvai
-c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $
+c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ (:[]) $ mconcat $
     -- TODO when I can do branches, any dintaka can go with any purvangam:
     -- utarangam (any dintakas) . purvangam (any dintakas)
     map utarangam dintakas ++ [purvangam (head dintakas)]
     where
     dintakas = -- each is 6 beats -- TODO map assert dur == 6
         [ din.taka.din.taka
-        , din . su (taka).din.din.taka
-        , din . su (taka).din.din . su taka . din
+        , din . su taka.din.din.taka
+        , din . su taka.din.din . su taka.din
         , n6 (din.taka).din.din.taka
         , n6 (din.taka).din . n6 (din.taka).din
         , n6 (din.taka).din. su (din.ta) . ka.din
@@ -380,7 +417,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $
     purvangam dintaka = tri
         (ta.__.kita.taka . din.tat . dintaka.din.__.tat.__.tat.__.din.__2)
     mridangam = make_mridangam
-        [ (ta.kita.taka, [k, k, t, k, o])
+        [ (ta.kita.taka, [k, t, k, k, o])
         , (din.taka.din.taka, [o, k, o, o, k, o])
         , (din.tat.tat.din, [od, on, on, v])
         , (kita.taka, [k, t, o, k])
