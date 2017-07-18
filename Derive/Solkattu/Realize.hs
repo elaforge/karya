@@ -301,7 +301,7 @@ realize_patterns pmap = format_error . concatMap realize
             Left $ TextUtil.joinWith "\n" (pretty_words (map snd vals)) err
 
 pretty_words :: Pretty a => [a] -> Text
-pretty_words = Text.unwords . map (Text.justifyLeft 2 ' ' . pretty)
+pretty_words = Text.unwords . map (justify_left 2 ' ' . pretty)
 
 to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
 to_solkattu n = case n of
@@ -388,11 +388,11 @@ format_lines stroke_width width tala =
     combine (prev, (state, text)) = (state, Text.drop overlap text)
         where overlap = maybe 0 (subtract stroke_width . text_length . snd) prev
     show_stroke s = case s of
-        S.Attack a -> Text.justifyLeft stroke_width ' ' (pretty a)
+        S.Attack a -> justify_left stroke_width ' ' (pretty a)
         S.Sustain a -> Text.replicate stroke_width $ case a of
             Pattern {} -> "-"
             _ -> pretty a
-        S.Rest -> Text.justifyLeft stroke_width ' ' "_"
+        S.Rest -> justify_left stroke_width ' ' "_"
 
 break_avartanams :: [(S.State, a)] -> [[(S.State, a)]]
 break_avartanams = dropWhile null . Seq.split_with (is_sam . fst)
@@ -450,7 +450,7 @@ infer_ruler_text tala stroke_width =
     -- A final stroke will cause a trailing space, so stripEnd.
     Text.stripEnd . mconcatMap fmt . infer_ruler tala
     where
-    fmt (label, spaces) = Text.justifyLeft (spaces * stroke_width) ' ' label
+    fmt (label, spaces) = justify_left (spaces * stroke_width) ' ' label
 
 infer_ruler :: Tala.Tala -> [(S.State, a)] -> [(Text, Int)]
 infer_ruler tala = zip (Tala.tala_labels tala ++ ["|"])
@@ -476,6 +476,12 @@ text_length = sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
+
+justify_left :: Int -> Char -> Text -> Text
+justify_left n c text
+    | len >= n = text
+    | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
+    where len = text_length text
 
 -- * format html
 
