@@ -4,13 +4,12 @@
 
 -- | Parse MED output to ModTypes.Mod.
 module Cmd.Load.Med where
-import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Unmed2.Amiga as Amiga
-import qualified Unmed2.MED as MED
-import qualified Unmed2.MEDBlock as MEDBlock
-import qualified Unmed2.MEDInstrument as MEDInstrument
+import qualified Sound.MED.Generic as MED
+import qualified Sound.MED.Generic.Block as Block
+import qualified Sound.MED.Generic.Instrument as Instrument
+import qualified Sound.MED.Generic.PlaySeq as PlaySeq
 
 import qualified Util.Seq as Seq
 import qualified Cmd.Load.ModTypes as M
@@ -19,8 +18,7 @@ import Global
 
 
 load :: Map Text Text -> FilePath -> IO M.Module
-load inst_map fn = Exception.bracket (Amiga.loadMEM fn) Amiga.freeMEM $ \mem ->
-    convert inst_map <$> MED.peek mem
+load inst_map fn = convert inst_map <$> MED.load fn
 
 convert :: Map Text Text -> MED.MED -> M.Module
 convert inst_map med = M.Module
@@ -28,26 +26,27 @@ convert inst_map med = M.Module
     , _default_tempo = M.Tempo 33 6 -- TODO
     , _blocks = map block (MED.blocks med)
     , _block_order =
-        [(txt name, indices) | MED.PlaySeq name indices <- MED.playseqs med]
+        [ (txt name, indices)
+        | PlaySeq.MEDPlaySeq name indices <- MED.playseqs med
+        ]
     }
 
-instrument :: Map Text Text -> MEDInstrument.MEDInstrument -> M.Instrument
+instrument :: Map Text Text -> Instrument.MEDInstrument -> M.Instrument
 instrument inst_map inst = M.Instrument
     { _instrument_name = maybe (ScoreTypes.Instrument "none")
-        (ScoreTypes.Instrument . find . txt) (MEDInstrument.name inst)
-    , _volume = M.volume <$> MEDInstrument.svol inst
+        (ScoreTypes.Instrument . find . txt) (Instrument.name inst)
+    , _volume = M.volume <$> Instrument.svol inst
     }
     where
     find n = Map.findWithDefault n n inst_map
 
-block :: MEDBlock.MEDBlock -> M.Block
+block :: Block.MEDBlock -> M.Block
 block b = M.Block
-    { _tracks = map track $ Seq.rotate2 $ map snd $ MEDBlock.seqdata b
-    , _block_length = MEDBlock.lines b
+    { _tracks = map track $ Seq.rotate2 $ map snd $ Block.seqdata b
+    , _block_length = Block.lines b
     }
 
-track :: [Maybe (MEDBlock.Note, MEDBlock.Inst, [(MEDBlock.Cmd, MEDBlock.Val)])]
-    -> [M.Line]
+track :: [Maybe (Block.Note, Block.Inst, [(Block.Cmd, Block.Val)])] -> [M.Line]
 track = default_zeroes . map (maybe empty note)
     where empty = M.Line Nothing 0 []
 
@@ -74,8 +73,7 @@ default_zeroes = snd . List.mapAccumL set (0, mempty)
         | M._instrument line == 0 = line { M._instrument = inst }
         | otherwise = line
 
-note :: (MEDBlock.Note, MEDBlock.Inst, [(MEDBlock.Cmd, MEDBlock.Val)])
-    -> M.Line
+note :: (Block.Note, Block.Inst, [(Block.Cmd, Block.Val)]) -> M.Line
 note (pitch, inst, cmds) = M.Line
     { _pitch = M.pitch pitch
     , _instrument = inst

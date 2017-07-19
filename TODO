@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - mridangam should default to its native pitch
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
@@ -24,6 +25,7 @@ UNSORTED
     . Except control tracks don't have a "" call, so plain '--' is available.
       But maybe not do that anyway, for consistency.
   load octamed files
+    * port to med-module
     * Or for calls other than vol, I can put them in as comments, and fix by
       hand, since it's a bit annoying to get things like 0d right.
     / Put instrument default vol in 'ky' file instead of on each instrument.
