@@ -343,23 +343,6 @@ cppInImports =
 generatedSrc :: HsDeps.Generated
 generatedSrc = Set.fromList [generatedKorvais, generatedFaustAll]
 
--- | True for binaries that depend, transitively, on 'hsconfigH'.  Since
--- hsconfigH is generated, I need to generate it first before chasing
--- dependencies.
---
--- The principled way to do this would be to notice the #include when chasing
--- deps and 'need' it there, but that would mean interleaving logic in
--- 'HsDeps.transitiveImportsOf' which seems like too much bother for just a few
--- binaries.
---
--- TODO I should do that, and then I can put build/$mode/hsconfig.h in
--- generatedSrc.
-isHsconfigBinary :: FilePath -> Bool
-isHsconfigBinary fn =
-    FilePath.takeFileName fn `elem` ["seq", "test_midi", "browser"]
-    || runProfile `List.isPrefixOf` fn
-    || runTests `List.isPrefixOf` fn
-
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
 nameToMain :: Map.Map FilePath FilePath
@@ -754,6 +737,9 @@ hsconfigPath config = buildDir config </> hsconfigH
 -- This way only those files will recompile when the config changes.
 hsconfigHRule :: FilePath -> Shake.Action ()
 hsconfigHRule fn = do
+    -- I probably don't need this because the oracles should notice changes,
+    -- but it's cheap to run and writeFileChanged won't cause further
+    -- rebuilding, so let's just run it.
     Shake.alwaysRerun
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
@@ -968,8 +954,9 @@ cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
 buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
 buildHs config rtsFlags libs extraPackages hs fn = do
-    when (isHsconfigBinary fn) $
-        need [hsconfigPath config]
+    -- Actually I only need it if this binary imports a module that uses
+    -- hsconfig.h, but it's cheap to generate so lets always do it.
+    need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf generatedSrc (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
