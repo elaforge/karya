@@ -865,10 +865,11 @@ drawable_pixels(
                 event_box.w += 2;
             }
             // Go forward to find all events starting here.
-            size_t prev = index + 1;
+            // This has to be signed so I can check >=0.
+            int prev = index + 1;
             while (prev < boxes.size() && events[prev].start == event.start)
                 prev++;
-            for (--prev;; --prev) {
+            for (--prev; prev >=0; --prev) {
                 if (prev == index)
                     continue;
                 if (is_left && boxes[prev].align == EventTrack::Right)
