@@ -29,7 +29,7 @@ patches :: [MidiInst.Patch]
 patches = map (MidiInst.code #= code)
     [ patch "mridangam-d" notes_d
     , patch "mridangam-g" notes_g
-    , patch "mridangam" pitched_notes_old
+    , patch "mridangam-old" pitched_notes_old
     ]
     where
     patch name notes = CUtil.pitched_drum_patch notes $

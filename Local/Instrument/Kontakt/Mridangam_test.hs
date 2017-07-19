@@ -22,8 +22,7 @@ test_mridangam = do
 
     let ((_events, midi), logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
-    equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
-            DeriveTest.extract_midi_msg midi)
+    equal (e_note_on midi)
         [ Midi.NoteOn Key.c2 127, Midi.NoteOn Key.c3 127
         , Midi.NoteOn Key.c4 127, Midi.NoteOn Key.c5 127
         , Midi.NoteOn Key.c7 127
@@ -44,3 +43,7 @@ test_mridangam = do
         , Midi.NoteOff Key.c1 127, Midi.NoteOff Key.c4 127
         , Midi.NoteOn Key.c5 127, Midi.NoteOff Key.c5 127
         ]
+
+e_note_on :: [Midi.WriteMessage] -> [Midi.ChannelMessage]
+e_note_on = mapMaybe Midi.channel_message . filter Midi.is_note_on
+    . DeriveTest.extract_midi_msg

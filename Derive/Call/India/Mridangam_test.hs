@@ -110,4 +110,4 @@ derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
 
 with_synth :: DeriveTest.Setup
 with_synth =
-    DeriveTest.with_synths_simple [("m", "kontakt/mridangam")] [Kontakt.synth]
+    DeriveTest.with_synths_simple [("m", "kontakt/mridangam-d")] [Kontakt.synth]
