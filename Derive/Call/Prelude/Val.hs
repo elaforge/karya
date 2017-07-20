@@ -64,6 +64,7 @@ val_calls = Derive.call_map
     -- generate signals
     , ("i>", c_linear_next)
     , ("e>", c_exp_next)
+    , ("df", c_down_from)
     ]
 
 c_next_val :: Derive.ValCall
@@ -270,7 +271,7 @@ c_get_pitch = val_call "pitch" mempty "Get the current pitch." $
 c_linear_next :: Derive.ValCall
 c_linear_next = val_call "linear-next" mempty
     "Create straight lines between the given breakpoints."
-    $ Sig.call breakpoints_arg $ \vals args -> c_breakpoints 0 id vals args
+    $ Sig.call breakpoints_arg $ \vals args -> breakpoints 0 id vals args
 
 c_exp_next :: Derive.ValCall
 c_exp_next = val_call "exp-next" mempty
@@ -278,18 +279,32 @@ c_exp_next = val_call "exp-next" mempty
     $ Sig.call ((,)
     <$> Sig.defaulted "exp" 2 ControlUtil.exp_doc
     <*> breakpoints_arg
-    ) $ \(exp, vals) args -> c_breakpoints 1 (ControlUtil.expon exp) vals args
+    ) $ \(exp, vals) args -> breakpoints 1 (ControlUtil.expon exp) vals args
 
 breakpoints_arg :: Sig.Parser (NonEmpty BaseTypes.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
     \ the event start and the next event. They can be all numbers, or all\
     \ pitches."
 
+c_down_from :: Derive.ValCall
+c_down_from = val_call "down-from" mempty
+    "Go down from a starting value at a certain rate."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "from" 1 "Start at this value."
+    <*> Sig.defaulted "speed" 1 "Descend this amount per second."
+    ) $ \(from, speed) args -> do
+        srate <- Call.get_srate
+        (start, end) <- Args.real_range_or_next args
+        return $ BaseTypes.VControlRef $ BaseTypes.ControlSignal $
+            Score.untyped $
+            ControlUtil.limited_slope srate (Just 0) Nothing from (-speed)
+                start end
+
 -- ** implementation
 
-c_breakpoints :: Int -> (Double -> Double) -> NonEmpty BaseTypes.Val
+breakpoints :: Int -> (Double -> Double) -> NonEmpty BaseTypes.Val
     -> Derive.PassedArgs a -> Derive.Deriver BaseTypes.Val
-c_breakpoints argnum f vals args = do
+breakpoints argnum f vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Call.get_srate
     vals <- num_or_pitch (Args.start args) argnum vals
@@ -327,9 +342,6 @@ type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
             expected (Just received) Nothing
-
--- * pitch
-
 
 
 -- * util

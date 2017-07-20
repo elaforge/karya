@@ -57,6 +57,7 @@ import qualified Data.Vector.Storable as Storable
 
 import qualified Foreign
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.TimeVectorStorable (X, Sample(..))
@@ -436,7 +437,7 @@ unfoldr f = V.unfoldr $ \st -> case f st of
 -- | Given a line defined by the two points, find the y at the given x.
 -- Crashes if called on a vertical line (y0==y1).  Yeah, it's inconsistent
 -- with 'x_at'.
-y_at :: X -> Double -> X -> Double -> X -> Double
+y_at :: CallStack.Stack => X -> Double -> X -> Double -> X -> Double
 y_at x0 y0 x1 y1 x
     | x0 == x1 = errorStack $ "y_at on vertical line: "
         <> showt ((x0, y0), (x1, y1), x)

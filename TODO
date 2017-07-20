@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - How to add grace notes to a non-null call note?  Also what if I want
+    non-null grace notes?
+    . I can make a 'g' transformer for the first: 'g 0 1 | x'
+    . For all maybe a grace-transform env arg.
+  - squart/6 has some jumpy dynamics due to sets in dyn with a scope over them
+    e.g. end of @b3, vln2
   - mridangam should default to its native pitch
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
@@ -534,6 +540,8 @@ documentation:
     maybe I could run a link checker against the final output.  Otherwise
     'Module.function' references get out of date.
   calldoc: CallDoc:
+    - each call should have type (note, pitch, control), so I can see
+      what it is after a search
     - collapse control for modules, option to collapse / expand all
       . Haddock:
         <span id=xyz class="module collapser"

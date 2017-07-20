@@ -49,25 +49,30 @@ test_prev_next_val = do
         ([(0, 1, "4a"), (1, 1, "4a")], [])
 
 test_linear_next = do
-    let f extract track =
+    let run extract track =
             DeriveTest.extract extract $ DeriveTest.derive_tracks ""
                 [(">", [(0, 4, "")]), track]
-    let (result, logs) = f DeriveTest.e_dyn
+    let (result, logs) = run DeriveTest.e_dyn
             ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "0")])
     equal logs []
     equal result [[(0, 0), (0.5, 1), (1, 0.25), (1.5, 0.75),
         (2, 0.5), (2.5, 0.5), (3, 0.75), (3.5, 0.25), (4, 0)]]
 
-    let (result, logs) = f DeriveTest.e_nns ("*",
+    let (result, logs) = run DeriveTest.e_nns ("*",
             [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "2c")])
     equal logs []
     equal result [[(0, 60), (0.5, 72), (1, 63), (1.5, 69),
         (2, 66), (2.5, 66), (3, 69), (3.5, 63), (4, NN.c2)]]
     strings_like
-        (snd $ f DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
+        (snd $ run DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
         ["arg 2/bp: expected Num but got Pitch"]
-    strings_like (snd $ f DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
+    strings_like (snd $ run DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
         ["arg 1/bp: expected Num or Pitch"]
+
+test_down_from = do
+    let run = DeriveTest.extract DeriveTest.e_dyn . DeriveTest.derive_tracks ""
+    equal (run [(">", [(0, 4, "%dyn=(df 2 1) |")])])
+        ([[(0, 2), (1, 1), (2, 0)]], [])
 
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $

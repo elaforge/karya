@@ -230,6 +230,26 @@ make_function curve x1 y1 x2 y2 =
     Num.scale y1 y2 . curve . Num.normalize (secs x1) (secs x2) . secs
     where secs = RealTime.to_seconds
 
+-- * slope
+
+slope :: SRate -> Signal.Y -> Double -> RealTime -> RealTime -> Signal.Control
+slope srate = limited_slope srate Nothing Nothing
+
+-- | Make a linear sloped line, with optional lower and upper limits.
+-- TODO I could support Curve but it would make the intercept more complicated.
+limited_slope :: SRate -> Maybe Signal.Y -> Maybe Signal.Y
+    -> Signal.Y -> Double -> RealTime -> RealTime -> Signal.Control
+limited_slope srate low high from slope start end
+    | slope == 0 = Signal.signal [(start, from)]
+    | Just limit <- maybe_limit =
+        let intercept = start + max 0 (RealTime.seconds ((limit-from) / slope))
+        in if intercept < end then make intercept limit else make end end_y
+    | otherwise = make end end_y
+    where
+    maybe_limit = if slope < 0 then low else high
+    make = segment srate True True id start from
+    end_y = from + RealTime.to_seconds (end - start) * slope
+
 -- * exponential
 
 exp_doc :: Doc.Doc

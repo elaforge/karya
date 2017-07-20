@@ -45,3 +45,19 @@ test_modify = do
         let signal = Signal.signal [(start, 0.5)]
         ControlUtil.modify_with merge Controls.dynamic end signal
         return mempty
+
+test_limited_slope = do
+    let f low high from slope = Signal.unsignal $
+            ControlUtil.limited_slope 1 low high from slope 4 8
+    equal (f Nothing Nothing 0 1) [(4, 0), (5, 1), (6, 2), (7, 3), (8, 4)]
+    equal (f (Just 0) (Just 2) 0 1) [(4, 0), (5, 1), (6, 2)]
+    equal (f (Just 0) (Just 8) 0 1) [(4, 0), (5, 1), (6, 2), (7, 3), (8, 4)]
+    equal (f (Just 0) (Just 2) 2 1) [(4, 2)]
+    equal (f (Just 0) (Just 2) 4 1) [(4, 2)]
+
+    equal (f Nothing Nothing 2 (-1)) [(4, 2), (5, 1), (6, 0), (7, -1), (8, -2)]
+    equal (f (Just 0) (Just 2) 2 (-1)) [(4, 2), (5, 1), (6, 0)]
+    equal (f (Just (-8)) (Just 2) 2 (-1))
+        [(4, 2), (5, 1), (6, 0), (7, -1), (8, -2)]
+    equal (f (Just 0) (Just 2) 0 (-1)) [(4, 0)]
+    equal (f (Just 0) (Just 2) (-1) (-1)) [(4, 0)]
