@@ -43,7 +43,7 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Derive.Solkattu.Instrument.Mridangam ((&))
 import qualified Derive.Solkattu.Korvai as Korvai
-import Derive.Solkattu.Korvai (Korvai, print_konnakol)
+import Derive.Solkattu.Korvai (Korvai, print_konnakol, write_konnakol_html)
 import Derive.Solkattu.Metadata
 import Derive.Solkattu.Notation hiding (Sequence)
 import qualified Derive.Solkattu.Realize as Realize

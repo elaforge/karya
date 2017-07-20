@@ -328,14 +328,15 @@ print_konnakol :: Bool -> Korvai -> IO ()
 print_konnakol realize_patterns korvai =
     print_results (Just 4) korvai $ realize_konnakol realize_patterns korvai
 
-print_konnakol_html :: Bool -> Korvai -> IO ()
-print_konnakol_html realize_patterns korvai =
+write_konnakol_html :: Bool -> Korvai -> IO ()
+write_konnakol_html realize_patterns korvai =
     case sequence (realize_konnakol realize_patterns korvai) of
         Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
         Right results
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
-            | otherwise -> Realize.write_html "konnakol.html"
-                (korvai_tala korvai) notes
+            | otherwise -> do
+                putStrLn "write konnakol.html"
+                Realize.write_html "konnakol.html" (korvai_tala korvai) notes
             where (notes, warnings) = unzip results
 
 print_results :: Pretty stroke => Maybe Int -> Korvai

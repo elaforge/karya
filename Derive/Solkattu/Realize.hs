@@ -510,9 +510,9 @@ format_table tala =
     where
     show_stroke s = case s of
         S.Attack a -> Doc.html (pretty a)
-        S.Sustain a -> Doc.html $ case a of
+        S.Sustain a -> case a of
             Pattern {} -> "&mdash;"
-            _ -> pretty a
+            _ -> Doc.html $ pretty a
         S.Rest -> "_"
     emphasize_akshara state word
         | should_emphasize aksharas state = "<b>" <> word <> "</b>"

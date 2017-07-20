@@ -397,32 +397,59 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         ]
 
 c_17_07_13 :: Korvai
-c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ (:[]) $ mconcat $
-    -- TODO when I can do branches, any dintaka can go with any purvangam:
-    -- utarangam (any dintakas) . purvangam (any dintakas)
-    map utarangam dintakas ++ [purvangam (head dintakas)]
+c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ concat
+    -- TODO when I can do branches, any dintaka can substitute
+    -- purvangam (any dintakas) . utarangam (any dintakas)
+    [ map purvangam dintakas
+    , [ utarangam (head dintakas) -- etc for all dintakas
+      , utarangam_gap
+      ]
+    ]
     where
     dintakas = -- each is 6 beats -- TODO map assert dur == 6
-        [ din.taka.din.taka
-        , din . su taka.din.din.taka
+        [ din.1^taka.din.1^taka
+        , din . su taka.din.din.1^taka
         , din . su taka.din.din . su taka.din
-        , n6 (din.taka).din.din.taka
-        , n6 (din.taka).din . n6 (din.taka).din
+        , n6 (din.taka).din.din.1^taka
+        , n6 (din.taka.din.din.ta) . ka.din
+        -- TODO this one can also be slightly swung, so ta is slightly later
         , n6 (din.taka).din. su (din.ta) . ka.din
         ]
     n6 = nadai 6
-    utarangam dintaka =
+    purvangam dintaka =
         ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (kita.taka)
-        . dintaka.din.__.tat.__.tat.__.din.__4
-    purvangam dintaka = tri
-        (ta.__.kita.taka . din.tat . dintaka.din.__.tat.__.tat.__.din.__2)
+        . dintaka . 1^(din.__.tat.__.tat.__.din.__4)
+    utarangam dintaka = tri $
+        ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__.din.__
+    utarangam_gap = tri $
+        ta.__.kita.taka.din.na. __.1^takita.1^taka.din.na.__.ta.tat.__.din.__
+
     mridangam = make_mridangam
-        [ (ta.kita.taka, [k, t, k, k, o])
-        , (din.taka.din.taka, [o, k, o, o, k, o])
-        , (din.tat.tat.din, [od, on, on, v])
+        [ (ta.kita.taka, [k, k, t, k, o])
+        , (din.tat.tat.din, [od, on, on, od])
+        , (1^(din.tat.tat.din), [od, on, on, v])
         , (kita.taka, [k, t, o, k])
 
+        , (din.na, [od, k])
+        , (tat.tat.din, [on, on, v])
+
         , (taka, [k, k])
+        , (1^taka, [k, o])
         , (din, [o])
-        , (din.tat, [od, k])
+
+        , (1^takita, [k, o, o])
+        , (ta.tat.din, [on, on, v])
+        ]
+
+c_17_07_19 :: Korvai
+c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvai adi mridangam $
+    map mconcat
+    [ [tri (p6 . p5.p5 . dhom_tat_din 2)]
+    , [p6 . p5s . dhom_tat_din 2 | p5s <- [p5, p5.p5, p5.p5.p5]]
+    , [p6 . p5.p5 . dhom_tat_din n | n <- [1, 2, 3]]
+    ]
+    where
+    dhom_tat_din gap = dhom.__n gap . tat.__n gap  . din.__
+    mridangam = make_mridangam
+        [ (dhom.tat.din, [o, k, od])
         ]
