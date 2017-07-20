@@ -6,6 +6,7 @@
 module Derive.Scale.ScaleTest where
 import qualified Data.List as List
 
+import qualified Util.CallStack as CallStack
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
@@ -22,10 +23,11 @@ import Global
 key_environ :: Text -> Env.Environ
 key_environ key = Env.insert_val EnvKey.key key mempty
 
-get_scale :: [Scale.Make] -> Text -> Scale.Scale
-get_scale scales scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $
-    List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
-        [scale | Scale.Simple scale <- scales]
+get_scale :: CallStack.Stack => [Scale.Make] -> Text -> Scale.Scale
+get_scale scales scale_id =
+    fromMaybe (errorStack $ "no scale: " <> showt scale_id) $
+        List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
+            [scale | Scale.Simple scale <- scales]
 
 input_to_note :: Scale.Scale -> Env.Environ
     -> (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals) -> Text

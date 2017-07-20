@@ -30,8 +30,9 @@ scales = map Scale.Simple
     keys12 = all_keys layout12
 
 absolute_fmt :: TheoryFormat.Format
-absolute_fmt = TheoryFormat.make_absolute_format
-        (TheoryFormat.make_pattern degrees) degrees
+absolute_fmt =
+    TheoryFormat.make_absolute_format (TheoryFormat.make_pattern degrees)
+        degrees
     where
     degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 
@@ -55,7 +56,7 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
 
 make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale
-make_scale scale_id layout keys fmt = Scales.set_direct_input_to_nn $
+make_scale scale_id layout keys fmt =
     ChromaticScales.make_scale scale_id scale_map doc
     where
     scale_map = ChromaticScales.scale_map layout fmt keys default_theory_key
