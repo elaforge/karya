@@ -27,7 +27,7 @@
 
     Modify source track:
 
-    - Track damage causes a rederive, which causes the `\<` call to collect
+    - Track damage causes a rederive, which causes the @<@ call to collect
     integrated events.
 
     - 'integrate_tracks' merges the changes into the destination track (or
@@ -35,7 +35,7 @@
 
     - This time when the derive happens, since there was no damage on the
     source track, it gets cached.  The cache intentionally doesn't retain
-    integrated events, so `\<` is skipped and I don't get a second derivation.
+    integrated events, so @<@ is skipped and I don't get a second derivation.
 
     Block integration is similar, except that I don't get a double derivation
     when the first new block is created, since the damage is separated to

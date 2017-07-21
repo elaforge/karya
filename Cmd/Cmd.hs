@@ -5,7 +5,7 @@
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit
-    'Ui.Ui.State', or Cmd 'State', but a special subset can also do IO
+    'Ui.State', or Cmd.'State', but a special subset can also do IO
     actions like saving and loading files.
 
     The Cmd monad has two kinds of exception: abort or throw.  Abort means
@@ -331,7 +331,7 @@ require_right fmt_err = either (throw . fmt_err) return
 
 -- * State
 
-{- | App global state.  Unlike 'Ui.Ui.State', this is not saved to disk.
+{- | App global state.  Unlike 'Ui.State', this is not saved to disk.
     This is normally modified inside a 'CmdT', which is also a 'State.StateT',
     so it can also use the UI state functions.  If an exception is thrown, both
     this state and the UI state will be rolled back.

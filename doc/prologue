@@ -1,13 +1,11 @@
-Prologue for haddock.
-
 The four main layers are:
 
-- UI.  The core module is "Ui.State" and especially 'Ui.State.State'.
+- UI.  The core module is "Ui.Ui" and especially Ui.Ui.State.
 
-- Cmd.  The core module is "Cmd.Cmd" and especially 'Cmd.Cmd.State'.
+- Cmd.  The core module is "Cmd.Cmd" and especially Cmd.Cmd.State.
 
 - Derive.  The core module is "Derive.Derive", and especially
-"Derive.Deriver.Monad" and 'Derive.Deriver.Monad.State'.
+"Derive.Deriver.Monad" and Derive.Deriver.Monad.State.
 
 - Perform.  For MIDI, the core module is "Perform.Midi.Perform".
 "Perform.Midi.Patch" describes MIDI patches.

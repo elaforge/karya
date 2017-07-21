@@ -189,7 +189,7 @@ simple_drum tune_control note_keys patch =
 -- interpret the stroke names, and the cmds to enter them.
 drum_code :: Maybe Score.Control -- ^ If given, this control indicates semitone
     -- offsets above or below the natural pitch.  Actual pitched drums which
-    -- are tuned to a definite note should use 'pitched_drum_patch' and use a
+    -- are tuned to a definite note should use 'pitched_drum_patch' and a
     -- pitch track.
     -> [Drums.Note] -> MidiInst.Code
 drum_code tuning_control notes =
