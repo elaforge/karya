@@ -85,7 +85,7 @@ void
 TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
-    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
+    ASSERT_MSG(0 <= tracknum && tracknum < tracks(), std::to_string(tracknum));
     this->floating_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
     ypos = std::max(0, std::min(h(), ypos));
@@ -185,6 +185,9 @@ TrackTile::track_end() const
 void
 TrackTile::insert_track(int tracknum, Track *track, int width)
 {
+    // Unlike the other tracknums, this is allowed to be one past the end.
+    // It's because this tracknum is where to insert a new track, not an
+    // address for an existing one.
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
 
     // Can't create a track smaller than you could resize, except dividers
@@ -212,7 +215,7 @@ TrackTile::insert_track(int tracknum, Track *track, int width)
 Track *
 TrackTile::remove_track(int tracknum)
 {
-    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
+    ASSERT_MSG(0 <= tracknum && tracknum < tracks(), std::to_string(tracknum));
     Track *t = track_at(tracknum);
     this->remove_child(t);
     this->remove_child(&t->title_widget());
@@ -224,7 +227,7 @@ TrackTile::remove_track(int tracknum)
 Track *
 TrackTile::track_at(int tracknum)
 {
-    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
+    ASSERT_MSG(0 <= tracknum && tracknum < tracks(), std::to_string(tracknum));
     return dynamic_cast<Track *>(child(track_index(tracknum)));
 }
 
@@ -232,7 +235,7 @@ TrackTile::track_at(int tracknum)
 const Track *
 TrackTile::track_at(int tracknum) const
 {
-    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
+    ASSERT_MSG(0 <= tracknum && tracknum < tracks(), std::to_string(tracknum));
     return dynamic_cast<const Track *>(child(track_index(tracknum)));
 }
 

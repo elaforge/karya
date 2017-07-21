@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - integrate via '<' segfaults
+    . Because it does set track signal on a non-existent tracks 4--6.
+    . They are added by the integrate, so it seems update_track_signals is
+      called before the window is updated.
+    . update_track_signals comes from DeriveComplete.
+    . What's the integrate sequence?
+			. set_track_title ((vid "untitled/b1.v1"), 2, ">pno | <")
+      . === rendering
+        [ ((vid "untitled/b1.v1"),(tid "untitled/b1.t1"),1,True)
+        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t2"),2,True)
+        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t4"),4,True)
+        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t5"),5,True)
+        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t6"),6,True)
+        ]
+      . insert_track ((vid "untitled/b1.v1"), 4)
+      . set_track_title ((vid "untitled/b1.v1"), 4, ">pno")
+  - BlockC.set_track_signal is called a lot with empty signals.  I think it's
+    necessary to clear an existing one, but maybe replace with nullptr to
+    avoid allocation.
   - How to add grace notes to a non-null call note?  Also what if I want
     non-null grace notes?
     . I can make a 'g' transformer for the first: 'g 0 1 | x'
