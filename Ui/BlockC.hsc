@@ -333,8 +333,12 @@ set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
 set_track_signal view_id tracknum tsig =
     fltk "set_track_signal" (view_id, tracknum) $ do
         maybe_viewp <- PtrMap.lookup view_id
-        whenJust maybe_viewp $ \viewp -> with tsig $ \tsigp ->
+        whenJust maybe_viewp $ \viewp -> with_signal $ \tsigp ->
             c_set_track_signal viewp (CUtil.c_int tracknum) tsigp
+    where
+    with_signal action
+        | Track.ts_signal tsig == mempty = action nullPtr
+        | otherwise = with tsig action
 foreign import ccall "set_track_signal"
     c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
 

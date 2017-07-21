@@ -247,6 +247,10 @@ update_track(BlockWindow *view, int tracknum,
 void
 set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig)
 {
+    // I pass a lot of empty TrackSignals, so use nullptr and avoid allocation.
+    static TrackSignal empty;
+    if (tsig == nullptr)
+        tsig = &empty;
     std::string name = "'" + std::string(view->label()) + "':"
         + std::to_string(tracknum);
     tsig->calculate_val_bounds(name.c_str());

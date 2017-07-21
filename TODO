@@ -19,7 +19,7 @@ UNSORTED
         ]
       . insert_track ((vid "untitled/b1.v1"), 4)
       . set_track_title ((vid "untitled/b1.v1"), 4, ">pno")
-  - BlockC.set_track_signal is called a lot with empty signals.  I think it's
+  * BlockC.set_track_signal is called a lot with empty signals.  I think it's
     necessary to clear an existing one, but maybe replace with nullptr to
     avoid allocation.
   - How to add grace notes to a non-null call note?  Also what if I want
