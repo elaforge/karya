@@ -26,6 +26,7 @@ import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
 
+import qualified Local.Instrument.Derailer as Derailer
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
@@ -70,7 +71,7 @@ type MakeDb = FilePath -> IO ()
 -- | Synth declarations for each synth that is declared purely.
 midi_synths :: [MidiInst.Synth]
 midi_synths =
-    [ Drumaxx.synth, Fm8.synth, Kontakt.synth, Massive.synth
+    [ Derailer.synth, Drumaxx.synth, Fm8.synth, Kontakt.synth, Massive.synth
     , Morphine.synth, Pianoteq.synth, Reaktor.synth, Spicy.synth, Tassman.synth
     , Vsl.synth
     ]
