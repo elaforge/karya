@@ -164,7 +164,7 @@ extract_derive_result res =
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
         Cmd.Performance cache events logs _logs_written track_dyn integrated
-            _damage warps tsigs <- Perf.get_root
+            _damage warps tsigs _ui_state <- Perf.get_root
         let stream = Stream.merge_logs logs $
                 Stream.from_sorted_events (Vector.toList events)
         return $ Derive.Result stream cache warps tsigs track_dyn integrated
@@ -478,13 +478,14 @@ set_env root_id block_id track_id environ =
 
 empty_performance :: Msg.Performance
 empty_performance = Cmd.Performance
-    { Cmd.perf_derive_cache = mempty
-    , Cmd.perf_events = mempty
-    , Cmd.perf_logs = []
-    , Cmd.perf_logs_written = True
-    , Cmd.perf_track_dynamic = mempty
-    , Cmd.perf_integrated = []
-    , Cmd.perf_damage = mempty
-    , Cmd.perf_warps = []
-    , Cmd.perf_track_signals = mempty
+    { perf_derive_cache = mempty
+    , perf_events = mempty
+    , perf_logs = []
+    , perf_logs_written = True
+    , perf_track_dynamic = mempty
+    , perf_integrated = []
+    , perf_damage = mempty
+    , perf_warps = []
+    , perf_track_signals = mempty
+    , perf_ui_state = Ui.empty
     }

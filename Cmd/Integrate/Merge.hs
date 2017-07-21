@@ -215,7 +215,7 @@ merge_pair :: Ui.M m => BlockId -> TrackPair
 merge_pair block_id pair = case pair of
     (Nothing, Left _) -> return Nothing -- not reached
     (Just (Convert.Track title events), Left tracknum) -> do
-        -- Track was deleted or never existed.
+        -- Track was deleted or it doesn't exist yet, so create it.
         track_id <- Create.track block_id tracknum title
             (Events.from_list (map unmodified events))
         return $ Just (title, track_id, make_index events)

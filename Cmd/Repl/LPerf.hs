@@ -207,7 +207,8 @@ block_midi_events block_id =
 -- | Derive all the way to MIDI.  This uses the cache.
 block_midi :: BlockId -> Cmd.CmdL Perform.MidiEvents
 block_midi block_id = do
-    perf <- Performance.performance <$> PlayUtil.cached_derive block_id
+    state <- Ui.get
+    perf <- Performance.performance state <$> PlayUtil.cached_derive block_id
     PlayUtil.perform_events $ Cmd.perf_events perf
 
 -- * selection

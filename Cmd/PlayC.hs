@@ -91,8 +91,8 @@ cmd_play_msg ui_chan msg = do
                         { Cmd.state_performance = Map.insert block_id
                             perf (Cmd.state_performance st)
                         }
-                    update_track_signals ui_chan block_id
-                        (Cmd.perf_track_signals perf)
+                    liftIO $ update_track_signals ui_chan block_id
+                        (Cmd.perf_ui_state perf) (Cmd.perf_track_signals perf)
                     update_highlights ui_chan block_id (Cmd.perf_events perf)
             _ -> return ()
     derive_status_color status = case status of
@@ -111,21 +111,32 @@ type Range = (TrackTime, TrackTime)
 
 -- ** track signals
 
-update_track_signals :: Fltk.Channel -> BlockId -> Track.TrackSignals
-    -> Cmd.CmdT IO ()
-update_track_signals ui_chan block_id tsigs = do
-    rendering <- rendering_tracks block_id
-    let empty = Track.empty_track_signal
-    liftIO $ Sync.set_track_signals ui_chan $
-        [ (view_id, tracknum, if wants_tsig
-            then Map.findWithDefault empty (block_id, track_id) tsigs
-            else empty)
-        | (view_id, track_id, tracknum, wants_tsig) <- rendering
-        ]
+-- | This takes the Ui.State from 'Cmd.perf_ui_state' because the current
+-- Ui.State may have changes which haven't yet been synced to the UI.
+update_track_signals :: Fltk.Channel -> BlockId -> Ui.State
+    -> Track.TrackSignals -> IO ()
+update_track_signals ui_chan block_id state tsigs =
+    case rendering_tracks block_id state of
+        -- This means a bad BlockId or bug in rendering_tracks.
+        Left err -> Log.error $ pretty err
+        Right tracks -> Sync.set_track_signals ui_chan $
+            [ (view_id, tracknum, if wants_tsig
+                then Map.findWithDefault empty (block_id, track_id) tsigs
+                else empty)
+            | (view_id, track_id, tracknum, wants_tsig) <- tracks
+            ]
+    where
+    -- If there's no recorded signal, I send an empty one, to make sure that if
+    -- there used to be one I will clear it out.  This is because "removed an
+    -- existing track signal" and "never had a track signal" look the same
+    -- from here, and always sending an empty seems less error-prone than
+    -- trying to figure out the distinction.
+    empty = Track.empty_track_signal
 
 -- | Get the tracks of this block and whether they want to render a signal.
-rendering_tracks :: Ui.M m => BlockId -> m [(ViewId, TrackId, TrackNum, Bool)]
-rendering_tracks block_id = do
+rendering_tracks :: BlockId -> Ui.State
+    -> Either Ui.Error [(ViewId, TrackId, TrackNum, Bool)]
+rendering_tracks block_id state = Ui.eval state $ do
     view_ids <- Map.keys <$> Ui.views_of block_id
     blocks <- mapM Ui.block_of view_ids
     btracks <- mapM get_tracks blocks

@@ -117,7 +117,7 @@ simple events = make_score
 
 cmd_derive :: Ui.State -> Cmd.Performance
 cmd_derive state =
-    Performance.performance $
+    Performance.performance state $
         DeriveTest.derive_block_setup setup state (get_root_id state)
     where setup = DeriveTest.with_tsigs (Map.keys (Ui.state_tracks state))
 

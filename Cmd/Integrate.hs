@@ -10,8 +10,8 @@
 
     - Add \" | <\" to a note track title, which causes damage and a rederive.
 
-    - Integrate call collects events and puts them into derive results, which
-    go into DeriveComplete, which winds up at 'integrate_tracks'.
+    - The integrate call @<@ collects events and puts them into derive results,
+    which go into DeriveComplete, which winds up at 'integrate_tracks'.
 
     - 'integrate_tracks' finds no existing derived tracks, so it merges into
     [], which creates new tracks, and damages the whole block.

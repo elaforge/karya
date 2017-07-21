@@ -414,14 +414,17 @@ run_core_cmds msg = do
 -- | These cmds always get the first shot at the Msg.
 hardcoded_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
 hardcoded_cmds =
-    [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
+    [ Internal.record_focus
+    , Internal.update_ui_state
+    , Track.track_cmd
+    , Integrate.cmd_integrate
+    ]
 
 -- | These are the only commands that run in IO.
 hardcoded_io_cmds :: Fltk.Channel -> Repl.Session
     -> [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 hardcoded_io_cmds ui_chan repl_session =
     [ Repl.respond repl_session
-    , Integrate.cmd_integrate
     , PlayC.cmd_play_msg ui_chan
     ] ++ GlobalKeymap.io_cmds
 

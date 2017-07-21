@@ -213,7 +213,7 @@ derive ui_state cmd_state block_id = (perf, logs)
         Right (derive_result, _, _) -> case derive_result of
             Nothing -> broken_performance $
                 "derivation for " <> showt block_id <> " aborted"
-            Just result -> performance result
+            Just result -> performance ui_state result
     -- The previous cache comes from the fully evaluated performance, since
     -- otherwise there's no point killing the 'evaluate_performance' thread if
     -- the cache makes all derivation serialized.
@@ -315,11 +315,12 @@ broken_performance msg = Cmd.Performance
     , perf_damage = mempty
     , perf_warps = mempty
     , perf_track_signals = mempty
+    , perf_ui_state = Ui.empty
     }
 
 -- | Constructor for 'Cmd.Performance'.
-performance :: Derive.Result -> Cmd.Performance
-performance result = Cmd.Performance
+performance :: Ui.State -> Derive.Result -> Cmd.Performance
+performance state result = Cmd.Performance
     { perf_derive_cache = Derive.r_cache result
     , perf_events = Vector.fromList events
     , perf_logs = logs
@@ -329,6 +330,7 @@ performance result = Cmd.Performance
     , perf_damage = mempty
     , perf_warps = Derive.r_track_warps result
     , perf_track_signals = Derive.r_track_signals result
+    , perf_ui_state = state
     }
     where (events, logs) = Stream.partition (Derive.r_events result)
 
