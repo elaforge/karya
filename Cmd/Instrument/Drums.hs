@@ -26,7 +26,7 @@ data Note = Note {
     -- different symbols for soft strokes.
     , note_dynamic :: !Signal.Y
     , note_group :: !Group
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 -- | An arbitrary symbol.  A group can stop other groups from sounding.
 type Group = Text

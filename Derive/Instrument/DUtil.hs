@@ -7,13 +7,11 @@
 --
 -- I need a better name than \"Util\" for everything.
 module Derive.Instrument.DUtil where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Num as Num
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -26,14 +24,12 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
-import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -252,52 +248,3 @@ composite_call args composites = mconcatMap (split args) composites
         let strip = Map.filterWithKey $ \control _ -> maybe
                 (Set.notMember control allocated) (Set.member control) controls
         Derive.with_control_maps (strip cmap) (strip cfuncs) deriver
-
--- * default pitch
-
-c_set_pitch_sargam :: Derive.Taggable d => Derive.Transformer d
-c_set_pitch_sargam = transformer "set-pitch-sargam"
-    "Set the pitch to a constant. Understands sargam style pitches like `2s`\
-    \ or 4m`."
-    $ Sig.callt (
-        Sig.defaulted "pitch" (Right (Left (Pitch.pitch 0 0))) "Pitch."
-    ) $ \pitch args deriver -> do
-        pitch <- sargam_pitch (Args.start args) pitch
-        Call.with_transposed_pitch pitch deriver
-
-sargam_pitch :: ScoreTime -> Either Text (Either Pitch.Pitch PSignal.Pitch)
-    -> Derive.Deriver PSignal.Transposed
-sargam_pitch start p = case p of
-    Left sargam -> do
-        pitch <- Derive.require ("can't parse sargam: " <> sargam) $
-            parse_sargam sargam
-        Call.eval_pitch_ start pitch
-    Right (Left pitch) -> Call.eval_pitch_ start pitch
-    Right (Right pitch) -> return $ PSignal.coerce pitch
-
--- | TODO: write and use Parse.p_int for negative octave
-parse_sargam :: Text -> Maybe Pitch.Pitch
-parse_sargam t = do
-    [oct_c, swaram_c] <- return $ Text.unpack t
-    oct <- Num.readDigit oct_c
-    swaram <- List.findIndex (==swaram_c) "srgmpdn"
-    return $ Pitch.pitch oct swaram
-
-c_set_default_pitch :: Derive.Taggable d => Pitch.Pitch -> Derive.Transformer d
-c_set_default_pitch pitch = transformer "set-default-pitch"
-    "Set the pitch to a constant if there is no pitch in scope."
-    $ Sig.callt (Sig.defaulted "pitch" (Left pitch) "Pitch.")
-    $ \pitch args deriver -> with_default_pitch (Args.start args) pitch deriver
-
--- | If there is no pitch in scope at the given time, set the given pitch.
-with_default_pitch :: ScoreTime -> Either Pitch.Pitch PSignal.Pitch
-    -> Derive.Deriver a -> Derive.Deriver a
-with_default_pitch start default_pitch deriver = do
-    maybe_pitch <- Derive.pitch_at =<< Derive.real start
-    case maybe_pitch of
-        Just _ -> deriver
-        Nothing -> case default_pitch of
-            Left pitch -> do
-                pitch <- Call.eval_pitch_ start pitch
-                Call.with_transposed_pitch pitch deriver
-            Right pitch -> Derive.with_constant_pitch pitch deriver

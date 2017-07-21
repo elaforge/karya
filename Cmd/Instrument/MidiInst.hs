@@ -9,7 +9,8 @@ module Cmd.Instrument.MidiInst (
     -- * code
     , Code(..), Call
     , generator, transformer, both, note_calls
-    , note_generators, note_transformers, null_call
+    , note_generators, note_transformers, val_calls
+    , null_call
     , postproc, cmd, thru
 
     -- * Patch
@@ -162,10 +163,12 @@ note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)] -> Code
 note_generators calls = mempty { code_note_generators = Derive.call_map calls }
 
 -- | Add the given calls to the note track scope.
-note_transformers :: [(Expr.Symbol, Derive.Transformer Derive.Note)]
-    -> Code
+note_transformers :: [(Expr.Symbol, Derive.Transformer Derive.Note)] -> Code
 note_transformers calls =
     mempty { code_note_transformers = Derive.call_map calls }
+
+val_calls :: [(Expr.Symbol, Derive.ValCall)] -> Code
+val_calls calls = mempty { code_val_calls = Derive.call_map calls }
 
 postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }

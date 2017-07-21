@@ -14,6 +14,7 @@ import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Stroke(..))
 import qualified Derive.Expr as Expr
 
+import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
@@ -24,7 +25,7 @@ patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code = Mridangam.make_code all_notes both_calls
+    code = Mridangam.make_code NN.c4 all_notes both_calls
 
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $

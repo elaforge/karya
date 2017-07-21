@@ -17,40 +17,46 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.PSignal as PSignal
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
 
 patches :: [MidiInst.Patch]
-patches = map (MidiInst.code #= code)
-    [ patch "mridangam-d" notes_d
-    , patch "mridangam-g" notes_g
-    , patch "mridangam-old" pitched_notes_old
+patches =
+    [ code NN.d4 $ patch "mridangam-d" notes_d
+    , code NN.g4 $ patch "mridangam-g" notes_g
+    , code NN.g4 $ patch "mridangam-old" pitched_notes_old
     ]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code = make_code all_notes both_calls
+    code natural_nn =
+        MidiInst.code #= make_code natural_nn all_notes both_calls
 
-make_code :: [Drums.Note]
+make_code :: Pitch.NoteNumber -> [Drums.Note]
     -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> MidiInst.Code
-make_code notes both =
+make_code natural_nn notes both =
     MidiInst.note_generators generators
-        <> MidiInst.note_transformers transformers
+        <> MidiInst.val_calls vals
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     where
-    transformers =
-        [ ("set-sa", DUtil.c_set_default_pitch (Pitch.pitch 0 0))
-        , ("set-pitch", DUtil.c_set_pitch_sargam)
-        ]
     generators = concat
         [ CUtil.drum_calls Nothing notes
         , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
         ]
+    vals =
+        [ ("natural", Make.constant_val Module.instrument "natural"
+            doc (PSignal.nn_pitch natural_nn))
+        ]
+        where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
     char_to_call = Map.fromList $ concat
         [ [(Drums.note_char n, Drums.note_name n) | n <- notes]
         , [(char, call) | (call, _, Just char) <- both]
@@ -162,16 +168,16 @@ make_notes :: Midi.Key
     -> (CUtil.PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
 make_notes root_nn = CUtil.drum_pitched_notes all_notes $
     CUtil.make_cc_keymap Key2.c_1 12 root_nn
-    [ [tha]
-    , [thom, gumki, gumki <> Attrs.up, thom <> dry]
-    , [ki]
-    , [ta]
-    , [nam]
-    , [din]
-    , [araichapu, muruchapu]
-    , [meetu <> ki, dheem]
-    , [meetu <> ta]
-    ]
+        [ [tha]
+        , [thom, gumki, gumki <> Attrs.up, thom <> dry]
+        , [ki]
+        , [ta]
+        , [nam]
+        , [din]
+        , [araichapu, muruchapu]
+        , [meetu <> ki, dheem]
+        , [meetu <> ta]
+        ]
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)

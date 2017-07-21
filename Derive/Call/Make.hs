@@ -116,6 +116,12 @@ add_flag module_ name doc flags =
 
 -- * val calls
 
+constant_val :: (Typecheck.Typecheck a, Typecheck.ToVal a, ShowVal.ShowVal a) =>
+    Module.Module -> Derive.CallName -> Doc.Doc -> a -> Derive.ValCall
+constant_val module_ name doc val = Derive.val_call module_  name mempty
+    (TextUtil.joinWith "\n" doc ("Constant: " <> ShowVal.doc val)) $
+    Sig.call0 $ \_args -> return val
+
 -- | Make a new ValCall from an existing one, by mapping over its output.
 modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
     -> (BaseTypes.Val -> BaseTypes.Val) -> Derive.ValCall

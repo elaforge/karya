@@ -28,7 +28,8 @@ UNSORTED
     . For all maybe a grace-transform env arg.
   - squart/6 has some jumpy dynamics due to sets in dyn with a scope over them
     e.g. end of @b3, vln2
-  - mridangam should default to its native pitch
+  * mridangam should default to its native pitch
+  - for pitched drums like mridangam, only change pitch for pitched strokes
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
