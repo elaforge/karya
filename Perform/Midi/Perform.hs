@@ -585,7 +585,10 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events =
         [ LEvent.Event $ chan_msg note_on $ Midi.NoteOn midi_nn $
-            Control.val_to_cc (T.event_start_velocity event)
+            -- NoteOn with 0 velocity is interpreted as NoteOff.  This messes
+            -- up notes that are supposed to start from 0, e.g. via breath
+            -- control.
+            max 1 (Control.val_to_cc (T.event_start_velocity event))
         , LEvent.Event $ chan_msg note_off $ Midi.NoteOff midi_nn $
             Control.val_to_cc (T.event_end_velocity event)
         ]

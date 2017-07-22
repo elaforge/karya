@@ -29,7 +29,6 @@ UNSORTED
   - squart/6 has some jumpy dynamics due to sets in dyn with a scope over them
     e.g. end of @b3, vln2
   * mridangam should default to its native pitch
-  - for pitched drums like mridangam, only change pitch for pitched strokes
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
@@ -1937,7 +1936,7 @@ Derive:
         off.  Velocity should be logical, so if you play all at the same
         velocity it's like the same dynamic for all strokes.
         . Or I could make + be 0.5, and * be full volume.
-      - perhaps only pitched notes should change with the tuning?
+      * perhaps only pitched notes should change with the tuning?
       sarvalaghu
         - get them from Score or MridangamScore.
         - adjust to the talam
@@ -2319,9 +2318,10 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
+        - octaves shouldn't be able to infer damping
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - remove kilit, isn't it just norot now?
-        - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
+        * A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
           . Or I could do the min thing in the performer for all MIDI.
