@@ -193,7 +193,7 @@ drum_code :: Maybe Score.Control -- ^ If given, this control indicates semitone
     -- pitch track.
     -> [Drums.Note] -> MidiInst.Code
 drum_code tuning_control notes =
-    MidiInst.note_generators (drum_calls tuning_control notes)
+    MidiInst.note_generators (drum_calls Nothing tuning_control notes)
     <> MidiInst.cmd (drum_cmd notes)
 
 drum_cmd :: Cmd.M m => [Drums.Note] -> Msg.Msg -> m Cmd.Status
@@ -300,13 +300,23 @@ drum_pitched_notes notes keymap = (found, (not_found, unused))
 --
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
-drum_calls :: Maybe Score.Control -> [Drums.Note]
+drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
+    -- ^ If Just, only strokes which are a superset of one of these move with
+    -- the pitch, otherwise the stay at the given NoteNumber.  If Nothing, all
+    -- strokes move with the pitch.
+    -> Maybe Score.Control -> [Drums.Note]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-drum_calls maybe_tuning_control = map $ \note ->
+drum_calls pitched_strokes maybe_tuning_control = map $ \note ->
     ( Drums.note_name note
     , drum_call maybe_tuning_control (Drums.note_dynamic note)
-        (Drums.note_attrs note) id
+        (Drums.note_attrs note) (set_pitch (Drums.note_attrs note))
     )
+    where
+    set_pitch attrs = case pitched_strokes of
+        Just (pitched, natural_nn) | not (is_pitched pitched attrs) ->
+            Call.with_pitch (PSignal.nn_pitch natural_nn)
+        _ -> id
+    is_pitched pitched attrs = any (Attrs.contain attrs) pitched
 
 drum_call :: Maybe Score.Control -> Signal.Y -> Attrs.Attributes
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)

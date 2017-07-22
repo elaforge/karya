@@ -38,18 +38,19 @@ patches =
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code natural_nn =
-        MidiInst.code #= make_code natural_nn all_notes both_calls
+    code natural_nn = MidiInst.code
+        #= make_code pitched_strokes natural_nn all_notes both_calls
 
-make_code :: Pitch.NoteNumber -> [Drums.Note]
+make_code :: [Attrs.Attributes] -> Pitch.NoteNumber -> [Drums.Note]
     -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> MidiInst.Code
-make_code natural_nn notes both =
-    MidiInst.note_generators generators
-        <> MidiInst.val_calls vals
-        <> MidiInst.cmd (CUtil.insert_call char_to_call)
+make_code pitched_strokes natural_nn notes both = mconcat
+    [ MidiInst.note_generators generators
+    , MidiInst.val_calls vals
+    , MidiInst.cmd (CUtil.insert_call char_to_call)
+    ]
     where
     generators = concat
-        [ CUtil.drum_calls Nothing notes
+        [ CUtil.drum_calls (Just (pitched_strokes, natural_nn)) Nothing notes
         , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
         ]
     vals =
@@ -154,6 +155,15 @@ stops :: [(Drums.Group, [Drums.Group])]
     t_open = "t-open"
     group name = map $ \n -> n { Drums.note_group = name }
     n = Drums.note_dyn
+
+pitched_strokes :: [Attrs.Attributes]
+pitched_strokes =
+    [ thom, gumki
+    , nam, din
+    , meetu <> ki, meetu <> ta
+    , muruchapu, araichapu
+    , dheem
+    ]
 
 all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes

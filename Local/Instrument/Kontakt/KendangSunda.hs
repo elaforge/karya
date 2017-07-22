@@ -37,7 +37,7 @@ patches =
     notes = map fst pitched_notes
     code = MidiInst.cmd (CUtil.drum_cmd notes)
         <> MidiInst.note_generators
-            (replace_det $ CUtil.drum_calls (Just tuning_control) notes)
+            (replace_det $ CUtil.drum_calls Nothing (Just tuning_control) notes)
 
 replace_det :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]

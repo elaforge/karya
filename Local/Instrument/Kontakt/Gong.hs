@@ -44,7 +44,7 @@ kajar_patch =
     code = MidiInst.cmd (CUtil.insert_call char_to_call)
         <> MidiInst.note_generators generators
     generators = concat
-        [ CUtil.drum_calls (Just tuning_control) notes
+        [ CUtil.drum_calls Nothing (Just tuning_control) notes
         , [(sym, call) | (_, sym, call) <- kajar_special]
         ]
     char_to_call = Map.fromList $ concat

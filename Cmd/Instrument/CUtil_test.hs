@@ -111,5 +111,6 @@ make_synth note_keys = UiTest.make_synth "synth" [patch]
     patch = MidiInst.code #= code $
         CUtil.drum_patch note_keys $ MidiInst.named_patch (-24, 24) "1" []
     code =
-        MidiInst.note_generators (CUtil.drum_calls Nothing (map fst note_keys))
+        MidiInst.note_generators
+            (CUtil.drum_calls Nothing Nothing (map fst note_keys))
         <> MidiInst.cmd (CUtil.drum_cmd (map fst note_keys))

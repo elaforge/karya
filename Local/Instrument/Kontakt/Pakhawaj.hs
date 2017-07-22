@@ -25,7 +25,7 @@ patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code = Mridangam.make_code NN.c4 all_notes both_calls
+    code = Mridangam.make_code pitched_strokes NN.c4 all_notes both_calls
 
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
@@ -110,6 +110,9 @@ stops :: [(Drums.Group, [Drums.Group])]
     group name = map $ \n -> n { Drums.note_group = name }
     n = Drums.note_dyn
     attr = Pakhawaj.stroke_to_attribute
+
+pitched_strokes :: [Attrs.Attributes]
+pitched_strokes = map Pakhawaj.stroke_to_attribute [Ge, Na, Ta, Di]
 
 all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
