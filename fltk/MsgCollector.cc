@@ -84,16 +84,16 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
     if (c.track_type) {
         switch (c.track_type) {
         case UiMsg::track_normal:
-            os << "normal";
+            os << "normal tracknum=" << c.tracknum;
             break;
         case UiMsg::track_floating_input:
             os << "floating_input";
             break;
         case UiMsg::track_divider:
-            os << "div";
+            os << "div tracknum=" << c.tracknum;
             break;
         }
-        os << "=" << c.tracknum << ' ';
+        os << ' ';
     }
     if (c.has_pos)
         os << "p=" << c.pos << ' ';

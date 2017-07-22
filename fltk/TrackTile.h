@@ -48,12 +48,6 @@ public:
 
     // Open a text input field at the given ScoreTime.  It will contain the
     // given text, selected with the given select range.
-    //
-    // The floating_input is handled by TrackTile, so I can't put one on the
-    // ruler track.  Also, when I report the tracknum to the MsgCollector, I
-    // should report the absolute tracknum, not the TrackTile relative one.  So
-    // this method takes an unadjusted absolute tracknum, and subtracts one
-    // internally, except for tracknum 0 of course.
     void floating_open(int tracknum, ScoreTime pos, const char *text,
         int select_start, int select_end);
     void floating_close();

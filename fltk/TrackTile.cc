@@ -89,11 +89,11 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     this->floating_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
     ypos = std::max(0, std::min(h(), ypos));
-    int xpos = tracks() == 0 ? x() : track_at(std::max(0, tracknum - 1))->x();
+    int xpos = tracks() == 0 ? x() : track_at(tracknum)->x();
     // The OS will make sure the window doesn't go off the right edge.
     const int width = std::max(
         int(Config::Block::floating_input_min_width),
-        tracks() == 0 ? 60 : track_at(std::max(0, tracknum - 1))->w() - 3);
+        tracks() == 0 ? 60 : track_at(tracknum)->w() - 3);
 
     // +3 gets the input right below the trigger line of an event at this
     // position.

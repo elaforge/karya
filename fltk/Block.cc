@@ -482,9 +482,10 @@ Block::floating_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
-    // Unlike all the other TrackTile methods, this one doesn't subtract 1
-    // from the tracknum.  Documented in TrackTile::floating_open.
-    track_tile.floating_open(tracknum, pos, text, select_start, select_end);
+    if (tracknum > 0) {
+        track_tile.floating_open(
+            tracknum-1, pos, text, select_start, select_end);
+    }
 }
 
 
