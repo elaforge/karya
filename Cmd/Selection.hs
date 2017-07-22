@@ -646,6 +646,10 @@ range = Events.selection_range <$> get
 point :: Cmd.M m => m TrackTime
 point = sel_point <$> get
 
+start, end :: Cmd.M m => m TrackTime
+start = Sel.min <$> get
+end = Sel.max <$> get
+
 -- ** selections in RealTime
 
 -- | Get the real time range of the focused selection.  If there's a root

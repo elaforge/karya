@@ -14,8 +14,8 @@ import qualified Util.TextUtil as TextUtil
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -31,21 +31,21 @@ get :: Ui.M m => TrackId -> m Events.Events
 get = fmap Track.track_events . Ui.get_track
 
 stretch :: ScoreTime -> Cmd.CmdL ()
-stretch n = do
-    start <- Selection.point
-    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
+stretch factor = do
+    start <- Selection.start
+    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start factor
 
 stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
-stretch_event start n event
+stretch_event start factor event
     | Event.start event < start = event
-    | otherwise = Event.start_ %= (\p -> (p - start) * n + start) $
-        Event.duration_ %= (*n) $ event
+    | otherwise = Event.start_ %= (\p -> (p - start) * factor + start) $
+        Event.duration_ %= (*factor) $ event
 
 -- | Stretch events to fit in the given duration.
 stretch_to :: TrackTime -> Cmd.CmdL ()
 stretch_to dur = do
     selected <- Selection.events
-    start <- Selection.point
+    start <- Selection.start
     let maybe_end = Seq.maximum $
             mapMaybe (fmap Event.end . Seq.last . snd) selected
     whenJust maybe_end $ \end ->
