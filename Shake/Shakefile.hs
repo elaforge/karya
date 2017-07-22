@@ -31,7 +31,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
-import qualified System.Info
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
@@ -405,22 +404,7 @@ ccBinaries =
         [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
         , "fltk/f_util.cc.o"
         ]
-    ]
-    ++ if not Config.enableIm then [] else
-    [ CcBinary
-        { ccName = "play_cache"
-        , ccRelativeDeps =
-            map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
-        , ccCompileFlags = \config ->
-            [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
-            , "-I" ++ Config.vstBase
-            ]
-        , ccLinkFlags = const $ "-bundle" : "-lsndfile"
-            : map ((Config.vstBase </> "public.sdk/source/vst2.x") </>)
-                ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
-        , ccPostproc = makeVst
-        }
-    ]
+    ] ++ if not Config.enableIm then [] else [playCacheBinary]
     where
     fltk name deps = CcBinary
         { ccName = name
@@ -429,11 +413,40 @@ ccBinaries =
         , ccLinkFlags = fltkLd . configFlags
         , ccPostproc = makeBundle False
         }
-    makeVst fn = do
-        let vst = fn ++ ".vst"
-        Util.system "rm" ["-rf", vst]
-        Util.system "cp" ["-r", "Synth/vst/play_cache.vst.template", vst]
-        Util.system "cp" [fn, vst </> "Contents/MacOS"]
+
+-- TODO This compiles under linux, but I have no idea if it actually produces
+-- a valid vst.
+playCacheBinary :: CcBinary
+playCacheBinary = CcBinary
+    { ccName = case Util.platform of
+        Util.Mac -> "play_cache"
+        Util.Linux -> "play_cache.so"
+    , ccRelativeDeps =
+        map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
+    , ccCompileFlags = \config -> platformCc ++
+        [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
+        , "-I" ++ Config.vstBase
+        ]
+    , ccLinkFlags = const $ platformLink ++
+        "-lsndfile" : map ((Config.vstBase </> "public.sdk/source/vst2.x") </>)
+            ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
+    , ccPostproc = \fn -> case Util.platform of
+        Util.Mac -> do
+            let vst = fn ++ ".vst"
+            Util.system "rm" ["-rf", vst]
+            Util.system "cp" ["-r", "Synth/vst/play_cache.vst.template", vst]
+            Util.system "cp" [fn, vst </> "Contents/MacOS"]
+        Util.Linux -> return ()
+    }
+    where
+    platformLink = case Util.platform of
+        Util.Mac -> ["-bundle"]
+        Util.Linux -> ["-shared", "-Wl,-soname=play_cache.so"]
+    platformCc = case Util.platform of
+        Util.Mac -> []
+        -- aeffect.h is broken for linux, suppressing __cdecl fixes it.
+        Util.Linux -> ["-fPIC", "-D__cdecl="]
+
 
 {- | Since fltk.a is a library, not a binary, I can't just chase includes to
     know all the source files.  I could read fltk/*.cc at runtime, but the fltk
@@ -575,10 +588,10 @@ configure midi = do
             -- positives.  Also, this is only for g++.
             -- ++ ["-Weffc++"]
         }
-    osFlags = case System.Info.os of
+    osFlags = case Util.platform of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
         -- __linux__ are already defined, but ghc doesn't define them.
-        "darwin" -> mempty
+        Util.Mac -> mempty
             -- These apparently control which APIs are visible.  But they
             -- make it slightly more awkward for ghci since it needs the
             -- same flags to load .o files, and things seem to work without
@@ -590,11 +603,10 @@ configure midi = do
                 words $ "-framework CoreFoundation "
                     ++ "-framework CoreMIDI -framework CoreAudio"
             }
-        "linux" -> mempty
+        Util.Linux -> mempty
             { midiLibs = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
-        _ -> mempty -- Use the stub driver.
     run cmd args = Process.readProcess cmd args ""
 
 packageFlags :: Flags -> [Package] -> [Flag]
@@ -717,10 +729,9 @@ midiFromEnv env = case lookup "midi" env of
       Just "core" -> CoreMidi
       Just unknown -> error $ "midi driver should be stub, jack, or core: "
         ++ show unknown
-      Nothing -> case System.Info.os of
-          "darwin" -> CoreMidi
-          "linux" -> JackMidi
-          _ -> StubMidi
+      Nothing -> case Util.platform of
+          Util.Mac -> CoreMidi
+          Util.Linux -> JackMidi
 
 -- ** misc rules
 
@@ -965,12 +976,12 @@ buildHs config rtsFlags libs extraPackages hs fn = do
     Util.cmdline $ linkHs config rtsFlags fn (extraPackages ++ allPackages) objs
 
 makeBundle :: Bool -> FilePath -> Shake.Action ()
-makeBundle hasIcon binary
-    | System.Info.os == "darwin" = do
+makeBundle hasIcon binary = case Util.platform of
+    Util.Mac -> do
         let icon = build </> replaceExt binary "icns"
         when hasIcon $ need [icon]
         Util.system "tools/make_bundle" [binary, if hasIcon then icon else ""]
-    | otherwise = return ()
+    _ -> return ()
 
 -- * tests and profiles
 

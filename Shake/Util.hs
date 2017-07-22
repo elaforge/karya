@@ -10,6 +10,8 @@ module Shake.Util (
 
     -- * ghc
     , sandboxPackageDb
+    -- * platform
+    , Platform(..), platform
     -- * general
     , ifM, whenM, errorIO
 ) where
@@ -20,6 +22,7 @@ import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
+import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -28,6 +31,7 @@ import qualified Development.Shake.FilePath as FilePath
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import System.FilePath ((</>))
+import qualified System.Info
 import qualified System.Process as Process
 
 import qualified Util.File as File
@@ -101,6 +105,16 @@ runIO :: Show a => Shake.Action a -> IO ()
 runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
     result <- action
     liftIO $ print result
+
+-- * platform
+
+data Platform = Mac | Linux deriving (Eq, Show)
+
+platform :: Platform
+platform = case System.Info.os of
+    "darwin" -> Mac
+    "linux" -> Linux
+    _ -> error $ "unknown platform: " <> show System.Info.os
 
 -- * ghc
 
