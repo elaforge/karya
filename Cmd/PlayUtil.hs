@@ -27,9 +27,9 @@ import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
@@ -164,36 +164,48 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
-events_from :: Set Score.Instrument -> RealTime
-    -> Vector.Vector Score.Event -> ([Score.Event], Vector.Vector Score.Event)
+events_from :: Set Score.Instrument -- ^ scan back for starts of these
+    -> RealTime -> Vector.Vector Score.Event
+    -> ([Score.Event], Vector.Vector Score.Event)
+    -- ^ (extra events before start, events from start)
 events_from resume_insts start events
     | start <= 0 = ([], events)
-    | Set.null resume_insts = ([], from)
-    | otherwise = (starts, Vector.drop i events)
+    | otherwise = (starts, Vector.drop index events)
     where
-    from = Vector.drop i events
-    i = Util.Vector.lowest_index Score.event_start (start - RealTime.eta) events
-    starts = scan_for_starts resume_insts events start i
+    index = Util.Vector.lowest_index Score.event_start (start - RealTime.eta)
+        events
+    starts = scan_for_starts default_scan_back resume_insts events start index
+
+-- | Look back from the play start time by this much.  This is convenient
+-- because randomization can move events back from the ruler mark, and it's
+-- annoying when play misses them.
+default_scan_back :: RealTime
+default_scan_back = 0.075
 
 -- | Starting from the index, look back for overlapping events in the given set.
-scan_for_starts :: Set Score.Instrument -> Vector.Vector Score.Event
+scan_for_starts :: RealTime -> Set Score.Instrument -> Vector.Vector Score.Event
     -> RealTime -> Int -> [Score.Event]
-scan_for_starts resume_insts events pos i =
-    reverse $ mapMaybe (set_start pos) $
+scan_for_starts scan_back resume_insts events pos index =
+    reverse $ mapMaybe (set_start scan_back pos) $
         scan (resume_insts `Set.difference` present_here) back
     where
-    here = Vector.takeWhile ((==pos) . Score.event_start) $ Vector.drop i events
+    here = Vector.takeWhile ((==pos) . Score.event_start) $
+        Vector.drop index events
     present_here = Vector.foldl' (\s e -> Set.insert (inst e) s) mempty here
-    back = Util.Vector.to_reverse_list $ Vector.take i events
+    back = Util.Vector.to_reverse_list $ Vector.take index events
     scan _ [] = []
-    scan insts (e:es)
+    scan !insts (e:es)
+        | Score.event_start e >= until = e : scan insts2 es
         | Set.null insts = []
-        | inst e `Set.member` insts = e : scan (Set.delete (inst e) insts) es
+        | inst e `Set.member` insts = e : scan insts2 es
         | otherwise = scan insts es
+        where insts2 = Set.delete (inst e) insts
+    until = pos - scan_back
     inst = Score.event_instrument
 
-set_start :: RealTime -> Score.Event -> Maybe Score.Event
-set_start pos event
+set_start :: RealTime -> RealTime -> Score.Event -> Maybe Score.Event
+set_start scan_back pos event
+    | Score.event_start event >= pos - scan_back = Just event
     | dur <= 0 = Nothing
     | otherwise =
         Just $ event { Score.event_start = pos, Score.event_duration = dur }

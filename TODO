@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - >kontakt/kendang-bali-pasang doesn't work as a dummy instrument because
+    those can't have the Patch.Triggered flag, or any flag.  I could move some
+    flags to Instrument.Common, but what's wrong with having a MIDI instrument
+    with no allocation?
+  * randomize makes play from '/' awkward, can I start just a touch before the
+    point to try to catch those?  The real problem is MIDI's NoteOn thing.
+  - can I have a block template kind of thing, with a standard set of
+    instruments?  Maybe REPL cmds.
+  - Also cmds to re-order tracks by instrument.
   * integrate via '<' segfaults
     . Because it does set track signal on a non-existent tracks 4--6.
     . They are added by the integrate, so it seems update_track_signals is
@@ -2203,6 +2212,8 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - gangsa should not damp repeated notes at the same pitch
+        . Same with ' on the same pitch.
       - abstract kajar parts, and gong cycles
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
@@ -2319,6 +2330,8 @@ Derive:
           integration could theoretically do that.
       trompong: reyong:
         - octaves shouldn't be able to infer damping
+        - trompong: I need a better way to notate a section as lower octave.
+          vv doesn't work is a note parent.
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - remove kilit, isn't it just norot now?
         * A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to

@@ -31,8 +31,9 @@ test_events_from = do
         i2 = UiTest.i2
         i3 = UiTest.i3
     let f pos = (map extract *** map extract . Vector.toList)
-            . PlayUtil.events_from (Set.fromList [i1, i2]) pos
+            . PlayUtil.events_from resume_insts pos
             . Vector.fromList . map mkevent
+        resume_insts = Set.fromList [i1, i2]
         mkevent (start, dur, inst) =
             DeriveTest.mkevent (start, dur, "4c", [], inst)
         extract e = (Score.event_start e, Score.event_duration e,
@@ -44,6 +45,13 @@ test_events_from = do
         ([(2, 1, i1)], [(3, 1, i1)])
     -- Not interested in i3.
     equal (f 2 [(0, 1, i3), (1, 2, i3), (3, 1, i3)]) ([], [(3, 1, i3)])
+
+    -- Scan back for events slightly before the start.
+    equal (f 1 [(0, 1, i3), (0.98, 1, i3), (2, 1, i3)])
+        ([(0.98, 1, i3)], [(2, 1, i3)])
+    -- Same with 0 dur.
+    equal (f 1 [(0, 0, i3), (0.98, 0, i3), (2, 0, i3)])
+        ([(0.98, 0, i3)], [(2, 0, i3)])
 
 test_control_defaults = do
     let make = (Ui.allocation UiTest.i1 #= Just alloc)

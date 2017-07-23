@@ -204,9 +204,9 @@ root_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 root_selection = do
     (block_id, _, track_id, _) <- Selection.get_insert
     sel <- Selection.get
-    let (pos, repeat_at) = if Sel.is_point sel
-            then (Sel.start_pos sel, Nothing)
-            else Just <$> Sel.range sel
+    let (pos, repeat_at)
+            | Sel.is_point sel = (Sel.start_pos sel, Nothing)
+            | otherwise = Just <$> Sel.range sel
     Ui.lookup_root_id >>= \x -> case x of
         Nothing -> local_selection
         Just root_id -> do
@@ -368,7 +368,8 @@ from_realtime :: Cmd.M m => BlockId -> Maybe RealTime -> RealTime
 from_realtime block_id repeat_at start_ = do
     -- Since 0 is considered "the beginning", even if that happens to be before
     -- 0, there's no point asking for something before 0, and will just cause
-    -- play to seem to wedge for a moment.
+    -- play to seem to wedge for a moment.  'PlayUtil.perform_from' has
+    -- a special hack to notice and include notes < 0.
     let start = max 0 start_
     play_control <- gets Cmd.state_play_control
     whenJust play_control $ \_ -> Cmd.throw "player already running"
