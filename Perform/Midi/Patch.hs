@@ -371,11 +371,13 @@ nn_at scale key
 
 -- ** Flag
 
--- | Various instrument flags.
+-- | Various instrument flags.  Add new ones at the bottom to avoid messing up
+-- serialization.
 data Flag =
     -- | Patch doesn't pay attention to duration.  E.g., drum samples may not
     -- pay attention to note off.  The UI can use this to create zero duration
-    -- events for this patch.
+    -- events for this patch.  TODO this is actually not MIDI-specific, so it
+    -- should go in Instrument.Common.
     Triggered
     -- | Patch uses continuous pressure control, assigned to CC 2 (breath),
     -- instead of trigger velocity.  This is used to support the @dyn@ control.
@@ -400,6 +402,10 @@ data Flag =
     -- notes with this instrument set and resume that note.  This way you can
     -- play long notes like tambura from the middle.
     | ResumePlay
+    -- | If there are overlapping notes with the same MIDI key, delay all
+    -- NoteOffs until the final one.  This is for synthesizers which turn the
+    -- note off on the first one, such as Kontakt.
+    | UseFinalNoteOff
     deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
 instance Pretty Flag where pretty = showt

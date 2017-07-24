@@ -25,7 +25,7 @@ patches =
     patch name = MidiInst.code #= Bali.zero_dur_mute $ set_params $
         MidiInst.named_patch (-24, 24) name []
     set_params = MidiInst.patch
-        %= MidiInst.add_flag Patch.ConstantPitch
+        %= MidiInst.add_flags [Patch.ConstantPitch, Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)
             . (Patch.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned

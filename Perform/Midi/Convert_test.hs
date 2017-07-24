@@ -40,9 +40,9 @@ import Types
 
 test_convert = do
     let run = convert DeriveTest.default_convert_lookup e_pitch
-    let noinst n = mkevent n "4c" "noinst"
-        nopitch n = Score.set_pitch mempty $ mkevent n "4c" "i1"
-        good n = mkevent n "4c" "i1"
+    let noinst n = mkevent n "4c" (Score.Instrument "noinst")
+        nopitch n = Score.set_pitch mempty $ mkevent n "4c" UiTest.i1
+        good n = mkevent n "4c" UiTest.i1
 
     equal (run [noinst 0, nopitch 1, good 2])
         [ Right $ "instrument not found: noinst"
@@ -100,7 +100,7 @@ test_patch_scale = do
         make_lookup config patch = DeriveTest.make_convert_lookup_for UiTest.i1
             (make_config config) patch
         make_config scale = Patch.settings#Patch.scale #= scale $
-            DeriveTest.empty_midi_config
+            DeriveTest.simple_midi_config
         patch = Patch.patch (-1, 1) "1"
 
     equal (run Nothing patch "4c") ([Left (0, [(0, NN.c4)])], [])
@@ -168,9 +168,8 @@ test_release_velocity = do
     equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
         ([Left (0.5, 0.25)], [])
 
-mkevent :: RealTime -> String -> Text -> Score.Event
-mkevent start pitch inst =
-    DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
+mkevent :: RealTime -> String -> Score.Instrument -> Score.Event
+mkevent start pitch inst = DeriveTest.mkevent (start, 1, pitch, [], inst)
 
 convert :: DeriveTest.Lookup -> (Types.Event -> a) -> [Score.Event]
     -> [Either a String]

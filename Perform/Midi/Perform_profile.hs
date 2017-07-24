@@ -82,7 +82,7 @@ print_msgs (msgs, logs) = do
 
 perform :: [Types.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
-    . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
+    . Perform.perform Perform.initial_state configs . map LEvent.Event
 
 split_logs :: [LEvent.LEvent d] -> ([d], [String])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
@@ -109,7 +109,9 @@ patch1 = mkpatch "patch1"
 mkpatch :: InstTypes.Name -> Types.Patch
 mkpatch name = (PerformTest.mkpatch name) { Types.patch_decay = Just 1 }
 
-inst_addrs :: Perform.InstAddrs
-inst_addrs = Map.fromList
-    [(Score.Instrument "patch1", [((dev, n), Nothing) | n <- [0..8]])]
+configs :: Perform.Configs
+configs = Map.fromList
+    [ (Score.Instrument "patch1",
+        Perform.addrs_config [((dev, n), Nothing) | n <- [0..8]])
+    ]
     where dev = Midi.write_device "dev1"

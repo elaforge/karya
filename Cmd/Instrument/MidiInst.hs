@@ -18,7 +18,7 @@ module Cmd.Instrument.MidiInst (
     , make_patch, patch_from_pair, named_patch, default_patch
     -- ** modify
     , code, doc, attribute_map, decay, synth_controls
-    , add_flag, pressure
+    , add_flag, add_flags, pressure
     -- ** environ
     , environ, default_scale, range, nn_range
     -- * allocations
@@ -31,6 +31,7 @@ module Cmd.Instrument.MidiInst (
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
@@ -248,6 +249,9 @@ synth_controls controls = map $
 
 add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
 add_flag flag = Patch.defaults#Patch.flags %= Patch.add_flag flag
+
+add_flags :: [Patch.Flag] -> Patch.Patch -> Patch.Patch
+add_flags flags = Patch.defaults#Patch.flags %= Set.union (Set.fromList flags)
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch

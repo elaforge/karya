@@ -235,7 +235,7 @@ perform_events_list events = do
     lookup_inst <- Cmd.get_lookup_instrument
     blocks <- Ui.gets (Map.toList . Ui.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    let alloc = Patch.config_allocation <$> midi_configs allocs
+    let alloc = Perform.config <$> midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state alloc $
         Convert.convert lookup lookup_inst $
         filter_track_muted tree blocks $ filter_instrument_muted allocs events

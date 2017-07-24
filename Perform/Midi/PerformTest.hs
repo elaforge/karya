@@ -87,6 +87,12 @@ extract_midi wmsgs =
     | Midi.WriteMessage dev ts msg <- wmsgs
     ]
 
+e_note_on_off :: Midi.Message -> Maybe (Midi.Channel, Bool, Midi.Key)
+e_note_on_off msg = case msg of
+    Midi.ChannelMessage chan (Midi.NoteOn key _) -> Just (chan, True, key)
+    Midi.ChannelMessage chan (Midi.NoteOff key _) -> Just (chan, False, key)
+    _ -> Nothing
+
 e_chan_msg :: Midi.Message -> Maybe (Midi.Channel, Midi.ChannelMessage)
 e_chan_msg (Midi.ChannelMessage chan msg) = Just (chan, msg)
 e_chan_msg _ = Nothing

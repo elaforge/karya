@@ -9,6 +9,7 @@
 module Perform.Midi.Perform (
     default_velocity
     , State(..), initial_state
+    , Config, config, addrs_config
     , perform
     -- * types
     , MidiEvents
@@ -19,6 +20,7 @@ module Perform.Midi.Perform (
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -123,23 +125,43 @@ instance Pretty State where
 initial_state :: State
 initial_state = State [] empty_allot_state empty_perform_state
 
+type Configs = Map Score.Instrument Config
+data Config = Config {
+    _addrs :: ![(Patch.Addr, Maybe Patch.Voices)]
+    , _use_final_note_off :: !Bool
+    } deriving (Show, Eq)
+
+empty_config :: Config
+empty_config = Config [] False
+
+config :: Patch.Config -> Config
+config patch_config = Config
+    { _addrs = Patch.config_allocation patch_config
+    , _use_final_note_off = Patch.has_flag patch_config Patch.UseFinalNoteOff
+    }
+
+addrs_config :: [(Patch.Addr, Maybe Patch.Voices)] -> Config
+addrs_config addrs = empty_config { _addrs = addrs }
+
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: State -> InstAddrs -> Events -> (MidiEvents, State)
+perform :: State -> Configs -> Events -> (MidiEvents, State)
 perform state _ [] = ([], state)
-perform state inst_addrs events = (final_msgs, final_state)
+perform state configs events = (final_msgs, final_state)
     where
     final_state = State channelize_state allot_state perform_state
     (event_channels, channelize_state) =
-        channelize (state_channelize state) inst_addrs events
+        channelize (state_channelize state) configs events
     (event_allotted, allot_state) =
-        allot (state_allot state) inst_addrs event_channels
+        allot (state_allot state) configs event_channels
     (msgs, perform_state) = perform_notes (state_perform state) event_allotted
-    (final_msgs, _) = post_process mempty msgs
-
--- | Map each instrument to its allocated Addrs.
-type InstAddrs = Map Score.Instrument [(Patch.Addr, Maybe Patch.Voices)]
+    (final_msgs, _) = post_process mempty use_final_note_off msgs
+    use_final_note_off = Set.fromList
+        [ addr | (_, config) <- Map.toList configs
+        , _use_final_note_off config
+        , (addr, _) <- _addrs config
+        ]
 
 -- * channelize
 
@@ -157,18 +179,18 @@ type ChannelizeState = [(T.Event, Channel)]
 -- its addrs and only share when out of channels, but it seems like this would
 -- quickly eat up all the channels, forcing a new note that can't share to snag
 -- a used one.
-channelize :: ChannelizeState -> InstAddrs -> Events
+channelize :: ChannelizeState -> Configs -> Events
     -> ([LEvent.LEvent (T.Event, Channel)], ChannelizeState)
-channelize overlapping inst_addrs events =
-    overlap_map overlapping (channelize_event inst_addrs) events
+channelize overlapping configs events =
+    overlap_map overlapping (channelize_event configs) events
 
 -- | This doesn't pay any mind to instrument channel assignments, except as an
 -- optimization for instruments with only a single channel.  Channels are
 -- actually assigned later by 'allot'.
-channelize_event :: InstAddrs -> [(T.Event, Channel)] -> T.Event
+channelize_event :: Configs -> [(T.Event, Channel)] -> T.Event
     -> (Channel, [Log.Msg])
-channelize_event inst_addrs overlapping event =
-    case Map.lookup inst_name inst_addrs of
+channelize_event configs overlapping event =
+    case _addrs <$> Map.lookup inst_name configs of
         Just (_:_:_) -> (chan, [log])
         -- If the event has 0 or 1 addrs I can just give a constant channel.
         -- 'allot' will assign the correct addr, or drop the event if there
@@ -294,12 +316,12 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
-allot :: AllotState -> InstAddrs -> [LEvent.LEvent (T.Event, Channel)]
+allot :: AllotState -> Configs -> [LEvent.LEvent (T.Event, Channel)]
     -> ([LEvent.LEvent (T.Event, Patch.Addr)], AllotState)
-allot state inst_addrs events = (event_addrs, final_state)
+allot state configs events = (event_addrs, final_state)
     where
     (final_state, event_addrs) = List.mapAccumL allot1 state events
-    allot1 state (LEvent.Event e) = allot_event inst_addrs state e
+    allot1 state (LEvent.Event e) = allot_event configs state e
     allot1 state (LEvent.Log log) = (state, LEvent.Log log)
 
 data AllotState = AllotState {
@@ -348,9 +370,9 @@ instance Pretty Allotted where
 -- If channelize decided that two events have the same channel, then they can
 -- go to the same addr, as long as it has voices left.  Otherwise, take over
 -- another channel.
-allot_event :: InstAddrs -> AllotState -> (T.Event, Channel)
+allot_event :: Configs -> AllotState -> (T.Event, Channel)
     -> (AllotState, LEvent.LEvent (T.Event, Patch.Addr))
-allot_event inst_addrs state (event, ichan) =
+allot_event configs state (event, ichan) =
     case expire_voices <$> Map.lookup (inst, ichan) (ast_allotted state) of
         -- If there is an already allotted addr with a free voice, add this
         -- event to it.
@@ -358,7 +380,7 @@ allot_event inst_addrs state (event, ichan) =
             (update Nothing addr voices state, LEvent.Event (event, addr))
         -- Otherwise, steal the oldest already allotted voice.
         -- Delete the old (inst, chan) mapping.
-        _ -> case steal_addr inst_addrs inst state of
+        _ -> case steal_addr configs inst state of
             Just (addr, voice_count, old_key) ->
                 (update (Just (voice_count, old_key)) addr [] state,
                     LEvent.Event (event, addr))
@@ -396,9 +418,9 @@ update_allot_state inst_chan end maybe_new_allot addr voices state = state
 -- I initially feared keeping track of voice allocation would be wasteful for
 -- addrs with no limitation, but profiling revealed no detectable difference.
 -- So either it's not important or my profiles are broken.
-steal_addr :: InstAddrs -> Score.Instrument -> AllotState
+steal_addr :: Configs -> Score.Instrument -> AllotState
     -> Maybe (Patch.Addr, Patch.Voices, Maybe AllotKey)
-steal_addr inst_addrs inst state = case Map.lookup inst inst_addrs of
+steal_addr configs inst state = case _addrs <$> Map.lookup inst configs of
     Just addr_voices -> case Seq.minimum_on (fst . snd) avail of
         Just ((addr, voices), (_, maybe_inst_chan)) ->
             Just (addr, fromMaybe 10000 voices, maybe_inst_chan)
@@ -721,8 +743,54 @@ type PostprocState = Map Patch.Addr AddrState
 type AddrState = (Maybe Midi.PitchBendValue, Map Midi.Control Midi.ControlValue)
 
 -- | Some context free post-processing on the midi stream.
-post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
-post_process state = drop_dup_controls state . resort
+post_process :: PostprocState -> Set Patch.Addr -> MidiEvents
+    -> (MidiEvents, PostprocState)
+post_process state use_final_note_off =
+    first (move_note_offs use_final_note_off) . drop_dup_controls state . resort
+
+move_note_offs :: Set Patch.Addr -> MidiEvents -> MidiEvents
+move_note_offs use_final_note_off events
+    | Set.null use_final_note_off = events
+    | otherwise = concat $ snd $ LEvent.map_accum move initial events
+    where
+    -- Map the 'state_key' to (count, held_note_offs).
+    initial :: Map (Midi.WriteDevice, Midi.Channel, Midi.Key)
+        (Int, [Midi.ChannelMessage])
+    initial = Map.empty
+
+    move state wmsg _
+        | maybe True (`Set.notMember` use_final_note_off) (midi_addr wmsg) =
+            (state, [wmsg])
+    move state wmsg _ = case state_key wmsg of
+        Just (skey, Midi.NoteOn {}) -> (note_on skey state, [wmsg])
+        Just (skey@(_, chan, _), msg@(Midi.NoteOff {})) ->
+            (state2, same_time wmsg $ map (Midi.ChannelMessage chan) offs)
+            where (state2, offs) = note_off skey msg state
+        _ -> (state, [wmsg])
+    -- Overlapping notes with the same (dev, chan, key) are affected.
+    state_key wmsg = case Midi.wmsg_msg wmsg of
+        Midi.ChannelMessage chan msg@(Midi.NoteOn key _) ->
+            Just ((dev, chan, key), msg)
+        Midi.ChannelMessage chan msg@(Midi.NoteOff key _) ->
+            Just ((dev, chan, key), msg)
+        _ -> Nothing
+        where dev = Midi.wmsg_dev wmsg
+
+    -- When I see a NoteOn, increment count.
+    note_on = Map.alter (Just . maybe (1, []) (first (+1)))
+    -- When I see a NoteOff, decrement count.  If it's >0, hold the NoteOff.
+    -- If it's 0, emit all held msgs and the current one.
+    note_off skey msg state = case Map.lookup skey state of
+        Just (count, held)
+            | count - 1 <= 0 -> (Map.delete skey state, msg : held)
+            | otherwise -> (Map.insert skey (count-1, msg : held) state, [])
+        Nothing -> (state, [msg])
+    same_time wmsg =
+        map (Midi.WriteMessage (Midi.wmsg_dev wmsg) (Midi.wmsg_ts wmsg))
+
+midi_addr :: Midi.WriteMessage -> Maybe Patch.Addr
+midi_addr msg =
+    (Midi.wmsg_dev msg,) <$> Midi.message_channel (Midi.wmsg_msg msg)
 
 -- | Having to deal with Log is ugly... can't I get that out with fmap?
 drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)

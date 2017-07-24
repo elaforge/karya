@@ -130,3 +130,6 @@ show_short event =
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
+
+event_instrument :: Event -> Score.Instrument
+event_instrument = patch_name . event_patch

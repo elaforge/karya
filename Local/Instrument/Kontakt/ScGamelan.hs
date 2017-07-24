@@ -62,7 +62,8 @@ patches = map add_doc $
     range_of = BaliScales.instrument_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
-        MidiInst.patch %= MidiInst.add_flag Patch.ConstantPitch $
+        MidiInst.patch
+            %= MidiInst.add_flags [Patch.ConstantPitch, Patch.UseFinalNoteOff] $
         MidiInst.named_patch (-2, 2) ("sc-" <> name) []
     add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)

@@ -158,7 +158,7 @@ perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     where
     perf_events = Convert.convert lookup lookup_inst (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state midi_allocs perf_events
-    midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocations
+    midi_allocs = Perform.config <$> PlayUtil.midi_configs allocations
 
 -- | Perform events with the given instrument db.
 perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
@@ -889,8 +889,8 @@ make_damage block tracknum s e = Derive.ScoreDamage
     (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
     (Set.singleton (UiTest.bid block)) mempty
 
--- | A generic empty config for testing.  It's only suitable for tests because
--- normally a Config will have its 'Patch.config_settincgs' initialized from
+-- | A simple config for testing.  It's only suitable for tests because
+-- normally a Config will have its 'Patch.config_settings' initialized from
 -- the Patch.
-empty_midi_config :: Patch.Config
-empty_midi_config = Patch.config mempty [((UiTest.wdev, 0), Nothing)]
+simple_midi_config :: Patch.Config
+simple_midi_config = Patch.config mempty [((UiTest.wdev, 0), Nothing)]
