@@ -1,0 +1,9 @@
+Notes:
+
+on init
+    declare ui_label $output (5, 6)
+end on
+
+on whatever
+    add_text_line($output, $EVENT_NOTE & " -> " & %Pitches[$EVENT_NOTE])
+end on

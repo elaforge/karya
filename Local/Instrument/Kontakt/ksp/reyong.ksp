@@ -17,7 +17,7 @@ on init
     declare const $MuteOpenKs := 2
     declare const $CekClosedKs := 3
     declare const $CekOpenKs := 4
-    { Configure which mute is used for NoteOffs. }
+    { Fade out time for NoteOffs. }
     declare const $FadeTimeUs := 100 * 1000
 
     declare %OpenGroups[4]
