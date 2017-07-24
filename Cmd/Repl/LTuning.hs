@@ -149,17 +149,17 @@ get_tuning inst scale = do
 -- message with 'LInst.initialize_realtime_tuning'.
 realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
-    LInst.set_scale inst scale
-    LInst.modify_midi_config inst $
-        Patch.initialization %= Set.insert Patch.Tuning
+    LInst.set_scale scale inst
+    LInst.modify_midi_config
+        (Patch.initialization %= Set.insert Patch.Tuning) inst
     LInst.initialize_realtime_tuning (Util.instrument inst)
 
 -- | Just like 'realtime', but send tuning via 'LInst.initialize_nrpn_tuning'.
 nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 nrpn inst scale = do
-    LInst.set_scale inst scale
-    LInst.modify_midi_config inst $
-        Patch.initialization %= Set.insert Patch.NrpnTuning
+    LInst.set_scale scale inst
+    LInst.modify_midi_config
+        (Patch.initialization %= Set.insert Patch.NrpnTuning) inst
     LInst.initialize_nrpn_tuning (Util.instrument inst)
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'

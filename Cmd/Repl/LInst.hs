@@ -24,6 +24,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Repl.Util as Util
+import Cmd.Repl.Util (Instrument)
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 
@@ -54,10 +55,10 @@ import Types
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.ResolvedInstrument)
 lookup = Cmd.lookup_instrument . Util.instrument
 
-lookup_allocation :: Ui.M m => Util.Instrument -> m (Maybe UiConfig.Allocation)
+lookup_allocation :: Ui.M m => Instrument -> m (Maybe UiConfig.Allocation)
 lookup_allocation inst = Ui.allocation (Util.instrument inst) <#> Ui.get
 
-get_allocation :: Ui.M m => Util.Instrument -> m UiConfig.Allocation
+get_allocation :: Ui.M m => Instrument -> m UiConfig.Allocation
 get_allocation = get_instrument_allocation . Util.instrument
 
 -- | List all allocated instruments.
@@ -266,50 +267,49 @@ rename from to = do
 
 -- | Toggle and return the new value.
 mute :: Ui.M m => Instrument -> m Bool
-mute inst = modify_common_config inst $ \config ->
+mute = modify_common_config $ \config ->
     let mute = not $ Common.config_mute config
     in (config { Common.config_mute = mute }, mute)
 
 -- | Toggle and return the new value.
 solo :: Ui.M m => Instrument -> m Bool
-solo inst = modify_common_config inst $ \config ->
+solo = modify_common_config $ \config ->
     let solo = not $ Common.config_solo config
     in (config { Common.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, Ui.M m) =>
-    Instrument -> Env.Key -> a -> m ()
-add_environ inst name val =
-    modify_common_config_ inst $ Common.add_environ name val
+    Env.Key -> a -> Instrument -> m ()
+add_environ name val = modify_common_config_ $ Common.add_environ name val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
 -- from 'Patch.patch_environ' is still present.
 clear_environ :: Ui.M m => Instrument -> m ()
-clear_environ inst = modify_common_config_ inst $ Common.cenviron #= mempty
+clear_environ = modify_common_config_ $ Common.cenviron #= mempty
 
 -- ** Midi.Patch.Config
 
-set_addr :: Ui.M m => Instrument -> Text -> [Midi.Channel] -> m ()
-set_addr inst wdev chans = modify_midi_config inst $
+set_addr :: Ui.M m => Text -> [Midi.Channel] -> Instrument -> m ()
+set_addr wdev chans = modify_midi_config $
     Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
-set_controls :: Ui.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
-set_controls inst controls = modify_common_config_ inst $
+set_controls :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument -> m ()
+set_controls controls = modify_common_config_ $
     Common.controls #= Map.fromList controls
 
-set_control :: Ui.M m => Instrument -> Score.Control -> Maybe Signal.Y -> m ()
-set_control inst control val = modify_common_config_ inst $
+set_control :: Ui.M m => Score.Control -> Maybe Signal.Y -> Instrument -> m ()
+set_control control val = modify_common_config_ $
     Common.controls # Lens.map control #= val
 
-set_tuning_scale :: Ui.M m => Instrument -> Text -> Patch.Scale -> m ()
-set_tuning_scale inst tuning scale = do
-    set_scale inst scale
-    add_environ inst EnvKey.tuning tuning
+set_tuning_scale :: Ui.M m => Text -> Patch.Scale -> Instrument -> m ()
+set_tuning_scale tuning scale inst = do
+    set_scale scale inst
+    add_environ EnvKey.tuning tuning inst
 
-set_control_defaults :: Ui.M m => Instrument -> [(Score.Control, Signal.Y)]
+set_control_defaults :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument
     -> m ()
-set_control_defaults inst controls = modify_midi_config inst $
+set_control_defaults controls = modify_midi_config $
     Patch.control_defaults #= Map.fromList controls
 
 -- ** Midi.Patch.Config settings
@@ -318,21 +318,19 @@ get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
 get_scale inst =
     (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
 
-set_scale :: Ui.M m => Instrument -> Patch.Scale -> m ()
-set_scale inst scale = modify_midi_config inst $
-    Patch.settings#Patch.scale #= Just scale
+set_scale :: Ui.M m => Patch.Scale -> Instrument -> m ()
+set_scale scale = modify_midi_config $ Patch.settings#Patch.scale #= Just scale
 
-add_flag :: Ui.M m => Instrument -> Patch.Flag -> m ()
-add_flag inst flag = modify_midi_config inst $
+add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
+add_flag flag = modify_midi_config $
     Patch.settings#Patch.flags %= Patch.add_flag flag
 
-remove_flag :: Ui.M m => Instrument -> Patch.Flag -> m ()
-remove_flag inst flag = modify_midi_config inst $
+remove_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
+remove_flag flag = modify_midi_config $
     Patch.settings#Patch.flags %= Patch.remove_flag flag
 
-set_decay :: Ui.M m => Instrument -> Maybe RealTime -> m ()
-set_decay inst decay = modify_midi_config inst $
-    Patch.settings#Patch.decay #= decay
+set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
+set_decay decay = modify_midi_config $ Patch.settings#Patch.decay #= decay
 
 -- * util
 
@@ -351,10 +349,10 @@ lookup_midi_config inst = do
         UiConfig.Midi midi_config -> Just (qualified, config, midi_config)
         _ -> Nothing
 
-modify_config :: Ui.M m => Instrument
-    -> (Common.Config -> Patch.Config -> ((Common.Config, Patch.Config), a))
-    -> m a
-modify_config inst_ modify = do
+modify_config :: Ui.M m =>
+    (Common.Config -> Patch.Config -> ((Common.Config, Patch.Config), a))
+    -> Instrument -> m a
+modify_config modify inst_ = do
     let inst = Util.instrument inst_
     (qualified, common, midi) <- get_midi_config inst
     let ((new_common, new_midi), result) = modify common midi
@@ -362,14 +360,14 @@ modify_config inst_ modify = do
     Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
-modify_midi_config :: Ui.M m => Instrument -> (Patch.Config -> Patch.Config)
+modify_midi_config :: Ui.M m => (Patch.Config -> Patch.Config) -> Instrument
     -> m ()
-modify_midi_config inst modify = modify_config inst $ \common midi ->
-    ((common, modify midi), ())
+modify_midi_config modify =
+    modify_config $ \common midi -> ((common, modify midi), ())
 
-modify_common_config :: Ui.M m => Instrument
-    -> (Common.Config -> (Common.Config, a)) -> m a
-modify_common_config inst_ modify = do
+modify_common_config :: Ui.M m => (Common.Config -> (Common.Config, a))
+    -> Instrument -> m a
+modify_common_config modify inst_ = do
     let inst = Util.instrument inst_
     alloc <- get_instrument_allocation inst
     let (config, result) = modify (UiConfig.alloc_config alloc)
@@ -377,10 +375,10 @@ modify_common_config inst_ modify = do
     Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
-modify_common_config_ :: Ui.M m => Instrument
-    -> (Common.Config -> Common.Config) -> m ()
-modify_common_config_ inst modify =
-    modify_common_config inst $ \config -> (modify config, ())
+modify_common_config_ :: Ui.M m => (Common.Config -> Common.Config)
+    -> Instrument -> m ()
+modify_common_config_ modify =
+    modify_common_config $ \config -> (modify config, ())
 
 get_instrument_allocation :: Ui.M m => Score.Instrument -> m UiConfig.Allocation
 get_instrument_allocation inst =
@@ -390,8 +388,8 @@ get_instrument_allocation inst =
 
 -- * Cmd.EditState
 
-set_attrs :: Cmd.M m => Instrument -> Text -> m ()
-set_attrs inst_ attrs = do
+set_attrs :: Cmd.M m => Text -> Instrument -> m ()
+set_attrs attrs inst_ = do
     let inst = Util.instrument inst_
     Cmd.get_instrument inst -- ensure that it exists
     val <- Cmd.require_right ("parsing attrs: " <>) $
@@ -476,7 +474,6 @@ teach :: Text -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
 teach dev chan cc = Cmd.midi (Midi.write_device dev) $
     Midi.ChannelMessage chan (Midi.ControlChange cc 1)
 
-type Instrument = Text
 -- | This is parsed into a 'Inst.Qualified'.
 type Qualified = Text
 

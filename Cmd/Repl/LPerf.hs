@@ -39,7 +39,6 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
@@ -375,7 +374,7 @@ perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
 perform_midi_events events = do
     allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
-    let midi_allocs = Patch.config_allocation <$> PlayUtil.midi_configs allocs
+    let midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state midi_allocs events
 
 -- | This is the local block's performance, and the events are filtered to the
