@@ -59,8 +59,8 @@ pasang_code =
 tunggal_notes :: CUtil.PitchedNotes
 (tunggal_notes, resolve_errors) =
     CUtil.resolve_strokes 0.3 tunggal_keymap
-        [ (char, to_call stroke attrs, attrs, group)
-        | (char, stroke, attrs, group) <- tunggal_strokes
+        [ (char, to_call note, attrs, group)
+        | (char, note@(Note _ attrs), group) <- tunggal_strokes
         ]
 
 tunggal_keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
@@ -76,9 +76,9 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_strokes :: [(Char, Stroke, Attrs.Attributes, Drums.Group)]
+tunggal_strokes :: [(Char, Note, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
-(kendang_stops, tunggal_strokes) = (,) stops
+(kendang_stops, tunggal_strokes) = (stops,) $ map to_note
     [ ('b', Plak, plak,         both)
     -- left
     , ('1', Pak, pak <> soft,   left_closed)
@@ -101,6 +101,7 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     , (';', Tek, tek <> soft,   right_closed)
     ]
     where
+    to_note (k, stroke, attrs, group) = (k, Note stroke attrs, group)
     left = Attrs.left
     stops =
         [ (both, [left_open, right_open])
@@ -113,8 +114,8 @@ kendang_stops :: [(Drums.Group, [Drums.Group])]
     right_closed = "right-closed"
     right_open = "right-open"
 
-to_call :: Stroke -> Attrs.Attributes -> Expr.Symbol
-to_call stroke attrs = Expr.Symbol $ case stroke of
+to_call :: Note -> Expr.Symbol
+to_call (Note stroke attrs) = Expr.Symbol $ case stroke of
     Plak -> "PL"
     -- left
     Pak -> if soft then "^" else "P"
@@ -160,12 +161,12 @@ old_tunggal_notes = map (first make_note)
     ]
     where
     make_note attrs =
-        Drums.note_dyn char (to_call stroke attrs) attrs
+        Drums.note_dyn char (to_call (Note stroke attrs)) attrs
             (if Attrs.contain attrs soft then 0.3 else 1)
         where
-        Just (char, stroke, _, _) =
+        Just (char, (Note stroke _), _) =
             List.find ((==attrs) . attrs_of) tunggal_strokes
-    attrs_of (_, _, a, _) = a
+    attrs_of (_, (Note _ a), _) = a
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
@@ -217,21 +218,21 @@ c_pasang_stroke sym pstroke = Derive.generator Module.instrument
     Sig.call pasang_env call
     where
     call pasang args = case pstroke of
-        Wadon stroke -> dispatch wadon stroke
-        Lanang stroke -> dispatch lanang stroke
+        Wadon note -> dispatch wadon note
+        Lanang note -> dispatch lanang note
         Both w l -> dispatch wadon w <> dispatch lanang l
         where
-        dispatch inst stroke_dyn = Derive.with_instrument (inst pasang) $
-            Eval.reapply_generator args (stroke_dyn_to_call stroke_dyn)
+        dispatch inst note = Derive.with_instrument (inst pasang) $
+            Eval.reapply_generator args (to_call note)
 
 both_calls :: [(Expr.Symbol, PasangStroke)]
 both_calls =
-    ("PLPL", Both (Plak, Loud) (Plak, Loud)) :
-    [ (wadon ^ lanang, Both wstroke lstroke)
-    | (_, wadon, Wadon wstroke) <- pasang_calls
-    , (_, lanang, Lanang lstroke) <- pasang_calls
-    , fst lstroke /= Plak
-    , Both wstroke lstroke `Set.notMember` already_bound
+    ("PLPL", Both (Note Plak mempty) (Note Plak mempty)) :
+    [ (wadon ^ lanang, Both wnote lnote)
+    | (_, wadon, Wadon wnote) <- pasang_calls
+    , (_, lanang, Lanang lnote@(Note lstroke _)) <- pasang_calls
+    , lstroke /= Plak
+    , Both wnote lnote `Set.notMember` already_bound
     ]
     where
     already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
@@ -241,8 +242,8 @@ pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
 pasang_calls =
     [ ('b', "PL", lanang Plak)
     , ('t', "Ø", lanang TutL)
-    , ('5', "ø", Lanang (TutL, Soft))
-    , ('y', "+Ø", Both (De, Loud) (TutL, Loud))
+    , ('5', "ø", Lanang (Note TutL soft))
+    , ('y', "+Ø", Both (Note De mempty) (Note TutL mempty))
     -- left
     , ('q', "k", wadon Pak) -- ka
     , ('w', "P", lanang Pak) -- pak
@@ -250,19 +251,20 @@ pasang_calls =
     , ('r', "T", lanang Pang) -- pang
     -- right
     , ('z', "+", wadon De) -- de
-    , ('a', "-", Wadon (De, Soft)) -- de
+    , ('d', "+/", Wadon (Note De Attrs.staccato))
+    , ('a', "-", Wadon (Note De soft)) -- de
     , ('x', "o", lanang De) -- tut
     , ('c', "u", wadon Tut) -- kum
     , ('v', "U", lanang Tut) -- pung
     , ('m', "<", wadon Dag) -- dag
-    , ('j', "-<", Wadon (Dag, Soft)) -- dag
+    , ('j', "-<", Wadon (Note Dag soft)) -- dag
     , (',', ">", lanang Dag) -- dug
     , ('.', "[", wadon Tek) -- tak
     , ('/', "]", lanang Tek) -- tek
     ]
     where
-    wadon stroke = Wadon (stroke, Loud)
-    lanang stroke = Lanang (stroke, Loud)
+    wadon stroke = Wadon (Note stroke mempty)
+    lanang stroke = Lanang (Note stroke mempty)
 
 -- | Unicode has some kendang notation, but it's harder to type and I'm not
 -- sure if I'll wind up using it.
@@ -277,14 +279,14 @@ balinese_pasang_calls =
     , ('r', open_pung,      lanang Pang) -- pang
     -- right
     , ('z', open_dag,       wadon De) -- de
-    , ('a', quiet open_dag, Wadon (De, Soft)) -- de
+    , ('a', quiet open_dag, Wadon (Note De soft)) -- de
     , ('x', open_dug,       lanang De) -- tut
     , ('c', closed_tak,     wadon Tut) -- kum
     , ('v', closed_tuk,     lanang Tut) -- pung
     -- TODO since I use the same symbols for with and without panggul, there
     -- needs to be a separate attribute.
     , ('m', open_dag,       wadon Dag) -- dag
-    , ('j', quiet open_dag, Wadon (Dag, Soft)) -- dag
+    , ('j', quiet open_dag, Wadon (Note Dag soft)) -- dag
     , (',', open_dug,       lanang Dag) -- dug
     , ('.', closed_tak,     wadon Tek) -- tak
     , ('/', closed_tuk,     lanang Tek) -- tek
@@ -302,8 +304,8 @@ balinese_pasang_calls =
     closed_tak = "᭷"    -- ] tek   u kum
     closed_tuk = "᭶"    -- [ tak   U pung
     quiet (Expr.Symbol s) = Expr.Symbol ("," <> s)
-    wadon stroke = Wadon (stroke, Loud)
-    lanang stroke = Lanang (stroke, Loud)
+    wadon stroke = Wadon (Note stroke mempty)
+    lanang stroke = Lanang (Note stroke mempty)
 
 c_realize_kendang :: Derive.Transformer Derive.Note
 c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
@@ -371,11 +373,13 @@ pang = Attrs.attr "pang" -- rim
 
 -- * general
 
-data PasangStroke = Wadon (Stroke, Dyn) | Lanang (Stroke, Dyn)
-    | Both (Stroke, Dyn) (Stroke, Dyn)
+data PasangStroke = Wadon !Note | Lanang !Note | Both !Note !Note
     deriving (Eq, Ord, Show)
 
-data Dyn = Soft | Loud deriving (Show, Ord, Eq)
+-- | The attributes might have the stroke, or not, so it might be
+-- Note Plak plak, or Note Play mempty.
+data Note = Note !Stroke !Attrs.Attributes
+    deriving (Eq, Ord, Show)
 
 data Stroke =
     Plak -- both
@@ -383,12 +387,8 @@ data Stroke =
     | Ka | Tut | De | Dag | Tek -- right
     deriving (Eq, Ord, Show)
 
-stroke_dyn_to_call :: (Stroke, Dyn) -> Expr.Symbol
-stroke_dyn_to_call (stroke, dyn) =
-    to_call stroke (if dyn == Soft then Attrs.soft else mempty)
-
-strokes_of :: PasangStroke -> [(Stroke, Dyn)]
-strokes_of pstroke = case pstroke of
-    Wadon stroke -> [stroke]
-    Lanang stroke -> [stroke]
+notes_of :: PasangStroke -> [Note]
+notes_of pstroke = case pstroke of
+    Wadon note -> [note]
+    Lanang note -> [note]
     Both w l -> [w, l]

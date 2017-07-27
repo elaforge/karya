@@ -43,12 +43,12 @@ test_kendang = do
 test_pasang_calls = do
     -- every pasang call dispatch to a valid tunggal call
     let tunggal =
-            [ KendangBali.to_call stroke attrs
-            | (_, stroke, attrs, _) <- KendangBali.tunggal_strokes
+            [ KendangBali.to_call note
+            | (_, note, _) <- KendangBali.tunggal_strokes
             ]
     forM_ KendangBali.pasang_calls $ \(_, _, pstroke) ->
-        forM_ (KendangBali.strokes_of pstroke) $ \stroke_dyn -> do
-            let sym = KendangBali.stroke_dyn_to_call stroke_dyn
+        forM_ (KendangBali.notes_of pstroke) $ \note -> do
+            let sym = KendangBali.to_call note
             equal (Just sym) (List.find (==sym) tunggal)
 
 test_resolve = do
