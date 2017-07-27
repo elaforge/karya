@@ -61,10 +61,10 @@ control change.  There are notation libraries and scales for for European,
 Balinese, and Carnatic music.  [Call documentation.](calls.html)
 
     Scores are composed hierarchically, and there's no strict division between
-call that modifies or emits a single note and one that modifies or produces an
-entire piece, so the entire score is a call too.  Calls can take arguments and
-be written with custom symbols, and when the existing ones aren't sufficient
-you can create your own.
+a call that modifies or emits a single note and one that modifies or produces
+an entire piece, so the entire score is a call too.  Calls can take arguments
+and be written with custom symbols, and when the existing ones aren't
+sufficient you can create your own.
 
 - Pitch control.  You have full control over the pitch of each note, and can
 apply customized forms of vibrato, portamento, vocal ornaments, or whatever

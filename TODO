@@ -3,10 +3,35 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - text drawing is pretty messed up with negative events and lots of wrapping
+    . I think negative + positive with lots of wrapping makes both disappear
+  - k '-21-21-21-21-12-' infers with 1 below the pitch.  It should be
+    . 43-43-43-43-434- 3-43-43-43-434-3
+      1-21-21-21-21-12 -12-12-12-12-1-21
+
+                      56-56-56-56-565-2
+      2-32-32-32-32-23 23-23-23-23-2-32
+    . Write as:
+       -21-21-21-21-12- 12-12-12-12-1-21
+    . Maybe it would be more predictable to say that 1 is always the pitch.
+      Then I can know if sangsih is above or below by looking at pitches.
+
+      . 2-32-32-32-3232- 32-32-32-32-323-
+        21-21-21-21-2-21 6-16-16-16-16-612
+    . I can get it work, but it takes a lot of thinking.
+  - upgrade to ghc 8.2
+    . Can't yet, because ekg and conduit-audio have base <4.10
+    . 8.0.2 compile time:
+      opt     09:40:08 - 09:43:26   3:18
+      debug   09:46:46 - 09:48:04   2:18
+      profile 09:48:24 - 09:52:22   3:58
+  - generalize zheng 'gliss'
+    . It would use scale instead of open strings.
   - >kontakt/kendang-bali-pasang doesn't work as a dummy instrument because
     those can't have the Patch.Triggered flag, or any flag.  I could move some
     flags to Instrument.Common, but what's wrong with having a MIDI instrument
     with no allocation?
+    . Triggered is duplicated in Im.Patch, so I could get rid of that.
   * randomize makes play from '/' awkward, can I start just a touch before the
     point to try to catch those?  The real problem is MIDI's NoteOn thing.
   - can I have a block template kind of thing, with a standard set of
@@ -243,7 +268,7 @@ UNSORTED
         . Add the "dsl modules" score field.
         . Make a REPL cmd to open vi with the file and bind save to the :dsl
           cmd.
-  - ControlFunctions are still super confusing.
+  - ControlFunctions are still super confusing. NOTE [fix-control-functions]
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
       the CF is %strength=_.
@@ -505,6 +530,7 @@ UNSORTED
     the rest reset to 0.
 
 IN PROGRESS
+  - Solkattu groups.
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -527,12 +553,12 @@ IN PROGRESS
 TASKS:
   Performance
     . Solve input lagginess when the score is large.
-    . Reduce GHC-API memory usage: 'Reduce memory used'
+    . Reduce GHC-API memory usage: NOTE [reduce-repl-memory]
     . Look for memory leaks.
     . Make transformers lazy so they can interleave, aka
       map f . map g -> map (f.g)
   Music / design / language:
-    . Clean up tracklang type checking.
+    . Clean up tracklang type checking with subtypes: e.g. ValType.types_match.
     . Music Analysis: Look for repeats or repeats with transposition.
     . Text score.
     . Solve how timing changes bubble up.  Text score can do it, or maybe
@@ -540,11 +566,19 @@ TASKS:
       read-only block or track.
     . Simplify scale implementation 'Why are scales so complicated'
     . Something better than ControlFunctions for randomized signals.
-      . Could be figure out the Sig.Parser defaults, e.g. Typecheck or Convert.
-    . Negative events, negative selection.
+      . I might be able to solve this if I can figure how to get literals in
+        Sig.Parser defaults to work.  If I coerce to Typecheck.Function
+        from signal or a val call, then I can replace with a val call.  The
+        problem is that the default then becomes a Function, which means it
+        loses ShowVal and hence documentation.
+      . See NOTE [fix-control-functions]
     . Im
   Tests:
     . Quickcheck for derivation.
+      . Or hedgehog:
+        http://teh.id.au/posts/2017/04/23/property-testing-with-hedgehog/
+      . Or Midi.Encode_test.test_encode
+      . Or Ui.Diff
     . Test Ui.Diff and Ui.Sync.
     . Properly parallelize tests.  Maybe use a Test monad instead of IO and
       make tests pure.
@@ -552,10 +586,16 @@ TASKS:
     . Or use someone else's library... printcess?
       . Looks like it only has one level of indentation.  Also I think it
         doesn't have breaks, it just always breaks on space.  And uses String.
+    . Other formatters:
+      . https://ocaml.org/learn/tutorials/format.html
+      . https://github.com/google/google-java-format
+      . https://github.com/dart-lang/dart_style
+        http://journal.stuffwithstuff.com/2015/09/08/the-hardest-program-ive-ever-written/
   GUI:
     . Prettier events, smooth scrolling etc.  OpenGL?
     . TrackSignals could use y position and color / transparency.
     . Window management: automatic tiling, window manager configuration.
+    . Switch logview and browser to Fl_Html_Display.
   Linux:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
@@ -1044,6 +1084,17 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  . Merge Val and MiniVal (RestrictedEnviron.Val for now).
+    . NOTE [val-and-minival]
+    . The problem is that I'd like to use Val to communicate with tracklang
+      without having to re-parse, e.g. via Expr.ToExpr, but that means I can't
+      use Val without dragging in Derive, due to VPitch.  I don't need the
+      separate MiniVal if I can get rid of VControlFunction and make VPitch
+      not in Derive, have a ShowVal, and serializable.
+    . I already want to get rid of ControlFunction, but not sure how to do it.
+    . I should be able to do those things with Pitch by adding more function
+      fields.  Or alternately, typeclass + existential, but I'm not sure if
+      that's any better.
   - switch from parsec to megaparsec?
     . Save it for a big ghc upgrade, since it requires a newer semigroups.
   - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
@@ -1203,7 +1254,7 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
-  - Reduce memory used by REPL.
+  - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
     . About 200mb.
     . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
     Try -fignore-interface-pragmas
@@ -1961,7 +2012,18 @@ Derive:
           . But I can do that, just skip parsing, right?  Maybe a Expr MiniVal
             instead of Expr Text.
           . Can I use RestrictedEnviron.Val?
-          - Change Expr.ToExpr to be Expr RestrictedEnviron.Val
+          . Not directly, because of circular imports via RestrictedEnviron ->
+            BaseTypes -> Expr.
+          . But maybe I could move Val to Expr.MiniVal?
+            . VNum !ScoreTypes.TypedVal
+            . | VAttributes !Attrs.Attributes
+            . | VControlRef !BaseTypes.ControlRef
+              if I move Ref ControlRef to ScoreTypes.
+            . | VNotePitch !Pitch.Pitch
+            . | VStr !Expr.Str
+            . | VQuoted !Expr
+            . | VList ![Val]
+          . See NOTE [val-and-minival]
         - Use a typeclass for format-conversion, instead of Pretty.
         * Use underline for tha+x instead of ad-hoc letters.
         transcribe:

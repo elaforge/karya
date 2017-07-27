@@ -2,6 +2,7 @@
 
 ## music
 
+- [string quartet 6](data/music/squartet6.mp3)
 - [Viola sonata](data/music/viola-sonata.mp3) -
     [score](data/score/viola-sonata.pdf)
 
@@ -9,7 +10,6 @@
 <img width=200 src="data/img/screen/seq-viola-sonata-vla1.png" border=2>
 </a>
 
-- [string quartet 6](data/music/squartet6.mp3)
 - [hedge maze](data/music/hedge-maze.mp3)
 - [Concert gift](data/music/concert gift-快版本.mp3) -
     [score](data/score/concert-gift.pdf)
@@ -24,6 +24,11 @@
 - [Blue Hat Spy Agency](data/music/Blue Hat Spy Agency.mp3)
 - [Bloom](data/music/bloom.mp3)
 - [piano viola](data/music/pnovla.mp3)
+
+### bali / carnatic
+
+- [charukesi sketches](data/music/charukesi.mp3) It's not really charukesi, but
+has those pitches.
 
 ### carnatic transcriptions
 

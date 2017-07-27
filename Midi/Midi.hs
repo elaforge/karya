@@ -529,11 +529,11 @@ join14 :: Word7 -> Word7 -> Int
 join14 lsb msb =
     Bits.shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
 
--- | Split a Word8 into (msb, lsb) nibbles, and join back.
-split4 :: Word8 -> (Word4, Word4)
+-- | Split a Word8 into nibbles.
+split4 :: Word8 -> (Word4, Word4) -- ^ (MSB, LSB)
 split4 word = (Bits.shiftR word 4 .&. 0xf, word .&. 0xf)
 
--- | Join msb and lsb into a Word7.
+-- | Join (MSB, LSB) into a Word7.
 join4 :: Word4 -> Word4 -> Word7
 join4 d1 d2 = (Bits.shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 

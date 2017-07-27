@@ -53,9 +53,10 @@ It will be allocated MIDI channel 0 on loop1, so your DAW or MIDI device should
 be set up to receive it.  If your DAW starts MIDI channels at 1 instead of 0
 then of course it will consider that channel 1.  You can see an abbreviated
 instrument config with `LInst.list`, or the complete version with `pp
-LInst.allocations`.  `LInst.remove "inst"` to remove an instrument allocation.
-Look at the source to 'Cmd.Repl.LInst' to see all the things you can do.  All
-of the modules in `Cmd/Repl/L*.hs` are intended to be used from the REPL.
+LInst.allocations`.  You can remove an instrument allocation with `LInst.remove
+"inst"`.  Look at the source in 'Cmd.Repl.LInst' to see all the things you can
+do.  All of the modules in `Cmd/Repl/L*.hs` are intended to be used from the
+REPL.
 
 - Rename the `>` note track to `>inst`.
 

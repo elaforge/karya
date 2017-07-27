@@ -37,6 +37,12 @@ convert (Environ env) = BaseTypes.Environ $ convert_val <$> env
 
 -- * val
 
+-- | This is like 'BaseTypes.Val', except missing fields that can't be
+-- serialized, or require Deriver and hence couldn't go in a module below
+-- Deriver without incurring a circular dependency.
+--
+-- Namely: 'BaseTypes.VPitch', 'BaseTypes.VControlFunction'.
+-- NOTE [val-and-minival].
 data Val =
     VNum !ScoreTypes.TypedVal
     | VAttributes !Attrs.Attributes
