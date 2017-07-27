@@ -138,7 +138,7 @@ c_timestep = val_call "timestep" mempty
     \ position. This is for durations, so it only works with RelativeMark."
     ) $ Sig.call ((,)
     <$> Sig.required "rank" "Emit a duration of this rank."
-    <*> Sig.defaulted "multiply" 1 "Multiply duration."
+    <*> Sig.defaulted "steps" 1 "This number of steps of that rank."
     ) $ \(rank, steps) args -> BaseTypes.score_time <$>
         Call.meter_duration (Args.start args) rank steps
 
