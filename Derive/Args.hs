@@ -346,6 +346,10 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
     (start, dur_) = extent args
     dur = if dur_ == 0 then 1 else dur_
 
+-- | Like 'normalized', but only shifts start to 0.
+normalized_start :: PassedArgs a -> Derive.Deriver b -> Derive.Deriver b
+normalized_start args = Derive.at (- start args)
+
 {- NOTE [prev-val]
 
     Many control calls rely on the last value emitted by the previous call.

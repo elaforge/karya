@@ -469,6 +469,9 @@ to_scale_id _ = Nothing
 quoted :: Expr.Symbol -> [Val] -> Quoted
 quoted sym args = Quoted $ Expr.generator (Expr.call sym args)
 
+quoted0 :: Expr.Symbol -> Quoted
+quoted0 sym = quoted sym []
+
 -- ** Ref
 
 data Ref control val =

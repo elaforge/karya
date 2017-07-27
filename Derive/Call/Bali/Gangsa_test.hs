@@ -12,6 +12,7 @@ import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -28,6 +29,8 @@ import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
 import Global
 import Types
 
+
+-- * norot
 
 test_norot = do
     let run = e_pattern 0 . derive title

@@ -4,7 +4,12 @@
 
 -- | Calls to deal with an entire ensemble, or miscellaneous instruments.
 module Derive.Call.Bali.Gong where
+import qualified Data.Text as Text
+
 import qualified Util.Doc as Doc
+import qualified Util.Seq as Seq
+import qualified Ui.Event as Event
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -15,12 +20,15 @@ import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -32,7 +40,9 @@ module_ :: Module.Module
 module_ = "bali" <> "gong"
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+note_calls = Derive.call_maps
+    [ ("cycle", c_cycle)
+    ]
     [ ("pokok", c_pokok)
     , ("J", c_jegog)
     , ("C", c_calung)
@@ -122,6 +132,8 @@ c_calung :: Derive.Transformer Derive.Note
 c_calung = make_pokok "calung" (BaliScales.instrument_range Legong.calung)
     [Score.Instrument "calung-p", Score.Instrument "calung-s"]
 
+-- * nruk tuk
+
 c_nruk :: Derive.Transformer Derive.Note
 c_nruk = Derive.transformer module_ "nruk" Tags.inst
     "Nruktuk, for kajar or gangsa."
@@ -175,3 +187,44 @@ dyn_from_duration low_dyn = map dyn_at . durations
 durations :: Num a => [a] -> [a]
 durations starts = zipWith (-) (drop 1 starts) starts
     -- This loses the last one, but it's ok because that's the end time.
+
+-- * cycle
+
+c_cycle :: Derive.Generator Derive.Note
+c_cycle = make_cycle "cycle" Nothing Nothing
+
+make_cycle :: Derive.CallName
+    -> Maybe (Either Text [BaseTypes.Quoted])
+    -> Maybe (Either Meter.RankName Typecheck.DefaultScore)
+    -> Derive.Generator Score.Event
+make_cycle name default_strokes default_dur =
+    Derive.generator module_ name Tags.inst
+    "Cycle calls. Align to the end for negative duration."
+    $ Sig.call ((,)
+    <$> Sig.maybe_defaulted "strokes" default_strokes "Cycle these strokes."
+    <*> Sig.maybe_defaulted "dur" default_dur "Duration of each stroke.\
+        \ A string is taken as a timestep."
+    ) $ \(strokes, dur) args -> do
+        strokes <- return $ case strokes of
+            Left str -> map (BaseTypes.quoted0 . Expr.Symbol . Text.singleton)
+                (Text.unpack str)
+            Right strs -> strs
+        dur <- case dur of
+            Left ts -> BaseTypes.ScoreDuration <$>
+                Call.timestep_duration args ts
+            Right (Typecheck.DefaultScore dur) -> return dur
+        dur <- Derive.score dur
+        Args.normalized_start args $
+            call_cycle (Args.context args) (Args.range args)
+                (Args.orientation args) strokes dur
+
+call_cycle :: Derive.Context Score.Event -> (TrackTime, TrackTime)
+    -> Event.Orientation -> [BaseTypes.Quoted]
+    -> ScoreTime -> Derive.NoteDeriver
+call_cycle ctx (start, end) orient calls dur =
+    mconcat [Derive.at t $ Eval.eval_quoted ctx call | (t, call) <- ts]
+    where
+    ts = case orient of
+        Event.Positive -> zip (Seq.range' start end dur) (cycle calls)
+        Event.Negative ->
+            reverse $ zip (Seq.range' end start (-dur)) (cycle (reverse calls))

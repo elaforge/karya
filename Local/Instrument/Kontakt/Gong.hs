@@ -13,6 +13,7 @@ import qualified Midi.Key as Key
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Ruler.Meter as Meter
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gong as Gong
@@ -46,6 +47,8 @@ kajar_patch =
     generators = concat
         [ CUtil.drum_calls Nothing (Just tuning_control) notes
         , [(sym, call) | (_, sym, call) <- kajar_special]
+        , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
+            (Just (Left Meter.Q)))]
         ]
     char_to_call = Map.fromList $ concat
         [ [(Drums.note_char n, Drums.note_name n) | n <- notes]

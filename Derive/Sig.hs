@@ -84,7 +84,8 @@ module Derive.Sig (
     , check, parse_or_throw, require_right, parse, parse_vals
     -- * parsers
     , no_args
-    , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
+    , required, required_env
+    , defaulted, defaulted_env, defaulted_env_quoted, maybe_defaulted
     , environ, environ_quoted, required_environ
     , optional, optional_env, many, many_vals, many1, many_pairs, many1_pairs
     , required_vals
@@ -264,6 +265,14 @@ defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
         , arg_environ_default = env_default
         , arg_doc = doc
         }
+
+-- | This is either 'required' or 'defaulted', depending on if there's a
+-- default value.  Useful for making call variants with instrument-specific
+-- defaults.
+maybe_defaulted :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    ArgName -> Maybe a -> Doc.Doc -> Parser a
+maybe_defaulted name Nothing doc = required name doc
+maybe_defaulted name (Just deflt) doc = defaulted name deflt doc
 
 -- | Eval a Quoted default value.
 eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc

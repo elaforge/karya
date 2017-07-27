@@ -241,6 +241,12 @@ data Realization a = Realization {
     , non_interlocking :: a
     } deriving (Eq, Show)
 
+instance Pretty a => Pretty (Realization a) where
+    format (Realization inter non_inter) = Pretty.record "Realization"
+        [ ("interlocking", Pretty.format inter)
+        , ("non_interlocking", Pretty.format non_inter)
+        ]
+
 data IrregularPattern = IrregularPattern
     { ir_polos :: [Char]
     , ir_sangsih4 :: [Char]
@@ -960,6 +966,10 @@ data KotekanNote = KotekanNote {
     , note_muted :: !Bool
     } deriving (Show)
 
+instance Pretty KotekanNote where
+    format (KotekanNote inst steps muted) =
+        Pretty.format (inst, steps, if muted then "+mute" else "+open" :: Text)
+
 kotekan_note :: Maybe Score.Instrument -> Pitch.Step -> KotekanNote
 kotekan_note inst steps = KotekanNote
     { note_instrument = inst
@@ -969,10 +979,6 @@ kotekan_note inst steps = KotekanNote
 
 muted_note :: KotekanNote -> KotekanNote
 muted_note note = note { note_muted = True }
-
-instance Pretty KotekanNote where
-    format (KotekanNote inst steps muted) =
-        Pretty.format (inst, steps, if muted then "+mute" else "+open" :: Text)
 
 under_threshold_function :: BaseTypes.ControlRef -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time

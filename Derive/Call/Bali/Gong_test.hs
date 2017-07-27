@@ -33,3 +33,12 @@ test_nruk = do
     equal (run [(0, 2, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
     -- It only emits full duration notes.
     equal (run [(0, 2.15, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
+
+test_cycle = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    equal (run [(0, 4, "cycle (list '+a' '+b' '+c') 1 --")])
+        ([(0, "+a"), (1, "+b"), (2, "+c"), (3, "+a")], [])
+    equal (run [(4, -4, "cycle (list '+a' '+b' '+c') 1 --")])
+        ([(1, "+c"), (2, "+a"), (3, "+b"), (4, "+c")], [])

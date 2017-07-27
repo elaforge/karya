@@ -2214,7 +2214,11 @@ Derive:
     bali:
       - gangsa should not damp repeated notes at the same pitch
         . Same with ' on the same pitch.
-      - abstract kajar parts, and gong cycles
+        . Same for reyong.
+      * abstract kajar parts, and gong cycles
+        . k oo+o "(ts e) --> cycle o o + o, giving (ts e) to each.
+          Short for k (list o o '+' o)
+        . If it's a negative duration, align to the end.
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe

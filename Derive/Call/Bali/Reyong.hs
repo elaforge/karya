@@ -692,7 +692,7 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     \ The " <> ShowVal.doc damped <> " attribute will force a damp, while "
     <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
-    \ to become damped because the hand is now freed  up.")
+    \ to become damped because the hand is now freed up.")
     $ Sig.callt ((,)
         <$> Sig.required "inst" "Apply damping to this instrument."
         <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
@@ -702,8 +702,8 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
             \ for its next note afterwards."
     ) $ \(inst, dur) _args deriver -> do
         dur <- Call.to_function dur
-        -- TODO infer_damp can only add a %damp control, so it preserves order,
-        -- so Post.apply is safe.  Is there a way to express this statically?
+        -- infer_damp can only add a %damp control, so it preserves order, so
+        -- Post.apply is safe.  TODO Is there a way to express this statically?
         Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created

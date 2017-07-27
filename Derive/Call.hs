@@ -571,6 +571,12 @@ meter_duration start rank steps = do
     end <- timestep start ts (map (*steps) [1, -1])
     return $ abs (end - start)
 
+-- | Duration of a single timestep, starting here.
+timestep_duration :: Derive.PassedArgs a -> Meter.RankName
+    -> Derive.Deriver ScoreTime
+timestep_duration args step = meter_duration (Args.start args) step 1
+
+
 -- * general purpose types
 
 -- | This is for arguments which can be high or low.
