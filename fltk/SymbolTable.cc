@@ -393,7 +393,7 @@ SymbolTable::wrap_glyphs(const string &text, int start, const Style &style,
     // Always include at least one symbol, otherwise I could loop forever.
     size_t end = next_symbol(text, start);
     DPoint prev_box = this->measure(text, start, end, style);
-    DPoint box;
+    DPoint box = prev_box;
     for (size_t prev_end = end; end < text.length();
             prev_end = end, prev_box = box) {
         end = next_symbol(text, end);
