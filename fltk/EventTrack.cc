@@ -833,7 +833,7 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
 */
 static int
 drawable_pixels(
-    size_t index, const Event *events, const vector<EventTrack::TextBox> &boxes)
+    int index, const Event *events, const vector<EventTrack::TextBox> &boxes)
 {
     const Event &event = events[index];
     if (!event.text || !*event.text)
@@ -926,8 +926,8 @@ drawable_pixels(
                 event_box.w += 2;
             }
             // Rewind to find all events starting here.
-            size_t next = index - 1;
-            while (events[next].start == event.start)
+            int next = index - 1;
+            while (next >= 0 && events[next].start == event.start)
                 --next;
             for (++next; next < boxes.size(); ++next) {
                 if (next == index)
