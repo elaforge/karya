@@ -3,8 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - text drawing is pretty messed up with negative events and lots of wrapping
-    . I think negative + positive with lots of wrapping makes both disappear
   - k '-21-21-21-21-12-' infers with 1 below the pitch.  It should be
     . 43-43-43-43-434- 3-43-43-43-434-3
       1-21-21-21-21-12 -12-12-12-12-1-21
@@ -76,7 +74,6 @@ UNSORTED
       . format ("from="%'val%" | "%'str%" "%'val) vol c val
       . Still much noisier than "from=%v | %s %v".
     . fmt: even more operators and imports
-  - save/bug/align-right: right side text redraws inconsistently
   - The EvalTrack rule that skips events that are all comment event is
     confusing, because you have to replace a note with 'n -- blah'.
     . Make the "skip totally" triggered by '--|'.
@@ -1518,6 +1515,31 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - text drawing is pretty messed up with negative events and lots of wrapping
+    . I think negative + positive with lots of wrapping makes both disappear
+    * Each succesive word wrap bumps down by a pixel.
+      59, 70 - each one is 10 tall, but y is +1.
+  * save/bug/align-right: right side text redraws inconsistently
+    . abcd 0123
+    . When it draws:
+			fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
+      fltk/EventTrack.cc:853 TextBox Left
+          'abcd' Rect(28, 56, 27, 10)
+      fltk/EventTrack.cc:853 TextBox Right
+          '0123' Rect(42, 56, 27, 10)
+			fltk/EventTrack.cc:927 event_line (0123, Rect(42, 56, 27, 10)) pixels: 0
+			fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 20
+			fltk/EventTrack.cc:1104 POSITIVE: Rect(42, 56, 27, 10): 0123 left 20 - 10
+			0------------
+
+    . When it doesn't draw:
+      fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
+      fltk/EventTrack.cc:927 event_line (0123, Rect(36, 56, 27, 10)) pixels: 0
+      fltk/EventTrack.cc:949 next 0, box: Rect(28, 56, 27, 10) 'abcd'
+      fltk/EventTrack.cc:954 intersect: Rect(28, 56, 27, 10) with Rect(34, 56, 29, 10) (0123)
+      fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 0
+      0------------
+
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
     . Can fltk even do this?  I can't even figure out what xprop should show

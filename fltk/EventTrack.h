@@ -136,7 +136,7 @@ public:
         TextBox(std::vector<std::pair<std::string, IRect>> lines, Align align)
             : lines(lines), align(align)
         {}
-        TextBox() {}
+        TextBox() : lines(), align(Left) {}
         std::vector<std::pair<std::string, IRect>> lines;
         Align align;
     };
@@ -169,5 +169,7 @@ private:
     SelectionOverlay selection_overlay;
     FloatingInput *floating_input;
 };
+
+std::ostream &operator<<(std::ostream &os, const EventTrack::TextBox &box);
 
 #endif

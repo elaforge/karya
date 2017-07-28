@@ -434,8 +434,10 @@ compute_text_box(
     vector<pair<string, IRect>> lines;
     lines.reserve(wrapped.size());
     if (event.is_negative()) {
+        // When going top-to-bottom, I add 1 for padding, so I have to do the
+        // same when figuring out the top.
         for (const pair<string, DPoint> &line : wrapped)
-            y -= ceil(line.second.y);
+            y -= ceil(line.second.y) + 1;
         y -= 2; // Up a couple pixels to avoid overlapping the trigger.
     } else {
         y++;
@@ -502,11 +504,12 @@ EventTrack::draw_area()
     vector<int> triggers(count);
 
     const int track_min = track_start() - zoom.to_pixels(zoom.offset);
-    const int track_max = track_min + zoom.to_pixels(time_end());
+    const int track_max = std::max(
+        this->y() + this->h(), track_min + zoom.to_pixels(time_end()));
     for (int i = 0; i < count; i++) {
         triggers[i] = y_start
             + this->zoom.to_pixels(events[i].start - this->zoom.offset);
-        const SymbolTable::Wrapped wrapped = wrap_text(events[i], wrap_width);
+        const SymbolTable::Wrapped wrapped(wrap_text(events[i], wrap_width));
         Align align = ranks[i] > 0 ? Right : Left;
         boxes[i] = compute_text_box(
             events[i], wrapped, x(), triggers[i], wrap_width, align,
@@ -1108,4 +1111,15 @@ EventTrack::dump() const
     std::ostringstream out;
     out << "type event title " << f_util::show_string(this->get_title());
     return out.str();
+}
+
+std::ostream &
+operator<<(std::ostream &os, const EventTrack::TextBox &box)
+{
+    os << "TextBox " << (box.align == EventTrack::Left ? "Left" : "Right")
+        << '\n';
+    for (auto const &line : box.lines) {
+        os << "    '" << line.first << "' " << line.second << '\n';
+    }
+    return os;
 }
