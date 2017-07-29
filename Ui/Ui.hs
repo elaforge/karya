@@ -48,7 +48,7 @@ module Ui.Ui (
     , get_namespace, set_namespace
     , get_default, modify_default, get_root_id, lookup_root_id, set_root_id
     , modify_config, get_config, with_config
-    , allocation
+    , modify_allocation, allocation
 
     -- * view
     , get_view, lookup_view, all_view_ids
@@ -159,7 +159,8 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import Ui.UiConfig hiding (allocation)
+import qualified Ui.UiConfig as UiConfig
+import Ui.UiConfig hiding (allocation, modify_allocation)
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
@@ -436,10 +437,18 @@ set_root_id block_id =
     modify_config $ \st -> st { config_root = Just block_id }
 
 -- | Unlike other State fields, you can modify Config freely without worrying
--- about breaking invariants.
+-- about breaking invariants.  TODO except allocations have invariants.
 modify_config :: M m => (Config -> Config) -> m ()
 modify_config f = unsafe_modify $ \st ->
     st { state_config = f (state_config st) }
+
+modify_allocation :: M m => ScoreTypes.Instrument -> (Allocation -> Allocation)
+    -> m ()
+modify_allocation inst modify = do
+    allocs <- config#allocations <#> get
+    allocs <- require_right (("modify " <> pretty inst <> ": ")<>) $
+        UiConfig.modify_allocation inst (Right . modify) allocs
+    modify_config $ allocations #= allocs
 
 get_config :: M m => (Config -> a) -> m a
 get_config f = gets (f . state_config)

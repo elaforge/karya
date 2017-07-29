@@ -157,11 +157,13 @@ midi_allocations allocs = Allocations $ Map.fromList
 
 modify_allocation :: Score.Instrument -> (Allocation -> Either Text Allocation)
     -> Allocations -> Either Text Allocations
-modify_allocation inst modify (Allocations allocs) = do
-    alloc <- justErr ("no allocation for " <> pretty inst) $
-        Map.lookup inst allocs
-    alloc <- modify alloc
-    return $ Allocations (Map.insert inst alloc allocs)
+modify_allocation instrument modify (Allocations allocs) = do
+    alloc <- justErr ("no allocation for " <> pretty instrument) $
+        Map.lookup instrument allocs
+    new_alloc <- modify alloc
+    unless (same_backend (alloc_backend alloc) (alloc_backend new_alloc)) $
+        Left "modify_allocation changed the backend"
+    return $ Allocations $ Map.insert instrument new_alloc allocs
 
 -- | This is the root of the dynamic (per-score) instrument config.  It's
 -- divided into common and backend-specific configuration.
@@ -205,6 +207,13 @@ instance Pretty Backend where
     format (Midi config) = Pretty.format config
     format Im = "Im"
     format Dummy = "Dummy"
+
+same_backend :: Backend -> Backend -> Bool
+same_backend b1 b2 = case (b1, b2) of
+    (Midi {}, Midi {}) -> True
+    (Im, Im) -> True
+    (Dummy, Dummy) -> True
+    _ -> False
 
 midi_config :: Backend -> Maybe Patch.Config
 midi_config (Midi config) = Just config

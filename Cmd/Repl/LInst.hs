@@ -263,6 +263,14 @@ rename from to = do
         Map.insert (Util.instrument to) alloc $
         Map.delete (Util.instrument from) allocs
 
+-- | Point an instrument at a different Qualified.
+rename_qualified :: Cmd.M m => Instrument -> Qualified -> m ()
+rename_qualified inst qualified = do
+    qualified <- parse_qualified qualified
+    Cmd.get_qualified qualified
+    Ui.modify_allocation (Util.instrument inst) $ \alloc ->
+        alloc { UiConfig.alloc_qualified = qualified }
+
 -- ** Common.Config
 
 -- | Toggle and return the new value.
