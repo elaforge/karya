@@ -396,49 +396,77 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         , (din, [od])
         ]
 
+-- trikalam
 c_17_07_13 :: Korvai
 c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ concat
     -- TODO when I can do branches, any dintaka can substitute
     -- purvangam (any dintakas) . utarangam (any dintakas)
     [ map purvangam dintakas
-    , [ utarangam (head dintakas) -- etc for all dintakas
-      , utarangam_gap
-      ]
+    , map utarangam dintakas
+    , [utarangam_gap]
+
+    -- tisram
+    , map (nadai 6)
+        [ tri (purvangam basic_dintaka)
+        , one_avartanam . utarangam basic_dintaka
+        ]
+    , map su
+        [ tri (purvangam basic_dintaka)
+        . one_avartanam . tri (utarangam basic_dintaka)
+        ]
     ]
     where
+    one_avartanam = ta.__4.taka.din.__ . tk.kita.taka.din.__
+      . dhom.__.kita.taka.din.__ . dhom.dhom.kita.taka.din.__
+    basic_dintaka = 1^(din.taka.din.taka)
     dintakas = -- each is 6 beats -- TODO map assert dur == 6
-        [ din.1^taka.din.1^taka
-        , din . su taka.din.din.1^taka
-        , din . su taka.din.din . su taka.din
-        , n6 (din.taka).din.din.1^taka
-        , n6 (din.taka.din.din.ta) . ka.din
+        [ basic_dintaka
+        , din . su (1^taka).din.din.taka
+        , din . su (1^taka).din.din . su (1^taka).din
+        , n6 (din.1^taka).din.din.taka
+        , n6 (din.1^taka.din.din.1^ta) . 1^ka.din
         -- TODO this one can also be slightly swung, so ta is slightly later
-        , n6 (din.taka).din. su (din.ta) . ka.din
+        , n6 (din.1^taka).din. su (din.1^ta) . 1^ka.din
         ]
     n6 = nadai 6
     purvangam dintaka =
-        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (kita.taka)
-        . dintaka . 1^(din.__.tat.__.tat.__.din.__4)
-    utarangam dintaka = tri $
-        ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__.din.__
+        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (1^(kita.taka))
+        . dintaka . din.__.tat.__.tat.__.tam.__4
+    -- variation: drop kita, so ta.__.kita -> ta.__4
+    utarangam dintaka = tri_ (tam.__) $
+        ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
     utarangam_gap = tri $
-        ta.__.kita.taka.din.na. __.1^takita.1^taka.din.na.__.ta.tat.__.din.__
+        ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
 
-    mridangam = make_mridangam
-        [ (ta.kita.taka, [k, k, t, k, o])
-        , (din.tat.tat.din, [od, on, on, od])
-        , (1^(din.tat.tat.din), [od, on, on, v])
-        , (kita.taka, [k, t, o, k])
-
+    mridangam = make_mridangam0
+        [ (ta, [k])
+        , (kita, [k, t])
+        , (taka, [k, o])
+        -- TODO this od should be od when slow, and o when fast.  Should I try
+        -- to express it with a stroke attribute, or a general
+        -- instrument-specific realization heuristic?
+        -- TODO also okookook -> nakatiku at high speed
+        , (taka.din, [k, o, od])
         , (din.na, [od, k])
-        , (tat.tat.din, [on, on, v])
+        , (na, [k])
 
-        , (taka, [k, k])
-        , (1^taka, [k, o])
+        , (tat.tat.din, [on, on, od])
+
+        , (din.tat.tat, [od, on, on])
+        , (tat.tat, [on, on])
+        , (tam, [v])
+
+        , (1^(kita.taka), [k, t, o, k])
+
+        -- dintakas
+        -- TODO I can use basic_dintaka when Seq is not polymorphic
+        -- , (basic_dintaka, [o, k, o, o, k, od])
+        , (1^(din.taka.din.taka), [o, k, o, o, k, o])
+        , (1^taka, [k, k])
         , (din, [o])
 
         , (1^takita, [k, o, o])
-        , (ta.tat.din, [on, on, v])
+        , (dhom, [o])
         ]
 
 c_17_07_19 :: Korvai

@@ -205,8 +205,8 @@ korvais =
         line_number 374 Derive.Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
     , variable_name "c_17_07_13" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 399 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
+        line_number 400 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
     , variable_name "c_17_07_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 444 Derive.Solkattu.Score.Solkattu2017.c_17_07_19
+        line_number 473 Derive.Solkattu.Score.Solkattu2017.c_17_07_19
     ]

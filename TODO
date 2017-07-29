@@ -25,6 +25,8 @@ UNSORTED
       profile 09:48:24 - 09:52:22   3:58
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
+    . If I wanted to be fancy for harps I could do gliss on whole note or
+      diminished minor sevenths that repeat strings tuned to unison.
   - >kontakt/kendang-bali-pasang doesn't work as a dummy instrument because
     those can't have the Patch.Triggered flag, or any flag.  I could move some
     flags to Instrument.Common, but what's wrong with having a MIDI instrument
@@ -526,18 +528,20 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
 
-IN PROGRESS
+IN PROGRESS / branch: branches:
+  - draw-text-lines
+    . I think it's a bit of an improvement for code simplicity, but still has
+      an annoying redraw bug.
   - Solkattu groups.
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
-    . branch: bali-scales
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . branch shake-targets
-  - Extend TimeVector with an offset, so I can get rid of
-    Score.event_untransformed_controls and the like.
-    . branch signal-offset
+  - signal-offset
+    . Extend TimeVector with an offset, so I can get rid of
+      Score.event_untransformed_controls and the like.
     . After this I'd like to make Score.Event's fields private so e.g.
       I can enforce set_instrument.
     . Also simplify or unify various types in Derive.ScoreTypes,
@@ -1251,6 +1255,17 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
+    . 'compact' package
+    . Maybe even serialize it to disk?  Probably not worth it though, since
+      startup is pretty fast and probably inst db is not a big part.
+      . 0.584cpu / 0.222s.
+    . Can I use heap profiling to find other large CAFs?
+    . Can I use compact regions for the REPL loaded modules memory?
+    . compactWithSharing is slower but retains internal sharing, test to see
+      if it's worth it.
+  . ghc 8.2 puts heap profile in the eventlog so I can align heap profile
+    with events: https://ghc.haskell.org/trac/ghc/ticket/11094
   - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
     . About 200mb.
     . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
@@ -1515,6 +1530,18 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - It's annoying to edit long words (e.g. kotekan kernel) in FloatingInput
+    because the box is too narrow.  Can I automatically expand the width to
+    fit the longest word?
+  better drawing
+    . All this incremental redraw stuff is fussy and seems like it should be
+      unnecessary.  I should be able to lay it out and have someone else handle
+      selection overlay and scrolling.
+    . How hard would an OpenGL version be?
+    . Or why not get rid of the callback, and just keep the complete track in
+      c++, like I do with the signals.  I think I need to do that anyway for
+      OpenGL, and that way I don't have to play with getting event ranges,
+      I can just scan the whole range on every draw.
   - text drawing is pretty messed up with negative events and lots of wrapping
     . I think negative + positive with lots of wrapping makes both disappear
     * Each succesive word wrap bumps down by a pixel.
@@ -2024,6 +2051,53 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        . Solkattu2017.c_17_07_13 is showing the difficulty of the
+          (solkattu, stroke_map) approach, because there are too many meanings
+          for taka and din.  Really if it's meant to be useful for different
+          realizations, I should emphasize the reusable phrases, so I should
+          try to figure out ways to make that easier.  For instance,
+          understanding about reduction is good for that.
+          . To an extent, it's acceptable that it's harder than just writing
+            the strokes, because I'm trying to find a more general
+            representation.
+          . Still, I could make it easier with tools:
+            - Lint to show unmatched stroke sequences.
+            - Diff to compare realizations before and after I change the
+              stroke map.
+              . How can I keep them both around?  If I do it at the haskell
+                level, I have to copy the stroke map, and then have multiple
+                stroke maps for the same instrument, and then diff between
+                them.  This might be useful in general to highlight different
+                players style.
+              . If I do it at the ghci level, I'd have to somehow stash the
+                previous previous Korvai or realize output someplace that
+                survives a reload, like write a file.  Then add a function to
+                do a text diff with the file contents.
+        - Final notes should be cancellable, so e.g. tri will cancel for the
+          first two.
+          . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
+            it: tri (tri (taka.tam.__)) I need to rewrite as
+            tri (tri_ (tam.__) taka)
+          . Actually, don't I already have the karvai mechanism for this?
+            What if I do tri (taka. karvai tam.__)?
+          . Not quite, I'd have to do 'tri_ __ (taka . karvai tam)
+          . The problem is I don't really have a well defined notion of when
+            cancelling is ok.
+          . Or maybe it's better to use tri_ after all?  Are there cases where
+            either I can't express with tri_, or it's really awkward?
+        - Some strokes change realization based on the tempo, e.g. 'od' when
+          slow to 'o' when fast.  I could add a stroke attribute for that, or
+          I could try to do a global instrument realization heuristic.
+          . Not just individual strokes, but a whole section can change, e.g.
+            okookook -> nakatiku.  This implies just a realization heuristic
+            won't be enough, though maybe I want it anyway for things like
+            dynamics.
+        - Maybe I don't need (!) anymore now that I have (^).  It would
+          simplify things to get rid of it, because I don't need to have
+          a polymorphic Seq anymore, and I can get rid of the stroke variable
+          in Solkattu.
+          . Keeping the strokes separate emphasizes instrument independence,
+            but on the other hand, numbers are harder to read than strokes.
         - LSol.insert_* doesn't clear and replace existing notes
         - insert for patterns is messed up, I get p '5' with 0 dur.
           . '5' is because I use Expr Text, and it uses ShowVal, which loses
@@ -2418,6 +2492,7 @@ Derive:
           integration could theoretically do that.
       trompong: reyong:
         - octaves shouldn't be able to infer damping
+          . E.g. (6e 6o 6o, 5e - 5o)
         - trompong: I need a better way to notate a section as lower octave.
           vv doesn't work is a note parent.
         - Damp level is way too high, I have to put %damp=.2 everywhere.

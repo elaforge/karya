@@ -57,10 +57,12 @@ on = o & n
 type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]
 
 make_mridangam :: CallStack.Stack => MStrokes -> Korvai.StrokeMaps
-make_mridangam strokes = mempty
+make_mridangam strokes = make_mridangam0 (_standard_mridangam ++ strokes)
+
+make_mridangam0 :: CallStack.Stack => MStrokes -> Korvai.StrokeMaps
+make_mridangam0 strokes = mempty
     { Korvai.inst_mridangam = check $
-        Mridangam.instrument (_standard_mridangam ++ strokes)
-            Mridangam.default_patterns
+        Mridangam.instrument strokes Mridangam.default_patterns
     }
 
 make_kendang1 :: CallStack.Stack =>
