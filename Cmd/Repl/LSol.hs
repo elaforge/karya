@@ -9,7 +9,7 @@
 -- > return $ LSol.search $ LSol.has_instrument "kendang_tunggal"
 -- > return $ LSol.search $ LSol.around_date (LSol.date 2017 7 10) 10
 -- > 59: .... etc
--- > LSol.insert_k1 True 0 (LSol.korvais !! 59) 0
+-- > LSol.insert_k1 True 1 (LSol.korvais !! 59) 0
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Derive.Solkattu.Db
@@ -52,6 +52,13 @@ import qualified App.ReplProtocol as ReplProtocol
 import Global
 import Types
 
+
+-- * search
+
+search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
+search_date y m d days = return $ search $ around_date (date y m d) days
+
+-- * realize
 
 type Index = Int
 

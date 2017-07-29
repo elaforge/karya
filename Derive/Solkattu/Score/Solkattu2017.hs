@@ -398,7 +398,7 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
 
 -- trikalam
 c_17_07_13 :: Korvai
-c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ concat
+c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi (mridangam<>kendang) $ concat
     -- TODO when I can do branches, any dintaka can substitute
     -- purvangam (any dintakas) . utarangam (any dintakas)
     [ map purvangam dintakas
@@ -451,7 +451,6 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ concat
         , (na, [k])
 
         , (tat.tat.din, [on, on, od])
-
         , (din.tat.tat, [od, on, on])
         , (tat.tat, [on, on])
         , (tam, [v])
@@ -459,15 +458,37 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi mridangam $ concat
         , (1^(kita.taka), [k, t, o, k])
 
         -- dintakas
-        -- TODO I can use basic_dintaka when Seq is not polymorphic
-        -- , (basic_dintaka, [o, k, o, o, k, od])
-        , (1^(din.taka.din.taka), [o, k, o, o, k, o])
+        , (coerce basic_dintaka, [o, k, o, o, k, o])
         , (1^taka, [k, k])
         , (din, [o])
 
         , (1^takita, [k, o, o])
         , (dhom, [o])
         ]
+
+    kendang = make_kendang1
+        [ (ta, [p])
+        , (kita, [t, t])
+        , (taka, [p, a])
+        , (taka.din, [p, lt a, a])
+        , (din.na, [a, p])
+        , (na, [p])
+
+        , (tat.tat.din, [o, o, a])
+        , (din.tat.tat, [a, o, o])
+        , (tat.tat, [o, o])
+        , (tam, [u])
+
+        , (1^(kita.taka), [t, lt a, a, p])
+
+        -- dintakas
+        , (coerce basic_dintaka, [a, p, o, o, p, lt a])
+        , (1^taka, [p, p])
+        , (din, [a])
+
+        , (1^takita, [p, o, o])
+        , (dhom, [o])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_07_19 :: Korvai
 c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvai adi mridangam $

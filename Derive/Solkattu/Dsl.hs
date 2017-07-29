@@ -24,6 +24,7 @@ module Derive.Solkattu.Dsl (
     , module Derive.Solkattu.Notation
     , module Derive.Solkattu.Tala
     -- * mridangam
+    , coerce
     , stroke, (&)
     -- * misc
     , pprint
@@ -122,6 +123,11 @@ modify_single_note modify (n:ns) = case n of
 modify_single_note _ [] = errorStack "expected a single note, but got []"
 
 -- ** strokes
+
+-- | Throw away strokes to coerce between types.  This is useful to make
+-- a sollu sequence generic to put it in both the pattern and stroke map.
+coerce :: Sequence a -> Sequence b
+coerce = map (fmap (Solkattu.modify_stroke (const Nothing)))
 
 -- | Add a specific stroke annotation to a sollu.
 stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
