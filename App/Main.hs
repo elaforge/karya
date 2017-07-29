@@ -100,10 +100,11 @@ main = initialize $ \midi_interface repl_socket -> do
     -- Handy to filter debugging output.
     IO.hSetBuffering IO.stdout IO.LineBuffering
     Log.notice "app starting"
-    static_config <- Local.Config.load_static_config
+    (static_config, time) <- Log.format_time <$>
+        Log.time_eval (Local.Config.load_static_config)
     let loaded_msg = "loaded "
             <> showt (Inst.size (StaticConfig.instrument_db static_config))
-            <> " instruments"
+            <> " instruments, in " <> time
     Log.notice loaded_msg
     Text.IO.putStrLn loaded_msg
 

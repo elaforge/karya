@@ -21,7 +21,7 @@ enableEkg = False
 enableEventLog :: Bool
 enableEventLog = False
 
--- | If True, compile the im offline synthesizers and PlayCache VST-using from
+-- | If True, compile the im offline synthesizers and PlayCache VST from
 -- the Synth hierarchy.  This requires a number of hackage dependencies,
 -- including the VST SDK, which has to be downloaded separately.
 enableIm :: Bool
