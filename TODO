@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Floating input is not totally in the right place for negative events with
+    multiple lines.
+  - I'd like to use Ui.allocation lens for modification, but I need to be able
+    to put it in the monad.  Research once and for all how to do that with
+    either fclabels or van-laarhoven lenses.
   - k '-21-21-21-21-12-' infers with 1 below the pitch.  It should be
     . 43-43-43-43-434- 3-43-43-43-434-3
       1-21-21-21-21-12 -12-12-12-12-1-21
@@ -17,6 +22,7 @@ UNSORTED
       . 2-32-32-32-3232- 32-32-32-32-323-
         21-21-21-21-2-21 6-16-16-16-16-612
     . I can get it work, but it takes a lot of thinking.
+
   - upgrade to ghc 8.2
     . Can't yet, because ekg and conduit-audio have base <4.10
     . 8.0.2 compile time:
@@ -43,7 +49,7 @@ UNSORTED
       called before the window is updated.
     . update_track_signals comes from DeriveComplete.
     . What's the integrate sequence?
-			. set_track_title ((vid "untitled/b1.v1"), 2, ">pno | <")
+      . set_track_title ((vid "untitled/b1.v1"), 2, ">pno | <")
       . === rendering
         [ ((vid "untitled/b1.v1"),(tid "untitled/b1.t1"),1,True)
         , ((vid "untitled/b1.v1"),(tid "untitled/b1.t2"),2,True)
@@ -376,10 +382,12 @@ UNSORTED
   - Legong scale umbang and isep is too close.
     . Maybe something wrong with how I retuned the sc gamelan samples.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
+    . This would get back the documentation I lost when I got rid of
+      VInstrument.
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
       with information about the pitch.
-  - entering negative events is awkward
+  * entering negative events is awkward
     . If I enter a long note and shorten it, I lose the pitch?
     . I think I lose the pitch when I enter a positive note afterwards, or
       delete one.
@@ -1542,22 +1550,24 @@ fltk:
       c++, like I do with the signals.  I think I need to do that anyway for
       OpenGL, and that way I don't have to play with getting event ranges,
       I can just scan the whole range on every draw.
-  - text drawing is pretty messed up with negative events and lots of wrapping
+  - Maybe I could ship over a chunk of playback data in advance, and let the
+    UI interpolate playback cursors.
+  * text drawing is pretty messed up with negative events and lots of wrapping
     . I think negative + positive with lots of wrapping makes both disappear
     * Each succesive word wrap bumps down by a pixel.
       59, 70 - each one is 10 tall, but y is +1.
   * save/bug/align-right: right side text redraws inconsistently
     . abcd 0123
     . When it draws:
-			fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
+      fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
       fltk/EventTrack.cc:853 TextBox Left
           'abcd' Rect(28, 56, 27, 10)
       fltk/EventTrack.cc:853 TextBox Right
           '0123' Rect(42, 56, 27, 10)
-			fltk/EventTrack.cc:927 event_line (0123, Rect(42, 56, 27, 10)) pixels: 0
-			fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 20
-			fltk/EventTrack.cc:1104 POSITIVE: Rect(42, 56, 27, 10): 0123 left 20 - 10
-			0------------
+      fltk/EventTrack.cc:927 event_line (0123, Rect(42, 56, 27, 10)) pixels: 0
+      fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 20
+      fltk/EventTrack.cc:1104 POSITIVE: Rect(42, 56, 27, 10): 0123 left 20 - 10
+      0------------
 
     . When it doesn't draw:
       fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
@@ -1566,7 +1576,6 @@ fltk:
       fltk/EventTrack.cc:954 intersect: Rect(28, 56, 27, 10) with Rect(34, 56, 29, 10) (0123)
       fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 0
       0------------
-
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
     . Can fltk even do this?  I can't even figure out what xprop should show
@@ -1578,7 +1587,7 @@ fltk:
       or the first note track.
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
-    . I'd need to pass a haskell callback.  Worth it?
+    . I'd need to pass a haskell callback, so it can serialize to JSON.
   - negative event text is pushed downwards the more it wraps
     . Probably that padding pixel making it not line up.
     . All these padding tweaks are a real mess.  Can I get rid of them and
@@ -2098,7 +2107,15 @@ Derive:
           in Solkattu.
           . Keeping the strokes separate emphasizes instrument independence,
             but on the other hand, numbers are harder to read than strokes.
+          . Wait, except MridangamScore uses it.
+          . What if I generalize on _sollu instead of _stroke?
+          . Wait, didn't I already try this and it didn't work out?
+            It broke cancel_karvai... but I don't see how.  Maybe this was
+            before I split off into Solkattu.NoteT?
+          . Try again.
         - LSol.insert_* doesn't clear and replace existing notes
+        - LSol.insert_* at non-zero start puts durations on all notes
+        - I want to be able to insert all parts of a korvai in sequence.
         - insert for patterns is messed up, I get p '5' with 0 dur.
           . '5' is because I use Expr Text, and it uses ShowVal, which loses
             the type, so everything becomes a Str.
@@ -2555,6 +2572,7 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    - It doesn't emit signal discontinuities correctly.
     . Get rid of gamakam1-4:
       * Convert gamakam4 to gamakam5 and make sure they sound right.
         . LState.ky add import india.gamakam5
@@ -2601,6 +2619,7 @@ Derive:
     - I think Gamakam4 doesn't test next event pitch, e.g.
       Gamakam3_test.test_sequence on '!!-v-'
     dyn:
+      - I think T is messed up, it seems to not know it's 0 dur.
       - Add support for '_' and, why not, '.'.
     - '.' call on the note messes up gamakam
     - 'v' for next pitch is wrong when the next pitch isn't on a note start
@@ -2628,7 +2647,7 @@ Derive:
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
   control functions:
-    I'm unhappy with control functions in general
+    I'm unhappy with control functions in general - NOTE [fix-control-functions]
       . More details in BaseTypes NOTE [control-function]
       . They duplicate Deriver but can't use it
       . they add another layer on top of controls that you have to take into
@@ -2787,7 +2806,7 @@ Util.Format:
   - lazy implementation?
 
 Instrument DB / browser:
-  - Fl_Help_View supports limited HTML, use it to display formatted help
+  - Fl_Help_View supports limited HTML, use it to display formatted text
   - browser has lots of empty space on the bottom
   - z1/virus-bass has UnknownMessage for initialization?
   - patch files could go in the Local/Instrument dir with the source?
@@ -2901,6 +2920,8 @@ tracklang problems
   Solutions?
     . Theoretically lilypond could give the advantages of staff notation for
       reading only, but it's too slow for realtime update.
+    . http://www.verovio.org/index.xhtml is a fast staff engraver.
+    . Then I'd need a lightweight svg viewer, or svg display widget.
     . So as an extreme solution I could have a high speed staff display
       of the current surroundings.  Of course all this only helps with
       reading, not writing.
