@@ -346,8 +346,7 @@ type_error argnum name expected received =
 
 -- * util
 
-val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
-    Derive.CallName -> Tags.Tags -> Doc.Doc
+val_call :: Typecheck.ToVal a => Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude

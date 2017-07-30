@@ -317,7 +317,7 @@ class (Applicative.Applicative m, Monad m) => M m where
     get_updates :: m [Update.CmdUpdate]
     throw_error :: Error -> m a
 
-instance (Applicative.Applicative m, Monad m) => M (StateT m) where
+instance Monad m => M (StateT m) where
     get = StateT State.get
     unsafe_put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)

@@ -508,10 +508,18 @@ data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
 ghcWarnings :: Mode -> [String]
 ghcWarnings mode =
-    "-W" : map ("-fwarn-"++) (words warns) ++ map ("-fno-warn-"++) noWarns
+    "-W" : map ("-fwarn-"++) warns ++ map ("-fno-warn-"++) noWarns
     where
-    warns = "identities tabs incomplete-record-updates missing-fields\
-        \ unused-matches wrong-do-bind"
+    warns =
+        [ "identities"
+        , "tabs"
+        , "incomplete-record-updates"
+        , "missing-fields"
+        , "unused-matches"
+        , "wrong-do-bind"
+        -- The 8.2.1 docs claim it's on by default, but it's not.
+        , "redundant-constraints"
+        ]
     noWarns =
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
@@ -645,7 +653,7 @@ main = do
     modeConfig <- configure (midiFromEnv env)
     writeGhciFlags modeConfig
     makeDataLinks
-    Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
+    Shake.shakeArgsWith defaultOptions [] $ \_flags targets ->return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
         when Config.enableIm faustRules

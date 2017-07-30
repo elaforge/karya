@@ -116,7 +116,7 @@ add_flag module_ name doc flags =
 
 -- * val calls
 
-constant_val :: (Typecheck.Typecheck a, Typecheck.ToVal a, ShowVal.ShowVal a) =>
+constant_val :: (Typecheck.ToVal a, ShowVal.ShowVal a) =>
     Module.Module -> Derive.CallName -> Doc.Doc -> a -> Derive.ValCall
 constant_val module_ name doc val = Derive.val_call module_  name mempty
     (TextUtil.joinWith "\n" doc ("Constant: " <> ShowVal.doc val)) $

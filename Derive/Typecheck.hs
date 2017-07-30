@@ -217,7 +217,7 @@ instance ToVal a => ToVal (Maybe a) where
     to_val = maybe VNotGiven to_val
 
 -- | Non-lists are coerced into singleton lists.
-instance (Typecheck a, ToVal a) => Typecheck [a] where
+instance Typecheck a => Typecheck [a] where
     from_val (VList xs) = check xs
         where
         check [] = Val (Just [])

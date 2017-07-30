@@ -291,7 +291,7 @@ instance Monad m => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
 -- | And to the UI state operations.
-instance (Functor m, Monad m) => Ui.M (CmdT m) where
+instance Monad m => Ui.M (CmdT m) where
     get = CmdT Ui.get
     unsafe_put st = CmdT (Ui.unsafe_put st)
     update upd = CmdT (Ui.update upd)

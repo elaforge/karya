@@ -45,7 +45,7 @@ is_set name (Environ env) = Map.member name env
 -- inconsistent with types will just lead to confusion.
 --
 -- 'BaseTypes.VNotGiven' is another special case, it deletes the given key.
-put_val :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Key -> a -> Environ
+put_val :: Typecheck.ToVal a => Key -> a -> Environ
     -> Either ValType.Type Environ
 put_val name val environ
     | BaseTypes.VNotGiven <- new_val = Right $ delete name environ
@@ -61,8 +61,7 @@ put_val name val environ
     where new_val = Typecheck.to_val val
 
 -- | Like 'put_val', but format the error msg.
-put_val_error :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Key -> a
-    -> Environ -> Either Text Environ
+put_val_error :: Typecheck.ToVal a => Key -> a -> Environ -> Either Text Environ
 put_val_error name val = first fmt . put_val name val
     where
     fmt typ = "can't set " <> pretty name <> " to "
@@ -70,8 +69,7 @@ put_val_error name val = first fmt . put_val name val
         <> pretty typ
 
 -- | Insert a val without typechecking.
-insert_val :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Key -> a
-    -> Environ -> Environ
+insert_val :: Typecheck.ToVal a => Key -> a -> Environ -> Environ
 insert_val name = insert name . Typecheck.to_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing

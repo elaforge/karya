@@ -64,10 +64,10 @@ merge_sorted ((s1, e1) : (s2, e2) : rest)
     | e1 >= s2 = merge_sorted ((s1, e2) : rest)
     | otherwise = (s1, e1) : merge_sorted ((s2, e2) : rest)
 
-range :: Ord n => n -> n -> Ranges n
+range :: n -> n -> Ranges n
 range s e = Ranges [(s, e)]
 
-point :: Ord n => n -> Ranges n
+point :: n -> Ranges n
 point p = range p p
 
 everything :: Ranges n

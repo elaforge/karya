@@ -387,16 +387,15 @@ check_pitches base pitches = do
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.
-fit_grace_durs :: (Show a, Fractional a, Ord a) => a -> Maybe a -> a -> a
-    -> Int -> a -> [(a, a)]
+fit_grace_durs :: (Fractional a, Ord a) => a -> Maybe a -> a -> a -> Int -> a
+    -> [(a, a)]
 fit_grace_durs place prev start end notes dur =
     map add_dur $ Seq.zip_next $ fit_grace place prev start end notes dur
     where
     add_dur (x, Nothing) = (x, end - x)
     add_dur (x, Just next) = (x, next - x)
 
-fit_grace :: (Show a, Fractional a, Ord a) => a
-    -- ^ placement, 'grace_place_doc'
+fit_grace :: (Fractional a, Ord a) => a -- ^ placement, 'grace_place_doc'
     -> Maybe a -> a -> a -> Int -> a -> [a]
 fit_grace place maybe_prev start end notes dur
     | place <= 0 = before

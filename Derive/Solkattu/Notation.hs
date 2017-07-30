@@ -141,7 +141,7 @@ takeM matras = takeD (fromIntegral matras * matra_duration)
 rtakeM :: Matra -> Sequence stroke -> Sequence stroke
 rtakeM matras = reverse . takeM matras . reverse
 
-matrasOf :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Matra
+matrasOf :: CallStack.Stack => Sequence stroke -> Matra
 matrasOf = Solkattu.check . matrasOfE
 
 -- | Get the number of sollu-matras.  Whether or not this corresponds to
@@ -233,13 +233,13 @@ reduce3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 
 -- | 'reduceToL', except mconcat the result.
-reduceTo :: (CallStack.Stack, Pretty stroke) => Matra -> Matra
-    -> Sequence stroke -> Sequence stroke
+reduceTo :: CallStack.Stack => Matra -> Matra -> Sequence stroke
+    -> Sequence stroke
 reduceTo to by = mconcat . reduceToL to by
 
 -- | Reduce by a duration until a final duration.
-reduceToL :: (CallStack.Stack, Pretty stroke) => Matra -> Matra
-    -> Sequence stroke -> [Sequence stroke]
+reduceToL :: CallStack.Stack => Matra -> Matra -> Sequence stroke
+    -> [Sequence stroke]
 reduceToL to by seq
     | (matrasOf seq - to) `mod` by /= 0 =
         errorStack $ showt (matrasOf seq) <> " can't reduce by "

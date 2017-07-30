@@ -100,8 +100,8 @@ eval_generator ctx (Expr.Call sym args) = do
 
 -- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
-apply_generator :: Derive.Callable d => Derive.Context d
-    -> Derive.Generator d -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
+apply_generator :: Derive.Context d -> Derive.Generator d -> [BaseTypes.Val]
+    -> Derive.Deriver (Stream.Stream d)
 apply_generator ctx call args = do
     let passed = Derive.PassedArgs
             { Derive.passed_vals = args
@@ -170,8 +170,7 @@ eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
 -- but apply only one, and apply to already evaluated 'BaseTypes.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
-apply_transformer :: Derive.Callable d => Derive.Context d
-    -> Derive.Transformer d -> [BaseTypes.Val]
+apply_transformer :: Derive.Context d -> Derive.Transformer d -> [BaseTypes.Val]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformer ctx call args deriver =
     Internal.with_stack_call (Derive.call_name call) $

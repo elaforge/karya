@@ -962,9 +962,8 @@ shift_control shift deriver = do
 -- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
 -- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
 -- a circular import with "Derive.BaseTypes".
-val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Module.Module
-    -> CallName -> Tags.Tags -> Doc.Doc
-    -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
+val_call :: Typecheck.ToVal a => Module.Module -> CallName -> Tags.Tags
+    -> Doc.Doc -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call module_ name tags doc (call, arg_docs) =
     make_val_call module_ name tags doc (fmap Typecheck.to_val . call, arg_docs)
 

@@ -132,24 +132,24 @@ type ToAbsolute key = key -> Degrees -> RelativePitch -> Pitch.Pitch
 type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
     -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
 
-sargam :: Show key => RelativeFormat key -> Format
+sargam :: RelativeFormat key -> Format
 sargam = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
-cipher :: Show key => Pitch.PitchClass -> RelativeFormat key -> Format
+cipher :: Pitch.PitchClass -> RelativeFormat key -> Format
 cipher pc_per_octave = make_relative_format pattern degrees
     where
     degrees = make_degrees ["-" <> showt pc | pc <- [1..pc_per_octave]]
     pattern = "-[1-" <> showt pc_per_octave <> "]"
 
-zh_cipher :: Show key => Pitch.PitchClass -> RelativeFormat key -> Format
+zh_cipher :: Pitch.PitchClass -> RelativeFormat key -> Format
 zh_cipher pc_per_octave =
     make_relative_format (make_pattern degrees) degrees
     where
     degrees = make_degrees $ take pc_per_octave ds
     ds = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 
-gongche :: Show key => RelativeFormat key -> Format
+gongche :: RelativeFormat key -> Format
 gongche = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
@@ -290,8 +290,7 @@ make_absolute_format_config config pattern degrees = Format
     }
 
 -- | Make a Format from a 'RelativeFormat'.
-make_relative_format :: Show key => Text -> Degrees -> RelativeFormat key
-    -> Format
+make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
 make_relative_format pattern degrees rel_fmt = Format
     { fmt_show = p_show
     , fmt_read = p_read

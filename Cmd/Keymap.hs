@@ -73,8 +73,7 @@ bind_key :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m () -> [Binding m]
 bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
 -- | Bind a key with a Cmd that returns Status.
-bind_key_status :: Cmd.M m => [SimpleMod] -> Key.Key -> Text
-    -> m Cmd.Status -> [Binding m]
+bind_key_status :: [SimpleMod] -> Key.Key -> Text -> m Cmd.Status -> [Binding m]
 bind_key_status smods key desc cmd =
     bind_status smods (Key False key) desc (const cmd)
 
@@ -110,8 +109,8 @@ bind smods bindable desc cmd =
 -- modifiers, and don't assume the cmd returns Done.
 --
 -- A capital letter is shorthand for Shift + Char.toLower c.
-bind_status :: Cmd.M m => [SimpleMod] -> Bindable -> Text
-    -> (Msg.Msg -> m Cmd.Status) -> [Binding m]
+bind_status :: [SimpleMod] -> Bindable -> Text -> (Msg.Msg -> m Cmd.Status)
+    -> [Binding m]
 bind_status smods_ bindable_ desc cmd =
     [ (key_spec mods bind, cspec desc cmd)
     | bind <- expand_bindable bindable
@@ -151,7 +150,7 @@ expand_mods bindable smods
 
 -- | Create a CmdMap for efficient lookup and return warnings encountered
 -- during construction.
-make_cmd_map :: Monad m => [Binding m] -> (CmdMap m, [Text])
+make_cmd_map :: [Binding m] -> (CmdMap m, [Text])
 make_cmd_map bindings = (Map.fromList bindings, warns)
     where
     warns = map warn (overlaps bindings)

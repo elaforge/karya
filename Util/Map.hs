@@ -24,7 +24,7 @@ get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 soft_insert :: Ord k => k -> v -> Map.Map k v -> Map.Map k v
 soft_insert = Map.insertWith (flip const)
 
-filter_key :: Ord k => (k -> Bool) -> Map.Map k a -> Map.Map k a
+filter_key :: (k -> Bool) -> Map.Map k a -> Map.Map k a
 filter_key f = Map.filterWithKey (\k _ -> f k)
 
 delete_keys :: Ord k => [k] -> Map.Map k a -> Map.Map k a
@@ -58,7 +58,7 @@ lookup_below k m = case Map.splitLookup k m of
     (_, Just v, _) -> Just (k, v)
     (pre, _, _) -> max pre
 
-invert :: (Ord k, Ord a) => Map.Map k a -> Map.Map a k
+invert :: Ord a => Map.Map k a -> Map.Map a k
 invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 
 -- | TODO Would it be more efficient to do 'fromListWith (++)'?

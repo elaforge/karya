@@ -40,7 +40,7 @@ control_calls = poly_calls
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = poly_calls
 
-poly_calls :: (Derive.Callable d, Derive.Taggable d) => Derive.CallMaps d
+poly_calls :: Derive.Callable d => Derive.CallMaps d
 poly_calls = Derive.call_maps
     [ ("if-e", c_if_e)
     , ("if-c<", c_if_c (<))
@@ -54,7 +54,7 @@ poly_calls = Derive.call_maps
 
 -- * generator
 
-c_if_e :: (Derive.Callable d, Derive.Taggable d) => Derive.Generator d
+c_if_e :: Derive.Callable d => Derive.Generator d
 c_if_e = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
