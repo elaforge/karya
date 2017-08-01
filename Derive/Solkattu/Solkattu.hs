@@ -59,7 +59,7 @@
     \"Sequence\" is an alias for a list of those, but is abstractly the monoid
     where you can put together notation to form a score.
 -}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
 module Derive.Solkattu.Solkattu where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -76,19 +76,19 @@ import Global
 
 type Error = Text
 
-data Note stroke =
-    Note (NoteT stroke)
+data Note sollu =
+    Note (NoteT sollu)
     | Space !Space
     | Pattern !Pattern
     | Alignment !Tala.Akshara
-    deriving (Eq, Ord, Show, Functor)
+    deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
 data Space = Rest | Sarva
     deriving (Eq, Ord, Show)
 
-instance Pretty stroke => Pretty (Note stroke) where
+instance Pretty sollu => Pretty (Note sollu) where
     pretty n = case n of
         Note note -> pretty note
         Space Rest -> "__"
@@ -96,48 +96,33 @@ instance Pretty stroke => Pretty (Note stroke) where
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
-data NoteT stroke = NoteT {
-    _sollu :: !Sollu
-    -- | If it's a karvai stroke, and it's followed by a rest, it will replace
+data NoteT sollu = NoteT {
+    _sollu :: !sollu
+    -- | If it's a karvai sollu, and it's followed by a rest, it will replace
     -- the rest.  Otherwise, it will be replaced by a note.
     , _karvai :: !Bool
-    , _stroke :: !(Maybe stroke)
     -- | Tag a sequence for alternate realization.
     , _tag :: !(Maybe Tag)
-    } deriving (Eq, Ord, Show, Functor)
+    } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | A sollu can have a tag attached.  This is used to map certain sets of
 -- sollus to a different realization.  The idea is that even though the sollus
 -- are the same, they may be realized different ways in different contexts.
 type Tag = Int
 
-note :: Sollu -> Maybe stroke -> NoteT stroke
-note sollu stroke =
-    NoteT { _sollu = sollu, _karvai = False, _stroke = stroke, _tag = Nothing }
+note :: sollu -> NoteT sollu
+note sollu = NoteT { _sollu = sollu, _karvai = False, _tag = Nothing }
 
-instance Pretty stroke => Pretty (NoteT stroke) where
-    pretty (NoteT sollu karvai stroke tag) = mconcat $ case (sollu, stroke) of
-        (NoSollu, Just stroke) ->
-            [ pretty_tag tag
-            , pretty stroke
-            , pretty_karvai karvai
-            ]
-        _ ->
-            [ pretty_tag tag
-            , pretty sollu
-            , pretty_karvai karvai
-            , maybe "" (("!"<>) . pretty) stroke
-            ]
+instance Pretty sollu => Pretty (NoteT sollu) where
+    pretty (NoteT sollu karvai tag) = mconcat
+        [ pretty_tag tag
+        , pretty sollu
+        , pretty_karvai karvai
+        ]
         where
         pretty_karvai k = if k then "(k)" else ""
         pretty_tag = maybe "" ((<>"^") . showt)
 
-modify_stroke :: (Maybe a -> Maybe b) -> Note a -> Note b
-modify_stroke f = modify_note (\n -> n { _stroke = f (_stroke n) })
-    -- I'd rather use the the Functor instance, but putting the Maybe in the
-    -- type parameter would also be annoying.
-
--- TODO if I make NoteT the parameter, then this is fmap
 modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
 modify_note f n = case n of
     Note note -> Note (f note)
@@ -145,7 +130,7 @@ modify_note f n = case n of
     Pattern p -> Pattern p
     Alignment n -> Alignment n
 
-instance S.HasMatras (Note stroke) where
+instance S.HasMatras (Note sollu) where
     matras_of n = case n of
         -- Karvai notes are cancelled out, so they logically have 0 duration.
         Note note -> if _karvai note then 0 else 1
@@ -206,7 +191,7 @@ instance Pretty Sollu where
 
 -- * durations
 
-duration_of :: [S.Note (Note stroke)] -> S.Duration
+duration_of :: [S.Note (Note sollu)] -> S.Duration
 duration_of = sum . map (S.note_duration S.default_tempo)
 
 -- * functions
@@ -215,7 +200,7 @@ duration_of = sum . map (S.note_duration S.default_tempo)
 -- a Note or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
 -- logically has no duration, if it's the last note it will be dropped
 -- entirely.
-cancel_karvai :: [(a, Note stroke)] -> [(a, Note stroke)]
+cancel_karvai :: [(a, Note sollu)] -> [(a, Note sollu)]
 cancel_karvai = go
     where
     go ((a, Note note) : notes)
@@ -225,7 +210,7 @@ cancel_karvai = go
     go (n:ns) = n : go ns
     go [] = []
 
-drop_next_rest :: [(a, Note stroke)] -> (Bool, [(a, Note stroke)])
+drop_next_rest :: [(a, Note sollu)] -> (Bool, [(a, Note sollu)])
 drop_next_rest (n : ns) = case snd n of
     Space Rest -> (True, ns)
     Space Sarva -> (False, n:ns)
@@ -236,9 +221,8 @@ drop_next_rest [] = (False, [])
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verify_alignment :: Pretty stroke =>
-    Tala.Tala -> [(S.Tempo, Note stroke)]
-    -> ([(S.Tempo, Note stroke)], Maybe Error)
+verify_alignment :: Tala.Tala -> [(S.Tempo, Note sollu)]
+    -> ([(S.Tempo, Note sollu)], Maybe Error)
     -- ^ If there's an error, still return the elemnts leading up to it.
 verify_alignment tala notes =
     first (map (first S.state_tempo)) $ S.right_until_left $
@@ -281,7 +265,7 @@ type Variations = [(S.Matra, S.Matra, S.Matra)]
 -- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
 -- orthogonal and could get a different function.
 vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
-    -> [S.Note (Note stroke)] -> [[S.Note (Note stroke)]]
+    -> [S.Note (Note sollu)] -> [[S.Note (Note sollu)]]
 vary allowed_variations notes
     | null modification_groups = [notes]
     | otherwise = map apply modification_groups
@@ -317,7 +301,7 @@ all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-find_triads :: [S.Note (Note stroke)] -> [(S.Matra, (Int, Int, Int))]
+find_triads :: [S.Note (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
 find_triads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst

@@ -133,7 +133,8 @@ add steps s = s { _pitch = Pitch.add_pc 7 steps (_pitch s) }
 
 -- * instrument
 
-instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
+instrument ::
+    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument (Realize.simple_stroke_map [])
 

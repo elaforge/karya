@@ -28,8 +28,7 @@ import Global
 
 
 test_realize = do
-    let f = second show_strokes . Realize.realize smap
-            . map (Sequence.default_tempo,)
+    let f = second (Text.unwords . map pretty) . realize smap
         smap = Realize.simple_stroke_map
             [ ([Ta, Din], map Just [k, od])
             , ([Na, Din], map Just [n, od])
@@ -49,16 +48,8 @@ test_realize = do
     equal (f [sollu Din, rest, sollu Ga]) (Right "D _ _")
     left_like (f [sollu Din, sollu Din]) "sequence not found"
 
-    let chapu = Just (Realize.stroke $ M.Valantalai M.AraiChapu)
-    let set_chapu = Solkattu.modify_stroke (const chapu)
-    -- An explicit stroke will replace just that stroke.
-    equal (f [sollu Na, set_chapu (sollu Din)]) (Right "n u")
-    -- Not found is ok if it has an explicit stroke.
-    equal (f [set_chapu (sollu Tat)]) (Right "u")
-
 test_realize_emphasis = do
-    let f = second (map (fmap pretty . snd)) . Realize.realize smap
-            . map (Sequence.default_tempo,)
+    let f = second (map (fmap pretty)) . realize smap
         smap = expect_right $
             Realize.stroke_map [(ta <> di, [Dsl.hv k, Dsl.lt t])]
             where M.Strokes {..} = M.notes
@@ -68,22 +59,20 @@ test_realize_emphasis = do
         ]
 
 test_realize_tag = do
-    let smap = expect_right $ Realize.stroke_map
+    let f = second show_strokes . realize_s smap
+        smap = expect_right $ Realize.stroke_map
             [ (ta <> ta, [p, p])
             , (ta, [k])
             , (1^ta, [t])
-            ]
-        M.Strokes {..} = M.notes
-    let f = second show_strokes . Realize.realize smap
-            . Sequence.flatten
+            ] where M.Strokes {..} = M.notes
     equal (f ta) (Right "k")
     equal (f (ta <> ta)) (Right "p p")
     -- Having a tag is more important than a longer match.
     equal (f (1^ta <> ta)) (Right "t k")
     equal (f (2^ta)) (Right "k")
 
-sollu :: Sollu -> Note stroke
-sollu s = Solkattu.Note (Solkattu.note s Nothing)
+sollu :: Sollu -> Note Sollu
+sollu s = Solkattu.Note (Solkattu.note s)
 
 pattern :: Sequence.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.PatternM
@@ -92,17 +81,19 @@ rpattern :: Sequence.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
 test_realize_patterns = do
-    let f pmap = second (Text.unwords . map (pretty . snd)) . realize pmap
-        realize pmap = Realize.realize mempty
-            <=< Realize.realize_patterns pmap
+    let f pmap =
+            Realize.realize (Realize.realize_pattern pmap)
+                (Realize.realize_sollu stroke_map)
             . map (Sequence.default_tempo,)
-    equal (f (M.families567 !! 0) [pattern 5]) (Right "k t k n o")
-    equal (f (M.families567 !! 1) [pattern 5]) (Right "k _ t _ k _ k t o _")
+    equal (show_strokes <$> f (M.families567 !! 0) [pattern 5])
+        (Right "k t k n o")
+    equal (show_strokes <$> f (M.families567 !! 1) [pattern 5])
+        (Right "k _ t _ k _ k t o _")
     left_like (f (M.families567 !! 0) [pattern 3]) "no pattern for p3"
 
-    let p = expect_right $ realize (M.families567 !! 1) [pattern 5]
+    let p = expect_right $ f (M.families567 !! 1) [pattern 5]
     equal (e_format $ format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
-    -- TODO when format is ok with 1 width it should be "k t k kto "
+    equal (e_format $ format 15 Tala.adi_tala p) "K t k kto"
 
 test_patterns = do
     let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
@@ -160,7 +151,7 @@ tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
 test_format_ruler = do
     let run = fmap (first (capitalize_emphasis . format 80 tala4))
-            . realize False tala4
+            . k_realize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equal_t (run (tas 2 8)) $ Right
         ( "X   O   X   O   |\n\
@@ -200,7 +191,7 @@ equal_t = equal_fmt (either id fst)
 test_format_lines = do
     let f stroke_width width tala =
             fmap (extract . Realize.format_lines stroke_width width tala . fst)
-            . realize False tala
+            . k_realize False tala
         extract = map (map (Text.strip . mconcat . map snd))
     let tas n = Dsl.repeat n ta
 
@@ -235,7 +226,7 @@ test_format_lines = do
 
 test_format_break_lines = do
     let run width = fmap (capitalize_emphasis . format width tala4 . fst)
-            . realize False tala4
+            . k_realize False tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
         "X       O       X       O       |\n\
@@ -248,7 +239,7 @@ test_format_break_lines = do
 test_format_nadai_change = do
     let f tala realize_patterns =
             fmap (first (capitalize_emphasis . format 50 tala))
-            . realize realize_patterns tala
+            . k_realize realize_patterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
@@ -265,7 +256,7 @@ test_format_nadai_change = do
 
 test_format_speed = do
     let f width = fmap (e_format . format width Tala.rupaka_fast)
-            . Realize.realize stroke_map . Sequence.flatten
+            . realize_s stroke_map
         thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
@@ -283,9 +274,22 @@ test_format_speed = do
 
 -- * util
 
-realize :: Bool -> Tala.Tala -> Korvai.Sequence
+realize_s :: Pretty stroke => Realize.StrokeMap stroke
+    -> [Sequence.Note (Note Sollu)]
+    -> Either Text [(Sequence.Tempo, Realize.Note stroke)]
+realize_s smap =
+    Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
+    . Sequence.flatten
+
+realize :: Pretty stroke => Realize.StrokeMap stroke
+    -> [Note Sollu] -> Either Text [Realize.Note stroke]
+realize smap = fmap (map snd)
+    . Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
+    . map ((),)
+
+k_realize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([(Sequence.Tempo, Realize.Note M.Stroke)], Text)
-realize realize_patterns tala =
+k_realize realize_patterns tala =
     head . Korvai.realize Korvai.mridangam realize_patterns
     . Korvai.korvai tala mridangam
     . (:[])

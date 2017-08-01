@@ -27,26 +27,25 @@ import qualified Derive.Solkattu.Tala as Tala
 Mridangam.Strokes {..} = Mridangam.notes
 
 
-type Sequence = Seq Korvai.Stroke
-type Seq stroke = [Sequence.Note (Solkattu.Note stroke)]
+type Sequence = [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
 
 -- * fragments
 
-tdgnt, td_gnt, t_d_gnt :: Seq stroke
+tdgnt, td_gnt, t_d_gnt :: Sequence
 tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
 
-takadinna :: Seq stroke
+takadinna :: Sequence
 takadinna = ta.ka.din.na
 
-takita :: Seq stroke
+takita :: Sequence
 takita = ta.ki.ta
 
-kita :: Seq stroke
+kita :: Sequence
 kita = ki.ta
 
-taka :: Seq stroke
+taka :: Sequence
 taka = ta.ka
 
 on :: Mridangam.SNote
@@ -54,33 +53,33 @@ on = o & n
 
 -- * instruments
 
-type MStrokes = [(Seq Mridangam.Stroke, [Mridangam.SNote])]
+type StrokeMap stroke = [(Sequence, [Sequence.Note (Realize.Note stroke)])]
 
-make_mridangam :: CallStack.Stack => MStrokes -> Korvai.StrokeMaps
+make_mridangam :: CallStack.Stack => StrokeMap Mridangam.Stroke
+    -> Korvai.StrokeMaps
 make_mridangam strokes = make_mridangam0 (_standard_mridangam ++ strokes)
 
-make_mridangam0 :: CallStack.Stack => MStrokes -> Korvai.StrokeMaps
+make_mridangam0 :: CallStack.Stack => StrokeMap Mridangam.Stroke
+    -> Korvai.StrokeMaps
 make_mridangam0 strokes = mempty
     { Korvai.inst_mridangam = check $
         Mridangam.instrument strokes Mridangam.default_patterns
     }
 
-make_kendang1 :: CallStack.Stack =>
-    [(Seq KendangTunggal.Stroke, [KendangTunggal.SNote])]
+make_kendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
     -> Korvai.StrokeMaps
 make_kendang1 strokes = mempty
     { Korvai.inst_kendang_tunggal = check $
         KendangTunggal.instrument strokes KendangTunggal.default_patterns
     }
 
-make_reyong :: CallStack.Stack => [(Seq Reyong.Stroke, [Reyong.SNote])]
-    -> Korvai.StrokeMaps
+make_reyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 make_reyong strokes = mempty
     { Korvai.inst_reyong = check $
         Reyong.instrument strokes Reyong.rhythmic_patterns
     }
 
-make_sargam :: CallStack.Stack => [(Seq Sargam.Stroke, [Sargam.SNote])]
+make_sargam :: CallStack.Stack => StrokeMap Sargam.Stroke
     -> [(Solkattu.Pattern, [Realize.SNote Sargam.Stroke])]
     -> Korvai.StrokeMaps
 make_sargam strokes patterns = mempty
@@ -88,16 +87,14 @@ make_sargam strokes patterns = mempty
         Sargam.instrument strokes (check $ Realize.patterns patterns)
     }
 
-korvai1 :: CallStack.Stack => Tala.Tala -> Korvai.StrokeMaps -> Sequence
-    -> Korvai
+korvai1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvai1 tala inst seq = Korvai.korvai tala inst [seq]
 
-korvai :: CallStack.Stack => Tala.Tala -> Korvai.StrokeMaps -> [Sequence]
-    -> Korvai
+korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
 korvai = Korvai.korvai
 
 -- | 'make_mridangam' gives this to all mridangam stroke maps.
-_standard_mridangam :: [(Seq stroke, [Mridangam.SNote])]
+_standard_mridangam :: [(Sequence, [Mridangam.SNote])]
 _standard_mridangam =
     [ (takadinna, [k, o, o, k])
     , (tdgnt, [k, t, k, n, o])
@@ -105,5 +102,5 @@ _standard_mridangam =
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
-vary :: Korvai -> Korvai
-vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])
+-- vary :: Korvai -> Korvai
+-- vary = Korvai.vary $ Solkattu.vary (Solkattu.variations [Solkattu.standard])

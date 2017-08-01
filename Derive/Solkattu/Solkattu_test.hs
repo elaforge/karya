@@ -61,15 +61,14 @@ test_verify_alignment_nadai_change = do
     equal (f (sequence Dsl.p7)) []
 
 test_cancel_karvai = do
-    let f :: [Sequence.Note (Solkattu.Note ())] -> Text
-        f = Text.unwords . map (pretty . snd) . Solkattu.cancel_karvai
+    let f = Text.unwords . map (pretty . snd) . Solkattu.cancel_karvai
             . Sequence.flatten
     equal (f (ta <> thom)) "ta thom"
     equal (f (ta <> Dsl.karvai thom)) "ta"
     equal (f (ta <> Dsl.karvai thom <> __)) "ta thom"
     equal (f (ta <> Dsl.karvai thom <> di)) "ta di"
 
-verify_alignment :: Tala.Tala -> [Sequence.Note (Solkattu.Note ())]
+verify_alignment :: Tala.Tala -> [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
     -> [Text]
 verify_alignment tala =
     format . Solkattu.verify_alignment tala . Sequence.flatten
@@ -78,8 +77,7 @@ verify_alignment tala =
     format (_, Nothing) = []
 
 test_vary = do
-    let f (notes :: [Sequence.Note (Solkattu.Note ())]) =
-            map (Text.unwords . map pretty) $
+    let f notes = map (Text.unwords . map pretty) $
             Solkattu.vary
                 (Solkattu.variations [Solkattu.standard, Solkattu.ascending])
                 notes

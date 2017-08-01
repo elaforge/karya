@@ -16,10 +16,10 @@ import Derive.Solkattu.Solkattu (Sollu(..))
 import Global
 
 
-type Sequence stroke = [Sequence.Note (Solkattu.Note stroke)]
+type Sequence = [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
 
-sollu :: Solkattu.Sollu -> Sequence stroke
-sollu s = make_note (Solkattu.Note (Solkattu.note s Nothing))
+sollu :: Solkattu.Sollu -> Sequence
+sollu s = make_note (Solkattu.Note (Solkattu.note s))
 
 make_note :: a -> [Sequence.Note a]
 make_note a = [Sequence.Note a]
@@ -54,5 +54,5 @@ dinga = din <> __ <> ga
 tanga = tang <> __ <> ga
 langa = lang <> __ <> ga
 
-__ :: Sequence a
+__ :: Sequence
 __ = make_note (Solkattu.Space Solkattu.Rest)

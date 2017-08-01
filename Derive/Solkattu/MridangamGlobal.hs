@@ -6,19 +6,12 @@
 {- | This is analogous to "Derive.Solkattu.SolkattuGlobal", except it exports
     a mridangam-specific notation without using sollus at all.
 
-    It uses 'Solkattu.Solkattu' with 'Solkattu.NoSollu' and explicit strokes,
-    so it doesn't need a StrokeMap.
-
-    Originally I tried to generalize Solkattu to replace Sollu with a Stroke
-    directly, but then I can't do a cancel_karvai.  Then I tried to generalize
-    the Sollu part, but then I'd have to rewrite the functions in Korvai, and
-    the types are already kind of too complicated.  So now I use NoSollu,
-    with a hack in Pretty Solkattu to omit NoSollu when there is an explicit
-    stroke.  This way is simpler and almost as good.
+    Its sollu type is just 'Mridangam.Stroke', so it doesn't need a StrokeMap.
 -}
 module Derive.Solkattu.MridangamGlobal (
     Sequence
     , (&)
+    , realize, realizep, realize_m
     , korvai, korvai1
     , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l
@@ -28,7 +21,7 @@ module Derive.Solkattu.MridangamGlobal (
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Derive.Solkattu.Dsl hiding ((&), lt, hv)
+import Derive.Solkattu.Dsl hiding (realize, realizep, realize_m, (&), lt, hv)
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
@@ -45,8 +38,15 @@ type Stroke = Realize.Stroke Mridangam.Stroke
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
 (&) = merge
 
--- | Merge left and right hand strokes.  Both sequences must be the same length
--- and structure.
+realize, realizep :: Korvai -> IO ()
+realize = realize_m True
+realizep = realize_m False
+
+realize_m :: Bool -> Korvai -> IO ()
+realize_m = Korvai.print_instrument Korvai.mridangam_stroke
+
+-- | Merge a sequence of left hand strokes with one of right hand strokes.
+-- Both sequences must have the same length and structure.
 merge :: CallStack.Stack => Sequence -> Sequence -> Sequence
 merge as bs
     | not (null trailing) = errorStack $ "trailing strokes: " <> pretty trailing
@@ -67,29 +67,17 @@ merge as bs
 
 to_stroke1 :: (CallStack.Stack, Pretty a) =>
     Sequence.Note (Solkattu.Note a) -> a
-to_stroke1 (Sequence.Note
-    (Solkattu.Note (Solkattu.NoteT {_stroke = Just stroke }))) = stroke
+to_stroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
 to_stroke1 note = errorStack $ "expected sollu: " <> pretty note
 
 korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
-korvai tala sequences = Korvai.korvai tala
-    (mempty { Korvai.inst_mridangam = instrument })
-    (map convert sequences)
+korvai tala = Korvai.mridangam_korvai tala Mridangam.default_patterns
 
 korvai1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvai1 tala sequence = korvai tala [sequence]
 
-convert :: Sequence -> Korvai.Sequence
-convert = map (fmap (fmap Korvai.to_stroke))
-
-instrument :: Realize.Instrument Mridangam.Stroke
-instrument =
-    Solkattu.check $ Mridangam.instrument strokes Mridangam.default_patterns
-    where strokes = []
-
 make_note1 :: stroke -> Sequence.Note (Solkattu.Note stroke)
-make_note1 stroke = Sequence.Note $ Solkattu.Note $
-    Solkattu.note Solkattu.NoSollu (Just stroke)
+make_note1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke
 
 make_note :: Stroke -> Sequence
 make_note stroke = [make_note1 stroke]
@@ -112,14 +100,9 @@ closed = map_stroke $ \s -> case s of
 map_stroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
 map_stroke = fmap • fmap • fmap • fmap
 
-lt, hv :: CallStack.Stack => Sequence -> Sequence
+lt, hv :: Sequence -> Sequence
 lt = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
 hv = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
 modify_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
-modify_stroke modify
-    [n@(Sequence.Note (Solkattu.Note (Solkattu.NoteT { _stroke = Just _ })))] =
-        [fmap (fmap modify) n]
-    -- Actually just fmap would do this, but I want to crash if it doesn't
-    -- exist.
-modify_stroke _ ns = errorStack $ "expected a single note: " <> pretty ns
+modify_stroke modify = map (fmap (fmap modify))

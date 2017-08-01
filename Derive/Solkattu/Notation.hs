@@ -27,20 +27,20 @@ import Global
 -- Unlike everywhere else except some Utils, I use camelCase in here.  Since
 -- this is for a DSL, I try to save horizontal space.
 
-type Sequence stroke = [S.Note (Solkattu.Note stroke)]
+type Sequence sollu = [S.Note (Solkattu.Note sollu)]
 
 -- * rests
 
 class Rest a where __ :: a
-instance Rest (Sequence stroke) where
+instance Rest (Sequence sollu) where
     __ = [S.Note (Solkattu.Space Solkattu.Rest)]
-instance Rest (Realize.SNote stroke) where
+instance Rest (Realize.SNote sollu) where
     __ = Realize.rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
 -- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
-__2, __3, __4, __5, __6, __7, __8, __9 :: Sequence stroke
+__2, __3, __4, __5, __6, __7, __8, __9 :: Sequence sollu
 __2 = __
 __3 = __n 3
 __4 = __n 4
@@ -50,19 +50,19 @@ __7 = __n 7
 __8 = __n 8
 __9 = __n 9
 
-__n :: Matra -> Sequence stroke
+__n :: Matra -> Sequence sollu
 __n n = repeat (n-1) __
 
 -- * by Duration
 
-dropD :: CallStack.Stack => Duration -> Sequence stroke -> Sequence stroke
+dropD :: CallStack.Stack => Duration -> Sequence sollu -> Sequence sollu
 dropD dur = snd . splitD dur
 
-takeD :: CallStack.Stack => Duration -> Sequence stroke -> Sequence stroke
+takeD :: CallStack.Stack => Duration -> Sequence sollu -> Sequence sollu
 takeD dur = fst . splitD dur
 
-splitD :: CallStack.Stack => Duration -> Sequence stroke
-    -> (Sequence stroke, Sequence stroke)
+splitD :: CallStack.Stack => Duration -> Sequence sollu
+    -> (Sequence sollu, Sequence sollu)
 splitD dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
     where
     go _ _ [] = (0, ([], []))
@@ -88,18 +88,18 @@ splitD dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
         make_tempo [] = []
         make_tempo ns = [S.TempoChange change ns]
 
-rdropD :: Duration -> Sequence stroke -> Sequence stroke
+rdropD :: Duration -> Sequence sollu -> Sequence sollu
 rdropD dur = reverse . dropD dur . reverse
 
-rtakeD :: Duration -> Sequence stroke -> Sequence stroke
+rtakeD :: Duration -> Sequence sollu -> Sequence sollu
 rtakeD dur = reverse . takeD dur . reverse
 
-restD, sarvaD :: CallStack.Stack => Duration -> Sequence stroke
+restD, sarvaD :: CallStack.Stack => Duration -> Sequence sollu
 restD = spaceD Solkattu.Rest S.default_tempo
 sarvaD = spaceD Solkattu.Sarva S.default_tempo
 
 spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
-    -> Sequence stroke
+    -> Sequence sollu
 spaceD space tempo dur = concatMap generate $ decompose s0_matras
     where
     generate s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
@@ -129,19 +129,19 @@ reverse = map sub . Prelude.reverse
 -- * by Matra
 
 -- | Drop a number of matras from the Sequence.
-dropM :: Matra -> Sequence stroke -> Sequence stroke
+dropM :: Matra -> Sequence sollu -> Sequence sollu
 dropM matras = dropD (fromIntegral matras * matra_duration)
 
-rdropM :: Matra -> Sequence stroke -> Sequence stroke
+rdropM :: Matra -> Sequence sollu -> Sequence sollu
 rdropM matras = reverse . dropM matras . reverse
 
-takeM :: Matra -> Sequence stroke -> Sequence stroke
+takeM :: Matra -> Sequence sollu -> Sequence sollu
 takeM matras = takeD (fromIntegral matras * matra_duration)
 
-rtakeM :: Matra -> Sequence stroke -> Sequence stroke
+rtakeM :: Matra -> Sequence sollu -> Sequence sollu
 rtakeM matras = reverse . takeM matras . reverse
 
-matrasOf :: CallStack.Stack => Sequence stroke -> Matra
+matrasOf :: CallStack.Stack => Sequence sollu -> Matra
 matrasOf = Solkattu.check . matrasOfE
 
 -- | Get the number of sollu-matras.  Whether or not this corresponds to
@@ -164,20 +164,20 @@ matrasOfE = integral <=< justErr "nadai change" . of_sequence
 -- * structures
 
 -- | Repeat thrice, with no karvai.
-tri :: Sequence stroke -> Sequence stroke
+tri :: Sequence sollu -> Sequence sollu
 tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
-tri_ :: Sequence stroke -> Sequence stroke -> Sequence stroke
+tri_ :: Sequence sollu -> Sequence sollu -> Sequence sollu
 tri_ sep seq = join sep [seq, seq, seq]
 
 -- | Three different patterns with the same separator.
-trin :: Sequence stroke -> Sequence stroke -> Sequence stroke
-    -> Sequence stroke -> Sequence stroke
+trin :: Sequence sollu -> Sequence sollu -> Sequence sollu
+    -> Sequence sollu -> Sequence sollu
 trin sep a b c = join sep [a, b, c]
 
 -- | Tirmanams with a variant final repeat.
-tri2 :: Sequence stroke -> Sequence stroke -> Sequence stroke -> Sequence stroke
+tri2 :: Sequence sollu -> Sequence sollu -> Sequence sollu -> Sequence sollu
 tri2 sep ab c = join sep [ab, ab, c]
 
 -- * sequences
@@ -186,15 +186,15 @@ tri2 sep ab c = join sep [ab, ab, c]
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
-join :: Sequence stroke -> [Sequence stroke] -> Sequence stroke
+join :: Sequence sollu -> [Sequence sollu] -> Sequence sollu
 join = List.intercalate
 
 -- | Intersperse between each stroke.
-inter :: Sequence stroke -> Sequence stroke -> Sequence stroke
+inter :: Sequence sollu -> Sequence sollu -> Sequence sollu
 inter _ [] = []
 inter sep (x:xs) = x : sep ++ inter sep xs
 
-spread :: Matra -> Sequence stroke -> Sequence stroke
+spread :: Matra -> Sequence sollu -> Sequence sollu
 spread n = inter (__n n)
 
 cmap :: Monoid b => (a -> b) -> [a] -> b
@@ -229,17 +229,17 @@ accumulate = map mconcat . drop 1 . List.inits
 -- * combinators
 
 -- | Reduce three times, with a separator.
-reduce3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
+reduce3 :: Matra -> Sequence sollu -> Sequence sollu -> Sequence sollu
 reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
 
 -- | 'reduceToL', except mconcat the result.
-reduceTo :: CallStack.Stack => Matra -> Matra -> Sequence stroke
-    -> Sequence stroke
+reduceTo :: CallStack.Stack => Matra -> Matra -> Sequence sollu
+    -> Sequence sollu
 reduceTo to by = mconcat . reduceToL to by
 
 -- | Reduce by a duration until a final duration.
-reduceToL :: CallStack.Stack => Matra -> Matra -> Sequence stroke
-    -> [Sequence stroke]
+reduceToL :: CallStack.Stack => Matra -> Matra -> Sequence sollu
+    -> [Sequence sollu]
 reduceToL to by seq
     | (matrasOf seq - to) `mod` by /= 0 =
         errorStack $ showt (matrasOf seq) <> " can't reduce by "
@@ -247,37 +247,36 @@ reduceToL to by seq
     | otherwise = takeWhile ((>=to) . matrasOf) $ iterate (dropM by) seq
 
 -- | Reduce by dropping the end.
-reduceR :: Matra -> Sequence stroke -> [Sequence stroke]
+reduceR :: Matra -> Sequence sollu -> [Sequence sollu]
 reduceR n = iterate (rdropM n)
 
-reduceR3 :: Matra -> Sequence stroke -> Sequence stroke -> Sequence stroke
+reduceR3 :: Matra -> Sequence sollu -> Sequence sollu -> Sequence sollu
 reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
 
 -- | Start fully reduced, and expand n times by the given duration.
-expand :: Int -> Matra -> Sequence stroke -> [Sequence stroke]
+expand :: Int -> Matra -> Sequence sollu -> [Sequence sollu]
 expand times dur = Prelude.reverse . take times . iterate (dropM dur)
 
-replaceEnd :: CallStack.Stack => Sequence stroke -> Sequence stroke
-    -> Sequence stroke
+replaceEnd :: Sequence sollu -> Sequence sollu -> Sequence sollu
 replaceEnd seq suffix = rdropD (Solkattu.duration_of suffix) seq <> suffix
 
-replaceStart :: CallStack.Stack => Sequence stroke -> Sequence stroke
-    -> Sequence stroke
+replaceStart :: CallStack.Stack => Sequence sollu -> Sequence sollu
+    -> Sequence sollu
 replaceStart prefix seq = prefix <> dropD (Solkattu.duration_of prefix) seq
 
 -- | Set relative speed.
-speed :: S.Speed -> [S.Note stroke] -> [S.Note stroke]
+speed :: S.Speed -> [S.Note sollu] -> [S.Note sollu]
 speed _ [] = []
 speed change seq
     | change == 0 = seq
     | otherwise = [S.TempoChange (S.ChangeSpeed change) seq]
 
 -- | Mnemonic: speed up, slow down.
-su, sd :: [S.Note stroke] -> [S.Note stroke]
+su, sd :: [S.Note sollu] -> [S.Note sollu]
 su = speed 1
 sd = speed (-1)
 
-nadai :: Matra -> [S.Note stroke] -> [S.Note stroke]
+nadai :: Matra -> [S.Note sollu] -> [S.Note sollu]
 nadai _ [] = []
 nadai n seq = [S.TempoChange (S.Nadai n) seq]
 
@@ -291,21 +290,21 @@ matra_duration = S.matra_duration S.default_tempo
 --
 -- This should only be used at the top level, since it gets the timing wrong
 -- under a tempo change.
-__sam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
+__sam :: CallStack.Stack => Tala.Tala -> Sequence sollu -> Sequence sollu
 __sam tala seq = __a (next_sam tala seq) seq
 
-next_sam :: Tala.Tala -> Sequence stroke -> S.Duration
+next_sam :: Tala.Tala -> Sequence sollu -> S.Duration
 next_sam tala seq = fromIntegral $ Num.roundUp aksharas dur
     where
     dur = Solkattu.duration_of seq
     aksharas = sum (Tala.tala_aksharas tala)
 
 -- | Align to the end of the given number of aksharams.
-__a :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
+__a :: CallStack.Stack => S.Duration -> Sequence sollu -> Sequence sollu
 __a dur seq = replaceEnd (restD dur) seq
 
-sarvaSam :: CallStack.Stack => Tala.Tala -> Sequence stroke -> Sequence stroke
+sarvaSam :: CallStack.Stack => Tala.Tala -> Sequence sollu -> Sequence sollu
 sarvaSam tala seq = sarvaA (next_sam tala seq) seq
 
-sarvaA :: CallStack.Stack => S.Duration -> Sequence stroke -> Sequence stroke
+sarvaA :: CallStack.Stack => S.Duration -> Sequence sollu -> Sequence sollu
 sarvaA dur seq = replaceEnd (sarvaD dur) seq

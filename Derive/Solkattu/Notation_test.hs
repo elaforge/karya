@@ -15,7 +15,7 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-di, ta, ka, ki :: Notation.Sequence ()
+di, ta, ka, ki :: Notation.Sequence Solkattu.Sollu
 (di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
 
 test_matras_of = do

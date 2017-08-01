@@ -2,13 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE FlexibleInstances #-}
 -- | Realize to konnakol.  This is simpler than instruments since I just use
 -- the sollus directly, but I still need realizations for 'Patterns'.
 module Derive.Solkattu.Instrument.Konnakol where
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Sollu(..))
+
 import Global
 
 
@@ -43,3 +46,8 @@ patterns = Realize.patterns . map (second (map note)) . (default_nakatiku:)
 
 default_nakatiku :: (Solkattu.Pattern, [Sollu])
 default_nakatiku = (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
+
+instance Expr.ToExpr Sollu where
+    to_expr = Expr.generator0 . Expr.Symbol . pretty
+instance Expr.ToExpr (Realize.Stroke Sollu) where
+    to_expr = Realize.to_expr

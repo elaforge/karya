@@ -37,7 +37,8 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
+instrument ::
+    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 

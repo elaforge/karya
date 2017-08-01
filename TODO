@@ -2060,6 +2060,9 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
       solkattu:
+        - If I make tri_ put a special tag on the middle karvai, then I can
+          more easily do the (p6.u . p6.i . p6) pattern.  I'd want a name, not
+          a number.
         . Solkattu2017.c_17_07_13 is showing the difficulty of the
           (solkattu, stroke_map) approach, because there are too many meanings
           for taka and din.  Really if it's meant to be useful for different
@@ -2101,7 +2104,7 @@ Derive:
             okookook -> nakatiku.  This implies just a realization heuristic
             won't be enough, though maybe I want it anyway for things like
             dynamics.
-        - Maybe I don't need (!) anymore now that I have (^).  It would
+        * Maybe I don't need (!) anymore now that I have (^).  It would
           simplify things to get rid of it, because I don't need to have
           a polymorphic Seq anymore, and I can get rid of the stroke variable
           in Solkattu.
@@ -2113,6 +2116,26 @@ Derive:
             It broke cancel_karvai... but I don't see how.  Maybe this was
             before I split off into Solkattu.NoteT?
           . Try again.
+          . If Korvai takes only Sollus, it can't store a sequence with
+            Mridangam.Strokes.  Can I make Korvai polymorphic on sollu?
+          . Probably, but then I can't put them in the same db.  Since other
+            instrument realizations are dynamically typed, making
+            mridangam-only statically different doesn't seem to be a benefit.
+          It seems to be really hard to incorporate MridangamScore.
+            . Write separate realizes and then try to merge them.
+          * Get the tests to compile.
+          * Restore tags.
+          - Infer Korvai.mridangam vs. mridangam_strokes so I don't have to
+            pick the right one from LSol.
+            . This seems to be really hard.  I want to say if
+              sollu ~ Realize.Stroke stroke, then use realize_stroke, else
+              realize_sollu.  I think typeclasses can do it, but there has
+              to be a Maybe in there, because not every (sollu, stroke) pair
+              is occupied.
+        - merge Patterns and StrokeMap
+        - ensure that later entries in the StrokeMap override earlier ones
+        - have a mode to warn about unused StrokeMap entries, and overidden
+          ones
         - LSol.insert_* doesn't clear and replace existing notes
         - LSol.insert_* at non-zero start puts durations on all notes
         - I want to be able to insert all parts of a korvai in sequence.
@@ -2258,6 +2281,7 @@ Derive:
             transposition for melodic
             . This could be the same as the emphasis mechanism, if I extend
               it to attach Attributes.
+            . Or if I have alternate StrokeMaps by name, then I can use that.
         - Emphasis or automatic variant versions of patterns, e.g.
           . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
             pu_ pu_ ktkto

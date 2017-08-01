@@ -125,7 +125,7 @@ traceM msg val = write (with_msg msg (pshow val)) (return ())
 tracepM :: (CallStack.Stack, Pretty.Pretty a, Monad m) => Text -> a -> m ()
 tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
 
-tracesM :: (CallStack.Stack, Monad m) => Text -> m ()
+tracesM :: Monad m => Text -> m ()
 tracesM msg = write msg (return ())
 
 -- * in IO

@@ -73,7 +73,8 @@ notes = note <$> strokes
 
 -- * instrument
 
-instrument :: [([Sequence.Note (Solkattu.Note Stroke)], [Realize.SNote Stroke])]
+instrument ::
+    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 

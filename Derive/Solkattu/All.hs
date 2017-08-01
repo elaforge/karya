@@ -79,61 +79,61 @@ korvais =
         line_number 28 Derive.Solkattu.Score.Solkattu2013.c_13_08_14
     , variable_name "c_yt1" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 67 Derive.Solkattu.Score.Solkattu2013.c_yt1
+        line_number 69 Derive.Solkattu.Score.Solkattu2013.c_yt1
     , variable_name "c_13_10_29" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 90 Derive.Solkattu.Score.Solkattu2013.c_13_10_29
+        line_number 92 Derive.Solkattu.Score.Solkattu2013.c_13_10_29
     , variable_name "c_13_11_05" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 103 Derive.Solkattu.Score.Solkattu2013.c_13_11_05
+        line_number 105 Derive.Solkattu.Score.Solkattu2013.c_13_11_05
     , variable_name "c_13_11_12" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 111 Derive.Solkattu.Score.Solkattu2013.c_13_11_12
+        line_number 113 Derive.Solkattu.Score.Solkattu2013.c_13_11_12
     , variable_name "c_13_12_11" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 127 Derive.Solkattu.Score.Solkattu2013.c_13_12_11
+        line_number 129 Derive.Solkattu.Score.Solkattu2013.c_13_12_11
     , variable_name "c_nnnd" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 160 Derive.Solkattu.Score.Solkattu2013.c_nnnd
+        line_number 162 Derive.Solkattu.Score.Solkattu2013.c_nnnd
     , variable_name "k1_1" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 179 Derive.Solkattu.Score.Solkattu2013.k1_1
+        line_number 181 Derive.Solkattu.Score.Solkattu2013.k1_1
     , variable_name "k1_2" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 196 Derive.Solkattu.Score.Solkattu2013.k1_2
+        line_number 198 Derive.Solkattu.Score.Solkattu2013.k1_2
     , variable_name "k1_3" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 209 Derive.Solkattu.Score.Solkattu2013.k1_3
+        line_number 211 Derive.Solkattu.Score.Solkattu2013.k1_3
     , variable_name "k3s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 243 Derive.Solkattu.Score.Solkattu2013.k3s
+        line_number 245 Derive.Solkattu.Score.Solkattu2013.k3s
     , variable_name "t1s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 288 Derive.Solkattu.Score.Solkattu2013.t1s
+        line_number 290 Derive.Solkattu.Score.Solkattu2013.t1s
     , variable_name "t2s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 308 Derive.Solkattu.Score.Solkattu2013.t2s
+        line_number 311 Derive.Solkattu.Score.Solkattu2013.t2s
     , variable_name "t3s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 340 Derive.Solkattu.Score.Solkattu2013.t3s
+        line_number 344 Derive.Solkattu.Score.Solkattu2013.t3s
     , variable_name "t4s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 377 Derive.Solkattu.Score.Solkattu2013.t4s
+        line_number 381 Derive.Solkattu.Score.Solkattu2013.t4s
     , variable_name "t4s2" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 402 Derive.Solkattu.Score.Solkattu2013.t4s2
+        line_number 405 Derive.Solkattu.Score.Solkattu2013.t4s2
     , variable_name "t4s3" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 427 Derive.Solkattu.Score.Solkattu2013.t4s3
+        line_number 430 Derive.Solkattu.Score.Solkattu2013.t4s3
     , variable_name "t5s" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 451 Derive.Solkattu.Score.Solkattu2013.t5s
+        line_number 453 Derive.Solkattu.Score.Solkattu2013.t5s
     , variable_name "koraippu_misra" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 507 Derive.Solkattu.Score.Solkattu2013.koraippu_misra
+        line_number 509 Derive.Solkattu.Score.Solkattu2013.koraippu_misra
     , variable_name "tir_18" $
         module_ "Derive.Solkattu.Score.Solkattu2013" $
-        line_number 547 Derive.Solkattu.Score.Solkattu2013.tir_18
+        line_number 549 Derive.Solkattu.Score.Solkattu2013.tir_18
     , variable_name "c_14_01_01" $
         module_ "Derive.Solkattu.Score.Solkattu2014" $
         line_number 17 Derive.Solkattu.Score.Solkattu2014.c_14_01_01

@@ -103,8 +103,8 @@ newtype Patterns stroke = Patterns (Map Solkattu.Pattern [SNote stroke])
     deriving (Eq, Show, Pretty, Monoid)
 
 -- | Make a Patterns while checking that the durations match.
-patterns :: Pretty stroke =>
-    [(Solkattu.Pattern, [SNote stroke])] -> Either Text (Patterns stroke)
+patterns :: [(Solkattu.Pattern, [SNote stroke])]
+    -> Either Text (Patterns stroke)
 patterns pairs
     | null errors = Right $ Patterns $ Map.fromList pairs
     | otherwise = Left $ Text.intercalate "; " errors
@@ -143,7 +143,7 @@ simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
     . map (first (Nothing,))
 
 stroke_map :: Pretty stroke =>
-    [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
+    [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Either Text (StrokeMap stroke)
 stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
     where
@@ -200,7 +200,7 @@ instance Pretty stroke => Pretty (Instrument stroke) where
         ]
 
 instrument :: Pretty stroke => StrokeMap stroke
-    -> [([S.Note (Solkattu.Note stroke)], [SNote stroke])]
+    -> [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Patterns stroke -> Either Text (Instrument stroke)
 instrument defaults strokes patterns = do
     smap <- stroke_map strokes
@@ -213,23 +213,48 @@ instrument defaults strokes patterns = do
 
 type Event stroke = (S.Duration, Solkattu.Note stroke)
 
-realize :: forall stroke. Pretty stroke => StrokeMap stroke
-    -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
-    -> Either Text [(S.Tempo, Note stroke)]
-realize smap = format_error . first concat . map_until_left realize
+-- | Take either a (NoteT, notes in context) or a Pattern to
+-- ([realized Note], [unconsumed])
+type RealizeNote tempo sollu stroke =
+    Solkattu.NoteT sollu -> NonEmpty (tempo, Solkattu.Note sollu)
+    -> Either Text ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
+
+type RealizePattern tempo stroke =
+    tempo -> Solkattu.Pattern -> Either Text [(tempo, Note stroke)]
+
+-- | Don't realize Patterns, just pass them through.
+keep_pattern :: RealizePattern tempo stroke
+keep_pattern tempo pattern = Right [(tempo, Pattern pattern)]
+
+realize_pattern :: Patterns stroke -> RealizePattern S.Tempo stroke
+realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
+    Nothing -> Left $ "no pattern for " <> pretty pattern
+    Just notes -> Right $ S.flatten_with tempo notes
+
+realize_stroke :: RealizeNote tempo (Stroke stroke) stroke
+realize_stroke note ((tempo, _) :| notes) =
+    Right ([(tempo, Note (Solkattu._sollu note))], notes)
+
+realize_simple_stroke :: RealizeNote tempo stroke stroke
+realize_simple_stroke note ((tempo, _) :| notes) =
+    Right ([(tempo, Note (stroke (Solkattu._sollu note)))], notes)
+
+realize_sollu :: StrokeMap stroke -> RealizeNote tempo Solkattu.Sollu stroke
+realize_sollu smap note ((tempo, _) :| notes) =
+    find_sequence smap (tempo, Solkattu._sollu note, Solkattu._tag note) notes
+
+realize :: Pretty stroke => RealizePattern tempo stroke
+    -> RealizeNote tempo sollu stroke
+    -> [(tempo, Solkattu.Note sollu)]
+    -> Either Text [(tempo, Note stroke)]
+realize realize_pattern realize_note =
+    format_error . first concat . map_until_left realize1
     where
-    realize (tempo, note) notes = case note of
+    realize1 (tempo, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
         Solkattu.Space space -> Right ([(tempo, Space space)], notes)
-        -- Patterns are realized separately with 'realize_patterns'.
-        Solkattu.Pattern p -> Right ([(tempo, Pattern p)], notes)
-        Solkattu.Note n -> case find_sequence smap tempo n notes of
-            Left err -> case Solkattu._stroke n of
-                Nothing -> Left err
-                -- If it's not part of a sequence, but has a hardcoded
-                -- stroke then I know what to do with it already.
-                Just stroke -> Right ([(tempo, Note stroke)], notes)
-            Right (strokes, rest) -> Right (strokes, rest)
+        Solkattu.Note note_t -> realize_note note_t ((tempo, note) :| notes)
+        Solkattu.Pattern p -> (,notes) <$> realize_pattern tempo p
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
@@ -246,14 +271,16 @@ map_until_left f = go
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
-find_sequence :: StrokeMap stroke -> a
-    -> Solkattu.NoteT (Stroke stroke) -> [(a, Solkattu.Note (Stroke stroke))]
-    -> Either Text ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
-find_sequence smap a (Solkattu.NoteT sollu _ stroke tag) notes =
+find_sequence :: StrokeMap stroke
+    -> (tempo, Solkattu.Sollu, Maybe Solkattu.Tag)
+    -> [(tempo, Solkattu.Note Solkattu.Sollu)]
+    -> Either Text
+        ([(tempo, Note stroke)], [(tempo, Solkattu.Note Solkattu.Sollu)])
+find_sequence smap (tempo, sollu, tag) notes =
     case best_match tag (sollu : sollus) smap of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes -> Right $ replace_sollus strokes $
-            (a, Solkattu.Note (Solkattu.note sollu stroke)) : notes
+            (tempo, Solkattu.Note (Solkattu.note sollu)) : notes
     where
     -- Collect only sollus and rests, and strip the rests.
     sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
@@ -265,15 +292,13 @@ find_sequence smap a (Solkattu.NoteT sollu _ stroke tag) notes =
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
 replace_sollus :: [Maybe (Stroke stroke)]
-    -> [(a, Solkattu.Note (Stroke stroke))]
-    -> ([(a, Note stroke)], [(a, Solkattu.Note (Stroke stroke))])
+    -> [(tempo, Solkattu.Note Solkattu.Sollu)]
+    -> ([(tempo, Note stroke)], [(tempo, Solkattu.Note Solkattu.Sollu)])
 replace_sollus [] ns = ([], ns)
-replace_sollus (stroke : strokes) ((a, n) : ns) = case n of
-    Solkattu.Note snote -> first ((a, rnote) :) (replace_sollus strokes ns)
-        where
-        rnote = maybe (maybe (Space Solkattu.Rest) Note stroke) Note
-            (Solkattu._stroke snote)
-    Solkattu.Space space -> first ((a, Space space) :) next
+replace_sollus (stroke : strokes) ((tempo, n) : ns) = case n of
+    Solkattu.Note _ -> first ((tempo, rnote) :) (replace_sollus strokes ns)
+        where rnote = maybe (Space Solkattu.Rest) Note stroke
+    Solkattu.Space space -> first ((tempo, Space space) :) next
     Solkattu.Alignment {} -> next
     -- This shouldn't happen because Seq.span_while is_sollu should have
     -- stopped when it saw this.
@@ -284,30 +309,8 @@ replace_sollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
 
-realize_patterns :: Pretty stroke =>
-    Patterns stroke -> [(S.Tempo, Solkattu.Note (Stroke stroke))]
-    -> Either Text [(S.Tempo, Solkattu.Note (Stroke stroke))]
-realize_patterns pmap = format_error . concatMap realize
-    where
-    realize (tempo, n) = case n of
-        Solkattu.Pattern p -> case lookup_pattern p pmap of
-            Just notes ->
-                map Right $ S.flatten_with tempo $ map (fmap to_solkattu) notes
-            Nothing -> [Left $ "no pattern for " <> pretty p]
-        _ -> [Right (tempo, n)]
-    format_error xs = case S.first_left xs of
-        Right vals -> Right vals
-        Left (vals, err) ->
-            Left $ TextUtil.joinWith "\n" (pretty_words (map snd vals)) err
-
 pretty_words :: Pretty a => [a] -> Text
 pretty_words = Text.unwords . map (justify_left 2 ' ' . pretty)
-
-to_solkattu :: Note stroke -> Solkattu.Note (Stroke stroke)
-to_solkattu n = case n of
-    Note stroke -> Solkattu.Note $ Solkattu.note Solkattu.NoSollu (Just stroke)
-    Space space -> Solkattu.Space space
-    Pattern matras -> Solkattu.Pattern matras
 
 
 -- * format text

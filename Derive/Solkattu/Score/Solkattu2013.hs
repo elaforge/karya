@@ -9,7 +9,7 @@ import Prelude hiding ((.), (^), repeat)
 
 import qualified Util.Seq as Seq
 import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
-import qualified Derive.Solkattu.KendangTunggalStrokes as K
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.SolkattuGlobal
 
@@ -36,8 +36,8 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
       . dropM 3 (theme 3 2) . p6 . p6 . ta_din__
       . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
 
-    ,            theme 4 1 . pat7 . dheem ! (u <+> K.u) . __4
-      . dropM 4 (theme 4 2) . repeat 2 pat8 . dheem ! (u <+> K.u) . __4
+    ,            theme 4 1 . pat7 . tam.__4
+      . dropM 4 (theme 4 2) . repeat 2 pat8 . tam.__4
       . dropM 8 (theme 4 3)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
     ]
@@ -51,6 +51,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
         , (ta.din, [k, od])
         -- for pat7 -- pat9
         , (ta.ka, [k, p])
+        , (tam, [u])
         ]
     kendang = make_kendang1
         [ (ta.dit, [p, t])
@@ -59,6 +60,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
         , (ta.din, [o, a])
         -- for pat7 -- pat9
         , (ta.ka, [p, k])
+        , (tam, [a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     pat7 = ta.ka.p5
     pat8 = ta.ka.__.p5
@@ -76,7 +78,7 @@ c_yt1 = source "youtube" $ korvai1 adi mridangam $
     --                                          .din.__4
     -- TODO ... `replace` (tat.__.din.__4) (ta.ka.din.__4)
     reduceTo 4 2 (tat.__.dit.__.takadinna.thom.__.tat.__.din.__4)
-    . tri p6 . tam.__ . tri p6 . tam!i.__ . tri p6
+    . tri_ (tam.__) (tri p6) -- TODO middle tam is 'i'
     where
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
@@ -274,7 +276,7 @@ k3s = korvai adi mridangam $ map (nadai 5)
 
 -- * tisra nadai
 
-t_sarva1 :: (Seq stroke, Seq stroke)
+t_sarva1 :: (Sequence, Sequence)
 t_sarva1 =
     ( dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
       . na.mi.na.na.di.mi . na.mi.na.na.di.mi
@@ -289,7 +291,8 @@ t1s :: Korvai
 t1s = ganesh $ korvai adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.takadinna.din.__.__)   . utarangam p5
     , reduce (tat.__.dit.__.takadinna.din.__)      . utarangam p6
-    , reduce (tat.__.dit.__.takadinna.din!p)       . utarangam p7
+    -- TODO takadinna.din!p
+    , reduce (tat.__.dit.__.takadinna.din)         . utarangam p7
     , reduce (tat.__.dit.__.takadinna)             . utarangam p8
     , reduce (tat.__.dit.__.ta.ka.din)             . utarangam p9
     ]
@@ -311,7 +314,8 @@ t2s = ganesh $ korvai adi mridangam $ map (nadai 6)
     , reduce (tat.__.dit.__.takadinna.dheem.__4) . tri p6
     , reduce (tat.__.dit.__.takadinna.dheem.__3) . tri p7
     , reduce (tat.__.dit.__.takadinna.dheem.__)  . tri (ta.din.__.p5)
-    , reduce (tat.__.dit.__.takadinna.din!p)     . tri (ta.__.din.__.p5)
+    -- TODO takadinna.din!p
+    , reduce (tat.__.dit.__.takadinna.din)       . tri (ta.__.din.__.p5)
     , reduce (tat.__.dit.__.takadinna)           . tri (ta.ka.ta.din.__.p5)
     , reduce (tat.__.dit.__.ta.ka.din)           . tri (ta.ka.__.ta.din.__.p5)
 
@@ -383,13 +387,12 @@ t4s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
     , p123 p6 (dheem.__3)
 
     , p123 p5 (tat.__3.din.__3)
-    , let dinga s = din!s . __ . ga
-        in p5.dinga u . tk.p5.p5. dinga i . tknk.p5.p5.p5
+    , p5.dinga . tk.p5.p5. dinga . tknk.p5.p5.p5
     , tri (tat.dinga . tat.__.dinga.p5)
     ]
     where
     p123 p sep = trin sep p (p.p) (p.p.p)
-    purvangam = tri (ta_katakita . din.__6)
+    purvangam = tri (ta_katakita.takadinna . din.__6)
     mridangam = make_mridangam $
         [ (ta.din.gin.na.thom, [k, t, k, n, o])
         , (ta.din, [k, od])
@@ -410,10 +413,10 @@ t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
     ]
     where
     purvangam1 =
-        ta_katakita . takita . tam.__6
-        . ta_katakita . repeat 2 (takita) . tam.__6
-        . ta_katakita . repeat 3 (takita) . tam.__6
-    purvangam2 gap = tri (ta_katakita . takita.__2 . tam.__n gap)
+        ta_katakita.takadinna . takita . tam.__6
+        . ta_katakita.takadinna . repeat 2 (takita) . tam.__6
+        . ta_katakita.takadinna . repeat 3 (takita) . tam.__6
+    purvangam2 gap = tri (ta_katakita.takadinna . takita.__2 . tam.__n gap)
     mridangam = make_mridangam $
         [ (takita, [on, p, k])
         , (tam, [od])
@@ -426,9 +429,9 @@ t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
 
 t4s3 :: Korvai
 t4s3 = ganesh $ korvai adi mridangam $ map (nadai 6)
-    [ ta_katakita . tri (tat.__3.din.__3) . __7
-        . ta_katakita . tri (tat.__.din.__3) . __7
-        . ta_katakita . tri (tat.din.__3) . __7
+    [ ta_katakita.takadinna . tri (tat.__3.din.__3) . __7
+        . ta_katakita.takadinna . tri (tat.__.din.__3) . __7
+        . ta_katakita.takadinna . tri (tat.din.__3) . __7
     . trin (lang.__6)
         (tri (tat.__3.din.__.p5))
         (tri (tat.__.din.__.p5))
@@ -439,13 +442,12 @@ t4s3 = ganesh $ korvai adi mridangam $ map (nadai 6)
         [ (tat.din, [k, od])
         ] ++ m_ta_katakita
 
-ta_katakita :: Seq stroke
-ta_katakita = ta.__.ka.ta.ki.ta.ta.ka.takadinna
+ta_katakita :: Sequence
+ta_katakita = ta.__.ka.ta.ki.ta.ta.ka
 
-m_ta_katakita :: MStrokes
+m_ta_katakita :: StrokeMap Mridangam.Stroke
 m_ta_katakita =
-    [ (ta.ka.takita.(ta.ka), [k, p, k, t, k, t, k])
-    , (takadinna, [k, o, o, k])
+    [ (ta_katakita, [k, p, k, t, k, t, k])
     ]
 
 t5s :: Korvai
@@ -556,5 +558,5 @@ tir_18 = tirmanam $ korvai1 adi mridangam $
 
 -- * util
 
-rest :: Matra -> Seq stroke
+rest :: Matra -> Sequence
 rest dur = repeat dur __

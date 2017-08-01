@@ -73,7 +73,7 @@ koraippu_janahan =
         , (kita.kita.ta.ka, [k, t, k, t, p, k])
         ]
 
-nang_kita_nakatiku :: Seq stroke
+nang_kita_nakatiku :: Sequence
 nang_kita_nakatiku = nang.__.kita.nakatiku
 
 e_spacing :: Korvai
@@ -458,7 +458,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi (mridangam<>kendang) $ concat
         , (1^(kita.taka), [k, t, o, k])
 
         -- dintakas
-        , (coerce basic_dintaka, [o, k, o, o, k, o])
+        , (basic_dintaka, [o, k, o, o, k, o])
         , (1^taka, [k, k])
         , (din, [o])
 
@@ -482,7 +482,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi (mridangam<>kendang) $ concat
         , (1^(kita.taka), [t, lt a, a, p])
 
         -- dintakas
-        , (coerce basic_dintaka, [a, p, o, o, p, lt a])
+        , (basic_dintaka, [a, p, o, o, p, lt a])
         , (1^taka, [p, p])
         , (din, [a])
 

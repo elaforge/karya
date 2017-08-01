@@ -10,7 +10,6 @@ module Derive.Solkattu.Dsl (
     , karvai
 
     -- ** directives
-    , (!), (<+>)
     , hv, lt
     , akshara, sam, (^), (§)
     -- ** patterns
@@ -24,8 +23,7 @@ module Derive.Solkattu.Dsl (
     , module Derive.Solkattu.Notation
     , module Derive.Solkattu.Tala
     -- * mridangam
-    , coerce
-    , stroke, (&)
+    , (&)
     -- * misc
     , pprint
     -- * realize
@@ -58,7 +56,7 @@ import Derive.Solkattu.Tala (Akshara)
 import Global
 
 
-type Sequence stroke = [S.Note (Solkattu.Note stroke)]
+type Sequence sollu = [S.Note (Solkattu.Note sollu)]
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -80,41 +78,39 @@ make_note a = [S.Note a]
 -- ** sollus
 
 -- | Make a single sollu 'Solkattu.Karvai'.
-karvai :: (CallStack.Stack, Pretty stroke) => Sequence stroke -> Sequence stroke
+karvai :: (CallStack.Stack, Pretty sollu) => Sequence sollu -> Sequence sollu
 karvai = modify_single_note $ Solkattu.modify_note $
     \note -> note { Solkattu._karvai = True }
 
 -- ** directives
 
-akshara :: Akshara -> Sequence stroke
+akshara :: Akshara -> Sequence sollu
 akshara n = make_note (Solkattu.Alignment n)
 
 -- | Align at sam.
-sam :: Sequence stroke
+sam :: Sequence sollu
 sam = akshara 0
 
 -- | Align at the given akshara.  I use § because I don't use it so often,
 -- and it's opt-6 on OS X.
-(§) :: Sequence stroke -> Akshara -> Sequence stroke
+(§) :: Sequence sollu -> Akshara -> Sequence sollu
 seq § n = make_note (Solkattu.Alignment n) <> seq
 infix 9 §
 
 -- * modify sollus
 
 -- | Infix operator to 'Solkattu.Tag' all of the sollus it applies to.
-(^) :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
-    -> Sequence stroke
+(^) :: Int -> Sequence sollu -> Sequence sollu
 (^) = set_tag
 infix 9 ^
 
-set_tag :: (CallStack.Stack, Pretty stroke) => Int -> Sequence stroke
-    -> Sequence stroke
+set_tag :: Int -> Sequence sollu -> Sequence sollu
 set_tag tag = fmap $ fmap $ Solkattu.modify_note $
     \note -> note { Solkattu._tag = Just tag }
 
-modify_single_note :: (CallStack.Stack, Pretty stroke) =>
-    (Solkattu.Note stroke -> Solkattu.Note stroke)
-    -> Sequence stroke -> Sequence stroke
+modify_single_note :: (CallStack.Stack, Pretty sollu) =>
+    (Solkattu.Note sollu -> Solkattu.Note sollu)
+    -> Sequence sollu -> Sequence sollu
 modify_single_note modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
@@ -123,30 +119,6 @@ modify_single_note modify (n:ns) = case n of
 modify_single_note _ [] = errorStack "expected a single note, but got []"
 
 -- ** strokes
-
--- | Throw away strokes to coerce between types.  This is useful to make
--- a sollu sequence generic to put it in both the pattern and stroke map.
-coerce :: Sequence a -> Sequence b
-coerce = map (fmap (Solkattu.modify_stroke (const Nothing)))
-
--- | Add a specific stroke annotation to a sollu.
-stroke :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
-    stroke -> Sequence Korvai.Stroke -> Sequence Korvai.Stroke
-stroke s = modify_single_note $
-    Solkattu.modify_stroke (const (Just (Korvai.to_stroke s)))
-
--- | Add a specific stroke annotation to a sollu.
---
--- If e.g. mridangam strokes are \"imported\" via @Strokes {..} = ...@, then
--- just @sollu ! d@ works.  For non-imported, it would have to be
--- @sollu ! d <+> K.p@.
-(!) :: (CallStack.Stack, Pretty stroke, Korvai.ToStroke stroke) =>
-    Sequence Korvai.Stroke -> stroke -> Sequence Korvai.Stroke
-(!) = flip stroke
-
--- | Combine strokes from different instruments.
-(<+>) :: (Korvai.ToStroke a, Korvai.ToStroke b) => a -> b -> Korvai.Stroke
-a <+> b = Korvai.to_stroke a <> Korvai.to_stroke b
 
 hv, lt :: (Pretty stroke, CallStack.Stack) =>
     S.Note (Realize.Note stroke) -> S.Note (Realize.Note stroke)
@@ -160,25 +132,25 @@ lt n = errorStack $ "expected stroke: " <> pretty n
 
 -- * patterns
 
-pat :: Matra -> Sequence stroke
+pat :: Matra -> Sequence sollu
 pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 
-p5, p6, p7, p8, p9 :: Sequence stroke
+p5, p6, p7, p8, p9 :: Sequence sollu
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
 p8 = pat 8
 p9 = pat 9
 
-p666, p567, p765 :: Sequence stroke -> Sequence stroke
+p666, p567, p765 :: Sequence sollu -> Sequence sollu
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
-nakatiku :: Sequence stroke
+nakatiku :: Sequence sollu
 nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
-tk, tknk :: Sequence stroke
+tk, tknk :: Sequence sollu
 tk = make_note $ Solkattu.Pattern Solkattu.Taka
 tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 
@@ -186,8 +158,11 @@ tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 -- * realize util
 
 index :: Int -> Korvai -> Korvai
-index i korvai =
-    korvai { Korvai.korvai_sequences = [Korvai.korvai_sequences korvai !! i] }
+index i korvai = case Korvai.korvai_sequences korvai of
+    Korvai.Mridangam seqs ->
+        korvai { Korvai.korvai_sequences = Korvai.Mridangam [seqs !! i] }
+    Korvai.Sollu seqs ->
+        korvai { Korvai.korvai_sequences = Korvai.Sollu [seqs !! i] }
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realize_m True

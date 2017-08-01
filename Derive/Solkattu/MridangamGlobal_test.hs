@@ -7,10 +7,10 @@ import Prelude hiding ((.))
 
 import Util.Test
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
+import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.MridangamGlobal as MridangamGlobal
 import Derive.Solkattu.MridangamGlobal ((&), o, k, __, (.), su)
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as Sequence
 
 import Global
 
@@ -27,5 +27,6 @@ test_merge = do
 
 realize :: MridangamGlobal.Sequence
     -> Either Text [Realize.Note Mridangam.Stroke]
-realize seq = map snd <$>
-    Realize.realize (Realize.simple_stroke_map []) (Sequence.flatten seq)
+realize seq = fmap (map snd) $ fmap fst $ head $
+    Korvai.realize Korvai.mridangam_stroke False
+        (MridangamGlobal.korvai1 MridangamGlobal.adi seq)
