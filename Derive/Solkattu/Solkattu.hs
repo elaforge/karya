@@ -179,7 +179,7 @@ instance Expr.ToExpr Pattern where
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
 data Sollu =
-    NoSollu -- ^ a dummy sollu for a 'Sollu' with an explicit stroke
+    NoSollu -- ^ a dummy sollu for rests in Konnakol
     | Dheem | Dhom | Di | Din | Dit
     | Ga | Gin | Ka | Ki | Ku | Lang
     | Mi | Na | Nam | Nang | Ri | Ta | Tam | Tang

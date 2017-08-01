@@ -2137,7 +2137,7 @@ Derive:
         - have a mode to warn about unused StrokeMap entries, and overidden
           ones
         - LSol.insert_* doesn't clear and replace existing notes
-        - LSol.insert_* at non-zero start puts durations on all notes
+        * LSol.insert_* at non-zero start puts durations on all notes
         - I want to be able to insert all parts of a korvai in sequence.
         - insert for patterns is messed up, I get p '5' with 0 dur.
           . '5' is because I use Expr Text, and it uses ShowVal, which loses

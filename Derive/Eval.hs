@@ -183,7 +183,7 @@ apply_transformer ctx call args deriver =
             }
 
 -- | A list version of 'apply_transformer'.
-apply_transformers :: Derive.Callable d => Derive.Context d
+apply_transformers :: Derive.Context d
     -> [(Derive.Transformer d, [BaseTypes.Val])]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformers ctx calls deriver = foldr apply deriver calls

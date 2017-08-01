@@ -111,8 +111,12 @@ to_note_track to_score stretch shift strokes =
         , control /= "*"
         ]
     mk_events = Events.from_list . map mk_event
-    mk_event (start, dur, text) = Event.event (mk_time start) (mk_time dur) text
-    mk_time = (+shift) . (*stretch) . realToFrac
+    mk_event (start, dur, text) = place shift stretch $
+        Event.event (realToFrac start) (realToFrac dur) text
+
+place :: TrackTime -> TrackTime -> Event.Event -> Event.Event
+place shift stretch = (Event.duration_ %= (*stretch))
+    . (Event.start_ %= ((+shift) . (*stretch)))
 
 strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
     [(Sequence.Tempo, Realize.Note a)] -> [Event.Event]

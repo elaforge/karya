@@ -1147,8 +1147,7 @@ get_midi_instrument inst =
     require ("not a midi instrument: " <> pretty inst) . midi_instrument
         =<< get_instrument inst
 
-lookup_midi_config :: (CallStack.Stack, M m) => Score.Instrument
-    -> m (Maybe Patch.Config)
+lookup_midi_config :: M m => Score.Instrument -> m (Maybe Patch.Config)
 lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved ->
     case inst_backend resolved of
         Just (Midi _ config) -> return $ Just config
