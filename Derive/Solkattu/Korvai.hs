@@ -19,6 +19,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Derive.Solkattu.Instrument.Konnakol as Konnakol
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
@@ -91,82 +92,62 @@ mridangam_korvai tala pmap sequences = infer_metadata $ Korvai
     , korvai_metadata = mempty
     }
 
--- | TODO the name is awkward.  This is really just ties together all the
--- instrument-specific code.
-data GetInstrument sollu stroke = GetInstrument {
-    -- TODO should be get_instrument, also StrokeMaps is actually just
-    -- Map Inst Realize.Instrument
-    get_realization :: StrokeMaps -> Realize.Instrument stroke
-    , get_sequence :: KorvaiType -> Maybe [SequenceT sollu]
-    , get_realize_note :: Realize.StrokeMap stroke
-        -> Realize.RealizeNote Sequence.Tempo sollu stroke
-    , get_to_score :: ToScore.ToScore stroke
+-- | Tie together everything describing how to realize a single instrument.
+data Instrument stroke = Instrument {
+    inst_from_sollu :: Realize.StrokeMap stroke
+        -> Realize.RealizeNote Sequence.Tempo Solkattu.Sollu stroke
+    , inst_from_mridangam ::
+        Maybe (Realize.RealizeNote Sequence.Tempo
+            (Realize.Stroke Mridangam.Stroke) stroke)
+    , inst_from_strokes :: StrokeMaps -> Realize.Instrument stroke
+    , inst_to_score :: ToScore.ToScore stroke
     }
 
-mridangam :: GetInstrument Solkattu.Sollu Mridangam.Stroke
-mridangam = GetInstrument
-    { get_realization = inst_mridangam
-    , get_sequence = sollu_sequence
-    , get_realize_note = Realize.realize_sollu
-    , get_to_score = ToScore.to_score
+default_instrument :: Expr.ToExpr (Realize.Stroke stroke) => Instrument stroke
+default_instrument = Instrument
+    { inst_from_sollu = Realize.realize_sollu
+    , inst_from_mridangam = Nothing
+    , inst_from_strokes = const mempty
+    , inst_to_score = ToScore.to_score
     }
 
-mridangam_stroke :: GetInstrument (Realize.Stroke Mridangam.Stroke)
-    Mridangam.Stroke
-mridangam_stroke = GetInstrument
-    { get_realization = inst_mridangam
-    , get_sequence = \t -> case t of
-        Mridangam seq -> Just seq
-        _ -> Nothing
-    , get_realize_note = const Realize.realize_stroke
-    , get_to_score = ToScore.to_score
+mridangam :: Instrument Mridangam.Stroke
+mridangam = default_instrument
+    { inst_from_mridangam = Just Realize.realize_stroke
+    , inst_from_strokes = inst_mridangam
     }
 
-konnakol :: GetInstrument Solkattu.Sollu Solkattu.Sollu
-konnakol = GetInstrument
-    { get_realization = const $ Realize.Instrument
+konnakol :: Instrument Solkattu.Sollu
+konnakol = default_instrument
+    { inst_from_sollu = const Realize.realize_simple_stroke
+    , inst_from_strokes = const $ Realize.Instrument
         { inst_stroke_map = mempty
         -- TODO to control the patterns, I could modify
         -- konnakol.get_realization
         , inst_patterns = Konnakol.default_patterns
         }
-    , get_sequence = sollu_sequence
-    , get_realize_note = const Realize.realize_simple_stroke
-    , get_to_score = ToScore.to_score
     }
 
-kendang_tunggal :: GetInstrument Solkattu.Sollu KendangTunggal.Stroke
-kendang_tunggal = GetInstrument
-    { get_realization = inst_kendang_tunggal
-    , get_sequence = sollu_sequence
-    , get_realize_note = Realize.realize_sollu
-    , get_to_score = ToScore.to_score
-    }
+kendang_tunggal :: Instrument KendangTunggal.Stroke
+kendang_tunggal =
+    default_instrument { inst_from_strokes = inst_kendang_tunggal }
 
-reyong :: GetInstrument Solkattu.Sollu Reyong.Stroke
-reyong = GetInstrument
-    { get_realization = inst_reyong
-    , get_sequence = sollu_sequence
-    , get_realize_note = Realize.realize_sollu
-    , get_to_score = ToScore.to_score
-    }
+reyong :: Instrument Reyong.Stroke
+reyong = default_instrument { inst_from_strokes = inst_reyong }
 
-sargam :: GetInstrument Solkattu.Sollu Sargam.Stroke
-sargam = GetInstrument
-    { get_realization = inst_sargam
-    , get_sequence = sollu_sequence
-    , get_realize_note = Realize.realize_sollu
-    , get_to_score = Sargam.to_score
+sargam :: Instrument Sargam.Stroke
+sargam = default_instrument
+    { inst_from_strokes = inst_sargam
+    , inst_to_score = Sargam.to_score
     }
 
 -- | An existential type to capture the Pretty instance.
-data GInstrument = forall sollu stroke.
-    Pretty stroke => GInstrument (GetInstrument sollu stroke)
+data GInstrument =
+    forall stroke. Pretty stroke => GInstrument (Instrument stroke)
 
 instruments :: Map Text GInstrument
 instruments = Map.fromList
     [ ("mridangam", GInstrument mridangam)
-    -- TODO select mridangam_stroke if it's one of those
     , ("konnakol", GInstrument konnakol)
     , ("kendang_tunggal", GInstrument kendang_tunggal)
     , ("reyong", GInstrument reyong)
@@ -174,36 +155,19 @@ instruments = Map.fromList
     ]
 
 -- | Realize a Korvai on a particular instrument.
-realize :: Pretty stroke => GetInstrument sollu stroke -> Bool -> Korvai
+realize :: Pretty stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)]
-realize get realize_patterns korvai =
-    case get_sequence get (korvai_sequences korvai) of
+realize instrument realize_patterns korvai = case korvai_sequences korvai of
+    Sollu seqs -> map (realize1 (inst_from_sollu instrument smap)) seqs
+    Mridangam seqs -> case inst_from_mridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
-        Just seqs -> map (realize1 get realize_patterns korvai) seqs
-
--- | Version of 'realize' for mridangam sollu or mridangam strokes.
---
--- TODO I should be able to do this with 'realize', but I can't figure out how.
--- I need say if the sequence is Mridangam, and stroke ~ Mridangam.Stroke,
--- then I can apply mridangam_stroke, or more specifically,
--- Realize.realize_stroke.  In fact, if sollu ~ Stroke stroke, then I can do
--- that.
-realize_mridangam :: Bool -> Korvai
-    -> [Either Text ([(Sequence.Tempo, Realize.Note Mridangam.Stroke)], Text)]
-realize_mridangam realize_patterns korvai = case korvai_sequences korvai of
-    Sollu seqs -> map (realize1 mridangam realize_patterns korvai) seqs
-    Mridangam seqs ->
-        map (realize1 mridangam_stroke realize_patterns korvai) seqs
-
-realize1 :: Pretty stroke => GetInstrument sollu stroke -> Bool -> Korvai
-    -> [Sequence.Note (Solkattu.Note sollu)]
-    -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
-realize1 get realize_patterns korvai seq =
-    realize_instrument realize_patterns
-        (get_realize_note get (Realize.inst_stroke_map inst)) inst
-        (korvai_tala korvai) seq
+        Just realize_note -> map (realize1 realize_note) seqs
     where
-    inst = get_realization get (korvai_stroke_maps korvai)
+    realize1 realize_note =
+        realize_instrument realize_patterns realize_note inst tala
+    smap = Realize.inst_stroke_map inst
+    tala = korvai_tala korvai
+    inst = inst_from_strokes instrument (korvai_stroke_maps korvai)
 
 realize_instrument :: Pretty stroke =>
     Bool -> Realize.RealizeNote Sequence.Tempo sollu stroke
@@ -221,47 +185,6 @@ realize_instrument realize_patterns realize_note inst tala sequence = do
     realized <- Realize.realize pattern realize_note notes
     return (realized, fromMaybe "" align_error)
 
-{-
-class InstrumentConfig stroke where
-    get_instrument :: StrokeMaps -> Realize.Instrument stroke
-
-class RealizeNote sollu stroke where
-    realize_note :: Realize.StrokeMap stroke
-        -> Realize.RealizeNote Sequence.Tempo sollu stroke
-
-instance RealizeNote (Realize.Stroke stroke) stroke where
-    realize_note _ = Realize.realize_stroke
-
-instance RealizeNote Solkattu.Sollu Mridangam.Stroke where
-    realize_note smap = Realize.realize_sollu smap
-
-instance RealizeNote Solkattu.Sollu Solkattu.Sollu where
-    realize_note _ = Realize.realize_simple_stroke
-
--- realize2 :: (InstrumentConfig stroke, RealizeNote 
-realize2 realize_patterns korvai = case korvai_sequences korvai of
-    Sollu seqs -> map (realize3 smap realize_patterns inst tala) seqs
-    Mridangam seqs -> map (realize3 smap realize_patterns inst tala) seqs
-    where
-    -- realize1 seq = realize3 (Realize.inst_stroke_map inst) realize_patterns inst
-    --     (korvai_tala korvai) seq
-    inst = get_instrument (korvai_stroke_maps korvai)
-    smap = Realize.inst_stroke_map inst
-    tala = korvai_tala korvai
-
-realize3 :: (RealizeNote sollu stroke, Pretty stroke) =>
-    Realize.StrokeMap stroke -> Bool -> Realize.Instrument stroke
-    -> Tala.Tala -> SequenceT sollu
-    -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
-realize3 smap realize_patterns inst tala sequence = do
-    let (notes, align_error) = Solkattu.verify_alignment tala (flatten sequence)
-    let pattern
-            | realize_patterns =
-                Realize.realize_pattern (Realize.inst_patterns inst)
-            | otherwise = Realize.keep_pattern
-    realized <- Realize.realize pattern (realize_note smap) notes
-    return (realized, fromMaybe "" align_error)
--}
 
 flatten :: [Sequence.Note (Solkattu.Note sollu)]
     -> [(Sequence.Tempo, Solkattu.Note sollu)]
@@ -367,8 +290,8 @@ instance Pretty StrokeMaps where
 
 -- * print score
 
-print_instrument :: Pretty stroke => GetInstrument sollu stroke
-    -> Bool -> Korvai -> IO ()
+print_instrument :: Pretty stroke => Instrument stroke -> Bool -> Korvai
+    -> IO ()
 print_instrument instrument realize_patterns korvai =
     print_results Nothing korvai $ realize instrument realize_patterns korvai
 

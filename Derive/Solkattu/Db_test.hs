@@ -29,5 +29,5 @@ realize korvai
     | otherwise = Right $ map (map snd) notes
     where
     (errors, results) = Either.partitionEithers $
-        Korvai.realize_mridangam True korvai
+        Korvai.realize Korvai.mridangam True korvai
     (notes, warnings) = second (filter (/="")) $ unzip results

@@ -2116,7 +2116,7 @@ Derive:
           . Write separate realizes and then try to merge them.
         * Get the tests to compile.
         * Restore tags.
-        - Infer Korvai.mridangam vs. mridangam_strokes so I don't have to
+        * Infer Korvai.mridangam vs. mridangam_strokes so I don't have to
           pick the right one from LSol.
           . This seems to be really hard.  I want to say if
             sollu ~ Realize.Stroke stroke, then use realize_stroke, else

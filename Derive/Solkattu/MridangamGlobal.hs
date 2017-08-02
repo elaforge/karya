@@ -21,7 +21,7 @@ module Derive.Solkattu.MridangamGlobal (
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Derive.Solkattu.Dsl hiding (realize, realizep, realize_m, (&), lt, hv)
+import Derive.Solkattu.Dsl hiding ((&), lt, hv)
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
@@ -37,13 +37,6 @@ type Stroke = Realize.Stroke Mridangam.Stroke
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
 (&) = merge
-
-realize, realizep :: Korvai -> IO ()
-realize = realize_m True
-realizep = realize_m False
-
-realize_m :: Bool -> Korvai -> IO ()
-realize_m = Korvai.print_instrument Korvai.mridangam_stroke
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.

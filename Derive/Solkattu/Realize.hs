@@ -214,7 +214,8 @@ instrument defaults strokes patterns = do
 type Event stroke = (S.Duration, Solkattu.Note stroke)
 
 -- | Take either a (NoteT, notes in context) or a Pattern to
--- ([realized Note], [unconsumed])
+-- ([realized Note], [unconsumed]).  tempo is always S.Tempo, but it's abstract
+-- here to express that it's untouched.
 type RealizeNote tempo sollu stroke =
     Solkattu.NoteT sollu -> NonEmpty (tempo, Solkattu.Note sollu)
     -> Either Text ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])

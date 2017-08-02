@@ -28,5 +28,5 @@ test_merge = do
 realize :: MridangamGlobal.Sequence
     -> Either Text [Realize.Note Mridangam.Stroke]
 realize seq = fmap (map snd) $ fmap fst $ head $
-    Korvai.realize Korvai.mridangam_stroke False
+    Korvai.realize Korvai.mridangam False
         (MridangamGlobal.korvai1 MridangamGlobal.adi seq)
