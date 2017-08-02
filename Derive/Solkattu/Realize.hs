@@ -217,7 +217,7 @@ type Event stroke = (S.Duration, Solkattu.Note stroke)
 -- ([realized Note], [unconsumed]).  tempo is always S.Tempo, but it's abstract
 -- here to express that it's untouched.
 type RealizeNote tempo sollu stroke =
-    Solkattu.NoteT sollu -> NonEmpty (tempo, Solkattu.Note sollu)
+    tempo -> Solkattu.NoteT sollu -> [(tempo, Solkattu.Note sollu)]
     -> Either Text ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
 
 type RealizePattern tempo stroke =
@@ -233,15 +233,15 @@ realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
     Just notes -> Right $ S.flatten_with tempo notes
 
 realize_stroke :: RealizeNote tempo (Stroke stroke) stroke
-realize_stroke note ((tempo, _) :| notes) =
+realize_stroke tempo note notes =
     Right ([(tempo, Note (Solkattu._sollu note))], notes)
 
 realize_simple_stroke :: RealizeNote tempo stroke stroke
-realize_simple_stroke note ((tempo, _) :| notes) =
+realize_simple_stroke tempo note notes =
     Right ([(tempo, Note (stroke (Solkattu._sollu note)))], notes)
 
 realize_sollu :: StrokeMap stroke -> RealizeNote tempo Solkattu.Sollu stroke
-realize_sollu smap note ((tempo, _) :| notes) =
+realize_sollu smap tempo note notes =
     find_sequence smap (tempo, Solkattu._sollu note, Solkattu._tag note) notes
 
 realize :: Pretty stroke => RealizePattern tempo stroke
@@ -254,7 +254,7 @@ realize realize_pattern realize_note =
     realize1 (tempo, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
         Solkattu.Space space -> Right ([(tempo, Space space)], notes)
-        Solkattu.Note note_t -> realize_note note_t ((tempo, note) :| notes)
+        Solkattu.Note note_t -> realize_note tempo note_t notes
         Solkattu.Pattern p -> (,notes) <$> realize_pattern tempo p
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
