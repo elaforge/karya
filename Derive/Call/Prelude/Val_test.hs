@@ -95,7 +95,8 @@ test_timestep = do
     equal (run 4 "q") ([6], []) -- quarter is 2
 
     equal (run 0 "q") ([1], [])
-    equal (run 0 "q .5") ([0.5], [])
+    equal (run 0 "q 2") ([2], [])
+    equal (run 0 "q 5") ([6], [])
     -- It's at the end of the ruler so it can't go forwards.  Take the
     -- backwards distance instead.
     equal (run 12 "q") ([14], [])
