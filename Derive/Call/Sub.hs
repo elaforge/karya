@@ -81,8 +81,7 @@ under_invert transformer args deriver
 
 -- | Convert a call into an inverting call.  Documented in
 -- @doc/slicing-inverting.md@.
-run_invert :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
+run_invert :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
 run_invert args call = do
     dyn <- Internal.get_dynamic id
     case (Derive.state_inversion dyn, Derive.ctx_sub_tracks ctx) of
@@ -103,8 +102,8 @@ run_invert args call = do
 -- to insert after the signature arg in a call definition.  The args passed
 -- to the call have been stripped of their sub tracks to avoid another
 -- inversion.
-inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
-    -> Derive.PassedArgs d -> Derive.NoteDeriver
+inverting :: (Derive.PassedArgs d -> Derive.NoteDeriver) -> Derive.PassedArgs d
+    -> Derive.NoteDeriver
 inverting call args = run_invert args (call stripped)
     where
     stripped = args
@@ -118,7 +117,7 @@ inverting call args = run_invert args (call stripped)
 -- want to do stuff with the args before inverting.  Make sure to shadow the
 -- old 'Derive.PassedArgs' with the ones passed to the call, for the reason
 -- documented in 'inverting'.
-inverting_args :: Derive.Taggable d => Derive.PassedArgs d
+inverting_args :: Derive.PassedArgs d
     -> (Derive.PassedArgs d -> Derive.NoteDeriver) -> Derive.NoteDeriver
 inverting_args = flip inverting
 

@@ -6,12 +6,19 @@ UNSORTED
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
-  - upgrade to ghc 8.2
+  * upgrade to ghc 8.2
     . Can't yet, because ekg and conduit-audio have base <4.10
+      . Patched conduit-audio myself, it seems to be abandoned.
     . 8.0.2 compile time:
-      opt     09:40:08 - 09:43:26   3:18
-      debug   09:46:46 - 09:48:04   2:18
-      profile 09:48:24 - 09:52:22   3:58
+      debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
+                    242.37s user 32.71s system 336% cpu 1:21.78 total
+      opt/seq       619.43s user 44.95s system 331% cpu 3:20.30 total
+
+    . 8.2.1
+      debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
+                    201.57s user 30.43s system 328% cpu 1:10.53 total
+      opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
+                    760.40s user 45.88s system 323% cpu 4:09.25 total
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -2131,6 +2138,9 @@ Derive:
       - LSol.insert_* doesn't clear and replace existing notes
       * LSol.insert_* at non-zero start puts durations on all notes
       - I want to be able to insert all parts of a korvai in sequence.
+        . If I make LSol.insert take [Korvai] then I can use take etc.
+        . But it's easier if I get rid of multiple sequences per Korvai.
+        . Or keep multiple sequences but take [Index].
       - insert for patterns is messed up, I get p '5' with 0 dur.
         . '5' is because I use Expr Text, and it uses ShowVal, which loses
           the type, so everything becomes a Str.
@@ -2163,7 +2173,7 @@ Derive:
           aksharas.  I don't have a way to notate it.  Maybe a sequence
           needs a separate final stroke, which is played when leading back
           to sarva.
-      - Sarva fill === gets some spaces in there.
+        - Sarva fill === gets some spaces in there.
       * Realize.thin_rests doesn't work when there are multiple characters
         per matra, because it gets __.
       . sarvalaghu substitution: this could be a variable-length pattern,
@@ -2223,7 +2233,7 @@ Derive:
       ? rename tri to tir, for tirmanam?
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
-      groups:
+      solkattu-group:
         . top level:
           reduceTo 2 1 taka
             -> Group (ta.ka) (DropL 1), Group (ta.ka) (DropL 0)

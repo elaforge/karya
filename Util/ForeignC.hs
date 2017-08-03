@@ -156,7 +156,7 @@ instance CStorable (StablePtr a) where
 alloca :: forall a b. (CStorable a) => (Ptr a -> IO b) -> IO b
 alloca = allocaBytesAligned (sizeOf dummy) (alignment dummy)
     where
-    dummy :: (CStorable a) => a
+    dummy :: a
     dummy = undefined
 
 malloc :: (CStorable a) => IO (Ptr a)

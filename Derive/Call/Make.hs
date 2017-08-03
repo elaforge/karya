@@ -46,9 +46,8 @@ attributed_note module_ attrs = transform_notes module_
     (\() -> Call.add_attributes attrs)
 
 -- | This is a specialization of 'transform_notes' that sets an environ value.
-environ_note :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
-    Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc -> Env.Key -> a
-    -> Calls Derive.Note
+environ_note :: Typecheck.ToVal a => Module.Module -> Derive.CallName
+    -> Tags.Tags -> Doc.Doc -> Env.Key -> a -> Calls Derive.Note
 environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
         \() -> Derive.with_val key val
@@ -85,8 +84,7 @@ transform_notes module_ name tags transform_doc sig transform =
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
-environ ::
-    (Typecheck.Typecheck val, Typecheck.ToVal val, Derive.Taggable d) =>
+environ :: (Typecheck.ToVal val, Derive.Taggable d) =>
     Module.Module -> BaseTypes.Key -> Doc.Doc -> Sig.Parser a
     -> (a -> val) -> Derive.Transformer d
 environ module_ key key_doc sig extract =
@@ -96,8 +94,7 @@ environ module_ key key_doc sig extract =
         Derive.with_val key (extract val)
 
 -- | Make a call that sets an environ key to a specific value.
-environ_val :: (ShowVal.ShowVal a, Typecheck.Typecheck a,
-        Typecheck.ToVal a, Derive.Taggable d) =>
+environ_val :: (ShowVal.ShowVal a, Typecheck.ToVal a, Derive.Taggable d) =>
     Module.Module -> Derive.CallName -> Env.Key -> a -> Doc.Doc
     -> Derive.Transformer d
 environ_val module_ name key val extra_doc =

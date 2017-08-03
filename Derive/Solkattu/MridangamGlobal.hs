@@ -11,7 +11,6 @@
 module Derive.Solkattu.MridangamGlobal (
     Sequence
     , (&)
-    , realize, realizep, realize_m
     , korvai, korvai1
     , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l

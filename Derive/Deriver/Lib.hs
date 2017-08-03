@@ -359,8 +359,7 @@ get_val key = do
 -- This dispatches to 'with_scale' or 'with_instrument' if it's setting the
 -- scale or instrument, so scale or instrument scopes are always set when scale
 -- and instrument are.
-with_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key -> val
-    -> Deriver a -> Deriver a
+with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val key val deriver
     | key == EnvKey.scale, Just scale_id <- BaseTypes.to_scale_id v = do
         scale <- get_scale scale_id
@@ -372,8 +371,7 @@ with_val key val deriver
 
 -- | Like 'with_val', but should be slightly more efficient for setting
 -- multiple values at once.
-with_vals :: (Typecheck.Typecheck val, Typecheck.ToVal val) =>
-    [(Env.Key, val)] -> Deriver a -> Deriver a
+with_vals :: Typecheck.ToVal val => [(Env.Key, val)] -> Deriver a -> Deriver a
 with_vals vals deriver
     | null vals = deriver
     | any (`elem` [EnvKey.scale, EnvKey.instrument]) (map fst vals) =
@@ -387,8 +385,7 @@ with_vals vals deriver
         environ `seq` return $! state { state_environ = environ }
 
 -- | Like 'with_val', but don't set scopes for instrument and scale.
-with_val_raw :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
-    -> val -> Deriver a -> Deriver a
+with_val_raw :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val_raw key val = Internal.localm $ \state -> do
     environ <- insert_environ key val (state_environ state)
     environ `seq` return $! state { state_environ = environ }
