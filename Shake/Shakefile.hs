@@ -567,7 +567,6 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             ["-dynamic" | mode /= Profile]
-            ++ ghcWarnings mode
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
@@ -1175,6 +1174,7 @@ docToHtml = (buildDocDir </>) . FilePath.takeFileName . (++".html")
 
 -- * hs
 
+-- hsORule hsHiRule
 hsOHiRule :: InferConfig -> Shake.Rules ()
 hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
