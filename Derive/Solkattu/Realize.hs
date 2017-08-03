@@ -225,13 +225,11 @@ realize realize_pattern get_stroke =
     realize1 (tempo, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
         Solkattu.Space space -> Right ([(tempo, Space space)], notes)
-        Solkattu.Note note_t -> realize_note tempo note_t notes
+        Solkattu.Note {} -> find_sequence get_stroke ((tempo, note) : notes)
         Solkattu.Pattern p -> (,notes) <$> realize_pattern tempo p
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
-    realize_note tempo note_t notes = find_sequence get_stroke
-        (tempo, Solkattu._sollu note_t, Solkattu._tag note_t) notes
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.
@@ -244,15 +242,13 @@ map_until_left f = go
         Right (val, rest) -> first (val:) (go rest)
 
 -- | Find the longest matching sequence and return the match and unconsumed
--- notes.  TODO also get rid of (tempo, sollu, tag) arg
+-- notes.
 find_sequence :: Pretty sollu => GetStroke sollu stroke
-    -> (tempo, sollu, Maybe Solkattu.Tag) -> [(tempo, Solkattu.Note sollu)]
+    -> [(tempo, Solkattu.Note sollu)]
     -> Either Error ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
-find_sequence get_stroke (tempo, sollu, tag) notes =
-    case best_match tag (sollu : sollus) get_stroke of
-        Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
-        Just strokes -> Right $ replace_sollus strokes $
-            (tempo, Solkattu.Note (Solkattu.note sollu)) : notes
+find_sequence get_stroke notes = case best_match tag sollus get_stroke of
+    Nothing -> Left $ "sequence not found: " <> pretty sollus
+    Just strokes -> Right $ replace_sollus strokes notes
     where
     -- Collect only sollus and rests, and strip the rests.
     sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
@@ -260,6 +256,7 @@ find_sequence get_stroke (tempo, sollu, tag) notes =
     is_sollu (Solkattu.Space {}) = Just Nothing
     is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
+    tag = Solkattu._tag =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.

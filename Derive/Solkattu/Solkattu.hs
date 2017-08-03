@@ -113,6 +113,10 @@ type Tag = Int
 note :: sollu -> NoteT sollu
 note sollu = NoteT { _sollu = sollu, _karvai = False, _tag = Nothing }
 
+note_of :: Note sollu -> Maybe (NoteT sollu)
+note_of (Note n) = Just n
+note_of _ = Nothing
+
 instance Pretty sollu => Pretty (NoteT sollu) where
     pretty (NoteT sollu karvai tag) = mconcat
         [ pretty_tag tag
