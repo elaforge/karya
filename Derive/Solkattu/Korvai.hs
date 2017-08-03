@@ -95,10 +95,9 @@ mridangam_korvai tala pmap sequences = infer_metadata $ Korvai
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
     inst_from_sollu :: Realize.StrokeMap stroke
-        -> Realize.RealizeNote Sequence.Tempo Solkattu.Sollu stroke
+        -> Realize.GetStroke Solkattu.Sollu stroke
     , inst_from_mridangam ::
-        Maybe (Realize.RealizeNote Sequence.Tempo
-            (Realize.Stroke Mridangam.Stroke) stroke)
+        Maybe (Realize.GetStroke (Realize.Stroke Mridangam.Stroke) stroke)
     , inst_from_strokes :: StrokeMaps -> Realize.Instrument stroke
     , inst_to_score :: ToScore.ToScore stroke
     }
@@ -169,12 +168,12 @@ realize instrument realize_patterns korvai = case korvai_sequences korvai of
     tala = korvai_tala korvai
     inst = inst_from_strokes instrument (korvai_stroke_maps korvai)
 
-realize_instrument :: Pretty stroke =>
-    Bool -> Realize.RealizeNote Sequence.Tempo sollu stroke
+realize_instrument :: (Pretty sollu, Pretty stroke) =>
+    Bool -> Realize.GetStroke sollu stroke
     -> Realize.Instrument stroke -> Tala.Tala
     -> [Sequence.Note (Solkattu.Note sollu)]
     -> Either Text ([(Sequence.Tempo, Realize.Note stroke)], Text)
-realize_instrument realize_patterns realize_note inst tala sequence = do
+realize_instrument realize_patterns get_stroke inst tala sequence = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
     let (notes, align_error) = Solkattu.verify_alignment tala (flatten sequence)
@@ -182,7 +181,7 @@ realize_instrument realize_patterns realize_note inst tala sequence = do
             | realize_patterns =
                 Realize.realize_pattern (Realize.inst_patterns inst)
             | otherwise = Realize.keep_pattern
-    realized <- Realize.realize pattern realize_note notes
+    realized <- Realize.realize pattern get_stroke notes
     return (realized, fromMaybe "" align_error)
 
 

@@ -29,6 +29,8 @@ import qualified Derive.Symbols as Symbols
 import Global
 
 
+type Error = Text
+
 type SNote stroke = S.Note (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
@@ -104,7 +106,7 @@ newtype Patterns stroke = Patterns (Map Solkattu.Pattern [SNote stroke])
 
 -- | Make a Patterns while checking that the durations match.
 patterns :: [(Solkattu.Pattern, [SNote stroke])]
-    -> Either Text (Patterns stroke)
+    -> Either Error (Patterns stroke)
 patterns pairs
     | null errors = Right $ Patterns $ Map.fromList pairs
     | otherwise = Left $ Text.intercalate "; " errors
@@ -144,7 +146,7 @@ simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
 
 stroke_map :: Pretty stroke =>
     [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Either Text (StrokeMap stroke)
+    -> Either Error (StrokeMap stroke)
 stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
     where
     verify (sollus, strokes) = do
@@ -171,16 +173,6 @@ stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
         -- TODO warn if there are inconsistent tags?
         return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
 
-best_match :: Maybe Solkattu.Tag -> [Solkattu.Sollu] -> StrokeMap stroke
-    -> Maybe [Maybe (Stroke stroke)]
-best_match tag sollus (StrokeMap smap) =
-    -- Try with the specific tag, otherwise fall back to no tag.
-    Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
-    where
-    find tag = mapMaybe (\s -> Map.lookup (tag, s) smap)
-    prefixes = reverse $ drop 1 $ List.inits $ take longest sollus
-    longest = fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
-
 -- ** Instrument
 
 -- | Sollu to instrument stroke mapping.
@@ -201,7 +193,7 @@ instance Pretty stroke => Pretty (Instrument stroke) where
 
 instrument :: Pretty stroke => StrokeMap stroke
     -> [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Patterns stroke -> Either Text (Instrument stroke)
+    -> Patterns stroke -> Either Error (Instrument stroke)
 instrument defaults strokes patterns = do
     smap <- stroke_map strokes
     return $ Instrument
@@ -211,17 +203,8 @@ instrument defaults strokes patterns = do
 
 -- * realize
 
-type Event stroke = (S.Duration, Solkattu.Note stroke)
-
--- | Take either a (NoteT, notes in context) or a Pattern to
--- ([realized Note], [unconsumed]).  tempo is always S.Tempo, but it's abstract
--- here to express that it's untouched.
-type RealizeNote tempo sollu stroke =
-    tempo -> Solkattu.NoteT sollu -> [(tempo, Solkattu.Note sollu)]
-    -> Either Text ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
-
 type RealizePattern tempo stroke =
-    tempo -> Solkattu.Pattern -> Either Text [(tempo, Note stroke)]
+    tempo -> Solkattu.Pattern -> Either Error [(tempo, Note stroke)]
 
 -- | Don't realize Patterns, just pass them through.
 keep_pattern :: RealizePattern tempo stroke
@@ -232,23 +215,11 @@ realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
     Just notes -> Right $ S.flatten_with tempo notes
 
-realize_stroke :: RealizeNote tempo (Stroke stroke) stroke
-realize_stroke tempo note notes =
-    Right ([(tempo, Note (Solkattu._sollu note))], notes)
-
-realize_simple_stroke :: RealizeNote tempo stroke stroke
-realize_simple_stroke tempo note notes =
-    Right ([(tempo, Note (stroke (Solkattu._sollu note)))], notes)
-
-realize_sollu :: StrokeMap stroke -> RealizeNote tempo Solkattu.Sollu stroke
-realize_sollu smap tempo note notes =
-    find_sequence smap (tempo, Solkattu._sollu note, Solkattu._tag note) notes
-
-realize :: Pretty stroke => RealizePattern tempo stroke
-    -> RealizeNote tempo sollu stroke
+realize :: (Pretty stroke, Pretty sollu) => RealizePattern tempo stroke
+    -> GetStroke sollu stroke
     -> [(tempo, Solkattu.Note sollu)]
-    -> Either Text [(tempo, Note stroke)]
-realize realize_pattern realize_note =
+    -> Either Error [(tempo, Note stroke)]
+realize realize_pattern get_stroke =
     format_error . first concat . map_until_left realize1
     where
     realize1 (tempo, note) notes = case note of
@@ -259,6 +230,8 @@ realize realize_pattern realize_note =
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
+    realize_note tempo note_t notes = find_sequence get_stroke
+        (tempo, Solkattu._sollu note_t, Solkattu._tag note_t) notes
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.
@@ -271,14 +244,12 @@ map_until_left f = go
         Right (val, rest) -> first (val:) (go rest)
 
 -- | Find the longest matching sequence and return the match and unconsumed
--- notes.
-find_sequence :: StrokeMap stroke
-    -> (tempo, Solkattu.Sollu, Maybe Solkattu.Tag)
-    -> [(tempo, Solkattu.Note Solkattu.Sollu)]
-    -> Either Text
-        ([(tempo, Note stroke)], [(tempo, Solkattu.Note Solkattu.Sollu)])
-find_sequence smap (tempo, sollu, tag) notes =
-    case best_match tag (sollu : sollus) smap of
+-- notes.  TODO also get rid of (tempo, sollu, tag) arg
+find_sequence :: Pretty sollu => GetStroke sollu stroke
+    -> (tempo, sollu, Maybe Solkattu.Tag) -> [(tempo, Solkattu.Note sollu)]
+    -> Either Error ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
+find_sequence get_stroke (tempo, sollu, tag) notes =
+    case best_match tag (sollu : sollus) get_stroke of
         Nothing -> Left $ "sequence not found: " <> pretty (sollu : sollus)
         Just strokes -> Right $ replace_sollus strokes $
             (tempo, Solkattu.Note (Solkattu.note sollu)) : notes
@@ -293,8 +264,8 @@ find_sequence smap (tempo, sollu, tag) notes =
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
 replace_sollus :: [Maybe (Stroke stroke)]
-    -> [(tempo, Solkattu.Note Solkattu.Sollu)]
-    -> ([(tempo, Note stroke)], [(tempo, Solkattu.Note Solkattu.Sollu)])
+    -> [(tempo, Solkattu.Note sollu)]
+    -> ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
 replace_sollus [] ns = ([], ns)
 replace_sollus (stroke : strokes) ((tempo, n) : ns) = case n of
     Solkattu.Note _ -> first ((tempo, rnote) :) (replace_sollus strokes ns)
@@ -312,6 +283,34 @@ replace_sollus (_:_) [] = ([], [])
 
 pretty_words :: Pretty a => [a] -> Text
 pretty_words = Text.unwords . map (justify_left 2 ' ' . pretty)
+
+-- ** GetStroke
+
+-- | Int is the longest [sollu] key, so I know when to give up looking for the
+-- longest prefix.
+type GetStroke sollu stroke =
+    (Int, Maybe Solkattu.Tag -> [sollu] -> Maybe [Maybe (Stroke stroke)])
+
+realize_stroke :: GetStroke (Stroke stroke) stroke
+realize_stroke = (1, const $ Just . map Just)
+
+realize_simple_stroke :: GetStroke stroke stroke
+realize_simple_stroke = (1, const $ Just . map (Just . stroke))
+
+realize_sollu :: StrokeMap stroke -> GetStroke Solkattu.Sollu stroke
+realize_sollu (StrokeMap smap) =
+    ( fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
+    , \tag sollus -> Map.lookup (tag, sollus) smap
+    )
+
+best_match :: Maybe Solkattu.Tag -> [sollu] -> GetStroke sollu stroke
+    -> Maybe [Maybe (Stroke stroke)]
+best_match tag sollus (longest_key, get_stroke) =
+    -- Try with the specific tag, otherwise fall back to no tag.
+    Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
+    where
+    find tag = mapMaybe (\s -> get_stroke tag s)
+    prefixes = reverse $ drop 1 $ List.inits $ take longest_key sollus
 
 
 -- * format text
