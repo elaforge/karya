@@ -5,6 +5,7 @@
 -- | Like "Util.ParseBs", but for parsec, not attoparsec.  I only use
 -- attoparsec when performance matters, because its error msgs are crummy.
 module Util.Parse where
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Numeric
 import qualified Text.Parsec as P
@@ -13,7 +14,6 @@ import qualified Text.Parsec.Error as Error
 import Text.Parsec.Text ()
 
 import qualified Util.File as File
-import qualified Util.Seq as Seq
 import Global
 
 
@@ -21,7 +21,7 @@ import Global
 
 type Parser st a = P.Parsec Text st a
 
-parse :: Parser () a -> Text -> Either String a
+parse :: Parser () a -> Text -> Either Text a
 parse parser input = either (Left . format1 input) Right $
     P.parse (parser <* P.eof) "" input
 
@@ -32,17 +32,17 @@ file deflt parser state fname = do
     return $ maybe (Right deflt) (P.runParser parser state fname) maybe_text
 
 -- | Format a ParseError assuming the input is just one line.
-format1 :: Text -> P.ParseError -> String
+format1 :: Text -> P.ParseError -> Text
 format1 input err
-    | line == 1 = "col " ++ show col ++ ": " ++ msg
-    | otherwise = show line ++ ":" ++ show col ++ ": " ++ msg
+    | line == 1 = "col " <> showt col <> ": " <> msg
+    | otherwise = showt line <> ":" <> showt col <> ": " <> msg
     where
-    msg = Seq.join "; " (show_error err) ++ ": " ++ show input
+    msg = Text.intercalate "; " (show_error err) <> ": " <> showt input
     pos = P.errorPos err
     (line, col) = (P.sourceLine pos, P.sourceColumn pos)
 
-show_error :: P.ParseError -> [String]
-show_error = filter (not . null) . lines
+show_error :: P.ParseError -> [Text]
+show_error = filter (not . Text.null) . Text.lines . txt
     . Error.showErrorMessages "or" "unknown parse error"
         "expecting" "unexpected" "end of input"
     . Error.errorMessages

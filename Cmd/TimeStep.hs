@@ -125,7 +125,7 @@ show_time_step (TimeStep steps) = Text.intercalate ";" (map show_step steps)
 
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
 parse_time_step :: Text -> Either Text TimeStep
-parse_time_step = first txt . Parse.parse p_time_step
+parse_time_step = Parse.parse p_time_step
     where
     p_time_step = TimeStep <$> P.sepBy p_step (P.char ';')
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
