@@ -102,7 +102,8 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvai1 adi mridangam $
         ]
 
 c_17_03_20 :: Korvai
-c_17_03_20 = date 2017 3 20 $ ganesh $
+c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
+    \ lot, see section in Laya Vinyas, adi talam solo." $
     korvai1 adi (mridangam <> kendang <> reyong) $ su $
         reduceTo 4 2 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
         . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
@@ -396,9 +397,9 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         , (din, [od])
         ]
 
--- trikalam
 c_17_07_13 :: Korvai
-c_17_07_13 = date 2017 7 13 $ ganesh $ korvai adi (mridangam<>kendang) $ concat
+c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
+    korvai adi (mridangam<>kendang) $ concat
     -- TODO when I can do branches, any dintaka can substitute
     -- purvangam (any dintakas) . utarangam (any dintakas)
     [ map purvangam dintakas

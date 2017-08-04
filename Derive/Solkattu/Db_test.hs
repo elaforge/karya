@@ -17,10 +17,18 @@ import Global
 
 
 test_all = do
-    forM_ All.korvais $ \korvai -> case realize korvai of
-        Right _ -> return True
-        Left errs -> failure $ Metadata.get_location korvai <> ": "
-            <> Text.unlines errs
+    forM_ All.korvais $ \korvai -> do
+        case realize korvai of
+            Right _ -> return True
+            Left errs -> failure $ Metadata.get_location korvai <> ": "
+                <> Text.unlines errs
+        forM_ (Metadata.get Metadata.t_similar_to korvai) $ \tag -> do
+            unless (referent_exists tag) $ do
+                void $ failure $ Metadata.get_location korvai
+                    <> ": can't find similar-to " <> showt tag
+
+referent_exists :: Text -> Bool
+referent_exists = (`elem` map Metadata.get_module_variable All.korvais)
 
 realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
 realize korvai

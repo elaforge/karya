@@ -11,10 +11,12 @@ import Derive.Solkattu.SolkattuGlobal
 
 
 c_16_09_28 :: Korvai
-c_16_09_28 = date 2016 9 28 $ ganesh $ korvai1 adi mridangam $
-    tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.ta.ka.din.na.dheem) . __6
-          .dit.__.kitakina . nakatiku . tri_ __       (ta.ka.din.na.dheem) . __6
-                 .kitakina . nakatiku . tri_ __              (ta.ka.dheem) . __6
+c_16_09_28 = date 2016 9 28 $ ganesh $
+        similar_to "Solkattu2016" "c_16_12_06_sriram1" $
+        korvai1 adi mridangam $ su $
+    tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dheem) . __6
+          .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dheem) . __6
+                 .kitakina . nakatiku . tri_ __            (taka.dheem) . __6
     . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
     where
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
