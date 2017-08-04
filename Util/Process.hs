@@ -56,6 +56,8 @@ readProcessWithExitCode env cmd args stdin = do
 -- | Start a subprocess, wait for it to complete, and kill it if this thread
 -- is killed.  This is like 'Async.withAsync', except for a subprocess, and
 -- it's hardcoded to wait for the subprocess.
+--
+-- TODO use Process.withCreateProcess?
 supervised :: Process.CreateProcess -> IO ()
 supervised proc = Exception.mask $ \restore -> do
     -- Hopefully this mask means that I can't get killed after starting the
@@ -97,15 +99,19 @@ waitError proc maybeHdl = fmap annotate <$> case maybeHdl of
     noBinary = Just "binary not found"
     annotate msg = msg <> ": " <> Text.pack (cmdOf proc)
 
--- | Like 'Process.createProcess', but log if the binary wasn't found or
+-- | Like 'Process.callProcess', but log if the binary wasn't found or
 -- failed.
-logged :: Process.CreateProcess
-    -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
-        Maybe Process.ProcessHandle)
-logged proc = do
-    r@(_, _, _, hdl) <- create proc
-    waitAndLog proc hdl
-    return r
+call :: FilePath -> [String] -> IO ()
+call cmd args = Exception.handle ioError $
+    Process.withCreateProcess proc $ \_ _ _ hdl -> waitAndLog proc (Just hdl)
+    where
+    -- If I don't close the fds, the subprocess can inherit open fds, with
+    -- confusing results.
+    proc = (Process.proc cmd args) { Process.close_fds = True }
+    -- In modern GHCs, this will happen when the binary doesn't exist.  The
+    -- exception will have the binary name in it, so cmdOf not needed.
+    ioError :: IO.Error.IOError -> IO ()
+    ioError exc = Log.warn $ showt exc
 
 -- | Like 'Process.createProcess', but return a Nothing instead of a pid if
 -- the binary doesn't exist.

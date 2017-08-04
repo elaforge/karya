@@ -18,10 +18,11 @@ import qualified Data.Text.Lazy.IO as Lazy.IO
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
-import qualified System.Process as Process
 
 import qualified Util.Log as Log
 import qualified Util.Process
+import qualified Util.Thread as Thread
+
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
@@ -134,15 +135,10 @@ convert_movements config movements =
 
 compile_ly :: FilePath -> Lazy.Text -> IO ()
 compile_ly filename text = do
-    Directory.createDirectoryIfMissing True
-        (FilePath.takeDirectory filename)
+    Directory.createDirectoryIfMissing True (FilePath.takeDirectory filename)
     Lazy.IO.writeFile filename text
-    void $ Util.Process.logged
-        (Process.proc "lilypond"
-            ["-o", FilePath.dropExtension filename, filename])
-        { Process.close_fds = True }
-        -- If I don't close the fds, the subprocess inherits the open
-        -- repl socket and I can't close it until the subprocess exits!
+    void $ Thread.start $ Util.Process.call
+        "lilypond" ["-o", FilePath.dropExtension filename, filename]
 
 convert :: Lilypond.Config -> [Score.Event] -> ([Lilypond.Event], [Log.Msg])
 convert config score_events =

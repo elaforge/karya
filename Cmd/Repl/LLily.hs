@@ -18,11 +18,11 @@
 module Cmd.Repl.LLily where
 import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
-import qualified System.Process as Process
 
 import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
@@ -130,9 +130,8 @@ current = block =<< Cmd.get_focused_block
 view_block :: BlockId -> Cmd.CmdL ()
 view_block block_id = do
     filename <- Cmd.Lilypond.ly_filename $ block_id_title block_id
-    liftIO $ Util.Process.logged $
-        Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
-    return ()
+    liftIO $ void $ Thread.start $ Util.Process.call
+        "open" [FilePath.replaceExtension filename ".pdf"]
 
 view :: Cmd.CmdL ()
 view = view_block =<< Cmd.get_focused_block
