@@ -168,11 +168,11 @@ test_release_velocity = do
     equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
         ([Left (0.5, 0.25)], [])
 
-mkevent :: RealTime -> String -> Score.Instrument -> Score.Event
+mkevent :: RealTime -> Text -> Score.Instrument -> Score.Event
 mkevent start pitch inst = DeriveTest.mkevent (start, 1, pitch, [], inst)
 
 convert :: DeriveTest.Lookup -> (Types.Event -> a) -> [Score.Event]
-    -> [Either a String]
+    -> [Either a Text]
 convert lookup extract =
     show_logs extract . Convert.convert (snd lookup) (fst lookup)
 
@@ -182,7 +182,7 @@ e_pitch e =
     , map (fmap Pitch.nn) $ Signal.unsignal (Types.event_pitch e)
     )
 
-show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b String]
+show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b Text]
 show_logs extract =
     map $ LEvent.either (Left . extract) (Right . DeriveTest.show_log)
 
@@ -228,7 +228,7 @@ nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
 perform :: Patch.Patch -> DeriveTest.SimpleAllocations -> [UiTest.TrackSpec]
-    -> (([Types.Event], [Midi.WriteMessage]), [String])
+    -> (([Types.Event], [Midi.WriteMessage]), [Text])
 perform patch allocs tracks =
     DeriveTest.perform_result perform $
         DeriveTest.derive_tracks_setup

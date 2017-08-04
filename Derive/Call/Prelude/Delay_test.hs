@@ -18,14 +18,14 @@ test_delay = do
 
     -- delay notes with a delay signal
     let pref = "d %delay | "
-    equal (run ">i" (txt pref) [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+    equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
         [(1, 1, pref <> "n --1"), (3, 1, pref <> "n --2")]
     equal (run ">i | d 2" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
     equal (run ">i | d %delay,2" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
     let pref = "d %delay | "
-    equal (run ">i" (txt pref) [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
+    equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
         [(1, 1, pref <> "n --1"), (3, 1, pref <> "n --2")]
     -- delay twice
     equal (run ">i | d %delay,1s | d %delay,1s" "" []) $
@@ -67,6 +67,6 @@ test_event_echo = do
             (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)]
 
 perform :: (Text, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
-     -> ([Midi.WriteMessage], [String])
+     -> ([Midi.WriteMessage], [Text])
 perform (title, events) tracks = DeriveTest.perform_block $
     tracks ++ [(">i1 | " <> title, events)]

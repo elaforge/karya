@@ -217,8 +217,7 @@ partition_logs result = (events, extract_logs (dlogs ++ logs))
     (events, logs) = LEvent.partition $ convert $
         Stream.events_of $ Derive.r_events result
     dlogs = Stream.logs_of (Derive.r_events result)
-    extract_logs =
-        map (txt . DeriveTest.show_log) . DeriveTest.quiet_filter_logs
+    extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 
 convert :: [Score.Event] -> [LEvent.LEvent Types.Event]
 convert = Convert.convert (default_config { Types.config_quarter_duration = 1 })
@@ -255,7 +254,7 @@ derive_lilypond state deriver =
     where
     extract (Right (Just val)) = val
     extract (Right Nothing) = errorStack "derive_lilypond: abort"
-    extract (Left err) = errorStack $ "derive_lilypond: " <> txt err
+    extract (Left err) = errorStack $ "derive_lilypond: " <> err
 
 make_ly :: Types.Config -> [Types.Event] -> Text
 make_ly config events = Text.Lazy.toStrict $

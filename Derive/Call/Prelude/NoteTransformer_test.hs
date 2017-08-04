@@ -64,7 +64,7 @@ test_parallel = do
     equal (run 0 4 "parallel sub-cd sub-e")
         ([(0, 2, "4c"), (0, 2, "4e"), (2, 2, "4d")], [])
 
-run_blocks :: [UiTest.BlockSpec] -> ([(RealTime, RealTime, String)], [String])
+run_blocks :: [UiTest.BlockSpec] -> ([(RealTime, RealTime, Text)], [Text])
 run_blocks = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
 
 make_subs :: ScoreTime -> ScoreTime -> Text -> [UiTest.BlockSpec]
@@ -169,6 +169,6 @@ test_repeat = do
         ([(2, 1, "4c"), (3, 1, "4d"), (4, 1, "4c"), (5, 1, "4d")], [])
 
 run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
-    -> ([a], [String])
+    -> ([a], [Text])
 run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks
     [("top", top), ("sub=ruler", sub)]

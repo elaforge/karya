@@ -29,7 +29,7 @@ import Global
 import Types
 
 
-derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [String])
+derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [Text])
 derive extract track = DeriveTest.extract extract $
     DeriveTest.derive_tracks "" [(">", [(0, 8, "")]), track]
 

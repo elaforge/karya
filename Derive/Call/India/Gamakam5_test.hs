@@ -209,7 +209,7 @@ make_dyn_tracks (dur1, call1) (dur2, call2) =
 
 -- * util
 
-derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
+derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [Text])
 derive_tracks extract = DeriveTest.extract extract
     . DeriveTest.derive_tracks
         "import india.gamakam5 | transition=1 | dyn-transition=1"

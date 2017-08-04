@@ -113,7 +113,7 @@ lookup_map = Derive.LookupMap . Map.fromList
 -- * calls
 
 -- | Run a val call, and return what it returned.
-run_val :: Maybe Text -> Text -> (Maybe BaseTypes.Val, [String])
+run_val :: Maybe Text -> Text -> (Maybe BaseTypes.Val, [Text])
 run_val transform call = extract $ DeriveTest.derive_tracks_setup
         (with_note_generator "capture" c_capture) ""
         [(">", [(0, 1, maybe "" (<> " | ") transform

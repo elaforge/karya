@@ -9,6 +9,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 
@@ -38,7 +39,7 @@ test_close_notes = do
         ([(1, [(1, 62)]), (2, [(2, 62)])], [])
 
 run :: [UiTest.EventSpec]
-    -> ([(RealTime, [(RealTime, Pitch.NoteNumber)])], [String])
+    -> ([(RealTime, [(RealTime, Pitch.NoteNumber)])], [Text])
 run = DeriveTest.extract e_nns . DeriveTest.derive_tracks title
     . UiTest.note_track
     where

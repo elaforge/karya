@@ -4,6 +4,7 @@
 
 module Derive.Call.Bali.Gangsa_test where
 import qualified Data.List as List
+import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import Util.Test
@@ -462,7 +463,7 @@ ngotek b = " | kotekan=" <> if b then "2" else "1"
 -- * derive
 
 derive_polos :: (Score.Event -> a) -> Text -> [UiTest.EventSpec]
-    -> ([a], [String])
+    -> ([a], [Text])
 derive_polos extract title = first (fromMaybe [] . lookup polos)
     . e_by_inst extract . derive title
 
@@ -475,48 +476,48 @@ derive_tracks = DeriveTest.derive_tracks block_title
 -- * extract
 
 e_by_inst :: (Score.Event -> a) -> Derive.Result
-    -> ([(Score.Instrument, [a])], [String])
+    -> ([(Score.Instrument, [a])], [Text])
 e_by_inst extract = first Seq.group_fst
     . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
 e_pattern :: RealTime -- ^ expect the first note at this time
-    -> Derive.Result -> ([(Score.Instrument, String)], [String])
+    -> Derive.Result -> ([(Score.Instrument, Text)], [Text])
 e_pattern start = first (convert_to_pattern pitch_digit start)
     . e_by_inst DeriveTest.e_start_note
 
-convert_to_pattern :: (String -> String) -> RealTime
-    -> [(a, [(RealTime, String)])] -> [(a, String)]
+convert_to_pattern :: (Text -> Text) -> RealTime
+    -> [(a, [(RealTime, Text)])] -> [(a, Text)]
 convert_to_pattern pitch_digit start inst_notes =
     map (second (as_pattern pitch_digit start end)) inst_notes
     where end = fromMaybe 0 $ Seq.maximum $ map fst $ concatMap snd inst_notes
 
-as_pattern :: (String -> String) -> RealTime -> RealTime
-    -> [(RealTime, String)] -> String
-as_pattern pitch_digit start end = concat . map format . collect start
+as_pattern :: (Text -> Text) -> RealTime -> RealTime
+    -> [(RealTime, Text)] -> Text
+as_pattern pitch_digit start end = mconcat . map format . collect start
     where
     collect at [] = replicate (round (end - at) + 1) []
     -- for each number, collect everything below
     collect at xs = map snd pre : collect (at+1) post
         where (pre, post) = span ((<=at) . fst) xs
     format [] = "-"
-    format ns = Seq.join "+" (map pitch_digit ns)
+    format ns = Text.intercalate "+" (map pitch_digit ns)
 
-e_note :: Score.Event -> (RealTime, RealTime, String)
+e_note :: Score.Event -> (RealTime, RealTime, Text)
 e_note e = (Score.event_start e, Score.event_duration e, e_digit e)
 
-e_digit :: Score.Event -> String
+e_digit :: Score.Event -> Text
 e_digit = pitch_digit . DeriveTest.e_pitch
 
-e_digit_mute :: Score.Event -> String
+e_digit_mute :: Score.Event -> Text
 e_digit_mute e = pitch_digit (DeriveTest.e_pitch e)
     <> if Score.has_attribute Attrs.mute e then "+" else ""
 
 -- | Count pitches starting from 4c=1.
-pitch_digit :: String -> String
+pitch_digit :: Text -> Text
 pitch_digit p = case p of
     "4c" -> "1"; "4d" -> "2"; "4e" -> "3"; "4f" -> "4"
     "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
-    _ -> "unknown pitch: " <> show p
+    _ -> "unknown pitch: " <> showt p
 
 block_title :: Text
 block_title =

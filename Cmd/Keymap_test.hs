@@ -28,7 +28,7 @@ test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds
     let cmd = Keymap.make_cmd cmd_map
     let no_run = []
-        did_run cname cmdlog = ["running command " ++ show cname, cmdlog]
+        did_run cname cmdlog = ["running command " <> showt cname, cmdlog]
         aborted = Right (Nothing, [])
     let run mods msg = extract_logs (run_cmd cmd mods msg)
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
@@ -77,7 +77,7 @@ test_key_repeat = do
     equal (run True '2') ["running command \"2\"", "cmd2"]
 
 
-extract_logs :: CmdTest.Result val -> [String]
+extract_logs :: CmdTest.Result val -> [Text]
 extract_logs = map DeriveTest.show_log . CmdTest.result_logs
 
 run_cmd :: (Msg.Msg -> Cmd.CmdId a) -> [Cmd.Modifier] -> Msg.Msg

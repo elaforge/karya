@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Derive.Call.Bali.Reyong_test where
+import qualified Data.Text as Text
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -120,22 +122,22 @@ test_cancel_kotekan = do
         ([(2, "i-ii-i-oi-e-oe-o")], [])
 
 e_pattern :: RealTime -- ^ expect the first note at this time
-    -> Derive.Result -> ([(Reyong.Voice, String)], [String])
+    -> Derive.Result -> ([(Reyong.Voice, Text)], [Text])
 e_pattern start = first (Gangsa_test.convert_to_pattern pitch_digit start)
     . e_by_voice DeriveTest.e_start_note
 
-pitch_digit :: String -> String
-pitch_digit p = drop 1 p
+pitch_digit :: Text -> Text
+pitch_digit = Text.drop 1
 
 e_by_voice :: (Score.Event -> a) -> Derive.Result
-    -> ([(Reyong.Voice, [a])], [String])
+    -> ([(Reyong.Voice, [a])], [Text])
 e_by_voice extract =
     first Seq.group_fst . DeriveTest.extract (\e -> (event_voice e, extract e))
 
 event_voice :: Score.Event -> Reyong.Voice
 event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
 
-e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [String])
+e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [Text])
 e_voice voice extract = group_voices . DeriveTest.extract ex
     where
     ex e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int, extract e)
@@ -147,7 +149,7 @@ test_positions = forM_ Reyong.reyong_positions $ \pos -> equal pos pos
 test_assign_positions = do
     let f pattern dest = extract $ Reyong.assign_positions pattern 5 dest
             (map Reyong.pos_cek Reyong.reyong_positions)
-        extract = map (unwords . map show_pitch)
+        extract = map (Text.unwords . map show_pitch)
         p1 = Reyong.parse_kotekan "4-3" "12-"
     equal (f p1 0) ["4u 4a -", "5o - 5i", "5u 5a -", "6o - 6i"]
     equal (f p1 1) ["4a 5i -", "5e - 5o", "5a 6i -", "6e - 6o"]
@@ -275,14 +277,14 @@ test_assign_hands = do
     equal (f [(0, "4c"), (1, "4d"), (2, "4e")]) [L, R, R]
     equal (f [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) [L, R, R, L]
 
-mkevents :: [(RealTime, String)] -> [Score.Event]
+mkevents :: [(RealTime, Text)] -> [Score.Event]
 mkevents = map $
     DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], Score.empty_instrument))
 
-show_pitch :: Maybe Pitch.Pitch -> String
+show_pitch :: Maybe Pitch.Pitch -> Text
 show_pitch Nothing = "-"
 show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
-    show oct ++ ("ioeua" !! d) : ""
+    showt oct <> Text.singleton ("ioeua" !! d)
 
 -- * ngoret
 

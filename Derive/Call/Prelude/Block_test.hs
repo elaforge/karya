@@ -126,7 +126,7 @@ test_trim_controls_problem = do
         ([[]], [])
 
 run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
-    -> ([a], [String])
+    -> ([a], [Text])
 run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks
     [("top", top), ("sub=ruler", sub)]
 

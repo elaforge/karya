@@ -65,11 +65,11 @@ test_not_given = do
     equal (call ((,) <$> int <*> ints) [BaseTypes.VNotGiven, num 52])
         (Right (Nothing, [52]))
 
-call :: Sig.Parser a -> [BaseTypes.Val] -> Either String a
+call :: Sig.Parser a -> [BaseTypes.Val] -> Either Text a
 call = call_with id
 
 call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
-    -> [BaseTypes.Val] -> Either String a
+    -> [BaseTypes.Val] -> Either Text a
 call_with with p vals = DeriveTest.eval Ui.empty $
     with $ run (Sig.call p (\val _args -> return val)) vals
 

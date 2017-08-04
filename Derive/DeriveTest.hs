@@ -7,6 +7,7 @@ module Derive.DeriveTest where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
@@ -98,7 +99,7 @@ signal_interpolate x0 y0 x1 y1 =
 -- * run
 
 run :: Ui.State -> Derive.Deriver a
-    -> Either String (a, Derive.State, [Log.Msg])
+    -> Either Text (a, Derive.State, [Log.Msg])
 run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
     where
     -- Make sure Derive.get_current_block_id, called by add_new_track_warp,
@@ -107,33 +108,33 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
 
 -- | Run without a fake stack.
 run_ :: Ui.State -> Derive.Deriver a
-    -> Either String (a, Derive.State, [Log.Msg])
+    -> Either Text (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
-    (Left err, _, _logs) -> Left (prettys err)
+    (Left err, _, _logs) -> Left (pretty err)
     (Right val, state, logs) -> Right (val, state, logs)
     where
     derive_state = Derive.initial_state
         (default_constant ui_state mempty mempty) default_dynamic
 
-extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
-    -> Either String b
+extract_run :: (a -> b) -> Either Text (a, Derive.State, [Log.Msg])
+    -> Either Text b
 extract_run _ (Left err) = Left err
 extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
 run_events :: (a -> b)
-    -> Either String ([LEvent.LEvent a], Derive.State, [Log.Msg])
-    -> Either String ([b], [String])
+    -> Either Text ([LEvent.LEvent a], Derive.State, [Log.Msg])
+    -> Either Text ([b], [Text])
 run_events f = extract_run $ extract_levents f
 
-eval :: Ui.State -> Derive.Deriver a -> Either String a
+eval :: Ui.State -> Derive.Deriver a -> Either Text a
 eval ui_state m = extract_run id (run ui_state m)
 
 -- * perform
 
-perform_block :: [UiTest.TrackSpec] -> ([Midi.WriteMessage], [String])
+perform_block :: [UiTest.TrackSpec] -> ([Midi.WriteMessage], [Text])
 perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 
-perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [String])
+perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [Text])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
     ((_, mmsgs), logs) = perform default_convert_lookup
@@ -178,7 +179,7 @@ perform_synths_simple simple_allocs synths =
 
 -- | Chain a 'perform' from a Derive.Result.
 perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
-    -> Derive.Result -> (a, [String])
+    -> Derive.Result -> (a, [Text])
 perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
     where
     (events, derive_logs) = extract_logs $ Stream.to_list $
@@ -590,7 +591,7 @@ quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
 
 -- ** extract
 
-extract :: (Score.Event -> a) -> Derive.Result -> ([a], [String])
+extract :: (Score.Event -> a) -> Derive.Result -> ([a], [Text])
 extract e_event = extract_levents e_event . Stream.to_list . Derive.r_events
 
 filter_events :: (Score.Event -> Bool) -> Derive.Result -> Derive.Result
@@ -607,13 +608,13 @@ extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
 extract_events e_event result = Log.trace_logs logs (map e_event events)
     where (events, logs) = r_split result
 
-extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [String])
+extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [Text])
 extract_levents e_event = (map e_event *** map show_log) . extract_logs
 
 extract_logs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
 extract_logs = second (filter interesting_log) . LEvent.partition
 
-extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
+extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a Text]
 extract_stream e_event = mapMaybe extract . Stream.to_list . Derive.r_events
     where
     extract (LEvent.Log log)
@@ -630,21 +631,21 @@ r_logs = snd . r_split
 stack_to_ui :: Stack.Stack -> [Text]
 stack_to_ui = map Stack.unparse_ui_frame . Stack.to_ui
 
-r_log_strings :: Derive.Result -> [String]
+r_log_strings :: Derive.Result -> [Text]
 r_log_strings = snd . extract id
 
-e_event :: Score.Event -> (RealTime, RealTime, String)
+e_event :: Score.Event -> (RealTime, RealTime, Text)
 e_event e =
-    (Score.event_start e, Score.event_duration e, untxt $ Score.event_text e)
+    (Score.event_start e, Score.event_duration e, Score.event_text e)
 
 e_start_dur :: Score.Event -> (RealTime, RealTime)
 e_start_dur e = (Score.event_start e, Score.event_duration e)
 
-e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [Text])
+e_everything :: Score.Event -> (RealTime, RealTime, Text, Text, [Text])
 e_everything e =
     ( Score.event_start e
     , Score.event_duration e
-    , untxt $ Score.event_text e
+    , Score.event_text e
     , e_instrument e
     , Attrs.to_list (Score.event_attributes e)
     )
@@ -686,24 +687,24 @@ e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
 
 -- | Extract pitch signal and any errors flattening it.
-e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [String])
+e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =
-    (map (second Pitch.nn) . Signal.unsignal *** map (untxt . pretty))
+    (map (second Pitch.nn) . Signal.unsignal *** map pretty)
     . PSignal.to_nn . Score.event_transformed_pitch
     . Score.normalize (const mempty)
 
-e_pitch :: Score.Event -> String
-e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)
+e_pitch :: Score.Event -> Text
+e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
 
 -- | (start, dur, pitch), the melodic essentials of a note.
-e_note :: Score.Event -> (RealTime, RealTime, String)
+e_note :: Score.Event -> (RealTime, RealTime, Text)
 e_note e = (Score.event_start e, Score.event_duration e, e_pitch e)
 
-e_start_note :: Score.Event -> (RealTime, String)
+e_start_note :: Score.Event -> (RealTime, Text)
 e_start_note e = (Score.event_start e, e_pitch e)
 
-e_attributes :: Score.Event -> String
-e_attributes = untxt . ShowVal.show_val . Score.event_attributes
+e_attributes :: Score.Event -> Text
+e_attributes = ShowVal.show_val . Score.event_attributes
 
 e_environ :: Env.Key -> Score.Event -> Maybe Text
 e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
@@ -723,25 +724,25 @@ e_tsigs =
         . Derive.r_track_signals
     where tsig t = Signal.unsignal_unique $ Track.ts_signal t
 
-e_tsig_logs :: Derive.Result -> [String]
-e_tsig_logs = filter ("Track signal: " `List.isPrefixOf`) . map show_log
+e_tsig_logs :: Derive.Result -> [Text]
+e_tsig_logs = filter ("Track signal: " `Text.isPrefixOf`) . map show_log
     . Stream.logs_of . Derive.r_events
 
 -- ** extract log msgs
 
-show_log_stack :: Log.Msg -> String
-show_log_stack msg = show_stack (Log.msg_stack msg) ++ ": " ++ show_log msg
+show_log_stack :: Log.Msg -> Text
+show_log_stack msg = show_stack (Log.msg_stack msg) <> ": " <> show_log msg
 
-show_stack :: Maybe Stack.Stack -> String
+show_stack :: Maybe Stack.Stack -> Text
 show_stack Nothing = "<nothing>"
 show_stack (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
-    | otherwise = Seq.join ": " $ map (untxt . Stack.unparse_ui_frame_) ui
+    | otherwise = Text.intercalate ": " $ map Stack.unparse_ui_frame_ ui
     where ui = Stack.to_ui stack
 
-show_log :: Log.Msg -> String
-show_log = Log.msg_string
+show_log :: Log.Msg -> Text
+show_log = Log.msg_text
 
 show_interesting_log :: Log.Msg -> Maybe Text
 show_interesting_log msg
@@ -826,7 +827,7 @@ mkscale scale_id notes =
 -- * mkevents
 
 -- | (start, dur, pitch12, controls, inst)
-type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
+type EventSpec = (RealTime, RealTime, Text, Controls, Score.Instrument)
 type Controls = [(Score.Control, [(RealTime, Signal.Y)])]
 type ControlVals = [(Score.Control, Signal.Y)]
 
@@ -835,12 +836,12 @@ mkevent = mkevent_scale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
 mkevent_scale :: Scale.Scale
-    -> (RealTime, RealTime, String, Controls, Score.Instrument)
+    -> (RealTime, RealTime, Text, Controls, Score.Instrument)
     -> Score.Event
 mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_text = txt pitch
+    , Score.event_text = pitch
     , Score.event_untransformed_controls = mkcontrols controls
     , Score.event_untransformed_pitch =
         PSignal.signal [(start, mkpitch scale pitch)]
@@ -848,7 +849,7 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     , Score.event_instrument = inst
     }
 
-psignal :: [(RealTime, String)] -> PSignal.PSignal
+psignal :: [(RealTime, Text)] -> PSignal.PSignal
 psignal = PSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
@@ -858,16 +859,16 @@ mkcontrols cs = Map.fromList
 mkcontrols_const :: ControlVals -> Score.ControlMap
 mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 
-mkpitch12 :: String -> PSignal.Pitch
+mkpitch12 :: Text -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
 
-mkpitch :: CallStack.Stack => Scale.Scale -> String -> PSignal.Pitch
+mkpitch :: CallStack.Stack => Scale.Scale -> Text -> PSignal.Pitch
 mkpitch scale p = case eval Ui.empty deriver of
-    Left err -> errorStack $ "mkpitch " <> showt p <> ": " <> txt err
+    Left err -> errorStack $ "mkpitch " <> showt p <> ": " <> err
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ Expr.call0 (Expr.Symbol (txt p))
+        Eval.eval_pitch 0 $ Expr.call0 (Expr.Symbol p)
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

@@ -99,7 +99,7 @@ test_transpose_selection = do
 
 
 run_tracks :: [UiTest.TrackSpec] -> ScoreTime -> ScoreTime -> Cmd.CmdId a
-    -> Either String [UiTest.TrackSpec]
+    -> Either Text [UiTest.TrackSpec]
 run_tracks track_specs sel_start sel_end cmd =
     CmdTest.trace_logs $ CmdTest.e_tracks $ CmdTest.run_tracks track_specs $
         CmdTest.set_sel 1 sel_start 1 sel_end >> cmd

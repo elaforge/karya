@@ -77,7 +77,7 @@ test_collect_track_warps = do
 
 
 run_warps :: [UiTest.BlockSpec]
-    -> ([(BlockId, [Tree.Tree TrackId])], TrackWarp.WarpMap, [String])
+    -> ([(BlockId, [Tree.Tree TrackId])], TrackWarp.WarpMap, [Text])
 run_warps = extract . DeriveTest.derive_blocks
     where
     extract r = (tracks_of r, wmap, logs_of r)

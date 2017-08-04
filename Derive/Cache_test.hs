@@ -780,12 +780,12 @@ insert_event tid pos dur text =
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
 -- make more informative errors when they don't match.
-r_cache_logs :: Derive.Result -> [String]
+r_cache_logs :: Derive.Result -> [Text]
 r_cache_logs =
     map DeriveTest.show_log_stack . filter Cache.is_cache_log . r_logs
 
 -- | Sometimes the cache msgs for the track cache are just clutter.
-r_block_logs :: Derive.Result -> [String]
+r_block_logs :: Derive.Result -> [Text]
 r_block_logs =
     map DeriveTest.show_log_stack . filter (not . track_stack)
         . filter Cache.is_cache_log . r_logs
@@ -796,7 +796,7 @@ r_block_logs =
             _ -> False
         _ -> False
 
-r_pretty_logs :: Derive.Result -> [String]
+r_pretty_logs :: Derive.Result -> [Text]
 r_pretty_logs = map DeriveTest.show_log_stack . r_logs
 
 -- | The logs are sorted for tests, since log order isn't really defined.
@@ -805,7 +805,7 @@ r_logs = Seq.sort_on DeriveTest.show_log_stack . Stream.logs_of
     . Derive.r_events
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
-r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
+r_cache_collect :: Derive.Result -> [(Text, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
     [ (DeriveTest.show_stack (Just (Derive.key_stack key)), collect ctype)
     | (key, ctype) <- Map.toList cmap
@@ -816,7 +816,7 @@ r_cache_collect result = Seq.sort_on fst
         Just collect
     collect _ = Nothing
 
-r_cache_deps :: Derive.Result -> [(String, Maybe [BlockId])]
+r_cache_deps :: Derive.Result -> [(Text, Maybe [BlockId])]
 r_cache_deps result =
     [(stack, fmap deps collect) | (stack, collect) <- r_cache_collect result]
     where
@@ -907,7 +907,7 @@ diff_events r1 r2
     extract = fst . DeriveTest.extract simple_event
 
 -- | (start, dur, pitch, initial_dyn)
-type DiffEvent = (RealTime, RealTime, String, Double)
+type DiffEvent = (RealTime, RealTime, Text, Double)
 
 simple_event :: Score.Event -> DiffEvent
 simple_event e = (Score.event_start e, Score.event_duration e,

@@ -33,5 +33,5 @@ test_derive_expr = do
         (Right (Just (Right [[(0, 0.5)]], []), []))
 
 extract_events :: (d -> e) -> (Either Text [d], [Log.Msg])
-    -> (Either Text [e], [String])
+    -> (Either Text [e], [Text])
 extract_events f (val, logs) = (map f <$> val, map DeriveTest.show_log logs)

@@ -74,7 +74,7 @@ test_control_defaults = do
             Midi.NoteOff Key.c4 127]
 
 perform_events :: Ui.State -> BlockId
-    -> (Either String [Midi.WriteMessage], [Text])
+    -> (Either Text [Midi.WriteMessage], [Text])
 perform_events ui_state block_id =
     (midi, mapMaybe DeriveTest.show_interesting_log all_logs)
     where

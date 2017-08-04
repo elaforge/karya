@@ -53,7 +53,7 @@ import Types
 
 data Result val = Result {
     -- | A Nothing val means it aborted.
-    result_val :: Either String (Maybe val)
+    result_val :: Either Text (Maybe val)
     , result_cmd_state :: Cmd.State
     , result_ui_state :: Ui.State
     , result_updates :: [Update.CmdUpdate]
@@ -61,10 +61,10 @@ data Result val = Result {
     , result_midi :: [Interface.Message]
     }
 
-result_failed :: Result a -> Maybe String
+result_failed :: Result a -> Maybe Text
 result_failed = either Just (const Nothing) . result_ok
 
-result_ok :: Result a -> Either String a
+result_ok :: Result a -> Either Text a
 result_ok res = case result_val res of
     Right (Just val) -> Right val
     Right Nothing -> Left "aborted"
@@ -106,7 +106,7 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
     (val, ustate2, updates) = case result of
-        Left err -> (Left (prettys err), ustate1, [])
+        Left err -> (Left (pretty err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
 run_io :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
@@ -114,7 +114,7 @@ run_io ustate1 cstate1 cmd = do
     (cstate2, midi_msgs, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
     let (val, ustate2, updates) = case result of
-            Left err -> (Left (prettys err), ustate1, [])
+            Left err -> (Left (pretty err), ustate1, [])
             Right (v, ustate2, updates) -> (Right v, ustate2, updates)
     return $ Result val cstate2 ustate2 updates logs midi_msgs
 
@@ -151,7 +151,7 @@ update_perf ui_from res = do
     return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
-extract_derive :: (Score.Event -> a) -> Result _a -> ([a], [String])
+extract_derive :: (Score.Event -> a) -> Result _a -> ([a], [Text])
 extract_derive ex = DeriveTest.extract ex . extract_derive_result
 
 -- | Reconstruct a Derive.Result from the root performance, or throw an
@@ -159,7 +159,7 @@ extract_derive ex = DeriveTest.extract ex . extract_derive_result
 extract_derive_result :: Result a -> Derive.Result
 extract_derive_result res =
     maybe (eval (result_ui_state res) (result_cmd_state res) mkres)
-        (errorStack . (msg<>) . txt) (result_failed res)
+        (errorStack . (msg<>)) (result_failed res)
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
@@ -202,18 +202,18 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
 -- | Run several cmds, threading the state through.  The first cmd that fails
 -- aborts the whole operation.
 thread :: Ui.State -> Cmd.State -> [Cmd.CmdId a]
-    -> Either String (Ui.State, Cmd.State)
+    -> Either Text (Ui.State, Cmd.State)
 thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
         Result (Right _) cstate2 ustate2 _ logs _ ->
             Log.trace_logs logs $ Right (ustate2, cstate2)
-        Result (Left err) _ _ _ _ _ -> Left (show err)
+        Result (Left err) _ _ _ _ _ -> Left (showt err)
     f (Left err) _ = Left err
 
 -- | Make some tracks and call 'thread'.
 thread_tracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
-    -> [Cmd.CmdId a] -> Either String (Ui.State, Cmd.State)
+    -> [Cmd.CmdId a] -> Either Text (Ui.State, Cmd.State)
 thread_tracks tracks modify_cmd_state cmds =
     thread ustate (modify_cmd_state default_cmd_state) cmds
     where (_, ustate) = UiTest.run_mkview tracks
@@ -281,19 +281,18 @@ select_all = do
 
 -- | The output of the 'extract' family of functions:
 -- Either error (val, [log])
-type Extracted val = Either String (val, [String])
+type Extracted val = Either Text (val, [Text])
 
 -- | Run this on either 'extract' or 'extract_state' when you don't care about
 -- the logs.
-trace_logs :: Extracted a -> Either String a
+trace_logs :: Extracted a -> Either Text a
 trace_logs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
     where
     trace = Debug.trace_str . Text.strip . Text.unlines . ("\tlogged:":)
-        . map txt
 
-e_logs :: Result a -> [String]
+e_logs :: Result a -> [Text]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs
 
 e_performance :: BlockId -> Result a -> Maybe Cmd.Performance

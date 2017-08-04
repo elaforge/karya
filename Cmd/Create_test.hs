@@ -81,8 +81,8 @@ test_insert_branch = do
 
 test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
-        make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
-        make_tree = map $ fmap $ \title -> Ui.TrackInfo (txt title)
+        make_tree :: [Tree.Tree Text] -> TrackTree.TrackTree
+        make_tree = map $ fmap $ \title -> Ui.TrackInfo title
             (UiTest.mk_tid 1) 1 (UiTest.btrack (UiTest.mk_tid 1))
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
@@ -99,7 +99,7 @@ run_cmd titles skel cmd = CmdTest.run state CmdTest.default_cmd_state cmd
         UiTest.mkview UiTest.default_block_id
 
 run_skel_point :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> TrackNum
-    -> Either String ([(Char, Char)], [String])
+    -> Either Text ([(Char, Char)], [Text])
 run_skel_point m ntracks skel track = run_skel m ntracks skel (track, track)
 
 -- | Put the selection on the given track, create a block with the given
@@ -107,7 +107,7 @@ run_skel_point m ntracks skel track = run_skel m ntracks skel (track, track)
 -- replacing the tracknums with the track titles.  Tracks with no title (likely
 -- new tracks) get an 'x'.
 run_skel :: Cmd.CmdId a -> Int -> [Skeleton.Edge] -> (TrackNum, TrackNum)
-    -> Either String ([(Char, Char)], [String])
+    -> Either Text ([(Char, Char)], [Text])
     -- ^ (edges as titles, logs)
 run_skel m ntracks skel (start_track, end_track) =
     extract $ CmdTest.run_tracks tracks $ do

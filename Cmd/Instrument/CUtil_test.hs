@@ -42,7 +42,7 @@ test_insert_call = do
         (Right [(">i1", [])], [note_off Key.c2])
 
 insert_call :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
-    -> IO (Either String [UiTest.TrackSpec], [Midi.Message])
+    -> IO (Either Text [UiTest.TrackSpec], [Midi.Message])
 insert_call tracks tracknum val_edit msg =
     fmap extract $ CmdTest.run_with_performance ustate cstate $ do
         Cmd.modify_edit_state (set_edit_mode val_edit)

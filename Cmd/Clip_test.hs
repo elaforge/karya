@@ -13,6 +13,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 
 import qualified App.Config as Config
+import Global
 import Types
 
 
@@ -46,12 +47,12 @@ test_cmd_copy_selection = do
 
 -- * paste
 
-e_tracks :: BlockId -> CmdTest.Result val -> Either String [UiTest.TrackSpec]
+e_tracks :: BlockId -> CmdTest.Result val -> Either Text [UiTest.TrackSpec]
 e_tracks block_id = CmdTest.trace_logs . CmdTest.extract_state
     (\state _ -> UiTest.extract_tracks_of block_id state)
 
 run_sel :: Ui.State -> Cmd.CmdId a -> TrackNum -> ScoreTime -> TrackNum
-    -> ScoreTime -> Either String [UiTest.TrackSpec]
+    -> ScoreTime -> Either Text [UiTest.TrackSpec]
 run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
     CmdTest.run_ui state $ do
         CmdTest.set_sel strack spos ctrack cpos

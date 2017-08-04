@@ -633,5 +633,5 @@ r_tempo = TrackWarp.tempo_func . Derive.r_track_warps
 r_inv_tempo :: Derive.Result -> Transport.InverseTempoFunction
 r_inv_tempo = TrackWarp.inverse_tempo_func . Derive.r_track_warps
 
-e_events :: Derive.Result -> ([(RealTime, RealTime, String)], [String])
+e_events :: Derive.Result -> ([(RealTime, RealTime, Text)], [Text])
 e_events = DeriveTest.extract DeriveTest.e_event

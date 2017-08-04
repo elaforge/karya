@@ -101,7 +101,7 @@ test_pattern = do
     equal (run [(0, 5, "dur=1 | p _")]) (zip (Seq.range_ 0 1) ktkno, [])
     equal (run [(0, 6, "dur=1 | p _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
 
-ktkno :: [String]
+ktkno :: [Text]
 ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]
 
 derive_tracks :: Text -> [UiTest.EventSpec] -> Derive.Result

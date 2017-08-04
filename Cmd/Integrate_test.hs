@@ -364,7 +364,7 @@ e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state
 e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
 e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state
 
-e_events :: ResponderTest.Result -> [(RealTime, RealTime, String)]
+e_events :: ResponderTest.Result -> [(RealTime, RealTime, Text)]
 e_events = map DeriveTest.e_note
     . CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd
 
@@ -375,18 +375,18 @@ e_perf :: ResponderTest.Result -> Maybe Cmd.Performance
 e_perf = Map.lookup UiTest.default_block_id
     . Cmd.state_performance . Cmd.state_play . ResponderTest.result_cmd_state
 
-mkstates :: String -> UiTest.NoteSpec -> ResponderTest.States
+mkstates :: Text -> UiTest.NoteSpec -> ResponderTest.States
 mkstates title = mkstates_tracks title . UiTest.note_spec
 
-mkstates_tracks :: String -> [UiTest.TrackSpec] -> ResponderTest.States
+mkstates_tracks :: Text -> [UiTest.TrackSpec] -> ResponderTest.States
 mkstates_tracks title tracks = (UiTest.exec ui_state set_title, cmd_state)
     where
     (ui_state, cmd_state) = ResponderTest.mkstates tracks
-    set_title = Ui.set_block_title UiTest.default_block_id (txt title)
+    set_title = Ui.set_block_title UiTest.default_block_id title
 
-run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
+run :: Text -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
 run title tracks = CmdTest.run ustate CmdTest.default_cmd_state
     where
     ustate = UiTest.exec Ui.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        Ui.set_block_title UiTest.default_block_id (txt title)
+        Ui.set_block_title UiTest.default_block_id title

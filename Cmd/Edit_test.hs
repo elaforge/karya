@@ -254,14 +254,14 @@ test_cmd_invert_orientation = do
 -- * util
 
 equal_e :: CallStack.Stack =>
-    Either String ([UiTest.EventSpec], [String])
-    -> Either String ([UiTest.EventSpec], [String])
+    Either Text ([UiTest.EventSpec], [Text])
+    -> Either Text ([UiTest.EventSpec], [Text])
     -> IO Bool
 equal_e = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_events)
 
 equal_sd :: CallStack.Stack =>
-    Either String ([(ScoreTime, ScoreTime)], [String])
-    -> Either String ([(ScoreTime, ScoreTime)], [String])
+    Either Text ([(ScoreTime, ScoreTime)], [Text])
+    -> Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> IO Bool
 equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)
 
@@ -286,9 +286,8 @@ start_dur_events events =
         ((start, dur), c) <- zip events ['a'..'z']])]
 
 e_start_dur :: CmdTest.Result a
-    -> Either String ([(ScoreTime, ScoreTime)], [String])
+    -> Either Text ([(ScoreTime, ScoreTime)], [Text])
 e_start_dur = fmap (first (map (\(s, d, _) -> (s, d)))) . e_start_dur_text
 
-e_start_dur_text :: CmdTest.Result a
-    -> Either String ([UiTest.EventSpec], [String])
+e_start_dur_text :: CmdTest.Result a -> Either Text ([UiTest.EventSpec], [Text])
 e_start_dur_text = fmap (first (snd . head)) . CmdTest.e_tracks

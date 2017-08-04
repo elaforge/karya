@@ -7,6 +7,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
@@ -372,7 +373,7 @@ test_keyswitch_share_chan = do
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
-    let endless = map mkevent [(patch1, n:"", ts, 4, [])
+    let endless = map mkevent [(patch1, Text.singleton n, ts, 4, [])
             | (n, ts) <- zip (cycle ['a'..'g']) (Seq.range_ 0 4)]
     let (msgs, _warns) = perform endless
     res <- run_timeout 1 $ return (take 20 msgs)
@@ -567,7 +568,7 @@ note_on_key key
     | Just (True, key) <- note_key key = Just key
     | otherwise = Nothing
 
-perform :: Perform.Configs -> [Types.Event] -> ([Midi.WriteMessage], [String])
+perform :: Perform.Configs -> [Types.Event] -> ([Midi.WriteMessage], [Text])
 perform configs = first consistent_order . DeriveTest.extract_levents id
     . fst . Perform.perform Perform.initial_state configs . map LEvent.Event
 
@@ -581,14 +582,14 @@ sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
 consistent_order :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 consistent_order = sort_groups Midi.wmsg_ts
 
-perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [String])
+perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [Text])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
-expect_no_logs :: CallStack.Stack => (a, [String]) -> a
+expect_no_logs :: CallStack.Stack => (a, [Text]) -> a
 expect_no_logs (val, []) = val
 expect_no_logs (_, logs) =
-    error_stack $ "expected no logs: " ++ Seq.join "\n" logs
+    errorStack $ "expected no logs: " <> Text.unlines logs
 
 -- * post process
 
@@ -878,7 +879,7 @@ secs = RealTime.seconds
 -- yield fractional pitches.
 --
 -- (inst, text, start, dur, controls)
-type EventSpec = (Types.Patch, String, RealTime, RealTime, [Control])
+type EventSpec = (Types.Patch, Text, RealTime, RealTime, [Control])
 type Control = (Score.Control, Signal.Control)
 
 mkevents :: [EventSpec] -> [Types.Event]
@@ -894,9 +895,10 @@ mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
     }
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
-    to_pitch p = fromMaybe (error ("no pitch " ++ show p)) (lookup p pitch_map)
-    pitch_map = zip (map (:"") ['a'..'z']) [60..]
-        ++ zip (map (:"2") ['a'..'z']) [60.5..]
+    to_pitch p = fromMaybe (errorStack ("no pitch " <> showt p))
+        (lookup p pitch_map)
+    pitch_map = zip (map Text.singleton ['a'..'z']) [60..]
+        ++ zip (map ((<>"2") . Text.singleton) ['a'..'z']) [60.5..]
 
 type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
     [(Text, [(Signal.X, Signal.Y)])])
@@ -910,7 +912,7 @@ mkpevent (start, dur, psig, controls) = PerformTest.empty_event
     , Types.event_pitch = Signal.map_y Convert.round_pitch (Signal.signal psig)
     }
 
-mkevents_patch :: [(String, RealTime, RealTime, [Control])] -> [Types.Event]
+mkevents_patch :: [(Text, RealTime, RealTime, [Control])] -> [Types.Event]
 mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
 -- set_patch :: Patch.Instrument -> Types.Event -> Types.Event

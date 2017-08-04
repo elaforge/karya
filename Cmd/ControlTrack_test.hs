@@ -9,6 +9,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ControlTrack as ControlTrack
+import Global
 
 
 test_parse = do
@@ -63,7 +64,7 @@ test_cmd_tempo_val_edit = do
         Right (0, 0, "i 1.2")
 
 thread :: [UiTest.EventSpec] -> (a -> Cmd.CmdId Cmd.Status) -> [a]
-    -> Either String (Ui.State, Cmd.State)
+    -> Either Text (Ui.State, Cmd.State)
 thread events cmd msgs =
     CmdTest.thread_tracks [("c", events)] id
         (CmdTest.set_point_sel tracknum 0 : map cmd msgs)

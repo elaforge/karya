@@ -55,9 +55,8 @@ test_cmd_val_edit_simple = do
 
 test_cmd_val_edit_advance = do
     -- Test advance mode.
-    let f advance = extract . val_edit advance False [">i", "*"]
-        extract (Right result) = (simplify result, extract_sel result)
-        extract (Left err) = error $ "left: " ++ err
+    let f advance = extract . expect_right . val_edit advance False [">i", "*"]
+        extract result = (simplify result, extract_sel result)
     let on = CmdTest.m_note_on
         off = CmdTest.m_note_off
 
@@ -84,8 +83,7 @@ test_cmd_val_edit_advance = do
 
 test_cmd_val_edit_chord = do
     let f advance tracks = val_edit advance True tracks
-        e_sel (Right result) = (simplify result, extract_sel result)
-        e_sel (Left err) = error $ "left: " ++ err
+        e_sel = (\r -> (simplify r, extract_sel r)) . expect_right
         e_events = fmap simplify
     let on = CmdTest.m_note_on
         off = CmdTest.m_note_off
@@ -142,7 +140,7 @@ test_cmd_val_edit_dyn = do
         , ("dyn", [(0, 0, "`0x`80")])
         ]
 
-val_edit :: Bool -> Bool -> [Text] -> [Msg.Msg] -> Either String States
+val_edit :: Bool -> Bool -> [Text] -> [Msg.Msg] -> Either Text States
 val_edit advance chord tracks msgs =
     thread tracks (mode advance chord) NoteTrack.cmd_val_edit msgs
     where
@@ -164,7 +162,7 @@ test_cmd_method_edit = do
 mkkey :: Key.Key -> Msg.Msg
 mkkey = CmdTest.make_key UiMsg.KeyDown
 
-run :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Either String [UiTest.TrackSpec]
+run :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Either Text [UiTest.TrackSpec]
 run track_specs cmd = CmdTest.trace_logs $
     CmdTest.e_tracks $ CmdTest.run_sel 0 track_specs cmd
 
@@ -174,7 +172,7 @@ type States = (Ui.State, Cmd.State)
 -- (1, 0).
 thread :: [Text] -> (Cmd.State -> Cmd.State)
     -> (Msg.Msg -> Cmd.CmdId Cmd.Status)
-    -> [Msg.Msg] -> Either String (Ui.State, Cmd.State)
+    -> [Msg.Msg] -> Either Text (Ui.State, Cmd.State)
 thread tracks modify_cmd_state cmd msgs =
     CmdTest.thread_tracks [(t, []) | t <- tracks] modify_cmd_state
         (CmdTest.set_point_sel 1 0 : map cmd msgs)

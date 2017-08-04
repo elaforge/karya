@@ -3,8 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.MidiThru_test where
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
@@ -131,7 +133,7 @@ run_thru cmd_state title setup (attrs, input) =
             MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
     where tracks = [(">i1" <> title, [])]
 
-e_midi :: CmdTest.Result a -> ([Midi.Message], [String])
+e_midi :: CmdTest.Result a -> ([Midi.Message], [Text])
 e_midi result = (CmdTest.e_midi result, CmdTest.e_logs result)
 
 test_input_to_midi = do
@@ -181,9 +183,10 @@ test_input_to_midi = do
             ])
         [(2, Midi.NoteOn 64 127), (3, Midi.NoteOn 64 127)]
 
-extract_msg :: Midi.Message -> (Midi.Channel, Midi.ChannelMessage)
+extract_msg :: CallStack.Stack => Midi.Message
+    -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
-extract_msg msg = error $ "bad msg: " ++ show msg
+extract_msg msg = errorStack $ "bad msg: " <> showt msg
 
 -- | Thread the given values through 'MidiThru.input_to_midi'.
 thread_input_to_midi :: Cmd.WriteDeviceState

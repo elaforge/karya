@@ -167,8 +167,8 @@ write_tracks state tracknums tracks = extract $ UiTest.exec state $
 
 -- * util
 
-equal_t :: (Eq logs, Show logs) => Either String ([UiTest.TrackSpec], logs)
-    -> Either String ([UiTest.TrackSpec], logs) -> IO Bool
+equal_t :: (Eq logs, Show logs) => Either Text ([UiTest.TrackSpec], logs)
+    -> Either Text ([UiTest.TrackSpec], logs) -> IO Bool
 equal_t = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_tracks)
 
 extract_events :: Events.Events -> [(TrackTime, Text)]
