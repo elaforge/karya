@@ -141,6 +141,7 @@ run_cmdio cmd = do
             -- Otherwise, if an error gets out of this try block it can kill
             -- the responder when serializes the value for the socket.
             Right (val, _state, _updates) -> val `DeepSeq.deepseq` return ()
+        mapM_ Log.write logs
         return (cmd_state, midi, cmd_result, logs)
     case run_result of
         Left (exc :: Exception.SomeException) -> return
@@ -155,6 +156,7 @@ run_cmdio cmd = do
                 -- Should be safe, because I'm writing the updates.
                 Ui.unsafe_put ui_state
                 mapM_ Ui.update updates
+                mapM_ Log.write eval_logs
                 return
                     ( ReplProtocol.CmdResult response (eval_logs ++ logs)
                     , Cmd.state_repl_status cmd_state
