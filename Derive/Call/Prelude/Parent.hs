@@ -98,23 +98,21 @@ tuplet range tracks = case Seq.maximum (mapMaybe end_of tracks) of
 -- be a 'Lilypond.Duration', and all the notes must be the same duration.  So
 -- I don't support tuplets with ties and whatnot inside.  It's theoretically
 -- possible, but seems hard.
-lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
+lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
 lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Except.runExceptT . check config
         =<< Sub.sub_events args
-    check config notes = do
-        notes <- case filter (not . null) notes of
+    check config track_notes = do
+        track_notes <- case filter (not . null) track_notes of
             [] -> Except.throwError "no sub events"
             [[]] -> Except.throwError "no sub events"
-            _ : _ : _ -> Except.throwError ">1 non-empty sub track"
-            [notes] -> return notes
-        events <- lift $ Stream.write_logs
-            =<< Sub.derive (map (Sub.place (Args.start args) 2) notes)
-            -- Double the notes duration, since staff notation tuplets shorten
-            -- notes.
-        dur <- case filter (not . Lily.is_code0) events of
+            notes -> return notes
+        let derive = Stream.write_logs
+                <=< Sub.derive . map (Sub.place (Args.start args) 2)
+        track_events <- lift $ mapM derive track_notes
+
+        dur <- case filter (not . Lily.is_code0) (concat track_events) of
             [] -> Except.throwError "no sub events"
             [_] -> Except.throwError "just one event"
             e : es
@@ -126,10 +124,12 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         (start, end) <- lift $ Args.real_range args
         tuplet_dur <- to_dur config "tuplet" (end - start)
         note_dur <- to_dur config "note" dur
-        ly_notes <- lift $ Lily.eval_events config start events
+        ly_notes <- lift $ Lily.eval_events config start
+            (Seq.merge_lists Score.event_start track_events)
+        let note_count = maximum $
+                map (length . filter (not . Lily.is_code0)) track_events
         lift $ Lily.code (Args.extent args) $
-            tuplet_code tuplet_dur note_dur
-                (length (filter (not . Lily.is_code0) events)) ly_notes
+            tuplet_code tuplet_dur note_dur note_count ly_notes
     err msg = do
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily

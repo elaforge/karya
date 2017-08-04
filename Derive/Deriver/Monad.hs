@@ -1780,11 +1780,12 @@ type Layout = Vector.Unboxed.Vector Pitch.Semi
 
 -- * merge
 
--- | Merge the events of the given derivers by their starting times.
+-- | Merge the events of the given derivers.
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
 d_merge derivers = mconcat <$> sequence derivers
+    -- mconcat on Stream should keep them sorted.
     -- Previously, each deriver was run independently, and their Collects
     -- merged.  The theory was to allow their derivation to be interleaved
     -- on demand as the events themselves are interleaved.  However, profiling

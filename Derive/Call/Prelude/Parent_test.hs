@@ -78,12 +78,29 @@ test_tuplet_multiple_tracks = do
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
+    let run skel = LilypondTest.measures ["times"]
+            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
+        pitches = map ("3"<>) (map Text.singleton "abcdefg")
+        notes dur ts =
+            UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
+
+    -- plain triplet
+    equal (run [(1, 2), (2, 3)] $
+            (">", [(0, 4, "t")]) : UiTest.note_track1 ["4c", "4d", "4e"])
+        (Right "\\times 2/3 { c'2 d'2 e'2 }", [])
+    equal (run [(1, 2), (2, 3), (1, 4), (4, 5)] $
+            (">", [(0, 4, "t")]) : concatMap UiTest.note_track
+                [ [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
+                , [(1, 1, "5d")]
+                ])
+        (Right "\\times 2/3 { c'2 <d' d''>2 e'2 }", [])
+
+test_tuplet_ly_complex = do
     let run = LilypondTest.measures ["times", "acciaccatura"]
             . LilypondTest.derive_tracks_linear
         pitches = map ("3"<>) (map Text.singleton "abcdefg")
         notes dur ts =
             UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
-
     -- The tuplet is not confused by a pitch already being in scope.
     equal (run $
         ("*", [(0, 0, "3c")]) : (">", [(0, 2, "t")]) : notes 0.5 [0, 0.5, 1])

@@ -6,19 +6,49 @@ UNSORTED
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
-  * upgrade to ghc 8.2
-    . Can't yet, because ekg and conduit-audio have base <4.10
-      . Patched conduit-audio myself, it seems to be abandoned.
+  - upgrade to ghc 8.2
     . 8.0.2 compile time:
       debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
                     242.37s user 32.71s system 336% cpu 1:21.78 total
       opt/seq       619.43s user 44.95s system 331% cpu 3:20.30 total
-
-    . 8.2.1
+    . 8.2.1 compile time:
       debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
                     201.57s user 30.43s system 328% cpu 1:10.53 total
       opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
                     760.40s user 45.88s system 323% cpu 4:09.25 total
+    - conduit-audio has base <4.10, I can patch but author is not responding
+      . Patched locally, but I'll need a long term solution.
+      . Should I fork, or write my own?
+    + ghci thinks I have flags changed again
+      . f= build/test/obj/Util/CallStack.hs.o; rm $f; mk -V $f
+        ghcit -v1  :load Util.Control
+      . Flags are same from -XBangPatterns to -fno-warn-duplicate-exports
+      . But ghci-flags is missing -W -fwarn-identities ... etc
+      . Looks like shakefile uses it twice.
+      . ghc -c
+        [ -outputdir build/test/obj ... -fno-warn-duplicate-exports ]
+        -dynamic
+        -fhpc -hide-all-packages -package=...
+        Util/CallStack.hs -o build/test/obj/Util/CallStack.hs.o
+      . -dynamic
+        [ -outputdir build/test/obj ... -fno-warn-duplicate-exports ]
+      . Maybe it now considers a flag it didn't consider before?
+        But the only difference is -fhpc and packages.
+        . And -fhpc can't be used for ghci.
+      . Or maybe ghci is including some flag it wasn't before?
+        . /usr/local/bin/ghci -ignore-dot-ghci $(cat build/test/ghci-flags)
+          also no help.
+      . Even with minimal flags, it's still "flags changed."
+      . Looks like it is -fhpc, but I can't provide that in ghci.
+      . Then why is this tests only, what about opt?
+        . Because -O is different, but I can't include that either for
+          --interactive.
+      . Still works for debug.
+      . ghc/compiler/iface/MkIface.hs:checkFlagHash
+        iface/FlagChecker
+      . Due to https://ghc.haskell.org/trac/ghc/ticket/11798
+        https://ghc.haskell.org/trac/ghc/ticket/10923
+      . Sent mail to glasgow-haskell-users
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -532,7 +562,7 @@ IN PROGRESS / branch: branches:
   - draw-text-lines
     . I think it's a bit of an improvement for code simplicity, but still has
       an annoying redraw bug.
-  - Solkattu groups.
+  - solkattu-group
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -986,7 +1016,13 @@ lilypond:
       it's a midi import.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
-    I could have parse generate the Meter and memoize it.
+    . It should use x+y/z notation to explicitly set divisions, but the sum
+      should have a default division, e.g. 9/8 defaults to 3+3+3/8.
+  - I need a way to explicitly set barring per-instrument, for ambiguous
+    meters, e.g. 3/4 as 3+3/8 vs 2+2+2/8 or even 3+3+3+3/16 6+6/16
+    . Or maybe better to write those as duples?
+  - squart/6: why does 7/8 not bar the eighth notes?
+
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
   jianpu
     . Research jianpu conventions, but basically:
