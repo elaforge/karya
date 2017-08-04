@@ -708,15 +708,13 @@ e_attributes = untxt . ShowVal.show_val . Score.event_attributes
 e_environ :: Env.Key -> Score.Event -> Maybe Text
 e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
 
-e_environ_like :: (String -> Bool) -> Score.Event -> [(Env.Key, String)]
+e_environ_like :: (Text -> Bool) -> Score.Event -> [(Env.Key, Text)]
 e_environ_like f event =
-    [ (Expr.Str k, untxt $ ShowVal.show_val v)
-    | (Expr.Str k, v) <- Env.to_list (Score.event_environ event)
-    , f (untxt k)
+    [ (Expr.Str k, ShowVal.show_val v)
+    | (Expr.Str k, v) <- Env.to_list (Score.event_environ event), f k
     ]
 
-e_environ_val :: Typecheck.Typecheck a => Env.Key -> Score.Event
-    -> Maybe a
+e_environ_val :: Typecheck.Typecheck a => Env.Key -> Score.Event -> Maybe a
 e_environ_val name = Env.maybe_val name . Score.event_environ
 
 e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]

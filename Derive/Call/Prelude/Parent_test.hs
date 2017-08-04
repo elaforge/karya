@@ -80,11 +80,6 @@ test_tuplet_multiple_tracks = do
 test_tuplet_ly = do
     let run skel = LilypondTest.measures ["times"]
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
-        pitches = map ("3"<>) (map Text.singleton "abcdefg")
-        notes dur ts =
-            UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
-
-    -- plain triplet
     equal (run [(1, 2), (2, 3)] $
             (">", [(0, 4, "t")]) : UiTest.note_track1 ["4c", "4d", "4e"])
         (Right "\\times 2/3 { c'2 d'2 e'2 }", [])

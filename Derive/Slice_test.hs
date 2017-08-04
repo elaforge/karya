@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Slice_test where
-import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 import Data.Tree (Tree(Node))
@@ -236,7 +235,7 @@ test_slur = do
             . DeriveTest.derive_tracks_setup (with <> DeriveTest.with_linear) ""
         extract e =
             ( DeriveTest.e_note e
-            , DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`) e
+            , DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`) e
             , ShowVal.show_val (Score.event_attributes e)
             )
         with = CallTest.with_note_generator "(" Articulation.c_ly_slur

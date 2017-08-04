@@ -6,7 +6,7 @@ module Perform.Lilypond.Meter_test where
 import qualified Data.Text as Text
 
 import Util.Test
-import Perform.Lilypond.LilypondTest (mkmeter)
+import Perform.Lilypond.LilypondTest (parse_meter)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types (Duration(..))
@@ -16,7 +16,7 @@ import Global
 
 test_convert_duration = do
     let f meter pos = Types.to_lily $ head $
-            Meter.convert_duration (mkmeter meter) True False
+            Meter.convert_duration (parse_meter meter) True False
                 pos (Types.time_per_whole - pos)
     equal (map (f "4/4") [0, 8 .. 127])
         [ "1", "8.", "4.", "16", "2.", "8.", "8", "16"
@@ -28,7 +28,7 @@ test_convert_duration = do
 
 test_allowed_time_greedy = do
     let f meter = extract_rhythms
-            . map (Meter.allowed_time_greedy True (mkmeter meter))
+            . map (Meter.allowed_time_greedy True (parse_meter meter))
         t = Types.dur_to_time
 
     -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
@@ -50,7 +50,7 @@ test_allowed_time_greedy = do
 
 test_allowed_time_best = do
     let f use_dot meter = extract_rhythms
-            . map (Meter.allowed_time_best use_dot (mkmeter meter))
+            . map (Meter.allowed_time_best use_dot (parse_meter meter))
         t = Types.dur_to_time
     equal (f False "4/4" [0, t D4 .. 4 * t D4])
         "1 4 2 4 1"

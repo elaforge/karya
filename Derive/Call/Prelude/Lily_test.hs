@@ -12,6 +12,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import Global
 
 
 test_when_ly = do
@@ -165,7 +166,6 @@ test_movement = do
     equal logs []
     match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * c4 d4 e4 f4"
 
-measures_linear :: [String] -> [UiTest.TrackSpec]
-    -> (Either String String, [String])
+measures_linear :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
 measures_linear wanted =
     LilypondTest.measures wanted . LilypondTest.derive_tracks_linear
