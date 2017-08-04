@@ -146,15 +146,11 @@ data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
 instance Pretty Duration where pretty = showt
 instance ToLily Duration where to_lily = txt . drop 1 . show
 
-read_duration :: String -> Maybe Duration
-read_duration s = case s of
-    -- GHC incorrectly reports overlapping patterns.  This bug is fixed in 7.4.
-    "1" -> Just D1; "2" -> Just D2; "4" -> Just D4; "8" -> Just D8
-    "16" -> Just D16; "32" -> Just D32; "64" -> Just D64; "128" -> Just D128
+int_dur :: Int -> Maybe Duration
+int_dur i = case i of
+    1 -> Just D1; 2 -> Just D2; 4 -> Just D4; 8 -> Just D8
+    16 -> Just D16; 32 -> Just D32; 64 -> Just D64; 128 -> Just D128
     _ -> Nothing
-
-show_duration :: Duration -> String
-show_duration = drop 1 . show
 
 dur_to_time :: Duration -> Time
 dur_to_time dur = Time $ case dur of
@@ -164,14 +160,28 @@ dur_to_time dur = Time $ case dur of
 
 -- | This rounds up to the next Duration, so any Time over a half note will
 -- wind up as a whole note.
+time_to_longer_dur :: Time -> Duration
+time_to_longer_dur (Time t)
+    | t <= 1 = D128
+    | t <= 2 = D64
+    | t <= 4 = D32
+    | t <= 8 = D16
+    | t <= 16 = D8
+    | t <= 32 = D4
+    | t <= 64 = D2
+    | otherwise = D1
 
--- | Convert Time to a Duration, along with any Time left over.
-time_to_dur :: Time -> (Duration, Time)
-time_to_dur time = (dur, time - dur_to_time dur)
-    where
-    dur = toEnum $ max 0 $
-        fromEnum (maxBound :: Duration) - log2 (fromIntegral time)
-    log2 = floor . logBase 2 . fromIntegral
+-- | Get the longest dur that will fit within the Time, so this rounds down.
+time_to_dur :: Time -> Duration
+time_to_dur (Time t)
+    | t < 2 = D128
+    | t < 4 = D64
+    | t < 8 = D32
+    | t < 16 = D16
+    | t < 32 = D8
+    | t < 64 = D4
+    | t < 128 = D2
+    | otherwise = D1
 
 time_to_durs :: Time -> [Duration]
 time_to_durs time = go D1 time
@@ -195,9 +205,10 @@ note_dur_to_time (NoteDuration dur dotted) =
     dur_to_time dur + if dotted && dur /= D128 then dur_to_time (succ dur)
         else 0
 
--- | Time 0 becomes D128 since there's no 0 duration.  This puts a bottom bound
--- on the duration of a note, which is good since 0 duration notes aren't
--- notateable, but can happen after quantization.
+-- | Get the longest NoteDuration that will fit in the Time.  0 becomes D128
+-- since there's no 0 duration.  This puts a bottom bound on the duration of
+-- a note, which is good since 0 duration notes aren't notateable, but can
+-- happen after quantization.
 time_to_note_dur :: Time -> NoteDuration
 time_to_note_dur t = case time_to_durs t of
     [d1, d2] | d2 == succ d1 -> NoteDuration d1 True

@@ -2,13 +2,29 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Support for rhythmic spelling in different meters.
-module Perform.Lilypond.Meter where
+module Perform.Lilypond.Meter (
+    Meter, meter_nums, meter_denom
+    , time_num
+    , default_meter
+    , measure_time
+    , unparse_meter, parse_meter
+    -- * allowed time
+    , convert_duration
+    , allowed_time_best
+#ifdef TESTING
+    , module Perform.Lilypond.Meter
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 import Data.Vector.Unboxed ((!))
 
+import qualified Text.Parsec as Parsec
+
+import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
@@ -57,44 +73,56 @@ unparse_meter :: Meter -> Text
 unparse_meter meter = Text.intercalate "+" (map showt (meter_nums meter))
     <> "/" <> Types.to_lily (meter_denom meter)
 
-parse_meter :: Text -> Either Text Meter
-parse_meter s = case Map.lookup s meter_map of
-    Nothing -> Left $ "can't parse " <> showt s <> ", should be in "
-        <> Text.intercalate ", " (Map.keys meter_map)
-    Just meter -> Right meter
-
 default_meter :: Meter
 Right default_meter = parse_meter "4/4"
+
+parse_meter :: Text -> Either Text Meter
+parse_meter text = do
+    (nums, denom) <- first ("parsing meter: "<>) $ Parse.parse p_meter text
+    denom <- tryJust ("denominator not a valid duration: " <> showt denom) $
+        Types.int_dur denom
+    make_meter nums denom (abstract_meter nums denom)
+
+abstract_meter :: [Int] -> Duration -> [AbstractMeter]
+abstract_meter nums denom = case Map.lookup (nums, denom) default_meters of
+    Just m -> [m]
+    Nothing -> case default_divisions nums denom of
+        [num] -> [D (replicate num T)]
+        nums -> [D [D (replicate n T) | n <- nums]]
+    where
+    -- Certain simple duple meters get a simpler division.  This has the effect
+    -- of allowing notes to cross beat divisions, e.g. 4 2 4 in 4/4.
+    default_meters = Map.fromList
+        [ (([1], D4), T)
+        , (([2], D4), T)
+        , (([4], D4), T)
+        ]
+
+default_divisions :: [Int] -> Duration -> [Int]
+default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
+    where
+    defaults = Map.fromList
+        [ ((5, D8), [3, 2])
+        , ((6, D8), [3, 3])
+        , ((7, D8), [3, 2, 2])
+        , ((9, D8), [3, 3, 3])
+        ]
+default_divisions nums _ = nums
+
+p_meter :: Parse.Parser () ([Int], Int)
+p_meter = (,) <$> Parsec.sepBy1 Parse.p_positive (Parsec.char '+')
+    <*> (Parsec.char '/' *> Parse.p_positive)
 
 type Rank = Int
 type Ranks = Vector.Vector Rank
 
--- D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
--- 0    1    2    3    4     5     6     7
-
-meter_map :: Map Text Meter
-meter_map = Map.fromList $ Seq.key_on unparse_meter $ map make
-    [ ([1], D4, [T])
-    , ([2], D4, [T])
-    , ([3], D4, [D [T, T, T]])
-    , ([4], D4, [T])
-    , ([3, 2], D4, [D [T, T, T], D [T, T]])
-    , ([2, 3], D4, [D [T, T], D [T, T, T]])
-    , ([6], D4, [D [D [T, T, T], D [T, T, T]]])
-
-    , ([3, 3], D8, [D [D [T, T, T], D [T, T, T]]])
-    , ([2, 2, 2], D8, [D [D [T, T], D [T, T], D [T, T]]])
-    ]
-    where
-    make (nums, denom, meters) = make_meter nums denom meters
-
-make_meter :: [Int] -> Duration -> [AbstractMeter] -> Meter
-make_meter nums denom meters = Meter nums denom vector
+make_meter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
+make_meter nums denom meters = Meter nums denom <$> vector
     where
     vector
-        | frac /= 0 = error $ "can't fit " ++ show ranks ++ " into "
-            ++ show expected ++ " by doubling"
-        | otherwise = to_vector $ subdivides (replicate exp 2) meters
+        | frac /= 0 = Left $ "can't fit " <> showt ranks <> " into "
+            <> showt expected <> " by doubling"
+        | otherwise = Right $ to_vector $ subdivides (replicate exp 2) meters
     (exp, frac) = properFraction $
         logBase 2 (fromIntegral expected / fromIntegral ranks)
     expected = sum nums * fromIntegral (Types.dur_to_time denom)
@@ -115,37 +143,31 @@ abstract_length T = 1
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: Meter -> Bool -> Bool -> Time -> Time -> [NoteDuration]
-convert_duration meter use_dot_ is_rest = go
+convert_duration :: Meter -> Bool -> Time -> Time -> [NoteDuration]
+convert_duration meter use_dot_ = go
     where
-    -- Dotted rests are always allowed for triple meters.
-    use_dot = use_dot_ || (is_rest && not (is_duple meter))
+    -- Dotted rests are always allowed for non-duple meters.
+    use_dot = use_dot_ || not (is_duple meter)
     go pos time_dur
         | time_dur <= 0 = []
         | allowed >= time_dur = to_durs time_dur
         | otherwise = dur : go (pos + allowed) (time_dur - allowed)
         where
         dur = Types.time_to_note_dur allowed
-        allowed = (if is_rest then allowed_time_best else allowed_time_greedy)
-            use_dot meter pos
+        allowed = allowed_time_best use_dot meter pos
         to_durs = if use_dot then Types.time_to_note_durs
             else map (flip NoteDuration False) . Types.time_to_durs
 
--- | Figure out how much time a note at the given position should be allowed
--- before it must tie.
-allowed_time_greedy :: Bool -> Meter -> Time -> Time
-allowed_time_greedy use_dot meter start_ =
-    convert $ subtract start $ allowed_time meter start
-    where
-    start = start_ `mod` measure_time meter
-    convert = if use_dot then Types.note_dur_to_time . Types.time_to_note_dur
-        else Types.dur_to_time . fst . Types.time_to_dur
+{- | Figure out how much time a note at the given position should be allowed
+    before it must tie.  The heuristic is to find the duration that ends on the
+    lowest rank, but never go over a rank which is too low.  The "too low" rule
+    is more lenient for duple meters, since they're easier to read.
 
--- | The algorithm for note durations is greedy, in that it will seek to find
--- the longest note that doesn't span a beat whose rank is too low.  But that
--- results in rests being spelled @c4 r2 r4@ instead of @c4 r4 r2@.  Unlike
--- notes, all rests are the same.  So rests will pick the duration that ends on
--- the lowest rank.
+    I used to have a greedy algorithm that found the longest duration that
+    didn't break the "too low" rule, and used that for note durations while
+    I used this for rest durations, but I'm not sure why I did that now.  Notes
+    should be easy to read like rests.
+-}
 allowed_time_best :: Bool -> Meter -> Time -> Time
 allowed_time_best use_dot meter start_ =
     subtract start $ best_duration $ allowed_time meter start
@@ -164,8 +186,11 @@ allowed_time_best use_dot meter start_ =
 
 allowed_time :: Meter -> Time -> Time
 allowed_time meter start =
-    fromMaybe measure $ find_rank start
-        (rank - if is_duple meter then 2 else 1) meter
+    fromMaybe measure $
+        find_rank start (rank - if is_duple meter then 2 else 1) meter
+        -- Subtract 2 for duple means a note can span 2 ranks higher than its
+        -- starting rank, which means notes will tie less.  The rationale is
+        -- that duple is easier to read, so I can get away with fewer ties.
     where
     rank = rank_at meter start
     measure = measure_time meter

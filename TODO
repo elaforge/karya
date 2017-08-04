@@ -1014,13 +1014,15 @@ lilypond:
     . On the other hand, I think I want to encourage nestedness and it should
       be easy to split.  The only reason viola-sonata has huge blocks is that
       it's a midi import.
-  - If I can figure out the meter from just the name, then I can get rid
+  * If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     . It should use x+y/z notation to explicitly set divisions, but the sum
       should have a default division, e.g. 9/8 defaults to 3+3+3/8.
-  - I need a way to explicitly set barring per-instrument, for ambiguous
+  - I need a way to explicitly set beaming per-instrument, for ambiguous
     meters, e.g. 3/4 as 3+3/8 vs 2+2+2/8 or even 3+3+3+3/16 6+6/16
     . Or maybe better to write those as duples?
+    . call it 'beam', since it's there to affect beaming... well, durations
+      also.
   - squart/6: why does 7/8 not bar the eighth notes?
 
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8

@@ -330,7 +330,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     is_tied _ = True
 
     allowed = min (max_end - start) $
-        Meter.allowed_time_greedy True meter (start - measure_start)
+        Meter.allowed_time_best True meter (start - measure_start)
     allowed_dur = Types.time_to_note_dur allowed
     allowed_time = Types.note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -718,8 +718,8 @@ make_rests config meter start end
     where
     full_measure = start `mod` measure == 0 && end - start >= measure
     measure = Meter.measure_time meter
-    dur = Meter.convert_duration meter
-        (Types.config_dotted_rests config) True start (end - start)
+    dur = Meter.convert_duration meter (Types.config_dotted_rests config)
+        start (end - start)
 
 -- ** Key
 
