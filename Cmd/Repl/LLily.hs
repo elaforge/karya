@@ -11,7 +11,8 @@
     Set 1t to equal one quarter note, quantize to 16th notes.  Configure
     \"inst\" with short and long names, then change them.
 
-    > LLily.modify_config $ LLily.make_config 1 Lilypond.D16
+    > LLily.set_quarter_duration 1
+    > LLily.set_quantize Lilypond.D16
     > LLily.modify_config =<< LLily.set_staves [("inst", "long", "short")]
     > LLily.modify_staff "inst" $ Lilypond.short #= "a" . Lilypond.long #= "b"
 -}
@@ -51,14 +52,23 @@ modify_config modify = Ui.modify_config $ Ui.lilypond %= modify
 with_config :: Cmd.M m => Lilypond.Config -> m a -> m a
 with_config config = Ui.with_config (Ui.lilypond #= config)
 
-make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
-make_config quarter quantize = Lilypond.default_config
-    { Lilypond.config_quarter_duration = quarter
-    , Lilypond.config_quantize = quantize
-    }
+set_quarter_duration :: Ui.M m => RealTime -> m ()
+set_quarter_duration dur = modify_config $ \config ->
+    config { Lilypond.config_quarter_duration = dur }
+
+set_quantize :: Ui.M m => Lilypond.Duration -> m ()
+set_quantize dur = modify_config $ \config ->
+    config { Lilypond.config_quantize = dur }
+
+set_dotted_rests :: Ui.M m => Bool -> m ()
+set_dotted_rests b = modify_config $ \config ->
+    config { Lilypond.config_dotted_rests = b }
 
 toggle_display :: Ui.M m => Util.Instrument -> m ()
 toggle_display inst = modify_staff inst $ Lilypond.display %= not
+
+set_code :: Ui.M m => Util.Instrument -> [Text] -> m ()
+set_code inst code = modify_staff inst $ Lilypond.code #= code
 
 modify_staff :: Ui.M m => Util.Instrument
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig) -> m ()
