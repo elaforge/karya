@@ -36,8 +36,19 @@ note_calls = Make.call_maps
     , ("clef", c_clef)
     , ("dyn", c_dyn)
     , ("ly-!", c_reminder_accidental)
-    , ("ly-(", c_ly_begin_slur)
-    , ("ly-)", c_ly_end_slur)
+    , ("ly-(", add_code "ly-begin-slur"
+        "Begin a slur. The normal slur transformer doesn't work in some cases,\
+        \ for instance inside tuplets." Lily.SuffixFirst "(")
+    , ("ly-)", add_code "ly-end-slur"
+        "End a slur. The normal slur transformer doesn't work in some cases,\
+        \ for instance inside tuplets." Lily.SuffixLast ")")
+    , ("ly-[", add_code "ly-begin-beam"
+        "Begin a beam. Override lilypond's automatic beaming."
+        Lily.SuffixFirst "[")
+    , ("ly-]", add_code "ly-end-beam"
+        "End a beam. Override lilypond's automatic beaming."
+        Lily.SuffixFirst "]")
+        -- SuffixFirst because it's unlikely the beam should go over a barline.
     , ("ly-<", c_crescendo)
     , ("ly-<>", c_crescendo_diminuendo)
     , ("ly->", c_diminuendo)
@@ -51,6 +62,8 @@ note_calls = Make.call_maps
     , ("ly-sus", c_ly_sus)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
+    , ("ly-", c_ly_articulation)
+    , ("ly\\", c_ly_command)
     , ("meter", c_meter)
     , ("movement", c_movement)
     , ("xstaff", c_xstaff)
@@ -243,17 +256,22 @@ c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
     (required "text" "Text to attach. Double quotes can be omitted.") $
     (return . (,) Lily.SuffixFirst . ("_"<>) . lily_str)
 
-c_ly_begin_slur :: Make.Calls Derive.Note
-c_ly_begin_slur = code_call "ly-begin-slur"
-    "Begin a slur. The normal slur transformer doesn't work in some cases,\
-    \ for instance inside tuplets." Sig.no_args $
-    \() -> return (Lily.SuffixFirst, "(")
+c_ly_articulation :: Make.Calls Derive.Note
+c_ly_articulation = code_call "ly-articulation"
+    "Append a `-articulation` to a note."
+    (required "text" "Code to attach. A `-` is prepended.") $
+    (return . (,) Lily.SuffixFirst . ("-"<>))
 
-c_ly_end_slur :: Make.Calls Derive.Note
-c_ly_end_slur = code_call "ly-end-slur"
-    "End a slur. The normal slur transformer doesn't work in some cases,\
-    \ for instance inside tuplets." Sig.no_args $
-    \() -> return (Lily.SuffixLast, ")")
+c_ly_command :: Make.Calls Derive.Note
+c_ly_command = code_call "ly-command"
+    "Append a `\\command` to a note."
+    (required "text" "Code to attach. A `\\` is prepended.") $
+    (return . (,) Lily.SuffixFirst . ("\\"<>))
+
+add_code :: Derive.CallName -> Doc.Doc -> Lily.CodePosition -> Lily.Ly
+    -> Make.Calls Derive.Note
+add_code name doc pos code = code_call name doc Sig.no_args $
+    \() -> return (pos, code)
 
 lily_str :: Text -> Lily.Ly
 lily_str = Types.to_lily

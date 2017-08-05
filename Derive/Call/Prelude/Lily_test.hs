@@ -138,11 +138,14 @@ test_ly_text = do
             (">", [(0, 0, "ly_ hi")]) : UiTest.regular_notes 1)
         (Right "c4_\"hi\" r4 r2", [])
 
-test_ly_slur = do
+test_ly_slur_beam = do
     let run = LilypondTest.derive_measures []
     equal (run $ UiTest.note_track
             [(0, 2, "ly-( | -- 3a"), (2, 6, "ly-) | -- 3b")])
         (Right "a2( b2~ | b1)", [])
+    equal (run $ UiTest.note_track
+            [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])
+        (Right "a2[ b2~] | b1", [])
 
 test_movement = do
     let run  = LilypondTest.convert_score . LilypondTest.derive_blocks
