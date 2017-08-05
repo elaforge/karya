@@ -80,7 +80,7 @@ note_calls = Make.call_maps
         ]
 
 c_when_ly :: Derive.Transformer Derive.Note
-c_when_ly = transformer "when-ly" mempty
+c_when_ly = transformer "when-ly"
     "With no arguments, evaluate the deriver only when in lilypond mode.\
     \ Unlike `ly-track`, this doesn't evaluate subtracks, so you can use it to\
     \ emit an entirely different set of tracks.\n\
@@ -89,7 +89,7 @@ c_when_ly = transformer "when-ly" mempty
     $ Sig.callt (Sig.many_vals "arg" "Call expression.") (when_ly False)
 
 c_unless_ly :: Derive.Transformer Derive.Note
-c_unless_ly = transformer "unless-ly" mempty
+c_unless_ly = transformer "unless-ly"
     "The inverse of when-ly, evaluate the deriver or apply the args only when\
     \ not in lilypond mode."
     $ Sig.callt (Sig.many_vals "arg" "Call expression.") (when_ly True)
@@ -107,14 +107,14 @@ when_ly inverted vals args deriver = case vals of
         Eval.apply_transformer (Derive.passed_ctx args) call vals deriver
 
 c_ly_global :: Derive.Transformer Derive.Note
-c_ly_global = transformer "ly-global" mempty
+c_ly_global = transformer "ly-global"
     ("Evaluate the deriver only when in lilypond mode, like `when-ly`, but\
     \ also set the " <> ShowVal.doc Constants.ly_global <> " instrument."
     ) $ Sig.call0t $ \_ deriver ->
         Lily.when_lilypond (Lily.global deriver) mempty
 
 c_ly_track :: Derive.Transformer Derive.Note
-c_ly_track = transformer "ly-track" mempty
+c_ly_track = transformer "ly-track"
     "Evaluate the deriver only when in lilypond mode, otherwise ignore this\
     \ track but evaluate its subtracks. Apply this to a track\
     \ to omit lilypond-only articulations, or to apply different articulations\
@@ -123,14 +123,14 @@ c_ly_track = transformer "ly-track" mempty
         Lily.when_lilypond deriver $ Lily.derive_notes args
 
 c_not_ly_track :: Derive.Transformer Derive.Note
-c_not_ly_track = transformer "not-ly-track" mempty
+c_not_ly_track = transformer "not-ly-track"
     "The inverse of `ly-track`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver -> flip Lily.when_lilypond deriver $
         Lily.derive_notes args
 
 c_if_ly :: Derive.Generator Derive.Note
-c_if_ly = generator "if-ly" mempty
+c_if_ly = generator "if-ly"
     "Conditional for lilypond." $ Sig.call ((,)
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
@@ -341,21 +341,19 @@ code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
 code_call name doc sig make_code = (gen, trans)
     where
-    gen = generator name mempty doc $
-        Sig.call sig $ \val args -> do
-            code <- make_code val
-            -- Code calls mostly apply code to a single note.  It would be
-            -- convenient to derive Call.note, but then I'd have to invert, and
-            -- since inversion and sub-events are incompatible I would then
-            -- have to ignore sub-events.  That in turn would mean I couldn't
-            -- split the code calls into a separate track, which is
-            -- notationally convenient.
-            --
-            -- The price is that if I want to put the call on the note track,
-            -- I have to append |, which is easy to forget.
-            require_nonempty
-                =<< Lily.first_note_code code args (Lily.derive_notes args)
-    trans = transformer name mempty doc $
+    gen = generator name doc $ Sig.call sig $ \val args -> do
+        code <- make_code val
+        -- Code calls mostly apply code to a single note.  It would be
+        -- convenient to derive Call.note, but then I'd have to invert, and
+        -- since inversion and sub-events are incompatible I would then have to
+        -- ignore sub-events.  That in turn would mean I couldn't split the
+        -- code calls into a separate track, which is notationally convenient.
+        --
+        -- The price is that if I want to put the call on the note track,
+        -- I have to append |, which is easy to forget.
+        require_nonempty
+            =<< Lily.first_note_code code args (Lily.derive_notes args)
+    trans = transformer name doc $
         Sig.callt sig $ \val _args deriver ->
             flip Lily.when_lilypond deriver $ do
                 code <- make_code val
@@ -367,7 +365,8 @@ require_nonempty events
         Derive.throw "this call expects sub-events but none were found"
     | otherwise = return events
 
--- | Emit a free-standing fragment of lilypond code.
+-- | Emit a free-standing fragment of lilypond code, attached to the current
+-- instrument.
 code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
 code0_call name doc sig make_code =
@@ -383,11 +382,11 @@ code0_around_call name doc sig make_code = (gen, trans)
         <> " The transformer will wrap each event in (start, end) pairs.\
         \ This way you can wrap all notes on a certain track with\
         \ complementary bits of lilypond code."
-    gen = generator name mempty (doc <> around_doc) $
+    gen = generator name (doc <> around_doc) $
         Sig.call sig $ \val args -> Lily.only_lilypond $ do
             (code1, _) <- make_code val
             Lily.code0 (Args.start args) code1 <> Lily.derive_notes args
-    trans = transformer name mempty (doc <> around_doc) $
+    trans = transformer name (doc <> around_doc) $
         Sig.callt sig $ \val _args deriver ->
             Lily.when_lilypond (transform val deriver) deriver
     transform val deriver = do
@@ -417,8 +416,7 @@ code0_doc :: Doc.Doc
 code0_doc = "\nThis either be placed in a separate track as a zero-dur\
     \ event, or it can be attached to an individual note as a transformer."
 
--- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
--- instrument.
+-- | Like 'code0_call', but the code uses the 'Constants.ly_global' instrument.
 global_code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
@@ -433,17 +431,15 @@ make_code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (gen, trans)
     where
-    gen = generator name mempty doc $
-        Sig.call sig $ \val args -> Lily.only_lilypond $
-            call False val args <> Lily.derive_notes args
-    trans = transformer name mempty doc $
-        Sig.callt sig $ \val args deriver ->
-            Lily.when_lilypond (call True val args <> deriver) deriver
+    gen = generator name doc $ Sig.call sig $ \val args ->
+        Lily.only_lilypond $ call False val args <> Lily.derive_notes args
+    trans = transformer name doc $ Sig.callt sig $ \val args deriver ->
+        Lily.when_lilypond (call True val args <> deriver) deriver
 
-generator :: Derive.CallName -> Tags.Tags -> Doc.Doc
+generator :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
-generator = Derive.generator Module.ly
+generator name = Derive.generator Module.ly name Tags.ly
 
-transformer :: Derive.CallName -> Tags.Tags -> Doc.Doc
+transformer :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.TransformerF d) -> Derive.Transformer d
-transformer = Derive.transformer Module.ly
+transformer name = Derive.transformer Module.ly name Tags.ly
