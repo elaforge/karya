@@ -187,12 +187,23 @@ test_subdivision = do
              ("i2", ["r4 c'4 r4 | r4 d'8~ d'8 r4"])]
         , []
         )
+
     -- rests also follow subdivision
     equal (run
             [ meter68
-            , ("i1", [(0, 1, "subdivision '3/4' -- 3c"), (2, 1, "3d")])
+            , ("i1", [(0, 0, "subdivision '3/4' --")])
+            , ("i1", [(0, 1, "3c"), (2, 1, "3d")])
             ])
         (Right [("i1", ["c4 r4 d4"])], [])
+    -- if it has a duration, cancel at the end
+    let run skel = LilypondTest.staves []
+            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
+            . concatMap UiTest.inst_note_track
+    equal (run [(2, 3), (3, 4)]
+            [ meter68, ("i1", [(0, 3, "subdivision '3/4' --")])
+            , ("", [(1, 1, "3c"), (3, 1.5, "3d")])
+            ])
+        (Right [("i1", ["r4 c4 r4 | d4. r4."])], [])
 
 test_movement = do
     let run = LilypondTest.convert_score . LilypondTest.derive_blocks

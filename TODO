@@ -1009,13 +1009,14 @@ lilypond:
         it doesn't error as soon as the real meter changes.
       . Just setting an env val would be simpler... except I need this to
         apply to rests too.
-      - 'subdivision' should emit a cancel at the end if it has non-zero dur.
+      * 'subdivision' should emit a cancel at the end if it has non-zero dur.
   - Lilypond.Process.modal_articulations don't work for Process.simple_convert
     because it doesn't have access to the previous attrs.
     . simple_convert is a grody hack, but if I can't think of a better way to
       do it, I could add modal_attributes as a postproc.
     . But I've already put ly code in a string, so I can't get the notes back
       out.
+    . Also it means I need to use ly-( and ly-) for tuplets.
     . What would be a way to implement nested notation like \time without
       Lily.eval_events?
   - lilypond: espressivo <> should be like a normal hairpin

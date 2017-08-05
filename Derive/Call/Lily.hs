@@ -155,6 +155,10 @@ data CodePosition =
     | SuffixFirst
     -- | Code goes after the last note in a tied sequnece.
     | SuffixLast
+    -- | Create a note with the given env value set to the Ly code.  This is
+    -- for directives to the lilypond performer, not to lilypond itself.
+    -- E.g. 'Constants.v_subdivision'.
+    | SetEnviron !Env.Key
     deriving (Eq, Show)
 
 -- | Fragment of Lilypond code.
@@ -164,13 +168,14 @@ type Ly = Text
 type Note = Ly
 
 position_env :: Bool -- ^ True if this is a zero-dur event created just to
-    -- host some ly code.
+    -- host some ly code.  See 'Flags.ly_code'.
     -> CodePosition -> Env.Key
 position_env zero_dur p = case if zero_dur then code0 p else p of
     Prefix -> Constants.v_ly_prepend
     SuffixFirst -> Constants.v_ly_append_first
     SuffixLast -> Constants.v_ly_append_last
     SuffixAll -> Constants.v_ly_append_all
+    SetEnviron key -> key
     where
     -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
     -- less error-prone by getting rid of them.  Ick.

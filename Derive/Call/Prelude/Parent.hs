@@ -118,9 +118,8 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         -- meter conventionally slow them down.  Don't ask me why, I don't make
         -- the rules.  TODO maybe I should check to make sure I'm in compound
         -- meter?
-        let is_duplet = case Seq.maximum (map length track_notes) of
-                Just len | len `mod` 2 == 0 && len `mod` 3 /= 0 -> True
-                _ -> False
+        let is_duplet = maybe False (`elem` [2, 4, 8, 16, 32]) $
+                Seq.maximum (map length track_notes)
         let derive = Stream.write_logs <=< Sub.derive
                 . if is_duplet then id else map (Sub.place (Args.start args) 2)
         track_events <- lift $ mapM derive track_notes
