@@ -978,6 +978,28 @@ integrate / integration:
     - quantization
 
 lilypond:
+  squart/6:
+    . tuplet error
+      . tuplet duration must be simple, but was: 0.4911504424778741 (0.0,0.5)
+        rt (289.11504424778764,289.6061946902655)
+      . shouldn't the warp be id?
+      . Due to a block which was slightly short, so the tempo wasn't 1:1.
+      . This as a generally annoying problem.  Maybe I can have a mode where
+        blocks are called 1:1, and they'll rearrange themselves in callers
+        when they change duration.  It can also maintain LRuler.extract.
+    - Why does 7/8 not bar the eighth notes?
+      . Because lilypond does beaming on its own: lily/Auto_beam_engraver.cc
+        But configured in scm/auto-beam.scm and scm/time-signature-settings.scm
+      . Maybe not very smart.  I should be able to use Meter for beaming too,
+        but for now just beam manually.
+  - Lilypond.Process.modal_articulations don't work for Process.simple_convert
+    because it doesn't have access to the previous attrs.
+    . simple_convert is a grody hack, but if I can't think of a better way to
+      do it, I could add modal_attributes as a postproc.
+    . But I've already put ly code in a string, so I can't get the notes back
+      out.
+    . What would be a way to implement nested notation like \time without
+      Lily.eval_events?
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'
@@ -994,6 +1016,8 @@ lilypond:
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.
     . Exception for +trem
+    . Also applies to pizz, and sonically equivalent things like +detache.
+    . Or maybe I can fix +detache in VSL by ignoring NoteOff.
   - warning if ly-prepend or ly-append is being omitted due to a chord
   - Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.
@@ -1023,7 +1047,6 @@ lilypond:
     . Or maybe better to write those as duples?
     . call it 'beam', since it's there to affect beaming... well, durations
       also.
-  - squart/6: why does 7/8 not bar the eighth notes?
 
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
   jianpu

@@ -133,9 +133,10 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     err msg = do
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
-    to_dur config msg t = maybe
-        (Except.throwError $ msg <> " duration must be simple")
-        return (Lily.is_duration config t)
+    to_dur config msg t =
+        tryJust (msg <> " duration must be simple, but was: " <> showt t
+                <> " score range: " <> showt (Args.range args)) $
+            Lily.is_duration config t
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
     -> Lily.Ly

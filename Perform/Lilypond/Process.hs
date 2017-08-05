@@ -58,6 +58,7 @@ modal_articulations :: [(Attrs.Attributes, Code, Code)]
 modal_articulations =
     [ (Attrs.pizz, "^\"pizz.\"", "^\"arco\"")
     , (Attrs.nv, "^\"nv\"", "^\"vib\"")
+    , (Attrs.pont, "^\"sul pont.\"", "^\"loco\"")
     ]
 
 -- * convert_to_rests
@@ -141,7 +142,7 @@ simple_convert config meter = go
         where
         leading_rests = map LyRest $
             make_rests config meter start (event_start event)
-        (lys, end, _, rest_events) = make_lys 0 mempty meter (event :| events)
+        (lys, end, _, rest_events) = make_lys 0 Nothing meter (event :| events)
 
 convert_voice :: Time -> [Event] -> ConvertM [Ly]
 convert_voice end = run_process (rests_until end) convert_chunk
@@ -230,7 +231,8 @@ convert_chord meter events = do
     state <- State.get
     let key_change = [Code (to_lily key) | key /= state_key state]
     let (chord_notes, end, last_attrs, remaining) = make_lys
-            (state_measure_start state) (state_prev_attrs state) meter events
+            (state_measure_start state) (Just (state_prev_attrs state))
+            meter events
     barline <- advance_measure end
     State.modify $ \state -> state
         { state_key = key
@@ -244,7 +246,12 @@ convert_chord meter events = do
 -- 'Code' Notes.
 --
 -- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
-make_lys :: Time -> Attrs.Attributes -> Meter.Meter -> NonEmpty Event
+make_lys :: Time -> Maybe Attrs.Attributes
+    -- ^ Previous note's Attributes, to track 'modal_articulations'. Disable
+    -- modal_articulations if it's Nothing, which is used by 'simple_convert'.
+    -- TODO it's likely to be confusing that they don't work, maybe I can
+    -- do a postproc run for modal_articulations?
+    -> Meter.Meter -> NonEmpty Event
     -> ([Ly], Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, last attrs, remaining events)
 make_lys measure_start prev_attrs meter events =
@@ -262,12 +269,14 @@ make_lys measure_start prev_attrs meter events =
     (dur0, with_dur) = List.partition zero_dur here
 
     (maybe_note, end, last_attrs, clipped) = case NonEmpty.nonEmpty with_dur of
-        Nothing -> (Nothing, event_start (NonEmpty.head events), prev_attrs, [])
+        Nothing -> (Nothing, start, fromMaybe mempty prev_attrs, [])
+            where start = event_start (NonEmpty.head events)
         Just chord ->
-            let next = event_start <$> List.find (not . zero_dur) after
-                (n, end, clipped) =
-                    make_note measure_start prev_attrs meter chord next
-            in (Just n, end, event_attributes (NonEmpty.last chord), clipped)
+            (Just n, end, event_attributes (NonEmpty.last chord), clipped)
+            where
+            next = event_start <$> List.find (not . zero_dur) after
+            (n, end, clipped) =
+                make_note measure_start prev_attrs meter chord next
 
     -- Now that I know the duration of the Ly (if any) I can get the zero-dur
     -- code events it overlaps.
@@ -277,8 +286,8 @@ make_lys measure_start prev_attrs meter events =
     -- Circumfix the possible real note with zero-dur code placeholders.
     notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
-make_note :: Time -> Attrs.Attributes -> Meter.Meter
-    -> NonEmpty Event -- ^ Events that occur at the same time.
+make_note :: Time -> Maybe Attrs.Attributes
+    -> Meter.Meter -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, [Event])
     -- ^ (note, note end time, clipped)
@@ -788,14 +797,18 @@ clip_event end e
         e { event_start = end, event_duration = left, event_clipped = True }
     where left = event_end e - end
 
-attrs_to_code :: Attrs.Attributes -> Attrs.Attributes -> Code
+attrs_to_code :: Maybe Attrs.Attributes -> Attrs.Attributes -> Code
 attrs_to_code prev_attrs attrs = mconcat $ mconcat
-    [ [code | (attr, code) <- simple_articulations, has attr]
-    , [start | (attr, start, _) <- modal_articulations,
-        has attr, not (prev_has attr)]
-    , [end | (attr, _, end) <- modal_articulations,
-        not (has attr), prev_has attr]
+    [ [code | (attr, code) <- simple_articulations, has attrs attr]
+    , [ start
+      | Just prev <- [prev_attrs]
+      , (attr, start, _) <- modal_articulations
+      , has attrs attr, not (has prev attr)
+      ]
+    , [ end
+      | Just prev <- [prev_attrs]
+      , (attr, _, end) <- modal_articulations
+      , not (has attrs attr), has prev attr]
     ]
     where
-    has = Attrs.contain attrs
-    prev_has = Attrs.contain prev_attrs
+    has = Attrs.contain

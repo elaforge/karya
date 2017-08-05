@@ -260,13 +260,13 @@ to_time = Types.real_to_time . Types.config_quarter_duration
 
 -- ** eval
 
-eval :: Types.Config -> Derive.PassedArgs d -> [Sub.Event]
-    -> Derive.Deriver [Note]
-eval config args notes = do
-    start <- Args.real_start args
-    events <- Stream.write_logs =<< Sub.derive notes
-    eval_events config start events
-
+-- | Run a mini-lilypond evaluation.  This is to emit nested lilypond code,
+-- such as a tuplet that contains more code.
+--
+-- TODO this is grody because it introduces another way to evaluate lilypond
+-- which is almost but not quite like the normal way.  For instance,
+-- modal_attributes can't work because I don't know what the previous
+-- attributes were.
 eval_events :: Types.Config -> RealTime -> [Score.Event]
     -> Derive.Deriver [Note]
 eval_events config start events = do
