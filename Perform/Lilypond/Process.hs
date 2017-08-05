@@ -152,12 +152,14 @@ convert_voice end = run_process (rests_until end) convert_chunk
 convert_chunk :: [Event] -> ConvertM ([Ly], [Event])
 convert_chunk events = error_context current $ case zero_dur_in_rest events of
     ([], []) -> return ([], [])
-    (zero@(event:_), []) -> return (mix_in_code (event_start event) zero [], [])
-    (zero, event : events) -> do
+    (zeros@(event:_), []) -> do
+        mapM_ update_subdivision zeros
+        return (mix_in_code (event_start event) zeros [], [])
+    (zeros, event : events) -> do
+        mapM_ update_subdivision zeros
         start <- State.gets state_time
-        rests <- mix_in_code start zero <$> rests_until (event_start event)
-        meter <- get_meter
-        (lys, remaining) <- convert_chord meter (event :| events)
+        rests <- mix_in_code start zeros <$> rests_until (event_start event)
+        (lys, remaining) <- convert_chord (event :| events)
         return (rests <> lys, remaining)
     where current = maybe "no more events" pretty (Seq.head events)
 
@@ -165,41 +167,41 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
 -- attrs.
 --
 -- This is doing the same thing as 'make_lys', but since rests aren't
--- represented explicitly be events as notes are, I have to first generate the
+-- represented explicitly by events as notes are, I have to first generate the
 -- notes, and then mix in the code afterwards.
 mix_in_code :: Time -> [Event] -> [Ly] -> [Ly]
-mix_in_code start code lys = go code $ with_starts start lys
+mix_in_code start codes lys = go codes $ with_starts start lys
     where
-    go code [] = prepend ++ append
-        where (prepend, append) = partition_code code
-    go code ((start, ly) : lys) = applied ++ go rest_code lys
-        where (applied, rest_code) = apply_code start code ly
+    go codes [] = prepend ++ append
+        where (prepend, append) = partition_code codes
+    go codes ((start, ly) : lys) = applied ++ go rest_code lys
+        where (applied, rest_code) = apply_code start codes ly
 
 -- | This is the same thing as 'mix_in_code', except it has to mix code into
 -- [VoiceLy], which is more complicated.  The duplicated logic is pretty
 -- unfortunate but I couldn't think of a way to get rid of it.  See
 -- 'collect_voices' for more information.
 mix_in_code_voices :: Time -> [Event] -> [VoiceLy] -> [VoiceLy]
-mix_in_code_voices start code lys = go code start lys
+mix_in_code_voices start codes lys = go codes start lys
     where
-    go code _ [] = map Right $ prepend ++ append
-        where (prepend, append) = partition_code code
-    go code start (Right ly : lys) =
+    go codes _ [] = map Right $ prepend ++ append
+        where (prepend, append) = partition_code codes
+    go codes start (Right ly : lys) =
         map Right applied ++ go rest_code (ly_duration ly + start) lys
-        where (applied, rest_code) = apply_code start code ly
-    go code start (Left (Voices []) : rest) = go code start rest
-    go code start (Left (Voices ((voice, lys) : voices)) : rest) =
+        where (applied, rest_code) = apply_code start codes ly
+    go codes start (Left (Voices []) : rest) = go codes start rest
+    go codes start (Left (Voices ((voice, lys) : voices)) : rest) =
         Left (Voices $ (voice, mixed) : voices) : go post end rest
         where
-        (pre, post) = span ((<end) . event_start) code
+        (pre, post) = span ((<end) . event_start) codes
         end = start + sum (map ly_duration lys)
         mixed = mix_in_code start pre lys
 
 apply_code :: Time -> [Event] -> Ly -> ([Ly], [Event])
-apply_code start code ly = (prepend ++ ly : append, post)
+apply_code start codes ly = (prepend ++ ly : append, post)
     where
     (prepend, append) = partition_code pre
-    (pre, post) = span ((<end) . event_start) code
+    (pre, post) = span ((<end) . event_start) codes
     end = ly_duration ly + start
 
 partition_code :: [Event] -> ([Ly], [Ly])
@@ -212,6 +214,8 @@ partition_code events = (map Code prepend, map Code append)
     get :: Env.Key -> Event -> Text
     get v = fromMaybe "" . Env.maybe_val v . event_environ
 
+-- | Partition events which have zero dur and don't coincide with the next
+-- non-zero dur event.
 zero_dur_in_rest :: [Event] -> ([Event], [Event])
 zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
     where
@@ -225,20 +229,37 @@ zero_dur = (==0) . event_duration
 
 -- | This is the lowest level of conversion.  It converts a vertical slice of
 -- notes.
-convert_chord :: Meter.Meter -> NonEmpty Event -> ConvertM ([Ly], [Event])
-convert_chord meter events = do
+convert_chord :: NonEmpty Event -> ConvertM ([Ly], [Event])
+convert_chord events = do
     key <- lookup_key (NonEmpty.head events)
     state <- State.get
     let key_change = [Code (to_lily key) | key /= state_key state]
+    mapM_ update_subdivision $
+        takeWhile ((== event_start (NonEmpty.head events)) . event_start) $
+        NonEmpty.toList events
+    meter <- get_subdivision
     let (chord_notes, end, last_attrs, remaining) = make_lys
             (state_measure_start state) (Just (state_prev_attrs state))
             meter events
     barline <- advance_measure end
-    State.modify $ \state -> state
+    State.modify' $ \state -> state
         { state_key = key
         , state_prev_attrs = last_attrs
         }
     return (key_change <> chord_notes <> maybe [] (:[]) barline, remaining)
+
+update_subdivision :: Event -> ConvertM ()
+update_subdivision event =
+    case Env.maybe_val Constants.v_subdivision (event_environ event) of
+        Nothing -> return ()
+        Just "" -> State.modify' $ \state ->
+            state { state_subdivision = Nothing }
+        Just m -> do
+            meter <- tryRight $ first
+                (("can't parse meter in " <> pretty Constants.v_subdivision
+                    <> ": " <> showt m <> ": ")<>)
+                (Meter.parse_meter m)
+            State.modify' $ \state -> state { state_subdivision = Just meter }
 
 -- | Convert a chunk of events all starting at the same time.  Events
 -- with 0 duration or null pitch are expected to have either
@@ -505,7 +526,7 @@ rests_until end = do
     where
     create_rests end = do
         state <- State.get
-        meter <- get_meter
+        meter <- get_subdivision
         barline <- advance_measure end
         let rests = make_rests (state_config state) meter
                 (state_time state - state_measure_start state)
@@ -536,7 +557,7 @@ advance_measure time = advance =<< State.get
             throw $ "can't advance time past barline: " <> pretty time
                 <> " > " <> pretty (state_measure_end state)
     advance1 prev_meter meters = do
-        State.modify $ \state -> state
+        State.modify' $ \state -> state
             { state_meters = meters
             , state_measure_start = state_measure_end state
             , state_measure_end = state_measure_end state
@@ -549,10 +570,19 @@ advance_measure time = advance =<< State.get
                 | otherwise -> Just (Barline (Just meter))
             _ -> Nothing
 
-get_meter :: ConvertM Meter.Meter
-get_meter = do
+-- | Get the current subdivision and check it against the meter.  This is a way
+-- to override the meter for the purposes of how durations are spelled.
+get_subdivision :: ConvertM Meter.Meter
+get_subdivision = do
     meters <- State.gets state_meters
-    maybe (throw "out of meters") return $ Seq.head meters
+    meter <- tryJust "out of meters" $ Seq.head meters
+    subdivision <- State.gets state_subdivision
+    case subdivision of
+        Just sub
+            | Meter.measure_time meter == Meter.measure_time sub -> return sub
+            | otherwise -> throw $ "subdivision " <> pretty sub
+                <> " incompatible with meter " <> pretty meter
+        Nothing -> return meter
 
 -- * ConvertM
 
@@ -571,22 +601,25 @@ map_error f action = Except.catchError action $ \err ->
 
 data State = State {
     -- Constant:
-    state_config :: Types.Config
+    state_config :: !Types.Config
 
     -- Changes on each measure:
     -- | One Meter for each expected measure in the output.
     -- The head of the list is the current meter.  It's valid for the meters to
     -- be [] as long as you don't have any more notes or rests to generate.
-    , state_meters :: [Meter.Meter]
-    , state_measure_start :: Time
-    , state_measure_end :: Time
+    , state_meters :: ![Meter.Meter]
+    , state_measure_start :: !Time
+    , state_measure_end :: !Time
 
     -- Changes on each note:
     -- | Current position in time, aka the end of the previous note.
-    , state_time :: Time
+    , state_time :: !Time
         -- | Used in conjunction with 'modal_articulations'.
     , state_prev_attrs :: Attrs.Attributes
-    , state_key :: Key
+    , state_key :: !Key
+
+    -- Changes on a directive.
+    , state_subdivision :: !(Maybe Meter.Meter)
     } deriving (Show)
 
 make_state :: Types.Config -> Time -> [Meter.Meter] -> Key -> State
@@ -598,6 +631,7 @@ make_state config start meters key = State
     , state_time = start
     , state_prev_attrs = mempty
     , state_key = key
+    , state_subdivision = Nothing
     }
 
 -- ** util

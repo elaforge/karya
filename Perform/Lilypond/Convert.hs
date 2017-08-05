@@ -106,10 +106,11 @@ convert_event quarter event = run $ do
         }
     where
     check_0dur
-        | not is_ly_global && not has_prepend && not has_append = throw $
-            "zero duration event must have one of "
-            <> Text.intercalate ", " (map ShowVal.show_val code_attrs)
-            <> "; had " <> pretty (Score.event_environ event)
+        | not is_ly_global && not has_prepend && not has_append
+                && not (has Constants.v_subdivision) =
+            throw $ "zero duration event must have one of "
+                <> Text.intercalate ", " (map ShowVal.show_val code_attrs)
+                <> "; had " <> pretty (Score.event_environ event)
         | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()

@@ -65,6 +65,7 @@ note_calls = Make.call_maps
     , ("ly-", c_ly_articulation)
     , ("ly\\", c_ly_command)
     , ("meter", c_meter)
+    , ("subdivision", c_subdivision)
     , ("movement", c_movement)
     , ("xstaff", c_xstaff)
     , ("xstaff-a", c_xstaff_around)
@@ -191,8 +192,20 @@ c_meter :: Make.Calls Derive.Note
 c_meter = global_code0_call "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet."
-    (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
-    \val -> Derive.with_val Constants.v_meter (val :: Text)
+    (required "meter" "Should be `4/4`, `6/8`, etc. An ambiguous meter like\
+        \ `6/8` will default to 3+3, but you can explicitly set the\
+        \ subdivision, e.g. `2+2+2/8`.") $
+    \meter -> Derive.with_val Constants.v_meter (meter :: Text)
+
+c_subdivision :: Make.Calls Derive.Note
+c_subdivision = Make.transform_notes Module.ly "subdivision" Tags.ly
+    "Emit a subdivision change. This is the same format as `meter`, but it\
+    \ affects the subdivision for this instrument only, instead of setting\
+    \ the global meter. This is useful when instruments are playing\
+    \ cross-rhythms and should beam accordingly."
+    (required "meter" "Same as `meter` call.") $
+    \maybe_meter -> Derive.with_val Constants.v_subdivision
+        (fromMaybe "" maybe_meter :: Text)
 
 c_movement :: Make.Calls Derive.Note
 c_movement = global_code0_call "movement"

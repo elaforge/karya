@@ -147,8 +147,55 @@ test_ly_slur_beam = do
             [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])
         (Right "a2[ b2~] | b1", [])
 
+test_subdivision = do
+    let run = LilypondTest.staves [] . LilypondTest.derive_tracks
+            . concatMap UiTest.inst_note_track
+    equal (run [("i1", [(0, 4, "4c")]), ("i2", [(0, 4, "4d")]) ])
+        (Right [("i1", ["c'1"]), ("i2", ["d'1"])], [])
+
+    let meter68 = ("ly-global", [(0, 0, "meter '6/8' --")])
+    let subdivision t s = [(t, 0, "subdivision '" <> s <> "' --")]
+    let one_measure subdiv =
+            [ meter68
+            , ("i1", [(0, 1.5, "3c"), (1.5, 1.5, "3d")])
+            , ("i2", maybe [] (subdivision 0) subdiv ++  [(1, 1, "4c")])
+            ]
+    equal (run (one_measure Nothing))
+        (Right [("i1", ["c4. d4."]), ("i2", ["r4 c'8~ c'8 r4"])], [])
+    left_like (fst $ run (one_measure (Just "4/4"))) "incompatible with meter"
+    let two_measures subdiv =
+            [ meter68
+            , ("i1",
+                [ (0, 1.5, "3c"), (1.5, 1.5, "3d")
+                , (3, 1.5, "3e"), (4.5, 1.5, "3f")
+                ])
+            , ("i2",
+                subdivision 0 "3/4" ++ [(1, 1, "4c")]
+                ++ maybe [] (subdivision 3) subdiv ++ [(4, 1, "4d")])
+            ]
+    -- different spelling persists
+    equal (run (two_measures Nothing))
+        ( Right
+            [("i1", ["c4. d4. | e4. f4."]),
+             ("i2", ["r4 c'4 r4 | r4 d'4 r4"])]
+        , []
+        )
+    -- cancel the subdivision
+    equal (run (two_measures (Just "")))
+        ( Right
+            [("i1", ["c4. d4. | e4. f4."]),
+             ("i2", ["r4 c'4 r4 | r4 d'8~ d'8 r4"])]
+        , []
+        )
+    -- rests also follow subdivision
+    equal (run
+            [ meter68
+            , ("i1", [(0, 1, "subdivision '3/4' -- 3c"), (2, 1, "3d")])
+            ])
+        (Right [("i1", ["c4 r4 d4"])], [])
+
 test_movement = do
-    let run  = LilypondTest.convert_score . LilypondTest.derive_blocks
+    let run = LilypondTest.convert_score . LilypondTest.derive_blocks
     -- Movements split up properly.
     let (ly, logs) = run [(UiTest.default_block_name,
             ("> | ly-global", [(0, 0, "movement I"), (4, 0, "movement II")])

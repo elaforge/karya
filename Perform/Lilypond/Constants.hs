@@ -75,6 +75,11 @@ v_ly_tie_direction = "ly-tie-direction"
 v_meter :: BaseTypes.Key
 v_meter = "meter"
 
+-- | String: this has the same format as 'v_meter', but it affects the rhythmic
+-- spelling for the instrument.
+v_subdivision :: BaseTypes.Key
+v_subdivision = "subdivision"
+
 -- | String: Gives the title of a new movement.  An event with 'ly_global'
 -- instrument and this env val will cause a movement break.
 v_movement :: BaseTypes.Key
