@@ -78,20 +78,25 @@ test_tuplet_multiple_tracks = do
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
-    let run skel = LilypondTest.measures ["times"]
+    let run skel = LilypondTest.measures ["tuplet"]
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
     equal (run [(1, 2), (2, 3)] $
-            (">", [(0, 4, "t")]) : UiTest.note_track1 ["4c", "4d", "4e"])
-        (Right "\\times 2/3 { c'2 d'2 e'2 }", [])
+            (">", [(0, 4, "t")]) : UiTest.note_track1 ["3c", "3d", "3e"])
+        (Right "\\tuplet 3/2 { c2 d2 e2 }", [])
+
     equal (run [(1, 2), (2, 3), (1, 4), (4, 5)] $
             (">", [(0, 4, "t")]) : concatMap UiTest.note_track
-                [ [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
-                , [(1, 1, "5d")]
+                [ [(0, 1, "3c"), (1, 1, "3d"), (2, 1, "3e")]
+                , [(1, 1, "4d")]
                 ])
-        (Right "\\times 2/3 { c'2 <d' d''>2 e'2 }", [])
+        (Right "\\tuplet 3/2 { c2 <d d'>2 e2 }", [])
+    -- While triplets make the notes go faster, duplets make them go slower.
+    equal (run [(1, 2), (2, 3)] $
+            (">", [(0, 3, "t")]) : UiTest.note_track1 ["3c", "3d"])
+        (Right "\\tuplet 2/3 { c4 d4 } r4", [])
 
 test_tuplet_ly_complex = do
-    let run = LilypondTest.measures ["times", "acciaccatura"]
+    let run = LilypondTest.measures ["tuplet", "acciaccatura"]
             . LilypondTest.derive_tracks_linear
         pitches = map ("3"<>) (map Text.singleton "abcdefg")
         notes dur ts =
@@ -99,49 +104,47 @@ test_tuplet_ly_complex = do
     -- The tuplet is not confused by a pitch already being in scope.
     equal (run $
         ("*", [(0, 0, "3c")]) : (">", [(0, 2, "t")]) : notes 0.5 [0, 0.5, 1])
-        (Right "\\times 2/3 { a4 b4 c4 } r2", [])
+        (Right "\\tuplet 3/2 { a4 b4 c4 } r2", [])
     equal (run $ (">", [(2, 2, "t")]) : notes 0.5 [2, 2.5, 3])
-        (Right "r2 \\times 2/3 { a4 b4 c4 }", [])
+        (Right "r2 \\tuplet 3/2 { a4 b4 c4 }", [])
     equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1.25 0.25))
-        (Right "\\times 4/6 { a8 b8 c8 d8 e8 f8 } r2", [])
+        (Right "\\tuplet 3/2 { a8 b8 c8 d8 e8 f8 } r2", [])
 
     equal (run $ (">", [(0, 4, "t")]) : notes 0.5 (Seq.range 0 2 0.5))
-        (Right "\\times 4/5 { a4 b4 c4 d4 e4 }", [])
+        (Right "\\tuplet 5/4 { a4 b4 c4 d4 e4 }", [])
     equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1 0.25))
-        (Right "\\times 4/5 { a8 b8 c8 d8 e8 } r2", [])
+        (Right "\\tuplet 5/4 { a8 b8 c8 d8 e8 } r2", [])
 
     -- Ensure Lily.note_pitch preserves enharmonics.
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5)
                 ["3c#", "3db", "3cx"]])
-        (Right "\\times 2/3 { cs4 df4 css4 } r2", [])
+        (Right "\\tuplet 3/2 { cs4 df4 css4 } r2", [])
 
     -- Grace notes nested inside a tuplet work.
-    equal (run
-        [ (">", [(0, 2, "t")])
-        , (">", [(0, 1, "g (3c) (3b)"), (1, 1, "")])
-        , ("*", [(0, 0, "3a"), (1, 0, "3b")])
-        ])
-        (Right "\\times 1/2 { \\acciaccatura { c8[ b8] } a2 b2 } r2", [])
+    equal (run $
+        (">", [(0, 4, "t")]) : UiTest.note_track
+            [(0, 1, "g (3c) (3b) -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
+        (Right "\\tuplet 3/2 { \\acciaccatura { c8[ b8] } a2 b2 c2 }", [])
 
     -- Slur inside a tuplet.
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [ (0, 0.5, "3a"), (0.5, 0.5, "ly-( | -- 3b"), (1, 0.5, "3c"),
                 (2, 1, "ly-) | -- 3d")])
-        (Right "\\times 2/3 { a4 b4( c4 } d4) r4", [])
+        (Right "\\tuplet 3/2 { a4 b4( c4 } d4) r4", [])
 
     equal (run $
             (">", [(0, 4, "t")])
             : (">", [(0, 3, "+stac")])
             : UiTest.regular_notes 3)
-        (Right "\\times 2/3 { c2-. d2-. e2-. }", [])
+        (Right "\\tuplet 3/2 { c2-. d2-. e2-. }", [])
 
     -- 0 dur code event doesn't confuse it.
     equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track
             [(0, 1, "dyn p | ly-( | -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
-        (Right "\\times 2/3 { a2( \\p b2 c2 }", [])
+        (Right "\\tuplet 3/2 { a2( \\p b2 c2 }", [])
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note

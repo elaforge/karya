@@ -7,6 +7,7 @@
 module Derive.Call.Prelude.Parent where
 import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -25,13 +26,10 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
 import qualified Derive.Stream as Stream
 
-import qualified Perform.Lilypond as Lilypond
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Global
 import Types
 
@@ -74,19 +72,27 @@ c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
         tuplet (Args.range args) =<< Sub.sub_events args
 
 tuplet :: (ScoreTime, ScoreTime) -> [[Sub.Event]] -> Derive.NoteDeriver
-tuplet range tracks = case Seq.maximum (mapMaybe end_of tracks) of
+tuplet range tracks = case tuplet_note_end (map (map to_start_dur) tracks) of
     Nothing -> return mempty
     Just end -> mconcat $ map (Sub.fit (fst range, end) range) tracks
     where
-    end_of events = infer_duration events
-        <|> Seq.maximum (map Sub.event_end events)
-    -- If it has >1 note, and they are all zero dur, and notes are
-    -- equidistant, assume the last one has the same dur.
+    to_start_dur e = (Sub.event_start e, Sub.event_duration e)
+
+-- | Get the end of the notes inside the tuplet.  If it has >1 note, and they
+-- are all zero dur, and notes are equidistant, assume the last one has the
+-- same dur.
+tuplet_note_end :: (Ord a, Num a) => [[(a, a)]] -> Maybe a
+tuplet_note_end = Seq.maximum . mapMaybe last_end
+    where
+    last_end events = infer_duration events <|> Seq.maximum (map end_of events)
     infer_duration events = case zipWith (-) (drop 1 starts) starts of
-        d : ds | all ((==0) . Sub.event_duration) events && all (==d) ds ->
-            Just $ Sub.event_start (last events) + d
+        d : ds | all ((==0) . dur_of) events && all (==d) ds ->
+            Just $ start_of (last events) + d
         _ -> Nothing
-        where starts = map Sub.event_start events
+        where starts = map start_of events
+    start_of = fst
+    dur_of = snd
+    end_of (s, d) = s + d
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff
 -- notation tuplets work by shortening notes.  So I double the duration
@@ -108,42 +114,43 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             [] -> Except.throwError "no sub events"
             [[]] -> Except.throwError "no sub events"
             notes -> return notes
-        let derive = Stream.write_logs
-                <=< Sub.derive . map (Sub.place (Args.start args) 2)
+        -- While usually tuplets speed up their notes, duplets in compound
+        -- meter conventionally slow them down.  Don't ask me why, I don't make
+        -- the rules.  TODO maybe I should check to make sure I'm in compound
+        -- meter?
+        let is_duplet = case Seq.maximum (map length track_notes) of
+                Just len | len `mod` 2 == 0 && len `mod` 3 /= 0 -> True
+                _ -> False
+        let derive = Stream.write_logs <=< Sub.derive
+                . if is_duplet then id else map (Sub.place (Args.start args) 2)
         track_events <- lift $ mapM derive track_notes
 
-        dur <- case filter (not . Lily.is_code0) (concat track_events) of
+        notes_end <- case map (filter (not . Lily.is_code0)) track_events of
             [] -> Except.throwError "no sub events"
-            [_] -> Except.throwError "just one event"
-            e : es
-                | all ((== dur e) . dur) es -> return (dur e)
-                | otherwise -> Except.throwError $
-                    "all event durations must be equal: "
-                    <> Text.intercalate ", " (map (pretty . dur) (e:es))
-                where dur = Score.event_duration
+            tracks -> tryJust "can't figure out tuplet duration" $
+                tuplet_note_end (map (map to_start_dur) tracks)
         (start, end) <- lift $ Args.real_range args
-        tuplet_dur <- to_dur config "tuplet" (end - start)
-        note_dur <- to_dur config "note" dur
+        code <- tryRight $ tuplet_code (end - start) (notes_end - start)
         ly_notes <- lift $ Lily.eval_events config start
             (Seq.merge_lists Score.event_start track_events)
-        let note_count = maximum $
-                map (length . filter (not . Lily.is_code0)) track_events
         lift $ Lily.code (Args.extent args) $
-            tuplet_code tuplet_dur note_dur note_count ly_notes
+            code <> " { " <> Text.unwords ly_notes <> " }"
+    to_start_dur e = (Score.event_start e, Score.event_duration e)
     err msg = do
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
-    to_dur config msg t =
-        tryJust (msg <> " duration must be simple, but was: " <> showt t
-                <> " score range: " <> showt (Args.range args)) $
-            Lily.is_duration config t
 
-tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
-    -> Lily.Ly
-tuplet_code tuplet_dur note_dur note_count notes =
-    "\\times " <> showt (d tuplet_dur `div` d note_dur) <> "/"
-        <> showt note_count <> " { " <> Text.unwords notes <> " }"
-    where d = toInteger . Lilypond.dur_to_time
+tuplet_code :: RealTime -> RealTime -> Either Text Text
+tuplet_code tuplet_dur note_dur = do
+    -- Note speed is multiplied by this.  So to fit 3 duration into 2 duration,
+    -- speed increases by 3/2.
+    let factor = realToFrac note_dur / realToFrac tuplet_dur
+    let n, d :: Integer
+        (n, d) = (Ratio.numerator factor, Ratio.denominator factor)
+    when (n > 15 || d > 15) $
+        Left $ "tuplet factor is too complicated: " <> showt tuplet_dur
+            <> "/" <> showt note_dur
+    return $ "\\tuplet " <> showt n <> "/" <> showt d
 
 -- * arpeggio
 
@@ -163,8 +170,8 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
     \ pitches of the sub notes (they may not have a single pitch) so\
     \ it's not actually \"up\" or \"down\"."
     ) $ Sig.call ((,)
-    <$> defaulted "time" 0.1 "This much RealTime between each note."
-    <*> defaulted "random" 0.5
+    <$> Sig.defaulted "time" 0.1 "This much RealTime between each note."
+    <*> Sig.defaulted "random" 0.5
         "Each note can vary randomly by `+- time/2 * random`."
     ) $ \(time, random) args -> lily_code args $
         arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args

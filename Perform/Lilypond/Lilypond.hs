@@ -54,7 +54,9 @@ type Title = Text
 ly_file :: Types.Config -> Title -> [Movement] -> Lazy.Text
 ly_file config title movements = run_output $ do
     outputs
-        [ "\\version" <+> str "2.14.2"
+        -- I only need 2.18.2 due to using \tuplet.  If it's a problem, I can
+        -- easily switch back to 2.14.2 by switching back to \times.
+        [ "\\version" <+> str "2.18.2"
         , "\\language" <+> str "english"
         -- I'm not using it, and it increases file size a lot.
         , "\\pointAndClickOff"
