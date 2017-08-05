@@ -8,17 +8,16 @@ import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Env as Env
+import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Lilypond.Constants as Constants
@@ -106,19 +105,16 @@ convert_event quarter event = run $ do
         }
     where
     check_0dur
-        | not is_ly_global && not has_prepend && not has_append
-                && not (has Constants.v_subdivision) =
-            throw $ "zero duration event must have one of "
-                <> Text.intercalate ", " (map ShowVal.show_val code_attrs)
-                <> "; had " <> pretty (Score.event_environ event)
+        | not is_ly_global && not (Flags.has flags Flags.ly_code) =
+            throw $ "zero duration event must have " <> pretty Flags.ly_code
         | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
+        where flags = Score.event_flags event
     is_ly_global = Score.event_instrument event == Constants.ly_global
     has_prepend = has Constants.v_ly_prepend
     has_append = has Constants.v_ly_append_all
     has v = Maybe.isJust $ Env.lookup v (Score.event_environ event)
-    code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT
 

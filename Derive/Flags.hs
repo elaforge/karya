@@ -44,3 +44,10 @@ weak = flag "weak"
 -- concurrent events to have 'weak'.
 strong :: Flags
 strong = flag "strong"
+
+-- | Mark events with lilypond code in them.  By convention, events with zero
+-- duration and lilypond code are score directives, not notes at all.  This
+-- is important because postprocessing dealing with notes might want to ignore
+-- them.
+ly_code :: Flags
+ly_code = flag "ly-code"

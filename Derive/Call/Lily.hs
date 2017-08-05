@@ -15,6 +15,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -54,7 +55,7 @@ only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 note_code code args = when_lilypond $
-    add_code code $ Call.place args Call.note
+    add_code False code $ Call.place args Call.note
 
 -- ** transformer
 
@@ -69,7 +70,7 @@ add_first code deriver =
 -- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_code code = notes_with (add_code code)
+notes_code code = notes_with (add_code False code)
 
 -- | Like 'notes_code', but only apply the code to the first event, not all of
 -- them.
@@ -117,9 +118,11 @@ derive_notes = Sub.derive . concat <=< Sub.sub_events
 -- ** events around
 
 add_event_code :: Code -> Score.Event -> Score.Event
-add_event_code (pos, code) =
-    Score.modify_environ $ add (position_env pos) (<>code)
+add_event_code (pos, code) event =
+    Score.add_flags Flags.ly_code $
+        Score.modify_environ (add (position_env zero_dur pos) (<>code)) event
     where
+    zero_dur = Score.event_duration event == 0
     add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
         where old = fromMaybe "" $ Env.maybe_val name env
 
@@ -152,7 +155,7 @@ data CodePosition =
     | SuffixFirst
     -- | Code goes after the last note in a tied sequnece.
     | SuffixLast
-    deriving (Bounded, Enum, Show)
+    deriving (Eq, Show)
 
 -- | Fragment of Lilypond code.
 type Ly = Text
@@ -160,19 +163,28 @@ type Ly = Text
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = Ly
 
-position_env :: CodePosition -> Env.Key
-position_env c = case c of
+position_env :: Bool -- ^ True if this is a zero-dur event created just to
+    -- host some ly code.
+    -> CodePosition -> Env.Key
+position_env zero_dur p = case if zero_dur then code0 p else p of
     Prefix -> Constants.v_ly_prepend
     SuffixFirst -> Constants.v_ly_append_first
     SuffixLast -> Constants.v_ly_append_last
     SuffixAll -> Constants.v_ly_append_all
+    where
+    -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
+    -- less error-prone by getting rid of them.  Ick.
+    code0 pos = case pos of
+        SuffixFirst -> SuffixAll
+        SuffixLast -> SuffixAll
+        _ -> pos
 
 prepend_code :: Ly -> Derive.NoteDeriver -> Derive.NoteDeriver
-prepend_code = add_code . (,) Prefix
+prepend_code = add_code False . (,) Prefix
 
-add_code :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_code (pos, code) = Derive.modify_val (position_env pos) $
-    (<>code) . fromMaybe ""
+add_code :: Bool -> Code -> Derive.NoteDeriver -> Derive.NoteDeriver
+add_code zero_dur (pos, code) = Call.add_flags Flags.ly_code
+    . Derive.modify_val (position_env zero_dur pos) ((<>code) . fromMaybe "")
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
@@ -185,30 +197,19 @@ code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start (pos, code) = with (Derive.place start 0 Call.note)
-    where with = Derive.with_val (position_env (code0_pos pos)) code
+code0 start code = add_code True code $
+    Derive.place start 0 Call.note
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
 -- existing note.  Otherwise, the lilypond backend doesn't know how to group
 -- the code event.
 code0_event :: Score.Event -> RealTime -> Code -> Score.Event
-code0_event event start (pos, code) = Score.empty_event
+code0_event event start code = add_event_code code $ Score.empty_event
     { Score.event_start = start
-    , Score.event_text = code
+    , Score.event_text = snd code
     , Score.event_stack = Score.event_stack event
     , Score.event_instrument = Score.event_instrument event
-    , Score.event_environ = Env.insert_val
-        (position_env (code0_pos pos)) (Typecheck.to_val code)
-        (Score.event_environ event)
     }
-
--- | SuffixFirst and SuffixLast are not used for 0 dur events, so make it
--- less error-prone by getting rid of them.  Ick.
-code0_pos :: CodePosition -> CodePosition
-code0_pos pos = case pos of
-    SuffixFirst -> SuffixAll
-    SuffixLast -> SuffixAll
-    _ -> pos
 
 global_code0 :: ScoreTime -> Ly -> Derive.NoteDeriver
 global_code0 start code = global $ code0 start (Prefix, code)
@@ -219,10 +220,8 @@ global = Derive.with_val_raw EnvKey.instrument Constants.ly_global
 
 -- | Test if an event is a 0 duration lilypond code event.
 is_code0 :: Score.Event -> Bool
-is_code0 event = Score.event_duration event == 0 && any has vals
-    where
-    vals = map position_env [minBound .. maxBound]
-    has = (`Env.is_set` Score.event_environ event)
+is_code0 event = Score.event_duration event == 0
+    && Flags.has (Score.event_flags event) Flags.ly_code
 
 -- ** convert
 
