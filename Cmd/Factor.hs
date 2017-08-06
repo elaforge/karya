@@ -15,6 +15,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
@@ -114,7 +115,7 @@ split_track_at from_block_id split_at block_name = do
 -- block.
 selection :: Cmd.M m => Id.Id -> m BlockId
 selection name = do
-    block_id <- selection_ False name
+    block_id <- selection_ True False name
     Create.view block_id
     return block_id
 
@@ -122,7 +123,7 @@ selection name = do
 -- block call.
 selection_relative :: Cmd.M m => Id.Id -> m BlockId
 selection_relative name = do
-    block_id <- selection_ True name
+    block_id <- selection_ True True name
     Create.view block_id
     return block_id
 
@@ -136,7 +137,7 @@ selection_alts :: Cmd.M m => Bool -> Int -> Id.Id -> m [BlockId]
 selection_alts relative alts name
     | alts <= 0 = return []
     | otherwise = do
-        alt1 <- selection_ relative $ Id.modify_name (<>"1") name
+        alt1 <- selection_ True relative $ Id.modify_name (<>"1") name
         (block_id, _, track_ids, range) <- Selection.tracks
         altn <- forM [2..alts] $ \n ->
             Create.named_block_from_template True alt1 $
@@ -155,21 +156,27 @@ selection_alts relative alts name
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection_ :: Cmd.M m => Bool -- ^ create relative block call
+selection_ :: Cmd.M m => Bool
+    -- ^ replace the copied events with a call to the new block
+    -> Bool -- ^ create relative block call
     -> Id.Id -> m BlockId
-selection_ relative name = do
+selection_ replace relative name = do
     (block_id, tracknums, track_ids, range) <- Selection.tracks
     name <- return $ if relative
         then make_relative block_id name else name
-    selection_at relative name block_id tracknums track_ids range
+    to_block_id <- extract name block_id tracknums track_ids range
+    when replace $
+        replace_with_call block_id track_ids range to_block_id relative
+    return to_block_id
 
 make_relative :: BlockId -> Id.Id -> Id.Id
 make_relative caller name =
     Id.set_name (Eval.make_relative caller (Id.id_name name)) name
 
-selection_at :: Ui.M m => Bool -> Id.Id -> BlockId -> [TrackNum]
-    -> [TrackId] -> Events.Range -> m BlockId
-selection_at relative name block_id tracknums track_ids range = do
+-- | Copy the ranges to a new block with the given Id.
+extract :: Ui.M m => Id.Id -> BlockId -> [TrackNum] -> [TrackId]
+    -> Events.Range -> m BlockId
+extract name block_id tracknums track_ids range = do
     ruler_id <- Ui.block_ruler block_id
     to_block_id <- Create.named_block name ruler_id
     let (start, end) = Events.range_times range
@@ -180,11 +187,6 @@ selection_at relative name block_id tracknums track_ids range = do
         Create.track to_block_id tracknum title $
             Events.map_events (Event.start_ %= subtract start) events
     clipped_skeleton block_id to_block_id tracknums
-    -- Clear selected range and put in a call to the new block.
-    Edit.clear_range track_ids range
-    whenJust (Seq.head track_ids) $ \track_id ->
-        Ui.insert_event track_id $ Event.event start (end-start)
-            (Eval.block_id_to_call relative block_id to_block_id)
     -- It's easier to create all the tracks and then delete the empty ones.
     -- If I tried to just not create those tracks then 'clipped_skeleton' would
     -- have to get more complicated.
@@ -194,44 +196,40 @@ selection_at relative name block_id tracknums track_ids range = do
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
--- | Update relative calls on a block to a new parent.
-rebase_relative_calls :: Ui.M m =>
-    Bool -- ^ if true, copy the call, otherwise rename it
-    -> BlockId -> BlockId -> m ()
-rebase_relative_calls copy from to = do
-    let ns = Id.ident_namespace from
-    track_ids <- Block.block_track_ids <$> Ui.get_block to
-    called <- Seq.unique . mapMaybe (resolve_relative_call ns from)
-        . concat <$> mapM get_block_calls track_ids
-    forM_ (zip called (map (rebase_call from) called)) $ \(old, new) ->
-        (if copy then Create.copy_block else Create.rename_block) old new
+-- | Clear selected range and put in a call to the new block.
+replace_with_call :: Ui.M m => BlockId -> [TrackId] -> Events.Range -> BlockId
+    -> Bool -> m ()
+replace_with_call block_id track_ids range to_block_id relative = do
+    Edit.clear_range track_ids range
+    let (start, end) = Events.range_times range
+    whenJust (Seq.head track_ids) $ \track_id ->
+        Ui.insert_event track_id $ Event.event start (end-start)
+            (Eval.block_id_to_call relative block_id to_block_id)
 
--- | Move a relative call from one caller to another.
---
--- ns1/caller ns2/old.sub -> ns1/caller.sub
-rebase_call :: BlockId -> BlockId -> Id.Id
-rebase_call caller block_id = Id.id ns name
-    where
-    (ns, caller_name) = Id.un_id (Id.unpack_id caller)
-    -- old.bar -> caller.bar
-    -- a.b.c -> a.caller.c
-    -- root.old.sub -> root.caller.sub
-    old_name = Id.ident_name block_id
-    name
-        | Text.count "." old_name > 0 =
-            caller_name <> Text.dropWhile (/='.') old_name
-        | otherwise = old_name
+-- ** relative calls
+
+-- | Rename all blocks with the old parent as a prefix.  Unlike
+-- 'rebase_relative_calls', this doesn't modify any events.
+rebase_ids :: Ui.M m => BlockId -> BlockId -> m ()
+rebase_ids old_parent new_parent = Transform.map_block_ids $ \id ->
+    case rebase_id old_parent new_parent (Id.BlockId id) of
+        Nothing -> id
+        Just new_id -> new_id
+
+-- | Move a relative callee from one parent to another, or Nothing if it's
+-- not a child of that parent.
+rebase_id :: BlockId -> BlockId -> BlockId -> Maybe Id.Id
+rebase_id old_parent new_parent child = case Eval.parse_relative_id child of
+    Just (parent, name)
+        | parent == old_parent -> Just $ make_relative new_parent name
+        | otherwise -> Nothing
+    Nothing -> Nothing
 
 get_block_calls :: Ui.M m => TrackId -> m [Expr.Symbol]
 get_block_calls track_id = do
     events <- Events.ascending <$> Ui.get_events track_id
     return $ map Expr.Symbol $
         concatMap (NoteTrack.possible_block_calls . Event.text) events
-
-resolve_relative_call :: Id.Namespace -> BlockId -> Expr.Symbol -> Maybe BlockId
-resolve_relative_call ns caller sym
-    | Eval.is_relative sym = Eval.call_to_block_id ns (Just caller) sym
-    | otherwise = Nothing
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only

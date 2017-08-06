@@ -7,10 +7,8 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Factor as Factor
 
@@ -36,13 +34,12 @@ test_selection_alts = do
     equal (Seq.head =<< lookup UiTest.default_block_id blocks)
         (Just (">", [(0, 1, ""), (1, 2, "alt sub1 sub2 sub3"), (3, 1, "")]))
 
-test_selection_at = do
+test_selection = do
     let run tracks subs start end = UiTest.extract_all_tracks $
-            UiTest.exec Ui.empty $ do
-                UiTest.mkblocks (("b", [(">", tracks)]) : subs)
-                Factor.selection_at False (UiTest.mkid "sub") parent
-                    [1] [UiTest.mk_tid_block parent 1]
-                    (Events.Range start end)
+            CmdTest.result_ui_state $ CmdTest.run_ui Ui.empty $ do
+                parent_v : _ <- UiTest.mkviews (("b", [(">", tracks)]) : subs)
+                CmdTest.set_sel_on parent_v 1 start 1 end
+                Factor.selection_ True False (UiTest.mkid "sub")
         parent = UiTest.bid "b"
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)
         [ (parent, [(">", [(0, 1, "sub"), (1, 1, "b")])])

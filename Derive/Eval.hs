@@ -20,7 +20,8 @@ module Derive.Eval (
     -- * lookup call
     , get_generator, get_transformer, get_track_call
     , unknown_symbol, call_to_block_id, block_id_to_call
-    , is_relative, make_relative
+    -- ** relative calls
+    , is_relative, make_relative, parse_relative_id
 
     -- * util
     , eval_one, eval_one_call, eval_one_at
@@ -271,8 +272,9 @@ block_id_to_call :: Bool -> BlockId -> BlockId -> Text
 block_id_to_call relative parent child
     | Id.ident_namespace parent /= Id.ident_namespace child =
         Id.show_id (Id.unpack_id child)
-    | relative && (parent_name <> "-") `Text.isPrefixOf` child_name =
-        Text.dropWhile (/='-') child_name
+    | relative && (parent_name <> relative_separator)
+            `Text.isPrefixOf` child_name =
+        snd $ Text.breakOn relative_separator child_name
     | otherwise = child_name
     where
     child_name = Id.ident_name child
@@ -280,11 +282,25 @@ block_id_to_call relative parent child
 
 -- | True if this is a relative block call.
 is_relative :: Expr.Symbol -> Bool
-is_relative = ("-" `Text.isPrefixOf`) . Expr.unsym
+is_relative = (relative_separator `Text.isPrefixOf`) . Expr.unsym
 
 -- | Make a block name relative to a parent block.
 make_relative :: BlockId -> Text -> Text
-make_relative block_id name = Id.ident_name block_id <> "-" <> name
+make_relative block_id name =
+    Id.ident_name block_id <> relative_separator <> name
+
+-- | If it's a relative BlockId, return the parent and relative call.
+parse_relative_id :: BlockId -> Maybe (BlockId, Id.Id)
+parse_relative_id block_id
+    | Text.null post = Nothing
+    | otherwise = Just
+        ( Id.BlockId $ Id.set_name pre (Id.unpack_id block_id)
+        , Id.id (Id.ident_namespace block_id) (Text.drop 1 post)
+        )
+    where (pre, post) = Text.breakOn relative_separator $ Id.ident_name block_id
+
+relative_separator :: Text
+relative_separator = "-"
 
 -- * util
 
