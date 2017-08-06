@@ -14,6 +14,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Block as Prelude.Block
@@ -133,6 +134,10 @@ environ_event :: (RealTime, RealTime, Text, [(Env.Key, BaseTypes.Val)])
 environ_event (start, dur, pitch, env) =
     mkevent start dur pitch default_inst env
 
+attrs_event :: (RealTime, RealTime, Text, Attrs.Attributes) -> Types.Event
+attrs_event (start, dur, pitch, attrs) = environ_event
+    (start, dur, pitch , [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
+
 voice_event :: (RealTime, RealTime, Text, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur pitch default_inst $
@@ -141,13 +146,13 @@ voice_event (start, dur, pitch, maybe_voice) =
 mkevent :: RealTime -> RealTime -> Text -> Score.Instrument
     -> [(Env.Key, BaseTypes.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
-    { Types.event_start = Types.real_to_time 1 start
-    , Types.event_duration = Types.real_to_time 1 dur
-    , Types.event_pitch = pitch
-    , Types.event_instrument = inst
-    , Types.event_environ = Env.from_list env
-    , Types.event_stack = UiTest.mkstack (1, 0, 1)
-    , Types.event_clipped = False
+    { event_start = Types.real_to_time 1 start
+    , event_duration = Types.real_to_time 1 dur
+    , event_pitch = pitch
+    , event_instrument = inst
+    , event_environ = Env.from_list env
+    , event_stack = UiTest.mkstack (1, 0, 1)
+    , event_clipped = False
     }
 
 default_inst :: Score.Instrument

@@ -292,11 +292,10 @@ make_lys measure_start prev_attrs meter events =
     (maybe_note, end, last_attrs, clipped) = case NonEmpty.nonEmpty with_dur of
         Nothing -> (Nothing, start, fromMaybe mempty prev_attrs, [])
             where start = event_start (NonEmpty.head events)
-        Just chord ->
-            (Just n, end, event_attributes (NonEmpty.last chord), clipped)
+        Just chord -> (Just n, end, next_attrs, clipped)
             where
             next = event_start <$> List.find (not . zero_dur) after
-            (n, end, clipped) =
+            (n, end, next_attrs, clipped) =
                 make_note measure_start prev_attrs meter chord next
 
     -- Now that I know the duration of the Ly (if any) I can get the zero-dur
@@ -310,9 +309,10 @@ make_lys measure_start prev_attrs meter events =
 make_note :: Time -> Maybe Attrs.Attributes
     -> Meter.Meter -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
-    -> Maybe Time -> (Ly, Time, [Event])
+    -> Maybe Time -> (Ly, Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, clipped)
-make_note measure_start prev_attrs meter events next = (ly, end, clipped)
+make_note measure_start prev_attrs meter events next =
+    (ly, end, next_attrs, clipped)
     where
     ly = case NonEmpty.nonEmpty pitches of
         Nothing -> Code (prepend first <> append first)
@@ -328,10 +328,11 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         { note_pitch = pitches
         , note_duration = allowed_dur
         , note_prepend = prepend first
-        , note_append =
-            append first <> attrs_to_code prev_attrs (event_attributes first)
+        , note_append = append first <> mconcat attrs_codes
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
+    (attrs_codes, next_attrs) = attrs_to_code prev_attrs
+        (mconcat (map event_attributes (NonEmpty.toList events)))
     get_pitch event = event_pitch event
         <> if is_first event then append_pitch event else ""
     append_pitch = fromMaybe ""
@@ -831,18 +832,32 @@ clip_event end e
         e { event_start = end, event_duration = left, event_clipped = True }
     where left = event_end e - end
 
-attrs_to_code :: Maybe Attrs.Attributes -> Attrs.Attributes -> Code
-attrs_to_code prev_attrs attrs = mconcat $ mconcat
-    [ [code | (attr, code) <- simple_articulations, has attrs attr]
-    , [ start
-      | Just prev <- [prev_attrs]
-      , (attr, start, _) <- modal_articulations
-      , has attrs attr, not (has prev attr)
-      ]
-    , [ end
-      | Just prev <- [prev_attrs]
-      , (attr, _, end) <- modal_articulations
-      , not (has attrs attr), has prev attr]
-    ]
+attrs_to_code :: Maybe Attrs.Attributes -> Attrs.Attributes
+    -> ([Code], Attrs.Attributes)
+    -- ^ (code to append, prev attrs for the next note)
+attrs_to_code maybe_prev current = case maybe_prev of
+    Nothing -> (simple, current)
+    Just prev ->
+        (simple ++ starts ++ Maybe.catMaybes ends, mconcat (current : extras))
+        where
+        starts = mconcat
+            [ [ start
+              | Just prev <- [maybe_prev]
+              , (attr, start, _) <- modal_articulations
+              , current `has` attr, not (prev `has` attr)
+              ]
+            ]
+        (ends, extras) = unzip $ map (cancel prev) modal_articulations
     where
+    simple = [code | (attr, code) <- simple_articulations, current `has` attr]
+    cancel prev (attr, _, end)
+        -- If prev doesn't have +nv, but this one is +staccato, then consider
+        -- that this one also has +nv.  This avoids spurious vib marks on
+        -- every staccato note.
+        | prev `has` attr && not (current `has` attr) =
+            if attr == Attrs.nv && any (current `has`) inherently_nv
+                then (Nothing, Attrs.nv)
+                else (Just end, mempty)
+        | otherwise = (Nothing, mempty)
+    inherently_nv = [Attrs.staccato, Attrs.harm]
     has = Attrs.contain

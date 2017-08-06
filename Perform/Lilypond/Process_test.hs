@@ -5,9 +5,11 @@
 module Perform.Lilypond.Process_test where
 import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import Util.Test
-import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -232,3 +234,20 @@ test_voices_and_code = do
             , (4, 4, "b", [v 1])
             ]) $
         Right [Right "a1 \\mf | b1"]
+
+test_attrs_to_code = do
+    let f = Process.attrs_to_code
+    equal (f (Just Attrs.nv) Attrs.accent) (["->", "^\"vib\""], Attrs.accent)
+    equal (f (Just Attrs.nv) Attrs.staccato)
+        (["-."], (Attrs.staccato <> Attrs.nv))
+
+    let run es = LilypondTest.process_simple []
+            [ LilypondTest.attrs_event (t, 1, Text.singleton p, attrs)
+            | (t, p, attrs) <- zip3 (Seq.range_ 0 1) "abcdefg" es
+            ]
+    equal (run [Attrs.staccato, Attrs.accent]) (Right "a4-. b4-> r2")
+    equal (run [Attrs.nv, Attrs.nv, mempty])
+        (Right "a4^\"nv\" b4 c4^\"vib\" r4")
+    -- Even though staccato doesn't have +nv, I don't bother turning it off.
+    equal (run [Attrs.nv, Attrs.staccato, mempty])
+        (Right "a4^\"nv\" b4-. c4^\"vib\" r4")

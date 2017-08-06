@@ -990,7 +990,7 @@ lilypond:
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
     I'd just have to save that and invert it.
   squart/6:
-    - It constantly cancels nv on staccato, but it doesn't matter because you
+    * It constantly cancels nv on staccato, but it doesn't matter because you
       can't hear it on staccato anyway.  Maybe modal_attributes can count
       +staccato as having whatever +nv was previously set.
     * harmonic gliss:
