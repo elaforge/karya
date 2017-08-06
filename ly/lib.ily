@@ -20,3 +20,7 @@ glissandoSkipOff = {
     \revert NoteColumn.glissando-skip
     \revert NoteHead.no-ledgers
 }
+
+% Without the hspace, it draws on top of a preceding hairpin.
+alNiente = #(make-dynamic-script
+    (markup #:hspace 4 #:normal-text #:italic "al niente"))

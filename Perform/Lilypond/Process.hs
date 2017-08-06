@@ -859,5 +859,5 @@ attrs_to_code maybe_prev current = case maybe_prev of
                 then (Nothing, Attrs.nv)
                 else (Just end, mempty)
         | otherwise = (Nothing, mempty)
-    inherently_nv = [Attrs.staccato, Attrs.harm]
+    inherently_nv = [Attrs.staccato, Attrs.harm, Attrs.pizz]
     has = Attrs.contain
