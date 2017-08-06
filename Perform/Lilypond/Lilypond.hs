@@ -60,6 +60,7 @@ ly_file config title movements = run_output $ do
         , "\\language" <+> str "english"
         -- I'm not using it, and it increases file size a lot.
         , "\\pointAndClickOff"
+        , "\\include \"ly/lib.ily\""
         , "\\header { title =" <+> str title <+> "tagline = \"\" }"
         , ""
         , "\\paper {"

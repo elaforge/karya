@@ -104,7 +104,7 @@ default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
     defaults = Map.fromList
         [ ((5, D8), [3, 2])
         , ((6, D8), [3, 3])
-        , ((7, D8), [3, 2, 2])
+        , ((7, D8), [3, 4])
         , ((9, D8), [3, 3, 3])
         , ((12, D8), [3, 3, 3, 3])
         ]

@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I often want to see where I am in the parent, e.g. like parent->child
+    selection but the other way.
+    . I can get this by playing from the point, but why not do it
+      automatically?
+  - I often want to see score time selection and RealTime selection in
+    a narrow block, and it's annoying to resize it.  Can I have a pop-up?
+    Or two lines of status if necessary?
+    . Would a tooltip in the status bar be obnoxious?
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
@@ -978,14 +986,40 @@ integrate / integration:
     - quantization
 
 lilypond:
-  - I often want to see where I am in the parent, e.g. like parent->child
-    selection but the other way.
-  - I often want to see score time selection and RealTime selection in
-    a narrow block, and it's annoying to resize it.  Can I have a pop-up?
-    Or two lines of status if necessary?
-  - Oops, c_ly_command is almost c_ly_post.  Do I really need SuffixFirst, or
-    can I replace it?
+  - It would be convenient to be able to see where I am in the ly score, e.g.
+    measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
+    I'd just have to save that and invert it.
   squart/6:
+    - It constantly cancels nv on staccato, but it doesn't matter because you
+      can't hear it on staccato anyway.  Maybe modal_attributes can count
+      +staccato as having whatever +nv was previously set.
+    * harmonic gliss:
+      . before the note: \once \override Glissando.style = #'dashed-line
+      . But I have to hide the tied notes:
+				glissandoSkipOn = {
+					\override NoteColumn.glissando-skip = ##t
+					\hide NoteHead
+					\override NoteHead.no-ledgers = ##t
+				}
+				glissandoSkipOff = {
+					\revert NoteColumn.glissando-skip
+					\undo \hide NoteHead
+					\revert NoteHead.no-ledgers
+				}
+      . Then after the \glissando: \glissandoSkipOn
+        Before dest note: \glissandoSkipOff
+    - I want to distribute \downbow suffixes among notes and ly-post via
+      code0_call only emits one.  I think I need a 'ly-post-note' that
+      attaches to each sub-note.
+    - tuplets are causing extra pizz markings, which will be confusing.
+    - how to put accidental or other note in ly-tr~?
+    / Put glissando line only right at the end:
+      \once \override Glissando.bound-details.right.Y = #-2
+      . Can't figure out how to do it. If I manually tweak
+        Glissando.bound-details.left.padding, it doesn't change the slope.
+      . If I tie to a short note before hand, the glissando line is not
+        visible.
+      . I think it's a portament, maybe I just write port.
     - tempo: I want to emit \tempo "xyz" as a global marking.
       . Looks like lilypond is smart enough to suppress it for all but the top
         staff.  Presumably if I put it in all the parts, they'll get it when I
