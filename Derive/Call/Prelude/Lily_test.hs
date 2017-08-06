@@ -79,8 +79,7 @@ test_if_ly = do
 
 test_8va = do
     let run = LilypondTest.derive_measures ["ottava"]
-    equal (run $ UiTest.note_track
-            [(0, 1, "8va 1 | -- 4a"), (1, 1, "8va 0 | -- 4b")])
+    equal (run $ UiTest.note_track [(0, 1, "8va 1 | -- 4a"), (1, 1, "4b")])
         (Right "\\ottava #1 a'4 \\ottava #0 b'4 r2", [])
     equal (run $ (">", [(0, 1, "8va 1")]) : UiTest.regular_notes 2)
         (Right "\\ottava #1 c4 \\ottava #0 d4 r2", [])

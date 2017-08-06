@@ -60,6 +60,7 @@ note_calls = Make.call_maps
     , ("ly-pre", c_ly_pre)
     , ("ly-span", c_ly_span)
     , ("ly-sus", c_ly_sustain)
+    , ("ly-tr~", c_ly_tr_span)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
     , ("ly-", c_ly_articulation)
@@ -238,19 +239,19 @@ c_crescendo = make_code_call "ly-crescendo"
     "Start a crescendo hairpin.  If it has non-zero duration, stop the\
     \ crescendo at the event's end, otherwise the crescendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \_ () -> crescendo_diminuendo "\\<"
+    \() -> crescendo_diminuendo "\\<"
 
 c_diminuendo :: Make.Calls Derive.Note
 c_diminuendo = make_code_call "ly-diminuendo"
     "Start a diminuendo hairpin.  If it has non-zero duration, stop the\
     \ diminuendo at the event's end, otherwise the diminuendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \_ () -> crescendo_diminuendo "\\>"
+    \() -> crescendo_diminuendo "\\>"
 
 c_crescendo_diminuendo :: Make.Calls Derive.Note
 c_crescendo_diminuendo = make_code_call "ly-crescendo-diminuendo"
     "Crescendo followed by diminuendo, on one note."
-    Sig.no_args $ \_ () args ->
+    Sig.no_args $ \() args ->
         Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\espressivo")
 
 crescendo_diminuendo :: Lily.Ly -> Derive.PassedArgs d -> Derive.NoteDeriver
@@ -324,6 +325,15 @@ c_ly_sustain = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
         On -> return (Lily.SuffixAll, "\\sustainOn")
         OffOn -> return (Lily.SuffixAll, "\\sustainOff\\sustainOn")
 
+c_ly_tr_span :: Make.Calls Derive.Note
+c_ly_tr_span = code0_pair_call "ly-tr-span"
+    "Emit a \\startTrillSpan - \\stopTrillSpan pair."
+    (pure ()) $
+    \() -> return
+        ( (Lily.SuffixFirst, "\\startTrillSpan")
+        , (Lily.SuffixLast, "\\stopTrillSpan")
+        )
+
 data SustainMode = Off | On | OffOn deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal SustainMode where
     show_val m = case m of
@@ -339,7 +349,7 @@ c_ly_span = make_code_call "ly-span"
     \ This is useful for things like `accel.` or `cresc.` If it has a\
     \ a zero duration, emit the start if the text is given, or the end if it's\
     \ not."
-    (Sig.required "text" "Text.") $ \_ text -> ly_span text
+    (Sig.required "text" "Text.") $ \text -> ly_span text
 
 ly_span :: Maybe Lily.Ly -> Derive.PassedArgs a -> Derive.NoteDeriver
 ly_span maybe_text args
@@ -352,7 +362,10 @@ ly_span maybe_text args
     where
     start text = mconcat
         [ Lily.code0 (Args.start args) $ (,) Lily.Prefix $
-            "\\override TextSpanner.bound-details.left.text = \\markup { "
+            -- Lilypond likes to put it above, but for tempo and dynamic marks
+            -- I think they should go below.
+            "\\textSpannerDown\
+            \ \\override TextSpanner.bound-details.left.text = \\markup { "
             <> Types.to_lily text <> " }"
         , Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\startTextSpan")
         ]
@@ -394,7 +407,7 @@ require_nonempty events
 code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
 code0_call name doc sig make_code =
-    make_code_call name (doc <> code0_doc) sig $ \_ val args ->
+    make_code_call name (doc <> code0_doc) sig $ \val args ->
         Lily.code0 (Args.start args) =<< make_code val
 
 code0_around_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
@@ -430,11 +443,11 @@ code0_pair_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver (Lily.Code, Lily.Code))
     -> Make.Calls Derive.Note
 code0_pair_call name doc sig make_code =
-    make_code_call name (doc <> code0_doc) sig $ \is_transformer val args -> do
+    make_code_call name (doc <> code0_doc) sig $ \val args -> do
         (code1, code2) <- make_code val
         let (start, end) = Args.range args
-        Lily.code0 start code1 <> if is_transformer || start == end
-            then mempty else Lily.code0 end code2
+        Lily.code0 start code1
+            <> if start == end then mempty else Lily.code0 end code2
 
 code0_doc :: Doc.Doc
 code0_doc = "\nThis either be placed in a separate track as a zero-dur\
@@ -445,20 +458,19 @@ global_code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
-    make_code_call name doc sig $ \_ val args ->
+    make_code_call name doc sig $ \val args ->
         Lily.global $ call val (Derive.place (Args.start args) 0 Call.note)
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (Bool -> a -> Derive.NoteArgs -> Derive.NoteDeriver)
-    -- ^ First arg is True if this is a transformer call.
+    -> (a -> Derive.NoteArgs -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (gen, trans)
     where
     gen = generator name doc $ Sig.call sig $ \val args ->
-        Lily.only_lilypond $ call False val args <> Lily.derive_notes args
+        Lily.only_lilypond $ call val args <> Lily.derive_notes args
     trans = transformer name doc $ Sig.callt sig $ \val args deriver ->
-        Lily.when_lilypond (call True val args <> deriver) deriver
+        Lily.when_lilypond (call val args <> deriver) deriver
 
 generator :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
