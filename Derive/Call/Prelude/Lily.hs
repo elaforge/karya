@@ -64,7 +64,6 @@ note_calls = Make.call_maps
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
     , ("ly-", c_ly_articulation)
-    , ("ly\\", c_ly_command)
     , ("meter", c_meter)
     , ("subdivision", c_subdivision)
     , ("movement", c_movement)
@@ -279,12 +278,6 @@ c_ly_articulation = code_call "ly-articulation"
     (required "text" "Code to attach. A `-` is prepended.") $
     (return . (,) Lily.SuffixFirst . ("-"<>))
 
-c_ly_command :: Make.Calls Derive.Note
-c_ly_command = code_call "ly-command"
-    "Append a `\\command` to a note."
-    (required "text" "Code to attach. A `\\` is prepended.") $
-    (return . (,) Lily.SuffixFirst . ("\\"<>))
-
 add_code :: Derive.CallName -> Doc.Doc -> Lily.CodePosition -> Lily.Ly
     -> Make.Calls Derive.Note
 add_code name doc pos code = code_call name doc Sig.no_args $
@@ -303,7 +296,7 @@ c_ly_post :: Make.Calls Derive.Note
 c_ly_post = code0_call "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (required "code" "A leading \\ will be prepended.") $
-    \code -> return (Lily.SuffixAll, "\\" <> code)
+    \code -> return (Lily.SuffixLast, "\\" <> code)
 
 c_ly_key :: Make.Calls Derive.Note
 c_ly_key = code0_call "ly-key"
