@@ -25,12 +25,17 @@ import qualified Util.Process
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
+import qualified Cmd.Repl.LPerf as LPerf
 import qualified Cmd.Repl.Util as Util
+import qualified Cmd.Selection as Selection
 
+import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -191,11 +196,6 @@ block_id_title = Id.ident_name
 
 -- * debugging
 
--- | Run a lilypond derive and return score events.
-derive :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
-derive block_id =
-    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
-
 -- | Convert current block to lilypond score.
 make_ly :: Cmd.CmdL (Either Text Lazy.Text, [Log.Msg])
 make_ly = do
@@ -218,3 +218,41 @@ convert = do
 e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
 e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
     Lilypond.event_pitch e)
+
+-- ** LPerf
+
+-- | Run a lilypond derive and return score events.
+derive :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
+derive block_id =
+    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+
+block_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+block_events = LPerf.normalize_events <=< block_events_unnormalized
+
+block_events_unnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
+block_events_unnormalized block_id =
+    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+
+-- | Like 'LPerf.sel_events', but use the lilypond derive.
+sel_events :: Cmd.M m => m [LEvent.LEvent Score.Event]
+sel_events = filter_logs <$> get_sel False block_events
+
+-- | Like 'sel_events' but take the root derivation.
+root_sel_events :: Cmd.M m => m [LEvent.LEvent Score.Event]
+root_sel_events = filter_logs <$> get_sel True block_events
+
+filter_logs :: [LEvent.LEvent a] -> [LEvent.LEvent a]
+filter_logs = filter (LEvent.event_or (not . Cache.is_cache_log))
+
+get_sel :: Cmd.M m => Bool -- ^ from root
+    -> (BlockId -> m [LEvent.LEvent Score.Event])
+    -> m [LEvent.LEvent Score.Event]
+get_sel from_root derive_events = do
+    (block_id, _, track_ids, range) <- Selection.tracks
+    let (start, end) = Events.range_times range
+    events <- derive_events
+        =<< if from_root then Ui.get_root_id else return block_id
+    -- Lilypond derivation skips tempo tracks, so the usual ScoreTime ->
+    -- RealTime map doesn't work.
+    return $ LPerf.in_score_range Score.event_stack [block_id] track_ids
+        start end events

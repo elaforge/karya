@@ -273,6 +273,10 @@ strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 strip_env :: [Score.Event] -> [Score.Event]
 strip_env = map $ \event -> event { Score.event_environ = mempty }
 
+strip_controls :: [Score.Event] -> [Score.Event]
+strip_controls = map $ \event ->
+    event { Score.event_untransformed_controls = mempty }
+
 e_start_dur e = pretty (Score.event_start e, Score.event_duration e)
 e_start = pretty . Score.event_start
 e_pitch = maybe "?" PSignal.symbolic_pitch . Score.initial_pitch
@@ -355,6 +359,21 @@ in_range start_of start end =
         -- everything before 0 too.
         | start == 0 = False
         | otherwise = ts < start
+
+-- | Like 'in_range', but use the stack to check for ScoreTime range.
+in_score_range :: (a -> Stack.Stack) -> [BlockId] -> [TrackId]
+    -> ScoreTime -> ScoreTime -> [LEvent.LEvent a] -> [LEvent.LEvent a]
+in_score_range stack_of block_ids track_ids start end = filter $ LEvent.log_or $
+    stack_in_score_range block_ids track_ids start end . stack_of
+
+stack_in_score_range :: [BlockId] -> [TrackId] -> ScoreTime -> ScoreTime
+    -> Stack.Stack -> Bool
+stack_in_score_range block_ids track_ids start end = any match . Stack.to_ui
+    where
+    match (Just block_id, Just track_id, Just (s, e)) =
+        block_id `elem` block_ids && track_id `elem` track_ids
+        && not (end <= s || start >= e)
+    match _ = False
 
 -- * Midi.Types.Event
 

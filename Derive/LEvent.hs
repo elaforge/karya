@@ -58,6 +58,9 @@ is_log _ = False
 log_or :: (d -> Bool) -> LEvent d -> Bool
 log_or f = either f (const True)
 
+event_or :: (Log.Msg -> Bool) -> LEvent d -> Bool
+event_or = either (const True)
+
 -- | Drop while the predicate is true, but keep preceding logs.
 drop_while :: (a -> Bool) -> [LEvent a] -> [LEvent a]
 drop_while f = go []
