@@ -59,7 +59,7 @@ note_calls = Make.call_maps
     , ("ly-post", c_ly_post)
     , ("ly-pre", c_ly_pre)
     , ("ly-span", c_ly_span)
-    , ("ly-sus", c_ly_sus)
+    , ("ly-sus", c_ly_sustain)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
     , ("ly-", c_ly_articulation)
@@ -315,8 +315,8 @@ c_ly_key = code0_call "ly-key"
         key <- Derive.require_right id $ Process.parse_key key
         return (Lily.Prefix, Types.to_lily key)
 
-c_ly_sus :: Make.Calls Derive.Note
-c_ly_sus = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
+c_ly_sustain :: Make.Calls Derive.Note
+c_ly_sustain = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
     (required "state" "t for \\sustainOn, f for \\sustainOff,\
         \ ft for \\sustainOff\\sustainOn.") $
     \mode -> case mode of
@@ -336,18 +336,26 @@ instance Typecheck.TypecheckSymbol SustainMode
 c_ly_span :: Make.Calls Derive.Note
 c_ly_span = make_code_call "ly-span"
     "Emit a bit of text followed by a dashed line until the end of the event.\
-    \ This is useful for things like `accel.` or `cresc.`"
+    \ This is useful for things like `accel.` or `cresc.` If it has a\
+    \ a zero duration, emit the start if the text is given, or the end if it's\
+    \ not."
     (Sig.required "text" "Text.") $ \_ text -> ly_span text
 
-ly_span :: Lily.Ly -> Derive.PassedArgs a -> Derive.NoteDeriver
-ly_span text args
-    | Args.end args > Args.start args = set <> start <> end
-    | otherwise = Derive.throw "span requires non-zero duration"
+ly_span :: Maybe Lily.Ly -> Derive.PassedArgs a -> Derive.NoteDeriver
+ly_span maybe_text args
+    | Args.duration args == 0 = case maybe_text of
+        Just text -> start text
+        Nothing -> end
+    | otherwise = case maybe_text of
+        Just text -> start text <> end
+        Nothing -> Derive.throw "use zero dur to end a span"
     where
-    set = Lily.code0 (Args.start args) $ (,) Lily.Prefix $
-        "\\override TextSpanner #'(bound-details left text)\
-        \ = \\markup { " <> Types.to_lily text <> " }"
-    start = Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\startTextSpan")
+    start text = mconcat
+        [ Lily.code0 (Args.start args) $ (,) Lily.Prefix $
+            "\\override TextSpanner.bound-details.left.text = \\markup { "
+            <> Types.to_lily text <> " }"
+        , Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\startTextSpan")
+        ]
     end = Lily.code0 (Args.end args) (Lily.SuffixLast, "\\stopTextSpan")
 
 -- * util

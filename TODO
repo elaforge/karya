@@ -978,12 +978,29 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - I often want to see where I am in the parent, e.g. like parent->child
+    selection but the other way.
+  - I often want to see score time selection and RealTime selection in
+    a narrow block, and it's annoying to resize it.  Can I have a pop-up?
+    Or two lines of status if necessary?
+  - Oops, c_ly_command is almost c_ly_post.  Do I really need SuffixFirst, or
+    can I replace it?
   squart/6:
+    - tempo: I want to emit \tempo "xyz" as a global marking.
+      . Looks like lilypond is smart enough to suppress it for all but the top
+        staff.  Presumably if I put it in all the parts, they'll get it when I
+        extract.
+      . I could have >ly-global distribute code to all instruments.
+    - Staff notation has a notion of rhythmic spelling, which, being
+      proportional, karya lacks.  In most cases I want to automatically infer
+      it, but would it make sense to spell it explicitly in some cases, and
+      how would that look?
+    - 'incompatible with meter' errors don't have a clickable stack
     * duplets don't work: tuplet duration must be simple, but was: 0.75
       . I could do it if I allowed dotted durations.
       . It would be \times 3/2 "\times" (tuplet_dur / note_dur) "/" note_count
     * Use \tuplet instead of \times.
-    . tuplet error
+    - tuplet error
       . tuplet duration must be simple, but was: 0.4911504424778741 (0.0,0.5)
         rt (289.11504424778764,289.6061946902655)
       . shouldn't the warp be id?
@@ -1016,7 +1033,10 @@ lilypond:
       do it, I could add modal_attributes as a postproc.
     . But I've already put ly code in a string, so I can't get the notes back
       out.
-    . Also it means I need to use ly-( and ly-) for tuplets.
+    . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
+      can't attach any notation unless I put it directly on the note, e.g.
+      dynamics.
+    . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
     . What would be a way to implement nested notation like \time without
       Lily.eval_events?
   - lilypond: espressivo <> should be like a normal hairpin
@@ -3070,17 +3090,50 @@ tracklang problems
   . It's still hard for me to see relative positions and chords just from
     text.  Staff notation seems much easier.  Also hard to see enharmonic
     spelling.
+  . In large scores, especially lilypond-using ones, I wind up with
+    a complicated 2d structure to get all of the right transforms on the right
+    notes.
+    . One problem is that it's hard to see and understand the skeleton
+      relationships, but also that each instrument has a unique ad-hoc setup
+      based on what it happened to need, and then I fit in whatever I can into
+      that ad-hoc structure.
+    . Not only does the complicated structure consume thinking power, it makes
+      things like copy paste awkward.
+    . Also I spend time fiddling with track widths.  Because one track has the
+      same width for the whole block, it should generally be wide enough for
+      the widest text, but frequently that makes it too wide in general.
+    . Also it makes me reluctant to solve problems by adding a new track.
+    . Maybe the problem is blocks are too large.  They're generally awkward to
+      navigate.  But on the other hand, things scattered into lots of separate
+      blocks make it hard to read, and annoying to update.  A "1:1" mode could
+      alleviate the updte part.
   Solutions?
     . Theoretically lilypond could give the advantages of staff notation for
       reading only, but it's too slow for realtime update.
-    . http://www.verovio.org/index.xhtml is a fast staff engraver.
-    . Then I'd need a lightweight svg viewer, or svg display widget.
-    . So as an extreme solution I could have a high speed staff display
-      of the current surroundings.  Of course all this only helps with
-      reading, not writing.
+    . I could use verovio to maintain a instant staff display of the current
+      surroundings.  Of course all this only helps with reading, not writing.
     . More utils like LNote.sort_on_pitch to automate away hassle could help
       with writing, but not reading.  So maybe it's worth trying to make
       sort_on_pitch more robust.
+  verovio:
+    . Lilypond is really slow.  If I use verovio maybe I could have a realtime
+      display in staff notation.
+    . I'd need a lightweight svg viewer, or svg display widget.  A web browser
+      might work, if I can get it to update.
+    . It has a standalone binary that can read MusicXML or PAE or various other
+      formats, but why should I use some awkward intermediate format when
+      I could link it in and use serialized notes as im does.
+    . How much work this is depends on what format it expects.  Probably similar
+      to lilypond, and should be able to use the same tracklang notation, except
+      of course embedded lilypond code won't work.
+    . But it's probably not worth it unless there's really a good reason for it.
+      It could be a simpler than the lilypond backend since it's just meant to
+      give a basic overview of durations and intervals, but still it's probably
+      a fair amount of work to create and maintain a binding.
+    . One complication is that it might be necessary to do an incremental or
+      local-only update for speed, and I'd need to come up with some mechanism
+      for that.
+
 
 long term:
   - midi record

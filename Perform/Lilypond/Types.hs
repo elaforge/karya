@@ -158,19 +158,6 @@ dur_to_time dur = Time $ case dur of
     D16 -> 8; D32 -> 4; D64 -> 2; D128 -> 1
     -- or: (2^) . (fromEnum (maxBound :: Duration) -) . fromEnum
 
--- | This rounds up to the next Duration, so any Time over a half note will
--- wind up as a whole note.
-time_to_longer_dur :: Time -> Duration
-time_to_longer_dur (Time t)
-    | t <= 1 = D128
-    | t <= 2 = D64
-    | t <= 4 = D32
-    | t <= 8 = D16
-    | t <= 16 = D8
-    | t <= 32 = D4
-    | t <= 64 = D2
-    | otherwise = D1
-
 -- | Get the longest dur that will fit within the Time, so this rounds down.
 time_to_dur :: Time -> Duration
 time_to_dur (Time t)

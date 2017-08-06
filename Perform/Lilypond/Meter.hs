@@ -106,6 +106,7 @@ default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
         , ((6, D8), [3, 3])
         , ((7, D8), [3, 2, 2])
         , ((9, D8), [3, 3, 3])
+        , ((12, D8), [3, 3, 3, 3])
         ]
 default_divisions nums _ = nums
 
