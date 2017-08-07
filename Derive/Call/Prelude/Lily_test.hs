@@ -109,6 +109,11 @@ test_clef_dyn = do
         , []
         )
 
+test_articulation = do
+    let run = measures_linear []
+    equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regular_notes 3)
+        (Right "c4-> d4-> e4-> r4", [])
+
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
@@ -133,14 +138,16 @@ test_ly_text = do
     let run = LilypondTest.derive_measures []
     equal (run $ UiTest.note_track [(0, 1, "ly^ hi | -- 4a")])
         (Right "a'4^\"hi\" r4 r2", [])
+    -- It only goes on the first one.
     equal (measures_linear [] $
-            (">", [(0, 0, "ly_ hi")]) : UiTest.regular_notes 1)
-        (Right "c4_\"hi\" r4 r2", [])
+            (">", [(0, 2, "ly_ hi")]) : UiTest.regular_notes 2)
+        (Right "c4_\"hi\" d4 r2", [])
 
 test_ly_slur_beam = do
     let run = LilypondTest.derive_measures []
+    -- Works both as a generator and transformer.
     equal (run $ UiTest.note_track
-            [(0, 2, "ly-( | -- 3a"), (2, 6, "ly-) | -- 3b")])
+            [(0, 2, "ly-( -- 3a"), (2, 6, "ly-) | -- 3b")])
         (Right "a2( b2~ | b1)", [])
     equal (run $ UiTest.note_track
             [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])

@@ -161,6 +161,10 @@ data CodePosition =
     | SetEnviron !Env.Key
     deriving (Eq, Show)
 
+instance Pretty CodePosition where
+    pretty (SetEnviron key) = "SetEnviron " <> pretty key
+    pretty p = showt p
+
 -- | Fragment of Lilypond code.
 type Ly = Text
 
@@ -202,8 +206,7 @@ code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start code = add_code True code $
-    Derive.place start 0 Call.note
+code0 start code = add_code True code $ Derive.place start 0 Call.note
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
 -- existing note.  Otherwise, the lilypond backend doesn't know how to group

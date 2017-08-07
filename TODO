@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - If the 's' repl function set primary selection in addition to (or instead
+    of) red highlight, then I could find it by wiggling, or zoom on it.
   - I often want to see where I am in the parent, e.g. like parent->child
     selection but the other way.
     . I can get this by playing from the point, but why not do it
@@ -986,6 +988,8 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
+  - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
     I'd just have to save that and invert it.
@@ -1008,9 +1012,61 @@ lilypond:
 				}
       . Then after the \glissando: \glissandoSkipOn
         Before dest note: \glissandoSkipOff
-    - I want to distribute \downbow suffixes among notes and ly-post via
+    + I want to distribute \downbow suffixes among notes and ly-post via
       code0_call only emits one.  I think I need a 'ly-post-note' that
       attaches to each sub-note.
+    * The functions in Prelude.Lily are a bit of a mess.  Refactor.
+      . code_call:
+          gen:
+            if not ly:
+              Derive subs, throw if no events
+            if ly:
+              Derive subs and add code to first one
+          trans:
+            if not ly: id
+            if ly: Lily.add_first code deriver
+      . This will derive subs, and attach code to the first event.  So this is
+        for attaching code to an existing note, though it only does the first
+        one.  This is appropriate for ^"text", though why not make
+        a transformer or standalone?  Why do I want the thing with duration?
+        It's used for text and articulation, and ( [.  I don't use these with
+        subs
+      . It has the awkward feature where it doesn't derive Call.note so it has
+        to be a transformer.
+
+      . make_code_call call:
+          gen:
+            if not ly: mempty
+            if ly: derive call <> subs
+          trans:
+            if not ly: deriver
+            if ly: call <> deriver
+      . This creates a new code event, and prepends it to subs or transformed.
+        Standalone things like 'dyn' or 'clef' use it.  Also it's the base for
+        code0_call, which uses it with Lily.code0, but they all do.
+
+      . add_code, via transform_notes:
+        . gen:
+            if subs:
+              concat . transform . map derive
+            if no subs:
+              transform $ Sub.inverting Call.placed_note
+        . trans: transform deriver
+        . This creates a new event, or derives subs, and transforms all of them.
+
+      cases are:
+        . attach code to each note: articulations, reminder accidental
+        . ( [: attach to a single note. I could either pick first/last, or
+          throw if >1.  I guess for a chord maybe I do want to put ( on each
+          one, but it's certainly wrong to put it on multiple, unless I want
+          to put (, ) on first, last.
+        . tie_direction: attach env to notes, same as ( [
+        . dyn, clef: emit single code0, no duration, no subs.  These are for
+          either putting in ly-track, or attaching to a single note with
+          a transformer.
+        . 8va, subdivision, tr-span: as above, but have start end events.
+          crescendo, diminuendo: I think they could use (start, end) as above.
+          key, sustain
     - tuplets are causing extra pizz markings, which will be confusing.
     - how to put accidental or other note in ly-tr~?
     / Put glissando line only right at the end:
@@ -1047,6 +1103,10 @@ lilypond:
         configured in scm/auto-beam.scm and scm/time-signature-settings.scm
       . I should be able to use Meter for beaming too, but for now just beam
         manually.
+      . I need to set the subdivision explicitly:
+        \set Score.beatStructure = #'(2 3 2)
+        Or \compoundMeter #'((2 8) (3 8)) to also set the visible meter.
+
     * I need a way to explicitly set rhythmic spelling per-instrument, for
       ambiguous meters, e.g. 3/4 as 3+3/8 vs 2+2+2/8 or even 3+3+3+3/16 6+6/16
       . Or maybe better to write those as duples?
@@ -1073,6 +1133,9 @@ lilypond:
     . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
     . What would be a way to implement nested notation like \time without
       Lily.eval_events?
+    . How about I emit a "group" event, which has a magic tag that says
+      the next N events marked with my tag belong to me.  Then lilypond will
+      gather them and put them in {}s after it.
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'

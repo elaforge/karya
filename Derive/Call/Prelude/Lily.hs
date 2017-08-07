@@ -7,11 +7,11 @@ module Derive.Call.Prelude.Lily (note_calls) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -19,8 +19,6 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (required)
-import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -28,6 +26,7 @@ import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 
 import Global
+import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
@@ -35,24 +34,31 @@ note_calls = Make.call_maps
     [ ("8va", c_8va)
     , ("clef", c_clef)
     , ("dyn", c_dyn)
-    , ("ly-!", c_reminder_accidental)
-    , ("ly-(", add_code "ly-begin-slur"
+    , ("ly-!", attach0 "ly-reminder-accidental"
+        "Force this note to display an accidental."
+        (Lily.SetEnviron Constants.v_ly_append_pitch, "!"))
+    , ("ly-?", attach0 "ly-cautionary-accidental"
+        "Force this note to display a cautionary accidental."
+        (Lily.SetEnviron Constants.v_ly_append_pitch, "?"))
+
+    , ("ly-(", attach0 "ly-begin-slur"
         "Begin a slur. The normal slur transformer doesn't work in some cases,\
-        \ for instance inside tuplets." Lily.SuffixFirst "(")
-    , ("ly-)", add_code "ly-end-slur"
+        \ for instance inside tuplets." (Lily.SuffixFirst, "("))
+    , ("ly-)", attach0 "ly-end-slur"
         "End a slur. The normal slur transformer doesn't work in some cases,\
-        \ for instance inside tuplets." Lily.SuffixLast ")")
-    , ("ly-[", add_code "ly-begin-beam"
+        \ for instance inside tuplets." (Lily.SuffixLast, ")"))
+    , ("ly-[", attach0 "ly-begin-beam"
         "Begin a beam. Override lilypond's automatic beaming."
-        Lily.SuffixFirst "[")
-    , ("ly-]", add_code "ly-end-beam"
+        (Lily.SuffixFirst, "["))
+    , ("ly-]", attach0 "ly-end-beam"
         "End a beam. Override lilypond's automatic beaming."
-        Lily.SuffixFirst "]")
+        (Lily.SuffixFirst, "]"))
         -- SuffixFirst because it's unlikely the beam should go over a barline.
-    , ("ly-<", c_crescendo)
-    , ("ly-<>", c_crescendo_diminuendo)
-    , ("ly->", c_diminuendo)
-    , ("ly-?", c_cautionary_accidental)
+    , ("ly-<", c_hairpin "\\<")
+    , ("ly->", c_hairpin "\\>")
+    , ("ly-<>", emit0 "ly-crescendo-diminuendo"
+        "Crescendo followed by diminuendo, on one note."
+        (Lily.SuffixFirst, "\\espressivo"))
     , ("ly-^~", c_tie_direction "^")
     , ("ly-_~", c_tie_direction "_")
     , ("ly-key", c_ly_key)
@@ -61,8 +67,8 @@ note_calls = Make.call_maps
     , ("ly-span", c_ly_span)
     , ("ly-sus", c_ly_sustain)
     , ("ly-tr~", c_ly_tr_span)
-    , ("ly^", c_ly_text_above)
-    , ("ly_", c_ly_text_below)
+    , ("ly^", c_ly_text "^")
+    , ("ly_", c_ly_text "_")
     , ("ly-", c_ly_articulation)
     , ("meter", c_meter)
     , ("subdivision", c_subdivision)
@@ -133,8 +139,8 @@ c_not_ly_track = transformer "not-ly-track"
 c_if_ly :: Derive.Generator Derive.Note
 c_if_ly = generator "if-ly"
     "Conditional for lilypond." $ Sig.call ((,)
-    <$> required "is-ly" "Evaluated in lilypond mode."
-    <*> required "not-ly" "Evaluated when not in lilypond mode."
+    <$> Sig.required "is-ly" "Evaluated in lilypond mode."
+    <*> Sig.required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> Lily.when_lilypond
         (Eval.reapply_string (Args.context args)
             (BaseTypes.show_call_val is_ly))
@@ -142,176 +148,134 @@ c_if_ly = generator "if-ly"
             (BaseTypes.show_call_val not_ly))
 
 c_8va :: Make.Calls Derive.Note
-c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
+c_8va = emit_pair "ottava" "Emit lilypond ottava mark.\
     \ If it has duration, end with `8va 0`."
     (Sig.defaulted "octave" 0 "Transpose this many octaves up or down.") $
-    \oct -> return (ottava oct, ottava 0)
+    \oct -> (ottava oct, ottava 0)
     where
     ottava :: Int -> Lily.Code
     ottava n = (Lily.Prefix, "\\ottava #" <> showt n)
 
 c_xstaff :: Make.Calls Derive.Note
-c_xstaff = code0_call "xstaff"
+c_xstaff = emit_start "xstaff"
     "Emit lilypond to put the notes on a different staff."
-    (required "staff" "Switch to this staff.") $ \staff ->
+    (Sig.required "staff" "Switch to this staff.") $ \staff ->
         return (Lily.Prefix, change staff)
     where
     change :: Direction -> Lily.Ly
     change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
 
 c_xstaff_around :: Make.Calls Derive.Note
-c_xstaff_around = code0_around_call "xstaff-around"
+c_xstaff_around = emit_wrap_notes "xstaff-around"
     "Emit lilypond to put the notes on a different staff."
-    (required "staff" "Switch to this staff.") $ \staff ->
-        return ((Lily.Prefix, change staff),
-            (Lily.Prefix, change (other staff)))
+    (Sig.required "staff" "Switch to this staff.") $ \staff -> return
+        ( (Lily.Prefix, change staff)
+        , (Lily.Prefix, change (other staff))
+        )
     where
     change :: Direction -> Lily.Ly
     change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
     other Up = Down
     other Down = Up
 
+-- TODO use Call.UpDown
 data Direction = Up | Down deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Direction where show_val = Typecheck.enum_show_val
 instance Typecheck.Typecheck Direction
 instance Typecheck.TypecheckSymbol Direction
 
 c_dyn :: Make.Calls Derive.Note
-c_dyn = code0_call "dyn"
+c_dyn = emit_start "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
-    (required "dynamic" "Should be `p`, `ff`, etc.")
+    (Sig.required "dynamic" "Should be `p`, `ff`, etc.")
     (return . (,) Lily.SuffixAll . ("\\"<>))
 
 c_clef :: Make.Calls Derive.Note
-c_clef = code0_call "clef" "Emit lilypond clef change."
-    (required "clef" "Should be `bass`, `treble`, etc.")
+c_clef = emit_start "clef" "Emit lilypond clef change."
+    (Sig.required "clef" "Should be `bass`, `treble`, etc.")
     (return . (,) Lily.Prefix . ("\\clef "<>))
 
 c_meter :: Make.Calls Derive.Note
-c_meter = global_code0_call "meter"
+c_meter = emit_global "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet, but\
     \ `subdivision` supports simultaneous different spellings."
-    (required "meter" "Should be `4/4`, `6/8`, etc. An ambiguous meter like\
+    (Sig.required "meter" "Should be `4/4`, `6/8`, etc. An ambiguous meter like\
         \ `6/8` will default to 3+3, but you can explicitly set the\
         \ subdivision, e.g. `2+2+2/8`.") $
-    \meter -> Derive.with_val Constants.v_meter (meter :: Text)
+    \meter -> return (Lily.SetEnviron Constants.v_meter, meter)
 
 c_subdivision :: Make.Calls Derive.Note
-c_subdivision = code0_pair_call "subdivision"
+c_subdivision = emit_pair "subdivision"
     "Emit a subdivision change. This is the same format as `meter`, but it\
     \ affects the subdivision for this instrument only, instead of setting\
     \ the global meter. This is useful when instruments are playing\
     \ cross-rhythms and should beam accordingly."
-    (fromMaybe "" <$> required "meter" "Same as `meter` call.") $
-    \meter -> return
+    (fromMaybe "" <$> Sig.required "meter" "Same as `meter` call.") $
+    \meter ->
         ( (Lily.SetEnviron Constants.v_subdivision, meter)
         , (Lily.SetEnviron Constants.v_subdivision, "")
         )
 
 c_movement :: Make.Calls Derive.Note
-c_movement = global_code0_call "movement"
+c_movement = emit_global "movement"
     "Start a new movement with the given title."
-    (required "title" "Title of this movement.") $
-    \title -> Derive.with_val Constants.v_movement (title :: Text)
-
-c_reminder_accidental :: Make.Calls Derive.Note
-c_reminder_accidental = Make.environ_note Module.ly "ly-reminder-accidental"
-    mempty "Force this note to display an accidental."
-    Constants.v_ly_append_pitch ("!" :: Lily.Ly)
-
-c_cautionary_accidental :: Make.Calls Derive.Note
-c_cautionary_accidental = Make.environ_note Module.ly "ly-cautionary-accidental"
-    mempty "Force this note to display a cautionary accidental."
-    Constants.v_ly_append_pitch ("?" :: Lily.Ly)
+    (Sig.required "title" "Title of this movement.") $
+    \title -> return (Lily.SetEnviron Constants.v_movement, title)
 
 c_tie_direction :: Lily.Ly -> Make.Calls Derive.Note
-c_tie_direction code = Make.environ_note Module.ly "ly-tie-direction"
-    mempty "Force the note's tie to go either up or down."
-    Constants.v_ly_tie_direction code
+c_tie_direction code = attach0 "ly-tie-direction"
+    "Force the note's tie to go either up or down."
+    (Lily.SetEnviron Constants.v_ly_tie_direction, code)
 
--- I want it to either attach to the end of the first note transformed, or
--- be free-standing but suffix markup.
-c_crescendo :: Make.Calls Derive.Note
-c_crescendo = make_code_call "ly-crescendo"
-    "Start a crescendo hairpin.  If it has non-zero duration, stop the\
-    \ crescendo at the event's end, otherwise the crescendo will stop at the\
+c_hairpin :: Lily.Ly -> Make.Calls Derive.Note
+c_hairpin code = emit_pair "ly-hairpin"
+    "Start a crescendo or diminuendo hairpin.  If it has non-zero duration,\
+    \ stop at the event's end, otherwise it will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \() -> crescendo_diminuendo "\\<"
+    \() -> ((Lily.SuffixFirst, code), (Lily.SuffixFirst, "\\!"))
 
-c_diminuendo :: Make.Calls Derive.Note
-c_diminuendo = make_code_call "ly-diminuendo"
-    "Start a diminuendo hairpin.  If it has non-zero duration, stop the\
-    \ diminuendo at the event's end, otherwise the diminuendo will stop at the\
-    \ next hairpin or dynamic marking." Sig.no_args $
-    \() -> crescendo_diminuendo "\\>"
-
-c_crescendo_diminuendo :: Make.Calls Derive.Note
-c_crescendo_diminuendo = make_code_call "ly-crescendo-diminuendo"
-    "Crescendo followed by diminuendo, on one note."
-    Sig.no_args $ \() args ->
-        Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\espressivo")
-
-crescendo_diminuendo :: Lily.Ly -> Derive.PassedArgs d -> Derive.NoteDeriver
-crescendo_diminuendo hairpin args
-    -- TODO or is a transformer, I think I should set transformer duration to 0
-    | Args.end args > Args.start args = start <> end
-    | otherwise = start
-    where
-    start = Lily.code0 (Args.start args) (Lily.SuffixFirst, hairpin)
-    end = Lily.code0 (Args.end args) (Lily.SuffixFirst, "\\!")
-
-c_ly_text_above :: Make.Calls Derive.Note
-c_ly_text_above = code_call "ly-text-above" "Attach text above the note."
-    (required "text" "Text to attach. Double quotes can be omitted.") $
-    return . (,) Lily.SuffixFirst . ("^"<>) . lily_str
-
-c_ly_text_below :: Make.Calls Derive.Note
-c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
-    (required "text" "Text to attach. Double quotes can be omitted.") $
-    (return . (,) Lily.SuffixFirst . ("_"<>) . lily_str)
+c_ly_text :: Lily.Ly -> Make.Calls Derive.Note
+c_ly_text dir = attach First "ly-text" "Attach text above or below the note."
+    (Sig.required "text" "Text to attach.") $
+    (,) Lily.SuffixFirst . (dir<>) . lily_str
 
 c_ly_articulation :: Make.Calls Derive.Note
-c_ly_articulation = code_call "ly-articulation"
-    "Append a `-articulation` to a note."
-    (required "text" "Code to attach. A `-` is prepended.") $
-    (return . (,) Lily.SuffixFirst . ("-"<>))
-
-add_code :: Derive.CallName -> Doc.Doc -> Lily.CodePosition -> Lily.Ly
-    -> Make.Calls Derive.Note
-add_code name doc pos code = code_call name doc Sig.no_args $
-    \() -> return (pos, code)
+c_ly_articulation = attach All "ly-articulation"
+    "Append a `-articulation` to notes."
+    (Sig.required "text" "Code to attach. A `-` is prepended.") $
+    ((,) Lily.SuffixFirst . ("-"<>))
 
 lily_str :: Text -> Lily.Ly
 lily_str = Types.to_lily
 
 c_ly_pre :: Make.Calls Derive.Note
-c_ly_pre = code0_call "ly-pre"
+c_ly_pre = emit_start "ly-pre"
     "Emit arbitrary lilypond code that will go before concurrent notes."
-    (required "code" "A leading \\ will be prepended.") $
+    (Sig.required "code" "A leading \\ will be prepended.") $
     \code -> return (Lily.Prefix, "\\" <> code)
 
 c_ly_post :: Make.Calls Derive.Note
-c_ly_post = code0_call "ly-post"
+c_ly_post = emit_start "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
-    (required "code" "A leading \\ will be prepended.") $
+    (Sig.required "code" "A leading \\ will be prepended.") $
     \code -> return (Lily.SuffixLast, "\\" <> code)
 
 c_ly_key :: Make.Calls Derive.Note
-c_ly_key = code0_call "ly-key"
+c_ly_key = emit_start "ly-key"
     "Emit a key change. This only emits a lilypond key change, it doesn't\
     \ actually set the key. This means diatonic operations won't work as\
     \ expected. Also, you have to add it to every staff manually.\
     \ On the up side, it doesn't force a structural change like `=` does."
-    (required "key" "You can use any of the keys from the Twelve scale.") $
+    (Sig.required "key" "You can use any of the keys from the Twelve scale.") $
     \key -> do
         key <- Derive.require_right id $ Process.parse_key key
         return (Lily.Prefix, Types.to_lily key)
 
 c_ly_sustain :: Make.Calls Derive.Note
-c_ly_sustain = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
-    (required "state" "t for \\sustainOn, f for \\sustainOff,\
+c_ly_sustain = emit_start "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
+    (Sig.required "state" "t for \\sustainOn, f for \\sustainOff,\
         \ ft for \\sustainOff\\sustainOn.") $
     \mode -> case mode of
         Off -> return (Lily.SuffixAll, "\\sustainOff")
@@ -319,10 +283,9 @@ c_ly_sustain = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
         OffOn -> return (Lily.SuffixAll, "\\sustainOff\\sustainOn")
 
 c_ly_tr_span :: Make.Calls Derive.Note
-c_ly_tr_span = code0_pair_call "ly-tr-span"
+c_ly_tr_span = emit_pair "ly-tr-span"
     "Emit a \\startTrillSpan - \\stopTrillSpan pair."
-    (pure ()) $
-    \() -> return
+    Sig.no_args $ \() ->
         ( (Lily.SuffixFirst, "\\startTrillSpan")
         , (Lily.SuffixLast, "\\stopTrillSpan")
         )
@@ -337,90 +300,136 @@ instance Typecheck.Typecheck SustainMode
 instance Typecheck.TypecheckSymbol SustainMode
 
 c_ly_span :: Make.Calls Derive.Note
-c_ly_span = make_code_call "ly-span"
+c_ly_span = emit "ly-span"
     "Emit a bit of text followed by a dashed line until the end of the event.\
     \ This is useful for things like `accel.` or `cresc.` If it has a\
     \ a zero duration, emit the start if the text is given, or the end if it's\
     \ not."
-    (Sig.required "text" "Text.") $ \text -> ly_span text
+    (Sig.required "text" "Text.") ly_span
 
-ly_span :: Maybe Lily.Ly -> Derive.PassedArgs a -> Derive.NoteDeriver
-ly_span maybe_text args
-    | Args.duration args == 0 = case maybe_text of
-        Just text -> start text
-        Nothing -> end
+ly_span :: Maybe Lily.Ly -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [(ScoreTime, Lily.Code)]
+ly_span maybe_text (start, end)
+    | start == end = return $ case maybe_text of
+        Just text -> start_code text
+        Nothing -> end_code
     | otherwise = case maybe_text of
-        Just text -> start text <> end
+        Just text -> return $ start_code text ++ end_code
         Nothing -> Derive.throw "use zero dur to end a span"
     where
-    start text = mconcat
-        [ Lily.code0 (Args.start args) $ (,) Lily.Prefix $
+    start_code text =
+        [ (start,) $ (Lily.Prefix,) $
             -- Lilypond likes to put it above, but for tempo and dynamic marks
             -- I think they should go below.
             "\\textSpannerDown\
             \ \\override TextSpanner.bound-details.left.text = \\markup { "
             <> Types.to_lily text <> " }"
-        , Lily.code0 (Args.start args) (Lily.SuffixFirst, "\\startTextSpan")
+        , (start, (Lily.SuffixFirst, "\\startTextSpan"))
         ]
-    end = Lily.code0 (Args.end args) (Lily.SuffixLast, "\\stopTextSpan")
+    end_code = [(end, (Lily.SuffixLast, "\\stopTextSpan"))]
 
--- * util
 
--- | Attach ly code to the first note in the transformed deriver.
-code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
-code_call name doc sig make_code = (gen, trans)
+-- * Attach
+
+data AttachTo = First -- ^ attach code to only the first event
+    | All -- ^ attach code to all fo the events
+    deriving (Eq, Show)
+
+-- | The attach family attaches lilypond code to existing notes.  This is
+-- suitable for code which applies directly to a single note.
+attach :: AttachTo -> Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> Lily.Code) -> Make.Calls Derive.Note
+attach to name doc sig get_code =
+    transform_notes name doc sig $ \arg deriver ->
+    add (get_code arg) deriver
     where
-    gen = generator name doc $ Sig.call sig $ \val args -> do
-        code <- make_code val
-        -- Code calls mostly apply code to a single note.  It would be
-        -- convenient to derive Call.note, but then I'd have to invert, and
-        -- since inversion and sub-events are incompatible I would then have to
-        -- ignore sub-events.  That in turn would mean I couldn't split the
-        -- code calls into a separate track, which is notationally convenient.
-        --
-        -- The price is that if I want to put the call on the note track,
-        -- I have to append |, which is easy to forget.
-        require_nonempty
-            =<< Lily.first_note_code code args (Lily.derive_notes args)
-    trans = transformer name doc $
-        Sig.callt sig $ \val _args deriver ->
-            flip Lily.when_lilypond deriver $ do
-                code <- make_code val
-                Lily.add_first code deriver
+    add = case to of
+        First -> Lily.add_first
+        All -> Lily.add_code False
 
-require_nonempty :: Stream.Stream Score.Event -> Derive.NoteDeriver
-require_nonempty events
-    | null (Stream.events_of events) =
-        Derive.throw "this call expects sub-events but none were found"
-    | otherwise = return events
+-- | 'attach' with no arguments.
+attach0 :: Derive.CallName -> Doc.Doc -> Lily.Code -> Make.Calls Derive.Note
+attach0 name doc code =
+    attach All name (doc <> "\nLilypond code: " <> Doc.Doc (pretty code))
+        Sig.no_args (const code)
 
--- | Emit a free-standing fragment of lilypond code, attached to the current
--- instrument.
-code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
-code0_call name doc sig make_code =
-    make_code_call name (doc <> code0_doc) sig $ \val args ->
-        Lily.code0 (Args.start args) =<< make_code val
+transform_notes :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver) -> Make.Calls Derive.Note
+transform_notes name doc sig transform =
+    Make.transform_notes Module.ly name Tags.ly doc sig $
+        \arg deriver -> Lily.when_lilypond (transform arg deriver) deriver
 
-code0_around_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.Deriver (Lily.Code, Lily.Code))
+-- * Emit
+
+-- | The emit family creates 0 dur events who just carry lilypond code, and are
+-- not real notes.  This is suitable for score level directives, such as
+-- dynamics or tempo markings.  Technically in lilypond those are attached to
+-- notes too, but you wouldn't want to put one on every single note in
+-- a section.
+emit :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> (ScoreTime, ScoreTime) -> Derive.Deriver [(ScoreTime, Lily.Code)])
     -> Make.Calls Derive.Note
-code0_around_call name doc sig make_code = (gen, trans)
+emit = emit_transform id
+
+emit_start :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
+emit_start name doc sig get_code =
+    emit name doc sig (\val (start, _) -> (:[]) . (start,) <$> get_code val)
+
+-- | Like 'emit_start', but also set the instrument to 'Constants.ly_global'.
+emit_global :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> Derive.Deriver Lily.Code) -> Make.Calls Derive.Note
+emit_global name doc sig get_code = emit_transform Lily.global name doc sig $
+    \val (start, _) -> (:[]) . (start,) <$> get_code val
+
+emit_transform :: (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> (ScoreTime, ScoreTime) -> Derive.Deriver [(ScoreTime, Lily.Code)])
+    -> Make.Calls Derive.Note
+emit_transform transform name doc_ sig get_events = (gen, trans)
     where
-    around_doc = code0_doc
+    gen = generator name doc $ Sig.call sig $ \val args ->
+        Lily.only_lilypond $
+            make val args <> (Sub.derive . concat =<< Sub.sub_events args)
+    trans = transformer name doc $ Sig.callt sig $ \val args deriver ->
+        Lily.when_lilypond (make val args <> deriver) deriver
+    make val args = transform $ mconcatMap (uncurry Lily.code0)
+        =<< get_events val (Args.range args)
+    doc = doc_ <> "\n" <> emit_doc
+
+emit0 :: Derive.CallName -> Doc.Doc -> Lily.Code -> Make.Calls Derive.Note
+emit0 name doc code =
+    emit name (doc <> "\nLilypond code: " <> Doc.Doc (pretty code))
+    Sig.no_args $ \() (start, _) -> return [(start, code)]
+
+-- | Like 'emit_start', except that the call can emit 2 Codes.  The second
+-- will be used at the end of the event if it has non-zero duration.
+emit_pair :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> (Lily.Code, Lily.Code)) -> Make.Calls Derive.Note
+emit_pair name doc sig get_code = emit name doc sig (\val -> return . get val)
+    where
+    get val (start, end)
+        | start == end = [(start, pre)]
+        | otherwise = [(start, pre), (end, post)]
+        where (pre, post) = get_code val
+
+emit_wrap_notes :: Derive.CallName -> Doc.Doc -> Sig.Parser a
+    -> (a -> Derive.Deriver (Lily.Code, Lily.Code)) -> Make.Calls Derive.Note
+emit_wrap_notes name doc sig get_code = (gen, trans)
+    where
+    around_doc = emit_doc
         <> " The transformer will wrap each event in (start, end) pairs.\
         \ This way you can wrap all notes on a certain track with\
         \ complementary bits of lilypond code."
     gen = generator name (doc <> around_doc) $
         Sig.call sig $ \val args -> Lily.only_lilypond $ do
-            (code1, _) <- make_code val
+            (code1, _) <- get_code val
             Lily.code0 (Args.start args) code1 <> Lily.derive_notes args
     trans = transformer name (doc <> around_doc) $
         Sig.callt sig $ \val _args deriver ->
             Lily.when_lilypond (transform val deriver) deriver
     transform val deriver = do
-        (code1, code2) <- make_code val
+        (code1, code2) <- get_code val
         Post.emap_asc_ (apply code1 code2) <$> deriver
     apply code1 code2 event =
         [ Lily.code0_event event start code1
@@ -429,41 +438,11 @@ code0_around_call name doc sig make_code = (gen, trans)
         ]
         where (start, end) = (Score.event_start event, Score.event_end event)
 
--- | Like 'code0_call', except that the call can emit 2 Codes.  The second
--- will be used at the end of the event if it has non-zero duration and is
--- a transformer.
-code0_pair_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.Deriver (Lily.Code, Lily.Code))
-    -> Make.Calls Derive.Note
-code0_pair_call name doc sig make_code =
-    make_code_call name (doc <> code0_doc) sig $ \val args -> do
-        (code1, code2) <- make_code val
-        let (start, end) = Args.range args
-        Lily.code0 start code1
-            <> if start == end then mempty else Lily.code0 end code2
-
-code0_doc :: Doc.Doc
-code0_doc = "\nThis either be placed in a separate track as a zero-dur\
+emit_doc :: Doc.Doc
+emit_doc = "\nThis either be placed in a separate track as a zero-dur\
     \ event, or it can be attached to an individual note as a transformer."
 
--- | Like 'code0_call', but the code uses the 'Constants.ly_global' instrument.
-global_code0_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> Make.Calls Derive.Note
-global_code0_call name doc sig call =
-    make_code_call name doc sig $ \val args ->
-        Lily.global $ call val (Derive.place (Args.start args) 0 Call.note)
-
--- | Emit a free-standing fragment of lilypond code.
-make_code_call :: Derive.CallName -> Doc.Doc -> Sig.Parser a
-    -> (a -> Derive.NoteArgs -> Derive.NoteDeriver)
-    -> Make.Calls Derive.Note
-make_code_call name doc sig call = (gen, trans)
-    where
-    gen = generator name doc $ Sig.call sig $ \val args ->
-        Lily.only_lilypond $ call val args <> Lily.derive_notes args
-    trans = transformer name doc $ Sig.callt sig $ \val args deriver ->
-        Lily.when_lilypond (call val args <> deriver) deriver
+-- * util
 
 generator :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
