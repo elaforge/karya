@@ -7,6 +7,7 @@ module Derive.Call.Prelude.Lily (note_calls) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -162,7 +163,7 @@ c_xstaff = emit_start "xstaff"
     (Sig.required "staff" "Switch to this staff.") $ \staff ->
         return (Lily.Prefix, change staff)
     where
-    change :: Direction -> Lily.Ly
+    change :: Call.UpDown -> Lily.Ly
     change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
 
 c_xstaff_around :: Make.Calls Derive.Note
@@ -173,16 +174,12 @@ c_xstaff_around = emit_wrap_notes "xstaff-around"
         , (Lily.Prefix, change (other staff))
         )
     where
-    change :: Direction -> Lily.Ly
-    change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
-    other Up = Down
-    other Down = Up
-
--- TODO use Call.UpDown
-data Direction = Up | Down deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Direction where show_val = Typecheck.enum_show_val
-instance Typecheck.Typecheck Direction
-instance Typecheck.TypecheckSymbol Direction
+    change :: Call.UpDown -> Lily.Ly
+    change staff = "\\change Staff = " <> lily_str (to_lily staff)
+    to_lily Call.Up = "up"
+    to_lily Call.Down = "down"
+    other Call.Up = Call.Down
+    other Call.Down = Call.Up
 
 c_dyn :: Make.Calls Derive.Note
 c_dyn = emit_start "dyn"

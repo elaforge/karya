@@ -86,10 +86,10 @@ test_8va = do
 
 test_xstaff_around = do
     let run = LilypondTest.derive_measures ["change"]
-    equal (run $ UiTest.note_track [(0, 1, "xstaff-a up | -- 4a")])
+    equal (run $ UiTest.note_track [(0, 1, "xstaff-a u | -- 4a")])
         (Right "\\change Staff = \"up\" a'4 \\change Staff = \"down\" r4 r2",
             [])
-    equal (run $ (">", [(1, 0, "xstaff-a up")]) : UiTest.regular_notes 2)
+    equal (run $ (">", [(1, 0, "xstaff-a u")]) : UiTest.regular_notes 2)
         (Right "c4 \\change Staff = \"up\" d4 r2", [])
 
 test_clef_dyn = do
