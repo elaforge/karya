@@ -114,6 +114,11 @@ test_articulation = do
     equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regular_notes 3)
         (Right "c4-> d4-> e4-> r4", [])
 
+test_ly_notes_post = do
+    let run = measures_linear []
+    equal (run $ (">", [(0, 3, "ly-notes-post down")]) : UiTest.regular_notes 3)
+        (Right "c4\\down d4\\down e4\\down r4", [])
+
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])

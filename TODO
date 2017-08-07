@@ -1012,7 +1012,7 @@ lilypond:
 				}
       . Then after the \glissando: \glissandoSkipOn
         Before dest note: \glissandoSkipOff
-    + I want to distribute \downbow suffixes among notes and ly-post via
+    * I want to distribute \downbow suffixes among notes and ly-post via
       code0_call only emits one.  I think I need a 'ly-post-note' that
       attaches to each sub-note.
     * The functions in Prelude.Lily are a bit of a mess.  Refactor.

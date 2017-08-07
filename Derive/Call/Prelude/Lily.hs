@@ -71,6 +71,7 @@ note_calls = Make.call_maps
     , ("ly^", c_ly_text "^")
     , ("ly_", c_ly_text "_")
     , ("ly-", c_ly_articulation)
+    , ("ly-notes-post", c_ly_notes_post)
     , ("meter", c_meter)
     , ("subdivision", c_subdivision)
     , ("movement", c_movement)
@@ -244,8 +245,11 @@ c_ly_articulation = attach All "ly-articulation"
     (Sig.required "text" "Code to attach. A `-` is prepended.") $
     ((,) Lily.SuffixFirst . ("-"<>))
 
-lily_str :: Text -> Lily.Ly
-lily_str = Types.to_lily
+c_ly_notes_post :: Make.Calls Derive.Note
+c_ly_notes_post = attach All "ly-notes-post"
+    "Emit arbitrary lilypond code that will go after all notes."
+    (Sig.required "code" "A leading \\ will be prepended.") $
+    \code -> (Lily.SuffixLast, "\\" <> code)
 
 c_ly_pre :: Make.Calls Derive.Note
 c_ly_pre = emit_start "ly-pre"
@@ -440,6 +444,9 @@ emit_doc = "\nThis either be placed in a separate track as a zero-dur\
     \ event, or it can be attached to an individual note as a transformer."
 
 -- * util
+
+lily_str :: Text -> Lily.Ly
+lily_str = Types.to_lily
 
 generator :: Derive.CallName -> Doc.Doc
     -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
