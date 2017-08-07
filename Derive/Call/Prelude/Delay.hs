@@ -8,7 +8,7 @@
 module Derive.Call.Prelude.Delay where
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
@@ -40,7 +40,7 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
     ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
-    ) $ \time args deriver -> Lily.when_lilypond deriver $ do
+    ) $ \time args deriver -> Ly.when_lilypond deriver $ do
         start <- Args.real_start args
         delay <- Call.score_duration start
             =<< Call.time_control_at Typecheck.Real time start

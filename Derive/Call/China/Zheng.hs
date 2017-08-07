@@ -12,7 +12,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.India.Gamakam as Gamakam
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Sub as Sub
@@ -86,7 +86,7 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
         let total_time = if is_absolute then time
                 else time * fromIntegral (length pitches)
-        Lily.when_lilypond (Grace.lily_grace args (end - time) pitches) $
+        Ly.when_lilypond (Grace.lily_grace args (end - time) pitches) $
             gliss pitches total_time start_dyn dest_dyn end
                 <> Call.placed_note args
 
@@ -127,7 +127,7 @@ c_note_trill start_dir = Derive.generator module_ "tr" Tags.ly
     "A trill with smooth transitions."
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
-    Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
+    Ly.note_code (Ly.SuffixFirst, "\\trill") args $ do
         pitch <- Call.get_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
         Derive.with_pitch sig $ Call.placed_note args

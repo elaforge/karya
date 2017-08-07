@@ -13,7 +13,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Prelude.Note as Note
@@ -49,7 +49,7 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     \ probably in track order.  TODO sort by pitch?" $
     Sig.callt (defaulted "time" (control "pizz-arp-time" 0.02)
         "Insert this much time between each note.") $
-    \time _args deriver -> Lily.when_lilypond deriver $
+    \time _args deriver -> Ly.when_lilypond deriver $
         pizz_arp time =<< deriver
 
 pizz_arp :: BaseTypes.ControlRef -> Stream.Stream Score.Event
@@ -100,7 +100,7 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     \ This also happens to be what MIDI expects, since it's based on keyboards."
     $ Sig.callt (defaulted "time" 0.1
         "Ensure at least this much time between two notes of the same pitch.")
-    $ \time _args deriver -> Lily.when_lilypond deriver $
+    $ \time _args deriver -> Ly.when_lilypond deriver $
         avoid_overlap time <$> deriver
 
 avoid_overlap :: RealTime -> Stream.Stream Score.Event
@@ -162,7 +162,7 @@ c_extend_duration = Derive.transformer Module.prelude "extend-duration"
     <$> Sig.required "attrs" "Extend durations of notes with these attrs."
     <*> Sig.defaulted "dur" (RealTime.seconds 2)
         "Extend to a minimum of this duration."
-    ) $ \(attrs, dur) _args deriver -> Lily.when_lilypond deriver $
+    ) $ \(attrs, dur) _args deriver -> Ly.when_lilypond deriver $
         extend_duration attrs dur <$> deriver
 
 -- | Don't overlap with another note with the same pitch, as in 'avoid_overlap'.

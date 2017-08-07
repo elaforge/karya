@@ -8,7 +8,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
@@ -169,9 +169,9 @@ test_ly_code = do
     calls = CallTest.with_note_generator "pre" c_pre
         <> CallTest.with_note_generator "post" c_post
     c_pre = CallTest.generator $ \args ->
-        Lily.code0 (Args.start args) (Lily.Prefix, "pre")
+        Ly.code0 (Args.start args) (Ly.Prefix, "pre")
     c_post = CallTest.generator $ \args ->
-        Lily.code0 (Args.start args) (Lily.SuffixAll, "post")
+        Ly.code0 (Args.start args) (Ly.SuffixAll, "post")
 
 -- * test lilypond derivation
 

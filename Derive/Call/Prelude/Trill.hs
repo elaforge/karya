@@ -53,7 +53,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
@@ -101,7 +101,7 @@ c_note_trill hardcoded_start hardcoded_end =
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
     Sub.inverting $ \args ->
-    Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
+    Ly.note_code (Ly.SuffixFirst, "\\trill") args $ do
         (transpose, control) <- trill_from_controls
             (Args.range_or_next args) start_dir end_dir adjust hold
             neighbor speed
@@ -139,11 +139,11 @@ c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly
         starts <- tremolo_starts hold speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
-            [] -> Sub.inverting_args args $ \args -> Lily.note_code code args $
+            [] -> Sub.inverting_args args $ \args -> Ly.note_code code args $
                 simple_tremolo starts [Call.note]
-            notes -> Lily.notes_code code args $
+            notes -> Ly.notes_code code args $
                 Sub.derive $ chord_tremolo starts notes
-    where code = (Lily.SuffixAll, ":32")
+    where code = (Ly.SuffixAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs

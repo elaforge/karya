@@ -18,7 +18,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -105,7 +105,7 @@ tuplet_note_end = Seq.maximum . mapMaybe last_end
 -- I don't support tuplets with ties and whatnot inside.  It's theoretically
 -- possible, but seems hard.
 lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
-lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
+lily_tuplet args not_lily = Ly.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Except.runExceptT . check config
         =<< Sub.sub_events args
@@ -124,15 +124,15 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
                 . if is_duplet then id else map (Sub.place (Args.start args) 2)
         track_events <- lift $ mapM derive track_notes
 
-        notes_end <- case map (filter (not . Lily.is_code0)) track_events of
+        notes_end <- case map (filter (not . Ly.is_code0)) track_events of
             [] -> Except.throwError "no sub events"
             tracks -> tryJust "can't figure out tuplet duration" $
                 tuplet_note_end (map (map to_start_dur) tracks)
         (start, end) <- lift $ Args.real_range args
         code <- tryRight $ tuplet_code (end - start) (notes_end - start)
-        ly_notes <- lift $ Lily.eval_events config start
+        ly_notes <- lift $ Ly.eval_events config start
             (Seq.merge_lists Score.event_start track_events)
-        lift $ Lily.code (Args.extent args) $
+        lift $ Ly.code (Args.extent args) $
             code <> " { " <> Text.unwords ly_notes <> " }"
     to_start_dur e = (Score.event_start e, Score.event_duration e)
     err msg = do
@@ -175,9 +175,8 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
     ) $ \(time, random) args -> lily_code args $
         arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args
     where
-    lily_code = Lily.notes_with $
-        Lily.prepend_code prefix
-        . Lily.add_code False (Lily.SuffixFirst, suffix)
+    lily_code = Ly.notes_with $
+        Ly.prepend_code prefix . Ly.add_code False (Ly.SuffixFirst, suffix)
     prefix = case arp of
         ToRight -> "\\arpeggioArrowUp"
         ToLeft -> "\\arpeggioArrowDown"

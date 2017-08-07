@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
@@ -60,7 +60,7 @@ c_bent_string = Derive.transformer module_ "bent-string"
         \ released after this delay."
     <*> open_strings_env
     ) $ \(attack, release, delay, open_strings) _args deriver ->
-    Lily.when_lilypond deriver $ do
+    Ly.when_lilypond deriver $ do
         srate <- Call.get_srate
         let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver

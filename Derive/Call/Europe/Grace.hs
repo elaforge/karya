@@ -19,7 +19,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -99,7 +99,7 @@ c_mordent default_neighbor = Derive.generator Module.europe "mordent"
     <*> grace_envs
     ) $ \(Typecheck.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
     Sub.inverting $ \args ->
-        Lily.when_lilypond (lily_mordent args neighbor) $ do
+        Ly.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Call.get_pitch =<< Args.real_start args
             legato_grace args dyn [pitch, Pitches.transpose neighbor pitch]
                 grace_dur place
@@ -143,7 +143,7 @@ make_grace module_ doc transform derive =
         start <- Args.real_start args
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args start pitches) $ do
+        Ly.when_lilypond (lily_grace args start pitches) $ do
             with_dyn <- (*dyn) <$> (Call.dynamic =<< Args.real_start args)
             derive args =<< basic_grace args pitches
                 (transform . Call.with_dynamic with_dyn) grace_dur place
@@ -166,23 +166,23 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
         let apply = Eval.eval_quoted_transformers (Args.context args)
-        Lily.when_lilypond (lily_grace args start pitches) $
+        Ly.when_lilypond (lily_grace args start pitches) $
             Sub.derive =<< basic_grace args pitches
                 (maybe id apply maybe_transform) grace_dur place
 
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
 lily_grace args start pitches = do
-    pitches <- mapM Lily.pitch_to_lily =<< mapM (Derive.resolve_pitch start)
+    pitches <- mapM Ly.pitch_to_lily =<< mapM (Derive.resolve_pitch start)
         pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
         beamed = Seq.first_last (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
         code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
-    -- Prepending to the note instead of emitting a separate Lily.code ensures
+    -- Prepending to the note instead of emitting a separate Ly.code ensures
     -- it stays with the note's voice.
-    Lily.prepend_code code $ Call.place args Call.note
+    Ly.prepend_code code $ Call.place args Call.note
 
 legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
     -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.NoteDeriver
@@ -250,7 +250,7 @@ c_attr_grace supported =
         start <- Args.real_start args
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args start pitches) $ case attr of
+        Ly.when_lilypond (lily_grace args start pitches) $ case attr of
             Just attr -> Call.add_attributes attr $
                 basic_grace_dyn dyn args pitches grace_dur place
             Nothing -> do

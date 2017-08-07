@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for calls to cooperate with the lilypond backend.
-module Derive.Call.Lily where
+module Derive.Call.Ly where
 import qualified Data.List as List
 
 import qualified Util.Log as Log
@@ -255,11 +255,11 @@ note_pitch deriver = do
     -- Wow, there are a lot of ways to fail.
     where
     require = Derive.require . (prefix <>)
-    prefix = "Lily.note_pitch: "
+    prefix = "Ly.note_pitch: "
 
 pitch_to_lily :: PSignal.Transposed -> Derive.Deriver Note
 pitch_to_lily =
-    Derive.require_right ("Lily.pitch_to_lily: "<>) . Convert.pitch_to_lily
+    Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily
 
 to_time :: Types.Config -> RealTime -> Types.Time
 to_time = Types.real_to_time . Types.config_quarter_duration

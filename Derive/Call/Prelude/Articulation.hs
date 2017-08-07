@@ -22,7 +22,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -146,17 +146,17 @@ note_legato overlap maybe_detach dyn = Sub.derive . concatMap apply
 c_ly_slur :: Derive.Generator Derive.Note
 c_ly_slur = Derive.generator Module.ly "ly-slur" Tags.subs
     "Add a lilypond slur." $ Sig.call0 $
-        Lily.notes_around_ly (Lily.SuffixFirst, "(") (Lily.SuffixLast, ")")
+        Ly.notes_around_ly (Ly.SuffixFirst, "(") (Ly.SuffixLast, ")")
 
 c_ly_slur_up :: Derive.Generator Derive.Note
 c_ly_slur_up = Derive.generator Module.ly "ly-slur-up" Tags.subs
     "Add a lilypond slur, forced to be above." $ Sig.call0 $
-        Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
+        Ly.notes_around_ly (Ly.SuffixFirst, "^(") (Ly.SuffixLast, ")")
 
 c_ly_slur_down :: Derive.Generator Derive.Note
 c_ly_slur_down = Derive.generator Module.ly "ly-slur-down" Tags.subs
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
-        Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
+        Ly.notes_around_ly (Ly.SuffixFirst, "_(") (Ly.SuffixLast, ")")
 
 -- | This is not in 'note_calls', instruments that support this are expected to
 -- override @(@ with it.
