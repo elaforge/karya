@@ -988,12 +988,38 @@ integrate / integration:
     - quantization
 
 lilypond:
+  * make if-ly and similar take Quoteds instead of strings.
   - I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
   - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
     I'd just have to save that and invert it.
+  - Infer ruler from meter markings, or maybe the other way around.  Meter
+    markings seem more convenient, but maybe I could just make LRuler
+    similarly convenient.
+    . But since the ruler is more flexible, it's easier to infer ruler from
+      meter than the other way around.
+  - Make tuplet use the normal lilypond evaluation, instead of simple_convert.
+    . tuplets are causing extra pizz markings, which will be confusing.
+      . This is due to modal articulations not working with tuplets.
+    . Lilypond.Process.modal_articulations don't work for Process.simple_convert
+      because it doesn't have access to the previous attrs.
+      . simple_convert is a grody hack, but if I can't think of a better way to
+        do it, I could add modal_attributes as a postproc.
+      . But I've already put ly code in a string, so I can't get the notes back
+        out.
+      . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
+        can't attach any notation unless I put it directly on the note, e.g.
+        dynamics.
+      . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
+      . What would be a way to implement nested notation like \time without
+        Lily.eval_events?
+      . How about I emit a "group" event, which has a magic tag that says
+        the next N events marked with my tag belong to me.  Then lilypond will
+        gather them and put them in {}s after it.
   squart/6:
+    - put accidentals on the trills
+      http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
     * It constantly cancels nv on staccato, but it doesn't matter because you
       can't hear it on staccato anyway.  Maybe modal_attributes can count
       +staccato as having whatever +nv was previously set.
@@ -1067,8 +1093,6 @@ lilypond:
         . 8va, subdivision, tr-span: as above, but have start end events.
           crescendo, diminuendo: I think they could use (start, end) as above.
           key, sustain
-    - tuplets are causing extra pizz markings, which will be confusing.
-    - how to put accidental or other note in ly-tr~?
     / Put glissando line only right at the end:
       \once \override Glissando.bound-details.right.Y = #-2
       . Can't figure out how to do it. If I manually tweak
@@ -1078,13 +1102,16 @@ lilypond:
       . I think it's a portament, maybe I just write port.
     - tempo: I want to emit \tempo "xyz" as a global marking.
       . Looks like lilypond is smart enough to suppress it for all but the top
-        staff.  Presumably if I put it in all the parts, they'll get it when I
-        extract.
+        staff.  Presumably I still have to put it in all the parts, so they'll
+        get it when I extract.
       . I could have >ly-global distribute code to all instruments.
     - Staff notation has a notion of rhythmic spelling, which, being
       proportional, karya lacks.  In most cases I want to automatically infer
       it, but would it make sense to spell it explicitly in some cases, and
       how would that look?
+      . I guess I could add a tie annotation, which merges duration with the
+        next event, and a lilypond mode that ignores the meter and puts down
+        each duration explicitly.
     - 'incompatible with meter' errors don't have a clickable stack
     * duplets don't work: tuplet duration must be simple, but was: 0.75
       . I could do it if I allowed dotted durations.
@@ -1106,7 +1133,8 @@ lilypond:
       . I need to set the subdivision explicitly:
         \set Score.beatStructure = #'(2 3 2)
         Or \compoundMeter #'((2 8) (3 8)) to also set the visible meter.
-
+      . Have the meter and subdivision commands set beatStructure for
+        meters where lilypond doesn't already do a good job.
     * I need a way to explicitly set rhythmic spelling per-instrument, for
       ambiguous meters, e.g. 3/4 as 3+3/8 vs 2+2+2/8 or even 3+3+3+3/16 6+6/16
       . Or maybe better to write those as duples?
@@ -1121,21 +1149,6 @@ lilypond:
       . Just setting an env val would be simpler... except I need this to
         apply to rests too.
       * 'subdivision' should emit a cancel at the end if it has non-zero dur.
-  - Lilypond.Process.modal_articulations don't work for Process.simple_convert
-    because it doesn't have access to the previous attrs.
-    . simple_convert is a grody hack, but if I can't think of a better way to
-      do it, I could add modal_attributes as a postproc.
-    . But I've already put ly code in a string, so I can't get the notes back
-      out.
-    . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
-      can't attach any notation unless I put it directly on the note, e.g.
-      dynamics.
-    . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
-    . What would be a way to implement nested notation like \time without
-      Lily.eval_events?
-    . How about I emit a "group" event, which has a magic tag that says
-      the next N events marked with my tag belong to me.  Then lilypond will
-      gather them and put them in {}s after it.
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'

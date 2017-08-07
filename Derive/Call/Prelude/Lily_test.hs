@@ -68,7 +68,7 @@ test_if_ly = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "if-ly +accent +mute -- 4a")])
         (Right "a'4-> r4 r2", [])
-    equal (run [(0, 1, "if-ly +mute +accent -- 4a")])
+    equal (run [(0, 1, "if-ly \"(+mute) \"(+accent) -- 4a")])
         (Right "a'4-+ r4 r2", [])
     -- Passing as strings is also ok.
     equal (run [(0, 1, "if-ly '+accent' '+mute' -- 4a")])

@@ -26,7 +26,7 @@ module Derive.Eval (
     -- * util
     , eval_one, eval_one_call, eval_one_at
     , eval_event, reapply_generator, reapply_generator_normalized
-    , reapply, reapply_string, reapply_call, eval_pitch, eval_note, apply_pitch
+    , reapply, reapply_call, eval_pitch, eval_note, apply_pitch
     , eval_expr
 ) where
 import qualified Data.Char as Char
@@ -363,13 +363,6 @@ reapply_generator_normalized args = reapply_generator $ args
 reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
 reapply = eval_expr True
-
--- | Like 'reapply', but parse the string first.
-reapply_string :: Derive.Callable d => Derive.Context d -> Text
-    -> Derive.Deriver (Stream.Stream d)
-reapply_string ctx s = case Parse.parse_expr s of
-    Left err -> Derive.throw $ "parse error: " <> err
-    Right expr -> reapply ctx expr
 
 reapply_call :: Derive.Callable d => Derive.Context d -> Expr.Symbol
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)

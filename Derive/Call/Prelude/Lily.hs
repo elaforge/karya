@@ -144,10 +144,8 @@ c_if_ly = generator "if-ly"
     <$> Sig.required "is-ly" "Evaluated in lilypond mode."
     <*> Sig.required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> Lily.when_lilypond
-        (Eval.reapply_string (Args.context args)
-            (BaseTypes.show_call_val is_ly))
-        (Eval.reapply_string (Args.context args)
-            (BaseTypes.show_call_val not_ly))
+        (Eval.eval_quoted (Args.context args) is_ly)
+        (Eval.eval_quoted (Args.context args) not_ly)
 
 c_8va :: Make.Calls Derive.Note
 c_8va = emit_pair "ottava" "Emit lilypond ottava mark.\
