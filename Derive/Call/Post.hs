@@ -56,7 +56,10 @@ import Types
 --
 -- TODO this is expected to not destroy the order, but that isn't checked.
 -- That means either the event doesn't move, or it doesn't move past its
--- neighbors.
+-- neighbors.  Way back when events didn't have their start times, I could
+-- express this by only mapping over the event, but I'm not sure how to do it
+-- now.  And in any case, "don't destroy order" is more permissive than "don't
+-- move."
 emap1_ :: (a -> b) -> Stream a -> Stream b
 emap1_ = fmap
 

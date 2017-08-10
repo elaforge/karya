@@ -3,15 +3,19 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Lily_test where
+import qualified Data.Text as Text
+
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+
 import Global
 
 
@@ -210,9 +214,10 @@ test_subdivision = do
     let run skel = LilypondTest.staves []
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
             . concatMap UiTest.inst_note_track
-    equal (run [(2, 3), (3, 4)]
-            [ meter68, ("i1", [(0, 3, "subdivision '3/4' --")])
-            , ("", [(1, 1, "3c"), (3, 1.5, "3d")])
+    equal (run [(3, 4)]
+            [ meter68
+            , ("i1", [(0, 3, "subdivision '3/4' --")])
+            , ("i1", [(1, 1, "3c"), (3, 1.5, "3d")])
             ])
         (Right [("i1", ["r4 c4 r4 | d4. r4."])], [])
 
@@ -237,6 +242,38 @@ test_movement = do
             ]
     equal logs []
     match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * c4 d4 e4 f4"
+
+test_attach_and_emit = do
+    -- Ensure that attach calls doesn't try to attach code to emit's code
+    -- events.
+    let run = DeriveTest.extract extract
+            . LilypondTest.derive_tracks_linear
+        extract e =
+            ( DeriveTest.e_note e
+            , DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`) e
+            , Score.event_flags e
+            )
+    let run_ly = LilypondTest.measures ["a", "b"]
+            . LilypondTest.derive_tracks_linear
+
+    let tracks = (">", [(0, 2, "(")])
+            : UiTest.note_track1 ["ly-post a | -- 3c", "ly-post b | -- 3d"]
+    equal (run tracks)
+        ( [ ((0, 0, "?"), [(Constants.v_ly_append_all, "'\\a'")], Flags.ly_code)
+          , ((0, 1, "3c"), [(Constants.v_ly_append_first, "'('")], mempty)
+          , ((1, 0, "?"), [(Constants.v_ly_append_all, "'\\b'")], Flags.ly_code)
+          , ((1, 1, "3d"), [(Constants.v_ly_append_last, "')'")], mempty)
+          ]
+        , []
+        )
+
+    equal (run_ly tracks) (Right "c4( \\a d4) \\b r2", [])
+    equal (run_ly $ (">", [(0, 2, "(")])
+            : UiTest.note_track1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
+        (Right "\\a c4( \\b d4) r2", [])
+
+
+-- * util
 
 measures_linear :: [Text] -> [UiTest.TrackSpec] -> (Either Text Text, [Text])
 measures_linear wanted =

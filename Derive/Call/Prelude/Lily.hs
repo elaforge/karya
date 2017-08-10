@@ -336,12 +336,11 @@ data AttachTo = First -- ^ attach code to only the first event
 attach :: AttachTo -> Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Ly.Code) -> Make.Calls Derive.Note
 attach to name doc sig get_code =
-    transform_notes name doc sig $ \arg deriver ->
-    add (get_code arg) deriver
+    transform_notes name doc sig $ \arg deriver -> add (get_code arg) deriver
     where
     add = case to of
         First -> Ly.add_first
-        All -> Ly.add_code False
+        All -> Ly.add_code
 
 -- | 'attach' with no arguments.
 attach0 :: Derive.CallName -> Doc.Doc -> Ly.Code -> Make.Calls Derive.Note
@@ -365,28 +364,33 @@ transform_notes name doc sig transform =
 emit :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> (ScoreTime, ScoreTime) -> Derive.Deriver [(ScoreTime, Ly.Code)])
     -> Make.Calls Derive.Note
-emit = emit_transform id
+emit = emit_transform id False
 
 emit_start :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Ly.Code) -> Make.Calls Derive.Note
-emit_start name doc sig get_code =
-    emit name doc sig (\val (start, _) -> (:[]) . (start,) <$> get_code val)
+emit_start name doc sig get_code = emit_transform id True name doc sig $
+    \val (start, _) -> (:[]) . (start,) <$> get_code val
 
 -- | Like 'emit_start', but also set the instrument to 'Constants.ly_global'.
 emit_global :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver Ly.Code) -> Make.Calls Derive.Note
-emit_global name doc sig get_code = emit_transform Ly.global name doc sig $
+emit_global name doc sig get_code = emit_transform Ly.global True name doc sig $
     \val (start, _) -> (:[]) . (start,) <$> get_code val
 
 emit_transform :: (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Bool -- ^ if True, require that the generator have 0 duration
     -> Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> (ScoreTime, ScoreTime) -> Derive.Deriver [(ScoreTime, Ly.Code)])
     -> Make.Calls Derive.Note
-emit_transform transform name doc_ sig get_events = (gen, trans)
+emit_transform transform assert_0dur name doc_ sig get_events = (gen, trans)
     where
-    gen = generator name doc $ Sig.call sig $ \val args ->
-        Ly.only_lilypond $
-            make val args <> (Sub.derive . concat =<< Sub.sub_events args)
+    gen = generator name doc $ Sig.call sig $ \val args -> Ly.only_lilypond $ do
+        Sub.assert_no_subs args
+        when (assert_0dur && Args.duration args /= 0) $
+            Derive.throw $ "this emits a single bit of lilypond code,\
+                \ so it should be either a transformer or a 0 dur generator: "
+                <> pretty (Args.range args)
+        make val args
     trans = transformer name doc $ Sig.callt sig $ \val args deriver ->
         Ly.when_lilypond (make val args <> deriver) deriver
     make val args = transform $ mconcatMap (uncurry Ly.code0)

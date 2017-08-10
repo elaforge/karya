@@ -988,21 +988,64 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - move c_slur from Articulation to Parent.  I looked for it first in Parent,
+    and in fact there's an extra test in Parent_test.
   * make if-ly and similar take Quoteds instead of strings.
-  - I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
-  - Also there's a spurious ( at
-    viola-sonata/vla2 viola-sonata/b2.t41 251.5-252; 63
-    . I think it's getting distributed over from the other voice.
-		. Showed up after
-      patch 8a94f961f21a22132b933269d721057a4917ffb6
-      Author: qdunkan@gmail.com
-      Date:   Sat Aug  5 12:10:49 PDT 2017
-        * lilypond: mark lilypond code events with Flags.ly_code
-        This is more explicit than checking if it has any of the magic env
-        vars, and easier to maintain when I add new ones.
-    . This patch changed the Ly.add_code stuff to e.g. always append instead
-      of replace, so that might be related.
-
+  * I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
+		. (49.5s, 0s, "")               {ly-append-all: '(', ly-prepend: '\stemUp'}
+			(49.5s, .5s, "ly-pre stemUp |"){ly-append-first: '('}
+			(50s, .5s, "")                 {}
+			(50.5s, 0s, "")                {ly-append-all: '\stemNeutral)'}
+			(50.5s, .5s, "ly-post stemNeutral |") {ly-append-last: ')'}
+			(51s, 2s, "")                  {}
+    . output: r4. g''8( f''8 e''8) \stemNeutral) d''2 r4 \bar "|."
+    . Maybe it finds ly-append-all and ignores ly-prepend.
+		. Why do I get '(' in two places?
+      . '(' does SuffixFirst, SuffixLast.
+      . Oh, and then it also adds to the 0dur stemUp note.
+      . I could otly add Flags.ly_code to 0 dur events, and Ly.first_last
+        could skip those.  But I might have to have a separate 'add_note_code'
+        which skips 0 dur from 'make_code0' which makes it in the first place.
+        I think I never want to attach more code to a 0 dur event, since I can
+        just make another one.  But I definitely do attach multiple bits of
+        code to a single note.
+    . The problem is that 'Lily.emit' wants to make a 0-dur event, which means
+      that if I call it as a generator, it derives the non-existent children,
+      and then emits only the 0 dur event.  I'm not sure if I should try to
+      make it a generator for consistency with other ly calls (I'll never
+      remember who's an attach and who's an emit), or make a transformer only
+      for regularity.  It seems in the bigger picture, having transformers
+      masquerade as generators by automatically applying Call.note might be
+      more confusing than just having to remember which is which.
+    . But 'emit' is actually fundamentally a generator, not a transformer, so
+      it's actually a generator masquerading as a transformer.  And
+      I definitely want it to be a transformer, or else I can't stack them.
+    . I could make the generator version complain if the note is >0 dur.
+    . Or I could try to make it work, by doing what Make.transform_notes does,
+      and eval Call.note if there are no subs.
+    . Actually, why should emit take subs at all?  I guess because I put
+      ly-only on its own track.  I guess it's not technically necessary
+      because they use Ly.when_lilypond already.
+    . I feel like e.g. ly-pre with subs should apply ly-pre to all the notes.
+      In other words, it would behave like attach.
+    . The ranged emits like 8va need to be >0 dur.  They don't need to be
+      parents, but dual-purpose calls like '(' do.  Maybe I can make
+      attach for notes, and the emits not take subtracks.
+    . If I do that, then I have emit can transform, but the generator will
+      complain if there are subs, and complain if dur >0 and it's not that
+      kind of emit.
+    . Also there's a spurious ( at
+      viola-sonata/vla2 viola-sonata/b2.t41 251.5-252; 63
+      . I think it's getting distributed over from the other voice.
+      . Showed up after
+        patch 8a94f961f21a22132b933269d721057a4917ffb6
+        Author: qdunkan@gmail.com
+        Date:   Sat Aug  5 12:10:49 PDT 2017
+          * lilypond: mark lilypond code events with Flags.ly_code
+          This is more explicit than checking if it has any of the magic env
+          vars, and easier to maintain when I add new ones.
+      . This patch changed the Ly.add_code stuff to e.g. always append instead
+        of replace, so that might be related.
   - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,

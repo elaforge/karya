@@ -54,8 +54,7 @@ only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
 -- | When in lilypond mode, generate a note with the given Code.
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-note_code code args = when_lilypond $
-    add_code False code $ Call.place args Call.note
+note_code code args = when_lilypond $ add_code code $ Call.place args Call.note
 
 -- ** transformer
 
@@ -70,7 +69,7 @@ add_first code deriver =
 -- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_code code = notes_with (add_code False code)
+notes_code code = notes_with (add_code code)
 
 -- | Like 'notes_code', but only apply the code to the first event, not all of
 -- them.
@@ -115,23 +114,13 @@ notes_with f args = when_lilypond $
 derive_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
 derive_notes = Sub.derive . concat <=< Sub.sub_events
 
--- ** events around
-
-add_event_code :: Code -> Score.Event -> Score.Event
-add_event_code (pos, code) event =
-    Score.add_flags Flags.ly_code $
-        Score.modify_environ (add (position_env zero_dur pos) (<>code)) event
-    where
-    zero_dur = Score.event_duration event == 0
-    add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
-        where old = fromMaybe "" $ Env.maybe_val name env
-
 -- | Like 'Seq.first_last', but applied to a Stream.  If the events start or
 -- end with a group of events with the same start time, the start or end
 -- function is applied to the entire group.  This is because the lilypond
 -- performer will group them into a chord and will only take ly-prepend and
 -- ly-append from the first note in the chord.  I could apply to only the first
--- element of the group, but that would rely on every sort being stable.
+-- element of the group, but that would rely on every sort being stable.  Which
+-- they probably are, but it seems brittle.
 first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
 first_last start end xs =
@@ -189,16 +178,12 @@ position_env zero_dur p = case if zero_dur then code0 p else p of
         _ -> pos
 
 prepend_code :: Ly -> Derive.NoteDeriver -> Derive.NoteDeriver
-prepend_code = add_code False . (,) Prefix
-
-add_code :: Bool -> Code -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_code zero_dur (pos, code) = Call.add_flags Flags.ly_code
-    . Derive.modify_val (position_env zero_dur pos) ((<>code) . fromMaybe "")
+prepend_code = add_code . (,) Prefix
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
--- a 'Types.Event'.
+-- a 'Types.Event', but still has a duration.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
     Derive.remove_pitch $ Derive.place start dur Call.note
@@ -206,7 +191,7 @@ code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start code = add_code True code $ Derive.place start 0 Call.note
+code0 start code = add_code code $ Derive.place start 0 Call.note
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
 -- existing note.  Otherwise, the lilypond backend doesn't know how to group
@@ -230,6 +215,25 @@ global = Derive.with_val_raw EnvKey.instrument Constants.ly_global
 is_code0 :: Score.Event -> Bool
 is_code0 event = Score.event_duration event == 0
     && Flags.has (Score.event_flags event) Flags.ly_code
+
+-- *** low level
+
+-- | Add lilypond code to a note.  This will skip 'is_code0' events, which
+-- are supposed to be note-independent bits of lilypond code, and not actually
+-- notes.  If the duration is 0, it assume's that you're making one of those
+-- 0 dur events, and adds 'Flags.ly_code'.
+add_event_code :: Code -> Score.Event -> Score.Event
+add_event_code (pos, code) event
+    | is_code0 event = event
+    | otherwise = (if zero_dur then Score.add_flags Flags.ly_code else id) $
+        Score.modify_environ (add (position_env zero_dur pos) (<>code)) event
+    where
+    zero_dur = Score.event_duration event == 0
+    add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
+        where old = fromMaybe "" $ Env.maybe_val name env
+
+add_code :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
+add_code code = fmap $ Post.emap1_ (add_event_code code)
 
 -- ** convert
 

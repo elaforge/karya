@@ -13,6 +13,7 @@ module Derive.Call.Sub (
     , Event, GenericEvent(..), event_end, event_overlaps
     , place, stretch, at
     , sub_events, sub_events_negative
+    , assert_no_subs
     , modify_notes
     , derive, derive_pitch, fit
     -- ** RestEvent
@@ -233,6 +234,20 @@ sub_events = sub_events_ False
 -- events at the end time.  Presumably suitable for 'Event.Negative' calls.
 sub_events_negative :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_negative = sub_events_ True
+
+-- | Throw an exception if there are sub-events.
+assert_no_subs :: Derive.PassedArgs d -> Derive.Deriver ()
+assert_no_subs args = do
+    -- Due to laziness, checking null shouldn't require any actual slicing.
+    events <- sub_events args
+    if null events then return () else case Derive.ctx_sub_events ctx of
+        Just subs -> Derive.throw $ "expected no sub events, but got "
+            <> pretty (map (map (\(s, d, _) -> (s, d))) subs)
+        Nothing -> Derive.throw $ "expected no sub events, but got "
+            <> pretty (map (fmap extract_track) (Derive.ctx_sub_tracks ctx))
+    where
+    ctx = Derive.passed_ctx args
+    extract_track t = (TrackTree.track_title t, TrackTree.track_id t)
 
 sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_ include_end args =
