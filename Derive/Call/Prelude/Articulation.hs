@@ -59,11 +59,11 @@ note_calls = Make.call_maps
     , ("+", c_shorten_lengthen False)
     ]
     <> Derive.call_maps
-        [ ("(", c_legato)
+        [ ("(", c_slur Nothing)
         -- These do different things in lilypond mode, but in normal
         -- performance they are just the same as a slur.
-        , ("^(", c_legato)
-        , ("_(", c_legato)
+        , ("^(", c_slur (Just Call.Up))
+        , ("_(", c_slur (Just Call.Down))
         ]
         [ ("sus-a", c_sustain_abs)
         , ("sus", c_sustain)
@@ -101,15 +101,17 @@ make_lookup_attr call =
 -- | I'm not really sure how fancy calls should be.  On one hand, high level
 -- calls should get a nice result automatically.  On the other hand, they're
 -- not very composable if they override things like %sus-abs.
-c_legato :: Derive.Generator Derive.Note
-c_legato = Derive.generator Module.prelude "legato"
+c_slur :: Maybe Call.UpDown -> Derive.Generator Derive.Note
+c_slur direction = Derive.generator Module.prelude "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
     "Play the transformed notes legato.  This just makes all but the last\
     \ overlap slightly.\
     \\nYou can combine this with other controls to get fancier phrasing.\
     \ For example, you can be detached by default but have legato connect\
     \ notes, by setting `%legato-overlap = .05 | %sus-abs = -.05`.\
-    \\nOtherwise, you can use the `detach` and `dyn` args."
+    \\nOtherwise, you can use the `detach` and `dyn` args.\
+    \\nThe `^` and `_` variants are the same in normal performance, but force\
+    \ lilypond slurs to go above or below, respectively."
     $ Sig.call ((,,)
     <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 Score.Real)
         "All notes but the last have their durations extended by this amount."
@@ -119,16 +121,26 @@ c_legato = Derive.generator Module.prelude "legato"
         \ will still override `%sus-abs`, which you may not want."
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by this\
         \ amount."
-    ) $ \(overlap, maybe_detach, dyn) args -> do
+    ) $ \(overlap, maybe_detach, dyn) args ->
+    Ly.when_lilypond (lily_slur direction args) $ do
         overlap <- Call.real_time_at overlap =<< Args.real_start args
-        note_legato overlap maybe_detach dyn =<< Sub.sub_events args
+        note_slur overlap maybe_detach dyn =<< Sub.sub_events args
 
-note_legato :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
+note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
     -> Derive.NoteDeriver
-note_legato overlap maybe_detach dyn = Sub.derive . concatMap apply
+note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
     where
     apply = Seq.map_init (fmap (set_sustain overlap))
         . apply_dyn dyn . maybe id apply_detach maybe_detach
+
+lily_slur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
+lily_slur direction =
+    Ly.notes_around_ly (Ly.SuffixFirst, prefix <> "(") (Ly.SuffixLast, ")")
+    where
+    prefix = case direction of
+        Nothing -> ""
+        Just Call.Up -> "^"
+        Just Call.Down -> "_"
 
 {- NOTE [legato]
     Previously, it would set @+legato@, and the default note deriver would
@@ -143,26 +155,11 @@ note_legato overlap maybe_detach dyn = Sub.derive . concatMap apply
     and delegating note overlap to the note didn't make so much sense.
 -}
 
-c_ly_slur :: Derive.Generator Derive.Note
-c_ly_slur = Derive.generator Module.ly "ly-slur" Tags.subs
-    "Add a lilypond slur." $ Sig.call0 $
-        Ly.notes_around_ly (Ly.SuffixFirst, "(") (Ly.SuffixLast, ")")
-
-c_ly_slur_up :: Derive.Generator Derive.Note
-c_ly_slur_up = Derive.generator Module.ly "ly-slur-up" Tags.subs
-    "Add a lilypond slur, forced to be above." $ Sig.call0 $
-        Ly.notes_around_ly (Ly.SuffixFirst, "^(") (Ly.SuffixLast, ")")
-
-c_ly_slur_down :: Derive.Generator Derive.Note
-c_ly_slur_down = Derive.generator Module.ly "ly-slur-down" Tags.subs
-    "Add a lilypond slur, forced to be below." $ Sig.call0 $
-        Ly.notes_around_ly (Ly.SuffixFirst, "_(") (Ly.SuffixLast, ")")
-
 -- | This is not in 'note_calls', instruments that support this are expected to
 -- override @(@ with it.
-c_attr_legato :: Derive.Generator Derive.Note
-c_attr_legato = Derive.generator Module.instrument "legato"
-    (Tags.attr <> Tags.subs)
+c_attr_slur :: Derive.Generator Derive.Note
+c_attr_slur = Derive.generator Module.instrument "legato"
+    (Tags.attr <> Tags.subs <> Tags.ly)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
     \ transition samples."
@@ -171,9 +168,9 @@ c_attr_legato = Derive.generator Module.instrument "legato"
         \ amount. This is to avoid triggering legato from the previous note."
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
-    ) $ \(detach, dyn) ->
-        Call.add_attributes Attrs.legato . note_legato 0.02 detach dyn
-            <=< Sub.sub_events
+    ) $ \(detach, dyn) args -> Ly.when_lilypond (lily_slur Nothing args) $
+        Call.add_attributes Attrs.legato . note_slur 0.02 detach dyn
+            =<< Sub.sub_events args
 
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
 apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))

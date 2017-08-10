@@ -13,7 +13,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Global
 
 
-test_legato = do
+test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract = DeriveTest.e_note
     let (evts, logs) = run $ (">", [(1, 3, "( .5 .5")]) : UiTest.regular_notes 5
@@ -24,11 +24,11 @@ test_legato = do
         , (4, 1, "3g")
         ]
 
-test_attr_legato = do
+test_attr_slur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup
                 (with_call <> DeriveTest.with_linear) ""
-        with_call = CallTest.with_note_generator "(" Articulation.c_attr_legato
+        with_call = CallTest.with_note_generator "(" Articulation.c_attr_slur
         extract e = (s, d, p, a)
             where
             ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
@@ -39,7 +39,7 @@ test_attr_legato = do
         , (2, 1, "3e", "+")
         ]
 
-test_legato_ly = do
+test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         (Right "c4 d4( e4) f4", [])

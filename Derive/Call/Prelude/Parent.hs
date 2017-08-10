@@ -107,12 +107,11 @@ tuplet_note_end = Seq.maximum . mapMaybe last_end
 lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
 lily_tuplet args not_lily = Ly.when_lilypond_config lily not_lily
     where
-    lily config = either err return =<< Except.runExceptT . check config
+    lily config = either err return =<< Except.runExceptT . to_lily config
         =<< Sub.sub_events args
-    check config track_notes = do
+    to_lily config track_notes = do
         track_notes <- case filter (not . null) track_notes of
             [] -> Except.throwError "no sub events"
-            [[]] -> Except.throwError "no sub events"
             notes -> return notes
         -- While usually tuplets speed up their notes, duplets in compound
         -- meter conventionally slow them down.  Don't ask me why, I don't make
@@ -233,9 +232,8 @@ c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
     \ same number of events. This interpolates rhythm only. To interpolate\
     \ pitch and controls, it would need to work at the score event level,\
     \ rather than ui events."
-    $ Sig.call (
-        Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
-    ) $ \at args -> do
+    $ Sig.call (Sig.defaulted "at" (Sig.control "at" 0) "interpolate position")
+    $ \at args -> do
         at <- Call.to_function at
         tracks <- filter (not . null) <$> Sub.sub_events args
         unless (all_equal (map length tracks)) $

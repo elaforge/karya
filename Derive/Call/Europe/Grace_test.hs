@@ -80,10 +80,10 @@ test_grace = do
     equal (run_n $ place_tracks "%place = .5 | g (4b)")
         ([(1.5, 1, "4b"), (2.5, 1.5, "4c")], [])
 
-    -- Ensure grace works with attr legato.
+    -- Ensure grace works with attr slur.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_setup setup "import europe"
-        setup = CallTest.with_note_generator "(" Articulation.c_attr_legato
+        setup = CallTest.with_note_generator "(" Articulation.c_attr_slur
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 

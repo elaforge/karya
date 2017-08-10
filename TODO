@@ -990,6 +990,19 @@ integrate / integration:
 lilypond:
   * make if-ly and similar take Quoteds instead of strings.
   - I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
+  - Also there's a spurious ( at
+    viola-sonata/vla2 viola-sonata/b2.t41 251.5-252; 63
+    . I think it's getting distributed over from the other voice.
+		. Showed up after
+      patch 8a94f961f21a22132b933269d721057a4917ffb6
+      Author: qdunkan@gmail.com
+      Date:   Sat Aug  5 12:10:49 PDT 2017
+        * lilypond: mark lilypond code events with Flags.ly_code
+        This is more explicit than checking if it has any of the magic env
+        vars, and easier to maintain when I add new ones.
+    . This patch changed the Ly.add_code stuff to e.g. always append instead
+      of replace, so that might be related.
+
   - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
@@ -1004,19 +1017,27 @@ lilypond:
       . This is due to modal articulations not working with tuplets.
     . Lilypond.Process.modal_articulations don't work for Process.simple_convert
       because it doesn't have access to the previous attrs.
-      . simple_convert is a grody hack, but if I can't think of a better way to
-        do it, I could add modal_attributes as a postproc.
-      . But I've already put ly code in a string, so I can't get the notes back
-        out.
-      . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
-        can't attach any notation unless I put it directly on the note, e.g.
-        dynamics.
-      . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
-      . What would be a way to implement nested notation like \time without
-        Lily.eval_events?
-      . How about I emit a "group" event, which has a magic tag that says
-        the next N events marked with my tag belong to me.  Then lilypond will
-        gather them and put them in {}s after it.
+    . simple_convert is a grody hack, but if I can't think of a better way to
+      do it, I could add modal_attributes as a postproc.
+    . But I've already put ly code in a string, so I can't get the notes back
+      out.
+    . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
+      can't attach any notation unless I put it directly on the note, e.g.
+      dynamics.
+    . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
+    . What would be a way to implement nested notation like \time without
+      Lily.eval_events?
+    . How about I emit a "group" event, which has a magic tag that says
+      the next N events marked with my tag belong to me.  Then lilypond will
+      gather them and put them in {}s after it.
+    . Those next events may be a little ways off, due to Stream being sorted.
+      So maybe convert can notice and gather the groups.
+    . How to emit the group?  I can't split it according to the meter, and for
+      tuplets I don't want to anyway.  I think the best I can do is 
+    . What kinds of nested things are there besides tuplets?  Repeats?
+    . Remember the main goal is to get modal_attributes and slurs to work on
+      tuplets.
+      . Why doesn't slur work in tuplets, and what would fix it?
   squart/6:
     - put accidentals on the trills
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental

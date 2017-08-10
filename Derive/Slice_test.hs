@@ -16,14 +16,13 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 
 import qualified Perform.Lilypond.Constants as Constants
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Global
 import Types
 
@@ -232,13 +231,12 @@ extract_notes f = map $ map $ \(s, e, t) -> (s, e, map (fmap f) t)
 
 test_slur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup (with <> DeriveTest.with_linear) ""
+            . LilypondTest.derive_tracks_linear
         extract e =
             ( DeriveTest.e_note e
             , DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`) e
             , ShowVal.show_val (Score.event_attributes e)
             )
-        with = CallTest.with_note_generator "(" Articulation.c_ly_slur
     -- Yeah, a slur test should probably go in Attribute_test, but I'm also
     -- testing that the slicing mechanic interacts with calls how I expect it
     -- to.
