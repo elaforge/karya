@@ -234,7 +234,7 @@ test_slur = do
             . LilypondTest.derive_tracks_linear
         extract e =
             ( DeriveTest.e_note e
-            , DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`) e
+            , LilypondTest.e_ly_env e
             , ShowVal.show_val (Score.event_attributes e)
             )
     -- Yeah, a slur test should probably go in Attribute_test, but I'm also

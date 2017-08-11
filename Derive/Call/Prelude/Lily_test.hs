@@ -250,7 +250,7 @@ test_attach_and_emit = do
             . LilypondTest.derive_tracks_linear
         extract e =
             ( DeriveTest.e_note e
-            , DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`) e
+            , LilypondTest.e_ly_env e
             , Score.event_flags e
             )
     let run_ly = LilypondTest.measures ["a", "b"]
