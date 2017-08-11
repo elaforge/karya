@@ -354,13 +354,23 @@ instance ToVal Double where to_val = VNum . Score.untyped
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
 
 instance Typecheck Int where
-    from_val = num_to_scalar (check . Score.typed_val)
-        where
-        check a = if frac == 0 then Just int else Nothing
-            where (int, frac) = properFraction a
+    from_val = from_integral_val
     to_type = num_to_type
+
+instance Typecheck Integer where
+    from_val = from_integral_val
+    to_type = num_to_type
+
+from_integral_val :: Integral a => Val -> Checked a
+from_integral_val = num_to_scalar (check . Score.typed_val)
+    where
+    check a = if frac == 0 then Just int else Nothing
+        where (int, frac) = properFraction a
+
 instance ToVal Int where to_val = VNum . Score.untyped . fromIntegral
+instance ToVal Integer where to_val = VNum . Score.untyped . fromIntegral
 instance TypecheckNum Int where num_type _ = ValType.TInt
+instance TypecheckNum Integer where num_type _ = ValType.TInt
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
