@@ -29,7 +29,7 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types (Time(..), Duration(..), NoteDuration(..))
+import Perform.Lilypond.Types (Time, Duration(..), NoteDuration(..))
 import Global
 
 
@@ -40,19 +40,29 @@ data Meter = Meter {
     , meter_ranks :: !Ranks
     } deriving (Eq, Show)
 
+-- | Meter rank, indexed by 128th note.
+type Ranks = Vector.Vector Rank
+type Rank = Int
+
 time_num :: Meter -> Int
 time_num = sum . meter_nums
 
 rank_at :: Meter -> Time -> Int
-rank_at meter t = v ! (fromIntegral t `mod` Vector.length v)
+rank_at meter t = v ! (time_index t `mod` Vector.length v)
     where v = meter_ranks meter
+
+time_index :: Time -> Int
+time_index = fromIntegral
+
+index_time :: Int -> Time
+index_time = fromIntegral
 
 -- | Find the time of the rank <= the given one.  Rank 0 can never be spanned,
 -- so always stop at a rank 0.
 find_rank :: Time -> Rank -> Meter -> Maybe Time
-find_rank start rank = fmap ((+ (start + 1)) . Time)
+find_rank start rank = fmap ((+ (start + 1)) . index_time)
     . Vector.findIndex (<= max 0 rank)
-    . Vector.drop (fromIntegral start + 1) . meter_ranks
+    . Vector.drop (time_index start + 1) . meter_ranks
 
 instance Pretty Meter where pretty = Types.to_lily
 instance Types.ToLily Meter where
@@ -67,7 +77,7 @@ is_duple meter = case meter_nums meter of
 -- | Duration of a measure, in Time.
 measure_time :: Meter -> Time
 measure_time meter =
-    Time (time_num meter) * Types.dur_to_time (meter_denom meter)
+    fromIntegral (time_num meter) * Types.dur_to_time (meter_denom meter)
 
 unparse_meter :: Meter -> Text
 unparse_meter meter = Text.intercalate "+" (map showt (meter_nums meter))
@@ -114,8 +124,6 @@ p_meter :: Parse.Parser () ([Int], Int)
 p_meter = (,) <$> Parsec.sepBy1 Parse.p_positive (Parsec.char '+')
     <*> (Parsec.char '/' *> Parse.p_positive)
 
-type Rank = Int
-type Ranks = Vector.Vector Rank
 
 make_meter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
 make_meter nums denom meters = Meter nums denom <$> vector
@@ -126,7 +134,9 @@ make_meter nums denom meters = Meter nums denom <$> vector
         | otherwise = Right $ to_vector $ subdivides (replicate exp 2) meters
     (exp, frac) = properFraction $
         logBase 2 (fromIntegral expected / fromIntegral ranks)
-    expected = sum nums * fromIntegral (Types.dur_to_time denom)
+    -- expected = sum nums * fromIntegral (Types.dur_to_time denom)
+    -- TODO sure?
+    expected = sum nums * time_index (Types.dur_to_time denom)
     ranks = sum $ map abstract_length meters
     to_vector = Vector.fromList . map fst . Meter.make_meter 1
 

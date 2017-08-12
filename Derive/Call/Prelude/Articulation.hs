@@ -96,7 +96,7 @@ make_lookup_attr call =
     doc = Derive.extract_doc $ fst $
         Make.attributed_note Module.prelude (Attrs.attr "example-attr")
 
--- * legato
+-- * slur
 
 -- | I'm not really sure how fancy calls should be.  On one hand, high level
 -- calls should get a nice result automatically.  On the other hand, they're

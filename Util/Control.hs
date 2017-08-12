@@ -102,3 +102,7 @@ tryJust err = maybe (Except.throwError err) return
 -- | I usually call this @require_right@.
 tryRight :: Except.MonadError e m => Either e a -> m a
 tryRight = either Except.throwError return
+
+rethrow :: Except.MonadError e m => (e -> e) -> m a -> m a
+rethrow modify action = action `Except.catchError` \e ->
+    Except.throwError (modify e)

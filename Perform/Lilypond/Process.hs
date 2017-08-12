@@ -16,24 +16,30 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
+import qualified Util.Control as Control
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Stack as Stack
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types
-       (Event(..), event_end, event_attributes, ToLily, to_lily, Time(..))
+       (Event(..), event_end, event_attributes, ToLily, to_lily, Time)
 import qualified Perform.Pitch as Pitch
 
 import Global
+import Types
 
 
 -- | Automatically add lilypond code for certain attributes.
@@ -86,12 +92,14 @@ convert_to_rests = hush . filter wanted . concatMap flatten
 
 -- * process
 
-run_process :: Monad m => m [b] -> ([a] -> m ([b], [a])) -> [a] -> m [b]
-run_process complete f = go
+run_process :: Monad m => m [b] -- ^ run at the end to emit final bits
+    -> ([a] -> m ([b], [a])) -- ^ return results and the next input
+    -> [a] -> m [b]
+run_process complete chunk = go
     where
     go xs = do
-        (ys, remaining) <- f xs
-        if null remaining then liftM (ys++) complete else do
+        (ys, remaining) <- chunk xs
+        if null remaining then (ys++) <$> complete else do
             remaining_ys <- go remaining
             return $ ys ++ remaining_ys
 
@@ -118,7 +126,7 @@ convert = run_process trailing_rests go
     go [] = return ([], [])
     go events = do
         (voices, events) <- convert_voices events
-        (lys, remaining) <- convert_chunk events
+        (lys, remaining) <- convert_chunk True events
         return (voices ++ map Right lys, remaining)
     trailing_rests = do
         meters <- State.gets state_meters
@@ -142,25 +150,44 @@ simple_convert config meter = go
         where
         leading_rests = map LyRest $
             make_rests config meter start (event_start event)
-        (lys, end, _, rest_events) = make_lys 0 Nothing meter (event :| events)
+        (lys, end, _, rest_events) =
+            make_lys 0 Nothing (Just meter) (event :| events)
 
 convert_voice :: Time -> [Event] -> ConvertM [Ly]
-convert_voice end = run_process (rests_until end) convert_chunk
+convert_voice end = run_process (rests_until end) (convert_chunk True)
 
--- ** convert chunk
+-- | Convert Events to Ly, but never split notes or rests based on meter.
+-- Chords of course can force ties.
+convert_unmetered :: Time -> [Event] -> ConvertM [Ly]
+convert_unmetered end =
+    run_process (unmetered_rests_until end) (convert_chunk False)
 
-convert_chunk :: [Event] -> ConvertM ([Ly], [Event])
-convert_chunk events = error_context current $ case zero_dur_in_rest events of
-    ([], []) -> return ([], [])
-    (zeros@(event:_), []) -> do
-        mapM_ update_subdivision zeros
-        return (mix_in_code (event_start event) zeros [], [])
-    (zeros, event : events) -> do
-        mapM_ update_subdivision zeros
-        start <- State.gets state_time
-        rests <- mix_in_code start zeros <$> rests_until (event_start event)
-        (lys, remaining) <- convert_chord (event :| events)
-        return (rests <> lys, remaining)
+-- ** convert_chunk
+
+-- | Convert the rests for the first event, and a single slice of time.
+-- If notes had to be split and tied, they are put back into the remaining
+-- events.
+convert_chunk :: Bool -> [Event] -> ConvertM ([Ly], [Event])
+convert_chunk metered events = error_context current $
+    case zero_dur_in_rest events of
+        ([], []) -> return ([], [])
+        (zeros@(event:_), []) -> do
+            mapM_ update_subdivision zeros
+            return (mix_in_code (event_start event) zeros [], [])
+        (zeros, event : events) -> do
+            mapM_ update_subdivision zeros
+            start <- State.gets state_time
+            rests <- mix_in_code start zeros <$> rests_until (event_start event)
+            -- Debug.tracepM "convert_chunk" (metered, zeros, event)
+            (lys, remaining) <-
+                case Constants.get_tuplet (event_environ event) of
+                    Just (score_dur, real_dur) -> do
+                        score_dur <- real_to_time score_dur
+                        real_dur <- real_to_time real_dur
+                        convert_tuplet (event_start event) score_dur real_dur
+                            events
+                    Nothing -> convert_chord metered (event :| events)
+            return (rests <> lys, remaining)
     where current = maybe "no more events" pretty (Seq.head events)
 
 -- | Code events are mixed into the Lys, depending on their prepend or append
@@ -208,40 +235,220 @@ partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
     where
     prepend = filter (not . Text.null) $
-        map (get Constants.v_ly_prepend) events
+        map (fromMaybe "" . get_val Constants.v_ly_prepend) events
     append = filter (not . Text.null) $
-        map (get Constants.v_ly_append_all) events
-    get :: Env.Key -> Event -> Text
-    get v = fromMaybe "" . Env.maybe_val v . event_environ
+        map (fromMaybe "" . get_val Constants.v_ly_append_all) events
+
+get_val :: Typecheck.Typecheck a => Env.Key -> Event -> Maybe a
+get_val v = Env.maybe_val v . event_environ
 
 -- | Partition events which have zero dur and don't coincide with the next
 -- non-zero dur event.
 zero_dur_in_rest :: [Event] -> ([Event], [Event])
-zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
+zero_dur_in_rest events = span (\e -> zero_dur_non_tuplet e && in_rest e) events
     where
-    next_note = Seq.head (filter (not . zero_dur) events)
+    next_note = Seq.head (filter (not . zero_dur_non_tuplet) events)
     in_rest e = maybe True ((> event_start e) . event_start) next_note
+    -- Ack, except tuplet events are zero dur but are not code events,
+    -- they are interpreted by 'convert_tuplet'.
+    zero_dur_non_tuplet e = zero_dur e
+        && Constants.get_tuplet (event_environ e) == Nothing
 
 zero_dur :: Event -> Bool
 zero_dur = (==0) . event_duration
 
+-- ** convert_tuplet
+
+-- | Collect the notes inside the duration, run a special 'convert_chunk' on
+-- them where the meter is ok with any duration, then wrap that in \tuplet,
+-- and increment time by duration * 3/2.
+convert_tuplet :: Time
+    -> Time -- ^ score duration of notes of the tuplet
+    -> Time
+    -> [Event] -- ^ extract the overlapped events and render in the tuplet
+    -> ConvertM ([Ly], [Event])
+convert_tuplet start score_dur real_dur events = do
+    let (in_tuplet, out) = span ((< start + score_dur) . event_start) events
+    old <- State.get
+
+    -- The usual convention for tuplets is that the notes have longer values
+    -- but are shortened to fit, e.g. 3/8 into the time of 2/8.  But duplets
+    -- are the opposite, they are shorter and are made longer, e.g. 2/8 in the
+    -- time of 3/8.  Don't ask me why, that's just the convention.  I always
+    -- get shorter notes so they fit under the parent tuplet event, so for
+    -- triplet 1/8s, I get score_dur = 3/16, real_dur = 2/8, then double to
+    -- score_dur = 3/8s.
+    let is_duplet = Ratio.numerator (Types.to_whole score_dur) == 1
+    let factor = if is_duplet then 1 else 2
+    score_dur <- return $ if is_duplet then score_dur else score_dur * 2
+    when (real_dur <= 0) $
+        throw $ "tuplet with a real_dur of 0: "
+            <> pretty (start, score_dur, real_dur)
+    let divisor = realToFrac score_dur / realToFrac real_dur :: Rational
+    -- This probably means the notes have been stretched or something and
+    -- aren't on simple divisions.
+    when (Ratio.numerator divisor > 15 || Ratio.denominator divisor > 15) $
+        throw $ "tuplet factor is too complicated: " <> showt score_dur
+            <> "/" <> showt real_dur
+
+    -- Debug.tracepM "duplet, divisor" (is_duplet, divisor)
+    -- Debug.tracepM "start, score, real" (start, score_dur, real_dur)
+    -- Debug.tracepM "in, out" (map (stretch factor start) in_tuplet, out)
+    lys <- convert_unmetered (start + score_dur)
+        (map (stretch factor start) in_tuplet)
+
+    -- If the tuplet went to the end of the bar, it will include a barline,
+    -- but since I'm about to rewind and advance again, I can drop it.
+    -- Don't need it since I use advance_unmetered.
+    -- lys <- return $ filter (not . is_barline) lys
+
+    -- Rewind time back to before the tuplet.
+    State.modify' $ \state -> state
+        { state_time = state_time old
+        , state_meters = state_meters old
+        , state_measure_start = state_measure_start old
+        , state_measure_end = state_measure_end old
+        }
+    -- Debug.tracepM "advance tuplet" (state_time old, start, real_dur)
+    barline <- Control.rethrow ("converting tuplet: "<>) $
+        advance_measure (start + real_dur)
+    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
+            <> showt (Ratio.denominator divisor) <> " {"
+    return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
+
+{-
+convert_tuplet score_dur_t start real_dur events = do
+    score_dur <- real_to_time score_dur_t
+    Debug.tracepM "start, score, real" (start, score_dur, real_dur)
+    let (in_tuplet, out) = span ((< start + score_dur) . event_start) events
+    old <- State.get
+    let divisor = realToFrac score_dur / (realToFrac real_dur / 2)
+    -- This probably means the notes have been stretch or something and aren't
+    -- on simple divisions.
+    when (Ratio.numerator divisor > 15 || Ratio.denominator divisor > 15) $
+        throw $ "tuplet factor is too complicated: " <> showt score_dur
+            <> "/" <> showt real_dur
+
+    real_dur <- multiply (1 / divisor) score_dur
+    Debug.tracepM "start, score, real" (start, score_dur, real_dur)
+    Debug.tracepM "in, out" (map (stretch 2 start) in_tuplet, out)
+    lys <- convert_unmetered (start + score_dur) (map (stretch 2 start) in_tuplet)
+    -- lys <- tryRight $ check_no_barlines lys
+    lys <- return $ filter (not . is_barline) lys
+    -- Rewind time back to before the tuplet.
+    State.modify' $ \state -> state
+        { state_time = state_time old
+        , state_meters = state_meters old
+        , state_measure_start = state_measure_start old
+        , state_measure_end = state_measure_end old
+        }
+    barline <- Control.rethrow ("converting tuplet: "<>) $
+        advance_measure (start + real_dur*2)
+    Debug.traceM "advanced tuplet" (start + real_dur*2, barline)
+    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
+            <> showt (Ratio.denominator divisor) <> " {"
+    return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
+-}
+
+real_to_time :: RealTime -> ConvertM Time
+real_to_time t = do
+    quarter <- State.gets $ Types.config_quarter_duration . state_config
+    return $ Types.real_to_time quarter t
+
+stretch :: Int -> Time -> Event -> Event
+stretch factor start event
+    | factor == 1 = event
+    | otherwise = event
+        { event_start =
+            fromIntegral factor * (event_start event - start) + start
+        , event_duration = fromIntegral factor * event_duration event
+        }
+
+-- -- Note speed is multiplied by this.  So to fit 3 duration into 2 duration,
+-- -- speed increases by 3/2.
+-- let factor = realToFrac note_dur / realToFrac tuplet_dur
+-- let n, d :: Integer
+--     (n, d) = (Ratio.numerator factor, Ratio.denominator factor)
+-- when (n > 15 || d > 15) $
+--     Left $ "tuplet factor is too complicated: " <> showt tuplet_dur
+--         <> "/" <> showt note_dur
+-- return $ "\\tuplet " <> showt n <> "/" <> showt d
+
+-- | Collect the notes inside the duration, run a special 'convert_chunk' on
+-- them where the meter is ok with any duration, then wrap that in \tuplet,
+-- and increment time by duration*3/2.
+convert_tuplet0 :: Rational -- ^ e.g. 3/2 for 3 in the time of 2
+    -> Time -> Time -- ^ score duration of notes of the tuplet, pre divisor
+    -> [Event] -- ^ extract the overlapped events and render in the tuplet
+    -> ConvertM ([Ly], [Event])
+convert_tuplet0 divisor start score_dur events = do
+    let (in_tuplet, out) = span ((< start + score_dur) . event_start) events
+    -- let (in_tuplet, out) = (events, [])
+    old <- State.get
+    real_dur <- multiply (1 / divisor) score_dur
+    -- Debug.tracepM "start, score, real" (start, score_dur, real_dur)
+    -- Debug.tracepM "in, out" (in_tuplet, out)
+    lys <- convert_unmetered (start + score_dur) in_tuplet
+    -- lys <- tryRight $ check_no_barlines lys
+    lys <- return $ filter (not . is_barline) lys
+    -- Rewind time back to before the tuplet.
+    State.modify' $ \state -> state
+        { state_time = state_time old
+        , state_meters = state_meters old
+        , state_measure_start = state_measure_start old
+        , state_measure_end = state_measure_end old
+        }
+    barline <- Control.rethrow ("converting tuplet: "<>) $
+        advance_measure (start + real_dur)
+    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
+            <> showt (Ratio.denominator divisor) <> " {"
+    return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
+
+multiply :: Rational -> Time -> ConvertM Time
+multiply factor time = tryJust
+    ("time " <> pretty time <> " can't be multiplied by " <> pretty factor)
+    (Types.multiply factor time)
+
+is_barline :: Ly -> Bool
+is_barline (Barline {}) = True
+is_barline _ = False
+
+-- check_no_barlines :: [Ly] -> Either Text [Ly]
+-- check_no_barlines = check . rdrop_if is_barline
+--     where
+--     check lys
+--         | any is_barline lys = Left $ "tuplet went past a barline: "
+--             <> Text.unwords (map to_lily lys)
+--         | otherwise = Right lys
+-- rdrop_if :: (a -> Bool) -> [a] -> [a]
+-- rdrop_if f xs = case reverse xs of
+--     x : xs | f x -> reverse xs
+--     _ -> xs
+
 -- ** convert_chord
 
 -- | This is the lowest level of conversion.  It converts a vertical slice of
--- notes.
-convert_chord :: NonEmpty Event -> ConvertM ([Ly], [Event])
-convert_chord events = do
+-- notes starting at the first event, and returns the rest.
+convert_chord :: Bool -> NonEmpty Event -> ConvertM ([Ly], [Event])
+convert_chord metered events = do
     key <- lookup_key (NonEmpty.head events)
     state <- State.get
     let key_change = [Code (to_lily key) | key /= state_key state]
     mapM_ update_subdivision $
         takeWhile ((== event_start (NonEmpty.head events)) . event_start) $
         NonEmpty.toList events
-    meter <- get_subdivision
+    meter <- if metered then Just <$> get_subdivision else return Nothing
     let (chord_notes, end, last_attrs, remaining) = make_lys
             (state_measure_start state) (Just (state_prev_attrs state))
             meter events
-    barline <- advance_measure end
+    barline <- if metered then advance_measure end
+        else advance_unmetered end >> return Nothing
+
+    -- Lilypond will throw a barcheck error and produce broken score, and
+    -- 'convert_tuplet' rewinds I'll get an extra barline, so disallow this.
+    -- unless metered $ whenJust barline $ const $
+    --     throw $ "An unmetered note went past a barline. This probably means\
+    --         \ a tuplet tried to go over a barline: " <> pretty end
     State.modify' $ \state -> state
         { state_key = key
         , state_prev_attrs = last_attrs
@@ -249,17 +456,16 @@ convert_chord events = do
     return (key_change <> chord_notes <> maybe [] (:[]) barline, remaining)
 
 update_subdivision :: Event -> ConvertM ()
-update_subdivision event =
-    case Env.maybe_val Constants.v_subdivision (event_environ event) of
-        Nothing -> return ()
-        Just "" -> State.modify' $ \state ->
-            state { state_subdivision = Nothing }
-        Just m -> do
-            meter <- tryRight $ first
-                (("can't parse meter in " <> pretty Constants.v_subdivision
-                    <> ": " <> showt m <> ": ")<>)
-                (Meter.parse_meter m)
-            State.modify' $ \state -> state { state_subdivision = Just meter }
+update_subdivision event = case get_val Constants.v_subdivision event of
+    Nothing -> return ()
+    Just "" -> State.modify' $ \state ->
+        state { state_subdivision = Nothing }
+    Just m -> do
+        meter <- tryRight $ first
+            (("can't parse meter in " <> pretty Constants.v_subdivision
+                <> ": " <> showt m <> ": ")<>)
+            (Meter.parse_meter m)
+        State.modify' $ \state -> state { state_subdivision = Just meter }
 
 -- | Convert a chunk of events all starting at the same time.  Events
 -- with 0 duration or null pitch are expected to have either
@@ -272,10 +478,10 @@ make_lys :: Time -> Maybe Attrs.Attributes
     -- modal_articulations if it's Nothing, which is used by 'simple_convert'.
     -- TODO it's likely to be confusing that they don't work, maybe I can
     -- do a postproc run for modal_articulations?
-    -> Meter.Meter -> NonEmpty Event
+    -> Maybe Meter.Meter -> NonEmpty Event
     -> ([Ly], Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, last attrs, remaining events)
-make_lys measure_start prev_attrs meter events =
+make_lys measure_start prev_attrs maybe_meter events =
     (notes, end, last_attrs, clipped ++ remaining)
     where
     -- As with rests, figuring out which notes to put the code events on is
@@ -296,7 +502,7 @@ make_lys measure_start prev_attrs meter events =
             where
             next = event_start <$> List.find (not . zero_dur) after
             (n, end, next_attrs, clipped) =
-                make_note measure_start prev_attrs meter chord next
+                make_note measure_start prev_attrs maybe_meter chord next
 
     -- Now that I know the duration of the Ly (if any) I can get the zero-dur
     -- code events it overlaps.
@@ -307,11 +513,12 @@ make_lys measure_start prev_attrs meter events =
     notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
 make_note :: Time -> Maybe Attrs.Attributes
-    -> Meter.Meter -> NonEmpty Event -- ^ Events that occur at the same time.
+    -> Maybe Meter.Meter
+    -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, clipped)
-make_note measure_start prev_attrs meter events next =
+make_note measure_start prev_attrs maybe_meter events next =
     (ly, end, next_attrs, clipped)
     where
     ly = case NonEmpty.nonEmpty pitches of
@@ -334,9 +541,7 @@ make_note measure_start prev_attrs meter events next =
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList events)))
     get_pitch event = event_pitch event
-        <> if is_first event then append_pitch event else ""
-    append_pitch = fromMaybe ""
-        . Env.maybe_val Constants.v_ly_append_pitch . event_environ
+        <> if is_first event then get Constants.v_ly_append_pitch event else ""
 
     prepend event =
         if is_first event then get Constants.v_ly_prepend event else ""
@@ -345,7 +550,7 @@ make_note measure_start prev_attrs meter events next =
         , if is_last then get Constants.v_ly_append_last event else ""
         , get Constants.v_ly_append_all event
         ]
-    get val = fromMaybe "" . Env.maybe_val val . event_environ
+    get key = fromMaybe "" . get_val key
 
     note_tie event
         | event_end event <= end = NoTie
@@ -360,8 +565,13 @@ make_note measure_start prev_attrs meter events next =
     is_tied NoTie = False
     is_tied _ = True
 
-    allowed = min (max_end - start) $
-        Meter.allowed_time_best True meter (start - measure_start)
+    allowed = case maybe_meter of
+        Nothing -> max_end - start
+        Just meter -> min (max_end - start) $
+            Meter.allowed_time_best True meter (start - measure_start)
+
+    -- allowed = min (max_end - start) $
+    --     Meter.allowed_time_best True meter (start - measure_start)
     allowed_dur = Types.time_to_note_dur allowed
     allowed_time = Types.note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -520,10 +730,10 @@ rests_until :: Time -> ConvertM [Ly]
 rests_until end = do
     now <- State.gets state_time
     if now >= end then return [] else do
-    measure_end <- State.gets state_measure_end
-    rests <- create_rests (min end measure_end)
-    remaining <- rests_until end
-    return $ rests <> remaining
+        measure_end <- State.gets state_measure_end
+        rests <- create_rests (min end measure_end)
+        remaining <- rests_until end
+        return $ rests <> remaining
     where
     create_rests end = do
         state <- State.get
@@ -534,8 +744,16 @@ rests_until end = do
                 (end - state_measure_start state)
         return $ map LyRest rests <> maybe [] (:[]) barline
 
+unmetered_rests_until :: Time -> ConvertM [Ly]
+unmetered_rests_until end = do
+    now <- State.gets state_time
+    if now >= end then return [] else do
+        let durs = Types.time_to_note_durs (end - now)
+        return $ map (LyRest . make_rest NormalRest) durs
+
 -- | Advance now to the given time, up to and including the end of the measure,
--- but no further.  Return Ly with a Barline if this is a new measure.
+-- but it's an error to try to go past.  Return Ly with a Barline if this is
+-- a new measure.
 --
 -- If I wanted to emit Barlines automatically I'd have to collect the output
 -- [Ly] in the State, which I'd then need to parameterize since it can be
@@ -546,6 +764,7 @@ advance_measure time = advance =<< State.get
     advance state
         | time < state_time state =
             throw $ "can't advance time backward: " <> pretty time
+                <> " < " <> pretty (state_time state)
         | time < state_measure_end state = do
             State.put $ state { state_time = time }
             return Nothing
@@ -570,6 +789,16 @@ advance_measure time = advance =<< State.get
                 | to_lily prev_meter == to_lily meter -> Just (Barline Nothing)
                 | otherwise -> Just (Barline (Just meter))
             _ -> Nothing
+
+-- | Advance time without regard to meter or barlines.
+advance_unmetered :: Time -> ConvertM ()
+advance_unmetered time = advance =<< State.get
+    where
+    advance state
+        | time < state_time state =
+            throw $ "can't advance unmetered time backward: " <> pretty time
+                <> " < " <> pretty (state_time state)
+        | otherwise = State.put $ state { state_time = time }
 
 -- | Get the current subdivision and check it against the meter.  This is a way
 -- to override the meter for the purposes of how durations are spelled.
@@ -760,7 +989,7 @@ make_rests config meter start end
             (take 1 dur)
     | otherwise = map (make_rest NormalRest) dur
     where
-    full_measure = start `mod` measure == 0 && end - start >= measure
+    full_measure = start `Num.fmod` measure == 0 && end - start >= measure
     measure = Meter.measure_time meter
     dur = Meter.convert_duration meter (Types.config_dotted_rests config)
         start (end - start)

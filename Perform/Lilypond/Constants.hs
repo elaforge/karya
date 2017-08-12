@@ -4,12 +4,16 @@
 
 module Perform.Lilypond.Constants where
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Env as Env
 import qualified Derive.Score as Score
+import qualified Derive.Typecheck as Typecheck
+
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
 import Global
+import Types
 
 
 -- * ly-global instrument
@@ -30,6 +34,8 @@ ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
         \ instruments with global lilypond directives will get this instrument."
 
 -- * code fragments
+
+-- TODO get rid of the ly_ prefix, they all have it
 
 -- | String: prepend this lilypond code to the note.  If the event has
 -- 0 duration, its pitch will be ignored and it's a freestanding code fragment
@@ -67,6 +73,23 @@ v_ly_append_pitch = "ly-append-pitch"
 -- tied.
 v_ly_tie_direction :: BaseTypes.Key
 v_ly_tie_direction = "ly-tie-direction"
+
+-- * tuplet
+
+-- | Set the env vars that signals that the lilypond converter should make
+-- the following notes into a tuplet.
+set_tuplet :: RealTime -- ^ score_dur is the visible duration in the score
+    -> RealTime -- ^ real_dur is the duration it actually consumes, so
+    -- 3 quarters into 1 whole will be 3/4.
+    -> Env.Environ
+set_tuplet score_dur real_dur = Env.from_list
+    [ ("ly-tuplet-score-dur", Typecheck.to_val score_dur)
+    , ("ly-tuplet-real-dur", Typecheck.to_val real_dur)
+    ]
+
+get_tuplet :: Env.Environ -> Maybe (RealTime, RealTime)
+get_tuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
+    where get k = Env.maybe_val k env
 
 -- * ly-global
 

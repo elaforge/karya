@@ -43,11 +43,11 @@ note_calls = Make.call_maps
         (Ly.SetEnviron Constants.v_ly_append_pitch, "?"))
 
     , ("ly-(", attach0 "ly-begin-slur"
-        "Begin a slur. The normal slur transformer doesn't work in some cases,\
-        \ for instance inside tuplets." (Ly.SuffixFirst, "("))
+        "Separately mark a lilypond slur, when `(` isn't cutting it."
+        (Ly.SuffixFirst, "("))
     , ("ly-)", attach0 "ly-end-slur"
-        "End a slur. The normal slur transformer doesn't work in some cases,\
-        \ for instance inside tuplets." (Ly.SuffixLast, ")"))
+        "Separately mark a lilypond slur, when `(` isn't cutting it."
+        (Ly.SuffixLast, ")"))
     , ("ly-[", attach0 "ly-begin-beam"
         "Begin a beam. Override lilypond's automatic beaming."
         (Ly.SuffixFirst, "["))

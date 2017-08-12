@@ -14,6 +14,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Process (Voice(..))
 import qualified Perform.Lilypond.Types as Types
@@ -23,9 +24,7 @@ import Global
 
 
 test_rests_until = do
-    let f meters =
-            either (Left . untxt)
-                (Right . Text.unwords . map Types.to_lily . fst)
+    let f meters = second (Text.unwords . map Types.to_lily . fst)
             . Process.run_convert (LilypondTest.mkstate meters)
             . Process.rests_until . sum . map Types.dur_to_time
     equal (f ["4/4"] [D2]) (Right "r2")
@@ -251,3 +250,64 @@ test_attrs_to_code = do
     -- Even though staccato doesn't have +nv, I don't bother turning it off.
     equal (run [Attrs.nv, Attrs.staccato, mempty])
         (Right "a4^\"nv\" b4-. c4^\"vib\" r4")
+
+test_convert_tuplet = do
+    let run = second extract
+            . Process.process Types.default_config 0
+                (replicate 2 Meter.default_meter)
+        tuplet start score_dur real_dur =
+            (LilypondTest.simple_event (start, 0, ""))
+            { Types.event_environ = Constants.set_tuplet score_dur real_dur }
+        e = LilypondTest.simple_event
+        extract = Text.unwords . map Types.to_lily . strip_ly . map expect_right
+
+    equal (run $ tuplet 0 3 4 : map e [(0, 1, "c"), (1, 1, "d"), (2, 1, "e")])
+        (Right "\\tuplet 3/2 { c2 d2 e2 } | R4*4")
+
+    -- leading and trailing rests
+    equal (run [tuplet 0 3 4, e (1, 1, "d")])
+        (Right "\\tuplet 3/2 { r2 d2 r2 } | R4*4")
+
+    -- can't go past a barline
+    left_like (run [tuplet 3 3 4, e (3, 1, "c")]) "tuplet: * past barline"
+
+    -- Nested tuplets.
+    -- 0   .   1   .   2   .   3   .   4   .   |
+    -- 0   .   .25 .   .5  .   .75 .   1   .   |
+    -- t------------------------------>
+    -- c------>
+    --         t-------------->
+    --         d-->e-->f-->
+
+    -- TODO This is broken, because when I get to the inner tuplet, its notes
+    -- have been stretched * 2 so its score_dur doesn't encompass the child
+    -- notes any more.  I might be able to fix it by stretching
+    -- ly-tuplet-score-dur inside the outer tuplet's notes, but I'm going to
+    -- leave it be for now.  I've already spent too much time trying to figure
+    -- this out, and tracklang can't generate nested tuplets properly anyway,
+    -- as documented in Parent_test.test_tuplet_ly.
+    -- let nested =
+    --         [ tuplet 0 3 4, e (0, 1, "c")
+    --         , tuplet 1 1.5 2
+    --         , e (1, 0.5, "d"), e (1.5, 0.5, "e"), e (2, 0.5, "f")
+    --         ]
+    -- equal (run nested)
+    --     (Right "\\tuplet 3/2 { c2 \\tuplet 3/2 { d2 e2 f2 } } | R4*4")
+
+strip_ly :: [Process.Ly] -> [Process.Ly]
+strip_ly lys
+    | null post = pre
+    | otherwise = Seq.rdrop_while is_bar $ drop 1 post
+    where
+    (pre, post) = break is_major lys
+    is_major (Process.Code "\\key c \\major") = True
+    is_major _ = False
+    is_bar (Process.Code "\\bar \"|.\"") = True
+    is_bar _ = False
+
+
+-- | 1 bar of 4/4.
+make_state :: Types.Time -> Process.State
+make_state start =
+    Process.make_state Types.default_config start [Meter.default_meter]
+        Process.default_key

@@ -988,8 +988,9 @@ integrate / integration:
     - quantization
 
 lilypond:
-  - move c_slur from Articulation to Parent.  I looked for it first in Parent,
+  / move c_slur from Articulation to Parent.  I looked for it first in Parent,
     and in fact there's an extra test in Parent_test.
+    . Or not, it fits with the other length-changing things in Articulation.
   * make if-ly and similar take Quoteds instead of strings.
   * I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
 		. (49.5s, 0s, "")               {ly-append-all: '(', ly-prepend: '\stemUp'}
@@ -1055,7 +1056,7 @@ lilypond:
     similarly convenient.
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
-  - Make tuplet use the normal lilypond evaluation, instead of simple_convert.
+  * Make tuplet use the normal lilypond evaluation, instead of simple_convert.
     . tuplets are causing extra pizz markings, which will be confusing.
       . This is due to modal articulations not working with tuplets.
     . Lilypond.Process.modal_articulations don't work for Process.simple_convert
@@ -1076,11 +1077,98 @@ lilypond:
     . Those next events may be a little ways off, due to Stream being sorted.
       So maybe convert can notice and gather the groups.
     . How to emit the group?  I can't split it according to the meter, and for
-      tuplets I don't want to anyway.  I think the best I can do is 
+      tuplets I don't want to anyway.
     . What kinds of nested things are there besides tuplets?  Repeats?
     . Remember the main goal is to get modal_attributes and slurs to work on
       tuplets.
       . Why doesn't slur work in tuplets, and what would fix it?
+      . It's because ( wants to put ( and ) on the first and last notes, but
+        after 't' is done, there's just one note with '\tuplet { .. }' in it.
+      . To fix it I'd have to keep the notes as separate events, but the
+        problem is duration.  Really the duration is /3/2 or whatever but
+        I'd need the lilypond backend to understand that the notated dur is
+        *3/2, and that it's wrapped in \tuplet 3/2 { .. }.
+      . One way would be hardcoded support for tuplet, so make an event
+        with ly-tuplet = 3/2 and say a duration over the affected notes.  Then
+        it would either multiply duration of the notes, or they have notated
+        duration, but count them as the tuplet's dur.  E.g.:
+          [ (0, 3, tuplet 3/2), (0, 1, c), (1, 1, d), (2, 1, e)
+          , (2, 2, next note), ...
+          ]
+        Then Process.convert_chunk sees a tuplet event, collects the notes
+        inside the duration, and runs a special 'convert_chunk' on them where
+        the meter is ok with any duration, then wraps that in \tuplet, and
+        then increments time by duration*3/2.
+      . This is kind of like the groups, only hardcoded to tuplets.  In that
+        case, why not do a general group thing?  It would be some flag to
+        collect the overlapped notes, then... it gets tuplet specific because
+        the special treatment of duration is basically the definition of
+        tuplets.  So it seems hard to generalize.  If I someday have another
+        example of nested notation then I can see what can be shared.
+      . Nested tuplets don't work.  I think I have to have the tuplet have the
+        actual times, e.g.
+        [(0, 2, t 3/2), (0, 2/3, "a"), (2/3, 2/3, "b"), (4/3, 2/3, "c")]
+      . Then convert_tuplet multiples by 3/2 and they become 1, which is
+        the note duration.  Then convert to notation, and rewind time.
+        If there is another tuplet in there, it should recursively expand.
+      . I think this means that the duplet gets longer rule has to go in
+        Lilypond.Process though.
+      . The problem with 1/3 is that Time doesn't have the resolution to
+        express it.  I could make Time into Rational, and then do
+        a Ratio.approxRational in convert.
+      . Rational seems to be generally cleaner, except Types.config_quantize
+        is going to spoil triplets.  I could just remove that, or I could
+        make quantize into an abritrary fraction, and expect a 1/3 if there
+        are triplets in there.
+      . Why can't I pass integral like in the score, and let lilypond stretch
+        it?
+        . Nested tuplet:
+          . [ (0, 4, t), (1, 2, t)
+            , (0, 1, "a")
+            , (1, 0.5, "b"), (1.5, 0.5, "c"), (2, 0.5, "d")
+            ]
+          . Should be:
+            (0, 1/3, a), (1/3, 1/3, b), (2/3, 1/3, c)
+                         (1/3, 2/9, b), (5/9, 2/9, c), (7/9, 2/9, d)
+            (0s, .33s, "")   4s
+            (.33s, .22s, "") 4r
+            (.56s, .22s, "") 4g
+            (.78s, .22s, "") 4m
+          . Lilypond should see:
+            [ (0, 3, t 3/2)
+            , (0, 1, "a"), (1, 1.5, t 3/2)
+                         , (1, 0.5, "b"), (1.5, 0.5, "c"), (2, 0.5, "d")
+            ]
+      . Actually now I think maybe giving actual durations to lilyond and
+        using rationals is not right.  It might be hard to find a common
+        quantize duration in the presence of nested or complicated tuplets.
+        Also, the notation works with quantized durations, and if I write
+        those, and keep them that way, then there's no need to go through
+        a potentially lossy division then multiplication.
+      . Ok, so archive Rational Time.
+    . Ok, so let's try that:
+      * Archive the groups support, looks like I won't use that.
+      * First do Process implementation to make sure it works.
+        . Sort of, except the problem with nested tuplets.
+      * Modify ly tuplet to emit the overlapping stuff.
+        . If I use duration to get grouped events, I think this will get
+          messed up if there are multiple parts, not separated by voices.
+          Of course, the lilypond will get messed up by that anyway, so maybe
+          no big deal.  It may be confusing if the non-tuplet notes are
+          incorporated into the tuplet though.
+        . But if I revive the general group thing then I can also make
+          duration and sub-notes independent.  Of course I can already do that
+          simpler by adding yet another env var.
+        . Actually it totally does capture normal notes right after the
+          tuplet.  The problem is that Parent level makes the notes longer, so
+          now they overlap.  Why not leave them short and put the logic in
+          Lilypond?
+        . Nested tuplets STILL don't work.  It's because stretch also
+          stretches the tuplet event, which makes it advance over the barline.
+          But if it doesn't stretch it, then it doesn't cover the notes.  So
+          this is the same problem as before, with the same solution: don't
+          use the duration.  In fact, make it 0 dur, and put both durations in
+          the environ.
   squart/6:
     - put accidentals on the trills
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental

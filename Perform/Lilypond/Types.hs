@@ -236,6 +236,12 @@ real_to_time quarter = Time . floor . adjust . RealTime.to_seconds
     adjust n = n * (1 / RealTime.to_seconds quarter * qtime)
     qtime = fromIntegral (dur_to_time D4)
 
+multiply :: Rational -> Time -> Maybe Time
+multiply factor t
+    | frac == 0 = Just (Time i)
+    | otherwise = Nothing
+    where (i, frac) = properFraction (fromIntegral t * factor)
+
 -- * Event
 
 data Event = Event {

@@ -14,7 +14,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-
 import Global
 
 
@@ -78,25 +77,67 @@ test_tuplet_multiple_tracks = do
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
-    let run skel = LilypondTest.measures ["tuplet"]
-            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
-    equal (run [(1, 2), (2, 3)] $
-            (">", [(0, 4, "t")]) : UiTest.note_track1 ["3c", "3d", "3e"])
+    let run = LilypondTest.measures ["tuplet"]
+            . LilypondTest.derive_tracks_linear
+
+    equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track1 ["3c", "3d", "3e"])
         (Right "\\tuplet 3/2 { c2 d2 e2 }", [])
 
-    equal (run [(1, 2), (2, 3), (1, 4), (4, 5)] $
+    -- Leading rests.
+    -- TODO R4*4 breaks lilypond, fix
+    equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track [(2, 1, "3c")])
+        (Right "\\tuplet 3/2 { r2 r2 c2 }", [])
+
+    -- -- Trailing rests.
+    -- TODO I can't actually express this with the 't' call since I don't have
+    -- explicit rests.  I'd need it to specially recognize -- or something.
+    -- equal (run $ (">", [(0, 4, "t")])
+    --         : UiTest.note_track [(1, 1, "3c"), (2, 0, "--")])
+    --     (Right "\\tuplet 3/2 { r2 c2 r2 }", [])
+
+    let run_skel skel = LilypondTest.measures ["tuplet"]
+            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
+    equal (run_skel [(1, 2), (2, 3), (1, 4), (4, 5)] $
             (">", [(0, 4, "t")]) : concatMap UiTest.note_track
                 [ [(0, 1, "3c"), (1, 1, "3d"), (2, 1, "3e")]
                 , [(1, 1, "4d")]
                 ])
         (Right "\\tuplet 3/2 { c2 <d d'>2 e2 }", [])
+
     -- While triplets make the notes go faster, duplets make them go slower.
-    equal (run [(1, 2), (2, 3)] $
-            (">", [(0, 3, "t")]) : UiTest.note_track1 ["3c", "3d"])
+    equal (run  $ (">", [(0, 3, "t")]) : UiTest.note_track1 ["3c", "3d"])
         (Right "\\tuplet 2/3 { c4 d4 } r4", [])
 
+    -- -- Nested triplets.
+    -- -- 0   .   1   .   2   .   3   .   4   .   |
+    -- -- t------------------------------>
+    -- --         t-------------->
+    -- -- c------>d-->e-->f-->
+    -- -- TODO this doesn't work.  It's because tuplet_note_end sees the end of
+    -- -- 'f' and gets 2.5, when it should have applied the 't' above it and
+    -- -- gotten 3.
+    -- equal (run $ [(">", [(0, 4, "t")]), (">", [(1, 2, "t")])]
+    --         ++ UiTest.note_track [(0, 1, "3c"), (1, 0.5, "3d"),
+    --             (1.5, 0.5, "3e"), (2, 0.5, "3f"),
+    --             (4, 1, "3g")])
+    --     (Right "\\tuplet 2/3 { c2 \\tuplet 2/3 { d2 e2 f2 } } | g2 r2", [])
+
+test_tuplet_ly_articulations = do
+    -- Slurs and articulations work on tuplets.
+    let run = LilypondTest.measures ["tuplet"]
+            . LilypondTest.derive_tracks_linear
+    let parents call = [(">", [(0, 4, call)]), (">", [(0, 4, "t")])]
+    equal (run $ parents "(" ++ UiTest.regular_notes 3)
+        (Right "\\tuplet 3/2 { c2( d2 e2) }", [])
+
+    let notes = UiTest.note_track
+            [(0, 1, "3c"), (1, 1, "3d"), (2, 1, "3e"), (4, 2, "3f")]
+    -- putStrLn $ untxt $ UiTest.fmt_tracks $ parents "+pizz" ++ notes
+    equal (run $ parents "+pizz" ++ notes)
+        (Right "\\tuplet 3/2 { c2^\"pizz.\" d2 e2 } | f2^\"arco\" r2", [])
+
 test_tuplet_ly_complex = do
-    let run = LilypondTest.measures ["tuplet", "acciaccatura"]
+    let run = LilypondTest.measures ["tuplet", "acciaccatura", "p"]
             . LilypondTest.derive_tracks_linear
         pitches = map ("3"<>) (map Text.singleton "abcdefg")
         notes dur ts =
@@ -128,16 +169,8 @@ test_tuplet_ly_complex = do
             [(0, 1, "g (3c) (3b) -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
         (Right "\\tuplet 3/2 { \\acciaccatura { c8[ b8] } a2 b2 c2 }", [])
 
-    -- Slur inside a tuplet.
     equal (run $
-        (">", [(0, 2, "t")]) : UiTest.note_track
-            [ (0, 0.5, "3a"), (0.5, 0.5, "ly-( | -- 3b"), (1, 0.5, "3c"),
-                (2, 1, "ly-) | -- 3d")])
-        (Right "\\tuplet 3/2 { a4 b4( c4 } d4) r4", [])
-
-    equal (run $
-            (">", [(0, 4, "t")])
-            : (">", [(0, 3, "+stac")])
+            (">", [(0, 4, "t")]) : (">", [(0, 3, "+stac")])
             : UiTest.regular_notes 3)
         (Right "\\tuplet 3/2 { c2-. d2-. e2-. }", [])
 
@@ -159,12 +192,6 @@ test_arpeggio = do
             ]
     equal (run (tracks "`arp-up` 1 0")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1 0")) [(10, 10, "4d"), (11, 9, "4c")]
-
-test_slur_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
-    equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
-        [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right "a'4( b'4 c'4) r4", [])
 
 test_interpolate = do
     let run at = DeriveTest.extract DeriveTest.e_note $

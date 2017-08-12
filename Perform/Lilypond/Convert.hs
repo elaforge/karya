@@ -105,12 +105,12 @@ convert_event quarter event = run $ do
         }
     where
     check_0dur
-        | not is_ly_global && not (Flags.has flags Flags.ly_code) =
+        | not is_ly_global && not has_code_flag =
             throw $ "zero duration event must have " <> pretty Flags.ly_code
         | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
-        where flags = Score.event_flags event
+    has_code_flag = Flags.has (Score.event_flags event) Flags.ly_code
     is_ly_global = Score.event_instrument event == Constants.ly_global
     has_prepend = has Constants.v_ly_prepend
     has_append = has Constants.v_ly_append_all

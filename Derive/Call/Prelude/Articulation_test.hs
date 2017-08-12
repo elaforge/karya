@@ -43,6 +43,10 @@ test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         (Right "c4 d4( e4) f4", [])
+    -- Arg is ignored in lilypond mode.
+    equal (run $
+            (">", [(0, 4, "( .5")]) : UiTest.note_track1 ["3a", "3b", "3c"])
+        (Right "a4( b4 c4) r4", [])
     let tracks =
             -- Irregularly overlapping sub events.
             [ (">", [(0, 3, "("), (3, 3, "(")])

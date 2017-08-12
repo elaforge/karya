@@ -126,8 +126,7 @@ time_to_wholes = (/ fromIntegral Types.time_per_whole) . fromIntegral
 type SimpleEvent = (RealTime, RealTime, Text)
 
 simple_event :: SimpleEvent -> Types.Event
-simple_event (start, dur, pitch) =
-    mkevent start dur pitch default_inst []
+simple_event (start, dur, pitch) = mkevent start dur pitch default_inst []
 
 environ_event :: (RealTime, RealTime, Text, [(Env.Key, BaseTypes.Val)])
     -> Types.Event
@@ -136,7 +135,7 @@ environ_event (start, dur, pitch, env) =
 
 attrs_event :: (RealTime, RealTime, Text, Attrs.Attributes) -> Types.Event
 attrs_event (start, dur, pitch, attrs) = environ_event
-    (start, dur, pitch , [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
+    (start, dur, pitch, [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
 
 voice_event :: (RealTime, RealTime, Text, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
