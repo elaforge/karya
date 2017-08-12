@@ -384,6 +384,15 @@ with_vals vals deriver
                 (return $ state_environ state) vals
         environ `seq` return $! state { state_environ = environ }
 
+-- | Merge the given environ into the environ in effect.  Unlike 'with_val' or
+-- 'with_vals', this won't set scopes for 'EnvKey.scale' and
+-- 'EnvKey.instrument'.
+with_environ :: Env.Environ -> Deriver a -> Deriver a
+with_environ environ
+    | Env.null environ = id
+    | otherwise = Internal.local $ \state -> state
+        { state_environ = environ <> state_environ state }
+
 -- | Like 'with_val', but don't set scopes for instrument and scale.
 with_val_raw :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val_raw key val = Internal.localm $ \state -> do
@@ -543,13 +552,6 @@ lookup_instrument inst = do
     let real_inst = Map.findWithDefault inst inst aliases
     lookup_inst <- gets $ state_lookup_instrument . state_constant
     return (real_inst, lookup_inst real_inst)
-
--- | Merge the given environ into the environ in effect.
-with_environ :: Env.Environ -> Deriver a -> Deriver a
-with_environ environ
-    | Env.null environ = id
-    | otherwise = Internal.local $ \state -> state
-        { state_environ = environ <> state_environ state }
 
 
 -- ** control
