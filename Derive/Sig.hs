@@ -562,11 +562,11 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.Both -> [unprefixed, prefixed]
     where
     prefixed = prefixed_environ call_name arg_name
-    unprefixed = Expr.Str ((\(Derive.ArgName n) -> n) arg_name)
+    unprefixed = (\(Derive.ArgName n) -> n) arg_name
 
 prefixed_environ :: CallName -> ArgName -> Env.Key
 prefixed_environ (Derive.CallName call_name) (Derive.ArgName arg_name) =
-    Expr.Str $ call_name <> "-" <> arg_name
+    call_name <> "-" <> arg_name
 
 
 -- * call

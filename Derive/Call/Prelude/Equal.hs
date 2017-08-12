@@ -82,10 +82,10 @@ is_empty_expr :: Expr.Expr a -> Bool
 is_empty_expr (Expr.Call "" [] :| []) = True
 is_empty_expr _ = False
 
-equal_expr :: BaseTypes.Call -> Maybe (Expr.Str, BaseTypes.Val)
+equal_expr :: BaseTypes.Call -> Maybe (Text, BaseTypes.Val)
 equal_expr (Expr.Call (Expr.Symbol "=")
-        [Expr.Literal (BaseTypes.VStr str), Expr.Literal val]) =
-    Just (str, val)
+        [Expr.Literal (BaseTypes.VStr (Expr.Str lhs)), Expr.Literal val]) =
+    Just (lhs, val)
 equal_expr _ = Nothing
 
 -- * implementation
@@ -104,7 +104,7 @@ c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
         transform <- Derive.require_right id $ parse_equal merge lhs rhs
         transform . Sub.derive . concat =<< Sub.sub_events args
 
-equal_args :: Sig.Parser (Expr.Str, BaseTypes.Val, Merge)
+equal_args :: Sig.Parser (Text, BaseTypes.Val, Merge)
 equal_args = (,,)
     <$> Sig.required "lhs" "Assign to this. This looks like a Str, but\
         \ can actualy contain any characters except `=`, due to the special\
@@ -182,9 +182,9 @@ equal_doc =
     -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
-parse_equal :: Merge -> Expr.Str -> BaseTypes.Val
+parse_equal :: Merge -> Text -> BaseTypes.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
-parse_equal Set (Expr.Str lhs) rhs
+parse_equal Set lhs rhs
     -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
@@ -202,7 +202,7 @@ parse_equal Set (Expr.Str lhs) rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
-parse_equal Set (Expr.Str lhs) rhs
+parse_equal Set lhs rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
         BaseTypes.VStr (Expr.Str inst) -> Right $
@@ -279,8 +279,8 @@ get_pitch_merger merge = case merge of
     Default -> return Derive.Set
     Merge name -> Derive.get_pitch_merger name
 
-parse_val :: Expr.Str -> Maybe BaseTypes.Val
-parse_val = either (const Nothing) Just . Parse.parse_val . Expr.unstr
+parse_val :: Text -> Maybe BaseTypes.Val
+parse_val = either (const Nothing) Just . Parse.parse_val
 
 -- | Look up a call with the given Symbol and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently

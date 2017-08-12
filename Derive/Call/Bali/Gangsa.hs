@@ -1316,7 +1316,7 @@ initial_final_env = (,)
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
-    Sig.environ (Derive.str_to_arg_name EnvKey.instrument_top) Sig.Unprefixed
+    Sig.environ (Derive.ArgName EnvKey.instrument_top) Sig.Unprefixed
         Nothing
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
@@ -1335,9 +1335,9 @@ pitch_too_high scale maybe_top =
 
 pasang_env :: Sig.Parser (Pasang Score.Instrument)
 pasang_env = Pasang
-    <$> Sig.required_environ (Derive.str_to_arg_name inst_polos)
+    <$> Sig.required_environ (Derive.ArgName inst_polos)
         Sig.Unprefixed "Polos instrument."
-    <*> Sig.required_environ (Derive.str_to_arg_name inst_sangsih)
+    <*> Sig.required_environ (Derive.ArgName inst_sangsih)
         Sig.Unprefixed "Sangsih instrument."
 
 inst_polos :: Env.Key

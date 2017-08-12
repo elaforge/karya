@@ -297,7 +297,7 @@ lookup :: Key -> Environ -> Maybe Val
 lookup name (Environ env) = Map.lookup name env
 
 -- | Symbols to look up a val in the 'ValMap'.
-type Key = Expr.Str
+type Key = Text
 
 -- * Val
 

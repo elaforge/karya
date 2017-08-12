@@ -226,7 +226,7 @@ data CallError =
     deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
-data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !Expr.Str
+data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !BaseTypes.Key
     deriving (Eq, Show)
 
 data EvalSource =

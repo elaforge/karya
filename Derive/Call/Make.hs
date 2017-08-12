@@ -88,7 +88,7 @@ environ :: (Typecheck.ToVal val, Derive.Taggable d) =>
     Module.Module -> BaseTypes.Key -> Doc.Doc -> Sig.Parser a
     -> (a -> val) -> Derive.Transformer d
 environ module_ key key_doc sig extract =
-    Derive.transformer module_ (Derive.str_to_call_name key) mempty
+    Derive.transformer module_ (Derive.CallName key) mempty
         ("Set the " <> key_doc <> " environ variable.")
     $ Sig.callt sig $ \val _args ->
         Derive.with_val key (extract val)

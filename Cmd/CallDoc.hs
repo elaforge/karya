@@ -79,9 +79,7 @@ call_bindings_text include_module (binds, ctype, call_doc) =
 
 environ_keys :: Derive.ArgName -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
-    "[" <> Text.intercalate ", "
-        (map Expr.unstr (Sig.environ_keys "*" name deflt))
-    <> "]"
+    "[" <> Text.intercalate ", " (Sig.environ_keys "*" name deflt) <> "]"
 
 write_doc :: Doc.Doc -> Format.Doc
 write_doc =
@@ -350,7 +348,7 @@ binding_tags (binds, ctype, call_doc) =
     cdoc_tags = Tags.untag . Derive.cdoc_tags
     module_ (Module.Module m) = "m:" <> m
     arg_tags arg =
-        [ Expr.unstr $ Sig.prefixed_environ name (Derive.arg_name arg)
+        [ Sig.prefixed_environ name (Derive.arg_name arg)
         | name <- names
         ] ++ arg_control_tags (Derive.arg_parser arg)
     -- An arg with a control signal default should look like "%sig,.5".

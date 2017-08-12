@@ -711,8 +711,8 @@ e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
 
 e_environ_like :: (Text -> Bool) -> Score.Event -> [(Env.Key, Text)]
 e_environ_like f event =
-    [ (Expr.Str k, ShowVal.show_val v)
-    | (Expr.Str k, v) <- Env.to_list (Score.event_environ event), f k
+    [ (k, ShowVal.show_val v)
+    | (k, v) <- Env.to_list (Score.event_environ event), f k
     ]
 
 e_environ_val :: Typecheck.Typecheck a => Env.Key -> Score.Event -> Maybe a

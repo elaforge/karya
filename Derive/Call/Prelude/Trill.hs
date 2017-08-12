@@ -489,7 +489,7 @@ trill_env start_dir end_dir =
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser BaseTypes.Duration
 hold_env = Typecheck._real <$>
-    Sig.environ (Derive.str_to_arg_name EnvKey.hold) Sig.Both
+    Sig.environ (Derive.ArgName EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first note."
 
 trill_variations :: [(Expr.Symbol, Maybe Direction, Maybe Direction)]
