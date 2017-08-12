@@ -6,7 +6,6 @@
 module Derive.Call.Ly where
 import qualified Data.List as List
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -16,7 +15,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
@@ -24,8 +22,6 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
-import qualified Perform.Lilypond.Meter as Meter
-import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 import qualified Perform.RealTime as RealTime
 
@@ -267,33 +263,3 @@ pitch_to_lily =
 
 to_time :: Types.Config -> RealTime -> Types.Time
 to_time = Types.real_to_time . Types.config_quarter_duration
-
-
--- ** eval
-
--- | Run a mini-lilypond evaluation.  This is to emit nested lilypond code,
--- such as a tuplet that contains more code.
---
--- TODO this is grody because it introduces another way to evaluate lilypond
--- which is almost but not quite like the normal way.  For instance,
--- modal_attributes can't work because I don't know what the previous
--- attributes were.
-eval_events :: Types.Config -> RealTime -> [Score.Event]
-    -> Derive.Deriver [Note]
-eval_events config start events = do
-    meter <- maybe (return Meter.default_meter) parse_meter
-        =<< Derive.lookup_val Constants.v_meter
-    LEvent.write_snd $ eval_notes config meter start events
-    where
-    parse_meter = either err return . Meter.parse_meter
-    err = Derive.throw . (("parse " <> pretty Constants.v_meter) <>)
-
-eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
-    -> ([Note], [Log.Msg])
-eval_notes config meter start score_events = (map Types.to_lily notes, logs)
-    where
-    (events, logs) = LEvent.partition $ Convert.convert config score_events
-    notes = Process.simple_convert config meter
-        (Types.real_to_time quarter start)
-        (Convert.quantize (Types.config_quantize config) events)
-    quarter = Types.config_quarter_duration config

@@ -236,9 +236,8 @@ test_voices_and_code = do
 
 test_attrs_to_code = do
     let f = Process.attrs_to_code
-    equal (f (Just Attrs.nv) Attrs.accent) (["->", "^\"vib\""], Attrs.accent)
-    equal (f (Just Attrs.nv) Attrs.staccato)
-        (["-."], (Attrs.staccato <> Attrs.nv))
+    equal (f Attrs.nv Attrs.accent) (["->", "^\"vib\""], Attrs.accent)
+    equal (f Attrs.nv Attrs.staccato) (["-."], (Attrs.staccato <> Attrs.nv))
 
     let run es = LilypondTest.process_simple []
             [ LilypondTest.attrs_event (t, 1, Text.singleton p, attrs)

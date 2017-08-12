@@ -137,22 +137,6 @@ convert = run_process trailing_rests go
         return $ map Right rests ++ remaining
     final_barline = Code "\\bar \"|.\""
 
--- | This is a simplified version of 'convert', designed for converting little
--- chunks of lilypond that occur in other expressions.  So it doesn't handle
--- clef changes, meter changes, or even barlines.  It will apply
--- 'simple_articulations', but not 'modal_articulations'.
-simple_convert :: Types.Config -> Meter.Meter -> Time -> [Event] -> [Ly]
-simple_convert config meter = go
-    where
-    go _ [] = []
-    go start (event : events) =
-        leading_rests ++ lys ++ go end rest_events
-        where
-        leading_rests = map LyRest $
-            make_rests config meter start (event_start event)
-        (lys, end, _, rest_events) =
-            make_lys 0 Nothing (Just meter) (event :| events)
-
 convert_voice :: Time -> [Event] -> ConvertM [Ly]
 convert_voice end = run_process (rests_until end) (convert_chunk True)
 
@@ -297,11 +281,6 @@ convert_tuplet start score_dur real_dur events = do
     lys <- convert_unmetered (start + score_dur)
         (map (stretch factor start) in_tuplet)
 
-    -- If the tuplet went to the end of the bar, it will include a barline,
-    -- but since I'm about to rewind and advance again, I can drop it.
-    -- Don't need it since I use advance_unmetered.
-    -- lys <- return $ filter (not . is_barline) lys
-
     -- Rewind time back to before the tuplet.
     State.modify' $ \state -> state
         { state_time = state_time old
@@ -315,40 +294,6 @@ convert_tuplet start score_dur real_dur events = do
     let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
             <> showt (Ratio.denominator divisor) <> " {"
     return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
-
-{-
-convert_tuplet score_dur_t start real_dur events = do
-    score_dur <- real_to_time score_dur_t
-    Debug.tracepM "start, score, real" (start, score_dur, real_dur)
-    let (in_tuplet, out) = span ((< start + score_dur) . event_start) events
-    old <- State.get
-    let divisor = realToFrac score_dur / (realToFrac real_dur / 2)
-    -- This probably means the notes have been stretch or something and aren't
-    -- on simple divisions.
-    when (Ratio.numerator divisor > 15 || Ratio.denominator divisor > 15) $
-        throw $ "tuplet factor is too complicated: " <> showt score_dur
-            <> "/" <> showt real_dur
-
-    real_dur <- multiply (1 / divisor) score_dur
-    Debug.tracepM "start, score, real" (start, score_dur, real_dur)
-    Debug.tracepM "in, out" (map (stretch 2 start) in_tuplet, out)
-    lys <- convert_unmetered (start + score_dur) (map (stretch 2 start) in_tuplet)
-    -- lys <- tryRight $ check_no_barlines lys
-    lys <- return $ filter (not . is_barline) lys
-    -- Rewind time back to before the tuplet.
-    State.modify' $ \state -> state
-        { state_time = state_time old
-        , state_meters = state_meters old
-        , state_measure_start = state_measure_start old
-        , state_measure_end = state_measure_end old
-        }
-    barline <- Control.rethrow ("converting tuplet: "<>) $
-        advance_measure (start + real_dur*2)
-    Debug.traceM "advanced tuplet" (start + real_dur*2, barline)
-    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
-            <> showt (Ratio.denominator divisor) <> " {"
-    return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
--}
 
 real_to_time :: RealTime -> ConvertM Time
 real_to_time t = do
@@ -364,67 +309,6 @@ stretch factor start event
         , event_duration = fromIntegral factor * event_duration event
         }
 
--- -- Note speed is multiplied by this.  So to fit 3 duration into 2 duration,
--- -- speed increases by 3/2.
--- let factor = realToFrac note_dur / realToFrac tuplet_dur
--- let n, d :: Integer
---     (n, d) = (Ratio.numerator factor, Ratio.denominator factor)
--- when (n > 15 || d > 15) $
---     Left $ "tuplet factor is too complicated: " <> showt tuplet_dur
---         <> "/" <> showt note_dur
--- return $ "\\tuplet " <> showt n <> "/" <> showt d
-
--- | Collect the notes inside the duration, run a special 'convert_chunk' on
--- them where the meter is ok with any duration, then wrap that in \tuplet,
--- and increment time by duration*3/2.
-convert_tuplet0 :: Rational -- ^ e.g. 3/2 for 3 in the time of 2
-    -> Time -> Time -- ^ score duration of notes of the tuplet, pre divisor
-    -> [Event] -- ^ extract the overlapped events and render in the tuplet
-    -> ConvertM ([Ly], [Event])
-convert_tuplet0 divisor start score_dur events = do
-    let (in_tuplet, out) = span ((< start + score_dur) . event_start) events
-    -- let (in_tuplet, out) = (events, [])
-    old <- State.get
-    real_dur <- multiply (1 / divisor) score_dur
-    -- Debug.tracepM "start, score, real" (start, score_dur, real_dur)
-    -- Debug.tracepM "in, out" (in_tuplet, out)
-    lys <- convert_unmetered (start + score_dur) in_tuplet
-    -- lys <- tryRight $ check_no_barlines lys
-    lys <- return $ filter (not . is_barline) lys
-    -- Rewind time back to before the tuplet.
-    State.modify' $ \state -> state
-        { state_time = state_time old
-        , state_meters = state_meters old
-        , state_measure_start = state_measure_start old
-        , state_measure_end = state_measure_end old
-        }
-    barline <- Control.rethrow ("converting tuplet: "<>) $
-        advance_measure (start + real_dur)
-    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
-            <> showt (Ratio.denominator divisor) <> " {"
-    return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
-
-multiply :: Rational -> Time -> ConvertM Time
-multiply factor time = tryJust
-    ("time " <> pretty time <> " can't be multiplied by " <> pretty factor)
-    (Types.multiply factor time)
-
-is_barline :: Ly -> Bool
-is_barline (Barline {}) = True
-is_barline _ = False
-
--- check_no_barlines :: [Ly] -> Either Text [Ly]
--- check_no_barlines = check . rdrop_if is_barline
---     where
---     check lys
---         | any is_barline lys = Left $ "tuplet went past a barline: "
---             <> Text.unwords (map to_lily lys)
---         | otherwise = Right lys
--- rdrop_if :: (a -> Bool) -> [a] -> [a]
--- rdrop_if f xs = case reverse xs of
---     x : xs | f x -> reverse xs
---     _ -> xs
-
 -- ** convert_chord
 
 -- | This is the lowest level of conversion.  It converts a vertical slice of
@@ -439,7 +323,7 @@ convert_chord metered events = do
         NonEmpty.toList events
     meter <- if metered then Just <$> get_subdivision else return Nothing
     let (chord_notes, end, last_attrs, remaining) = make_lys
-            (state_measure_start state) (Just (state_prev_attrs state))
+            (state_measure_start state) (state_prev_attrs state)
             meter events
     barline <- if metered then advance_measure end
         else advance_unmetered end >> return Nothing
@@ -473,11 +357,8 @@ update_subdivision event = case get_val Constants.v_subdivision event of
 -- 'Code' Notes.
 --
 -- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
-make_lys :: Time -> Maybe Attrs.Attributes
-    -- ^ Previous note's Attributes, to track 'modal_articulations'. Disable
-    -- modal_articulations if it's Nothing, which is used by 'simple_convert'.
-    -- TODO it's likely to be confusing that they don't work, maybe I can
-    -- do a postproc run for modal_articulations?
+make_lys :: Time -> Attrs.Attributes
+    -- ^ Previous note's Attributes, to track 'modal_articulations'.
     -> Maybe Meter.Meter -> NonEmpty Event
     -> ([Ly], Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, last attrs, remaining events)
@@ -496,7 +377,7 @@ make_lys measure_start prev_attrs maybe_meter events =
     (dur0, with_dur) = List.partition zero_dur here
 
     (maybe_note, end, last_attrs, clipped) = case NonEmpty.nonEmpty with_dur of
-        Nothing -> (Nothing, start, fromMaybe mempty prev_attrs, [])
+        Nothing -> (Nothing, start, prev_attrs, [])
             where start = event_start (NonEmpty.head events)
         Just chord -> (Just n, end, next_attrs, clipped)
             where
@@ -512,7 +393,7 @@ make_lys measure_start prev_attrs maybe_meter events =
     -- Circumfix the possible real note with zero-dur code placeholders.
     notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
-make_note :: Time -> Maybe Attrs.Attributes
+make_note :: Time -> Attrs.Attributes
     -> Maybe Meter.Meter
     -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
@@ -569,9 +450,6 @@ make_note measure_start prev_attrs maybe_meter events next =
         Nothing -> max_end - start
         Just meter -> min (max_end - start) $
             Meter.allowed_time_best True meter (start - measure_start)
-
-    -- allowed = min (max_end - start) $
-    --     Meter.allowed_time_best True meter (start - measure_start)
     allowed_dur = Types.time_to_note_dur allowed
     allowed_time = Types.note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -1061,23 +939,18 @@ clip_event end e
         e { event_start = end, event_duration = left, event_clipped = True }
     where left = event_end e - end
 
-attrs_to_code :: Maybe Attrs.Attributes -> Attrs.Attributes
+attrs_to_code :: Attrs.Attributes -> Attrs.Attributes
     -> ([Code], Attrs.Attributes)
     -- ^ (code to append, prev attrs for the next note)
-attrs_to_code maybe_prev current = case maybe_prev of
-    Nothing -> (simple, current)
-    Just prev ->
-        (simple ++ starts ++ Maybe.catMaybes ends, mconcat (current : extras))
-        where
-        starts = mconcat
-            [ [ start
-              | Just prev <- [maybe_prev]
-              , (attr, start, _) <- modal_articulations
-              , current `has` attr, not (prev `has` attr)
-              ]
-            ]
-        (ends, extras) = unzip $ map (cancel prev) modal_articulations
+attrs_to_code prev current =
+    (simple ++ starts ++ Maybe.catMaybes ends, mconcat (current : extras))
     where
+    starts =
+        [ start
+        | (attr, start, _) <- modal_articulations
+        , current `has` attr, not (prev `has` attr)
+        ]
+    (ends, extras) = unzip $ map (cancel prev) modal_articulations
     simple = [code | (attr, code) <- simple_articulations, current `has` attr]
     cancel prev (attr, _, end)
         -- If prev doesn't have +nv, but this one is +staccato, then consider

@@ -124,7 +124,6 @@ p_meter :: Parse.Parser () ([Int], Int)
 p_meter = (,) <$> Parsec.sepBy1 Parse.p_positive (Parsec.char '+')
     <*> (Parsec.char '/' *> Parse.p_positive)
 
-
 make_meter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
 make_meter nums denom meters = Meter nums denom <$> vector
     where
@@ -134,8 +133,6 @@ make_meter nums denom meters = Meter nums denom <$> vector
         | otherwise = Right $ to_vector $ subdivides (replicate exp 2) meters
     (exp, frac) = properFraction $
         logBase 2 (fromIntegral expected / fromIntegral ranks)
-    -- expected = sum nums * fromIntegral (Types.dur_to_time denom)
-    -- TODO sure?
     expected = sum nums * time_index (Types.dur_to_time denom)
     ranks = sum $ map abstract_length meters
     to_vector = Vector.fromList . map fst . Meter.make_meter 1
