@@ -160,10 +160,10 @@ position_env :: Bool -- ^ True if this is a zero-dur event created just to
     -- host some ly code.  See 'Flags.ly_code'.
     -> CodePosition -> Env.Key
 position_env zero_dur p = case if zero_dur then code0 p else p of
-    Prefix -> Constants.v_ly_prepend
-    SuffixFirst -> Constants.v_ly_append_first
-    SuffixLast -> Constants.v_ly_append_last
-    SuffixAll -> Constants.v_ly_append_all
+    Prefix -> Constants.v_prepend
+    SuffixFirst -> Constants.v_append_first
+    SuffixLast -> Constants.v_append_last
+    SuffixAll -> Constants.v_append_all
     SetEnviron key -> key
     where
     -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
@@ -181,7 +181,7 @@ prepend_code = add_code . (,) Prefix
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Types.Event', but still has a duration.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
-code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
+code (start, dur) code = Derive.with_val Constants.v_prepend code $
     Derive.remove_pitch $ Derive.place start dur Call.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them

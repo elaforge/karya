@@ -107,8 +107,8 @@ test_chords = do
 test_code_events = do
     let f = LilypondTest.process_simple ["a", "b"]
             . map LilypondTest.environ_event
-        prepend = [(Constants.v_ly_prepend, Typecheck.to_val ("a" :: Text))]
-        append = [(Constants.v_ly_append_all, Typecheck.to_val ("b" :: Text))]
+        prepend = [(Constants.v_prepend, Typecheck.to_val ("a" :: Text))]
+        append = [(Constants.v_append_all, Typecheck.to_val ("b" :: Text))]
     -- Code that falls in the middle of rests.
     equal (f [(0, 0, "?", append), (0, 0, "?", prepend)])
         (Right "a b")
@@ -201,7 +201,7 @@ test_voices_and_code = do
     let f wanted = LilypondTest.extract_lys (Just wanted)
             . LilypondTest.process . map LilypondTest.environ_event
         v n = (EnvKey.voice, BaseTypes.num n)
-        append text = (Constants.v_ly_append_all, BaseTypes.str text)
+        append text = (Constants.v_append_all, BaseTypes.str text)
 
     -- Code events are assigned to the first voice.
     equal (f ["mf"]

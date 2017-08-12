@@ -101,8 +101,8 @@ test_clef_dyn = do
 
     let extract e = (Score.event_start e, DeriveTest.e_pitch e,
             LilypondTest.e_ly_env e)
-        pre = Constants.v_ly_prepend
-        app = Constants.v_ly_append_all
+        pre = Constants.v_prepend
+        app = Constants.v_append_all
     equal (DeriveTest.extract extract $ LilypondTest.derive_tracks tracks)
         ( [ (0, "?", [(pre, "'\\clef treble'")])
           , (0, "?", [(app, "'\\f'")])
@@ -257,10 +257,10 @@ test_attach_and_emit = do
     let tracks = (">", [(0, 2, "(")])
             : UiTest.note_track1 ["ly-post a | -- 3c", "ly-post b | -- 3d"]
     equal (run tracks)
-        ( [ ((0, 0, "?"), [(Constants.v_ly_append_all, "'\\a'")], Flags.ly_code)
-          , ((0, 1, "3c"), [(Constants.v_ly_append_first, "'('")], mempty)
-          , ((1, 0, "?"), [(Constants.v_ly_append_all, "'\\b'")], Flags.ly_code)
-          , ((1, 1, "3d"), [(Constants.v_ly_append_last, "')'")], mempty)
+        ( [ ((0, 0, "?"), [(Constants.v_append_all, "'\\a'")], Flags.ly_code)
+          , ((0, 1, "3c"), [(Constants.v_append_first, "'('")], mempty)
+          , ((1, 0, "?"), [(Constants.v_append_all, "'\\b'")], Flags.ly_code)
+          , ((1, 1, "3d"), [(Constants.v_append_last, "')'")], mempty)
           ]
         , []
         )

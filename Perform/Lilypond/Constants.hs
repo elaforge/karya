@@ -42,37 +42,37 @@ ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
 -- and will preceed notes starting at the same time.  If the event has no
 -- pitch then its also considered a freestanding code fragment, but will
 -- occupy the given amount of duration.
-v_ly_prepend :: BaseTypes.Key
-v_ly_prepend = "ly-prepend"
+v_prepend :: BaseTypes.Key
+v_prepend = "ly-prepend"
 
--- | String: like 'v_ly_prepend' but append the code to all the notes in a tied
+-- | String: like 'v_prepend' but append the code to all the notes in a tied
 -- sequence.  This is the only append variant accepted for zero-dur notes.
 --
--- TODO The behaviour for v_ly_append_all for zero-dur notes seems to be
--- v_ly_append_first.  I should make zero-durs understand all the append
+-- TODO The behaviour for v_append_all for zero-dur notes seems to be
+-- v_append_first.  I should make zero-durs understand all the append
 -- variations for consistency, though I don't have examples of where they would
 -- be useful.
-v_ly_append_all :: BaseTypes.Key
-v_ly_append_all = "ly-append-all"
+v_append_all :: BaseTypes.Key
+v_append_all = "ly-append-all"
 
 -- | String: append code to the first note in a tied sequence.
-v_ly_append_first :: BaseTypes.Key
-v_ly_append_first = "ly-append-first"
+v_append_first :: BaseTypes.Key
+v_append_first = "ly-append-first"
 
 -- | String: append code to the last note in a tied sequence.
-v_ly_append_last :: BaseTypes.Key
-v_ly_append_last = "ly-append-last"
+v_append_last :: BaseTypes.Key
+v_append_last = "ly-append-last"
 
 -- | String: append after the pitch, and before the duration.  This is for
 -- pitch modifiers like reminder accidentals (!) and cautionary accidentals
 -- (?).
-v_ly_append_pitch :: BaseTypes.Key
-v_ly_append_pitch = "ly-append-pitch"
+v_append_pitch :: BaseTypes.Key
+v_append_pitch = "ly-append-pitch"
 
 -- | String: \"^\" or \"_\", manually sets tie direction, if this note is
 -- tied.
-v_ly_tie_direction :: BaseTypes.Key
-v_ly_tie_direction = "ly-tie-direction"
+v_tie_direction :: BaseTypes.Key
+v_tie_direction = "ly-tie-direction"
 
 -- * tuplet
 
@@ -96,17 +96,17 @@ get_tuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
 -- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.  Used only on @>ly-global@ events.
 v_meter :: BaseTypes.Key
-v_meter = "meter"
+v_meter = "ly-meter"
 
 -- | String: this has the same format as 'v_meter', but it affects the rhythmic
 -- spelling for the instrument.
 v_subdivision :: BaseTypes.Key
-v_subdivision = "subdivision"
+v_subdivision = "ly-subdivision"
 
 -- | String: Gives the title of a new movement.  An event with 'ly_global'
 -- instrument and this env val will cause a movement break.
 v_movement :: BaseTypes.Key
-v_movement = "movement"
+v_movement = "ly-movement"
 
 -- * common code
 

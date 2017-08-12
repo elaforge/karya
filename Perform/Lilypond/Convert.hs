@@ -112,8 +112,8 @@ convert_event quarter event = run $ do
         | otherwise = return ()
     has_code_flag = Flags.has (Score.event_flags event) Flags.ly_code
     is_ly_global = Score.event_instrument event == Constants.ly_global
-    has_prepend = has Constants.v_ly_prepend
-    has_append = has Constants.v_ly_append_all
+    has_prepend = has Constants.v_prepend
+    has_append = has Constants.v_append_all
     has v = Maybe.isJust $ Env.lookup v (Score.event_environ event)
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT

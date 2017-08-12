@@ -37,10 +37,10 @@ note_calls = Make.call_maps
     , ("dyn", c_dyn)
     , ("ly-!", attach0 "ly-reminder-accidental"
         "Force this note to display an accidental."
-        (Ly.SetEnviron Constants.v_ly_append_pitch, "!"))
+        (Ly.SetEnviron Constants.v_append_pitch, "!"))
     , ("ly-?", attach0 "ly-cautionary-accidental"
         "Force this note to display a cautionary accidental."
-        (Ly.SetEnviron Constants.v_ly_append_pitch, "?"))
+        (Ly.SetEnviron Constants.v_append_pitch, "?"))
 
     , ("ly-(", attach0 "ly-begin-slur"
         "Separately mark a lilypond slur, when `(` isn't cutting it."
@@ -220,7 +220,7 @@ c_movement = emit_global "movement"
 c_tie_direction :: Ly.Ly -> Make.Calls Derive.Note
 c_tie_direction code = attach0 "ly-tie-direction"
     "Force the note's tie to go either up or down."
-    (Ly.SetEnviron Constants.v_ly_tie_direction, code)
+    (Ly.SetEnviron Constants.v_tie_direction, code)
 
 c_hairpin :: Ly.Ly -> Make.Calls Derive.Note
 c_hairpin code = emit_pair "ly-hairpin"

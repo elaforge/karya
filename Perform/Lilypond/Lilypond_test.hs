@@ -133,14 +133,10 @@ test_ly_prepend_append = do
         str :: BaseTypes.Key -> Text -> [(BaseTypes.Key, BaseTypes.Val)]
         str key val = [(key, Typecheck.to_val val)]
     equal (f []) $ Right "a1~ | a1~ | a1"
-    equal (f (str Constants.v_ly_append_first "x")) $
-        Right "a1~x | a1~ | a1"
-    equal (f (str Constants.v_ly_append_last "x")) $
-        Right "a1~ | a1~ | a1x"
-    equal (f (str Constants.v_ly_append_all "x")) $
-        Right "a1~x | a1~x | a1x"
-    equal (f (str Constants.v_ly_prepend "x")) $
-        Right "xa1~ | a1~ | a1"
+    equal (f (str Constants.v_append_first "x")) $ Right "a1~x | a1~ | a1"
+    equal (f (str Constants.v_append_last "x")) $ Right "a1~ | a1~ | a1x"
+    equal (f (str Constants.v_append_all "x")) $ Right "a1~x | a1~x | a1x"
+    equal (f (str Constants.v_prepend "x")) $ Right "xa1~ | a1~ | a1"
 
 test_ly_code = do
     -- Test stand-alone zero-dur code fragments.

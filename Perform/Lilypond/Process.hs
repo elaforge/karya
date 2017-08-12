@@ -219,9 +219,9 @@ partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
     where
     prepend = filter (not . Text.null) $
-        map (fromMaybe "" . get_val Constants.v_ly_prepend) events
+        map (fromMaybe "" . get_val Constants.v_prepend) events
     append = filter (not . Text.null) $
-        map (fromMaybe "" . get_val Constants.v_ly_append_all) events
+        map (fromMaybe "" . get_val Constants.v_append_all) events
 
 get_val :: Typecheck.Typecheck a => Env.Key -> Event -> Maybe a
 get_val v = Env.maybe_val v . event_environ
@@ -353,7 +353,7 @@ update_subdivision event = case get_val Constants.v_subdivision event of
 
 -- | Convert a chunk of events all starting at the same time.  Events
 -- with 0 duration or null pitch are expected to have either
--- 'Constants.v_ly_prepend' or 'Constants.v_ly_append_all', and turn into
+-- 'Constants.v_prepend' or 'Constants.v_append_all', and turn into
 -- 'Code' Notes.
 --
 -- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
@@ -422,14 +422,14 @@ make_note measure_start prev_attrs maybe_meter events next =
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList events)))
     get_pitch event = event_pitch event
-        <> if is_first event then get Constants.v_ly_append_pitch event else ""
+        <> if is_first event then get Constants.v_append_pitch event else ""
 
     prepend event =
-        if is_first event then get Constants.v_ly_prepend event else ""
+        if is_first event then get Constants.v_prepend event else ""
     append event = mconcat
-        [ if is_first event then get Constants.v_ly_append_first event else ""
-        , if is_last then get Constants.v_ly_append_last event else ""
-        , get Constants.v_ly_append_all event
+        [ if is_first event then get Constants.v_append_first event else ""
+        , if is_last then get Constants.v_append_last event else ""
+        , get Constants.v_append_all event
         ]
     get key = fromMaybe "" . get_val key
 
@@ -440,7 +440,7 @@ make_note measure_start prev_attrs maybe_meter events next =
         | otherwise = TieDown
         where
         direction :: Text
-        direction = get Constants.v_ly_tie_direction event
+        direction = get Constants.v_tie_direction event
     is_first = not . event_clipped
     is_last = not $ any (is_tied . snd) pitches
     is_tied NoTie = False
