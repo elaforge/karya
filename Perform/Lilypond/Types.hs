@@ -6,14 +6,14 @@
 -- | Basic types used by both "Perform.Lilypond.Lilypond" and module that use
 -- it.  Defined here to avoid circular imports.
 module Perform.Lilypond.Types where
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lens as Lens
-import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -222,9 +222,10 @@ time_to_note_durs t
 -- is 128th of a whole note.
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
-instance Pretty Time where
-    pretty t = Num.showFloat 10
-        (fromIntegral t / fromIntegral time_per_whole) <> "t"
+instance Pretty Time where pretty = pretty . to_whole
+
+to_whole :: Time -> Rational
+to_whole t = fromIntegral t / fromIntegral time_per_whole
 
 time_per_whole :: Time
 time_per_whole = dur_to_time D1
@@ -257,9 +258,22 @@ event_attributes :: Event -> Attrs.Attributes
 event_attributes = Score.environ_attributes . event_environ
 
 instance Pretty Event where
-    format (Event start dur pitch inst attrs _stack _clipped) =
-        Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
-            Pretty.text pitch, Pretty.format inst, Pretty.format attrs]
+    format (Event start dur pitch inst env _stack _clipped) =
+        Pretty.constructor "Event"
+            [ Pretty.format start, Pretty.format dur
+            , Pretty.text pitch, Pretty.format inst
+            , Pretty.format $ strip_environ env
+            ]
+
+-- | Strip out non-ly environ keys so error messages are less cluttered.
+strip_environ :: BaseTypes.Environ -> BaseTypes.Environ
+strip_environ (BaseTypes.Environ env) =
+    BaseTypes.Environ $ Map.filterWithKey interesting env
+    where
+    interesting key val = "ly-" `Text.isPrefixOf` key
+        || (key == EnvKey.attributes && has_attrs val)
+    has_attrs (BaseTypes.VAttributes attrs) = attrs /= mempty
+    has_attrs _ = True
 
 -- * pitch
 
