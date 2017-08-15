@@ -27,7 +27,6 @@ module Derive.Solkattu.Sequence (
     , State(..), state_tempo, state_position, show_position
     -- * functions
     , note_duration, matra_duration
-    , map_time, advance_state_by
     -- * util
     , first_left, right_until_left
 ) where
@@ -311,23 +310,6 @@ matra_duration :: Tempo -> Duration
 matra_duration tempo =
     1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)
 
-map_time :: HasMatras a => Tala.Tala -> (State -> a -> [Either Text b])
-    -> [Note g a] -> [Either Text b]
-map_time tala f =
-    concat . snd . List.mapAccumL process initial_state
-    where
-    process state note = case note of
-        TempoChange change notes -> case time_change change state of
-            Left err -> (next_state, [Left err])
-            Right state -> (next_state, concat results)
-                where (next_state, results) = List.mapAccumL process state notes
-        Note n -> (next_state, f state n)
-        where next_state = advance_state tala note state
-
-advance_state :: HasMatras a => Tala.Tala -> Note g a -> State -> State
-advance_state tala note state = advance_state_by tala matras state
-    where matras = note_duration (state_tempo state) note
-
 advance_state_by :: Tala.Tala -> Duration -> State -> State
 advance_state_by tala matras state = state
     { state_avartanam = state_avartanam state + akshara_carry
@@ -340,33 +322,6 @@ advance_state_by tala matras state = state
     (matra_carry, matra) = properFraction $ state_matra state + matras
     (akshara_carry, akshara) = (state_akshara state + matra_carry)
         `divMod` sum (Tala.tala_aksharas tala)
-
-time_change :: TempoChange -> State -> Either Text State
-time_change change state = case change of
-    ChangeSpeed speed ->
-        Right $ state { state_speed = state_speed state + speed }
-    Nadai nadai -> do
-        akshara_nadai <- nadai_change nadai state
-        Right $ state
-            { state_nadai = nadai
-            , state_akshara_nadai = akshara_nadai
-            }
-
-nadai_change :: Nadai -> State -> Either Text Nadai
-nadai_change new_nadai state
-    | frac == 0 = Right nadai
-    | otherwise = Left $ show_position state
-        <> ": can't change nadai " <> showt old_nadai <> "->" <> showt new_nadai
-        <> " at " <> pretty (state_matra state) <> " akshara, would be a "
-        <> pretty pre <> " + " <> pretty post
-        <> " = " <> pretty (pre + post) <> " matra akshara"
-    where
-    (nadai, frac) = properFraction (pre + post)
-    pre = (1 - ratio) * fromIntegral new_nadai
-    post = ratio * fromIntegral old_nadai
-    -- Ratio of the way through the akshara.
-    ratio = state_matra state
-    old_nadai = state_nadai state
 
 -- * util
 

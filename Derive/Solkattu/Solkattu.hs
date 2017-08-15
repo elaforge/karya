@@ -246,17 +246,18 @@ drop_next_rest [] = (False, [])
 verify_alignment :: Tala.Tala -> [(S.Tempo, Note sollu)] -> Maybe (Int, Error)
     -- ^ (index where the error occured, error)
 verify_alignment tala notes =
-    msum (map verify (zip [0..] states))
-        <|> append_ends_on_sam
+    msum (map verify (zip [0..] states)) <|> append_ends_on_sam
     where
     (final_state, states) = S.tempo_to_state tala notes
     -- Either final_state one is at 0, or the last non-rest note is.
     append_ends_on_sam
         | at_akshara 0 final_state || maybe False (at_akshara 0) final_note =
             Nothing
-        | otherwise = Just (length states,
-            "korvai should end on or before sam: "
-            <> S.show_position final_state)
+        | otherwise = Just
+            ( length states
+            , "korvai should end on or before sam: "
+                <> S.show_position final_state
+            )
         where
         final_note = fst <$> List.find (not . is_space . snd) (reverse states)
     verify (i, (state, Alignment akshara))

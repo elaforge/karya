@@ -316,7 +316,6 @@ strip_groups :: Either e [(Sequence.Meta a, b)]
     -> Either e [(Sequence.Meta (), b)]
 strip_groups = fmap (map (first (fmap (const ()))))
 
-    -- -> [Either Error ([(S.Meta (), Realize.Note stroke)], Error)]
 k_realize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([(Sequence.Meta (), Realize.Note M.Stroke)], Text)
 k_realize realize_patterns tala =
