@@ -5,8 +5,8 @@
 -- | Just the sollus, so "Derive.Solkattu.MridagamDsl" doesn't have to import
 -- them along with "Derive.Solkattu.Dsl".
 module Derive.Solkattu.DslSollu (
-    dheem, dhom, di, din, dit, ga, gin, ka, ki, ku, mi, na, nam, nang, ri, ta,
-    tam, tat, tha, thom, ti, kum
+    dheem, dhom, di, din, dit, ga, gin, gu, ka, ki, ku, mi, na, nam, nang, ri
+    , ta, tam, tat, tha, thom, ti, kum
     , tang, lang
     , dinga, tanga, langa
 ) where
@@ -34,9 +34,11 @@ din = sollu Din
 dit = sollu Dit
 ga = sollu Ga
 gin = sollu Gin
+gu = sollu Gu
 ka = sollu Ka
 ki = sollu Ki
 ku = sollu Ku
+kum = sollu Kum
 mi = sollu Mi
 na = sollu Na
 nam = sollu Nam
@@ -48,7 +50,6 @@ tat = sollu Tat
 tha = sollu Tha
 thom = sollu Thom
 ti = sollu Ti
-kum = sollu Kum
 
 tang = sollu Tang
 lang = sollu Lang
