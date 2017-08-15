@@ -10,12 +10,11 @@ import qualified Derive.Solkattu.DslSollu as DslSollu
 import qualified Derive.Solkattu.Notation as Notation
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Solkattu as Solkattu
-import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-di, ta, ka, ki :: Notation.Sequence Solkattu.Sollu
+di, ta, ka, ki :: Notation.SequenceT Solkattu.Sollu
 (di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
 
 test_matras_of = do
@@ -39,12 +38,6 @@ test_splitD = do
     -- split rests
     equal (f (1/4) (sd __ <> ka)) (["__"], ["__", "ka"])
     equal (f (3/4) (sd (sd __) <> ka)) (["s-1(__)", "__"], ["__", "ka"])
-
-flatten :: S.HasMatras a => [S.Note a] -> [S.Stroke a]
-flatten = map snd . S.normalize_speed Tala.adi_tala . S.flatten
-
-speed :: S.Speed -> [S.Note a] -> S.Note a
-speed = S.change_speed
 
 test_spaceD = do
     let f tempo = sum . map (S.note_duration tempo)

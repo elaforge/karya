@@ -16,12 +16,15 @@ import Derive.Solkattu.Solkattu (Sollu(..))
 import Global
 
 
-type Sequence = [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
+type Sequence =
+    [Sequence.Note (Solkattu.Group Solkattu.Sollu)
+        (Solkattu.Note Solkattu.Sollu)]
+    -- This is the same as in Korvai.
 
 sollu :: Solkattu.Sollu -> Sequence
 sollu s = make_note (Solkattu.Note (Solkattu.note s))
 
-make_note :: a -> [Sequence.Note a]
+make_note :: a -> [Sequence.Note g a]
 make_note a = [Sequence.Note a]
 
 dheem = sollu Dheem

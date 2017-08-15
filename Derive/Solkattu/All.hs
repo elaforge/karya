@@ -173,40 +173,43 @@ korvais =
     , variable_name "c_17_03_20" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
         line_number 104 Derive.Solkattu.Score.Solkattu2017.c_17_03_20
+    , variable_name "c_17_03_20_2" $
+        module_ "Derive.Solkattu.Score.Solkattu2017" $
+        line_number 141 Derive.Solkattu.Score.Solkattu2017.c_17_03_20_2
     , variable_name "c_17_04_04" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 141 Derive.Solkattu.Score.Solkattu2017.c_17_04_04
+        line_number 165 Derive.Solkattu.Score.Solkattu2017.c_17_04_04
     , variable_name "c_17_04_23" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 167 Derive.Solkattu.Score.Solkattu2017.c_17_04_23
+        line_number 191 Derive.Solkattu.Score.Solkattu2017.c_17_04_23
     , variable_name "c_17_05_10" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 194 Derive.Solkattu.Score.Solkattu2017.c_17_05_10
+        line_number 218 Derive.Solkattu.Score.Solkattu2017.c_17_05_10
     , variable_name "m_17_05_11" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 257 Derive.Solkattu.Score.Solkattu2017.m_17_05_11
+        line_number 281 Derive.Solkattu.Score.Solkattu2017.m_17_05_11
     , variable_name "e_17_05_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 284 Derive.Solkattu.Score.Solkattu2017.e_17_05_19
+        line_number 308 Derive.Solkattu.Score.Solkattu2017.e_17_05_19
     , variable_name "c_17_05_19_janahan" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 290 Derive.Solkattu.Score.Solkattu2017.c_17_05_19_janahan
+        line_number 314 Derive.Solkattu.Score.Solkattu2017.c_17_05_19_janahan
     , variable_name "janahan_17_06_02" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 313 Derive.Solkattu.Score.Solkattu2017.janahan_17_06_02
+        line_number 337 Derive.Solkattu.Score.Solkattu2017.janahan_17_06_02
     , variable_name "c_17_06_15" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 326 Derive.Solkattu.Score.Solkattu2017.c_17_06_15
+        line_number 350 Derive.Solkattu.Score.Solkattu2017.c_17_06_15
     , variable_name "c_17_06_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 341 Derive.Solkattu.Score.Solkattu2017.c_17_06_19
+        line_number 365 Derive.Solkattu.Score.Solkattu2017.c_17_06_19
     , variable_name "c_17_06_19_koraippu" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 375 Derive.Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
+        line_number 399 Derive.Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
     , variable_name "c_17_07_13" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 400 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
+        line_number 424 Derive.Solkattu.Score.Solkattu2017.c_17_07_13
     , variable_name "c_17_07_19" $
         module_ "Derive.Solkattu.Score.Solkattu2017" $
-        line_number 494 Derive.Solkattu.Score.Solkattu2017.c_17_07_19
+        line_number 518 Derive.Solkattu.Score.Solkattu2017.c_17_07_19
     ]

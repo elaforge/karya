@@ -31,7 +31,7 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-type Sequence = [Sequence.Note (Solkattu.Note Stroke)]
+type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke Mridangam.Stroke
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
@@ -57,8 +57,8 @@ merge as bs
     is_rest (Sequence.Note (Solkattu.Space Solkattu.Rest)) = True
     is_rest _ = False
 
-to_stroke1 :: (CallStack.Stack, Pretty a) =>
-    Sequence.Note (Solkattu.Note a) -> a
+to_stroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
+    Sequence.Note g (Solkattu.Note a) -> a
 to_stroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
 to_stroke1 note = errorStack $ "expected sollu: " <> pretty note
 
@@ -68,7 +68,7 @@ korvai tala = Korvai.mridangam_korvai tala Mridangam.default_patterns
 korvai1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvai1 tala sequence = korvai tala [sequence]
 
-make_note1 :: stroke -> Sequence.Note (Solkattu.Note stroke)
+make_note1 :: stroke -> Sequence.Note g (Solkattu.Note stroke)
 make_note1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke
 
 make_note :: Stroke -> Sequence

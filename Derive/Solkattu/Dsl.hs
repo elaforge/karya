@@ -44,7 +44,7 @@ import Derive.Solkattu.Instrument.Mridangam ((&))
 import qualified Derive.Solkattu.Korvai as Korvai
 import Derive.Solkattu.Korvai (Korvai, print_konnakol, write_konnakol_html)
 import Derive.Solkattu.Metadata
-import Derive.Solkattu.Notation hiding (Sequence)
+import Derive.Solkattu.Notation
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as S
 import Derive.Solkattu.Sequence (Duration, Matra, Nadai)
@@ -55,8 +55,6 @@ import Derive.Solkattu.Tala (Akshara)
 
 import Global
 
-
-type Sequence sollu = [S.Note (Solkattu.Note sollu)]
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
@@ -72,45 +70,45 @@ infixr 6 . -- same as <>
 ø :: Monoid a => a
 ø = mempty
 
-make_note :: a -> [S.Note a]
+make_note :: a -> [S.Note g a]
 make_note a = [S.Note a]
 
 -- ** sollus
 
 -- | Make a single sollu 'Solkattu.Karvai'.
-karvai :: (CallStack.Stack, Pretty sollu) => Sequence sollu -> Sequence sollu
+karvai :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
 karvai = modify_single_note $ Solkattu.modify_note $
     \note -> note { Solkattu._karvai = True }
 
 -- ** directives
 
-akshara :: Akshara -> Sequence sollu
+akshara :: Akshara -> SequenceT sollu
 akshara n = make_note (Solkattu.Alignment n)
 
 -- | Align at sam.
-sam :: Sequence sollu
+sam :: SequenceT sollu
 sam = akshara 0
 
 -- | Align at the given akshara.  I use § because I don't use it so often,
 -- and it's opt-6 on OS X.
-(§) :: Sequence sollu -> Akshara -> Sequence sollu
+(§) :: SequenceT sollu -> Akshara -> SequenceT sollu
 seq § n = make_note (Solkattu.Alignment n) <> seq
 infix 9 §
 
 -- * modify sollus
 
 -- | Infix operator to 'Solkattu.Tag' all of the sollus it applies to.
-(^) :: Int -> Sequence sollu -> Sequence sollu
+(^) :: Int -> SequenceT sollu -> SequenceT sollu
 (^) = set_tag
 infix 9 ^
 
-set_tag :: Int -> Sequence sollu -> Sequence sollu
+set_tag :: Int -> SequenceT sollu -> SequenceT sollu
 set_tag tag = fmap $ fmap $ Solkattu.modify_note $
     \note -> note { Solkattu._tag = Just tag }
 
 modify_single_note :: (CallStack.Stack, Pretty sollu) =>
     (Solkattu.Note sollu -> Solkattu.Note sollu)
-    -> Sequence sollu -> Sequence sollu
+    -> SequenceT sollu -> SequenceT sollu
 modify_single_note modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
@@ -120,8 +118,8 @@ modify_single_note _ [] = errorStack "expected a single note, but got []"
 
 -- ** strokes
 
-hv, lt :: (Pretty stroke, CallStack.Stack) =>
-    S.Note (Realize.Note stroke) -> S.Note (Realize.Note stroke)
+hv, lt :: (Pretty stroke, Pretty g, CallStack.Stack) =>
+    S.Note g (Realize.Note stroke) -> S.Note g (Realize.Note stroke)
 hv (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
 hv n = errorStack $ "expected stroke: " <> pretty n
@@ -132,25 +130,25 @@ lt n = errorStack $ "expected stroke: " <> pretty n
 
 -- * patterns
 
-pat :: Matra -> Sequence sollu
+pat :: Matra -> SequenceT sollu
 pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
 
-p5, p6, p7, p8, p9 :: Sequence sollu
+p5, p6, p7, p8, p9 :: SequenceT sollu
 p5 = pat 5
 p6 = pat 6
 p7 = pat 7
 p8 = pat 8
 p9 = pat 9
 
-p666, p567, p765 :: Sequence sollu -> Sequence sollu
+p666, p567, p765 :: SequenceT sollu -> SequenceT sollu
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
-nakatiku :: Sequence sollu
+nakatiku :: SequenceT sollu
 nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
 
-tk, tknk :: Sequence sollu
+tk, tknk :: SequenceT sollu
 tk = make_note $ Solkattu.Pattern Solkattu.Taka
 tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 

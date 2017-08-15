@@ -2592,36 +2592,92 @@ Derive:
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
       solkattu-group:
-        . top level:
-          reduceTo 2 1 taka
-            -> Group (ta.ka) (DropL 1), Group (ta.ka) (DropL 0)
-          data Group = Group Sequence Reduction
-          data Reduction = Reduction Matra (DropL | DropR)
-        . realize level:
-          . Use the sollus for RealizeNote, but then drop the given number of
-            matras.
-          . Unlike bare sollus, the group can match exactly.  That raises the
-            question, could I put everything in a group, and make all matches
-            exact?  I would still be able to use chunks like takadinna.
-          . If everything really has to be a group then I wind up with lots of
-            noisy 'g' annotations on everything.
-          . So let's keep the submatch and no-group sollus for now.
-          . I can use Solkattu.Group [NoteT sollu] Reduction.  If I flatten with
-            Solkattu.notes_of, this means nested groups are flattened.
-          . If I want to make patterns into groups, then I probably do need
-            nested groups, can't 'realize' recurse then?
-        . format level:
-          . Output is [(Tempo, Note stroke)], but I need some kind of marker for
-            groups.  Maybe Note can have Group.  If nested is awkward to format,
-            then I can flatten to Group Name Count, where Count says how many
-            Notes it has scope over.
-
+        support S.Group:
+          * Sequence
+          * Realize
+          * Korvai / Notation
+          + tests
+          * replace realize with realize2
+          - Realize.format should format them specially
+        - It turns out it's annoying to write a whole sequence out, and
+          I still want to reuse standard patterns like takadinna.
+          So maybe group shouldn't require an exact match.
+          . The problem is really is just that the sollus and strokes are too
+            far apart.  It's actually convenient to reuse the theme and not
+            have to rewrite it, even if in fragments.
+          . I could try to just align them:
+            theme = tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga
+            mrid = [k,    k, t, k, o, o,  k, n, p, k,     p, u,   lt o]
+            kend = [p,    p, k, p, a, o,  p, t, o, p,     o, u,      p]
+        - I have a problem with nested groups, e.g. dropM 1 . dropM 1.
+          . I could try to simplify away nested groups.  That means making
+            each one absolute, so the outer one loses its sollus, and they go
+            on the inner ones.  Of course if there aren't inner ones, then
+            I gave to give them the group, and it seems complicated.
+          . I could try to simplify just simple nested groups, where all the
+            children are groups.
+          . I could try to not produce them in the first place, so splitD
+            could do the simplification.  I think it's the same, just built
+            into splitD.
+          . Or I could try to get realize to understand nested groups.
+            I guess it would have to accumulate sollus when it sees a group,
+            and put them on any sub-groups.  Still I'd like to simplify for
+            the same reason I simplify tempo changes, which is to make the
+            intermediate data less hairy.
+          . For now, just make reduce not produce them.  Try simple
+            simplification later.
+        plan:
+          . top level:
+            reduceTo 2 1 taka
+              -> Group (ta.ka) (DropL 1), Group (ta.ka) (DropL 0)
+            data Group = Group Sequence Reduction
+            data Reduction = Reduction Matra (DropL | DropR)
+          . realize level:
+            . Use the sollus for RealizeNote, but then drop the given number of
+              matras.
+            . Unlike bare sollus, the group can match exactly.  That raises the
+              question, could I put everything in a group, and make all matches
+              exact?  I would still be able to use chunks like takadinna.
+            . If everything really has to be a group then I wind up with lots of
+              noisy 'g' annotations on everything.
+            . So let's keep the submatch and no-group sollus for now.
+            . I can use Solkattu.Group [NoteT sollu] Reduction.  If I flatten
+              with Solkattu.notes_of, this means nested groups are flattened.
+            . If I want to make patterns into groups, then I probably do need
+              nested groups, can't 'realize' recurse then?
+          . format level:
+            . Output is [(Tempo, Note stroke)], but I need some kind of marker
+              for groups.  Maybe Note can have Group.  If nested is awkward to
+              format, then I can flatten to Group Name Count, where Count says
+              how many Notes it has scope over.
         * Refactor realize to use GetStroke instead of StrokeMap.
-        - Add Solkattu.Group, and ensure Notation.reduce can generate it.
-        - Get 'realize2' to recurse on nested groups.
-        - I need Realize.drop_matras, like Notation.splitD... it's complicated.
+        / Add Solkattu.Group, and ensure Notation.reduce can generate it.
+          / I wind up needing HasMatras for group, which means matras_of
+            for Sequence.Note, which means it doesn't work since it has tempo
+            changes, and hence is not integral.
+            . I can change to HasDuration, I think HasMatras was just to
+              implement duration_of.
+            . Well not quite... matras_of is used with the Note value on
+              flattened [(Tempo, a)].  But if Group is in 'a', then that's no
+              longer flat.  To be consistent, I think I need to either not
+              flatten or put group in Sequence and flatten to
+              [(Tempo, Note a | Group [...])]
+            . How about don't flatten.  I think the reason was make sollu
+              matching simpler, but maybe it's not so bad.  'replace_sollus'
+              might be the most annoying.
+            . It stiil seems awkward to have nesting at two different levels,
+              but if I put it in Sequence, then I need
+                data Note group a = Note a
+                  | Group group [Note group a]
+                  | TempoChange TempoChange [Note group a]
+            . Is it so bad?  Why not?
+
+            . I'm still confused about whether initial tempo is ok.
+        / Get Realize.realize to recurse on nested groups.
+        / I need Realize.drop_matras, like Notation.splitD... it's complicated.
           Can I get a simpler version just for Realize, or maybe just move
           splitD down.
+          . No longer necessary now that I store just sollus in the group.
         - Teach Realize.format to show groups as "name----".
         - Various Notation functions like 'spread' should work with groups.
         - Now a Pattern can be a group with a default StrokeMap entry, and some

@@ -15,7 +15,7 @@ import qualified Derive.Symbols as Symbols
 import Global
 
 
-type SNote = Sequence.Note (Realize.Note Stroke)
+type SNote = Realize.SNote Stroke
 
 data Stroke =
     Plak -- both
@@ -23,7 +23,9 @@ data Stroke =
     | Ka | Tut | De -- right
     deriving (Eq, Ord, Show)
 
-instrument :: [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [SNote])]
+type Patterns = Realize.Patterns Stroke
+
+instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
@@ -94,8 +96,6 @@ notes = Strokes
 
 
 -- * Patterns
-
-type Patterns = Realize.Patterns Stroke
 
 __ :: SNote
 __ = Realize.rest

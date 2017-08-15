@@ -83,11 +83,6 @@ data Note sollu =
     | Alignment !Tala.Akshara
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
--- | A note that can take up a variable amount of space.  Since it doesn't have
--- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
-data Space = Rest | Sarva
-    deriving (Eq, Ord, Show)
-
 instance Pretty sollu => Pretty (Note sollu) where
     pretty n = case n of
         Note note -> pretty note
@@ -95,6 +90,26 @@ instance Pretty sollu => Pretty (Note sollu) where
         Space Sarva -> "=="
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
+
+data Group sollu = Group {
+    -- | Since I only match by sollu, I can strip out the Solkattu.Note info.
+    -- TODO get rid of []s so I can substitute ()
+    _dropped :: ![sollu]
+    -- | Front means these were dropped from the front of the sequence, Back
+    -- is from the back.
+    , _side :: !Side
+    } deriving (Eq, Ord, Show, Functor)
+
+data Side = Front | Back deriving (Eq, Ord, Show)
+instance Pretty Side where pretty = showt
+
+instance Pretty sollu => Pretty (Group sollu) where
+    pretty (Group dropped side) = pretty (dropped, side)
+
+-- | A note that can take up a variable amount of space.  Since it doesn't have
+-- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
+data Space = Rest | Sarva
+    deriving (Eq, Ord, Show)
 
 data NoteT sollu = NoteT {
     _sollu :: !sollu
@@ -116,6 +131,9 @@ note sollu = NoteT { _sollu = sollu, _karvai = False, _tag = Nothing }
 note_of :: Note sollu -> Maybe (NoteT sollu)
 note_of (Note n) = Just n
 note_of _ = Nothing
+
+sollu_of :: Note sollu -> Maybe sollu
+sollu_of = fmap _sollu . note_of
 
 instance Pretty sollu => Pretty (NoteT sollu) where
     pretty (NoteT sollu karvai tag) = mconcat
@@ -195,7 +213,7 @@ instance Pretty Sollu where
 
 -- * durations
 
-duration_of :: [S.Note (Note sollu)] -> S.Duration
+duration_of :: [S.Note g (Note sollu)] -> S.Duration
 duration_of = sum . map (S.note_duration S.default_tempo)
 
 -- * functions
@@ -225,30 +243,27 @@ drop_next_rest [] = (False, [])
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verify_alignment :: Tala.Tala -> [(S.Tempo, Note sollu)]
-    -> ([(S.Tempo, Note sollu)], Maybe Error)
-    -- ^ If there's an error, still return the elemnts leading up to it.
+verify_alignment :: Tala.Tala -> [(S.Tempo, Note sollu)] -> Maybe (Int, Error)
+    -- ^ (index where the error occured, error)
 verify_alignment tala notes =
-    first (map (first S.state_tempo)) $ S.right_until_left $
-        append_ends_on_sam $ mapMaybe (strip . verify) states
+    msum (map verify (zip [0..] states))
+        <|> append_ends_on_sam
     where
     (final_state, states) = S.tempo_to_state tala notes
     -- Either final_state one is at 0, or the last non-rest note is.
     append_ends_on_sam
-        | at_akshara 0 final_state || maybe False (at_akshara 0) final_note = id
-        | otherwise =
-            (++[Left $ "korvai should end on or before sam: "
-                <> S.show_position final_state])
+        | at_akshara 0 final_state || maybe False (at_akshara 0) final_note =
+            Nothing
+        | otherwise = Just (length states,
+            "korvai should end on or before sam: "
+            <> S.show_position final_state)
         where
         final_note = fst <$> List.find (not . is_space . snd) (reverse states)
-    strip (Right Nothing) = Nothing
-    strip (Right (Just x)) = Just (Right x)
-    strip (Left x) = Just (Left x)
-    verify (state, Alignment akshara)
-        | at_akshara akshara state = Right Nothing
-        | otherwise = Left $ "expected akshara " <> showt akshara
-            <> ", but at " <> S.show_position state
-    verify (state, note) = Right $ Just (state, note)
+    verify (i, (state, Alignment akshara))
+        | at_akshara akshara state = Nothing
+        | otherwise = Just (i, "expected akshara " <> showt akshara
+            <> ", but at " <> S.show_position state)
+    verify _ = Nothing
     is_space (Space _) = True
     is_space _ = False
     at_akshara akshara state =
@@ -269,7 +284,7 @@ type Variations = [(S.Matra, S.Matra, S.Matra)]
 -- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
 -- orthogonal and could get a different function.
 vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
-    -> [S.Note (Note sollu)] -> [[S.Note (Note sollu)]]
+    -> [S.Note g (Note sollu)] -> [[S.Note g (Note sollu)]]
 vary allowed_variations notes
     | null modification_groups = [notes]
     | otherwise = map apply modification_groups
@@ -305,7 +320,7 @@ all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-find_triads :: [S.Note (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
+find_triads :: [S.Note g (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
 find_triads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst

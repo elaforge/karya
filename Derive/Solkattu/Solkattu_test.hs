@@ -8,8 +8,9 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Solkattu.Dsl as Dsl
-import Derive.Solkattu.DslSollu (ta, di, ki, tha, thom)
 import Derive.Solkattu.Dsl (__)
+import Derive.Solkattu.DslSollu (ta, di, ki, tha, thom)
+import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
@@ -20,30 +21,30 @@ import Global
 test_verify_alignment = do
     let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f []) []
-    strings_like (f (ta <> ta)) ["ta ta", "end on or before sam"]
-    strings_like (f (take 6 tdkt)) ["ta di ki ta", "akshara 1, matra 2"]
-    equal (f (take (8*4) tdkt)) []
-    equal (f (Dsl.speed (-2) $ take 8 tdkt)) []
+    equal (f []) Nothing
+    equal (f (ta <> ta)) (Just (2,
+        "korvai should end on or before sam: avartanam 1, akshara 0, matra 2"))
+    equal (f (take 6 tdkt)) (Just (6,
+        "korvai should end on or before sam: avartanam 1, akshara 1, matra 2"))
+    equal (f (take (8*4) tdkt)) Nothing
+    equal (f (Dsl.speed (-2) $ take 8 tdkt)) Nothing
     -- Ok to end on sam, even with trailing rests.
-    equal (f (Dsl.speed (-2) $ take 9 tdkt <> __ <> __)) []
+    equal (f (Dsl.speed (-2) $ take 9 tdkt <> __ <> __)) Nothing
     -- But I don't drop rests because sometimes they make it line up.
-    equal (f (Dsl.speed (-2) $ take 7 tdkt <> __)) []
+    equal (f (Dsl.speed (-2) $ take 7 tdkt <> __)) Nothing
 
-    equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt)) []
-    strings_like (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt))
-        [ "ta di ki"
-        , "expected akshara 4, but at avartanam 1, akshara 0, matra 3"
-        ]
+    equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt))
+        Nothing
+    equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt))
+        (Just (3, "expected akshara 4, but at avartanam 1, akshara 0, matra 3"))
 
 test_verify_alignment_nadai_change = do
     let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    strings_like (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt)))
-        [ "ta di ta di ki"
-        , "akshara 1, matra 0"
-        ]
+    equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt)))
+        (Just (5, "korvai should end on or before sam:\
+            \ avartanam 1, akshara 1, matra 0"))
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm
@@ -57,8 +58,8 @@ test_verify_alignment_nadai_change = do
     -- 7 __ di __ ki th tm
     let sequence p7 = Dsl.nadai 8 (__ <> Dsl.repeat 5 p7)
             <> Dsl.nadai 6 (Dsl.tri p7)
-    equal (f (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom))) []
-    equal (f (sequence Dsl.p7)) []
+    equal (f (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom))) Nothing
+    equal (f (sequence Dsl.p7)) Nothing
 
 test_cancel_karvai = do
     let f = Text.unwords . map (pretty . snd) . Solkattu.cancel_karvai
@@ -68,13 +69,9 @@ test_cancel_karvai = do
     equal (f (ta <> Dsl.karvai thom <> __)) "ta thom"
     equal (f (ta <> Dsl.karvai thom <> di)) "ta di"
 
-verify_alignment :: Tala.Tala -> [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
-    -> [Text]
-verify_alignment tala =
-    format . Solkattu.verify_alignment tala . Sequence.flatten
-    where
-    format (notes, Just err) = [Text.unwords (map (pretty . snd) notes), err]
-    format (_, Nothing) = []
+verify_alignment :: Tala.Tala -> Korvai.Sequence -> Maybe (Int, Text)
+verify_alignment tala = Solkattu.verify_alignment tala
+    . map (first Sequence._tempo) . Sequence.flatten
 
 test_vary = do
     let f notes = map (Text.unwords . map pretty) $

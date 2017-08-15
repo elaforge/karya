@@ -13,11 +13,13 @@ module Derive.Solkattu.Sequence (
     , change_speed
     , HasMatras(..)
     -- * transform
+    , map_group, flatten_groups
     , simplify
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
-    -- * realize
+    -- * flatten
+    , Meta(..)
     , notes, flatten, flatten_with
     , tempo_to_state, tempo_to_duration
     , Stroke(..), normalize_speed
@@ -38,14 +40,20 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
-data Note a = Note !a | TempoChange TempoChange ![Note a]
+data Note g a = Note !a
+    | TempoChange !TempoChange ![Note g a]
+    | Group !g ![Note g a]
     deriving (Eq, Ord, Show, Functor)
 
-instance Pretty a => Pretty (Note a) where
+instance (Pretty a, Pretty g) => Pretty (Note g a) where
     format n = case n of
         Note a -> Pretty.format a
         TempoChange change notes ->
             Pretty.text (pretty change) <> "("
+                <> Pretty.wrapWords (map Pretty.format notes)
+                <> ")"
+        Group g notes ->
+            Pretty.text (pretty g) <> "("
                 <> Pretty.wrapWords (map Pretty.format notes)
                 <> ")"
 
@@ -78,7 +86,7 @@ speed_factor s
     | s > 0 = 2^s
     | otherwise = 1 / (2 ^ abs s)
 
-change_speed :: Speed -> [Note a] -> Note a
+change_speed :: Speed -> [Note g a] -> Note g a
 change_speed = TempoChange . ChangeSpeed
 
 class HasMatras a where
@@ -90,11 +98,24 @@ class HasMatras a where
 
 -- * transform
 
+map_group :: (g -> h) -> Note g a -> Note h a
+map_group f n = case n of
+    Note a -> Note a
+    TempoChange change ns -> TempoChange change (map (map_group f) ns)
+    Group g ns -> Group (f g) (map (map_group f) ns)
+
+flatten_groups :: [Note g a] -> [Note h a]
+flatten_groups = concatMap $ \n -> case n of
+    Group _ ns -> flatten_groups ns
+    Note a -> [Note a]
+    TempoChange change ns -> [TempoChange change (flatten_groups ns)]
+
 -- | Drop empty TempoChanges, combine nested ones.
-simplify :: [Note a] -> [Note a]
+simplify :: [Note g a] -> [Note g a]
 simplify = merge . concatMap cancel
     where
     cancel (Note a) = [Note a]
+    cancel (Group g ns) = [Group g ns]
     cancel (TempoChange _ []) = []
     cancel (TempoChange (ChangeSpeed s) xs) | s == 0 = xs
     cancel (TempoChange (ChangeSpeed s) xs) = concatMap (cancel_speed s) xs
@@ -112,22 +133,39 @@ simplify = merge . concatMap cancel
         TempoChange c (concat (sub : same)) : merge rest
         where (same, rest) = Seq.span_while (same_change c) ns
     merge (Note a : ns) = Note a : merge ns
+    merge (Group g a : ns) = Group g a : merge ns
     merge [] = []
     same_change change (TempoChange c ns) | change == c = Just ns
     same_change _ _ = Nothing
 
--- * realize
+-- * flatten
 
-notes :: [Note a] -> [a]
+notes :: [Note g a] -> [a]
 notes = map snd . flatten
 
-flatten :: [Note a] -> [(Tempo, a)]
+flatten :: [Note g a] -> [(Meta g, a)]
 flatten = flatten_with default_tempo
 
-flatten_with :: Tempo -> [Note a] -> [(Tempo, a)]
-flatten_with tempo = concatMap $ \n -> case n of
-    Note note -> [(tempo, note)]
-    TempoChange change notes -> flatten_with (change_tempo change tempo) notes
+data Meta g = Meta {
+    -- | If Just, this marks the start of a group, with count of elements
+    -- and polymorphic payload.
+    _group :: !(Maybe (Int, g))
+    , _tempo :: !Tempo
+    } deriving (Eq, Show, Functor)
+
+instance Pretty g => Pretty (Meta g) where
+    pretty (Meta g tempo) = pretty (g, tempo)
+
+flatten_with :: Tempo -> [Note g a] -> [(Meta g, a)]
+flatten_with = go
+    where
+    go tempo = concatMap $ \n -> case n of
+        Note note -> [(Meta Nothing tempo, note)]
+        TempoChange change notes -> go (change_tempo change tempo) notes
+        Group g notes -> case go tempo notes of
+            (meta, a) : as ->
+                (meta { _group = Just (length as + 1, g) }, a) : as
+            [] -> []
 
 -- | Calculate Tala position for each note.
 tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]
@@ -261,11 +299,12 @@ show_position state =
 -- * functions
 
 -- | Flatten the note and return its Duration.
-note_duration :: HasMatras a => Tempo -> Note a -> Duration
+note_duration :: HasMatras a => Tempo -> Note g a -> Duration
 note_duration tempo n = case n of
     TempoChange change notes ->
         sum $ map (note_duration (change_tempo change tempo)) notes
     Note n -> matra_duration tempo * fromIntegral (matras_of n)
+    Group _ notes -> sum $ map (note_duration tempo) notes
 
 -- | Duration of one matra in the given tempo.
 matra_duration :: Tempo -> Duration
@@ -273,7 +312,7 @@ matra_duration tempo =
     1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)
 
 map_time :: HasMatras a => Tala.Tala -> (State -> a -> [Either Text b])
-    -> [Note a] -> [Either Text b]
+    -> [Note g a] -> [Either Text b]
 map_time tala f =
     concat . snd . List.mapAccumL process initial_state
     where
@@ -285,7 +324,7 @@ map_time tala f =
         Note n -> (next_state, f state n)
         where next_state = advance_state tala note state
 
-advance_state :: HasMatras a => Tala.Tala -> Note a -> State -> State
+advance_state :: HasMatras a => Tala.Tala -> Note g a -> State -> State
 advance_state tala note state = advance_state_by tala matras state
     where matras = note_duration (state_tempo state) note
 

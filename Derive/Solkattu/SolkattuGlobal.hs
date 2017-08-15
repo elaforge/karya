@@ -20,14 +20,13 @@ import qualified Derive.Solkattu.Instrument.Reyong as Reyong
 import qualified Derive.Solkattu.Instrument.Sargam as Sargam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
 Mridangam.Strokes {..} = Mridangam.notes
 
 
-type Sequence = [Sequence.Note (Solkattu.Note Solkattu.Sollu)]
+type Sequence = SequenceT Solkattu.Sollu
 
 -- * fragments
 
@@ -53,7 +52,7 @@ on = o & n
 
 -- * instruments
 
-type StrokeMap stroke = [(Sequence, [Sequence.Note (Realize.Note stroke)])]
+type StrokeMap stroke = [(Sequence, [Realize.SNote stroke])]
 
 make_mridangam :: CallStack.Stack => StrokeMap Mridangam.Stroke
     -> Korvai.StrokeMaps

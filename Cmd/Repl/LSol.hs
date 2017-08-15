@@ -92,8 +92,8 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         <=< Ui.require ("no korvai at index " <> showt index) $
             Seq.at (Korvai.realize instrument realize_patterns korvai) index
     unless (Text.null warning) $ Ui.throw warning
-    return $ to_note_track (Korvai.inst_to_score instrument) akshara_dur at
-        strokes
+    return $ to_note_track (Korvai.inst_to_score instrument) akshara_dur at $
+        map (first Sequence._tempo) strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
     -> [(Sequence.Tempo, Realize.Note stroke)] -> ModifyNotes.NoteTrack

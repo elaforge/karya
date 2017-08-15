@@ -22,7 +22,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-type SNote = Sequence.Note (Realize.Note Stroke)
+type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
 note = Sequence.Note . Realize.Note . Realize.stroke
@@ -133,8 +133,7 @@ add steps s = s { _pitch = Pitch.add_pc 7 steps (_pitch s) }
 
 -- * instrument
 
-instrument ::
-    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
+instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument (Realize.simple_stroke_map [])
 

@@ -12,6 +12,7 @@ import Derive.Solkattu.DslSollu (ta, ka, din, na)
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
@@ -22,12 +23,14 @@ test_realize = do
     let f realize_patterns = second (first (map extract)) . head
             . Korvai.realize Korvai.mridangam realize_patterns
             . korvai (Tala.Tala "eka" Tala.eka 2) . (:[])
-        extract (tempo, stroke) = pretty tempo <> ":" <> pretty stroke
+        extract (meta, stroke) =
+            pretty (Sequence._tempo meta) <> ":" <> pretty stroke
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
     equal (f False (take 4 tkdn)) $ Right
         ( map ("s0n4:"<>) (chars "kook")
-        , "korvai should end on or before sam: avartanam 1, akshara 1, matra 0"
+        , "4: korvai should end on or before sam: avartanam 1, akshara 1,\
+            \ matra 0"
         )
     equal (f False (take 2 p4s)) $ Right (map ("s0n4:"<>) ["p4", "p4"], "")
     equal (f True (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")

@@ -18,7 +18,7 @@ import qualified Derive.Symbols as Symbols
 import Global
 
 
-type SNote = Sequence.Note (Realize.Note Stroke)
+type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
 note = Sequence.Note . Realize.Note . Realize.stroke
@@ -37,8 +37,9 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-instrument ::
-    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
+type Patterns = Realize.Patterns Stroke
+
+instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
@@ -160,8 +161,6 @@ both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
 -- * patterns
 
-type Patterns = Realize.Patterns Stroke
-
 __ :: SNote
 __ = Realize.rest
 
@@ -251,10 +250,10 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
     kp = [k, p]
     kpnp = [k, p, n, p]
 
-patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
+patterns :: [(Sequence.Matra, [SNote])]
     -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (default_nakatiku++)
     . map (first Solkattu.PatternM)
 
-su :: [Sequence.Note a] -> [Sequence.Note a]
+su :: [Sequence.Note g a] -> [Sequence.Note g a]
 su = (:[]) . Sequence.change_speed 1

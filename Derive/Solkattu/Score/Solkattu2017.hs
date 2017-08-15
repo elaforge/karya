@@ -138,6 +138,30 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
         , (din.na, [k, k])
         ] where Reyong.Strokes {..} = Reyong.notes
 
+c_17_03_20_2 :: Korvai
+c_17_03_20_2 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
+    \ lot, see section in Laya Vinyas, adi talam solo." $
+    korvai1 adi (mridangam <> kendang <> reyong) $ su $
+        reduceTo 4 2 theme
+        . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
+    where
+    theme = tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga
+    mridangam = make_mridangam
+        [ (theme, [k, k, t, k, o, o, k, n, p, k, p, u, lt o])
+        -- TODO if groups didn't require an exact match.
+        -- , (ta.taka, [k, k, t])
+        -- , (na.ka.dit.ta.lang.ga, [n, p, k, p, u, lt o])
+        , (ga, [lt o])
+        ]
+    kendang = make_kendang1
+        [ (theme, [p, p, k, p, a, o, p, t, o, p, o, u, p])
+        , (ga, [a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+    reyong = make_reyong
+        [ (theme, [b, k, k, x, k, k, k, i, r2, r3, b, o, b])
+        , (ga, [b])
+        ] where Reyong.Strokes {..} = Reyong.notes
+
 c_17_04_04 :: Korvai
 c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
     korvai Tala.misra_chapu mridangam $ map (sd • (purvangam.))

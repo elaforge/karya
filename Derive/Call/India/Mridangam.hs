@@ -149,7 +149,7 @@ infer_pattern dur variation = do
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
     return $ map (first (*4)) $ Sequence.tempo_to_duration $
-        Sequence.flatten notes
+        map (first Sequence._tempo) $ Sequence.flatten notes
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver

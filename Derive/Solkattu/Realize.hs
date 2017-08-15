@@ -31,7 +31,11 @@ import Global
 
 type Error = Text
 
-type SNote stroke = S.Note (Note stroke)
+-- The group is () because I don't need groups in the stroke map keys.
+-- TODO it winds up being [()], which is kind of dumb.  I could remove [] from
+-- the variable to have it be just ().  Also, what's the advantage of Void over
+-- ()?
+type SNote stroke = S.Note () (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
 data Note stroke =
@@ -145,9 +149,11 @@ simple_stroke_map = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
     . map (first (Nothing,))
 
 stroke_map :: Pretty stroke =>
-    [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
+    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Either Error (StrokeMap stroke)
-stroke_map = fmap (StrokeMap . Map.fromList) . mapM verify
+stroke_map =
+    fmap (StrokeMap . Map.fromList)
+        . mapM (verify . first (map (S.map_group (const ()))))
     where
     verify (sollus, strokes) = do
         let throw = Left
@@ -192,7 +198,7 @@ instance Pretty stroke => Pretty (Instrument stroke) where
         ]
 
 instrument :: Pretty stroke => StrokeMap stroke
-    -> [([S.Note (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
+    -> [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Patterns stroke -> Either Error (Instrument stroke)
 instrument defaults strokes patterns = do
     smap <- stroke_map strokes
@@ -213,23 +219,64 @@ keep_pattern tempo pattern = Right [(tempo, Pattern pattern)]
 realize_pattern :: Patterns stroke -> RealizePattern S.Tempo stroke
 realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
-    Just notes -> Right $ S.flatten_with tempo notes
+    Just notes -> Right $ map (first S._tempo) $ S.flatten_with tempo notes
 
-realize :: (Pretty stroke, Pretty sollu) => RealizePattern tempo stroke
-    -> GetStroke sollu stroke
-    -> [(tempo, Solkattu.Note sollu)]
-    -> Either Error [(tempo, Note stroke)]
+type Meta sollu = S.Meta (Solkattu.Group sollu)
+
+-- If it's in a group, then I get the next n sollus that are in the group,
+-- and try to realize.
+realize :: (Pretty stroke, Pretty sollu) =>
+    RealizePattern S.Tempo stroke -> GetStroke sollu stroke
+    -> [(Meta sollu, Solkattu.Note sollu)]
+    -> Either Error [(Meta sollu, Note stroke)]
 realize realize_pattern get_stroke =
     format_error . first concat . map_until_left realize1
     where
-    realize1 (tempo, note) notes = case note of
+    realize1 (meta@(S.Meta (Just (count, group)) _), note) notes =
+        (,post) <$> realize_group get_stroke group ((meta, note) : pre)
+        where (pre, post) = splitAt (count-1) notes
+    realize1 (meta, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
-        Solkattu.Space space -> Right ([(tempo, Space space)], notes)
-        Solkattu.Note {} -> find_sequence get_stroke ((tempo, note) : notes)
-        Solkattu.Pattern p -> (,notes) <$> realize_pattern tempo p
+        Solkattu.Space space -> Right ([(meta, Space space)], notes)
+        Solkattu.Pattern p -> (,notes) . map (first add_meta) <$>
+            realize_pattern (S._tempo meta) p
+        Solkattu.Note {} -> find_sequence get_stroke ((meta, note) : notes)
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
         TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
+
+-- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
+-- merge their result into 'realize' output.
+add_meta :: S.Tempo -> S.Meta g
+add_meta tempo = S.Meta { _group = Nothing, _tempo = tempo }
+
+-- | Put the group's sollus on the beginning or end of the notes and try to
+-- find an exact match.
+--
+-- TODO to support nested groups, 
+realize_group :: Pretty sollu => GetStroke sollu stroke -> Solkattu.Group sollu
+    -> [(meta, Solkattu.Note sollu)]
+    -> Either Error [(meta, Note stroke)]
+realize_group get_stroke (Solkattu.Group dropped side) notes =
+    case exact_match tag all_sollus get_stroke of
+        Nothing -> Left $ "group not found: " <> pretty sollus
+        Just strokes
+            | null leftover -> Right replaced
+            -- This shouldn't happen because 'stroke_map' checked that the
+            -- lengths match.
+            | otherwise -> Left $ "group match has leftovers: "
+                <> pretty (map snd leftover)
+            where
+            (replaced, leftover) = replace_sollus (drop_strokes strokes) notes
+    where
+    tag = Solkattu._tag =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
+    sollus = map Solkattu._sollu $ mapMaybe (Solkattu.note_of . snd) notes
+    all_sollus = case side of
+        Solkattu.Front -> dropped ++ sollus
+        Solkattu.Back -> sollus ++ dropped
+    drop_strokes = case side of
+        Solkattu.Front -> drop (length dropped)
+        Solkattu.Back -> Seq.rdrop (length dropped)
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.
@@ -309,6 +356,11 @@ best_match tag sollus (longest_key, get_stroke) =
     find tag = mapMaybe (\s -> get_stroke tag s)
     prefixes = reverse $ drop 1 $ List.inits $ take longest_key sollus
 
+exact_match :: Maybe Solkattu.Tag -> [sollu] -> GetStroke sollu stroke
+    -> Maybe [Maybe (Stroke stroke)]
+exact_match tag sollus (_, get_stroke) =
+    get_stroke tag sollus <|> get_stroke Nothing sollus
+
 
 -- * format text
 
@@ -319,8 +371,8 @@ best_match tag sollus (longest_key, get_stroke) =
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
-    -> [(S.Tempo, Note stroke)] -> Text
-format override_stroke_width width tala notes =
+    -> [(S.Meta (), Note stroke)] -> Text
+format override_stroke_width width tala notes_ =
     Text.stripEnd $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
@@ -328,6 +380,8 @@ format override_stroke_width width tala notes =
             Text.unlines $ map format_line lines)
         | lines <- avartanam_lines
         ]
+    -- TODO display group boundaries somehow
+    notes = map (first S._tempo) notes_
     (avartanam_lines, stroke_width) = case override_stroke_width of
         Just n -> (format_lines n width tala notes, n)
         Nothing -> case format_lines 1 width tala notes of
@@ -486,12 +540,12 @@ justify_left n c text
 -- * format html
 
 write_html :: Pretty stroke => FilePath -> Tala.Tala
-    -> [[(S.Tempo, Note stroke)]] -> IO ()
+    -> [[(S.Meta (), Note stroke)]] -> IO ()
 write_html fname tala =
     Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
     . map (Doc.un_html . format_html tala)
 
-format_html :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+format_html :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
     -> Doc.Html
 format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
     where
@@ -500,13 +554,14 @@ format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
     body = map (map (second Doc.Html) . thin_rests . map (second Doc.un_html)) $
         format_table tala notes
 
-format_table :: Pretty stroke => Tala.Tala -> [(S.Tempo, Note stroke)]
+format_table :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
     -> [[(S.State, Doc.Html)]]
 format_table tala =
     break_avartanams
         . map_with_fst emphasize_akshara
         . map (second show_stroke)
         . S.normalize_speed tala
+        . map (first S._tempo) -- TODO highlight groups
     where
     show_stroke s = case s of
         S.Attack a -> Doc.html (pretty a)

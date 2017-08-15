@@ -14,7 +14,7 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Global
 
 
-type SNote = Sequence.Note (Realize.Note Stroke)
+type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
 note = Sequence.Note . Realize.Note . Realize.stroke
@@ -73,8 +73,7 @@ notes = note <$> strokes
 
 -- * instrument
 
-instrument ::
-    [([Sequence.Note (Solkattu.Note Solkattu.Sollu)], [Realize.SNote Stroke])]
+instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
     -> Patterns -> Either Text (Realize.Instrument Stroke)
 instrument = Realize.instrument standard_stroke_map
 
