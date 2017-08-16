@@ -41,11 +41,9 @@ generate out_fname extracted = fmap (warnings,) $
     warnings = map (("Warning: no korvai defs in " <>) . txt) (Map.keys empty)
 
 korvai_def :: FilePath -> (Int, Text) -> Text
-korvai_def fname (lineno, variable_name) = mconcat
-    [ "variable_name ", showt variable_name
-    , " $\n        module_ ", showt module_
-    , " $\n        line_number ", showt lineno
-    , " ", module_ <> "." <> variable_name
+korvai_def fname (lineno, variable_name) = Text.unwords
+    [ "set_location", showt (module_, lineno, variable_name)
+    , module_ <> "." <> variable_name
     ]
     where module_ = ExtractHs.pathToModule fname
 

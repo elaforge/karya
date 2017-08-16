@@ -382,7 +382,7 @@ print_timer msg show_val op = do
             Exception.throwIO exc
 
 force :: DeepSeq.NFData a => a -> IO ()
-force x = x `DeepSeq.deepseq` return ()
+force x = Exception.evaluate (DeepSeq.rnf x)
 
 -- * util
 

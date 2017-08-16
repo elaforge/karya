@@ -61,6 +61,7 @@
 -}
 {-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
 module Derive.Solkattu.Solkattu where
+import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Text as Text
 
@@ -332,6 +333,22 @@ find_triads notes =
     where
     triads (x1:x2:x3:xs) = (x1, x2, x3) : triads xs
     triads _ = []
+
+-- * exceptions
+
+-- | Yes, I use impure exceptions, because otherwise the DSL has to become
+-- monadic or at least applicative.  But it seems less egregious because there
+-- isn't such a strong distinction between compiling and running anyway.
+--
+-- But it does mean I have to be careful to force and catch at the boundaries.
+newtype Exception = Exception Text
+    deriving (Eq)
+instance Exception.Exception Exception
+instance Show Exception where
+    show (Exception msg) = Text.unpack msg
+
+throw :: CallStack.Stack => Text -> a
+throw = CallStack.throw Exception
 
 -- * util
 

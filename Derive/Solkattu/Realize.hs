@@ -7,6 +7,7 @@
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -36,10 +37,13 @@ type SNote stroke = S.Note () (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
 data Note stroke =
-    Note (Stroke stroke)
+    Note !(Stroke stroke)
     | Space !Solkattu.Space
     | Pattern !Solkattu.Pattern
     deriving (Eq, Show, Functor)
+
+instance DeepSeq.NFData (Note stroke) where
+    rnf _ = ()
 
 data Stroke stroke = Stroke {
     _emphasis :: !Emphasis

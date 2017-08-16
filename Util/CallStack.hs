@@ -11,6 +11,7 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import Data.Text (Text)
 #if GHC_VERSION < 80000
 import qualified GHC.SrcLoc as Stack
 #endif
@@ -51,22 +52,26 @@ caller stack = case reverse (Stack.getCallStack stack) of
     strip ('.':'/':s) = s
     strip s = s
 
-showCaller :: Caller -> Text.Text
+showCaller :: Caller -> Text
 showCaller (Caller fname line) =
     Text.pack fname <> ":" <> Text.pack (show line)
 showCaller NoCaller = "<no-caller>"
 
-showStack :: Stack.CallStack -> Text.Text
+showStack :: Stack.CallStack -> Text
 showStack = showCaller . caller
 
-getStack :: Stack => Text.Text
+getStack :: Stack => Text
 getStack = showStack ?callStack
 
 -- | Just like 'error', except show the caller's location.
-errorStack :: Stack => Text.Text -> a
+errorStack :: Stack => Text -> a
 errorStack msg = error $ Text.unpack $ showStack ?callStack <> ": " <> msg
 
 -- | Like 'errorStack', except run in IO.
-errorIO :: Stack => Trans.MonadIO m => Text.Text -> m a
+errorIO :: Stack => Trans.MonadIO m => Text -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
     . Text.unpack . ((showStack ?callStack <> ": ") <>)
+
+throw :: (Stack, Exception.Exception e) => (Text -> e) -> Text -> a
+throw to_exc msg =
+    Exception.throw (to_exc (showStack ?callStack <> ": " <> msg))

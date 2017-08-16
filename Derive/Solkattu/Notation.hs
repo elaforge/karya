@@ -4,7 +4,8 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Generic combinators for solkattu patterns.  Because these are expected to
--- be called as part of the dsl, error calls are allowed.
+-- be called as part of the dsl, impure exceptions are allowed, via
+-- 'Solkattu.throw'.
 --
 -- This is meant to have just Sequence manipulation, without
 -- instrument-specific functions.
@@ -93,7 +94,7 @@ splitD_ dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
             S.Group g subs -> group tempo dur g subs ns
             S.Note (Solkattu.Space space) -> (0,
                 (spaceD space tempo dur, spaceD space tempo (ndur - dur) <> ns))
-            _ -> errorStack $ "can't split a note: " <> pretty dur
+            _ -> Solkattu.throw $ "can't split a note: " <> pretty dur
                 <> " of " <> pretty ndur <> ": " <> pretty n
         -- TODO drop a Pattern, replace with rests
         -- or just error
@@ -152,7 +153,7 @@ decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
     where
     go speed left
         | left == 0 = []
-        | speed > 4 = errorStack $ "not a binary multiple: " <> pretty dur
+        | speed > 4 = Solkattu.throw $ "not a binary multiple: " <> pretty dur
         | matra <= left = speed : go (speed+1) (left - matra)
         | otherwise = go (speed+1) left
         -- where factor = S.speed_factor speed
@@ -280,7 +281,7 @@ reduceToL :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToL to by seq
     | (matras - to) `mod` by /= 0 =
-        errorStack $ showt matras <> " can't reduce by "
+        Solkattu.throw $ showt matras <> " can't reduce by "
             <> showt by <> " to " <> showt to
     | otherwise = [dropM m seq | m <- Seq.range 0 (matras - to) by]
     where matras = matrasOf seq
@@ -290,7 +291,7 @@ reduceToR :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToR to by seq
     | (matras - to) `mod` by /= 0 =
-        errorStack $ showt matras <> " can't reduce by "
+        Solkattu.throw $ showt matras <> " can't reduce by "
             <> showt by <> " to " <> showt to
     | otherwise = [takeM m seq | m <- Seq.range matras to (-by)]
     where matras = matrasOf seq

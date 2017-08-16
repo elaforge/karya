@@ -203,22 +203,29 @@ flatten = Solkattu.cancel_karvai . S.flatten_with S.default_tempo
 
 -- * Metadata
 
--- | Attach some metadata to a Korvai.  Someday I'll put them in some kind of
--- searchable database and then this should be useful.
+-- | Attach some metadata to a Korvai.
 data Metadata = Metadata {
     _date :: !(Maybe Calendar.Day)
-    , _tags :: !Tags
+    -- | This is lazy because it might have a 'Solkattu.Exception' in it!
+    , _tags :: Tags
+    , _location :: !Location
     } deriving (Eq, Show)
 
+-- | (module, line_number, variable_name)
+type Location = (Text, Int, Text)
+
 instance Monoid Metadata where
-    mempty = Metadata Nothing mempty
-    mappend (Metadata date1 tags1) (Metadata date2 tags2) =
+    mempty = Metadata Nothing mempty ("", 0, "")
+    mappend (Metadata date1 tags1 loc1@(mod1, _, _))
+            (Metadata date2 tags2 loc2) =
         Metadata (date1 <|> date2) (tags1 <> tags2)
+            (if Text.null mod1 then loc2 else loc1)
 
 instance Pretty Metadata where
-    format (Metadata date tags) = Pretty.record "Metadata"
+    format (Metadata date tags loc) = Pretty.record "Metadata"
         [ ("date", Pretty.format date)
         , ("tags", Pretty.format tags)
+        , ("location", Pretty.format loc)
         ]
 
 newtype Tags = Tags (Map Text [Text])

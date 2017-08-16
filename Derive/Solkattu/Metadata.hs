@@ -6,13 +6,11 @@
 -- defined in "Derive.Solkattu.Korvai" to avoid a circular import.
 module Derive.Solkattu.Metadata (
     -- * query
-    get, get_location, location_tags, get_module_variable
+    get, get_location, set_location, show_location, get_module_variable
     -- * add
     , comment, date, source, similar_to, t_similar_to
     , korvai_t, koraippu, mohra, sarvalaghu, tirmanam
     , sequence_t, faran, exercise, trikalam
-    , variable_name, module_, line_number
-    , t_variable_name, t_module, t_line_number
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -30,20 +28,23 @@ get tag = Map.findWithDefault [] tag . untags . Korvai._tags
     . Korvai.korvai_metadata
     where untags (Korvai.Tags tags) = tags
 
-get_location :: Korvai -> Text
-get_location korvai = case (g t_module, g t_line_number, g t_variable_name) of
-    (module_:_, line:_, name:_) -> name <> " (" <> module_ <> ":" <> line <> ")"
-    _ -> "<unknown>"
-    where g = flip get korvai
+get_location :: Korvai -> Korvai.Location
+get_location = Korvai._location . Korvai.korvai_metadata
 
-location_tags :: [Text]
-location_tags = [t_module, t_line_number, t_variable_name]
+show_location :: Korvai.Location -> Text
+show_location (module_, line, name) =
+    name <> " (" <> module_ <> ":" <> showt line <> ")"
+
+set_location :: Korvai.Location -> Korvai -> Korvai
+set_location loc korvai = korvai
+    { Korvai.korvai_metadata = (Korvai.korvai_metadata korvai)
+        { Korvai._location = loc
+        }
+    }
 
 get_module_variable :: Korvai -> Text
-get_module_variable korvai =
-    case (get t_module korvai, get t_variable_name korvai) of
-        (module_:_, name:_) -> last (Text.splitOn "." module_) <> "." <> name
-        _ -> "<unknown>"
+get_module_variable korvai = last (Text.splitOn "." module_) <> "." <> name
+    where (module_, _, name) = get_location korvai
 
 -- * add
 
@@ -60,8 +61,8 @@ source :: Text -> Korvai -> Korvai
 source = with_tag "source"
 
 -- | This could be considered a variant of the other.  Takes "Module"
--- "variable_name", since 't_module' and 't_variable_name' are added later in
--- "Derive.Solkattu.All".  The link is verified in Db_test.
+-- "variable_name", since the location is added later in "Derive.Solkattu.All".
+-- The link is verified in Db_test.
 similar_to :: Text -> Text
     -> Korvai -> Korvai
 similar_to module_ variable_name =
@@ -104,23 +105,3 @@ with_type = with_tag "type"
 with_tag :: Text -> Text -> Korvai -> Korvai
 with_tag k v = Korvai.with_metadata $
     mempty { Korvai._tags = Korvai.Tags (Map.singleton k [v]) }
-
--- ** added automatically
-
-t_variable_name, t_module, t_line_number :: Text
-t_variable_name = "variable_name"
-t_module = "module"
-t_line_number = "line_number"
-
--- | Variable name the korvai is bound to.  Probably not much meaning except
--- to find the source.
-variable_name :: Text -> Korvai -> Korvai
-variable_name = with_tag t_variable_name
-
--- | Defining module.
-module_ :: Text -> Korvai -> Korvai
-module_ = with_tag t_module
-
--- | Line number in defining module.
-line_number :: Int -> Korvai -> Korvai
-line_number = with_tag t_line_number . showt
