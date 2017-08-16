@@ -220,57 +220,59 @@ realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
 
 type Meta sollu = S.Meta (Solkattu.Group sollu)
 
--- If it's in a group, then I get the next n sollus that are in the group,
--- and try to realize.
-realize :: (Pretty stroke, Pretty sollu) =>
+realize :: forall stroke sollu. (Pretty stroke, Pretty sollu) =>
     RealizePattern S.Tempo stroke -> GetStroke sollu stroke
     -> [(Meta sollu, Solkattu.Note sollu)]
     -> Either Error [(Meta sollu, Note stroke)]
 realize realize_pattern get_stroke =
-    format_error . first concat . map_until_left realize1
+    fmap strip . realize_notes . map (first Just)
     where
-    realize1 (meta@(S.Meta (Just (count, group)) _), note) notes =
-        (,post) <$> realize_group get_stroke group ((meta, note) : pre)
-        where (pre, post) = splitAt (count-1) notes
+    realize_notes = format_error . first concat . map_until_left realize1
+    realize1 ((Just (S.Meta (Just (count, group)) tempo)), note) notes
+        | not (null (Solkattu._dropped group)) = (, post) <$>
+            realize_group group ((Just stripped, note) : pre)
+        where
+        (pre, post) = splitAt (count-1) notes
+        -- I want to keep the group for the output, but if I leave it as-is
+        -- I'll recurse endlessly.  Since realize_group will add the dropped
+        -- sollus on, I can strip them from the group, and prevent it from
+        -- happening again.
+        stripped = S.Meta (Just (count, group { Solkattu._dropped = [] })) tempo
     realize1 (meta, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
         Solkattu.Space space -> Right ([(meta, Space space)], notes)
-        Solkattu.Pattern p -> (,notes) . map (first add_meta) <$>
-            realize_pattern (S._tempo meta) p
+        Solkattu.Pattern p -> case meta of
+            Just m -> (,notes) . map (first (Just . add_meta)) <$>
+                realize_pattern (S._tempo m) p
+            -- This shouldn't be possible because Nothing meta is only created
+            -- by 'extra' below.
+            Nothing -> Left "Pattern with Nothing meta"
         Solkattu.Note {} -> find_sequence get_stroke ((meta, note) : notes)
+
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
-        TextUtil.joinWith "\n" (pretty_words (map snd pre)) ("*** " <> err)
+        TextUtil.joinWith "\n" (pretty_words (map snd pre)) err
+
+    realize_group :: Solkattu.Group sollu
+        -> [(Maybe (Meta sollu), Solkattu.Note sollu)]
+        -> Either Error [(Maybe (Meta sollu), Note stroke)]
+    realize_group (Solkattu.Group dropped side) =
+        first ("group: "<>) . realize_notes . add
+        where
+        -- Add the 'dropped' notes back on to the sequence to find matches.
+        -- Since they are the only ones with Nothing meta, I can strip them off
+        -- afterwards by filtering out Nothing meta.
+        add notes = case side of
+            Solkattu.Front -> extra ++ notes
+            Solkattu.Back -> notes ++ extra
+            where
+            extra = map ((Nothing,) . Solkattu.Note . Solkattu.note) dropped
+    strip notes = [(meta, n) | (Just meta, n) <- notes]
 
 -- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
 -- merge their result into 'realize' output.
 add_meta :: S.Tempo -> S.Meta g
 add_meta tempo = S.Meta { _group = Nothing, _tempo = tempo }
-
--- | Put the group's sollus on the beginning or end of the notes try to find
--- matches for the whole sequence.
-realize_group :: Pretty sollu => GetStroke sollu stroke -> Solkattu.Group sollu
-    -> [(meta, Solkattu.Note sollu)] -> Either Error [(meta, Note stroke)]
-realize_group get_stroke (Solkattu.Group dropped side) = fmap strip . go . add
-    where
-    go notes = case best_match tag sollus get_stroke of
-        Nothing -> Left $ "group sequence not found: " <> pretty sollus
-        Just strokes
-            | null leftover -> Right replaced
-            | otherwise -> (replaced ++) <$> go leftover
-            where (replaced, leftover) = replace_sollus strokes notes
-        where
-        tag = Solkattu._tag
-            =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
-        sollus = map Solkattu._sollu $ mapMaybe (Solkattu.note_of . snd) notes
-    -- Add the 'dropped' notes back on to the sequence to find matches.  Since
-    -- they are the only ones with Nothing meta, I can strip them off
-    -- afterwards by filtering out Nothing meta.
-    add notes = case side of
-        Solkattu.Front -> extra ++ map (first Just) notes
-        Solkattu.Back -> map (first Just) notes ++ extra
-        where extra = map ((Nothing,) . Solkattu.Note . Solkattu.note) dropped
-    strip notes = [(meta, n) | (Just meta, n) <- notes]
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.

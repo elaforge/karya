@@ -147,7 +147,7 @@ flatten = flatten_with default_tempo
 
 data Meta g = Meta {
     -- | If Just, this marks the start of a group, with count of elements
-    -- and polymorphic payload.
+    -- and polymorphic payload.  The count is >=1.
     _group :: !(Maybe (Int, g))
     , _tempo :: !Tempo
     } deriving (Eq, Show, Functor)

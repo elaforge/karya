@@ -279,7 +279,7 @@ accumulate = map mconcat . drop 1 . List.inits
 -- | Reduce three times, with a separator.
 reduce3 :: Pretty sollu => Matra -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
-reduce3 n sep = List.intercalate sep . take 3 . iterate (dropM n)
+reduce3 dur sep = List.intercalate sep . take 3 . reduceToL 0 dur
 
 -- | 'reduceToL', except mconcat the result.
 reduceTo :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
@@ -298,11 +298,11 @@ reduceToL to by seq
 
 -- | Reduce by dropping the end.
 reduceR :: Pretty sollu => Matra -> SequenceT sollu -> [SequenceT sollu]
-reduceR n = iterate (rdropM n)
+reduceR n = iterate (rdropM n) -- TODO
 
 reduceR3 :: Pretty sollu => Matra -> SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
-reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur
+reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur -- TODO
 
 -- | Start fully reduced, and expand n times by the given duration.
 expand :: Pretty sollu => Int -> Matra -> SequenceT sollu -> [SequenceT sollu]

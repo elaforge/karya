@@ -2592,6 +2592,10 @@ Derive:
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
       solkattu-group:
+        * Now realize_group has to handle patterns too, which it could, but
+          shouldn't it be done by realize?  Also, if patterns are going to
+          become groups, then what this really is is nested groups.
+          . I probably need to turn realize_group into a recursive call.
         support S.Group:
           * Sequence
           * Realize
@@ -2626,6 +2630,8 @@ Derive:
             intermediate data less hairy.
           . For now, just make reduce not produce them.  Try simple
             simplification later.
+        - At least I can simplify away empty groups, or groups with empty
+          _dropped.
         plan:
           . top level:
             reduceTo 2 1 taka

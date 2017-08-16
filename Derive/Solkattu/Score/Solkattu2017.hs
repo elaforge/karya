@@ -207,11 +207,6 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
         [ (ta, [k])
         , (kita, [t, k])
         , (dinga, [od, __])
-        -- TODO these are only needed because realize doesn't understand
-        -- reduction.
-        , (ka.din.na, [o, o, k])
-        , (din.na, [o, k])
-        , (na, [k])
         ]
     kendang = make_kendang1
         [ (ta, [p])
@@ -219,11 +214,6 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
         , (takadinna, [t, o, o, p])
         , (dinga, [a, lt k])
         , (tdgnt, [p, k, t, a, o])
-        -- TODO these are only needed because realize doesn't understand
-        -- reduction.
-        , (ka.din.na, [o, o, p])
-        , (din.na, [o, p])
-        , (na, [p])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = make_sargam
         [ (ta, [s1])
@@ -231,11 +221,6 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
         , (takadinna, [d, n, p, d])
         , (dinga, [hv g, s])
         , (tdgnt, [hv r, g, hv p, m, n])
-        -- TODO these are only needed because realize doesn't understand
-        -- reduction.
-        , (ka.din.na, [n, p, d])
-        , (din.na, [p, d])
-        , (na, [d])
         ]
         [
         ] where Sargam.Strokes {..} = Sargam.notes
@@ -335,14 +320,10 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (din, [od])
-        -- TODO reduction
-        , (dit, [k])
         ]
     kendang = make_kendang1
         [ (tat.dit, [p, t])
         , (din, [a])
-        -- TODO reduction
-        , (dit, [p])
         -- TODO put in standard stroke map
         , (takadinna, [p, o, a, p])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
@@ -350,7 +331,6 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
         [ (tat.dit, [p, m])
         , (takadinna, [p, m, r, m])
         , (din, [hv s])
-        , (dit, [m])
         , (tam, [hv s_])
         ]
         [ ( Solkattu.PatternM 5, su [d_, s, d_, n_] . [s, n_, p_])

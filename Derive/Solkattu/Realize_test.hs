@@ -65,13 +65,16 @@ test_realize_groups = do
     equal (f [Notation.takeM 2 (din <> tat <> dit)]) (Right "D k")
     equal (f [Notation.takeM 1 (din <> tat <> dit)]) (Right "D")
     equal (f [Notation.takeM 0 (din <> tat <> dit)]) (Right "")
+    equal (f (replicate 2 (Notation.takeM 1 (tat <> dit)))) (Right "k k")
+    left_like (f [Notation.dropM 1 (dit <> dit)]) "sequence not found"
+    -- With rests.
+    equal (f [Notation.dropM 1 (tat <> __ <> dit <> __)]) (Right "_ t _")
+    -- With a Pattern.
+    equal (f [Notation.dropM 1 (tat <> dit <> Dsl.p5)]) (Right "t p5")
 
     -- -- TODO fix rdrop and rtake
     -- equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
     -- equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
-
-    equal (f (replicate 2 (Notation.takeM 1 (tat <> dit)))) (Right "k k")
-    left_like (f [Notation.dropM 1 (dit <> dit)]) "group sequence not found"
 
     -- Ensure groups are still in the output.
     let e_group = fmap (map ((fmap fst . Sequence._group) *** pretty))
