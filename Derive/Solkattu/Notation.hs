@@ -61,9 +61,10 @@ sarva n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
 -- * by Duration
 
-dropD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
-    -> SequenceT sollu
+dropD, dropD_ :: (CallStack.Stack, Pretty sollu) => Duration
+    -> SequenceT sollu -> SequenceT sollu
 dropD dur = snd . splitD dur
+dropD_ dur = snd . splitD_ dur
 
 takeD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
     -> SequenceT sollu
@@ -125,9 +126,10 @@ splitD_ dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
 sollus_of :: SequenceT sollu -> [sollu]
 sollus_of = mapMaybe Solkattu.sollu_of . S.notes
 
-rdropD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
-    -> SequenceT sollu
+rdropD, rdropD_ :: (CallStack.Stack, Pretty sollu) => Duration
+    -> SequenceT sollu -> SequenceT sollu
 rdropD dur seq = takeD (Solkattu.duration_of seq - dur) seq
+rdropD_ dur seq = fst $ splitD_ (Solkattu.duration_of seq - dur) seq
 
 rtakeD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
     -> SequenceT sollu
@@ -161,21 +163,12 @@ decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
 
 -- * by Matra
 
--- | Drop a number of matras from the sequence.
-dropM :: (CallStack.Stack, Pretty sollu) => Matra
-    -> SequenceT sollu -> SequenceT sollu
+-- | Matra-using variants of the duration functions.
+dropM, rdropM, takeM, rtakeM :: (CallStack.Stack, Pretty sollu) =>
+    Matra -> SequenceT sollu -> SequenceT sollu
 dropM = dropD . mToD
-
-rdropM :: (CallStack.Stack, Pretty sollu) => Matra
-    -> SequenceT sollu -> SequenceT sollu
 rdropM = rdropD . mToD
-
-takeM :: (CallStack.Stack, Pretty sollu) => Matra
-    -> SequenceT sollu -> SequenceT sollu
 takeM = takeD . mToD
-
-rtakeM :: (CallStack.Stack, Pretty sollu) => Matra
-    -> SequenceT sollu -> SequenceT sollu
 rtakeM = rtakeD . mToD
 
 matrasOf :: CallStack.Stack => SequenceT sollu -> Matra
@@ -269,7 +262,7 @@ accumulate = map mconcat . drop 1 . List.inits
 -- | Reduce three times, with a separator.
 reduce3 :: Pretty sollu => Matra -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
-reduce3 dur sep = List.intercalate sep . take 3 . reduceToL 0 dur
+reduce3 dur sep = List.intercalate sep . take 3 . reduceToL dur dur
 
 -- | 'reduceToL', except mconcat the result.
 reduceTo :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
@@ -279,35 +272,27 @@ reduceTo to by = mconcat . reduceToL to by
 -- | Reduce by a duration until a final duration.
 reduceToL :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
-reduceToL to by seq
-    | (matras - to) `mod` by /= 0 =
-        Solkattu.throw $ showt matras <> " can't reduce by "
-            <> showt by <> " to " <> showt to
-    | otherwise = [dropM m seq | m <- Seq.range 0 (matras - to) by]
+reduceToL to by seq = [dropM m seq | m <- Seq.range 0 (matras - to) by]
     where matras = matrasOf seq
 
 -- | Like 'reduceToL', but drop from the end instead of the front.
 reduceToR :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
-reduceToR to by seq
-    | (matras - to) `mod` by /= 0 =
-        Solkattu.throw $ showt matras <> " can't reduce by "
-            <> showt by <> " to " <> showt to
-    | otherwise = [takeM m seq | m <- Seq.range matras to (-by)]
+reduceToR to by seq = [takeM m seq | m <- Seq.range matras to (-by)]
     where matras = matrasOf seq
 
 -- | Start fully reduced, and expand n times by the given duration.
 expand :: (CallStack.Stack, Pretty sollu) => Int -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
-expand times dur = reverse . take times . reduceToL 0 dur
+expand times dur = reverse . take times . reduceToL dur dur
 
-replaceEnd :: Pretty sollu => SequenceT sollu -> SequenceT sollu
-    -> SequenceT sollu
-replaceEnd seq suffix = rdropD (Solkattu.duration_of suffix) seq <> suffix
-
-replaceStart :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
+-- | Unlike most other functions, this one doesn't make groups from the reduced
+-- sequence.  Since these are used to construct a new sequence, it seems more
+-- confusing than helpful.
+replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
-replaceStart prefix seq = prefix <> dropD (Solkattu.duration_of prefix) seq
+replaceStart prefix seq = prefix <> dropD_ (Solkattu.duration_of prefix) seq
+replaceEnd seq suffix = rdropD_ (Solkattu.duration_of suffix) seq <> suffix
 
 -- | I think default_tempo is ok because these functions are used on fragments.
 matra_duration :: S.Duration

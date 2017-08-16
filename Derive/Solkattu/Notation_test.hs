@@ -28,8 +28,11 @@ test_matras_of = do
     left_like (f (su di)) "non-integral matras"
 
 test_splitD = do
-    let f dur = (map pretty *** map pretty) . Notation.splitD dur
-    equal (f (1/4) (ta <> ka)) (["ta"], ["ka"])
+    equal ((map pretty *** map pretty) $ Notation.splitD (1/4) (ta <> ka))
+        (["([ka], Back)(ta)"], ["([ta], Front)(ka)"])
+
+    let f dur = (extract *** extract) . Notation.splitD dur
+        extract = map pretty . flatten_groups
     equal (f (1/4) (su (ta <> ka) <> di)) (["s+1(ta ka)"], ["di"])
     equal (f (1/4) (su (ta <> di <> ki <> ta) <> di))
         (["s+1(ta di)"], ["s+1(ki ta)", "di"])
@@ -48,12 +51,6 @@ test_spaceD = do
     throws (f S.default_tempo (1/3)) "not a binary multiple"
     equal (f (S.Tempo 0 6) (1/3)) (1/3)
 
-test_rdropM = do
-    let f m = map pretty . Notation.rdropM m
-    equal (f 1 (ta <> ka)) ["ta"]
-    equal (f 1 (di <> su (ta <> ka) <> di)) ["di", "s+1(ta ka)"]
-    equal (f 1 (di <> su (ta <> di <> ki <> ta))) ["di", "s+1(ta di)"]
-
 test_replaceStart = do
     let f prefix = map pretty . Notation.replaceStart prefix
     equal (f di (ta<>ki<>ta)) ["di", "ki", "ta"]
@@ -63,4 +60,7 @@ test_replaceStart = do
 
 test_align = do
     let f dur = map pretty . Notation.__a dur
-    equal (f 1 ta) ["__", "s-1(__)", "ta"]
+    equal (f 1 ta) ["s-1(__)", "__", "ta"]
+
+flatten_groups :: [S.Note g a] -> [S.Note () a]
+flatten_groups = S.flatten_groups
