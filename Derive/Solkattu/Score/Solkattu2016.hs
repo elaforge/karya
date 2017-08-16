@@ -50,19 +50,14 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     dinnaka = din.na.ka.din.na.ka.ta.ka
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
 
-    ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su (ta.ka) . din)
+    ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su taka . din)
     mridangam = make_mridangam
         [ (1^tat, [p&k])
         , (1^dit, [p&t])
         , (kitakina, [k, t, k, n, o, k, o&t, k])
         , (dinnaka, [o, k, t, o, hv k, t, o, k])
         , (din, [o])
-        -- reduction
         , (tat, [k])
-        , (dit, [t])
-        , (dit.ta, [k, k])
-        , (tat.dit, [k, t])
-        , (ta, [k])
-        , (ta.ka, [k, t])
-        , (thom, [od])
+
+        , (tat.dit.ta.taka.din, [k, t, k, k, t, o])
         ]

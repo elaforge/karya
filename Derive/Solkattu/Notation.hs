@@ -9,8 +9,7 @@
 -- This is meant to have just Sequence manipulation, without
 -- instrument-specific functions.
 module Derive.Solkattu.Notation where
-import qualified Prelude
-import Prelude hiding (repeat, reverse)
+import Prelude hiding (repeat)
 import qualified Data.List as List
 
 import qualified Util.CallStack as CallStack
@@ -125,16 +124,13 @@ splitD_ dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
 sollus_of :: SequenceT sollu -> [sollu]
 sollus_of = mapMaybe Solkattu.sollu_of . S.notes
 
-rdropD :: Pretty sollu => Duration -> SequenceT sollu -> SequenceT sollu
-rdropD dur = reverse . dropD dur . reverse
-    -- TODO I think this is wrong now, because the group sollus will be
-    -- backwards.
-    -- Why not split (total_dur - dur)?
+rdropD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+    -> SequenceT sollu
+rdropD dur seq = takeD (Solkattu.duration_of seq - dur) seq
 
-rtakeD :: Pretty sollu => Duration -> SequenceT sollu -> SequenceT sollu
-rtakeD dur = reverse . takeD dur . reverse
-    -- TODO I think this is wrong now, because the group sollus will be
-    -- backwards.
+rtakeD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+    -> SequenceT sollu
+rtakeD dur seq = dropD (Solkattu.duration_of seq - dur) seq
 
 restD, sarvaD :: CallStack.Stack => Duration -> SequenceT sollu
 restD = spaceD Solkattu.Rest S.default_tempo
@@ -162,31 +158,24 @@ decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
         -- where factor = S.speed_factor speed
         where matra = 1 / S.speed_factor speed
 
-reverse :: [S.Note g a] -> [S.Note g a]
-reverse = map sub . Prelude.reverse
-    where
-    sub (S.TempoChange change subs) = S.TempoChange change (reverse subs)
-    sub (S.Group g subs) = S.Group g (reverse subs)
-    sub note@(S.Note _) = note
-
 -- * by Matra
 
 -- | Drop a number of matras from the sequence.
 dropM :: (CallStack.Stack, Pretty sollu) => Matra
     -> SequenceT sollu -> SequenceT sollu
-dropM matras = dropD (fromIntegral matras * matra_duration)
+dropM = dropD . mToD
 
 rdropM :: (CallStack.Stack, Pretty sollu) => Matra
     -> SequenceT sollu -> SequenceT sollu
-rdropM matras = reverse . dropM matras . reverse -- TODO
+rdropM = rdropD . mToD
 
 takeM :: (CallStack.Stack, Pretty sollu) => Matra
     -> SequenceT sollu -> SequenceT sollu
-takeM matras = takeD (fromIntegral matras * matra_duration)
+takeM = takeD . mToD
 
 rtakeM :: (CallStack.Stack, Pretty sollu) => Matra
     -> SequenceT sollu -> SequenceT sollu
-rtakeM matras = reverse . takeM matras . reverse -- TODO
+rtakeM = rtakeD . mToD
 
 matrasOf :: CallStack.Stack => SequenceT sollu -> Matra
 matrasOf = Solkattu.check . matrasOfE
@@ -291,22 +280,25 @@ reduceToL :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToL to by seq
     | (matras - to) `mod` by /= 0 =
-        errorStack $ showt (matrasOf seq) <> " can't reduce by "
+        errorStack $ showt matras <> " can't reduce by "
             <> showt by <> " to " <> showt to
     | otherwise = [dropM m seq | m <- Seq.range 0 (matras - to) by]
     where matras = matrasOf seq
 
--- | Reduce by dropping the end.
-reduceR :: Pretty sollu => Matra -> SequenceT sollu -> [SequenceT sollu]
-reduceR n = iterate (rdropM n) -- TODO
-
-reduceR3 :: Pretty sollu => Matra -> SequenceT sollu
-    -> SequenceT sollu -> SequenceT sollu
-reduceR3 dur sep = List.intercalate sep . take 3 . reduceR dur -- TODO
+-- | Like 'reduceToL', but drop from the end instead of the front.
+reduceToR :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
+    -> SequenceT sollu -> [SequenceT sollu]
+reduceToR to by seq
+    | (matras - to) `mod` by /= 0 =
+        errorStack $ showt matras <> " can't reduce by "
+            <> showt by <> " to " <> showt to
+    | otherwise = [takeM m seq | m <- Seq.range matras to (-by)]
+    where matras = matrasOf seq
 
 -- | Start fully reduced, and expand n times by the given duration.
-expand :: Pretty sollu => Int -> Matra -> SequenceT sollu -> [SequenceT sollu]
-expand times dur = Prelude.reverse . take times . iterate (dropM dur)
+expand :: (CallStack.Stack, Pretty sollu) => Int -> Matra
+    -> SequenceT sollu -> [SequenceT sollu]
+expand times dur = reverse . take times . reduceToL 0 dur
 
 replaceEnd :: Pretty sollu => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
@@ -319,6 +311,9 @@ replaceStart prefix seq = prefix <> dropD (Solkattu.duration_of prefix) seq
 -- | I think default_tempo is ok because these functions are used on fragments.
 matra_duration :: S.Duration
 matra_duration = S.matra_duration S.default_tempo
+
+mToD :: Matra -> Duration
+mToD = (*matra_duration) . fromIntegral
 
 -- * generic notation
 
