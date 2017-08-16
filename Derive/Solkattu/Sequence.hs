@@ -109,11 +109,12 @@ flatten_groups = concatMap $ \n -> case n of
     Note a -> [Note a]
     TempoChange change ns -> [TempoChange change (flatten_groups ns)]
 
--- | Drop empty TempoChanges, combine nested ones.
+-- | Drop empty TempoChanges, combine nested ones.  Drop empty groups.
 simplify :: [Note g a] -> [Note g a]
 simplify = merge . concatMap cancel
     where
     cancel (Note a) = [Note a]
+    cancel (Group _ []) = []
     cancel (Group g ns) = [Group g ns]
     cancel (TempoChange _ []) = []
     cancel (TempoChange (ChangeSpeed s) xs) | s == 0 = xs

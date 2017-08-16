@@ -2630,8 +2630,10 @@ Derive:
             intermediate data less hairy.
           . For now, just make reduce not produce them.  Try simple
             simplification later.
-        - At least I can simplify away empty groups, or groups with empty
+        * At least I can simplify away empty groups, or groups with empty
           _dropped.
+          . Actually I don't want to drop empty _dropped, because it still has
+            the fact that it's a group.
         plan:
           . top level:
             reduceTo 2 1 taka
