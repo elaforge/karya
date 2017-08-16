@@ -49,24 +49,36 @@ test_realize_groups = do
     let f = e_words . realize smap . mconcat
         smap = expect_right $ Realize.stroke_map
             [ (tat <> dit, [k, t])
+            , (din, [od])
             ]
             where M.Strokes {..} = M.notes
     equal (f [tat, dit]) (Right "k t")
     -- TODO these could also go in Notation_test
     equal (f [Notation.dropM 1 (tat <> dit)]) (Right "t")
     equal (f [Notation.takeM 1 (tat <> dit)]) (Right "k")
-    -- TODO fix rdrop and rtake
-    equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
-    equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
+
+    -- Groups keep finding fragments.
+    equal (f [Notation.dropM 1 (tat <> dit <> din)]) (Right "t D")
+    equal (f [Notation.dropM 2 (tat <> dit <> din)]) (Right "D")
+    equal (f [Notation.dropM 3 (tat <> dit <> din)]) (Right "")
+    equal (f [Notation.dropM 3 (tat <> dit <> din <> din)]) (Right "D")
+    equal (f [Notation.takeM 2 (din <> tat <> dit)]) (Right "D k")
+    equal (f [Notation.takeM 1 (din <> tat <> dit)]) (Right "D")
+    equal (f [Notation.takeM 0 (din <> tat <> dit)]) (Right "")
+
+    -- -- TODO fix rdrop and rtake
+    -- equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
+    -- equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
+
     equal (f (replicate 2 (Notation.takeM 1 (tat <> dit)))) (Right "k k")
-    left_like (f [Notation.dropM 1 (dit <> dit)]) "group not found"
+    left_like (f [Notation.dropM 1 (dit <> dit)]) "group sequence not found"
 
     -- Ensure groups are still in the output.
-    let e_group = e_words . fmap (map (first Sequence._group))
+    let e_group = fmap (map ((fmap fst . Sequence._group) *** pretty))
     equal (e_group $ realize_s smap (tat <> dit))
-        (Right "(Nothing, k) (Nothing, t)")
+        (Right [(Nothing, "k"), (Nothing, "t")])
     equal (e_group $ realize_s smap (Notation.dropM 1 (tat <> dit)))
-        (Right "((1, ([tat], Front)), t)")
+        (Right [(Just 1, "t")])
 
 e_words :: Pretty b => Either a [b] -> Either a Text
 e_words = fmap (Text.unwords . map pretty)

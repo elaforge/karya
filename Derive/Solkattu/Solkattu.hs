@@ -92,8 +92,7 @@ instance Pretty sollu => Pretty (Note sollu) where
         Alignment n -> "@" <> showt n
 
 data Group sollu = Group {
-    -- | Since I only match by sollu, I can strip out the Solkattu.Note info.
-    -- TODO get rid of []s so I can substitute ()
+    -- | The sollus which were dropped from the group.
     _dropped :: ![sollu]
     -- | Front means these were dropped from the front of the sequence, Back
     -- is from the back.

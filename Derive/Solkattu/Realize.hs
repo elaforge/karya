@@ -4,7 +4,7 @@
 
 {-# LANGUAGE LambdaCase, ScopedTypeVariables, DeriveFunctor #-}
 {-# LANGUAGE NamedFieldPuns #-}
--- | Realize an abstract solkattu 'S.Sequence' to concrete instrument-dependent
+-- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
 module Derive.Solkattu.Realize where
 import qualified Data.Char as Char
@@ -31,10 +31,7 @@ import Global
 
 type Error = Text
 
--- The group is () because I don't need groups in the stroke map keys.
--- TODO it winds up being [()], which is kind of dumb.  I could remove [] from
--- the variable to have it be just ().  Also, what's the advantage of Void over
--- ()?
+-- | The group is () because I don't need groups in the stroke map keys.
 type SNote stroke = S.Note () (Note stroke)
 
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
@@ -250,33 +247,30 @@ realize realize_pattern get_stroke =
 add_meta :: S.Tempo -> S.Meta g
 add_meta tempo = S.Meta { _group = Nothing, _tempo = tempo }
 
--- | Put the group's sollus on the beginning or end of the notes and try to
--- find an exact match.
---
--- TODO to support nested groups, 
+-- | Put the group's sollus on the beginning or end of the notes try to find
+-- matches for the whole sequence.
 realize_group :: Pretty sollu => GetStroke sollu stroke -> Solkattu.Group sollu
-    -> [(meta, Solkattu.Note sollu)]
-    -> Either Error [(meta, Note stroke)]
-realize_group get_stroke (Solkattu.Group dropped side) notes =
-    case exact_match tag all_sollus get_stroke of
-        Nothing -> Left $ "group not found: " <> pretty sollus
+    -> [(meta, Solkattu.Note sollu)] -> Either Error [(meta, Note stroke)]
+realize_group get_stroke (Solkattu.Group dropped side) = fmap strip . go . add
+    where
+    go notes = case best_match tag sollus get_stroke of
+        Nothing -> Left $ "group sequence not found: " <> pretty sollus
         Just strokes
             | null leftover -> Right replaced
-            -- This shouldn't happen because 'stroke_map' checked that the
-            -- lengths match.
-            | otherwise -> Left $ "group match has leftovers: "
-                <> pretty (map snd leftover)
-            where
-            (replaced, leftover) = replace_sollus (drop_strokes strokes) notes
-    where
-    tag = Solkattu._tag =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
-    sollus = map Solkattu._sollu $ mapMaybe (Solkattu.note_of . snd) notes
-    all_sollus = case side of
-        Solkattu.Front -> dropped ++ sollus
-        Solkattu.Back -> sollus ++ dropped
-    drop_strokes = case side of
-        Solkattu.Front -> drop (length dropped)
-        Solkattu.Back -> Seq.rdrop (length dropped)
+            | otherwise -> (replaced ++) <$> go leftover
+            where (replaced, leftover) = replace_sollus strokes notes
+        where
+        tag = Solkattu._tag
+            =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
+        sollus = map Solkattu._sollu $ mapMaybe (Solkattu.note_of . snd) notes
+    -- Add the 'dropped' notes back on to the sequence to find matches.  Since
+    -- they are the only ones with Nothing meta, I can strip them off
+    -- afterwards by filtering out Nothing meta.
+    add notes = case side of
+        Solkattu.Front -> extra ++ map (first Just) notes
+        Solkattu.Back -> map (first Just) notes ++ extra
+        where extra = map ((Nothing,) . Solkattu.Note . Solkattu.note) dropped
+    strip notes = [(meta, n) | (Just meta, n) <- notes]
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.

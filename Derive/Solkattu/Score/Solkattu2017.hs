@@ -105,52 +105,14 @@ c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     \ lot, see section in Laya Vinyas, adi talam solo." $
     korvai1 adi (mridangam <> kendang <> reyong) $ su $
-        reduceTo 4 2 (tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga)
-        . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
+        reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
     where
+    theme = tat.__.taka.takadinna.na.ka.dit.__.ta.lang.__.ga
+    -- I'm not sure if I prefer smaller fragments that are easier to read, or
+    -- doing the whole theme at once.
     mridangam = make_mridangam
-        [ (tat, [k])
-        , (ta.ka, [k, t])
-        , (na.ka.dit, [n, o, k])
-        , (dit, [k])
-        , (ta.lang.ga, [o, u, k])
-        , (ga, [lt o])
-        , (din.na, [o, k])
-        ]
-    kendang = make_kendang1
-        [ (tat, [p])
-        , (ta.ka, [p, k])
-        , (na.ka.dit, [t, o, p])
-        , (dit, [p])
-        , (ta.lang.ga, [o, u, p])
-        , (ga, [a])
-        , (ta.ka.din.na, [p, a, o, p])
-        , (din.na, [o, p])
-        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
-    reyong = make_reyong
-        [ (tat, [b])
-        , (ta.ka, [k, k])
-        , (na.ka.dit, [i, r2, r3])
-        , (dit, [r3])
-        , (ta.lang.ga, [b, o, b])
-        , (ga, [b])
-        , (ta.ka.din.na, [x, k, k, k])
-        , (din.na, [k, k])
-        ] where Reyong.Strokes {..} = Reyong.notes
-
-c_17_03_20_2 :: Korvai
-c_17_03_20_2 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
-    \ lot, see section in Laya Vinyas, adi talam solo." $
-    korvai1 adi (mridangam <> kendang <> reyong) $ su $
-        reduceTo 4 2 theme
-        . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
-    where
-    theme = tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga
-    mridangam = make_mridangam
-        [ (theme, [k, k, t, k, o, o, k, n, p, k, p, u, lt o])
-        -- TODO if groups didn't require an exact match.
-        -- , (ta.taka, [k, k, t])
-        -- , (na.ka.dit.ta.lang.ga, [n, p, k, p, u, lt o])
+        [ (tat.taka, [k, k, t])
+        , (na.ka.dit.ta.lang.ga, [n, p, k, p, u, lt o])
         , (ga, [lt o])
         ]
     kendang = make_kendang1

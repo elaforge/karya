@@ -2599,7 +2599,7 @@ Derive:
           + tests
           * replace realize with realize2
           - Realize.format should format them specially
-        - It turns out it's annoying to write a whole sequence out, and
+        * It turns out it's annoying to write a whole sequence out, and
           I still want to reuse standard patterns like takadinna.
           So maybe group shouldn't require an exact match.
           . The problem is really is just that the sollus and strokes are too
