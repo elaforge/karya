@@ -17,7 +17,7 @@ test_flatten_with = do
         extract (Meta g (Sequence.Tempo speed nadai)) = (g, (speed, nadai))
     equal (f [note]) [(Nothing, (0, 4))]
     equal (f [Group 'a' [note, Group 'b' [note], note]])
-        [(Just (3, 'a'), (0, 4)), (Just (1, 'b'), (0, 4)), (Nothing, (0, 4))]
+        [(Just (g 3 'a'), (0, 4)), (Just (g 1 'b'), (0, 4)), (Nothing, (0, 4))]
 
 test_tempo_to_state = do
     let f = map (e_state . fst) . snd
@@ -35,9 +35,9 @@ test_tempo_to_state = do
         [(0, 0), (0, 1/2), (1, 0), (1, 1/16)]
 
 test_normalize_speed = do
-    let f = map (first e_state . second pretty_stroke)
+    let f = map (first e_state . second pretty_stroke . snd)
             . Sequence.normalize_speed Tala.adi_tala
-            . map (first Sequence._tempo) . Sequence.flatten
+            . Sequence.flatten
         n matras = Sequence.Note (matras :: Sequence.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
     equal (f [sd [n 1, n 1]])
@@ -54,8 +54,30 @@ test_normalize_speed = do
         , ((0, 1/8), '+'), ((0, 2/8), '-'), ((0, 3/8), '-'), ((0, 4/8), '-')
         ]
     equal (map snd $ f [su [su [n 1]], n 1]) "++___"
-
     equal (map snd $ f [sd [n 1, n 2, n 1]]) "+_+---+_"
+
+test_normalize_speed_groups = do
+    let f = extract . Sequence.normalize_speed Tala.adi_tala . Sequence.flatten
+        n = Note (1 :: Sequence.Matra)
+        extract ns = zip (map fst ns) (map (pretty.snd.snd) ns)
+    -- Make sure groups are expanded correctly.
+    equal (f [Group 'a' [n, n], n])
+        [(Just (g 2 'a'), "1"), (Nothing, "1"), (Nothing, "1")]
+    equal (f [sd [Group 'a' [n, n]], n])
+        [ (Just (g 4 'a'), "1"), (Nothing, "_"), (Nothing, "1"), (Nothing, "_")
+        , (Nothing, "1")
+        ]
+    equal (f [Group 'a' [n, Group 'b' [n]]])
+        [(Just (g 2 'a'), "1"), (Just (g 1 'b'), "1")]
+
+test_expand_groups = do
+    let f = Sequence.expand_groups
+    let a = Sequence.Attack ()
+        r = Sequence.Rest
+    equal (f [Just (g 1 'a'), Nothing] [a, r, a, r, r, a]) [(0, g 2 'a')]
+    equal (f [Just (g 2 'a'), Nothing] [a, r, a, r, r, a]) [(0, g 5 'a')]
+    equal (f [Just (g 2 'a'), Nothing, Just (g 1 'b')] [a, r, a, r, a, r, r])
+        [(0, g 4 'a'), (4, g 3 'b')]
 
 test_simplify = do
     let f = Sequence.simplify
@@ -79,6 +101,8 @@ pretty_stroke s = case s of
     Sequence.Sustain {} -> '-'
     Sequence.Rest -> '_'
 
+g :: Int -> g -> Sequence.GroupMark g
+g = Sequence.GroupMark
 
 e_state :: Sequence.State -> (Tala.Akshara, Sequence.Duration)
 e_state state = (Sequence.state_akshara state, Sequence.state_matra state)

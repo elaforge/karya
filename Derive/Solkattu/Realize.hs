@@ -12,6 +12,7 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.MultiSet as MultiSet
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -25,6 +26,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Sequence as S
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
+import qualified Derive.Solkattu.Terminal as Terminal
 import qualified Derive.Symbols as Symbols
 
 import Global
@@ -232,7 +234,8 @@ realize realize_pattern get_stroke =
     fmap strip . realize_notes . map (first Just)
     where
     realize_notes = format_error . first concat . map_until_left realize1
-    realize1 ((Just (S.Meta (Just (count, group)) tempo)), note) notes
+    realize1 ((Just (S.Meta (Just (S.GroupMark count group)) tempo)), note)
+            notes
         | not (null (Solkattu._dropped group)) = (, post) <$>
             realize_group group ((Just stripped, note) : pre)
         where
@@ -241,7 +244,8 @@ realize realize_pattern get_stroke =
         -- I'll recurse endlessly.  Since realize_group will add the dropped
         -- sollus on, I can strip them from the group, and prevent it from
         -- happening again.
-        stripped = S.Meta (Just (count, group { Solkattu._dropped = [] })) tempo
+        stripped = S.Meta (Just g) tempo
+        g = S.GroupMark count (group { Solkattu._dropped = [] })
     realize1 (meta, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
         Solkattu.Space space -> Right ([(meta, Space space)], notes)
@@ -276,7 +280,7 @@ realize realize_pattern get_stroke =
 -- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
 -- merge their result into 'realize' output.
 add_meta :: S.Tempo -> S.Meta g
-add_meta tempo = S.Meta { _group = Nothing, _tempo = tempo }
+add_meta tempo = S.Meta { _mark = Nothing, _tempo = tempo }
 
 -- | Apply the function until it returns Left.  The function can consume a
 -- variable number of elements.
@@ -372,53 +376,40 @@ exact_match tag sollus (_, get_stroke) =
 -- see how it works out in practice.
 format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
     -> [(S.Meta (), Note stroke)] -> Text
-format override_stroke_width width tala notes_ =
+format override_stroke_width width tala notes =
     Text.stripEnd $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
         [ (infer_ruler_text tala stroke_width (head lines),
-            Text.unlines $ map format_line lines)
+            Text.unlines $ map (format_line . map snd) lines)
         | lines <- avartanam_lines
         ]
-    -- TODO display group boundaries somehow
-    notes = map (first S._tempo) notes_
     (avartanam_lines, stroke_width) = case override_stroke_width of
         Just n -> (format_lines n width tala notes, n)
         Nothing -> case format_lines 1 width tala notes of
             ([line] : _)
-                | sum (map (text_length . snd) line) <= width `div` 2 ->
+                | sum (map (text_length . _text . snd) line) <= width `div` 2 ->
                     (format_lines 2 width tala notes, 2)
             result -> (result, 1)
-    format_line :: [(S.State, Text)] -> Text
-    format_line = Text.stripEnd . mconcat . map snd
-        . map_with_fst emphasize_akshara . thin_rests
-    emphasize_akshara state word
-        | should_emphasize aksharas state = emphasize word
-        | otherwise = word
-        where aksharas = akshara_set tala
-
-should_emphasize :: Set Tala.Akshara -> S.State -> Bool
-should_emphasize aksharas state =
-    S.state_matra state == 0 && Set.member (S.state_akshara state) aksharas
-
-akshara_set :: Tala.Tala -> Set Tala.Akshara
-akshara_set = Set.fromList . scanl (+) 0 . Tala.tala_aksharas
+    format_line :: [Symbol] -> Text
+    format_line = Terminal.fix_for_iterm
+        . Text.stripEnd . mconcat . thin_rests . map format_symbol
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.
-thin_rests :: [(a, Text)] -> [(a, Text)]
+thin_rests :: [Text] -> [Text]
 thin_rests = snd . List.mapAccumL thin 0
     where
-    thin column (state, stroke)
+    thin column stroke
         | Text.all (=='_') stroke =
             let (column2, stroke2) = Text.mapAccumL clear column stroke
-            in (column2, (state, stroke2))
-        | otherwise = (column + text_length stroke, (state, stroke))
+            in (column2, stroke2)
+        | otherwise = (column + text_length stroke, stroke)
     clear column _ = (column+1, if even column then '_' else ' ')
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
-format_final_avartanam :: [[[(S.State, Text)]]] -> [[[(S.State, Text)]]]
+format_final_avartanam :: [[[(a, Symbol)]]] -> [[[(a, Symbol)]]]
 format_final_avartanam avartanams = case reverse avartanams of
     [final : rests] : penultimate : prevs
         | not (is_rest (snd final)) && all (is_rest . snd) rests ->
@@ -428,25 +419,53 @@ format_final_avartanam avartanams = case reverse avartanams of
     where
     -- This should be (== Space Rest), but I have to show_stroke first to break
     -- lines.
-    is_rest = (=="_") . Text.strip
+    is_rest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
 format_lines :: Pretty stroke => Int -> Int -> Tala.Tala
-    -> [(S.Tempo, Note stroke)] -> [[[(S.State, Text)]]]
+    -> [(S.Meta (), Note stroke)] -> [[[(S.State, Symbol)]]]
 format_lines stroke_width width tala =
     format_final_avartanam . map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
-        . map (second show_stroke)
+        . map_with_fst make_symbol
+        . annotate_groups
         . S.normalize_speed tala
     where
-    combine (prev, (state, text)) = (state, Text.drop overlap text)
-        where overlap = maybe 0 (subtract stroke_width . text_length . snd) prev
-    show_stroke s = case s of
+    combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
+        where
+        overlap = maybe 0 (subtract stroke_width . text_length . _text . snd)
+            prev
+    make_symbol state (bounds, s) = make bounds $ case s of
         S.Attack a -> justify_left stroke_width ' ' (pretty a)
         S.Sustain a -> Text.replicate stroke_width $ case a of
             Pattern {} -> "-"
             _ -> pretty a
         S.Rest -> justify_left stroke_width ' ' "_"
+        where
+        make bounds text = Symbol text (should_emphasize aksharas state) bounds
+    aksharas = akshara_set tala
+
+-- | Put StartEnd on the strokes to mark group boundaries.
+annotate_groups :: [(Maybe (S.GroupMark g), (S.State, S.Stroke a))]
+    -> [(S.State, ([StartEnd], S.Stroke a))]
+annotate_groups = snd . List.mapAccumL go mempty . zip [0..]
+    where
+    go ends (i, (g, (state, stroke))) = case g of
+        Nothing -> (ends, (state, (if_end, stroke)))
+        Just g ->
+            ( MultiSet.insert (i + S._count g - 1) ends
+            , (state, (Start : if_end, stroke))
+            )
+        where if_end = replicate (MultiSet.occur i ends) End
+
+data StartEnd = Start | End deriving (Eq, Show)
+
+should_emphasize :: Set Tala.Akshara -> S.State -> Bool
+should_emphasize aksharas state =
+    S.state_matra state == 0 && Set.member (S.state_akshara state) aksharas
+
+akshara_set :: Tala.Tala -> Set Tala.Akshara
+akshara_set = Set.fromList . scanl (+) 0 . Tala.tala_aksharas
 
 break_avartanams :: [(S.State, a)] -> [[(S.State, a)]]
 break_avartanams = dropWhile null . Seq.split_with (is_sam . fst)
@@ -471,20 +490,20 @@ map_with_fst f xs = [(a, f a b) | (a, b) <- xs]
 
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
-break_line :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
+break_line :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
 break_line max_width notes
     | width <= max_width = [notes]
     | even aksharas = break_at (aksharas `div` 2) notes
     | otherwise = break_before max_width notes
     where
-    width = sum $ map (text_length . snd) notes
+    width = sum $ map (text_length . _text . snd) notes
     aksharas = Seq.count at_akshara notes
     break_at akshara =
         pair_to_list . break ((==akshara) . S.state_akshara . fst)
     pair_to_list (a, b) = [a, b]
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
-break_before :: Int -> [(S.State, Text)] -> [[(S.State, Text)]]
+break_before :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
 break_before max_width = go . dropWhile null . Seq.split_with at_akshara
     where
     go aksharas =
@@ -494,12 +513,13 @@ break_before max_width = go . dropWhile null . Seq.split_with at_akshara
             ([], post:posts) -> post : go posts
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
-    running_width = drop 1 . scanl (+) 0 . map (sum . map (text_length . snd))
+    running_width =
+        drop 1 . scanl (+) 0 . map (sum . map (text_length . _text . snd))
 
 break_fst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 break_fst f = (map snd *** map snd) . break (f . fst)
 
-infer_ruler_text :: Tala.Tala -> Int -> [(S.State, Text)] -> Text
+infer_ruler_text :: Tala.Tala -> Int -> [(S.State, a)] -> Text
 infer_ruler_text tala stroke_width =
     -- A final stroke will cause a trailing space, so stripEnd.
     Text.stripEnd . mconcatMap fmt . infer_ruler tala
@@ -514,12 +534,37 @@ infer_ruler tala = zip (Tala.tala_labels tala ++ ["|"])
 at_akshara :: (S.State, a) -> Bool
 at_akshara = (==0) . S.state_matra . fst
 
+justify_left :: Int -> Char -> Text -> Text
+justify_left n c text
+    | len >= n = text
+    | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
+    where len = text_length text
+
+-- ** formatting
+
+data Symbol = Symbol {
+    _text :: !Text
+    , _emphasize :: !Bool
+    , _bounds :: ![StartEnd]
+    } deriving (Eq, Show)
+
+text :: (Text -> Text) -> Symbol -> Symbol
+text f sym = sym { _text = f (_text sym) }
+
+format_symbol :: Symbol -> Text
+format_symbol (Symbol text emph bounds) = mconcat
+    [ Text.replicate (Seq.count (==End) bounds) Terminal.bg_default
+    , Text.replicate (Seq.count (==Start) bounds)
+        (Terminal.set_bg Terminal.Normal Terminal.White)
+    , (if emph then emphasize  else id) text
+    ]
+
 emphasize :: Text -> Text
 emphasize word
     -- A bold _ looks the same as a non-bold one, so put a bar to make it
     -- more obvious.
     | word == "_ " = emphasize "_|"
-    | otherwise = "\ESC[1m" <> pre <> "\ESC[0m" <> post
+    | otherwise = Terminal.bold_on <> pre <> Terminal.bold_off <> post
     where (pre, post) = Text.break (==' ') word
 
 text_length :: Text -> Int
@@ -531,12 +576,6 @@ text_length = sum . map len . untxt
         | Char.isMark c = 0
         | otherwise = 1
 
-justify_left :: Int -> Char -> Text -> Text
-justify_left n c text
-    | len >= n = text
-    | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
-    where len = text_length text
-
 -- * format html
 
 write_html :: Pretty stroke => FilePath -> Tala.Tala
@@ -547,12 +586,14 @@ write_html fname tala =
 
 format_html :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
     -> Doc.Html
-format_html tala notes = to_table 30 (map Doc.html ruler) (map (map snd) body)
+format_html tala notes = to_table 30 (map Doc.html ruler) body
     where
-    ruler = maybe [] (concatMap akshara . infer_ruler tala) (Seq.head body)
+    ruler = maybe [] (concatMap akshara . infer_ruler tala)
+        (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
-    body = map (map (second Doc.Html) . thin_rests . map (second Doc.un_html)) $
-        format_table tala notes
+    body = map (thin . map snd) avartanams
+    thin = map Doc.Html . thin_rests . map Doc.un_html
+    avartanams = format_table tala notes
 
 format_table :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
     -> [[(S.State, Doc.Html)]]
@@ -560,10 +601,11 @@ format_table tala =
     break_avartanams
         . map_with_fst emphasize_akshara
         . map (second show_stroke)
+        . annotate_groups
         . S.normalize_speed tala
-        . map (first S._tempo) -- TODO highlight groups
     where
-    show_stroke s = case s of
+    -- TODO use bounds to colorize groups
+    show_stroke (bounds, s) = case s of
         S.Attack a -> Doc.html (pretty a)
         S.Sustain a -> case a of
             Pattern {} -> "&mdash;"

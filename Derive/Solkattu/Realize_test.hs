@@ -20,6 +20,7 @@ import qualified Derive.Solkattu.Instrument.Mridangam as M
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Notation as Notation
 import qualified Derive.Solkattu.Realize as Realize
+import Derive.Solkattu.Realize (StartEnd(..))
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Note(..), Sollu(..))
@@ -65,19 +66,17 @@ test_realize_groups = do
     equal (f [Notation.takeM 2 (din <> tat <> dit)]) (Right "D k")
     equal (f [Notation.takeM 1 (din <> tat <> dit)]) (Right "D")
     equal (f [Notation.takeM 0 (din <> tat <> dit)]) (Right "")
+    equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
+    equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
     equal (f (replicate 2 (Notation.takeM 1 (tat <> dit)))) (Right "k k")
     left_like (f [Notation.dropM 1 (dit <> dit)]) "sequence not found"
     -- With rests.
     equal (f [Notation.dropM 1 (tat <> __ <> dit <> __)]) (Right "_ t _")
     -- With a Pattern.
     equal (f [Notation.dropM 1 (tat <> dit <> Dsl.p5)]) (Right "t p5")
-
-    -- -- TODO fix rdrop and rtake
-    -- equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
-    -- equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
-
     -- Ensure groups are still in the output.
-    let e_group = fmap (map ((fmap fst . Sequence._group) *** pretty))
+    let e_group = fmap $ map $
+            (fmap Sequence._count . Sequence._mark) *** pretty
     equal (e_group $ realize_s smap (tat <> dit))
         (Right [(Nothing, "k"), (Nothing, "t")])
     equal (e_group $ realize_s smap (Notation.dropM 1 (tat <> dit)))
@@ -230,10 +229,9 @@ equal_t = equal_fmt (either id fst)
 
 test_format_lines = do
     let f stroke_width width tala =
-            fmap (extract . Realize.format_lines stroke_width width tala
-                . map (first Sequence._tempo) . fst)
+            fmap (extract . Realize.format_lines stroke_width width tala . fst)
             . k_realize False tala
-        extract = map (map (Text.strip . mconcat . map snd))
+        extract = map $ map $ Text.strip . mconcat . map (Realize._text . snd)
     let tas n = Dsl.repeat n ta
 
     equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
@@ -264,6 +262,19 @@ test_format_lines = do
 
     equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4--"]]
     equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
+
+test_format_symbol = do
+    let f = fmap (extract . Realize.format_lines 2 80 tala . fst)
+            . k_realize False tala
+        extract = map ((\(Realize.Symbol _ b c) -> (b, c)) . snd)
+            . head . head
+        tala = Tala.rupaka_fast
+    let group = Notation.dropM 0
+    let tas n = Dsl.repeat n ta
+    equal (f (group $ tas 4 <> group (tas 4))) $ Right
+        [ (True, [Start]), (False, []), (False, []), (False, [])
+        , (True, [Start]), (False, []), (False, []), (False, [End, End])
+        ]
 
 test_format_break_lines = do
     let run width = fmap (capitalize_emphasis . format width tala4 . fst)

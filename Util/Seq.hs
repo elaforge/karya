@@ -646,7 +646,8 @@ ne_viewr (x :| xs) =
 --
 -- > split_with (==1) [1,2,1]
 -- > --> [[], [1, 2], [1]]
-split_with :: (a -> Bool) -> [a] -> [[a]]
+split_with :: (a -> Bool) -> [a] -> NonNull [a]
+    -- ^ output is non-null, and the contents are also, except the first one
 split_with f xs = map reverse (go f xs [])
     where
     go _ [] collect = [collect]

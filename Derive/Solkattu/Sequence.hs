@@ -3,8 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- deriving (Real) for Duration emits this warning.
-{-# OPTIONS_GHC -fno-warn-identities #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Low level support for rhythmic sequences in a Tala.  The actual Note
 -- type is polymorphic, so this is purely rhythmic.
 module Derive.Solkattu.Sequence (
@@ -29,6 +30,9 @@ module Derive.Solkattu.Sequence (
     , note_duration, matra_duration
     -- * util
     , first_left, right_until_left
+#ifdef TESTING
+    , module Derive.Solkattu.Sequence
+#endif
 ) where
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
@@ -149,12 +153,19 @@ flatten = flatten_with default_tempo
 data Meta g = Meta {
     -- | If Just, this marks the start of a group, with count of elements
     -- and polymorphic payload.  The count is >=1.
-    _group :: !(Maybe (Int, g))
+    _mark :: !(Maybe (GroupMark g))
     , _tempo :: !Tempo
+    } deriving (Eq, Show, Functor)
+
+data GroupMark g = GroupMark {
+    _count :: !Int
+    , _group :: !g
     } deriving (Eq, Show, Functor)
 
 instance Pretty g => Pretty (Meta g) where
     pretty (Meta g tempo) = pretty (g, tempo)
+instance Pretty g => Pretty (GroupMark g) where
+    pretty (GroupMark count g) = pretty count <> " " <> pretty g
 
 flatten_with :: Tempo -> [Note g a] -> [(Meta g, a)]
 flatten_with = go
@@ -164,7 +175,7 @@ flatten_with = go
         TempoChange change notes -> go (change_tempo change tempo) notes
         Group g notes -> case go tempo notes of
             (meta, a) : as ->
-                (meta { _group = Just (length as + 1, g) }, a) : as
+                (meta { _mark = Just (GroupMark (length as + 1) g) }, a) : as
             [] -> []
 
 -- | Calculate Tala position for each note.
@@ -187,20 +198,44 @@ instance Pretty a => Pretty (Stroke a) where
         Rest -> "_"
 
 -- | Normalize to the fastest speed, then mark position in the Tala.
-normalize_speed :: HasMatras a => Tala.Tala -> [(Tempo, a)]
-    -> [(State, Stroke a)]
+normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
+    -> [(Maybe (GroupMark g), (State, Stroke a))]
 normalize_speed tala notes =
-    snd $ List.mapAccumL process initial_state by_nadai
+    zip expanded $ snd $ List.mapAccumL process initial_state by_nadai
     where
     process state (nadai, stroke) =
         (next_state, (state { state_nadai = nadai }, stroke))
         where
         next_state = advance_state_by tala (min_dur / fromIntegral nadai) state
-    (by_nadai, min_dur) = flatten_speed notes
+    (by_nadai, min_dur) = flatten_speed (map (first _tempo) notes)
+    expanded = go 0 groups
+        where
+        go n gs@((i, group) : rest)
+            | n >= i = Just group : go (n+1) rest
+            | otherwise = Nothing : go (n+1) gs
+        go _ [] = repeat Nothing
+    groups = expand_groups (map (_mark . fst) notes) (map snd by_nadai)
+
+-- | Re-associate groups with the output of 'flatten_speed' by expanding their
+-- '_count's.  Each group entry corresponds to an Attack Stroke.
+expand_groups :: [Maybe (GroupMark g)] -> [Stroke a] -> [(Int, GroupMark g)]
+expand_groups groups =
+    concat . zipWith expand groups . List.tails . drop 1
+        . Seq.split_with (is_attack . snd)
+        . zip [0..]
+    where
+    expand Nothing _ = []
+    -- Neither of these should happen, due to Seq.split_with's postcondition.
+    expand _ [] = []
+    expand _ ([] : _) = []
+    expand (Just (GroupMark count g)) strokes@(((i, _) : _) : _) =
+        [(i, GroupMark new_count g)]
+        where new_count = sum (map length (take count strokes))
+    is_attack (Attack {}) = True
+    is_attack _ = False
 
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
--- Speed 0 always gets at least one Stroke, even if everything it's not the
--- slowest.
+-- Speed 0 always gets at least one Stroke, even if it's not the slowest.
 flatten_speed :: HasMatras a => [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
 flatten_speed notes = (concatMap flatten notes, min_dur)
     where
