@@ -377,7 +377,7 @@ exact_match tag sollus (_, get_stroke) =
 format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
     -> [(S.Meta (), Note stroke)] -> Text
 format override_stroke_width width tala notes =
-    Text.stripEnd $ attach_ruler ruler_avartanams
+    Text.stripEnd $ Terminal.fix_for_iterm $ attach_ruler ruler_avartanams
     where
     ruler_avartanams =
         [ (infer_ruler_text tala stroke_width (head lines),
@@ -392,8 +392,7 @@ format override_stroke_width width tala notes =
                     (format_lines 2 width tala notes, 2)
             result -> (result, 1)
     format_line :: [Symbol] -> Text
-    format_line = Terminal.fix_for_iterm
-        . Text.stripEnd . mconcat . map format_symbol . thin_rests
+    format_line = Text.stripEnd . mconcat . map format_symbol . thin_rests
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.

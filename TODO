@@ -2592,7 +2592,7 @@ Derive:
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
       solkattu-group:
-        - bg color is lost in Solkattu2013.c_yt1
+        * bg color is lost in Solkattu2013.c_yt1
           . In fact it always gets lost when it spans a line.
         * Now realize_group has to handle patterns too, which it could, but
           shouldn't it be done by realize?  Also, if patterns are going to
