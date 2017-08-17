@@ -320,8 +320,8 @@ write_konnakol_html realize_patterns korvai =
         Right results
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> do
-                putStrLn "write konnakol.html"
                 Realize.write_html "konnakol.html" (korvai_tala korvai) notes
+                putStrLn "wrote konnakol.html"
             where (notes, warnings) = unzip results
 
 print_results :: Pretty stroke => Maybe Int -> Korvai

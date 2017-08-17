@@ -17,7 +17,10 @@ module Derive.Solkattu.MridangamGlobal (
     , closed
     , lt, hv
     , module Derive.Solkattu.Dsl
+    -- * fragments
+    , kt, ktkt, pk, kp
 ) where
+import Prelude hiding ((.))
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Derive.Solkattu.Dsl hiding ((&), lt, hv)
@@ -98,3 +101,13 @@ hv = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
 modify_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
 modify_stroke modify = map (fmap (fmap modify))
+
+-- * fragments
+
+kt, ktkt :: Sequence
+kt = k.t
+ktkt = k.t.k.t
+
+pk, kp :: Sequence
+pk = p.k
+kp = k.p

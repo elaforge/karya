@@ -44,8 +44,12 @@ patterns :: [(Sequence.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
 patterns = Realize.patterns . map (second (map note)) . (default_nakatiku++)
     . map (first Solkattu.PatternM)
 
-default_nakatiku :: (Solkattu.Pattern, [Sollu])
-default_nakatiku = (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
+default_nakatiku :: [(Solkattu.Pattern, [Sollu])]
+default_nakatiku =
+    [ (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
+    , (Solkattu.Taka, [Ta, Ka])
+    , (Solkattu.Takanaka, [Ta, Ka, Ti, Ku])
+    ]
 
 instance Expr.ToExpr Sollu where
     to_expr = Expr.generator0 . Expr.Symbol . pretty
