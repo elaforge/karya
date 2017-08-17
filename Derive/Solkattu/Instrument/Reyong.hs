@@ -71,21 +71,6 @@ strokes = Strokes
 notes :: Strokes SNote
 notes = note <$> strokes
 
--- * instrument
-
-instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
-    -> Patterns -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument standard_stroke_map
-
-standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.simple_stroke_map
-    [ ([Solkattu.Thom], [Just Byong])
-    , ([Solkattu.Tam], [Just Byong])
-    , ([Solkattu.Tang], [Just Byong])
-    , ([Solkattu.Lang], [Just Byong])
-    , ([Solkattu.Dheem], [Just Byong])
-    ]
-
 -- * patterns
 
 type Patterns = Realize.Patterns Stroke

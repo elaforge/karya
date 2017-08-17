@@ -225,8 +225,8 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
         [
         ] where Sargam.Strokes {..} = Sargam.notes
 
-m_17_05_11 :: Korvai
-m_17_05_11 = date 2017 5 11 $ source "sriram" $
+c_17_05_11 :: Korvai
+c_17_05_11 = date 2017 5 11 $ source "sriram" $
     korvai1 adi (mridangam<>sargam) $ nadai 7 $
     circum (repeat 2 (takadinna.takita)) (accumulate
         [ din.__.ta.din.__.tat.__
@@ -240,6 +240,7 @@ m_17_05_11 = date 2017 5 11 $ source "sriram" $
         , (din.ta.din.tat, [o&n, k, d, k])
         , (din.tat, [d, k])
         , (thom.thom.ka, [o, o, k])
+        , (tam, [u])
         ]
     sargam = make_sargam
         [ (takadinna, [hv p, m, r, m])
@@ -252,8 +253,8 @@ m_17_05_11 = date 2017 5 11 $ source "sriram" $
         [ ( Solkattu.PatternM 5, [hv n_, s, d_, n_, p_])
         ] where Sargam.Strokes {..} = Sargam.notes
 
-e_17_05_19 :: Korvai
-e_17_05_19 = date 2017 5 15 $ exercise $ korvai1 adi mridangam $
+c_17_05_19 :: Korvai
+c_17_05_19 = date 2017 5 15 $ exercise $ korvai1 adi mridangam $
     tri (tri p8 . tri (kita.thom)) . tri p8 . p5
     where
     mridangam = make_mridangam [(kita.thom, [k, n, o])]
@@ -281,8 +282,8 @@ c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
         , (takita, [n, p, k])
         ]
 
-janahan_17_06_02 :: Korvai
-janahan_17_06_02 = tirmanam $ date 2017 6 2 $ source "janahan" $
+c_17_06_02_janahan :: Korvai
+c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvai1 adi mridangam $
     __n 9 . tri_ (su (kita.ta.ka)) (din.din . su (ta.ka) . din.din.tat.din)
     -- TODO use align or pad to sam
@@ -320,12 +321,11 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (din, [od])
+        , (tam, [u])
         ]
     kendang = make_kendang1
         [ (tat.dit, [p, t])
         , (din, [a])
-        -- TODO put in standard stroke map
-        , (takadinna, [p, o, a, p])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = make_sargam
         [ (tat.dit, [p, m])

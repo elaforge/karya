@@ -39,19 +39,6 @@ data Valantalai = Ki | Ta
 
 type Patterns = Realize.Patterns Stroke
 
-instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
-    -> Patterns -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument standard_stroke_map
-
-standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.simple_stroke_map $
-    [ ([Solkattu.Thom], [Just $ Thoppi Thom])
-    , ([Solkattu.Tam], [Just $ Valantalai AraiChapu])
-    , ([Solkattu.Tang], [Just $ Valantalai AraiChapu])
-    , ([Solkattu.Lang], [Just $ Valantalai AraiChapu])
-    , ([Solkattu.Dheem], [Just $ Valantalai Dheem])
-    ]
-
 -- * strokes
 
 instance Pretty Stroke where

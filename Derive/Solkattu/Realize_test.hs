@@ -39,7 +39,7 @@ test_realize = do
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
-    equal (f [Notation.sarva 4]) (Right "= = = =")
+    equal (f [Notation.sarvaM 4]) (Right "= = = =")
     equal (f [Dsl.p5, __, ta, din]) (Right "p5 _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
@@ -350,12 +350,15 @@ k_realize realize_patterns tala =
     . (:[])
 
 stroke_map :: Realize.StrokeMap M.Stroke
-stroke_map = Realize.inst_stroke_map $ expect_right $ M.instrument [] mempty
+stroke_map = expect_right $ Realize.stroke_map
+    [ (thom, [o])
+    ]
+    where M.Strokes {..} = M.notes
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
-        M.instrument [(ta, [M.k M.notes])] M.default_patterns
+        Realize.instrument [(ta, [M.k M.notes])] M.default_patterns
     }
 
 sd, su :: [Sequence.Note g a] -> [Sequence.Note g a]

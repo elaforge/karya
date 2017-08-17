@@ -48,7 +48,7 @@ korvai tala = Korvai.korvai tala mridangam
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
     { Korvai.inst_mridangam = Dsl.check $
-        Mridangam.instrument [(ta <> ka <> din <> na, [k, o, o, k])] patterns
+        Realize.instrument [(ta <> ka <> din <> na, [k, o, o, k])] patterns
     }
     where
     Mridangam.Strokes {..} = Mridangam.notes

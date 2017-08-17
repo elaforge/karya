@@ -28,6 +28,7 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
         , (ta.ka.dheem, [p, k, o&d])
         , (ta.ka, [k, p])
         , (ta.ka.na.ka, [k, p, n, p])
+        , (dheem, [od])
         ]
 
 c_16_12_06_sriram1 :: Korvai
@@ -60,4 +61,5 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
         , (tat, [k])
 
         , (tat.dit.ta.taka.din, [k, t, k, k, t, o])
+        , (dheem, [u])
         ]

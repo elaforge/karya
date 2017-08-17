@@ -36,6 +36,7 @@ c_14_01_01 = date 2014 1 1 $ ganesh $ korvai adi mridangam
         , (ta.dit, [k, t])
         , (ta, [k])
         , (dhom, [o])
+        , (tam, [u])
         ]
 
 c_14_01_14 :: Korvai
@@ -70,15 +71,8 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvai adi mridangam
 
     mridangam = make_mridangam
         [ (theme, [p, k, t, k, k, t, o])
-        -- TODO necessary because dropM doesn't preserve the original sequence
-        , (tha, [p])
-        , (ki.ta.ta.kita.thom, [k, t, k, k, t, o])
-        -- TODO would be fixed by reduction groups
-        , (ta.ta.kita.thom, [k, k, k, t, o]) -- TODO t->k substitution
-        , (ta.kita.thom, [k, k, t, o])
-        , (kita.thom, [k, t, o])
-        , (thom, [o])
         , (tat.di, [k, t])
+        , (tam, [u])
         ]
 
 c_14_02_05 :: Korvai
@@ -96,11 +90,14 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
     ]
     where
     tadi_ = ta.di.__
+    -- TODO this is p5, but a specific one.  I should be able to get those too.
     nang_kita = su $ nang.__.kita.ta.ri.kita.thom.__
-    utarangam =   theme . tat.__3.din.__3
+    utarangam =
+            group theme . tat.__3.din.__3
         . dropM 1 theme . tat.__2.din.__3
         . dropM 2 theme . tat.din.__3
-    utarangam2 =  theme . tri (tat.__3.din.__3)
+    utarangam2 =
+            group theme . tri (tat.__3.din.__3)
         . dropM 1 theme . tri (tat.__.din.__3)
         . dropM 2 theme . tri (tat.din.__3)
     purvangam karv seqs =
@@ -108,16 +105,14 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
     theme = tha.ki.ta.ta . su kita . thom
     ta_kitathom = dropM 3 theme
     mridangam = make_mridangam
-        [ (tha, [p])
-        , (ki.ta.ta.kita.thom, [k, t, k, k, t, o])
+        [ (theme, [p, k, t, k, k, t, o])
+        , (tat.din, [k, od])
         , (ta.di, [k ,t])
         , (ta, [k])
         , (ga, [lt p])
         , (nang_kita, [n, k, t, p, k, p, t, o])
-        -- TODO would be fixed by reduction groups
-        , (ta.ta.kita.thom, [k, k, k, t, o]) -- TODO t->k substitution
-        , (ta.kita.thom, [k, k, t, o])
-        , (tat.din, [k, od])
+
+        , (tam, [od])
         ]
 
 -- first mentioned on 2013 11 19

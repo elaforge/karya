@@ -200,13 +200,13 @@ instance Pretty stroke => Pretty (Instrument stroke) where
         , ("patterns", Pretty.format patterns)
         ]
 
-instrument :: Pretty stroke => StrokeMap stroke
-    -> [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
+instrument :: Pretty stroke =>
+    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Patterns stroke -> Either Error (Instrument stroke)
-instrument defaults strokes patterns = do
+instrument strokes patterns = do
     smap <- stroke_map strokes
     return $ Instrument
-        { inst_stroke_map = smap <> defaults
+        { inst_stroke_map = smap
         , inst_patterns = patterns
         }
 

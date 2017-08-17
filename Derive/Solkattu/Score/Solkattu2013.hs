@@ -27,36 +27,35 @@ c_13_07_23 = date 2013 7 23 $ ganesh $ korvai1 adi mridangam $
 
 c_13_08_14 :: Korvai
 c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
-    [            theme 2 1 . p5
+    [     group (theme 2 1) . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
 
     , let ta_din__ = ta.__.din.__.__ in
-                 theme 3 1 . p5 . ta_din__
+          group (theme 3 1) . p5 . ta_din__
       . dropM 3 (theme 3 2) . p6 . p6 . ta_din__
       . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
 
-    ,            theme 4 1 . pat7 . tam.__4
+    ,     group (theme 4 1) . pat7 . tam.__4
       . dropM 4 (theme 4 2) . repeat 2 pat8 . tam.__4
       . dropM 8 (theme 4 3)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
     ]
     where
-    theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . ta.ka.din.na.din
+    theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . takadinna.din
         . tri (ta . __n gap2 . din . __n gap1)
     mridangam = make_mridangam
         [ (ta.dit, [k, t])
-        , (dit, [k])
-        , (ta.ka.din.na.din, [k, o, o, k, o])
+        , (takadinna.din, [k, o, o, k, o])
         , (ta.din, [k, od])
         -- for pat7 -- pat9
         , (ta.ka, [k, p])
         , (tam, [u])
+        , (dheem, [i])
         ]
     kendang = make_kendang1
         [ (ta.dit, [p, t])
-        , (dit, [t])
-        , (ta.ka.din.na.din, [p, a, a, p, a])
+        , (takadinna.din, [p, a, o, p, a])
         , (ta.din, [o, a])
         -- for pat7 -- pat9
         , (ta.ka, [p, k])
@@ -68,25 +67,13 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
 
 c_yt1 :: Korvai
 c_yt1 = source "youtube" $ korvai1 adi mridangam $
-    -- TODO should be tat dit takadanna din tat tam
-    -- tat.__.dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
-    --       .dit.__.ta.ka.din.na.thom.__.tat.__.din.__4
-    --              .ta.ka.din.na.thom.__.tat.__.din.__4
-    --                    .din.na.thom.__.tat.__.din.__4
-    --                           .thom.__.tat.__.din.__4
-    --                                   .tat.__.din.__4 -- ta ka din
-    --                                          .din.__4
-    -- TODO ... `replace` (tat.__.din.__4) (ta.ka.din.__4)
-    reduceTo 4 2 (tat.__.dit.__.takadinna.thom.__.tat.__.din.__4)
-    . tri_ (tam.__) (tri p6) -- TODO middle tam is 'i'
+    -- TODO ... `replace` (tat.__.tam.__4) (ta.ka.tam.__4)
+    reduceTo 4 2 theme . tri_ (tam.__) (tri p6) -- TODO middle tam is 'i'
     where
+    theme = tat.__.dit.__.takadinna.din.__.tat.__.tam.__4
     mridangam = make_mridangam
-        [ (tat.dit, [k, t])
-        , (din.na, [o, k])
-        , (thom.tat.din, [on, k, od])
-        , (dit, [k])
-        , (tat, [k])
-        , (din, [od])
+        [ (theme, [k, t, k, o, o, k, on, k, od])
+        , (tam, [u])
         ]
 
 c_13_10_29 :: Korvai
@@ -95,11 +82,12 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
     , nadai 6 sequence
     ]
     where
-    sequence = reduce3 2 ø (tat.__.dit.__.ta.ka.din.na.dheem.__4)
+    sequence = reduce3 2 ø (tat.__.dit.__.takadinna.dheem.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
-        , (dit, [k])
+        , (dheem, [od])
+        , (tam, [u])
         ]
 
 c_13_11_05 :: Korvai
@@ -108,7 +96,7 @@ c_13_11_05 = date 2013 11 5 $ ganesh $ korvai1 adi mridangam $
     . theme . tam.__4 . theme . tam.__3 . su p6.tam.__3 . su p6
     where
     theme = su $ p5.p5.p6
-    mridangam = make_mridangam []
+    mridangam = make_mridangam [(tam, [u])]
 
 c_13_11_12 :: Korvai
 c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
@@ -119,11 +107,12 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
         theme . dropM 2 theme . ta.ka.dheem.__4 . dropM 4 theme
             . repeat 2 (ta.ka.dheem.__4)
             . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
-    theme = tat.__.dit.__.ta.ka.din.na.ta.ka.dheem.__4
+    theme = tat.__.dit.__.takadinna.taka.dheem.__4
     mridangam = make_mridangam
         [ (tat.dit, [k, t])
         , (dit, [k])
         , (ta.ka, [p, k])
+        , (dheem, [od])
         ]
 
 c_13_12_11 :: Korvai
@@ -148,9 +137,9 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
          . tk.  theme . karvai . p5.p5
          . tknk.theme . karvai . p5.p5.p5
     themes = [theme14, theme16, theme18]
-    theme14 = ta.di.__.kita.kita.ta.tat.__.ka.din.tat.__
-    theme16 = ta.di.__.kita.__.kita.ta.tat.__.ka.din.__.tat.__
-    theme18 = ta.di.__.ki.__.ta.__.kita.ta.tat.__.ka.__.din.__.tat.__
+    theme14 = group $ ta.di.__.kita.kita.ta.tat.__.ka.din.tat.__
+    theme16 = group $ ta.di.__.kita.__.kita.ta.tat.__.ka.din.__.tat.__
+    theme18 = group $ ta.di.__.ki.__.ta.__.kita.ta.tat.__.ka.__.din.__.tat.__
     -- theme20 is on 2014 1 1
     theme20 = ta.di.__3.ki.__.ta.__.kita.ta.tat.__3.ka.__.din.__.tat.__
     mridangam = make_mridangam
@@ -495,7 +484,7 @@ t5s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
 misra_lead = korvai1 adi mridangam $ su $
-    rest 8 . tri_ (tam.__) takadinna
+    restM 8 . tri_ (tam.__) takadinna
     . repeat 2 (ta.__3.ta.takadinna)
     . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
     where
@@ -519,16 +508,16 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
     where
     group2 seq = map mconcat (Seq.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
-    long n = rest 8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
+    long n = restM 8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
     -- 4 + 4*7 (1 + 3)
-    short n = rest 4 . tan7 . tri (fill n)
-    half n = rest 2 . tan7 . fill n
+    short n = restM 4 . tan7 . tri (fill n)
+    half n = restM 2 . tan7 . fill n
     fill n = fills !! (n-1) . karvai din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
         [ ta
-        , ta.ka
+        , taka
         , ta.din.na
-        , ta.ka.din.na
+        , takadinna
         , p5
         , p6
         , p7
@@ -539,9 +528,8 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
         , (din.ga, [od, k])
         , (din, [od])
         , (ta, [k])
-        , (ta.ka, [p, k])
+        , (taka, [p, k])
         , (ta.din.na, [on, on, k])
-        , (ta.ka.din.na, [k, o, o, k])
         ]
 
 -- * tirmanam
@@ -555,8 +543,3 @@ tir_18 = tirmanam $ korvai1 adi mridangam $
         , (ta.lang.ga, [p, u, k])
         , (din, [od])
         ]
-
--- * util
-
-rest :: Matra -> Sequence
-rest dur = repeat dur __

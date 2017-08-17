@@ -56,8 +56,11 @@ __9 = __n 9
 __n :: Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
-sarva :: Matra -> SequenceT sollu
-sarva n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
+restM :: Matra -> SequenceT sollu
+restM n = repeat n __
+
+sarvaM :: Matra -> SequenceT sollu
+sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
 -- * by Duration
 
@@ -76,8 +79,8 @@ takeD dur = fst . splitD dur
 splitD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitD dur seq =
-    ( group (sollus_of post) Solkattu.Back pre
-    , group (sollus_of pre) Solkattu.Front post
+    ( groupOf (sollus_of post) Solkattu.Back pre
+    , groupOf (sollus_of pre) Solkattu.Front post
     )
     where (pre, post) = splitD_ dur seq
 
@@ -319,8 +322,12 @@ nadai :: Matra -> [S.Note g sollu] -> [S.Note g sollu]
 nadai _ [] = []
 nadai n seq = [S.TempoChange (S.Nadai n) seq]
 
-group :: [sollu] -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-group dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
+-- | Just mark a group.  Equivalent to dropM 0.
+group :: SequenceT sollu -> SequenceT sollu
+group = groupOf [] Solkattu.Front
+
+groupOf :: [sollu] -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
+groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
 
 -- * align
 

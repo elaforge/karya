@@ -25,19 +25,6 @@ data Stroke =
 
 type Patterns = Realize.Patterns Stroke
 
-instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
-    -> Patterns -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument standard_stroke_map
-
-standard_stroke_map :: Realize.StrokeMap Stroke
-standard_stroke_map = Realize.simple_stroke_map
-    [ ([Solkattu.Thom], [Just De])
-    , ([Solkattu.Tam], [Just TutL])
-    , ([Solkattu.Tang], [Just TutL])
-    , ([Solkattu.Lang], [Just TutL])
-    , ([Solkattu.Dheem], [Just De])
-    ]
-
 -- * strokes
 
 instance Pretty Stroke where

@@ -16,7 +16,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Instrument.ToScore as ToScore
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
-import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -130,12 +129,6 @@ octave oct s = s { _pitch = Pitch.add_octave oct (_pitch s) }
 
 add :: Pitch.PitchClass -> Stroke -> Stroke
 add steps s = s { _pitch = Pitch.add_pc 7 steps (_pitch s) }
-
--- * instrument
-
-instrument :: [([Sequence.Note g (Solkattu.Note Solkattu.Sollu)], [SNote])]
-    -> Patterns -> Either Text (Realize.Instrument Stroke)
-instrument = Realize.instrument (Realize.simple_stroke_map [])
 
 -- * patterns
 
