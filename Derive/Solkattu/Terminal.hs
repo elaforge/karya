@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import Global
 
 
@@ -22,16 +23,18 @@ fix_for_iterm :: Text -> Text
 fix_for_iterm = mconcat . snd . List.mapAccumL go "" . split
     where
     go bg (code, text)
-        | code `Set.member` all_set_bgs = (code, code <> text)
-        | code == bold_off = (bg, normal <> bg <> text)
+        | code `Set.member` all_set_bgs = (code, code <> fix code text)
+        | code == bold_off = (bg, normal <> bg <> fix bg text)
         | code == bg_default = ("", code <> text)
-        | otherwise = (bg, code <> text)
+        | otherwise = (bg, code <> fix bg text)
+        where fix = fix_newline_bg
 
--- -- Should look right on iterm.
--- test = putStrLn $ untxt $ fix_for_iterm $ Text.unwords
---     [ "before", set_bg Normal White, "w", bold_on, "b", bold_off
---     , "still w", bg_default, "done"
---     ]
+fix_newline_bg :: Text -> Text -> Text
+fix_newline_bg bg text
+    | Text.null bg = text
+    | not ("\n" `Text.isInfixOf` text) = text
+    | otherwise = Text.intercalate "\n" $ fix $ Text.splitOn "\n" text
+    where fix = Seq.map_tail (bg<>) . Seq.map_init (<>bg_default)
 
 split :: Text -> [(Text, Text)]
 split = fix . Text.splitOn "\ESC["
@@ -70,3 +73,17 @@ underline_off = esc 24
 
 esc :: Int -> Text
 esc n = "\ESC[" <> showt n <> "m"
+
+-- * tests
+
+-- Should look right on iterm.
+test_fix_for_iterm :: IO ()
+test_fix_for_iterm = putStrLn $ untxt $ fix_for_iterm $ Text.unwords
+    [ "before", set_bg Normal Cyan, "w", bold_on, "b", bold_off
+    , "still w", bg_default, "done"
+    ]
+
+test_fix_newline_bg :: IO ()
+test_fix_newline_bg = putStrLn $ untxt $ fix_for_iterm $ Text.unwords
+    [ "before", set_bg Normal Cyan, "during\nnewline", bg_default, "last\nline"
+    ]
