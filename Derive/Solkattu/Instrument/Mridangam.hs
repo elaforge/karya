@@ -147,6 +147,26 @@ both_strokes (Thoppi a) (Valantalai b) = Both a b
 both_strokes (Valantalai b) (Thoppi a) = Both a b
 both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
+val :: Stroke -> Maybe Valantalai
+val (Valantalai s) = Just s
+val (Both _ s) = Just s
+val (Thoppi _) = Nothing
+
+set_val :: Valantalai -> Stroke -> Stroke
+set_val v (Valantalai _) = Valantalai v
+set_val v (Both t _) = Both t v
+set_val _ (Thoppi t) = Thoppi t
+
+thoppi :: Stroke -> Maybe Thoppi
+thoppi (Thoppi s) = Just s
+thoppi (Both s _) = Just s
+thoppi (Valantalai _) = Nothing
+
+set_thoppi :: Thoppi -> Stroke -> Stroke
+set_thoppi _ (Valantalai v) = Valantalai v
+set_thoppi t (Both _ v) = Both t v
+set_thoppi t (Thoppi _) = Thoppi t
+
 -- * postprocess
 
 postprocess :: [Technique.MetaNote Stroke] -> [Technique.MetaNote Stroke]
@@ -155,11 +175,15 @@ postprocess = Technique.postprocess $ Technique.plain_technique technique
 technique :: Technique.Technique Stroke
 technique prevs cur (next:nexts)
     -- (k, t, [k, !k, ..]) -> k, [k, ..]
-    | Seq.last prevs == Just k && cur == t && next == k
-            && Seq.head nexts /= Just k =
-        Just k
+    | (val =<< Seq.last prevs) == Just Ki && val cur == Just Ta
+            && val next == Just Ki
+            && (val =<< Seq.head nexts) /= Just Ki =
+        Just $ set_val Ki cur
     where
     Strokes {..} = strokes
+    val (Valantalai s) = Just s
+    val (Both _ s) = Just s
+    val _ = Nothing
 technique _ _ _ = Nothing
 
 -- * patterns

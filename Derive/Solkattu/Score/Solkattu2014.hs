@@ -126,7 +126,7 @@ c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi mridangam $ mconcat
     -- o _ o o _ _ p _ _ _ o o _ _ o _ o
     ]
     where
-    theme = nang . su (ki.ta.ta.ka) . din.na.__.di.mi
+    theme = nang . su kitataka . din.na.__.di.mi
     -- sarva is namita dimita dim
     mridangam = make_mridangam
         [ (theme,   [on, k, t, o, k, od, n, od, k])
@@ -172,7 +172,7 @@ c_mohra = ganesh $ make_mohra2 mridangam (a1, a2, a1) (b1, b2, b3)
 c_mohra2 :: Korvai
 c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
     where
-    a_ = kita.ta.ka.nakatiku
+    a_ = kitataka.nakatiku
     a1 = dit.__4.tang.__ . a_
     a2 = dit.__2.tang.__ . a_
     a3 = dit.tang . a_
@@ -182,7 +182,7 @@ c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
     mridangam = make_mridangam
         [ (dit, [t])
         , (tang, [o])
-        , (kita.ta.ka, [k, t, p, k])
+        , (kitataka, [k, t, p, k])
         , (ta.ga, [o, u])
         , (dhom, [o])
         ]
@@ -196,18 +196,18 @@ c_mohra_youtube = source "Melakkaveri Balaji" $ source url $
     a1 =  __.dhom.ta.ka.ta .__.ki.ta . nakatiku
     a2 =  ka.din.__.din.__. ta.ki.ta . nakatiku
     a3 =  ka.dhom.ta.ka.ta .__.ki.ta . nakatiku
-    b1 = ta.ka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
-    b2 = ta.ka . tang.__3.ga.tang.__
-    b3 = ta.ka . tri_ (tang.__.ki.ta.ta.ka) (tang.__3.ga.din.__)
+    b1 = taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
+    b2 = taka . tang.__3.ga.tang.__
+    b3 = taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
     mridangam = make_mridangam
         [ (dhom.ta.ka.ta, [o, k, p, u])
         , (ki.ta, [p, k])
         , (ka.din.din, [p, i, i])
         , (ta.ki.ta, [k, t, k])
         , (ka, [k])
-        , (ta.ka.tang, [n, o, od])
+        , (taka.tang, [n, o, od])
         , (ga.tang, [o, od])
         , (ga.din.tang, [o, od, u])
-        , (ki.ta.ta.ka, [p, k, k, o])
+        , (kitataka, [p, k, k, o])
         , (ga.din, [o, od])
         ]

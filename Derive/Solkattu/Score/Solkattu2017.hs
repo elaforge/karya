@@ -22,30 +22,30 @@ koraippu_janahan =
     koraippu $ source "janahan" $ korvai1 adi mridangam $ su $
     let seq = sequence takita takadinna
     in mconcat
-        [ seq 4 . ta.ka.ta.lang.__.ga.ta.ka.din.__.tat.__.thom.__4
+        [ seq 4 . taka.talang.__.ga.taka.din.__.tat.__.thom.__4
         , seq 3 . tri p5 . thom.__4
         , seq 2 . tri p6 . thom.__4
         , seq 1 . tri p7 . thom.__4
         ]
-    ++ let seq = sequence (su (nang.__.kita.ta.ka)) (su nakatiku)
+    ++ let seq = sequence (su (nang.__.kita.taka)) (su nakatiku)
     in mconcat
-        [ seq 4 . su nang_kita_nakatiku . ta.ka.din.__.tat.__.thom.__4
-        , seq 3 . tri (su (thom.kita.ka.na.ka.kita.ta.ka)) . thom.__4
+        [ seq 4 . su nang_kita_nakatiku . taka.din.__.tat.__.thom.__4
+        , seq 3 . tri (su (thom.kita.ka.na.ka.kitataka)) . thom.__4
         , seq 2 . tri (su nang_kita_nakatiku) . thom.__4
-        , seq 1 . tri (su (nang.__.kita.ta.ka.nakatiku)) . thom.__4
+        , seq 1 . tri (su (nang.__.kitataka.nakatiku)) . thom.__4
         ]
-    ++ let kitakita = su (kita.kita.ta.ka)
+    ++ let kitakita = su (kita.kita.taka)
         in sam.tam.__3 . kitakita . tam.__3
             . kitakita . su (nakatiku . nang_kita_nakatiku) . tam.__3
             . kitakita . su (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
             . su nang_kita_nakatiku
-            . ta.ka.din.__.tat.__.thom.__4
+            . taka.din.__.tat.__.thom.__4
     where
     -- problems:
     -- . Some soft p in tam.__3.
     -- . Maybe make the whole thing s2, but tam3 = s0 (tam.__3), where s0 sets
     -- absolute speed.
-    -- . Variations, like ta.ka.ta.lang.__.ga, ga can be k or o.
+    -- . Variations, like taka.talang.__.ga, ga can be k or o.
     --   . Emphasize ktkno with pk t k n o
     sequence takita takadinna takitas = sam
         .tam.__3 . 1^takita.tam.__3 . 1^takita.takadinna.takita.takita.tam.__3
@@ -64,13 +64,13 @@ koraippu_janahan =
         ]
     strokes =
         [ (tam, [od])
-        , (ta.ka.ta.lang.ga, [p, k, p, u, k])
-        , (ta.ka.din.tat, [p, k, o, k])
+        , (taka.talang.ga, [p, k, p, u, k])
+        , (taka.din.tat, [p, k, o, k])
         , (thom, [od])
-        , (nang.kita.ta.ka, [n, k, t, p, k])
+        , (nang.kitataka, [n, k, t, p, k])
         , (nang.kita, [o&n, p, k])
-        , (thom.kita.ka.na.ka.kita.ta.ka, [o, k, t, p, u, p, k, t, p, k])
-        , (kita.kita.ta.ka, [k, t, k, t, p, k])
+        , (thom.kita.ka.na.ka.kitataka, [o, k, t, p, u, p, k, t, p, k])
+        , (kita.kitataka, [k, t, k, t, p, k])
         ]
 
 nang_kita_nakatiku :: Sequence
@@ -107,12 +107,12 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     korvai1 adi (mridangam <> kendang <> reyong) $ su $
         reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
     where
-    theme = tat.__.taka.takadinna.na.ka.dit.__.ta.lang.__.ga
+    theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
     -- I'm not sure if I prefer smaller fragments that are easier to read, or
     -- doing the whole theme at once.
     mridangam = make_mridangam
         [ (tat.taka, [k, k, t])
-        , (na.ka.dit.ta.lang.ga, [n, p, k, p, u, lt o])
+        , (na.ka.dit.talang.ga, [n, p, k, p, u, lt o])
         , (ga, [lt o])
         ]
     kendang = make_kendang1
@@ -127,26 +127,26 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
 c_17_04_04 :: Korvai
 c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
     korvai Tala.misra_chapu mridangam $ map (sd • (purvangam.))
-    [ utarangam 3 takita (ta.ta.ka)
+    [ utarangam 3 takita (ta.taka)
     , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
     , utarangam 6 td_gnt td_gnt
     ]
     where
     purvangam = tat.__3 . din.__3 . tadimi
-              . ta.ta.ka. din.__3 . tadimi
+              . ta.taka. din.__3 . tadimi
     utarangam n p p2 =
         spread 4 p . spread 3 p . spread 2 p . tri_ (din.__n n) p2
     tadimi = ta.di.mi.ta.takadinna
     mridangam = make_mridangam
         [ (tat.din, [k, od])
-        , (ta.ta.ka.din, [o&n, o&n, k, od])
+        , (ta.taka.din, [o&n, o&n, k, od])
         , (tadimi, [o&n, od, k, p&d, n, o, od, k])
 
         , (din, [od])
         , (tdgnt, [k, t, k, n, o])
         , (takita, [p, k, od])
-        , (ta.ta.ka, [o&n, o&n, k])
+        , (ta.taka, [o&n, o&n, k])
         , (takadinna, [k, od, od, k])
         ]
 
@@ -160,10 +160,10 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
     ]
     where
     r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
-    purvangam = tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
+    purvangam = tri_ (din.__3) (ta.__3.ta.takadinna)
         -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
         -- TODO an elide directive?
-        . dropM 5 (tri_ (din.__2) (ta.ta.ka.din.na))
+        . dropM 5 (tri_ (din.__2) (ta.takadinna))
     utarangam p7 p7' = mconcat
         [ sd p7 . p7 . su end
         | end <- [p7', p7'.p7', p7'.p7'.p7']
@@ -285,14 +285,14 @@ c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
 c_17_06_02_janahan :: Korvai
 c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvai1 adi mridangam $
-    __n 9 . tri_ (su (kita.ta.ka)) (din.din . su (ta.ka) . din.din.tat.din)
+    __n 9 . tri_ (su (kitataka)) (din.din . su taka . din.din.tat.din)
     -- TODO use align or pad to sam
     where
     mridangam = make_mridangam
         [ (din, [od])
-        , (ta.ka, [p, k])
+        , (taka, [p, k])
         , (tat, [k])
-        , (kita.ta.ka, [p, k, n, o])
+        , (kitataka, [p, k, n, o])
         ]
 
 c_17_06_15 :: Korvai
@@ -301,10 +301,10 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
     , join (1^ta) [suffix sequence (thom.__n gap) | gap <- [2, 3, 4]]
     ]
     where
-    sequence = [takadinna, takita, ta.ka, ta]
+    sequence = [takadinna, takita, taka, ta]
     mridangam = make_mridangam
         [ (takita, [o, o, k])
-        , (ta.ka, [o, k])
+        , (taka, [o, k])
         , (ta, [k])
         , (1^ta, [p])
         , (thom, [od])
@@ -350,7 +350,7 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
     , repeat 2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . tk.tdgnt
 
     -- 334353
-    , repeat 2 $ tanga.dinga . ta.tanga.dinga . ta.ka.tanga.dinga . tk.tdgnt
+    , repeat 2 $ tanga.dinga . ta.tanga.dinga . taka.tanga.dinga . tk.tdgnt
     ]
     where
     tanga7 = tanga.dinga.din.__
@@ -359,7 +359,7 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         , (dinga, [od, k])
         , (tat, [on])
         , (ta, [k])
-        , (ta.ka, [p, k])
+        , (taka, [p, k])
         , (din, [od])
         ]
 

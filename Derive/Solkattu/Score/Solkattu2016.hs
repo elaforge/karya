@@ -12,23 +12,28 @@ import Derive.Solkattu.SolkattuGlobal
 
 c_16_09_28 :: Korvai
 c_16_09_28 = date 2016 9 28 $ ganesh $
-        similar_to "Solkattu2016" "c_16_12_06_sriram1" $
-        korvai1 adi mridangam $ su $
-    tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dheem) . __6
-          .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dheem) . __6
-                 .kitakina . nakatiku . tri_ __            (taka.dheem) . __6
-    . tri (p6 . ta.ka.p6 . ta.ka.na.ka.p6)
+    similar_to "Solkattu2016" "c_16_12_06_sriram1" $
+    korvai1 adi mridangam $ su $
+        group tat_dit_ . tri_ __   (group nakataka) . __6
+    . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
+    . dropM 4 tat_dit_ . tri_ __ (dropM 4 nakataka) . __6
+
+    . tri (p6 . tk.p6 . tknk.p6)
+
+    -- TODO the old one kind of looks nicer though...
+    -- tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dheem) . __6
+    --       .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dheem) . __6
+    --              .kitakina . nakatiku . tri_ __            (taka.dheem) . __6
+    -- . tri (p6 . tk.p6 . tknk.p6)
     where
+    tat_dit_ = tat.__.dit.__.kitakina . nakatiku
+    nakataka = na.ka.takadinna.dheem
+
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
     mridangam = make_mridangam
-        [ (tat.dit, [k&p, t])
-        , (dit, [k])
+        [ (tat.dit, [p&k, p&t])
         , (kitakina, [k, t, k, n, o, k, t&o, k])
-        , (na.ka, [n, p])
-        , (ta.ka.dheem, [p, k, o&d])
-        , (ta.ka, [k, p])
-        , (ta.ka.na.ka, [k, p, n, p])
-        , (dheem, [od])
+        , (nakataka, [n, p, k, o, o, k, od])
         ]
 
 c_16_12_06_sriram1 :: Korvai
@@ -48,8 +53,8 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
                           . su (kitakina.nakatiku . tri takadinna)
             . din.tat.thom.__
 
-    dinnaka = din.na.ka.din.na.ka.ta.ka
-    kitakina = ki.ta.ki.na.ta.ki.ta.ka
+    dinnaka = group $ din.na.ka.din.na.ka.ta.ka
+    kitakina = group $ ki.ta.ki.na.ta.ki.ta.ka
 
     ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su taka . din)
     mridangam = make_mridangam
@@ -62,4 +67,5 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
 
         , (tat.dit.ta.taka.din, [k, t, k, k, t, o])
         , (dheem, [u])
+        , (thom, [od])
         ]
