@@ -306,9 +306,6 @@ reassociate_strokes = associate . span_until_just
 add_meta :: S.Tempo -> S.Meta g
 add_meta tempo = S.Meta { _mark = Nothing, _tempo = tempo }
 
-strip_meta :: Meta a -> Meta b
-strip_meta = fmap $ \group -> group { Solkattu._dropped = [] }
-
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
 find_sequence :: Pretty sollu => GetStroke sollu stroke

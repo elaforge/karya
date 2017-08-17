@@ -28,8 +28,6 @@ module Derive.Solkattu.Sequence (
     , State(..), state_tempo, state_position, show_position
     -- * functions
     , note_duration, matra_duration
-    -- * util
-    , first_left, right_until_left
 #ifdef TESTING
     , module Derive.Solkattu.Sequence
 #endif
@@ -358,17 +356,3 @@ advance_state_by tala matras state = state
     (matra_carry, matra) = properFraction $ state_matra state + matras
     (akshara_carry, akshara) = (state_akshara state + matra_carry)
         `divMod` sum (Tala.tala_aksharas tala)
-
--- * util
-
-first_left :: [Either err a] -> Either ([a], err) [a]
-first_left xs = maybe (Right vals) (Left . (vals,)) err
-    where (vals, err) = right_until_left xs
-
--- | Collect Rights until I hit a Left.
-right_until_left :: [Either a b] -> ([b], Maybe a)
-right_until_left = go
-    where
-    go [] = ([], Nothing)
-    go (Left a : _) = ([], Just a)
-    go (Right b : xs) = first (b:) (go xs)
