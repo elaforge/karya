@@ -393,18 +393,18 @@ format override_stroke_width width tala notes =
             result -> (result, 1)
     format_line :: [Symbol] -> Text
     format_line = Terminal.fix_for_iterm
-        . Text.stripEnd . mconcat . thin_rests . map format_symbol
+        . Text.stripEnd . mconcat . map format_symbol . thin_rests
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.
-thin_rests :: [Text] -> [Text]
+thin_rests :: [Symbol] -> [Symbol]
 thin_rests = snd . List.mapAccumL thin 0
     where
-    thin column stroke
-        | Text.all (=='_') stroke =
-            let (column2, stroke2) = Text.mapAccumL clear column stroke
-            in (column2, stroke2)
-        | otherwise = (column + text_length stroke, stroke)
+    thin column sym
+        | Text.all (=='_') (_text sym) =
+            let (column2, stroke2) = Text.mapAccumL clear column (_text sym)
+            in (column2, sym { _text = stroke2 })
+        | otherwise = (column + text_length (_text sym), sym)
     clear column _ = (column+1, if even column then '_' else ' ')
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
@@ -548,6 +548,9 @@ data Symbol = Symbol {
     , _bounds :: ![StartEnd]
     } deriving (Eq, Show)
 
+symbol :: Text -> Symbol
+symbol text = Symbol text False []
+
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
 
@@ -592,7 +595,7 @@ format_html tala notes = to_table 30 (map Doc.html ruler) body
         (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
     body = map (thin . map snd) avartanams
-    thin = map Doc.Html . thin_rests . map Doc.un_html
+    thin = map (Doc.Html . _text) . thin_rests . map (symbol . Doc.un_html)
     avartanams = format_table tala notes
 
 format_table :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
