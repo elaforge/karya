@@ -2416,6 +2416,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
     solkattu:
+      - How can I do a reduction with irregular bits?  E.g. replace the
+        4 matra version tat.__.din.__ with ta.ka.din.__.
       - If I make tri_ put a special tag on the middle karvai, then I can
         more easily do the (p6.u . p6.i . p6) pattern.  I'd want a name, not
         a number.
@@ -2826,7 +2828,10 @@ Derive:
       - Should I change mridangam notes to be consistent with Solkattu.Dsl?
         I have to put thoppi on the left, for 'od' instead of the keyword
         'do'.  And I have to change tha to p instead of +.
-      . Performance rules for variations, e.g. tk can be played kk.
+      * Performance rules for variations, e.g. tk can be played kk.
+        . If dropped = [k], and after is [t, k, ..], then it becomes [k, k, ..]
+        . But it's per-instrument, so I need another hook, like GetStroke.
+        . Or it could be afterwards, since I still have the group info.
       . Conditional derivation that depends on position in the tala, e.g.
         thali / khali.
       alternate realization

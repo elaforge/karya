@@ -9,10 +9,12 @@ module Derive.Solkattu.Instrument.Mridangam where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Seq as Seq
 import qualified Derive.Expr as Expr
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
+import qualified Derive.Solkattu.Technique as Technique
 import qualified Derive.Symbols as Symbols
 
 import Global
@@ -145,6 +147,20 @@ both_strokes (Thoppi a) (Valantalai b) = Both a b
 both_strokes (Valantalai b) (Thoppi a) = Both a b
 both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
+-- * postprocess
+
+postprocess :: [Technique.MetaNote Stroke] -> [Technique.MetaNote Stroke]
+postprocess = Technique.postprocess $ Technique.plain_technique technique
+
+technique :: Technique.Technique Stroke
+technique prevs cur (next:nexts)
+    -- (k, t, [k, !k, ..]) -> k, [k, ..]
+    | Seq.last prevs == Just k && cur == t && next == k
+            && Seq.head nexts /= Just k =
+        Just k
+    where
+    Strokes {..} = strokes
+technique _ _ _ = Nothing
 
 -- * patterns
 

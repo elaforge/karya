@@ -74,13 +74,17 @@ test_realize_groups = do
     equal (f [Notation.dropM 1 (tat <> __ <> dit <> __)]) (Right "_ t _")
     -- With a Pattern.
     equal (f [Notation.dropM 1 (tat <> dit <> Dsl.p5)]) (Right "t p5")
-    -- Ensure groups are still in the output.
-    let e_group = fmap $ map $
-            (fmap Sequence._count . Sequence._mark) *** pretty
+    -- Ensure groups are still in the output, and dropped sollus replaced
+    -- with strokes.
+    let e_group = fmap $ map $ (fmap ungroup . Sequence._mark) *** pretty
+        ungroup (Sequence.GroupMark count (Solkattu.Group dropped side)) =
+            (count, dropped, side)
     equal (e_group $ realize_s smap (tat <> dit))
         (Right [(Nothing, "k"), (Nothing, "t")])
     equal (e_group $ realize_s smap (Notation.dropM 1 (tat <> dit)))
-        (Right [(Just 1, "t")])
+        (Right [(Just (1, [Realize.stroke $ M.Valantalai M.Ki], Solkattu.Front),
+            "t")])
+
 
 e_words :: Pretty b => Either a [b] -> Either a Text
 e_words = fmap (Text.unwords . map pretty)
@@ -118,8 +122,7 @@ rpattern :: Sequence.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
 test_realize_patterns = do
-    let f pmap = strip_groups
-            . Realize.realize (Realize.realize_pattern pmap)
+    let f pmap = Realize.realize (Realize.realize_pattern pmap)
                 (Realize.realize_sollu stroke_map)
             . map (meta,)
         meta = Sequence.Meta Nothing Sequence.default_tempo
@@ -333,17 +336,13 @@ realize smap = fmap (map snd) . realize_s smap
 
 realize_s :: Pretty stroke => Realize.StrokeMap stroke
     -> [Sequence.Note (Solkattu.Group Sollu) (Note Sollu)]
-    -> Either Text [(Sequence.Meta (), Realize.Note stroke)]
-realize_s smap = strip_groups
-    . Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
+    -> Either Text [(Realize.Meta (Realize.Stroke stroke), Realize.Note stroke)]
+realize_s smap =
+    Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
     . Sequence.flatten_with Sequence.default_tempo
 
-strip_groups :: Either e [(Sequence.Meta a, b)]
-    -> Either e [(Sequence.Meta (), b)]
-strip_groups = fmap (map (first (fmap (const ()))))
-
 k_realize :: Bool -> Tala.Tala -> Korvai.Sequence
-    -> Either Text ([(Sequence.Meta (), Realize.Note M.Stroke)], Text)
+    -> Either Text ([Korvai.MetaNote M.Stroke], Text)
 k_realize realize_patterns tala =
     head . Korvai.realize Korvai.mridangam realize_patterns
     . Korvai.korvai tala mridangam
@@ -391,5 +390,5 @@ state_pos state =
     )
 
 format :: Pretty stroke => Int -> Tala.Tala
-    -> [(Sequence.Meta (), Realize.Note stroke)] -> Text
+    -> [(Sequence.Meta a, Realize.Note stroke)] -> Text
 format = Realize.format Nothing

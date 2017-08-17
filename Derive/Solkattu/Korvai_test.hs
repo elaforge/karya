@@ -39,6 +39,16 @@ test_realize = do
     equal (f True (Dsl.nadai 2 (take 1 p4s))) $
         Right (map ("s0n2:"<>) (chars "pkon"), "")
 
+test_realize_technique = do
+    let f = fmap extract . head
+            . Korvai.realize Korvai.mridangam False
+            . korvai Tala.adi_tala . (:[])
+        extract = Text.unwords . map (pretty . snd) . fst
+        takatakadinna = mconcat [ta, ka, ta, ka, din, na]
+    equal (f takatakadinna) (Right "k t k o o k")
+    equal (f (Dsl.dropM 1 takatakadinna)) (Right "k k o o k")
+    equal (f (Dsl.dropM 1 (mconcat [ta, ka, ta, ta, ka]))) (Right "t k k o")
+
 chars :: [Char] -> [Text]
 chars = map Text.singleton
 
@@ -47,11 +57,14 @@ korvai tala = Korvai.korvai tala mridangam
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.inst_mridangam = Dsl.check $
-        Realize.instrument [(ta <> ka <> din <> na, [k, o, o, k])] patterns
-    }
+    { Korvai.inst_mridangam = Dsl.check $ Realize.instrument strokes patterns }
     where
-    Mridangam.Strokes {..} = Mridangam.notes
+    strokes =
+        [ (ta <> ka <> din <> na, [k, o, o, k])
+        , (ta <> ka <> ta <> ka <> din <> na, [k, t, k, o, o, k])
+        , (ta <> ka <> ta <> ta <> ka, [k, t, k, k, o])
+        ]
     patterns = Solkattu.check $ Realize.patterns $
         map (first Solkattu.PatternM) [(4, [p, k, o, n])]
         where Mridangam.Strokes {..} = Mridangam.notes
+    Mridangam.Strokes {..} = Mridangam.notes

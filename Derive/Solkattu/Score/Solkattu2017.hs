@@ -383,6 +383,14 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         ]
     ]
     where
+    purvangam dintaka =
+        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (1^(kita.taka))
+        . dintaka . din.__.tat.__.tat.__.tam.__4
+    -- variation: drop kita, so ta.__.kita -> ta.__4
+    utarangam dintaka = tri_ (tam.__) $
+        ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
+    utarangam_gap = tri $
+        ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
     one_avartanam = ta.__4.taka.din.__ . tk.kita.taka.din.__
       . dhom.__.kita.taka.din.__ . dhom.dhom.kita.taka.din.__
     basic_dintaka = 1^(din.taka.din.taka)
@@ -396,14 +404,6 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         , n6 (din.1^taka).din. su (din.1^ta) . 1^ka.din
         ]
     n6 = nadai 6
-    purvangam dintaka =
-        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (1^(kita.taka))
-        . dintaka . din.__.tat.__.tat.__.tam.__4
-    -- variation: drop kita, so ta.__.kita -> ta.__4
-    utarangam dintaka = tri_ (tam.__) $
-        ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
-    utarangam_gap = tri $
-        ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
 
     mridangam = make_mridangam0
         [ (ta, [k])

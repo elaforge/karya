@@ -68,6 +68,13 @@ instance Pretty stroke => Pretty (Stroke stroke) where
         Normal -> pretty stroke
         Light -> pretty stroke
 
+note_of :: Note a -> Maybe (Stroke a)
+note_of (Note stroke) = Just stroke
+note_of _ = Nothing
+
+stroke_of :: Note a -> Maybe a
+stroke_of = fmap _stroke . note_of
+
 stroke :: stroke -> Stroke stroke
 stroke = Stroke Normal
 
@@ -229,9 +236,9 @@ type Meta sollu = S.Meta (Solkattu.Group sollu)
 realize :: forall stroke sollu. (Pretty stroke, Pretty sollu) =>
     RealizePattern S.Tempo stroke -> GetStroke sollu stroke
     -> [(Meta sollu, Solkattu.Note sollu)]
-    -> Either Error [(Meta sollu, Note stroke)]
+    -> Either Error [(Meta (Stroke stroke), Note stroke)]
 realize realize_pattern get_stroke =
-    fmap strip . realize_notes . map (first Just)
+    fmap reassociate_strokes . realize_notes . map (first Just)
     where
     realize_notes = format_error . first concat . map_until_left realize1
     realize1 ((Just (S.Meta (Just (S.GroupMark count group)) tempo)), note)
@@ -275,28 +282,38 @@ realize realize_pattern get_stroke =
             Solkattu.Back -> notes ++ extra
             where
             extra = map ((Nothing,) . Solkattu.Note . Solkattu.note) dropped
-    strip notes = [(meta, n) | (Just meta, n) <- notes]
+
+-- | Take strokes with Nothing meta, and put them into the next Meta.
+-- The Nothings were added by 'realize_group' out of 'Solkattu._dropped', so
+-- this is putting them back into their groups after being converted to
+-- strokes.
+reassociate_strokes :: forall sollu stroke.
+    [(Maybe (Meta sollu), Note stroke)] -> [(Meta (Stroke stroke), Note stroke)]
+reassociate_strokes = associate . span_until_just
+    where
+    associate (_, []) = []
+    associate (strokes, (Just meta, stroke) : notes) =
+        (replace (mapMaybe note_of strokes) meta, stroke)
+            : reassociate_strokes notes
+    -- This shouldn't be possible, because span_until_just returns either
+    -- (_, []) or (_, (Just _, _) : _).
+    associate (_, (Nothing, _) : notes) = reassociate_strokes notes
+    replace :: [Stroke stroke] -> Meta sollu -> Meta (Stroke stroke)
+    replace strokes = fmap $ \g -> g { Solkattu._dropped = strokes }
 
 -- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
 -- merge their result into 'realize' output.
 add_meta :: S.Tempo -> S.Meta g
 add_meta tempo = S.Meta { _mark = Nothing, _tempo = tempo }
 
--- | Apply the function until it returns Left.  The function can consume a
--- variable number of elements.
-map_until_left :: (a -> [a] -> Either err (b, [a])) -> [a] -> ([b], Maybe err)
-map_until_left f = go
-    where
-    go [] = ([], Nothing)
-    go (x:xs) = case f x xs of
-        Left err -> ([], Just err)
-        Right (val, rest) -> first (val:) (go rest)
+strip_meta :: Meta a -> Meta b
+strip_meta = fmap $ \group -> group { Solkattu._dropped = [] }
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
 find_sequence :: Pretty sollu => GetStroke sollu stroke
-    -> [(tempo, Solkattu.Note sollu)]
-    -> Either Error ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
+    -> [(meta, Solkattu.Note sollu)]
+    -> Either Error ([(meta, Note stroke)], [(meta, Solkattu.Note sollu)])
 find_sequence get_stroke notes = case best_match tag sollus get_stroke of
     Nothing -> Left $ "sequence not found: " <> pretty sollus
     Just strokes -> Right $ replace_sollus strokes notes
@@ -312,13 +329,13 @@ find_sequence get_stroke notes = case best_match tag sollus get_stroke of
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
 replace_sollus :: [Maybe (Stroke stroke)]
-    -> [(tempo, Solkattu.Note sollu)]
-    -> ([(tempo, Note stroke)], [(tempo, Solkattu.Note sollu)])
+    -> [(meta, Solkattu.Note sollu)]
+    -> ([(meta, Note stroke)], [(meta, Solkattu.Note sollu)])
 replace_sollus [] ns = ([], ns)
-replace_sollus (stroke : strokes) ((tempo, n) : ns) = case n of
-    Solkattu.Note _ -> first ((tempo, rnote) :) (replace_sollus strokes ns)
+replace_sollus (stroke : strokes) ((meta, n) : ns) = case n of
+    Solkattu.Note _ -> first ((meta, rnote) :) (replace_sollus strokes ns)
         where rnote = maybe (Space Solkattu.Rest) Note stroke
-    Solkattu.Space space -> first ((tempo, Space space) :) next
+    Solkattu.Space space -> first ((meta, Space space) :) next
     Solkattu.Alignment {} -> next
     -- This shouldn't happen because Seq.span_while is_sollu should have
     -- stopped when it saw this.
@@ -375,7 +392,7 @@ exact_match tag sollus (_, get_stroke) =
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
-    -> [(S.Meta (), Note stroke)] -> Text
+    -> [(S.Meta a, Note stroke)] -> Text
 format override_stroke_width width tala notes =
     Text.stripEnd $ Terminal.fix_for_iterm $ attach_ruler ruler_avartanams
     where
@@ -422,7 +439,7 @@ format_final_avartanam avartanams = case reverse avartanams of
 
 -- | Break into [avartanam], where avartanam = [line].
 format_lines :: Pretty stroke => Int -> Int -> Tala.Tala
-    -> [(S.Meta (), Note stroke)] -> [[[(S.State, Symbol)]]]
+    -> [(S.Meta a, Note stroke)] -> [[[(S.State, Symbol)]]]
 format_lines stroke_width width tala =
     format_final_avartanam . map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
@@ -581,12 +598,12 @@ text_length = sum . map len . untxt
 -- * format html
 
 write_html :: Pretty stroke => FilePath -> Tala.Tala
-    -> [[(S.Meta (), Note stroke)]] -> IO ()
+    -> [[(S.Meta a, Note stroke)]] -> IO ()
 write_html fname tala =
     Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
     . map (Doc.un_html . format_html tala)
 
-format_html :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
+format_html :: Pretty stroke => Tala.Tala -> [(S.Meta a, Note stroke)]
     -> Doc.Html
 format_html tala notes = to_table 30 (map Doc.html ruler) body
     where
@@ -597,7 +614,7 @@ format_html tala notes = to_table 30 (map Doc.html ruler) body
     thin = map (Doc.Html . _text) . thin_rests . map (symbol . Doc.un_html)
     avartanams = format_table tala notes
 
-format_table :: Pretty stroke => Tala.Tala -> [(S.Meta (), Note stroke)]
+format_table :: Pretty stroke => Tala.Tala -> [(S.Meta a, Note stroke)]
     -> [[(S.State, Doc.Html)]]
 format_table tala =
     break_avartanams
@@ -630,3 +647,20 @@ to_table col_width header rows = mconcatMap (<>"\n") $
     th col = Doc.tag_attrs "th" [("width", showt col_width), ("align", "left")]
         (Just col)
     row cols = "<tr>" <> mconcatMap (Doc.tag "td") cols <> "</tr>"
+
+-- * util
+
+span_until_just :: [(Maybe a, b)] -> ([b], [(Maybe a, b)])
+span_until_just [] = ([], [])
+span_until_just ((Nothing, b) : abs) = first (b:) (span_until_just abs)
+span_until_just abs@((Just _, _) : _) = ([], abs)
+
+-- | Apply the function until it returns Left.  The function can consume a
+-- variable number of elements.
+map_until_left :: (a -> [a] -> Either err (b, [a])) -> [a] -> ([b], Maybe err)
+map_until_left f = go
+    where
+    go [] = ([], Nothing)
+    go (x:xs) = case f x xs of
+        Left err -> ([], Just err)
+        Right (val, rest) -> first (val:) (go rest)

@@ -104,6 +104,8 @@ data Instrument stroke = Instrument {
     , inst_from_mridangam ::
         Maybe (Realize.GetStroke (Realize.Stroke Mridangam.Stroke) stroke)
     , inst_from_strokes :: StrokeMaps -> Realize.Instrument stroke
+    -- | Modify strokes after 'realize'.  Use with 'stroke_technique'.
+    , inst_postprocess :: [MetaNote stroke] -> [MetaNote stroke]
     , inst_to_score :: ToScore.ToScore stroke
     }
 
@@ -112,12 +114,14 @@ default_instrument = Instrument
     { inst_from_sollu = Realize.realize_sollu
     , inst_from_mridangam = Nothing
     , inst_from_strokes = const mempty
+    , inst_postprocess = id
     , inst_to_score = ToScore.to_score
     }
 
 mridangam :: Instrument Mridangam.Stroke
 mridangam = default_instrument
     { inst_from_mridangam = Just Realize.realize_stroke
+    , inst_postprocess = Mridangam.postprocess
     , inst_from_strokes = inst_mridangam
     }
 
@@ -158,16 +162,21 @@ instruments = Map.fromList
     , ("sargam", GInstrument sargam)
     ]
 
+-- | A note with associated S.Meta.
+type MetaNote stroke =
+    (S.Meta (Solkattu.Group (Realize.Stroke stroke)), Realize.Note stroke)
+
 -- | Realize a Korvai on a particular instrument.
 realize :: Pretty stroke => Instrument stroke -> Bool -> Korvai
-    -> [Either Error ([(S.Meta (), Realize.Note stroke)], Error)]
+    -> [Either Error ([MetaNote stroke], Error)]
 realize instrument realize_patterns korvai = case korvai_sequences korvai of
     Sollu seqs -> map (realize1 (inst_from_sollu instrument smap)) seqs
     Mridangam seqs -> case inst_from_mridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
         Just realize_note -> map (realize1 realize_note) seqs
     where
-    realize1 realize_note = fmap (first (map (first (fmap (const ())))))
+    realize1 realize_note =
+        fmap (first (inst_postprocess instrument))
         . realize_instrument realize_patterns realize_note inst tala
     smap = Realize.inst_stroke_map inst
     tala = korvai_tala korvai
@@ -176,8 +185,7 @@ realize instrument realize_patterns korvai = case korvai_sequences korvai of
 realize_instrument :: (Pretty sollu, Pretty stroke) =>
     Bool -> Realize.GetStroke sollu stroke -> Realize.Instrument stroke
     -> Tala.Tala -> SequenceT sollu
-    -> Either Error
-        ([(S.Meta (Solkattu.Group sollu), Realize.Note stroke)], Error)
+    -> Either Error ([MetaNote stroke], Error)
 realize_instrument realize_patterns get_stroke inst tala sequence = do
     -- Continue to realize even if there are align errors.  Misaligned notes
     -- are easier to read if I realize them down to strokes.
@@ -325,7 +333,7 @@ write_konnakol_html realize_patterns korvai =
             where (notes, warnings) = unzip results
 
 print_results :: Pretty stroke => Maybe Int -> Korvai
-    -> [Either Error ([(S.Meta (), Realize.Note stroke)], Error)]
+    -> [Either Error ([(S.Meta a, Realize.Note stroke)], Error)]
     -> IO ()
 print_results override_stroke_width korvai = print_list . map show1
     where
