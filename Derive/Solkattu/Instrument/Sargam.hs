@@ -4,7 +4,6 @@
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 -- | Realize abstract solkattu Notes to sa-relative notes.
 module Derive.Solkattu.Instrument.Sargam where
 import qualified Data.Set as Set

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-} -- for BUILD_DIR
-{-# LANGUAGE MagicHash, ScopedTypeVariables #-}
+{-# LANGUAGE MagicHash #-}
 -- | REPL implementation that directly uses the GHC API.
 --
 -- Supported versions: 7.10

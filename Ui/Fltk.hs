@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 -- | This has the FLTK event thread, and communication with it.
 module Ui.Fltk (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread

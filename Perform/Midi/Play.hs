@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-}
 -- | This module is responsible for actually scheduling MIDI messages with the
 -- OS's MIDI driver.
 module Perform.Midi.Play (play, cycle_messages) where

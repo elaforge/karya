@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-}
 -- | Define the protocol between the sequencer's repl port and the repl client.
 module App.ReplProtocol (
     -- * types

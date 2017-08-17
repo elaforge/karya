@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, call, add, member, outermost, innermost

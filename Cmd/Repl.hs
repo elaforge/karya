@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {- | Process a textual language, which may look familiar, to perform UI state

@@ -1298,6 +1298,7 @@ ghcLanguageFlags = map ("-X"++)
     , "TupleSections"
     -- Just too useful.
     , "GeneralizedNewtypeDeriving"
+    , "ScopedTypeVariables"
     ]
 
 -- * cc

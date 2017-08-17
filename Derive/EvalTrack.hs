@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables, RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
 {- | Derive tracks.
 
     It should also have Deriver utilities that could go in Derive, but are more
