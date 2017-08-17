@@ -54,10 +54,10 @@ search predicate = Text.stripEnd $
 
 format :: (Int, Korvai.Korvai) -> Text
 format (i, korvai) =
-    showt i <> ": " <> Metadata.get_location korvai <> "\n" <> tags_text
+    showt i <> ": " <> Metadata.show_location (Metadata.get_location korvai)
+        <> "\n" <> tags_text
     where
     tags_text = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
-        filter ((`notElem` Metadata.location_tags) . fst) $
         Map.toAscList tags
     Korvai.Tags tags = Korvai._tags $ Korvai.korvai_metadata korvai

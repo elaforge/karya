@@ -80,11 +80,11 @@ print_msgs (msgs, logs) = do
 
 -- * implementation
 
-perform :: [Types.Event] -> ([Midi.WriteMessage], [String])
+perform :: [Types.Event] -> ([Midi.WriteMessage], [Text])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state configs . map LEvent.Event
 
-split_logs :: [LEvent.LEvent d] -> ([d], [String])
+split_logs :: [LEvent.LEvent d] -> ([d], [Text])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 run_multiple :: a -> (a -> IO String) -> IO ()

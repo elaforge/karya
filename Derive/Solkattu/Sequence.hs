@@ -20,7 +20,7 @@ module Derive.Solkattu.Sequence (
     , Tempo(..), default_tempo
     , change_tempo
     -- * flatten
-    , Meta(..)
+    , Meta(..), GroupMark(..)
     , notes, flatten, flatten_with
     , tempo_to_state, tempo_to_duration
     , Stroke(..), normalize_speed

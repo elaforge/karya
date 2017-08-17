@@ -154,13 +154,10 @@ edit :: Ui.M m => Block.SourceKey -> m ReplProtocol.Result
 edit key = do
     (korvai, _, _) <- Ui.require ("no korvai for " <> showt key) $
         get_by_key key
-    let line_number = fromMaybe 0 $ ParseText.maybe_parse ParseText.p_nat
-            =<< Seq.head (Metadata.get Metadata.t_line_number korvai)
-        fname = module_to_fname <$>
-            Seq.head (Metadata.get Metadata.t_module korvai)
+    let (module_, line_number, _) = Metadata.get_location korvai
+        fname = module_to_fname module_
     return $ ReplProtocol.Edit $ ReplProtocol.Editor
-        { _file =
-            maybe (ReplProtocol.Text "no file") ReplProtocol.FileName fname
+        { _file = ReplProtocol.FileName fname
         , _line_number = line_number
         , _on_save = Nothing
         , _on_send = Just $ ":reload; LSol.reintegrate " <> showt key
@@ -226,16 +223,8 @@ integrate_track korvai index instrument = do
 
 korvai_key :: Korvai.Korvai -> Index -> Text -> Maybe Block.SourceKey
 korvai_key korvai index instrument = do
-    (mod, variable) <- qualified_name korvai
-    return $ Text.intercalate "/" [mod, variable, showt index, instrument]
-
-qualified_name :: Korvai.Korvai -> Maybe (Text, Text)
-qualified_name korvai =
-    case (get Metadata.t_module, get Metadata.t_variable_name) of
-        ([mod], [variable]) -> Just (mod, variable)
-        _ -> Nothing
-    where
-    get tag = Metadata.get tag korvai
+    let (module_, _, variable) = Metadata.get_location korvai
+    return $ Text.intercalate "/" [module_, variable, showt index, instrument]
 
 get_by_key :: Block.SourceKey
     -> Maybe (Korvai.Korvai, Index, Korvai.GInstrument)
@@ -250,6 +239,5 @@ get_by_key key = do
     -- split3 t = case Text.splitOn "/" t of
     --     [a, b, c] -> Just (a, b, c)
     --     _ -> Nothing
-    matches mod variable korvai = case qualified_name korvai of
-        Just (m, v) -> m == mod && v == variable
-        _ -> False
+    matches mod variable korvai = m == mod && v == variable
+        where (m, _, v) = Metadata.get_location korvai
