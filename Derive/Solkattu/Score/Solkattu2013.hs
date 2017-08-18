@@ -368,30 +368,6 @@ t3s = ganesh $ korvai adi mridangam $ map (nadai 6)
         , (tang.ga, [u, __])
         ]
 
-t4s :: Korvai
-t4s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
-    [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
-    , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
-    , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
-    , tri_ (dheem.__3) (p5.ta.__.din.__.ta.din.__)
-    , p123 p6 (dheem.__3)
-
-    , p123 p5 (tat.__3.din.__3)
-    , p5.dinga . tk.p5.p5. dinga . tknk.p5.p5.p5
-    , tri (tat.dinga . tat.__.dinga.p5)
-    ]
-    where
-    p123 p sep = trin sep p (p.p) (p.p.p)
-    purvangam = tri (ta_katakita.takadinna . din.__6)
-    mridangam = make_mridangam $
-        [ (ta.din.gin.na.thom, [k, t, k, n, o])
-        , (ta.din, [k, od])
-        , (dheem, [u])
-        , (din, [od])
-        , (tat, [k])
-        , (dinga, [od, p])
-        ] ++ m_ta_katakita
-
 t4s2 :: Korvai
 t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
     [ purvangam1 . tri (ta.din.__.p5)

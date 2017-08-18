@@ -8,7 +8,7 @@ module Derive.Solkattu.Score.Solkattu2014 where
 import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 
-import qualified Derive.Solkattu.Korvai as Korvai
+import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import Derive.Solkattu.SolkattuGlobal
 
 
@@ -115,7 +115,92 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
         , (tam, [od])
         ]
 
+c_14_02_20 :: Korvai
+c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvai adi mridangam $
+        map (nadai 6)
+    [     repeat 7 sarva . dhomdhom
+        . repeat 2 (repeat 3 sarva . dhomdhom)
+        . repeat 4 (sarva . dhomdhom)
+        . repeat 7 dhomdhom . repeat 2 dhodhoka
+    ,     repeat 6 sarva . ta_katakita.takadinna
+        . repeat 2 (repeat 2 sarva . ta_katakita.takadinna)
+        . repeat 4 (ta_katakita.takadinna)
+    ,     tri_ (din.__6) (ta_katakita.takadinna)
+        . ta_katakita.takadinna.din.__6 . ta_katakita.takadinna.din.__3
+            . taka.takadinna.din.__3
+            . taka.takadinna
+    -- TODO sarvaA doesn't work because of nadai 6
+    ]
+    where
+    sarva = tanga.takita
+    dhomdhom = din.__3.dhodhoka
+    dhodhoka = dhom.dhom.ka
+    mridangam = make_mridangam $
+        [ (sarva, [d, lt p, k, t, k])
+        , (dhomdhom, [d, o, o, k])
+        , (dhodhoka, [o, o, k])
+        , (din, [od])
+        , (taka, [p, k])
+        ] ++ m_ta_katakita
+
+c_14_02_27 :: Korvai
+c_14_02_27 = date 2014 2 27 $ ganesh $ korvai adi mridangam $
+        map (nadai 6 • (purvangam.))
+    [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+    , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
+    , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
+    , tri_ (dheem.__3) (p5.ta.__.din.__.ta.din.__)
+    , p123 p6 (dheem.__3)
+
+    , p123 p5 (tat.__3.din.__3)
+    , p5.dinga . tk.p5.p5. dinga . tknk.p5.p5.p5
+    , tri (tat.dinga . tat.__.dinga.p5)
+    , spread 3 (taka.tdgnt) . spread 2 (taka.tdgnt) . taka.tdgnt
+    ]
+    where
+    p123 p sep = trin sep p (p.p) (p.p.p)
+    purvangam = tri (ta_katakita.takadinna . din.__6)
+    mridangam = make_mridangam $
+        [ (ta.din.gin.na.thom, [k, t, k, n, o])
+        , (ta.din, [k, od])
+        , (dheem, [u])
+        , (din, [od])
+        , (tat, [k])
+        , (dinga, [od, p])
+        , (taka, [k, p])
+        ] ++ m_ta_katakita
+
+ta_katakita :: Sequence
+ta_katakita = ta.__.ka.takita.taka
+
+m_ta_katakita :: StrokeMap Mridangam.Stroke
+m_ta_katakita =
+    [ (ta_katakita, [k, lt p, k, t, k, t, k])
+    ]
+
+c_14_03_13 :: Korvai
+c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
+    [ sarvaD 4 . d1.din . sarvaD 3
+    . repeat 2 (d1.din . sarvaD 3)
+    , concatMap sequence [d1, d2, d3]
+    ]
+    where
+    sequence p = p.din . sarvaD 3 . p.din . sarvaD 1 . p . dropS 1 p . dropS 1 p
+    d1 = su $ din.__.kitataka
+    d2 = su $ ka.tdgnt
+    d3 = su $ takadinna.taka
+
+    -- sarva = d.__.n.d.l.d.n.k .t.k.n.d.l.d.n.l
+    --         o.__.o.o._.o.o._ .o._.o.o._.o.o._
+    mridangam = make_mridangam
+        [ (d1, [od, p, k, n, o])
+        , (d2, [p, k, t, k, n, o])
+        , (d3, [k, o, o, k, o, k])
+        , (din, [od])
+        ]
+
 -- first mentioned on 2013 11 19
+-- TODO update date when I find the complete sequence
 c_13_11_19 :: Korvai
 c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi mridangam $ mconcat
     [ sarvaSam adi theme
@@ -131,83 +216,4 @@ c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi mridangam $ mconcat
     mridangam = make_mridangam
         [ (theme,   [on, k, t, o, k, od, n, od, k])
         , (1^theme, [on, k, t, o, k, od, n, p&d, k])
-        ]
-
-make_mohra :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
-    -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
-      a123.b1 . a123.b1
-    . a123.b2
-    . a1.b2
-    . a3.b3
-    where a123 = a1.a2.a3
-
--- | Alternate melkalam and kirkalam.
-make_mohra2 :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
-    -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
-      a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
-    . a123.b2 . su (a123.b2)
-    . a1.b2 . su (a1.b2)
-    . a3.b3 . su (a3.b3)
-    where a123 = a1.a2.a3
-
-c_mohra :: Korvai
-c_mohra = ganesh $ make_mohra2 mridangam (a1, a2, a1) (b1, b2, b3)
-    where
-    a1 = dit.__4      .tang.__.kita.nakatiku
-    a2 = na.ka.dit.__2.tang.__.kita.nakatiku
-    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
-    b2 = ta.langa.dheem.__4
-    b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
-    mridangam = make_mridangam
-        [ (dit, [k])
-        , (tang.kita, [u, p, k])
-        , (ta.langa, [p, u, k])
-        , (din.tat, [o, k])
-        , (dheem, [od])
-        , (na.ka, [n, p])
-        ]
-
-c_mohra2 :: Korvai
-c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
-    where
-    a_ = kitataka.nakatiku
-    a1 = dit.__4.tang.__ . a_
-    a2 = dit.__2.tang.__ . a_
-    a3 = dit.tang . a_
-    b1 = repeat 3 (ta.ga.ta.ga) . dhom.__4
-    b2 = ta.ga.ta.ga . dhom.__4
-    b3 = tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
-    mridangam = make_mridangam
-        [ (dit, [t])
-        , (tang, [o])
-        , (kitataka, [k, t, p, k])
-        , (ta.ga, [o, u])
-        , (dhom, [o])
-        ]
-
-c_mohra_youtube :: Korvai
-c_mohra_youtube = source "Melakkaveri Balaji" $ source url $
-    make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
-    where
-    url = "https://www.youtube.com/watch?v=eq-DZeJi8Sk"
-    -- he says "tikutaka tarikita" instead of "nakatiku tarikita"
-    a1 =  __.dhom.ta.ka.ta .__.ki.ta . nakatiku
-    a2 =  ka.din.__.din.__. ta.ki.ta . nakatiku
-    a3 =  ka.dhom.ta.ka.ta .__.ki.ta . nakatiku
-    b1 = taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
-    b2 = taka . tang.__3.ga.tang.__
-    b3 = taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
-    mridangam = make_mridangam
-        [ (dhom.ta.ka.ta, [o, k, p, u])
-        , (ki.ta, [p, k])
-        , (ka.din.din, [p, i, i])
-        , (ta.ki.ta, [k, t, k])
-        , (ka, [k])
-        , (taka.tang, [n, o, od])
-        , (ga.tang, [o, od])
-        , (ga.din.tang, [o, od, u])
-        , (kitataka, [p, k, k, o])
-        , (ga.din, [o, od])
         ]

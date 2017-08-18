@@ -94,37 +94,52 @@ splitD_ dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
         | dur <= 0 = (0, ([], n:ns))
         | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
         | otherwise = case n of
-            S.TempoChange change subs -> tempo_change tempo dur change subs ns
-            S.Group g subs -> group tempo dur g subs ns
+            S.TempoChange change subs ->
+                group (S.TempoChange change) (S.change_tempo change tempo)
+                    dur subs ns
+            -- TODO actually this is wrong.  I would have to add extra the
+            -- split off sollus to the group, but no need to bother until it
+            -- becomes a problem.
+            S.Group g subs -> group (S.Group g) tempo dur subs ns
             S.Note (Solkattu.Space space) -> (0,
                 (spaceD space tempo dur, spaceD space tempo (ndur - dur) <> ns))
             _ -> Solkattu.throw $ "can't split a note: " <> pretty dur
                 <> " of " <> pretty ndur <> ": " <> pretty n
-        -- TODO drop a Pattern, replace with rests
-        -- or just error
         where ndur = S.note_duration tempo n
-    -- TODO this will produce a nested group, which realize won't understand.
-    group tempo dur g subs ns
-        | dur_left <= 0 =
-            (dur_left, (make_group sub_pre, make_group sub_post ++ ns))
-        | otherwise = case go tempo dur_left ns of
-            (end_dur, (pre, post)) ->
-                (end_dur, (make_group sub_post ++ pre, post))
+    group make_group tempo dur subs remaining
+        | left <= 0 = (0, (make pre, make post ++ remaining))
+        | otherwise = second (first (make subs ++)) (go tempo left remaining)
         where
-        (dur_left, (sub_pre, sub_post)) = go tempo dur subs
-        make_group [] = []
-        make_group ns = [S.Group g ns]
-    tempo_change tempo dur change subs ns
-        | dur_left <= 0 =
-            (dur_left, (make_tempo sub_pre, make_tempo sub_post ++ ns))
-        | otherwise = case go tempo dur_left ns of
-            (end_dur, (pre, post)) ->
-                (end_dur, (make_tempo sub_post ++ pre, post))
+        (left, (pre, post)) = go tempo dur subs
+        make [] = []
+        make ns = [make_group ns]
+
+splitS :: Int -> SequenceT sollu -> (SequenceT sollu, SequenceT sollu)
+splitS count seq =
+    ( groupOf (sollus_of post) Solkattu.Back pre
+    , groupOf (sollus_of pre) Solkattu.Front post
+    )
+    where (pre, post) = splitS_ count seq
+
+splitS_ :: Int -> SequenceT sollu -> (SequenceT sollu, SequenceT sollu)
+splitS_ count = (S.simplify *** S.simplify) . snd . go count
+    where
+    go count ns | count <= 0 = (0, ([], ns))
+    go count [] = (count, ([], []))
+    go count (n:ns) = case n of
+        S.Note {} -> second (first (n:)) (go (count-1) ns)
+        S.TempoChange change subs -> group (S.TempoChange change) count subs ns
+        -- TODO actually this is wrong.  I would have to add extra the split
+        -- off sollus to the group, but no need to bother until it becomes
+        -- a problem.
+        S.Group g subs -> group (S.Group g) count subs ns
+    group make_group count subs remaining
+        | left <= 0 = (0, (make pre, make post ++ remaining))
+        | otherwise = second (first (make subs ++)) (go left remaining)
         where
-        (dur_left, (sub_pre, sub_post)) =
-            go (S.change_tempo change tempo) dur subs
-        make_tempo [] = []
-        make_tempo ns = [S.TempoChange change ns]
+        (left, (pre, post)) = go count subs
+        make [] = []
+        make ns = [make_group ns]
 
 sollus_of :: SequenceT sollu -> [sollu]
 sollus_of = mapMaybe Solkattu.sollu_of . S.notes
@@ -194,6 +209,12 @@ matrasOfE = integral <=< justErr "nadai change" . of_sequence
         S.ChangeSpeed speed -> (/ S.speed_factor speed) <$> of_sequence notes
         S.Nadai _ -> Nothing
     of_note (S.Group _ notes) = of_sequence notes
+
+-- * by sollu
+
+takeS, dropS :: Int -> SequenceT sollu -> SequenceT sollu
+takeS n = fst . splitS n
+dropS n = snd . splitS n
 
 -- * structures
 
@@ -335,8 +356,8 @@ groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
 --
 -- This should only be used at the top level, since it gets the timing wrong
 -- under a tempo change.
-__sam :: (CallStack.Stack, Pretty sollu) => Tala.Tala
-    -> SequenceT sollu -> SequenceT sollu
+__sam :: (CallStack.Stack, Pretty sollu) =>
+    Tala.Tala -> SequenceT sollu -> SequenceT sollu
 __sam tala seq = __a (next_sam tala seq) seq
 
 next_sam :: Tala.Tala -> SequenceT sollu -> S.Duration
@@ -346,14 +367,14 @@ next_sam tala seq = fromIntegral $ Num.roundUp aksharas dur
     aksharas = sum (Tala.tala_aksharas tala)
 
 -- | Align to the end of the given number of aksharams.
-__a :: (CallStack.Stack, Pretty sollu) => S.Duration
-    -> SequenceT sollu -> SequenceT sollu
+__a :: (CallStack.Stack, Pretty sollu) =>
+    S.Duration -> SequenceT sollu -> SequenceT sollu
 __a dur seq = replaceEnd (restD dur) seq
 
-sarvaSam :: (CallStack.Stack, Pretty sollu) => Tala.Tala
-    -> SequenceT sollu -> SequenceT sollu
+sarvaSam :: (CallStack.Stack, Pretty sollu) =>
+    Tala.Tala -> SequenceT sollu -> SequenceT sollu
 sarvaSam tala seq = sarvaA (next_sam tala seq) seq
 
-sarvaA :: (CallStack.Stack, Pretty sollu) => S.Duration
-    -> SequenceT sollu -> SequenceT sollu
+sarvaA :: (CallStack.Stack, Pretty sollu) =>
+    S.Duration -> SequenceT sollu -> SequenceT sollu
 sarvaA dur seq = replaceEnd (sarvaD dur) seq

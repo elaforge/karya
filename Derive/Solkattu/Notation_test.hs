@@ -42,6 +42,15 @@ test_splitD = do
     equal (f (1/4) (sd __ <> ka)) (["__"], ["__", "ka"])
     equal (f (3/4) (sd (sd __) <> ka)) (["s-1(__)", "__"], ["__", "ka"])
 
+test_splitS_ = do
+    let f dur = (extract *** extract) . Notation.splitS_ dur
+        extract = map pretty . flatten_groups
+    let seq = su (ta <> ka) <> di
+    equal (f 0 seq) ([], ["s+1(ta ka)", "di"])
+    equal (f 1 seq) (["s+1(ta)"], ["s+1(ka)", "di"])
+    equal (f 2 seq) (["s+1(ta ka)"], ["di"])
+    equal (f 3 seq) (["s+1(ta ka)", "di"], [])
+
 test_spaceD = do
     let f tempo = sum . map (S.note_duration tempo)
             . Notation.spaceD Solkattu.Rest tempo
