@@ -72,39 +72,17 @@ UNSORTED
     flags to Instrument.Common, but what's wrong with having a MIDI instrument
     with no allocation?
     . Triggered is duplicated in Im.Patch, so I could get rid of that.
-  * randomize makes play from '/' awkward, can I start just a touch before the
-    point to try to catch those?  The real problem is MIDI's NoteOn thing.
   - can I have a block template kind of thing, with a standard set of
     instruments?  Maybe REPL cmds.
     . I could also add a track for each allocated instrument, but I'd need an
       order.
   - Also cmds to re-order tracks by instrument.
-  * integrate via '<' segfaults
-    . Because it does set track signal on a non-existent tracks 4--6.
-    . They are added by the integrate, so it seems update_track_signals is
-      called before the window is updated.
-    . update_track_signals comes from DeriveComplete.
-    . What's the integrate sequence?
-      . set_track_title ((vid "untitled/b1.v1"), 2, ">pno | <")
-      . === rendering
-        [ ((vid "untitled/b1.v1"),(tid "untitled/b1.t1"),1,True)
-        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t2"),2,True)
-        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t4"),4,True)
-        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t5"),5,True)
-        , ((vid "untitled/b1.v1"),(tid "untitled/b1.t6"),6,True)
-        ]
-      . insert_track ((vid "untitled/b1.v1"), 4)
-      . set_track_title ((vid "untitled/b1.v1"), 4, ">pno")
-  * BlockC.set_track_signal is called a lot with empty signals.  I think it's
-    necessary to clear an existing one, but maybe replace with nullptr to
-    avoid allocation.
   - How to add grace notes to a non-null call note?  Also what if I want
     non-null grace notes?
     . I can make a 'g' transformer for the first: 'g 0 1 | x'
     . For all maybe a grace-transform env arg.
   - squart/6 has some jumpy dynamics due to sets in dyn with a scope over them
     e.g. end of @b3, vln2
-  * mridangam should default to its native pitch
   - It would be nice to have a text interpolation syntax
     . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
     . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
@@ -125,20 +103,7 @@ UNSORTED
     . Except control tracks don't have a "" call, so plain '--' is available.
       But maybe not do that anyway, for consistency.
   load octamed files
-    * port to med-module
-    * Or for calls other than vol, I can put them in as comments, and fix by
-      hand, since it's a bit annoying to get things like 0d right.
-    / Put instrument default vol in 'ky' file instead of on each instrument.
-    * extend 0s for commands
-    * apply default instrument volume
-    / Portamento suppresses note start
-    - get song tempo
-    * use a 4/4 ruler
-    * I use 1 for each line, scale by some value, e.g. 1/8.
-    / I'll need a port pitch cmd that moves to a pitch at a certain speed
-      until it reaches it, then stops.
     - implement set tempo and set frames cmds
-  * save/bali/gabor segfault
   - why does fltk on linux subtract 100 from window width and height?
     . does os x? nope
   selection-orientation branch cleanup:
@@ -155,7 +120,6 @@ UNSORTED
     - Perhaps related, I removed include_end since negative should work for
       that, but Sekar used it.  Can I use Sekar with negative events to get
       end bias back?
-    * Remove Sel.selection constructor, record syntax is actually nicer.
 
   - track calls / track macros:
     * Add TrackCall to Monad.Scopes.
@@ -423,24 +387,6 @@ UNSORTED
   - OutOfRange pitch error should show the pre-transposition pitch.
     . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
       with information about the pitch.
-  * entering negative events is awkward
-    . If I enter a long note and shorten it, I lose the pitch?
-    . I think I lose the pitch when I enter a positive note afterwards, or
-      delete one.
-    . It's confusing how entry is at the beginning, and appears in the wrong
-      place.
-    . Non-point select should not get -0 at its start.
-    . Set duration doesn't work when there's positive and negative together.
-    . Using ^G to flip orientation tends to wipe out the pitch event.
-    . Also I want to be able to put an explicit note at the start of
-      a negative event, e.g. |<--|.
-    . I could still conceivably use real negative durations by keying on
-      (TrackTime, Bool).  Then I could edit them by giving the selection an
-      orientation.  It would have to switch with a key, or I could have 'w'
-      and 'b' automatically switch.
-    . Suppose the selection could be either negative or positively oriented.
-      Maybe I could even use it for e.g. set duration vs. set begin, and move
-      up vs. move down.  It would have to be easy to switch directions though.
   - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
     print it out in shadowed msgs.
   - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
@@ -576,7 +522,6 @@ IN PROGRESS / branch: branches:
   - draw-text-lines
     . I think it's a bit of an improvement for code simplicity, but still has
       an annoying redraw bug.
-  * solkattu-group
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -780,14 +725,6 @@ synth: im:
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
   faust:
-    * faust-im seems to get stuck on long renders.  Add a progress display on
-      stdout so I can see what it's doing.
-      . It's not stuck, just taking a long time to write the file.  Probably
-        due to conduit-audio being inefficient.
-    * Test a plucked string dsp, get the UI stuff working.
-      . install qt, and try faust2caqt
-      . too much bother, try faust2asmjs
-      . doesn't work, maybe FaustLive... does work
     + If I use GUI elements for controls then they update at "control rate",
       which is probably enough actually.  It also means I can reuse the GUI
       controls.
@@ -827,8 +764,6 @@ synth: im:
         . amp -> gain
         . note-on + duration -> gate
     cleanup:
-      * Split DEBUG and ASSERT out of fltk/util.h so I don't need to import the
-        geometry stuff for it.
       - Put find_sample into a TimeVector.cc library.
     plan:
       . Faust has a bunch of *.dsp files.
@@ -995,62 +930,6 @@ lilypond:
   / move c_slur from Articulation to Parent.  I looked for it first in Parent,
     and in fact there's an extra test in Parent_test.
     . Or not, it fits with the other length-changing things in Articulation.
-  * make if-ly and similar take Quoteds instead of strings.
-  * I lost a \stemUp on viola-sonata/pno1 viola-sonata/pno1.t26 50.5-51; 17
-		. (49.5s, 0s, "")               {ly-append-all: '(', ly-prepend: '\stemUp'}
-			(49.5s, .5s, "ly-pre stemUp |"){ly-append-first: '('}
-			(50s, .5s, "")                 {}
-			(50.5s, 0s, "")                {ly-append-all: '\stemNeutral)'}
-			(50.5s, .5s, "ly-post stemNeutral |") {ly-append-last: ')'}
-			(51s, 2s, "")                  {}
-    . output: r4. g''8( f''8 e''8) \stemNeutral) d''2 r4 \bar "|."
-    . Maybe it finds ly-append-all and ignores ly-prepend.
-		. Why do I get '(' in two places?
-      . '(' does SuffixFirst, SuffixLast.
-      . Oh, and then it also adds to the 0dur stemUp note.
-      . I could otly add Flags.ly_code to 0 dur events, and Ly.first_last
-        could skip those.  But I might have to have a separate 'add_note_code'
-        which skips 0 dur from 'make_code0' which makes it in the first place.
-        I think I never want to attach more code to a 0 dur event, since I can
-        just make another one.  But I definitely do attach multiple bits of
-        code to a single note.
-    . The problem is that 'Lily.emit' wants to make a 0-dur event, which means
-      that if I call it as a generator, it derives the non-existent children,
-      and then emits only the 0 dur event.  I'm not sure if I should try to
-      make it a generator for consistency with other ly calls (I'll never
-      remember who's an attach and who's an emit), or make a transformer only
-      for regularity.  It seems in the bigger picture, having transformers
-      masquerade as generators by automatically applying Call.note might be
-      more confusing than just having to remember which is which.
-    . But 'emit' is actually fundamentally a generator, not a transformer, so
-      it's actually a generator masquerading as a transformer.  And
-      I definitely want it to be a transformer, or else I can't stack them.
-    . I could make the generator version complain if the note is >0 dur.
-    . Or I could try to make it work, by doing what Make.transform_notes does,
-      and eval Call.note if there are no subs.
-    . Actually, why should emit take subs at all?  I guess because I put
-      ly-only on its own track.  I guess it's not technically necessary
-      because they use Ly.when_lilypond already.
-    . I feel like e.g. ly-pre with subs should apply ly-pre to all the notes.
-      In other words, it would behave like attach.
-    . The ranged emits like 8va need to be >0 dur.  They don't need to be
-      parents, but dual-purpose calls like '(' do.  Maybe I can make
-      attach for notes, and the emits not take subtracks.
-    . If I do that, then I have emit can transform, but the generator will
-      complain if there are subs, and complain if dur >0 and it's not that
-      kind of emit.
-    . Also there's a spurious ( at
-      viola-sonata/vla2 viola-sonata/b2.t41 251.5-252; 63
-      . I think it's getting distributed over from the other voice.
-      . Showed up after
-        patch 8a94f961f21a22132b933269d721057a4917ffb6
-        Author: qdunkan@gmail.com
-        Date:   Sat Aug  5 12:10:49 PDT 2017
-          * lilypond: mark lilypond code events with Flags.ly_code
-          This is more explicit than checking if it has any of the magic env
-          vars, and easier to maintain when I add new ones.
-      . This patch changed the Ly.add_code stuff to e.g. always append instead
-        of replace, so that might be related.
   - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
@@ -1060,204 +939,20 @@ lilypond:
     similarly convenient.
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
-  * Make tuplet use the normal lilypond evaluation, instead of simple_convert.
-    . tuplets are causing extra pizz markings, which will be confusing.
-      . This is due to modal articulations not working with tuplets.
-    . Lilypond.Process.modal_articulations don't work for Process.simple_convert
-      because it doesn't have access to the previous attrs.
-    . simple_convert is a grody hack, but if I can't think of a better way to
-      do it, I could add modal_attributes as a postproc.
-    . But I've already put ly code in a string, so I can't get the notes back
-      out.
-    . Also it means I need to use ly-( and ly-) for tuplets.  In general, I
-      can't attach any notation unless I put it directly on the note, e.g.
-      dynamics.
-    . Also I get spurious modal articulations after tuplets, e.g. extra pizz.
-    . What would be a way to implement nested notation like \time without
-      Lily.eval_events?
-    . How about I emit a "group" event, which has a magic tag that says
-      the next N events marked with my tag belong to me.  Then lilypond will
-      gather them and put them in {}s after it.
-    . Those next events may be a little ways off, due to Stream being sorted.
-      So maybe convert can notice and gather the groups.
-    . How to emit the group?  I can't split it according to the meter, and for
-      tuplets I don't want to anyway.
-    . What kinds of nested things are there besides tuplets?  Repeats?
-    . Remember the main goal is to get modal_attributes and slurs to work on
-      tuplets.
-      . Why doesn't slur work in tuplets, and what would fix it?
-      . It's because ( wants to put ( and ) on the first and last notes, but
-        after 't' is done, there's just one note with '\tuplet { .. }' in it.
-      . To fix it I'd have to keep the notes as separate events, but the
-        problem is duration.  Really the duration is /3/2 or whatever but
-        I'd need the lilypond backend to understand that the notated dur is
-        *3/2, and that it's wrapped in \tuplet 3/2 { .. }.
-      . One way would be hardcoded support for tuplet, so make an event
-        with ly-tuplet = 3/2 and say a duration over the affected notes.  Then
-        it would either multiply duration of the notes, or they have notated
-        duration, but count them as the tuplet's dur.  E.g.:
-          [ (0, 3, tuplet 3/2), (0, 1, c), (1, 1, d), (2, 1, e)
-          , (2, 2, next note), ...
-          ]
-        Then Process.convert_chunk sees a tuplet event, collects the notes
-        inside the duration, and runs a special 'convert_chunk' on them where
-        the meter is ok with any duration, then wraps that in \tuplet, and
-        then increments time by duration*3/2.
-      . This is kind of like the groups, only hardcoded to tuplets.  In that
-        case, why not do a general group thing?  It would be some flag to
-        collect the overlapped notes, then... it gets tuplet specific because
-        the special treatment of duration is basically the definition of
-        tuplets.  So it seems hard to generalize.  If I someday have another
-        example of nested notation then I can see what can be shared.
-      . Nested tuplets don't work.  I think I have to have the tuplet have the
-        actual times, e.g.
-        [(0, 2, t 3/2), (0, 2/3, "a"), (2/3, 2/3, "b"), (4/3, 2/3, "c")]
-      . Then convert_tuplet multiples by 3/2 and they become 1, which is
-        the note duration.  Then convert to notation, and rewind time.
-        If there is another tuplet in there, it should recursively expand.
-      . I think this means that the duplet gets longer rule has to go in
-        Lilypond.Process though.
-      . The problem with 1/3 is that Time doesn't have the resolution to
-        express it.  I could make Time into Rational, and then do
-        a Ratio.approxRational in convert.
-      . Rational seems to be generally cleaner, except Types.config_quantize
-        is going to spoil triplets.  I could just remove that, or I could
-        make quantize into an abritrary fraction, and expect a 1/3 if there
-        are triplets in there.
-      . Why can't I pass integral like in the score, and let lilypond stretch
-        it?
-        . Nested tuplet:
-          . [ (0, 4, t), (1, 2, t)
-            , (0, 1, "a")
-            , (1, 0.5, "b"), (1.5, 0.5, "c"), (2, 0.5, "d")
-            ]
-          . Should be:
-            (0, 1/3, a), (1/3, 1/3, b), (2/3, 1/3, c)
-                         (1/3, 2/9, b), (5/9, 2/9, c), (7/9, 2/9, d)
-            (0s, .33s, "")   4s
-            (.33s, .22s, "") 4r
-            (.56s, .22s, "") 4g
-            (.78s, .22s, "") 4m
-          . Lilypond should see:
-            [ (0, 3, t 3/2)
-            , (0, 1, "a"), (1, 1.5, t 3/2)
-                         , (1, 0.5, "b"), (1.5, 0.5, "c"), (2, 0.5, "d")
-            ]
-      . Actually now I think maybe giving actual durations to lilyond and
-        using rationals is not right.  It might be hard to find a common
-        quantize duration in the presence of nested or complicated tuplets.
-        Also, the notation works with quantized durations, and if I write
-        those, and keep them that way, then there's no need to go through
-        a potentially lossy division then multiplication.
-      . Ok, so archive Rational Time.
-    . Ok, so let's try that:
-      * Archive the groups support, looks like I won't use that.
-      * First do Process implementation to make sure it works.
-        . Sort of, except the problem with nested tuplets.
-      * Modify ly tuplet to emit the overlapping stuff.
-        . If I use duration to get grouped events, I think this will get
-          messed up if there are multiple parts, not separated by voices.
-          Of course, the lilypond will get messed up by that anyway, so maybe
-          no big deal.  It may be confusing if the non-tuplet notes are
-          incorporated into the tuplet though.
-        . But if I revive the general group thing then I can also make
-          duration and sub-notes independent.  Of course I can already do that
-          simpler by adding yet another env var.
-        . Actually it totally does capture normal notes right after the
-          tuplet.  The problem is that Parent level makes the notes longer, so
-          now they overlap.  Why not leave them short and put the logic in
-          Lilypond?
-        . Nested tuplets STILL don't work.  It's because stretch also
-          stretches the tuplet event, which makes it advance over the barline.
-          But if it doesn't stretch it, then it doesn't cover the notes.  So
-          this is the same problem as before, with the same solution: don't
-          use the duration.  In fact, make it 0 dur, and put both durations in
-          the environ.
   squart/6:
     - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
       transitions
     - put accidentals on the trills
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
-    * It constantly cancels nv on staccato, but it doesn't matter because you
-      can't hear it on staccato anyway.  Maybe modal_attributes can count
-      +staccato as having whatever +nv was previously set.
-    * harmonic gliss:
-      . before the note: \once \override Glissando.style = #'dashed-line
-      . But I have to hide the tied notes:
-				glissandoSkipOn = {
-					\override NoteColumn.glissando-skip = ##t
-					\hide NoteHead
-					\override NoteHead.no-ledgers = ##t
-				}
-				glissandoSkipOff = {
-					\revert NoteColumn.glissando-skip
-					\undo \hide NoteHead
-					\revert NoteHead.no-ledgers
-				}
-      . Then after the \glissando: \glissandoSkipOn
-        Before dest note: \glissandoSkipOff
-    * I want to distribute \downbow suffixes among notes and ly-post via
-      code0_call only emits one.  I think I need a 'ly-post-note' that
-      attaches to each sub-note.
-    * The functions in Prelude.Lily are a bit of a mess.  Refactor.
-      . code_call:
-          gen:
-            if not ly:
-              Derive subs, throw if no events
-            if ly:
-              Derive subs and add code to first one
-          trans:
-            if not ly: id
-            if ly: Lily.add_first code deriver
-      . This will derive subs, and attach code to the first event.  So this is
-        for attaching code to an existing note, though it only does the first
-        one.  This is appropriate for ^"text", though why not make
-        a transformer or standalone?  Why do I want the thing with duration?
-        It's used for text and articulation, and ( [.  I don't use these with
-        subs
-      . It has the awkward feature where it doesn't derive Call.note so it has
-        to be a transformer.
-
-      . make_code_call call:
-          gen:
-            if not ly: mempty
-            if ly: derive call <> subs
-          trans:
-            if not ly: deriver
-            if ly: call <> deriver
-      . This creates a new code event, and prepends it to subs or transformed.
-        Standalone things like 'dyn' or 'clef' use it.  Also it's the base for
-        code0_call, which uses it with Lily.code0, but they all do.
-
-      . add_code, via transform_notes:
-        . gen:
-            if subs:
-              concat . transform . map derive
-            if no subs:
-              transform $ Sub.inverting Call.placed_note
-        . trans: transform deriver
-        . This creates a new event, or derives subs, and transforms all of them.
-
-      cases are:
-        . attach code to each note: articulations, reminder accidental
-        . ( [: attach to a single note. I could either pick first/last, or
-          throw if >1.  I guess for a chord maybe I do want to put ( on each
-          one, but it's certainly wrong to put it on multiple, unless I want
-          to put (, ) on first, last.
-        . tie_direction: attach env to notes, same as ( [
-        . dyn, clef: emit single code0, no duration, no subs.  These are for
-          either putting in ly-track, or attaching to a single note with
-          a transformer.
-        . 8va, subdivision, tr-span: as above, but have start end events.
-          crescendo, diminuendo: I think they could use (start, end) as above.
-          key, sustain
     / Put glissando line only right at the end:
       \once \override Glissando.bound-details.right.Y = #-2
       . Can't figure out how to do it. If I manually tweak
         Glissando.bound-details.left.padding, it doesn't change the slope.
       . If I tie to a short note before hand, the glissando line is not
         visible.
-      . I think it's a portament, maybe I just write port.
+      . I think it's a portamento, maybe I just write port.
+      . It would still be nice to have this, but I can't figure out how to get
+        lilypond to draw a line right before the note-head.
     - tempo: I want to emit \tempo "xyz" as a global marking.
       . Looks like lilypond is smart enough to suppress it for all but the top
         staff.  Presumably I still have to put it in all the parts, so they'll
@@ -1271,10 +966,6 @@ lilypond:
         next event, and a lilypond mode that ignores the meter and puts down
         each duration explicitly.
     - 'incompatible with meter' errors don't have a clickable stack
-    * duplets don't work: tuplet duration must be simple, but was: 0.75
-      . I could do it if I allowed dotted durations.
-      . It would be \times 3/2 "\times" (tuplet_dur / note_dur) "/" note_count
-    * Use \tuplet instead of \times.
     - tuplet error
       . tuplet duration must be simple, but was: 0.4911504424778741 (0.0,0.5)
         rt (289.11504424778764,289.6061946902655)
@@ -1293,20 +984,6 @@ lilypond:
         Or \compoundMeter #'((2 8) (3 8)) to also set the visible meter.
       . Have the meter and subdivision commands set beatStructure for
         meters where lilypond doesn't already do a good job.
-    * I need a way to explicitly set rhythmic spelling per-instrument, for
-      ambiguous meters, e.g. 3/4 as 3+3/8 vs 2+2+2/8 or even 3+3+3+3/16 6+6/16
-      . Or maybe better to write those as duples?
-      . meter works by setting Constants.v_meter, which is collected by
-        Lilypond.get_meters, but that's because it needs to be global.
-      . Maybe I can set a Constants.v_subdivision, which overrides the meter
-        used by Process.make_lys.
-      . I could make it only apply to the notes with v_subdivision, but it
-        seems like a pain to wrap up everything, and 'meter' is stateful,
-        so... maybe not so bad?  But then I need to unset it at the end so
-        it doesn't error as soon as the real meter changes.
-      . Just setting an env val would be simpler... except I need this to
-        apply to rests too.
-      * 'subdivision' should emit a cancel at the end if it has non-zero dur.
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'
@@ -1346,10 +1023,6 @@ lilypond:
     . On the other hand, I think I want to encourage nestedness and it should
       be easy to split.  The only reason viola-sonata has huge blocks is that
       it's a midi import.
-  * If I can figure out the meter from just the name, then I can get rid
-    of the awkward map with hardcoded meters.
-    . It should use x+y/z notation to explicitly set divisions, but the sum
-      should have a default division, e.g. 9/8 defaults to 3+3+3/8.
 
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
   jianpu
@@ -1914,30 +1587,6 @@ fltk:
       I can just scan the whole range on every draw.
   - Maybe I could ship over a chunk of playback data in advance, and let the
     UI interpolate playback cursors.
-  * text drawing is pretty messed up with negative events and lots of wrapping
-    . I think negative + positive with lots of wrapping makes both disappear
-    * Each succesive word wrap bumps down by a pixel.
-      59, 70 - each one is 10 tall, but y is +1.
-  * save/bug/align-right: right side text redraws inconsistently
-    . abcd 0123
-    . When it draws:
-      fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
-      fltk/EventTrack.cc:853 TextBox Left
-          'abcd' Rect(28, 56, 27, 10)
-      fltk/EventTrack.cc:853 TextBox Right
-          '0123' Rect(42, 56, 27, 10)
-      fltk/EventTrack.cc:927 event_line (0123, Rect(42, 56, 27, 10)) pixels: 0
-      fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 20
-      fltk/EventTrack.cc:1104 POSITIVE: Rect(42, 56, 27, 10): 0123 left 20 - 10
-      0------------
-
-    . When it doesn't draw:
-      fltk/EventTrack.cc:850 ---- calculate drawable pixels for Event(0t, 0t, 0 '0123') is_left: 0
-      fltk/EventTrack.cc:927 event_line (0123, Rect(36, 56, 27, 10)) pixels: 0
-      fltk/EventTrack.cc:949 next 0, box: Rect(28, 56, 27, 10) 'abcd'
-      fltk/EventTrack.cc:954 intersect: Rect(28, 56, 27, 10) with Rect(34, 56, 29, 10) (0123)
-      fltk/EventTrack.cc:1027 drawable pixels for Event(0t, 0t, 0 '0123'): 0
-      0------------
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
     . Can fltk even do this?  I can't even figure out what xprop should show
@@ -2416,7 +2065,6 @@ Derive:
         off.  Velocity should be logical, so if you play all at the same
         velocity it's like the same dynamic for all strokes.
         . Or I could make + be 0.5, and * be full volume.
-      * perhaps only pitched notes should change with the tuning?
       sarvalaghu
         - get them from Score or MridangamScore.
         - adjust to the talam
@@ -2429,9 +2077,6 @@ Derive:
         . Maybe this can just be a multiplier on the time advance.
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
-      * If I make tri_ put a special tag on the middle karvai, then I can
-        more easily do the (p6.u . p6.i . p6) pattern.  I'd want a name, not
-        a number.
       . Solkattu2017.c_17_07_13 is showing the difficulty of the
         (solkattu, stroke_map) approach, because there are too many meanings
         for taka and din.  Really if it's meant to be useful for different
@@ -2473,41 +2118,12 @@ Derive:
           okookook -> nakatiku.  This implies just a realization heuristic
           won't be enough, though maybe I want it anyway for things like
           dynamics.
-      * Maybe I don't need (!) anymore now that I have (^).  It would
-        simplify things to get rid of it, because I don't need to have
-        a polymorphic Seq anymore, and I can get rid of the stroke variable
-        in Solkattu.
-        . Keeping the strokes separate emphasizes instrument independence,
-          but on the other hand, numbers are harder to read than strokes.
-        . Wait, except MridangamScore uses it.
-        . What if I generalize on _sollu instead of _stroke?
-        . Wait, didn't I already try this and it didn't work out?
-          It broke cancel_karvai... but I don't see how.  Maybe this was
-          before I split off into Solkattu.NoteT?
-        . Try again.
-        . If Korvai takes only Sollus, it can't store a sequence with
-          Mridangam.Strokes.  Can I make Korvai polymorphic on sollu?
-        . Probably, but then I can't put them in the same db.  Since other
-          instrument realizations are dynamically typed, making
-          mridangam-only statically different doesn't seem to be a benefit.
-        It seems to be really hard to incorporate MridangamScore.
-          . Write separate realizes and then try to merge them.
-        * Get the tests to compile.
-        * Restore tags.
-        * Infer Korvai.mridangam vs. mridangam_strokes so I don't have to
-          pick the right one from LSol.
-          . This seems to be really hard.  I want to say if
-            sollu ~ Realize.Stroke stroke, then use realize_stroke, else
-            realize_sollu.  I think typeclasses can do it, but there has
-            to be a Maybe in there, because not every (sollu, stroke) pair
-            is occupied.
       - Can I put StrokeMap and Patterns together?  Then I can put standard
         strokes along with the stroke map, and override them together.
       - ensure that later entries in the StrokeMap override earlier ones
       - have a mode to warn about unused StrokeMap entries, and overidden
         ones
       - LSol.insert_* doesn't clear and replace existing notes
-      * LSol.insert_* at non-zero start puts durations on all notes
       - I want to be able to insert all parts of a korvai in sequence.
         . If I make LSol.insert take [Korvai] then I can use take etc.
         . But it's easier if I get rid of multiple sequences per Korvai.
@@ -2534,11 +2150,7 @@ Derive:
           . | VList ![Val]
         . See NOTE [val-and-minival]
       - Use a typeclass for format-conversion, instead of Pretty.
-      * Use underline for tha+x instead of ad-hoc letters.
       transcribe:
-        * from 2013-11-19
-        * from 2014-02-20, tisram
-        * after 2014-03-13
         - after 2014-06-17
       sarvalaghu:
         . Fill it in based on position in the tala.
@@ -2547,62 +2159,11 @@ Derive:
           needs a separate final stroke, which is played when leading back
           to sarva.
         - Sarva fill === gets some spaces in there.
-      * Realize.thin_rests doesn't work when there are multiple characters
-        per matra, because it gets __.
-      . sarvalaghu substitution: this could be a variable-length pattern,
-        e.g. sarva------->, which can be substituted with whatever
-        sarvalaghu.
-        . Then I need annotations to align to end points, like 'pad'.
-        . Or use replaceEnd?  But I would want to be able to split rests,
-          so maybe extend replaceEnd to do that.
-        . So sarva should split like rests.
-        * First implement pad for rests.
-          . One way:
-            rest (4*4) `replaceEnd` theme . rest (4*4) `replaceEnd` theme
-          . Another way:
-            endAt 4 __ theme . endAt 8 __ theme
-          . #1 requires me to calculate the duration manually, is
-            dependent on tempo, and replaceEnd needs to split rests.
-          . #2 is higher level, but requires some special support for
-            alignment.
-        / Add absolute SetSpeed, otherwise restD and __sam can't work under
-          a tempo change.
-          . Couldn't I use this to make all the *D functions work in
-            absolute Durations?
-          . I think my problem is also that duration_of is wrong under su.
-          . Can I make current tempo available somehow?  Then I could make
-            duration_of work absolutely.
-          . But then, I'd only need this for absolute time things, which is
-            just align, at least for now.  So maybe it's just simpler insist
-            that align only works at the top level.
-        . Could I make this simpler by tagging some notes with explicit
-          durations, and only inferring duration for the untagged ones?
-          . I think I still have the same problem with not knowing the
-            duration of subsequences.
-        * Add a flag to Rest that makes it Sarvalaghu.
       ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
         . I can just add a rest to the beginning, but I still need to
           take duration from the previous note, e.g.
             d.d.n.n . su (n.d) .d.n.n
           should be ' d d n nnd d n n'
-      * Split Dsl.Score up by year, to keep modules small and so the
-        line_numbers don't keep changing.
-      * 'pad' should be able to align a tirmanam to sam
-        . Since it's used at the top level I can assume speed 0, but I still
-          don't know the tala or nadai.
-        . Maybe I can attach a flag to the Sequence, which triggers a
-          align step before verify_alignment.
-        . Or maybe it's a flag on Align.
-      * Allow korvais to include the final note on sam, since it's sometimes
-        more natural to express, e.g. tri_ (su kitataka) (tat.din) instead of
-        tri_ (din . su kitataka) tat.  Ignore trailing rests, so
-        tri_ (tat.din.__) (su kitataka) works.
-        . It's not so simple because I can't just strip trailing rests,
-          because I still want to verify the last rest if it's not part of
-          a final note.  I can't tell the difference without an annotation.
-        . I can check the last non-rest for at sam, or final state is sam.
-        * Make format display final stroke inline.
-        * Suppress the extra ruler when that happens.
       ? rename tri to tir, for tirmanam?
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
@@ -2634,29 +2195,6 @@ Derive:
         - colors stop right before the last note, not on it.
         - If groups touch each other then I can't tell them apart.  Maybe
           I should alternate two colors.
-        * bg color is lost in Solkattu2013.c_yt1
-          . In fact it always gets lost when it spans a line.
-        * Now realize_group has to handle patterns too, which it could, but
-          shouldn't it be done by realize?  Also, if patterns are going to
-          become groups, then what this really is is nested groups.
-          . I probably need to turn realize_group into a recursive call.
-        support S.Group:
-          * Sequence
-          * Realize
-          * Korvai / Notation
-          * tests
-          * replace realize with realize2
-          * Realize.format should format them specially
-        * It turns out it's annoying to write a whole sequence out, and
-          I still want to reuse standard patterns like takadinna.
-          So maybe group shouldn't require an exact match.
-          . The problem is really is just that the sollus and strokes are too
-            far apart.  It's actually convenient to reuse the theme and not
-            have to rewrite it, even if in fragments.
-          . I could try to just align them:
-            theme = tat.__.ta.ka.ta.ka.din.na.na.ka.dit.__.ta.lang.__.ga
-            mrid  = [k,    k, t, k, o, o,  k, n, p, k,     p, u,   lt o]
-            kend  = [p,    p, k, p, a, o,  p, t, o, p,     o, u,      p]
         - I have a problem with nested groups, e.g. dropM 1 . dropM 1.
           . I could try to simplify away nested groups.  That means making
             each one absolute, so the outer one loses its sollus, and they go
@@ -2674,96 +2212,8 @@ Derive:
             intermediate data less hairy.
           . For now, just make reduce not produce them.  Try simple
             simplification later.
-        * At least I can simplify away empty groups, or groups with empty
-          _dropped.
-          . Actually I don't want to drop empty _dropped, because it still has
-            the fact that it's a group.
-        plan:
-          . top level:
-            reduceTo 2 1 taka
-              -> Group (ta.ka) (DropL 1), Group (ta.ka) (DropL 0)
-            data Group = Group Sequence Reduction
-            data Reduction = Reduction Matra (DropL | DropR)
-          . realize level:
-            . Use the sollus for RealizeNote, but then drop the given number of
-              matras.
-            . Unlike bare sollus, the group can match exactly.  That raises the
-              question, could I put everything in a group, and make all matches
-              exact?  I would still be able to use chunks like takadinna.
-            . If everything really has to be a group then I wind up with lots of
-              noisy 'g' annotations on everything.
-            . So let's keep the submatch and no-group sollus for now.
-            . I can use Solkattu.Group [NoteT sollu] Reduction.  If I flatten
-              with Solkattu.notes_of, this means nested groups are flattened.
-            . If I want to make patterns into groups, then I probably do need
-              nested groups, can't 'realize' recurse then?
-          . format level:
-            . Output is [(Tempo, Note stroke)], but I need some kind of marker
-              for groups.  Maybe Note can have Group.  If nested is awkward to
-              format, then I can flatten to Group Name Count, where Count says
-              how many Notes it has scope over.
-        * Refactor realize to use GetStroke instead of StrokeMap.
-        / Add Solkattu.Group, and ensure Notation.reduce can generate it.
-          / I wind up needing HasMatras for group, which means matras_of
-            for Sequence.Note, which means it doesn't work since it has tempo
-            changes, and hence is not integral.
-            . I can change to HasDuration, I think HasMatras was just to
-              implement duration_of.
-            . Well not quite... matras_of is used with the Note value on
-              flattened [(Tempo, a)].  But if Group is in 'a', then that's no
-              longer flat.  To be consistent, I think I need to either not
-              flatten or put group in Sequence and flatten to
-              [(Tempo, Note a | Group [...])]
-            . How about don't flatten.  I think the reason was make sollu
-              matching simpler, but maybe it's not so bad.  'replace_sollus'
-              might be the most annoying.
-            . It stiil seems awkward to have nesting at two different levels,
-              but if I put it in Sequence, then I need
-                data Note group a = Note a
-                  | Group group [Note group a]
-                  | TempoChange TempoChange [Note group a]
-            . Is it so bad?  Why not?
-
-            . I'm still confused about whether initial tempo is ok.
-        / Get Realize.realize to recurse on nested groups.
-        / I need Realize.drop_matras, like Notation.splitD... it's complicated.
-          Can I get a simpler version just for Realize, or maybe just move
-          splitD down.
-          . No longer necessary now that I store just sollus in the group.
-        - Teach Realize.format to show groups as "name----".
         - Various Notation functions like 'spread' should work with groups.
-        - Now a Pattern can be a group with a default StrokeMap entry, and some
-          flag so Realize.format can show them un-expanded.
-
-        old notes:
-          . I should also mark group boundaries in the notation to make
-            reductions visually apparent.
-          . dropM and the like could be like single-element reductions, so
-            I don't have to add an extra stroke map entry.
-          - I want results of reductions or expansions to be recognized as
-            Patterns for the purpose of variation.  So I think they have to have
-            score representation, for this and for strokes.
-          . If I have a generalized way to notate patterns as a duration
-            plus a possible specific realization, I should be able to unify it
-            with Pattern.  So p5 is just a 5 without sollus, but takadinna is
-            a 4 with sollus.  I already have this actually, but I don't preserve
-            the group boundaries.  So maybe I can have
-            'Group Matras (Maybe (Reduction (Front|Back))) Sequence'
-          . Reduce leads to fragmented sollu sequences, whose strokes then need
-            to be enumerated.  It should be able to figure out the strokes as
-            a suffix of an existing one, but I'd need to tag the sollu with
-            the whole sequence with n dropped.  Realize would then match the
-            whole sequence and drop the same number of matras.
-            . Also maybe it can apply special reduction rules, e.g. if ktk is
-              reduced to tk, it should be played kk.
-            . Also maybe I can use this to use this to emphasize the starts of
-              sections, though the reduce function could also put a tag on the
-              first note.
-          . Set patterns like Nakatiku and Taka don't behave with spread.
-            They should be sollus like any other, but with a standard
-            realization.
       - Ornaments to fill in karvai, e.g. with taka and takatiku
-      * Alternate karvai stroke for middle karvai variation.
       - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
         end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
         . Variation markers put a branch in the realization, so now I have
@@ -2868,24 +2318,9 @@ Derive:
       - Should I change mridangam notes to be consistent with Solkattu.Dsl?
         I have to put thoppi on the left, for 'od' instead of the keyword
         'do'.  And I have to change tha to p instead of +.
-      * Performance rules for variations, e.g. tk can be played kk.
-        . If dropped = [k], and after is [t, k, ..], then it becomes [k, k, ..]
-        . But it's per-instrument, so I need another hook, like GetStroke.
-        . Or it could be afterwards, since I still have the group info.
       . Conditional derivation that depends on position in the tala, e.g.
         thali / khali.
       alternate realization
-        * sargam, for pitched notes
-          . Or I could just use text, and emit it directly.  But maybe
-            pitches are useful because I can transpose sequences, e.g.
-            each pattern with a different transposition.
-          . But I'd want a general purpose way to apply a transform so I
-            can put e.g. +mute, and if I can do that then I can put
-            transpose on.
-          . Also I have to know to put pitches in the pitch track.  I could
-            have Note { start, dur, pitch, controls }.
-          . N { start, dur :: TrackTime, transforms :: Map Text (Maybe Text) }
-            {"*": ..., "+mute": ""}
         - kendang pasangan
         - kajar
         - gangsa
@@ -2916,14 +2351,6 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      * gangsa should not damp repeated notes at the same pitch
-        . Same with ' on the same pitch.
-        . Same for reyong.
-        . The UseFinalNoteOff flag should fix this.
-      * abstract kajar parts, and gong cycles
-        . k oo+o "(ts e) --> cycle o o + o, giving (ts e) to each.
-          Short for k (list o o '+' o)
-        . If it's a negative duration, align to the end.
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
@@ -3060,14 +2487,6 @@ Derive:
           vv doesn't work is a note parent.
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - remove kilit, isn't it just norot now?
-        * A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
-          have at least 0x02, but this seems like exposing details.
-          . One way is to have a postproc ensure ==0 or >=1/127.
-          . Or I could do the min thing in the performer for all MIDI.
-          . Or maybe this "pick a low number" thing is no good.  I could
-            have another control to turn off damping.
-            . The sustain pedal, cc64, is a natural choice.
-            . But CCs are global, so no good.
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
           . Also longer note is a quieter damp, or just say if the length is
@@ -3120,16 +2539,6 @@ Derive:
   india: gamakam:
     - It doesn't emit signal discontinuities correctly.
     . Get rid of gamakam1-4:
-      * Convert gamakam4 to gamakam5 and make sure they sound right.
-        . LState.ky add import india.gamakam5
-        . change '* interleave' to 't-nn | gamak'
-        . 'dyn' to 'dyn mul | dyn'
-        * evvari
-          . The sample at note start winds up being too high: 16.67s:70.649
-          . Maybe due to how pitch transposition is applied.
-          . t-nn goes from 0 to 16.67s:2.669, for some reason the first sample
-            is different.
-          . Save the untransposed pitch and t-nn.
       - Remove gamakam4.
       Save what I want from 1-3 and remove.
         - gamakam1:
@@ -3142,13 +2551,7 @@ Derive:
             modern.  Also I still like the idea of a stretchy middle section,
             and I think I'll need something like that to write higher-level
             gamakam.
-        * gamakam3:
-          . Like gamakam5 with pitch and dyn integrated into one syntax.
-          . It also has a notion of expr and "compact expr", where the compact
-            one is not space separated.
-        * gamakam4:
-          . Like gamakam5, but emits pitches instead of a transpose signal.
-      - Remove ; syntax.
+      - Remove ; syntax when gamakam2 is gone.
     - How to represent sangitas?
       . Also what about accumulating phrases, as in kuvalaya dala or mosaboku?
       . Maybe define a time range, then an edit in that time range will cause
