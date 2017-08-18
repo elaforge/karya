@@ -81,8 +81,8 @@ test_vary = do
     equal (f (ta <> Dsl.p6 <> di <> Dsl.p6)) ["ta p6 di p6"]
     equal (f (ta <> Dsl.p6 <> di <> Dsl.p6 <> Dsl.p6)) ["ta p5 di p6 p7"]
     equal (f (Dsl.tri_ ta Dsl.p6 <> di <> Dsl.tri_ ki Dsl.p7))
-        [ "p5 ta p6 ta p7 di p6 ki p7 ki p8"
-        , "p5 ta p6 ta p7 di p5 ki p7 ki p9"
+        [ "p5 ta p6 mid^ta p7 di p6 ki p7 mid^ki p8"
+        , "p5 ta p6 mid^ta p7 di p5 ki p7 mid^ki p9"
         ]
 
 -- * utils

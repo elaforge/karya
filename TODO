@@ -2425,7 +2425,7 @@ Derive:
       - How to represent chatusra tisram, and other similar things?
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
-      - If I make tri_ put a special tag on the middle karvai, then I can
+      * If I make tri_ put a special tag on the middle karvai, then I can
         more easily do the (p6.u . p6.i . p6) pattern.  I'd want a name, not
         a number.
       . Solkattu2017.c_17_07_13 is showing the difficulty of the
@@ -2732,7 +2732,7 @@ Derive:
             They should be sollus like any other, but with a standard
             realization.
       - Ornaments to fill in karvai, e.g. with taka and takatiku
-      - Alternate karvai stroke for middle karvai variation.
+      * Alternate karvai stroke for middle karvai variation.
       - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
         end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
         . Variation markers put a branch in the realization, so now I have

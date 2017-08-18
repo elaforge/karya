@@ -10,7 +10,7 @@
 -- This is meant to have just Sequence manipulation, without
 -- instrument-specific functions.
 module Derive.Solkattu.Notation where
-import Prelude hiding (repeat)
+import Prelude hiding ((^), repeat)
 import qualified Data.List as List
 
 import qualified Util.CallStack as CallStack
@@ -224,16 +224,16 @@ tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
 tri_ :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-tri_ sep seq = join sep [seq, seq, seq]
+tri_ sep a = a <> sep <> a <> mid^sep <> a
 
 -- | Three different patterns with the same separator.
 trin :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
-trin sep a b c = join sep [a, b, c]
+trin sep a b c = a <> sep <> b <> mid^sep <> c
 
 -- | Tirmanams with a variant final repeat.
 tri2 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-tri2 sep ab c = join sep [ab, ab, c]
+tri2 sep ab c = ab <> sep <> ab <> mid^sep <> c
 
 -- * sequences
 
@@ -349,6 +349,20 @@ group = groupOf [] Solkattu.Front
 
 groupOf :: [sollu] -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
 groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
+
+-- ** tags
+
+-- | Infix operator to 'Solkattu.Tag' all of the sollus it applies to.
+(^) :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
+(^) = set_tag
+infix 9 ^
+
+mid :: Solkattu.Tag
+mid = Solkattu.Middle
+
+set_tag :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
+set_tag tag = fmap $ fmap $ Solkattu.modify_note $
+    \note -> note { Solkattu._tag = Just tag }
 
 -- * align
 

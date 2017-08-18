@@ -74,6 +74,7 @@ c_yt1 = source "youtube" $ korvai1 adi mridangam $
     mridangam = make_mridangam
         [ (theme, [k, t, k, o, o, k, on, k, od])
         , (tam, [u])
+        , (mid^tam, [i])
         ]
 
 c_13_10_29 :: Korvai
@@ -145,20 +146,6 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
     mridangam = make_mridangam
         [ (theme14, [k, t, p, k, t, k, t, k, o, od, k])
         , (tat.ka.din.na, [k, o, od, k])
-        , (din, [od])
-        ]
-
-c_nnnd :: Korvai
-c_nnnd = korvai adi mridangam
-    [ make (na.na.na.din.__)
-    , make (su (dhom.ka.ta.ka.na.ka) . din.__)
-    ]
-    where
-    make theme = tri_ (tam.__3) (tri theme . tri p5)
-    mridangam = make_mridangam
-        [ (na.na.na.din, [on, on, on, od])
-        , (tam, [i])
-        , (dhom.ka.ta.ka.na.ka, [o, n, p, k, n, o])
         , (din, [od])
         ]
 

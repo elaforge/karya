@@ -11,7 +11,7 @@ module Derive.Solkattu.Dsl (
 
     -- ** directives
     , hv, lt
-    , akshara, sam, (^), (§)
+    , akshara, sam, (^), mid, (§)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku, tk, tknk
@@ -96,15 +96,6 @@ seq § n = make_note (Solkattu.Alignment n) <> seq
 infix 9 §
 
 -- * modify sollus
-
--- | Infix operator to 'Solkattu.Tag' all of the sollus it applies to.
-(^) :: Int -> SequenceT sollu -> SequenceT sollu
-(^) = set_tag
-infix 9 ^
-
-set_tag :: Int -> SequenceT sollu -> SequenceT sollu
-set_tag tag = fmap $ fmap $ Solkattu.modify_note $
-    \note -> note { Solkattu._tag = Just tag }
 
 modify_single_note :: (CallStack.Stack, Pretty sollu) =>
     (Solkattu.Note sollu -> Solkattu.Note sollu)

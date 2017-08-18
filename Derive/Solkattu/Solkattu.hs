@@ -123,7 +123,26 @@ data NoteT sollu = NoteT {
 -- | A sollu can have a tag attached.  This is used to map certain sets of
 -- sollus to a different realization.  The idea is that even though the sollus
 -- are the same, they may be realized different ways in different contexts.
-type Tag = Int
+data Tag = Tag !Int
+    -- | Marks the middle karvai in a tirmanam.  This is applied automatically,
+    -- so it can have an alternate realization.
+    | Middle
+    deriving (Eq, Ord, Show)
+
+instance Pretty Tag where
+    pretty (Tag i) = pretty i
+    pretty Middle = "mid"
+
+instance Num Tag where
+    fromInteger = Tag . fromInteger
+    -- These are awkward, but I want fromInteger, but see no reason to allow
+    -- math on tags.
+    (+) = error "tags aren't numbers"
+    (-) = error "tags aren't numbers"
+    (*) = error "tags aren't numbers"
+    negate = error "tags aren't numbers"
+    abs = error "tags aren't numbers"
+    signum = error "tags aren't numbers"
 
 note :: sollu -> NoteT sollu
 note sollu = NoteT { _sollu = sollu, _karvai = False, _tag = Nothing }
@@ -143,7 +162,7 @@ instance Pretty sollu => Pretty (NoteT sollu) where
         ]
         where
         pretty_karvai k = if k then "(k)" else ""
-        pretty_tag = maybe "" ((<>"^") . showt)
+        pretty_tag = maybe "" ((<>"^") . pretty)
 
 modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
 modify_note f n = case n of
