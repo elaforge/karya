@@ -93,6 +93,7 @@ korvai = Korvai.korvai
 _mridangam_strokes :: [(Sequence, [Mridangam.SNote])]
 _mridangam_strokes =
     [ (thom, [o])
+    , (dhom, [o])
     , (tang, [u])
     , (lang, [u])
     , (talang, [p, u])

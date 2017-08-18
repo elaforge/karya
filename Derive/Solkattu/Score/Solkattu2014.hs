@@ -180,40 +180,144 @@ m_ta_katakita =
 
 c_14_03_13 :: Korvai
 c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
-    [ sarvaD 4 . d1.din . sarvaD 3
-    . repeat 2 (d1.din . sarvaD 3)
-    , concatMap sequence [d1, d2, d3]
+    [ sarvaD 4 . t1.din . sarvaD 3
+    . repeat 2 (t1.din . sarvaD 3)
+    , concatMap sequence [t1, t2, t3]
     ]
     where
     sequence p = p.din . sarvaD 3 . p.din . sarvaD 1 . p . dropS 1 p . dropS 1 p
-    d1 = su $ din.__.kitataka
-    d2 = su $ ka.tdgnt
-    d3 = su $ takadinna.taka
+    t1 = su $ din.__.kitataka
+    t2 = su $ ka.tdgnt
+    t3 = su $ takadinna.taka
 
     -- sarva = d.__.n.d.l.d.n.k .t.k.n.d.l.d.n.l
     --         o.__.o.o._.o.o._ .o._.o.o._.o.o._
     mridangam = make_mridangam
-        [ (d1, [od, p, k, n, o])
-        , (d2, [p, k, t, k, n, o])
-        , (d3, [k, o, o, k, o, k])
+        [ (t1, [od, p, k, n, o])
+        , (t2, [p, k, t, k, n, o])
+        , (t3, [k, o, o, k, o, k])
         , (din, [od])
         ]
 
--- first mentioned on 2013 11 19
--- TODO update date when I find the complete sequence
-c_13_11_19 :: Korvai
-c_13_11_19 = date 2013 11 19 $ ganesh $ korvai1 adi mridangam $ mconcat
-    [ sarvaSam adi theme
-    , sarvaA 4 theme . sarvaA 4 theme
-    , theme . 1^theme . theme . 1^theme
-    -- TODO this is still not quite right, should be:
-    -- n kt kd n _ d k n|kt kd n _ d k n|
-    -- o _ o o _ _ p _ _ _ o o _ _ o _ o
+c_14_03_26 :: Korvai
+c_14_03_26 = date 2014 3 26 $ ganesh $ similar_to "Solkattu2014" "c_14_03_13" $
+        korvai adi mridangam $
+    [ t1 . sarvaD 7 . repeat 2 (t1 . sarvaD 3)
+        . repeat 2 (t1 . sarvaD 1) . t1 . sarvaD 3
+        . repeat 3 (t1.__) . ka . t1 . sarvaD 3
+        . t1.__.ka . repeat 2 (t1.__) . t1 . sarvaD 3
+    ] ++ map sequence [t1, t2, t3, t4, t5]
+    where
+    -- Same sarva as c_14_03_13.
+    sequence p = tri_ (dheem.__3) (repeat 3 (p.__) . tri p5)
+    t1 = group $ na.na.na.din
+    t2 = group $ su $ dhom.__.taka.taka.din.__
+    t3 = group $ su $ tam.__.taka.na.ka.din.__
+    t4 = group $ su $ takadinna.taka.din.__
+    t5 = group $ su $ dhom.tdgnt.din.__
+    -- 2014-04-02 has transition from c_14_03_12 to this
+    mridangam = make_mridangam
+        [ (t1, [on, on, on, od])
+        , (t2, [o, k, o, k, o, od])
+        , (t3, [on, p, k, n, o, od])
+        , (t4, [k, o, o, k, k, o, od])
+        , (t5, [o, k, t, k, n, o, od])
+        , (ka, [k])
+        , (dheem, [i])
+        ]
+
+c_14_04_21 :: Korvai
+c_14_04_21 = date 2014 4 21 $ ganesh $ korvai adi mridangam $
+    [ tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_1
+    , tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_2
     ]
     where
-    theme = nang . su kitataka . din.na.__.di.mi
-    -- sarva is namita dimita dim
+    -- TODO these are just fives, but I don't have any way to say I want
+    -- a specific five.
+    p5_1 = ta.__. su (taka.taka).din
+    p5_2 = ta.__. ta . su taka.din
     mridangam = make_mridangam
-        [ (theme,   [on, k, t, o, k, od, n, od, k])
-        , (1^theme, [on, k, t, o, k, od, n, p&d, k])
+        [ (din, [od])
+        , (ta.taka.taka.din, [k, k, t, k, t, o])
+        , (tam, [u])
+        , (p5_1, [k, k, t, k, t, o])
+        , (p5_2, [k, k, k, t, o])
+        ]
+
+c_14_04_29 :: Korvai
+c_14_04_29 = date 2014 4 29 $ ganesh $ korvai adi mridangam $
+    -- sarva is namita dimita dimi
+    [ sarvaSam adi t1
+        . sarvaA 4 t1 . sarvaA 4 t1
+        . 1^t1 . t1 . 1^t1 . t1
+        -- TODO still not right, t1 after 1^t1 should drop the first thom.
+    ] ++ map sequence ts
+    where
+    sequence t = tri_ (din.__.takita) (takeM 5 t . takeM 5 t . t)
+    t1 = group $ nang . su kitataka . din.na.__.di.mi
+    t2 = theme (dhom.ka)
+    t3 = theme (su (ta.ki.taka))
+    t4 = theme (su (dhom.ki.ta.ki))
+    t5 = theme (su (talang.__.ga))
+    t6 = theme (su (din.na.tat.__))
+    t7 = theme (__.__)
+    ts = [t1, t2, t3, t4, t5, t6, t7]
+
+    theme xx = group $ nang . su kitataka . xx . nang . su kitataka
+    theme_m xx = [on, k, t, o, k] ++ xx ++ [n, k, t, o, k]
+                                           -- khali: p
+    mridangam = make_mridangam
+        [ (t1,   [on, k, t, o, k, od, n, od, k])
+        , (1^t1, [on, k, t, o, k, od, n, p&d, k])
+        , (t2, theme_m [o&t, k])
+        , (t3, theme_m [o, k, o, t])
+        , (t4, theme_m [o, k, t, k])
+        , (t5, theme_m [o, u, k])
+        , (t6, theme_m [o, k, k])
+        , (t7, theme_m [])
+        , (din.takita, [od, k, p, k])
+        ]
+
+-- faran + nadai exercise at 14-04-29.
+
+
+c_14_06_06 :: Korvai
+c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
+    korvai adi mridangam
+    -- sarva is nami dimi nami dimi
+    [ repeat 2 (sarvaD 5 . nadin4)
+        . din.__4 . nadin4.din.__4 . spread 3 tadindintat
+
+    , purvangam (tat.__3) (tat.__3.dit.__3)
+        . tri_ (din.__3) (1^ta.ka.__.din.na.__)
+    , purvangam (taka.ta) (takita.taka.ta)
+        . tri_ dinga (1^ta.ka.__.din.na.__)
+    , purvangam (taka.ta) (takita.taka.ta)
+        . tri_ dinga (ki.ta.ka.din.na.__)
+
+    , purvangam2 . tri (tam.__7 . p5)
+    , purvangam2 . tri (nadai 3 (dheem.__4 . tdgnt))
+    ]
+    where
+    purvangam x1 x2 = spread 3 (tadindintat.din.__3)
+        . x1 . spread 3 (tadindintat.din.__3)
+        . x2 . spread 3 (tadindintat.din.__3)
+    tadindintat = tat.din.din.tat
+    purvangam2 = t . tat.__3.t . tat.__3.dit.__3.t
+        where t = spread 3 (tat.din.din) . tat.__.din.__6
+
+    nadin4 = repeat 4 (na.din.__)
+    mridangam = make_mridangam
+        [ (na.din, [on, d])
+        , (din, [od])
+        , (dinga, [od, k])
+        , (tadindintat, [k, od, od, k])
+        , (1^tadindintat, [k, o, od, k])
+        , (tat, [k])
+        , (dit, [t])
+        , (taka.ta, [k, p, k])
+        , (takita.taka.ta, [k, p, k, t, p, k])
+        , (kita.ka.din.na, [t, k, o, o, k])
+        , (tam, [u])
+        , (dheem, [i])
         ]

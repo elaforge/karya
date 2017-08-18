@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
+    go >1.  Why is the note including such distant samples anyway?  Isn't it
+    inefficient to scale samples which are clearly not in the note bounds?
   - If the 's' repl function set primary selection in addition to (or instead
     of) red highlight, then I could find it by wiggling, or zoom on it.
   - I often want to see where I am in the parent, e.g. like parent->child
@@ -59,6 +62,7 @@ UNSORTED
       . Due to https://ghc.haskell.org/trac/ghc/ticket/11798
         https://ghc.haskell.org/trac/ghc/ticket/10923
       . Sent mail to glasgow-haskell-users
+      + Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -1170,6 +1174,8 @@ lilypond:
           use the duration.  In fact, make it 0 dur, and put both durations in
           the environ.
   squart/6:
+    - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
+      transitions
     - put accidentals on the trills
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
     * It constantly cancels nv on staccato, but it doesn't matter because you
@@ -2416,6 +2422,7 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
     solkattu:
+      - How to represent chatusra tisram, and other similar things?
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
       - If I make tri_ put a special tag on the middle karvai, then I can
@@ -2527,7 +2534,8 @@ Derive:
       transcribe:
         * from 2013-11-19
         * from 2014-02-20, tisram
-        - after 2014-03-13
+        * after 2014-03-13
+        - after 2014-06-17
       sarvalaghu:
         . Fill it in based on position in the tala.
         . Sometimes there's a final note, e.g. D that replaces the first 1.5
@@ -3215,31 +3223,35 @@ pitch: scales: scale:
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
     raga: ragam:
-      - Support arohana and avarohana by treating them as enharmonics
-        Is this really a good idea, since they aren't anything like
-        enharmonics?  Maybe I should just use the flip-enharmonic key, but
-        keep the concept separate.
-        . I could keep it at the Cmd level by remembering the last entered
-          pitch and defaulting this one based on it, or I could try to put it
-          at the Derive level too by having the pitch itself be based on the
-          previous one.
-        . Putting it at the derive level seems really hard and unreliable, so
-          I should have separate symbols, e.g. 4r^ and 4r_ for up and down
-          variants.  For western modes this isn't necessary since the notation
-          is already absolute.
-        . Or I can model r1 r2 r3 as accidentals.  The raga gives the default,
-          and then I can change the cycle enharmonics binding to instead cycle
-          number of "accidentals" to force a particular one.
-        . So I would model as a chromatic scale but with a custom number of
-          accidentals per degree:
-            s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
-        . How should ragams look anyway?
-          . Absolute chromatic scale with all pitches, and g[123] notation to
-            explicitly choose one.  Arohana and avarohana show how to infer
-            given plain g.  If >1 exist, then try to infer based on the
-            previous pitch.  Also g^ and g_ chooses between 2, if applicable.
-          . I need inference for gamakam, but I'll need an override, maybe
-            ^_ postfix for numbers?
+      - arohana / avarohana:
+        . Select which depending on an env var, and have a postproc to go
+          through and assign those.
+        . Try octatonic with 21 ascending, and 12 descending.
+        - I also want a cmd to cycle unspecified and explicitly arohana or
+          avarohana.  I can bind it to the flip-enharmonic key unless I want
+          to have scales with both concepts.
+        old notes:
+          . I could keep it at the Cmd level by remembering the last entered
+            pitch and defaulting this one based on it, or I could try to put it
+            at the Derive level too by having the pitch itself be based on the
+            previous one.
+          . Putting it at the derive level seems really hard and unreliable, so
+            I should have separate symbols, e.g. 4r^ and 4r_ for up and down
+            variants.  For western modes this isn't necessary since the notation
+            is already absolute.
+          . Or I can model r1 r2 r3 as accidentals.  The raga gives the default,
+            and then I can change the cycle enharmonics binding to instead cycle
+            number of "accidentals" to force a particular one.
+          . So I would model as a chromatic scale but with a custom number of
+            accidentals per degree:
+              s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
+          . How should ragams look anyway?
+            . Absolute chromatic scale with all pitches, and g[123] notation to
+              explicitly choose one.  Arohana and avarohana show how to infer
+              given plain g.  If >1 exist, then try to infer based on the
+              previous pitch.  Also g^ and g_ chooses between 2, if applicable.
+            . I need inference for gamakam, but I'll need an override, maybe
+              ^_ postfix for numbers?
 
     - letter and jianpu but with implicit accidentals based on the key
   intonation: think about how to do e.g. meantone melody, with just harmony

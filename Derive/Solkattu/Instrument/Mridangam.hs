@@ -233,6 +233,15 @@ kt_kn_o = Solkattu.check $ patterns
     ]
     where Strokes {..} = notes
 
+-- TODO I should import MridangamGlobal so I can write k.__.su (ktkt).o
+fives :: [[SNote]]
+fives =
+    [ su [k, __, __, __, k, t, k, t, o, __]
+    , su [k, __, __, __, k, __, k, t, o, __]
+    ]
+    where
+    Strokes {..} = notes
+
 families567 :: [Patterns]
 families567 = map (Solkattu.check . patterns . zip [5..]) $
     [ [k, t, k, n, o]
