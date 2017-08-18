@@ -127,6 +127,9 @@ data Tag = Tag !Int
     -- | Marks the middle karvai in a tirmanam.  This is applied automatically,
     -- so it can have an alternate realization.
     | Middle
+    -- | Marks a standard pattern.  This isolates the "standard pattern" use
+    -- of common sollus like taka.
+    | Standard
     deriving (Eq, Ord, Show)
 
 instance Pretty Tag where
@@ -188,34 +191,24 @@ instance S.HasMatras Pattern where
     matras_of p = case p of
         PatternM m -> m
         Nakatiku -> 8
-        Taka -> 2
-        Takanaka -> 4
     has_duration _ = True
 
 data Pattern =
     PatternM !S.Matra
     -- | 4-matra faran nakatikutarikita
     | Nakatiku
-    -- | Common ornaments.
-    -- TODO there should be a lighter weight way to declare these, so I can
-    -- put them per-korvai as generic groups.
-    | Taka | Takanaka -- TODO I actually like takatiku more, but it becomes tktk
     deriving (Eq, Ord, Show)
 
 instance Pretty Pattern where
     pretty p = case p of
         PatternM matras -> "p" <> showt matras
         Nakatiku -> "4n"
-        Taka -> "tk"
-        Takanaka -> "tknk"
 
 instance Expr.ToExpr Pattern where
     to_expr p = case p of
         PatternM matras ->
             Expr.generator (Expr.call "p" [ShowVal.show_val matras])
         Nakatiku -> "na"
-        Taka -> "tk"
-        Takanaka -> "tknk"
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 

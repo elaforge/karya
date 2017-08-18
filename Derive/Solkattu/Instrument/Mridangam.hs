@@ -194,8 +194,6 @@ __ = Realize.rest
 default_nakatiku :: [(Solkattu.Pattern, [SNote])]
 default_nakatiku =
     [ (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
-    , (Solkattu.Taka, [k, p])
-    , (Solkattu.Takanaka, [k, p, n, p])
     ]
     where Strokes {..} = notes
 

@@ -106,6 +106,4 @@ default_patterns_emphasis =
 standard_patterns :: [(Solkattu.Pattern, [SNote])]
 standard_patterns =
     [ (Solkattu.Nakatiku, [t, o, u, k, p, k, a, k])
-    , (Solkattu.Taka, [p, k])
-    , (Solkattu.Takanaka, [p, k, t, k])
     ] where Strokes {..} = notes

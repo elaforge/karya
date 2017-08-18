@@ -9,7 +9,7 @@ module Derive.Solkattu.SolkattuGlobal (
     , module Derive.Solkattu.Dsl
     , module Derive.Solkattu.DslSollu
 ) where
-import Prelude hiding ((.))
+import Prelude hiding ((.), (^))
 
 import qualified Util.CallStack as CallStack
 import Derive.Solkattu.Dsl
@@ -43,10 +43,16 @@ taka = ta.ka
 kitataka = kita.taka
 talang = ta.lang
 
-on :: Mridangam.SNote
-on = o & n
+-- ** standard fragments
+
+tk, tktu :: Sequence
+tk = group $ Solkattu.Standard ^ (ta.ka)
+tktu = group $ Solkattu.Standard ^ (ta.ka.ti.ku)
 
 -- * instruments
+
+on :: Mridangam.SNote
+on = o & n
 
 type StrokeMap stroke = [(Sequence, [Realize.SNote stroke])]
 
@@ -99,6 +105,8 @@ _mridangam_strokes =
     , (talang, [p, u])
     , (takadinna, [k, o, o, k])
     , (tdgnt, [k, t, k, n, o])
+    , (tk, [k, p])
+    , (tktu, [k, p, n, p])
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
@@ -110,6 +118,8 @@ _kendang_strokes =
     , (talang, [o, u])
     , (takadinna, [p, a, o, p])
     , (tdgnt, [o, k, p, t, a])
+    , (tk, [p, k])
+    , (tktu, [p, k, t, k])
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
 

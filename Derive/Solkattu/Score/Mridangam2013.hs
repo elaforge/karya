@@ -193,12 +193,10 @@ p16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
 p16_12_06_janahan2 :: Korvai
 p16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi $ su $
     tri (k.__.t.__.kook) . tri (t.__.kook) . tri kook
-        . tdgnt . p6
-        . tdgnt . p6 . tk.p6
-        . tdgnt . p6 . k.p.p6 . tknk.p6
-    where
-    kook = k.o.o.k
-    tdgnt = spread 2 $ k.t.k.n.o
+        . spread 2 tdgnt . p6
+        . spread 2 tdgnt . p6 . tk.p6
+        . spread 2 tdgnt . p6 . k.p.p6 . tktu.p6
+    where kook = k.o.o.k
 
 -- * farans
 

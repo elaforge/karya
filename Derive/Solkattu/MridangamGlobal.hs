@@ -18,6 +18,7 @@ module Derive.Solkattu.MridangamGlobal (
     , lt, hv
     , module Derive.Solkattu.Dsl
     -- * fragments
+    , tk, tktu, tdgnt
     , kt, ktkt, pk, kp
 ) where
 import Prelude hiding ((.))
@@ -103,6 +104,14 @@ modify_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
 modify_stroke modify = map (fmap (fmap modify))
 
 -- * fragments
+
+-- | Taka and takatiku from solkattu.
+tk, tktu :: Sequence
+tk = k.p
+tktu = k.p.n.p
+
+tdgnt :: Sequence
+tdgnt = k.t.k.n.o
 
 kt, ktkt :: Sequence
 kt = k.t

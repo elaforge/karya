@@ -576,7 +576,7 @@ IN PROGRESS / branch: branches:
   - draw-text-lines
     . I think it's a bit of an improvement for code simplicity, but still has
       an annoying redraw bug.
-  - solkattu-group
+  * solkattu-group
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -2423,6 +2423,10 @@ Derive:
         - subdivide at slower speeds
     solkattu:
       - How to represent chatusra tisram, and other similar things?
+        . Basically it's changing the nadai, but not the speed.
+        . If I say stride=3, then each note is 3 matras.  s1 means each one is
+          1.5, s2 is 3/4.  Nadai 6 means 1/2.
+        . Maybe this can just be a multiplier on the time advance.
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
       * If I make tri_ put a special tag on the middle karvai, then I can
@@ -2602,7 +2606,34 @@ Derive:
       ? rename tri to tir, for tirmanam?
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
+      * Get Taka and Takanaka out of Pattern.
+        . nakatiku, tk and tknk can be a sollu fragment plus an entry in the
+          default stroke map.  That way they work with functions that
+          manipulate sollus like dropM, and can also be overridden.
+        . It would be nice to do the same with Patterns, but they don't have
+          sollus, and wouldn't necessarily have them since they have
+          completely different realizations.  So dropM can't work on a generic
+          Pattern anyway.
+        . The other thing about patterns is that I can choose to not realize
+          them.  I could generalize that to not realizing groups, but I'd need
+          some way to distinguish standard pattern groups, and korvai-specific
+          groups.
+        . I can put an optional name in Solkattu.Group, and choose to not
+          replace named patterns.
+        . For Patterns, I need duration but no content... but at this point,
+          why use a group at all?  What would make it better than the existing
+          Pattern?  I can still put Patterns in the StrokeMap.
+        . Ok, so add a name to Solkattu.Group.  Then realize can replace it
+          with a Realize.Pattern name, or not, based on a flag.
+        . The reason tk and tknk are Patterns is that their realization should
+          be independent of taka or takatiku bindings.  But I could do that
+          with a Tag.
+      - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
+        the unexpanded form.  I think this does need named groups.
       solkattu-group:
+        - colors stop right before the last note, not on it.
+        - If groups touch each other then I can't tell them apart.  Maybe
+          I should alternate two colors.
         * bg color is lost in Solkattu2013.c_yt1
           . In fact it always gets lost when it spans a line.
         * Now realize_group has to handle patterns too, which it could, but

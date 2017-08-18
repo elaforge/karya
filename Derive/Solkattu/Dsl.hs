@@ -14,7 +14,7 @@ module Derive.Solkattu.Dsl (
     , akshara, sam, (^), mid, (§)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
-    , nakatiku, tk, tknk
+    , nakatiku
     -- * re-exports
     , module Derive.Solkattu.Korvai
     , module Derive.Solkattu.Metadata
@@ -138,10 +138,6 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 nakatiku :: SequenceT sollu
 nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
-
-tk, tknk :: SequenceT sollu
-tk = make_note $ Solkattu.Pattern Solkattu.Taka
-tknk = make_note $ Solkattu.Pattern Solkattu.Takanaka
 
 
 -- * realize util

@@ -136,7 +136,7 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
     structure theme karvai =
                 theme . karvai . p5
          . tk.  theme . karvai . p5.p5
-         . tknk.theme . karvai . p5.p5.p5
+         . tktu.theme . karvai . p5.p5.p5
     themes = [theme14, theme16, theme18]
     theme14 = group $ ta.di.__.kita.kita.ta.tat.__.ka.din.tat.__
     theme16 = group $ ta.di.__.kita.__.kita.ta.tat.__.ka.din.__.tat.__
@@ -189,7 +189,7 @@ k1_3 = make_k1 $ (:[]) $
       k1_a  . __ . tata_dindin_ . p6 . __
     . k1_a' . __ . tata_dindin_ . tk.p6 . __
     . k1_a . __ . k1_a' . __ . tata_dindin_
-    . tri_ __ (tknk.p6)
+    . tri_ __ (tktu.p6)
     . tri_ __ (tk.p6)
     . tri_ __ p6
     where

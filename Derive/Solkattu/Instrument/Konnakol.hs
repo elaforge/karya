@@ -47,8 +47,6 @@ patterns = Realize.patterns . map (second (map note)) . (default_nakatiku++)
 default_nakatiku :: [(Solkattu.Pattern, [Sollu])]
 default_nakatiku =
     [ (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
-    , (Solkattu.Taka, [Ta, Ka])
-    , (Solkattu.Takanaka, [Ta, Ka, Ti, Ku])
     ]
 
 instance Expr.ToExpr Sollu where

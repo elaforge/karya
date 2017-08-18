@@ -314,8 +314,8 @@ c_17_06_19 :: Korvai
 c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
     reduce3 2 mempty (tat.__.dit.__.takadinna.din.__3.p5)
         -- TODO elide p5
-        -- . trin (tam.__3) p5 (tk.p5) (tknk.p5)
-        . tam.__3 . join (tam.__3) [tk.p5, tknk.p5]
+        -- . trin (tam.__3) p5 (tk.p5) (tktu.p5)
+        . tam.__3 . join (tam.__3) [tk.p5, tktu.p5]
     where
     inst = mridangam <> kendang <> sargam
     mridangam = make_mridangam
@@ -332,10 +332,10 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
         , (takadinna, [p, m, r, m])
         , (din, [hv s])
         , (tam, [hv s_])
+        , ( tk, [s, p_])
+        , ( tktu, [s, p_, r, p_])
         ]
         [ ( Solkattu.PatternM 5, su [d_, s, d_, n_] . [s, n_, p_])
-        , ( Solkattu.Taka, [s, p_])
-        , ( Solkattu.Takanaka, [s, p_, r, p_])
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai
