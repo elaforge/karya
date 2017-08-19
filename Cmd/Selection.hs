@@ -263,6 +263,13 @@ get_tracks_from_selection from_edge dir = do
         R -> dropWhile ((<= tracknum) . Ui.track_tracknum) tracks
         L -> dropWhile ((>= tracknum) . Ui.track_tracknum) (reverse tracks)
 
+-- | Extend the selection horizontally to encompass all tracks.
+cmd_extend_tracks :: Cmd.M m => m ()
+cmd_extend_tracks = do
+    (view_id, sel) <- get_view
+    tracks <- Ui.track_count =<< Ui.block_id_of view_id
+    set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
+
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
 --

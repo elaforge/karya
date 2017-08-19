@@ -276,6 +276,7 @@ selection_bindings = concat
     , repeatable_char 'B' "extend selection to previous event" $
         Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
+    , plain_char 'A' "extend tracks" Selection.cmd_extend_tracks
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
         Selection.cmd_track_all
     , bind_key [PrimaryCommand] (Key.Char 'A') "select tracks"
