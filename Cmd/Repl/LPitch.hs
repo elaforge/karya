@@ -9,12 +9,14 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Repl.LPitch where
+import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
@@ -97,14 +99,28 @@ to_relative diatonic base = PitchTrack.pitch_tracks $ \scale env note -> do
 
 -- * enharmonics
 
+-- | Respell enharmonics according to the key.
 respell :: Cmd.M m => ModifyEvents.Track m
-respell =
-    PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
-        pitch <- Scale.scale_read scale env note
-        Scale.scale_input_to_note scale env (to_piano_input pitch)
+respell = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
+    pitch <- Scale.scale_read scale env note
+    Scale.scale_input_to_note scale env (to_piano_input pitch)
 
 to_piano_input :: Pitch.Pitch -> Pitch.Input
 to_piano_input pitch = Pitch.Input Pitch.PianoKbd (to_sharps pitch) 0
     where
     to_sharps = Theory.semis_to_pitch_sharps Theory.piano_layout
         . Theory.pitch_to_semis Theory.piano_layout
+
+-- | Convert all sharps to their enharmonic flats.
+sharps_to_flats :: Cmd.M m => ModifyEvents.Track m
+sharps_to_flats = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
+    pitch <- Scale.scale_read scale env note
+    if Pitch.pitch_accidentals pitch <= 0 then return note else do
+        notes <- Scale.scale_enharmonics scale env note
+        pitches <- mapM (Scale.scale_read scale env) notes
+        justErr (BaseTypes.PitchError $ "no flats for " <> pretty note) $
+            e_sharps_to_flats (zip pitches notes)
+
+e_sharps_to_flats :: [(Pitch.Pitch, a)] -> Maybe a
+e_sharps_to_flats = fmap snd . Seq.maximum_on accs . filter ((<0) . accs)
+    where accs = Pitch.pitch_accidentals . fst
