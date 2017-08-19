@@ -195,7 +195,7 @@ parse_pitch_name = either (const Nothing) Just . ParseText.parse parse
         pc <- maybe mzero return . (`Map.lookup` pcs) =<< A.anyChar
         sharp <- A.option 0 $ A.char 's' >> return 1
         oct <- A.option 1 $ ParseText.p_int
-        return $ Pitch.nn $ pc + sharp + oct * 12
+        return $ Pitch.nn $ pc + sharp + (oct+1) * 12
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
 
 c_list :: Derive.ValCall
