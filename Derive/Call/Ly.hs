@@ -50,7 +50,7 @@ only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
 -- | When in lilypond mode, generate a note with the given Code.
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-note_code code args = when_lilypond $ add_code code $ Call.place args Call.note
+note_code code args = when_lilypond $ add_code code $ Call.placed_note args
 
 -- ** transformer
 
@@ -136,8 +136,11 @@ data CodePosition =
     -- | Code goes after each note in a tied sequence, so it could get
     -- duplicated several times.
     | SuffixAll
+    -- | Like SuffixAll, but it goes after notes inside a chord, instead of
+    -- once after the chord itself.
+    | NoteSuffixAll
     -- | Code goes after only the first note in a tied sequence.
-    | SuffixFirst
+    | SuffixFirst | NoteSuffixFirst
     -- | Code goes after the last note in a tied sequnece.
     | SuffixLast
     -- | Create a note with the given env value set to the Ly code.  This is
@@ -161,9 +164,11 @@ position_env :: Bool -- ^ True if this is a zero-dur event created just to
     -> CodePosition -> Env.Key
 position_env zero_dur p = case if zero_dur then code0 p else p of
     Prefix -> Constants.v_prepend
-    SuffixFirst -> Constants.v_append_first
-    SuffixLast -> Constants.v_append_last
     SuffixAll -> Constants.v_append_all
+    NoteSuffixAll -> Constants.v_note_append_all
+    SuffixFirst -> Constants.v_append_first
+    NoteSuffixFirst -> Constants.v_note_append_first
+    SuffixLast -> Constants.v_append_last
     SetEnviron key -> key
     where
     -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it

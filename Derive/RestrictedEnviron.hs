@@ -93,6 +93,8 @@ instance ToVal ScoreTime where
 instance ToVal RealTime where
     to_val = VNum . ScoreTypes.Typed ScoreTypes.Real . RealTime.to_seconds
 
+instance ToVal a => ToVal [a] where to_val = VList . map to_val
+
 -- ** rest
 
 instance ToVal Attrs.Attributes where to_val = VAttributes

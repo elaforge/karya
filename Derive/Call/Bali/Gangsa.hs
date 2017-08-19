@@ -1315,14 +1315,11 @@ initial_final_env = (,)
         "If true, include the final note, at the event end."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
-instrument_top_env =
-    Sig.environ (Derive.ArgName EnvKey.instrument_top) Sig.Unprefixed
-        Nothing
-        "Top pitch this instrument can play. Normally the instrument sets\
-        \ it via the instrument environ."
+instrument_top_env = Sig.environ_key EnvKey.instrument_top Nothing
+    "Top pitch this instrument can play. Normally the instrument sets\
+    \ it via the instrument environ."
 
-note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
-    -> Bool
+note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed -> Bool
 note_too_high scale maybe_top pitchv = fromMaybe False $ do
     top <- maybe_top
     note <- either (const Nothing) Just $ PSignal.pitch_note pitchv

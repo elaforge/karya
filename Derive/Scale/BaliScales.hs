@@ -297,7 +297,7 @@ semis_to_nn offset laras default_laras =
                     Umbang -> avg - ombak / 2
                     Isep -> avg + ombak / 2
 
--- | VSymbol: Select saih tuning.
+-- | VStr: Select saih tuning.
 laras_key :: BaseTypes.Key
 laras_key = "laras"
 

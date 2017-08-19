@@ -27,7 +27,7 @@ attributes = "attr"
 block_end :: Key
 block_end = "block-end"
 
--- | VSymbol: Set to the control that is being derived, inside of a control
+-- | VStr: Set to the control that is being derived, inside of a control
 -- track.
 control :: Key
 control = "control"
@@ -36,7 +36,7 @@ control = "control"
 instrument :: Key
 instrument = "inst"
 
--- | VSymbol: Many scales use this for scale-specific configuration.
+-- | VStr: Many scales use this for scale-specific configuration.
 -- Some scales conceptually have a separate key and mode, e.g. C minor, in
 -- which case they're combined into @key@.
 key :: Key
@@ -52,7 +52,7 @@ note_end = "note-end"
 note_start :: Key
 note_start = "note-start"
 
--- | VSymbol: Set along with 'control' to the 'Derive.Derive.Merge' function
+-- | VStr: Set along with 'control' to the 'Derive.Derive.Merge' function
 -- which will be used for this control track.  Calls can use this to subvert
 -- the merge function and emit an absolute value.
 --
@@ -61,7 +61,7 @@ note_start = "note-start"
 merge :: Key
 merge = "merge"
 
--- | VSymbol: Default scale, used by pitch tracks with a @*@ title.
+-- | VStr: Default scale, used by pitch tracks with a @*@ title.
 scale :: Key
 scale = "scale"
 
@@ -153,7 +153,13 @@ instrument_bottom = "inst-bottom"
 open_strings :: Key
 open_strings = "open-strings"
 
--- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
+-- | Select a string to play on.  Presumably it should be from one of the
+-- 'open_strings'.  The type depends on the instrument, perhaps a str such
+-- as g d a e, or a pitch.
+string :: Key
+string = "string"
+
+-- | VStr: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.
 tuning :: Key
 tuning = "tuning"
@@ -164,7 +170,7 @@ tuning = "tuning"
 voice :: Key
 voice = "v"
 
--- | VSymbol: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
+-- | VStr: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
 -- also by any call that relies on an instrument's parts being divided by hand.
 hand :: Key
 hand = "hand"

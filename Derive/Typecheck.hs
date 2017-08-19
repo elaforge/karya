@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE DefaultSignatures, DeriveFunctor #-}
 module Derive.Typecheck where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -122,6 +123,12 @@ data Checked a = Val (Maybe a)
     | Eval (RealTime -> Derive.Deriver (Maybe a))
     deriving (Functor)
 
+-- | Further check a Checked.  I feel like this should correspond to some kind
+-- of monad transformer lift.
+check :: (a -> Maybe b) -> Checked a -> Checked b
+check f (Val a) = Val (f =<< a)
+check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
+
 -- | This is the class of values which can be converted to from
 -- a 'Val'.
 class Typecheck a where
@@ -233,6 +240,10 @@ instance Typecheck a => Typecheck [a] where
     from_val v = (:[]) <$> from_val v
     to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
 instance ToVal a => ToVal [a] where to_val = VList . map to_val
+
+instance Typecheck a => Typecheck (NonEmpty a) where
+    from_val val = check NonEmpty.nonEmpty (from_val val)
+    to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
 
 instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     from_val a = case from_val a of

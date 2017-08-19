@@ -119,6 +119,10 @@ pizz_right = attr "pizz-right"
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harm = attr "harm"
 
+-- Artificial or natural, presumably for harmonics.
+natural = attr "nat"
+artificial = attr "art"
+
 pont = attr "pont" -- ponticello
 tasto = attr "tasto" -- sul tasto
 

@@ -55,9 +55,19 @@ v_prepend = "ly-prepend"
 v_append_all :: BaseTypes.Key
 v_append_all = "ly-append-all"
 
+-- | String: like 'v_append_all', but it goes after notes inside a chord,
+-- instead of once after the chord itself.
+v_note_append_all :: BaseTypes.Key
+v_note_append_all = "ly-note-append-all"
+
 -- | String: append code to the first note in a tied sequence.
 v_append_first :: BaseTypes.Key
 v_append_first = "ly-append-first"
+
+-- | String: like 'v_append_all_first', but it goes after notes inside a chord,
+-- instead of once after the chord itself.
+v_note_append_first :: BaseTypes.Key
+v_note_append_first = "ly-note-append-first"
 
 -- | String: append code to the last note in a tied sequence.
 v_append_last :: BaseTypes.Key

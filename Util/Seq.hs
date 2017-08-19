@@ -72,6 +72,9 @@ range_ start step = go 0
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
 
+key_on_snd :: (a -> k) -> [a] -> [(a, k)]
+key_on_snd f xs = zip xs (map f xs)
+
 key_on_just :: (a -> Maybe k) -> [a] -> [(k, a)]
 key_on_just f xs = [(k, a) | (Just k, a) <- key_on f xs]
 

@@ -85,7 +85,7 @@ module Derive.Sig (
     , no_args
     , required, required_env
     , defaulted, defaulted_env, defaulted_env_quoted, maybe_defaulted
-    , environ, environ_quoted, required_environ
+    , environ, environ_key, environ_quoted, required_environ
     , optional, optional_env, many, many_vals, many1, many_pairs, many1_pairs
     , required_vals
     -- ** defaults
@@ -298,6 +298,11 @@ environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> a -> Doc.Doc -> Parser a
 environ name env_default = environ_ name env_default . Left
+
+-- | A shortcut for an unprefixed environ key.
+environ_key :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    Env.Key -> a -> Doc.Doc -> Parser a
+environ_key key = environ (Derive.ArgName key) Unprefixed
 
 -- | This is like 'environ', but the default is a 'BaseTypes.Quoted', which
 -- will be evaluated if needed.

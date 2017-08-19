@@ -65,8 +65,7 @@ control_note module_ name control val = transform_notes module_ name mempty
 -- no subs, and then applies the transform.  The transformer call just applies
 -- the transform.
 transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
-    -> Sig.Parser a
-    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Sig.Parser a -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Calls Derive.Note
 transform_notes module_ name tags transform_doc sig transform =
     (generator, transformer)

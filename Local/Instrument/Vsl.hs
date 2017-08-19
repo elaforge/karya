@@ -31,6 +31,7 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -38,6 +39,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
@@ -112,13 +114,16 @@ map_shape f rows = split (map length rows) $ f (concat rows)
 
 patches :: [MidiInst.Patch]
 patches =
-    [ add_code hmap (make_patch inst category)
+    [ open_strings hmap $ add_code hmap (make_patch inst category)
     | ((inst, hmap), category) <- instruments
     ]
     where
     add_code hmap patch = MidiInst.code
         #= MidiInst.note_calls (note_calls hmap (MidiInst.patch_patch patch)) $
             patch
+    open_strings Nothing = id
+    open_strings (Just hmap) =
+        MidiInst.environ EnvKey.open_strings (hmap_string_nns hmap)
 
 instruments :: [((VslInst.Instrument, Maybe HarmonicMap), Text)]
 instruments = concatMap tag $
@@ -188,9 +193,9 @@ harmonic config hmap args = do
     attrs <- Call.get_attributes
     let has = Attrs.contain attrs
     with_pitch <- if
-        | has (Attrs.harm <> VslInst.nat) ->
+        | has (Attrs.harm <> Attrs.natural) ->
             natural_harmonic (has Attrs.gliss) $
-                List.find (Attrs.contain attrs) (hmap_strings hmap)
+                List.find has (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.
         | has Attrs.harm -> return $ Call.add_constant Controls.octave (-1)
         | otherwise -> return id
@@ -293,7 +298,7 @@ strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
     where
     strip = reverse
         [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast, VslInst.fa
-        , VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, VslInst.art
+        , VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, Attrs.artificial
         , VslInst.med, VslInst.short
         ]
 
@@ -339,6 +344,7 @@ expand_ab attrs
 
 data HarmonicMap = HarmonicMap {
     hmap_strings :: [OpenString]
+    , hmap_string_nns :: [Pitch.NoteNumber]
     -- | Map sounding pitch to possible strings and the key to play to get that
     -- pitch on that string.
     , hmap_key_to_natural :: Map Midi.Key [(OpenString, Midi.Key)]
@@ -358,6 +364,7 @@ find_harmonic hmap gliss pitch maybe_str =
 harmonic_map :: [(OpenString, Midi.Key)] -> HarmonicMap
 harmonic_map strings = HarmonicMap
     { hmap_strings = map fst strings
+    , hmap_string_nns = map (Pitch.key_to_nn . snd) strings
     , hmap_key_to_natural = make natural_harmonics
     , hmap_key_to_gliss_destination = make gliss_natural_harmonics
     }

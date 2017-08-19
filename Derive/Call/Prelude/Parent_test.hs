@@ -193,6 +193,16 @@ test_arpeggio = do
     equal (run (tracks "`arp-up` 1 0")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1 0")) [(10, 10, "4d"), (11, 9, "4c")]
 
+test_arpeggio_ly = do
+    let run skel = LilypondTest.measures ["arpeggioArrowUp", "arpeggio"]
+            . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
+    equal (run [(1, 2), (2, 3), (1, 4), (4, 5)]
+            [ (">", [(0, 0, "`arp-up`")])
+            , (">", [(0, 4, "")]), ("*", [(0, 0, "3c")])
+            , (">", [(0, 4, "")]), ("*", [(0, 0, "3d")])
+            ])
+        (Right "\\arpeggioArrowUp <c d>1\\arpeggio", [])
+
 test_interpolate = do
     let run at = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""

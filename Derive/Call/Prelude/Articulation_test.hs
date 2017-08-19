@@ -13,6 +13,17 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Global
 
 
+test_harmonic_ly = do
+    let run p = LilypondTest.measures ["harmonic"] $
+            LilypondTest.derive_tracks $ UiTest.note_track [(0, 4, p)]
+    equal (run "o nat -- 3c") (Right "c1-\\flageolet", [])
+    strings_like (snd $ run "string=(nn c3) | o -- 3c")
+        ["can't find 48nn as a harmonic of 48nn"]
+    equal (run "string=(nn c3) | o nat -- 4c") (Right "c'1-\\flageolet", [])
+    equal (run "string=(nn c3) | o nat -- 4g") (Right "<c g\\harmonic>1", [])
+    equal (run "string=(nn c3) | o nat -- 5c") (Right "<c f\\harmonic>1", [])
+
+
 test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract = DeriveTest.e_note

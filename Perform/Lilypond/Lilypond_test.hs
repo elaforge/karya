@@ -136,7 +136,7 @@ test_ly_prepend_append = do
     equal (f (str Constants.v_append_first "x")) $ Right "a1~x | a1~ | a1"
     equal (f (str Constants.v_append_last "x")) $ Right "a1~ | a1~ | a1x"
     equal (f (str Constants.v_append_all "x")) $ Right "a1~x | a1~x | a1x"
-    equal (f (str Constants.v_prepend "x")) $ Right "xa1~ | a1~ | a1"
+    equal (f (str Constants.v_prepend "x")) $ Right "x a1~ | a1~ | a1"
 
 test_ly_code = do
     -- Test stand-alone zero-dur code fragments.
@@ -221,7 +221,7 @@ test_tempo = do
 test_attributes = do
     let f = LilypondTest.derive_measures []
     equal (f
-        [ (">", [(0, 1, "+mute"), (1, 1, "o"), (2, 1, "")])
+        [ (">", [(0, 1, "+mute"), (1, 1, "+harm"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
         (Right "a'4-+ b'4-\\flageolet c'4 r4", [])

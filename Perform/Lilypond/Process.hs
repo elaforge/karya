@@ -393,8 +393,7 @@ make_lys measure_start prev_attrs maybe_meter events =
     -- Circumfix the possible real note with zero-dur code placeholders.
     notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
-make_note :: Time -> Attrs.Attributes
-    -> Maybe Meter.Meter
+make_note :: Time -> Attrs.Attributes -> Maybe Meter.Meter
     -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, Attrs.Attributes, [Event])
@@ -402,34 +401,45 @@ make_note :: Time -> Attrs.Attributes
 make_note measure_start prev_attrs maybe_meter events next =
     (ly, end, next_attrs, clipped)
     where
-    ly = case NonEmpty.nonEmpty pitches of
-        Nothing -> Code (prepend first <> append first)
-        Just pitches -> LyNote (note pitches)
+    ly = case NonEmpty.nonEmpty note_pitches of
+        -- TODO I think I don't actually know if this rest is the "last" one,
+        -- since they're not tied.  So this may duplicate code.
+        Nothing -> Code $ t_unwords $
+            prepend_chord first ++ append_chord True first
+        Just note_pitches -> LyNote (note note_pitches)
     first = NonEmpty.head events
     -- If there are no pitches, then this is code with duration.
-    pitches = do
+    note_pitches = do
         event <- NonEmpty.toList events
         let pitch = get_pitch event
         guard (not (Text.null pitch))
-        return (pitch, note_tie event)
-    note pitches = Note
-        { note_pitch = pitches
+        let tie = note_tie event
+        return $ NotePitch pitch tie (append_note event)
+    note note_pitches = Note
+        { note_pitches = note_pitches
         , note_duration = allowed_dur
-        , note_prepend = prepend first
-        , note_append = append first <> mconcat attrs_codes
+        , note_prepend = prepend_chord first
+        , note_append = append_chord is_last first ++ attrs_codes
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
+        where
+        is_last = not $ any (is_tied . (\(NotePitch _ tie _) -> tie))
+            note_pitches
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList events)))
     get_pitch event = event_pitch event
         <> if is_first event then get Constants.v_append_pitch event else ""
 
-    prepend event =
-        if is_first event then get Constants.v_prepend event else ""
-    append event = mconcat
-        [ if is_first event then get Constants.v_append_first event else ""
-        , if is_last then get Constants.v_append_last event else ""
-        , get Constants.v_append_all event
+    -- These will wind up with "" in them, but t_unwords strips that.
+    prepend_chord event = [get Constants.v_prepend event | is_first event]
+    append_chord is_last event = concat
+        [ [get Constants.v_append_first event | is_first event]
+        , [get Constants.v_append_last event | is_last]
+        , [get Constants.v_append_all event]
+        ]
+    append_note event = concat
+        [ [get Constants.v_note_append_first event | is_first event]
+        , [get Constants.v_note_append_all event]
         ]
     get key = fromMaybe "" . get_val key
 
@@ -442,7 +452,6 @@ make_note measure_start prev_attrs maybe_meter events next =
         direction :: Text
         direction = get Constants.v_tie_direction event
     is_first = not . event_clipped
-    is_last = not $ any (is_tied . snd) pitches
     is_tied NoTie = False
     is_tied _ = True
 
@@ -459,6 +468,9 @@ make_note measure_start prev_attrs maybe_meter events next =
     clipped = mapMaybe (clip_event end) (NonEmpty.toList events)
     start = event_start first
     end = start + allowed_time
+
+t_unwords :: [Text] -> Text
+t_unwords = Text.unwords . filter (not . Text.null) . map Text.strip
 
 -- * convert voices
 
@@ -782,32 +794,43 @@ instance ToLily Ly where
 -- ** Note
 
 data Note = Note {
-    -- | @[]@ means this is a rest, and greater than one pitch indicates
-    -- a chord.
-    note_pitch :: !(NonEmpty (Text, Tie))
+    -- | Greater than one pitch indicates a chord.
+    note_pitches :: !(NonEmpty NotePitch)
     , note_duration :: !Types.NoteDuration
     -- | Additional code to prepend to the note.
-    , note_prepend :: !Code
+    , note_prepend :: ![Code]
     -- | Additional code to append to the note.
-    , note_append :: !Code
+    , note_append :: ![Code]
     , note_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
+
+-- | Pitch, tie, code to append.
+data NotePitch = NotePitch !Text !Tie ![Code]
+    deriving (Show)
 
 data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
 
 -- | Arbitrary bit of lilypond code.  This type isn't used for non-arbitrary
--- chunks, like 'note_pitch'.
+-- chunks, like 'note_pitches'.
 type Code = Text
 
 instance ToLily Note where
     to_lily (Note pitches dur prepend append _stack) =
-        (prepend<>) . (<>append) $ case pitches of
-            (pitch, tie) :| [] -> pitch <> ly_dur <> to_lily tie
-            _ -> "<"
-                <> Text.unwords [p <> to_lily tie | (p, tie)
-                    <- NonEmpty.toList pitches]
+        -- The append codes are separated by spaces, but not the first one,
+        -- so I'll get 'c4-. \xyz', instead of 'c4 -. \xyz'.  Lilypond doesn't
+        -- care, but the former looks a bit nicer and besides all my tests
+        -- expect it.
+        t_unwords $ prepend ++ [note <> t_unwords append]
+        where
+        ly_dur = to_lily dur
+        note = case pitches of
+            NotePitch pitch tie code :| [] ->
+                t_unwords $ (pitch <> ly_dur <> to_lily tie) : code
+            _ -> "<" <> t_unwords (map to_lily (NonEmpty.toList pitches))
                 <> ">" <> ly_dur
-        where ly_dur = to_lily dur
+
+instance ToLily NotePitch where
+    to_lily (NotePitch pitch tie code) = pitch <> to_lily tie <> t_unwords code
 
 instance ToLily Tie where
     to_lily t = case t of

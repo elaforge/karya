@@ -88,6 +88,8 @@ emap f state = second Stream.merge_asc_lists . emap_groups f state
         go state (LEvent.Event event) =
             Stream.from_sorted_events <$> f state event
 
+-- | This is 'emap', but it promises to emit events in sorted order.
+-- TODO except that's not enforced, and maybe I should just always sort.
 emap_asc :: (state -> a -> (state, [Score.Event])) -> state
     -> Stream a -> (state, Stream Score.Event)
 emap_asc = emap

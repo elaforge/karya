@@ -23,7 +23,9 @@ module Perform.Pitch (
     , Input(..), KbdType(..), Frac
 
     -- * NoteNumber
-    , NoteNumber(..), nn, nn_to_double, nns_equal
+    , NoteNumber(..), nn, key_to_nn, nn_to_double
+    , Cent, nn_to_cents
+    , nns_equal, nns_close
 
     -- * Hz
     , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn, middle_c_hz
@@ -45,6 +47,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
+import qualified Midi.Midi as Midi
 import qualified Derive.ShowVal as ShowVal
 import Global
 
@@ -239,12 +242,23 @@ instance Pretty NoteNumber where pretty = showt
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
+key_to_nn :: Midi.Key -> NoteNumber
+key_to_nn (Midi.Key key) = nn key
+
 nn_to_double :: NoteNumber -> Double
 nn_to_double (NoteNumber nn) = nn
 
+type Cent = Int
+
+nn_to_cents :: NoteNumber -> Cent
+nn_to_cents = round . (*100)
+
 -- | True if the NoteNumbers are close enough that they sound the same.
 nns_equal :: NoteNumber -> NoteNumber -> Bool
-nns_equal = ApproxEq.eq 0.01
+nns_equal = nns_close 3 -- almost certainly less than JND
+
+nns_close :: Cent -> NoteNumber -> NoteNumber -> Bool
+nns_close cents nn1 nn2 = abs (nn_to_cents nn1 - nn_to_cents nn2) <= cents
 
 -- * Hz
 
