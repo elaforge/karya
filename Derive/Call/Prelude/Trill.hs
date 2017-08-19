@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE MultiWayIf #-}
 {- | Various kinds of trills.
 
     Trills want to generate an integral number of cycles.  For the purpose of
@@ -63,14 +64,17 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -112,23 +116,29 @@ c_note_trill hardcoded_start hardcoded_end =
                 return $ Sub.Event x (next-x) Call.note
         Call.add_control control (Score.untyped transpose) (Sub.derive notes)
 
+-- TODO configure supported trill attrs
 c_attr_trill :: Derive.Generator Derive.Note
 c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
-    (defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Chromatic)
+    ( defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
-    ) $ \neighbor args -> do
+    ) $ \neighbor -> Sub.inverting $ \args -> do
+        start <- Args.real_start args
         (width, typ) <- Call.transpose_control_at Typecheck.Chromatic neighbor
-            =<< Args.real_start args
-        width_attr <- case (width, typ) of
-            (1, Typecheck.Chromatic) -> return Attrs.half
-            (2, Typecheck.Chromatic) -> return Attrs.whole
-            _ -> Derive.throw $
+            start
+        pitch <- Call.get_pitch start
+        diff <- Call.nn_difference start
+            (Pitches.transpose (Typecheck.to_transpose typ width) pitch) pitch
+        attr <- if
+            | Pitch.nns_equal diff 1 -> return Attrs.half
+            | Pitch.nns_equal diff 2 -> return Attrs.whole
+            -- TODO fall back on setting +trill attr, if supported
+            | otherwise -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
-                <> ShowVal.show_val neighbor
-        Call.add_attributes (Attrs.trill <> width_attr) (Call.placed_note args)
+                <> pretty diff
+        Call.add_attributes (Attrs.trill <> attr) (Call.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly

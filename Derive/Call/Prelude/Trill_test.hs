@@ -111,6 +111,16 @@ test_chord_tremolo_function = do
     equal (f 6 [[(0, 4, 'a')], [(0, 4, 'b')]])
         [(0, 1, 'a'), (1, 1, 'b'), (2, 1, 'a'), (3, 1, 'b')]
 
+test_attr_trill = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_setup with ""
+            . UiTest.note_track
+        with = CallTest.with_note_generator "tr" Trill.c_attr_trill
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    equal (run [(0, 1, "tr -- 4c")]) ([((0, 1, "4c"), "+trill+whole")], [])
+    equal (run [(0, 1, "tr 1c -- 4c")]) ([((0, 1, "4c"), "+half+trill")], [])
+    equal (run [(0, 1, "tr -- 4e")]) ([((0, 1, "4e"), "+half+trill")], [])
+
 -- * pitch calls
 
 test_trill = do

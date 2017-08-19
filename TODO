@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  Trill.c_attr_trill:
+    - take support trill attrs as an argument
+    - fall back on plain +trill attr for wider trills
+  - trill: emit lilypond for two-note tremolo for wide trills, or even narrow
+    ones too if so configured.
+  - trill: also emit lilypond for trill + accidental if it's out of the key
   - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
     go >1.  Why is the note including such distant samples anyway?  Isn't it
     inefficient to scale samples which are clearly not in the note bounds?

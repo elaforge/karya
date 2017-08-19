@@ -664,6 +664,12 @@ transpose_type deflt typ = case typ of
     Score.Nn -> Just Nn
     _ -> Nothing
 
+to_transpose :: TransposeType -> Double -> Pitch.Transpose
+to_transpose typ val = case typ of
+    Diatonic -> Pitch.Diatonic val
+    Chromatic -> Pitch.Chromatic val
+    Nn -> Pitch.Nn val
+
 transpose_control :: TransposeType -> Score.Control
 transpose_control Diatonic = Controls.diatonic
 transpose_control Chromatic = Controls.chromatic

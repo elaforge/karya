@@ -274,9 +274,7 @@ c_attr_grace supported =
 grace_attributes :: RealTime -> Map Int Attrs.Attributes -> [PSignal.Pitch]
     -> PSignal.Pitch -> Derive.Deriver (Maybe Attrs.Attributes)
 grace_attributes pos supported [grace] base = do
-    base <- Derive.resolve_pitch pos base
-    grace <- Derive.resolve_pitch pos grace
-    diff <- (-) <$> Pitches.pitch_nn base <*> Pitches.pitch_nn grace
+    diff <- Call.nn_difference pos base grace
     return $ Map.lookup (round diff) supported
 grace_attributes _ _ _ _ = return Nothing
 

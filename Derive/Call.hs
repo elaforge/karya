@@ -328,6 +328,13 @@ pitch_difference difference p1 p2 = do
         difference (Scale.scale_layout scale) <$>
             parse scale env p1 <*> parse scale env p2
 
+nn_difference :: RealTime -> PSignal.Pitch -> PSignal.Pitch
+    -> Derive.Deriver Pitch.NoteNumber
+nn_difference pos pitch1 pitch2 = do
+    pitch1 <- Derive.resolve_pitch pos pitch1
+    pitch2 <- Derive.resolve_pitch pos pitch2
+    (-) <$> Pitches.pitch_nn pitch1 <*> Pitches.pitch_nn pitch2
+
 -- * note
 
 eval_pitch_ :: ScoreTime -> Pitch.Pitch -> Derive.Deriver PSignal.Transposed
