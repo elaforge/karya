@@ -11,7 +11,7 @@ module Derive.Solkattu.Dsl (
 
     -- ** directives
     , hv, lt
-    , akshara, sam, (^), mid, (§)
+    , akshara, sam, (§)
     -- ** patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku

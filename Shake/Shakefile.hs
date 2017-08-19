@@ -1283,8 +1283,6 @@ ghcLanguageFlags :: [String]
 ghcLanguageFlags = map ("-X"++)
     -- Pretty conservative, and useful.
     [ "BangPatterns"
-    -- Without this, it becomes really annoying to use Text everywhere.
-    , "OverloadedStrings"
     -- This enables slightly more concise record initialization and doesn't
     -- seem to hurt anything.
     , "DisambiguateRecordFields"
@@ -1293,12 +1291,14 @@ ghcLanguageFlags = map ("-X"++)
     -- a lot of types like "IsString [a] => [a] -> ...", which results in
     -- "Non type-variable argument in the constraint: IsString [a]".
     , "FlexibleContexts"
+    -- Just too useful.
+    , "GeneralizedNewtypeDeriving"
+    -- Without this, it becomes really annoying to use Text everywhere.
+    , "OverloadedStrings"
+    , "ScopedTypeVariables"
     -- It's nicer than flip (,), but not worth using if you have to put in
     -- a LANGUAGE.
     , "TupleSections"
-    -- Just too useful.
-    , "GeneralizedNewtypeDeriving"
-    , "ScopedTypeVariables"
     ]
 
 -- * cc

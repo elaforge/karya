@@ -40,7 +40,7 @@
     4 measures per section:
 
         > LRuler.local $ LRuler.ruler $
-        >       LRuler.make_measures LRuler.config 4 Meters.m44 8 4
+        >       Meter.make_measures Meter.default_config 4 Meters.m44 8 4
 
     - Or put the selection at the where the 4 meters should end, then:
 

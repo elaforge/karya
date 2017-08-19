@@ -135,6 +135,7 @@ data Tag = Tag !Int
 instance Pretty Tag where
     pretty (Tag i) = pretty i
     pretty Middle = "mid"
+    pretty Standard = "standard"
 
 instance Num Tag where
     fromInteger = Tag . fromInteger

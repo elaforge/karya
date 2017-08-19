@@ -3,10 +3,8 @@ import-order: Util Midi Ui Cmd Derive Perform Instrument Local LogView Synth
     App
 prio-package-high:
 prio-package-low: haskell98 ghc darcs comonad
-prio-module-high: Ui
+prio-module-high: Ui Perform.Pitch
 prio-module-low: GHC Blaze.Text
-language: OverloadedStrings DisambiguateRecordFields FlexibleContexts
-    TupleSections GeneralizedNewtypeDeriving
-    -- Otherwise haskell-src-exts doesn't understand ConstraintKinds.
-    -- But why doesn't ghc require LANGUAGE ConstraintKinds?
-    MultiParamTypeClasses BangPatterns
+language: BangPatterns DisambiguateRecordFields FlexibleContexts
+    GeneralizedNewtypeDeriving OverloadedStrings ScopedTypeVariables
+    TupleSections
