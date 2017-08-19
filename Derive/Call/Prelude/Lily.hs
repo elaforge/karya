@@ -44,22 +44,22 @@ note_calls = Make.call_maps
 
     , ("ly-(", attach0 "ly-begin-slur"
         "Separately mark a lilypond slur, when `(` isn't cutting it."
-        (Ly.SuffixFirst, "("))
+        (Ly.AppendFirst, "("))
     , ("ly-)", attach0 "ly-end-slur"
         "Separately mark a lilypond slur, when `(` isn't cutting it."
-        (Ly.SuffixLast, ")"))
+        (Ly.AppendLast, ")"))
     , ("ly-[", attach0 "ly-begin-beam"
         "Begin a beam. Override lilypond's automatic beaming."
-        (Ly.SuffixFirst, "["))
+        (Ly.AppendFirst, "["))
     , ("ly-]", attach0 "ly-end-beam"
         "End a beam. Override lilypond's automatic beaming."
-        (Ly.SuffixFirst, "]"))
-        -- SuffixFirst because it's unlikely the beam should go over a barline.
+        (Ly.AppendFirst, "]"))
+        -- AppendFirst because it's unlikely the beam should go over a barline.
     , ("ly-<", c_hairpin "\\<")
     , ("ly->", c_hairpin "\\>")
     , ("ly-<>", emit0 "ly-crescendo-diminuendo"
         "Crescendo followed by diminuendo, on one note."
-        (Ly.SuffixFirst, "\\espressivo"))
+        (Ly.AppendFirst, "\\espressivo"))
     , ("ly-^~", c_tie_direction "^")
     , ("ly-_~", c_tie_direction "_")
     , ("ly-key", c_ly_key)
@@ -152,21 +152,21 @@ c_8va = emit_pair "ottava" "Emit lilypond ottava mark.\
     \ If it has duration, end with `8va 0`."
     (Sig.defaulted "octave" 0 "Transpose this many octaves up or down.") $
     \oct -> (ottava oct, ottava 0)
-    where ottava n = (Ly.Prefix, "\\ottava #" <> showt (n :: Int))
+    where ottava n = (Ly.Prepend, "\\ottava #" <> showt (n :: Int))
 
 c_xstaff :: Make.Calls Derive.Note
 c_xstaff = emit_start "xstaff"
     "Emit lilypond to put the notes on a different staff."
     (Sig.required "staff" "Switch to this staff.") $ \staff ->
-        return (Ly.Prefix, change staff)
+        return (Ly.Prepend, change staff)
     where change staff = "\\change Staff = " <> lily_str (to_lily staff)
 
 c_xstaff_around :: Make.Calls Derive.Note
 c_xstaff_around = emit_wrap_notes "xstaff-around"
     "Emit lilypond to put the notes on a different staff."
     (Sig.required "staff" "Switch to this staff.") $ \staff -> return
-        ( (Ly.Prefix, change staff)
-        , (Ly.Prefix, change (other staff))
+        ( (Ly.Prepend, change staff)
+        , (Ly.Prepend, change (other staff))
         )
     where
     change staff = "\\change Staff = " <> lily_str (to_lily staff)
@@ -182,12 +182,12 @@ c_dyn = emit_start "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
     (Sig.required "dynamic" "Should be `p`, `ff`, etc.")
-    (return . (,) Ly.SuffixAll . ("\\"<>))
+    (return . (,) Ly.AppendAll . ("\\"<>))
 
 c_clef :: Make.Calls Derive.Note
 c_clef = emit_start "clef" "Emit lilypond clef change."
     (Sig.required "clef" "Should be `bass`, `treble`, etc.")
-    (return . (,) Ly.Prefix . ("\\clef "<>))
+    (return . (,) Ly.Prepend . ("\\clef "<>))
 
 c_meter :: Make.Calls Derive.Note
 c_meter = emit_global "meter"
@@ -227,36 +227,36 @@ c_hairpin code = emit_pair "ly-hairpin"
     "Start a crescendo or diminuendo hairpin.  If it has non-zero duration,\
     \ stop at the event's end, otherwise it will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \() -> ((Ly.SuffixFirst, code), (Ly.SuffixFirst, "\\!"))
+    \() -> ((Ly.AppendFirst, code), (Ly.AppendFirst, "\\!"))
 
 c_ly_text :: Ly.Ly -> Make.Calls Derive.Note
 c_ly_text dir = attach First "ly-text" "Attach text above or below the note."
     (Sig.required "text" "Text to attach.") $
-    (,) Ly.SuffixFirst . (dir<>) . lily_str
+    (,) Ly.AppendFirst . (dir<>) . lily_str
 
 c_ly_articulation :: Make.Calls Derive.Note
 c_ly_articulation = attach All "ly-articulation"
     "Append a `-articulation` to notes."
     (Sig.required "text" "Code to attach. A `-` is prepended.") $
-    ((,) Ly.SuffixFirst . ("-"<>))
+    ((,) Ly.AppendFirst . ("-"<>))
 
 c_ly_notes_post :: Make.Calls Derive.Note
 c_ly_notes_post = attach All "ly-notes-post"
     "Emit arbitrary lilypond code that will go after all notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> (Ly.SuffixLast, "\\" <> code)
+    \code -> (Ly.AppendLast, "\\" <> code)
 
 c_ly_pre :: Make.Calls Derive.Note
 c_ly_pre = emit_start "ly-pre"
     "Emit arbitrary lilypond code that will go before concurrent notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> return (Ly.Prefix, "\\" <> code)
+    \code -> return (Ly.Prepend, "\\" <> code)
 
 c_ly_post :: Make.Calls Derive.Note
 c_ly_post = emit_start "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> return (Ly.SuffixLast, "\\" <> code)
+    \code -> return (Ly.AppendLast, "\\" <> code)
 
 c_ly_key :: Make.Calls Derive.Note
 c_ly_key = emit_start "ly-key"
@@ -267,23 +267,23 @@ c_ly_key = emit_start "ly-key"
     (Sig.required "key" "You can use any of the keys from the Twelve scale.") $
     \key -> do
         key <- Derive.require_right id $ Process.parse_key key
-        return (Ly.Prefix, Types.to_lily key)
+        return (Ly.Prepend, Types.to_lily key)
 
 c_ly_sustain :: Make.Calls Derive.Note
 c_ly_sustain = emit_start "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
     (Sig.required "state" "t for \\sustainOn, f for \\sustainOff,\
         \ ft for \\sustainOff\\sustainOn.") $
     \mode -> case mode of
-        Off -> return (Ly.SuffixAll, "\\sustainOff")
-        On -> return (Ly.SuffixAll, "\\sustainOn")
-        OffOn -> return (Ly.SuffixAll, "\\sustainOff\\sustainOn")
+        Off -> return (Ly.AppendAll, "\\sustainOff")
+        On -> return (Ly.AppendAll, "\\sustainOn")
+        OffOn -> return (Ly.AppendAll, "\\sustainOff\\sustainOn")
 
 c_ly_tr_span :: Make.Calls Derive.Note
 c_ly_tr_span = emit_pair "ly-tr-span"
     "Emit a \\startTrillSpan - \\stopTrillSpan pair."
     Sig.no_args $ \() ->
-        ( (Ly.SuffixFirst, "\\startTrillSpan")
-        , (Ly.SuffixLast, "\\stopTrillSpan")
+        ( (Ly.AppendFirst, "\\startTrillSpan")
+        , (Ly.AppendLast, "\\stopTrillSpan")
         )
 
 data SustainMode = Off | On | OffOn deriving (Bounded, Eq, Enum, Show)
@@ -314,15 +314,15 @@ ly_span maybe_text (start, end)
         Nothing -> Derive.throw "use zero dur to end a span"
     where
     start_code text =
-        [ (start,) $ (Ly.Prefix,) $
+        [ (start,) $ (Ly.Prepend,) $
             -- Lilypond likes to put it above, but for tempo and dynamic marks
             -- I think they should go below.
             "\\textSpannerDown\
             \ \\override TextSpanner.bound-details.left.text = \\markup { "
             <> Types.to_lily text <> " }"
-        , (start, (Ly.SuffixFirst, "\\startTextSpan"))
+        , (start, (Ly.AppendFirst, "\\startTextSpan"))
         ]
-    end_code = [(end, (Ly.SuffixLast, "\\stopTextSpan"))]
+    end_code = [(end, (Ly.AppendLast, "\\stopTextSpan"))]
 
 
 -- * Attach

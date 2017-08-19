@@ -68,7 +68,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
 c_yt1 :: Korvai
 c_yt1 = source "youtube" $ korvai1 adi mridangam $
     -- TODO ... `replace` (tat.__.tam.__4) (taka.tam.__4)
-    reduceTo 4 2 theme . tri_ (tam.__) (tri p6) -- TODO middle tam is 'i'
+    reduceTo 4 2 theme . tri_ (tam.__) (tri p6)
     where
     theme = tat.__.dit.__.takadinna.din.__.tat.__.tam.__4
     mridangam = make_mridangam

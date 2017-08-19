@@ -164,9 +164,9 @@ test_ly_code = do
     calls = CallTest.with_note_generator "pre" c_pre
         <> CallTest.with_note_generator "post" c_post
     c_pre = CallTest.generator $ \args ->
-        Ly.code0 (Args.start args) (Ly.Prefix, "pre")
+        Ly.code0 (Args.start args) (Ly.Prepend, "pre")
     c_post = CallTest.generator $ \args ->
-        Ly.code0 (Args.start args) (Ly.SuffixAll, "post")
+        Ly.code0 (Args.start args) (Ly.AppendAll, "post")
 
 -- * test lilypond derivation
 

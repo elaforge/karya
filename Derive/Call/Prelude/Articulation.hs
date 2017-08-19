@@ -163,7 +163,7 @@ harmonic_code :: Pitch.NoteNumber -> Pitch.NoteNumber -> Score.Event
     -> [Score.Event]
 harmonic_code stopped touched event =
     [ with_pitch stopped
-    , Ly.add_event_code (Ly.NoteSuffixAll, "\\harmonic") $ with_pitch touched
+    , Ly.add_event_code (Ly.NoteAppendAll, "\\harmonic") $ with_pitch touched
     ]
     where
     with_pitch nn =
@@ -257,7 +257,7 @@ note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
 
 lily_slur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
 lily_slur direction =
-    Ly.notes_around_ly (Ly.SuffixFirst, prefix <> "(") (Ly.SuffixLast, ")")
+    Ly.notes_around_ly (Ly.AppendFirst, prefix <> "(") (Ly.AppendLast, ")")
     where
     prefix = case direction of
         Nothing -> ""

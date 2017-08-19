@@ -933,8 +933,7 @@ integrate / integration:
     - quantization
 
 lilypond:
-  - Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
-    Make them consistent.
+  * Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
   * emit artificial harmonics notation: <e a\harmonic>2
     . I need to know open strings, and optionally a desired string.  Use
       standard env vars: open-strings = (list ...), string = pitch, as used by
@@ -955,6 +954,8 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
+    - trill at wider intervals should emit tremolo notation
+      . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
     - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8
     - how to write harmonic gliss?

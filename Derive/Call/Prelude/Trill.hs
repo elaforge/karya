@@ -104,7 +104,7 @@ c_note_trill hardcoded_start hardcoded_end =
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
     Sub.inverting $ \args ->
-    Ly.note_code (Ly.SuffixFirst, "\\trill") args $ do
+    Ly.note_code (Ly.AppendFirst, "\\trill") args $ do
         (transpose, control) <- trill_from_controls
             (Args.range_or_next args) start_dir end_dir adjust hold
             neighbor speed
@@ -152,7 +152,7 @@ c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly
                 simple_tremolo starts [Call.note]
             notes -> Ly.notes_code code args $
                 Sub.derive $ chord_tremolo starts notes
-    where code = (Ly.SuffixAll, ":32")
+    where code = (Ly.AppendAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs

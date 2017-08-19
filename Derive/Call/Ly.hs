@@ -132,17 +132,17 @@ first_last start end xs =
 type Code = (CodePosition, Ly)
 data CodePosition =
     -- | Code goes before the note.
-    Prefix
+    Prepend
     -- | Code goes after each note in a tied sequence, so it could get
     -- duplicated several times.
-    | SuffixAll
-    -- | Like SuffixAll, but it goes after notes inside a chord, instead of
+    | AppendAll
+    -- | Like AppendAll, but it goes after notes inside a chord, instead of
     -- once after the chord itself.
-    | NoteSuffixAll
+    | NoteAppendAll
     -- | Code goes after only the first note in a tied sequence.
-    | SuffixFirst | NoteSuffixFirst
+    | AppendFirst | NoteAppendFirst
     -- | Code goes after the last note in a tied sequnece.
-    | SuffixLast
+    | AppendLast
     -- | Create a note with the given env value set to the Ly code.  This is
     -- for directives to the lilypond performer, not to lilypond itself.
     -- E.g. 'Constants.v_subdivision'.
@@ -163,23 +163,23 @@ position_env :: Bool -- ^ True if this is a zero-dur event created just to
     -- host some ly code.  See 'Flags.ly_code'.
     -> CodePosition -> Env.Key
 position_env zero_dur p = case if zero_dur then code0 p else p of
-    Prefix -> Constants.v_prepend
-    SuffixAll -> Constants.v_append_all
-    NoteSuffixAll -> Constants.v_note_append_all
-    SuffixFirst -> Constants.v_append_first
-    NoteSuffixFirst -> Constants.v_note_append_first
-    SuffixLast -> Constants.v_append_last
+    Prepend -> Constants.v_prepend
+    AppendAll -> Constants.v_append_all
+    NoteAppendAll -> Constants.v_note_append_all
+    AppendFirst -> Constants.v_append_first
+    NoteAppendFirst -> Constants.v_note_append_first
+    AppendLast -> Constants.v_append_last
     SetEnviron key -> key
     where
-    -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
+    -- AppendFirst and AppendLast are not used for 0 dur events, so make it
     -- less error-prone by getting rid of them.  Ick.
     code0 pos = case pos of
-        SuffixFirst -> SuffixAll
-        SuffixLast -> SuffixAll
+        AppendFirst -> AppendAll
+        AppendLast -> AppendAll
         _ -> pos
 
 prepend_code :: Ly -> Derive.NoteDeriver -> Derive.NoteDeriver
-prepend_code = add_code . (,) Prefix
+prepend_code = add_code . (,) Prepend
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
@@ -206,7 +206,7 @@ code0_event event start code = add_event_code code $ Score.empty_event
     }
 
 global_code0 :: ScoreTime -> Ly -> Derive.NoteDeriver
-global_code0 start code = global $ code0 start (Prefix, code)
+global_code0 start code = global $ code0 start (Prepend, code)
 
 -- | Derive with the 'Constants.ly_global' instrument.
 global :: Derive.Deriver a -> Derive.Deriver a

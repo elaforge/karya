@@ -148,7 +148,7 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
         arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args
     where
     lily_code = Ly.notes_with $
-        Ly.prepend_code prefix . Ly.add_code (Ly.SuffixFirst, suffix)
+        Ly.prepend_code prefix . Ly.add_code (Ly.AppendFirst, suffix)
     prefix = case arp of
         ToRight -> "\\arpeggioArrowUp"
         ToLeft -> "\\arpeggioArrowDown"
