@@ -230,16 +230,16 @@ copy event = event { event_flags = mempty, event_logs = [] }
 --
 -- Unlike "Perform.Midi.Convert", this doesn't trim the controls, so it applies
 -- out-of-range transpositions.
-normalize :: (Instrument -> BaseTypes.Environ) -> Event -> Event
-normalize lookup_environ event = event
+normalize :: Event -> Event
+normalize event = event
     { event_untransformed_pitch = apply $ event_transformed_pitch event
     , event_untransformed_pitches = apply <$> event_transformed_pitches event
     , event_untransformed_controls = controls
     , event_control_offset = 0
     }
     where
-    apply = PSignal.apply_controls controls . PSignal.apply_environ env
-    env = lookup_environ (event_instrument event) <> event_environ event
+    apply = PSignal.apply_controls controls
+        . PSignal.apply_environ (event_environ event)
     controls = event_transformed_controls event
 
 -- ** flags
@@ -495,7 +495,10 @@ event_named_pitch pcontrol
 -- another pitch you proabbly need the raw pitch, but so far everyone doing
 -- that is at the Derive level, not postproc, so they use Derive.pitch_at.
 transposed_at :: RealTime -> Event -> Maybe PSignal.Transposed
-transposed_at pos event = apply_controls event pos <$> pitch_at pos event
+transposed_at pos event = PSignal.config config <$> pitch_at pos event
+    where
+    config = PSignal.PitchConfig (event_environ event)
+        (event_controls_at pos event)
 
 pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
 pitch_at pos event = snd <$> pitch_sample_at pos event

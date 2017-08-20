@@ -44,7 +44,6 @@ import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
 import qualified App.Config as Config
 import Global
 import Types
@@ -175,7 +174,7 @@ inverse_tempo_func time = do
 
 -- | Get this block's performance from the cache.
 block_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events = normalize_events <=< block_events_unnormalized
+block_events = fmap normalize_events . block_events_unnormalized
 
 -- | 'normalize_events' is important for display, but I can't do it if I'm
 -- going to pass to 'convert', because convert should do the normalization
@@ -186,18 +185,13 @@ block_events_unnormalized block_id =
 
 block_uncached_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
 block_uncached_events block_id = normalize_events . Stream.to_list
-    . Derive.r_events =<< uncached_derive block_id
+    . Derive.r_events <$> uncached_derive block_id
 
 -- | Apply 'Score.normalize' to the events, so that they have their final
 -- control positions and pitches.  Normally 'convert' does this, but if you
 -- display it before convert it's nice to see the \"cooked\" versions.
-normalize_events :: Cmd.M m => [LEvent.LEvent Score.Event]
-    -> m [LEvent.LEvent Score.Event]
-normalize_events events = do
-    lookup <- Cmd.get_lookup_instrument
-    let lookup_env =
-            maybe mempty (Common.get_environ . Cmd.inst_common_config) . lookup
-    return $ map (fmap (Score.normalize lookup_env)) events
+normalize_events :: [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
+normalize_events = map (fmap Score.normalize)
 
 -- | Get 'block_events' from the cache and convert to MIDI performer events.
 block_midi_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Types.Event]

@@ -227,7 +227,7 @@ derive block_id =
     Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
 block_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
-block_events = LPerf.normalize_events <=< block_events_unnormalized
+block_events = fmap LPerf.normalize_events . block_events_unnormalized
 
 block_events_unnormalized :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
 block_events_unnormalized block_id =

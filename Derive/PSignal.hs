@@ -237,13 +237,12 @@ pitch_controls :: PitchConfig -> Score.ControlValMap
 pitch_controls (PitchConfig _ controls) = controls
 
 -- | Apply a config to a pitch.
-config :: PitchConfig -> RawPitch a -> RawPitch a
+config :: PitchConfig -> RawPitch a -> RawPitch b
 config c pitch = pitch { pitch_config = c <> pitch_config pitch }
 
 -- | Apply just the controls part of a config to a pitch.
 apply :: Score.ControlValMap -> Pitch -> Transposed
-apply controls pitch = pitch { pitch_config = config <> pitch_config pitch }
-    where config = PitchConfig mempty controls
+apply controls = config (PitchConfig mempty controls)
 
 add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch =

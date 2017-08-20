@@ -677,11 +677,6 @@ e_nns e
     | otherwise = Seq.drop_initial_dups fst sig
     where (sig, errs) = e_nns_errors e
 
--- | Like 'Score.initial_nn', except it transposes the pitch so you see the
--- final value.
-e_nn :: Score.Event -> Maybe Pitch.NoteNumber
-e_nn = Score.initial_nn . Score.normalize (const mempty)
-
 -- | Like 'e_nns', but round to cents to make comparison easier.
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
@@ -690,8 +685,7 @@ e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =
     (map (second Pitch.nn) . Signal.unsignal *** map pretty)
-    . PSignal.to_nn . Score.event_transformed_pitch
-    . Score.normalize (const mempty)
+    . PSignal.to_nn . Score.event_transformed_pitch . Score.normalize
 
 e_pitch :: Score.Event -> Text
 e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
