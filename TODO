@@ -962,7 +962,7 @@ lilypond:
         It's simpler in that I just have two pitches inside, with no code
         attachments.
       . However, it has to break across barlines, ...
-      - How do I set the accidental on the neighbor pitch?
+      * How do I set the accidental on the neighbor pitch?
         . I could extend 'tr' to take an explicit neighbor pitch.
       - Configure to use tremolo for all trills.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as

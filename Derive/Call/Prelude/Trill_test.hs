@@ -16,7 +16,9 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
+
 import Global
 
 
@@ -28,13 +30,23 @@ test_note_trill = do
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
     equal (run 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
         ([(0, 1, "4a"), (1, 1, "5c"), (2, 1, "4b")], [])
-
     -- Without the eta argument to 'integral_cycles', I wind up with a super
     -- short note that fell right below the "full cycle" threshold.
     let (notes, logs) = run 1.75
             [(7, 1, "tr"), (8, 1, "")] [(7, 0, "5b"), (8, 0, "3c")]
     equal logs []
     check ("dur > 0.05 " <> pretty notes) $ all (>0.05) [d | (_, d, _) <- notes]
+
+    -- TODO this is doable but not implemented
+    -- equal (run 1 [(0, 3, "tr (4db) 1")] [(0, 0, "4c")])
+    --     ([(0, 1, "4c"), (1, 1, "4db"), (2, 1, "4c")], [])
+
+    let run_nn = DeriveTest.extract e_nn . derive_tracks . UiTest.note_track
+        e_nn e = (Score.event_start e, DeriveTest.e_nn e)
+    equal (run_nn [(0, 3, "tr 1c 1 -- 4c")])
+        ([(0, Just NN.c4), (1, Just NN.cs4), (2, Just NN.c4)], [])
+    equal (run_nn [(0, 3, "tr (4db) 1 -- 4c")])
+        ([(0, Just NN.c4), (1, Just NN.cs4), (2, Just NN.c4)], [])
 
 test_note_trill_ly = do
     let run = LilypondTest.measures ["repeat"]
@@ -48,8 +60,8 @@ test_note_trill_ly = do
     equal (run [(0, 4, "tr 4 -- 3c")])
         (Right "\\repeat tremolo 16 { c32( g32) }", [])
 
-    -- equal (run [(0, 4, "tr (3gb) -- 3c")])
-    --     (Right "\\repeat tremolo 16 { c32( gf32) }", [])
+    equal (run [(0, 4, "tr (3gb) -- 3c")])
+        (Right "\\repeat tremolo 16 { c32( gf32) }", [])
 
 test_attr_trill = do
     let run = DeriveTest.extract extract
@@ -224,7 +236,7 @@ test_moving_trill = do
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
 test_real_trill = do
-    let f neighbor speed = fst <$> Trill.trill_from_controls (0, 1)
+    let f neighbor speed = fst <$> Trill.get_trill_control (0, 1)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Real speed)
         run = extract . DeriveTest.run Ui.empty
@@ -244,7 +256,7 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
-    let f dur neighbor speed = fst <$> Trill.trill_from_controls (0, dur)
+    let f dur neighbor speed = fst <$> Trill.get_trill_control (0, dur)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Score speed)
         run = extract . DeriveTest.run Ui.empty

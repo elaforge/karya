@@ -103,18 +103,23 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     \ all the notes with `+trill`, depending on the interval."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
-    <$> Sig.defaulted "neighbor"
-        (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
-        "Alternate with a pitch at this interval."
+    <$> neighbor_arg
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, config) -> Sub.inverting $ \args ->
     Ly.when_lilypond_config (note_trill_ly args neighbor)
         (note_trill use_attributes neighbor speed config args)
 
+neighbor_arg :: Sig.Parser Neighbor
+neighbor_arg = Sig.defaulted "neighbor"
+    (Left $ Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
+    "Alternate with a pitch at this interval."
+
 -- TODO configure supported trill attrs
 -- TODO configure lilypond tr or tremolo
 
-note_trill :: Bool -> BaseTypes.ControlRef -> BaseTypes.ControlRef
+type Neighbor = Either BaseTypes.ControlRef PSignal.Pitch
+
+note_trill :: Bool -> Neighbor -> BaseTypes.ControlRef
     -> (Maybe Direction, Maybe Direction, BaseTypes.Duration, Adjust)
     -> Derive.PassedArgs a -> Derive.NoteDeriver
 note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
@@ -125,7 +130,8 @@ note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
     | otherwise = trill_notes
     where
     trill_notes = do
-        (transpose, control) <- trill_from_controls
+        neighbor <- neighbor_to_signal (Args.start args) neighbor
+        (transpose, control) <- get_trill_control
             (Args.range_or_next args) start_dir end_dir adjust hold
             neighbor speed
         xs <- mapM (Derive.score . fst) (Signal.unsignal transpose)
@@ -136,7 +142,39 @@ note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
                 return $ Sub.Event x (next-x) Call.note
         Call.add_control control (Score.untyped transpose) (Sub.derive notes)
 
-trill_attributes :: BaseTypes.ControlRef -> ScoreTime
+        -- TODO this is an implementation that directly uses the neighbor pitch
+        -- instead of the roundabout signal thing.  But I still need the signal
+        -- if it changes.  Implement when I'm not in such a hurry.
+
+        -- neighbor <- case neighbor of
+        --     Right p -> return p
+        --     Left control -> undefined
+        -- let neighbor_low = False -- TODO
+        -- (who_first, transitions) <- get_trill_transitions
+        --     (Args.range_or_next args) start_dir end_dir
+        --     adjust hold speed neighbor_low
+        -- base <- Call.get_pitch =<< Args.real_start args
+        -- let pitches = cycle $ case who_first of
+        --         Unison -> [base, neighbor]
+        --         Neighbor -> [neighbor, base]
+        -- transitions <- mapM Derive.score transitions
+        -- Sub.derive $ do
+        --     (pitch, (x, maybe_next)) <-
+        --         zip pitches (Seq.zip_next transitions)
+        --     let next = fromMaybe (snd (Args.range args)) maybe_next
+        --     return $ Sub.Event x (next-x) (Call.pitched_note pitch)
+
+neighbor_to_signal :: ScoreTime -> Neighbor
+    -> Derive.Deriver BaseTypes.ControlRef
+neighbor_to_signal _ (Left sig) = return sig
+neighbor_to_signal start (Right neighbor) = do
+    start <- Derive.real start
+    base <- Call.get_pitch start
+    diff <- Call.nn_difference start neighbor base
+    return $ BaseTypes.ControlSignal $
+        Score.Typed Score.Nn (Signal.constant (realToFrac diff))
+
+trill_attributes :: Neighbor -> ScoreTime
     -> Derive.Deriver (Maybe Attrs.Attributes)
 trill_attributes neighbor start = do
     start <- Derive.real start
@@ -147,7 +185,7 @@ trill_attributes neighbor start = do
         | Pitch.nns_equal diff 2 -> Just Attrs.whole
         | otherwise -> Nothing
 
-note_trill_ly :: Derive.PassedArgs a -> BaseTypes.ControlRef -> Types.Config
+note_trill_ly :: Derive.PassedArgs a -> Neighbor -> Types.Config
     -> Derive.NoteDeriver
 note_trill_ly args neighbor config = do
     start <- Args.real_start args
@@ -161,12 +199,15 @@ note_trill_ly args neighbor config = do
         | otherwise -> tremolo_trill_ly config pitch neighbor
             (Args.start args) (Args.duration args)
 
-pitch_and_neighbor :: BaseTypes.ControlRef -> RealTime
+pitch_and_neighbor :: Neighbor -> RealTime
     -> Derive.Deriver (PSignal.Pitch, PSignal.Pitch)
-pitch_and_neighbor neighbor start = do
+pitch_and_neighbor (Left neighbor) start = do
     (width, typ) <- Call.transpose_control_at Typecheck.Diatonic neighbor start
     pitch <- Call.get_pitch start
     return (pitch, Pitches.transpose (Typecheck.to_transpose typ width) pitch)
+pitch_and_neighbor (Right neighbor) start = do
+    pitch <- Call.get_pitch start
+    return (pitch, neighbor)
 
 tremolo_trill_ly :: Types.Config -> PSignal.Pitch -> PSignal.Pitch
     -> ScoreTime -> ScoreTime -> Derive.NoteDeriver
@@ -331,14 +372,12 @@ c_pitch_trill hardcoded_start hardcoded_end =
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,,)
     <$> Sig.required "note" "Base pitch."
-    <*> Sig.defaulted "neighbor"
-        (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
-        "Alternate with a pitch at this interval."
-    <*> trill_speed_arg <*> transition_env
+    <*> neighbor_arg <*> trill_speed_arg <*> transition_env
     <*> trill_env hardcoded_start hardcoded_end
     ) $ \(note, neighbor, speed, transition, (start_dir, end_dir, hold, adjust))
             args -> do
-        (transpose, control) <- trill_from_controls (Args.range_or_next args)
+        neighbor <- neighbor_to_signal (Args.start args) neighbor
+        (transpose, control) <- get_trill_control (Args.range_or_next args)
             start_dir end_dir adjust hold neighbor speed
         transpose <- smooth_trill transition transpose
         start <- Args.real_start args
@@ -405,7 +444,7 @@ c_control_trill hardcoded_start hardcoded_end =
     <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, transition, (start_dir, end_dir, hold, adjust))
             args -> do
-        (sig, _) <- trill_from_controls (Args.range_or_next args) start_dir
+        (sig, _) <- get_trill_control (Args.range_or_next args) start_dir
             end_dir adjust hold neighbor speed
         smooth_trill transition sig
 
@@ -578,34 +617,6 @@ direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ `-_` has start unspecified, and ends low.\
     \ No suffix causes it to obey the settings in scope."
 
--- | Resolve start and end Directions to the first and second trill notes.
-convert_direction :: RealTime -> Typecheck.Function
-    -> Maybe Direction -> Maybe Direction
-    -> ((Typecheck.Function, Typecheck.Function), Maybe Bool)
-    -- ^ Signals for the first and second trill notes.  The boolean indicates
-    -- whether the transitions should be even to end on the expected end
-    -- Direction, and Nothing if it doesn't matter.
-convert_direction start_t neighbor start end = (vals, even_transitions)
-    where
-    first = case start of
-        Nothing -> Unison
-        Just Low -> if neighbor_low then Neighbor else Unison
-        Just High -> if neighbor_low then Unison else Neighbor
-    vals = case first of
-        Unison -> (const 0, neighbor)
-        Neighbor -> (neighbor, const 0)
-    -- If I end Low, and neighbor is low, and I started with Unison, then val2
-    -- is low, so I want even transitions.  Why is it so complicated just to
-    -- get a trill to end high or low?
-    first_low = case first of
-        Unison -> not neighbor_low
-        Neighbor -> neighbor_low
-    even_transitions = case end of
-        Nothing -> Nothing
-        Just Low -> Just (not first_low)
-        Just High -> Just first_low
-    neighbor_low = neighbor start_t < 0
-
 -- | How to adjust an ornament to fulfill its 'Direction' restrictions.
 data Adjust =
     -- | Adjust by shortening the ornament.
@@ -624,21 +635,59 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 
 -- ** transitions
 
-trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
+-- | A signal that alternates between the base and neighbor values.
+get_trill_control :: (ScoreTime, ScoreTime) -> Maybe Direction
     -> Maybe Direction -> Adjust -> BaseTypes.Duration
     -> BaseTypes.ControlRef -> BaseTypes.ControlRef
     -> Derive.Deriver (Signal.Control, Score.Control)
-trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
+get_trill_control (start, end) start_dir end_dir adjust hold neighbor speed
         = do
     (neighbor_sig, control) <-
         Call.to_transpose_function Typecheck.Diatonic neighbor
     real_start <- Derive.real start
-    let ((val1, val2), even_transitions) = convert_direction real_start
-            neighbor_sig start_dir end_dir
-    hold <- Call.score_duration start hold
-    transitions <- adjusted_transitions False even_transitions adjust 0 hold
-        speed (start, end)
+    let neighbor_low = neighbor_sig real_start < 0
+    (who_first, transitions) <- get_trill_transitions (start, end)
+        start_dir end_dir adjust hold speed neighbor_low
+    let (val1, val2) = case who_first of
+            Unison -> (const 0, neighbor_sig)
+            Neighbor -> (neighbor_sig, const 0)
     return (trill_from_transitions val1 val2 transitions, control)
+
+-- | The points in time where the trill should transition between pitches.
+get_trill_transitions :: (ScoreTime, ScoreTime)
+    -> Maybe Direction -> Maybe Direction -> Adjust -> BaseTypes.Duration
+    -> BaseTypes.ControlRef -> Bool
+    -> Derive.Deriver (AbsoluteMode, [RealTime])
+get_trill_transitions (start, end) start_dir end_dir adjust hold speed
+        neighbor_low = do
+    let (who_first, even_transitions) =
+            convert_direction neighbor_low start_dir end_dir
+    hold <- Call.score_duration start hold
+    (who_first,) <$> adjusted_transitions False even_transitions adjust 0 hold
+        speed (start, end)
+
+-- | Resolve start and end Directions to the first and second trill notes.
+convert_direction :: Bool -> Maybe Direction -> Maybe Direction
+    -> (AbsoluteMode, Maybe Bool)
+    -- ^ Who starts the trill.  The boolean indicates whether the transitions
+    -- should be even to end on the expected end Direction, and Nothing if it
+    -- doesn't matter.
+convert_direction neighbor_low start end = (first, even_transitions)
+    where
+    first = case start of
+        Nothing -> Unison
+        Just Low -> if neighbor_low then Neighbor else Unison
+        Just High -> if neighbor_low then Unison else Neighbor
+    -- If I end Low, and neighbor is low, and I started with Unison, then val2
+    -- is low, so I want even transitions.  Why is it so complicated just to
+    -- get a trill to end high or low?
+    first_low = case first of
+        Unison -> not neighbor_low
+        Neighbor -> neighbor_low
+    even_transitions = case end of
+        Nothing -> Nothing
+        Just Low -> Just (not first_low)
+        Just High -> Just first_low
 
 smooth_trill :: BaseTypes.ControlRef -> Signal.Control
     -> Derive.Deriver Signal.Control
