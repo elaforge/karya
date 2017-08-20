@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE MultiWayIf, LambdaCase #-}
 {- | Various kinds of trills.
 
     Trills want to generate an integral number of cycles.  For the purpose of
@@ -71,6 +71,8 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Lilypond.Convert as Lilypond.Convert
+import qualified Perform.Lilypond.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -83,28 +85,46 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    ([(name, c_note_trill start end) | (name, start, end) <- trill_variations]
-    ++
-    [ ("trem", c_tremolo_generator)
-    ])
+    ( [ (name, c_note_trill False start end)
+      | (name, start, end) <- trill_variations
+      ]
+    ++ [("trem", c_tremolo_generator)])
     [ ("trem", c_tremolo_transformer) ]
 
-c_note_trill :: Maybe Direction -> Maybe Direction
+c_note_trill :: Bool -> Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Note
-c_note_trill hardcoded_start hardcoded_end =
+c_note_trill use_attributes hardcoded_start hardcoded_end =
     Derive.generator Module.prelude "tr" Tags.ly
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
-    \ or monophonic instruments that use legato to play slurred notes."
+    \ or monophonic instruments that use legato to play slurred notes.\
+    \\nInstruments that support +trill attributes should enable the attributes\
+    \ version, which emits a single note with `+trill+half`, `+trill+whole`, or\
+    \ all the notes with `+trill`, depending on the interval."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
     <$> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
-    ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
-    Sub.inverting $ \args ->
-    Ly.note_code (Ly.AppendFirst, "\\trill") args $ do
+    ) $ \(neighbor, speed, config) -> Sub.inverting $ \args ->
+    Ly.when_lilypond_config (note_trill_ly args neighbor)
+        (note_trill use_attributes neighbor speed config args)
+
+-- TODO configure supported trill attrs
+-- TODO configure lilypond tr or tremolo
+
+note_trill :: Bool -> BaseTypes.ControlRef -> BaseTypes.ControlRef
+    -> (Maybe Direction, Maybe Direction, BaseTypes.Duration, Adjust)
+    -> Derive.PassedArgs a -> Derive.NoteDeriver
+note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
+    | use_attributes = trill_attributes neighbor (Args.start args) >>= \case
+        Just attr ->
+            Call.add_attributes (Attrs.trill <> attr) (Call.placed_note args)
+        Nothing -> Call.add_attributes Attrs.trill trill_notes
+    | otherwise = trill_notes
+    where
+    trill_notes = do
         (transpose, control) <- trill_from_controls
             (Args.range_or_next args) start_dir end_dir adjust hold
             neighbor speed
@@ -116,29 +136,60 @@ c_note_trill hardcoded_start hardcoded_end =
                 return $ Sub.Event x (next-x) Call.note
         Call.add_control control (Score.untyped transpose) (Sub.derive notes)
 
--- TODO configure supported trill attrs
-c_attr_trill :: Derive.Generator Derive.Note
-c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
-    "Generate a trill by adding a `+trill` attribute. Presumably this is a\
-    \ sampled instrument that has a trill keyswitch."
-    $ Sig.call
-    ( defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
-        "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
-    ) $ \neighbor -> Sub.inverting $ \args -> do
-        start <- Args.real_start args
-        (width, typ) <- Call.transpose_control_at Typecheck.Chromatic neighbor
-            start
-        pitch <- Call.get_pitch start
-        diff <- Call.nn_difference start
-            (Pitches.transpose (Typecheck.to_transpose typ width) pitch) pitch
-        attr <- if
-            | Pitch.nns_equal diff 1 -> return Attrs.half
-            | Pitch.nns_equal diff 2 -> return Attrs.whole
-            -- TODO fall back on setting +trill attr, if supported
-            | otherwise -> Derive.throw $
-                "attribute trill only supports 1c and 2c trills: "
-                <> pretty diff
-        Call.add_attributes (Attrs.trill <> attr) (Call.placed_note args)
+trill_attributes :: BaseTypes.ControlRef -> ScoreTime
+    -> Derive.Deriver (Maybe Attrs.Attributes)
+trill_attributes neighbor start = do
+    start <- Derive.real start
+    (pitch, neighbor) <- pitch_and_neighbor neighbor start
+    diff <- Call.nn_difference start neighbor pitch
+    return $ if
+        | Pitch.nns_equal diff 1 -> Just Attrs.half
+        | Pitch.nns_equal diff 2 -> Just Attrs.whole
+        | otherwise -> Nothing
+
+note_trill_ly :: Derive.PassedArgs a -> BaseTypes.ControlRef -> Types.Config
+    -> Derive.NoteDeriver
+note_trill_ly args neighbor config = do
+    start <- Args.real_start args
+    (pitch, neighbor) <- pitch_and_neighbor neighbor start
+    diff <- Call.nn_difference start neighbor pitch
+    if
+        | Pitch.nns_equal diff 1 || Pitch.nns_equal diff 2 ->
+            -- TODO emit an accidental or not based on the key, or just
+            -- always use tremolo notation.
+            Ly.add_code (Ly.NoteAppendAll, "\\trill") $ Call.placed_note args
+        | otherwise -> tremolo_trill_ly config pitch neighbor
+            (Args.start args) (Args.duration args)
+
+pitch_and_neighbor :: BaseTypes.ControlRef -> RealTime
+    -> Derive.Deriver (PSignal.Pitch, PSignal.Pitch)
+pitch_and_neighbor neighbor start = do
+    (width, typ) <- Call.transpose_control_at Typecheck.Diatonic neighbor start
+    pitch <- Call.get_pitch start
+    return (pitch, Pitches.transpose (Typecheck.to_transpose typ width) pitch)
+
+tremolo_trill_ly :: Types.Config -> PSignal.Pitch -> PSignal.Pitch
+    -> ScoreTime -> ScoreTime -> Derive.NoteDeriver
+tremolo_trill_ly config pitch1 pitch2 start dur = do
+    real_start <- Derive.real start
+    real_dur <- Derive.real dur
+    pitch1 <- Derive.resolve_pitch real_start pitch1
+    pitch2 <- Derive.resolve_pitch real_start pitch2
+    code <- Derive.require_right id $ do
+        p1 <- Lilypond.Convert.pitch_to_lily pitch1
+        p2 <- Lilypond.Convert.pitch_to_lily pitch2
+        tremolo_trill_code (Types.config_quarter_duration config) p1 p2 real_dur
+    Ly.code (start, dur) code
+
+tremolo_trill_code :: RealTime -> Text -> Text -> RealTime -> Either Text Ly.Ly
+tremolo_trill_code per_quarter pitch1 pitch2 dur
+    | frac == 0 = Right $ "\\repeat tremolo " <> showt times
+        <> " { " <> pitch1 <> "32( " <> pitch2 <> "32) }"
+    | otherwise = Left $ "dur " <> pretty dur <> " doesn't yield an integral\
+        \ number of 16th notes: " <> pretty (wholes * 16)
+    where
+    wholes = dur / per_quarter / 4
+    (times, frac) = properFraction $ wholes * 16
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly

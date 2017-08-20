@@ -933,6 +933,8 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
+    Not only does it not go crazy for non 12-tet, but it preserves accidentals.
   * Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
   * emit artificial harmonics notation: <e a\harmonic>2
     . I need to know open strings, and optionally a desired string.  Use
@@ -954,8 +956,20 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
-    - trill at wider intervals should emit tremolo notation
+    * trill at wider intervals should emit tremolo notation
       . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
+      . This is yet another nested notation, just like triplet.
+        It's simpler in that I just have two pitches inside, with no code
+        attachments.
+      . However, it has to break across barlines, ...
+      - How do I set the accidental on the neighbor pitch?
+        . I could extend 'tr' to take an explicit neighbor pitch.
+      - Configure to use tremolo for all trills.
+    * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
+      a performance attr without putting 'tr's everywhere.
+    - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
+      an untyped ControlRef.  Can I make it default to Diatonic?
+    - Lilypond puts 3 on sextuplets.
     - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8
     - how to write harmonic gliss?

@@ -15,6 +15,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Signal as Signal
 import Global
 
@@ -34,6 +35,34 @@ test_note_trill = do
             [(7, 1, "tr"), (8, 1, "")] [(7, 0, "5b"), (8, 0, "3c")]
     equal logs []
     check ("dur > 0.05 " <> pretty notes) $ all (>0.05) [d | (_, d, _) <- notes]
+
+test_note_trill_ly = do
+    let run = LilypondTest.measures ["repeat"]
+            . LilypondTest.derive_tracks . UiTest.note_track
+    equal (run [(0, 4, "tr -- 3c")]) (Right "c1 \\trill", [])
+    equal (run [(0, 2, "tr -- 3c")]) (Right "c2 \\trill r2", [])
+    -- TODO should be trill (b)
+    equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1 \\trill", [])
+    equal (run [(0, 4, "tr 7c -- 3c")])
+        (Right "\\repeat tremolo 16 { c32( g32) }", [])
+    equal (run [(0, 4, "tr 4 -- 3c")])
+        (Right "\\repeat tremolo 16 { c32( g32) }", [])
+
+    -- equal (run [(0, 4, "tr (3gb) -- 3c")])
+    --     (Right "\\repeat tremolo 16 { c32( gf32) }", [])
+
+test_attr_trill = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_setup with ""
+            . UiTest.note_track
+        with = CallTest.with_note_generator "tr"
+            (Trill.c_note_trill True Nothing Nothing)
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    equal (run [(0, 1, "tr -- 4c")]) ([((0, 1, "4c"), "+trill+whole")], [])
+    equal (run [(0, 1, "tr 1c -- 4c")]) ([((0, 1, "4c"), "+half+trill")], [])
+    equal (run [(0, 1, "tr -- 4e")]) ([((0, 1, "4e"), "+half+trill")], [])
+    equal (run [(0, 2, "tr 3c 1 -- 4e")])
+        ([((0, 1, "4e"), "+trill"), ((1, 1, "4g"), "+trill")], [])
 
 test_tremolo = do
     let run tempo notes = extract $ derive_tracks
@@ -110,16 +139,6 @@ test_chord_tremolo_function = do
     equal (f 3 []) []
     equal (f 6 [[(0, 4, 'a')], [(0, 4, 'b')]])
         [(0, 1, 'a'), (1, 1, 'b'), (2, 1, 'a'), (3, 1, 'b')]
-
-test_attr_trill = do
-    let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_setup with ""
-            . UiTest.note_track
-        with = CallTest.with_note_generator "tr" Trill.c_attr_trill
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
-    equal (run [(0, 1, "tr -- 4c")]) ([((0, 1, "4c"), "+trill+whole")], [])
-    equal (run [(0, 1, "tr 1c -- 4c")]) ([((0, 1, "4c"), "+half+trill")], [])
-    equal (run [(0, 1, "tr -- 4e")]) ([((0, 1, "4e"), "+half+trill")], [])
 
 -- * pitch calls
 

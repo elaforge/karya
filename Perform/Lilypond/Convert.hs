@@ -132,7 +132,8 @@ convert_pitch event = case Score.initial_pitch event of
 -- * util
 
 -- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
--- closest pitch.
+-- closest pitch.  TODO I should use Pitch for everyone.  Not only does it
+-- not go crazy for non 12-tet, but it preserves accidentals.
 pitch_to_lily :: PSignal.Transposed -> Either Text Pitch
 pitch_to_lily pitch
     | PSignal.pitch_scale_id pitch == Twelve.scale_id = do

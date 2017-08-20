@@ -51,7 +51,6 @@ simple_articulations =
     , (Attrs.pizz_right, "-+")
     , (Attrs.marcato, "-^")
     , (Attrs.staccato, "-.")
-    , (Attrs.trill, "\\trill")
     , (Attrs.portato, "-_")
     , (Attrs.tenuto, "--")
     , (Attrs.accent, "->")
