@@ -68,7 +68,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Convert as Lilypond.Convert
@@ -104,7 +103,8 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     \ all the notes with `+trill`, depending on the interval."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
-    <$> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
+    <$> Sig.defaulted "neighbor"
+        (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, config) -> Sub.inverting $ \args ->
@@ -330,8 +330,9 @@ c_pitch_trill hardcoded_start hardcoded_end =
     ("Generate a pitch signal of alternating pitches."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,,)
-    <$> required "note" "Base pitch."
-    <*> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
+    <$> Sig.required "note" "Base pitch."
+    <*> Sig.defaulted "neighbor"
+        (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> transition_env
     <*> trill_env hardcoded_start hardcoded_end
@@ -349,9 +350,9 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two pitches.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
-    <$> defaulted "val1" (Sig.pitch "xcut1") "First pitch."
-    <*> defaulted "val2" (Sig.pitch "xcut2") "Second pitch."
-    <*> defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+    <$> Sig.defaulted "val1" (Sig.pitch "xcut1") "First pitch."
+    <*> Sig.defaulted "val2" (Sig.pitch "xcut2") "Second pitch."
+    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
         "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
@@ -398,7 +399,7 @@ c_control_trill hardcoded_start hardcoded_end =
     \ alternating with 0, which can be used as a transposition signal."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,)
-    <$> defaulted "neighbor" (Sig.control "tr-neighbor" 1)
+    <$> Sig.defaulted "neighbor" (Sig.control "tr-neighbor" 1)
         "Alternate with this value."
     <*> trill_speed_arg <*> transition_env
     <*> trill_env hardcoded_start hardcoded_end
@@ -414,8 +415,8 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
     <$> Speed.arg
-    <*> defaulted "from" 1 "Start from this value."
-    <*> defaulted "to" 0 "End at this value."
+    <*> Sig.defaulted "from" 1 "Start from this value."
+    <*> Sig.defaulted "to" 0 "End at this value."
     ) $ \(speed, from, to) args -> do
         starts <- Speed.starts speed (Args.range_or_next args) True
         srate <- Call.get_srate
@@ -437,10 +438,10 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
     $ Sig.call ((,,)
-    <$> defaulted "speed" (Sig.typed_control "sine-speed" 1 Score.Real)
+    <$> Sig.defaulted "speed" (Sig.typed_control "sine-speed" 1 Score.Real)
         "Frequency."
-    <*> defaulted "amp" 1 "Amplitude, measured center to peak."
-    <*> defaulted "offset" 0 "Center point."
+    <*> Sig.defaulted "amp" 1 "Amplitude, measured center to peak."
+    <*> Sig.defaulted "offset" 0 "Center point."
     ) $ \(speed, amp, offset) args -> do
         (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
         case time_type of
@@ -473,9 +474,9 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two signals.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
-    <$> defaulted "val1" (Sig.control "xcut1" 1) "First value."
-    <*> defaulted "val2" (Sig.control "xcut2" 0) "Second value."
-    <*> defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+    <$> Sig.defaulted "val1" (Sig.control "xcut1" 1) "First value."
+    <*> Sig.defaulted "val2" (Sig.control "xcut2" 0) "Second value."
+    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
         "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
@@ -500,7 +501,8 @@ xcut_control hold val1 val2 =
 -- * util
 
 trill_speed_arg :: Sig.Parser BaseTypes.ControlRef
-trill_speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 14 Score.Real)
+trill_speed_arg =
+    Sig.defaulted "speed" (Sig.typed_control "tr-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
