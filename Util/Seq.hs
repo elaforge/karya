@@ -90,8 +90,12 @@ first_last start end xs = case xs of
     go [x] = [end x]
     go (x:xs) = x : go xs
 
+-- | Filter on the fst values returning Just.
+map_maybe_fst :: (a -> Maybe a2) -> [(a, b)] -> [(a2, b)]
+map_maybe_fst f xs = [(a, b) | (Just a, b) <- map (Arrow.first f) xs]
+
 -- | Filter on the snd values returning Just.
-map_maybe_snd :: (b -> Maybe b') -> [(a, b)] -> [(a, b')]
+map_maybe_snd :: (b -> Maybe b2) -> [(a, b)] -> [(a, b2)]
 map_maybe_snd f xs = [(a, b) | (a, Just b) <- map (Arrow.second f) xs]
 
 map_head :: (a -> a) -> [a] -> [a]
