@@ -18,6 +18,6 @@ test_convert = do
         mkevent (start, dur, pitch) =
             DeriveTest.mkevent (start, dur, pitch, [], Score.empty_instrument)
         extract e = (Types.event_start e, Types.event_duration e,
-            Types.event_pitch e)
+            maybe "" Types.to_lily (Types.event_pitch e))
     equal (f [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
         [LEvent.Event (0, 32, "b"), LEvent.Event (32, 64, "cs'")]

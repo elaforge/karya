@@ -14,6 +14,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Process (Voice(..))
@@ -45,35 +46,35 @@ test_process = do
             . LilypondTest.process_meters meters . map LilypondTest.simple_event
         simple = LilypondTest.process_simple [] . map LilypondTest.simple_event
 
-    equal (simple [(1, 1, "a"), (2, 8, "b")]) $
+    equal (simple [(1, 1, a3), (2, 8, b3)]) $
         Right "r4 a4 b2~ | b1~ | b2 r2"
     -- Rests are not dotted, even when they could be.
     -- I also get r8 r4, instead of r4 r8, see comment on 'allowed_time'.
-    equal (simple [(0, 1, "a"), (1.5, 1, "b"), (4, 1, "c")]) $
+    equal (simple [(0, 1, a3), (1.5, 1, b3), (4, 1, c3)]) $
         Right "a4 r8 b8~ b8 r8 r4 | c4 r4 r2"
-    equal (simple [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")]) $
+    equal (simple [(0, 2, a3), (3.5, 0.25, b3), (3.75, 0.25, c3)]) $
         Right "a2 r4 r8 b16 c16"
-    equal (simple [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $
+    equal (simple [(0, 0.5, a3), (0.5, 1, b3), (1.5, 0.5, c3)]) $
         Right "a8 b4 c8 r2"
     -- Skip a couple of measures.
-    equal (simple [(7, 1, "a"), (8, 1, "b")]) $
+    equal (simple [(7, 1, a3), (8, 1, b3)]) $
         Right "R4*4 | r2 r4 a4 | b4 r4 r2"
-    equal (simple [(8, 1, "a"), (9, 1, "b")]) $
+    equal (simple [(8, 1, a3), (9, 1, b3)]) $
         Right "R4*4 | R4*4 | a4 b4 r2"
     equal (f [] ["4/4"] []) $ Right "R4*4"
     equal (f [] ["4/4", "4/4"] []) $ Right "R4*4 | R4*4"
 
-    equal (f ["time", "key"] ["4/4"] [(0, 1, "a")]) $
+    equal (f ["time", "key"] ["4/4"] [(0, 1, a3)]) $
         Right "\\time 4/4 \\key c \\major a4 r4 r2"
-    equal (f ["time", "key"] ["4/4", "4/4"] [(0, 8, "a")]) $
+    equal (f ["time", "key"] ["4/4", "4/4"] [(0, 8, a3)]) $
         Right "\\time 4/4 \\key c \\major a1~ | a1"
 
     -- Key and meter are still at the beginning.
-    equal (f ["time", "key"] ["4/4"] [(1, 1, "a")]) $
+    equal (f ["time", "key"] ["4/4"] [(1, 1, a3)]) $
         Right "\\time 4/4 \\key c \\major r4 a4 r2"
 
     -- Meter change.
-    equal (f ["time"] ["2/4", "4/4"] [(0, 6, "a")]) $
+    equal (f ["time"] ["2/4", "4/4"] [(0, 6, a3)]) $
         Right "\\time 2/4 a2~ | \\time 4/4 a1"
 
 test_meters = do
@@ -87,21 +88,21 @@ test_dotted_rests = do
             . LilypondTest.process_meters [meter]
             . map LilypondTest.simple_event
     -- Rests are allowed to be dotted when the meter isn't duple.
-    equal (f "3+3/8" [(1.5, 0.5, "a")]) $ Right "r4. a8 r4"
-    equal (f "4/4" [(3, 1, "a")]) $ Right "r2 r4 a4"
+    equal (f "3+3/8" [(1.5, 0.5, a3)]) $ Right "r4. a8 r4"
+    equal (f "4/4" [(3, 1, a3)]) $ Right "r2 r4 a4"
 
 test_chords = do
     let f = LilypondTest.process_simple [] . map LilypondTest.simple_event
-    -- Homogenous durations.
-    equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right "<a c>4 r4 r2"
+    -- Homogenous durations.  Also, winds up as <c a> since a is higher than c.
+    equal (f [(0, 1, a3), (0, 1, c3)]) $ Right "<c a>4 r4 r2"
     -- Starting at the same time.
-    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right "<a~ c>4 a4 r2"
+    equal (f [(0, 2, a3), (0, 1, c3)]) $ Right "<c a~>4 a4 r2"
     -- Starting at different times.
-    equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right "a4~ <a c>4 r2"
-    equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $
-        Right "a4~ <a c~>4 <c e~>4 e4"
+    equal (f [(0, 2, a3), (1, 1, c3)]) $ Right "a4~ <c a>4 r2"
+    equal (f [(0, 2, a3), (1, 2, c3), (2, 2, e3)]) $
+        Right "a4~ <c~ a>4 <c e~>4 e4"
     -- Only some notes in the chord are tied.
-    equal (f [(0, 8, "a"), (0, 4, "b"), (4, 4, "b")]) $
+    equal (f [(0, 8, a3), (0, 4, b3), (4, 4, b3)]) $
         Right "<a~ b>1 | <a b>1"
 
 test_code_events = do
@@ -110,21 +111,23 @@ test_code_events = do
         prepend = [(Constants.v_prepend, Typecheck.to_val ("a" :: Text))]
         append = [(Constants.v_append_all, Typecheck.to_val ("b" :: Text))]
     -- Code that falls in the middle of rests.
-    equal (f [(0, 0, "?", append), (0, 0, "?", prepend)])
+    equal (f [(0, 0, Nothing, append), (0, 0, Nothing, prepend)])
         (Right "a b")
-    equal (f [(0, 0, "?", append), (1, 0, "?", prepend), (2, 2, "a", [])])
+    equal (f [(0, 0, Nothing, append), (1, 0, Nothing, prepend),
+            (2, 2, Just a3, [])])
         (Right "a r2 b a2")
 
     -- Code that falls in the middle of notes.
-    equal (f [(0, 1, "a", []), (0.5, 0, "?", append), (0.5, 0, "?", prepend),
-            (1, 1, "b", [])])
+    equal (f [(0, 1, Just a3, []), (0.5, 0, Nothing, append),
+            (0.5, 0, Nothing, prepend), (1, 1, Just b3, [])])
         (Right "a a4 b b4 r2")
-    equal (f [(0, 8, "a", []), (2, 0, "?", append), (6, 0, "?", prepend),
-            (8, 4, "b", [])])
+    equal (f [(0, 8, Just a3, []), (2, 0, Nothing, append),
+            (6, 0, Nothing, prepend), (8, 4, Just b3, [])])
         (Right "a1~ b | a a1 | b1")
 
     -- Code with duration.
-    equal (f [(0, 1, "a", []), (2, 1, "", append), (4, 1, "b", [])])
+    equal (f [(0, 1, Just a3, []), (2, 1, Nothing, append),
+            (4, 1, Just b3, [])])
         (Right "a4 r4 b r4 | b4 r4 r2")
 
 test_voices = do
@@ -133,22 +136,22 @@ test_voices = do
             . map LilypondTest.voice_event
 
     equal (f [] ["4/4"]
-            [ (0, 1, "a", Nothing)
-            , (1, 1, "b", Just 1), (1, 1, "c", Just 2)
-            , (2, 1, "d", Nothing)
+            [ (0, 1, a3, Nothing)
+            , (1, 1, b3, Just 1), (1, 1, c3, Just 2)
+            , (2, 1, d3, Nothing)
             ]) $
         Right [Right "a4", Left [(VoiceOne, "b4"), (VoiceTwo, "c4")],
             Right "d4 r4"]
     -- Voices padded out to the longest one.
     equal (f [] ["4/4"]
-            [(0, 2, "b", Just 1), (0, 1, "c", Just 2)]) $
+            [(0, 2, b3, Just 1), (0, 1, c3, Just 2)]) $
         Right [Left [(VoiceOne, "b2"), (VoiceTwo, "c4 r4")], Right "r2"]
 
     -- Starting and ending in the middle of a measure works.
     equal (f [] ["4/4", "4/4"]
-            [ (0, 2, "a", Nothing)
-            , (2, 4, "b", Just 1), (2, 2, "c", Just 2)
-            , (6, 2, "d", Nothing)
+            [ (0, 2, a3, Nothing)
+            , (2, 4, b3, Just 1), (2, 2, c3, Just 2)
+            , (6, 2, d3, Nothing)
             ]) $
         Right
             [ Right "a2"
@@ -158,7 +161,7 @@ test_voices = do
 
     -- Changing meter in the middle works.
     equal (f ["time"] ["2/4", "4/4"]
-            [(0, 4, "a", Just 2), (0, 4, "b", Just 1)]) $
+            [(0, 4, a3, Just 2), (0, 4, b3, Just 1)]) $
         Right
             [ Right "\\time 2/4"
             , Left
@@ -172,24 +175,24 @@ test_simplify_voices = do
     let f = fmap LilypondTest.unwords_right . LilypondTest.extract_lys (Just [])
             . LilypondTest.process . map LilypondTest.voice_event
     -- No voices.
-    equal (f [(0, 4, "a", Nothing)]) $
-        Right [Right "a1"]
+    equal (f [(0, 4, c3, Nothing)]) $
+        Right [Right "c1"]
     -- Simple voices.
-    equal (f [(0, 4, "a", Just 1), (0, 4, "b", Just 2)]) $
-        Right [Left [(VoiceOne, "a1"), (VoiceTwo, "b1")]]
+    equal (f [(0, 4, c3, Just 1), (0, 4, d3, Just 2)]) $
+        Right [Left [(VoiceOne, "c1"), (VoiceTwo, "d1")]]
     -- Just one voice is omitted entirely.
-    equal (f [(0, 2, "a", Just 1), (8, 4, "b", Just 1)]) $
-        Right [Right "a2 r2 | R4*4 | b1"]
+    equal (f [(0, 2, c3, Just 1), (8, 4, d3, Just 1)]) $
+        Right [Right "c2 r2 | R4*4 | d1"]
     -- Empty measures are stripped, and the single voice is then flattened.
-    equal (f [(0, 2, "a", Just 1), (8, 4, "b", Just 1), (8, 4, "c", Just 2)]) $
+    equal (f [(0, 2, c3, Just 1), (8, 4, d3, Just 1), (8, 4, e3, Just 2)]) $
         Right
-            [ Right "a2 r2 | R4*4 |"
-            , Left [(VoiceOne, "b1"), (VoiceTwo, "c1")]
+            [ Right "c2 r2 | R4*4 |"
+            , Left [(VoiceOne, "d1"), (VoiceTwo, "e1")]
             ]
     -- Filter out non-present voices.
     equal (f
-            [ (0, 4, "a", Just 1), (0, 4, "b", Just 2), (0, 4, "c", Just 3)
-            , (4, 4, "d", Just 1), (4, 4, "e", Just 2)
+            [ (0, 4, a3, Just 1), (0, 4, b3, Just 2), (0, 4, c3, Just 3)
+            , (4, 4, d3, Just 1), (4, 4, e3, Just 2)
             ]) $
         Right
             [ Left [(VoiceOne, "a1 |"), (VoiceTwo, "b1 |")
@@ -205,34 +208,34 @@ test_voices_and_code = do
 
     -- Code events are assigned to the first voice.
     equal (f ["mf"]
-            [ (0, 0, "", [append "\\mf"])
-            , (0, 1, "b", [v 1])
-            , (0, 1, "c", [v 2])
+            [ (0, 0, Nothing, [append "\\mf"])
+            , (0, 1, Just c3, [v 1])
+            , (0, 1, Just d3, [v 2])
             ]) $
         Right
-            [ Left [(VoiceOne, "b4 \\mf"), (VoiceTwo, "c4")]
+            [ Left [(VoiceOne, "c4 \\mf"), (VoiceTwo, "d4")]
             , Right "r4 r2"
             ]
 
     -- But code afterwards doesn't get included.
     equal (f ["mf"]
-            [ (0, 1, "b", [v 1])
-            , (0, 1, "c", [v 2])
-            , (1, 0, "", [append "\\mf"])
-            , (1, 1, "d", [])
+            [ (0, 1, Just c3, [v 1])
+            , (0, 1, Just d3, [v 2])
+            , (1, 0, Nothing, [append "\\mf"])
+            , (1, 1, Just e3, [])
             ]) $
         Right
-            [ Left [(VoiceOne, "b4"), (VoiceTwo, "c4")]
-            , Right "d4 \\mf r2"
+            [ Left [(VoiceOne, "c4"), (VoiceTwo, "d4")]
+            , Right "e4 \\mf r2"
             ]
 
     -- Code isn't lost if the voice is simplified away.
     equal (f ["mf"]
-            [ (0, 0, "", [append "\\mf"])
-            , (0, 4, "a", [v 2])
-            , (4, 4, "b", [v 1])
+            [ (0, 0, Nothing, [append "\\mf"])
+            , (0, 4, Just c3, [v 2])
+            , (4, 4, Just d3, [v 1])
             ]) $
-        Right [Right "a1 \\mf | b1"]
+        Right [Right "c1 \\mf | d1"]
 
 test_attrs_to_code = do
     let f = Process.attrs_to_code
@@ -240,35 +243,35 @@ test_attrs_to_code = do
     equal (f Attrs.nv Attrs.staccato) (["-."], (Attrs.staccato <> Attrs.nv))
 
     let run es = LilypondTest.process_simple []
-            [ LilypondTest.attrs_event (t, 1, Text.singleton p, attrs)
-            | (t, p, attrs) <- zip3 (Seq.range_ 0 1) "abcdefg" es
+            [ LilypondTest.attrs_event (t, 1, p, attrs)
+            | (t, p, attrs) <- zip3 (Seq.range_ 0 1) [c3, d3, e3] es
             ]
-    equal (run [Attrs.staccato, Attrs.accent]) (Right "a4-. b4-> r2")
+    equal (run [Attrs.staccato, Attrs.accent]) (Right "c4-. d4-> r2")
     equal (run [Attrs.nv, Attrs.nv, mempty])
-        (Right "a4^\"nv\" b4 c4^\"vib\" r4")
+        (Right "c4^\"nv\" d4 e4^\"vib\" r4")
     -- Even though staccato doesn't have +nv, I don't bother turning it off.
     equal (run [Attrs.nv, Attrs.staccato, mempty])
-        (Right "a4^\"nv\" b4-. c4^\"vib\" r4")
+        (Right "c4^\"nv\" d4-. e4^\"vib\" r4")
 
 test_convert_tuplet = do
     let run = second extract
             . Process.process Types.default_config 0
                 (replicate 2 Meter.default_meter)
         tuplet start score_dur real_dur =
-            (LilypondTest.simple_event (start, 0, ""))
+            (LilypondTest.mkevent start 0 Nothing LilypondTest.default_inst [])
             { Types.event_environ = Constants.set_tuplet score_dur real_dur }
         e = LilypondTest.simple_event
         extract = Text.unwords . map Types.to_lily . strip_ly . map expect_right
 
-    equal (run $ tuplet 0 3 4 : map e [(0, 1, "c"), (1, 1, "d"), (2, 1, "e")])
+    equal (run $ tuplet 0 3 4 : map e [(0, 1, c3), (1, 1, d3), (2, 1, e3)])
         (Right "\\tuplet 3/2 { c2 d2 e2 } | R4*4")
 
     -- leading and trailing rests
-    equal (run [tuplet 0 3 4, e (1, 1, "d")])
+    equal (run [tuplet 0 3 4, e (1, 1, d3)])
         (Right "\\tuplet 3/2 { r2 d2 r2 } | R4*4")
 
     -- can't go past a barline
-    left_like (run [tuplet 3 3 4, e (3, 1, "c")]) "tuplet: * past barline"
+    left_like (run [tuplet 3 3 4, e (3, 1, c3)]) "tuplet: * past barline"
 
     -- Nested tuplets.
     -- 0   .   1   .   2   .   3   .   4   .   |

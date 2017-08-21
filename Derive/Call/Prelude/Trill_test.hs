@@ -42,7 +42,7 @@ test_note_trill = do
     --     ([(0, 1, "4c"), (1, 1, "4db"), (2, 1, "4c")], [])
 
     let run_nn = DeriveTest.extract e_nn . derive_tracks . UiTest.note_track
-        e_nn e = (Score.event_start e, DeriveTest.e_nn e)
+        e_nn e = (Score.event_start e, Score.initial_nn e)
     equal (run_nn [(0, 3, "tr 1c 1 -- 4c")])
         ([(0, Just NN.c4), (1, Just NN.cs4), (2, Just NN.c4)], [])
     equal (run_nn [(0, 3, "tr (4db) 1 -- 4c")])

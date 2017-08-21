@@ -87,12 +87,12 @@ convert_event quarter event = run $ do
     let dur = Types.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch event
     pitch <- case (dur, maybe_pitch) of
-        (0, _) -> check_0dur >> return ""
+        (0, _) -> check_0dur >> return Nothing
         (_, Nothing)
             | not (has_prepend || has_append) ->
                 throw "event with non-zero duration and no code requires pitch"
-            | otherwise -> return ""
-        (_, Just pitch) -> return pitch
+            | otherwise -> return Nothing
+        (_, Just pitch) -> return (Just pitch)
     return $ Types.Event
         { event_start = Types.real_to_time quarter (Score.event_start event)
         , event_duration =
@@ -121,9 +121,8 @@ convert_event quarter event = run $ do
 throw :: (CallStack.Stack, Except.MonadError Log.Msg m) => Text -> m a
 throw = Except.throwError . Log.msg Log.Warn Nothing
 
-type Pitch = Text
-
-convert_pitch :: Except.MonadError Log.Msg m => Score.Event -> m (Maybe Pitch)
+convert_pitch :: Except.MonadError Log.Msg m => Score.Event
+    -> m (Maybe Types.Pitch)
 convert_pitch event = case Score.initial_pitch event of
     Nothing -> return Nothing
     Just pitch -> either (throw . ("convert_pitch: "<>)) (return . Just) $
@@ -134,21 +133,21 @@ convert_pitch event = case Score.initial_pitch event of
 -- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
 -- closest pitch.  TODO I should use Pitch for everyone.  Not only does it
 -- not go crazy for non 12-tet, but it preserves accidentals.
-pitch_to_lily :: PSignal.Transposed -> Either Text Pitch
+pitch_to_lily :: PSignal.Transposed -> Either Text Types.Pitch
 pitch_to_lily pitch
     | PSignal.pitch_scale_id pitch == Twelve.scale_id = do
         note <- first showt $ PSignal.pitch_note pitch
-        show_note note
+        parse_note note
     | otherwise = do
         nn <- first showt $ PSignal.pitch_nn pitch
         note <- require ("nn out of range: " <> pretty nn) $
             Twelve.nn_to_note nn
-        show_note note
+        parse_note note
     where
-    show_note note = do
+    parse_note note = do
         pitch <- require ("unparseable note: " <> pretty note) $
             Twelve.read_absolute_pitch note
-        Types.show_pitch pitch
+        Types.parse_pitch pitch
     require msg Nothing = Left msg
     require _ (Just x) = Right x
 

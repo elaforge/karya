@@ -247,7 +247,7 @@ multiply factor t
 data Event = Event {
     event_start :: !Time
     , event_duration :: !Time
-    , event_pitch :: !Text
+    , event_pitch :: !(Maybe Pitch)
     , event_instrument :: !Score.Instrument
     , event_environ :: !BaseTypes.Environ
     , event_stack :: !Stack.Stack
@@ -268,7 +268,7 @@ instance Pretty Event where
     format (Event start dur pitch inst env _stack _clipped) =
         Pretty.constructor "Event"
             [ Pretty.format start, Pretty.format dur
-            , Pretty.text pitch, Pretty.format inst
+            , maybe "<none>" (Pretty.text . to_lily) pitch, Pretty.format inst
             , Pretty.format $ strip_environ env
             ]
 
@@ -284,25 +284,49 @@ strip_environ (BaseTypes.Environ env) =
 
 -- * pitch
 
-show_pitch :: Pitch.Pitch -> Either Text Text
-show_pitch (Pitch.Pitch octave note) = (<> oct_mark) <$> show_pitch_note note
-    where
-    oct_mark
-        | oct >= 0 = Text.replicate oct "'"
-        | otherwise = Text.replicate (abs oct) ","
-        where oct = octave - 3
+data Pitch = Pitch !Int !PitchClass !Accidentals
+    deriving (Eq, Show, Ord)
+data PitchClass = C | D | E | F | G | A | B
+    deriving (Eq, Show, Ord)
+data Accidentals = FlatFlat | Flat | Natural | Sharp | SharpSharp
+    deriving (Eq, Show, Ord)
 
-show_pitch_note :: Pitch.Degree -> Either Text Text
-show_pitch_note (Pitch.Degree pc accs) = do
-    acc <- case accs of
-        -2 -> Right "ff"
-        -1 -> Right "f"
-        0 -> Right ""
-        1 -> Right "s"
-        2 -> Right "ss"
-        _ -> Left $ "too many accidentals: " <> showt accs
-    t <- case pc of
-            0 -> Right 'c'; 1 -> Right 'd'; 2 -> Right 'e'; 3 -> Right 'f'
-            4 -> Right 'g'; 5 -> Right 'a'; 6 -> Right 'b'
-            _ -> Left $ "pitch class out of range 0-6: " <> showt pc
-    return $ Text.cons t acc
+instance ToLily Pitch where
+    to_lily (Pitch octave pc acc) = to_lily pc <> to_lily acc <> oct_mark
+        where
+        oct_mark
+            | oct >= 0 = Text.replicate oct "'"
+            | otherwise = Text.replicate (abs oct) ","
+            where oct = octave - 3
+
+instance ToLily PitchClass where
+    to_lily pc = case pc of
+        C -> "c"; D -> "d"; E -> "e"; F -> "f"
+        G -> "g"; A -> "a"; B -> "b"
+
+instance ToLily Accidentals where
+    to_lily acc = case acc of
+        FlatFlat -> "ff"
+        Flat -> "f"
+        Natural -> ""
+        Sharp -> "s"
+        SharpSharp -> "ss"
+
+parse_pitch :: Pitch.Pitch -> Either Text Pitch
+parse_pitch (Pitch.Pitch octave degree) =
+    uncurry (Pitch octave) <$> parse_degree degree
+
+parse_degree :: Pitch.Degree -> Either Text (PitchClass, Accidentals)
+parse_degree (Pitch.Degree pc acc) = (,) <$> p_pc <*> p_acc
+    where
+    p_pc = case pc of
+        0 -> Right C; 1 -> Right D; 2 -> Right E; 3 -> Right F
+        4 -> Right G; 5 -> Right A; 6 -> Right B
+        _ -> Left $ "pitch class out of range 0-6: " <> showt pc
+    p_acc = case acc of
+        -2 -> Right FlatFlat
+        -1 -> Right Flat
+        0 -> Right Natural
+        1 -> Right Sharp
+        2 -> Right SharpSharp
+        _ -> Left $ "too many accidentals: " <> showt acc

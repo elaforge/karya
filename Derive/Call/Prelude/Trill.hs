@@ -42,6 +42,7 @@
 module Derive.Call.Prelude.Trill where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -222,10 +223,14 @@ tremolo_trill_ly config pitch1 pitch2 start dur = do
         tremolo_trill_code (Types.config_quarter_duration config) p1 p2 real_dur
     Ly.code (start, dur) code
 
-tremolo_trill_code :: RealTime -> Text -> Text -> RealTime -> Either Text Ly.Ly
+tremolo_trill_code :: RealTime -> Types.Pitch -> Types.Pitch -> RealTime
+    -> Either Text Ly.Ly
 tremolo_trill_code per_quarter pitch1 pitch2 dur
-    | frac == 0 = Right $ "\\repeat tremolo " <> showt times
-        <> " { " <> pitch1 <> "32( " <> pitch2 <> "32) }"
+    | frac == 0 = Right $ Text.unwords
+        [ "\\repeat tremolo", showt times
+        , "{", Types.to_lily pitch1 <> "32(", Types.to_lily pitch2 <> "32)"
+        , "}"
+        ]
     | otherwise = Left $ "dur " <> pretty dur <> " doesn't yield an integral\
         \ number of 16th notes: " <> pretty (wholes * 16)
     where

@@ -409,7 +409,10 @@ make_note measure_start prev_attrs maybe_meter events next =
     first = NonEmpty.head events
     -- If there are no pitches, then this is code with duration.
     note_pitches = do
-        event <- NonEmpty.toList events
+        -- Sorting by pitch puts the chord notes in a predictable order.  Some
+        -- lilypond notation, such as glissandoMap, refers to chord notes by
+        -- index.
+        event <- Seq.sort_on event_pitch $ NonEmpty.toList events
         let pitch = get_pitch event
         guard (not (Text.null pitch))
         let tie = note_tie event
@@ -426,7 +429,7 @@ make_note measure_start prev_attrs maybe_meter events next =
             note_pitches
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList events)))
-    get_pitch event = event_pitch event
+    get_pitch event = maybe "" to_lily (event_pitch event)
         <> if is_first event then get Constants.v_append_pitch event else ""
 
     -- These will wind up with "" in them, but t_unwords strips that.
@@ -906,7 +909,8 @@ parse_key :: Text -> Either Text Key
 parse_key key_name = do
     key <- justErr ("unknown key: " <> key_name) $
         Map.lookup (Pitch.Key key_name) Twelve.all_keys
-    tonic <- Types.show_pitch_note (Theory.key_tonic key)
+    (pc, acc) <- Types.parse_degree (Theory.key_tonic key)
+    let tonic = to_lily pc <> to_lily acc
     mode <- justErr ("unknown mode: " <> Theory.key_name key) $
         Map.lookup (Theory.key_name key) modes
     return $ Key tonic mode

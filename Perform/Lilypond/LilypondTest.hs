@@ -123,26 +123,29 @@ mktime wholes = Types.Time $ floor $
 time_to_wholes :: Types.Time -> Double
 time_to_wholes = (/ fromIntegral Types.time_per_whole) . fromIntegral
 
-type SimpleEvent = (RealTime, RealTime, Text)
+type SimpleEvent = (RealTime, RealTime, Types.Pitch)
 
 simple_event :: SimpleEvent -> Types.Event
-simple_event (start, dur, pitch) = mkevent start dur pitch default_inst []
+simple_event (start, dur, pitch) =
+    mkevent start dur (Just pitch) default_inst []
 
-environ_event :: (RealTime, RealTime, Text, [(Env.Key, BaseTypes.Val)])
+attrs_event :: (RealTime, RealTime, Types.Pitch, Attrs.Attributes)
+    -> Types.Event
+attrs_event (start, dur, pitch, attrs) = environ_event
+    (start, dur, Just pitch, [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
+
+environ_event ::
+    (RealTime, RealTime, Maybe Types.Pitch, [(Env.Key, BaseTypes.Val)])
     -> Types.Event
 environ_event (start, dur, pitch, env) =
     mkevent start dur pitch default_inst env
 
-attrs_event :: (RealTime, RealTime, Text, Attrs.Attributes) -> Types.Event
-attrs_event (start, dur, pitch, attrs) = environ_event
-    (start, dur, pitch, [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
-
-voice_event :: (RealTime, RealTime, Text, Maybe Int) -> Types.Event
+voice_event :: (RealTime, RealTime, Types.Pitch, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
-    mkevent start dur pitch default_inst $
+    mkevent start dur (Just pitch) default_inst $
         maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.to_val) maybe_voice
 
-mkevent :: RealTime -> RealTime -> Text -> Score.Instrument
+mkevent :: RealTime -> RealTime -> Maybe Types.Pitch -> Score.Instrument
     -> [(Env.Key, BaseTypes.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
     { event_start = Types.real_to_time 1 start
@@ -156,6 +159,20 @@ mkevent start dur pitch inst env = Types.Event
 
 default_inst :: Score.Instrument
 default_inst = Score.Instrument "test"
+
+-- * pitches
+
+a3, b3, c3, d3, e3, f3, g3 :: Types.Pitch
+a3 = pitch Types.A
+b3 = pitch Types.B
+c3 = pitch Types.C
+d3 = pitch Types.D
+e3 = pitch Types.E
+f3 = pitch Types.F
+g3 = pitch Types.G
+
+pitch :: Types.PitchClass -> Types.Pitch
+pitch pc = Types.Pitch 3 pc Types.Natural
 
 
 -- * derive
@@ -268,7 +285,11 @@ make_ly config events = Text.Lazy.toStrict $
 -- * extract
 
 e_note :: Types.Event -> (Types.Time, Types.Time, Text)
-e_note e = (Types.event_start e, Types.event_duration e, Types.event_pitch e)
+e_note e =
+    ( Types.event_start e
+    , Types.event_duration e
+    , maybe "" Types.to_lily $ Types.event_pitch e
+    )
 
 e_ly_env :: Score.Event -> [(Env.Key, Text)]
 e_ly_env = DeriveTest.e_environ_like ("ly-" `Text.isPrefixOf`)

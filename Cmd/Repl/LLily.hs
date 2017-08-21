@@ -217,7 +217,7 @@ convert = do
 
 e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
 e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
-    Lilypond.event_pitch e)
+    maybe "" Lilypond.to_lily (Lilypond.event_pitch e))
 
 -- ** LPerf
 

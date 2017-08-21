@@ -263,8 +263,8 @@ note_pitch deriver = do
     prefix = "Ly.note_pitch: "
 
 pitch_to_lily :: PSignal.Transposed -> Derive.Deriver Note
-pitch_to_lily =
-    Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily
+pitch_to_lily = fmap Types.to_lily
+    . Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily
 
 to_time :: Types.Config -> RealTime -> Types.Time
 to_time = Types.real_to_time . Types.config_quarter_duration

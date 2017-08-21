@@ -129,7 +129,7 @@ test_key = do
 
 test_ly_prepend_append = do
     let f env = LilypondTest.convert_measures [] $
-            map LilypondTest.environ_event [(0, 12, "a", env)]
+            map LilypondTest.environ_event [(0, 12, Just LilypondTest.a3, env)]
         str :: BaseTypes.Key -> Text -> [(BaseTypes.Key, BaseTypes.Val)]
         str key val = [(key, Typecheck.to_val val)]
     equal (f []) $ Right "a1~ | a1~ | a1"
@@ -146,20 +146,20 @@ test_ly_code = do
             UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
             ++ [(">", [(1, 0, "pre")])]
             ++ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
-        (Right "<a' c'>4 pre <b' d'>4 r2", [])
+        (Right "<c' a'>4 pre <d' b'>4 r2", [])
     -- append
     equal (f $
             UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
             ++ [(">", [(1, 0, "post")])]
             ++ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
-        (Right "<a' c'>4 <b' d'>4 post r2", [])
+        (Right "<c' a'>4 <d' b'>4 post r2", [])
     -- prepend and append alone
     equal (f $
             UiTest.note_track [(0, 1, "4a"), (2, 1, "4b")]
             ++ [(">", [(1, 0, "post")])]
             ++ [(">", [(1, 0, "pre")])]
             ++ UiTest.note_track [(0, 1, "4c"), (2, 1, "4d")])
-        (Right "<a' c'>4 pre r4 post <b' d'>4 r4", [])
+        (Right "<c' a'>4 pre r4 post <d' b'>4 r4", [])
     where
     calls = CallTest.with_note_generator "pre" c_pre
         <> CallTest.with_note_generator "post" c_post

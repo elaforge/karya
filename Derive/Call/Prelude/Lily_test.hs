@@ -13,6 +13,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import qualified Perform.Lilypond.Types as Types
 
 import Global
 
@@ -45,7 +46,7 @@ test_ly_track = do
         run_ly =
             LilypondTest.extract extract . LilypondTest.derive_tracks_linear
             where
-            extract e = (Lilypond.event_pitch e,
+            extract e = (maybe "" Types.to_lily (Lilypond.event_pitch e),
                 ShowVal.show_val (Lilypond.event_attributes e))
 
     -- tr       0       1       2       3

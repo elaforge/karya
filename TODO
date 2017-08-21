@@ -1008,6 +1008,10 @@ lilypond:
       line, e.g. 8 4 8 8 8
     - how to write harmonic gliss?
       I can do it manually but I need Ly.NoteAppendFirst.
+      . \set glissandoMap = #'((1 . 1))
+        \once \override Glissando.style = #'dashed-line
+        <...> \glissando
+      * But I need to sort the notes in a chord.
   squart/6:
     - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
       transitions
