@@ -367,6 +367,7 @@ data State = State {
     , state_history :: !History
     , state_history_config :: !HistoryConfig
     , state_history_collect :: !HistoryCollect
+    , state_selection_history :: !SelectionHistory
 
     -- | Map of keys held down.  Maintained by cmd_record_keys and accessed
     -- with 'keys_down'.
@@ -454,6 +455,7 @@ initial_state config = State
     , state_history = initial_history (empty_history_entry Ui.empty)
     , state_history_config = empty_history_config
     , state_history_collect = empty_history_collect
+    , state_selection_history = empty_selection_history
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
     , state_screens = []
@@ -970,6 +972,23 @@ instance Pretty HistoryCollect where
             , ("suppressed", Pretty.format suppressed)
             ]
 
+-- *** SelectionHistory
+
+-- | Remember previous selections.  This should be updated only by significant
+-- movements, so clicks and cmd-a, but not hjkl stuff.
+data SelectionHistory = SelectionHistory {
+    sel_past :: [(ViewId, Sel.Selection)]
+    , sel_future :: [(ViewId, Sel.Selection)]
+    } deriving (Eq, Show)
+
+empty_selection_history :: SelectionHistory
+empty_selection_history = SelectionHistory [] []
+
+instance Pretty SelectionHistory where
+    format (SelectionHistory past future) = Pretty.record "SelectionHistory"
+        [ ("past", Pretty.format past)
+        , ("future", Pretty.format future)
+        ]
 
 -- *** modifier
 

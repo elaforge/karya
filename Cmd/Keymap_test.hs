@@ -52,9 +52,10 @@ test_make_cmd = do
     equal (run [] (CmdTest.mouse True 2 0 0)) no_run
     equal (run [Cmd.MouseMod 1 Nothing] (CmdTest.mouse True 2 0 0))
         (did_run "chord-12" "cmd1")
+    -- mouse release is not bound
     equal (CmdTest.extract id (run_cmd cmd [Cmd.MouseMod 1 Nothing]
             (CmdTest.mouse False 2 0 0)))
-        aborted
+        (Right (Just Cmd.Continue, []))
     -- bind_drag binds both the click and the drag
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.mouse True 3 0 0))
         (did_run "drag-3" "cmd1")

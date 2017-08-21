@@ -97,6 +97,10 @@ bind_drag :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn
 bind_drag smods btn on desc cmd =
     bind smods (Click btn on 0) desc cmd ++ bind smods (Drag btn on) desc cmd
 
+bind_release :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn
+    -> Text -> (Msg.Msg -> m ()) -> [Binding m]
+bind_release smods btn on = bind smods (Release btn on)
+
 -- | Like 'bind_status' but the Cmd is expected to return (), which will become
 -- 'Cmd.Done'.  Since the cmd has already been matched on the bound key this is
 -- likely what it would have done anyway.
@@ -265,6 +269,7 @@ msg_to_bindable msg = case msg of
     (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
         UiMsg.MouseDown btn -> Just $ Click btn on (UiMsg.mouse_clicks mouse)
         UiMsg.MouseDrag btn -> Just $ Drag btn on
+        UiMsg.MouseUp btn -> Just $ Release btn on
         _ -> Nothing
     (Msg.midi -> Just (Midi.ChannelMessage chan (Midi.NoteOn key _))) ->
         Just $ Note chan key
@@ -282,6 +287,8 @@ data Bindable =
     -- | Click MouseButton Clicks
     | Click Types.MouseButton MouseOn Int
     | Drag Types.MouseButton MouseOn
+    -- | Mouse button release.
+    | Release Types.MouseButton MouseOn
     -- | Channel can be used to restrict bindings to a certain keyboard.  This
     -- should probably be something more abstract though, such as a device
     -- which can be set by the static config.
@@ -332,6 +339,7 @@ show_bindable show_repeatable b = case b of
     Click button on times -> click_times times <> "click "
         <> showt button <> " on " <> pretty on
     Drag button on -> "drag " <> showt button <> " on " <> pretty on
+    Release button on -> "release " <> showt button <> " on " <> pretty on
     Note chan key -> "midi " <> showt key <> " channel " <> showt chan
     where
     click_times 0 = ""

@@ -187,6 +187,8 @@ mouse_bindings = concat
         (Selection.cmd_mouse_selection btn Config.insert_selnum False)
     , bind_drag [Shift, PrimaryCommand] btn Keymap.OnTrack "extend selection"
         (Selection.cmd_mouse_selection btn Config.insert_selnum True)
+    , Keymap.bind_release [] btn Keymap.OnTrack "mouse release"
+        (const Selection.record_history)
 
     , bind_click [] btn Keymap.OnTrack 2 "open block"
         (const (BlockConfig.cmd_open_block False))
@@ -197,7 +199,7 @@ mouse_bindings = concat
     -- will interfere with the OnTrack bind_drag when you drag into the
     -- track.
     , bind_drag [] btn Keymap.OnSkeleton "select track"
-        (Selection.cmd_select_track btn Config.insert_selnum)
+        (Selection.cmd_select_track btn)
     , bind_click [] btn Keymap.OnSkeleton 2 "add block title"
         BlockConfig.cmd_add_block_title
     , bind_click [PrimaryCommand] btn Keymap.OnSkeleton 1
@@ -276,11 +278,10 @@ selection_bindings = concat
     , repeatable_char 'B' "extend selection to previous event" $
         Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
-    , plain_char 'A' "extend tracks" Selection.cmd_extend_tracks
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
         Selection.cmd_track_all
-    , bind_key [PrimaryCommand] (Key.Char 'A') "select tracks"
-        Selection.cmd_tracks
+    , bind_key [PrimaryCommand] (Key.Char 'A') "toggle extend tracks"
+        Selection.cmd_toggle_extend_tracks
     ]
     where
     move = Selection.default_move
@@ -308,10 +309,15 @@ view_config_bindings = concat
         (ViewConfig.cmd_zoom_around_insert (*0.8))
     , plain_char ']' "zoom in *1.25"
         (ViewConfig.cmd_zoom_around_insert (*1.25))
-    , plain_char '{' "zoom out *.95"
-        (ViewConfig.cmd_zoom_around_insert (*0.95))
-    , plain_char '}' "zoom out * 1/.95"
-        (ViewConfig.cmd_zoom_around_insert (* (1/0.95)))
+    , plain_char '{' "previous selection" (Selection.previous_selection True)
+    , plain_char '}' "next selection" (Selection.next_selection True)
+    -- I didn't wind up using these very much, so let's see if undo and redo
+    -- selection are more useful.
+    -- , plain_char '{' "zoom out *.95"
+    --     (ViewConfig.cmd_zoom_around_insert (*0.95))
+    -- , plain_char '}' "zoom out * 1/.95"
+    --     (ViewConfig.cmd_zoom_around_insert (* (1/0.95)))
+
     , plain_char '\\' "zoom to ruler or selection"
         ViewConfig.zoom_to_ruler_or_selection
     , command_char 'R' "resize to fit"

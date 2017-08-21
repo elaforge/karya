@@ -55,7 +55,13 @@ import Types
 -- This is the Cmd level of Ui.set_selection and should be called by
 -- any Cmd that wants to set the selection.
 set :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
-set view_id = set_selnum view_id Config.insert_selnum
+set view_id maybe_sel = do
+    record_history
+    set_selnum view_id Config.insert_selnum maybe_sel
+    record_history
+
+set_without_history :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
+set_without_history view_id = set_selnum view_id Config.insert_selnum
 
 set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selnum view_id selnum maybe_sel = do
@@ -113,17 +119,6 @@ set_block block_id ((_, pos) : _) = do
                 , cur_track = 999, cur_pos = pos
                 , orientation = Sel.Positive
                 }
-
--- | Figure out how much to scroll to keep the selection visible and with
--- reasonable space around it.
---
--- Anyone who wants to set a selection and automatically scroll the window to
--- follow the selection should use this function.
-set_and_scroll :: Cmd.M m => ViewId -> Sel.Num -> Sel.Selection -> m ()
-set_and_scroll view_id selnum sel = do
-    old <- Ui.get_selection view_id selnum
-    set_selnum view_id selnum (Just sel)
-    auto_scroll view_id old sel
 
 -- ** modify existing selection
 
@@ -190,7 +185,8 @@ step_with steps move step = do
                 }
             Move -> Sel.move (new_pos - cur_pos) old
             Replace -> Sel.point cur_track new_pos orient
-    set_and_scroll view_id Config.insert_selnum new_sel
+    set_without_history view_id (Just new_sel)
+    auto_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
 -- tracks and collapsed tracks.
@@ -221,7 +217,9 @@ modify f = do
     view_id <- Cmd.get_focused_view
     block <- Ui.block_of view_id
     sel <- Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
-    set_and_scroll view_id Config.insert_selnum $ f block sel
+    let new = f block sel
+    set_without_history view_id (Just new)
+    auto_scroll view_id Config.insert_selnum new
 
 data Direction = R | L deriving (Eq, Show)
 
@@ -263,13 +261,6 @@ get_tracks_from_selection from_edge dir = do
         R -> dropWhile ((<= tracknum) . Ui.track_tracknum) tracks
         L -> dropWhile ((>= tracknum) . Ui.track_tracknum) (reverse tracks)
 
--- | Extend the selection horizontally to encompass all tracks.
-cmd_extend_tracks :: Cmd.M m => m ()
-cmd_extend_tracks = do
-    (view_id, sel) <- get_view
-    tracks <- Ui.track_count =<< Ui.block_id_of view_id
-    set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
-
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
 --
@@ -299,26 +290,30 @@ select_track_all block_end tracks sel
         , orientation = Sel.orientation sel
         }
 
-cmd_tracks :: Cmd.M m => m ()
-cmd_tracks = do
+-- | Extend the selection horizontally to encompass all tracks.  If it already
+-- does, reset the track selection to the previous one.
+cmd_toggle_extend_tracks :: Cmd.M m => m ()
+cmd_toggle_extend_tracks = do
     (view_id, sel) <- get_view
     tracks <- Ui.track_count =<< Ui.block_id_of view_id
-    set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
+    let expanded = sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
+    if sel /= expanded
+        then set view_id $ Just expanded
+        else previous_selection False
 
 -- ** set selection from clicks
 
 -- | Select clicked on track.
-cmd_select_track :: Cmd.M m => Types.MouseButton -> Sel.Num -> Msg.Msg
-    -> m ()
-cmd_select_track btn selnum msg = do
+cmd_select_track :: Cmd.M m => Types.MouseButton -> Msg.Msg -> m ()
+cmd_select_track btn msg = do
     view_id <- Cmd.get_focused_view
     ((down_tracknum, _), (mouse_tracknum, _)) <- mouse_drag btn msg
-    select_tracks selnum view_id down_tracknum mouse_tracknum
+    select_tracks view_id down_tracknum mouse_tracknum
 
-select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
-select_tracks selnum view_id from to = do
+select_tracks :: Cmd.M m => ViewId -> TrackNum -> TrackNum -> m ()
+select_tracks view_id from to = do
     block_end <- Ui.block_end =<< Ui.block_id_of view_id
-    set_selnum view_id selnum $ Just $ select_until_end block_end $
+    set view_id $ Just $ select_until_end block_end $
         Sel.Selection
             { start_track = from, start_pos = 0
             , cur_track = to, cur_pos = 0
@@ -351,7 +346,9 @@ cmd_mouse_selection btn selnum extend msg = do
             , cur_track = mouse_tracknum, cur_pos = mouse_pos
             , orientation = orientation
             }
-    set_and_scroll view_id selnum sel
+    when (Msg.mouse_down msg) record_history
+    set_selnum view_id selnum (Just sel)
+    auto_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
@@ -381,7 +378,9 @@ cmd_snap_selection btn selnum extend msg = do
                 }
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
-    set_and_scroll view_id selnum sel
+    when (Msg.mouse_down msg) record_history
+    set_selnum view_id selnum (Just sel)
+    auto_scroll view_id selnum sel
     where
     -- If I'm dragging, only snap if I'm close to a snap point.  Otherwise,
     -- it's easy for the selection to jump way off screen while dragging.
@@ -440,10 +439,21 @@ mouse_drag btn msg = do
 
 -- ** auto scroll
 
+-- | Figure out how much to scroll to keep the selection visible and with
+-- reasonable space around it.
+--
+-- Anyone who wants to set a selection and automatically scroll the window to
+-- follow the selection should use this function.
+auto_scroll :: Cmd.M m => ViewId -> Sel.Num -> Sel.Selection -> m ()
+auto_scroll view_id selnum sel = do
+    old <- Ui.get_selection view_id selnum
+    auto_scroll_from view_id old sel
+
 -- | If the selection has scrolled off the edge of the window, automatically
 -- scroll it so that the \"current\" end of the selection is in view.
-auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
-auto_scroll view_id old new = do
+auto_scroll_from :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection
+    -> m ()
+auto_scroll_from view_id old new = do
     view <- Ui.get_view view_id
     block <- Ui.get_block (Block.view_block view)
     end <- Ui.block_end (Block.view_block view)
@@ -945,3 +955,51 @@ tracknums_of block track_ids = do
         zip [0..] (Block.block_tracklike_ids block)
     guard (tid `elem` track_ids)
     return (tracknum, tid)
+
+-- * history
+
+record_history :: Cmd.M m => m ()
+record_history = whenJustM lookup_view (modify_history . record)
+    where
+    -- Only record the current position if it has changed.
+    record (view_id, sel) hist
+        | take 1 (Cmd.sel_past hist) /= [(view_id, sel)] = Cmd.SelectionHistory
+            { sel_past = (view_id, sel) : Cmd.sel_past hist
+            , sel_future = []
+            }
+        | otherwise = hist
+
+previous_selection :: Cmd.M m => Bool -> m ()
+previous_selection change_views = do
+    old_view_id <- Cmd.get_focused_view
+    cur <- lookup_view
+    hist <- Cmd.gets Cmd.state_selection_history
+    case dropWhile ((==cur) . Just) $ Cmd.sel_past hist of
+        (view_id, sel) : past | change_views || view_id == old_view_id -> do
+            modify_history $ \hist -> hist
+                { Cmd.sel_past = past
+                , Cmd.sel_future = maybe id (:) cur (Cmd.sel_future hist)
+                }
+            set_without_history view_id (Just sel)
+            when (view_id /= old_view_id) $ Cmd.focus view_id
+        _ -> return ()
+
+next_selection :: Cmd.M m => Bool -> m ()
+next_selection change_views = do
+    old_view_id <- Cmd.get_focused_view
+    cur <- lookup_view
+    hist <- Cmd.gets Cmd.state_selection_history
+    case dropWhile ((==cur) . Just) $ Cmd.sel_future hist of
+        (view_id, sel) : future | change_views || view_id == old_view_id -> do
+            modify_history $ \hist -> hist
+                { Cmd.sel_past = maybe id (:) cur (Cmd.sel_past hist)
+                , Cmd.sel_future = future
+                }
+            set_without_history view_id (Just sel)
+            when (view_id /= old_view_id) $ Cmd.focus view_id
+        _ -> return ()
+
+modify_history :: Cmd.M m => (Cmd.SelectionHistory -> Cmd.SelectionHistory)
+    -> m ()
+modify_history f = Cmd.modify $ \state -> state
+    { Cmd.state_selection_history = f (Cmd.state_selection_history state) }

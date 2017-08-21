@@ -171,9 +171,10 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
                     (Just (selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
-            forM_ view_ids $ \vid ->
-                Selection.set_and_scroll vid Config.error_selnum
-                    (selection tracknum to tracknum from)
+            forM_ view_ids $ \vid -> do
+                let sel = selection tracknum to tracknum from
+                Selection.set_selnum vid Config.error_selnum (Just sel)
+                Selection.auto_scroll vid Config.error_selnum sel
     where
     selection strack spos ctrack cpos = Sel.Selection
         { start_track = strack
