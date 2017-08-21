@@ -162,7 +162,7 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     mapM_ Cmd.focus view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
-            Selection.set vid $ Just $ Sel.Selection
+            Selection.set_and_scroll vid $ Sel.Selection
                 { start_track = 0, start_pos = 0
                 , cur_track = 9999, cur_pos =  9999
                 , orientation = Sel.None
@@ -170,7 +170,7 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
         (Just tid, Nothing) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
-                Selection.set vid $ Just $ Sel.Selection
+                Selection.set_and_scroll vid $ Sel.Selection
                     { start_track = tracknum, start_pos = 0
                     , cur_track = tracknum, cur_pos = 9999
                     , orientation = Sel.None
@@ -178,7 +178,7 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
         (Just tid, Just (from, to)) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid -> do
-                Selection.set vid $ Just $ Sel.Selection
+                Selection.set_and_scroll vid $ Sel.Selection
                     { start_track = tracknum, start_pos = to
                     , cur_track = tracknum, cur_pos = from
                     , orientation = Sel.None
