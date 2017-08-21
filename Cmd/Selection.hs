@@ -170,7 +170,12 @@ to_point to_cur_pos = do
                 { Sel.start_track = closest, Sel.cur_track = closest
                 , Sel.cur_pos = Sel.start_pos old
                 }
-    auto_scroll view_id (Just old) new
+    -- auto_scroll doesn't scroll if Sel.cur_pos hasn't moved, but in this
+    -- case I do want it to move, so I jump to it when collapsing to_cur_pos.
+    -- So trick auto_scroll by pretending the old cur_pos was different.
+    let old2 = if Sel.cur_pos old == Sel.cur_pos new
+        then old { Sel.cur_pos = Sel.start_pos old } else old
+    auto_scroll view_id (Just old2) new
     set view_id (Just new)
 
 find_at_before :: Ord a => a -> [a] -> Maybe a
