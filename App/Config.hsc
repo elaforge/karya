@@ -172,7 +172,8 @@ insert_selnum :: SelNum
 -- | Temporary insert point,  to indicate insert position when it's not the
 -- insert_selnum.
 temporary_insert_selnum :: SelNum
--- | Highlight errors, possibly reported internally but probably sent by
+-- | Highlight errors.  I use 'insert_selnum' for this nowadays, so it's
+-- probably unused.
 -- logview when you click on a stack trace.
 error_selnum :: SelNum
 -- | Display current "Cmd.StepPlay" position.

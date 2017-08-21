@@ -50,7 +50,6 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Stack as Stack
-import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 import Global
 import Types
@@ -148,54 +147,50 @@ quit = Cmd.modify $ \st -> st { Cmd.state_repl_status = Cmd.Quit }
 
 -- | Called from logview
 s :: String -> Cmd.CmdL ()
-s "" = unerror
 s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " <> showt stackpos)
     highlight_error (Stack.parse_ui_frame stackpos)
 
+-- | I used to use 'Config.error_selnum' for this, but it could be hard to
+-- find.  Maybe the normal selection is more convenient, since I can zoom in on
+-- it, or move it around to find it.
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (maybe_bid, maybe_tid, maybe_range) = do
-    unerror
     block_id <- maybe find_block return maybe_bid
     view_ids <- Map.keys <$> Ui.views_of block_id
     view_ids <- if null view_ids then (:[]) <$> Create.view block_id
         else return view_ids
     mapM_ Cmd.focus view_ids
+    orientation <- Selection.get_orientation
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
-            Selection.set_selnum vid Config.error_selnum
-                (Just (selection 0 0 9999 9999))
+            Selection.set vid $ Just $ Sel.Selection
+                { start_track = 0, start_pos = 0
+                , cur_track = 9999, cur_pos =  9999
+                , orientation = orientation
+                }
         (Just tid, Nothing) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
-                Selection.set_selnum vid Config.error_selnum
-                    (Just (selection tracknum 0 tracknum 9999))
+                Selection.set vid $ Just $ Sel.Selection
+                    { start_track = tracknum, start_pos = 0
+                    , cur_track = tracknum, cur_pos = 9999
+                    , orientation = orientation
+                    }
         (Just tid, Just (from, to)) -> do
             tracknum <- Ui.get_tracknum_of block_id tid
             forM_ view_ids $ \vid -> do
-                let sel = selection tracknum to tracknum from
-                Selection.set_selnum vid Config.error_selnum (Just sel)
-                Selection.auto_scroll vid Config.error_selnum sel
+                Selection.set vid $ Just $ Sel.Selection
+                    { start_track = tracknum, start_pos = to
+                    , cur_track = tracknum, cur_pos = from
+                    , orientation = orientation
+                    }
     where
-    selection strack spos ctrack cpos = Sel.Selection
-        { start_track = strack
-        , start_pos = spos
-        , cur_track = ctrack
-        , cur_pos = cpos
-        -- Try to make a point more visible.
-        , orientation = if spos == cpos then Sel.Negative else Sel.None
-        }
     find_block = case maybe_tid of
         Nothing -> Cmd.throw $
             "can't highlight stack frame with neither block nor track: "
             <> showt (maybe_bid, maybe_tid, maybe_range)
         Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
             (return . fst) . Seq.head =<< Ui.blocks_with_track_id track_id
-
-unerror :: Cmd.CmdL ()
-unerror = do
-    view_ids <- Ui.all_view_ids
-    forM_ view_ids $ \vid ->
-        Selection.set_selnum vid Config.error_selnum Nothing
 
 -- * show / modify cmd state
 

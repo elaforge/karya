@@ -12,7 +12,7 @@ UNSORTED
   - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
     go >1.  Why is the note including such distant samples anyway?  Isn't it
     inefficient to scale samples which are clearly not in the note bounds?
-  - If the 's' repl function set primary selection in addition to (or instead
+  * If the 's' repl function set primary selection in addition to (or instead
     of) red highlight, then I could find it by wiggling, or zoom on it.
   - I often want to see where I am in the parent, e.g. like parent->child
     selection but the other way.
