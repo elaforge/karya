@@ -50,10 +50,16 @@ import Types
 
 -- * cmds
 
--- | Set the given selection.
---
--- This is the Cmd level of Ui.set_selection and should be called by
--- any Cmd that wants to set the selection.
+{- | Set or unset the selection.
+
+    This is the Cmd level of Ui.set_selection and should be called by
+    any Cmd that wants to set the selection.
+
+    The insert selnum always has an orientation, so if 'Sel.orientation' is
+    'Sel.None', default to 'Cmd.state_note_orientation'.  Otherwise, update
+    the note orientation, so the visible orientation and actual orientation stay
+    in sync.
+-}
 set :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
 set view_id maybe_sel = do
     record_history
@@ -64,14 +70,34 @@ set_without_history :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
 set_without_history view_id = set_selnum view_id Config.insert_selnum
 
 set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
-set_selnum view_id selnum maybe_sel = do
-    Ui.set_selection view_id selnum maybe_sel
-    when (selnum == Config.insert_selnum) $ case maybe_sel of
-        Just sel | Sel.is_point sel -> do
+set_selnum view_id selnum maybe_sel
+    | selnum == Config.insert_selnum = do
+        maybe_sel <- flip traverse maybe_sel $ \sel ->
+            case Sel.orientation sel of
+                Sel.None -> do
+                    o <- get_orientation
+                    return $ sel { Sel.orientation = o }
+                Sel.Positive -> do
+                    Cmd.modify_edit_state $ \state ->
+                        state { Cmd.state_note_orientation = Event.Positive }
+                    return sel
+                Sel.Negative -> do
+                    Cmd.modify_edit_state $ \state ->
+                        state { Cmd.state_note_orientation = Event.Negative }
+                    return sel
+        Ui.set_selection view_id selnum maybe_sel
+        whenJust maybe_sel $ \sel -> when (Sel.is_point sel) $ do
             set_subs view_id sel
             whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
                 mmc_goto_sel view_id sel
-        _ -> return ()
+    | otherwise = Ui.set_selection view_id selnum maybe_sel
+
+get_orientation :: Cmd.M m => m Sel.Orientation
+get_orientation = do
+    o <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
+    return $ case o of
+        Event.Positive -> Sel.Positive
+        Event.Negative -> Sel.Negative
 
 mmc_goto_sel :: Cmd.M m => ViewId -> Sel.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do
@@ -124,10 +150,8 @@ set_block block_id ((_, pos) : _) = do
 
 -- | Update the selection's orientation to match 'Cmd.state_note_orientation'.
 update_orientation :: Cmd.M m => m ()
-update_orientation = whenJustM lookup_view $ \(view_id, sel) -> do
-    orientation <- get_orientation
-    when (Sel.orientation sel /= orientation) $
-        set view_id $ Just $ sel { Sel.orientation = orientation }
+update_orientation = whenJustM lookup_view $ \(view_id, sel) ->
+    set view_id $ Just $ sel { Sel.orientation = Sel.None }
 
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
 to_point :: Cmd.M m => m ()
@@ -174,17 +198,17 @@ step dir move = do
 step_with :: Cmd.M m => Int -> Move -> TimeStep.TimeStep -> m ()
 step_with steps move step = do
     view_id <- Cmd.get_focused_view
-    old@(Sel.Selection start_track start_pos cur_track cur_pos orient) <-
+    old@(Sel.Selection start_track start_pos cur_track cur_pos _) <-
         Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = case move of
             Extend -> Sel.Selection
                 { start_track = start_track, start_pos = start_pos
                 , cur_track = cur_track, cur_pos = new_pos
-                , orientation = orient
+                , orientation = Sel.None
                 }
             Move -> Sel.move (new_pos - cur_pos) old
-            Replace -> Sel.point cur_track new_pos orient
+            Replace -> Sel.point cur_track new_pos Sel.None
     set_without_history view_id (Just new_sel)
     auto_scroll view_id Config.insert_selnum new_sel
 
@@ -340,13 +364,12 @@ cmd_mouse_selection btn selnum extend msg = do
     let (start_tracknum, start_pos) = case (extend, old_sel) of
             (True, Just (Sel.Selection tracknum pos _ _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
-    orientation <- get_orientation
+    when (Msg.mouse_down msg) record_history
     let sel = Sel.Selection
             { start_track = start_tracknum, start_pos = start_pos
             , cur_track = mouse_tracknum, cur_pos = mouse_pos
-            , orientation = orientation
+            , orientation = Sel.None
             }
-    when (Msg.mouse_down msg) record_history
     set_selnum view_id selnum (Just sel)
     auto_scroll view_id selnum sel
 
@@ -363,18 +386,17 @@ cmd_snap_selection btn selnum extend msg = do
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
-    orientation <- get_orientation
     let sel = case old_sel of
             _ | old_sel == Nothing || Msg.mouse_down msg && not extend ->
                 Sel.Selection
                     { start_track = down_tracknum, start_pos = snap_pos
                     , cur_track = mouse_tracknum, cur_pos = snap_pos
-                    , orientation = orientation
+                    , orientation = Sel.None
                     }
-            Just (Sel.Selection tracknum pos _ _ orient) -> Sel.Selection
+            Just (Sel.Selection tracknum pos _ _ _) -> Sel.Selection
                 { start_track = tracknum, start_pos = pos
                 , cur_track = mouse_tracknum, cur_pos = snap_pos
-                , orientation = orient
+                , orientation = Sel.None
                 }
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
@@ -393,13 +415,6 @@ cmd_snap_selection btn selnum extend msg = do
         return $ if not (Msg.mouse_down msg) && over && pos < end
             then pos else snap
     threshold = 20
-
-get_orientation :: Cmd.M m => m Sel.Orientation
-get_orientation = do
-    o <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
-    return $ case o of
-        Event.Positive -> Sel.Positive
-        Event.Negative -> Sel.Negative
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
 mouse_drag_pos :: Cmd.M m => Types.MouseButton -> Msg.Msg
