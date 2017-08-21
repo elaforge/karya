@@ -1006,7 +1006,7 @@ lilypond:
     - Lilypond puts 3 on sextuplets.
     - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8
-    - how to write harmonic gliss?
+    * how to write harmonic gliss?
       I can do it manually but I need Ly.NoteAppendFirst.
       . \set glissandoMap = #'((1 . 1))
         \once \override Glissando.style = #'dashed-line

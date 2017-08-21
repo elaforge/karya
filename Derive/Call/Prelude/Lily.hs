@@ -64,6 +64,8 @@ note_calls = Make.call_maps
     , ("ly-_~", c_tie_direction "_")
     , ("ly-key", c_ly_key)
     , ("ly-post", c_ly_post)
+    , ("ly-attach", c_ly_attach)
+    , ("ly-emit", c_ly_emit)
     , ("ly-pre", c_ly_pre)
     , ("ly-span", c_ly_span)
     , ("ly-sus", c_ly_sustain)
@@ -71,7 +73,6 @@ note_calls = Make.call_maps
     , ("ly^", c_ly_text "^")
     , ("ly_", c_ly_text "_")
     , ("ly-", c_ly_articulation)
-    , ("ly-notes-post", c_ly_notes_post)
     , ("meter", c_meter)
     , ("subdivision", c_subdivision)
     , ("movement", c_movement)
@@ -240,12 +241,6 @@ c_ly_articulation = attach All "ly-articulation"
     (Sig.required "text" "Code to attach. A `-` is prepended.") $
     ((,) Ly.AppendFirst . ("-"<>))
 
-c_ly_notes_post :: Make.Calls Derive.Note
-c_ly_notes_post = attach All "ly-notes-post"
-    "Emit arbitrary lilypond code that will go after all notes."
-    (Sig.required "code" "A leading \\ will be prepended.") $
-    \code -> (Ly.AppendLast, "\\" <> code)
-
 c_ly_pre :: Make.Calls Derive.Note
 c_ly_pre = emit_start "ly-pre"
     "Emit arbitrary lilypond code that will go before concurrent notes."
@@ -257,6 +252,24 @@ c_ly_post = emit_start "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (Sig.required "code" "A leading \\ will be prepended.") $
     \code -> return (Ly.AppendLast, "\\" <> code)
+
+c_ly_emit :: Make.Calls Derive.Note
+c_ly_emit = emit_start "ly-emit"
+    "Emit a single fragment of freestanding lilypond code."
+    ((,)
+    <$> Sig.required "code" "A leading \\ will be prepended."
+    <*> Sig.defaulted "pos" Ly.AppendLast
+        "Where to put it: 'Derive.Call.Ly.CodePosition'."
+    ) $ \(code, pos) -> return (pos, "\\" <> code)
+
+c_ly_attach :: Make.Calls Derive.Note
+c_ly_attach = attach All "ly-attach"
+    "Attach lilypond code to each transformed note."
+    ((,)
+    <$> Sig.required "code" "A leading \\ will be prepended."
+    <*> Sig.defaulted "pos" Ly.AppendLast
+        "Where to put it: 'Derive.Call.Ly.CodePosition'."
+    ) $ \(code, pos) -> (pos, "\\" <> code)
 
 c_ly_key :: Make.Calls Derive.Note
 c_ly_key = emit_start "ly-key"
@@ -328,7 +341,7 @@ ly_span maybe_text (start, end)
 -- * Attach
 
 data AttachTo = First -- ^ attach code to only the first event
-    | All -- ^ attach code to all fo the events
+    | All -- ^ attach code to all the events
     deriving (Eq, Show)
 
 -- | The attach family attaches lilypond code to existing notes.  This is

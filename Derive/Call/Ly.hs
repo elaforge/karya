@@ -5,8 +5,10 @@
 -- | Utilities for calls to cooperate with the lilypond backend.
 module Derive.Call.Ly where
 import qualified Data.List as List
+import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Post as Post
@@ -14,9 +16,11 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -152,6 +156,22 @@ data CodePosition =
 instance Pretty CodePosition where
     pretty (SetEnviron key) = "SetEnviron " <> pretty key
     pretty p = showt p
+
+instance Typecheck.Typecheck CodePosition
+instance Typecheck.TypecheckSymbol CodePosition where
+    parse_symbol = (`Map.lookup` code_position_names) . Expr.unstr
+    symbol_values _ = Just $ Map.keys code_position_names
+
+instance Typecheck.ToVal CodePosition
+
+instance ShowVal.ShowVal CodePosition where
+    show_val = TextUtil.dropPrefix "ly-" . position_env False
+
+code_position_names :: Map Text CodePosition
+code_position_names = Map.fromList $ Seq.key_on ShowVal.show_val
+    [ Prepend
+    , AppendAll, NoteAppendAll, AppendFirst, NoteAppendFirst, AppendLast
+    ]
 
 -- | Fragment of Lilypond code.
 type Ly = Text
