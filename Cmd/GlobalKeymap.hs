@@ -112,7 +112,7 @@ io_bindings = concat
     ]
 
 context_stop :: Cmd.CmdT IO ()
-context_stop = unlessM Play.cmd_context_stop Selection.to_point
+context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
@@ -282,6 +282,9 @@ selection_bindings = concat
         Selection.cmd_track_all
     , bind_key [PrimaryCommand] (Key.Char 'A') "toggle extend tracks"
         Selection.cmd_toggle_extend_tracks
+
+    , bind_key [Shift] (Key.Char ' ') "selection start to point"
+        (Selection.to_point False)
     ]
     where
     move = Selection.default_move

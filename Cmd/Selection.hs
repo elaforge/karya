@@ -154,17 +154,24 @@ update_orientation = whenJustM lookup_view $ \(view_id, sel) ->
     set view_id $ Just $ sel { Sel.orientation = Sel.None }
 
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
-to_point :: Cmd.M m => m ()
-to_point = do
-    (view_id, sel) <- get_view
+to_point :: Cmd.M m => Bool -> m ()
+to_point to_cur_pos = do
+    (view_id, old) <- get_view
     selectable <- Ui.selectable_tracks <$>
         (Ui.get_block =<< Ui.block_id_of view_id)
-    let closest = fromMaybe (Sel.cur_track sel) $
-            find_at_before (Sel.cur_track sel) selectable
-    set_and_scroll view_id $ sel
-        { Sel.start_track = closest, Sel.cur_track = closest
-        , Sel.start_pos = Sel.cur_pos sel
-        }
+    let closest = fromMaybe (Sel.cur_track old) $
+            find_at_before (Sel.cur_track old) selectable
+    let new
+            | to_cur_pos = old
+                { Sel.start_track = closest, Sel.cur_track = closest
+                , Sel.start_pos = Sel.cur_pos old
+                }
+            | otherwise = old
+                { Sel.start_track = closest, Sel.cur_track = closest
+                , Sel.cur_pos = Sel.start_pos old
+                }
+    auto_scroll view_id (Just old) new
+    set view_id (Just new)
 
 find_at_before :: Ord a => a -> [a] -> Maybe a
 find_at_before n = Seq.last . takeWhile (<=n)
