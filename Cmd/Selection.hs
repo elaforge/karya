@@ -161,7 +161,7 @@ to_point = do
         (Ui.get_block =<< Ui.block_id_of view_id)
     let closest = fromMaybe (Sel.cur_track sel) $
             find_at_before (Sel.cur_track sel) selectable
-    set view_id $ Just $ sel
+    set_and_scroll view_id $ sel
         { Sel.start_track = closest, Sel.cur_track = closest
         , Sel.start_pos = Sel.cur_pos sel
         }
@@ -210,7 +210,7 @@ step_with steps move step = do
             Move -> Sel.move (new_pos - cur_pos) old
             Replace -> Sel.point cur_track new_pos Sel.None
     set_without_history view_id (Just new_sel)
-    auto_scroll view_id Config.insert_selnum new_sel
+    auto_scroll view_id (Just old) new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
 -- tracks and collapsed tracks.
@@ -243,7 +243,7 @@ modify f = do
     sel <- Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
     let new = f block sel
     set_without_history view_id (Just new)
-    auto_scroll view_id Config.insert_selnum new
+    auto_scroll view_id (Just sel) new
 
 data Direction = R | L deriving (Eq, Show)
 
@@ -354,13 +354,12 @@ select_until_end block_end sel = sel
     -- the block.
 
 -- | Set the selection based on a click or drag.
-cmd_mouse_selection :: Cmd.M m =>
-    Types.MouseButton -> Sel.Num -> Bool -> Msg.Msg -> m ()
-cmd_mouse_selection btn selnum extend msg = do
+cmd_mouse_selection :: Cmd.M m => Types.MouseButton -> Bool -> Msg.Msg -> m ()
+cmd_mouse_selection btn extend msg = do
     ((down_tracknum, down_pos), (mouse_tracknum, mouse_pos))
         <- mouse_drag_pos btn msg
     view_id <- Cmd.get_focused_view
-    old_sel <- Ui.get_selection view_id selnum
+    old_sel <- Ui.get_selection view_id Config.insert_selnum
     let (start_tracknum, start_pos) = case (extend, old_sel) of
             (True, Just (Sel.Selection tracknum pos _ _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
@@ -370,19 +369,17 @@ cmd_mouse_selection btn selnum extend msg = do
             , cur_track = mouse_tracknum, cur_pos = mouse_pos
             , orientation = Sel.None
             }
-    set_selnum view_id selnum (Just sel)
-    auto_scroll view_id selnum sel
+    set_and_scroll view_id sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
-cmd_snap_selection :: Cmd.M m => Types.MouseButton -> Sel.Num -> Bool
-    -> Msg.Msg -> m ()
-cmd_snap_selection btn selnum extend msg = do
+cmd_snap_selection :: Cmd.M m => Types.MouseButton -> Bool -> Msg.Msg -> m ()
+cmd_snap_selection btn extend msg = do
     ((down_tracknum, _), (mouse_tracknum, mouse_pos)) <- mouse_drag_pos btn msg
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
     view_id <- Cmd.get_focused_view
-    old_sel <- Ui.get_selection view_id selnum
+    old_sel <- Ui.get_selection view_id Config.insert_selnum
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
@@ -401,8 +398,7 @@ cmd_snap_selection btn selnum extend msg = do
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
     when (Msg.mouse_down msg) record_history
-    set_selnum view_id selnum (Just sel)
-    auto_scroll view_id selnum sel
+    set_and_scroll view_id sel
     where
     -- If I'm dragging, only snap if I'm close to a snap point.  Otherwise,
     -- it's easy for the selection to jump way off screen while dragging.
@@ -459,16 +455,16 @@ mouse_drag btn msg = do
 --
 -- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
-auto_scroll :: Cmd.M m => ViewId -> Sel.Num -> Sel.Selection -> m ()
-auto_scroll view_id selnum sel = do
-    old <- Ui.get_selection view_id selnum
-    auto_scroll_from view_id old sel
+set_and_scroll :: Cmd.M m => ViewId -> Sel.Selection -> m ()
+set_and_scroll view_id sel = do
+    old <- Ui.get_selection view_id Config.insert_selnum
+    auto_scroll view_id old sel
+    set view_id (Just sel)
 
 -- | If the selection has scrolled off the edge of the window, automatically
 -- scroll it so that the \"current\" end of the selection is in view.
-auto_scroll_from :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection
-    -> m ()
-auto_scroll_from view_id old new = do
+auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
+auto_scroll view_id old new = do
     view <- Ui.get_view view_id
     block <- Ui.get_block (Block.view_block view)
     end <- Ui.block_end (Block.view_block view)

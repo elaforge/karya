@@ -180,13 +180,13 @@ play_bindings = concat
 mouse_bindings :: Cmd.M m => [Keymap.Binding m]
 mouse_bindings = concat
     [ bind_drag [] btn Keymap.OnTrack "snap drag selection"
-        (Selection.cmd_snap_selection btn Config.insert_selnum False)
+        (Selection.cmd_snap_selection btn False)
     , bind_drag [Shift] btn Keymap.OnTrack "snap drag selection"
-        (Selection.cmd_snap_selection btn Config.insert_selnum True)
+        (Selection.cmd_snap_selection btn True)
     , bind_drag [PrimaryCommand] btn Keymap.OnTrack "drag selection"
-        (Selection.cmd_mouse_selection btn Config.insert_selnum False)
+        (Selection.cmd_mouse_selection btn False)
     , bind_drag [Shift, PrimaryCommand] btn Keymap.OnTrack "extend selection"
-        (Selection.cmd_mouse_selection btn Config.insert_selnum True)
+        (Selection.cmd_mouse_selection btn True)
     , Keymap.bind_release [] btn Keymap.OnTrack "mouse release"
         (const Selection.record_history)
 
