@@ -320,7 +320,7 @@ cmd_toggle_extend_tracks :: Cmd.M m => m ()
 cmd_toggle_extend_tracks = do
     (view_id, sel) <- get_view
     tracks <- Ui.track_count =<< Ui.block_id_of view_id
-    let expanded = sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
+    let expanded = sel { Sel.cur_track = 1, Sel.start_track = tracks - 1 }
     if sel /= expanded
         then set view_id $ Just expanded
         else previous_selection False
@@ -969,13 +969,18 @@ tracknums_of block track_ids = do
 
 -- * history
 
+-- | Keep only this many selection history entries.  This is hardcoded and low
+-- since I'm probably not interested in ancient selections.
+keep_history :: Int
+keep_history = 10
+
 record_history :: Cmd.M m => m ()
 record_history = whenJustM lookup_view (modify_history . record)
     where
     -- Only record the current position if it has changed.
     record (view_id, sel) hist
         | take 1 (Cmd.sel_past hist) /= [(view_id, sel)] = Cmd.SelectionHistory
-            { sel_past = (view_id, sel) : Cmd.sel_past hist
+            { sel_past = take keep_history $ (view_id, sel) : Cmd.sel_past hist
             , sel_future = []
             }
         | otherwise = hist
