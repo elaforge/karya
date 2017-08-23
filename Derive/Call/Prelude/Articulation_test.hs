@@ -19,10 +19,11 @@ test_harmonic_ly = do
     equal (run "o nat -- 3c") (Right "c1-\\flageolet", [])
     strings_like (snd $ run "string=(nn c3) | o -- 3c")
         ["can't find 48nn as a harmonic of 48nn"]
-    equal (run "string=(nn c3) | o nat -- 4c") (Right "c'1-\\flageolet", [])
+    equal (run "o nat -- 4c") (Right "c'1-\\flageolet", [])
+    equal (run "harmonic-force-diamond=t | o nat -- 4c")
+        (Right "<c c'\\harmonic>1", [])
     equal (run "string=(nn c3) | o nat -- 4g") (Right "<c g\\harmonic>1", [])
     equal (run "string=(nn c3) | o nat -- 5c") (Right "<c f\\harmonic>1", [])
-
 
 test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""

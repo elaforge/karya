@@ -976,6 +976,10 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - harmonic string arg is hard to use if I have to give nn.  How about
+    strings export (g) (d) etc. calls which emit the appropriate string's nn?
+    Or should I understand string names?
+  * force diamond notation for natural 2nd harmonic
   - many CodePositions don't work for ly-emit
     . append-all, append-first, append-last, note-append-all, note-append-last
     . Partly it's because the code to mix in 0 dur events doesn't support
@@ -1011,6 +1015,8 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
+    - where is the hairpin at @b2 vla 28?  mm80
+    - put just the harmonic gliss line on @b2 vla 27
     * trill at wider intervals should emit tremolo notation
       . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
       . This is yet another nested notation, just like triplet.
@@ -1023,6 +1029,7 @@ lilypond:
       * How do I set the accidental on the neighbor pitch?
         . I could extend 'tr' to take an explicit neighbor pitch.
       - Configure to use tremolo for all trills.
+      - It should be able to notice that for tr 1c, c db is better than c c#.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
     - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns

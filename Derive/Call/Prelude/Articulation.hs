@@ -109,12 +109,16 @@ c_harmonic :: Make.Calls Derive.Note
 c_harmonic = Make.transform_notes Module.prelude "harmonic"
     (Tags.attr <> Tags.ly)
     "Harmonic, with lilypond for artificial harmonic notation."
-    ((,,)
+    ((,,,)
     <$> Sig.defaulted "type" Nothing "Type of harmonic."
     <*> Sig.environ_key EnvKey.open_strings [] "Pitches of open strings."
     <*> Sig.environ_key EnvKey.string Nothing "Play on this string."
-    ) $ \(htype, open_strings, string) deriver ->
-        Ly.when_lilypond (lily_harmonic htype open_strings string deriver)
+    <*> Sig.environ_key "harmonic-force-diamond" False
+        "If true, use string+diamond notation even for the 2nd natural\
+        \ harmonic."
+    ) $ \(htype, open_strings, string, force_diamond) deriver ->
+        Ly.when_lilypond
+            (lily_harmonic force_diamond htype open_strings string deriver)
             (Call.add_attributes (Attrs.harm <> harm_attrs htype) deriver)
     where
     harm_attrs htype = case htype of
@@ -134,15 +138,17 @@ instance ShowVal.ShowVal HarmonicType where
 -- | Harmonic number.
 type Harmonic = Int
 
-lily_harmonic :: Maybe HarmonicType -> [Pitch.NoteNumber]
+lily_harmonic :: Bool -> Maybe HarmonicType -> [Pitch.NoteNumber]
     -> Maybe Pitch.NoteNumber -> Derive.NoteDeriver -> Derive.NoteDeriver
-lily_harmonic htype open_strings string deriver = do
-    Post.emap_m_ id (lily_harmonic_event htype open_strings string) =<< deriver
+lily_harmonic force_diamond htype open_strings string deriver = do
+    Post.emap_m_ id
+        (lily_harmonic_event force_diamond htype open_strings string)
+        =<< deriver
     -- Ly should have one that skips code events
 
-lily_harmonic_event :: Maybe HarmonicType -> [Pitch.NoteNumber]
+lily_harmonic_event :: Bool -> Maybe HarmonicType -> [Pitch.NoteNumber]
     -> Maybe Pitch.NoteNumber -> Score.Event -> Derive.Deriver [Score.Event]
-lily_harmonic_event htype open_strings string event = do
+lily_harmonic_event force_diamond htype open_strings string event = do
     nn <- Derive.require "no pitch" $ Score.initial_nn event
     let msg = "can't find " <> pretty nn <> " as a harmonic of "
             <> maybe ("open strings: " <> pretty open_strings) pretty string
@@ -151,7 +157,7 @@ lily_harmonic_event htype open_strings string event = do
             Natural -> natural_harmonic open_strings string nn
             Artificial -> artificial_harmonic lowest nn
                 where lowest = fromMaybe 0 $ string <|> Seq.head open_strings
-    if harmonic <= 2
+    if harmonic <= 2 && not force_diamond
         then return [Score.add_attributes Attrs.harm event]
         else do
             interval <- Derive.require
