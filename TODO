@@ -3,12 +3,25 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - How can I have a ruler start at >1?  Ideally I'd like to do it
+    automatically, like a reverse LRuler.extract.
+  - I had a bug due to using 'Derive.real dur' instead of
+    'Call.real_duration start dur'.
+    . Separate types for {Score,Real}Time and {Score,Real}Duration would fix
+      this, but how much hassle would it be?
+  - I think slur is setting +legato on the first note, which it shouldn't do.
   Trill.c_attr_trill:
     - support trill attrs as an argument
     * fall back on plain +trill attr for wider trills
   * trill: emit lilypond for two-note tremolo for wide trills, or even narrow
     ones too if so configured.
   - trill: also emit lilypond for trill + accidental if it's out of the key
+		. lilypond doesn't have anything built in, but:
+			\pitchedTrill p1 \startTrillSpan p2 \stopTrillSpan
+			. ^ \markup { \musicglyph #"scripts.trill"
+				\fontsize #-4 \raise #1 \sharp
+				\fontsize #-2 \raise #1 \flat
+				}
   - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
     go >1.  Why is the note including such distant samples anyway?  Isn't it
     inefficient to scale samples which are clearly not in the note bounds?
@@ -69,6 +82,7 @@ UNSORTED
         https://ghc.haskell.org/trac/ghc/ticket/10923
       . Sent mail to glasgow-haskell-users
       + Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
+      . Should be fixed in 8.2.2.
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -962,6 +976,16 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - many CodePositions don't work for ly-emit
+    . append-all, append-first, append-last, note-append-all, note-append-last
+    . Partly it's because the code to mix in 0 dur events doesn't support
+      append-first and append-last, but maybe it should.
+    . Either support them or at least throw an error when I see them.
+  - Lilypond.Process has special case hacks to deal with rests and mixing code
+    into rests.  Maybe I could get rid of that by inserting explicit rests, as
+    events with pitch=Nothing.
+    . The tricky part is that I have to do the same for voices.  Not sure if
+      worth it?
   - add a ly.track module, which has everything from ly, but without the ly-
     prefix.  I can have ly-track and ly-global import it.
   - In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.

@@ -213,7 +213,7 @@ tremolo_trill_ly :: Types.Config -> PSignal.Pitch -> PSignal.Pitch
     -> ScoreTime -> ScoreTime -> Derive.NoteDeriver
 tremolo_trill_ly config pitch1 pitch2 start dur = do
     real_start <- Derive.real start
-    real_dur <- Derive.real dur
+    real_dur <- Call.real_duration start dur
     pitch1 <- Derive.resolve_pitch real_start pitch1
     pitch2 <- Derive.resolve_pitch real_start pitch2
     code <- Derive.require_right id $ do

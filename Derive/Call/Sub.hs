@@ -15,7 +15,7 @@ module Derive.Call.Sub (
     , sub_events, sub_events_negative
     , assert_no_subs
     , modify_notes
-    , derive, derive_pitch, fit
+    , derive, derive_tracks, derive_pitch, fit
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests
@@ -303,6 +303,9 @@ modify_sub_tracks modify args = do
 -- | Derive and merge Events.
 derive :: [Event] -> Derive.NoteDeriver
 derive = mconcatMap (\(Event s d n) -> Derive.place s d n)
+
+derive_tracks :: [[Event]] -> Derive.NoteDeriver
+derive_tracks = derive . Seq.merge_lists event_start
 
 -- | Get the pitch of an Event.  Useful for debugging.
 derive_pitch :: Event -> Derive.Deriver (GenericEvent (Maybe Pitch.Note))
