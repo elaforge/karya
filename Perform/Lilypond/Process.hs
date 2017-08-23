@@ -412,8 +412,7 @@ make_note measure_start prev_attrs maybe_meter chord next =
     ly = case NonEmpty.nonEmpty note_pitches of
         -- TODO I think I don't actually know if this rest is the "last" one,
         -- since they're not tied.  So this may duplicate code.
-        Nothing -> Code $ t_unwords $
-            prepend_chord first ++ append_chord True first
+        Nothing -> Code $ t_unwords $ prepend_chord ++ append_chord
         Just note_pitches -> LyNote (note note_pitches)
     first = NonEmpty.head chord
     -- If there are no pitches, then this is code with duration.
@@ -429,25 +428,27 @@ make_note measure_start prev_attrs maybe_meter chord next =
     note note_pitches = Note
         { note_pitches = note_pitches
         , note_duration = allowed_dur
-        , note_prepend = prepend_chord first
-        , note_append = append_chord is_last first ++ attrs_codes
+        , note_prepend = prepend_chord
+        , note_append = append_chord ++ attrs_codes
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
-        where
-        is_last = not $ any (is_tied . (\(NotePitch _ tie _) -> tie))
-            note_pitches
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList chord)))
     get_pitch event = maybe "" to_lily (event_pitch event)
         <> if is_first event then get Constants.v_append_pitch event else ""
 
     -- These will wind up with "" in them, but t_unwords strips that.
-    prepend_chord event = [get Constants.v_prepend event | is_first event]
-    append_chord is_last event = concat
+    -- I take the union of all the code bits because it's confusing if code
+    -- disappears depending on where it happens to fall in the chord.
+    prepend_chord = Seq.unique $ map (get Constants.v_prepend) $
+        filter is_first (NonEmpty.toList chord)
+    append_chord = Seq.unique $ concatMap get_append (NonEmpty.toList chord)
+    get_append event = concat
         [ [get Constants.v_append_first event | is_first event]
-        , [get Constants.v_append_last event | is_last]
+        , [get Constants.v_append_last event | is_last event]
         , [get Constants.v_append_all event]
         ]
+
     append_note event = concat
         [ [get Constants.v_note_append_first event | is_first event]
         , [get Constants.v_note_append_all event]
@@ -463,8 +464,9 @@ make_note measure_start prev_attrs maybe_meter chord next =
         direction :: Text
         direction = get Constants.v_tie_direction event
     is_first = not . event_clipped
-    is_tied NoTie = False
-    is_tied _ = True
+    is_last event = case note_tie event of
+        NoTie -> True
+        _ -> False
 
     allowed = case maybe_meter of
         Nothing -> max_end - start
