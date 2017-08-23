@@ -55,7 +55,6 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Ly as Ly
-import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
 import qualified Derive.Call.Speed as Speed
@@ -88,7 +87,7 @@ note_calls = Derive.call_maps
     ( [ (name, c_note_trill False start end)
       | (name, start, end) <- trill_variations
       ]
-    ++ [("trem", c_tremolo_generator)])
+    ++ [("trem", c_tremolo_generator Nothing)])
     [ ("trem", c_tremolo_transformer) ]
 
 c_note_trill :: Bool -> Maybe Direction -> Maybe Direction
@@ -237,19 +236,36 @@ tremolo_trill_code per_quarter pitch1 pitch2 dur
     wholes = dur / per_quarter / 4
     (times, frac) = properFraction $ wholes * 16
 
-c_tremolo_generator :: Derive.Generator Derive.Note
-c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly
-    "Repeat a single note. Or, if there are sub-notes, alternate with each of\
-    \ the sub-notes in turn."
+c_tremolo_generator :: Maybe ([Attrs.Attributes], Attrs.Attributes)
+    -> Derive.Generator Derive.Note
+c_tremolo_generator attrs_unless =
+    Derive.generator Module.prelude "trem" Tags.ly
+    ("Repeat a single note. Or, if there are sub-notes, alternate with each of\
+    \ the sub-notes in turn." <> case attrs_unless of
+        Nothing -> ""
+        Just (unless, _) -> if attrs_unless == Nothing then "" else
+            "\nThis version just derives plain notes with the "
+            <> ShowVal.doc Attrs.trem <> " attribute, unless any of these\
+            \ attributes are present: " <> ShowVal.doc unless <> ".")
     $ Sig.call ((,) <$> Speed.arg <*> hold_env) $ \(speed, hold) args -> do
         starts <- tremolo_starts hold speed (Args.range_or_next args)
         notes <- Sub.sub_events args
+        attrs <- Call.get_attributes
+        let use_attrs = maybe False (not . any (Attrs.contain attrs). fst)
+                attrs_unless
+        let trem_attrs = maybe mempty snd attrs_unless
         case filter (not . null) notes of
             [] -> Sub.inverting_args args $ \args -> Ly.note_code code args $
-                simple_tremolo starts [Call.note]
-            notes -> Ly.notes_code code args $
-                Sub.derive $ chord_tremolo starts notes
-    where code = (Ly.AppendAll, ":32")
+                if use_attrs
+                    then Call.add_attributes Attrs.trem Call.note
+                    else Call.add_attributes trem_attrs $
+                        simple_tremolo starts [Call.note]
+            notes -> Ly.notes_code code args $ if use_attrs
+                then Call.add_attributes Attrs.trem $ Sub.derive_tracks notes
+                else Call.add_attributes trem_attrs $
+                    Sub.derive $ chord_tremolo starts notes
+    where
+    code = (Ly.AppendAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
@@ -333,11 +349,6 @@ simple_tremolo starts notes = Sub.derive
     | (start, end, note) <- zip3 starts (drop 1 starts) $
         if null notes then [] else cycle notes
     ]
-
--- | This is defined here instead of in "Derive.Call.Attribute" so it can be
--- next to 'c_tremolo'.
-c_attr_tremolo :: Make.Calls Derive.Note
-c_attr_tremolo = Make.attributed_note Module.prelude Attrs.trem
 
 -- | Given start times, return only ones whose full duration fits before the
 -- end time.  This is the tremolo analog to 'full_cycles'.  Unlike a trill, it
