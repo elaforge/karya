@@ -2,11 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Convert Lilypond Events to lilypond code.
 --
 -- It's a terrible name, but what else am I supposed to call it?  Render?
 -- Realize?  Perform?
-module Perform.Lilypond.Process where
+module Perform.Lilypond.Process (
+    process, convert_to_rests
+    , parse_key
+    , Ly(..), Note(..)
+    , VoiceLy, Voices(..), Voice(..)
+#ifdef TESTING
+    , module Perform.Lilypond.Process
+#endif
+) where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
@@ -397,7 +406,7 @@ make_note :: Time -> Attrs.Attributes -> Maybe Meter.Meter
     -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, clipped)
-make_note measure_start prev_attrs maybe_meter events next =
+make_note measure_start prev_attrs maybe_meter chord next =
     (ly, end, next_attrs, clipped)
     where
     ly = case NonEmpty.nonEmpty note_pitches of
@@ -406,13 +415,13 @@ make_note measure_start prev_attrs maybe_meter events next =
         Nothing -> Code $ t_unwords $
             prepend_chord first ++ append_chord True first
         Just note_pitches -> LyNote (note note_pitches)
-    first = NonEmpty.head events
+    first = NonEmpty.head chord
     -- If there are no pitches, then this is code with duration.
     note_pitches = do
         -- Sorting by pitch puts the chord notes in a predictable order.  Some
         -- lilypond notation, such as glissandoMap, refers to chord notes by
         -- index.
-        event <- Seq.sort_on event_pitch $ NonEmpty.toList events
+        event <- Seq.sort_on event_pitch $ NonEmpty.toList chord
         let pitch = get_pitch event
         guard (not (Text.null pitch))
         let tie = note_tie event
@@ -428,7 +437,7 @@ make_note measure_start prev_attrs maybe_meter events next =
         is_last = not $ any (is_tied . (\(NotePitch _ tie _) -> tie))
             note_pitches
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
-        (mconcat (map event_attributes (NonEmpty.toList events)))
+        (mconcat (map event_attributes (NonEmpty.toList chord)))
     get_pitch event = maybe "" to_lily (event_pitch event)
         <> if is_first event then get Constants.v_append_pitch event else ""
 
@@ -466,8 +475,8 @@ make_note measure_start prev_attrs maybe_meter events next =
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
     max_end = fromMaybe (event_end first) $ Seq.minimum $
-        Maybe.maybeToList next ++ map event_end (NonEmpty.toList events)
-    clipped = mapMaybe (clip_event end) (NonEmpty.toList events)
+        Maybe.maybeToList next ++ map event_end (NonEmpty.toList chord)
+    clipped = mapMaybe (clip_event end) (NonEmpty.toList chord)
     start = event_start first
     end = start + allowed_time
 
