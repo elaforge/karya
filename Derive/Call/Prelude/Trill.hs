@@ -102,11 +102,13 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     \ version, which emits a single note with `+trill+half`, `+trill+whole`, or\
     \ all the notes with `+trill`, depending on the interval."
     <> direction_doc hardcoded_start hardcoded_end
-    ) $ Sig.call ((,,)
+    ) $ Sig.call ((,,,)
     <$> neighbor_arg
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
-    ) $ \(neighbor, speed, config) -> Sub.inverting $ \args ->
-    Ly.when_lilypond_config (note_trill_ly args neighbor)
+    <*> Sig.environ_key "trill-always-tremolo" False
+        "If true, use tremolo notation even for 2nd trills."
+    ) $ \(neighbor, speed, config, always_tremolo) -> Sub.inverting $ \args ->
+    Ly.when_lilypond_config (note_trill_ly always_tremolo args neighbor)
         (note_trill use_attributes neighbor speed config args)
 
 neighbor_arg :: Sig.Parser Neighbor
@@ -185,14 +187,15 @@ trill_attributes neighbor start = do
         | Pitch.nns_equal diff 2 -> Just Attrs.whole
         | otherwise -> Nothing
 
-note_trill_ly :: Derive.PassedArgs a -> Neighbor -> Types.Config
+note_trill_ly :: Bool -> Derive.PassedArgs a -> Neighbor -> Types.Config
     -> Derive.NoteDeriver
-note_trill_ly args neighbor config = do
+note_trill_ly always_tremolo args neighbor config = do
     start <- Args.real_start args
     (pitch, neighbor) <- pitch_and_neighbor neighbor start
     diff <- Call.nn_difference start neighbor pitch
     if
-        | Pitch.nns_equal diff 1 || Pitch.nns_equal diff 2 ->
+        | not always_tremolo
+                && (Pitch.nns_equal diff 1 || Pitch.nns_equal diff 2) ->
             -- TODO emit an accidental or not based on the key, or just
             -- always use tremolo notation.
             Ly.add_code (Ly.NoteAppendAll, "\\trill") $ Call.placed_note args

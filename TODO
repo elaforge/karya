@@ -1028,7 +1028,7 @@ lilypond:
         . I can work around just by breaking the notes myself.
       * How do I set the accidental on the neighbor pitch?
         . I could extend 'tr' to take an explicit neighbor pitch.
-      - Configure to use tremolo for all trills.
+      * Configure to use tremolo for all trills.
       - It should be able to notice that for tr 1c, c db is better than c c#.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
