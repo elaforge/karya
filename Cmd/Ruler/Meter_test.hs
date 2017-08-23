@@ -112,7 +112,7 @@ test_label_meter = do
     let f = map Meter.m_label $
             Meter.label_meter config (Meter.make_meter 1 [meter])
         meter = Meter.regular_subdivision [2, 2, 2, 4]
-        config = Gong.config
+        config = (Gong.config 1)
             { Meter.config_label_components = Meter.number_components 0 0
             , Meter.config_labeled_ranks = Set.fromList [Meter.Section, Meter.Q]
             }

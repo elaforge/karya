@@ -26,6 +26,8 @@
 
     Examples:
 
+    - Start at a different measure number: @LRuler.local $ LRuler.renumber 7@
+
     - Bali: 8 gongs with 4 jegogans per gong.  Since counts are on calung, and
     there are 2 calung per jegogan, this is basically an 8 beat cycle:
 
@@ -321,8 +323,12 @@ strip_ranks max_rank =
 measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> m Modify
-measures meter sections measures =
-    ruler $ Meter.make_measures Meter.default_config 1 meter sections measures
+measures = measures_from 1
+
+measures_from :: Cmd.M m => Int -> Meter.AbstractMeter -> Int -> Int -> m Modify
+measures_from start_measure meter sections measures =
+    ruler $ Meter.make_measures (Meter.measure_from start_measure) 1 meter
+        sections measures
 
 -- | Create gongs with 'Gong.gongs'.
 gongs :: Cmd.M m => Int -- ^ number of gongs
@@ -417,6 +423,12 @@ modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
 modify_selected modify = do
     (block_id, tracknum) <- get_block_track
     return $ make_modify block_id tracknum (Ruler.Modify.modify_meter modify)
+
+-- | Renumber the ruler to start at the given number.
+renumber :: Cmd.M m => Int -> m Modify
+renumber start = do
+    (block_id, tracknum) <- get_block_track
+    return $ make_modify block_id tracknum (Ruler.Modify.renumber start)
 
 make_modify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
 make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)

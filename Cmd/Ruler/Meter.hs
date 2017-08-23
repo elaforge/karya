@@ -29,6 +29,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
@@ -306,6 +307,10 @@ default_config = MeterConfig
     , config_meter_type = mtype
     }
 
+measure_from :: Int -> MeterConfig
+measure_from start_measure = default_config
+    { config_label_components = big_number_components start_measure 1 }
+
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: MeterConfig -> Meter -> Ruler.Marklist
 meter_marklist config = labeled_marklist . label_meter config
@@ -382,7 +387,9 @@ marklist_labeled mlist =
 count_from :: Int -> [Label]
 count_from n = map showt [n..]
 
-number_components :: Int -> Int -> LabelComponents
+number_components :: Int -- ^ Due to 'config_labeled_ranks' and
+    -- 'collapse_ranks', this likely winds up being the measure start.
+    -> Int -> LabelComponents
 number_components section_start start = LabelComponents $ take 10 $
     count_from section_start : List.repeat (count_from start)
 
@@ -411,28 +418,37 @@ pixels_to_zoom dur pixels
 
 -- * labels
 
+parse_meter_type :: Ruler.MeterType -> (Text, Int)
+parse_meter_type t = case Text.splitOn "/" t of
+    [name, start] | Just start <- ParseText.int start -> (name, start)
+    _ -> (t, 1)
+
+make_meter_type :: Text -> Int -> Ruler.MeterType
+make_meter_type name start
+    | start == 0 = name
+    | otherwise = name <> "/" <> showt start
+
+-- | Standard numbered meter.
+mtype :: Ruler.MeterType
+mtype = "meter"
+
 big_label :: Label -> Label
 big_label t = "`+2/" <> t <> "`"
 
 biggest_label :: Label -> Label
 biggest_label t = "`+4/" <> t <> "`"
 
--- | Standard numbered meter, starting from 1.
-mtype :: Ruler.MeterType
-mtype = "meter"
-
 type Renumber = LabeledMeter -> LabeledMeter
 
--- | Strip all labels and renumber.  I can do this for 'default_config' because
--- I can regenerate the labels from the rank.
--- TODO can't I do it for tala too?  I would need to put 'meter_types' into
--- another module that can import both Cmd.Meter and Cmd.Tala
+-- | Strip all labels and renumber.  I can do this for a known MeterConfig
+-- because I can regenerate the labels from the rank.
 renumber_meter :: MeterConfig -> Renumber
 renumber_meter config =
     label_meter config . map (\(LabeledMark rank dur _) -> (rank, dur))
 
 -- | Renumber only the topmost count.  The number is increased at ranks 0 and
--- 1, based on 'Tala.unlabeled_ranks'.
+-- 1, based on 'Tala.unlabeled_ranks'.  TODO Cmd.Ruler.Modify now stores an
+-- explicit start number, so I should be able to clean this up.
 renumber_topmost :: Renumber
 renumber_topmost meter = fromMaybe meter $ do
     mark <- Seq.head meter
