@@ -9,6 +9,7 @@ import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Ly as Ly
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
 
@@ -130,7 +131,7 @@ test_key = do
 test_ly_prepend_append = do
     let f env = LilypondTest.convert_measures [] $
             map LilypondTest.environ_event [(0, 12, Just LilypondTest.a3, env)]
-        str :: BaseTypes.Key -> Text -> [(BaseTypes.Key, BaseTypes.Val)]
+        str :: EnvKey.Key -> Text -> [(EnvKey.Key, BaseTypes.Val)]
         str key val = [(key, Typecheck.to_val val)]
     equal (f []) $ Right "a1~ | a1~ | a1"
     equal (f (str Constants.v_append_first "x")) $ Right "a1~x | a1~ | a1"

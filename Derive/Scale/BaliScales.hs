@@ -298,7 +298,7 @@ semis_to_nn offset laras default_laras =
                     Isep -> avg + ombak / 2
 
 -- | VStr: Select saih tuning.
-laras_key :: BaseTypes.Key
+laras_key :: EnvKey.Key
 laras_key = "laras"
 
 get_nn :: Vector.Vector Pitch.NoteNumber -> Pitch.FSemi

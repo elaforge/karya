@@ -26,7 +26,6 @@ module Derive.Score (
     , modify_environ, modify_environ_key
     -- ** attributes
     , event_attributes, has_attribute, intersecting_attributes
-    , environ_attributes
     , modify_attributes, add_attributes, remove_attributes
     -- ** delayed args
     , put_arg, take_arg
@@ -80,10 +79,11 @@ import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
 import Derive.ScoreTypes
-       (Instrument(..), Control, control_name, PControl, pcontrol_name,
-        Warp(..), id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
-        TypedControlValMap, untyped, merge_typed, type_to_code, code_to_type,
-        TypedControl, TypedVal)
+       (Instrument(..), instrument, instrument_name, empty_instrument, Control,
+        control_name, PControl, pcontrol_name, Warp(..), id_warp,
+        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
+        untyped, merge_typed, type_to_code, code_to_type, TypedControl,
+        TypedVal)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -267,7 +267,7 @@ add_log_msg msg event = event { event_logs = msg : event_logs event }
 modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
-modify_environ_key :: BaseTypes.Key
+modify_environ_key :: EnvKey.Key
     -> (Maybe BaseTypes.Val -> BaseTypes.Val) -> Event -> Event
 modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
     BaseTypes.Environ $ Map.alter (Just . modify) name env
@@ -275,7 +275,7 @@ modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
 -- ** attributes
 
 event_attributes :: Event -> Attrs.Attributes
-event_attributes = environ_attributes . event_environ
+event_attributes = BaseTypes.environ_attributes . event_environ
 
 has_attribute :: Attrs.Attributes -> Event -> Bool
 has_attribute attr = (`Attrs.contain` attr) . event_attributes
@@ -284,16 +284,10 @@ intersecting_attributes :: Attrs.Attributes -> Event -> Bool
 intersecting_attributes attrs event =
     Attrs.intersection attrs (event_attributes event) /= mempty
 
-environ_attributes :: BaseTypes.Environ -> Attrs.Attributes
-environ_attributes environ =
-    case BaseTypes.lookup EnvKey.attributes environ of
-        Just (BaseTypes.VAttributes attrs) -> attrs
-        _ -> mempty
-
 modify_attributes :: (Attrs.Attributes -> Attrs.Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
     BaseTypes.insert EnvKey.attributes
-        (BaseTypes.VAttributes (modify (environ_attributes env))) env
+        (BaseTypes.VAttributes (modify (BaseTypes.environ_attributes env))) env
 
 add_attributes :: Attrs.Attributes -> Event -> Event
 add_attributes attrs
@@ -591,17 +585,6 @@ warp_to_signal (Warp sig shift stretch)
     | stretch == 1 = Signal.map_x (subtract shift) sig
     | otherwise = Signal.map_x ((`RealTime.div` factor) . subtract shift) sig
     where factor = RealTime.to_seconds stretch
-
--- * instrument
-
-instrument :: Text -> Instrument
-instrument = Instrument
-
-instrument_name :: Instrument -> Text
-instrument_name (Instrument s) = s
-
-empty_instrument :: Instrument
-empty_instrument = Instrument ""
 
 -- * util
 

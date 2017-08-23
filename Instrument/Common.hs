@@ -16,6 +16,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -173,7 +174,7 @@ instance Pretty Config where
         , ("solo", Pretty.format solo)
         ]
 
-add_environ :: RestrictedEnviron.ToVal a => BaseTypes.Key -> a
+add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
     -> Config -> Config
 add_environ key val = cenviron %= (RestrictedEnviron.make [(key, v)] <>)
     where v = RestrictedEnviron.to_val val

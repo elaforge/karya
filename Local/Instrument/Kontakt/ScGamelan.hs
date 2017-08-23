@@ -15,7 +15,6 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
@@ -121,7 +120,7 @@ kebyar_allocations dev_ = make_config $ concat
     where
     -- (inst, qualified, gets_chan, environ, scale)
     make_config :: [(Text, Text, Bool,
-            [(BaseTypes.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
+            [(EnvKey.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
         -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
         where

@@ -149,8 +149,7 @@ solo_string_instruments = map (second Just)
 
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
-note_calls :: Maybe HarmonicMap -> Patch.Patch
-    -> [MidiInst.Call Derive.Note]
+note_calls :: Maybe HarmonicMap -> Patch.Patch -> [MidiInst.Call Derive.Note]
 note_calls maybe_hmap patch =
     with_attr Attrs.trill [g "tr" (Trill.c_note_trill True Nothing Nothing)]
     <> with_attr Attrs.trem [MidiInst.both "trem" Trill.c_attr_tremolo]

@@ -161,6 +161,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
@@ -226,7 +227,7 @@ data CallError =
     deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
-data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !BaseTypes.Key
+data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !EnvKey.Key
     deriving (Eq, Show)
 
 data EvalSource =

@@ -7,8 +7,9 @@
 module Derive.EnvKey where
 import Data.Text (Text)
 
-import Derive.BaseTypes (Key)
 
+-- | Symbols to look up a val in the 'ValMap'.
+type Key = Text
 
 -- * directly supported by core derivers
 

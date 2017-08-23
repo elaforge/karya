@@ -29,6 +29,7 @@
     > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
 -}
 module Derive.BaseTypes where
+import Prelude hiding (lookup)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
@@ -42,6 +43,7 @@ import qualified Util.TimeVector as TimeVector
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -226,7 +228,7 @@ data PitchError =
     | InvalidInput
     -- | A required environ value was missing or had the wrong type or value.
     -- The Text is a 'ShowVal.show_val' of the wrong Val.
-    | EnvironError !Key !Text
+    | EnvironError !EnvKey.Key !Text
     -- | Same as EnvironError, but for control vals.
     | ControlError !ScoreTypes.Control !Text
     -- | The scale doesn't implement that operation.
@@ -286,18 +288,21 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 
 -- * Environ
 
-newtype Environ = Environ (Map Key Val)
+newtype Environ = Environ (Map EnvKey.Key Val)
     deriving (Show, Monoid, Pretty, DeepSeq.NFData)
 
 -- | Insert a val directly, with no typechecking.
-insert :: Key -> Val -> Environ -> Environ
+insert :: EnvKey.Key -> Val -> Environ -> Environ
 insert name val (Environ env) = Environ $ Map.insert name val env
 
-lookup :: Key -> Environ -> Maybe Val
+lookup :: EnvKey.Key -> Environ -> Maybe Val
 lookup name (Environ env) = Map.lookup name env
 
--- | Symbols to look up a val in the 'ValMap'.
-type Key = Text
+environ_attributes :: Environ -> Attrs.Attributes
+environ_attributes environ =
+    case lookup EnvKey.attributes environ of
+        Just (VAttributes attrs) -> attrs
+        _ -> mempty
 
 -- * Val
 

@@ -16,6 +16,7 @@ import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -26,10 +27,10 @@ import Global
 import Types
 
 
-newtype Environ = Environ (Map BaseTypes.Key Val)
+newtype Environ = Environ (Map EnvKey.Key Val)
     deriving (Read, Show, Eq, Monoid, Pretty, Serialize.Serialize)
 
-make :: [(BaseTypes.Key, Val)] -> Environ
+make :: [(EnvKey.Key, Val)] -> Environ
 make = Environ . Map.fromList
 
 convert :: Environ -> BaseTypes.Environ

@@ -33,6 +33,15 @@ import Types
 newtype Instrument = Instrument Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
+instrument :: Text -> Instrument
+instrument = Instrument
+
+instrument_name :: Instrument -> Text
+instrument_name (Instrument s) = s
+
+empty_instrument :: Instrument
+empty_instrument = Instrument ""
+
 instance Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = ShowVal.show_val inst

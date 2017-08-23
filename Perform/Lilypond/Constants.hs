@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Constants where
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Env as Env
 import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
@@ -42,7 +41,7 @@ ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
 -- and will preceed notes starting at the same time.  If the event has no
 -- pitch then its also considered a freestanding code fragment, but will
 -- occupy the given amount of duration.
-v_prepend :: BaseTypes.Key
+v_prepend :: Env.Key
 v_prepend = "ly-prepend"
 
 -- | String: like 'v_prepend' but append the code to all the notes in a tied
@@ -52,36 +51,36 @@ v_prepend = "ly-prepend"
 -- v_append_first.  I should make zero-durs understand all the append
 -- variations for consistency, though I don't have examples of where they would
 -- be useful.
-v_append_all :: BaseTypes.Key
+v_append_all :: Env.Key
 v_append_all = "ly-append-all"
 
 -- | String: like 'v_append_all', but it goes after notes inside a chord,
 -- instead of once after the chord itself.
-v_note_append_all :: BaseTypes.Key
+v_note_append_all :: Env.Key
 v_note_append_all = "ly-note-append-all"
 
 -- | String: append code to the first note in a tied sequence.
-v_append_first :: BaseTypes.Key
+v_append_first :: Env.Key
 v_append_first = "ly-append-first"
 
 -- | String: like 'v_append_all_first', but it goes after notes inside a chord,
 -- instead of once after the chord itself.
-v_note_append_first :: BaseTypes.Key
+v_note_append_first :: Env.Key
 v_note_append_first = "ly-note-append-first"
 
 -- | String: append code to the last note in a tied sequence.
-v_append_last :: BaseTypes.Key
+v_append_last :: Env.Key
 v_append_last = "ly-append-last"
 
 -- | String: append after the pitch, and before the duration.  This is for
 -- pitch modifiers like reminder accidentals (!) and cautionary accidentals
 -- (?).
-v_append_pitch :: BaseTypes.Key
+v_append_pitch :: Env.Key
 v_append_pitch = "ly-append-pitch"
 
 -- | String: \"^\" or \"_\", manually sets tie direction, if this note is
 -- tied.
-v_tie_direction :: BaseTypes.Key
+v_tie_direction :: Env.Key
 v_tie_direction = "ly-tie-direction"
 
 -- * tuplet
@@ -105,17 +104,17 @@ get_tuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
 
 -- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.  Used only on @>ly-global@ events.
-v_meter :: BaseTypes.Key
+v_meter :: Env.Key
 v_meter = "ly-meter"
 
 -- | String: this has the same format as 'v_meter', but it affects the rhythmic
 -- spelling for the instrument.
-v_subdivision :: BaseTypes.Key
+v_subdivision :: Env.Key
 v_subdivision = "ly-subdivision"
 
 -- | String: Gives the title of a new movement.  An event with 'ly_global'
 -- instrument and this env val will cause a movement break.
-v_movement :: BaseTypes.Key
+v_movement :: Env.Key
 v_movement = "ly-movement"
 
 -- * common code

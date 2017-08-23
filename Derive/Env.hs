@@ -10,8 +10,9 @@ import Prelude hiding (null, lookup)
 import qualified Data.Map as Map
 
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Key, Environ(..), lookup, insert)
+import Derive.BaseTypes (Environ(..), lookup, insert)
 import qualified Derive.EnvKey as EnvKey
+import Derive.EnvKey (Key)
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
