@@ -42,7 +42,6 @@
 module Derive.Call.Prelude.Trill where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
-import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -70,8 +69,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
-import qualified Perform.Lilypond.Convert as Lilypond.Convert
-import qualified Perform.Lilypond.Types as Types
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -108,16 +106,13 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     <*> Sig.environ_key "trill-always-tremolo" False
         "If true, use tremolo notation even for 2nd trills."
     ) $ \(neighbor, speed, config, always_tremolo) -> Sub.inverting $ \args ->
-    Ly.when_lilypond_config (note_trill_ly always_tremolo args neighbor)
+    Ly.when_lilypond (note_trill_ly always_tremolo args neighbor)
         (note_trill use_attributes neighbor speed config args)
 
 neighbor_arg :: Sig.Parser Neighbor
 neighbor_arg = Sig.defaulted "neighbor"
     (Left $ Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
     "Alternate with a pitch at this interval."
-
--- TODO configure supported trill attrs
--- TODO configure lilypond tr or tremolo
 
 type Neighbor = Either BaseTypes.ControlRef PSignal.Pitch
 
@@ -187,19 +182,17 @@ trill_attributes neighbor start = do
         | Pitch.nns_equal diff 2 -> Just Attrs.whole
         | otherwise -> Nothing
 
-note_trill_ly :: Bool -> Derive.PassedArgs a -> Neighbor -> Types.Config
-    -> Derive.NoteDeriver
-note_trill_ly always_tremolo args neighbor config = do
+note_trill_ly :: Bool -> Derive.PassedArgs a -> Neighbor -> Derive.NoteDeriver
+note_trill_ly always_tremolo args neighbor = do
     start <- Args.real_start args
     (pitch, neighbor) <- pitch_and_neighbor neighbor start
     diff <- Call.nn_difference start neighbor pitch
     if
         | not always_tremolo
                 && (Pitch.nns_equal diff 1 || Pitch.nns_equal diff 2) ->
-            -- TODO emit an accidental or not based on the key, or just
-            -- always use tremolo notation.
+            -- TODO emit an accidental or not based on the key
             Ly.add_code (Ly.NoteAppendAll, "\\trill") $ Call.placed_note args
-        | otherwise -> tremolo_trill_ly config pitch neighbor
+        | otherwise -> tremolo_trill_ly pitch neighbor
             (Args.start args) (Args.duration args)
 
 pitch_and_neighbor :: Neighbor -> RealTime
@@ -212,32 +205,15 @@ pitch_and_neighbor (Right neighbor) start = do
     pitch <- Call.get_pitch start
     return (pitch, neighbor)
 
-tremolo_trill_ly :: Types.Config -> PSignal.Pitch -> PSignal.Pitch
-    -> ScoreTime -> ScoreTime -> Derive.NoteDeriver
-tremolo_trill_ly config pitch1 pitch2 start dur = do
-    real_start <- Derive.real start
-    real_dur <- Call.real_duration start dur
-    pitch1 <- Derive.resolve_pitch real_start pitch1
-    pitch2 <- Derive.resolve_pitch real_start pitch2
-    code <- Derive.require_right id $ do
-        p1 <- Lilypond.Convert.pitch_to_lily pitch1
-        p2 <- Lilypond.Convert.pitch_to_lily pitch2
-        tremolo_trill_code (Types.config_quarter_duration config) p1 p2 real_dur
-    Ly.code (start, dur) code
-
-tremolo_trill_code :: RealTime -> Types.Pitch -> Types.Pitch -> RealTime
-    -> Either Text Ly.Ly
-tremolo_trill_code per_quarter pitch1 pitch2 dur
-    | frac == 0 = Right $ Text.unwords
-        [ "\\repeat tremolo", showt times
-        , "{", Types.to_lily pitch1 <> "32(", Types.to_lily pitch2 <> "32)"
-        , "}"
+-- | Emit the magic events to trigger lilypond's tremolo processing.
+tremolo_trill_ly :: PSignal.Pitch -> PSignal.Pitch -> ScoreTime -> ScoreTime
+    -> Derive.NoteDeriver
+tremolo_trill_ly pitch1 pitch2 start dur =
+    Derive.place start dur $ mconcat
+        [ Ly.add_code (Ly.SetEnviron Constants.v_tremolo, "") Call.note
+        , Call.pitched_note pitch1
+        , Call.pitched_note pitch2
         ]
-    | otherwise = Left $ "dur " <> pretty dur <> " doesn't yield an integral\
-        \ number of 16th notes: " <> pretty (wholes * 16)
-    where
-    wholes = dur / per_quarter / 4
-    (times, frac) = properFraction $ wholes * 16
 
 c_tremolo_generator :: Maybe ([Attrs.Attributes], Attrs.Attributes)
     -> Derive.Generator Derive.Note

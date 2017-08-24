@@ -170,17 +170,42 @@ convert_chunk metered events = error_context current $
             mapM_ update_subdivision zeros
             start <- State.gets state_time
             rests <- mix_in_code start zeros <$> rests_until (event_start event)
-            -- Debug.tracepM "convert_chunk" (metered, zeros, event)
-            (lys, remaining) <-
-                case Constants.get_tuplet (event_environ event) of
-                    Just (score_dur, real_dur) -> do
-                        score_dur <- real_to_time score_dur
-                        real_dur <- real_to_time real_dur
-                        convert_tuplet (event_start event) score_dur real_dur
-                            events
-                    Nothing -> convert_chord metered (event :| events)
+            -- Debug.tracepM "convert_chunk" (zeros, event, events)
+            (lys, remaining) <- convert_chunk_notes metered (event :| events)
             return (rests <> lys, remaining)
     where current = maybe "no more events" pretty (Seq.head events)
+
+-- | Look for a magic event in the events starting here, and handle it if
+-- found.
+convert_chunk_notes :: Bool -> NonEmpty Event -> ConvertM ([Ly], [Event])
+convert_chunk_notes metered events
+    | Just ((score_dur, real_dur), (_, remaining))
+            <- find Constants.get_tuplet = do
+        score_dur <- real_to_time score_dur
+        real_dur <- real_to_time real_dur
+        convert_tuplet start score_dur real_dur remaining
+    | Just ((), (event, remaining)) <- find has_tremolo =
+        convert_tremolo event remaining
+    | otherwise = convert_chord metered events
+    where
+    has_tremolo env
+        | Env.is_set Constants.v_tremolo env = Just ()
+        | otherwise = Nothing
+    start = event_start (NonEmpty.head events)
+    find match = find_here start (match . event_environ)
+        (NonEmpty.toList events)
+
+find_here :: Time -> (Event -> Maybe a) -> [Event]
+    -> Maybe (a, (Event, [Event]))
+find_here start match events = msum $ map find (focus here)
+    where
+    find (e, es) = (, (e, es ++ later)) <$> match e
+    (here, later) = span ((<=start) . event_start) events
+
+-- | Focus on each element in turn, removing it from the list.
+focus :: [a] -> [(a, [a])]
+focus (x:xs) = (x, xs) : map (second (x:)) (focus xs)
+focus [] = []
 
 -- | Code events are mixed into the Lys, depending on their prepend or append
 -- attrs.
@@ -227,12 +252,15 @@ partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
     where
     prepend = filter (not . Text.null) $
-        map (fromMaybe "" . get_val Constants.v_prepend) events
+        map (get_code Constants.v_prepend) events
     append = filter (not . Text.null) $
-        map (fromMaybe "" . get_val Constants.v_append_all) events
+        map (get_code Constants.v_append_all) events
 
 get_val :: Typecheck.Typecheck a => Env.Key -> Event -> Maybe a
-get_val v = Env.maybe_val v . event_environ
+get_val k = Env.maybe_val k . event_environ
+
+get_code :: Env.Key -> Event -> Code
+get_code k = fromMaybe "" . get_val k
 
 -- | Partition events which have zero dur and don't coincide with the next
 -- non-zero dur event.
@@ -316,6 +344,87 @@ stretch factor start event
             fromIntegral factor * (event_start event - start) + start
         , event_duration = fromIntegral factor * event_duration event
         }
+
+-- ** convert_tremolo
+
+-- | Get just pitch and code from in_tremolo notes, force them to 32nd note
+-- duration, wrap in (), and wrap the whole thing in \repeat tremolo { ... }.
+--
+-- TODO This is sort of an ad-hoc reimplementation of 'convert_chord', which is
+-- grody.  That means I have to handle all the zero dur and code all over
+-- again, and maybe get it wrong or inconsistent.  But the rules are
+-- different in a tremolo, duration-wise it's like a chord, but code always has
+-- to go on the notes inside, not after the whole thing.
+convert_tremolo :: Event -> [Event] -> ConvertM ([Ly], [Event])
+convert_tremolo tremolo_event events = do
+    dur <- get_allowed_dur
+    let (in_tremolo, out) = span ((< start + dur) . event_start) events
+    let (dur0, with_dur) = List.partition zero_dur in_tremolo
+    prev_attrs <- State.gets state_prev_attrs
+    let (next_attrs, notes) = tremolo_make_lys prev_attrs with_dur
+    State.modify' $ \state -> state { state_prev_attrs = next_attrs }
+
+    -- TODO promote this to the caller so everyone doesn't have to do it?
+    barline <- advance_measure (start + dur)
+
+    let (times, frac) = properFraction $ Types.to_whole dur * 16
+    when (frac /= 0) $ throw $ "dur " <> pretty dur
+        <> " doesn't yield an integral number of 16th notes: "
+        <> pretty (Types.to_whole dur * 16)
+    let code = Code $ "\\repeat tremolo " <> showt times <> " {"
+    -- As long as I don't support v_append_first for 0 dur events, I'll put
+    -- the appends after the first note, because in practice that's what
+    -- looks best.  E.g. dynamics should go on the first note of the tremolo.
+    -- TODO support the append variants for 0 dur
+    let (prepend, append) = partition_code dur0
+    let surround = prepend ++ case map LyNote notes of
+            n : ns -> n : append ++ ns
+            [] -> append
+    let clipped
+            | dur >= total_dur = []
+            | otherwise = mapMaybe (clip_event (start + dur))
+                (tremolo_event : in_tremolo)
+    return (code : surround ++ [Code "}"] ++ maybe [] (:[]) barline,
+        clipped ++ out)
+
+    where
+    start = event_start tremolo_event
+    total_dur = event_duration tremolo_event
+    get_allowed_dur = do
+        meter <- get_subdivision
+        measure_start <- State.gets state_measure_start
+        return $ Types.note_dur_to_time $ Types.time_to_note_dur $
+            min total_dur $
+            Meter.allowed_time_best True meter (start - measure_start)
+
+tremolo_make_lys :: Attrs.Attributes -> [Event] -> (Attrs.Attributes, [Note])
+tremolo_make_lys prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
+    where
+    make prev_attrs (is_first, event, is_last) = (next_attrs,) $ Note
+        { note_pitches = NotePitch pitch NoTie note_code :| []
+        , note_duration = Types.NoteDuration Types.D32 False
+        , note_prepend = prepend
+        , note_append = append ++ attrs_codes
+        , note_stack = Seq.last $ Stack.to_ui (event_stack event)
+        }
+        where
+        note_code = slur ++ append_note_code is_first event
+        slur
+            | is_first && not is_last = ["("]
+            | not is_first && is_last = [")"]
+            | otherwise = []
+        pitch = pitch_code is_first event
+        prepend = prepend_code is_first event
+        append = append_code is_first is_last event
+        (attrs_codes, next_attrs) =
+            attrs_to_code prev_attrs (event_attributes event)
+
+zip_first_last :: [a] -> [(Bool, a, Bool)]
+zip_first_last = map to_bool . Seq.zip_neighbors
+    where
+    to_bool (prev, cur, next) =
+        (Maybe.isNothing prev, cur, Maybe.isNothing next)
+
 
 -- ** convert_chord
 
@@ -421,10 +530,10 @@ make_note measure_start prev_attrs maybe_meter chord next =
         -- lilypond notation, such as glissandoMap, refers to chord notes by
         -- index.
         event <- Seq.sort_on event_pitch $ NonEmpty.toList chord
-        let pitch = get_pitch event
-        guard (not (Text.null pitch))
+        let pitch = pitch_code (is_first event) event
+        guard $ not (Text.null pitch)
         let tie = note_tie event
-        return $ NotePitch pitch tie (append_note event)
+        return $ NotePitch pitch tie (append_note_code (is_first event) event)
     note note_pitches = Note
         { note_pitches = note_pitches
         , note_duration = allowed_dur
@@ -434,27 +543,14 @@ make_note measure_start prev_attrs maybe_meter chord next =
         }
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs
         (mconcat (map event_attributes (NonEmpty.toList chord)))
-    get_pitch event = maybe "" to_lily (event_pitch event)
-        <> if is_first event then get Constants.v_append_pitch event else ""
 
     -- These will wind up with "" in them, but t_unwords strips that.
     -- I take the union of all the code bits because it's confusing if code
     -- disappears depending on where it happens to fall in the chord.
-    prepend_chord = Seq.unique $ map (get Constants.v_prepend) $
-        filter is_first (NonEmpty.toList chord)
-    append_chord = Seq.unique $ concatMap get_append (NonEmpty.toList chord)
-    get_append event = concat
-        [ [get Constants.v_append_first event | is_first event]
-        , [get Constants.v_append_last event | is_last event]
-        , [get Constants.v_append_all event]
-        ]
-
-    append_note event = concat
-        [ [get Constants.v_note_append_first event | is_first event]
-        , [get Constants.v_note_append_all event]
-        ]
-    get key = fromMaybe "" . get_val key
-
+    prepend_chord = Seq.unique $ concat
+        [prepend_code (is_first e) e | e <- NonEmpty.toList chord]
+    append_chord = Seq.unique $ concat
+        [append_code (is_first e) (is_last e) e | e <- NonEmpty.toList chord]
     note_tie event
         | event_end event <= end = NoTie
         | Text.null direction = TieNeutral
@@ -462,28 +558,77 @@ make_note measure_start prev_attrs maybe_meter chord next =
         | otherwise = TieDown
         where
         direction :: Text
-        direction = get Constants.v_tie_direction event
+        direction = get_code Constants.v_tie_direction event
     is_first = not . event_clipped
     is_last event = case note_tie event of
         NoTie -> True
         _ -> False
 
-    allowed = case maybe_meter of
-        Nothing -> max_end - start
-        Just meter -> min (max_end - start) $
-            Meter.allowed_time_best True meter (start - measure_start)
-    allowed_dur = Types.time_to_note_dur allowed
-    allowed_time = Types.note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
     max_end = fromMaybe (event_end first) $ Seq.minimum $
         Maybe.maybeToList next ++ map event_end (NonEmpty.toList chord)
     clipped = mapMaybe (clip_event end) (NonEmpty.toList chord)
     start = event_start first
-    end = start + allowed_time
+    end = start + Types.note_dur_to_time allowed_dur
+    allowed_dur = Types.time_to_note_dur $ case maybe_meter of
+        Nothing -> max_end - start
+        Just meter -> min (max_end - start) $
+            Meter.allowed_time_best True meter (start - measure_start)
+
+-- ** ly code env vars
 
 t_unwords :: [Text] -> Text
 t_unwords = Text.unwords . filter (not . Text.null) . map Text.strip
+
+append_code :: Bool -> Bool -> Event -> [Code]
+append_code is_first is_last event = Seq.unique $ filter (not . Text.null) $
+    concat
+    [ [get_code Constants.v_append_first event | is_first]
+    , [get_code Constants.v_append_last event | is_last]
+    , [get_code Constants.v_append_all event]
+    ]
+
+append_note_code :: Bool -> Event -> [Code]
+append_note_code is_first event = Seq.unique $ filter (not . Text.null) $ concat
+    [ [get_code Constants.v_note_append_first event | is_first]
+    , [get_code Constants.v_note_append_all event]
+    ]
+
+prepend_code :: Bool -> Event -> [Code]
+prepend_code is_first event
+    | is_first = filter (not . Text.null) [get_code Constants.v_prepend event]
+    | otherwise = []
+
+pitch_code :: Bool -> Event -> Code
+pitch_code is_first event =
+    maybe "" to_lily (event_pitch event)
+        <> if is_first then get_code Constants.v_append_pitch event else ""
+
+attrs_to_code :: Attrs.Attributes -> Attrs.Attributes
+    -> ([Code], Attrs.Attributes)
+    -- ^ (code to append, prev attrs for the next note)
+attrs_to_code prev current =
+    (simple ++ starts ++ Maybe.catMaybes ends, mconcat (current : extras))
+    where
+    starts =
+        [ start
+        | (attr, start, _) <- modal_articulations
+        , current `has` attr, not (prev `has` attr)
+        ]
+    (ends, extras) = unzip $ map (cancel prev) modal_articulations
+    simple = [code | (attr, code) <- simple_articulations, current `has` attr]
+    cancel prev (attr, _, end)
+        -- If prev doesn't have +nv, but this one is +staccato, then consider
+        -- that this one also has +nv.  This avoids spurious vib marks on
+        -- every staccato note.
+        | prev `has` attr && not (current `has` attr) =
+            if attr == Attrs.nv && any (current `has`) inherently_nv
+                then (Nothing, Attrs.nv)
+                else (Just end, mempty)
+        | otherwise = (Nothing, mempty)
+    inherently_nv = [Attrs.staccato, Attrs.harm, Attrs.pizz]
+    has = Attrs.contain
 
 -- * convert voices
 
@@ -838,7 +983,7 @@ instance ToLily Note where
         ly_dur = to_lily dur
         note = case pitches of
             NotePitch pitch tie code :| [] ->
-                t_unwords $ (pitch <> ly_dur <> to_lily tie) : code
+                mconcat [pitch, ly_dur, to_lily tie, t_unwords code]
             _ -> "<" <> t_unwords (map to_lily (NonEmpty.toList pitches))
                 <> ">" <> ly_dur
 
@@ -975,28 +1120,3 @@ clip_event end e
     | otherwise = Just $
         e { event_start = end, event_duration = left, event_clipped = True }
     where left = event_end e - end
-
-attrs_to_code :: Attrs.Attributes -> Attrs.Attributes
-    -> ([Code], Attrs.Attributes)
-    -- ^ (code to append, prev attrs for the next note)
-attrs_to_code prev current =
-    (simple ++ starts ++ Maybe.catMaybes ends, mconcat (current : extras))
-    where
-    starts =
-        [ start
-        | (attr, start, _) <- modal_articulations
-        , current `has` attr, not (prev `has` attr)
-        ]
-    (ends, extras) = unzip $ map (cancel prev) modal_articulations
-    simple = [code | (attr, code) <- simple_articulations, current `has` attr]
-    cancel prev (attr, _, end)
-        -- If prev doesn't have +nv, but this one is +staccato, then consider
-        -- that this one also has +nv.  This avoids spurious vib marks on
-        -- every staccato note.
-        | prev `has` attr && not (current `has` attr) =
-            if attr == Attrs.nv && any (current `has`) inherently_nv
-                then (Nothing, Attrs.nv)
-                else (Just end, mempty)
-        | otherwise = (Nothing, mempty)
-    inherently_nv = [Attrs.staccato, Attrs.harm, Attrs.pizz]
-    has = Attrs.contain

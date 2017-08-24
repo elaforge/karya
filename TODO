@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
+    an untyped ControlRef.  Can I make it default to Diatonic?
+  - ^o deletes too much.
+    . Given [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
+      [("*", [(0, 0, "c"), (2, 0, "d")])], it deletes both y and d.  It should
+      merge only to the minimum time, i.e. 1.
   - LRuler's sections*per_section is awkward when I'm really thinking in
     measures.
   * How can I have a ruler start at >1?  Ideally I'd like to do it
@@ -985,6 +991,19 @@ integrate / integration:
     - quantization
 
 lilypond:
+  Refactor Process to fix all the CodePosition stuff:
+    . First pass finds voice boundaries.
+    . Then insert rests.
+    . Sort coincident events by pitch.
+    . Merge 0 dur events with coincident events by putting in their environ.
+    . Convert [Event]->[Ly]: keys, meter splitting, tuplet and tremolo.
+  - I could do manual rhythm spelling with a special directive to turn off the
+    meter, and then use a tracklang-level tie to join notes.
+  - artificial harmonic notation doesn't understand that harmonics can count
+    as +nv.
+  - ly^ is confusing, it seems like it should be ly-^
+    . Either that or get rid of the hyphen for everyone.
+  - Variant of ly^ for \markup {...}.
   - harmonic string arg is hard to use if I have to give nn.  How about
     strings export (g) (d) etc. calls which emit the appropriate string's nn?
     Or should I understand string names?
@@ -994,6 +1013,11 @@ lilypond:
     . Partly it's because the code to mix in 0 dur events doesn't support
       append-first and append-last, but maybe it should.
     . Either support them or at least throw an error when I see them.
+    . ly-< shows how confusing the situation is: I use AppendFirst even though
+      it doesn't work for 0 dur.  But that's what's appropriate.
+    . The emit/attach distinction is confusing, can I get rid of it?
+      . What purpose does it serve?
+      . It's useful to e.g. put 0 dur text annotations on the ly-track.
   - Lilypond.Process has special case hacks to deal with rests and mixing code
     into rests.  Maybe I could get rid of that by inserting explicit rests, as
     events with pitch=Nothing.
@@ -1001,6 +1025,7 @@ lilypond:
       worth it?
   - add a ly.track module, which has everything from ly, but without the ly-
     prefix.  I can have ly-track and ly-global import it.
+    . Actually there aren't many of those, so maybe don't bother?
   - In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
     Not only does it not go crazy for non 12-tet, but it preserves accidentals.
   * Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
@@ -1024,25 +1049,28 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
-    - where is the hairpin at @b2 vla 28?  mm80
     - put just the harmonic gliss line on @b2 vla 27
     * trill at wider intervals should emit tremolo notation
       . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
       . This is yet another nested notation, just like triplet.
         It's simpler in that I just have two pitches inside, with no code
         attachments.
-      - However, it has to break across barlines, which means it needs to be
+      * However, it has to break across barlines, which means it needs to be
         aware of the meter, which implies it has to go at the lilypond level.
         Bother.
         . I can work around just by breaking the notes myself.
+        . Another reason is that articulation markings have to go on the notes
+          inside, not on the \repeat expression.  Double bother.
+        . So, similar to tuplet, emit a 0 dur note with a tremolo tag.  When
+          Process sees it, take the overlapped notes and wrap in
+          \repeat tremolo.  I get pitch and ly code from the notes, and
+          overall duration from the tagged event.
       * How do I set the accidental on the neighbor pitch?
         . I could extend 'tr' to take an explicit neighbor pitch.
       * Configure to use tremolo for all trills.
       - It should be able to notice that for tr 1c, c db is better than c c#.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
-    - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
-      an untyped ControlRef.  Can I make it default to Diatonic?
     - Lilypond puts 3 on sextuplets.
     - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8

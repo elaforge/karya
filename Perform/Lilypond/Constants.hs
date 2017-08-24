@@ -100,6 +100,13 @@ get_tuplet :: Env.Environ -> Maybe (RealTime, RealTime)
 get_tuplet env = (,) <$> get "ly-tuplet-score-dur" <*> get "ly-tuplet-real-dur"
     where get k = Env.maybe_val k env
 
+-- * tremolo
+
+-- | This marks a tremolo event, which triggers special treatment for
+-- coincident notes.
+v_tremolo :: Env.Key
+v_tremolo = "ly-tremolo"
+
 -- * ly-global
 
 -- | String: should be parseable by 'Meter.parse_meter',
