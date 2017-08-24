@@ -274,6 +274,32 @@ test_attach_and_emit = do
             : UiTest.note_track1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
         (Right "\\a c4( \\b d4) r2", [])
 
+test_code_position = do
+    let runc call pos = LilypondTest.measures ["a"] $
+            LilypondTest.derive_tracks $ concatMap UiTest.note_track
+                [ [(0, 8, call <> " a " <> pos <> " | -- 3c")]
+                , [(0, 8, "3d")]
+                ]
+    let runa = runc "ly-attach"
+    equal (runa "prepend") (Right "\\a <c~ d~>1 | <c d>1", [])
+    equal (runa "append-all") (Right "<c~ d~>1\\a | <c d>1\\a", [])
+    equal (runa "append-first") (Right "<c~ d~>1\\a | <c d>1", [])
+    equal (runa "append-last") (Right "<c~ d~>1 | <c d>1\\a", [])
+
+    equal (runa "note-append-all") (Right "<c~\\a d~>1 | <c\\a d>1", [])
+    equal (runa "note-append-first") (Right "<c~\\a d~>1 | <c d>1", [])
+
+    let rune = runc "ly-emit"
+    equal (rune "prepend") (Right "\\a <c~ d~>1 | <c d>1", [])
+    -- TODO these are broken because of how Process handles 0 dur code events
+    -- equal (rune "append-all") (Right "<c~ d~>1 \\a | <c d>1 \\a", [])
+    -- equal (rune "append-first") (Right "<c~ d~>1 \\a | <c d>1", [])
+    -- equal (rune "append-last") (Right "<c~ d~>1 | <c d>1 \\a", [])
+    --
+    -- equal (rune "note-append-all") (Right "<c~\\a d~>1 | <c\\a d>1", [])
+    -- equal (rune "note-append-first") (Right "<c~\\a d~>1 | <c d>1", [])
+
+
 
 -- * util
 
