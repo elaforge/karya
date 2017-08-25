@@ -24,7 +24,7 @@ import Types
 
 
 test_cmd_clear_and_advance = do
-    let run events start end = extract $ run_events_sel cmd events start end
+    let run events start end = extract $ run_sel_events cmd events start end
         cmd = do
             Edit.cmd_clear_and_advance
             sel <- Selection.get
@@ -36,7 +36,7 @@ test_cmd_clear_and_advance = do
 
 test_split_events = do
     let run events sel = e_start_dur $
-            run_sel (start_dur_events events) Edit.cmd_split_events sel sel
+            run_sel_events Edit.cmd_split_events events sel sel
     equal (run [(0, 4)] 0) $ Right ([(0, 4)], [])
     equal (run [(0, 4)] 2) $ Right ([(0, 2), (2, 2)], [])
     equal (run [(2, 2)] 3) $ Right ([(2, 1), (3, 1)], [])
@@ -49,7 +49,7 @@ test_split_events = do
 test_set_duration = do
     -- I don't know why this function is so hard to get right, but it is.
     let run events start end = e_start_dur $
-            run_sel (start_dur_events events) Edit.cmd_set_duration start end
+            run_sel_events Edit.cmd_set_duration events start end
     -- |--->   |---> => take pre
     let events = [(0, 2), (4, 2)]
     equal [run events p p | p <- Seq.range 0 6 1] $ map (Right . (,[]))
@@ -62,9 +62,9 @@ test_set_duration = do
         , [(0, 2), (4, 2)]
         ]
     -- No effect on zero-dur events.
-    equal (run [(0, 0), (1, 0)] 0.5 3) $ Right ([(0, 0), (1, 0)], [])
+    equal_sd (run [(0, 0), (1, 0)] 0.5 3) $ Right ([(0, 0), (1, 0)], [])
     -- Non-point selection affects all selected events.
-    equal (run [(0, 0.5), (1, 0.5)] 0 3) $ Right ([(0, 1), (1, 2)], [])
+    equal_sd (run [(0, 0.5), (1, 0.5)] 0 3) $ Right ([(0, 1), (1, 2)], [])
 
     -- <---|   <---| => take post
     let events = [(2, -2), (6, -2)]
@@ -112,8 +112,8 @@ test_set_duration = do
         ]
 
 test_move_events = do
-    let run cmd events start end =
-            e_start_dur_text $ run_events_sel cmd events start end
+    let run cmd events start end = e_start_dur_text $
+            run_sel_clip_ruler cmd (start_dur_events events) start end
     let fwd = Edit.cmd_move_event_forward
         bwd = Edit.cmd_move_event_backward
     -- Clipped to the end of the ruler.
@@ -127,7 +127,7 @@ test_move_events = do
 
 test_set_start = do
     let run events sel = e_start_dur_text $
-            run_events_sel Edit.cmd_set_start events sel sel
+            run_sel_events Edit.cmd_set_start events sel sel
     equal_e (run [(0, 2), (2, 2)] 1) $ Right ([(0, 1, "a"), (1, 3, "b")], [])
     equal_e (run [(0, 0), (2, 0)] 1) $ Right ([(0, 0, "a"), (1, 0, "b")], [])
     equal_e (run [(2, -2), (4, -2)] 1) $
@@ -137,7 +137,8 @@ test_set_start = do
 
 test_insert_time = do
     let run events start end = e_start_dur_text $
-            run_events_sel Edit.cmd_insert_time events start end
+            run_sel_clip_ruler Edit.cmd_insert_time (start_dur_events events)
+                start end
     equal (run [(0, 2), (3, 0)] 0 0) $ Right ([(1, 2, "a")], [])
     -- (1, 2) is shortened.
     equal (run [(1, 2), (3, 0)] 0 0) $ Right ([(2, 1, "a")], [])
@@ -156,7 +157,7 @@ test_insert_time = do
 
 test_delete_time = do
     let run events start end = e_start_dur $
-            run_events_sel Edit.cmd_delete_time events start end
+            run_sel_events Edit.cmd_delete_time events start end
     -- positive
     equal (map (run [(2, 2)] 0) (Seq.range 0 3 1)) $ map (Right . (,[]))
         [ [(1, 2)]
@@ -188,7 +189,7 @@ test_delete_time = do
 
 test_toggle_zero_timestep = do
     let run tracks start end = e_start_dur $
-            run_events_sel Edit.cmd_toggle_zero_timestep tracks start end
+            run_sel_events Edit.cmd_toggle_zero_timestep tracks start end
     equal (run [(0, 2)] 1 1) $ Right ([(0, 0)], [])
     equal (run [(2, -2)] 1 1) $ Right ([(2, -0)], [])
     -- Make sure it's actually -0.
@@ -203,7 +204,7 @@ test_toggle_zero_timestep = do
 
 test_join_events = do
     let run events start end = e_start_dur_text $
-            run_events_sel Edit.cmd_join_events events start end
+            run_sel_events Edit.cmd_join_events events start end
     -- positive
     equal_e (run [(0, 2), (2, 2)] 1 1) $ Right ([(0, 4, "a")], [])
     equal_e (run [(0, 2), (2, 2), (6, 2)] 2 8) $
@@ -218,6 +219,44 @@ test_join_events = do
     -- Don't try for mixed polarities.
     equal_e (run [(0, 2), (4, -2)] 1 1) $
         Right ([(0, 2, "a"), (4, -2, "b")], [])
+
+    -- A point selection on multiple tracks only deletes until the nearest.
+    let run2 sel t1 t2 = CmdTest.e_tracks $
+            CmdTest.run_tracks [(">", t1), ("*", t2)] $ do
+                CmdTest.set_sel 1 sel 2 sel
+                Edit.cmd_join_events
+    -- Join both.
+    equal (run2 0.5
+            [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
+            [(0, 0, "c"), (1, 0, "d"), (2, 0, "e")])
+        (Right (
+            [ (">", [(0, 2, "x"), (2, 1, "z")])
+            , ("*", [(0, 0, "c"), (2, 0, "e")])
+            ], []))
+    -- Join one.
+    equal (run2 0.5
+            [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
+            [(0, 0, "c"), (2, 0, "d")])
+        (Right (
+            [ (">", [(0, 2, "x"), (2, 1, "z")])
+            , ("*", [(0, 0, "c"), (2, 0, "d")])
+            ], []))
+    -- Join both.
+    equal (run2 2.5
+            [(1, -1, "x"), (2, -1, "y"), (3, -1, "z")]
+            [(1, -0, "c"), (2, -0, "d"), (3, -0, "e")])
+        (Right (
+            [ (">", [(1, -1, "x"), (3, -2, "z")])
+            , ("*", [(1, -0, "c"), (3, 0, "e")])
+            ], []))
+    -- Join one.
+    equal (run2 2.5
+            [(1, -1, "x"), (2, -1, "y"), (3, -1, "z")]
+            [(1, -0, "c"), (3, -0, "e")])
+        (Right (
+            [ (">", [(1, -1, "x"), (3, -2, "z")])
+            , ("*", [(1, -0, "c"), (3, -0, "e")])
+            ], []))
 
 test_cmd_invert_orientation = do
     let run tracks = CmdTest.e_tracks $ CmdTest.run_tracks tracks $ do
@@ -266,17 +305,20 @@ equal_sd :: CallStack.Stack =>
 equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)
 
 -- | Run with events and a selection.
-run_events_sel :: Cmd.CmdId a -> [(TrackTime, TrackTime)]
-    -> TrackTime -> TrackTime
-    -> CmdTest.Result a
-run_events_sel cmd events start end =
-    CmdTest.run_tracks_ruler (start_dur_events events) $ do
-        CmdTest.set_sel 1 start 1 end
-        cmd
+run_sel_events :: Cmd.CmdId a -> [(TrackTime, TrackTime)]
+    -> TrackTime -> TrackTime -> CmdTest.Result a
+run_sel_events cmd events start end =
+    run_sel cmd (start_dur_events events) start end
 
-run_sel :: [UiTest.TrackSpec] -> Cmd.CmdId a -> ScoreTime
+run_sel :: Cmd.CmdId a -> [UiTest.TrackSpec] -> ScoreTime
     -> ScoreTime -> CmdTest.Result a
-run_sel tracks cmd start end = CmdTest.run_tracks tracks $ do
+run_sel cmd tracks start end = CmdTest.run_tracks tracks $ do
+    CmdTest.set_sel 1 start 1 end
+    cmd
+
+run_sel_clip_ruler :: Cmd.CmdId a -> [UiTest.TrackSpec] -> ScoreTime
+    -> ScoreTime -> CmdTest.Result a
+run_sel_clip_ruler cmd tracks start end = CmdTest.run_tracks_ruler tracks $ do
     CmdTest.set_sel 1 start 1 end
     cmd
 

@@ -5,10 +5,13 @@ LEGEND
 UNSORTED
   - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
     an untyped ControlRef.  Can I make it default to Diatonic?
-  - ^o deletes too much.
+  * ^o deletes too much.
     . Given [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
       [("*", [(0, 0, "c"), (2, 0, "d")])], it deletes both y and d.  It should
       merge only to the minimum time, i.e. 1.
+  - ^o should ignore orientation on child control tracks.
+    . Otherwise, it would confusingly not delete +0 controls on a negative
+      note.
   - LRuler's sections*per_section is awkward when I'm really thinking in
     measures.
   * How can I have a ruler start at >1?  Ideally I'd like to do it

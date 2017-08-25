@@ -311,14 +311,32 @@ modify_dur f = ModifyEvents.selection_visible $ ModifyEvents.event $
 --
 -- Since 0 dur events are never lengthened, joining control events simply
 -- deletes the later ones.
+--
+-- If it's a point, only join up to (and including) the nearest event start.
+-- Otherwise, if there's a collapsed pitch track and the next event doesn't
+-- have a pitch event, it's easy to wind up deleting a distance pitch and not
+-- noticing.
 cmd_join_events :: Cmd.M m => m ()
-cmd_join_events = mapM_ process =<< Selection.events_around
+cmd_join_events = join_selected =<< Selection.events_around
     where
-    -- If I only selected one, join with the next.  Otherwise, join select
-    -- first to last.
-    process (track_id, selected) = case selected of
-        (_, [cur], next:_) | Event.is_positive cur -> join track_id cur next
-        (prev:_, [cur], _) | Event.is_negative cur -> join track_id prev cur
+    join_selected tracks = mapM_ (join_track nearest) tracks
+        where nearest = Seq.minimum_on abs $ mapMaybe nearest_of tracks
+    nearest_of (_, (prevs, [cur], nexts))
+        | Event.is_positive cur =
+            subtract (Event.start cur) . Event.start <$> Seq.head nexts
+        | otherwise =
+            subtract (Event.start cur) . Event.start <$> Seq.head prevs
+    nearest_of _ = Nothing
+
+    join_track distance (track_id, selected) = case selected of
+        (_, [cur], next:_) | Event.is_positive cur
+                && maybe True (Event.start next <=) nearest ->
+            join track_id cur next
+            where nearest = (Event.start cur +) <$> distance
+        (prev:_, [cur], _) | Event.is_negative cur
+                && maybe True (Event.start prev >=) nearest ->
+            join track_id prev cur
+            where nearest = (Event.start cur +) <$> distance
         (_, events@(_:_:_), _) -> join track_id (head events) (last events)
         _ -> return ()
     join track_id evt1 evt2 =
