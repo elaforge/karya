@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Can I have ^j and ^k only move events up to a limit?  How do I set the
+    limit?
+  - ^M collapses unrelated control tracks into adjacent note tracks.  It
+    should only collapse children.
+  - Figure out how to control vsl legato transition volume mismatches.
   - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
     an untyped ControlRef.  Can I make it default to Diatonic?
   * ^o deletes too much.
@@ -27,19 +32,12 @@ UNSORTED
     'Call.real_duration start dur'.
     . Separate types for {Score,Real}Time and {Score,Real}Duration would fix
       this, but how much hassle would it be?
-  - I think slur is setting +legato on the first note, which it shouldn't do.
+  * I think slur is setting +legato on the first note, which it shouldn't do.
   Trill.c_attr_trill:
     - support trill attrs as an argument
     * fall back on plain +trill attr for wider trills
   * trill: emit lilypond for two-note tremolo for wide trills, or even narrow
     ones too if so configured.
-  - trill: also emit lilypond for trill + accidental if it's out of the key
-		. lilypond doesn't have anything built in, but:
-			\pitchedTrill p1 \startTrillSpan p2 \stopTrillSpan
-			. ^ \markup { \musicglyph #"scripts.trill"
-				\fontsize #-4 \raise #1 \sharp
-				\fontsize #-2 \raise #1 \flat
-				}
   - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
     go >1.  Why is the note including such distant samples anyway?  Isn't it
     inefficient to scale samples which are clearly not in the note bounds?
@@ -56,6 +54,9 @@ UNSORTED
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
+    . Looks like fclabels can do it, but I need separate monadic lenses, since
+      monadic and non-monadic lenses can't be composed.
+    . I should be able to write a function to promote a pure one though.
   - upgrade to ghc 8.2
     . 8.0.2 compile time:
       debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
@@ -994,6 +995,16 @@ integrate / integration:
     - quantization
 
 lilypond:
+  trill:
+    - put accidentals on if it's not diatonic
+      - For trill with span, use on multiple notes:
+        . \pitchedTrill p1 \startTrillSpan p2 \stopTrillSpan
+      - Without span, use on a single note:
+        . ^ \markup { \musicglyph #"scripts.trill"
+          \fontsize #-4 \raise #1 \sharp
+          \fontsize #-2 \raise #1 \flat
+          }
+      http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
   Refactor Process to fix all the CodePosition stuff:
     . First pass finds voice boundaries.
     . Then insert rests.
@@ -1052,6 +1063,7 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
+    - extend vln2 at measure 87 so it has more time to accelerate
     - put just the harmonic gliss line on @b2 vla 27
     * trill at wider intervals should emit tremolo notation
       . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
@@ -1086,8 +1098,6 @@ lilypond:
   squart/6:
     - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
       transitions
-    - put accidentals on the trills
-      http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
     / Put glissando line only right at the end:
       \once \override Glissando.bound-details.right.Y = #-2
       . Can't figure out how to do it. If I manually tweak
@@ -2216,6 +2226,8 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
     solkattu:
+      - It's confusing when the mid tag replaces an existing tag.  Either
+        tags should not apply if there already is one, or they should stack.
       - How to represent chatusra tisram, and other similar things?
         . Basically it's changing the nadai, but not the speed.
         . If I say stride=3, then each note is 3 matras.  s1 means each one is

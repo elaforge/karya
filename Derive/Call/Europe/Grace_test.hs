@@ -83,9 +83,10 @@ test_grace = do
     -- Ensure grace works with attr slur.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_setup setup "import europe"
-        setup = CallTest.with_note_generator "(" Articulation.c_attr_slur
+        setup = CallTest.with_note_generator "("
+            (Articulation.c_attr_slur Attrs.pizz Attrs.legato)
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
-        (["+legato", "+legato", "+legato"], [])
+        (["+pizz", "+legato", "+legato"], [])
 
 test_grace_hold = do
     let run = DeriveTest.extract DeriveTest.e_note

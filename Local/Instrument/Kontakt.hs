@@ -120,7 +120,8 @@ balalaika =
         Patch.patch pb_range "balalaika"
     ]
     where
-    code = MidiInst.note_generators [("(", Articulation.c_attr_slur)]
+    code = MidiInst.note_generators
+        [("(", (Articulation.c_attr_slur mempty Attrs.legato))]
     -- g6 strum, a6 solo, b6 harmony
     controls =
         [ (1, "trem-dyn")

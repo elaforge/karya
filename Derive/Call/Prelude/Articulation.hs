@@ -285,8 +285,9 @@ lily_slur direction =
 
 -- | This is not in 'note_calls', instruments that support this are expected to
 -- override @(@ with it.
-c_attr_slur :: Derive.Generator Derive.Note
-c_attr_slur = Derive.generator Module.instrument "legato"
+c_attr_slur :: Attrs.Attributes -> Attrs.Attributes
+    -> Derive.Generator Derive.Note
+c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
@@ -297,8 +298,14 @@ c_attr_slur = Derive.generator Module.instrument "legato"
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
     ) $ \(detach, dyn) args -> Ly.when_lilypond (lily_slur Nothing args) $
-        Call.add_attributes Attrs.legato . note_slur 0.02 detach dyn
-            =<< Sub.sub_events args
+        note_slur 0.02 detach dyn
+            . map (Seq.map_head (fmap (Call.add_attributes first_attr)))
+            . map (Seq.map_tail (fmap (Call.add_attributes rest_attr)))
+                =<< Sub.sub_events args
+
+vsl_attrs :: [Sub.Event] -> [Sub.Event]
+vsl_attrs = Seq.map_head (fmap (Call.add_attributes (Attrs.attr "fa")))
+    . Seq.map_tail (fmap (Call.add_attributes Attrs.legato))
 
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
 apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))

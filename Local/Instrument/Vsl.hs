@@ -155,7 +155,8 @@ note_calls maybe_hmap patch =
     <> with_attr Attrs.trem [MidiInst.generator "trem"
         (Trill.c_tremolo_generator (Just ([Attrs.harm], VslInst.rep)))]
     <> with_attr VslInst.grace [g "g" (grace_call (patch_attributes patch))]
-    <> with_attr VslInst.legato [g "(" Articulation.c_attr_slur]
+    <> with_attr VslInst.legato
+        [g "(" (Articulation.c_attr_slur VslInst.fa Attrs.legato)]
     <> MidiInst.null_call (note_call patch)
     <> [MidiInst.both "sec" c_infer_seconds]
     where

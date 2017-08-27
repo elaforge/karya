@@ -5,6 +5,7 @@
 module Derive.Call.Prelude.Articulation_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.DeriveTest as DeriveTest
@@ -40,14 +41,15 @@ test_attr_slur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup
                 (with_call <> DeriveTest.with_linear) ""
-        with_call = CallTest.with_note_generator "(" Articulation.c_attr_slur
+        with_call = CallTest.with_note_generator "("
+            (Articulation.c_attr_slur Attrs.pizz Attrs.legato)
         extract e = (s, d, p, a)
             where
             ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     let (events, logs) = run $ (">", [(0, 2, "( .5")]) : UiTest.regular_notes 3
     equal logs []
     equal events
-        [ (0, 1.02, "3c", "+legato"), (1, 0.5, "3d", "+legato")
+        [ (0, 1.02, "3c", "+pizz"), (1, 0.5, "3d", "+legato")
         , (2, 1, "3e", "+")
         ]
 
