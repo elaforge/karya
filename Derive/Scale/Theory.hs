@@ -151,10 +151,10 @@ pick_enharmonic key = semis_to_pitch key . pitch_to_semis (key_layout key)
 -- complicated because it wants to find the best spelling for the given key.
 semis_to_pitch :: Key -> Pitch.Semi -> Pitch.Pitch
 semis_to_pitch key semis = mkpitch $ case key_signature key of
-        Just sig -> case List.find (in_scale sig) enharmonics of
-            Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
-            Just note -> note
-        Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
+    Just sig -> case List.find (in_scale sig) enharmonics of
+        Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
+        Just note -> note
+    Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
     where
     mkpitch (oct, note) = Pitch.Pitch (octave + oct) note
     -- The (Pitch.Degree (-1) 0) error value is icky, but here's why it should

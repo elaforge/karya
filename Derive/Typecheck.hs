@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE DefaultSignatures, DeriveFunctor #-}
 module Derive.Typecheck where
+import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -190,7 +191,7 @@ make_parse_enum vals = flip Map.lookup m
 
 -- | Make a ShowVal from a Show instance.
 enum_show_val :: Show a => a -> Text
-enum_show_val = Text.toLower . showt
+enum_show_val = Text.pack . map Char.toLower . show
 
 num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
 num_to_type proxy = ValType.TNum (num_type proxy) ValType.TAny

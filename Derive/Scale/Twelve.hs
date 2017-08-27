@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | The western equal tempered 12 note scale, aka 12TET.
+{-# LANGUAGE CPP #-}
+{- | The equal tempered 12 note scale, aka 12TET.
 
     For the note text, I use a non-traditional format that goes "octave note
     sharp" instead of "note sharp octave".  General to specific is more
@@ -18,7 +19,17 @@
     > nn 12 = 0c
     > nn 0 = -1c
 -}
-module Derive.Scale.Twelve where
+module Derive.Scale.Twelve (
+    scales, scale_id
+    -- * keys
+    , lookup_key, default_key
+    -- * utils
+    , show_nn, read_absolute_pitch, nn_to_note
+
+#ifdef TESTING
+    , module Derive.Scale.Twelve
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
@@ -48,11 +59,12 @@ relative_scale = ChromaticScales.make_scale "twelve-r" relative_scale_map
     "This is 12TET, but spelled relative to the current key and mode."
 
 keyed_scale :: Scale.Scale
-keyed_scale = ChromaticScales.make_scale "twelve-k" keyed_scale_map
-    "This variant treats accidentals like staff notation. If a pitch doesn't\
-    \ have an accidental, it will inherit from the key signature. It thus\
-    \ needs an explicit natural to cancel that out. Unlike staff notation,\
-    \ accidentals don't persist until the next barline."
+keyed_scale = ChromaticScales.make_scale "twelve-k" keyed_scale_map $ mconcat
+    [ "This variant treats accidentals like staff notation. If a pitch doesn't"
+    , " have an accidental, it will inherit from the key signature. It thus"
+    , " needs an explicit natural to cancel that out. Unlike staff notation,"
+    , " accidentals don't persist until the next barline."
+    ]
 
 scale_id :: Pitch.ScaleId
 scale_id = "twelve"
@@ -88,6 +100,9 @@ keyed_scale_map =
 
 -- * keys
 
+lookup_key :: Maybe Pitch.Key -> Maybe Theory.Key
+lookup_key = Scales.lookup_key default_theory_key all_keys
+
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
 
@@ -97,6 +112,8 @@ Just default_theory_key = Map.lookup default_key all_keys
 show_pitch :: Pitch.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
     . ChromaticScales.show_pitch absolute_scale_map Nothing
+
+-- * utils
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
