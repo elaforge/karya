@@ -24,3 +24,16 @@ glissandoSkipOff = {
 % Without the hspace, it draws on top of a preceding hairpin.
 alNiente = #(make-dynamic-script
     (markup #:hspace 4 #:normal-text #:italic "al niente"))
+
+% This puts the accidental next to the tr sign.  My notation book advocates
+% putting it above, adjacent seems more compact.
+trSharp = \markup {
+    \musicglyph #"scripts.trill" \fontsize #-4 \raise #1 \sharp }
+trSharpSharp = \markup {
+    \musicglyph #"scripts.trill" \doublesharp }
+trNatural = \markup {
+    \musicglyph #"scripts.trill" \fontsize #-2 \raise #1 \natural }
+trFlat = \markup {
+    \musicglyph #"scripts.trill" \fontsize #-2 \raise #1 \flat }
+trFlatFlat = \markup {
+    \musicglyph #"scripts.trill" \fontsize #-2 \raise #1 \doubleflat }

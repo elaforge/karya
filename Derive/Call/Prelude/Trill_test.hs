@@ -53,8 +53,7 @@ test_note_trill_ly = do
             . LilypondTest.derive_tracks . UiTest.note_track
     equal (run [(0, 4, "tr -- 3c")]) (Right "c1\\trill", [])
     equal (run [(0, 2, "tr -- 3c")]) (Right "c2\\trill r2", [])
-    -- TODO \trill should have a flat marker
-    equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1\\trill", [])
+    equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1^\\trFlat", [])
     equal (run [(0, 4, "tr 7c -- 3c")])
         (Right "\\repeat tremolo 16 { c32( g32) }", [])
     -- Split across measures.
@@ -83,6 +82,33 @@ test_note_trill_ly = do
     equal (run2 [[(4, 0, "dyn f --")], [(0, 8, "tr 4 -- 3c")]])
         (Right "\\repeat tremolo 16 { c32( g32) }\
             \ | \\repeat tremolo 16 { c32( \\f g32) }", [])
+
+test_note_trill_ly_style = do
+    let run = LilypondTest.measures
+                [ "pitchedTrill", "startTrillSpan", "stopTrillSpan", "repeat"
+                , "trill"
+                ]
+            . LilypondTest.derive_tracks . UiTest.note_track
+    equal (run [(0, 6, "tr-style=span | tr -- 3c")])
+        ( Right "\\pitchedTrill c1~\\startTrillSpan d | c2\\stopTrillSpan r2"
+        , []
+        )
+    equal (run [(0, 6, "tr-style=tremolo | tr -- 3c")])
+        (Right "\\repeat tremolo 16 { c32( d32) }\
+            \ | \\repeat tremolo 8 { c32( d32) } r2", [])
+    equal (run [(0, 6, "tr-style=tr | tr -- 3c")])
+        (Right "c1~\\trill | c2\\trill r2", [])
+    equal (run [(0, 4, "key=c-min | trill-style=tr | tr (3e) -- 3d")])
+        (Right "d1^\\trNatural", [])
+
+    -- with accidentals
+    -- Also 1c figures out d flat instead of c#.
+    equal (run [(0, 4, "tr-style=span | tr 1c -- 3c")])
+        ( Right "\\pitchedTrill c1\\startTrillSpan df \\stopTrillSpan"
+        , []
+        )
+    equal (run [(0, 6, "tr-style=tr | tr 1c -- 3c")])
+        (Right "c1~^\\trFlat | c2^\\trFlat r2", [])
 
 test_attr_trill = do
     let run = DeriveTest.extract extract

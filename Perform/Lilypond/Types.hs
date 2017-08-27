@@ -284,11 +284,11 @@ strip_environ (BaseTypes.Environ env) =
 
 -- * pitch
 
-data Pitch = Pitch !Int !PitchClass !Accidentals
+data Pitch = Pitch !Int !PitchClass !Accidental
     deriving (Eq, Show, Ord)
 data PitchClass = C | D | E | F | G | A | B
-    deriving (Eq, Show, Ord)
-data Accidentals = FlatFlat | Flat | Natural | Sharp | SharpSharp
+    deriving (Eq, Show, Ord, Enum)
+data Accidental = FlatFlat | Flat | Natural | Sharp | SharpSharp
     deriving (Eq, Show, Ord)
 
 instance ToLily Pitch where
@@ -304,7 +304,7 @@ instance ToLily PitchClass where
         C -> "c"; D -> "d"; E -> "e"; F -> "f"
         G -> "g"; A -> "a"; B -> "b"
 
-instance ToLily Accidentals where
+instance ToLily Accidental where
     to_lily acc = case acc of
         FlatFlat -> "ff"
         Flat -> "f"
@@ -316,7 +316,7 @@ parse_pitch :: Pitch.Pitch -> Either Text Pitch
 parse_pitch (Pitch.Pitch octave degree) =
     uncurry (Pitch octave) <$> parse_degree degree
 
-parse_degree :: Pitch.Degree -> Either Text (PitchClass, Accidentals)
+parse_degree :: Pitch.Degree -> Either Text (PitchClass, Accidental)
 parse_degree (Pitch.Degree pc acc) = (,) <$> p_pc <*> p_acc
     where
     p_pc = case pc of
@@ -330,3 +330,14 @@ parse_degree (Pitch.Degree pc acc) = (,) <$> p_pc <*> p_acc
         1 -> Right Sharp
         2 -> Right SharpSharp
         _ -> Left $ "too many accidentals: " <> showt acc
+
+to_pitch :: Pitch -> Pitch.Pitch
+to_pitch (Pitch octave pc acc) =
+    Pitch.Pitch octave (Pitch.Degree (fromEnum pc) sharps)
+    where
+    sharps = case acc of
+        FlatFlat -> -2
+        Flat -> -1
+        Natural -> 0
+        Sharp -> 1
+        SharpSharp -> 2

@@ -34,7 +34,7 @@ UNSORTED
       this, but how much hassle would it be?
   * I think slur is setting +legato on the first note, which it shouldn't do.
   Trill.c_attr_trill:
-    - support trill attrs as an argument
+    / support trill attrs as an argument
     * fall back on plain +trill attr for wider trills
   * trill: emit lilypond for two-note tremolo for wide trills, or even narrow
     ones too if so configured.
@@ -996,15 +996,21 @@ integrate / integration:
 
 lilypond:
   trill:
-    - put accidentals on if it's not diatonic
-      - For trill with span, use on multiple notes:
+    * put accidentals on if it's not diatonic
+      * For trill with span, use on multiple notes:
         . \pitchedTrill p1 \startTrillSpan p2 \stopTrillSpan
-      - Without span, use on a single note:
+      * Without span, use on a single note:
         . ^ \markup { \musicglyph #"scripts.trill"
           \fontsize #-4 \raise #1 \sharp
           \fontsize #-2 \raise #1 \flat
           }
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
+    - It doesn't like my ^\trFlat variants on notes within a chord, while
+      \trill is fine with it.
+    - Wavy line should extend to the end of the note, not stop at the
+      beginning.  Lilypond seems to stop too early.
+    - Also the example pitch has an extraneous natural, but this seems to be
+      built in to \pitchedTrill.
   Refactor Process to fix all the CodePosition stuff:
     . First pass finds voice boundaries.
     . Then insert rests.
@@ -1083,7 +1089,7 @@ lilypond:
       * How do I set the accidental on the neighbor pitch?
         . I could extend 'tr' to take an explicit neighbor pitch.
       * Configure to use tremolo for all trills.
-      - It should be able to notice that for tr 1c, c db is better than c c#.
+      * It should be able to notice that for tr 1c, c db is better than c c#.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
     - Lilypond puts 3 on sextuplets.

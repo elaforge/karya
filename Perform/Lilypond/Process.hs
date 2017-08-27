@@ -1064,7 +1064,7 @@ instance ToLily Key where
 parse_key :: Text -> Either Text Key
 parse_key key_name = do
     key <- justErr ("unknown key: " <> key_name) $
-        Map.lookup (Pitch.Key key_name) Twelve.all_keys
+        Twelve.lookup_key (Just (Pitch.Key key_name))
     (pc, acc) <- Types.parse_degree (Theory.key_tonic key)
     let tonic = to_lily pc <> to_lily acc
     mode <- justErr ("unknown mode: " <> Theory.key_name key) $

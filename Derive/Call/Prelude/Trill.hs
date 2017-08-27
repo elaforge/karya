@@ -61,15 +61,21 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
+import qualified Perform.Lilypond.Convert as Lilypond.Convert
+import qualified Perform.Lilypond.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -103,10 +109,10 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
     ) $ Sig.call ((,,,)
     <$> neighbor_arg
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
-    <*> Sig.environ_key "trill-always-tremolo" False
-        "If true, use tremolo notation even for 2nd trills."
-    ) $ \(neighbor, speed, config, always_tremolo) -> Sub.inverting $ \args ->
-    Ly.when_lilypond (note_trill_ly always_tremolo args neighbor)
+    <*> Sig.environ_key "tr-style" Tr
+        "Notation variant: tr symbol, tr~, or tremolo."
+    ) $ \(neighbor, speed, config, style) -> Sub.inverting $ \args ->
+    Ly.when_lilypond (note_trill_ly style args neighbor)
         (note_trill use_attributes neighbor speed config args)
 
 neighbor_arg :: Sig.Parser Neighbor
@@ -182,28 +188,90 @@ trill_attributes neighbor start = do
         | Pitch.nns_equal diff 2 -> Just Attrs.whole
         | otherwise -> Nothing
 
-note_trill_ly :: Bool -> Derive.PassedArgs a -> Neighbor -> Derive.NoteDeriver
-note_trill_ly always_tremolo args neighbor = do
+data TrillStyle = Tr | Span | Tremolo
+    deriving (Show, Eq, Enum, Bounded)
+
+instance Typecheck.Typecheck TrillStyle
+instance Typecheck.TypecheckSymbol TrillStyle
+instance Typecheck.ToVal TrillStyle
+instance ShowVal.ShowVal TrillStyle where show_val = Typecheck.enum_show_val
+
+note_trill_ly :: TrillStyle -> Derive.PassedArgs a -> Neighbor
+    -> Derive.NoteDeriver
+note_trill_ly style args neighbor = do
     start <- Args.real_start args
     (pitch, neighbor) <- pitch_and_neighbor neighbor start
     diff <- Call.nn_difference start neighbor pitch
-    if
-        | not always_tremolo
-                && (Pitch.nns_equal diff 1 || Pitch.nns_equal diff 2) ->
-            -- TODO emit an accidental or not based on the key
-            Ly.add_code (Ly.NoteAppendAll, "\\trill") $ Call.placed_note args
-        | otherwise -> tremolo_trill_ly pitch neighbor
-            (Args.start args) (Args.duration args)
+    let tremolo = tremolo_trill_ly pitch neighbor (Args.start args)
+            (Args.duration args)
+    let ly_pitch = Derive.require_right id . Lilypond.Convert.pitch_to_lily
+            =<< Derive.resolve_pitch start neighbor
+    case style of
+        _ | not (Pitch.nns_equal diff 1) && not (Pitch.nns_equal diff 2) ->
+            tremolo
+        Tremolo -> tremolo
+        Tr -> do
+            npitch@(Types.Pitch _ _ acc) <- ly_pitch
+            in_key <- pitch_in_key npitch
+            let code = case acc of
+                    _ | in_key -> "\\trill"
+                    Types.FlatFlat -> "^\\trFlatFlat"
+                    Types.Flat -> "^\\trFlat"
+                    Types.Natural -> "^\\trNatural"
+                    Types.Sharp -> "^\\trSharp"
+                    Types.SharpSharp -> "^\\trSharpSharp"
+            Ly.add_code (Ly.NoteAppendAll, code) (Call.placed_note args)
+        Span -> do
+            npitch <- ly_pitch
+            Ly.add_code (Ly.Prepend, "\\pitchedTrill") $
+                Ly.add_code (Ly.AppendFirst, "\\startTrillSpan "
+                    <> Types.to_lily npitch) $
+                Ly.add_code (Ly.AppendLast, "\\stopTrillSpan") $
+                Call.placed_note args
+
+pitch_in_key :: Types.Pitch -> Derive.Deriver Bool
+pitch_in_key ly_pitch = do
+    key <- get_key
+    return $ in_key key (Pitch.pitch_degree (Types.to_pitch ly_pitch))
+
+get_key :: Derive.Deriver Theory.Key
+get_key = do
+    maybe_key <- Call.lookup_key
+    Derive.require ("unrecognized key: " <> pretty maybe_key) $
+        Twelve.lookup_key maybe_key
+
+in_key :: Theory.Key -> Pitch.Degree -> Bool
+in_key key (Pitch.Degree pc acc) = Theory.accidentals_at_pc key pc == acc
 
 pitch_and_neighbor :: Neighbor -> RealTime
     -> Derive.Deriver (PSignal.Pitch, PSignal.Pitch)
+pitch_and_neighbor (Right neighbor) start =
+    (, neighbor) <$> Call.get_pitch start
 pitch_and_neighbor (Left neighbor) start = do
     (width, typ) <- Call.transpose_control_at Typecheck.Diatonic neighbor start
-    pitch <- Call.get_pitch start
-    return (pitch, Pitches.transpose (Typecheck.to_transpose typ width) pitch)
-pitch_and_neighbor (Right neighbor) start = do
-    pitch <- Call.get_pitch start
-    return (pitch, neighbor)
+    base <- Call.get_pitch start
+    case (width, typ) of
+        (1, Typecheck.Chromatic) ->
+            (base,) <$> (chromatic_neighbor =<< Derive.resolve_pitch start base)
+        _ -> return
+            (base, Pitches.transpose (Typecheck.to_transpose typ width) base)
+
+-- | Given a pitch, find the enharmonic one chromatic step above it which is
+-- at pitch class + 1.  This is because trills should alternate with the next
+-- pitch class, so c to d flat, not c to c#.
+chromatic_neighbor :: PSignal.Transposed -> Derive.Deriver PSignal.Pitch
+chromatic_neighbor pitch = do
+    -- TODO this is way too complicated
+    (parse, unparse, transpose) <- Call.get_pitch_functions
+    pitch <- Call.parse_pitch parse pitch
+    key <- get_key
+    neighbor <- Derive.require "transpose" $ transpose Scale.Chromatic 1 pitch
+    neighbor <- Derive.require "enharmonic" $
+        List.find ((== Pitch.pitch_pc pitch + 1) . Pitch.pitch_pc) $
+            Theory.enharmonics_of (Theory.key_layout key) neighbor
+    note <- Derive.require "unparse" $ unparse neighbor
+    scale <- Call.get_scale
+    Eval.eval_note scale note
 
 -- | Emit the magic events to trigger lilypond's tremolo processing.
 tremolo_trill_ly :: PSignal.Pitch -> PSignal.Pitch -> ScoreTime -> ScoreTime
