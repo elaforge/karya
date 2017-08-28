@@ -20,6 +20,7 @@ module Derive.Solkattu.MridangamGlobal (
     -- * fragments
     , tk, tktu, tdgnt
     , kt, ktkt, pk, kp
+    , takadinna
 ) where
 import Prelude hiding ((.))
 import qualified Util.CallStack as CallStack
@@ -120,3 +121,6 @@ ktkt = k.t.k.t
 pk, kp :: Sequence
 pk = p.k
 kp = k.p
+
+takadinna :: Sequence
+takadinna = k.o.o.k

@@ -35,13 +35,19 @@ tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
 
-takadinna, takita, kita, taka, kitataka, talang :: Sequence
+takadinna, takita, kita, taka, kitataka, tarikita, talang :: Sequence
 takadinna = ta.ka.din.na
 takita = ta.ki.ta
 kita = ki.ta
 taka = ta.ka
 kitataka = kita.taka
+tarikita = ta.ri.kita
 talang = ta.lang
+
+dinga, tanga, langa :: Sequence
+dinga = din.__.ga
+tanga = tang.__.ga
+langa = lang.__.ga
 
 -- ** standard fragments
 
