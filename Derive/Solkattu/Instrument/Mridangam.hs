@@ -51,7 +51,10 @@ instance Pretty Stroke where
             Ki -> "P"
             Ta -> "X"
             _ -> pretty v <> macron_below
-        Thom -> Text.toUpper (pretty v)
+        Thom -> case v of
+            Kin -> "ç" -- better o with cedilla
+            Tan -> "ô"
+            _ -> Text.toUpper (pretty v)
 
 -- COMBINING MACRON BELOW
 macron_below :: Text
