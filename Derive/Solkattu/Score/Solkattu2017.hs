@@ -469,3 +469,23 @@ c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvai adi mridangam $
     mridangam = make_mridangam
         [ (dhom.tat.din, [o, k, od])
         ]
+
+c_17_08_21 :: Korvai
+c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
+    map (__sam adi)
+    [ tri_ (1^tang.__.ga) (su (kitataka.tarikita.taka) . tat.din.na)
+    , tri_ (tang.__.ga) (su t2)
+    , tri_ (1^tang.__.ga) (tri $ su $ talang.__.ga)
+    ]
+    where
+    t2 = takadinna.takadinna.na.ka.din.na
+    mridangam = make_mridangam
+        [ (kitataka.tarikita.taka, [p, k, t, p, k, t, k, t, p, k])
+        , (tat.din.na, [o, od, k])
+        , (1^tang.__.ga, [od, k]) -- avoid double thoppi
+        , (tang.__.ga, [od, o])
+
+        , (takadinna.takadinna.na.ka.din.na,
+            [k, o, o, k, t, o, o, k, n, o, o, k])
+        , (talang.ga, [p, u, k])
+        ]

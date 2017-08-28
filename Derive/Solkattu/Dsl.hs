@@ -31,7 +31,7 @@ module Derive.Solkattu.Dsl (
     , realize, realizep
     , realize_m, realize_k1, realize_r, realize_sargam
     -- * conveniences
-    , ganesh, janahan, sriram
+    , ganesh, janahan, sriram, sudhindra
     , adi
 ) where
 import qualified Prelude
@@ -168,10 +168,11 @@ realize_sargam = Korvai.print_instrument Korvai.sargam
 
 -- * conveniences
 
-ganesh, janahan, sriram :: Korvai -> Korvai
+ganesh, janahan, sriram, sudhindra :: Korvai -> Korvai
 ganesh = source "ganesh"
 janahan = source "janahan"
 sriram = source "sriram"
+sudhindra = source "sudhindra"
 
 adi :: Tala.Tala
 adi = Tala.adi_tala
