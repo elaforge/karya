@@ -63,6 +63,12 @@ children_of block_id track_id =
         Just (_, _ : children) -> Just children
         _ -> Nothing
 
+is_child_of :: Ui.M m => BlockId -> TrackNum -> TrackNum -> m Bool
+is_child_of block_id parent child = do
+    children <- Ui.require ("no children of " <> pretty (block_id, parent))
+        =<< children_of block_id =<< Ui.get_event_track_at block_id parent
+    return $ child `elem` map Ui.track_tracknum children
+
 -- | Combine the skeleton with the tracks to create a TrackTree.
 --
 -- TODO this is pretty complicated.  If I stored the tracks as a tree in the

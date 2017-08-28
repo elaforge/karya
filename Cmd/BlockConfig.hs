@@ -71,37 +71,39 @@ toggle_merge_selected = do
         ((`elem` tracknums) . Ui.track_tracknum . Info.track_info) tracks
 
 toggle_merge :: Ui.M m => BlockId -> [Info.Track] -> m ()
-toggle_merge block_id tracks =
-    ifM (andM (map (track_merged block_id) tracknums))
-        (mapM_ (Ui.unmerge_track block_id) tracknums)
-        (mapM_ (merge_track block_id) tracknums)
-    where
-    tracknums = no_parents
+toggle_merge block_id tracks = do
+    tracknums <- mergeable block_id $ no_parents
         [ Ui.track_tracknum note
         | Info.Track note (Info.Note {}) <- tracks
         ]
+    ifM (allM (track_merged block_id) tracknums)
+        (mapM_ (Ui.unmerge_track block_id) tracknums)
+        (mapM_ (\t -> Ui.merge_track block_id t (t+1)) tracknums)
+    where
     -- A note track parent can't merge, so don't count it.
     no_parents (t1:t2:ts) | t1 + 1 == t2 = no_parents (t2:ts)
     no_parents (t:ts) = t : no_parents ts
     no_parents [] = []
 
-merge_track :: Ui.M m => BlockId -> TrackNum -> m ()
-merge_track block_id tracknum =
-    whenM (is_control_or_pitch block_id (tracknum + 1)) $
-        Ui.merge_track block_id tracknum (tracknum + 1)
-
 track_merged :: Ui.M m => BlockId -> TrackNum -> m Bool
 track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
     Ui.get_block_track_at block_id tracknum
 
-is_control_or_pitch :: Ui.M m => BlockId -> TrackNum -> m Bool
-is_control_or_pitch block_id tracknum =
+mergeable :: Ui.M m => BlockId -> [TrackNum] -> m [TrackNum]
+mergeable block_id =
+    filterM $ \tracknum -> is_control_or_pitch tracknum block_id (tracknum + 1)
+
+-- | True if the track is a control or pitch track, and a child of the given
+-- tracknum.
+is_control_or_pitch :: Ui.M m => TrackNum -> BlockId -> TrackNum -> m Bool
+is_control_or_pitch parent block_id tracknum =
     Ui.event_track_at block_id tracknum >>= \x -> case x of
         Nothing -> return False
-        Just track_id -> do
-            ttype <- ParseTitle.track_type <$> Ui.get_track_title track_id
-            return $ ttype
-                `elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]
+        Just track_id -> andM
+            [ (`elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]) <$>
+                ParseTitle.track_type <$> Ui.get_track_title track_id
+            , TrackTree.is_child_of block_id parent tracknum
+            ]
 
 cmd_open_block :: Cmd.M m => Bool -> m ()
 cmd_open_block align_new_view = do

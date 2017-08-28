@@ -5,9 +5,13 @@ LEGEND
 UNSORTED
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
-  - ^M collapses unrelated control tracks into adjacent note tracks.  It
+    . Here's a use for multiple selections.
+    . If there's a secondary selection, it should disappear somewhat
+      automatically, so I don't get confused by it still being around.
+  * ^M collapses unrelated control tracks into adjacent note tracks.  It
     should only collapse children.
   - Figure out how to control vsl legato transition volume mismatches.
+    . slur call has a legato-dyn arg to try to address this.
   - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
     an untyped ControlRef.  Can I make it default to Diatonic?
   * ^o deletes too much.
@@ -1009,6 +1013,9 @@ lilypond:
       \trill is fine with it.
     - Wavy line should extend to the end of the note, not stop at the
       beginning.  Lilypond seems to stop too early.
+      . It wants \stopTrillSpan to go after the note *after* it ends.
+      . Maybe I can do a AppendNext, which goes after the next note, but
+        before any of its other appends.
     - Also the example pitch has an extraneous natural, but this seems to be
       built in to \pitchedTrill.
   Refactor Process to fix all the CodePosition stuff:
