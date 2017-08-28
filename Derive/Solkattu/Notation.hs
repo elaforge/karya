@@ -318,8 +318,6 @@ replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
 replaceStart prefix seq = prefix <> dropD_ (Solkattu.duration_of prefix) seq
 replaceEnd seq suffix = rdropD_ (Solkattu.duration_of suffix) seq <> suffix
 
-infixr 0 `replaceStart`, `replaceEnd`
-
 -- | I think default_tempo is ok because these functions are used on fragments.
 matra_duration :: S.Duration
 matra_duration = S.matra_duration S.default_tempo
