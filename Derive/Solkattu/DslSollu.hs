@@ -12,7 +12,6 @@ module Derive.Solkattu.DslSollu (
 import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Sollu(..))
-import Global
 
 
 type Sequence =

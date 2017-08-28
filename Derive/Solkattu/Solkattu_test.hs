@@ -22,9 +22,9 @@ test_verify_alignment = do
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) Nothing
     equal (f (ta <> ta)) (Just (2,
-        "korvai should end on or before sam: avartanam 1, akshara 0, matra 2"))
+        "korvai should end on or before sam: avartanam 1, akshara 0 + 1/2"))
     equal (f (take 6 tdkt)) (Just (6,
-        "korvai should end on or before sam: avartanam 1, akshara 1, matra 2"))
+        "korvai should end on or before sam: avartanam 1, akshara 1 + 1/2"))
     equal (f (take (8*4) tdkt)) Nothing
     equal (f (Dsl.speed (-2) $ take 8 tdkt)) Nothing
     -- Ok to end on sam, even with trailing rests.
@@ -35,15 +35,15 @@ test_verify_alignment = do
     equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt))
         Nothing
     equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt))
-        (Just (3, "expected akshara 4, but at avartanam 1, akshara 0, matra 3"))
+        (Just (3, "expected akshara 4, but at avartanam 1, akshara 0 + 3/4"))
 
 test_verify_alignment_nadai_change = do
     let f = verify_alignment Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt)))
-        (Just (5, "korvai should end on or before sam:\
-            \ avartanam 1, akshara 1, matra 0"))
+        (Just (5,
+            "korvai should end on or before sam: avartanam 1, akshara 1 + 0"))
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm

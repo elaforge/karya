@@ -25,7 +25,7 @@ module Derive.Solkattu.Sequence (
     , tempo_to_state, tempo_to_duration
     , Stroke(..), normalize_speed
     -- * State
-    , State(..), state_tempo, state_position, show_position
+    , State(..), state_position, show_position
     -- * functions
     , note_duration, matra_duration
 #ifdef TESTING
@@ -181,7 +181,7 @@ tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]
     -> (State, [(State, a)])
 tempo_to_state tala = List.mapAccumL process initial_state
     where
-    process state (tempo, note) = (next_state, (set_tempo tempo state, note))
+    process state (tempo, note) = (next_state, (state, note))
         where
         next_state = advance_state_by tala
             (matra_duration tempo * fromIntegral (matras_of note)) state
@@ -201,8 +201,7 @@ normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
 normalize_speed tala notes =
     zip expanded $ snd $ List.mapAccumL process initial_state by_nadai
     where
-    process state (nadai, stroke) =
-        (next_state, (state { state_nadai = nadai }, stroke))
+    process state (nadai, stroke) = (next_state, (state, stroke))
         where
         next_state = advance_state_by tala (min_dur / fromIntegral nadai) state
     (by_nadai, min_dur) = flatten_speed (map (first _tempo) notes)
@@ -276,24 +275,14 @@ data State = State {
     -- TODO actually this is not matras, but fraction of the way through the
     -- akshara.  Is there a better term?
     , state_matra :: !Duration
-    -- | How many nadai in this akshara.  This is different from 'state_nadai'
-    -- because if nadai changes in the middle of an akshara, that akshara will
-    -- have an irregular number of matra in it.  For instance, if you change
-    -- from nadai 4 to 3 at matra 2, then you have a 2+3 = 5 matra akshara.
-    , state_akshara_nadai :: !Nadai
-    , state_speed :: !Speed
-    , state_nadai :: !Nadai
     } deriving (Show)
 
 instance Pretty State where
-    format (State avartanam akshara matra akshara_nadai speed nadai) =
+    format (State avartanam akshara matra) =
         Pretty.record "State"
             [ ("avartanam", Pretty.format avartanam)
             , ("akshara", Pretty.format akshara)
             , ("matra", Pretty.format matra)
-            , ("akshara_nadai", Pretty.format akshara_nadai)
-            , ("speed", Pretty.format speed)
-            , ("nadai", Pretty.format nadai)
             ]
 
 initial_state :: State
@@ -301,33 +290,17 @@ initial_state = State
     { state_avartanam = 0
     , state_akshara = 0
     , state_matra = 0
-    , state_akshara_nadai = default_nadai
-    , state_speed = 0
-    , state_nadai = default_nadai
-    }
-
-state_tempo :: State -> Tempo
-state_tempo state = Tempo
-    { speed = state_speed state
-    , nadai = state_nadai state
     }
 
 state_position :: State -> (Int, Tala.Akshara, Duration)
 state_position state =
     (state_avartanam state, state_akshara state, state_matra state)
 
-set_tempo :: Tempo -> State -> State
-set_tempo tempo state = state
-    { state_speed = speed tempo
-    , state_nadai = nadai tempo
-    }
-
 show_position :: State -> Text
 show_position state =
     "avartanam " <> showt (state_avartanam state + 1)
     <> ", akshara " <> showt (state_akshara state)
-    <> ", matra "
-    <> pretty (state_matra state * fromIntegral (state_nadai state))
+    <> " + " <> pretty (state_matra state)
 
 -- * functions
 
@@ -349,8 +322,6 @@ advance_state_by tala matras state = state
     { state_avartanam = state_avartanam state + akshara_carry
     , state_akshara = akshara
     , state_matra = matra
-    , state_akshara_nadai = if matra_carry > 0
-        then state_nadai state else state_akshara_nadai state
     }
     where
     (matra_carry, matra) = properFraction $ state_matra state + matras

@@ -29,8 +29,7 @@ test_realize = do
         p4s = cycle $ Dsl.pat 4
     equal (f False (take 4 tkdn)) $ Right
         ( map ("s0n4:"<>) (chars "kook")
-        , "4: korvai should end on or before sam: avartanam 1, akshara 1,\
-            \ matra 0"
+        , "4: korvai should end on or before sam: avartanam 1, akshara 1 + 0"
         )
     equal (f False (take 2 p4s)) $ Right (map ("s0n4:"<>) ["p4", "p4"], "")
     equal (f True (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")
