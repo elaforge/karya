@@ -294,7 +294,7 @@ test_unison_tuning = do
                 title
             . UiTest.note_track
         title = block_title <> " | scale=wayang | unison"
-        extract e = (pretty $ Score.event_instrument e, DeriveTest.e_nn e)
+        extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_config inst $
