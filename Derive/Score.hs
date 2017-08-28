@@ -10,7 +10,7 @@
     backend.
 -}
 module Derive.Score (
-    module Derive.ScoreTypes, module Derive.BaseTypes
+    module Derive.BaseTypes
     -- * Event
     , Event(..)
     , short_event, short_events
@@ -33,21 +33,30 @@ module Derive.Score (
     -- ** modify events
     , move, place, move_start, duration, set_duration, set_instrument
     -- *** control
+    , Control, control_name
+    , ControlValMap, TypedControlValMap
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
     , modify_control_vals, modify_control
     , set_control, event_controls_at
     -- *** pitch
+    , PControl, pcontrol_name
     , default_pitch, set_pitch, set_named_pitch, event_pitch, event_named_pitch
     , transposed_at, pitch_at, pitch_sample_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
     -- ** warp
+    , Warp(..), id_warp, id_warp_signal
     , warp, is_id_warp
     , warp_pos, unwarp_pos, compose_warps
     , warp_to_signal
 
+    -- * Type
+    , Type(..), Typed(..)
+    , untyped, merge_typed, type_to_code, code_to_type
+    , TypedVal, TypedControl
+
     -- * instrument
-    , instrument
+    , Instrument(..), instrument
     , instrument_name, empty_instrument
 
     -- * util
