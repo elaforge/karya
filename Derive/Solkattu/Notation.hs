@@ -224,16 +224,16 @@ tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.
 tri_ :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-tri_ sep a = a <> sep <> a <> mid^sep <> a
+tri_ sep a = a <> sep <> a <> try_set_tag mid sep <> a
 
 -- | Three different patterns with the same separator.
 trin :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
-trin sep a b c = a <> sep <> b <> mid^sep <> c
+trin sep a b c = a <> sep <> b <> try_set_tag mid sep <> c
 
 -- | Tirmanams with a variant final repeat.
 tri2 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-tri2 sep ab c = ab <> sep <> ab <> mid^sep <> c
+tri2 sep ab c = ab <> sep <> ab <> try_set_tag mid sep <> c
 
 -- * sequences
 
@@ -365,6 +365,13 @@ mid = Solkattu.Middle
 set_tag :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
 set_tag tag = fmap $ fmap $ Solkattu.modify_note $
     \note -> note { Solkattu._tag = Just tag }
+
+-- | Set if not already set.
+try_set_tag :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
+try_set_tag tag = fmap $ fmap $ Solkattu.modify_note $
+    \note -> if Solkattu._tag note == Nothing
+        then note { Solkattu._tag = Just tag }
+        else note
 
 -- * align
 

@@ -73,7 +73,7 @@ korvais =
     , set_location ("Derive.Solkattu.Score.Solkattu2014",202,"c_14_03_26") Derive.Solkattu.Score.Solkattu2014.c_14_03_26
     , set_location ("Derive.Solkattu.Score.Solkattu2014",229,"c_14_04_21") Derive.Solkattu.Score.Solkattu2014.c_14_04_21
     , set_location ("Derive.Solkattu.Score.Solkattu2014",247,"c_14_04_29") Derive.Solkattu.Score.Solkattu2014.c_14_04_29
-    , set_location ("Derive.Solkattu.Score.Solkattu2014",284,"c_14_06_06") Derive.Solkattu.Score.Solkattu2014.c_14_06_06
+    , set_location ("Derive.Solkattu.Score.Solkattu2014",283,"c_14_06_06") Derive.Solkattu.Score.Solkattu2014.c_14_06_06
     , set_location ("Derive.Solkattu.Score.Solkattu2016",13,"c_16_09_28") Derive.Solkattu.Score.Solkattu2016.c_16_09_28
     , set_location ("Derive.Solkattu.Score.Solkattu2016",39,"c_16_12_06_sriram1") Derive.Solkattu.Score.Solkattu2016.c_16_12_06_sriram1
     , set_location ("Derive.Solkattu.Score.Solkattu2017",20,"koraippu_janahan") Derive.Solkattu.Score.Solkattu2017.koraippu_janahan

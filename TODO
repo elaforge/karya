@@ -12,6 +12,7 @@ UNSORTED
     should only collapse children.
   - Figure out how to control vsl legato transition volume mismatches.
     . slur call has a legato-dyn arg to try to address this.
+    . Look into http://www.beat-kaufmann.com/vitutorials/index.php
   - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
     an untyped ControlRef.  Can I make it default to Diatonic?
   * ^o deletes too much.
@@ -999,6 +1000,9 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - Can I get it to print time signature on each line?
+    . Doesn't work:
+      \override Staff.TimeSignature.break-visibility = ##(#t #t #t)
   trill:
     * put accidentals on if it's not diatonic
       * For trill with span, use on multiple notes:
@@ -1030,7 +1034,8 @@ lilypond:
     as +nv.
   - ly^ is confusing, it seems like it should be ly-^
     . Either that or get rid of the hyphen for everyone.
-  - Variant of ly^ for \markup {...}.
+  / Variant of ly^ for \markup {...}.
+    . Already have it: ly- '\markup \italic "..."'
   - harmonic string arg is hard to use if I have to give nn.  How about
     strings export (g) (d) etc. calls which emit the appropriate string's nn?
     Or should I understand string names?
@@ -1932,6 +1937,7 @@ midi record:
 REPL: repl:
   - :h should put the selected cmd into the history
   - something like :h where I can edit a single line
+    . Maybe a control key, so I can edit the contents of the current line.
   - It would still be useful to save a single unified history.  Then use
     something like :h to search it.
   - It's easy to leave vi open on a ky file and change scores.  Maybe it could
@@ -2239,8 +2245,13 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
     solkattu:
-      - It's confusing when the mid tag replaces an existing tag.  Either
+      * It's confusing when the mid tag replaces an existing tag.  Either
         tags should not apply if there already is one, or they should stack.
+        . Using a Set would be more powerful, and I could look for the best
+          match, but I think in practice I don't want to get that complicated,
+          and I don't want to deal with trying to figure out the best match,
+          and anyway I still can't make a decision if it's 1 overlap vs.
+          1 overlap.
       - How to represent chatusra tisram, and other similar things?
         . Basically it's changing the nadai, but not the speed.
         . If I say stride=3, then each note is 3 matras.  s1 means each one is

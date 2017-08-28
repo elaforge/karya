@@ -280,7 +280,6 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvai adi mridangam $
 
 -- faran + nadai exercise at 14-04-29.
 
-
 c_14_06_06 :: Korvai
 c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     korvai adi mridangam
