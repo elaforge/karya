@@ -211,6 +211,7 @@ test_format_ruler = do
           \K k k k k k K k k k k k"
         , ""
         )
+
     equal_t (run (tas 2 12 <> tas 3 6)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\

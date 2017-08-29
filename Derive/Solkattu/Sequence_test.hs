@@ -14,7 +14,7 @@ import Global
 
 test_flatten_with = do
     let f = map (extract . fst) . Sequence.flatten_with default_tempo
-        extract (Meta g (Sequence.Tempo speed nadai)) = (g, (speed, nadai))
+        extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
     equal (f [note]) [(Nothing, (0, 4))]
     equal (f [Group 'a' [note, Group 'b' [note], note]])
         [(Just (g 3 'a'), (0, 4)), (Just (g 1 'b'), (0, 4)), (Nothing, (0, 4))]
@@ -34,12 +34,19 @@ test_tempo_to_state = do
     equal (f [speed (-1) [note, note], speed 2 [note, note]])
         [(0, 0), (0, 1/2), (1, 0), (1, 1/16)]
 
+    -- Stride.
+    equal (f [stride 3 (replicate 5 note)])
+        [(0, 0), (0, 3/4), (1, 1/2), (2, 1/4), (3, 0)]
+    equal (f [stride 3 [speed 1 (replicate 4 note)]])
+        [(0, 0), (0, 3/8), (0, 6/8), (1, 1/8)]
+
 test_normalize_speed = do
-    let f = map (first e_state . second pretty_stroke . snd)
+    let f = map ((e_state *** pretty_stroke) . snd)
             . Sequence.normalize_speed Tala.adi_tala
             . Sequence.flatten
         n matras = Sequence.Note (matras :: Sequence.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
+    -- It would omit the rests, but 1/nadai is the minimum dur.
     equal (f [sd [n 1, n 1]])
         [((0, 0), '+'), ((0, 1/4), '_'), ((0, 2/4), '+'), ((0, 3/4), '_')]
     equal (f [su [n 1, n 1], n 1, n 1])
@@ -55,6 +62,11 @@ test_normalize_speed = do
         ]
     equal (map snd $ f [su [su [n 1]], n 1]) "++___"
     equal (map snd $ f [sd [n 1, n 2, n 1]]) "+_+---+_"
+
+    equal (map snd $ f [stride 3 [note, note]]) "+__+__"
+    equal (map fst $ f [stride 3 [note, note]])
+        [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0), (1, 1/4)]
+    equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
 test_normalize_speed_groups = do
     let f = extract . Sequence.normalize_speed Tala.adi_tala . Sequence.flatten
@@ -119,6 +131,9 @@ nadai = TempoChange . Sequence.Nadai
 
 speed :: Sequence.Speed -> [Note g a] -> Note g a
 speed = Sequence.change_speed
+
+stride :: Sequence.Stride -> [Note g a] -> Note g a
+stride = TempoChange . Sequence.Stride
 
 su, sd :: [Note g a] -> Note g a
 su = speed 1

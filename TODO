@@ -2252,11 +2252,29 @@ Derive:
           and I don't want to deal with trying to figure out the best match,
           and anyway I still can't make a decision if it's 1 overlap vs.
           1 overlap.
-      - How to represent chatusra tisram, and other similar things?
+      * How to represent chatusra tisram, and other similar things?
         . Basically it's changing the nadai, but not the speed.
         . If I say stride=3, then each note is 3 matras.  s1 means each one is
           1.5, s2 is 3/4.  Nadai 6 means 1/2.
         . Maybe this can just be a multiplier on the time advance.
+        . I want to be able to use speed=2 etc. and do metric modulation type
+          stuff.  Also experiment with chatusra kandam and other combinations.
+        . E.g. 8 into 3 is 1.5 per.  How would I do a relative tisram in that?
+        . I need to not normalize nadai and return it instead because format
+          changes the spaces given according to the nadai.
+        . I want to only expand based on speed, not nadai.  Which is what
+          I used to do, except that I also need to use stride.  So the effect
+          of stride is to possibly round up step_dur.
+        . With nadai 4, then 0 means step_dur = 1/4.  But with nadai 5,
+          step_dur is 1/5... I guess I could model this as the step_dur
+          changes.
+        . Actually what happens if I ignore stride?  Maybe I don't need it,
+          if it's integral, then it will always fit into the slots given.
+        . 1   2   3   4   5   6 -- 3 into 4, stride = 3
+          1  2  3  4  5
+        . 1   2   3   4   5   6 -- 5 into 4, stride = 5
+          1    2    3    4    5
+          1 2  3 4  5 1  2 3  4 5
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
       . Solkattu2017.c_17_07_13 is showing the difficulty of the

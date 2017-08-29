@@ -208,6 +208,7 @@ matrasOfE = integral <=< justErr "nadai change" . of_sequence
     of_note (S.TempoChange change notes) = case change of
         S.ChangeSpeed speed -> (/ S.speed_factor speed) <$> of_sequence notes
         S.Nadai _ -> Nothing
+        S.Stride stride -> (* fromIntegral stride) <$> of_sequence notes
     of_note (S.Group _ notes) = of_sequence notes
 
 -- * by sollu
@@ -342,6 +343,10 @@ sd = speed (-1)
 nadai :: Matra -> [S.Note g sollu] -> [S.Note g sollu]
 nadai _ [] = []
 nadai n seq = [S.TempoChange (S.Nadai n) seq]
+
+stride :: S.Stride -> [S.Note g sollu] -> [S.Note g sollu]
+stride _ [] = []
+stride n seq = [S.TempoChange (S.Stride n) seq]
 
 -- | Just mark a group.  Equivalent to dropM 0.
 group :: SequenceT sollu -> SequenceT sollu

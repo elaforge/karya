@@ -10,7 +10,7 @@
 -- type is polymorphic, so this is purely rhythmic.
 module Derive.Solkattu.Sequence (
     Note(..), TempoChange(..)
-    , Duration, Matra, Speed, Nadai, speed_factor
+    , Duration, Matra, Speed, Nadai, Stride, speed_factor
     , change_speed
     , HasMatras(..)
     -- * transform
@@ -64,13 +64,14 @@ newtype Duration = Duration Ratio.Rational
 
 -- | Relative speed change.  Each positive number doubles the number of
 -- 'Matra's per akshara.  Negative numbers half them.
-data TempoChange = ChangeSpeed Speed | Nadai Nadai
+data TempoChange = ChangeSpeed Speed | Nadai Nadai | Stride Stride
     deriving (Eq, Ord, Show)
 
 instance Pretty TempoChange where
     pretty (ChangeSpeed s) =
         "s" <> (if s > 0 then "+" else "-") <> showt (abs s)
     pretty (Nadai s) = "n" <> showt s
+    pretty (Stride s) = "t" <> showt s
 
 -- | A matra is an akshara divided by the nadai.  It corresponds to a single
 -- sollu in first speed, which means the actual duration is dependent on Nadai
@@ -81,6 +82,8 @@ type Matra = Int
 -- negative ones halve it.
 type Speed = Int
 type Nadai = Int
+-- | This could be Duration, but it would make normalize_speed tricky.
+type Stride = Int
 
 speed_factor :: Speed -> Duration
 speed_factor s
@@ -122,6 +125,8 @@ simplify = merge . concatMap cancel
     cancel (TempoChange (ChangeSpeed s) xs) | s == 0 = xs
     cancel (TempoChange (ChangeSpeed s) xs) = concatMap (cancel_speed s) xs
     cancel (TempoChange (Nadai n) xs) = concatMap (cancel_nadai n) xs
+    cancel (TempoChange (Stride s) xs) =
+        [TempoChange (Stride s) (concatMap cancel xs)]
 
     cancel_speed s1 (TempoChange (ChangeSpeed s2) xs) =
         cancel (TempoChange (ChangeSpeed (s1+s2)) xs)
@@ -179,12 +184,15 @@ flatten_with = go
 -- | Calculate Tala position for each note.
 tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]
     -> (State, [(State, a)])
-tempo_to_state tala = List.mapAccumL process initial_state
+tempo_to_state tala = List.mapAccumL to_state initial_state . tempo_to_duration
     where
-    process state (tempo, note) = (next_state, (state, note))
-        where
-        next_state = advance_state_by tala
-            (matra_duration tempo * fromIntegral (matras_of note)) state
+    to_state state (dur, note) =
+        (advance_state_by tala dur state, (state, note))
+
+tempo_to_duration :: HasMatras a => [(Tempo, a)] -> [(Duration, a)]
+tempo_to_duration = map $ \(tempo, note) ->
+    (fromIntegral (matras_of note) * matra_duration tempo
+        * fromIntegral (stride tempo), note)
 
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
@@ -194,24 +202,6 @@ instance Pretty a => Pretty (Stroke a) where
         Attack a -> pretty a
         Sustain _ -> "-"
         Rest -> "_"
-
--- | Normalize to the fastest speed, then mark position in the Tala.
-normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
-    -> [(Maybe (GroupMark g), (State, Stroke a))]
-normalize_speed tala notes =
-    zip expanded $ snd $ List.mapAccumL process initial_state by_nadai
-    where
-    process state (nadai, stroke) = (next_state, (state, stroke))
-        where
-        next_state = advance_state_by tala (min_dur / fromIntegral nadai) state
-    (by_nadai, min_dur) = flatten_speed (map (first _tempo) notes)
-    expanded = go 0 groups
-        where
-        go n gs@((i, group) : rest)
-            | n >= i = Just group : go (n+1) rest
-            | otherwise = Nothing : go (n+1) gs
-        go _ [] = repeat Nothing
-    groups = expand_groups (map (_mark . fst) notes) (map snd by_nadai)
 
 -- | Re-associate groups with the output of 'flatten_speed' by expanding their
 -- '_count's.  Each group entry corresponds to an Attack Stroke.
@@ -231,32 +221,51 @@ expand_groups groups =
     is_attack (Attack {}) = True
     is_attack _ = False
 
+-- | Normalize to the fastest speed, then mark position in the Tala.  This
+-- normalizes speed, not nadai, because Realize.format lays out notation by
+-- nadai, not in absolute time.
+normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
+    -> [(Maybe (GroupMark g), (State, Stroke a))]
+normalize_speed tala notes =
+    zip expanded $ snd $ List.mapAccumL process initial_state by_nadai
+    where
+    process state (nadai, stroke) = (next_state, (state, stroke))
+        where
+        next_state = advance_state_by tala (step_dur / fromIntegral nadai) state
+    (by_nadai, step_dur) = flatten_speed (map (first _tempo) notes)
+    expanded = go 0 groups
+        where
+        go n gs@((i, group) : rest)
+            | n >= i = Just group : go (n+1) rest
+            | otherwise = Nothing : go (n+1) gs
+        go _ [] = repeat Nothing
+    groups = expand_groups (map (_mark . fst) notes) (map snd by_nadai)
+
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
 -- Speed 0 always gets at least one Stroke, even if it's not the slowest.
 flatten_speed :: HasMatras a => [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
-flatten_speed notes = (concatMap flatten notes, min_dur)
+flatten_speed notes = (concatMap flatten notes, step_dur)
     where
     flatten (tempo, note) = map (nadai tempo,) $
         Attack note : replicate (spaces - 1)
             (if has_duration note then Sustain note else Rest)
         where
-        spaces = matras_of note * 2 ^ (max_speed - speed tempo)
+        spaces = stride tempo * matras_of note
+            * 2 ^ (max_speed - speed tempo)
     -- The smallest duration is a note at max speed.
-    min_dur = 1 / speed_factor max_speed
+    step_dur = 1 / speed_factor max_speed
     max_speed = maximum $ 0 : map (speed . fst) notes
 
-tempo_to_duration :: HasMatras a => [(Tempo, a)] -> [(Duration, a)]
-tempo_to_duration = map $ \(tempo, note) ->
-    (fromIntegral (matras_of note) * matra_duration tempo, note)
-
-data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai }
+data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai, stride :: !Stride }
     deriving (Eq, Show)
 
 instance Pretty Tempo where
-    pretty (Tempo speed nadai) = "s" <> pretty speed <> "n" <> pretty nadai
+    pretty (Tempo speed nadai stride) =
+        "s" <> pretty speed <> "n" <> pretty nadai
+        <> (if stride == 1 then "" else "t" <> pretty stride)
 
 default_tempo :: Tempo
-default_tempo = Tempo { speed = 0, nadai = default_nadai }
+default_tempo = Tempo { speed = 0, nadai = default_nadai, stride = 1 }
 
 default_nadai :: Nadai
 default_nadai = 4
@@ -264,6 +273,7 @@ default_nadai = 4
 change_tempo :: TempoChange -> Tempo -> Tempo
 change_tempo (ChangeSpeed s) tempo = tempo { speed = s + speed tempo }
 change_tempo (Nadai n) tempo = tempo { nadai = n }
+change_tempo (Stride s) tempo = tempo { stride = s }
 
 -- ** State
 
@@ -318,12 +328,12 @@ matra_duration tempo =
     1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)
 
 advance_state_by :: Tala.Tala -> Duration -> State -> State
-advance_state_by tala matras state = state
+advance_state_by tala duration state = state
     { state_avartanam = state_avartanam state + akshara_carry
     , state_akshara = akshara
-    , state_matra = matra
+    , state_matra = dur
     }
     where
-    (matra_carry, matra) = properFraction $ state_matra state + matras
-    (akshara_carry, akshara) = (state_akshara state + matra_carry)
+    (dur_carry, dur) = properFraction $ state_matra state + duration
+    (akshara_carry, akshara) = (state_akshara state + dur_carry)
         `divMod` sum (Tala.tala_aksharas tala)

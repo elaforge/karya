@@ -58,7 +58,7 @@ test_spaceD = do
     equal (f S.default_tempo 1) 1
     equal (f S.default_tempo (3/4)) (3/4)
     throws (f S.default_tempo (1/3)) "not a binary multiple"
-    equal (f (S.Tempo 0 6) (1/3)) (1/3)
+    equal (f (S.Tempo 0 6 1) (1/3)) (1/3)
 
 test_replaceStart = do
     let f prefix = map pretty . Notation.replaceStart prefix

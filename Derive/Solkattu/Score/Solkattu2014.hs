@@ -292,8 +292,14 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     , purvangam (taka.ta) (takita.taka.ta)
         . tri_ dinga (1^ta.ka.__.din.na.__)
     , purvangam (taka.ta) (takita.taka.ta)
-        . tri_ dinga (ki.ta.ka.din.na.__)
+        . tri_ dinga (ki.takadinna.__)
+    -- Pure chatusra tisram.
+    , stride 3 $ tadindintat.din.__3
+        . su taka . tadindintat.din.__3
+        . su (kita.taka) . tadindintat.din.__3
+        . tri_ thom (su takadinna)
 
+    -- Variation.
     , purvangam2 . tri (tam.__7 . p5)
     , purvangam2 . tri (nadai 3 (dheem.__4 . tdgnt))
     ]
@@ -316,7 +322,11 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         , (dit, [t])
         , (taka.ta, [k, p, k])
         , (takita.taka.ta, [k, p, k, t, p, k])
-        , (kita.ka.din.na, [t, k, o, o, k])
+        , (ki.takadinna, [t, k, o, o, k])
         , (tam, [u])
         , (dheem, [i])
+
+        , (taka, [k, t])
+        , (kita.taka, [k, t, p, k])
+        , (takadinna, [k, o, od, k])
         ]
