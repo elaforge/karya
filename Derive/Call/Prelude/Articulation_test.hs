@@ -17,10 +17,21 @@ import Global
 test_harmonic_ly = do
     let run p = LilypondTest.measures ["harmonic"] $
             LilypondTest.derive_tracks $ UiTest.note_track [(0, 4, p)]
-    equal (run "o nat -- 3c") (Right "c1-\\flageolet", [])
+    equal (run "o -- 3c") (Right "c1-\\flageolet", [])
+    -- Valid natural harmonics.
+    equal (run "open-strings=(list (nn c3)) | o -- 4c")
+        (Right "c'1-\\flageolet", [])
+    equal (run "open-strings=(list (nn c3)) | o -- 4g")
+        (Right "<c g\\harmonic>1", [])
+    -- You can't get that pitch as a natural harmonic.
+    strings_like (snd $ run "open-strings=(list (nn c3)) | o -- 4a")
+        ["can't find 69nn as a natural harmonic of open strings"]
+    -- But you can as an artificial one.
+    equal (run "open-strings=(list (nn c3)) | o art -- 4a")
+        (Right "<d a\\harmonic>1", [])
+
     strings_like (snd $ run "string=(nn c3) | o -- 3c")
-        ["can't find 48nn as a harmonic of 48nn"]
-    equal (run "o nat -- 4c") (Right "c'1-\\flageolet", [])
+        ["can't find 48nn as a natural harmonic of 48nn"]
     equal (run "harmonic-force-diamond=t | o nat -- 4c")
         (Right "<c c'\\harmonic>1", [])
     equal (run "string=(nn c3) | o nat -- 4g") (Right "<c g\\harmonic>1", [])

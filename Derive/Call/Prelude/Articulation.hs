@@ -118,7 +118,8 @@ c_harmonic = Make.transform_notes Module.prelude "harmonic"
         \ harmonic."
     ) $ \(htype, open_strings, string, force_diamond) deriver ->
         Ly.when_lilypond
-            (lily_harmonic force_diamond htype open_strings string deriver)
+            (lily_harmonic force_diamond (fromMaybe Natural htype) open_strings
+                string deriver)
             (Call.add_attributes (Attrs.harm <> harm_attrs htype) deriver)
     where
     harm_attrs htype = case htype of
@@ -138,7 +139,7 @@ instance ShowVal.ShowVal HarmonicType where
 -- | Harmonic number.
 type Harmonic = Int
 
-lily_harmonic :: Bool -> Maybe HarmonicType -> [Pitch.NoteNumber]
+lily_harmonic :: Bool -> HarmonicType -> [Pitch.NoteNumber]
     -> Maybe Pitch.NoteNumber -> Derive.NoteDeriver -> Derive.NoteDeriver
 lily_harmonic force_diamond htype open_strings string deriver = do
     Post.emap_m_ id
@@ -146,17 +147,19 @@ lily_harmonic force_diamond htype open_strings string deriver = do
         =<< deriver
     -- Ly should have one that skips code events
 
-lily_harmonic_event :: Bool -> Maybe HarmonicType -> [Pitch.NoteNumber]
+lily_harmonic_event :: Bool -> HarmonicType -> [Pitch.NoteNumber]
     -> Maybe Pitch.NoteNumber -> Score.Event -> Derive.Deriver [Score.Event]
 lily_harmonic_event force_diamond htype open_strings string event = do
     nn <- Derive.require "no pitch" $ Score.initial_nn event
-    let msg = "can't find " <> pretty nn <> " as a harmonic of "
+    let msg = "can't find " <> pretty nn <> " as "
+            <> (case htype of
+                Natural -> "a natural"
+                Artificial -> "an artificial") <> " harmonic of "
             <> maybe ("open strings: " <> pretty open_strings) pretty string
-    (string, harmonic) <- Derive.require msg $
-        case fromMaybe Artificial htype of
-            Natural -> natural_harmonic open_strings string nn
-            Artificial -> artificial_harmonic lowest nn
-                where lowest = fromMaybe 0 $ string <|> Seq.head open_strings
+    (string, harmonic) <- Derive.require msg $ case htype of
+        Natural -> natural_harmonic open_strings string nn
+        Artificial -> artificial_harmonic lowest nn
+            where lowest = fromMaybe 0 $ string <|> Seq.head open_strings
     if harmonic <= 2 && not force_diamond
         then return [Score.add_attributes Attrs.harm event]
         else do
@@ -214,6 +217,9 @@ artificial_harmonic :: Pitch.NoteNumber -> Pitch.NoteNumber
 artificial_harmonic lowest_string nn =
     fmap (first (Pitch.nn . round)) $
         Seq.head $ filter ((>lowest_string) . fst) $
+        -- I assume the octave is not convenient for an artificial harmonic,
+        -- but that's not true in higher pitches.  Maybe I could allow it, but
+        -- make it least preferred?
         Seq.key_on base_of [3..highest_harmonic]
     where base_of h = Pitch.modify_hz (/ fromIntegral h) nn
 
