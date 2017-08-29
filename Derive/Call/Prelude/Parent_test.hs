@@ -149,7 +149,7 @@ test_tuplet_ly_complex = do
     equal (run $ (">", [(2, 2, "t")]) : notes 0.5 [2, 2.5, 3])
         (Right "r2 \\tuplet 3/2 { a4 b4 c4 }", [])
     equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1.25 0.25))
-        (Right "\\tuplet 3/2 { a8 b8 c8 d8 e8 f8 } r2", [])
+        (Right "\\tuplet 6/4 { a8 b8 c8 d8 e8 f8 } r2", [])
 
     equal (run $ (">", [(0, 4, "t")]) : notes 0.5 (Seq.range 0 2 0.5))
         (Right "\\tuplet 5/4 { a4 b4 c4 d4 e4 }", [])

@@ -327,9 +327,18 @@ convert_tuplet start score_dur real_dur events = do
     -- Debug.tracepM "advance tuplet" (state_time old, start, real_dur)
     barline <- Control.rethrow ("converting tuplet: "<>) $
         advance_measure (start + real_dur)
-    let code = Code $ "\\tuplet " <> showt (Ratio.numerator divisor) <> "/"
-            <> showt (Ratio.denominator divisor) <> " {"
+    let code = tuplet_code (count_notes_rests lys) divisor
     return (code : lys ++ [Code "}"] ++ maybe [] (:[]) barline, out)
+
+-- | Convention is that the number on the tuplet is at least the number of
+-- notes inside, but lilypond doesn't do that automatically.
+tuplet_code :: Int -> Rational -> Ly
+tuplet_code notes r =
+    Code $ "\\tuplet " <> showt num <> "/" <> showt denom <> " {"
+    where
+    (num, denom) = (Ratio.numerator r * factor, Ratio.denominator r * factor)
+    factor = (2^) $ max 0 $ ceiling $ logBase 2 $
+        fromIntegral notes / fromIntegral (Ratio.numerator r)
 
 real_to_time :: RealTime -> ConvertM Time
 real_to_time t = do
@@ -948,6 +957,12 @@ instance ToLily Ly where
         LyNote note -> to_lily note
         LyRest rest -> to_lily rest
         Code code -> code
+
+count_notes_rests :: [Ly] -> Int
+count_notes_rests = Seq.count $ \ly -> case ly of
+    LyNote {} -> True
+    LyRest {} -> True
+    _ -> False
 
 -- ** Note
 

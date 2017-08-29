@@ -1145,7 +1145,7 @@ lilypond:
       * It should be able to notice that for tr 1c, c db is better than c c#.
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
-    - Lilypond puts 3 on sextuplets.
+    * Lilypond puts 3 on sextuplets.
       . \tuplet 3/2 { d'16 a'16 d'16 a'16 d'16 a'16 }
       . I can get a 6 with 6/4, but should I write that, or should lilypond
         know that 6 notes should always have a 6 numerator?

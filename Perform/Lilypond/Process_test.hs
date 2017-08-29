@@ -14,7 +14,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3)
+import Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3, f3)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Process (Voice(..))
@@ -265,13 +265,18 @@ test_convert_tuplet = do
 
     equal (run $ tuplet 0 3 4 : map e [(0, 1, c3), (1, 1, d3), (2, 1, e3)])
         (Right "\\tuplet 3/2 { c2 d2 e2 } | R4*4")
-
     -- leading and trailing rests
     equal (run [tuplet 0 3 4, e (1, 1, d3)])
         (Right "\\tuplet 3/2 { r2 d2 r2 } | R4*4")
-
     -- can't go past a barline
     left_like (run [tuplet 3 3 4, e (3, 1, c3)]) "tuplet: * past barline"
+
+    -- Spell with a 6 because there are 6 notes:
+    equal (run $ tuplet 0 3 4 :
+            [ e (s, 0.5, p)
+            | (s, p) <- zip (Seq.range_ 0 0.5) [a3, b3, c3, d3, e3, f3]
+            ])
+        (Right "\\tuplet 6/4 { a4 b4 c4 d4 e4 f4 } | R4*4")
 
     -- Nested tuplets.
     -- 0   .   1   .   2   .   3   .   4   .   |
