@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  Support for adding or removing time in the middle of a score:
+    . I want add a measure, and then automatically:
+      . Extend the ruler of this block.
+      . Extend the duration of the caller in the parent, moving all its events
+        as necessary.
+      . Also extend the caller's ruler, if necessary.
+      . Renumber the ruler in other callees as necessary, e.g. inverse
+        LRuler.extract aka LRuler.inject.
+    . If I have a way to mark a call as "unstretchy" it can try to move events
+      below it, or at least highlight if it's not 1:1.
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
     . Here's a use for multiple selections.
@@ -56,6 +66,14 @@ UNSORTED
     a narrow block, and it's annoying to resize it.  Can I have a pop-up?
     Or two lines of status if necessary?
     . Would a tooltip in the status bar be obnoxious?
+    . Or maybe summon it explicitly with a click.  If I leave it up
+      persistently, then I can see values change, e.g. to look for a particular
+      time.  This dismiss by clicking on it, or focusing another block.
+    . It seems like a shame to waste space with global fields like
+      8, t, and d.  But even without them, I won't be able to see time marks
+      in a narrow block.
+    . Really it's just 's' and 'sec'.  Could I squeeze some stuff into other
+      places?
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
@@ -1000,6 +1018,28 @@ integrate / integration:
     - quantization
 
 lilypond:
+  ties: rhythmic spelling:
+    - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
+      line, e.g. 8 4 8 8 8
+      . Maybe this is the reason I used greedy before.
+      . If I want r8 x4 r8, then I shouldn't break x4.  But if it's longer,
+        I should break on the beat, e.g. r8 x8~ x4.  So I think I need to also
+        ask about the duration, not just the start time.
+    - I could do manual rhythm spelling with a special directive to turn off the
+      meter, and then use a tracklang-level tie to join notes.
+      . Or if I could annotate individual notes with tie directions.  That way
+        I could apply a pattern to a whole section.
+    - Staff notation has a notion of rhythmic spelling, which, being
+      proportional, karya lacks.  In most cases I want to automatically infer
+      it, but would it make sense to spell it explicitly in some cases, and
+      how would that look?
+      . I guess I could add a tie annotation, which merges duration with the
+        next event, and a lilypond mode that ignores the meter and puts down
+        each duration explicitly.
+  - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
+    transitions
+    . Actually I'd want this to delete the following note and extend this one.
+      Are there any complications?
   - Can I get it to print time signature on each line?
     . Doesn't work:
       \override Staff.TimeSignature.break-visibility = ##(#t #t #t)
@@ -1028,10 +1068,25 @@ lilypond:
     . Sort coincident events by pitch.
     . Merge 0 dur events with coincident events by putting in their environ.
     . Convert [Event]->[Ly]: keys, meter splitting, tuplet and tremolo.
-  - I could do manual rhythm spelling with a special directive to turn off the
-    meter, and then use a tracklang-level tie to join notes.
+    - Lilypond.Process has special case hacks to deal with rests and mixing code
+      into rests.  Maybe I could get rid of that by inserting explicit rests, as
+      events with pitch=Nothing.
+      . The tricky part is that I have to do the same for voices.  Not sure if
+        worth it?
+    - many CodePositions don't work for ly-emit
+      . append-all, append-first, append-last, note-append-all, note-append-last
+      . Partly it's because the code to mix in 0 dur events doesn't support
+        append-first and append-last, but maybe it should.
+      . Either support them or at least throw an error when I see them.
+      . ly-< shows how confusing the situation is: I use AppendFirst even though
+        it doesn't work for 0 dur.  But that's what's appropriate.
+      . The emit/attach distinction is confusing, can I get rid of it?
+        . What purpose does it serve?
+        . It's useful to e.g. put 0 dur text annotations on the ly-track.
   - artificial harmonic notation doesn't understand that harmonics can count
     as +nv.
+    . Actually since I don't use +harm any more, maybe all of that is broken
+      now.
   - ly^ is confusing, it seems like it should be ly-^
     . Either that or get rid of the hyphen for everyone.
   / Variant of ly^ for \markup {...}.
@@ -1040,22 +1095,7 @@ lilypond:
     strings export (g) (d) etc. calls which emit the appropriate string's nn?
     Or should I understand string names?
   * force diamond notation for natural 2nd harmonic
-  - many CodePositions don't work for ly-emit
-    . append-all, append-first, append-last, note-append-all, note-append-last
-    . Partly it's because the code to mix in 0 dur events doesn't support
-      append-first and append-last, but maybe it should.
-    . Either support them or at least throw an error when I see them.
-    . ly-< shows how confusing the situation is: I use AppendFirst even though
-      it doesn't work for 0 dur.  But that's what's appropriate.
-    . The emit/attach distinction is confusing, can I get rid of it?
-      . What purpose does it serve?
-      . It's useful to e.g. put 0 dur text annotations on the ly-track.
-  - Lilypond.Process has special case hacks to deal with rests and mixing code
-    into rests.  Maybe I could get rid of that by inserting explicit rests, as
-    events with pitch=Nothing.
-    . The tricky part is that I have to do the same for voices.  Not sure if
-      worth it?
-  - add a ly.track module, which has everything from ly, but without the ly-
+  / add a ly.track module, which has everything from ly, but without the ly-
     prefix.  I can have ly-track and ly-global import it.
     . Actually there aren't many of those, so maybe don't bother?
   - In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
@@ -1082,6 +1122,7 @@ lilypond:
       meter than the other way around.
   squart/spawn:
     - extend vln2 at measure 87 so it has more time to accelerate
+      . I want to have an easier way to add a measure in the middle for this.
     - put just the harmonic gliss line on @b2 vla 27
     * trill at wider intervals should emit tremolo notation
       . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
@@ -1105,8 +1146,9 @@ lilypond:
     * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
       a performance attr without putting 'tr's everywhere.
     - Lilypond puts 3 on sextuplets.
-    - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
-      line, e.g. 8 4 8 8 8
+      . \tuplet 3/2 { d'16 a'16 d'16 a'16 d'16 a'16 }
+      . I can get a 6 with 6/4, but should I write that, or should lilypond
+        know that 6 notes should always have a 6 numerator?
     * how to write harmonic gliss?
       I can do it manually but I need Ly.NoteAppendFirst.
       . \set glissandoMap = #'((1 . 1))
@@ -1114,8 +1156,6 @@ lilypond:
         <...> \glissando
       * But I need to sort the notes in a chord.
   squart/6:
-    - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
-      transitions
     / Put glissando line only right at the end:
       \once \override Glissando.bound-details.right.Y = #-2
       . Can't figure out how to do it. If I manually tweak
@@ -1125,27 +1165,13 @@ lilypond:
       . I think it's a portamento, maybe I just write port.
       . It would still be nice to have this, but I can't figure out how to get
         lilypond to draw a line right before the note-head.
+      . Asked on lilypond-users
     - tempo: I want to emit \tempo "xyz" as a global marking.
       . Looks like lilypond is smart enough to suppress it for all but the top
         staff.  Presumably I still have to put it in all the parts, so they'll
         get it when I extract.
       . I could have >ly-global distribute code to all instruments.
-    - Staff notation has a notion of rhythmic spelling, which, being
-      proportional, karya lacks.  In most cases I want to automatically infer
-      it, but would it make sense to spell it explicitly in some cases, and
-      how would that look?
-      . I guess I could add a tie annotation, which merges duration with the
-        next event, and a lilypond mode that ignores the meter and puts down
-        each duration explicitly.
     - 'incompatible with meter' errors don't have a clickable stack
-    - tuplet error
-      . tuplet duration must be simple, but was: 0.4911504424778741 (0.0,0.5)
-        rt (289.11504424778764,289.6061946902655)
-      . shouldn't the warp be id?
-      . Due to a block which was slightly short, so the tempo wasn't 1:1.
-      . This as a generally annoying problem.  Maybe I can have a mode where
-        blocks are called 1:1, and they'll rearrange themselves in callers
-        when they change duration.  It can also maintain LRuler.extract.
     - Why does 7/8 not bar the eighth notes?
       . Because lilypond does beaming on its own: lily/Auto_beam_engraver.cc,
         configured in scm/auto-beam.scm and scm/time-signature-settings.scm
@@ -3148,6 +3174,10 @@ planning / research
       with arbitrary time shift/stretch, and events have duration.  Also since
       it uses (start, dur, note) events, it doesn't need rests, and can do
       overlapping events.
+    . Henning Thielemann's LiveSequencer highlights score as it plays:
+      https://hackage.haskell.org/package/live-sequencer-0.0.6
+      . He does it with a custom gui widget and language, but I wonder if
+        I could do this with by sending highlighting info in real time to vim?
   cmj:
     . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
