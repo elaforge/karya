@@ -160,8 +160,10 @@ lily_harmonic_event force_diamond htype open_strings string event = do
         Natural -> natural_harmonic open_strings string nn
         Artificial -> artificial_harmonic lowest nn
             where lowest = fromMaybe 0 $ string <|> Seq.head open_strings
-    if harmonic <= 2 && not force_diamond
-        then return [Score.add_attributes Attrs.harm event]
+    -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
+    let add_harm = Score.add_attributes Attrs.harm
+    map add_harm <$> if harmonic <= 2 && not force_diamond
+        then return [Ly.add_event_code (Ly.AppendAll, "-\\flageolet") event]
         else do
             interval <- Derive.require
                 ("harmonic not supported: " <> showt harmonic)

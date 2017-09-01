@@ -1083,7 +1083,7 @@ lilypond:
       . The emit/attach distinction is confusing, can I get rid of it?
         . What purpose does it serve?
         . It's useful to e.g. put 0 dur text annotations on the ly-track.
-  - artificial harmonic notation doesn't understand that harmonics can count
+  * artificial harmonic notation doesn't understand that harmonics can count
     as +nv.
     . Actually since I don't use +harm any more, maybe all of that is broken
       now.

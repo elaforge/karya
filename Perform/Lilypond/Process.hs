@@ -54,8 +54,7 @@ import Types
 -- | Automatically add lilypond code for certain attributes.
 simple_articulations :: [(Attrs.Attributes, Code)]
 simple_articulations =
-    [ (Attrs.harm, "-\\flageolet")
-    , (Attrs.mute, "-+")
+    [ (Attrs.mute, "-+")
     -- Previously pizz<>right, comment on "Attrs".
     , (Attrs.pizz_right, "-+")
     , (Attrs.marcato, "-^")

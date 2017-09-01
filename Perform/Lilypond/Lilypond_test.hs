@@ -222,10 +222,10 @@ test_tempo = do
 test_attributes = do
     let f = LilypondTest.derive_measures []
     equal (f
-        [ (">", [(0, 1, "+mute"), (1, 1, "+harm"), (2, 1, "")])
+        [ (">", [(0, 1, "+mute"), (1, 1, "+stac"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right "a'4-+ b'4-\\flageolet c'4 r4", [])
+        (Right "a'4-+ b'4-. c'4 r4", [])
 
 test_modal_attributes = do
     let f = LilypondTest.derive_measures [] . (:[("*", [(0, 0, "3c")])])

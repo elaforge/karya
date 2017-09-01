@@ -37,6 +37,14 @@ test_harmonic_ly = do
     equal (run "string=(nn c3) | o nat -- 4g") (Right "<c g\\harmonic>1", [])
     equal (run "string=(nn c3) | o nat -- 5c") (Right "<c f\\harmonic>1", [])
 
+    -- Harmonics are naturally nv.
+    let run2 = LilypondTest.measures ["harmonic"]
+            . LilypondTest.derive_tracks . UiTest.note_track
+    equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o -- 3d"), (2, 1, "3e")])
+        (Right "c4^\"nv\" d4-\\flageolet e4^\"vib\" r4", [])
+    equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o art -- 3d"), (2, 1, "3e")])
+        (Right "c4^\"nv\" <g,, d,\\harmonic>4 e4^\"vib\" r4", [])
+
 test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract = DeriveTest.e_note
