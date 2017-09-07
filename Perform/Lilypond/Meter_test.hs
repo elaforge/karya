@@ -4,10 +4,12 @@
 
 module Perform.Lilypond.Meter_test where
 import qualified Data.Text as Text
+import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Util.Testing as Testing
 
 import Perform.Lilypond.LilypondTest (parse_meter)
 import qualified Perform.Lilypond.Meter as Meter
@@ -18,43 +20,99 @@ import Global
 
 
 test_convert_duration = do
-    let f meter pos = Types.to_lily $ head $
-            Meter.convert_duration (parse_meter meter) True
-                pos (Types.time_per_whole - pos)
-    equal (map (f "4/4") [0, 8 .. 127])
-        [ "1", "8.", "4.", "16", "2.", "8.", "8", "16"
-        -- mid-measure
-        , "2", "8.", "4.", "16", "4", "8.", "8", "16"
+    let f meter start dur = to_lily $
+            Meter.convert_duration (parse_meter meter) True start dur
+        to_lily = Text.intercalate "~" . map Types.to_lily
+    let nd = Types.NoteDuration
+
+    equal_durs "4/4" 0 (steps D4 D4 5)
+        [ [nd D4 False]
+        , [nd D2 False]
+        , [nd D2 True]
+        , [nd D1 False]
+        , [nd D1 False, nd D4 False]
         ]
-    equal (map (f "2/4") [0, 8 .. 127]) $
-        concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
-test_allowed_time_best = do
-    let f meter = extract_rhythms
-            . map (Meter.allowed_time_best True (parse_meter meter))
-        steps dur end = Seq.range' 0 (end * Types.dur_to_time dur)
-            (Types.dur_to_time dur)
+    equal (f "4/4" (d D8) (d D4)) "4"
+    -- Starting on a quarter note rank 2 can span rank 1 at the center.
+    equal (f "4/4" (d D4) (d D2)) "2"
 
-    -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
-    equal (f "4/4" (steps D4 5)) "1 2. 2 4 1"
-    equal (f "4/4" (steps D8 9)) "1 4. 2. 8 2 4. 4 8 1"
-    -- 6/8 is more conservative.
-    equal (f "3+3/8" (steps D8 7)) "2. 4 8 4. 4 8 2."
-    -- Irregular meters don't let you break the middle dividing line no matter
-    -- what, because 'Meter.find_rank' always stops at rank 0.
-    equal (f "3+2/4" (steps D8 11)) "2. 8 2 8 4 8 2 8 4 8 2."
-        -- This has 8 after the middle 2 instead of 4. like 4/4 would have.
-        -- That's because it's not duple, so it's more conservative.
-        -- I guess that's probably ok.
+    equal (f "4/4" (d D8) (d D4)) "4"
+    equal (f "4/4" (d D8) (d D4 + d D16)) "8~8."
+    equal_durs "4/4" (d D8) (steps D8 D8 5)
+        [ [nd D8 False]
+        , [nd D4 False]
+        , [nd D4 True]
+        , [nd D4 True, nd D8 False]
+        , [nd D4 True, nd D4 False]
+        ]
+    equal_durs "4/4" (d D16) (steps D16 D16 5)
+        [ [nd D16 False]
+        , [nd D8 False]
+        , [nd D8 True]
+        , [nd D8 True, nd D16 False]
+        , [nd D8 True, nd D8 False]
+        ]
+    -- But if I have to break it, break at the quarter.
+    equal (f "4/4" (d D8) (d D8 * 2 + d D16)) "8~8."
 
-    equal (f "3+4/8" (steps D8 7)) "4. 4 8 2 4. 4 8"
-    -- 2+2 means don't go over 8th note division.
-    equal (f "3+2+2/8" (steps D8 7)) "4. 4 8 2 8 4 8"
+    equal_durs "3/4" 0 (steps D4 D4 4)
+        [ [nd D4 False]
+        , [nd D2 False]
+        , [nd D2 True]
+        , [nd D2 True, nd D4 False]
+        ]
+    equal (f "3/4" (d D8) (d D4)) "4"
+    equal_durs "3/4" (d D8) [d D8 * 3] [[nd D8 False, nd D4 False]]
+    equal_durs "3/4" (d D8) (steps D8 D8 5)
+        [ [nd D8 False]
+        , [nd D4 False]
+        , [nd D8 False, nd D4 False]
+        , [nd D8 False, nd D4 True]
+        , [nd D8 False, nd D2 False]
+        ]
 
-extract_rhythms :: [Types.Time] -> Text
-extract_rhythms =
-    Text.unwords . map (Types.to_lily . expect1 . Types.time_to_note_durs)
+    -- I used to break the middle of 6/8, but I'm more lenient in non-binary
+    -- meters now.  This means a 6/8 will happily spell q q q, but I guess
+    -- that's not exactly hard to read, so ok.
+    -- equal_durs "6/8" (d D4) [d D4] [[nd D8 False, nd D8 False]]
 
-expect1 :: (CallStack.Stack, Show a) => [a] -> a
-expect1 [x] = x
-expect1 xs = errorStack $ "expected only one element: " <> showt xs
+-- This is probably overkill.  "8~8" seems ok for single comparisons.
+equal_durs :: CallStack.Stack => Text -> Types.Time -> [Types.Time]
+    -> [[Types.NoteDuration]] -> IO Bool
+equal_durs meter_ start durs =
+    Testing.equal_fmt
+        ((fmt_meter meter <>) . Text.unlines . map (fmt_durs start))
+        (map (Meter.convert_duration meter True start) durs)
+    where
+    meter = parse_meter meter_
+
+fmt_meter :: Meter.Meter -> Text
+fmt_meter meter = Text.unlines $ map fmt_rank [0..3]
+    where
+    ranks = Vector.Unboxed.toList $ Meter.meter_ranks meter
+    fmt_rank r = mconcatMap (fmt r) $
+        dropWhile null $ Seq.split_with (<=r) ranks
+    fmt r g = Text.justifyLeft (to_spaces g) ' '  (showt r)
+    to_spaces = (`div` fromIntegral (Types.dur_to_time min_duration)) . length
+
+fmt_durs :: Types.Time -> [Types.NoteDuration] -> Text
+fmt_durs start durs =
+    Text.replicate (fromIntegral $ start `div` min_time) " "
+    <> mconcatMap fmt_dur durs
+
+fmt_dur :: Types.NoteDuration -> Text
+fmt_dur dur =
+    Text.justifyLeft (to_spaces dur - 1) '-' (Types.note_dur_char dur) <> ">"
+    where
+    to_spaces = fromIntegral . (`div` min_time) . Types.note_dur_to_time
+
+min_duration :: Types.Duration
+min_duration = D32
+min_time = Types.dur_to_time min_duration
+
+d :: Duration -> Types.Time
+d = Types.dur_to_time
+
+steps :: Duration -> Duration -> Int -> [Types.Time]
+steps start dur count = take count $ Seq.range_ (d start) (d dur)

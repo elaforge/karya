@@ -310,9 +310,8 @@ convert_tuplet start score_dur real_dur events = do
         throw $ "tuplet factor is too complicated: " <> showt score_dur
             <> "/" <> showt real_dur
 
-    -- Debug.tracepM "duplet, divisor" (is_duplet, divisor)
-    -- Debug.tracepM "start, score, real" (start, score_dur, real_dur)
-    -- Debug.tracepM "in, out" (map (stretch factor start) in_tuplet, out)
+    -- TODO it's probably wrong to do this unmetered.  I should instead act as
+    -- if the meter has changed.
     lys <- convert_unmetered (start + score_dur)
         (map (stretch factor start) in_tuplet)
 
@@ -323,7 +322,6 @@ convert_tuplet start score_dur real_dur events = do
         , state_measure_start = state_measure_start old
         , state_measure_end = state_measure_end old
         }
-    -- Debug.tracepM "advance tuplet" (state_time old, start, real_dur)
     barline <- Control.rethrow ("converting tuplet: "<>) $
         advance_measure (start + real_dur)
     let code = tuplet_code (count_notes_rests lys) divisor
@@ -401,9 +399,11 @@ convert_tremolo tremolo_event events = do
     get_allowed_dur = do
         meter <- get_subdivision
         measure_start <- State.gets state_measure_start
-        return $ Types.note_dur_to_time $ Types.time_to_note_dur $
-            min total_dur $
-            Meter.allowed_time_best True meter (start - measure_start)
+        return $ Types.note_dur_to_time $
+            Meter.allowed_duration use_dot meter
+                (start - measure_start)
+                (start - measure_start + event_duration tremolo_event)
+            where use_dot = True
 
 tremolo_make_lys :: Attrs.Attributes -> [Event] -> (Attrs.Attributes, [Note])
 tremolo_make_lys prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
@@ -524,7 +524,7 @@ make_note :: Time -> Attrs.Attributes -> Maybe Meter.Meter
     -> Maybe Time -> (Ly, Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, clipped)
 make_note measure_start prev_attrs maybe_meter chord next =
-    (ly, end, next_attrs, clipped)
+    (ly, allowed_end, next_attrs, clipped)
     where
     ly = case NonEmpty.nonEmpty note_pitches of
         -- TODO I think I don't actually know if this rest is the "last" one,
@@ -560,7 +560,7 @@ make_note measure_start prev_attrs maybe_meter chord next =
     append_chord = Seq.unique $ concat
         [append_code (is_first e) (is_last e) e | e <- NonEmpty.toList chord]
     note_tie event
-        | event_end event <= end = NoTie
+        | event_end event <= allowed_end = NoTie
         | Text.null direction = TieNeutral
         | direction == "^" = TieUp
         | otherwise = TieDown
@@ -572,17 +572,22 @@ make_note measure_start prev_attrs maybe_meter chord next =
         NoTie -> True
         _ -> False
 
+    clipped = mapMaybe (clip_event allowed_end) (NonEmpty.toList chord)
+    start = event_start first
+    allowed_end = start + Types.note_dur_to_time allowed_dur
+    allowed_dur = case maybe_meter of
+        Nothing -> Types.time_to_note_dur (max_end - start)
+        Just meter ->
+            Meter.allowed_duration use_dot meter in_measure (max_end - start)
+            where
+            use_dot = True -- not use_dot is for rests.
+            in_measure = start - measure_start
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
-    max_end = fromMaybe (event_end first) $ Seq.minimum $
-        Maybe.maybeToList next ++ map event_end (NonEmpty.toList chord)
-    clipped = mapMaybe (clip_event end) (NonEmpty.toList chord)
-    start = event_start first
-    end = start + Types.note_dur_to_time allowed_dur
-    allowed_dur = Types.time_to_note_dur $ case maybe_meter of
-        Nothing -> max_end - start
-        Just meter -> min (max_end - start) $
-            Meter.allowed_time_best True meter (start - measure_start)
+    max_end = min_if next $ Seq.ne_minimum (fmap event_end chord)
+
+min_if :: Ord a => Maybe a -> a -> a
+min_if ma b = maybe b (min b) ma
 
 -- ** ly code env vars
 
@@ -866,8 +871,8 @@ get_subdivision = do
     case subdivision of
         Just sub
             | Meter.measure_time meter == Meter.measure_time sub -> return sub
-            | otherwise -> throw $ "subdivision " <> pretty sub
-                <> " incompatible with meter " <> pretty meter
+            | otherwise -> throw $ "subdivision " <> to_lily sub
+                <> " incompatible with meter " <> to_lily meter
         Nothing -> return meter
 
 -- * ConvertM

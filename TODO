@@ -13,6 +13,28 @@ UNSORTED
         LRuler.extract aka LRuler.inject.
     . If I have a way to mark a call as "unstretchy" it can try to move events
       below it, or at least highlight if it's not 1:1.
+      . Or maybe it should even default to unstretchy, and you have to mark
+        stretchy.
+      . I could do it with special metadata in the event that could cause it
+        to render differently, or by prefixing with a magic character, say '='.
+      . The advantage of the magic character is that it's visible and I don't
+        need any special editing support, but the disadvantage it that it's
+        metadata interfering in notation.
+      . Presumably it only has an effect on events with CallDuration, and
+        maybe even an error on ones without... but I can't find that out
+        syntactically.
+      . Maybe the first step is to implement the move later events part,
+        triggered by a keystroke (like cmd-z for events), and worry about
+        doing it automatically later.
+    - Implement LRuler.inject.
+      . This starts from the root block, and finds block callees.  If a callee
+        occurs only once, and is 1:1 with the caller, copy the caller's ruler.
+      . I can warn about blocks which aren't 1:1.
+      . If it occurs >1, I could possibly put on multiple rulers, or I could
+        just pick the first one.
+    . I want to separate measure numbering from the other parts.  I could do
+      that by making the first two levels of labels always be
+      [section, measure], and config_label_components only configures rank>=2.
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
     . Here's a use for multiple selections.
@@ -1019,12 +1041,18 @@ integrate / integration:
 
 lilypond:
   ties: rhythmic spelling:
-    - 3/4 tieing is too conservative.  Quarters should be able to break an 8th
+    * 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8
       . Maybe this is the reason I used greedy before.
       . If I want r8 x4 r8, then I shouldn't break x4.  But if it's longer,
         I should break on the beat, e.g. r8 x8~ x4.  So I think I need to also
         ask about the duration, not just the start time.
+    - I prefer the old 3/4 spelling: 2~ 8 8 | to the new spelling 4~4. 8
+      . Beaming should at least be 3/4, but that's lilypond.
+      . Shouldn't I be able to write 16 8. instead of 16 16~8?  Both old and
+        new do the latter.
+      . The new way spells 16 8 16~16 8 16~16 etc.  Why not 16 8 8 8 8 ?
+      . Could I put in ad-hoc spelling rules?
     - I could do manual rhythm spelling with a special directive to turn off the
       meter, and then use a tracklang-level tie to join notes.
       . Or if I could annotate individual notes with tie directions.  That way
@@ -2706,11 +2734,23 @@ Derive:
           edit.  But it would be a kind of "deep integration", where
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
-      trompong: reyong:
+      trompong:
         - octaves shouldn't be able to infer damping
           . E.g. (6e 6o 6o, 5e - 5o)
-        - trompong: I need a better way to notate a section as lower octave.
-          vv doesn't work is a note parent.
+        - I need a better way to notate a section as lower octave.
+          . vv doesn't work is a note parent.
+          . This is similar to octaves notation for gender rambat.
+        - split to ngembat
+          . There are several ngembat variations:
+            . fast:
+              5 61    35 61
+                 1        1
+            . slow:
+              561   53561
+               21      21
+        - double note, like oo in kajar
+          . tabuh-gari, @b4 2.5t
+      reyong:
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - remove kilit, isn't it just norot now?
         - for infer-damp, also infer damp level
@@ -2722,14 +2762,6 @@ Derive:
           to +cek.  Or I could always damp closed if that sounds good.
           Or I could infer it based on speed.  Otherwise, I can change the
           attr to +loose-mute or +tight-mute to explicitly configure.
-        - split to ngembat
-          . There are several ngembat variations:
-            . fast:
-              5 61    35 61
-                 1        1
-            . slow:
-              561   53561
-               21      21
         - kbd entry for /, X, O, + etc.?
         kilitan: norot:
           . How to do norot for real?

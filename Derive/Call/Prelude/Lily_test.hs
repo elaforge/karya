@@ -170,58 +170,46 @@ test_subdivision = do
     equal (run [("i1", [(0, 4, "4c")]), ("i2", [(0, 4, "4d")]) ])
         (Right [("i1", ["c'1"]), ("i2", ["d'1"])], [])
 
-    let meter68 = ("ly-global", [(0, 0, "meter '6/8' --")])
+    let meter m = ("ly-global", [(0, 0, "meter '" <> m <> "' --")])
+    let meter34 = meter "3/4"
+        meter68 = meter "6/8"
+
+    -- Breaking at 1.5 is fine for 6/8, but 3/4 won't want to let a note
+    -- starting on the 8th span a quarter note.
+    -- 3/4: q  q  q |
+    -- 6/8: q.  q.  |
+    equal (run [meter68, ("i1", [(0, 1.5, "3c"), (1.5, 1.5, "3d")])])
+        (Right [("i1", ["c4. d4."])], [])
+    equal (run [meter34, ("i1", [(0, 1.5, "3c"), (1.5, 1.5, "3d")])])
+        (Right [("i1", ["c4. d8~ d4"])], [])
+
     let subdivision t s = [(t, 0, "subdivision '" <> s <> "' --")]
     let one_measure subdiv =
-            [ meter68
-            , ("i1", [(0, 1.5, "3c"), (1.5, 1.5, "3d")])
-            , ("i2", maybe [] (subdivision 0) subdiv ++  [(1, 1, "4c")])
+            [ meter34
+            , ("i1", [(1.5, 1.5, "3c")])
+            , ("i2", maybe [] (subdivision 0) subdiv ++  [(1.5, 1.5, "4c")])
             ]
     equal (run (one_measure Nothing))
-        (Right [("i1", ["c4. d4."]), ("i2", ["r4 c'8~ c'8 r4"])], [])
+        (Right [("i1", ["r4. c8~ c4"]), ("i2", ["r4. c'8~ c'4"])], [])
+    equal (run (one_measure (Just "6/8")))
+        (Right [("i1", ["r4. c8~ c4"]), ("i2", ["r4. c'4."])], [])
     left_like (fst $ run (one_measure (Just "4/4"))) "incompatible with meter"
-    let two_measures subdiv =
-            [ meter68
-            , ("i1",
-                [ (0, 1.5, "3c"), (1.5, 1.5, "3d")
-                , (3, 1.5, "3e"), (4.5, 1.5, "3f")
-                ])
-            , ("i2",
-                subdivision 0 "3/4" ++ [(1, 1, "4c")]
-                ++ maybe [] (subdivision 3) subdiv ++ [(4, 1, "4d")])
-            ]
-    -- different spelling persists
-    equal (run (two_measures Nothing))
-        ( Right
-            [("i1", ["c4. d4. | e4. f4."]),
-             ("i2", ["r4 c'4 r4 | r4 d'4 r4"])]
-        , []
-        )
-    -- cancel the subdivision
-    equal (run (two_measures (Just "")))
-        ( Right
-            [("i1", ["c4. d4. | e4. f4."]),
-             ("i2", ["r4 c'4 r4 | r4 d'8~ d'8 r4"])]
-        , []
-        )
 
     -- rests also follow subdivision
-    equal (run
-            [ meter68
-            , ("i1", [(0, 0, "subdivision '3/4' --")])
-            , ("i1", [(0, 1, "3c"), (2, 1, "3d")])
-            ])
-        (Right [("i1", ["c4 r4 d4"])], [])
+    equal (run [meter68, ("i1", [(0, 1.5, "3c")])])
+        (Right [("i1", ["c4. r4."])], [])
+    equal (run [meter68, ("i1", subdivision 0 "3/4"), ("i1", [(0, 1.5, "3c")])])
+        (Right [("i1", ["c4. r8 r4"])], [])
     -- if it has a duration, cancel at the end
     let run skel = LilypondTest.staves []
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
             . concatMap UiTest.inst_note_track
     equal (run [(3, 4)]
-            [ meter68
-            , ("i1", [(0, 3, "subdivision '3/4' --")])
-            , ("i1", [(1, 1, "3c"), (3, 1.5, "3d")])
+            [ meter34
+            , ("i1", [(0, 3, "subdivision '6/8' --")])
+            , ("i1", [(1.5, 1.5, "3c"), (4.5, 1.5, "3d")])
             ])
-        (Right [("i1", ["r4 c4 r4 | d4. r4."])], [])
+        (Right [("i1", ["r4. c4. | r4. d8~ d4"])], [])
 
 test_movement = do
     let run = LilypondTest.convert_score . LilypondTest.derive_blocks

@@ -10,13 +10,13 @@ module Perform.Lilypond.Meter (
     , default_meter
     , measure_time
     , unparse_meter, parse_meter
-    -- * allowed time
-    , convert_duration
-    , allowed_time_best
+    -- * tie breaking
+    , convert_duration, allowed_duration
 #ifdef TESTING
     , module Perform.Lilypond.Meter
 #endif
 ) where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
@@ -25,7 +25,9 @@ import Data.Vector.Unboxed ((!))
 import qualified Text.Parsec as Parsec
 
 import qualified Util.Parse as Parse
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
@@ -57,20 +59,19 @@ time_index = fromIntegral
 index_time :: Int -> Time
 index_time = fromIntegral
 
--- | Find the time of the rank <= the given one.  Rank 0 can never be spanned,
--- so always stop at a rank 0.
-find_rank :: Time -> Rank -> Meter -> Maybe Time
-find_rank start rank = fmap ((+ (start + 1)) . index_time)
-    . Vector.findIndex (<= max 0 rank)
-    . Vector.drop (time_index start + 1) . meter_ranks
+instance Pretty Meter where
+    format (Meter nums denom ranks) = Pretty.record "Meter"
+        [ ("nums", Pretty.format nums)
+        , ("denom", Pretty.format denom)
+        , ("ranks", Pretty.format ranks)
+        ]
 
-instance Pretty Meter where pretty = Types.to_lily
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
         showt (sum nums) <> "/" <> Types.to_lily denom
 
-is_duple :: Meter -> Bool
-is_duple meter = case meter_nums meter of
+is_binary :: Meter -> Bool
+is_binary meter = case meter_nums meter of
     [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
     _ -> False
 
@@ -154,51 +155,206 @@ abstract_length T = 1
 convert_duration :: Meter -> Bool -> Time -> Time -> [NoteDuration]
 convert_duration meter use_dot_ = go
     where
-    -- Dotted rests are always allowed for non-duple meters.
-    use_dot = use_dot_ || not (is_duple meter)
-    go pos time_dur
-        | time_dur <= 0 = []
-        | allowed >= time_dur = to_durs time_dur
-        | otherwise = dur : go (pos + allowed) (time_dur - allowed)
+    go start dur
+        | dur <= 0 = []
+        | allowed >= dur = [allowed_dur]
+        | otherwise = allowed_dur : go (start + allowed) (dur - allowed)
         where
-        dur = Types.time_to_note_dur allowed
-        allowed = allowed_time_best use_dot meter pos
-        to_durs = if use_dot then Types.time_to_note_durs
-            else map (flip NoteDuration False) . Types.time_to_durs
+        allowed_dur = allowed_duration use_dot meter start dur
+        allowed = Types.note_dur_to_time allowed_dur
+    -- Dots are always allowed for non-binary meters.
+    use_dot = use_dot_ || not (is_binary meter)
 
 {- | Figure out how much time a note at the given position should be allowed
-    before it must tie.  The heuristic is to find the duration that ends on the
-    lowest rank, but never go over a rank which is too low.  The "too low" rule
-    is more lenient for duple meters, since they're easier to read.
+    before it must tie.
 
-    I used to have a greedy algorithm that found the longest duration that
-    didn't break the "too low" rule, and used that for note durations while
-    I used this for rest durations, but I'm not sure why I did that now.  Notes
-    should be easy to read like rests.
+    The heuristic is:
+
+    - A binary meter is one whose numerator is a power of 2.
+
+    - First, restrict the maximum 'allowed_time'.  For binary meters, this is
+    up to the rank of the start point - 2, which means that if you start on
+    an 8th note, you can span until the next half note.  Compound meters are
+    different because the rank divisions don't correspond to binary note
+    divisions (e.g. 3/4 goes dotted half, quarter, 8th, etc., instead of 4/4's
+    whole, half, quarter, etc.).  So they only go up to the rank-1.  This is
+    winds up being too restrictive though, because it means that e.g. you could
+    never span a quarter note if you start on an eighth, but 8 4 8 4 is
+    a perfectly readable 3/4 bar.  So the allowed duration is extended to
+    twice the duration to the next rank-1 crossing, which allows 8 8~8 to
+    become 8 4.
+
+    - Next, if the allowed duration corresponds exactly to possible note
+    duration, take that.  This expresses that it's preferable to spell without
+    a tie if you can.  If it doesn't correspond to a note duration, then it
+    has to be tied, and break on the place where it crosses the lowest rank.
+
+    - Complex meters like 2+3/4 are treated as binary if you are in the binary
+    part.  TODO not yet
+
+    See NOTE [tie-breaking heuristic]
 -}
-allowed_time_best :: Bool -> Meter -> Time -> Time
-allowed_time_best use_dot meter start_ =
-    subtract start $ best_duration $ allowed_time meter start
+allowed_duration :: Bool -> Meter -> Time -> Time -> NoteDuration
+allowed_duration use_dot meter start_ dur =
+    best_duration . min (start + dur) $ allowed_time meter start
     where
-    -- Try notes up to the end, select the one that lands on the lowest rank.
-    best_duration end = fromMaybe (start + 1) $
-        Seq.minimum_on (rank_at meter) candidates
+    best_duration end
+        | Just ndur <- List.find ((== start+dur) . to_time) candidates = ndur
+        | otherwise = fromMaybe (Types.NoteDuration Types.D128 False) $
+            Seq.minimum_on (rank_at meter . to_time) candidates
         where
-        candidates = takeWhile (<=end) $
-            map ((+start) . Types.note_dur_to_time) $
-                if use_dot then dot_durs else durs
+        candidates = takeWhile ((<=end) . to_time) $
+            if use_dot then dotted_durs else durs
     durs = reverse $ map (flip NoteDuration False) [D1 .. D128]
-    dot_durs = reverse
+    dotted_durs = reverse
         [NoteDuration d dot | d <- [D1 .. D64], dot <- [True, False]]
     start = start_ `mod` measure_time meter
+    to_time dur = start + Types.note_dur_to_time dur
 
+-- | See 'allowed_duration'.
 allowed_time :: Meter -> Time -> Time
-allowed_time meter start =
-    fromMaybe measure $
-        find_rank start (rank - if is_duple meter then 2 else 1) meter
-        -- Subtract 2 for duple means a note can span 2 ranks higher than its
-        -- starting rank, which means notes will tie less.  The rationale is
-        -- that duple is easier to read, so I can get away with fewer ties.
+allowed_time meter start = fromMaybe (measure_time meter) $ if is_binary meter
+    -- TODO is_binary in this part of the meter
+    then at_rank (start_rank - 2)
+    else case at_rank (start_rank - 1) of
+        Nothing -> Nothing
+        Just end -> min (start + (end - start) * 2) <$> at_rank (start_rank - 2)
     where
-    rank = rank_at meter start
-    measure = measure_time meter
+    at_rank n = find_rank start n meter
+    start_rank = rank_at meter start
+
+-- | Find the time of the rank <= the given one.  Rank 0 can never be spanned,
+-- so always stop at a rank 0.
+find_rank :: Time -> Rank -> Meter -> Maybe Time
+find_rank start rank = fmap ((+ (start + 1)) . index_time)
+    . Vector.findIndex (<= max 0 rank)
+    . Vector.drop (time_index start + 1) . meter_ranks
+
+{-
+    NOTE [tie-breaking heuristic]
+
+    Because it's 3/4, h is not a valid rank, because it doesn't divide at
+    natural points.  Actually ranks are not note durations, they are metric
+    divisions.
+
+    But this should be ok:
+    0 w                       | 3/4
+    1 q       q       q       |
+    2 e   e   e   e   e   e   |
+          4------>4------>8-->|
+
+    But if it's longer than 4, then switch to tieing on the low rank:
+    0 w                       | 3/4
+    1 q       q       q       |
+    2 e   e   e   e   e   e   |
+          8-->                |
+          4------>            |
+          8-->4------>        | 4., but 4. is too complicated
+          8-->4.--------->    | 2, seems like jumping 2 ranks, 8,4,2.
+          8-->2-------------->|
+
+    0 w                       | 3/4
+    1 q       q       q       |
+    2 e   e   e   e   e   e   |
+    3 s s s s s s s s s s s s |
+        s>
+        8-->
+        s>8-->
+        s>8-->s>
+        s>4------>
+        s>4------>s>
+        s>8-->4------>
+
+    So maybe what I want is not spanning ranks, but the duration spanning
+    ranks.  E.g. I started on an 8th note rank, so I can have up to 4 duration,
+    but not beyond.  Or maybe I could go up to rank-1, but add a candidate at
+    distance * 2?
+
+    0 w                                       | 5/4
+    1 h               h                       |
+    2 q       q       q       q       q       |
+    3 e   e   e   e   e   e   e   e   e   e   |
+    4 s s s s s s s s s s s s s s s s s s s s |
+
+    I think this is like 4/4, if I don't cross rank 1 I should be ok.
+    Or treat it as one 2/4, one 3/4?  In that case, I shouldn't do complicated
+    things in the second part.
+
+    0 w                       | 6/8
+    1 q           q           |
+    2 e   e   e   e   e   e   |
+          8-->
+          4------>
+          4------>8-->
+
+    1 q           q           |
+    2 e   e   e   e   e   e   |
+              8-->8-->
+
+    0 w                       | 6/8
+    1 q           q           |
+    2 e   e   e   e   e   e   |
+    3 s s s s s s s s s s s s |
+        s>
+        8-->
+        s>8-->
+
+    0 w                               | 4/4
+    1 h               h               |
+    2 q       q       q       q       |
+    3 e   e   e   e   e   e   e   e   |
+          8-->
+          4------>
+          8-->8.-->
+          4.--------->
+          4.--------->8-->            | could be 2, but crosses h
+          4.--------->4------>        | so 3 to 1
+
+    But
+
+    1 h               h               | 16
+    2 q       q       q       q       | 8
+    3 e   e   e   e   e   e   e   e   | 4
+          4------>4------>4------>
+          4------>8-->8-->4------>
+              2-------------->
+
+    So for binary, go up to rank-2.  For compound, go up to rank-1, but allow
+    a complete note as long as its duration is rank-1.
+    Or maybe I could say I don't like 8~8
+
+    2 q       q       q       q       | 8
+    3 e   e   e   e   e   e   e   e   | 4
+    4 s s s s s s s s s s s s s s s s | 2
+        s>
+        8-->
+        8.--->
+        8.--->s>
+        8.--->8-->
+        8.--->8.--->
+        8.--->4------>
+
+    4/4
+    0 w                               | 32
+    1 h               h               | 16
+    2 q       q       q       q       | 8
+    3 e   e   e   e   e   e   e   e   | 4
+    4 s s s s s s s s s s s s s s s s | 2
+    5 33333333333333333333333333333333| 1
+          |------>
+          |-------------------------->
+
+    3/4
+    0 w                       |
+    1 h               h       |
+    2 q       q       q       |
+    3 e   e   e   e   e   e   |
+    4 s s s s s s s s s s s s |
+    5 333333333333333333333333|
+      2.--------------------->  0->0
+          8->                   3->2
+             2--------------->  2->0
+                 8-->           3->2
+                     4------->  2->0
+                         8--->  3->end
+-}

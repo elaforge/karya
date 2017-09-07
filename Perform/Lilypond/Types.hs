@@ -146,6 +146,11 @@ data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
 instance Pretty Duration where pretty = showt
 instance ToLily Duration where to_lily = txt . drop 1 . show
 
+dur_char :: Duration -> Char
+dur_char d = case d of
+    D1 -> 'w'; D2 -> 'h'; D4 -> 'q'; D8 -> 'e'
+    D16 -> 's'; D32 -> 't'; D64 -> 'y'; D128 -> 'z'
+
 int_dur :: Int -> Maybe Duration
 int_dur i = case i of
     1 -> Just D1; 2 -> Just D2; 4 -> Just D4; 8 -> Just D8
@@ -187,6 +192,12 @@ data NoteDuration = NoteDuration Duration Bool
 instance ToLily NoteDuration where
     to_lily (NoteDuration dur dot) = to_lily dur <> if dot then "." else ""
 
+instance Pretty NoteDuration where pretty = ("D"<>) . to_lily
+
+note_dur_char :: NoteDuration -> Text
+note_dur_char (NoteDuration dur dotted) =
+    Text.singleton (dur_char dur) <> if dotted then "." else ""
+
 note_dur_to_time :: NoteDuration -> Time
 note_dur_to_time (NoteDuration dur dotted) =
     dur_to_time dur + if dotted && dur /= D128 then dur_to_time (succ dur)
@@ -203,11 +214,10 @@ time_to_note_dur t = case time_to_durs t of
     -- I have no 0 duration, so pick the smallest available duration.
     [] -> NoteDuration D128 False
 
--- | Only Just if the Time fits into a NoteDuration.
+-- | Only Just if the Time fits into a single NoteDuration.
 is_note_dur :: Time -> Maybe NoteDuration
-is_note_dur t = case time_to_durs t of
-    [d1, d2] | d2 == succ d1 -> Just $ NoteDuration d1 True
-    [d] -> Just $ NoteDuration d False
+is_note_dur t = case time_to_note_durs t of
+    [d] -> Just d
     _ -> Nothing
 
 time_to_note_durs :: Time -> [NoteDuration]

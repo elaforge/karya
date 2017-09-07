@@ -221,6 +221,12 @@ maximum :: Ord a => [a] -> Maybe a
 maximum [] = Nothing
 maximum xs = Just (List.maximum xs)
 
+ne_minimum :: Ord a => NonEmpty a -> a
+ne_minimum (x :| xs) = List.minimum (x : xs)
+
+ne_maximum :: Ord a => NonEmpty a -> a
+ne_maximum (x :| xs) = List.maximum (x : xs)
+
 -- * ordered lists
 
 insert_on :: Ord k => (a -> k) -> a -> [a] -> [a]
