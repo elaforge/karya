@@ -26,7 +26,7 @@ local_clip = do
     return ()
 
 clip :: ScoreTime -> RulerUtil.ModifyRuler
-clip pos = Ruler.Modify.modify_meter $ Meter.clip 0 (Meter.time_to_duration pos)
+clip pos = Ruler.Modify.meter $ Meter.extract 0 (Meter.time_to_duration pos)
 
 local_double :: Cmd.M m => m ()
 local_double = do
@@ -35,4 +35,4 @@ local_double = do
     return ()
 
 double :: RulerUtil.ModifyRuler
-double = Ruler.Modify.modify_meter $ \meter -> Seq.rdrop 1 meter <> meter
+double = Ruler.Modify.meter $ \meter -> Seq.rdrop 1 meter <> meter

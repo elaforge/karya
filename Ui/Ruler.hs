@@ -218,10 +218,10 @@ newtype MarklistPtr = MarklistPtr
     (MVar.MVar (Either MarklistVector (Foreign.ForeignPtr Marklist)))
 type PosMark = (ScoreTime, Mark)
 
-{-# NOINLINE marklist #-}
 marklist :: [PosMark] -> Marklist
 marklist = marklist_from_vector . TimeVector.signal . map (first RealTime.score)
 
+{-# NOINLINE marklist_from_vector #-} -- due to evil unsafePerformIO
 marklist_from_vector :: MarklistVector -> Marklist
 marklist_from_vector vec = Marklist vec $ MarklistPtr $ Unsafe.unsafePerformIO $
         MVar.newMVar (Left vec)

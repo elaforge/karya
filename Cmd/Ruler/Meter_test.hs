@@ -59,7 +59,7 @@ test_renumber = do
             Meter.fit_meter 4 [Meter.repeat 4 Meters.m34]
         extract = extract_marklist 20
     equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
-            Modify.modify_meter modify ruler) $
+            Modify.meter modify ruler) $
         Right (zip (Seq.range_ 0 1)
             (map Meter.biggest_label ["1", "2", "3", "4"]))
 
@@ -132,6 +132,6 @@ test_label_meter = do
         ]
 
 
-config :: Meter.MeterConfig
+config :: Meter.Config
 config = Meter.default_config
     { Meter.config_label_components = Meter.number_components 1 1 }

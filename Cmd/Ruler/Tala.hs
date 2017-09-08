@@ -21,6 +21,7 @@ module Cmd.Ruler.Tala (
     -- * define talams
     , Ruler(..), Sections, Avartanams, Nadai
     , make_meter
+    , make_config
 ) where
 import qualified Data.Set as Set
 
@@ -84,17 +85,17 @@ type Nadai = Int
 -- | Concatenate the rulers and make a meter.
 make_meter :: [Ruler] -> Meter.LabeledMeter
 make_meter rulers =
-    Meter.label_meter (make_config (make_components labels)) meter
+    Meter.label_meter (make_config labels) meter
     where
     meter = concatMap ruler_meter rulers
     labels = concatMap (tala_labels . ruler_tala) rulers
 
 -- * implementation
 
-make_config :: Meter.LabelComponents -> Meter.MeterConfig
-make_config components = Meter.MeterConfig
+make_config :: [Meter.Label] -> Meter.Config
+make_config labels = Meter.Config
     { config_labeled_ranks = labeled_ranks
-    , config_label_components = components
+    , config_label_components = make_components labels
     , config_min_depth = 1
     , config_strip_depth = 2
     , config_meter_type = mtype
@@ -145,7 +146,7 @@ tala_labels tala = map Meter.big_label $ concatMap mk (Tala._angas tala)
 
 make_components :: [Meter.Label] -> Meter.LabelComponents
 make_components aksharas = Meter.LabelComponents
-    [ map Meter.biggest_label numbers -- avartanam
+    [ map Meter.biggest_label (Meter.count_from 1) -- avartanam
     , aksharas -- akshara
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers

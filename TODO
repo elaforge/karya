@@ -4,13 +4,33 @@ LEGEND
 
 UNSORTED
   Support for adding or removing time in the middle of a score:
+    * Implement LRuler.inject.
+      . This starts from the root block, and finds block callees.  If a callee
+        occurs only once, and is 1:1 with the caller, copy the caller's ruler.
+      . I can warn about blocks which aren't 1:1.
+      . If it occurs >1, I could possibly put on multiple rulers, or I could
+        just pick the first one.
+      . I still need to retain start time so further modifications work.
+        This is why I shouldn't store a separate start number, I should get it
+        from the ranks.
+    - I don't like the extract/inject names.  Extract is too generic. Should
+      be something like children to parent, parent to children.
+    - I need insert/delete time that also modifies the ruler.  Delete is easy,
+      but for insert I need to add an arbitrary TrackTime of new ruler on the
+      end.
     . I want add a measure, and then automatically:
       . Extend the ruler of this block.
-      . Extend the duration of the caller in the parent, moving all its events
-        as necessary.
-      . Also extend the caller's ruler, if necessary.
+      . Extend or contract the duration of the caller in the parent, moving
+        all its events as necessary.
+      . Also extend or contract the caller's ruler, if necessary.
       . Renumber the ruler in other callees as necessary, e.g. inverse
         LRuler.extract aka LRuler.inject.
+
+      . All of this ruler resizing would not be necessary if I used
+        Ui.event_end instead of Ui.ruler_end for the logical block end.  But
+        then I'd need a -- event to mark the explicit end.  And it's just
+        putting off the inevitable... I'd still need to extend the ruler, so
+        why not make it easy, so now I don't mind doing it frequently.
     . If I have a way to mark a call as "unstretchy" it can try to move events
       below it, or at least highlight if it's not 1:1.
       . Or maybe it should even default to unstretchy, and you have to mark
@@ -26,20 +46,52 @@ UNSORTED
       . Maybe the first step is to implement the move later events part,
         triggered by a keystroke (like cmd-z for events), and worry about
         doing it automatically later.
-    - Implement LRuler.inject.
-      . This starts from the root block, and finds block callees.  If a callee
-        occurs only once, and is 1:1 with the caller, copy the caller's ruler.
-      . I can warn about blocks which aren't 1:1.
-      . If it occurs >1, I could possibly put on multiple rulers, or I could
-        just pick the first one.
     . I want to separate measure numbering from the other parts.  I could do
       that by making the first two levels of labels always be
       [section, measure], and config_label_components only configures rank>=2.
+    Status:
+      . Making Meter.config_label_components into a function is awkward for
+        Tala, because I don't have a place to remember the toplevel
+        components, and unlike meter I can't derive it from the ranks, because
+        of drutam etc.
+      . But if I make the first two levels always [section, measure], then I
+        can handle renumber entirely config independent.
+        config_label_components starts after measure.  All of the other rank
+        configuration stuff would too.
+
+      . It's still awkward to deal with blocks that don't start or end on
+        a section.  I have to clip to the section and then double... but it's
+        annoying if there's a pickup.  I guess LRuler.append works, but must
+        be done manually.
+      . Basically what I need to describe a meter is a single measure of
+        LabelComponents, a start offset as (measure, TrackTime), and duration
+        as (measures, TrackTime).
+      . If I'm doing something fancy like cycling meters it doesn't work, but
+        I can still use LRuler.double or LRuler.append.
+      . But if all rulers can share the same config, then I could attach it
+        directly to Ui.Ruler, and get rid of MeterType.  LabelComponents can't
+        be infinite if I'm going to serialize it, though.
+      . The reason LabelComponents fields are infinite is they count 0--n.
+        But I can assume a rank is a count unless it has a LabelComponent.
+        So it becomes Map Rank [Label], which is then cycled.
+
+      . What do I get out of this?  Originally I want to be able to be able to
+        figure out measure number and start sub-block measures at that measure
+        number.
+      . But why do I have to do any of that, why not just copy the parent
+        sections literally?  No need to renumber.
+      - Ok, so just copy literally.  But I still want to handle section and
+        start number generically.  Then they're always the same.  Also, store
+        Start explicitly instead of encoding in MeterType.
+      - First factor out the top two ranks so all meters do it the same.  Then
+        config_label_components is just [LabelComponent].
+
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
     . Here's a use for multiple selections.
     . If there's a secondary selection, it should disappear somewhat
       automatically, so I don't get confused by it still being around.
+    . Maybe I can get space to do that?
   * ^M collapses unrelated control tracks into adjacent note tracks.  It
     should only collapse children.
   - Figure out how to control vsl legato transition volume mismatches.

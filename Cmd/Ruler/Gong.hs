@@ -36,7 +36,7 @@ gongs :: Int -- ^ number of gongs
     -> Int -- ^ number of jegogan in one gong
     -> Ruler.Ruler
 gongs sections jegog =
-    Meter.make_measures (config 1) measure_dur meter sections jegog
+    Meter.make_measures (config 0) measure_dur meter sections jegog
     where
     measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
 
@@ -48,7 +48,7 @@ labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
 
 -- | Gong config starts counting from 0.  This is more appropriate for Balinese
 -- and Javenese music.
-config :: Int -> Meter.MeterConfig
+config :: Meter.Start -> Meter.Config
 config start = Meter.default_config
     { Meter.config_labeled_ranks = labeled_ranks
     , Meter.config_label_components = Meter.big_number_components start 0

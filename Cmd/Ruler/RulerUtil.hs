@@ -22,10 +22,13 @@ import Types
 
 type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
 
+final_mark :: Meter.LabeledMark
+final_mark = Meter.LabeledMark 0 0 ""
+
 -- * constructors
 
 -- | Create a ruler with a meter of the given duration.
-meter_ruler :: Meter.MeterConfig -> Meter.Duration -> [Meter.AbstractMeter]
+meter_ruler :: Meter.Config -> Meter.Duration -> [Meter.AbstractMeter]
     -> Ruler.Ruler
 meter_ruler config dur meters = Ruler.meter_ruler (Just Meter.mtype) $
     Meter.meter_marklist config (Meter.fit_meter dur meters)

@@ -83,7 +83,6 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
@@ -91,7 +90,7 @@ import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.Ruler.Extract as Extract
 import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Ruler.Modify
@@ -268,7 +267,7 @@ ldouble = local double
 clip :: Cmd.M m => m Modify
 clip = do
     pos <- Selection.point
-    modify_selected $ Meter.clip 0 (Meter.time_to_duration pos)
+    modify_selected $ Meter.extract 0 (Meter.time_to_duration pos)
 
 lclip :: Cmd.CmdL [RulerId]
 lclip = local clip
@@ -278,7 +277,7 @@ append :: Cmd.M m => m Modify
 append = do
     (start, end) <- selection_range
     modify_selected $ \meter ->
-        meter <> Meter.clip (Meter.time_to_duration start)
+        meter <> Meter.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end) meter
 
 -- | Append another ruler to this one.
@@ -337,13 +336,13 @@ gongs :: Cmd.M m => Int -- ^ number of gongs
 gongs sections jegog = ruler $ Gong.gongs sections jegog
 
 -- | Create a meter ruler fitted to the end of the last event on the block.
-fit_to_end :: Ui.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
+fit_to_end :: Ui.M m => Meter.Config -> [Meter.AbstractMeter]
     -> BlockId -> m Ruler.Ruler
 fit_to_end config meter block_id = do
     end <- Ui.block_event_end block_id
     return $ Meter.fit_ruler config end meter
 
-fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
+fit_to_selection :: Cmd.M m => Meter.Config -> [Meter.AbstractMeter]
     -> m Ruler.Ruler
 fit_to_selection config meter = do
     pos <- Selection.point
@@ -357,7 +356,7 @@ concat block_ids = do
     ruler_ids <- mapM Ui.ruler_of block_ids
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    modify_selected $ const $ mconcat meters ++ [final_mark]
+    modify_selected $ const $ mconcat meters ++ [RulerUtil.final_mark]
 
 -- * extract
 
@@ -366,32 +365,14 @@ concat block_ids = do
 extract :: Cmd.M m => m Modify
 extract = do
     (block_id, tracknum, track_id, _) <- Selection.get_insert
-    all_meters <- extract_meters block_id track_id
+    all_meters <- Extract.extract block_id track_id
     return $ make_modify block_id tracknum $
-        Ruler.Modify.modify_meter (const all_meters)
+        Ruler.Modify.meter (const all_meters)
 
-extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
-extract_meters block_id track_id = do
-    subs <- extract_calls block_id track_id
-    ruler_ids <- mapM Ui.ruler_of [bid | (_, _, bid) <- subs]
-    -- Strip the last 0-dur mark off of each meter before concatenating.
-    meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    return $ mconcat $
-        [ Meter.scale (Meter.time_to_duration dur) meter
-        | ((_start, dur, _), meter) <- zip subs meters
-        ] ++ [[final_mark]]
-
-final_mark :: Meter.LabeledMark
-final_mark = Meter.LabeledMark 0 0 ""
-
-extract_calls :: Ui.M m => BlockId -> TrackId
-    -> m [(ScoreTime, ScoreTime, BlockId)]
-extract_calls block_id track_id =
-    mapMaybeM extract =<< Events.ascending <$> Ui.get_events track_id
-    where
-    extract event = fmap (range event) <$>
-        NoteTrack.block_call (Just block_id) (Event.text event)
-    range event block_id = (Event.start event, Event.duration event, block_id)
+inject :: Cmd.M m => m ()
+inject = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Extract.inject False block_id track_id
 
 -- * modify
 
@@ -422,7 +403,7 @@ modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
     -> m Modify
 modify_selected modify = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum (Ruler.Modify.modify_meter modify)
+    return $ make_modify block_id tracknum (Ruler.Modify.meter modify)
 
 -- | Renumber the ruler to start at the given number.
 renumber :: Cmd.M m => Int -> m Modify

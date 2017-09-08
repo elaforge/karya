@@ -72,7 +72,7 @@ split_time_at from_block_id pos block_name = do
         Ui.insert_events track_id events
     -- Trim rulers on each.
     let dur = Meter.time_to_duration pos
-    local_block from_block_id $ Meter.clip 0 dur
+    local_block from_block_id $ Meter.extract 0 dur
     local_block to_block_id $ Meter.delete 0 dur
     return to_block_id
 
@@ -193,7 +193,8 @@ extract name block_id tracknums track_ids range = do
     delete_empty_tracks to_block_id
     -- Create a clipped ruler.
     local_block to_block_id $
-        Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
+        Meter.extract (Meter.time_to_duration start)
+            (Meter.time_to_duration end)
     return to_block_id
 
 -- | Clear selected range and put in a call to the new block.
@@ -271,7 +272,8 @@ block_template block_id track_ids range = do
     -- Create a clipped ruler.
     let (start, end) = Events.range_times range
     local_block to_block_id $
-        Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
+        Meter.extract (Meter.time_to_duration start)
+            (Meter.time_to_duration end)
     return to_block_id
 
 clipped_skeleton :: Ui.M m => BlockId -> BlockId -> [TrackNum] -> m ()
@@ -317,5 +319,4 @@ block_id_to_call = Id.ident_name
 
 local_block :: Ui.M m => BlockId
     -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
-local_block block_id =
-    RulerUtil.local_block block_id . Ruler.Modify.modify_meter
+local_block block_id = RulerUtil.local_block block_id . Ruler.Modify.meter

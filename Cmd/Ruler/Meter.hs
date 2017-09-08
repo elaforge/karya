@@ -41,7 +41,7 @@ import Types
 
 -- * Ruler.Ruler
 
-make_measures :: MeterConfig
+make_measures :: Config
     -> TrackTime -- ^ duration of one measure
     -> AbstractMeter
     -> Int -- ^ sections
@@ -52,7 +52,7 @@ make_measures config measure_dur meter sections measures =
         (replicate sections (repeat measures meter))
 
 -- | Make a ruler fit in the given duration.
-fit_ruler :: MeterConfig -> ScoreTime -> [AbstractMeter] -> Ruler.Ruler
+fit_ruler :: Config -> ScoreTime -> [AbstractMeter] -> Ruler.Ruler
 fit_ruler config dur meters =
     Ruler.meter_ruler (Just (config_meter_type config)) $
     meter_marklist config $
@@ -101,8 +101,8 @@ ruler_meter :: Ruler.Ruler -> LabeledMeter
 ruler_meter = marklist_labeled . snd . Ruler.get_marklist Ruler.meter
 
 -- | Extract the inclusive range from start to end.
-clip :: Duration -> Duration -> LabeledMeter -> LabeledMeter
-clip start end =
+extract :: TrackTime -> TrackTime -> LabeledMeter -> LabeledMeter
+extract start end =
     transform $ takeWhile ((<=end) . fst) . dropWhile ((<start) . fst)
 
 take_before :: Duration -> LabeledMeter -> LabeledMeter
@@ -286,7 +286,7 @@ fit_meter dur meters = make_meter stretch meters
 
 -- ** marklist conversion
 
-data MeterConfig = MeterConfig {
+data Config = Config {
     -- | Skip labels for these ranks.
     config_labeled_ranks :: !(Set RankName)
     , config_label_components :: !LabelComponents
@@ -296,10 +296,10 @@ data MeterConfig = MeterConfig {
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
     , config_strip_depth :: !Int
     , config_meter_type :: !Ruler.MeterType
-    } deriving (Show)
+    }
 
-default_config :: MeterConfig
-default_config = MeterConfig
+default_config :: Config
+default_config = Config
     { config_labeled_ranks = default_labeled_ranks
     , config_label_components = big_number_components 1 1
     , config_min_depth = 1
@@ -307,19 +307,19 @@ default_config = MeterConfig
     , config_meter_type = mtype
     }
 
-measure_from :: Int -> MeterConfig
+measure_from :: Start -> Config
 measure_from start_measure = default_config
     { config_label_components = big_number_components start_measure 1 }
 
 -- | Convert a Meter into a Marklist using the default labels.
-meter_marklist :: MeterConfig -> Meter -> Ruler.Marklist
+meter_marklist :: Config -> Meter -> Ruler.Marklist
 meter_marklist config = labeled_marklist . label_meter config
 
 marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter =
     map (\(LabeledMark rank dur _) -> (rank, dur)) . marklist_labeled
 
-label_meter :: MeterConfig -> Meter -> [LabeledMark]
+label_meter :: Config -> Meter -> [LabeledMark]
 label_meter config meter =
     [ LabeledMark rank dur label
     | (rank, dur, label) <- List.zip3 ranks ps labels
@@ -387,18 +387,18 @@ marklist_labeled mlist =
 count_from :: Int -> [Label]
 count_from n = map showt [n..]
 
-number_components :: Int -- ^ Due to 'config_labeled_ranks' and
-    -- 'collapse_ranks', this likely winds up being the measure start.
-    -> Int -> LabelComponents
+number_components :: Start -- ^ top level count starts here
+    -> Int -- ^ each section starts its count here, presumably 0 or 1
+    -> LabelComponents
 number_components section_start start = LabelComponents $ take 10 $
     count_from section_start : List.repeat (count_from start)
 
 -- | Like 'number_components', but the first two are bigger.
-big_number_components :: Int -> Int -> LabelComponents
-big_number_components section_start start = LabelComponents $ take 10 $
-    map biggest_label (count_from section_start)
-    : map big_label (count_from start)
-    : List.repeat (count_from start)
+big_number_components :: Start -> Int -> LabelComponents
+big_number_components measure_start sub_start = LabelComponents $ take 10 $
+    map biggest_label (count_from measure_start)
+    : map big_label (count_from sub_start)
+    : List.repeat (count_from sub_start)
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
@@ -418,12 +418,17 @@ pixels_to_zoom dur pixels
 
 -- * labels
 
-parse_meter_type :: Ruler.MeterType -> (Text, Int)
+-- | The ruler should start counting at this number.  This could be measure
+-- number, or gong count, or avartanam count, whatever is the highest visual
+-- 'Label'.
+type Start = Int
+
+parse_meter_type :: Ruler.MeterType -> (Text, Start)
 parse_meter_type t = case Text.splitOn "/" t of
     [name, start] | Just start <- ParseText.int start -> (name, start)
     _ -> (t, 1)
 
-make_meter_type :: Text -> Int -> Ruler.MeterType
+make_meter_type :: Text -> Start -> Ruler.MeterType
 make_meter_type name start
     | start == 0 = name
     | otherwise = name <> "/" <> showt start
@@ -440,9 +445,9 @@ biggest_label t = "`+4/" <> t <> "`"
 
 type Renumber = LabeledMeter -> LabeledMeter
 
--- | Strip all labels and renumber.  I can do this for a known MeterConfig
--- because I can regenerate the labels from the rank.
-renumber_meter :: MeterConfig -> Renumber
+-- | Strip all labels and renumber.  I can do this for a known Config because
+-- I can regenerate the labels from the rank.
+renumber_meter :: Config -> Renumber
 renumber_meter config =
     label_meter config . map (\(LabeledMark rank dur _) -> (rank, dur))
 
