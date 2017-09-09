@@ -324,10 +324,12 @@ measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> m Modify
 measures = measures_from 1
 
-measures_from :: Cmd.M m => Int -> Meter.AbstractMeter -> Int -> Int -> m Modify
+measures_from :: Cmd.M m => Meter.Start -> Meter.AbstractMeter -> Int -> Int
+    -> m Modify
 measures_from start_measure meter sections measures =
-    ruler $ Meter.make_measures (Meter.measure_from start_measure) 1 meter
-        sections measures
+    ruler $ Meter.make_measures
+        (Meter.default_config { Meter.config_start_measure = start_measure })
+        1 meter sections measures
 
 -- | Create gongs with 'Gong.gongs'.
 gongs :: Cmd.M m => Int -- ^ number of gongs

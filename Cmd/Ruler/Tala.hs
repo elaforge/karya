@@ -96,6 +96,7 @@ make_config :: [Meter.Label] -> Meter.Config
 make_config labels = Meter.Config
     { config_labeled_ranks = labeled_ranks
     , config_label_components = make_components labels
+    , config_start_measure = 1
     , config_min_depth = 1
     , config_strip_depth = 2
     , config_meter_type = mtype
@@ -146,9 +147,10 @@ tala_labels tala = map Meter.big_label $ concatMap mk (Tala._angas tala)
 
 make_components :: [Meter.Label] -> Meter.LabelComponents
 make_components aksharas = Meter.LabelComponents
-    [ map Meter.biggest_label (Meter.count_from 1) -- avartanam
-    , aksharas -- akshara
+    -- avartanam is the measure number
+    [ aksharas -- akshara
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers
     ]
-    where numbers = Meter.count_from 1
+    where
+    numbers = Meter.count_from 1

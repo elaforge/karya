@@ -13,6 +13,8 @@ UNSORTED
       . I still need to retain start time so further modifications work.
         This is why I shouldn't store a separate start number, I should get it
         from the ranks.
+    * Handle [section, measure] generically.
+    - Move start_measure to Ruler so I don't have to parse MeterType.
     - I don't like the extract/inject names.  Extract is too generic. Should
       be something like children to parent, parent to children.
     - I need insert/delete time that also modifies the ruler.  Delete is easy,

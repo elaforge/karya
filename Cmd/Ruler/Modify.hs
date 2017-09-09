@@ -6,6 +6,8 @@
 -- avoid a circular dependency.
 module Cmd.Ruler.Modify (meter, renumber, start_and_meter) where
 import qualified Data.Map as Map
+
+import qualified Util.Seq as Seq
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Meter as Meter
@@ -27,9 +29,10 @@ start_and_meter modify_start modify ruler = do
     (mtype_, mlist) <- get_marklist ruler
     let (name, start) = Meter.parse_meter_type mtype_
     let mtype = Meter.make_meter_type name (modify_start start)
-    renumber <- tryJust ("unknown meter type: " <> showt mtype) $
-        lookup_renumber mtype
-    let new = Meter.labeled_marklist $ renumber $ modify $
+    let measure_rank = Meter.config_measure_rank $
+            Map.findWithDefault Meter.default_config mtype configs
+    let new = Meter.labeled_marklist $
+            Meter.renumber_measures measure_rank start $ modify $
             Meter.marklist_labeled mlist
     return $ Ruler.set_marklist Ruler.meter (Just mtype) new ruler
 
@@ -40,16 +43,8 @@ get_marklist ruler
         (Nothing, _) -> Left "no meter type"
         (Just mtype, mlist) -> Right (mtype, mlist)
 
--- | In order to perform generic operations on meters, such as doubling the
--- length, I need a way to renumber them.  So rulers keep track of their
--- created type and use that to look up the 'Renumber' function.
-lookup_renumber :: Ruler.MeterType -> Maybe Meter.Renumber
-lookup_renumber mtype
-    | name == Meter.mtype =
-        Just $ Meter.renumber_meter (Meter.measure_from start)
-    | name == Gong.mtype = Just $ Meter.renumber_meter (Gong.config start)
-    -- TODO now that I have an explicit start time, I don't have to infer
-    | name == Tala.mtype = Just Meter.renumber_topmost
-    | otherwise = Nothing
-    where
-    (name, start) = Meter.parse_meter_type mtype
+-- The only reason I need this is that Gong.config counts at Meter.Section,
+-- while the rest count at Meter.W.
+configs :: Map Ruler.MeterType Meter.Config
+configs = Map.fromList $ Seq.key_on Meter.config_meter_type
+    [Meter.default_config, Gong.config, Tala.make_config []]

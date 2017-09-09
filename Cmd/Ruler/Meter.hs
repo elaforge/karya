@@ -27,10 +27,11 @@ import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Text.Read as Text.Read
 
 import qualified Util.ParseText as ParseText
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -104,6 +105,20 @@ ruler_meter = marklist_labeled . snd . Ruler.get_marklist Ruler.meter
 extract :: TrackTime -> TrackTime -> LabeledMeter -> LabeledMeter
 extract start end =
     transform $ takeWhile ((<=end) . fst) . dropWhile ((<start) . fst)
+
+-- | Like 'extract', but also include the measure 'Start' of the extracted bit.
+extract_with_count :: Set RankName -> TrackTime -> TrackTime -> LabeledMeter
+    -> (Start, LabeledMeter)
+extract_with_count labeled_ranks start end meter =
+    go 0 (zip (meter_durations meter) meter)
+    where
+    go !n ((t, mark) : marks)
+        | t < start = go (n + inc) marks
+        | otherwise =
+            (n, map snd $ takeWhile ((<=end) . fst) ((t, mark) : marks))
+        where inc = if m_rank mark <= top_rank then 1 else 0
+    go n [] = (n, [])
+    top_rank = maybe 0 name_to_rank (Seq.head (Set.toAscList labeled_ranks))
 
 take_before :: Duration -> LabeledMeter -> LabeledMeter
 take_before p = transform $ takeWhile ((<p) . fst)
@@ -188,11 +203,6 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 -- in this list don't receive their own label.
 default_labeled_ranks :: Set RankName
 default_labeled_ranks = Set.fromList [W, Q, S, T128]
-
-gong_labeled_ranks :: Set RankName
-gong_labeled_ranks = Set.fromList [Section, H, S, T128]
-    -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
-    -- S: kotekan*4, ...
 
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
@@ -289,7 +299,12 @@ fit_meter dur meters = make_meter stretch meters
 data Config = Config {
     -- | Skip labels for these ranks.
     config_labeled_ranks :: !(Set RankName)
+    -- | The convention is that the first two ranks, section and measure, are
+    -- universal.  So this omits measure, which gets 'measure_labels', starting
+    -- from 'config_start_measure'.
     , config_label_components :: !LabelComponents
+    -- | Start 'measure_labels' from this number.
+    , config_start_measure :: !Start
     -- | Labels have at least this many sections.  Otherwise, trailing sections
     -- are omitted.
     , config_min_depth :: !Int
@@ -298,18 +313,26 @@ data Config = Config {
     , config_meter_type :: !Ruler.MeterType
     }
 
+-- | The ruler should start counting at this number.  This could be measure
+-- number, or gong count, or avartanam count, whatever is the highest visual
+-- 'Label'.
+type Start = Int
+
+-- | Get the rank that the measure count lives at, as used by
+-- 'renumber_measures'.  It assumes it's either Section or W.
+config_measure_rank :: Config -> Ruler.Rank
+config_measure_rank config = if labeled Section then 0 else 1
+    where labeled = (`Set.member` config_labeled_ranks config)
+
 default_config :: Config
 default_config = Config
     { config_labeled_ranks = default_labeled_ranks
-    , config_label_components = big_number_components 1 1
+    , config_label_components = big_number_components 1
+    , config_start_measure = 1
     , config_min_depth = 1
     , config_strip_depth = 2
     , config_meter_type = mtype
     }
-
-measure_from :: Start -> Config
-measure_from start_measure = default_config
-    { config_label_components = big_number_components start_measure 1 }
 
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: Config -> Meter -> Ruler.Marklist
@@ -328,7 +351,7 @@ label_meter config meter =
     (ranks, ps) = unzip (drop_0dur meter)
     labels = map join_label $ strip_prefixes "" (config_strip_depth config) $
         convert_labels (config_min_depth config)
-            (config_label_components config) $
+            (config_label_components config) (config_start_measure config) $
         collapse_ranks unlabeled ranks
     unlabeled = labeled_to_unlabeled_ranks (config_labeled_ranks config)
     -- Appending Meters can result in 0 dur marks in the middle.
@@ -387,18 +410,19 @@ marklist_labeled mlist =
 count_from :: Int -> [Label]
 count_from n = map showt [n..]
 
-number_components :: Start -- ^ top level count starts here
-    -> Int -- ^ each section starts its count here, presumably 0 or 1
+number_components :: Int
+    -- ^ each section starts its count here, presumably 0 or 1
     -> LabelComponents
-number_components section_start start = LabelComponents $ take 10 $
-    count_from section_start : List.repeat (count_from start)
+number_components start =
+    LabelComponents $ take 10 $ List.repeat (count_from start)
+
+measure_labels :: [Label]
+measure_labels = map biggest_label (count_from 0)
 
 -- | Like 'number_components', but the first two are bigger.
-big_number_components :: Start -> Int -> LabelComponents
-big_number_components measure_start sub_start = LabelComponents $ take 10 $
-    map biggest_label (count_from measure_start)
-    : map big_label (count_from sub_start)
-    : List.repeat (count_from sub_start)
+big_number_components :: Int -> LabelComponents
+big_number_components sub_start = LabelComponents $ take 10 $
+    map big_label (count_from sub_start) : List.repeat (count_from sub_start)
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
@@ -417,11 +441,6 @@ pixels_to_zoom dur pixels
     | otherwise = fromIntegral pixels / ScoreTime.to_double dur
 
 -- * labels
-
--- | The ruler should start counting at this number.  This could be measure
--- number, or gong count, or avartanam count, whatever is the highest visual
--- 'Label'.
-type Start = Int
 
 parse_meter_type :: Ruler.MeterType -> (Text, Start)
 parse_meter_type t = case Text.splitOn "/" t of
@@ -443,32 +462,28 @@ big_label t = "`+2/" <> t <> "`"
 biggest_label :: Label -> Label
 biggest_label t = "`+4/" <> t <> "`"
 
-type Renumber = LabeledMeter -> LabeledMeter
+strip_markup :: Label -> Label
+strip_markup = Regex.substitute (Regex.compileUnsafe "`(\\+\\d+/)?") ""
 
 -- | Strip all labels and renumber.  I can do this for a known Config because
 -- I can regenerate the labels from the rank.
-renumber_meter :: Config -> Renumber
+renumber_meter :: Config -> LabeledMeter -> LabeledMeter
 renumber_meter config =
     label_meter config . map (\(LabeledMark rank dur _) -> (rank, dur))
 
--- | Renumber only the topmost count.  The number is increased at ranks 0 and
--- 1, based on 'Tala.unlabeled_ranks'.  TODO Cmd.Ruler.Modify now stores an
--- explicit start number, so I should be able to clean this up.
-renumber_topmost :: Renumber
-renumber_topmost meter = fromMaybe meter $ do
-    mark <- Seq.head meter
-    label1 : _ <- return $ split_label (m_label mark)
-    start <- case Text.Read.decimal label1 of
-        Right (d, rest) | Text.null rest -> Just (d - 1)
-        _ -> Nothing
-    return $ snd $ List.mapAccumL renumber start meter
+-- | Renumber the top level of the labels, which is assumed to be the measure
+-- number, which was presumably added by 'convert_labels'.
+renumber_measures :: Ruler.Rank -> Start -> [LabeledMark] -> [LabeledMark]
+renumber_measures measure_rank start =
+    snd . List.mapAccumL renumber ("" : drop start measure_labels)
     where
-    renumber n mark = (next_n, mark { m_label = replace next_n (m_label mark) })
+    -- labels should be infinite, so head and tail should be safe.
+    renumber labels_ mark = case split_label (m_label mark) of
+        m : ms | not (Text.null m) ->
+            (labels, mark { m_label = join_label (head labels : ms) })
+        _ -> (labels, mark)
         where
-        next_n = if m_rank mark `elem` [0, 1] then n + 1 else n
-    replace n label = case split_label label of
-        _ : rest -> join_label $ showt n : rest
-        [] -> ""
+        labels = if m_rank mark <= measure_rank then drop 1 labels_ else labels_
 
 join_label :: [Label] -> Label
 join_label = Text.intercalate "."
@@ -491,9 +506,10 @@ instance Show LabelComponents where
 -- | Convert label components to label lists based on the given ranks.
 convert_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
     -- trailing sections are omitted.
-    -> LabelComponents -> [Ruler.Rank] -> [[Label]]
-convert_labels min_depth (LabelComponents components) ranks =
-    strip $ map (map replace) $ apply_labels components ranks
+    -> LabelComponents -> Start -> [Ruler.Rank] -> [[Label]]
+convert_labels min_depth (LabelComponents components) start_measure ranks =
+    strip $ map (map replace) $
+        apply_labels (drop start_measure measure_labels : components) ranks
     where
     strip = zipWith take (map (max min_depth . (+1)) ranks)
     replace t = if Text.null t then "-" else t

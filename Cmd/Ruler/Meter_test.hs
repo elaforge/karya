@@ -12,7 +12,6 @@ import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
-import qualified Cmd.Ruler.Modify as Modify
 
 import Global
 import Types
@@ -52,31 +51,22 @@ test_rational_meter2 = do
         dur = 5/8 / 128
     equal (last meter) 5 -- dur*1024 == 5
 
-test_renumber = do
-    let modify :: Meter.LabeledMeter -> Meter.LabeledMeter
-        modify = dropWhile ((>=2) . Meter.m_rank) . drop 1
-        ruler = Meters.ruler $ Meter.meter_marklist Meter.default_config $
-            Meter.fit_meter 4 [Meter.repeat 4 Meters.m34]
-        extract = extract_marklist 20
-    equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
-            Modify.meter modify ruler) $
-        Right (zip (Seq.range_ 0 1)
-            (map Meter.biggest_label ["1", "2", "3", "4"]))
-
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
     where
     name_of (t, m)
-        | Ruler.mark_name_zoom_level m <= zoom = Just (t, Ruler.mark_name m)
+        | Ruler.mark_name_zoom_level m <= zoom =
+            Just (t, Meter.strip_markup (Ruler.mark_name m))
         | otherwise = Nothing
 
-test_renumber_topmost = do
-    let f = map Meter.m_label . Meter.renumber_topmost . mkmeter
+test_renumber_measures = do
+    let f start = map (Meter.strip_markup . Meter.m_label)
+            . Meter.renumber_measures 0 start . mkmeter
         mkmeter marks =
             [Meter.LabeledMark rank 1 label | (rank, label) <- marks]
-    let meter = [(0, "1"), (2, "1.2"), (0, "2"), (2, "2.2")]
-    equal (f meter) (map snd meter)
-    equal (f (meter ++ meter)) (map snd meter ++ ["3", "3.2", "4", "4.2"])
+    let meter = [(0, "1"), (1, "1.x"), (0, "2"), (1, "2.x")]
+    equal (f 2 meter) ["2", "2.x", "3", "3.x"]
+    equal (f 6 [(0, "1"), (1, ".x"), (0, "2")]) ["6", ".x", "7"]
 
 test_apply_labels = do
     let f labels = map (Text.intercalate ".") . Meter.apply_labels labels
@@ -109,18 +99,17 @@ test_strip_prefixes = do
     equal (f 0 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "1.2", "1.2.1", "2"]
 
 test_label_meter = do
-    let f = map Meter.m_label $
+    let f = map (Meter.strip_markup . Meter.m_label) $
             Meter.label_meter config (Meter.make_meter 1 [meter])
         meter = Meter.regular_subdivision [2, 2, 2, 4]
-        config = (Gong.config 1)
-            { Meter.config_label_components = Meter.number_components 0 0
-            , Meter.config_labeled_ranks = Set.fromList [Meter.Section, Meter.Q]
+        config = Gong.config
+            { Meter.config_labeled_ranks = Set.fromList [Meter.Section, Meter.Q]
             }
         -- section: gong, 1: gong stroke, 2: jegog, 4: calung, 8: kotekan*2,
         -- 16: kotekan*4, ...
     -- TODO why is the .0.1 different?
     equal f
-        [ "0", ".0.1", "..2", "..3"
+        [ "1", ".0.1", "..2", "..3"
         , ".1", "..1", "..2", "..3"
         , ".2", "..1", "..2", "..3"
         , ".3", "..1", "..2", "..3"
@@ -128,10 +117,9 @@ test_label_meter = do
         , ".5", "..1", "..2", "..3"
         , ".6", "..1", "..2", "..3"
         , ".7", "..1", "..2", "..3"
-        , "1"
+        , "2"
         ]
-
 
 config :: Meter.Config
 config = Meter.default_config
-    { Meter.config_label_components = Meter.number_components 1 1 }
+    { Meter.config_label_components = Meter.number_components 1 }

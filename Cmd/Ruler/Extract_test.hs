@@ -6,7 +6,6 @@ module Cmd.Ruler.Extract_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Regex as Regex
 import Util.Test
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
@@ -67,7 +66,4 @@ test_inject = do
 e_ruler :: BlockId -> Ui.State -> Text
 e_ruler bid ustate = UiTest.eval ustate $
     extract . Meter.ruler_meter <$> (Ui.get_ruler =<< Ui.ruler_of bid)
-    where extract = Text.unwords . map (strip_markup . Meter.m_label)
-
-strip_markup :: Text -> Text
-strip_markup = Regex.substitute (Regex.compileUnsafe "`(\\+\\d+/)?") ""
+    where extract = Text.unwords . map (Meter.strip_markup . Meter.m_label)
