@@ -16,7 +16,9 @@ module Util.Debug (
     , puts, put, putp
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
+
 import qualified Data.IORef as IORef
 import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>))
@@ -26,6 +28,7 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+import qualified System.Timeout as Timeout
 
 import qualified Util.CallStack as CallStack
 import qualified Util.PPrint as PPrint
@@ -125,7 +128,7 @@ traceM msg val = write (with_msg msg (pshow val)) (return ())
 tracepM :: (CallStack.Stack, Pretty.Pretty a, Monad m) => Text -> a -> m ()
 tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
 
-tracesM :: Monad m => Text -> m ()
+tracesM :: (CallStack.Stack, Monad m) => Text -> m ()
 tracesM msg = write msg (return ())
 
 -- * in IO
@@ -144,15 +147,26 @@ putp msg = writeIO . with_msg msg . Pretty.formatted
 -- * implementation
 
 {-# NOINLINE write #-}
-write :: Text -> a -> a
-write msg val = msg `DeepSeq.deepseq`
-    Unsafe.unsafePerformIO (writeIO msg >> return val)
-    -- deepseq to prevent debug msgs from being interleaved.
+write :: CallStack.Stack => Text -> a -> a
+write msg val = Unsafe.unsafePerformIO $ writeIO msg >> return val
 
-writeIO :: Trans.MonadIO m => Text -> m ()
+writeIO :: (CallStack.Stack, Trans.MonadIO m) => Text -> m ()
 writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
     Nothing -> return ()
-    Just hdl -> Text.IO.hPutStrLn hdl msg
+    Just hdl -> do
+        -- deepseq to prevent debug msgs from being interleaved.
+        ok <- timeout 1 $ Exception.evaluate (DeepSeq.deepseq msg msg)
+        -- I could catch exceptions, but I don't want to catch async exceptions.
+        -- `Exception.catch` \(exc :: Exception.SomeException) ->
+        --     return $ prefix <> "<exception: " <> Text.pack (show exc) <> ">"
+        case ok of
+            Nothing ->
+                Text.IO.hPutStrLn hdl $ prefix <> "<evalutaion timed out>"
+            Just msg -> Text.IO.hPutStrLn hdl msg
+
+timeout :: Double -> IO a -> IO (Maybe a)
+timeout = Timeout.timeout . to_usec
+    where to_usec = round . (*1000000)
 
 with_msg :: CallStack.Stack => Text -> Text -> Text
 with_msg msg text_ =
