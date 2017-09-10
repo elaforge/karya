@@ -65,11 +65,11 @@ compact screen =
                 (x + Rect.rw rect, y, min min_h (Rect.rh rect))
             | otherwise = (Rect.rx screen, y + min_h, Rect.rh screen)
 
--- * save and restore
+-- * save and load
 
 -- | Show the list of saved views, with a star on the focused one.
-saved :: Cmd.CmdL Text
-saved = do
+list :: Cmd.CmdL Text
+list = do
     saved <- Ui.config#Ui.saved_views <#> Ui.get
     return $ Pretty.formatted $ Map.map pretty saved
     where
@@ -82,11 +82,14 @@ saved = do
 save :: Text -> Cmd.CmdL ()
 save = ViewConfig.save_views
 
-restore :: Text -> Cmd.CmdL ()
-restore = ViewConfig.restore_views
+load :: Text -> Cmd.CmdL ()
+load = ViewConfig.restore_views
+
+remove :: Ui.M m => Text -> m ()
+remove = ViewConfig.remove_views
 
 prev :: Cmd.CmdL ()
-prev = restore "prev"
+prev = load "prev"
 
 -- * zoom
 

@@ -272,3 +272,6 @@ restore_views name = do
     save_views "prev"
     Ui.put_views views
     whenJust focused Cmd.focus
+
+remove_views :: Ui.M m => Text -> m ()
+remove_views name = Ui.modify_config $ Ui.saved_views %= Map.delete name
