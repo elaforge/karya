@@ -50,8 +50,10 @@ make_ruler end =
     sections = 1
 
 clip_ruler :: TrackTime -> Ruler.Ruler -> Ruler.Ruler
-clip_ruler at = Ruler.modify_marklist Ruler.meter (const clip)
-    where clip = Ruler.marklist . takeWhile ((<=at) . fst) . Ruler.to_list
+clip_ruler at ruler = Ruler.set_meter config (clip mlist) ruler
+    where
+    (config, mlist) = Ruler.get_meter ruler
+    clip = Ruler.marklist . takeWhile ((<=at) . fst) . Ruler.to_list
 
 -- |
 -- Make IntMap Instrument

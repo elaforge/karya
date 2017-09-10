@@ -10,13 +10,13 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
 import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import Types
 
 
 test_extract = do
-    let meter_ruler = RulerUtil.meter_ruler Meter.default_config
+    -- TODO already tested in Extract_test
+    let meter_ruler = Meter.fit_ruler Meter.default_config
     let ((vid, bid), ui_state) = UiTest.run Ui.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])

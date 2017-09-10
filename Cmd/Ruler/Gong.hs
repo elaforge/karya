@@ -54,10 +54,5 @@ config :: Meter.Config
 config = Meter.default_config
     { Meter.config_labeled_ranks = labeled_ranks
     , Meter.config_label_components = Meter.big_number_components 0
-    , Meter.config_meter_type = mtype
+    , Meter.config_name = "gong"
     }
-
--- | Balinese \"meters\" are just standard numbered meters, but each section
--- starts from 0, instead of 1.
-mtype :: Ruler.MeterType
-mtype = "gong"

@@ -424,19 +424,40 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d) = Serialize.put_version 6
+    put (Ruler.Ruler a b c d) = Serialize.put_version 7
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
             6 -> do
-                marklists :: Map Ruler.Name (Maybe Ruler.MeterType,
-                    Ruler.Marklist) <- get
+                marklists :: Map Ruler.Name (Maybe Text, Ruler.Marklist) <- get
+                bg :: Color.Color <- get
+                show_names :: Bool <- get
+                align_to_bottom :: Bool <- get
+                return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
+                    align_to_bottom
+                where
+                upgrade (name, mlist) =
+                    ((\n -> Ruler.MeterConfig n 1) <$> name, mlist)
+            7 -> do
+                marklists :: Map Ruler.Name
+                    (Maybe Ruler.MeterConfig, Ruler.Marklist) <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
                 align_to_bottom :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names align_to_bottom
             _ -> Serialize.bad_version "Ruler.Ruler" v
+
+instance Serialize Ruler.MeterConfig where
+    put (Ruler.MeterConfig a b) = Serialize.put_version 0 >> put a >> put b
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                name :: Text <- get
+                start_measure :: Int <- get
+                return $ Ruler.MeterConfig name start_measure
+            _ -> Serialize.bad_version "Ruler.MeterConfig" v
 
 instance Serialize Ruler.Marklist where
     put mlist = put (Ruler.marklist_vec mlist)

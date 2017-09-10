@@ -18,7 +18,6 @@ import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import Global
 
@@ -86,7 +85,7 @@ load_midi fn = do
 empty_block :: Cmd.M m => m Cmd.Status
 empty_block = do
     rid <- Create.ruler "m44-4" $
-        RulerUtil.meter_ruler Meter.default_config 16 (replicate 4 Meters.m44_4)
+        Meter.fit_ruler Meter.default_config 16 (replicate 4 Meters.m44_4)
     bid <- Create.block rid
     Create.track bid 1 "" mempty
     Ui.set_track_width bid 1 40

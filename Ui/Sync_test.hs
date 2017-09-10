@@ -366,7 +366,7 @@ test_modify_ruler = do
         insert_track t_block_id 2 (Block.RId t_ruler_id) 30
     state <- io_human "add head-explodes to all rulers" $ run state $
         Ui.modify_ruler t_ruler_id $
-            Right . Ruler.set_marklist "cue" Nothing cue_marklist
+            Right . Ruler.set_marklist "cue" cue_marklist
     state <- io_human "meter goes away" $ run state $
         Ui.modify_ruler t_ruler_id $ Right . Ruler.remove_marklist "cue"
     _ <- io_human "doesn't crash when a track is collapsed" $ run state $ do

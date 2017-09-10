@@ -28,10 +28,8 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.ParseText as ParseText
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -52,11 +50,13 @@ make_measures config measure_dur meter sections measures =
     fit_ruler config (measure_dur * fromIntegral (measures * sections))
         (replicate sections (repeat measures meter))
 
+ruler :: Ruler.Marklist -> Ruler.Ruler
+ruler = Ruler.meter_ruler (ruler_config default_config)
+
 -- | Make a ruler fit in the given duration.
 fit_ruler :: Config -> ScoreTime -> [AbstractMeter] -> Ruler.Ruler
 fit_ruler config dur meters =
-    Ruler.meter_ruler (Just (config_meter_type config)) $
-    meter_marklist config $
+    Ruler.meter_ruler (ruler_config config) $ meter_marklist config $
     fit_meter (time_to_duration dur) meters
 
 -- * meter marklist
@@ -99,7 +99,7 @@ meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map m_duration
 
 ruler_meter :: Ruler.Ruler -> LabeledMeter
-ruler_meter = marklist_labeled . snd . Ruler.get_marklist Ruler.meter
+ruler_meter = marklist_labeled . snd . Ruler.get_meter
 
 -- | Extract the inclusive range from start to end.
 extract :: TrackTime -> TrackTime -> LabeledMeter -> LabeledMeter
@@ -310,7 +310,14 @@ data Config = Config {
     , config_min_depth :: !Int
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
     , config_strip_depth :: !Int
-    , config_meter_type :: !Ruler.MeterType
+    -- | Key to 'Ruler.config_name'.
+    , config_name :: !Text
+    }
+
+ruler_config :: Config -> Ruler.MeterConfig
+ruler_config config = Ruler.MeterConfig
+    { config_name = config_name config
+    , config_start_measure = config_start_measure config
     }
 
 -- | The ruler should start counting at this number.  This could be measure
@@ -328,10 +335,10 @@ default_config :: Config
 default_config = Config
     { config_labeled_ranks = default_labeled_ranks
     , config_label_components = big_number_components 1
-    , config_start_measure = 1
+    , config_start_measure = Ruler.config_start_measure Ruler.default_config
     , config_min_depth = 1
     , config_strip_depth = 2
-    , config_meter_type = mtype
+    , config_name = Ruler.config_name Ruler.default_config
     }
 
 -- | Convert a Meter into a Marklist using the default labels.
@@ -441,20 +448,6 @@ pixels_to_zoom dur pixels
     | otherwise = fromIntegral pixels / ScoreTime.to_double dur
 
 -- * labels
-
-parse_meter_type :: Ruler.MeterType -> (Text, Start)
-parse_meter_type t = case Text.splitOn "/" t of
-    [name, start] | Just start <- ParseText.int start -> (name, start)
-    _ -> (t, 1)
-
-make_meter_type :: Text -> Start -> Ruler.MeterType
-make_meter_type name start
-    | start == 0 = name
-    | otherwise = name <> "/" <> showt start
-
--- | Standard numbered meter.
-mtype :: Ruler.MeterType
-mtype = "meter"
 
 big_label :: Label -> Label
 big_label t = "`+2/" <> t <> "`"

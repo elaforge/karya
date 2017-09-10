@@ -235,7 +235,7 @@ get_meter block_id =
 
 get_marks :: Ui.M m => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
-    Ruler.ascending 0 . snd . Ruler.get_marklist Ruler.meter <$>
+    Ruler.ascending 0 . snd . Ruler.get_meter <$>
         (Ui.get_ruler =<< Ui.ruler_of block_id)
 
 -- | Ruler under the selection having at least the given rank.
@@ -245,7 +245,7 @@ selected_marks rank = do
     (start, end) <- selection_range
     return $ filter ((<=rank) . Ruler.mark_rank . snd) $
         takeWhile ((<=end) . fst) $ Ruler.ascending start $ snd $
-        Ruler.get_marklist Ruler.meter ruler
+        Ruler.get_meter ruler
 
 -- | Ruler of the track under the selection.
 selected :: Cmd.M m => m RulerId
@@ -482,7 +482,7 @@ add_cue_at :: BlockId -> TrackNum -> ScoreTime -> Text -> Cmd.CmdL RulerId
 add_cue_at block_id tracknum pos text =
     RulerUtil.local_section block_id tracknum $
         Right . Ruler.modify_marklist cue
-            (const (Ruler.insert_mark pos (cue_mark text)))
+            (Ruler.insert_mark pos (cue_mark text))
 
 cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
@@ -499,10 +499,12 @@ reset_colors = do
 
 set_colors :: [(Color.Color, Meter.MarkWidth, Int)] -> Ruler.Ruler
     -> Ruler.Ruler
-set_colors ranks =
-    Ruler.modify_marklist Ruler.meter
-        (const $ Ruler.marklist . map (second set) . Ruler.ascending 0)
+set_colors ranks ruler =
+    Ruler.set_meter config
+        (Ruler.marklist $ map (second set) $ Ruler.ascending 0 mlist)
+        ruler
     where
+    (config, mlist) = Ruler.get_meter ruler
     set mark = case Seq.at ranks (Ruler.mark_rank mark) of
         Nothing -> error $ "no color for rank: " <> show (Ruler.mark_rank mark)
         Just (color, width, _) -> mark

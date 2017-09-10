@@ -65,18 +65,18 @@ inject not_1to1_ok block_id track_id = do
         Ui.throw $ "block calls not 1:1: " <> pretty not_1to1
     mapM_ set subs
     where
-    set (block_id, (mtype, marks)) = RulerUtil.local RulerUtil.Block block_id $
-        Right . Ruler.set_marklist Ruler.meter mtype marks
+    set (block_id, (config, marks)) = RulerUtil.local RulerUtil.Block block_id $
+        Right . Ruler.set_meter config marks
 
 sub_meters :: Ui.M m => BlockId -> TrackId
-    -> m ([(BlockId, (Maybe Ruler.MeterType, Ruler.Marklist))], [BlockId])
+    -> m ([(BlockId, (Ruler.MeterConfig, Ruler.Marklist))], [BlockId])
 sub_meters block_id track_id = do
     subs <- block_calls block_id track_id
     (subs, not_1to1) <- partitionM (\(_, dur, callee) -> is_1to1 dur callee)
         subs
-    (mtype, meter) <- get_meter block_id
+    (config, meter) <- get_meter block_id
     let get (start, dur, block_id) =
-            (block_id, (mtype, extract_marks start dur meter))
+            (block_id, (config, extract_marks start dur meter))
     return (map get subs, [block_id | (_, _, block_id) <- not_1to1])
 
 extract_marks :: TrackTime -> TrackTime -> Ruler.Marklist -> Ruler.Marklist
@@ -84,8 +84,8 @@ extract_marks start dur =
     Ruler.marklist . takeWhile ((<=dur) . fst) . map (first (subtract start))
     . Ruler.ascending start
 
-get_meter :: Ui.M m => BlockId -> m (Maybe Ruler.MeterType, Ruler.Marklist)
-get_meter = fmap (Ruler.get_marklist Ruler.meter) . Ui.get_ruler <=< Ui.ruler_of
+get_meter :: Ui.M m => BlockId -> m (Ruler.MeterConfig, Ruler.Marklist)
+get_meter = fmap Ruler.get_meter . Ui.get_ruler <=< Ui.ruler_of
 
 is_1to1 :: Ui.M m => TrackTime -> BlockId -> m Bool
 is_1to1 dur block_id = (==dur) <$> Ui.block_end block_id

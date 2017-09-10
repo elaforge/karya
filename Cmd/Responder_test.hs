@@ -16,7 +16,6 @@ import qualified Cmd.Create as Create
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.Score as Score
 
@@ -31,7 +30,7 @@ test_modify_tempo = do
                 ])
             CmdTest.set_point_sel 1 0
             rid <- Create.ruler "meter44" $
-                RulerUtil.meter_ruler Meter.default_config 16
+                Meter.fit_ruler Meter.default_config 16
                     (replicate 4 Meters.m44_4)
             ruler <- Ui.get_ruler rid
             Ui.modify_ruler UiTest.default_ruler_id (const (Right ruler))

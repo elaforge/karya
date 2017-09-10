@@ -255,7 +255,7 @@ mkblock_marklist :: Ui.M m => Ruler.Marklist -> BlockId -> Text
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
     ruler_id <- Create.ruler "r" $
-        Ruler.meter_ruler (Just Meter.mtype)  marklist
+        Ruler.meter_ruler Ruler.default_config marklist
     mkblock_ruler ruler_id block_id title tracks
 
 mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
@@ -534,7 +534,7 @@ mkruler_44 marks dist = ruler $ take (marks + 1) $
     zip (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4])
 
 ruler :: Marks -> Ruler.Ruler
-ruler marks = ruler_ [(Ruler.meter, mkmarklist marks)]
+ruler marks = ruler_ (mkmarklist marks)
 
 mkmarklist :: Marks -> Ruler.Marklist
 mkmarklist = Ruler.marklist . map (second mark)
@@ -542,10 +542,9 @@ mkmarklist = Ruler.marklist . map (second mark)
     mark rank = Ruler.null_mark
         { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }
 
-ruler_ :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
-ruler_ marklists = Ruler.Ruler
-    { Ruler.ruler_marklists =
-        Map.fromList $ map (second ((,) (Just Meter.mtype))) marklists
+ruler_ :: Ruler.Marklist -> Ruler.Ruler
+ruler_ meter = Ruler.set_meter Ruler.default_config meter $ Ruler.Ruler
+    { Ruler.ruler_marklists = mempty
     , Ruler.ruler_bg = Config.ruler_bg
     , Ruler.ruler_show_names = False
     , Ruler.ruler_align_to_bottom = False

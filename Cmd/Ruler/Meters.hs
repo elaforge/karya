@@ -7,13 +7,9 @@
 -- Defined separate from "Cmd.Meter" so you can redefine them without reloading
 -- everything that depends on Cmd.Meter.
 module Cmd.Ruler.Meters where
-import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..), regular_subdivision)
 
-
-ruler :: Ruler.Marklist -> Ruler.Ruler
-ruler = Ruler.meter_ruler (Just Meter.mtype)
 
 -- half/measure, quarter/half, eighth/quarter, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation

@@ -25,16 +25,16 @@ test_modify = do
                     (const $ Right $ mk_ruler ["X", "Y"])
             where make = if with_ruler then make_sections else make_no_ruler 2
         extract st = (track_rulers st, extract_rulers st)
-        xy = (mtype, ["X", "Y"])
+        xy = ["X", "Y"]
     -- Both are modified.
     equal (f True RulerUtil.Block)
         (["s1", "s1", "s2", "s2"], [("s1", xy), ("s2", xy)])
     -- Just set one.
     equal (f True (RulerUtil.Tracks [1]))
-        (["s1", "s1", "s2", "s2"], [("s1", xy), ("s2", (mtype, ["s2"]))])
+        (["s1", "s1", "s2", "s2"], [("s1", xy), ("s2", ["s2"])])
     -- This winds up being the same.
     equal (f True (RulerUtil.Section 3))
-        (["s1", "s1", "s2", "s2"], [("s1", (mtype, ["s1"])), ("s2", xy)])
+        (["s1", "s1", "s2", "s2"], [("s1", ["s1"]), ("s2", xy)])
     -- Modify with no ruler.
     equal (f False RulerUtil.Block) (["b1", "b1", "b1"], [("b1", xy)])
     equal (f False (RulerUtil.Tracks [1]))
@@ -48,8 +48,8 @@ test_local = do
             RulerUtil.local scope UiTest.default_block_id
                 (const $ Right $ mk_ruler ["X", "Y"])
         extract st = (track_rulers st, extract_rulers st)
-        xy = (mtype, ["X", "Y"])
-        unmodified n = ("s" <> showt n, (mtype, ["s" <> showt n]))
+        xy = ["X", "Y"]
+        unmodified n = ("s" <> showt n, ["s" <> showt n])
     -- They're unique to the block, so modify.
     equal (f RulerUtil.Block)
         (["s1", "s1", "s2", "s2"], [("s1", xy), ("s2", xy)])
@@ -109,22 +109,18 @@ track_rulers = map Id.ident_name . Block.ruler_ids_of
     . map Block.tracklike_id . Block.block_tracks . head . Map.elems
     . Ui.state_blocks
 
-extract_rulers :: Ui.State -> [(Text, (Maybe Ruler.MeterType, [Text]))]
+extract_rulers :: Ui.State -> [(Text, [Text])]
 extract_rulers =
     map (Id.ident_name *** extract) . Map.toList . Ui.state_rulers
     where
-    extract ruler =
-        (mtype, map (Ruler.mark_name . snd) (Ruler.ascending 0 mlist))
-        where (mtype, mlist) = Ruler.get_marklist Ruler.meter ruler
+    extract ruler = map (Ruler.mark_name . snd) (Ruler.ascending 0 mlist)
+        where (_config, mlist) = Ruler.get_meter ruler
 
 extract_mark :: Ruler.PosMark -> Mark
 extract_mark (_, m) = Ruler.mark_name m
 
 mk_ruler :: [Mark] -> Ruler.Ruler
-mk_ruler = Ruler.meter_ruler mtype . mk_marklist
-
-mtype :: Maybe Ruler.MeterType
-mtype = Just "mtype"
+mk_ruler = Ruler.meter_ruler Ruler.default_config . mk_marklist
 
 mk_marklist :: [Mark] -> Ruler.Marklist
 mk_marklist marks = Ruler.marklist

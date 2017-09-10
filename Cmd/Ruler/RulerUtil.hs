@@ -27,25 +27,18 @@ final_mark = Meter.LabeledMark 0 0 ""
 
 -- * constructors
 
--- | Create a ruler with a meter of the given duration.
-meter_ruler :: Meter.Config -> Meter.Duration -> [Meter.AbstractMeter]
-    -> Ruler.Ruler
-meter_ruler config dur meters = Ruler.meter_ruler (Just Meter.mtype) $
-    Meter.meter_marklist config (Meter.fit_meter dur meters)
-
--- | Replace or add a marklist with the given name.
-set_marklist :: Ui.M m => RulerId -> Ruler.Name -> Maybe Ruler.MeterType
-    -> Ruler.Marklist -> m ()
-set_marklist ruler_id name mtype mlist =
-    Ui.modify_ruler ruler_id (Right . Ruler.set_marklist name mtype mlist)
-
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
 copy_marklist :: Ui.M m => Ruler.Name -> RulerId -> RulerId -> m ()
 copy_marklist name from_ruler_id to_ruler_id = do
     from_ruler <- Ui.get_ruler from_ruler_id
-    let (mtype, mlist) = Ruler.get_marklist name from_ruler
-    set_marklist to_ruler_id name mtype mlist
+    let mlist = Ruler.get_marklist name from_ruler
+    set_marklist to_ruler_id name mlist
+
+-- | Replace or add a marklist with the given name.
+set_marklist :: Ui.M m => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
+set_marklist ruler_id name mlist =
+    Ui.modify_ruler ruler_id (Right . Ruler.set_marklist name mlist)
 
 -- * meter
 
