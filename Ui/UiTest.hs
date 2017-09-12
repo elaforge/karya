@@ -103,14 +103,20 @@ default_zoom = Config.zoom
 fmt_events :: [EventSpec] -> Text
 fmt_events [] = ""
 fmt_events events = Text.unlines
-    [fmt_ruler (events_end events), fmt_events_only events]
+    [ fmt_ruler min_start (events_end events)
+    , fmt_events_only min_start events
+    ]
+    where min_start = min 0 (events_start events)
 
-fmt_events_only :: [EventSpec] -> Text
-fmt_events_only = Text.unlines . map event
+fmt_ui_events :: [Event.Event] -> Text
+fmt_ui_events = fmt_events . map extract_event
+
+fmt_events_only :: Int -> [EventSpec] -> Text
+fmt_events_only min_start = Text.unlines . map event
     where
     event (start, dur, text) = gap <> arrow <> label
         where
-        gap = Text.replicate (time_to_spaces (min start (start + dur))) " "
+        gap = Text.replicate (to_spaces (min start (start + dur))) " "
         arrow
             | dur == 0 && ScoreTime.is_negative dur = "<"
             | dur == 0 = ">"
@@ -118,12 +124,14 @@ fmt_events_only = Text.unlines . map event
             | otherwise = "|" <> middle <> ">"
         middle = Text.replicate (time_to_spaces (abs dur) - 1) "-"
         label = if Text.null text then "" else " [" <> text <> "]"
+    to_spaces t = offset + time_to_spaces t
+    offset = time_to_spaces $ fromIntegral (abs min_start)
 
-fmt_ruler :: Int -> Text
-fmt_ruler end = Text.stripEnd $ mconcatMap (space . pretty) ts
+fmt_ruler :: Int -> Int -> Text
+fmt_ruler start end = Text.stripEnd $ mconcatMap (space . pretty) ts
     where
     space t = t <> Text.replicate (time_to_spaces step - Text.length t) " "
-    ts = Then.takeWhile1 (<end) (Seq.range_ 0 1)
+    ts = Then.takeWhile1 (<end) (Seq.range_ start 1)
     step = 1
 
 fmt_start_duration :: [(ScoreTime, ScoreTime)] -> Text
@@ -132,10 +140,10 @@ fmt_start_duration = fmt_events . map (\(s, d) -> (s, d, ""))
 fmt_tracks :: [TrackSpec] -> Text
 fmt_tracks [] = ""
 fmt_tracks tracks = Text.unlines $
-    (indent <> fmt_ruler (maximum (map (events_end . snd) tracks)))
+    (indent <> fmt_ruler 0 (maximum (map (events_end . snd) tracks)))
     : concatMap track tracks
     where
-    track (title, events) = case Text.lines (fmt_events_only events) of
+    track (title, events) = case Text.lines (fmt_events_only 0 events) of
         [] -> []
         x : xs -> fmt_title title <> x : map (indent<>) xs
     indent = Text.replicate (title_length + 2) " "
@@ -146,8 +154,10 @@ time_to_spaces :: ScoreTime -> Int
 time_to_spaces = floor . (*4)
 
 events_end :: [(ScoreTime, ScoreTime, x)] -> Int
-events_end =
-    ceiling . maximum .  map (\(start, dur, _) -> max start (start + dur))
+events_end = maybe 0 ceiling . Seq.maximum .  map (\(s, d, _) -> max s (s+d))
+
+events_start :: [(ScoreTime, ScoreTime, x)] -> Int
+events_start = maybe 0 floor . Seq.minimum . map (\(s, d, _) -> min s (s+d))
 
 -- | Extract and fmt the fst . right element.  Many DeriveTest extractors
 -- return Either Error (val, [log]).
