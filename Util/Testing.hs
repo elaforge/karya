@@ -26,6 +26,10 @@ module Util.Testing (
     , expect_right
     , error_stack
 
+    -- * QuickCheck
+    , quickcheck
+    , q_equal
+
     -- * profiling
     , timer, print_timer
     , force
@@ -63,6 +67,7 @@ import qualified System.Posix.IO as IO
 import qualified System.Posix.Temp as Temp
 import qualified System.Posix.Terminal as Terminal
 
+import qualified Test.QuickCheck as QuickCheck
 import qualified Text.Printf as Printf
 
 import qualified Util.ApproxEq as ApproxEq
@@ -104,9 +109,9 @@ check msg True = success msg
 
 equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 equal a b
-    | a == b = success $ pretty True
-    | otherwise = failure $ pretty False
-    where pretty = pretty_compare "==" "/=" True a b
+    | a == b = success $ cmp True
+    | otherwise = failure $ cmp False
+    where cmp = pretty_compare "==" "/=" True a b
 
 equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> IO Bool
 equal_fmt fmt a b = do
@@ -125,9 +130,9 @@ equal_fmt fmt a b = do
 
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
-    | a == b = failure $ pretty True
-    | otherwise = success $ pretty False
-    where pretty = pretty_compare "==" "/=" False a b
+    | a == b = failure $ cmp True
+    | otherwise = success $ cmp False
+    where cmp = pretty_compare "==" "/=" False a b
 
 right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
 right_equal (Right a) b = equal a b
@@ -356,6 +361,29 @@ expect_right (Right v) = v
 error_stack :: Stack => String -> a
 error_stack msg =
     error $ Text.unpack (show_stack "" Stack.callStack) <> ": " <> msg
+
+-- * QuickCheck
+
+-- | Run a quickcheck property.
+quickcheck :: (Stack, QuickCheck.Testable prop) => prop -> IO Bool
+quickcheck prop = do
+    result <- QuickCheck.quickCheckWithResult args prop
+    case result of
+        QuickCheck.Success { output = output } -> success (Text.pack output)
+        QuickCheck.GaveUp { output = output } -> failure (Text.pack output)
+        QuickCheck.Failure { output = output } -> failure (Text.pack output)
+        QuickCheck.NoExpectedFailure { output = output } ->
+            failure (Text.pack output)
+        QuickCheck.InsufficientCoverage { output = output } ->
+            failure (Text.pack output)
+    where
+    args = QuickCheck.stdArgs { QuickCheck.chatty = False }
+
+-- | 'equal' for quickcheck.
+q_equal :: (Show a, Eq a) => a -> a -> QuickCheck.Property
+q_equal a b = QuickCheck.counterexample
+    (Text.unpack $ pretty_compare "==" "/=" True a b False)
+    (a == b)
 
 -- * profiling
 

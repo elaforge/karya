@@ -78,6 +78,7 @@ basicPackages = concat
     , w "zlib" -- Util.File
     , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
+    , w "QuickCheck" -- Util.Testing
     -- karya
     , w "old-locale"
     , w "attoparsec" -- Derive: tracklang parsing
@@ -89,7 +90,6 @@ basicPackages = concat
     , w "mersenne-random-pure64 digest random-shuffle"
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
-    , w "QuickCheck" -- Derive.DeriveQuickCheck
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs
     , w "med-module" -- for Cmd.Load.Med
