@@ -124,13 +124,13 @@ test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
 
 test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
     \(es1, es2) -> q_equal
-        (Events.find_overlaps $ Events.ascending $ Events.insert
+        (find_overlaps $ Events.ascending $ Events.insert
             (map mkevent es1) (Events.from_list (map mkevent es2)))
         []
 
 test_clip_events_qc = quickcheck $ Q.forAll gen_events $ \es -> do
     let clipped = Events.clip_events (Seq.sort_on Event.start (map mkevent es))
-    q_equal (Events.find_overlaps clipped) []
+    q_equal (find_overlaps clipped) []
 
 test_clip_events = do
     let f = map extract_event .  Events.clip_events . pos_events
@@ -210,3 +210,11 @@ mkevent (start, dur) = Event.event (fromIntegral start) (fromIntegral dur) ""
 
 gen_events :: Q.Gen [(Int, Int)]
 gen_events = Q.listOf ((,) <$> Q.choose (-4, 4) <*> Q.choose (-4, 4))
+
+find_overlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
+find_overlaps = mapMaybe check . Seq.zip_next
+    where
+    check (cur, Just next)
+        | Event.end cur > Event.start next = Just (cur, next)
+        | otherwise = Nothing
+    check _ = Nothing

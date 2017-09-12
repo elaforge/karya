@@ -381,13 +381,6 @@ merge_and_clip old new = from_ascending $ clip_events $ map snd $
     -- Seq.merge_on should put elements from the first argument first, but
     -- it doesn't guarantee it, so let's be explicit.
 
--- | Order otherwise-equal events so that new ones will prevail over old ones.
--- For positive events, the last event wins, for negative ones it's the first.
-clip_key :: (Bool, (Key, x)) -> (Key, Int)
-clip_key (is_new, (k@(Key _ orient), _))
-    | is_new = (k, if orient == Event.Positive then 1 else 0)
-    | otherwise = (k, if orient == Event.Positive then 0 else 1)
-
 {- | Clip overlapping event durations.  An event with duration overlapping
     another event will be clipped.  Positive events are clipped by following
     events, and negative ones are clipped by previous ones.  In the event of
@@ -440,14 +433,6 @@ clip_events =
         (max (Event.start pos) (Event.end neg)
             + min (Event.end pos) (Event.start neg))
         / 2
-
-find_overlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
-find_overlaps = mapMaybe check . Seq.zip_next
-    where
-    check (cur, Just next)
-        | Event.end cur > Event.start next = Just (cur, next)
-        | otherwise = Nothing
-    check _ = Nothing
 
 -- * serialize
 
