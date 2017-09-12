@@ -24,7 +24,6 @@ module Util.Testing (
 
     -- * extracting
     , expect_right
-    , error_stack
 
     -- * QuickCheck
     , quickcheck
@@ -72,6 +71,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.CallStack (Stack)
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.PPrint as PPrint
@@ -354,13 +354,8 @@ pause msg = do
     putStr "\n"
 
 expect_right :: (Stack, Show a) => Either a b -> b
-expect_right (Left v) = error_stack (show v)
+expect_right (Left v) = CallStack.errorStack (showt v)
 expect_right (Right v) = v
-
--- | Like 'error', but with the caller's position.
-error_stack :: Stack => String -> a
-error_stack msg =
-    error $ Text.unpack (show_stack "" Stack.callStack) <> ": " <> msg
 
 -- * QuickCheck
 

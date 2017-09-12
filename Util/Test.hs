@@ -7,4 +7,4 @@ module Util.Test (module Util.Testing) where
 import Util.Testing
        (check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like,
         left_like, match, throws, io_equal, io_human, pause, success, failure,
-        expect_right, error_stack, quickcheck, q_equal, prettyp, pprint)
+        expect_right, quickcheck, q_equal, prettyp, pprint)
