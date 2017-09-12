@@ -4,6 +4,7 @@
 
 module Ui.Events_test where
 import qualified Data.Maybe as Maybe
+import qualified Test.QuickCheck as Q
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
@@ -61,27 +62,6 @@ test_split_at_before = do
     equal (f 1) ([0], [1, 2])
     equal (f 1.5) ([0], [1, 2])
 
-test_from_list = do
-    let f = extract . from_list
-    -- Unsorted is ok.
-    equal_e (f [(2, 1, "a"), (1, 1, "b")]) [(1, 1, "b"), (2, 1, "a")]
-    -- Positive.
-    equal_e (f [(0, 1, "a"), (2, 1, "c"), (1, 1, "b")])
-        [(0, 1, "a"), (1, 1, "b"), (2, 1, "c")]
-    equal_e (f [(0, 4, "a"), (2, 2, "b")]) [(0, 2, "a"), (2, 2, "b")]
-    equal_e (f [(0, 4, "a"), (0, 2, "b")]) [(0, 2, "b")]
-
-    -- Negative.
-    equal_e (f [(2, -2, "a"), (4, -4, "b")]) [(2, -2, "a"), (4, -2, "b")]
-    equal_e (f [(2, -2, "a"), (2, -1, "b")]) [(2, -2, "a")]
-    equal_e (f [(2, -2, "a"), (4, -2, "b")]) [(2, -2, "a"), (4, -2, "b")]
-    equal_e (f [(3, -3, "a"), (4, -2, "b")]) [(3, -3, "a"), (4, -1, "b")]
-
-    -- Mixed, Positive wins.
-    equal_e (f [(0, 1, "a"), (2, -2, "b")]) [(0, 1, "a"), (2, -1, "b")]
-    equal_e (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
-    equal_e (f [(0, 2, "a"), (2, -2, "b")]) [(0, 2, "a")]
-
 test_clip = do
     let f include_end end = map extract_event
             . Events.clip include_end end . pos_events
@@ -129,7 +109,7 @@ test_insert = do
     -- Negative events.
     equal_e (f [(4, -2, "a")] [(3, -3, "b")]) [(3, -3, "b"), (4, -1, "a")]
     equal_e (f [(3, -3, "b")] [(4, -2, "a")]) [(3, -3, "b"), (4, -1, "a")]
-    equal_e (f [(2, -2, "a")] [(0, 2, "b")]) [(0, 2, "b")]
+    equal_e (f [(2, -2, "a")] [(0, 2, "b")]) [(0, 1, "b"), (2, -1, "a")]
 
     -- New events win over old ones.
     equal_e (f [(0, 2, "new")] [(0, 2, "old")]) [(0, 2, "new")]
@@ -137,31 +117,38 @@ test_insert = do
     equal_e (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
     equal_e (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
 
--- TODO unimplemented.  I should do this with quickcheck.
--- Not only to generate the events but also to report the failing input.
-test_properties = do
-    let checks = []
-    forM_ checks $ \(events, inserts) -> do
-        let result = Events.insert (pos_events inserts) (from_list events)
-        equal (Events.check_invariants result) []
-        -- no events created or destroyed, except where start==start
-        let start (s, _, _) = s
-        equal (Events.length result)
-            (length (Seq.unique_on start (events ++ inserts)))
+test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
+    let events = map mkevent es
+    q_equal (Events.ascending (Events.from_list events))
+        (Events.clip_events (Seq.sort_on Events.event_key events))
+
+test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
+    \(es1, es2) -> q_equal
+        (Events.find_overlaps $ Events.ascending $ Events.insert
+            (map mkevent es1) (Events.from_list (map mkevent es2)))
+        []
+
+test_clip_events_qc = quickcheck $ Q.forAll gen_events $ \es -> do
+    let clipped = Events.clip_events (Seq.sort_on Event.start (map mkevent es))
+    q_equal (Events.find_overlaps clipped) []
 
 test_clip_events = do
     let f = map extract_event .  Events.clip_events . pos_events
+    -- Drop ones with the same start and orientation.
     equal_e (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
+    equal_e (f [(2, -1, "a"), (2, -2, "b")]) [(2, -2, "b")]
+    equal_e (f [(2, -2, "a"), (2, 2, "b")]) [(2, -2, "a"), (2, 2, "b")]
+    -- Positive.
     equal_e (f [(0, 1, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
     equal_e (f [(0, 2, "a"), (1, 1, "b")]) [(0, 1, "a"), (1, 1, "b")]
-    equal_e (f [(0, 1, "a"), (0, 2, "b")]) [(0, 2, "b")]
-    equal_e (f [(0, 2, "a"), (0, 1, "b")]) [(0, 1, "b")]
     equal_e (f [(0, 0, "a"), (1, 0, "b")]) [(0, 0, "a"), (1, 0, "b")]
-    -- Negative loses to Positive.
+    -- Negative and Positive compromise in the middle.
     equal_e (f [(1, -1, "a"), (1, 1, "b")]) [(1, -1, "a"), (1, 1, "b")]
     equal_e (f [(1, -0, "a"), (1, 0, "b")]) [(1, -0, "a"), (1, 0, "b")]
-    equal_e (f [(0, 2, "a"), (2, -1, "b")]) [(0, 2, "a")]
-    equal_e (f [(0, 2, "a"), (3, -2, "b")]) [(0, 2, "a"), (3, -1, "b")]
+    equal_e (f [(0, 2, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
+    equal_e (f [(0, 8, "a"), (2, -1, "b")]) [(0, 1.5, "a"), (2, -0.5, "b")]
+    equal_e (f [(0, 2, "a"), (2, -8, "b")]) [(0, 1, "a"), (2, -1, "b")]
+    equal_e (f [(0, 2, "a"), (3, -2, "b")]) [(0, 1.5, "a"), (3, -1.5, "b")]
 
 test_remove = do
     let f range = e_start_dur . Events.remove range . from_start_dur
@@ -217,3 +204,9 @@ e_start_dur = map (\(s, d, _) -> (s, d)) . extract
 
 extract_event :: Event.Event -> (TrackTime, TrackTime, Text)
 extract_event e = (Event.start e, Event.duration e, Event.text e)
+
+mkevent :: (Int, Int) -> Event.Event
+mkevent (start, dur) = Event.event (fromIntegral start) (fromIntegral dur) ""
+
+gen_events :: Q.Gen [(Int, Int)]
+gen_events = Q.listOf ((,) <$> Q.choose (-4, 4) <*> Q.choose (-4, 4))

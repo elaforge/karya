@@ -18,10 +18,9 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 
-import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
@@ -76,18 +75,6 @@ dump_block fname block_id = do
 
 write_dump :: FilePath -> Simple.State -> IO ()
 write_dump fname = writeFile fname . PPrint.pshow
-
--- * track
-
--- | Check 'Events.Events'.
-check_events_invariants :: Ui.M m => m [(TrackId, Text)]
-check_events_invariants = do
-    tracks <- Ui.gets $ Map.toAscList . Ui.state_tracks
-    return
-        [ (track_id, err)
-        | (track_id, track) <- tracks
-        , err <- Events.check_invariants (Track.track_events track)
-        ]
 
 -- * perf events
 

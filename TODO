@@ -3,6 +3,30 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  tabuh gari:
+    - infer-damp for trompong, or better reyong one
+    - double strike, like 'oo'
+    - octaves notation for trompong
+    - octaves for gender rambat
+    - I get the wrong pitch on too-high trompong notes
+      . It shouldn't try to emit pitches above its range.
+      . I should extend the samples up a couple pitches anyway.
+    - how can I write angsels?  E.g. same as template, but with bits replaced.
+      Score derive?
+    - It's inconvenient to have two roots, because play-from-root stops
+      working right as soon as I change it.  But it does have a definite
+      single caller, so shouldn't it be able to figure out a root all the
+      same?
+  * When adding a positive event above a negative one, it deletes the next
+    negative event and then goes right through it.  How is that even possible?
+  - It's really tempting to put a '>inst = %dyn=.5', but that just forces it
+    to always have that dyn.  How can I set a per-instrument default dynamic
+    which I can still override?
+    . First define exactly what I want.
+    . It should be as if I set a global %dyn, so specific ones can override
+      it, but only for that instrument.  So each 'dyn' affects all dyn-*
+      signals, and then each instrument can pick out its dyn-me.
+  - the 'u' call doesn't seem to work in the tempo track
   Support for adding or removing time in the middle of a score:
     * Implement LRuler.inject.
       . This starts from the root block, and finds block callees.  If a callee

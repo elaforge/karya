@@ -41,7 +41,6 @@ module Ui.Events (
     , split_lists
     , at_after, after, before
     , split_at_before
-    , check_invariants
 
 #ifdef TESTING
     , module Ui.Events
@@ -377,8 +376,10 @@ merge (Events evts1) (Events evts2)
     -- time to create the new Events.
 
 merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> EventMap
-merge_and_clip old new = from_ascending $ clip_events $ map (snd . snd) $
-    Seq.merge_on clip_key (zip (repeat False) old) (zip (repeat True) new)
+merge_and_clip old new = from_ascending $ clip_events $ map snd $
+    Seq.merge_on fst (map (first (,False)) old) (map (first (,True)) new)
+    -- Seq.merge_on should put elements from the first argument first, but
+    -- it doesn't guarantee it, so let's be explicit.
 
 -- | Order otherwise-equal events so that new ones will prevail over old ones.
 -- For positive events, the last event wins, for negative ones it's the first.
@@ -390,8 +391,14 @@ clip_key (is_new, (k@(Key _ orient), _))
 {- | Clip overlapping event durations.  An event with duration overlapping
     another event will be clipped.  Positive events are clipped by following
     events, and negative ones are clipped by previous ones.  In the event of
-    a conflict between positive and negative, the positive one wins.  If an
-    event would be clip to <=0, it is dropped.
+    a conflict between positive and negative, they are both clipped to the
+    middle of the overlap.  This may seem a bit weird, but it has the nice
+    properties that I never clip an event to 0, and never have to drop an
+    event due to clipping.  From an implementation point of view, it lets me
+    write a single-pass algorithm.
+
+    If there are multiple events with the same start and orientation, the last
+    one wins.
 
     The precondition is that the input events are sorted by 'event_key', the
     postcondition is that they are still sorted and no [pos .. pos+dur) ranges
@@ -399,43 +406,43 @@ clip_key (is_new, (k@(Key _ orient), _))
 -}
 clip_events :: [Event.Event] -> [Event.Event]
 clip_events =
-    mapMaybe clip . Seq.zip_neighbors
+    map clip . Seq.zip_neighbors
+        . Seq.drop_initial_dups (\e -> (Event.start e, Event.orientation e))
     where
     clip (maybe_prev, cur, maybe_next)
         | Event.is_negative cur = case maybe_prev of
-            Nothing -> Just cur
+            Nothing -> cur
             Just prev
-                | Event.is_negative prev -> if
-                    | Event.start prev < Event.end cur -> Just cur
-                    | Event.start prev < Event.start cur ->
-                        Just $ Event.set_end (Event.start prev) cur
-                    | otherwise -> Nothing -- coincident starts
-                -- When it's Positive vs. Negative, Positive wins.
-                | otherwise -> if
-                    | Event.end prev <= Event.end cur -> Just cur
-                    | Event.end prev < Event.start cur ->
-                        Just $ Event.set_end (Event.end prev) cur
-                    | otherwise -> Nothing
+                -- |--->    prev
+                --    <---| cur
+                | Event.is_positive prev -> if Event.end cur < Event.end prev
+                    then Event.end_ #= midpoint prev cur $ cur
+                    else cur
+                -- <---|
+                --    <---|
+                | Event.start prev > Event.end cur ->
+                    Event.end_ #= Event.start prev $ cur
+                | otherwise -> cur
         | otherwise = case maybe_next of
-            Nothing -> Just cur
+            Nothing -> cur
             Just next
-                | Event.is_negative next -> Just cur
-                | Event.start next == Event.start cur -> Nothing
+                -- |--->    cur
+                --    <---| next
+                | Event.is_negative next -> if Event.end next < Event.end cur
+                    then Event.end_ #= midpoint cur next $ cur
+                    else cur
+                -- |--->
+                --    |--->
                 | Event.start next < Event.end cur ->
-                    Just $ Event.set_end (Event.start next) cur
-                | otherwise -> Just cur
+                    Event.end_ #= Event.start next $ cur
+                | otherwise -> cur
+    midpoint pos neg =
+        (max (Event.start pos) (Event.end neg)
+            + min (Event.end pos) (Event.start neg))
+        / 2
 
-check_invariants :: Events -> [Text]
-check_invariants (Events events) =
-    [ "key /= event key: " <> showt (key, event)
-    | (key, event) <- Map.toAscList events, key /= event_key event
-    ] ++
-    [ "overlapping: " <> showt evt1 <> " and " <> showt evt2
-    | (evt1, evt2) <- find_overlaps events
-    ]
-
-find_overlaps :: EventMap -> [(Event.Event, Event.Event)]
-find_overlaps = mapMaybe check . Seq.zip_next . map snd . Map.toAscList
+find_overlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
+find_overlaps = mapMaybe check . Seq.zip_next
     where
     check (cur, Just next)
         | Event.end cur > Event.start next = Just (cur, next)
