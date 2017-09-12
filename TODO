@@ -48,11 +48,33 @@ UNSORTED
         from the ranks.
     * Handle [section, measure] generically.
     * Move start_measure to Ruler so I don't have to parse MeterType.
-    - I don't like the extract/inject names.  Extract is too generic. Should
+    * I don't like the extract/inject names.  Extract is too generic. Should
       be something like children to parent, parent to children.
     - I need insert/delete time that also modifies the ruler.  Delete is easy,
       but for insert I need to add an arbitrary TrackTime of new ruler on the
       end.
+      . It can't be done in general because the meter may be irregular, and
+        you can't know what kind of meter to append.
+      . I could have a thing that gets the meter in the selection, and adds
+        another one of those at the selection.
+      . A whole meter would be more useful to retain the structure.  I'll
+        still need a delete range though, so I could add the measure and
+        then delete the unwanted beats.
+      . But the common infrastructure is to add/delete time, then find callers
+        and apply recursively.
+    . This has overlap with the idea to have a track as a read-only view of an
+      expression.  E.g., the expression would be b1, b2, b3, ..., and the
+      view would be to get the CallDuration of each and sequence them.  The
+      trick is that it would have to re-integrate whenever the callees changed
+      CallDuration.  In this approach, I'd have a separate expression with the
+      sequence of calls.  That would then be bound to a track, which would
+      then become read-only.  I'd have to edit the original expression.
+      . The cmds that change a block ruler could trigger re-integration in the
+        same way they would have to trigger the caller resize.
+      . Even in this case, I need something to put in for ruler.  I guess I'd
+        use 'extract'.
+      . It may be more awkward to edit the expression instead of directly
+        editing the track.
     . I want add a measure, and then automatically:
       . Extend the ruler of this block.
       . Extend or contract the duration of the caller in the parent, moving

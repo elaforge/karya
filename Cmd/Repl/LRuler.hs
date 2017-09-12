@@ -364,17 +364,17 @@ concat block_ids = do
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-extract :: Cmd.M m => m Modify
-extract = do
+pull_up :: Cmd.M m => m Modify
+pull_up = do
     (block_id, tracknum, track_id, _) <- Selection.get_insert
-    all_meters <- Extract.extract block_id track_id
+    all_meters <- Extract.pull_up block_id track_id
     return $ make_modify block_id tracknum $
         Ruler.Modify.meter (const all_meters)
 
-inject :: Cmd.M m => m ()
-inject = do
+push_down :: Cmd.M m => m ()
+push_down = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Extract.inject False block_id track_id
+    Extract.push_down False block_id track_id
 
 -- * modify
 

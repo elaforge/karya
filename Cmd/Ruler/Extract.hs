@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Ruler.Extract (extract, inject) where
+module Cmd.Ruler.Extract (pull_up, push_down) where
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -17,12 +17,12 @@ import Global
 import Types
 
 
--- * extract
+-- * pull_up
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track and concatenate them.
-extract :: Ui.M m => BlockId -> TrackId -> m Meter.LabeledMeter
-extract block_id track_id = do
+pull_up :: Ui.M m => BlockId -> TrackId -> m Meter.LabeledMeter
+pull_up block_id track_id = do
     subs <- block_calls block_id track_id
     ruler_ids <- mapM Ui.ruler_of [bid | (_, _, bid) <- subs]
     -- Strip the last 0-dur mark off of each meter before concatenating.
@@ -42,7 +42,7 @@ block_calls block_id track_id =
     range event block_id = (Event.start event, Event.duration event, block_id)
 
 
--- * inject
+-- * push_down
 
 -- | The inverse of 'extact': find callee blocks, and copy the ruler from the
 -- given block to them.  This sets the ruler start count appropriately.
@@ -53,13 +53,13 @@ block_calls block_id track_id =
 -- Optionally I could scale the ruler for non-1:1 callees.
 --
 -- Since this has to modify multiple blocks, it does the modification itself
--- instead of returning the new meter like 'extract'.
-inject :: Ui.M m => Bool
+-- instead of returning the new meter like 'pull_up'.
+push_down :: Ui.M m => Bool
     -- ^ Whether or not it's an error if there are block calls which are not
     -- 1:1.  I can't tell if that's an error or not, but the user should know
     -- if it's supposed to be a \"score\" block.
      -> BlockId -> TrackId -> m ()
-inject not_1to1_ok block_id track_id = do
+push_down not_1to1_ok block_id track_id = do
     (subs, not_1to1) <- sub_meters block_id track_id
     unless (not_1to1_ok || null not_1to1) $
         Ui.throw $ "block calls not 1:1: " <> pretty not_1to1

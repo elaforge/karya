@@ -17,7 +17,7 @@ import Global
 import Types
 
 
-test_extract = do
+test_pull_up = do
     let meter_ruler = Meter.fit_ruler Meter.default_config
     let (top, ui_state) = UiTest.run Ui.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
@@ -30,7 +30,7 @@ test_extract = do
             Create.new_ruler b2 "r.b2" $ meter_ruler 16 [Meter.repeat 3 Meter.T]
             return top
     let run = extract $ UiTest.eval ui_state $
-            Extract.extract top (UiTest.mk_tid_block top 1)
+            Extract.pull_up top (UiTest.mk_tid_block top 1)
         extract = map $ \m -> (Meter.m_rank m, Meter.m_duration m)
     equal (e_ruler top ui_state) "1"
     equal run
@@ -39,7 +39,7 @@ test_extract = do
         , (0, 0)
         ]
 
-test_inject = do
+test_push_down = do
     let make = UiTest.run Ui.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
@@ -52,7 +52,7 @@ test_inject = do
             return top
         meter_ruler = Meter.fit_ruler Meter.default_config
     let run = extract $ UiTest.exec ui_state $
-            Extract.inject True top (UiTest.mk_tid_block top 1)
+            Extract.push_down True top (UiTest.mk_tid_block top 1)
             where (top, ui_state) = make
         extract st =
             [(bid, e_ruler bid st) | bid <- Map.keys (Ui.state_blocks st)]
