@@ -12,6 +12,7 @@ module Cmd.TimeStep (
     TimeStep, time_step, event_step, from_list, to_list
     , modify_rank
     , match_meter
+    , event_edge
     , Step(..), Tracks(..)
     , MarklistMatch(..)
     , Direction(..)
@@ -74,6 +75,10 @@ modify_rank f = from_list . map modify . to_list
 match_meter :: MarklistMatch
 match_meter = NamedMarklists [Ruler.meter]
 
+event_edge :: TimeStep
+event_edge =
+    TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack, BlockEdge]
+
 -- | The possible matchers for a TimeStep.
 data Step =
      -- | Step a certain amount of time.  It's measured relative to the current
@@ -104,7 +109,10 @@ data Direction = Advance | Rewind deriving (Eq, Show)
 -- | Convert a TimeStep to a compact and yet somehow still somewhat readable
 -- representation.
 show_time_step :: TimeStep -> Text
-show_time_step (TimeStep steps) = Text.intercalate ";" (map show_step steps)
+show_time_step (TimeStep steps)
+    -- Abbreviate to keep the status line shorter.
+    | TimeStep steps == event_edge = "E"
+    | otherwise = Text.intercalate ";" (map show_step steps)
     where
     -- The keywords and symbols are chosen carefully to allow unambiguous
     -- parsing.

@@ -165,7 +165,9 @@ event_and_note_step = do
     let tracknums = TimeStep.TrackNums $
             [tracknum] ++ maybe [] (:[]) note_tracknum
     return $ TimeStep.from_list
-        [TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums]
+        [ TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums
+        , TimeStep.BlockEdge
+        ]
     where
     note_tracknum_of track = ifM (is_note track)
         (return (Just (Ui.track_tracknum track))) (return Nothing)

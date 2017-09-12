@@ -19,13 +19,22 @@ UNSORTED
       same?
   * When adding a positive event above a negative one, it deletes the next
     negative event and then goes right through it.  How is that even possible?
+  * I could make add positive above negative more friendly by using a "until
+    next event" timestep instead of to block end.
+    . This is what I get already for positive events, so it winds up being the
+      same except that positive to negative wouldn't eat up some probably wrong
+      amount of the negative event.
   - It's really tempting to put a '>inst = %dyn=.5', but that just forces it
     to always have that dyn.  How can I set a per-instrument default dynamic
     which I can still override?
     . First define exactly what I want.
+    . Basically that I can set a baseline dyn per instrument, which can be
+      scaled as normal.
     . It should be as if I set a global %dyn, so specific ones can override
       it, but only for that instrument.  So each 'dyn' affects all dyn-*
       signals, and then each instrument can pick out its dyn-me.
+    . And of course this should generalize for all controls... well, I don't
+      have a use for non-dyn, so I don't really need to generalize.
   - the 'u' call doesn't seem to work in the tempo track
   Support for adding or removing time in the middle of a score:
     * Implement LRuler.inject.

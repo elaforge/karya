@@ -501,7 +501,7 @@ toggle_note_duration = do
     step <- Cmd.gets $ Cmd.state_time_step . Cmd.state_edit
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_note_duration = if dur == to_end then step else to_end }
-    where to_end = TimeStep.time_step TimeStep.BlockEdge
+    where to_end = TimeStep.event_edge
 
 -- ** fancier start\/duration edits
 
