@@ -228,7 +228,7 @@ split_range (Range start end) (Events events) =
         Map.split3 (Key start Event.Positive) (Key end Event.Positive) events
 
 -- | Split at the given time.  A positive event that starts at the given time
--- will appear in the above events, a negative event in the below events.
+-- will appear in the after events, a negative event in the previous events.
 split :: ScoreTime -> Events -> (Events, Events)
 split pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split2 (Key pos Event.Positive) events

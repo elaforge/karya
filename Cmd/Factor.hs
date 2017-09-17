@@ -21,14 +21,12 @@ import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
-import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Eval as Eval
-import qualified Derive.Expr as Expr
 import Global
 import Types
 
@@ -225,12 +223,6 @@ rebase_id old_parent new_parent child = case Eval.parse_relative_id child of
         | parent == old_parent -> Just $ make_relative new_parent name
         | otherwise -> Nothing
     Nothing -> Nothing
-
-get_block_calls :: Ui.M m => TrackId -> m [Expr.Symbol]
-get_block_calls track_id = do
-    events <- Events.ascending <$> Ui.get_events track_id
-    return $ map Expr.Symbol $
-        concatMap (NoteTrack.possible_block_calls . Event.text) events
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only

@@ -360,7 +360,7 @@ concat block_ids = do
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
     modify_selected $ const $ mconcat meters ++ [RulerUtil.final_mark]
 
--- * extract
+-- * pull_up, push_down
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.

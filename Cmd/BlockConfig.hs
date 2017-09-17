@@ -110,7 +110,7 @@ cmd_open_block align_new_view = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
     parent <- Ui.get_view =<< Cmd.get_focused_view
-    let block_calls = NoteTrack.block_calls (Just block_id) . Event.text
+    let block_calls = NoteTrack.expr_block_calls True block_id . Event.text
     forM_ sel $ \(_, events) -> forM_ events $ \event ->
         mapM_ (open parent event) =<< block_calls event
     where

@@ -45,6 +45,12 @@ test_split_range = do
     equal (f (Point 0.5 Event.Positive) [(1, -1), (1, 1), (2, 1)])
         ([], [], [1, 1, 2])
 
+test_split = do
+    let f = (e_start_dur *** e_start_dur) . Events.split 2 . from_start_dur
+    equal (f [(0, 2), (2, 2), (4, 2)]) ([(0, 2)], [(2, 2), (4, 2)])
+    equal (f [(2, -2), (2, 2)]) ([(2, -2)], [(2, 2)])
+    equal (f [(2, -0), (2, 0)]) ([(2, -0)], [(2, 0)])
+
 e_ranges :: (Events.Events, Events.Events, Events.Events)
     -> ([TrackTime], [TrackTime], [TrackTime])
 e_ranges (pre, within, post) =

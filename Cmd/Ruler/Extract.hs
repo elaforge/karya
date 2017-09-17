@@ -3,9 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Ruler.Extract (pull_up, push_down) where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
@@ -24,27 +25,22 @@ import Types
 pull_up :: Ui.M m => BlockId -> TrackId -> m Meter.LabeledMeter
 pull_up block_id track_id = do
     subs <- block_calls block_id track_id
-    ruler_ids <- mapM Ui.ruler_of [bid | (_, _, bid) <- subs]
+    ruler_ids <- mapM (Ui.ruler_of . snd) subs
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
     return $ mconcat $
-        [ Meter.scale (Meter.time_to_duration dur) meter
-        | ((_start, dur, _), meter) <- zip subs meters
+        [ Meter.scale (Meter.time_to_duration (Event.duration event)) meter
+        | ((event, _), meter) <- zip subs meters
         ] ++ [[RulerUtil.final_mark]]
 
-block_calls :: Ui.M m => BlockId -> TrackId
-    -> m [(TrackTime, TrackTime, BlockId)]
-block_calls block_id track_id =
-    mapMaybeM extract =<< Events.ascending <$> Ui.get_events track_id
-    where
-    extract event = fmap (range event) <$>
-        NoteTrack.block_call (Just block_id) (Event.text event)
-    range event block_id = (Event.start event, Event.duration event, block_id)
+block_calls :: Ui.M m => BlockId -> TrackId -> m [(Event.Event, BlockId)]
+block_calls block_id track_id = map (second NonEmpty.head) <$>
+    NoteTrack.track_block_calls False block_id track_id
 
 
 -- * push_down
 
--- | The inverse of 'extact': find callee blocks, and copy the ruler from the
+-- | The inverse of 'pull_up': find callee blocks, and copy the ruler from the
 -- given block to them.  This sets the ruler start count appropriately.
 --
 -- If a callee occurs only once, and is 1:1 with the caller, copy the caller's
@@ -72,12 +68,15 @@ sub_meters :: Ui.M m => BlockId -> TrackId
     -> m ([(BlockId, (Ruler.MeterConfig, Ruler.Marklist))], [BlockId])
 sub_meters block_id track_id = do
     subs <- block_calls block_id track_id
-    (subs, not_1to1) <- partitionM (\(_, dur, callee) -> is_1to1 dur callee)
+    (subs, not_1to1) <- partitionM
+        (\(event, callee) -> is_1to1 (Event.duration event) callee)
         subs
     (config, meter) <- get_meter block_id
-    let get (start, dur, block_id) =
-            (block_id, (config, extract_marks start dur meter))
-    return (map get subs, [block_id | (_, _, block_id) <- not_1to1])
+    let get (event, block_id) = (block_id,)
+            ( config
+            , extract_marks (Event.start event) (Event.duration event) meter
+            )
+    return (map get subs, map snd not_1to1)
 
 extract_marks :: TrackTime -> TrackTime -> Ruler.Marklist -> Ruler.Marklist
 extract_marks start dur =
