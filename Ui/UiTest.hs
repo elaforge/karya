@@ -137,6 +137,10 @@ fmt_ruler start end = Text.stripEnd $ mconcatMap (space . pretty) ts
 fmt_start_duration :: [(ScoreTime, ScoreTime)] -> Text
 fmt_start_duration = fmt_events . map (\(s, d) -> (s, d, ""))
 
+fmt_blocks :: [BlockSpec] -> Text
+fmt_blocks = Text.strip . Text.unlines
+    . concatMap (\(block, tracks) -> [block <> ":", fmt_tracks tracks])
+
 fmt_tracks :: [TrackSpec] -> Text
 fmt_tracks [] = ""
 fmt_tracks tracks = Text.unlines $
@@ -216,7 +220,7 @@ run state m = case result of
 
 exec :: CallStack.Stack => Ui.State -> Ui.StateId a -> Ui.State
 exec state m = case Ui.exec state m of
-    Left err -> errorStack $ "state error: " <> showt err
+    Left err -> errorStack $ "state error: " <> pretty err
     Right state' -> state'
 
 eval :: CallStack.Stack => Ui.State -> Ui.StateId a -> a
@@ -463,8 +467,11 @@ extract_tracks_of block_id state = tracks
 extract_tracks :: Ui.State -> [TrackSpec]
 extract_tracks = extract_tracks_of default_block_id
 
-extract_all_tracks :: Ui.State -> [(BlockId, [TrackSpec])]
-extract_all_tracks state =
+extract_blocks :: Ui.State -> [BlockSpec]
+extract_blocks = map (first Id.ident_name) . extract_block_ids
+
+extract_block_ids :: Ui.State -> [(BlockId, [TrackSpec])]
+extract_block_ids state =
     zip block_ids (map (flip extract_tracks_of state) block_ids)
     where block_ids = Map.keys (Ui.state_blocks state)
 

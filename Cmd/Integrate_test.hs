@@ -38,11 +38,11 @@ test_block_integrate = do
     res <- start states $ UiTest.insert_event 1 (1, 1, "")
     -- create a new block, integrate b1 to b2
     equal (e_tracks res)
-        [ (UiTest.bid "b1",
+        [ ("b1",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
-        , (UiTest.bid "b2",
+        , ("b2",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4d"), (1, 0, "4c")])
             ])
@@ -52,7 +52,7 @@ test_block_integrate = do
         UiTest.insert_event 1 (2, 1, "")
         UiTest.insert_event 2 (2, 0, "4e")
     equal (last (e_tracks res))
-        (UiTest.bid "b2",
+        ("b2",
             [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
             ])
@@ -64,7 +64,7 @@ test_block_integrate = do
         UiTest.remove_event_in "b2" 2 1
         UiTest.insert_event 2 (2, 0, "4f")
     equal (last (e_tracks (last reses)))
-        (UiTest.bid "b2",
+        ("b2",
             [ (">i1", [(0, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
@@ -73,7 +73,7 @@ test_block_integrate2 = do
     let states = mkstates "<<" ("i1", [(0, 1, "4c"), (1, 1, "4g")], [])
         source = "b1"
         dest = "b2"
-        pitch_track = fmap (snd . last) . lookup (UiTest.bid dest) . e_tracks
+        pitch_track = fmap (snd . last) . lookup dest . e_tracks
     res <- start states (return ())
     res <- next res $ do
         UiTest.insert_event_in dest 2 (0.5, 0, "4a")
@@ -114,7 +114,7 @@ test_track_modify = do
 
     res <- start states $ return ()
     equal (e_tracks res)
-        [(UiTest.default_block_id,
+        [(UiTest.default_block_name,
             [ (">i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             , (">i1", [(0, 1, ""), (1, 1, "")])
@@ -128,7 +128,7 @@ test_track_modify = do
 
     res <- next res $ UiTest.insert_event 2 (0, 0, "3c")
     equal (e_tracks res)
-        [(UiTest.default_block_id,
+        [(UiTest.default_block_name,
             [ (">i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "3c"), (1, 0, "4d")])
             , (">i1", [(0, 1, ""), (1, 1, "")])
@@ -153,22 +153,22 @@ test_block_score_integrate = do
         Ui.set_integrated_block bid $
             Just (UiTest.default_block_id, Block.ScoreDestinations [])
     equal (e_tracks res)
-        [ (UiTest.bid "b1",
+        [ ("b1",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
-        , (UiTest.bid "b2",
+        , ("b2",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
         ]
     res <- next res $ UiTest.insert_event 1 (4, 1, "")
     equal (e_tracks res)
-        [ (UiTest.bid "b1",
+        [ ("b1",
             [ (">i1", [(0, 1, ""), (1, 1, ""), (4, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
-        , (UiTest.bid "b2",
+        , ("b2",
             [ (">i1", [(0, 1, ""), (1, 1, ""), (4, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])
@@ -178,14 +178,14 @@ test_track_score_integrate = do
     let states = mkstates "" ("i1", [(0, 1, "4c")], [])
     res <- start states $ add_integrated_track 1
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])
             , (">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])
             ])
         ]
     res <- next res $ UiTest.insert_event 1 (1, 1, "")
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
             , (">i1", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
             ])
@@ -196,7 +196,7 @@ test_score_integrate_two_tracks = do
             [(">i1", [(0, 1, "a")]), (">i2", [(0, 1, "b")])]
     res <- start states $ add_integrated_track 1 >> add_integrated_track 2
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1", [(0, 1, "a")]), (">i2", [(0, 1, "b")])
             , (">i1", [(0, 1, "a")]), (">i2", [(0, 1, "b")])
             ])
@@ -211,7 +211,7 @@ test_derive_integrate_twice = do
     res <- start states $ do
         Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <"
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1 | <", [(0, 1, "")])
             , (">i1", [(0, 1, "")])
             ])
@@ -224,7 +224,7 @@ test_derive_integrate_twice = do
         Ui.modify_integrated_tracks UiTest.default_block_id $
             ((UiTest.mk_tid 1, Block.DeriveDestinations []) :)
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1 | <", [(0, 1, "")])
             , (">i1", [(0, 1, "")])
             , (">i1", [(0, 1, "")])
@@ -242,7 +242,7 @@ test_score_and_derive_integrate = do
         add_integrated_track 1
         Ui.set_track_title (UiTest.mk_tid 2) ">i2 | <"
     equal (e_tracks res)
-        [ (UiTest.default_block_id,
+        [ (UiTest.default_block_name,
             [ (">i1", [(0, 1, "")])
             , (">i2 | <", [(0, 1, "")])
             , (">i1", [(0, 1, "")])
@@ -260,7 +260,7 @@ test_double_integrate = do
         Ui.set_track_title (UiTest.mk_tid 1) ">i1 | < | <"
     -- It threw but that winds up being logged.
     equal (e_tracks res)
-        [(UiTest.default_block_id, [(">i1 | < | <", [(0, 1, "")])])]
+        [(UiTest.default_block_name, [(">i1 | < | <", [(0, 1, "")])])]
 
 add_integrated_track :: Ui.M m => TrackNum -> m ()
 add_integrated_track tracknum =
@@ -276,14 +276,14 @@ e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
 --     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
 --     res <- start states $ Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <!"
 --     equal (e_tracks res)
---         [ (UiTest.bid "b1",
+--         [ ("b1",
 --             [ (">i1 | <!", [(0, 1, "")])
 --             , (">i1", [(0, 1, "")])
 --             ])
 --         ]
 --     res <- next res $ Ui.set_track_title (UiTest.mk_tid 2) ">i1 | <!"
 --     equal (e_tracks res)
---         [ (UiTest.bid "b1",
+--         [ ("b1",
 --             [ (">i1 | <!", [(0, 1, "")])
 --             , (">i1 | <!", [(0, 1, "")])
 --             , (">i1", [(0, 1, "")])
@@ -293,7 +293,7 @@ e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
 --     -- Change should propagate through both.
 --     res <- next res $ UiTest.insert_event 1 (1, 1, "")
 --     equal (e_tracks res)
---         [ (UiTest.bid "b1",
+--         [ ("b1",
 --             [ (">i1 | <!", [(0, 1, ""), (1, 1, "")])
 --             , (">i1 | <!", [(0, 1, ""), (1, 1, "")])
 --             , (">i1", [(0, 1, ""), (1, 1, "")])
@@ -358,8 +358,8 @@ until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]
 until_complete = ResponderTest.respond_all 1
 
-e_tracks :: ResponderTest.Result -> [(BlockId, [UiTest.TrackSpec])]
-e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state
+e_tracks :: ResponderTest.Result -> [UiTest.BlockSpec]
+e_tracks = UiTest.extract_blocks . ResponderTest.result_ui_state
 
 e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
 e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state

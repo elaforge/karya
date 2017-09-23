@@ -21,7 +21,7 @@ test_selection_alts = do
     let result = run True
     equal (CmdTest.result_val result)
         (Right $ Just $ map UiTest.bid ["b1-sub1", "b1-sub2", "b1-sub3"])
-    let blocks = UiTest.extract_all_tracks (CmdTest.result_ui_state result)
+    let blocks = UiTest.extract_block_ids (CmdTest.result_ui_state result)
     equal (Seq.head =<< lookup UiTest.default_block_id blocks)
         (Just (">", [(0, 1, ""), (1, 2, "alt -sub1 -sub2 -sub3"), (3, 1, "")]))
     equal (Map.keys (Ui.state_views (CmdTest.result_ui_state result)))
@@ -30,18 +30,17 @@ test_selection_alts = do
     let result = run False
     equal (CmdTest.result_val result)
         (Right $ Just $ map UiTest.bid ["sub1", "sub2", "sub3"])
-    let blocks = UiTest.extract_all_tracks (CmdTest.result_ui_state result)
+    let blocks = UiTest.extract_block_ids (CmdTest.result_ui_state result)
     equal (Seq.head =<< lookup UiTest.default_block_id blocks)
         (Just (">", [(0, 1, ""), (1, 2, "alt sub1 sub2 sub3"), (3, 1, "")]))
 
 test_selection = do
-    let run tracks subs start end = UiTest.extract_all_tracks $
+    let run tracks subs start end = UiTest.extract_blocks $
             CmdTest.result_ui_state $ CmdTest.run_ui Ui.empty $ do
                 parent_v : _ <- UiTest.mkviews (("b", [(">", tracks)]) : subs)
                 CmdTest.set_sel_on parent_v 1 start 1 end
                 Factor.selection_ True False (UiTest.mkid "sub")
-        parent = UiTest.bid "b"
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)
-        [ (parent, [(">", [(0, 1, "sub"), (1, 1, "b")])])
-        , (UiTest.bid "sub", [(">", [(0, 1, "a")])])
+        [ ("b", [(">", [(0, 1, "sub"), (1, 1, "b")])])
+        , ("sub", [(">", [(0, 1, "a")])])
         ]
