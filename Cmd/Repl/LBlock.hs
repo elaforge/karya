@@ -18,10 +18,12 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.BlockConfig as BlockConfig
+import qualified Cmd.BlockResize as BlockResize
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -271,3 +273,17 @@ stretch_block factor block_id = ModifyEvents.block block_id $
 
 stretch :: ScoreTime -> Event.Event -> Event.Event
 stretch factor = (Event.start_ %= (*factor)) . (Event.duration_ %= (*factor))
+
+-- * add / remove time
+
+add_time :: Cmd.M m => m ()
+add_time = do
+    sel <- Selection.get
+    block_id <- Cmd.get_focused_block
+    BlockResize.update_callers block_id (Sel.min sel) (Sel.duration sel)
+
+remove_time :: Cmd.M m => m ()
+remove_time = do
+    sel <- Selection.get
+    block_id <- Cmd.get_focused_block
+    BlockResize.update_callers block_id (Sel.min sel) (- Sel.duration sel)

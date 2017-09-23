@@ -20,10 +20,6 @@
     text will disappear and the line will be blue, to mark hidden text.
 
     No Event may overlap another Event on the same Track.
-
-    TODO
-    The Event has attributes which store arbitrary key-value pairs.  This can
-    be used to store the "parent event" of a derivation, for instance.
 -}
 module Ui.Event (
     -- * types

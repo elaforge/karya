@@ -23,7 +23,7 @@ module Ui.Events (
     , ascending, descending
 
     -- ** transformation
-    , map_events, clip
+    , map_events, move, clip
 
     -- ** insert / remove
     , insert, remove
@@ -146,6 +146,15 @@ descending = to_desc_list . get
 -- | Map a function across the events in Events.
 map_events :: (Event.Event -> Event.Event) -> Events -> Events
 map_events f = from_list . map f . ascending
+
+-- | Move events by a constant amount.  It's more efficient than 'map_events'
+-- because it doesn't have to sort and clip the events.
+move :: ScoreTime -> Events -> Events
+move delta (Events events) =
+    Events . Map.fromAscList . map m . Map.toAscList $ events
+    where
+    m (Key t orient, event) =
+        (Key (t+delta) orient, Event.start_ %= (+delta) $ event)
 
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.
