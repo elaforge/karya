@@ -57,16 +57,16 @@ parents_children_of block_id track_id = do
 
 -- | This is like 'parents_children_of', but only the children, and it doesn't
 -- include the given TrackId.
-children_of :: Ui.M m => BlockId -> TrackId -> m (Maybe [Ui.TrackInfo])
-children_of block_id track_id =
-    parents_children_of block_id track_id >>= \x -> return $ case x of
-        Just (_, _ : children) -> Just children
-        _ -> Nothing
+get_children_of :: Ui.M m => BlockId -> TrackId -> m [Ui.TrackInfo]
+get_children_of block_id track_id =
+    parents_children_of block_id track_id >>= \x -> case x of
+        Just (_, _ : children) -> return children
+        _ -> Ui.throw $ "no children of " <> pretty (block_id, track_id)
 
 is_child_of :: Ui.M m => BlockId -> TrackNum -> TrackNum -> m Bool
 is_child_of block_id parent child = do
-    children <- Ui.require ("no children of " <> pretty (block_id, parent))
-        =<< children_of block_id =<< Ui.get_event_track_at block_id parent
+    children <- get_children_of block_id
+        =<< Ui.get_event_track_at block_id parent
     return $ child `elem` map Ui.track_tracknum children
 
 -- | Combine the skeleton with the tracks to create a TrackTree.

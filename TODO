@@ -67,7 +67,7 @@ UNSORTED
       be something like children to parent, parent to children.
     * Insert/delete time that propagates up to callers.
       * Add the time in the bottom block.
-      - When I move events, move the children too.
+      * When I move events, move the children too.
     - When I add time, I need to also update the ruler.
       . This is tricky because I need to know where to delete or add ruler.
       . Implement update_ruler:

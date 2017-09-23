@@ -13,6 +13,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.NoteTrack as NoteTrack
@@ -98,23 +99,33 @@ update_ruler block_id pos delta top_parents
 --
 -- The block duration changes by te sum of the deltas under that BlockId.
 apply_updates :: Ui.M m => [Update] -> m ()
-apply_updates = mapM_ (mapM_ apply) . map Map.toList . Map.elems . merge_updates
+apply_updates = mapM_ apply . Map.toList . merge_updates
     where
-    apply (track_id, event_deltas) =
-        forM_ (reverse event_deltas) $ \(event, delta) -> do
-            Ui.remove_event track_id event
-            Ui.modify_events track_id $ move_events (Event.start event) delta
-            let dur = Event.duration event + delta
-            when (Event.is_negative event) $
-                Ui.throw $ "negative events not supported yet: " <> pretty event
-            when (Event.is_negative event && dur > 0 || dur < 0) $
-                Ui.throw $ "update delta " <> pretty delta
-                    <> " would invert event: " <> pretty event
-            Ui.insert_event track_id $ Event.duration_ #= dur $ event
+    apply (block_id, tracks) =
+        forM_ (Map.toList tracks) $ \(track_id, event_deltas) ->
+            forM_ (reverse event_deltas) $ \(event, delta) ->
+                update block_id track_id event delta
+    update block_id track_id event delta = do
+        Ui.remove_event track_id event
+        move_events_children block_id track_id (Event.start event) delta
+        let dur = Event.duration event + delta
+        when (Event.is_negative event) $
+            Ui.throw $ "negative events not supported yet: " <> pretty event
+        when (Event.is_negative event && dur > 0 || dur < 0) $
+            Ui.throw $ "update delta " <> pretty delta
+                <> " would invert event: " <> pretty event
+        Ui.insert_event track_id $ Event.duration_ #= dur $ event
+
+move_events_children :: Ui.M m => BlockId -> TrackId -> TrackTime -> TrackTime
+    -> m ()
+move_events_children block_id track_id start delta = do
+    children <- map Ui.track_id <$> TrackTree.get_children_of block_id track_id
+    forM_ (track_id : children) $ \track_id ->
+        Ui.modify_events track_id $ move_events start delta
 
 move_events :: TrackTime -> TrackTime -> Events.Events -> Events.Events
-move_events start delta events = pre <> Events.move delta post
-    where (pre, post) = Events.split start events
+move_events pos delta events = pre <> Events.move delta post
+    where (pre, post) = Events.split pos events
 
 -- | Merge Updates so the event updates for each track are together and in
 -- Event.start order.  TODO if a track appears on multiple blocks it'll get

@@ -479,7 +479,7 @@ update_set_style _ _ _ (track_bg, set_style) = (track_bg, set_style False)
 
 has_note_children :: Ui.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do
-    children <- fromMaybe [] <$> TrackTree.children_of block_id track_id
+    children <- TrackTree.get_children_of block_id track_id
     return $ any (ParseTitle.is_note_track . Ui.track_title) children
 
 merged_events_of :: Ui.State -> Block.Block -> TrackNum -> [Events.Events]

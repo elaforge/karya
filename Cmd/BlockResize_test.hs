@@ -85,6 +85,15 @@ test_update_callers = do
         , ("top", [(">", [(0, 5, "mid")])])
         ]
 
+    -- Children also move.
+    equal_b (run 2
+        [ ("low", [(">", [(0, 2, "")]), ("*", [(0, 0, "3c")])])
+        , ("mid", [(">", [(0, 2, "low"), (2, 0, "")]), ("*", [(2, 0, "4c")])])
+        ])
+        [ ("low", [(">", [(2, 2, "")]), ("*", [(2, 0, "3c")])])
+        , ("mid", [(">", [(0, 4, "low"), (4, 0, "")]), ("*", [(4, 0, "4c")])])
+        ]
+
 equal_b :: CallStack.Stack => [UiTest.BlockSpec] -> [UiTest.BlockSpec]
     -> IO Bool
 equal_b = equal_fmt UiTest.fmt_blocks

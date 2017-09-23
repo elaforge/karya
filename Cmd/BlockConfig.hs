@@ -145,8 +145,7 @@ cmd_add_block_title _ = do
 -- | Collapse all the children of this track.
 collapse_children :: Ui.M m => BlockId -> TrackId -> m ()
 collapse_children block_id track_id = do
-    children <- Ui.require ("no children: " <> showt track_id)
-        =<< TrackTree.children_of block_id track_id
+    children <- TrackTree.get_children_of block_id track_id
     forM_ children $ \track -> Ui.add_track_flag
         block_id (Ui.track_tracknum track) Block.Collapse
 
@@ -154,8 +153,7 @@ collapse_children block_id track_id = do
 -- when they were collapsed will be left merged.
 expand_children :: Ui.M m => BlockId -> TrackId -> m ()
 expand_children block_id track_id = do
-    children <- Ui.require ("no children: " <> showt track_id)
-        =<< TrackTree.children_of block_id track_id
+    children <- TrackTree.get_children_of block_id track_id
     merged <- mconcatMap Block.track_merged . Block.block_tracks
         <$> Ui.get_block block_id
     forM_ children $ \track ->
