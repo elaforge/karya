@@ -13,6 +13,7 @@ module Util.Testing (
     -- * assertions
     , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like
     , left_like , match
+    , Pattern
     -- ** exception assertions
     , throws
 
@@ -45,7 +46,6 @@ import qualified Control.Exception as Exception
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.IntMap as IntMap
-import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Monoid ((<>))
 import qualified Data.Set as Set
@@ -251,7 +251,7 @@ instance TextLike Text where to_text = id
 
 -- | Strings in the first list match patterns in the second list, using
 -- 'pattern_matches'.
-strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Text]
+strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Pattern]
     -> IO Bool
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
@@ -281,7 +281,7 @@ fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Text -> IO Bool
+left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Pattern -> IO Bool
 left_like gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success $
@@ -291,7 +291,7 @@ left_like gotten expected = case gotten of
     Right a ->
         failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
 
-match :: (Stack, TextLike txt) => txt -> Text -> IO Bool
+match :: (Stack, TextLike txt) => txt -> Pattern -> IO Bool
 match gotten pattern =
     (if matches then success else failure) $
         fmt_lines (if matches then "=~" else "!~")
@@ -299,10 +299,13 @@ match gotten pattern =
     where
     matches = pattern_matches pattern gotten
 
+-- | Pattern as matched by 'pattern_matches'.
+type Pattern = Text
+
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
-pattern_matches :: TextLike txt => Text -> txt -> Bool
+pattern_matches :: TextLike txt => Pattern -> txt -> Bool
 pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
     . to_text
 
@@ -317,14 +320,14 @@ pattern_to_regex =
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Stack, Show a) => a -> String -> IO Bool
-throws val exc_like =
+throws :: (Stack, Show a) => a -> Pattern -> IO Bool
+throws val exc_pattern =
     (Exception.evaluate val >> failure ("didn't throw: " <> showt val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
-        if exc_like `List.isInfixOf` show exc
+        if pattern_matches exc_pattern (showt exc)
             then success ("caught exc: " <> showt exc)
             else failure $ "exception <" <> showt exc <> "> didn't match "
-                <> showt exc_like
+                <> exc_pattern
 
 io_equal :: (Stack, Eq a, Show a) => IO a -> a -> IO Bool
 io_equal io_val expected = do
