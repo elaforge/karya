@@ -16,6 +16,7 @@ test_update_callers = do
             UiTest.mkblocks blocks
             BlockResize.update_callers (UiTest.bid "low") 0 delta
     let low = ("low", [(">", [(0, 2, "")])])
+        low2 = ("low", [(">", [(2, 2, "")])])
 
     equal_b (run 0
         [ low
@@ -31,7 +32,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
         ])
-        [ low
+        [ low2
         , ("mid", [(">", [(0, 4, "low")])])
         , ("top", [(">", [(0, 4, "mid")])])
         ]
@@ -40,7 +41,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
         ])
-        [ low
+        [ ("low", [(">", [])])
         , ("mid", [(">", [(0, 0, "low")])])
         , ("top", [(">", [(0, 0, "mid")])])
         ]
@@ -57,7 +58,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low"), (2, 2, "low"), (4, 0, "")])])
         , ("top", [(">", [(0, 2, "mid")]), (">", [(1, 2, "mid")])])
         ])
-        [ ("low", [(">", [(0, 2, "")])])
+        [ low2
         , ("mid", [(">", [(0, 4, "low"), (4, 4, "low"), (8, 0, "")])])
         , ("top", [(">", [(0, 6, "mid")]), (">", [(1, 6, "mid")])])
         ]
@@ -68,7 +69,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low")]), (">", [(0, 2, "low")])])
         , ("top", [(">", [(0, 2, "mid")])])
         ])
-        [ low
+        [ low2
         , ("mid", [(">", [(0, 4, "low")]), (">", [(0, 4, "low")])])
         , ("top", [(">", [(0, 4, "mid")])])
         ]
@@ -79,7 +80,7 @@ test_update_callers = do
         , ("mid", [(">", [(0, 2, "low")]), (">", [(1, 2, "low")])])
         , ("top", [(">", [(0, 3, "mid")])])
         ])
-        [ low
+        [ low2
         , ("mid", [(">", [(0, 4, "low")]), (">", [(1, 4, "low")])])
         , ("top", [(">", [(0, 5, "mid")])])
         ]

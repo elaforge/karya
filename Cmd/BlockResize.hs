@@ -26,9 +26,20 @@ import Types
 -- separately.
 update_callers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 update_callers block_id pos delta = do
+    modify_time block_id pos delta
     updates <- caller_updates delta block_id
     apply_updates (concatMap Foldable.toList updates)
     -- update_ruler block_id pos delta (concatMap bottoms updates)
+
+modify_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
+modify_time block_id pos delta = do
+    track_ids <- Ui.track_ids_of block_id
+    forM_ track_ids $ \track_id ->
+        Ui.modify_events track_id $ move_events pos delta . remove
+    where
+    remove
+        | delta < 0 = Events.remove (Events.Range pos (-delta))
+        | otherwise = id
 
 bottoms :: Tree.Tree a -> [a]
 bottoms (Tree.Node x []) = [x]
@@ -71,8 +82,6 @@ update_ruler block_id pos delta top_parents
 -- without duplicates.  Actually that winds up being the same problem, I think,
 -- because I have to wait until I see the last child before I know that it
 -- doesn't come from a particular parent.
-
--- To add times:
 
 -- update_rulers :: Ui.M m => TrackTime -> TrackTime
 --     -> Map BlockId (Map TrackId [(TrackTime, TrackTime)]) -> m ()
