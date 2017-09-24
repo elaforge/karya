@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - add a LInst.copy to copy an allocation to a new name
+  * add a LInst.copy to copy an allocation to a new name
   - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does k_\ and
     k//\\ (and shouldn't the last be k/\ for consistency with gangsa?).
   - binary-serialise-cbor is out and implemented by serialise, try switching

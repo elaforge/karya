@@ -253,16 +253,6 @@ replace allocs = do
 
 -- * modify
 
--- | Rename an instrument.
-rename :: Ui.M m => Instrument -> Instrument -> m ()
-rename from to = do
-    alloc <- get_allocation from
-    Ui.modify_config $ Ui.allocations %= rename alloc
-    where
-    rename alloc (UiConfig.Allocations allocs) = UiConfig.Allocations $
-        Map.insert (Util.instrument to) alloc $
-        Map.delete (Util.instrument from) allocs
-
 -- | Point an instrument at a different Qualified.
 rename_qualified :: Cmd.M m => Instrument -> Qualified -> m ()
 rename_qualified inst qualified = do
@@ -270,6 +260,25 @@ rename_qualified inst qualified = do
     Cmd.get_qualified qualified
     Ui.modify_allocation (Util.instrument inst) $ \alloc ->
         alloc { UiConfig.alloc_qualified = qualified }
+
+-- | Rename an instrument.
+rename :: Ui.M m => Instrument -> Instrument -> m ()
+rename from to = modify_allocations from $ \alloc ->
+    Map.insert (Util.instrument to) alloc
+    . Map.delete (Util.instrument from)
+
+copy :: Ui.M m => Instrument -> Instrument -> m ()
+copy from to = modify_allocations from $ Map.insert (Util.instrument to)
+
+modify_allocations :: Ui.M m => Instrument
+    -> (UiConfig.Allocation -> Map Score.Instrument UiConfig.Allocation
+        -> Map Score.Instrument UiConfig.Allocation)
+    -> m ()
+modify_allocations inst modify = do
+    alloc <- get_allocation inst
+    Ui.modify_config $ Ui.allocations %=
+        (\(UiConfig.Allocations allocs) ->
+            UiConfig.Allocations (modify alloc allocs))
 
 -- ** Common.Config
 
