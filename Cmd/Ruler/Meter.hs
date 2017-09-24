@@ -28,8 +28,10 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -107,18 +109,23 @@ extract start end =
     transform $ takeWhile ((<=end) . fst) . dropWhile ((<start) . fst)
 
 -- | Like 'extract', but also include the measure 'Start' of the extracted bit.
-extract_with_count :: Set RankName -> TrackTime -> TrackTime -> LabeledMeter
+extract_with_measure :: Config -> TrackTime -> TrackTime -> LabeledMeter
     -> (Start, LabeledMeter)
-extract_with_count labeled_ranks start end meter =
-    go 0 (zip (meter_durations meter) meter)
+extract_with_measure config start end meter =
+    go (config_start_measure config) (zip (meter_durations meter) meter)
     where
     go !n ((t, mark) : marks)
-        | t < start = go (n + inc) marks
+        | t < start = go next marks
         | otherwise =
-            (n, map snd $ takeWhile ((<=end) . fst) ((t, mark) : marks))
-        where inc = if m_rank mark <= top_rank then 1 else 0
+            (next, map snd $ takeWhile ((<=end) . fst) ((t, mark) : marks))
+        where
+        -- Don't increment for the first mark.  Otherwise I wind up counting
+        -- from config_start_measure + 1.
+        next = n + if not is_first && m_rank mark <= top_rank then 1 else 0
+        is_first = t == 0
     go n [] = (n, [])
-    top_rank = maybe 0 name_to_rank (Seq.head (Set.toAscList labeled_ranks))
+    top_rank = maybe 0 name_to_rank $ Seq.head $ Set.toAscList $
+        config_labeled_ranks config
 
 take_before :: Duration -> LabeledMeter -> LabeledMeter
 take_before p = transform $ takeWhile ((<p) . fst)
@@ -215,6 +222,7 @@ rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
 -- TODO this type is shared with Derive, maybe it should go in its own module?
 data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
+instance Pretty RankName where pretty = showt
 
 all_ranks :: [RankName]
 all_ranks = [minBound .. maxBound]
@@ -313,6 +321,18 @@ data Config = Config {
     -- | Key to 'Ruler.config_name'.
     , config_name :: !Text
     }
+
+instance Pretty Config where
+    format (Config labeled_ranks label_components start_measure min_depth
+            strip_depth name) =
+        Pretty.record "Config"
+            [ ("labeled_ranks", Pretty.format labeled_ranks)
+            , ("label_components", Pretty.format label_components)
+            , ("start_measure", Pretty.format start_measure)
+            , ("min_depth", Pretty.format min_depth)
+            , ("strip_depth", Pretty.format strip_depth)
+            , ("name", Pretty.format name)
+            ]
 
 ruler_config :: Config -> Ruler.MeterConfig
 ruler_config config = Ruler.MeterConfig
@@ -495,6 +515,7 @@ type Label = Text
 
 instance Show LabelComponents where
     show (LabelComponents labels) = show $ map ((++["..."]) . take 10) labels
+instance Pretty LabelComponents where pretty = showt
 
 -- | Convert label components to label lists based on the given ranks.
 convert_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,

@@ -4,7 +4,7 @@
 
 -- | Export 'meter'.  This has to be separate from "Cmd.Ruler.Meter" to
 -- avoid a circular dependency.
-module Cmd.Ruler.Modify (meter, renumber) where
+module Cmd.Ruler.Modify (meter, renumber, configs) where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq

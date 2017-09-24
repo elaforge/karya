@@ -4,6 +4,7 @@
 
 module Cmd.Ruler.Extract (pull_up, push_down) where
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
@@ -12,6 +13,7 @@ import qualified Ui.Ui as Ui
 
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import Global
@@ -41,12 +43,11 @@ block_calls block_id track_id = map (second NonEmpty.head) <$>
 -- * push_down
 
 -- | The inverse of 'pull_up': find callee blocks, and copy the ruler from the
--- given block to them.  This sets the ruler start count appropriately.
+-- given block to them.  This sets the 'Ruler.config_start_measure'
+-- appropriately, so subsequent modifications should keep the measure numbers.
 --
--- If a callee occurs only once, and is 1:1 with the caller, copy the caller's
--- ruler.  Otherwise warn about that call and skip it.
---
--- Optionally I could scale the ruler for non-1:1 callees.
+-- If a block is called more than once, it will get the measure number from the
+-- first occurrence.
 --
 -- Since this has to modify multiple blocks, it does the modification itself
 -- instead of returning the new meter like 'pull_up'.
@@ -54,12 +55,14 @@ push_down :: Ui.M m => Bool
     -- ^ Whether or not it's an error if there are block calls which are not
     -- 1:1.  I can't tell if that's an error or not, but the user should know
     -- if it's supposed to be a \"score\" block.
+    --
+    -- TODO Optionally I could scale the ruler for non-1:1 callees.
      -> BlockId -> TrackId -> m ()
 push_down not_1to1_ok block_id track_id = do
     (subs, not_1to1) <- sub_meters block_id track_id
     unless (not_1to1_ok || null not_1to1) $
         Ui.throw $ "block calls not 1:1: " <> pretty not_1to1
-    mapM_ set subs
+    mapM_ set (Seq.drop_dups fst subs)
     where
     set (block_id, (config, marks)) = RulerUtil.local RulerUtil.Block block_id $
         Right . Ruler.set_meter config marks
@@ -71,17 +74,26 @@ sub_meters block_id track_id = do
     (subs, not_1to1) <- partitionM
         (\(event, callee) -> is_1to1 (Event.duration event) callee)
         subs
-    (config, meter) <- get_meter block_id
-    let get (event, block_id) = (block_id,)
-            ( config
-            , extract_marks (Event.start event) (Event.duration event) meter
-            )
-    return (map get subs, map snd not_1to1)
+    subs <- forM subs $ \(event, sub_block) -> do
+        (config, meter) <- extract_meter block_id
+            (Event.start event) (Event.end event)
+        return (sub_block, (config, Meter.labeled_marklist meter))
+    return (subs, map snd not_1to1)
 
-extract_marks :: TrackTime -> TrackTime -> Ruler.Marklist -> Ruler.Marklist
-extract_marks start dur =
-    Ruler.marklist . takeWhile ((<=dur) . fst) . map (first (subtract start))
-    . Ruler.ascending start
+extract_meter :: Ui.M m => BlockId -> TrackTime -> TrackTime
+    -> m (Ruler.MeterConfig, Meter.LabeledMeter)
+extract_meter block_id start end = do
+    (config, meter) <- get_meter block_id
+    Ui.require "" $ extract_marks config start end $
+        Meter.marklist_labeled meter
+
+extract_marks :: Ruler.MeterConfig -> TrackTime -> TrackTime
+    -> Meter.LabeledMeter -> Maybe (Ruler.MeterConfig, Meter.LabeledMeter)
+extract_marks m_config start end meter = do
+    config <- Map.lookup (Ruler.config_name m_config) Modify.configs
+    let (start_measure, extracted) =
+            Meter.extract_with_measure config start end meter
+    return (m_config { Ruler.config_start_measure = start_measure }, extracted)
 
 get_meter :: Ui.M m => BlockId -> m (Ruler.MeterConfig, Ruler.Marklist)
 get_meter = fmap Ruler.get_meter . Ui.get_ruler <=< Ui.ruler_of

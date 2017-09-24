@@ -10,6 +10,7 @@ import Util.Test
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Create as Create
+import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Extract as Extract
 import qualified Cmd.Ruler.Meter as Meter
 
@@ -40,7 +41,7 @@ test_pull_up = do
         ]
 
 test_push_down = do
-    let make = UiTest.run Ui.empty $ do
+    let make = do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
                 , ("b1=ruler", [(">", [(0, 10, "")])])
@@ -51,16 +52,19 @@ test_push_down = do
             mapM_ (Create.set_block_ruler Ui.no_ruler) [b1, b2]
             return top
         meter_ruler = Meter.fit_ruler Meter.default_config
-    let run = extract $ UiTest.exec ui_state $
+    let state = UiTest.exec ui_state $
             Extract.push_down True top (UiTest.mk_tid_block top 1)
-            where (top, ui_state) = make
+            where (top, ui_state) = UiTest.run Ui.empty make
         extract st =
             [(bid, e_ruler bid st) | bid <- Map.keys (Ui.state_blocks st)]
-    equal run
+    equal (extract state)
         [ (UiTest.bid "b1", "1 .2 .3 .4 2 .2 .3 .4 3 .2 .3")
         , (UiTest.bid "b2", ".3 .4 4 .2 .3 .4 5")
         , (UiTest.bid "top", "1 .2 .3 .4 2 .2 .3 .4 3 .2 .3 .4 4 .2 .3 .4 5")
         ]
+    let b2_ruler = UiTest.eval state $
+            Ui.get_ruler =<< Ui.ruler_of (UiTest.bid "b2")
+    equal (Ruler.config_start_measure $ fst $ Ruler.get_meter b2_ruler) 3
 
 e_ruler :: BlockId -> Ui.State -> Text
 e_ruler bid ustate = UiTest.eval ustate $
