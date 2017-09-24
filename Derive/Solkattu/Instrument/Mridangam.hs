@@ -170,6 +170,11 @@ set_thoppi _ (Valantalai v) = Valantalai v
 set_thoppi t (Both _ v) = Both t v
 set_thoppi t (Thoppi _) = Thoppi t
 
+add_thoppi :: Thoppi -> Stroke -> Stroke
+add_thoppi t (Valantalai v) = Both t v
+add_thoppi t (Both _ v) = Both t v
+add_thoppi t (Thoppi _) = Thoppi t
+
 -- * postprocess
 
 postprocess :: [Technique.MetaNote Stroke] -> [Technique.MetaNote Stroke]

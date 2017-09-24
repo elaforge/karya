@@ -17,6 +17,8 @@ UNSORTED
       depending on tag/version.
   - insert/delete time is messed up for negative events.
     . Go to 2.5, invert the event, ^j two times and the event is duplicated.
+  - cmd-T Create.insert_brach should put the new track to the right of the
+    selection, not at the end of the block.
   tabuh gari:
     - infer-damp for trompong, or better reyong one
     - double strike, like 'oo'
@@ -2746,11 +2748,11 @@ Derive:
           k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
       - format: if the ruler changes after an avartanam line break, show the
         partial ruler, e.g. Realize_test.test_format_nadai_change
-      - I could have an 'elide' annotation.  It deletes the previous notes
+      - I could have an 'sandi' annotation.  It deletes the previous notes
         so far as they match the next ones.
-        . E.g. tri_ (din.__) p7 . elide . p7.p6.p5
+        . E.g. tri_ (din.__) p7 . sandi . p7.p6.p5
           or: tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
-            . elide . tri_ (din.__2) (ta.ta.ka.din.na.din)
+            . sandi . tri_ (din.__2) (ta.ta.ka.din.na.din)
         . To keep if from eliding large repeats, it should stop at the
           shortest match.  But then if it happens to end and start with the
           same sollu it will just drop that single sollu.

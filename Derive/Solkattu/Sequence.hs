@@ -16,6 +16,7 @@ module Derive.Solkattu.Sequence (
     -- * transform
     , map_group, flatten_groups
     , simplify
+    , map1
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
@@ -144,6 +145,13 @@ simplify = merge . concatMap cancel
     merge [] = []
     same_change change (TempoChange c ns) | change == c = Just ns
     same_change _ _ = Nothing
+
+-- | Transform only the first Note.
+map1 :: (a -> a) -> Note g a -> Note g a
+map1 f n = case n of
+    Note a -> Note (f a)
+    TempoChange change ns -> TempoChange change (Seq.map_head (map1 f) ns)
+    Group g ns -> Group g (Seq.map_head (map1 f) ns)
 
 -- * flatten
 

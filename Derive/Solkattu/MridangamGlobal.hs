@@ -14,7 +14,7 @@ module Derive.Solkattu.MridangamGlobal (
     , korvai, korvai1
     , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l
-    , closed
+    , closed, thom_lh, o1
     , lt, hv
     , module Derive.Solkattu.Dsl
     -- * fragments
@@ -89,20 +89,35 @@ on = o&n
 
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
-closed = map_stroke $ \s -> case s of
+closed = map_mstroke $ \s -> case s of
     Mridangam.Thoppi Mridangam.Thom -> Mridangam.Thoppi Mridangam.Tha
     Mridangam.Both Mridangam.Thom a -> Mridangam.Both Mridangam.Tha a
     _ -> s
 
-map_stroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
-map_stroke = fmap • fmap • fmap • fmap
+thom_lh :: Sequence -> Sequence
+thom_lh = map_note $ \note -> if note `elem` [n, d] then o else __
+    where
+    Mridangam.Strokes {..} = Solkattu.Note • Solkattu.note • Realize.stroke <$>
+        Mridangam.strokes
+
+-- | Add a 'o' to the first stroke.
+o1 :: Sequence -> Sequence
+o1 = Seq.map_head $ Sequence.map1 $ fmap $ fmap $
+    Mridangam.add_thoppi Mridangam.Thom
 
 lt, hv :: Sequence -> Sequence
-lt = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
-hv = modify_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
+lt = map_stroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
+hv = map_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
-modify_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
-modify_stroke modify = map (fmap (fmap modify))
+map_mstroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
+map_mstroke = fmap • fmap • fmap • fmap
+
+map_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
+map_stroke = fmap • fmap • fmap
+
+map_note :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
+    -> Sequence -> Sequence
+map_note = fmap • fmap
 
 -- * fragments
 

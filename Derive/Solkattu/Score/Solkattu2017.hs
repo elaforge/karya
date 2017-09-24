@@ -474,6 +474,7 @@ c_17_08_21 :: Korvai
 c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
     map (__sam adi)
     [ tri_ (1^tang.__.ga) (su (kitataka.tarikita.taka) . tat.din.na)
+    , tri_ (tang.__.ga) (su (tarikita.taka) . tat.din.na)
     , tri_ (tang.__.ga) (su t2)
     , tri_ (1^tang.__.ga) (tri $ su $ talang.__.ga)
     ]
@@ -481,6 +482,7 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
     t2 = takadinna.takadinna.na.ka.din.na
     mridangam = make_mridangam
         [ (kitataka.tarikita.taka, [p, k, t, p, k, t, k, t, p, k])
+        , (tarikita.taka, [k, t, k, t, p, k])
         , (tat.din.na, [o, od, k])
         , (1^tang.__.ga, [od, k]) -- avoid double thoppi
         , (tang.__.ga, [od, o])
@@ -488,4 +490,20 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
         , (takadinna.takadinna.na.ka.din.na,
             [k, o, o, k, t, o, o, k, n, o, o, k])
         , (talang.ga, [p, u, k])
+        ]
+
+c_17_08_29 :: Korvai
+c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
+    [ sarvaD 7 . sarvaD 3   . theme.ta.__.din
+    , sarvaD 7 . sarvaD 3   . theme.ta.__
+        . repeat 2 (dit.__4 . sarvaD 2 . theme.ta.__)
+        . theme . theme
+    ]
+    where
+    theme = group $ ta.__.ta.tanga.ta.tanga.ta.tanga -- 7 matras
+    mridangam = make_mridangam
+        [ (ta, [n])
+        , (ta.tanga, [n, d, p])
+        , (ta.din, [on, od])
+        , (ta.dit, [n, n])
         ]

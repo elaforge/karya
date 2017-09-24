@@ -36,9 +36,11 @@ type SequenceT sollu = [S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)]
 
 class Rest a where __ :: a
 instance Rest (SequenceT sollu) where
-    __ = [S.Note (Solkattu.Space Solkattu.Rest)]
+    __ = [S.Note __]
 instance Rest (Realize.SNote sollu) where
     __ = Realize.rest
+instance Rest (Solkattu.Note sollu) where
+    __ = Solkattu.Space Solkattu.Rest
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
