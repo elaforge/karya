@@ -494,16 +494,40 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
 
 c_17_08_29 :: Korvai
 c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
-    [ sarvaD 7 . sarvaD 3   . theme.ta.__.din
-    , sarvaD 7 . sarvaD 3   . theme.ta.__
-        . repeat 2 (dit.__4 . sarvaD 2 . theme.ta.__)
-        . theme . theme
+    [ sarvaD 7 . sarvaD 3   . theme.na.__.din
+    , dit.__4 . sarvaD 2 . theme . na.__
+    , repeat 2 $ dit.__4 . sarvaD 2 . tri theme . na.__
+
+    , tri_ (tat.__4.tam.__8) (t1.t2.t3)
+        . sandi (t2.t3) (tri_ (tat.__4.tam.__8) (t2.t3))
+        . sandi t3      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t3))
+        . tat.__.tam
+    -- (4 3 2) 2 4
+    -- (4 3 2) 2 4
+    -- (4 3 2) 2 4
+    --   (3 2) 2 4
+    --   (3 2) 2 2
+    --     (2) 2 2
+    --     (2) 1 4
+    --     (2) 2 2
+    --     (2) 2 2
+    --     (2) 1 4
+    --     (2) 2 2
+    --     (2) 2 2
+    --     (2) 1
     ]
     where
-    theme = group $ ta.__.ta.tanga.ta.tanga.ta.tanga -- 7 matras
+    theme = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
+    [t1, t2, t3] = take 3 $ reduceToL 0 2 theme2
+    theme2 = na.__.na.__.na.dinga
     mridangam = make_mridangam
-        [ (ta, [n])
-        , (ta.tanga, [n, d, p])
-        , (ta.din, [on, od])
-        , (ta.dit, [n, n])
+        [ (na, [n])
+        , (na.dinga, [n, d, p])
+        , (na.din, [on, od])
+        , (dit, [n])
+
+        , (theme2, [on, on, on, od, o])
+        , (tat, [on])
+        , (tam, [u])
+        , (mid^tam, [i])
         ]

@@ -191,6 +191,12 @@ rdropM = rdropD . mToD
 takeM = takeD . mToD
 rtakeM = rtakeD . mToD
 
+-- | Drop sollus equal in length to some others.  This is intenedd for
+-- repeated sequences that get elided away, e.g. @tri p7 . sandi p7 (p7.p6.p5)@.
+sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
+    -> SequenceT sollu
+sandi dropped = dropM (matrasOf dropped)
+
 matrasOf :: CallStack.Stack => SequenceT sollu -> Matra
 matrasOf = Solkattu.check . matrasOfE
 
@@ -225,9 +231,11 @@ dropS n = snd . splitS n
 tri :: SequenceT sollu -> SequenceT sollu
 tri = tri_ mempty
 
--- | Repeat thrice, with the given separator.
-tri_ :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+-- | Repeat thrice, with the given separator.  The _m variant doesn't
+-- add the 'mid' tag, which is useful for nested calls.
+tri_, tri_m :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tri_ sep a = a <> sep <> a <> try_set_tag mid sep <> a
+tri_m sep a = a <> sep <> a <> sep <> a
 
 -- | Three different patterns with the same separator.
 trin :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu

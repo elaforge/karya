@@ -2748,7 +2748,7 @@ Derive:
           k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
       - format: if the ruler changes after an avartanam line break, show the
         partial ruler, e.g. Realize_test.test_format_nadai_change
-      - I could have an 'sandi' annotation.  It deletes the previous notes
+      * I could have an 'sandi' annotation.  It deletes the previous notes
         so far as they match the next ones.
         . E.g. tri_ (din.__) p7 . sandi . p7.p6.p5
           or: tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
@@ -2756,6 +2756,13 @@ Derive:
         . To keep if from eliding large repeats, it should stop at the
           shortest match.  But then if it happens to end and start with the
           same sollu it will just drop that single sollu.
+        . I can do it much more simply by supplying the elided sequence
+          explicitly and using dropM (matrasOf x).  This might even be
+          better, because it gets harder to read when there are these
+          implicit notations.
+      - dropM shouldn't make a new group if there already is one, e.g.
+        dropM n (group x . y) puts both x and y into a group, instead of
+        leaving y out.
       - Notation {take,drop}M functions get matras via duration_of and
         divide, while matras_of counts matras directly.  I'm not totally
         sure what the difference is and which one is correct.

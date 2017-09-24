@@ -27,3 +27,13 @@ c_17_08_13 = korvai1 adi $ su $ mconcat
     ,                                            od.__3
     , tri_ (u.__3) (tri p5)
     ]
+
+
+e_1 :: Korvai
+e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi $
+    [ pkt . t.k.t.k . d.n.pk . t.k.t.k . repeat 3 (d.n.pk)
+    , pkt . repeat 3 (t.k.t.k . d.n.pk)
+    , su (repeat 6 pkt) . nakatiku
+    ]
+    where
+    pkt = p.kt.p.kt.pk
