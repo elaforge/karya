@@ -19,7 +19,8 @@ UNSORTED
     . Go to 2.5, invert the event, ^j two times and the event is duplicated.
   * cmd-T Create.insert_brach should put the new track to the right of the
     selection, not at the end of the block.
-    - It could copy the collapsed status too.
+    * It could copy the collapsed status too.
+  - Adding a new track puts a bit of extra padding on the right side.
   tabuh gari:
     - infer-damp for trompong, or better reyong one
     - double strike, like 'oo'

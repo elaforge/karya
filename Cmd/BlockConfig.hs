@@ -76,7 +76,7 @@ toggle_merge block_id tracks = do
         [ Ui.track_tracknum note
         | Info.Track note (Info.Note {}) <- tracks
         ]
-    ifM (allM (track_merged block_id) tracknums)
+    ifM (allM (Ui.track_merged block_id) tracknums)
         (mapM_ (Ui.unmerge_track block_id) tracknums)
         (mapM_ (\t -> Ui.merge_track block_id t (t+1)) tracknums)
     where
@@ -84,10 +84,6 @@ toggle_merge block_id tracks = do
     no_parents (t1:t2:ts) | t1 + 1 == t2 = no_parents (t2:ts)
     no_parents (t:ts) = t : no_parents ts
     no_parents [] = []
-
-track_merged :: Ui.M m => BlockId -> TrackNum -> m Bool
-track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
-    Ui.get_block_track_at block_id tracknum
 
 mergeable :: Ui.M m => BlockId -> [TrackNum] -> m [TrackNum]
 mergeable block_id =

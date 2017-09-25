@@ -93,6 +93,7 @@ module Ui.Ui (
     , modify_track_flags
     , set_track_ruler
     , merge_track, unmerge_track, set_merged_tracks
+    , track_merged
     , set_ruler_ids, replace_ruler_id
     , get_tracklike
 
@@ -1036,6 +1037,10 @@ set_merged_tracks :: M m => BlockId -> TrackNum -> Set TrackId -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
+
+track_merged :: M m => BlockId -> TrackNum -> m Bool
+track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
+    get_block_track_at block_id tracknum
 
 -- | Set rulers, one per track.
 set_ruler_ids :: M m => BlockId -> [Maybe RulerId] -> m ()

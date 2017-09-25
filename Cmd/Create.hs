@@ -389,14 +389,19 @@ insert_branch_from block_id source = do
     (track, parents) <- Cmd.require ("not found: "<>pretty (block_id, source)) $
         Tree.find_with_parents ((==source) . Ui.track_tracknum) tree
     let right = maximum (Ui.track_tracknum <$> track) + 1
-    append_below right track
+    merged <- Ui.track_merged block_id source
+    append_below merged right track
     whenJust (Seq.head parents) $ \(Tree.Node parent _) ->
         Ui.add_edges block_id [(Ui.track_tracknum parent, right)]
     where
     -- Starting at tracknum, insert track and its children.
-    append_below tracknum track_node = do
+    append_below merged tracknum track_node = do
         forM_ tracks $ \(n, title) -> track block_id n title mempty
         Ui.add_edges block_id skel
+        -- Technically it's not necessarily merged with its neighbor, but
+        -- that's how the usual cmds work, so I'll assume it's true.
+        when merged $
+            Ui.merge_track block_id tracknum (tracknum+1)
         where (tracks, skel) = make_tracks tracknum [track_node]
 
 make_tracks :: TrackNum -> TrackTree.TrackTree
