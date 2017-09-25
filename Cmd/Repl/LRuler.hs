@@ -371,10 +371,12 @@ pull_up = do
     return $ make_modify block_id tracknum $
         Ruler.Modify.meter (const all_meters)
 
-push_down :: Cmd.M m => m ()
-push_down = do
+push_down :: Cmd.M m => Bool -> m ()
+push_down recursive = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Extract.push_down False block_id track_id
+    if recursive
+        then Extract.push_down_recursive False block_id track_id
+        else void $ Extract.push_down False block_id track_id
 
 -- * modify
 

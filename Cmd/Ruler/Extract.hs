@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Ruler.Extract (pull_up, push_down) where
+module Cmd.Ruler.Extract (pull_up, push_down, push_down_recursive) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
@@ -16,6 +16,7 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
+import qualified Derive.ParseTitle as ParseTitle
 import Global
 import Types
 
@@ -57,15 +58,26 @@ push_down :: Ui.M m => Bool
     -- if it's supposed to be a \"score\" block.
     --
     -- TODO Optionally I could scale the ruler for non-1:1 callees.
-     -> BlockId -> TrackId -> m ()
+     -> BlockId -> TrackId -> m [BlockId] -- ^ modified children
 push_down not_1to1_ok block_id track_id = do
     (subs, not_1to1) <- sub_meters block_id track_id
     unless (not_1to1_ok || null not_1to1) $
         Ui.throw $ "block calls not 1:1: " <> pretty not_1to1
-    mapM_ set (Seq.drop_dups fst subs)
+    let sub_blocks = Seq.drop_dups fst subs
+    mapM_ set sub_blocks
+    return $ map fst sub_blocks
     where
     set (block_id, (config, marks)) = RulerUtil.local RulerUtil.Block block_id $
         Right . Ruler.set_meter config marks
+
+push_down_recursive :: Ui.M m => Bool -> BlockId -> TrackId -> m ()
+push_down_recursive not_1to1_ok block_id track_id = do
+    children <- push_down not_1to1_ok block_id track_id
+    forM_ children $ \child_block -> do
+        track_ids <- filterM is_note =<< Ui.track_ids_of child_block
+        mapM_ (push_down_recursive not_1to1_ok child_block) track_ids
+    where
+    is_note = fmap ParseTitle.is_note_track . Ui.get_track_title
 
 sub_meters :: Ui.M m => BlockId -> TrackId
     -> m ([(BlockId, (Ruler.MeterConfig, Ruler.Marklist))], [BlockId])
