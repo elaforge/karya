@@ -17,7 +17,6 @@
 -}
 module Cmd.Create where
 import qualified Control.Monad.State.Strict as Monad.State
-import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -34,11 +33,11 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -382,33 +381,23 @@ insert_branch = do
     insert_branch_from block_id tracknum
     widen =<< Cmd.get_focused_view
 
--- | Insert tracks using the given one and its children as a template.
--- If the source track has a parent, the new tracks are spliced below its
--- rightmost child, otherwise they are appended.  The effect is to copy the
--- branch below the selection.
+-- | Insert tracks using the given one and its children as a template.  The
+-- effect is to copy the branch below the selection.
 insert_branch_from :: Cmd.M m => BlockId -> TrackNum -> m ()
 insert_branch_from block_id source = do
     tree <- TrackTree.track_tree_of block_id
-    case Tree.find_with_parents ((==source) . Ui.track_tracknum) tree of
-        Nothing -> Cmd.throw $ "selected track doesn't exist: "
-            <> showt (block_id, source)
-        Just (track, parents)
-            -- If there's a parent, find it's right most child.
-            | Tree.Node parent siblings : _ <- parents -> do
-                let at = rightmost siblings + 1
-                append_below at track
-                Ui.add_edges block_id [(Ui.track_tracknum parent, at)]
-            -- Otherwise, take the rightmost of the block.
-            | otherwise -> append_below (rightmost tree + 1) track
+    (track, parents) <- Cmd.require ("not found: "<>pretty (block_id, source)) $
+        Tree.find_with_parents ((==source) . Ui.track_tracknum) tree
+    let right = maximum (Ui.track_tracknum <$> track) + 1
+    append_below right track
+    whenJust (Seq.head parents) $ \(Tree.Node parent _) ->
+        Ui.add_edges block_id [(Ui.track_tracknum parent, right)]
     where
     -- Starting at tracknum, insert track and its children.
     append_below tracknum track_node = do
         forM_ tracks $ \(n, title) -> track block_id n title mempty
         Ui.add_edges block_id skel
         where (tracks, skel) = make_tracks tracknum [track_node]
-    rightmost :: TrackTree.TrackTree -> Int
-    rightmost = foldl' max 0
-        . map (Foldable.foldl' (\x -> max x . Ui.track_tracknum) 0)
 
 make_tracks :: TrackNum -> TrackTree.TrackTree
     -> ([(TrackNum, Text)], [(TrackNum, TrackNum)])
