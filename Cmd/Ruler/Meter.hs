@@ -103,16 +103,21 @@ meter_durations = scanl (+) 0 . map m_duration
 ruler_meter :: Ruler.Ruler -> LabeledMeter
 ruler_meter = marklist_labeled . snd . Ruler.get_meter
 
--- | Extract the inclusive range from start to end.
+-- | Extract an inclusive range.
 extract :: TrackTime -> TrackTime -> LabeledMeter -> LabeledMeter
 extract start end =
     transform $ takeWhile ((<=end) . fst) . dropWhile ((<start) . fst)
+
+-- | Extract a half-open range.
+extract' :: TrackTime -> TrackTime -> LabeledMeter -> LabeledMeter
+extract' start end =
+    transform $ takeWhile ((<end) . fst) . dropWhile ((<start) . fst)
 
 -- | Like 'extract', but also include the measure 'Start' of the extracted bit.
 extract_with_measure :: Config -> TrackTime -> TrackTime -> LabeledMeter
     -> (Start, LabeledMeter)
 extract_with_measure config start end meter =
-    go (config_start_measure config) (zip (meter_durations meter) meter)
+    go (config_start_measure config) (with_starts meter)
     where
     go !n ((t, mark) : marks)
         | t < start = go next marks
@@ -135,13 +140,16 @@ drop_until p = transform $ dropWhile ((<p) . fst)
 
 transform :: ([(Duration, LabeledMark)] -> [(Duration, LabeledMark)])
     -> LabeledMeter -> LabeledMeter
-transform modify meter = map snd $ modify $ zip (meter_durations meter) meter
+transform modify = map snd . modify . with_starts
+
+with_starts :: LabeledMeter -> [(Duration, LabeledMark)]
+with_starts meter = zip (meter_durations meter) meter
 
 -- | Remove the half-open range.
 delete :: Duration -> Duration -> LabeledMeter -> LabeledMeter
 delete start end meter = map snd pre ++ map snd post
     where
-    (pre, within) = break ((>=start) . fst) (zip (meter_durations meter) meter)
+    (pre, within) = break ((>=start) . fst) (with_starts meter)
     post = dropWhile ((<end) . fst) within
 
 strip_ranks :: Ruler.Rank -> LabeledMeter -> LabeledMeter

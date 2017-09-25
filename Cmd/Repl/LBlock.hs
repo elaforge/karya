@@ -280,10 +280,31 @@ add_time :: Cmd.M m => m ()
 add_time = do
     sel <- Selection.get
     block_id <- Cmd.get_focused_block
-    BlockResize.update_callers block_id (Sel.min sel) (Sel.duration sel)
+    updates <- BlockResize.update_callers block_id (Sel.min sel)
+        (Sel.duration sel)
+    BlockResize.push_down_rulers updates
 
 remove_time :: Cmd.M m => m ()
 remove_time = do
     sel <- Selection.get
     block_id <- Cmd.get_focused_block
-    BlockResize.update_callers block_id (Sel.min sel) (- Sel.duration sel)
+    updates <- BlockResize.update_callers block_id (Sel.min sel)
+        (- Sel.duration sel)
+    BlockResize.push_down_rulers updates
+
+-- | Like 'add_time' and 'remove_time', except this will splice the selected
+-- bit of ruler into the corresponding times in the top track.  This is useful
+-- if there are changing time signatures, and you want to move future time
+-- signatures along with the events.
+add_time_ruler :: Cmd.M m => m [BlockId]
+add_time_ruler = do
+    sel <- Selection.get
+    block_id <- Cmd.get_focused_block
+    BlockResize.update_callers_rulers block_id (Sel.min sel) (Sel.duration sel)
+
+remove_time_ruler :: Cmd.M m => m [BlockId]
+remove_time_ruler = do
+    sel <- Selection.get
+    block_id <- Cmd.get_focused_block
+    BlockResize.update_callers_rulers block_id (Sel.min sel)
+        (- Sel.duration sel)

@@ -532,8 +532,6 @@ default_ruler = mkruler_44 32 1
 default_block_end :: ScoreTime
 default_block_end = Ruler.time_end default_ruler
 
-type Marks = [(ScoreTime, Ruler.Rank)]
-
 no_ruler :: Ruler.Ruler
 no_ruler = ruler []
 
@@ -547,14 +545,25 @@ step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
 mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
-mkruler_44 marks dist = ruler $ take (marks + 1) $
-    zip (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4])
+mkruler_44 marks dist = ruler_ $ meter_marklist $ take (marks + 1) $
+    zip3 (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4]) labels
+    where
+    labels = concatMap measure [1..]
+        where
+        measure n = map (showt n <>) ["", ".2", ".3", ".4"]
 
-ruler :: Marks -> Ruler.Ruler
-ruler marks = ruler_ (mkmarklist marks)
+meter_marklist :: [(TrackTime, Ruler.Rank, Text)] -> Ruler.Marklist
+meter_marklist marks =
+    Ruler.marklist [(t, mark rank label) | (t, rank, label) <- marks]
+    where
+    mark rank label = Ruler.null_mark
+        { Ruler.mark_rank = rank, Ruler.mark_name = label }
 
-mkmarklist :: Marks -> Ruler.Marklist
-mkmarklist = Ruler.marklist . map (second mark)
+ruler :: [(TrackTime, Ruler.Rank)] -> Ruler.Ruler
+ruler marks = ruler_ (mk_marklist marks)
+
+mk_marklist :: [(TrackTime, Ruler.Rank)] -> Ruler.Marklist
+mk_marklist = Ruler.marklist . map (second mark)
     where
     mark rank = Ruler.null_mark
         { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }

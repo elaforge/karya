@@ -70,8 +70,13 @@ UNSORTED
     * Insert/delete time that propagates up to callers.
       * Add the time in the bottom block.
       * When I move events, move the children too.
-    - When I add time, I need to also update the ruler.
+    * When I add time, I need to also update the ruler.
       . This is tricky because I need to know where to delete or add ruler.
+      . If there are multiple note tracks, then I can't know which one should
+        get ruler changes, but it should only be one.  I could guess the first
+        one, or the one with the most calls, but let's just require that there
+        is a single one.
+      . For this I need to keep track of the update offset within the event.
       . Implement update_ruler:
         . 'caller_updates' has to return a call tree, along with the caller
           positions.

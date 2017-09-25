@@ -4,33 +4,54 @@
 
 -- | Support to add or remove time in a score, and have it propagate up to
 -- callers.
-module Cmd.BlockResize where
+module Cmd.BlockResize (
+    update_callers_rulers, update_callers, push_down_rulers
+) where
 import qualified Data.Foldable as Foldable
-import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified Util.Map
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Ruler as Ruler
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.Ruler.Extract as Extract
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Modify as Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
+
 import qualified Derive.ParseTitle as ParseTitle
 import Global
 import Types
 
 
--- | Presumably the block has changed size.  Find its callers and update the
--- event durations.  This doesn't update any rulers, so that should be done
--- separately.
-update_callers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
+update_callers_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime
+    -> m [BlockId]
+update_callers_rulers block_id pos delta = do
+    updates <- update_callers block_id pos delta
+    update_rulers block_id pos delta (concatMap bottoms updates)
+    return $ map fst $ concatMap Foldable.toList updates
+
+-- | The block has changed size by adding or removing time at the given point.
+-- Find its callers and update the event durations.  This doesn't update any
+-- rulers, so call either 'push_down_rulers' or 'update_callers_rulers'.
+update_callers :: Ui.M m => BlockId -> TrackTime -> TrackTime
+    -> m [Tree.Tree Update]
 update_callers block_id pos delta = do
     modify_time block_id pos delta
-    updates <- caller_updates delta block_id
-    apply_updates (concatMap Foldable.toList updates)
-    -- update_ruler block_id pos delta (concatMap bottoms updates)
+    updates <- caller_updates [pos] block_id
+    apply_updates delta (concatMap Foldable.toList updates)
+    return updates
+
+push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
+push_down_rulers updates =
+    mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
 
 modify_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 modify_time block_id pos delta = do
@@ -46,60 +67,13 @@ bottoms :: Tree.Tree a -> [a]
 bottoms (Tree.Node x []) = [x]
 bottoms (Tree.Node _ subs) = concatMap bottoms subs
 
-{-
--- | If delta is positive, clip out the ruler there and insert it in the
--- topmost parents.  If negative, that amount of ruler has been deleted, so
--- delete the corresponding time in the parents.
---
--- Then call Ruler.Extract.push_down to update intermediate blocks.
--- TODO maybe skip that if there aren't any.
-update_ruler :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
-update_ruler block_id pos delta top_parents
-    | delta > 0 = undefined
-    | delta < 0 = mapM_ remove . Map.toList $ merge_updates top_parents
-    | otherwise = return ()
-    where
-    -- Sort from high to low start times.
-    -- For this I think I Should put all the evnts togeth.r
-    remove (block_id, tracks) =
-        forM_ (Map.toList tracks) $ \(track_id, events) -> do
-            undefined
-    -- TODO now I don't know where in the event to remove the ruler.
-    -- I can get it because it's the caller's event start + pos.
-    -- I could actually use this on the intermediate blocks, and avoid
-    -- push_down.
-    -- Well, except I want to renumber measures.  Maybe copy all marks in here,
-    -- and then at the top level, do a renumber on all affected blocks.
-    -- I still have to go top to bottom for that though.
 
-    -- Ruler.Extract.push_down False block_id track_id
--}
+-- * apply_updates
 
--- To copy the ruler I still have to go child to parent.  So it has to be in
--- order, so Map is out.  I just need to make sure I do all the children before
--- the parent, so it should work if I go breadth first, and then collecting at
--- the last BlockId.
--- The other way is to merge the trees, or figure out how to create the tree
--- without duplicates.  Actually that winds up being the same problem, I think,
--- because I have to wait until I see the last child before I know that it
--- doesn't come from a particular parent.
-
--- update_rulers :: Ui.M m => TrackTime -> TrackTime
---     -> Map BlockId (Map TrackId [(TrackTime, TrackTime)]) -> m ()
--- update_rulers pos delta top_parents
---     | delta < 0 = mapM_ remove . Map.toList top_parents
---     where
---     remove (block_id, tracks) = do
---         let ranges = Util.ranges,e
---         forM_ (Map.toList tracks) $ \(track_id, ranges) -> do
---             RulerUtil.local_block block_id
-
--- To insert time: remove the given event, move everything below on the same
+-- | To insert time: remove the given event, move everything below on the same
 -- track down, then reinsert.
---
--- The block duration changes by te sum of the deltas under that BlockId.
-apply_updates :: Ui.M m => [Update] -> m ()
-apply_updates = mapM_ apply . Map.toList . merge_updates
+apply_updates :: Ui.M m => TrackTime -> [Update] -> m ()
+apply_updates delta = mapM_ apply . Map.toList . merge_updates delta
     where
     apply (block_id, tracks) =
         forM_ (Map.toList tracks) $ \(track_id, event_deltas) ->
@@ -130,46 +104,41 @@ move_events pos delta events = pre <> Events.move delta post
 -- | Merge Updates so the event updates for each track are together and in
 -- Event.start order.  TODO if a track appears on multiple blocks it'll get
 -- too many updates.
-merge_updates :: [Update]
+merge_updates :: TrackTime -> [Update]
     -> Map BlockId (Map TrackId [(Event.Event, TrackTime)])
-merge_updates =
-    fmap (fmap merge . Map.fromListWith (++) . map swap) . Map.fromListWith (++)
+merge_updates delta =
+    fmap (fmap merge . Util.Map.multimap) . Util.Map.multimap
     where
-    swap (delta, (track_id, events)) = (track_id, map (,delta) events)
-    merge = Seq.sort_on (Event.start . fst)
+    merge offset_events = Seq.sort_on (Event.start . fst)
+        [ (event, delta * fromIntegral (length offsets))
+        | (offsets, events) <- offset_events, event <- events
+        ]
 
 
--- | TrackTime is how much time to add to or remove from the event.
-type Update = (BlockId, [(TrackTime, (TrackId, [Event.Event]))])
+-- * caller_updates
+
+-- | The track times are splice point offsets, relative to the Event.starts.
+type Update = (BlockId, (TrackId, ([TrackTime], [Event.Event])))
 
 -- | How much to delete or insert, and where.
-caller_updates :: Ui.M m => TrackTime -> BlockId -> m [Tree.Tree Update]
+caller_updates :: Ui.M m => [TrackTime] -> BlockId -> m [Tree.Tree Update]
     -- ^ This tree is upside-down, leaves are the top-level callers.
     --
     -- There will be a branch for each call, so the same block can appear
     -- in multiple branches.  I could merge them, but maybe it's not necessary.
 caller_updates = get_callers
     where
-    get_callers delta callee = mapM updates_of
-        =<< (mapMaybe (annotate delta) <$> callers_of callee)
-
+    get_callers offsets callee =
+        concatMapM (updates_of offsets) =<< callers_of callee
     -- TODO ignore calls with clip and Clip... use CallDuration?
     -- maybe I should have a thing that gets CallDuration of all block calls,
     -- and then it can update those.  I'll need it anyway if I want a 1:1
     -- highlight.
-    updates_of (block_id, delta, tracks) =
-        Tree.Node (block_id, map (delta,) tracks) <$>
-            get_callers (delta * fromIntegral track_count) block_id
-        where track_count = maximum $ 0 : map (length . snd) tracks
-
-    annotate delta (block_id, tracks) = Just (block_id, delta, tracks)
-
-    -- -- The calling block changes by delta for each affected event in it.
-    -- -- Actually, it's the maximum of the sum of the ones on the same track.
-    -- annotate delta (block_id, tracks)
-    --     | track_deltas == 0 = Nothing
-    --     | otherwise = Just (block_id, delta * fromIntegral track_deltas, tracks)
-    --     where track_deltas = maximum $ 0 : map (length . snd) tracks
+    updates_of offsets (block_id, tracks) = forM tracks $ \(track_id, events) ->
+        Tree.Node (block_id, (track_id, (offsets, events))) <$>
+            get_callers
+                [Event.start e + offset | offset <- offsets, e <- events]
+                block_id
 
 -- | All of the events that directly call the given BlockId.
 --
@@ -190,6 +159,64 @@ callers_of callee = strip <$> do
 is_note_track :: Ui.M m => TrackId -> m Bool
 is_note_track = fmap ParseTitle.is_note_track . Ui.get_track_title
 
-block_calls :: Ui.M m => BlockId -> TrackId -> m [(Event.Event, BlockId)]
-block_calls block_id track_id = map (second NonEmpty.head) <$>
-    NoteTrack.track_block_calls False block_id track_id
+
+-- * update_rulers
+
+{- | For a positive delta, copy the ruler from the callee block to its
+    corresponding times in the top blocks, or delete time for a negative delta.
+    Then propagate the ruler changes back down with
+    'Extract.push_down_recursive'.
+
+    Another approach would be to copy or delete ruler in all the intermediate
+    blocks too, which seems like I could then avoid
+    'Extract.push_down_recursive',  but I'd still need to renumber if changed
+    event durations made the measure count change.
+-}
+update_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
+update_rulers block_id pos delta top_updates = do
+    meter <- if delta > 0 then extract_meter block_id pos delta
+        else return []
+    let msg = "ruler modification is ambiguous due to multiple updated tracks: "
+            <> pretty top_updates
+    inserts <- Ui.require msg $ insert_points top_updates
+    forM_ (Map.toList inserts) $ \(top_block_id, offsets) -> do
+        RulerUtil.local_block top_block_id $ Modify.meter $
+            if delta > 0 then splice meter offsets
+                else delete (-delta) offsets
+        push_down_ruler top_block_id
+
+push_down_ruler :: Ui.M m => BlockId -> m ()
+push_down_ruler block_id = do
+    track_id <- Ui.require ("no note track: " <> pretty block_id)
+        . Seq.head =<< filterM is_note_track
+        =<< Ui.track_ids_of block_id
+    Extract.push_down_recursive False block_id track_id
+
+insert_points :: [Update] -> Maybe (Map BlockId [TrackTime])
+insert_points = traverse check . Util.Map.multimap
+    where
+    check [(_, (offsets, events))] =
+        Just [offset + Event.start e | offset <- offsets, e <- events]
+    check _ = Nothing
+
+splice :: Meter.LabeledMeter -> [TrackTime] -> Meter.LabeledMeter
+    -> Meter.LabeledMeter
+splice fragment offsets = go (List.sort offsets) . Meter.with_starts
+    where
+    go [] meter = map snd meter
+    go (t:ts) meter = map snd pre <> fragment <> go ts post
+        where (pre, post) = span ((<t) . fst) meter
+
+delete :: TrackTime -> [TrackTime] -> Meter.LabeledMeter -> Meter.LabeledMeter
+delete delta offsets = go (List.sort offsets) . Meter.with_starts
+    where
+    go [] meter = map snd meter
+    go (t:ts) meter = map snd pre <> go ts (dropWhile ((< t+delta) . fst) post)
+        where (pre, post) = span ((<t) . fst) meter
+
+extract_meter :: Ui.M m => BlockId -> TrackTime -> TrackTime
+    -> m Meter.LabeledMeter
+extract_meter block_id pos delta = do
+    ruler <- Ui.get_ruler =<< Ui.ruler_of block_id
+    return $ Meter.extract' pos (pos + delta) $ Meter.marklist_labeled $
+        snd $ Ruler.get_meter ruler
