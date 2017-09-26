@@ -121,9 +121,12 @@ kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai adi $
     prefix = su $ od.__.od.n.p.k -- din dinataka
 
 kir_misra_1 :: Korvai
-kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu
-    [ rh & lh . o1 rh
-    ]
-    where
-    rh = sd $ n.l.n.n.d.l.n.l.d.l.n.n.d.l
-    lh = thom_lh rh
+kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai1 Tala.misra_chapu $
+    sd $ rh & thom_lh rh . o1 rh
+    where rh = n.l.n.n.d.l.n.l.d.l.n.n.d.l
+
+-- | Misra version of nddnnddn.
+kir_misra_2 :: Korvai
+kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvai1 Tala.misra_chapu $
+    sd $ sd $ rh & thom_lh rh . o1 rh
+    where rh = n.d.n . su (n.n) . d.d.n

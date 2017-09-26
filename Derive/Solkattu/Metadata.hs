@@ -63,8 +63,7 @@ source = with_tag "source"
 -- | This could be considered a variant of the other.  Takes "Module"
 -- "variable_name", since the location is added later in "Derive.Solkattu.All".
 -- The link is verified in Db_test.
-similar_to :: Text -> Text
-    -> Korvai -> Korvai
+similar_to :: Text -> Text -> Korvai -> Korvai
 similar_to module_ variable_name =
     with_tag t_similar_to (module_ <> "." <> variable_name)
 

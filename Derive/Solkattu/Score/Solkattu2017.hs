@@ -112,8 +112,8 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     -- doing the whole theme at once.
     mridangam = make_mridangam
         [ (tat.taka, [k, k, t])
-        , (na.ka.dit.talang.ga, [n, p, k, p, u, lt o])
-        , (ga, [lt o])
+        , (na.ka.dit.talang, [n, o, k, o, u])
+        , (ga, [lt k])
         ]
     kendang = make_kendang1
         [ (theme, [p, p, k, p, a, o, p, t, o, p, o, u, p])
@@ -123,6 +123,31 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
         [ (theme, [b, k, k, x, k, k, k, i, r2, r3, b, o, b])
         , (ga, [b])
         ] where Reyong.Strokes {..} = Reyong.notes
+
+c_17_09_25 :: Korvai
+c_17_09_25 = ganesh $ date 2017 9 25 $ similar_to "Solkattu2017" "c_17_03_20" $
+    korvai Tala.misra_chapu mridangam
+    [ sarvaD 3 . theme
+    , mconcat [v `replaceStart` theme_ . __.__. dropM 6 theme | v <- variants]
+    , dropM 4 theme . sequence
+    , dropM 8 theme . repeat 3 sequence
+    , rdropM (6+2+6+2) sequence
+    ]
+    where
+    theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
+    theme_ = tat.__.taka.takadinna.na.ka.dit.__.2^ta.lang.__.__
+    variants = [tat.__, diku, thom.thom, thom.__]
+    sequence = reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
+    mridangam = make_mridangam
+        [ (tat, [k])
+        , (taka, [k, t])
+        , (diku, [k, p])
+        , (na.ka.dit, [n, o, k])
+        , (talang, [o, u])
+        , (2^ta.lang, [p, u])
+        , (ga, [lt k])
+        , (thom, [o])
+        ]
 
 c_17_04_04 :: Korvai
 c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
@@ -161,9 +186,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
     where
     r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
     purvangam = tri_ (din.__3) (ta.__3.ta.takadinna)
-        -- dropM 5 is because ta.ta.ka.din.na.din is elided with the previous
-        -- TODO an elide directive?
-        . dropM 5 (tri_ (din.__2) (ta.takadinna))
+        . sandi (ta.takadinna) (tri_ (din.__2) (ta.takadinna))
     utarangam p7 p7' = mconcat
         [ sd p7 . p7 . su end
         | end <- [p7', p7'.p7', p7'.p7'.p7']
@@ -312,10 +335,8 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
 
 c_17_06_19 :: Korvai
 c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
-    reduce3 2 mempty (tat.__.dit.__.takadinna.din.__3.p5)
-        -- TODO elide p5
-        -- . trin (tam.__3) p5 (tk.p5) (tktu.p5)
-        . tam.__3 . join (tam.__3) [tk.p5, tktu.p5]
+    reduce3 2 ø (tat.__.dit.__.takadinna.din.__3.p5)
+        . sandi p5 (trin (tam.__3) p5 (tk.p5) (tktu.p5))
     where
     inst = mridangam <> kendang <> sargam
     mridangam = make_mridangam
@@ -526,7 +547,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
         , (na.din, [on, od])
         , (dit, [n])
 
-        , (theme2, [on, on, on, od, o])
+        , (theme2, [on, on, on, d, o])
         , (tat, [on])
         , (tam, [u])
         , (mid^tam, [i])
