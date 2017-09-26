@@ -1379,7 +1379,7 @@ lilypond:
   / add a ly.track module, which has everything from ly, but without the ly-
     prefix.  I can have ly-track and ly-global import it.
     . Actually there aren't many of those, so maybe don't bother?
-  - In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
+  * In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
     Not only does it not go crazy for non 12-tet, but it preserves accidentals.
   * Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
   * emit artificial harmonics notation: <e a\harmonic>2
@@ -1402,7 +1402,8 @@ lilypond:
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
   squart/spawn:
-    - extend vln2 at measure 87 so it has more time to accelerate
+    - Tempo markings.
+    * extend vln2 at measure 87 so it has more time to accelerate
       . I want to have an easier way to add a measure in the middle for this.
     - put just the harmonic gliss line on @b2 vla 27
     * trill at wider intervals should emit tremolo notation

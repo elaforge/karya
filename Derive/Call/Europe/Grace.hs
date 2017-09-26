@@ -173,7 +173,8 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
 lily_grace args start pitches = do
-    pitches <- mapM Ly.pitch_to_lily =<< mapM (Derive.resolve_pitch start)
+    env <- Derive.get_environ
+    pitches <- mapM (Ly.pitch_to_lily env) =<< mapM (Derive.resolve_pitch start)
         pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
         beamed = Seq.first_last (<>"[") (<>"]") ly_notes

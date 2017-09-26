@@ -6,6 +6,7 @@ module Perform.Lilypond.Convert_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.Convert as Convert
@@ -13,11 +14,15 @@ import qualified Perform.Lilypond.Types as Types
 
 
 test_convert = do
-    let f = map (fmap extract) . Convert.convert config . map mkevent
+    let f scale = map (fmap extract) . Convert.convert config . map mkevent
+            where
+            mkevent (start, dur, pitch) = DeriveTest.mkevent_scale scale
+                (start, dur, pitch, [], Score.empty_instrument)
         config = Types.default_config { Types.config_quarter_duration = 0.05 }
-        mkevent (start, dur, pitch) =
-            DeriveTest.mkevent (start, dur, pitch, [], Score.empty_instrument)
         extract e = (Types.event_start e, Types.event_duration e,
             maybe "" Types.to_lily (Types.event_pitch e))
-    equal (f [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
+    equal (f Twelve.scale [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
         [LEvent.Event (0, 32, "b"), LEvent.Event (32, 64, "cs'")]
+    -- Non-twelve scales also work, and accidentals are preserved.
+    equal (f Twelve.relative_scale [(0, 0.05, "3s"), (0.05, 0.05, "3rb")])
+        [LEvent.Event (0, 32, "c"), LEvent.Event (32, 32, "df")]

@@ -207,7 +207,7 @@ make_ly = do
     return (result, derive_logs ++ logs)
 
 -- | Derive focused block to ly events.
-convert :: Cmd.CmdL ([Lilypond.Event], [Log.Msg])
+convert :: Cmd.CmdT IO ([Lilypond.Event], [Log.Msg])
 convert = do
     config <- get_config
     (score_events, derive_logs) <-

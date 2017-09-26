@@ -276,15 +276,17 @@ note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
     event <- require "had no event" $ Seq.head (Stream.events_of events)
-    pitch_to_lily =<< require "note had no pitch" (Score.initial_pitch event)
+    env <- Derive.get_environ
+    pitch_to_lily env
+        =<< require "note had no pitch" (Score.initial_pitch event)
     -- Wow, there are a lot of ways to fail.
     where
     require = Derive.require . (prefix <>)
     prefix = "Ly.note_pitch: "
 
-pitch_to_lily :: PSignal.Transposed -> Derive.Deriver Note
-pitch_to_lily = fmap Types.to_lily
-    . Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily
+pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Derive.Deriver Note
+pitch_to_lily env = fmap Types.to_lily
+    . Derive.require_right ("Ly.pitch_to_lily: "<>) . Convert.pitch_to_lily env
 
 to_time :: Types.Config -> RealTime -> Types.Time
 to_time = Types.real_to_time . Types.config_quarter_duration

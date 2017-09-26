@@ -204,7 +204,8 @@ note_trill_ly style args neighbor = do
     diff <- Call.nn_difference start neighbor pitch
     let tremolo = tremolo_trill_ly pitch neighbor (Args.start args)
             (Args.duration args)
-    let ly_pitch = Derive.require_right id . Lilypond.Convert.pitch_to_lily
+    env <- Derive.get_environ
+    let ly_pitch = Derive.require_right id . Lilypond.Convert.pitch_to_lily env
             =<< Derive.resolve_pitch start neighbor
     case style of
         _ | not (Pitch.nns_equal diff 1) && not (Pitch.nns_equal diff 2) ->

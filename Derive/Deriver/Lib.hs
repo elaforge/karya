@@ -325,9 +325,9 @@ get_scale scale_id =
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
 lookup_scale scale_id = do
-    LookupScale lookup <- gets (state_lookup_scale . state_constant)
+    lookup <- gets (state_lookup_scale . state_constant)
     env <- Internal.get_environ
-    case lookup env (LookupScale lookup) scale_id of
+    case lookup_scale_ lookup env scale_id of
         Nothing -> return Nothing
         Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
             <> pretty err

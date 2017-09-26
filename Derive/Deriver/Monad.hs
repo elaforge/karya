@@ -121,7 +121,7 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale(..)
+    , LookupScale(..), lookup_scale_
     , Transpose, Transposition(..), Enharmonics, Layout
 
     -- * merge
@@ -1745,6 +1745,11 @@ instance Pretty Scale where
 newtype LookupScale = LookupScale (BaseTypes.Environ -> LookupScale
     -> Pitch.ScaleId -> Maybe (Either BaseTypes.PitchError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
+
+lookup_scale_ :: LookupScale -> BaseTypes.Environ -> Pitch.ScaleId
+    -> Maybe (Either PSignal.PitchError Scale)
+lookup_scale_ (LookupScale lookup) env scale_id =
+    lookup env (LookupScale lookup) scale_id
 
 -- | Scales may ignore Transposition if they don't support it.
 --

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- | Convert Derive.Score output into Lilypond.Events.
 module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
 import qualified Control.Monad.Except as Except
@@ -12,11 +13,12 @@ import qualified Data.Set as Set
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Scale.All
 import qualified Derive.Score as Score
 
 import qualified Perform.ConvertUtil as ConvertUtil
@@ -121,35 +123,26 @@ convert_event quarter event = run $ do
 throw :: (CallStack.Stack, Except.MonadError Log.Msg m) => Text -> m a
 throw = Except.throwError . Log.msg Log.Warn Nothing
 
-convert_pitch :: Except.MonadError Log.Msg m => Score.Event
-    -> m (Maybe Types.Pitch)
+convert_pitch :: Except.MonadError Log.Msg m =>
+    Score.Event -> m (Maybe Types.Pitch)
 convert_pitch event = case Score.initial_pitch event of
     Nothing -> return Nothing
     Just pitch -> either (throw . ("convert_pitch: "<>)) (return . Just) $
-        pitch_to_lily pitch
+        pitch_to_lily (Score.event_environ event) pitch
 
 -- * util
 
--- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
--- closest pitch.  TODO I should use Pitch for everyone.  Not only does it
--- not go crazy for non 12-tet, but it preserves accidentals.
-pitch_to_lily :: PSignal.Transposed -> Either Text Types.Pitch
-pitch_to_lily pitch
-    | PSignal.pitch_scale_id pitch == Twelve.scale_id = do
-        note <- first showt $ PSignal.pitch_note pitch
-        parse_note note
-    | otherwise = do
-        nn <- first showt $ PSignal.pitch_nn pitch
-        note <- require ("nn out of range: " <> pretty nn) $
-            Twelve.nn_to_note nn
-        parse_note note
-    where
-    parse_note note = do
-        pitch <- require ("unparseable note: " <> pretty note) $
-            Twelve.read_absolute_pitch note
-        Types.parse_pitch pitch
-    require msg Nothing = Left msg
-    require _ (Just x) = Right x
+pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Either Text Types.Pitch
+pitch_to_lily env pitch = do
+    let scale_id = PSignal.pitch_scale_id pitch
+    case Derive.lookup_scale_ lookup_scale env scale_id of
+        Nothing -> Left $ "scale id not found: " <> pretty scale_id
+        Just (Left err) ->
+            Left $ "scale " <> pretty scale_id <> ": " <> pretty err
+        Just (Right scale) -> do
+            note <- first pretty $ PSignal.pitch_note pitch
+            pitch <- first pretty $ Derive.scale_read scale env note
+            Types.parse_pitch pitch
 
 quantize :: Types.Duration -> [Types.Event] -> [Types.Event]
 quantize dur = map $ \e -> e
@@ -161,3 +154,6 @@ quantize dur = map $ \e -> e
 quantize_time :: Types.Time -> Types.Time -> Types.Time
 quantize_time time t =
     round (fromIntegral t / fromIntegral time :: Double) * time
+
+lookup_scale :: Derive.LookupScale
+lookup_scale = Derive.Scale.All.lookup_scale
