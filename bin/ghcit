@@ -1,3 +1,4 @@
 #!/bin/zsh
 # ghci with flags to import test modules
-exec ghci -v0 +RTS -I0 -RTS $(cat build/test/ghci-flags) "$@"
+exec ghci -v0 +RTS -I0 -RTS $(cat build/test/ghci-flags) \
+    -fdefer-type-errors "$@"
