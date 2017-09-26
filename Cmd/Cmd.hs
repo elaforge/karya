@@ -83,6 +83,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
@@ -504,8 +505,6 @@ data Config = Config {
     , config_instrument_db :: !InstrumentDb
     -- | Library of calls for the deriver.
     , config_library :: !Derive.Library
-    -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
-    , config_lookup_scale :: !Derive.LookupScale
     , config_highlight_colors :: !(Map Color.Highlight Color.Color)
     , config_im :: !Shared.Config.Config
     , config_git_user :: !SaveGit.User
@@ -530,6 +529,12 @@ state_midi_writer state imsg = do
 path :: State -> Config.RelativePath -> FilePath
 path state (Config.RelativePath path) =
     config_app_dir (state_config state) </> path
+
+-- | This was previously in 'Config', and configured via StaticConfig.  But it
+-- turns out I don't really use StaticConfig.  It has a name here just so
+-- I don't get references to 'Scale.All.lookup_scale' everywhere.
+lookup_scale :: Derive.LookupScale
+lookup_scale = Scale.All.lookup_scale
 
 -- ** PlayState
 

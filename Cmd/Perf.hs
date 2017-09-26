@@ -208,14 +208,13 @@ lookup_scale track scale_id = do
 
 lookup_scale_env :: Cmd.M m => Env.Environ -> Pitch.ScaleId
     -> m (Maybe Scale.Scale)
-lookup_scale_env env scale_id = do
-    Derive.LookupScale lookup <- Cmd.gets $
-        Cmd.config_lookup_scale . Cmd.state_config
-    case lookup env (Derive.LookupScale lookup) scale_id of
-        Nothing -> return Nothing
-        Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
-            <> pretty err
-        Just (Right scale) -> return $ Just scale
+lookup_scale_env env scale_id = case lookup env scale_id of
+    Nothing -> return Nothing
+    Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
+        <> pretty err
+    Just (Right scale) -> return $ Just scale
+    where
+    Derive.LookupScale lookup = Cmd.lookup_scale
 
 -- | Try to get a scale from the titles of the parents of the given track.
 scale_from_titles :: Ui.M m => BlockId -> TrackId -> m (Maybe Pitch.ScaleId)

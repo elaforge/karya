@@ -52,7 +52,6 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -383,14 +382,15 @@ modify_dynamic f = Derive.modify $ \st ->
 -- * setup multiple
 
 with_scale :: Scale.Scale -> Setup
-with_scale scale = with_cmd $ set_cmd_config $ \state -> state
-    { Cmd.config_lookup_scale = lookup (Cmd.config_lookup_scale state) }
+with_scale scale = modify_constant $ \c ->
+    c { Derive.state_lookup_scale = Derive.LookupScale lookup }
     where
-    -- Fall back on the old lookup.  This is important because *twelve is the
-    -- default scale so I want it to keep working.
-    lookup (Derive.LookupScale old) = Derive.LookupScale $ \env look scale_id ->
-        if scale_id == Scale.scale_id scale then Just (Right scale)
-            else old env look scale_id
+    lookup env scale_id
+        | scale_id == Scale.scale_id scale = Just (Right scale)
+        -- Fall back on the old lookup.  This is important because *twelve is
+        -- the default scale so I want it to keep working.
+        | otherwise = deflt env scale_id
+        where Derive.LookupScale deflt = default_lookup_scale
 
 -- | Derive with a bit of a real instrument db.  Useful for testing instrument
 -- calls.
@@ -480,7 +480,6 @@ cmd_config inst_db = Cmd.Config
     , config_wdev_map = mempty
     , config_instrument_db = inst_db
     , config_library = Call.All.library
-    , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = Config.highlight_colors
     , config_im = Shared.Config.Config $ Map.fromList
         [ ("im-synth", Shared.Config.Synth
@@ -512,7 +511,7 @@ im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
     c (Control.Control a) = ScoreTypes.Control a
 
 default_lookup_scale :: Derive.LookupScale
-default_lookup_scale = Scale.All.lookup_scale
+default_lookup_scale = Cmd.lookup_scale
 
 default_library :: Derive.Library
 default_library = Call.All.library

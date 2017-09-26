@@ -121,7 +121,7 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale(..), lookup_scale_
+    , LookupScale(..)
     , Transpose, Transposition(..), Enharmonics, Layout
 
     -- * merge
@@ -864,6 +864,9 @@ data Constant = Constant {
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
     , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
+    -- | LookupScale is actually hardcoded to 'Derive.Scale.All.lookup_scale'.
+    -- But using this means that if it ever becomes dynamic I hopefully don't
+    -- have to change so much code.  Also I think it avoids a circular import.
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -1742,14 +1745,9 @@ instance Pretty Scale where
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
-newtype LookupScale = LookupScale (BaseTypes.Environ -> LookupScale
+newtype LookupScale = LookupScale (BaseTypes.Environ
     -> Pitch.ScaleId -> Maybe (Either BaseTypes.PitchError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
-
-lookup_scale_ :: LookupScale -> BaseTypes.Environ -> Pitch.ScaleId
-    -> Maybe (Either PSignal.PitchError Scale)
-lookup_scale_ (LookupScale lookup) env scale_id =
-    lookup env (LookupScale lookup) scale_id
 
 -- | Scales may ignore Transposition if they don't support it.
 --

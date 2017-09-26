@@ -28,7 +28,6 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
@@ -186,7 +185,6 @@ cmd_config inst_db = do
         , config_wdev_map = mempty
         , config_instrument_db = inst_db
         , config_library = Call.All.library
-        , config_lookup_scale = Scale.All.lookup_scale
         , config_highlight_colors = mempty
         , config_im = Shared.Config.Config mempty
         -- You shouldn't be saving any checkpoints from here, so I can use

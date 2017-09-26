@@ -116,13 +116,12 @@ run_with_dynamic dynamic deriver = do
 get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
 get_constant ui_state cache damage = do
-    lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
     cmd_state <- Cmd.get
     let lookup_inst = Cmd.state_resolve_instrument ui_state cmd_state
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     defs_library <- get_library
     return $ Derive.initial_constant ui_state (defs_library <> library)
-        lookup_scale (fmap Cmd.make_derive_instrument . lookup_inst)
+        Cmd.lookup_scale (fmap Cmd.make_derive_instrument . lookup_inst)
         cache damage
 
 -- | Get Library from the cache.
@@ -329,10 +328,9 @@ midi_config _ = Nothing
 
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
-    lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     return $ Convert.Lookup
-        { lookup_scale = lookup_scale
+        { lookup_scale = Cmd.lookup_scale
         , lookup_control_defaults = \inst -> case lookup_config inst allocs of
             Just config -> Score.untyped . Signal.constant <$>
                 Patch.config_control_defaults config

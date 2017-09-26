@@ -32,10 +32,11 @@ import Global
 
 
 lookup_scale :: Scale.LookupScale
-lookup_scale = Scale.LookupScale $ \env lookup scale_id ->
-    let make (Scale.Simple scale) = Right scale
-        make (Scale.Make _ _ make) = make env lookup
-    in make <$> Map.lookup scale_id scales
+lookup_scale = Scale.LookupScale lookup
+    where
+    lookup env scale_id = make env <$> Map.lookup scale_id scales
+    make _ (Scale.Simple scale) = Right scale
+    make env (Scale.Make _ _ make) = make env lookup_scale
 
 -- | (scale_id, pattern, doc)
 docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)]

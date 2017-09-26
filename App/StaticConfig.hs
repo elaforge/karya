@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | 'StaticConfig' is an app-level configuration hook.  The idea is that
+-- the local configuration can use it to override things.
 module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -14,7 +16,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Scale.All as Scale.All
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
@@ -97,7 +98,6 @@ cmd_config app_dir interface config git_user = Cmd.Config
     , config_wdev_map = wdev_map midi_config
     , config_instrument_db = instrument_db config
     , config_library = library config
-    , config_lookup_scale = Scale.All.lookup_scale
     , config_highlight_colors = highlight_colors config
     , config_im = Shared.Config.config
     , config_git_user = git_user

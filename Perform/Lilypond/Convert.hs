@@ -18,7 +18,7 @@ import qualified Derive.Env as Env
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Scale.All
+import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 
 import qualified Perform.ConvertUtil as ConvertUtil
@@ -135,7 +135,7 @@ convert_pitch event = case Score.initial_pitch event of
 pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Either Text Types.Pitch
 pitch_to_lily env pitch = do
     let scale_id = PSignal.pitch_scale_id pitch
-    case Derive.lookup_scale_ lookup_scale env scale_id of
+    case (\(Derive.LookupScale a) -> a) lookup_scale env scale_id of
         Nothing -> Left $ "scale id not found: " <> pretty scale_id
         Just (Left err) ->
             Left $ "scale " <> pretty scale_id <> ": " <> pretty err
@@ -156,4 +156,4 @@ quantize_time time t =
     round (fromIntegral t / fromIntegral time :: Double) * time
 
 lookup_scale :: Derive.LookupScale
-lookup_scale = Derive.Scale.All.lookup_scale
+lookup_scale = Scale.All.lookup_scale
