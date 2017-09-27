@@ -27,7 +27,7 @@ module Derive.PSignal (
     , pitch, coerce
     , config, apply, add_control, pitch_nn, pitch_note
     -- ** create
-    , nn_pitch, note_pitch
+    , constant_pitch, nn_pitch
 ) where
 import Prelude hiding (head, take, drop, last, null)
 import qualified Data.Either as Either
@@ -253,9 +253,13 @@ add_control control val pitch =
 
 -- | Create a Pitch that only emits the given NoteNumber, and doesn't respond
 -- to transposition.
-nn_pitch :: Pitch.NoteNumber -> Pitch
-nn_pitch nn = note_pitch (Pitch.Note (pretty nn)) nn
+constant_pitch :: Pitch.ScaleId -> Pitch.Note -> Pitch.NoteNumber -> Pitch
+constant_pitch scale_id note nn =
+    pitch (Scale scale_id mempty) (const (Right nn)) (const (Right note)) mempty
 
-note_pitch :: Pitch.Note -> Pitch.NoteNumber -> Pitch
-note_pitch note nn =
-    pitch no_scale (const (Right nn)) (const $ Right note) mempty
+-- | Like 'constant_pitch', but easier to use, but uses no_scale, which means
+-- the result will be unparseable.
+nn_pitch :: Pitch.NoteNumber -> Pitch
+nn_pitch nn =
+    pitch no_scale (const (Right nn)) (const (Right (Pitch.Note (pretty nn))))
+        mempty

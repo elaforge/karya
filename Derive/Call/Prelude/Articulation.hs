@@ -36,6 +36,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -178,7 +179,7 @@ harmonic_code stopped touched event =
     ]
     where
     with_pitch nn =
-        Score.set_pitch (PSignal.constant (PSignal.nn_pitch nn)) event
+        Score.set_pitch (PSignal.constant (Twelve.nn_pitch nn)) event
 
 -- | Where should I touch the string to play the nth harmonic of a base
 -- frequency?

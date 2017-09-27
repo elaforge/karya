@@ -24,17 +24,16 @@ module Derive.Scale.Twelve (
     -- * keys
     , lookup_key, default_key
     -- * utils
-    , show_nn, read_absolute_pitch, nn_to_note
+    , show_nn, read_absolute_pitch, nn_pitch
 
 #ifdef TESTING
     , module Derive.Scale.Twelve
 #endif
 ) where
 import qualified Data.Map as Map
-import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
 
-import qualified Util.Seq as Seq
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -115,19 +114,17 @@ show_pitch = either (const Nothing) Just
 
 -- * utils
 
+-- | Map NoteNumbers to their nearest Note.
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
-    . Theory.nn_to_semis . floor
+    . Theory.nn_to_semis . round
 
 read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
     . ChromaticScales.read_pitch absolute_scale_map Nothing
 
--- | Map NoteNumbers to their nearest Note.
-nn_to_note :: Pitch.NoteNumber -> Maybe Pitch.Note
-nn_to_note nn = notes Vector.!? (round nn - 1)
-    where notes = Vector.fromList $ mapMaybe show_nn (Seq.range 1 127 1)
-
+nn_pitch :: Pitch.NoteNumber -> PSignal.Pitch
+nn_pitch nn = PSignal.constant_pitch scale_id (fromMaybe "x" (show_nn nn)) nn
 
 -- * implementation
 
