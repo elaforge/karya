@@ -106,9 +106,10 @@ module Ui.Ui (
     , blocks_with_track_id
     -- ** events
     , insert_events, insert_block_events, insert_event
-    , get_events, modify_events, modify_some_events, calculate_damage
-    , remove_event, remove_events, remove_event_range, remove_from
-    , track_event_end
+    , get_events, modify_events, modify_events_range, modify_events_from
+    , modify_some_events, calculate_damage
+    , remove_event, remove_events, remove_events_range
+    , track_event_end, range_from
 
     -- * ruler
     , get_ruler, lookup_ruler, all_ruler_ids
@@ -1269,13 +1270,13 @@ insert_events track_id events_ = _modify_events track_id $ \old_events ->
     This is necessarily block specific, because block duration is defined by its
     ruler.  Still, you should use this in preference to 'insert_events'.
 
-    This uses 'block_end', which means that if events don't go past the end of
-    the ruler, they won't.  If they are already past (e.g. there is no ruler),
-    then they will only be clipped if they move to later in time.  This might
-    be confusing, but it seems generally convenient to not have to constantly
-    manually trim events when they get moved past the end of the ruler, but
-    definitely inconvenient for events to just disappear when there is no
-    ruler.
+    This uses 'block_end', which means that if events don't already go past the
+    end of the ruler, they won't after this is called.  If they are already
+    past (e.g. there is no ruler), then they will only be clipped if they move
+    to later in time.  This might be confusing, but it seems generally
+    convenient to not have to constantly manually trim events when they get
+    moved past the end of the ruler, but definitely inconvenient for events to
+    just disappear when there is no ruler.
 -}
 insert_block_events :: M m => BlockId -> TrackId -> [Event.Event] -> m ()
 insert_block_events block_id track_id events = do
@@ -1295,6 +1296,22 @@ get_events track_id = Track.track_events <$> get_track track_id
 modify_events :: M m => TrackId -> (Events.Events -> Events.Events) -> m ()
 modify_events track_id f = _modify_events track_id $ \events ->
     (f events, Ranges.everything)
+
+modify_events_range :: M m => TrackId -> Events.Range
+    -> (Events.Events -> Events.Events) -> m ()
+modify_events_range track_id range modify = _modify_events track_id $ \events ->
+    (process events, uncurry Ranges.range (Events.range_times range))
+    where
+    -- A range to the end should be inclusive, because I frequently have a
+    -- positive event at the end.
+    process events = (pre <> modify within <> post)
+        where (pre, within, post) = Events.split_range range events
+
+modify_events_from :: M m => TrackId -> TrackTime
+    -> (Events.Events -> Events.Events) -> m ()
+modify_events_from track_id start modify = do
+    range <- range_from track_id start
+    modify_events_range track_id range modify
 
 -- | Just like 'modify_events', except that it expects you only modified a few
 -- events, and will only emit damage for the changed parts.
@@ -1318,7 +1335,7 @@ calculate_damage old new =
             (Event.start old, max (Event.end old) (Event.end new)) : ranges
 
 -- | Remove a single event by start and orientation.
--- TODO I think 'remove_event_range' is now just as expressive and can be just
+-- TODO I think 'remove_events_range' is now just as expressive and can be just
 -- as efficient
 remove_event :: M m => TrackId -> Event.Event -> m ()
 remove_event track_id event = _modify_events track_id $ \events ->
@@ -1336,8 +1353,8 @@ remove_events :: M m => TrackId -> [Event.Event] -> m ()
 remove_events _ [] = return ()
 remove_events track_id [event] = remove_event track_id event
 remove_events track_id events = do
-    remove_event_range track_id
-        (Events.Range (Event.min first) (Event.max last))
+    remove_events_range track_id $
+        Events.Range (Event.min first) (Event.max last)
     when (Event.is_negative first) $
         remove_event track_id first
     when (Event.is_positive last) $
@@ -1347,24 +1364,18 @@ remove_events track_id events = do
     Just first = Seq.minimum_on Event.start events
     Just last = Seq.maximum_on Event.start events
 
--- | Remove any events whose starting positions fall within a range.
-remove_event_range :: M m => TrackId -> Events.Range -> m ()
-remove_event_range track_id range = _modify_events track_id $ \events ->
-    ( Events.remove range events
-    , events_range (Events.ascending (Events.in_range range events))
-    )
-
--- | Remove from the pont to the end.
-remove_from :: M m => TrackId -> TrackTime -> m ()
-remove_from track_id start = do
-    end <- track_event_end track_id
-    -- +1 to get final event if it's 0 dur, even if it's positive.  It seems
-    -- gross, but it works.
-    remove_event_range track_id (Events.Range start (end + 1))
+remove_events_range :: M m => TrackId -> Events.Range -> m ()
+remove_events_range track_id range =
+    modify_events_range track_id range (const mempty)
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime
 track_event_end = fmap Events.time_end . get_events
+
+range_from :: M m => TrackId -> TrackTime -> m Events.Range
+range_from track_id start =
+    Events.Range start . (+1) <$> track_event_end track_id
+    -- +1 to get a final 0 dur positive event.
 
 -- | Emit track updates for all tracks.  Use this when events have changed but
 -- I don't know which ones, e.g. when loading a file or restoring a previous

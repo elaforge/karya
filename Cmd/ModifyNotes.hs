@@ -194,7 +194,7 @@ selection modify = do
     -- Clear selected events before merging in new ones.
     let ranges = remove_ranges old_notes
     forM_ ranges $ \(track_id, range) ->
-        Ui.remove_event_range track_id range
+        Ui.remove_events_range track_id range
     write_tracks block_id (map fst ranges) (merge_notes new_notes)
 
 remove_ranges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]

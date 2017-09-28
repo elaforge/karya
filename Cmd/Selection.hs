@@ -360,8 +360,8 @@ select_tracks view_id from to = do
 -- with the assumption that 'Sel.cur_pos' is onscreen.  This is so
 -- 'auto_scroll' won't jump to the bottom of the block.
 select_until_end :: TrackTime -> Sel.Selection -> Sel.Selection
-select_until_end block_end sel = sel
-    { Sel.start_pos = block_end + ScoreTime.eta}
+select_until_end block_end sel =
+    sel { Sel.start_pos = block_end + ScoreTime.eta }
     -- Without ScoreTime.eta, a select-all won't include an event at the end of
     -- the block.
 

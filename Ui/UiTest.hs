@@ -360,7 +360,7 @@ insert_event = insert_event_in default_block_name
 
 remove_event_in :: Ui.M m => Text -> TrackNum -> ScoreTime -> m ()
 remove_event_in name tracknum pos =
-    Ui.remove_event_range (mk_tid_name name tracknum)
+    Ui.remove_events_range (mk_tid_name name tracknum)
         (Events.Point pos Event.Positive)
 
 remove_event :: Ui.M m => TrackNum -> ScoreTime -> m ()

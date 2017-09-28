@@ -386,7 +386,8 @@ cmd_insert_time = do
         case Events.split_at_before start events of
             (_, []) -> return ()
             (_, events@(event:_)) -> do
-                Ui.remove_from track_id (min (Event.start event) start)
+                Ui.modify_events_from track_id (min (Event.start event) start)
+                    (const mempty)
                 -- The above won't get a negative event at start.
                 Ui.remove_event track_id event
                 Ui.insert_block_events block_id track_id $
@@ -431,7 +432,8 @@ delete_time block_id track_id start dur = do
     case Events.split_at_before start events of
         (_, []) -> return ()
         (_, events@(event:_)) -> do
-            Ui.remove_from track_id (min (Event.start event) start)
+            Ui.modify_events_from track_id (min (Event.start event) start)
+                (const mempty)
             -- The above won't get a negative event at start.
             Ui.remove_event track_id event
             Ui.insert_block_events block_id track_id $
@@ -486,7 +488,7 @@ cmd_clear_selected = do
 
 clear_range :: Ui.M m => [TrackId] -> Events.Range -> m ()
 clear_range track_ids range =
-    forM_ track_ids $ \track_id -> Ui.remove_event_range track_id range
+    forM_ track_ids $ \track_id -> Ui.remove_events_range track_id range
 
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do

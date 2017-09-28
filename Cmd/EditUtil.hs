@@ -86,7 +86,7 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     let (val, advance) = modify $
             if created then Nothing else Just (Event.text event)
     case val of
-        Nothing -> Ui.remove_event_range track_id
+        Nothing -> Ui.remove_events_range track_id
             (Events.Point start (Event.orientation_of dur))
         Just new_text -> Ui.insert_event track_id
             (Event.text_ #= new_text $ event)
