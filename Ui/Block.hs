@@ -547,8 +547,9 @@ status_color block_id block maybe_root_id
     | otherwise = Config.status_default
 
 show_status :: Map (Int, Text) Text -> Text
-show_status = Text.intercalate " | "
-    . map (\((_, k), v) -> k <> ": " <> v) . Map.toAscList
+show_status = Text.intercalate " | " . map snd . Map.toAscList
+    -- I used to display the keys, but they take up too much space, so now
+    -- I just use them for sorting.
 
 -- | Return how much track is in view.
 visible_time :: View -> TrackTime

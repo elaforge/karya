@@ -121,9 +121,6 @@ status_octave = (0, "8")
 status_step :: (SortKey, Text)
 status_step = (1, "t")
 
-status_note_duration :: (SortKey, Text)
-status_note_duration = (2, "d")
-
 -- | Various record flags.  Most are reflected in the color of the edit box,
 -- but the secondary ones go here.
 status_record :: (SortKey, Text)

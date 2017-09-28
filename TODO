@@ -296,6 +296,8 @@ UNSORTED
     . If there's a secondary selection, it should disappear somewhat
       automatically, so I don't get confused by it still being around.
     . Maybe I can get space to do that?
+    . Or I could set it to a timestep, e.g. one measure.  Then it would turn
+      into move within measure.
   * ^M collapses unrelated control tracks into adjacent note tracks.  It
     should only collapse children.
   - Figure out how to control vsl legato transition volume mismatches.
@@ -319,7 +321,7 @@ UNSORTED
       number.
     . I could infer the starting number from the existing labels, but it's
       sketchy since they likely have embedded markup for big numbers.
-  - Now that I have an explicit ruler start number, I should be able to
+  * Now that I have an explicit ruler start number, I should be able to
     simplify tala renumbering.
   - I had a bug due to using 'Derive.real dur' instead of
     'Call.real_duration start dur'.
@@ -340,9 +342,10 @@ UNSORTED
     selection but the other way.
     . I can get this by playing from the point, but why not do it
       automatically?
-  - I often want to see score time selection and RealTime selection in
-    a narrow block, and it's annoying to resize it.  Can I have a pop-up?
-    Or two lines of status if necessary?
+  + Status bar visibility:
+    . I often want to see score time selection and RealTime selection in
+      a narrow block, and it's annoying to resize it.  Can I have a pop-up?
+      Or two lines of status if necessary?
     . Would a tooltip in the status bar be obnoxious?
     . Or maybe summon it explicitly with a click.  If I leave it up
       persistently, then I can see values change, e.g. to look for a particular
@@ -352,12 +355,21 @@ UNSORTED
       in a narrow block.
     . Really it's just 's' and 'sec'.  Could I squeeze some stuff into other
       places?
+    . I could put 't' and 'd' together: t: q+E
+    . I could get rid of the keys entirely.
+    . This helps, but I might still have the problem.
+    . TrackId is not so useful...
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
     . Looks like fclabels can do it, but I need separate monadic lenses, since
       monadic and non-monadic lenses can't be composed.
     . I should be able to write a function to promote a pure one though.
+    . Actually I can't figure out how to get lenses to do this.  Lenses can't
+      include the Ui.modify, since they have to be composable, which in turn
+      they have to be used with Ui.modify, which is the thing I'm trying to
+      not use all the time.
+    . So maybe just get rid of Ui.allocations.
   - upgrade to ghc 8.2
     . 8.0.2 compile time:
       debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
