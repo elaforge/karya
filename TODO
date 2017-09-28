@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Highlight for block calls which are 1:1, or not 1:1.
+    . Use event width for this?  But this is a different mechanism from
+      highlights, which uses selections.
   * add a LInst.copy to copy an allocation to a new name
   - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does k_\ and
     k//\\ (and shouldn't the last be k/\ for consistency with gangsa?).
@@ -15,7 +18,7 @@ UNSORTED
       [tag, length, ...] instead of [length, tag, ...], but the former makes
       more sense to me anyway, since the length will likely be different
       depending on tag/version.
-  - insert/delete time is messed up for negative events.
+  * insert/delete time is messed up for negative events.
     . Go to 2.5, invert the event, ^j two times and the event is duplicated.
   * cmd-T Create.insert_brach should put the new track to the right of the
     selection, not at the end of the block.

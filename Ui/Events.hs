@@ -121,10 +121,10 @@ length :: Events -> Int
 length = Map.size . get
 
 time_begin :: Events -> ScoreTime
-time_begin = maybe 0 Event.start . head
+time_begin = maybe 0 Event.min . head
 
 time_end :: Events -> ScoreTime
-time_end = maybe 0 Event.end . last
+time_end = maybe 0 Event.max . last
 
 -- ** list conversion
 

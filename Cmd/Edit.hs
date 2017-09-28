@@ -434,8 +434,8 @@ delete_time block_id track_id start dur = do
             Ui.remove_from track_id (min (Event.start event) start)
             -- The above won't get a negative event at start.
             Ui.remove_event track_id event
-            Ui.insert_block_events block_id track_id
-                (mapMaybe (delete_event_time start dur) events)
+            Ui.insert_block_events block_id track_id $
+                mapMaybe (delete_event_time start dur) events
 
 -- | Modify the event to delete time, shortening it the start time falls within
 -- the event's duration, or removing it entirely if its 'Event.start' was
@@ -458,7 +458,9 @@ delete_event_time start shift event
         | end <= Event.end event ->
             Just $ Event.start_ %= subtract shift $ event
         | end < Event.start event ->
-            Just $ Event.set_end start $ Event.start_ %= subtract shift $ event
+            Just $ Event.start_ %= subtract shift $
+                Event.duration_ %= (+ (min (end - Event.end event) shift)) $
+                event
         | start < Event.start event -> Nothing
         | otherwise -> Just event
     where end = start + shift

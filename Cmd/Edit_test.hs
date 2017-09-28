@@ -154,6 +154,9 @@ test_insert_time = do
     equal (run 3 5 [(0, 2), (2, 2), (4, 2)]) $
         Right ([(0, 2, "a"), (2, 4, "b"), (6, 0, "c")], [])
 
+    equal (run 1.5 1.75 [(0, 1), (2.25, -1.25)]) $
+        Right ([(0, 1, "a"), (2.5, -1.5, "b")], [])
+
 test_delete_time = do
     let run start end = e_start_dur
             . run_sel_events Edit.cmd_delete_time start end
@@ -187,6 +190,9 @@ test_delete_time = do
         , []
         ]
     equal (run 4 6 [(4, -2)]) $ Right ([(4, -2)], [])
+
+    equal (run 1.5 1.75 [(0, 1), (2.25, -1.25)]) $
+        Right ([(0, 1), (2, -1)], [])
 
 test_toggle_zero_timestep = do
     let run start end = e_start_dur
