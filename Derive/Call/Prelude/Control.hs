@@ -211,28 +211,32 @@ c_neighbor = generator1 "neighbor" mempty
 c_up :: Derive.Generator Derive.Control
 c_up = generator1 "u" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> Sig.defaulted "speed" 1 "Ascend this amount per second."
+    <*> Sig.defaulted "limit" Nothing "Stop at this value."
     <*> ControlUtil.from_env
-    ) $ \(speed, from) args -> make_slope args Nothing (Just 1) from speed
+    ) $ \(speed, limit, from) args -> make_slope args Nothing limit from speed
 
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "d" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> Sig.defaulted "speed" 1 "Descend this amount per second."
+    <*> Sig.defaulted "limit" Nothing "Stop at this value."
     <*> ControlUtil.from_env
-    ) $ \(speed, from) args -> make_slope args (Just 0) Nothing from (-speed)
+    ) $ \(speed, limit, from) args ->
+        make_slope args limit Nothing from (-speed)
 
 c_down_from :: Derive.Generator Derive.Control
 c_down_from = generator1 "df" mempty
     "Drop from a certain value. This is like `d` with `from`, but more\
     \ convenient to write."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> Sig.defaulted "from" 1 "Start at this value."
     <*> Sig.defaulted "speed" 1 "Descend this amount per second."
-    ) $ \(from, speed) args ->
-        make_slope args (Just 0) Nothing (Just from) (-speed)
+    <*> Sig.defaulted "limit" Nothing "Stop at this value."
+    ) $ \(from, speed, limit) args ->
+        make_slope args limit Nothing (Just from) (-speed)
 
 make_slope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
     -> Maybe Signal.Y -> Double -> Derive.Deriver Signal.Control

@@ -57,7 +57,8 @@ UNSORTED
       signals, and then each instrument can pick out its dyn-me.
     . And of course this should generalize for all controls... well, I don't
       have a use for non-dyn, so I don't really need to generalize.
-  - the 'u' call doesn't seem to work in the tempo track
+  * the 'u' call doesn't seem to work in the tempo track
+    . Because it's capped at 1.
   Support for adding or removing time in the middle of a score:
     * Implement LRuler.inject.
       . This starts from the root block, and finds block callees.  If a callee
