@@ -51,6 +51,13 @@ import Global
 import Types
 
 
+type Error = Text
+
+-- | This should be an event with lilypond code only, not an actual note.
+-- Usually they're 0 duration, but some special case ones like tuplets and
+-- tremolo have a duration to scope over their notes.
+type CodeEvent = Event
+
 -- | Automatically add lilypond code for certain attributes.
 simple_articulations :: [(Attrs.Attributes, Code)]
 simple_articulations =
@@ -660,24 +667,20 @@ convert_voices events@(event:_) = do
 -- I used to mix the code into the first voice here, but 'simplify_voices' may
 -- then get rid of it.  So return the code events and mix them in after
 -- simplification.
-collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event], [Event])
+collect_voices :: [Event] -> Either Text (VoiceMap Event, [CodeEvent], [Event])
 collect_voices events = do
     let (spanned, rest) = span_voices events
         (code, with_voice) = Either.partitionEithers spanned
-    with_voice <- mapM check_type with_voice
+    with_voice <- forM with_voice $ \(err_or_voice, event) ->
+        (, event) <$> err_or_voice
     return $ case Seq.group_fst with_voice of
         [] -> ([], [], events)
         voices -> (voices, code, rest)
-    where
-    check_type (Right num, event) = do
-        voice <- justErr ("voice should be 1--4: " <> showt num) $
-            parse_voice num
-        return (voice, event)
-    check_type (Left err, event) = Left $ pretty event <> ": " <> err
 
 -- | Strip off events with voices.  This is complicated by the possibility of
 -- intervening zero_dur code events.
-span_voices :: [Event] -> ([Either Event (Either Text Int, Event)], [Event])
+span_voices :: [Event]
+    -> ([Either CodeEvent (Either Error Voice, Event)], [Event])
 span_voices [] = ([], [])
 span_voices events
     | [_] <- spanned2 = ([], events)
@@ -688,16 +691,27 @@ span_voices events
         Seq.span_end_while (either Just (const Nothing)) spanned1
     voice_of event
         | zero_dur event = Just $ Left event
-        | otherwise = case get event of
+        | otherwise = case event_voice event of
             Nothing -> Nothing
-            Just voice -> Just $ Right (voice, event)
-        where get = Env.checked_val2 EnvKey.voice . event_environ
+            Just err_or_voice -> Just $ Right (err_or_voice, event)
     -- Previously I tried to only split voices where necessary by only spanning
     -- overlapping notes, or notes with differing voices.  But even when it
     -- worked as intended, joining voices this aggressively led to oddities
     -- because it would turn any two voices with the same duration notes into
     -- a chord.  So now I simplify voices only at the measure level, in
     -- 'simplify_voices'.
+
+event_voice :: Event -> Maybe (Either Error Voice)
+event_voice event =
+    event_context event . parse <$>
+        Env.checked_val2 EnvKey.voice (event_environ event)
+    where
+    parse (Left err) = Left err
+    parse (Right voice) =
+        justErr ("voice should be 1--4: " <> showt voice) $ parse_voice voice
+
+event_context :: Event -> Either Error a -> Either Error a
+event_context event = first ((pretty event <> ": ")<>)
 
 -- ** voices_to_ly
 
@@ -877,16 +891,16 @@ get_subdivision = do
 
 -- * ConvertM
 
-run_convert :: State -> ConvertM a -> Either Text (a, State)
+run_convert :: State -> ConvertM a -> Either Error (a, State)
 run_convert state = Identity.runIdentity . Except.runExceptT
     . flip State.runStateT state
 
-type ConvertM = State.StateT State (Except.ExceptT Text Identity.Identity)
+type ConvertM = State.StateT State (Except.ExceptT Error Identity.Identity)
 
-error_context :: Text -> ConvertM a -> ConvertM a
+error_context :: Error -> ConvertM a -> ConvertM a
 error_context msg = map_error ((msg <> ": ") <>)
 
-map_error :: (Text -> Text) -> ConvertM a -> ConvertM a
+map_error :: (Error -> Error) -> ConvertM a -> ConvertM a
 map_error f action = Except.catchError action $ \err ->
     Except.throwError (f err)
 
@@ -927,12 +941,12 @@ make_state config start meters key = State
 
 -- ** util
 
-throw :: Text -> ConvertM a
+throw :: Error -> ConvertM a
 throw msg = do
     now <- State.gets state_time
     Except.throwError $ pretty now <> ": " <> msg
 
-lookup_val :: Env.Key -> (Text -> Either Text a) -> a -> Event -> ConvertM a
+lookup_val :: Env.Key -> (Error -> Either Error a) -> a -> Event -> ConvertM a
 lookup_val key parse deflt event = prefix $ do
     maybe_val <- Env.checked_val key (event_environ event)
     maybe (Right deflt) parse maybe_val
@@ -1080,7 +1094,7 @@ type Mode = Text
 instance ToLily Key where
     to_lily (Key tonic mode) = "\\key " <> tonic <> " \\" <> mode
 
-parse_key :: Text -> Either Text Key
+parse_key :: Text -> Either Error Key
 parse_key key_name = do
     key <- justErr ("unknown key: " <> key_name) $
         Twelve.lookup_key (Just (Pitch.Key key_name))
