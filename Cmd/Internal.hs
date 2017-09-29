@@ -18,6 +18,7 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -487,27 +488,37 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
         set Config.status_track_id Nothing
     Just (sel, block_id, maybe_track_id) -> do
         ns <- Ui.get_namespace
-        secs <- realtime block_id maybe_track_id sel
-        set Config.status_selection $ Just $ selection_status sel secs
+        start_secs <- realtime block_id maybe_track_id $ Sel.min sel
+        end_secs <- realtime block_id maybe_track_id $ Sel.max sel
+        set Config.status_selection $
+            Just $ selection_status sel start_secs end_secs
         set Config.status_track_id $
             Just $ track_selection_status ns sel maybe_track_id
         -- This didn't seem too useful, but maybe I'll change my mind?
         -- Info.set_instrument_status block_id (Sel.cur_track sel)
     where
     set = Cmd.set_view_status view_id
-    realtime block_id maybe_track_id sel = justm Perf.lookup_root $ \perf ->
-        Perf.lookup_realtime perf block_id maybe_track_id
-            (Selection.sel_point sel)
+    realtime block_id maybe_track_id t = justm Perf.lookup_root $ \perf ->
+        Perf.lookup_realtime perf block_id maybe_track_id t
 
-selection_status :: Sel.Selection -> Maybe RealTime -> Text
-selection_status sel secs = Text.unwords $ filter (not . Text.null)
-    [ pretty_rational start
-        <> (if start == end then "" else Text.cons '-' (pretty_rational end))
-    , if start == end then "" else "(" <> pretty_rational (end - start) <> ")"
-    , maybe "" RealTime.show_units secs
-    -- TODO show range too?
-    ]
-    where (start, end) = Sel.range sel
+selection_status :: Sel.Selection -> Maybe RealTime -> Maybe RealTime -> Text
+selection_status sel start_secs end_secs =
+    "t" <> show_range show_score (Sel.min sel) (Sel.max sel)
+    `TextUtil.join2` case get start_secs end_secs of
+        Just (start, end) -> "s" <> show_range show_real start end
+        Nothing -> ""
+    where
+    get (Just a) (Just b) = Just (a, b)
+    get (Just a) Nothing = Just (a, a)
+    get Nothing (Just b) = Just (b, b)
+    get Nothing Nothing = Nothing
+    show_score = pretty_rational . ScoreTime.to_double
+    show_real = pretty_rational . RealTime.to_seconds
+
+show_range :: (Eq a, Num a) => (a -> Text) -> a -> a -> Text
+show_range fmt start end = fmt start
+    <> if start == end then "" else "-" <> fmt end
+    <> " (" <> fmt (end - start) <> ")"
 
 track_selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text
 track_selection_status ns sel maybe_track_id =
@@ -518,18 +529,18 @@ track_selection_status ns sel maybe_track_id =
         ]
     where (tstart, tend) = Sel.track_range sel
 
--- | If a ScoreTime looks like a low fraction, display it thus, rather than as
+-- | If it looks like a low fraction, display it thus, rather than as
 -- a decimal.  This is useful because e.g. meters in three will have lots of
 -- repeating decimals.  I also use fractions for power of two denominators
 -- which are just fine in decimal, but the fraction still takes up less space.
-pretty_rational :: ScoreTime -> Text
+pretty_rational :: Double -> Text
 pretty_rational d
-    | d == 0 = "0t"
+    | d == 0 = "0"
     | Ratio.denominator ratio <= 12 =
-        Text.strip $ (if int == 0 then "" else showt int) <> pp <> "t"
+        Text.strip $ (if int == 0 then "" else showt int) <> pp
     | otherwise = pretty d
     where
-    (int, frac) = properFraction (ScoreTime.to_double d)
+    (int, frac) = properFraction d
     ratio = Ratio.approxRational frac 0.0001
     pp = Map.findWithDefault (" " <> pretty ratio) ratio fractions
     fractions = Map.fromList
