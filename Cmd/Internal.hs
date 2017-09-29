@@ -214,7 +214,7 @@ ui_update_state maybe_tracknum view_id update = case update of
     UiMsg.UpdateInput (Just text) -> do
         view <- Ui.get_view view_id
         update_input (Block.view_block view) text
-    UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
+    -- UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
     UiMsg.UpdateClose -> Ui.destroy_view view_id
     _ -> return ()
     where
@@ -286,7 +286,7 @@ sync_status ui_from cmd_from = do
     sync_defaults $ Ui.config#Ui.default_ #$ ui_to
 
     run_selection_hooks (mapMaybe selection_update updates)
-    forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
+    -- forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
     create_view (Update.View view_id Update.CreateView) = Just view_id
@@ -294,8 +294,8 @@ sync_status ui_from cmd_from = do
     selection_update (Update.View view_id (Update.Selection selnum sel))
         | selnum == Config.insert_selnum = Just (view_id, sel)
     selection_update _ = Nothing
-    zoom_update (Update.View view_id (Update.Zoom {})) = Just view_id
-    zoom_update _ = Nothing
+    -- zoom_update (Update.View view_id (Update.Zoom {})) = Just view_id
+    -- zoom_update _ = Nothing
 
 -- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
 -- back on after a save.
@@ -346,7 +346,6 @@ default_selection_hooks ::
     [[(ViewId, Maybe Cmd.TrackSelection)] -> Cmd.CmdId ()]
 default_selection_hooks =
     [ mapM_ (uncurry sync_selection_status)
-    , mapM_ (uncurry sync_selection_realtime)
     , mapM_ (uncurry sync_selection_control)
     ]
 
@@ -472,49 +471,52 @@ sync_defaults :: Cmd.M m => Ui.Default -> m ()
 sync_defaults (Ui.Default tempo) =
     Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
 
--- Zoom is actually not very useful.
+-- Zoom is actually not very useful, so this is disabled for now.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()
-sync_zoom_status _view_id = return ()
-    -- view <- Ui.get_view view_id
-    -- Cmd.set_view_status view_id Config.status_zoom
-    --     (Just (pretty (Block.view_zoom view)))
+sync_zoom_status view_id = do
+    view <- Ui.get_view view_id
+    Cmd.set_view_status view_id Config.status_zoom
+        (Just (pretty (Block.view_zoom view)))
 
 -- * selection
 
 sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_status view_id maybe_sel = case maybe_sel of
-    Nothing -> set Nothing
-    Just (sel, _block_id, maybe_track_id) -> do
+    Nothing -> do
+        set Config.status_selection Nothing
+        set Config.status_track_id Nothing
+    Just (sel, block_id, maybe_track_id) -> do
         ns <- Ui.get_namespace
-        set $ Just $ selection_status ns sel maybe_track_id
+        secs <- realtime block_id maybe_track_id sel
+        set Config.status_selection $ Just $ selection_status sel secs
+        set Config.status_track_id $
+            Just $ track_selection_status ns sel maybe_track_id
         -- This didn't seem too useful, but maybe I'll change my mind?
         -- Info.set_instrument_status block_id (Sel.cur_track sel)
-    where set = Cmd.set_view_status view_id Config.status_selection
+    where
+    set = Cmd.set_view_status view_id
+    realtime block_id maybe_track_id sel = justm Perf.lookup_root $ \perf ->
+        Perf.lookup_realtime perf block_id maybe_track_id
+            (Selection.sel_point sel)
 
-selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text
-selection_status ns sel maybe_track_id = Text.unwords $ filter (not . Text.null)
+selection_status :: Sel.Selection -> Maybe RealTime -> Text
+selection_status sel secs = Text.unwords $ filter (not . Text.null)
     [ pretty_rational start
         <> (if start == end then "" else Text.cons '-' (pretty_rational end))
     , if start == end then "" else "(" <> pretty_rational (end - start) <> ")"
-    , showt tstart
-        <> (if tstart == tend then "" else Text.cons '-' (showt tend))
-    , maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
+    , maybe "" RealTime.show_units secs
+    -- TODO show range too?
     ]
-    where
-    (start, end) = Sel.range sel
-    (tstart, tend) = Sel.track_range sel
+    where (start, end) = Sel.range sel
 
-sync_selection_realtime :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
-sync_selection_realtime view_id maybe_sel = case maybe_sel of
-    Nothing -> set Nothing
-    Just (sel, block_id, maybe_track_id) ->
-        whenJustM (get block_id maybe_track_id sel) $
-            set . Just . RealTime.show_units
-    where
-    set = Cmd.set_view_status view_id Config.status_realtime
-    get block_id maybe_track_id sel = justm Perf.lookup_root $ \perf ->
-        Perf.lookup_realtime perf block_id maybe_track_id
-            (Selection.sel_point sel)
+track_selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text
+track_selection_status ns sel maybe_track_id =
+    Text.unwords $ filter (not . Text.null)
+        [ showt tstart
+            <> (if tstart == tend then "" else Text.cons '-' (showt tend))
+        , maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
+        ]
+    where (tstart, tend) = Sel.track_range sel
 
 -- | If a ScoreTime looks like a low fraction, display it thus, rather than as
 -- a decimal.  This is useful because e.g. meters in three will have lots of
@@ -544,7 +546,7 @@ pretty_rational d
 sync_selection_control :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_control view_id (Just (sel, block_id, Just track_id)) = do
     status <- track_control block_id track_id (Selection.sel_point sel)
-    Cmd.set_view_status view_id Config.status_control status
+    Cmd.set_view_status view_id Config.status_control $ ("c"<>) <$> status
 sync_selection_control view_id _ =
     Cmd.set_view_status view_id Config.status_control Nothing
 

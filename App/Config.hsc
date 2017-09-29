@@ -98,14 +98,13 @@ status_chord = (7, "chord")
 status_control :: (SortKey, Text)
 status_control = (6, "c")
 
--- | Selection start and range.  This goes at the end because it changes width
--- a lot.
+-- | Selection start and range.
 status_selection :: (SortKey, Text)
 status_selection = (8, "s")
 
--- | Selection start in RealTime.
-status_realtime :: (SortKey, Text)
-status_realtime = (9, "sec")
+-- | Selected TrackId.
+status_track_id :: (SortKey, Text)
+status_track_id = (12, "tid")
 
 -- | Zoom and scroll of the visible area.
 status_zoom :: (SortKey, Text)

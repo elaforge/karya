@@ -342,7 +342,7 @@ UNSORTED
     selection but the other way.
     . I can get this by playing from the point, but why not do it
       automatically?
-  + Status bar visibility:
+  * Status bar visibility:
     . I often want to see score time selection and RealTime selection in
       a narrow block, and it's annoying to resize it.  Can I have a pop-up?
       Or two lines of status if necessary?
