@@ -462,8 +462,8 @@ partition2 f1 f2 xs = (as, bs, xs3)
     (as, xs2) = List.partition f1 xs
     (bs, xs3) = List.partition f2 xs2
 
-partition_with :: (a -> Maybe b) -> [a] -> ([b], [a])
-partition_with f = go
+partition_on :: (a -> Maybe b) -> [a] -> ([b], [a])
+partition_on f = go
     where
     go [] = ([], [])
     go (x:xs) = case f x of

@@ -1768,7 +1768,7 @@ sec n = attr $ "sec"
     <> Text.replace "." "-" (Num.showFloat0 Nothing (RealTime.to_seconds n))
 
 parse_sec :: Attributes -> Maybe (RealTime, Attributes)
-parse_sec attrs = case Seq.partition_with has_sec (Attrs.to_list attrs) of
+parse_sec attrs = case Seq.partition_on has_sec (Attrs.to_list attrs) of
     ([secs], rest) -> Just (secs, Attrs.attrs rest)
     _ -> Nothing
     where

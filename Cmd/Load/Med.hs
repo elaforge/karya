@@ -63,7 +63,7 @@ default_zeroes = snd . List.mapAccumL set (0, mempty)
         , parsed ++ map (uncurry M.Command) defaulted
         )
         where
-        (unparsed, parsed) = Seq.partition_with is_unparsed cmds
+        (unparsed, parsed) = Seq.partition_on is_unparsed cmds
         defaulted = map (set_default prev_cmds) unparsed
     set_default prev_cmds (cmd, val) =
         (cmd, if val /= 0 then val else Map.findWithDefault 0 cmd prev_cmds)

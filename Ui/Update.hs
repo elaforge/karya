@@ -284,7 +284,7 @@ collapse_updates updates = collapse tracks ++ rest
         Nothing -> [Track track_id TrackAllEvents]
         Just rs -> map (Track track_id . uncurry TrackEvents) rs
 
-    (tracks, rest) = Seq.partition_with track_range updates
+    (tracks, rest) = Seq.partition_on track_range updates
     track_range (Track track_id (TrackEvents s e)) =
         Just (track_id, Ranges.range s e)
     track_range (Track track_id TrackAllEvents) =
