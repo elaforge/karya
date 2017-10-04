@@ -285,6 +285,7 @@ hsBinaries =
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }
+    , plain "ness-submit" "Ness/Submit.hs"
     ]
     ++ if not Config.enableIm then [] else
         [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
