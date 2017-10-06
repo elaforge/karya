@@ -1,10 +1,12 @@
+{-# LANGUAGE RecordWildCards #-}
 module Ness.MultiplateScore where
-import Ness.Multiplate
 import Ness.Global
+import Ness.Multiplate
+import qualified Ness.Util as Util
 
 
-r = run instrument0 score0 False
-demo = run instrument0 score0 True
+Util.Interactive {..} = Util.interactive "multiplate" renderAll
+    instrument0 score0
 
 score0 = Score 6
     [ Strike plate1 0 dur (0.6653034, 0.3507947) 1000

@@ -1,13 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
 module Ness.GuitarScore where
-import qualified Data.Text.IO as Text.IO
-
 import Ness.Guitar
+import qualified Ness.Util as Util
 
 
-p = Text.IO.putStrLn
-
-r = run instrument0 score0 False
-demo = run instrument0 score0 True
+Util.Interactive {..} = Util.interactive "guitar" renderAll
+    instrument0 score0
 
 strings =
     [ String 0.68 2e11 12.1 0.0002 7850 15 5 [Output 0.9 0.3]

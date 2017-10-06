@@ -1,8 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
 module Ness.BowedStringScore where
 import Ness.BowedString
+import qualified Ness.Util as Util
 
 
-r = run instrument0 score0
+Util.Interactive {..} = Util.interactive "bstring" renderAll
+    instrument0 score0
 
 score0 = Score
     { sDuration = 4

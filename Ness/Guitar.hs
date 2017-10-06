@@ -16,13 +16,6 @@ steel = Material 7850 2e11
 gold = Material 19300 7.9e10
 uranium = Material 19050 2.08e11
 
-run :: Instrument -> Score -> Bool -> IO FilePath
-run instrument score demo = Util.run "guitar" i s demo
-    where (i, s) = renderAll instrument score
-
-play :: IO ()
-play = Util.play "guitar"
-
 -- * Instrument
 
 {- | string_def (array) defines the parameters for each string of the guitar.

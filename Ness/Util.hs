@@ -10,18 +10,31 @@ import qualified Ness.Submit as Submit
 scratchDir :: FilePath
 scratchDir = "ness-data"
 
-run :: String -> Text -> Text -> IO FilePath
-run model instrument score = do
+submit :: String -> Text -> Text -> Bool -> IO ()
+submit model instrument score demo = do
     let ifn = scratchDir </> model ++ ".inst"
     let sfn = scratchDir </> model ++ ".score"
     let out = scratchDir </> model ++ "-out.wav"
     Text.IO.writeFile ifn instrument
     Text.IO.writeFile sfn score
-    -- Process.callProcess "build/opt/ness-submit" [ifn, sfn, out]
-    Submit.submitDownload False ifn sfn out
+    Submit.submitDownload demo ifn sfn out
     Process.callProcess "afplay" [out]
-    return out
 
-play :: String -> IO ()
-play model =
+replayModel :: String -> IO ()
+replayModel model =
     Process.callProcess "afplay" [scratchDir </> model ++ "-out.wav"]
+
+data Interactive = Interactive {
+    replay :: IO ()
+    , render :: IO ()
+    , demo :: IO ()
+    }
+
+interactive :: String -> (i -> s -> (Text, Text)) -> i -> s -> Interactive
+interactive model renderAll instrument score = Interactive
+    { replay = replayModel model
+    , render = let (i, s) = renderAll instrument score
+        in submit model i s False
+    , demo = let (i, s) = renderAll instrument score
+        in submit model i s True
+    }

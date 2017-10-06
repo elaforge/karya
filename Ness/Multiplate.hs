@@ -8,13 +8,6 @@ import Ness.Global
 import qualified Ness.Util as Util
 
 
-run :: Instrument -> Score -> Bool -> IO FilePath
-run instrument score demo = Util.run "multiplate" i s demo
-    where (i, s) = renderAll instrument score
-
-play :: IO ()
-play = Util.play "multiplate"
-
 renderAll :: Instrument -> Score -> (Text, Text)
 renderAll instrument score =
     (renderInstrument instrument, renderScore plateNameOf score)

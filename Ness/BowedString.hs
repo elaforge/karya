@@ -5,7 +5,6 @@ import qualified Data.Text as Text
 
 import Global
 import Ness.Global
-import qualified Ness.Util as Util
 
 
 {-
@@ -15,13 +14,6 @@ instrument (string) instrument type to simulate. Valid values are ’violin’,
 instr_numb (scalar) specifies which of the preset instruments to use. Valid
 values are 1-5 for violins, 1-2 for violas and 1-3 for cellos.
 -}
-
-run :: Instrument -> Score -> Bool -> IO FilePath
-run instrument score demo = Util.run "bstring" i s demo
-    where (i, s) = renderAll instrument score
-
-play :: IO ()
-play = Util.play "bstring"
 
 renderAll :: Instrument -> Score -> (Text, Text)
 renderAll instrument score =
