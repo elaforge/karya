@@ -4,6 +4,7 @@ import System.FilePath ((</>))
 import qualified System.Process as Process
 
 import Global
+import qualified Ness.Submit as Submit
 
 
 scratchDir :: FilePath
@@ -16,7 +17,8 @@ run model instrument score = do
     let out = scratchDir </> model ++ "-out.wav"
     Text.IO.writeFile ifn instrument
     Text.IO.writeFile sfn score
-    Process.callProcess "build/opt/ness-submit" [ifn, sfn, out]
+    -- Process.callProcess "build/opt/ness-submit" [ifn, sfn, out]
+    Submit.submitDownload False ifn sfn out
     Process.callProcess "afplay" [out]
     return out
 

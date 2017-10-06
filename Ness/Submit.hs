@@ -16,10 +16,7 @@ import Global
 
 
 loginForm :: String
-loginForm =
-    "https://www.ease.ed.ac.uk/\
-    \?cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk\
-    \&https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiWebMain.html"
+loginForm = "https://www.ease.ed.ac.uk/"
 
 loginUrl :: String
 loginUrl = "https://www.ease.ed.ac.uk/cosign.cgi"
@@ -41,7 +38,11 @@ submitUrl =
 main :: IO ()
 main = do
     [instrument, score, out] <- System.Environment.getArgs
-    result <- submit False instrument score
+    submitDownload False instrument score out
+
+submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO ()
+submitDownload isDemo instrument score out = do
+    result <- submit isDemo instrument score
     case result of
         Left err -> errorIO err
         Right (url, runTime) -> do
@@ -51,8 +52,12 @@ main = do
             unless ok $ putStrLn "=== gave up"
             return ()
 
+-- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
+-- I should get a cosign-eucsCosign-ness-frontend etc.
+-- is it ignoring the service= in the login?
 login :: String -> String -> IO ()
 login user password = do
+    -- go to loginForm, to get the cosign cookie
     Process.callProcess "curl"
         [ "--cookie-jar", cookies
         , "--output", "curl.loginForm"
@@ -71,10 +76,8 @@ login user password = do
         , "--cookie", cookies
         , "--cookie-jar", cookies
         , "--output", "curl.login"
-        ] ++ concat [["--form-string", k <> "=" <> v] | (k, v) <- values]
+        ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
         ++ [loginUrl]
-
--- curl args = Process.callProcess "curl" $ ["--insecure", "--verbose"]
 
 submit :: Bool -> FilePath -> FilePath -> IO (Either Text (String, Double))
 submit isDemo instrument score = do

@@ -22,6 +22,32 @@ import Global
 -- Can't change any parameters after strike.
 -- Also no way to damp a ringing string?  What does Duration do?
 
+-- Collect string definitions from notes, and make instrument.
+--
+-- Calculate score duration, I guess I have to add some for the decay of the
+-- final note.
+renderAll :: Score -> (Text, Text)
+renderAll (Score plate collision notes) =
+    (Text.unlines instrument, Text.unlines score)
+    where
+    strings = zip [0..] $ Set.toList $ Set.fromList $ map nString notes
+    instrument = concat
+        [ [ "# sbversion 0.1"
+          , "samplerate 44100"
+          , ""
+          ]
+        , map (uncurry renderString) strings
+        , [render plate, render collision]
+        , [renderStringOutput n o | (n, s) <- strings, o <- sOutputs s]
+        , map render (pOutputs plate)
+        ]
+    nameOf str = stringName $ fromMaybe (error $ "no string: " <> show str) $
+        Map.lookup str toNum
+        where toNum = Map.fromList $ map Tuple.swap strings
+    score = "duration " <> render (maximum (map nEnd notes) + decay)
+        : map (renderNote nameOf) notes
+    decay = 2
+
 data String = String {
     sLength :: Meters
     , sDensity :: Double -- kg/m
@@ -253,33 +279,3 @@ score = Score
     where
     note str start = Note Pluck str start 0.0015 4 0.9
 
-
-p = Text.IO.putStrLn
-
-(i0, s0) = generate score
-
--- Collect string definitions from notes, and make instrument.
---
--- Calculate score duration, I guess I have to add some for the decay of the
--- final note.
-generate :: Score -> (Text, Text)
-generate (Score plate collision notes) =
-    (Text.unlines instrument, Text.unlines score)
-    where
-    strings = zip [0..] $ Set.toList $ Set.fromList $ map nString notes
-    instrument = concat
-        [ [ "# sbversion 0.1"
-          , "samplerate 44100"
-          , ""
-          ]
-        , map (uncurry renderString) strings
-        , [render plate, render collision]
-        , [renderStringOutput n o | (n, s) <- strings, o <- sOutputs s]
-        , map render (pOutputs plate)
-        ]
-    nameOf str = stringName $ fromMaybe (error $ "no string: " <> show str) $
-        Map.lookup str toNum
-        where toNum = Map.fromList $ map Tuple.swap strings
-    score = "duration " <> render (maximum (map nEnd notes) + decay)
-        : map (renderNote nameOf) notes
-    decay = 2

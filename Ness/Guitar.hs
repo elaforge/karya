@@ -35,7 +35,7 @@ mat_tab = [7850 2e11;19300 7.9e10;
 
 run :: Instrument -> Score -> IO FilePath
 run instrument score = Util.run "guitar" i s
-    where (i, s) = generate instrument score
+    where (i, s) = renderAll instrument score
 
 play :: IO ()
 play = Util.play "guitar"
@@ -256,8 +256,8 @@ data Score = Score {
     }
     deriving (Eq, Show)
 
-generate :: Instrument -> Score -> (Text, Text)
-generate instrument score =
+renderAll :: Instrument -> Score -> (Text, Text)
+renderAll instrument score =
     (renderInstrument instrument, renderScore (iStrings instrument) score)
 
 renderScore :: [String] -> Score -> Text

@@ -19,3 +19,4 @@ type Newtons = Double
 -- | From -1 to 1.
 type Pan = Double
 type Location = Double -- from 0 to 1
+type Frequency = Double -- hz
