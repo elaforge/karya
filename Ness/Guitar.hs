@@ -16,6 +16,10 @@ steel = Material 7850 2e11
 gold = Material 19300 7.9e10
 uranium = Material 19050 2.08e11
 
+renderAll :: Instrument -> Score -> (Text, Text)
+renderAll instrument score =
+    (renderInstrument instrument, renderScore (iStrings instrument) score)
+
 -- * Instrument
 
 {- | string_def (array) defines the parameters for each string of the guitar.
@@ -231,10 +235,6 @@ data Score = Score {
     , sFingers :: [Finger]
     }
     deriving (Eq, Show)
-
-renderAll :: Instrument -> Score -> (Text, Text)
-renderAll instrument score =
-    (renderInstrument instrument, renderScore (iStrings instrument) score)
 
 renderScore :: [String] -> Score -> Text
 renderScore strings (Score highpass notes fingers) = Text.unlines

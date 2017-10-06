@@ -34,6 +34,8 @@ NESS:
         34s to 5m, and sound become empty.
 
     soundboard:
+      . Where are the frets?  Since all you can do is pluck an open string,
+        I guess you can't actually use them?
       . What's the meaning of the baseboard profile?
       . What about string start and end coordinates?
 
@@ -61,6 +63,13 @@ NESS:
   short piece:
     - multiplate for gongs
     - guitar for kotekan
+  ideas:
+    . yangqin?
+    . play string like reyong, with a hand damp
+    . string like gangsa with noltol
+    . jawari like tambura or sitar
+    . solkattu for metal percussion thing
+    . can I hand damp metal percussion?
 
 UNSORTED
   - enable FlexibleInstances globally.  Should I add any other instance ones?
