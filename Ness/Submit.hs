@@ -76,6 +76,8 @@ login user password = do
         , "--cookie", cookies
         , "--cookie-jar", cookies
         , "--output", "curl.login"
+        -- follow the location response to pick up the next cookie
+        , "--location"
         ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
         ++ [loginUrl]
 
