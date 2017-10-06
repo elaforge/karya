@@ -20,3 +20,6 @@ type Newtons = Double
 type Pan = Double
 type Location = Double -- from 0 to 1
 type Frequency = Double -- hz
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a, b, c) = f a b c

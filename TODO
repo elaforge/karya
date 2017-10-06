@@ -2,6 +2,53 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
+NESS:
+  Questions:
+    . How to mute ringing strings?
+    . What are the differences between soundboard, guitar, and bowed string?
+      E.g. why not play soundboard or guitar with a bow?  Why not put frets on
+      the bowed string?
+    . How to do jawari for soundboard, guitar, or bowed string?  How about
+      a curved bridge?
+    . What's T60?
+
+    multiplate:
+      . You can define membrane and drumshell, but not strike them?
+        . It seems like 'strike membrane1 ...' works, but is undocumented?
+      . What's the point of the name on drumshell?
+      . In plate and membrane, what's rho, H, E, nu, T60, sig1?
+        Membrane has an extra T parameter.
+        . nu = poisson's ratio?
+      . In plate, what does the center coordinates mean?
+      . What shape are the plates?  Depending on the parameters, they can have
+        a definite pitch, but where is the continuum between gong and tamtam?
+      . How difficult would it be to add features like hand damping, striking
+        with soft or hard mallets?
+
+    soundboard:
+      . What's the meaning of the baseboard profile?
+      . What about string start and end coordinates?
+
+    guitar:
+      . "itnum" is presumably iterations for a newton solver... which does what?
+      . I guess "tol" would have been its tolerance, but isn't used for the C++
+        version?
+      . What does inharmonicity as taken by the string_def_gen() actually
+        influence in the string_defs array?  Presumably density or radius?  Can
+        I see the definitions for the various functions?
+
+    bowed string:
+      . The (instrument, instrument_numb) affect only strings, right?  What
+        string definitions do they correspond to?
+      . What's kw, alpha, beta, lambda and M in the finger and bow definitions?
+        Finger has an extra ku.
+      . The bow movements have: w0, vw0, u0, vu0 (initial positions and
+        velocities).  I assume w is vertical, and u is horizontal?
+      . Then the breakpoints are (position, vertical force, horiz force).
+        If the position is horizontal position, what's the relationship
+        between it and force?  Wouldn't the force be whatever is necessary to
+        put it at the given position and time?
+
 UNSORTED
   - enable FlexibleInstances globally.  Should I add any other instance ones?
   - Highlight for block calls which are 1:1, or not 1:1.
