@@ -3,9 +3,10 @@ import Ness.Multiplate
 import Ness.Global
 
 
-r = run instrument0 score0
+r = run instrument0 score0 False
+demo = run instrument0 score0 True
 
-score0 = Score
+score0 = Score 6
     [ Strike plate1 0 dur (0.6653034, 0.3507947) 1000
     , Strike plate2 0.25 dur (0.5177853, 0.41139928754) 500
     , Strike plate3 0.5 dur (0.68823711, 0.363045233) 500

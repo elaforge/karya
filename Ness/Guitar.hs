@@ -8,33 +8,16 @@ import Ness.Global
 import qualified Ness.Util as Util
 
 
-{-
-% 1 - steel, 2 - gold, 3 - uranium
-mat_tab = [7850 2e11;19300 7.9e10;
-           19050 2.08e11];
--}
-{-
-    Questions:
+data Material = Material {
+    mDensity, mYoung :: Double
+    } deriving (Eq, Ord, Show)
 
-    What is T60?  What does T60 mean?  Also I assume T60 at DC is the same as
-    T60 at 0hz?
+steel = Material 7850 2e11
+gold = Material 19300 7.9e10
+uranium = Material 19050 2.08e11
 
-    For soundboard and guitar, is it possible to stop ringing strings?  They
-    seem to have only two hardcoded techniques, "strike" and "pluck", with
-    control over the duration, but apparently no ability to just damp the
-    string.
-
-    In the guitar instrument definition:
-    . "itnum" is presumably iterations for a newton solver... which does what?
-    . I guess "tol" would have been its tolerance, but isn't used for the C++
-    version?
-    . What does inharmonicity as taken by the string_def_gen() actually
-    influence in the string_defs array?  Presumably density or radius?  Can
-    I see the definitions for the various functions?
--}
-
-run :: Instrument -> Score -> IO FilePath
-run instrument score = Util.run "guitar" i s
+run :: Instrument -> Score -> Bool -> IO FilePath
+run instrument score demo = Util.run "guitar" i s demo
     where (i, s) = renderAll instrument score
 
 play :: IO ()

@@ -6,7 +6,8 @@ import Ness.Guitar
 
 p = Text.IO.putStrLn
 
-r = run instrument0 score0
+r = run instrument0 score0 False
+demo = run instrument0 score0 True
 
 strings =
     [ String 0.68 2e11 12.1 0.0002 7850 15 5 [Output 0.9 0.3]

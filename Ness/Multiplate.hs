@@ -8,8 +8,8 @@ import Ness.Global
 import qualified Ness.Util as Util
 
 
-run :: Instrument -> Score -> IO FilePath
-run instrument score = Util.run "multiplate" i s
+run :: Instrument -> Score -> Bool -> IO FilePath
+run instrument score demo = Util.run "multiplate" i s demo
     where (i, s) = renderAll instrument score
 
 play :: IO ()
@@ -176,16 +176,16 @@ renderDrumshells nameDrumshells =
 -- * score
 
 data Score = Score {
-    sStrikes :: [Strike]
+    sDecay :: Seconds
+    , sStrikes :: [Strike]
     } deriving (Eq, Show)
 
 renderScore :: (Plate -> Text) -> Score -> Text
-renderScore plateNameOf (Score strikes) = Text.unlines $
+renderScore plateNameOf (Score decay strikes) = Text.unlines $
     "duration " <> render (end + decay)
     : map (renderStrike plateNameOf) strikes
     where
     end = fromMaybe 0 $ Seq.maximum $ map sEnd strikes
-    decay = 2
 
 type Force = Double
 

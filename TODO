@@ -11,6 +11,10 @@ NESS:
     . How to do jawari for soundboard, guitar, or bowed string?  How about
       a curved bridge?
     . What's T60?
+    . Is there a difference between demo mode and just changing sampling rate
+      to 11k?
+    . Why not write output in floating point and leave the normalization to
+      the client?
 
     multiplate:
       . You can define membrane and drumshell, but not strike them?
@@ -24,6 +28,10 @@ NESS:
         a definite pitch, but where is the continuum between gong and tamtam?
       . How difficult would it be to add features like hand damping, striking
         with soft or hard mallets?
+      . Multiplate is slow!  61m for a 4 second simulation (5m in demo mode).
+        Are there guidelines about what parameters influence runtime?
+        It seems like the presence of a membrane makes demo runtime go from
+        34s to 5m, and sound become empty.
 
     soundboard:
       . What's the meaning of the baseboard profile?
@@ -48,6 +56,10 @@ NESS:
         If the position is horizontal position, what's the relationship
         between it and force?  Wouldn't the force be whatever is necessary to
         put it at the given position and time?
+
+  short piece:
+    - multiplate for gongs
+    - guitar for kotekan
 
 UNSORTED
   - enable FlexibleInstances globally.  Should I add any other instance ones?
