@@ -5,16 +5,17 @@ import qualified Data.Text as Text
 
 import Global
 import Ness.Global
-import qualified Ness.Util as Util
 
 
-data Material = Material {
-    mDensity, mYoung :: Double
-    } deriving (Eq, Ord, Show)
+steel   = Material 7850   200e9 -- 8050 kg/m^3, 200 GPa
+gold    = Material 19300  79e9 -- 19320
+uranium = Material 19050  208e9
+nylon   = Material 1150   3e9 -- 1.15 g/m^3, 2--4 GPa
+hemp    = Material 860    35e9 -- .86 g/m^3, 35 GPa
+bronze  = Material 8000   105e9 -- 7400 - 8900, 96--120 GPa
+silk    = Material 1300   200e9 -- spider silk: 40--280 GPa as strain increases
 
-steel = Material 7850 2e11
-gold = Material 19300 7.9e10
-uranium = Material 19050 2.08e11
+-- 3k, 6m, 9g, 12t
 
 renderAll :: Instrument -> Score -> (Text, Text)
 renderAll instrument score =
@@ -29,19 +30,21 @@ renderAll instrument score =
 -}
 data String = String {
     sLength :: Meters
-    , sYoung :: Double
     , sTension :: Newtons
+    , sMaterial :: Material
     , sRadius :: Meters
-    , sDensity :: Double -- kg/m?
-    , sT60At0hz :: Double -- ?
-    , sT60At1Khz :: Double -- ?
+    , sT60 :: (Double, Double) -- at 0 and 1k
     , sOutputs :: [Output]
+    } deriving (Eq, Ord, Show)
+
+data Material = Material {
+    mDensity, mYoung :: Double
     } deriving (Eq, Ord, Show)
 
 renderStrings :: [String] -> Text
 renderStrings = array2 "string_def" . map list
     where
-    list (String len young tension radius density t600 t601 _) =
+    list (String len tension (Material density young) radius (t600, t601) _) =
         [len, young, tension, radius, density, t600, t601]
 
 {- | output_def (array) defines the locations of the outputs. This is
@@ -177,6 +180,27 @@ renderInstrument (Instrument strings frets barrier backboard fingerParams
 
 -- * Score
 
+data Score = Score {
+    sDecay :: Seconds
+    , sHighpass :: Bool
+    , sNotes :: [Note]
+    , sFingers :: [Finger]
+    }
+    deriving (Eq, Show)
+
+renderScore :: [String] -> Score -> Text
+renderScore strings (Score decay highpass notes fingers) = Text.unlines
+    [ scalar "Tf" duration
+    , scalar "highpass" highpass
+    , renderNotes indexOf notes
+    , renderFingers indexOf fingers
+    ]
+    where
+    duration = maximum (map nEnd notes) + decay
+    indexOf str = fromMaybe (error $ "no string: " <> show str) $
+        Map.lookup str toNum
+        where toNum = Map.fromList $ zip strings [1..]
+
 data Note = Note {
     nStrike :: Strike
     , nString :: String
@@ -229,27 +253,7 @@ renderFingers indexOf fingers = Text.unlines
         ]
     bp (sec, p, v) = Text.unwords $ map render [sec, p, v]
 
-data Score = Score {
-    sHighpass :: Bool
-    , sNotes :: [Note]
-    , sFingers :: [Finger]
-    }
-    deriving (Eq, Show)
-
-renderScore :: [String] -> Score -> Text
-renderScore strings (Score highpass notes fingers) = Text.unlines
-    [ scalar "Tf" duration
-    , scalar "highpass" highpass
-    , renderNotes indexOf notes
-    , renderFingers indexOf fingers
-    ]
-    where
-    duration = maximum (map nEnd notes) + decay
-    decay = 6
-    indexOf str = fromMaybe (error $ "no string: " <> show str) $
-        Map.lookup str toNum
-        where toNum = Map.fromList $ zip strings [1..]
-
+-- * util
 
 array :: Text -> [Double] -> Text
 array name array =

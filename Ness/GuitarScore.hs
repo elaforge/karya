@@ -7,14 +7,57 @@ import qualified Ness.Util as Util
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     instrument0 score0
 
-strings =
-    [ String 0.68 2e11 12.1 0.0002 7850 15 5 [Output 0.9 0.3]
-    , String 0.68 2e11 12.3 0.00015 7850 15 5 [Output 0.9 0.4]
-    , String 0.68 2e11 21.9 0.00015 7850 15 5 [Output 0.9 (-0.4)]
-    , String 0.68 2e11 39.2 0.00015 7850 15 7 [Output 0.9 0.4]
-    , String 0.68 2e11 27.6 0.0001 7850 15 5 [Output 0.9 0.1]
-    , String 0.68 2e11 49.2 0.0001 7850 15 8 [Output 0.9 (-0.4)]
+score0 = Score
+    { sDecay = 4
+    , sHighpass = True
+    , sNotes = notes0
+    , sFingers = fingers0
+    }
+
+instrument0 = Instrument
+    { iStrings = strings
+    , iFrets = frets
+    , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
+    , iBackboard = Backboard (-0.002) (-0.001) (-0.0002)
+    , iFingerParams = FingerParams 0.005 1e7 3.3 100
+    , iNormalizeOutputs = True
+    , iSolver = Solver 20 0
+    , iConnections = []
+    }
+
+str0 = String
+    { sLength = 0.68
+    , sTension = 12.1
+    , sMaterial = steel
+    , sRadius = 0.002
+    , sT60 = (15, 5)
+    , sOutputs = []
+    }
+
+strings = guitar
+
+guitar = map make
+    [ (12.1, 0.00020, 5, 0.2)
+    , (12.3, 0.00015, 5, 0.3)
+    , (21.9, 0.00015, 5, 0.4)
+    , (27.6, 0.00015, 5, 0.5)
+    , (39.2, 0.00015, 7, 0.6)
+    , (49.2, 0.00010, 8, 0.7)
     ]
+    where
+    make (tension, radius, t60, pan) =
+        String 0.78 tension silk radius (15, t60) [Output 0.9 pan]
+
+pipa = map make
+    [ (40, 0.0010, 5) -- it's actually 0.0016 but that gets inharmonic
+    , (40, 0.0009, 5)
+    , (40, 0.00079, 7)
+    , (40, 0.0004, 9)
+    ]
+    where
+    make (tension, radius, t60) =
+        String 0.6985 tension nylon radius (15, t60) [Output 0.9 0.5]
+
 frets = map (\p -> Fret { fLocation = p, fHeight = -0.01 })
     [ 0.056125687318306
     , 0.109101281859661
@@ -38,31 +81,12 @@ frets = map (\p -> Fret { fLocation = p, fHeight = -0.01 })
     , 0.685019737526282
     ]
 
-instrument0 = Instrument
-    { iStrings = strings
-    , iFrets = []
-    , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
-    , iBackboard = Backboard (-0.002) (-0.001) (-0.0002)
-    , iFingerParams = FingerParams 0.005 1e7 3.3 100
-    , iNormalizeOutputs = True
-    , iSolver = Solver 20 0
-    , iConnections = []
-    }
-
-score0 = Score
-    { sHighpass = True
-    , sNotes = notes0
-    , sFingers = fingers0
-    }
-
 -- there's rattle from amp .75 to .4
 -- duration makes a more rounded sound around 0.007 to .015, but becomes no
 -- sound around .03
 
 [str1, str2, str3, str4, str5, str6] = strings
-notes0 = map make
-    [ (str1, 0.010000000000000, 0.001299965854261, 0.753352341821251)
-
+notes0 = map note [(str, s, 0.65) | (str, s) <- zip strings (iterate (+2) 0)]
     -- , (str1, 1, 0.001299965854261, 0.7)
     -- , (str1, 2, 0.001299965854261, 0.6)
     -- , (str1, 3, 0.001299965854261, 0.5)
@@ -81,6 +105,7 @@ notes0 = map make
     -- , (str1, 6, 0.030, 0.4) -- no sound
     -- , (str1, 7, 0.101, 0.4)
 
+    -- [ (str1, 0.010000000000000, 0.001299965854261, 0.753352341821251)
     -- , (str2, 0.022500000000000, 0.001734179906576, 0.570954585011654)
     -- , (str3, 0.035000000000000, 0.001104209253757, 1.125803331171040)
     -- , (str4, 0.047500000000000, 0.001792575487554, 0.524681470128999)
@@ -92,13 +117,12 @@ notes0 = map make
     -- , (str3, 0.297500000000000, 0.001498445424255, 0.997868010687049)
     -- , (str2, 0.310000000000000, 0.001048784504036, 1.318434615976952)
     -- , (str1, 0.322500000000000, 0.001313832359873, 1.095128292529225)
-    ]
     where
-    make (str, start, dur, amp) = Note
+    note (str, start, amp) = Note
         { nStrike = Strike
         , nString = str
         , nStart = start
-        , nDuration = dur
+        , nDuration = 0.0013
         , nLocation = 0.8
         , nAmplitude = amp
         }
@@ -106,9 +130,9 @@ notes0 = map make
 fingers0 =
     -- str initial bps
     [
-      Finger str1 (0.01, 0)
-        [ (1, 0.038, 0), (3, 0.038, 0.01)
-        ]
+      -- Finger str1 (0.01, 0)
+      --   [ (1, 0.038, 0), (3, 0.038, 0.01)
+      --   ]
 
     --   Finger str1 (0.01, 0)
     --     [ (0, 0.038, 0), (0.18, 0.148, 0), (0.31, 0.093, 1.0)
