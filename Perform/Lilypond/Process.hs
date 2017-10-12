@@ -547,8 +547,12 @@ tremolo_notes :: Attrs.Attributes -> [Event] -> (Attrs.Attributes, [Note])
 tremolo_notes prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
     where
     make prev_attrs (is_first, event, is_last) = (next_attrs,) $ Note
-        { note_pitches =
-            NotePitch (pitch_code is_first event) NoTie [] slur :| []
+        { note_pitches = NotePitch
+            { pitch_pitch = pitch_code is_first event
+            , pitch_tie = NoTie
+            , pitch_prepend = []
+            , pitch_append = slur
+            } :| []
         , note_duration = Types.NoteDuration Types.D32 False
         , note_prepend = []
         , note_append = attrs_codes
@@ -663,7 +667,12 @@ make_note config measure_start prev_attrs maybe_meter chord next =
         let tie = note_tie event
         let (prepend, append) = event_note_code Constants.Note
                 (is_first event) (is_last event) event
-        return $ NotePitch pitch tie prepend append
+        return $ NotePitch
+            { pitch_pitch = pitch
+            , pitch_tie = tie
+            , pitch_prepend = prepend
+            , pitch_append = append
+            }
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs $
         mconcat $ map event_attributes $ NonEmpty.toList chord
 
@@ -1113,9 +1122,12 @@ data Note = Note {
     , note_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
 
--- | Pitch, tie, code to prepend, code to append.
-data NotePitch = NotePitch !Text !Tie ![Code] ![Code]
-    deriving (Show)
+data NotePitch = NotePitch {
+    pitch_pitch :: !Text
+    , pitch_tie :: !Tie
+    , pitch_prepend :: ![Code]
+    , pitch_append :: ![Code]
+    } deriving (Show)
 
 data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
 
