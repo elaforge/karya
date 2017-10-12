@@ -112,7 +112,7 @@ write_empty_staff :: Types.StaffConfig -> [Process.VoiceLy] -> Output ()
 write_empty_staff config_ lys =
     write_staff config (Just "down") (Just "\\RemoveEmptyStaves") $
         mapM_ write_ly $
-            Process.Code "\\clef bass" : Process.convert_to_rests lys
+            Process.LyCode "\\clef bass" : Process.convert_to_rests lys
     where
     config = config_ { Types.staff_code = Types.staff_code config_ ++ [code] }
     -- Normally RemoveEmptyStaves won't remove the staff from the first system,
@@ -163,7 +163,7 @@ write_voice_ly (Left (Process.Voices voices)) = do
 write_voice_ly (Right ly) = write_ly ly
 
 write_ly :: Process.Ly -> Output ()
-write_ly ly@(Process.Barline {}) = do
+write_ly ly@(Process.LyBarline {}) = do
     bar <- State.gets output_bar
     stack <- State.gets output_last_stack
     output $ " " <> Types.to_lily ly <> " % " <> show_stack stack <> showt bar
@@ -257,8 +257,8 @@ extract_movements config events = do
 convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
     -> Either Text [StaffGroup]
 convert_staff_groups config start events = do
-    let (global, normal) = List.partition ((==Constants.ly_global)
-            . Types.event_instrument) events
+    let (global, normal) = List.partition
+            ((==Constants.ly_global) . Types.event_instrument) events
         staff_groups = split_events normal
     let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
     meters <- get_meters start staff_end global

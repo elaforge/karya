@@ -84,9 +84,8 @@ test_tuplet_ly = do
         (Right "\\tuplet 3/2 { c2 d2 e2 }", [])
 
     -- Leading rests.
-    -- TODO R4*4 breaks lilypond, fix
     equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track [(2, 1, "3c")])
-        (Right "\\tuplet 3/2 { r2 r2 c2 }", [])
+        (Right "\\tuplet 3/2 { r1 c2 }", [])
 
     -- -- Trailing rests.
     -- TODO I can't actually express this with the 't' call since I don't have
@@ -128,13 +127,13 @@ test_tuplet_ly_articulations = do
             . LilypondTest.derive_tracks_linear
     let parents call = [(">", [(0, 4, call)]), (">", [(0, 4, "t")])]
     equal (run $ parents "(" ++ UiTest.regular_notes 3)
-        (Right "\\tuplet 3/2 { c2( d2 e2) }", [])
+        (Right "\\tuplet 3/2 { c2 ( d2 e2 ) }", [])
 
     let notes = UiTest.note_track
             [(0, 1, "3c"), (1, 1, "3d"), (2, 1, "3e"), (4, 2, "3f")]
     -- putStrLn $ untxt $ UiTest.fmt_tracks $ parents "+pizz" ++ notes
     equal (run $ parents "+pizz" ++ notes)
-        (Right "\\tuplet 3/2 { c2^\"pizz.\" d2 e2 } | f2^\"arco\" r2", [])
+        (Right "\\tuplet 3/2 { c2 ^\"pizz.\" d2 e2 } | f2 ^\"arco\" r2", [])
 
 test_tuplet_ly_complex = do
     let run = LilypondTest.measures ["tuplet", "acciaccatura", "p"]
@@ -172,12 +171,12 @@ test_tuplet_ly_complex = do
     equal (run $
             (">", [(0, 4, "t")]) : (">", [(0, 3, "+stac")])
             : UiTest.regular_notes 3)
-        (Right "\\tuplet 3/2 { c2-. d2-. e2-. }", [])
+        (Right "\\tuplet 3/2 { c2 -. d2 -. e2 -. }", [])
 
     -- 0 dur code event doesn't confuse it.
     equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track
             [(0, 1, "dyn p | ly-( | -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
-        (Right "\\tuplet 3/2 { a2( \\p b2 c2 }", [])
+        (Right "\\tuplet 3/2 { a2 ( \\p b2 c2 }", [])
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
@@ -201,7 +200,7 @@ test_arpeggio_ly = do
             , (">", [(0, 4, "")]), ("*", [(0, 0, "3c")])
             , (">", [(0, 4, "")]), ("*", [(0, 0, "3d")])
             ])
-        (Right "\\arpeggioArrowUp <c d>1\\arpeggio", [])
+        (Right "\\arpeggioArrowUp <c d>1 \\arpeggio", [])
 
 test_interpolate = do
     let run at = DeriveTest.extract DeriveTest.e_note $

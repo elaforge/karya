@@ -3,8 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Constants where
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+
+import qualified Util.Seq as Seq
 import qualified Derive.Env as Env
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
@@ -34,47 +39,101 @@ ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
 
 -- * code fragments
 
--- TODO get rid of the ly_ prefix, they all have it
+-- | A free-standing code fragment is merged in with its nearest
+data FreeCodePosition = FreePrepend | FreeAppend
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
--- | String: prepend this lilypond code to the note.  If the event has
--- 0 duration, its pitch will be ignored and it's a freestanding code fragment
--- and will preceed notes starting at the same time.  If the event has no
--- pitch then its also considered a freestanding code fragment, but will
--- occupy the given amount of duration.
-v_prepend :: Env.Key
-v_prepend = "ly-prepend"
+instance Typecheck.Typecheck FreeCodePosition
+instance Typecheck.TypecheckSymbol FreeCodePosition
+instance Typecheck.ToVal FreeCodePosition
 
--- | String: like 'v_prepend' but append the code to all the notes in a tied
--- sequence.  This is the only append variant accepted for zero-dur notes.
---
--- TODO The behaviour for v_append_all for zero-dur notes seems to be
--- v_append_first.  I should make zero-durs understand all the append
--- variations for consistency, though I don't have examples of where they would
--- be useful.
-v_append_all :: Env.Key
-v_append_all = "ly-append-all"
+instance ShowVal.ShowVal FreeCodePosition where
+    show_val FreePrepend = "prepend"
+    show_val FreeAppend = "append"
 
--- | String: like 'v_append_all', but it goes after notes inside a chord,
--- instead of once after the chord itself.
-v_note_append_all :: Env.Key
-v_note_append_all = "ly-note-append-all"
+-- | A code fragment that has to be attached to notes.
+data CodePosition = CodePosition Attach Position Distribution
+    deriving (Eq, Ord, Show)
 
--- | String: append code to the first note in a tied sequence.
-v_append_first :: Env.Key
-v_append_first = "ly-append-first"
+-- | Chord goes before or after the whole chord, Note goes before or after the
+-- individual pitch within the chord.
+data Attach = Chord | Note
+    deriving (Eq, Ord, Show)
 
--- | String: like 'v_append_all_first', but it goes after notes inside a chord,
--- instead of once after the chord itself.
-v_note_append_first :: Env.Key
-v_note_append_first = "ly-note-append-first"
+data Position = Prepend | Append
+    deriving (Eq, Ord, Show)
 
--- | String: append code to the last note in a tied sequence.
-v_append_last :: Env.Key
-v_append_last = "ly-append-last"
+all_positions :: [CodePosition]
+all_positions =
+    [ CodePosition a p d
+    | a <- [Chord, Note], p <- [Prepend, Append], d <- [First, Last, All]
+    ]
+
+-- | If the note is split into multiple tied notes, which ones should get the
+-- code?
+data Distribution = First | Last | All
+    deriving (Eq, Ord, Show)
+
+instance Pretty FreeCodePosition where pretty = showt
+instance Pretty CodePosition where pretty = showt
+
+position_key :: CodePosition -> Env.Key
+position_key (CodePosition attach pos distribution) =
+    Text.intercalate "-" $ "ly" :
+        [ case attach of
+            Chord -> "chord"
+            Note -> "note"
+        , case pos of
+            Prepend -> "prepend"
+            Append -> "append"
+        , case distribution of
+            First -> "first"
+            Last -> "last"
+            All -> "all"
+        ]
+
+key_position :: Env.Key -> Maybe CodePosition
+key_position k = Map.lookup k m
+    where m = Map.fromList $ Seq.key_on position_key all_positions
+
+environ_code :: Env.Environ -> [(CodePosition, Text)]
+environ_code env =
+    [ (code, val)
+    | (Just code, Just val)
+        <- map (key_position *** Typecheck.from_val_simple) (Env.to_list env)
+    ]
+
+with_code :: CodePosition -> Text -> Env.Environ -> Env.Environ
+with_code pos code env = Env.insert_val key (old <> code) env
+    where
+    old = fromMaybe "" $ Env.maybe_val key env
+    key = position_key pos
+
+free_code_key :: FreeCodePosition -> Env.Key
+free_code_key FreePrepend = "ly-prepend"
+free_code_key FreeAppend = "ly-append"
+
+key_free_code :: Env.Key -> Maybe FreeCodePosition
+key_free_code "ly-prepend" = Just FreePrepend
+key_free_code "ly-append" = Just FreeAppend
+key_free_code _ = Nothing
+
+environ_free_code :: Env.Environ -> [(FreeCodePosition, Text)]
+environ_free_code env =
+    [ (code, val)
+    | (Just code, Just val)
+        <- map (key_free_code *** Typecheck.from_val_simple) (Env.to_list env)
+    ]
+
+with_free_code :: FreeCodePosition -> Text -> Env.Environ -> Env.Environ
+with_free_code pos code = Env.insert_val (free_code_key pos) code
+
+-- ** other env keys
 
 -- | String: append after the pitch, and before the duration.  This is for
 -- pitch modifiers like reminder accidentals (!) and cautionary accidentals
--- (?).
+-- (?).  TODO this isn't integrated with 'CodePosition', but maybe could be.
+-- Would Prepend make any sense?
 v_append_pitch :: Env.Key
 v_append_pitch = "ly-append-pitch"
 

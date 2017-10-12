@@ -15,7 +15,7 @@ module Derive.Call.Sub (
     , sub_events, sub_events_negative
     , assert_no_subs
     , modify_notes
-    , derive, derive_tracks, derive_pitch, fit
+    , derive_subs, derive, derive_tracks, derive_subs, derive_pitch, fit
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests
@@ -299,6 +299,9 @@ modify_sub_tracks modify args = do
         { Derive.passed_ctx = (Derive.passed_ctx args)
             { Derive.ctx_sub_tracks = tracks }
         }
+
+derive_subs :: Derive.PassedArgs d -> Derive.NoteDeriver
+derive_subs = derive_tracks <=< sub_events
 
 -- | Derive and merge Events.
 derive :: [Event] -> Derive.NoteDeriver

@@ -18,6 +18,8 @@ module Derive.Stream (
     , sort
     , merge_asc_lists
     , merge_log, merge_logs
+    -- ** specific transformations
+    , first, first_last
     -- ** zip
     , zip, zip_on, zip3, zip3_on, zip4
     -- * misc util
@@ -37,7 +39,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
+import Global hiding (first)
 import Types
 
 
@@ -210,6 +212,36 @@ merge_log log = emap (LEvent.Log log :)
 
 merge_logs :: [Log.Msg] -> Stream e -> Stream e
 merge_logs logs = emap (map LEvent.Log logs ++)
+
+-- ** specific transformations
+
+-- | Apply to the first Event that matches the predicate.
+first :: (a -> Bool) -> (a -> a) -> Stream a -> Stream a
+first matches f = from_sorted_list . go . to_list
+    where
+    go [] = []
+    go (e : es) = case e of
+        LEvent.Event e | matches e -> LEvent.Event (f e) : es
+        _ -> e : go es
+
+-- | Apply to the first and last Event that matches the predicate.  If there
+-- are fewer than 2 such events, do nothing.
+first_last :: (a -> Bool) -> (a -> a) -> (a -> a) -> Stream a -> Stream a
+first_last matches start end = from_sorted_list . at_start . to_list
+    where
+    at_start [] = []
+    at_start (e : es) = case e of
+        LEvent.Event e | matches e ->
+            if any (LEvent.either matches (const False)) es
+                then LEvent.Event (start e) : at_end es
+                else LEvent.Event e : es
+        _ -> e : at_start es
+    at_end [] = []
+    at_end (e : es) = case e of
+        LEvent.Event e | matches e
+                && null (dropWhile (LEvent.log_or (not . matches)) es) ->
+            LEvent.Event (end e) : es
+        _ -> e : at_end es
 
 -- ** zip
 

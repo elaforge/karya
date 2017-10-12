@@ -5,7 +5,7 @@
 -- | List functions with continuations.  This allows you to chain them and
 -- easily express things like 'take until f then take one more'.
 module Util.Then where
-import Prelude hiding (break, span, take, takeWhile)
+import Prelude hiding (break, span, take, takeWhile, mapM)
 import qualified Data.List as List
 
 
@@ -58,3 +58,11 @@ span f = break (not . f)
 -- | Break right after the function returns True.
 break1 :: (a -> Bool) -> [a] -> ([a], [a])
 break1 f = break f (splitAt 1)
+
+mapM :: Monad m => (a -> m b) -> m [b] -> [a] -> m [b]
+mapM f cont = go
+    where
+    go [] = cont
+    go (a:as) = do
+        b <- f a
+        (b:) <$> go as

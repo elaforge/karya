@@ -181,9 +181,9 @@ lily_grace args start pitches = do
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
         code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
-    -- Prepending to the note instead of emitting a separate Ly.code ensures
+    -- Prepending to the note instead of emitting a separate code event ensures
     -- it stays with the note's voice.
-    Ly.prepend_code code $ Call.place args Call.note
+    Ly.add_first (Ly.prepend, code) $ Call.place args Call.note
 
 legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
     -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.NoteDeriver

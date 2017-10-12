@@ -44,6 +44,7 @@ import Derive.Sig (defaulted)
 import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -164,7 +165,8 @@ lily_harmonic_event force_diamond htype open_strings string event = do
     -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
     let add_harm = Score.add_attributes Attrs.harm
     map add_harm <$> if harmonic <= 2 && not force_diamond
-        then return [Ly.add_event_code (Ly.AppendAll, "-\\flageolet") event]
+        then return
+            [Ly.add_note_code (Ly.append Constants.All, "-\\flageolet") event]
         else do
             interval <- Derive.require
                 ("harmonic not supported: " <> showt harmonic)
@@ -175,7 +177,8 @@ harmonic_code :: Pitch.NoteNumber -> Pitch.NoteNumber -> Score.Event
     -> [Score.Event]
 harmonic_code stopped touched event =
     [ with_pitch stopped
-    , Ly.add_event_code (Ly.NoteAppendAll, "\\harmonic") $ with_pitch touched
+    , Ly.add_note_code (Ly.note_append Constants.All, "\\harmonic") $
+        with_pitch touched
     ]
     where
     with_pitch nn =
@@ -241,7 +244,7 @@ harmonic_of limit base pitch = (2+) <$> List.findIndex (close pitch) harmonics
 c_slur :: Maybe Call.UpDown -> Derive.Generator Derive.Note
 c_slur direction = Derive.generator Module.prelude "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
-    "Play the transformed notes legato.  This just makes all but the last\
+    "Play the transformed notes legato. This just makes all but the last\
     \ overlap slightly.\
     \\nYou can combine this with other controls to get fancier phrasing.\
     \ For example, you can be detached by default but have legato connect\
@@ -272,7 +275,8 @@ note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
 
 lily_slur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
 lily_slur direction =
-    Ly.notes_around_ly (Ly.AppendFirst, prefix <> "(") (Ly.AppendLast, ")")
+    Ly.notes_around_ly (Ly.append Constants.First, prefix <> "(")
+        (Ly.append Constants.Last, ")")
     where
     prefix = case direction of
         Nothing -> ""

@@ -19,9 +19,10 @@ import Perform.Lilypond.Types (Duration(..))
 import Global
 
 
-test_convert_duration = do
+
+test_allowed_duration = do
     let f meter start dur = to_lily $
-            Meter.convert_duration (parse_meter meter) True start dur
+            convert_duration (parse_meter meter) True start dur
         to_lily = Text.intercalate "~" . map Types.to_lily
     let nd = Types.NoteDuration
 
@@ -77,15 +78,31 @@ test_convert_duration = do
     -- that's not exactly hard to read, so ok.
     -- equal_durs "6/8" (d D4) [d D4] [[nd D8 False, nd D8 False]]
 
+-- TODO this used to be in Meter, so I tested it.  It's no longer necessary,
+-- so I should probably move to directly testing Meter.allowed_duration, but
+-- it's too much bother right now.
+convert_duration :: Meter.Meter -> Bool -> Types.Time -> Types.Time
+    -> [Types.NoteDuration]
+convert_duration meter use_dot_ = go
+    where
+    go start dur
+        | dur <= 0 = []
+        | allowed >= dur = [allowed_dur]
+        | otherwise = allowed_dur : go (start + allowed) (dur - allowed)
+        where
+        allowed_dur = Meter.allowed_duration use_dot meter start dur
+        allowed = Types.note_dur_to_time allowed_dur
+    -- Dots are always allowed for non-binary meters.
+    use_dot = use_dot_ || not (Meter.is_binary meter)
+
 -- This is probably overkill.  "8~8" seems ok for single comparisons.
 equal_durs :: CallStack.Stack => Text -> Types.Time -> [Types.Time]
     -> [[Types.NoteDuration]] -> IO Bool
 equal_durs meter_ start durs =
     Testing.equal_fmt
         ((fmt_meter meter <>) . Text.unlines . map (fmt_durs start))
-        (map (Meter.convert_duration meter True start) durs)
-    where
-    meter = parse_meter meter_
+        (map (convert_duration meter True start) durs)
+    where meter = parse_meter meter_
 
 fmt_meter :: Meter.Meter -> Text
 fmt_meter meter = Text.unlines $ map fmt_rank [0..3]

@@ -25,8 +25,10 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -127,7 +129,7 @@ c_note_trill start_dir = Derive.generator module_ "tr" Tags.ly
     "A trill with smooth transitions."
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
-    Ly.note_code (Ly.AppendFirst, "\\trill") args $ do
+    Ly.note_code (Ly.append Constants.First, "\\trill") args $ do
         pitch <- Call.get_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
         Derive.with_pitch sig $ Call.placed_note args

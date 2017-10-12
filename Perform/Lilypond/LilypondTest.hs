@@ -40,36 +40,18 @@ import Types
 default_config :: Types.Config
 default_config = Types.default_config
 
-type Output = Either Process.Voices Process.Ly
-
--- | Assume 4/4 and no voices.
-process_simple :: [Text] -- ^ only include these lilypond backslash commands
-    -> [Types.Event] -> Either Text Text
-process_simple wanted events = extract_simple wanted $ process events
-
 extract_rights :: (CallStack.Stack, Show a) => [Either a Text] -> Text
 extract_rights = Text.unwords . map expect_right
 
-process :: [Types.Event] -> Either Text [Output]
-process events =
-    Process.process default_config 0 (map parse_meter meters) events
-    where
-    end = fromMaybe 0 $ Seq.maximum $ map Types.event_end events
-    bars = ceiling (time_to_wholes end)
-    meters = replicate bars "4/4"
-
-process_meters :: [Text] -> [Types.Event] -> Either Text [Output]
-process_meters meters =
-    Process.process default_config 0 (map parse_meter meters)
-
 -- * extract
 
-extract_simple :: [Text] -> Either Text [Output] -> Either Text Text
-extract_simple wanted = fmap extract_rights . extract_lys (Just wanted)
+extract_simple :: [Text] -> Either Text [Either Process.Voices Process.Ly]
+    -> Either Text Text
+extract_simple wanted = fmap extract_rights . extract_lys wanted
 
-extract_lys :: Maybe [Text]
-    -- ^ if Just, only include these lilypond backslash commands
-    -> Either Text [Output]
+extract_lys :: [Text]
+    -- ^ Only include these lilypond backslash commands, or 'want_all'.
+    -> Either Text [Either Process.Voices Process.Ly]
     -> Either Text [Either [(Process.Voice, Text)] Text]
 extract_lys wanted =
     fmap $ unwords_right . map to_str . filter is_wanted . split_barlines
@@ -78,20 +60,19 @@ extract_lys wanted =
     show_voices (Process.Voices voices) =
         [(v, Text.unwords $ map Types.to_lily lys) | (v, lys) <- voices]
     is_wanted (Left _voices) = True -- TODO filter \s from voices?
-    is_wanted (Right ly) = case wanted of
-        Nothing -> True
-        Just words -> case ly of
+    is_wanted (Right ly) = wanted == want_all
+        || case ly of
             Process.LyNote {} -> True
             _ -> case Text.uncons $ Types.to_lily ly of
-                Just ('\\', text) -> Text.takeWhile (/=' ') text `elem` words
+                Just ('\\', text) -> Text.takeWhile (/=' ') text `elem` wanted
                 _ -> True
     -- Split the time signature into a separate Code, instead of being bundled
-    -- with Barlines.  This makes 'wanted' work properly.
+    -- with LyBarlines.  This makes 'wanted' work properly.
     split_barlines = concatMap $
         either ((:[]) . Left . split_voices) (map Right . split_ly)
-    split_ly (Process.Barline (Just meter)) =
-        [ Process.Barline Nothing
-        , Process.Code $ "\\time " <> Types.to_lily meter
+    split_ly (Process.LyBarline (Just meter)) =
+        [ Process.LyBarline Nothing
+        , Process.LyCode $ "\\time " <> Types.to_lily meter
         ]
     split_ly ly = [ly]
     split_voices (Process.Voices voices) = Process.Voices $
@@ -191,7 +172,7 @@ convert_measures wanted staves = case convert_staves wanted staves of
 -- | Convert events to lilypond score.
 convert_staves ::
     [Text] -- ^ Only include lilypond backslash commands listed here.
-    -- Or [\"ALL\"] to see them all, for debugging.
+    -- Or 'want_all' to see them all, for debugging.
     -> [Types.Event] -> Either Text [StaffGroup]
 convert_staves wanted events =
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
@@ -209,8 +190,12 @@ convert_staves wanted events =
         <> Text.unwords (mapMaybe show_ly lys) <> " }"
     is_wanted text | "\\" `Text.isPrefixOf` text =
         Text.takeWhile (/=' ') (Text.drop 1 text) `elem` wanted
-            || wanted == ["ALL"]
+            || wanted == want_all
     is_wanted _ = True
+
+-- | This is a magic code to see lilypond backslash commands.
+want_all :: [Text]
+want_all = ["ALL"]
 
 -- | Generate an entire ly score.
 convert_score :: Derive.Result -> (Text, [Text])

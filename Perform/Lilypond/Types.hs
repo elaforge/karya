@@ -186,7 +186,7 @@ time_to_durs time = go D1 time
 -- * NoteDuration
 
 -- | A Duration plus a possible dot.
-data NoteDuration = NoteDuration Duration Bool
+data NoteDuration = NoteDuration !Duration !Bool
     deriving (Eq, Show)
 
 instance ToLily NoteDuration where
@@ -213,6 +213,9 @@ time_to_note_dur t = case time_to_durs t of
     d : _ -> NoteDuration d False
     -- I have no 0 duration, so pick the smallest available duration.
     [] -> NoteDuration D128 False
+
+dur_to_note_dur :: Duration -> NoteDuration
+dur_to_note_dur d = NoteDuration d False
 
 -- | Only Just if the Time fits into a single NoteDuration.
 is_note_dur :: Time -> Maybe NoteDuration
@@ -252,6 +255,9 @@ multiply factor t
     | otherwise = Nothing
     where (i, frac) = properFraction (fromIntegral t * factor)
 
+multiply_int :: Int -> Time -> Time
+multiply_int factor (Time t) = Time (t * factor)
+
 -- * Event
 
 data Event = Event {
@@ -271,16 +277,20 @@ data Event = Event {
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
+event_overlaps :: Event -> Event -> Bool
+event_overlaps e1 e2 =
+    not $ event_end e1 <= event_start e2 || event_start e1 >= event_end e2
+
 event_attributes :: Event -> Attrs.Attributes
 event_attributes = BaseTypes.environ_attributes . event_environ
 
 instance Pretty Event where
-    format (Event start dur pitch inst env _stack _clipped) =
-        Pretty.constructor "Event"
+    format (Event start dur pitch inst env_ _stack _clipped) =
+        Pretty.constructor "Event" $
             [ Pretty.format start, Pretty.format dur
-            , maybe "<none>" (Pretty.text . to_lily) pitch, Pretty.format inst
-            , Pretty.format $ strip_environ env
-            ]
+            , maybe "rest" (Pretty.text . to_lily) pitch, Pretty.format inst
+            ] ++ if Map.null e then [] else [Pretty.format env]
+        where env@(BaseTypes.Environ e) = strip_environ env_
 
 -- | Strip out non-ly environ keys so error messages are less cluttered.
 strip_environ :: BaseTypes.Environ -> BaseTypes.Environ

@@ -7,7 +7,6 @@
 module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.CallStack as CallStack
@@ -45,8 +44,7 @@ import Types
 -- that postproc is not applied, but I'll worry about that if I ever have
 -- a postproc that affects lilypond.
 convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert config =
-    ConvertUtil.convert event1 lookup_inst . filter_instruments
+convert config = ConvertUtil.convert event1 lookup_inst . filter_instruments
     where
     -- Fake an instrument, which 'event1' will ignore.
     lookup_inst = const $ Just $ Cmd.ResolvedInstrument
@@ -70,53 +68,29 @@ convert config =
 
 {- | Normally events have a duration and a pitch, and the lilypond performer
     converts this into a normal lilypond note.  However, the deriver can emit
-    lilypond code directly with either a zero duration event or one without
-    a pitch:
-
-    - If the event has 0 duration, it must have prepend or append code or have
-    the magic 'Constants.ly_global' instrument.  The code will go before or
-    after other events at the same time.  Any pitch is ignored.
-
-    - If it doesn't have a pitch, then it must have prepend or append code.
-    prepend ++ append will be emitted and considered to have the given amount
-    of duration.
-
-    - If the event has a pitch it will be emitted as a note, with optional
-    prepended or appended code.
+    lilypond code directly.  Since zero is not a valid duration in staff
+    notation, it's used for lilypond directives.  It should have either
+    'Constants.free_code_key', or one of the special directives from Constants.
+    All those events should be marked with 'Flags.ly_code'.
 -}
 convert_event :: RealTime -> Score.Event -> [LEvent.LEvent Types.Event]
 convert_event quarter event = run $ do
     let dur = Types.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch event
-    pitch <- case (dur, maybe_pitch) of
-        (0, _) -> check_0dur >> return Nothing
-        (_, Nothing)
-            | not (has_prepend || has_append) ->
-                throw "event with non-zero duration and no code requires pitch"
-            | otherwise -> return Nothing
-        (_, Just pitch) -> return (Just pitch)
+    when (dur == 0 && not has_code_flag) $
+        throw $ "zero duration event must have " <> pretty Flags.ly_code
     return $ Types.Event
         { event_start = Types.real_to_time quarter (Score.event_start event)
         , event_duration =
             Types.real_to_time quarter (Score.event_duration event)
-        , event_pitch = pitch
+        , event_pitch = maybe_pitch
         , event_instrument = Score.event_instrument event
         , event_environ = Score.event_environ event
         , event_stack = Score.event_stack event
         , event_clipped = False
         }
     where
-    check_0dur
-        | not is_ly_global && not has_code_flag =
-            throw $ "zero duration event must have " <> pretty Flags.ly_code
-        | has_prepend && has_append = throw
-            "zero duration event with both prepend and append is ambiguous"
-        | otherwise = return ()
     has_code_flag = Flags.has (Score.event_flags event) Flags.ly_code
-    is_ly_global = Score.event_instrument event == Constants.ly_global
-    has_prepend = has Constants.v_prepend
-    has_append = has Constants.v_append_all
-    has v = Maybe.isJust $ Env.lookup v (Score.event_environ event)
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT
 

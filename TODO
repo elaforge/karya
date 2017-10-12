@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - enable FlexibleInstances globally.  Should I add any other instance ones?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.
@@ -1360,26 +1361,107 @@ lilypond:
     - Also the example pitch has an extraneous natural, but this seems to be
       built in to \pitchedTrill.
   Refactor Process to fix all the CodePosition stuff:
-    . First pass finds voice boundaries.
-    . Then insert rests.
-    . Sort coincident events by pitch.
-    . Merge 0 dur events with coincident events by putting in their environ.
-    . Convert [Event]->[Ly]: keys, meter splitting, tuplet and tremolo.
-    - Lilypond.Process has special case hacks to deal with rests and mixing code
-      into rests.  Maybe I could get rid of that by inserting explicit rests, as
-      events with pitch=Nothing.
-      . The tricky part is that I have to do the same for voices.  Not sure if
-        worth it?
-    - many CodePositions don't work for ly-emit
-      . append-all, append-first, append-last, note-append-all, note-append-last
-      . Partly it's because the code to mix in 0 dur events doesn't support
-        append-first and append-last, but maybe it should.
-      . Either support them or at least throw an error when I see them.
-      . ly-< shows how confusing the situation is: I use AppendFirst even though
-        it doesn't work for 0 dur.  But that's what's appropriate.
-      . The emit/attach distinction is confusing, can I get rid of it?
-        . What purpose does it serve?
-        . It's useful to e.g. put 0 dur text annotations on the ly-track.
+    * First pass finds voice boundaries.
+      . collect_voices does this.  It separates out CodeEvents, but it's
+        because I need to do simplify_voices without messing up CodeEvents.
+        Then 'mix_in_code_voices' puts it on the first VoiceMap element.
+      . But I want to mix code events after rhythms are split, which means
+        it's after everything.  So merge has to go last.
+      . So this also has to split out CodeEvents.
+    * Then insert rests.
+    Convert [Event]->[Ly]: keys, meter splitting, tuplet and tremolo.
+      . This is a new version of 'convert', but it processes each Chunk in
+        entirety.
+      . It can omit the 0 dur and mix_in_code, since those should no longer be
+        present.
+      . Except I need to call update_subdivision on zero dur events in the
+        right order.  I guess I can mix them in to the note events just for
+        the purpose of update_subdivision.
+        . Or maybe I can do this first by making subdivision CodeEvents an
+          exception, and leaving them in-line.  They don't need post-meter
+          split anyway.
+        . I think subdivisions won't work in voices, the event would need to
+          be distributed to all voices.
+      . I could also attach the append-all type CodeEvents to make it easy to
+        put them on all tied events.
+      * convert_chunk
+      * Use FullMeasure rests.  I need to create them in make_lys because
+        I don't use 'rests_until' any more.
+      * FreeCode
+      * NoteCode
+        . Merge NoteCodes into their coincident notes, or warn if there are
+          none.
+        . Actually, should I not have separate NoteCodes at all?  No, I think
+          they are still useful for ly-only tracks.
+      - Warn about free standing NoteCodes that don't line up with a note.
+      - merge subdivision CodeEvents, distribute in voices
+        - add subdivision tests to Process_test
+        . Isn't there a better way to configure lilypond than an ad-hoc
+          event which has to be special cased everywhere?
+          . I could do subdivisions in advance, by modifying the meters list.
+          . Except they can change in the middle of a meter, so maybe not.
+          . I think they get forgotten about if they're in a voice.
+          . I think meters are pre-processed... handle the same as meters?
+          . In fact, why not have a meter with separate spelling and beaming?
+            Subdivision is not global while meter is.  I can do it as
+            a separate pass on the instrument level, but now I'm back to
+            "do in advance."
+          . Maybe I don't need to change in the middle of a measure.
+          . Or I could keep doing it the old way, map update_sudivisions and
+            then filter out 0 durs.  I can fix it later.
+      * tuplets
+      * tremolo
+        . There's a problem with the new way I merge 0 dur FreeCode
+          afterwards, they have to go inside the \tremolo {...} mark.
+        . No wait, it should be ok, because tremolo still emits [Ly].
+
+    * delete Constants.v_*, and update Derive.Call.Ly
+    * Update everything that depends on it.
+    * tuplet event now has a duration
+    * update Lilypond.Convert for 0 dur notes?
+    * Now the problem is that free code like \f goes to the end of the tremolo
+      instead of the first note.  Previously I handled code mixing in tremolo
+      itself, so it could have a special rule.
+      . To get around this, I'd have to make the notes after the first tremolo
+        note have a greater time, for the purpose of merge_free_code.
+      . The note_duration of the things in tremolo were always wrong, why did
+        it ever work?
+      . Or I could emit the tremolo as a single Ly, with merge points.  So:
+        pre, note = "\repeat tremolo 16 { c32(", post, suffix = "g32) }"
+
+        \repeat tremolo 16 { c32( g32) }
+        "\repeat tremolo 16 {", "c32(", "g32)", "}"
+      . merge_free_code still needs to put the code in the prepend and append
+        slots, not in separate LyCode events.
+      . I can put the real duration in note_duration, but then it appends it
+        to the output!  Maybe I have to make note_pitches into
+        Either Code (NonEmpty NotePitch) after all.
+      . Wait, that makes no sense, the problem is duration.
+      . If I wanted to really rerpsent this it would be
+        Nested Code [Ly] Code Duration.  Why not?
+      * merge_free_code and merge_note_code have to understand LyNested.
+      - Update tuplet to use Nested too?
+
+    - Handle subdivisions at the top level.
+    - Implement Note Prepend... even though I'm not sure there is lilypond
+      that does that.
+    notes:
+      . Lilypond.Process has special case hacks to deal with rests and mixing
+        code into rests.  Maybe I could get rid of that by inserting explicit
+        rests, as events with pitch=Nothing.
+        . The tricky part is that I have to do the same for voices.  Not sure if
+          worth it?
+      . many CodePositions don't work for ly-emit
+        . append-all, append-first, append-last, note-append-all,
+          note-append-last
+        . Partly it's because the code to mix in 0 dur events doesn't support
+          append-first and append-last, but maybe it should.
+        . Either support them or at least throw an error when I see them.
+        . ly-< shows how confusing the situation is: I use AppendFirst even
+          though it doesn't work for 0 dur.  But that's what's appropriate.
+        . The emit/attach distinction is confusing, can I get rid of it?
+          . What purpose does it serve?
+          . It's useful to e.g. put 0 dur text annotations on the ly-track.
   * artificial harmonic notation doesn't understand that harmonics can count
     as +nv.
     . Actually since I don't use +harm any more, maybe all of that is broken

@@ -221,13 +221,14 @@ note_trill_ly style args neighbor = do
                     Types.Natural -> "^\\trNatural"
                     Types.Sharp -> "^\\trSharp"
                     Types.SharpSharp -> "^\\trSharpSharp"
-            Ly.add_code (Ly.NoteAppendAll, code) (Call.placed_note args)
+            Ly.add_first (Ly.note_append Constants.All, code)
+                (Call.placed_note args)
         Span -> do
             npitch <- ly_pitch
-            Ly.add_code (Ly.Prepend, "\\pitchedTrill") $
-                Ly.add_code (Ly.AppendFirst, "\\startTrillSpan "
+            Ly.add_first (Ly.prepend, "\\pitchedTrill") $
+                Ly.add_first (Ly.append Constants.First, "\\startTrillSpan "
                     <> Types.to_lily npitch) $
-                Ly.add_code (Ly.AppendLast, "\\stopTrillSpan") $
+                Ly.add_first (Ly.append Constants.Last, "\\stopTrillSpan") $
                 Call.placed_note args
 
 pitch_in_key :: Types.Pitch -> Derive.Deriver Bool
@@ -279,7 +280,7 @@ tremolo_trill_ly :: PSignal.Pitch -> PSignal.Pitch -> ScoreTime -> ScoreTime
     -> Derive.NoteDeriver
 tremolo_trill_ly pitch1 pitch2 start dur =
     Derive.place start dur $ mconcat
-        [ Ly.add_code (Ly.SetEnviron Constants.v_tremolo, "") Call.note
+        [ Ly.add_first (Ly.SetEnviron Constants.v_tremolo, "") Call.note
         , Call.pitched_note pitch1
         , Call.pitched_note pitch2
         ]
@@ -313,7 +314,7 @@ c_tremolo_generator attrs_unless =
                 else Call.add_attributes trem_attrs $
                     Sub.derive $ chord_tremolo starts notes
     where
-    code = (Ly.AppendAll, ":32")
+    code = (Ly.append Constants.All, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs

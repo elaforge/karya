@@ -45,7 +45,6 @@ note_calls = Derive.generator_call_map
     , ("cycle-t", c_cycle_t)
     ]
 
-
 c_ap :: Derive.Generator Derive.Note
 c_ap = Derive.generator Module.prelude "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
@@ -110,7 +109,7 @@ lily_tuplet (start, end) track_notes = do
             tuplet_note_end (map (map to_start_dur) tracks)
     real_start <- Derive.real start
     real_end <- Derive.real end
-    tuplet <- Derive.place start 0 $
+    tuplet <- Derive.place start (end-start) $
         tuplet_event (notes_end - real_start) (real_end - real_start)
     return $ mconcat (tuplet : track_events)
     where to_start_dur e = (Score.event_start e, Score.event_duration e)
@@ -147,8 +146,8 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
     ) $ \(time, random) args -> lily_code args $
         arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args
     where
-    lily_code = Ly.notes_with $
-        Ly.prepend_code prefix . Ly.add_code (Ly.AppendFirst, suffix)
+    lily_code = Ly.notes_with $ Ly.add_first (Ly.prepend, prefix)
+        . Ly.add_first (Ly.append Constants.First, suffix)
     prefix = case arp of
         ToRight -> "\\arpeggioArrowUp"
         ToLeft -> "\\arpeggioArrowDown"

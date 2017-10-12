@@ -103,6 +103,7 @@ test_hands = do
         [ ("i1", ["c'1", "d'1"])
         , ("i2", ["e'1"])
         ]
+
     -- If there are code events for the hand, they get emitted.
     equal (run ["clef"]
             [ (">i1 | hand = r", [(0, 4, "")])
@@ -133,11 +134,17 @@ test_ly_prepend_append = do
             map LilypondTest.environ_event [(0, 12, Just LilypondTest.a3, env)]
         str :: EnvKey.Key -> Text -> [(EnvKey.Key, BaseTypes.Val)]
         str key val = [(key, Typecheck.to_val val)]
+    let key pos dist = Constants.position_key $
+            Constants.CodePosition Constants.Chord pos dist
     equal (f []) $ Right "a1~ | a1~ | a1"
-    equal (f (str Constants.v_append_first "x")) $ Right "a1~x | a1~ | a1"
-    equal (f (str Constants.v_append_last "x")) $ Right "a1~ | a1~ | a1x"
-    equal (f (str Constants.v_append_all "x")) $ Right "a1~x | a1~x | a1x"
-    equal (f (str Constants.v_prepend "x")) $ Right "x a1~ | a1~ | a1"
+    equal (f (str (key Constants.Append Constants.First) "x")) $
+        Right "a1~ x | a1~ | a1"
+    equal (f (str (key Constants.Append Constants.Last) "x")) $
+        Right "a1~ | a1~ | a1 x"
+    equal (f (str (key Constants.Append Constants.All) "x")) $
+        Right "a1~ x | a1~ x | a1 x"
+    equal (f (str (key Constants.Prepend Constants.First) "x")) $
+        Right "x a1~ | a1~ | a1"
 
 test_ly_code = do
     -- Test stand-alone zero-dur code fragments.
@@ -165,9 +172,9 @@ test_ly_code = do
     calls = CallTest.with_note_generator "pre" c_pre
         <> CallTest.with_note_generator "post" c_post
     c_pre = CallTest.generator $ \args ->
-        Ly.code0 (Args.start args) (Ly.Prepend, "pre")
+        Ly.code0 (Args.start args) (Ly.Position Constants.FreePrepend, "pre")
     c_post = CallTest.generator $ \args ->
-        Ly.code0 (Args.start args) (Ly.AppendAll, "post")
+        Ly.code0 (Args.start args) (Ly.Position Constants.FreeAppend, "post")
 
 -- * test lilypond derivation
 
@@ -225,12 +232,12 @@ test_attributes = do
         [ (">", [(0, 1, "+mute"), (1, 1, "+stac"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right "a'4-+ b'4-. c'4 r4", [])
+        (Right "a'4 -+ b'4 -. c'4 r4", [])
 
 test_modal_attributes = do
     let f = LilypondTest.derive_measures [] . (:[("*", [(0, 0, "3c")])])
     equal (f (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")]))
-        (Right "c4^\"pizz.\" c4 c4^\"arco\" r4", [])
+        (Right "c4 ^\"pizz.\" c4 c4 ^\"arco\" r4", [])
 
 test_prepend_append = do
     let f = LilypondTest.derive_measures ["p", "mf"]
@@ -249,13 +256,6 @@ test_append_pitch = do
         (Right "<c'?~ ef'>2 <c' e'?>2", [])
 
 test_voices = do
-    -- let f meters = LilypondTest.extract_lys Nothing
-    --         . LilypondTest.process meters . map LilypondTest.voice_event
-    -- pprint (f ["4/4"]
-    --         [ (0, 1, "a", Nothing)
-    --         , (1, 2, "b", Just 1), (1, 1, "c", Just 2)
-    --         , (
-    --         ]
     let f = LilypondTest.derive_measures []
     let tracks = concatMap UiTest.note_track
             [ [(0, 1, "4a"), (1, 2, "v = 1 | -- 4b"), (3, 1, "4c")]

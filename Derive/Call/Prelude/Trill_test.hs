@@ -67,19 +67,20 @@ test_note_trill_ly = do
 
     -- Attributes propagate properly.
     equal (run [(0, 2, "+pizz -- 3c"), (2, 4, "tr 4 -- 3c"), (6, 2, "4f")])
-        (Right "c2^\"pizz.\" \\repeat tremolo 8 { c32(^\"arco\" g32) }\
+        (Right "c2 ^\"pizz.\" \\repeat tremolo 8 { c32( ^\"arco\" g32) }\
             \ | \\repeat tremolo 8 { c32( g32) } f'2", [])
     equal (run [(0, 2, "+pizz -- 3c"), (2, 4, "+pizz | tr 4 -- 3c"),
             (6, 2, "4f")])
-        (Right "c2^\"pizz.\" \\repeat tremolo 8 { c32( g32) }\
-            \ | \\repeat tremolo 8 { c32( g32) } f'2^\"arco\"", [])
+        (Right "c2 ^\"pizz.\" \\repeat tremolo 8 { c32( g32) }\
+            \ | \\repeat tremolo 8 { c32( g32) } f'2 ^\"arco\"", [])
 
+test_note_trill_ly_code = do
     -- Code attaches to the notes inside the tremolo.
-    let run2 = LilypondTest.measures ["f", "repeat"]
+    let run = LilypondTest.measures ["f", "repeat"]
             . LilypondTest.derive_tracks . concatMap UiTest.note_track
-    equal (run2 [[(0, 0, "dyn f --")], [(0, 4, "tr 4 -- 3c")]])
+    equal (run [[(0, 0, "dyn f --")], [(0, 4, "tr 4 -- 3c")]])
         (Right "\\repeat tremolo 16 { c32( \\f g32) }", [])
-    equal (run2 [[(4, 0, "dyn f --")], [(0, 8, "tr 4 -- 3c")]])
+    equal (run [[(4, 0, "dyn f --")], [(0, 8, "tr 4 -- 3c")]])
         (Right "\\repeat tremolo 16 { c32( g32) }\
             \ | \\repeat tremolo 16 { c32( \\f g32) }", [])
 
@@ -90,7 +91,7 @@ test_note_trill_ly_style = do
                 ]
             . LilypondTest.derive_tracks . UiTest.note_track
     equal (run [(0, 6, "tr-style=span | tr -- 3c")])
-        ( Right "\\pitchedTrill c1~\\startTrillSpan d | c2\\stopTrillSpan r2"
+        ( Right "\\pitchedTrill c1~ \\startTrillSpan d | c2 \\stopTrillSpan r2"
         , []
         )
     equal (run [(0, 6, "tr-style=tremolo | tr -- 3c")])
@@ -104,7 +105,7 @@ test_note_trill_ly_style = do
     -- with accidentals
     -- Also 1c figures out d flat instead of c#.
     equal (run [(0, 4, "tr-style=span | tr 1c -- 3c")])
-        ( Right "\\pitchedTrill c1\\startTrillSpan df \\stopTrillSpan"
+        ( Right "\\pitchedTrill c1 \\startTrillSpan df \\stopTrillSpan"
         , []
         )
     equal (run [(0, 6, "tr-style=tr | tr 1c -- 3c")])

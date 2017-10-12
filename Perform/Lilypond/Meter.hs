@@ -10,8 +10,9 @@ module Perform.Lilypond.Meter (
     , default_meter
     , measure_time
     , unparse_meter, parse_meter
+    , is_binary
     -- * tie breaking
-    , convert_duration, allowed_duration
+    , allowed_duration
 #ifdef TESTING
     , module Perform.Lilypond.Meter
 #endif
@@ -149,21 +150,6 @@ abstract_length (D ds) = sum $ map abstract_length ds
 abstract_length T = 1
 
 -- * allowed time
-
--- | Given a starting point and a duration, emit the list of Durations
--- needed to express that duration.
-convert_duration :: Meter -> Bool -> Time -> Time -> [NoteDuration]
-convert_duration meter use_dot_ = go
-    where
-    go start dur
-        | dur <= 0 = []
-        | allowed >= dur = [allowed_dur]
-        | otherwise = allowed_dur : go (start + allowed) (dur - allowed)
-        where
-        allowed_dur = allowed_duration use_dot meter start dur
-        allowed = Types.note_dur_to_time allowed_dur
-    -- Dots are always allowed for non-binary meters.
-    use_dot = use_dot_ || not (is_binary meter)
 
 {- | Figure out how much time a note at the given position should be allowed
     before it must tie.

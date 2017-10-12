@@ -1,10 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 -- Copyright 2013 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for calls to cooperate with the lilypond backend.
 module Derive.Call.Ly where
-import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -27,7 +27,6 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Types as Types
-import qualified Perform.RealTime as RealTime
 
 import Global
 import Types
@@ -54,14 +53,26 @@ only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
 -- | When in lilypond mode, generate a note with the given Code.
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-note_code code args = when_lilypond $ add_code code $ Call.placed_note args
+note_code code args = when_lilypond $ add_first code $ Call.placed_note args
 
 -- ** transformer
 
--- | Add code to the first event.
+-- | Add the Code to all the events.
+add_all :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
+add_all code = fmap $ Post.emap1_ (add_note_code code)
+
+-- | Add Code to the first event.
 add_first :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_first code deriver =
-    Post.map_first (return . add_event_code code) =<< deriver
+    Stream.first (not . is_code) (add_note_code code) <$> deriver
+
+prepend :: Position Constants.CodePosition
+prepend = Position $
+    Constants.CodePosition Constants.Chord Constants.Prepend Constants.First
+
+append, note_append :: Constants.Distribution -> Position Constants.CodePosition
+append = Position . Constants.CodePosition Constants.Chord Constants.Append
+note_append = Position . Constants.CodePosition Constants.Note Constants.Append
 
 -- ** note parent
 
@@ -69,24 +80,24 @@ add_first code deriver =
 -- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_code code = notes_with (add_code code)
+notes_code code = notes_with (add_all code)
 
 -- | Like 'notes_code', but only apply the code to the first event, not all of
 -- them.
 first_note_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 first_note_code code args = when_lilypond $
-    add_first code $ derive_notes args
+    add_first code $ Sub.derive_subs args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-notes_around start end args = when_lilypond $
-    mconcatMap around =<< Sub.sub_events args
+notes_around start end args =
+    when_lilypond $ mconcatMap around =<< Sub.sub_events args
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Sub.derive notes
+        (add_note_code start) (add_note_code end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
@@ -94,15 +105,15 @@ notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
 notes_around_ly start end = mconcatMap around <=< Sub.sub_events
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Sub.derive notes
+        (add_note_code start) (add_note_code end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
-code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
+code_around :: FreeCode -> FreeCode -> Derive.PassedArgs d -> Derive.NoteDeriver
 code_around start end args = when_lilypond
     (code0 (Args.start args) start
-        <> derive_notes args <> code0 (Args.end args) end)
-    (derive_notes args)
+        <> Sub.derive_subs args <> code0 (Args.end args) end)
+    (Sub.derive_subs args)
 
 -- | Transform and evaluate the sub events.
 notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
@@ -111,67 +122,44 @@ notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
 notes_with f args = when_lilypond $
     Sub.derive . map (fmap f) . concat =<< Sub.sub_events args
 
-derive_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
-derive_notes = Sub.derive . concat <=< Sub.sub_events
-
--- | Like 'Seq.first_last', but applied to a Stream.  If the events start or
--- end with a group of events with the same start time, the start or end
--- function is applied to the entire group.  This is because the lilypond
--- performer will group them into a chord and will only take ly-prepend and
--- ly-append from the first note in the chord.  I could apply to only the first
--- element of the group, but that would rely on every sort being stable.  Which
--- they probably are, but it seems brittle.
+-- | Apply a function to the first and last Events, which are not 'is_code0'.
 first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-first_last start end xs =
-    Stream.merge_logs logs $ Stream.from_sorted_events $ concat $
-        Seq.first_last (map start) (map end) (List.groupBy cmp events)
-    where
-    (events, logs) = Stream.partition xs
-    cmp x y = Score.event_start x RealTime.== Score.event_start y
+first_last = Stream.first_last (not . is_code)
 
 -- ** code
 
 -- | Either prepend or append some code to a lilypond note.
-type Code = (CodePosition, Ly)
-data CodePosition =
-    -- | Code goes before the note.
-    Prepend
-    -- | Code goes after each note in a tied sequence, so it could get
-    -- duplicated several times.
-    | AppendAll
-    -- | Like AppendAll, but it goes after notes inside a chord, instead of
-    -- once after the chord itself.
-    | NoteAppendAll
-    -- | Code goes after only the first note in a tied sequence.
-    | AppendFirst | NoteAppendFirst
-    -- | Code goes after the last note in a tied sequnece.
-    | AppendLast
+type Code = (Position Constants.CodePosition, Ly)
+type FreeCode = (Position Constants.FreeCodePosition, Ly)
+data Position pos = Position !pos
     -- | Create a note with the given env value set to the Ly code.  This is
     -- for directives to the lilypond performer, not to lilypond itself.
     -- E.g. 'Constants.v_subdivision'.
     | SetEnviron !Env.Key
     deriving (Eq, Show)
 
-instance Pretty CodePosition where
+instance Pretty pos => Pretty (Position pos) where
     pretty (SetEnviron key) = "SetEnviron " <> pretty key
-    pretty p = showt p
+    pretty (Position p) = pretty p
 
-instance Typecheck.Typecheck CodePosition
-instance Typecheck.TypecheckSymbol CodePosition where
+instance Typecheck.Typecheck (Position Constants.CodePosition)
+instance Typecheck.TypecheckSymbol (Position Constants.CodePosition) where
     parse_symbol = (`Map.lookup` code_position_names) . Expr.unstr
     symbol_values _ = Just $ Map.keys code_position_names
 
-instance Typecheck.ToVal CodePosition
+code_position_names :: Map Text (Position Constants.CodePosition)
+code_position_names =
+    Map.fromList $ Seq.key_on ShowVal.show_val $
+        map Position Constants.all_positions
 
-instance ShowVal.ShowVal CodePosition where
-    show_val = TextUtil.dropPrefix "ly-" . position_env False
+instance Typecheck.ToVal (Position Constants.CodePosition)
 
-code_position_names :: Map Text CodePosition
-code_position_names = Map.fromList $ Seq.key_on ShowVal.show_val
-    [ Prepend
-    , AppendAll, NoteAppendAll, AppendFirst, NoteAppendFirst, AppendLast
-    ]
+instance ShowVal.ShowVal (Position Constants.CodePosition) where
+    show_val = TextUtil.dropPrefix "ly-" . key_of
+        where
+        key_of (SetEnviron k) = k
+        key_of (Position pos) = Constants.position_key pos
 
 -- | Fragment of Lilypond code.
 type Ly = Text
@@ -179,54 +167,28 @@ type Ly = Text
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = Ly
 
-position_env :: Bool -- ^ True if this is a zero-dur event created just to
-    -- host some ly code.  See 'Flags.ly_code'.
-    -> CodePosition -> Env.Key
-position_env zero_dur p = case if zero_dur then code0 p else p of
-    Prepend -> Constants.v_prepend
-    AppendAll -> Constants.v_append_all
-    NoteAppendAll -> Constants.v_note_append_all
-    AppendFirst -> Constants.v_append_first
-    NoteAppendFirst -> Constants.v_note_append_first
-    AppendLast -> Constants.v_append_last
-    SetEnviron key -> key
-    where
-    -- AppendFirst and AppendLast are not used for 0 dur events, so make it
-    -- less error-prone by getting rid of them.  Ick.
-    code0 pos = case pos of
-        AppendFirst -> AppendAll
-        AppendLast -> AppendAll
-        _ -> pos
-
-prepend_code :: Ly -> Derive.NoteDeriver -> Derive.NoteDeriver
-prepend_code = add_code . (,) Prepend
-
--- | Emit a note that carries raw lilypond code.  The code is emitted
--- literally, and assumed to have the duration of the event.  The event's pitch
--- is ignored.  This can be used to emit lilypond that doesn't fit into
--- a 'Types.Event', but still has a duration.
-code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
-code (start, dur) code = Derive.with_val Constants.v_prepend code $
-    Derive.remove_pitch $ Derive.place start dur Call.note
-
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
-code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start code = add_code code $ Derive.place start 0 Call.note
+code0 :: ScoreTime -> FreeCode -> Derive.NoteDeriver
+code0 start code = do
+    rstart <- Derive.real start
+    Post.emap1_ (code0_event rstart code) <$> Derive.place start 0 Call.note
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
 -- existing note.  Otherwise, the lilypond backend doesn't know how to group
 -- the code event.
-code0_event :: Score.Event -> RealTime -> Code -> Score.Event
-code0_event event start code = add_event_code code $ Score.empty_event
-    { Score.event_start = start
-    , Score.event_text = snd code
-    , Score.event_stack = Score.event_stack event
-    , Score.event_instrument = Score.event_instrument event
-    }
-
-global_code0 :: ScoreTime -> Ly -> Derive.NoteDeriver
-global_code0 start code = global $ code0 start (Prepend, code)
+--
+-- TODO aka free_code, maybe rename it?
+code0_event :: RealTime -> FreeCode -> Score.Event -> Score.Event
+code0_event start (pos, code) =
+    -- I don't use Score.move_event because I don't care about signals.
+    (\e -> e { Score.event_start = start })
+    . Score.add_flags Flags.ly_code
+    . Score.modify_environ modify
+    where
+    modify = case pos of
+        SetEnviron key -> Env.insert_val key code
+        Position pos -> Constants.with_free_code pos code
 
 -- | Derive with the 'Constants.ly_global' instrument.
 global :: Derive.Deriver a -> Derive.Deriver a
@@ -237,24 +199,19 @@ is_code0 :: Score.Event -> Bool
 is_code0 event = Score.event_duration event == 0
     && Flags.has (Score.event_flags event) Flags.ly_code
 
+is_code :: Score.Event -> Bool
+is_code event = Flags.has (Score.event_flags event) Flags.ly_code
+
 -- *** low level
 
--- | Add lilypond code to a note.  This will skip 'is_code0' events, which
--- are supposed to be note-independent bits of lilypond code, and not actually
--- notes.  If the duration is 0, it assume's that you're making one of those
--- 0 dur events, and adds 'Flags.ly_code'.
-add_event_code :: Code -> Score.Event -> Score.Event
-add_event_code (pos, code) event
-    | is_code0 event = event
-    | otherwise = (if zero_dur then Score.add_flags Flags.ly_code else id) $
-        Score.modify_environ (add (position_env zero_dur pos) (<>code)) event
-    where
-    zero_dur = Score.event_duration event == 0
-    add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
-        where old = fromMaybe "" $ Env.maybe_val name env
-
-add_code :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_code code = fmap $ Post.emap1_ (add_event_code code)
+-- | Add lilypond code to a note.  Skip 'is_code' events, since those aren't
+-- actual notes.
+add_note_code :: Code -> Score.Event -> Score.Event
+add_note_code (pos, code) event
+    | is_code event = event
+    | otherwise = (`Score.modify_environ` event) $ case pos of
+        SetEnviron key -> Env.insert_val key code
+        Position pos -> Constants.with_code pos code
 
 -- ** convert
 

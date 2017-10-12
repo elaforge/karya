@@ -70,12 +70,12 @@ test_ly_track = do
 test_if_ly = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "if-ly +accent +mute -- 4a")])
-        (Right "a'4-> r4 r2", [])
+        (Right "a'4 -> r4 r2", [])
     equal (run [(0, 1, "if-ly \"(+mute) \"(+accent) -- 4a")])
-        (Right "a'4-+ r4 r2", [])
+        (Right "a'4 -+ r4 r2", [])
     -- Passing as strings is also ok.
     equal (run [(0, 1, "if-ly '+accent' '+mute' -- 4a")])
-        (Right "a'4-> r4 r2", [])
+        (Right "a'4 -> r4 r2", [])
     -- Null call works.
     equal (run [(0, 1, "if-ly '' '+mute' -- 4a")])
         (Right "a'4 r4 r2", [])
@@ -88,12 +88,14 @@ test_8va = do
         (Right "\\ottava #1 c4 \\ottava #0 d4 r2", [])
 
 test_xstaff_around = do
-    let run = LilypondTest.derive_measures ["change"]
-    equal (run $ UiTest.note_track [(0, 1, "xstaff-a u | -- 4a")])
-        (Right "\\change Staff = \"up\" a'4 \\change Staff = \"down\" r4 r2",
-            [])
+    let run = LilypondTest.measures ["change"]
+             . LilypondTest.derive_tracks_linear
+    equal (run $ UiTest.note_track [(0, 1, "xstaff-a u | -- 3a")])
+        ( Right "\\change Staff = \"up\" a4 \\change Staff = \"down\" r4 r2"
+        , []
+        )
     equal (run $ (">", [(1, 0, "xstaff-a u")]) : UiTest.regular_notes 2)
-        (Right "c4 \\change Staff = \"up\" d4 r2", [])
+        (Right "c4 \\change Staff = \"up\" d4 \\change Staff = \"down\" r2", [])
 
 test_clef_dyn = do
     let run = LilypondTest.derive_measures ["clef", "f"]
@@ -102,8 +104,8 @@ test_clef_dyn = do
 
     let extract e = (Score.event_start e, DeriveTest.e_pitch e,
             LilypondTest.e_ly_env e)
-        pre = Constants.v_prepend
-        app = Constants.v_append_all
+        pre = Constants.free_code_key Constants.FreePrepend
+        app = Constants.free_code_key Constants.FreeAppend
     equal (DeriveTest.extract extract $ LilypondTest.derive_tracks tracks)
         ( [ (0, "?", [(pre, "'\\clef treble'")])
           , (0, "?", [(app, "'\\f'")])
@@ -115,13 +117,13 @@ test_clef_dyn = do
 test_articulation = do
     let run = measures_linear []
     equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regular_notes 3)
-        (Right "c4-> d4-> e4-> r4", [])
+        (Right "c4 -> d4 -> e4 -> r4", [])
 
 test_ly_notes_attach = do
     let run = measures_linear ["down"]
     equal (run $ (">", [(0, 3, "ly-attach down")]) : UiTest.regular_notes 3)
-        (Right "c4\\down d4\\down e4\\down r4", [])
-    equal (run $ (">", [(0, 3, "ly-attach down prepend")])
+        (Right "c4 \\down d4 \\down e4 \\down r4", [])
+    equal (run $ (">", [(0, 3, "ly-attach down chord-prepend-first")])
             : UiTest.regular_notes 3)
         (Right "\\down c4 \\down d4 \\down e4 r4", [])
 
@@ -139,7 +141,7 @@ test_tie_direction = do
     equal (run [[(0, 8, "ly-^~ -- 4a")], [(0, 8, "ly-_~ -- 4b")]])
         (Right "<a'^~ b'_~>1 | <a' b'>1", [])
 
-test_crescendo_diminuendo = do
+test_hairpin = do
     let run = LilypondTest.derive_measures ["<", ">", "!"]
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
             : UiTest.regular_notes 4)
@@ -148,21 +150,21 @@ test_crescendo_diminuendo = do
 test_ly_text = do
     let run = LilypondTest.derive_measures []
     equal (run $ UiTest.note_track [(0, 1, "ly^ hi | -- 4a")])
-        (Right "a'4^\"hi\" r4 r2", [])
+        (Right "a'4 ^\"hi\" r4 r2", [])
     -- It only goes on the first one.
     equal (measures_linear [] $
             (">", [(0, 2, "ly_ hi")]) : UiTest.regular_notes 2)
-        (Right "c4_\"hi\" d4 r2", [])
+        (Right "c4 _\"hi\" d4 r2", [])
 
 test_ly_slur_beam = do
     let run = LilypondTest.derive_measures []
     -- Works both as a generator and transformer.
     equal (run $ UiTest.note_track
             [(0, 2, "ly-( -- 3a"), (2, 6, "ly-) | -- 3b")])
-        (Right "a2( b2~ | b1)", [])
+        (Right "a2 ( b2~ | b1 )", [])
     equal (run $ UiTest.note_track
             [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])
-        (Right "a2[ b2~] | b1", [])
+        (Right "a2 [ b2~ ] | b1", [])
 
 test_subdivision = do
     let run = LilypondTest.staves [] . LilypondTest.derive_tracks
@@ -236,31 +238,35 @@ test_movement = do
 test_attach_and_emit = do
     -- Ensure that attach calls doesn't try to attach code to emit's code
     -- events.
-    let run = DeriveTest.extract extract
-            . LilypondTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . LilypondTest.derive_tracks_linear
         extract e =
             ( DeriveTest.e_note e
             , LilypondTest.e_ly_env e
             , Score.event_flags e
             )
+    let key pos dist = Constants.position_key $
+            Constants.CodePosition Constants.Chord pos dist
+        free_append = Constants.free_code_key Constants.FreeAppend
     let run_ly = LilypondTest.measures ["a", "b"]
             . LilypondTest.derive_tracks_linear
 
     let tracks = (">", [(0, 2, "(")])
             : UiTest.note_track1 ["ly-post a | -- 3c", "ly-post b | -- 3d"]
     equal (run tracks)
-        ( [ ((0, 0, "?"), [(Constants.v_append_all, "'\\a'")], Flags.ly_code)
-          , ((0, 1, "3c"), [(Constants.v_append_first, "'('")], mempty)
-          , ((1, 0, "?"), [(Constants.v_append_all, "'\\b'")], Flags.ly_code)
-          , ((1, 1, "3d"), [(Constants.v_append_last, "')'")], mempty)
+        ( [ ((0, 0, "?"), [(free_append, "'\\a'")], Flags.ly_code)
+          , ((0, 1, "3c"), [(key Constants.Append Constants.First, "'('")],
+                mempty)
+          , ((1, 0, "?"), [(free_append, "'\\b'")], Flags.ly_code)
+          , ((1, 1, "3d"), [(key Constants.Append Constants.Last, "')'")],
+                mempty)
           ]
         , []
         )
 
-    equal (run_ly tracks) (Right "c4( \\a d4) \\b r2", [])
+    equal (run_ly tracks) (Right "c4 ( \\a d4 ) \\b r2", [])
     equal (run_ly $ (">", [(0, 2, "(")])
             : UiTest.note_track1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
-        (Right "\\a c4( \\b d4) r2", [])
+        (Right "\\a c4 ( \\b d4 ) r2", [])
 
 test_code_position = do
     let runc call pos = LilypondTest.measures ["a"] $
@@ -269,24 +275,17 @@ test_code_position = do
                 , [(0, 8, "3d")]
                 ]
     let runa = runc "ly-attach"
-    equal (runa "prepend") (Right "\\a <c~ d~>1 | <c d>1", [])
-    equal (runa "append-all") (Right "<c~ d~>1\\a | <c d>1\\a", [])
-    equal (runa "append-first") (Right "<c~ d~>1\\a | <c d>1", [])
-    equal (runa "append-last") (Right "<c~ d~>1 | <c d>1\\a", [])
-
+    equal (runa "chord-prepend-all") (Right "\\a <c~ d~>1 | \\a <c d>1", [])
+    equal (runa "chord-prepend-first") (Right "\\a <c~ d~>1 | <c d>1", [])
+    equal (runa "chord-prepend-last") (Right "<c~ d~>1 | \\a <c d>1", [])
+    equal (runa "chord-append-all") (Right "<c~ d~>1 \\a | <c d>1 \\a", [])
+    equal (runa "chord-append-first") (Right "<c~ d~>1 \\a | <c d>1", [])
+    equal (runa "chord-append-last") (Right "<c~ d~>1 | <c d>1 \\a", [])
     equal (runa "note-append-all") (Right "<c~\\a d~>1 | <c\\a d>1", [])
     equal (runa "note-append-first") (Right "<c~\\a d~>1 | <c d>1", [])
-
     let rune = runc "ly-emit"
     equal (rune "prepend") (Right "\\a <c~ d~>1 | <c d>1", [])
-    -- TODO these are broken because of how Process handles 0 dur code events
-    -- equal (rune "append-all") (Right "<c~ d~>1 \\a | <c d>1 \\a", [])
-    -- equal (rune "append-first") (Right "<c~ d~>1 \\a | <c d>1", [])
-    -- equal (rune "append-last") (Right "<c~ d~>1 | <c d>1 \\a", [])
-    --
-    -- equal (rune "note-append-all") (Right "<c~\\a d~>1 | <c\\a d>1", [])
-    -- equal (rune "note-append-first") (Right "<c~\\a d~>1 | <c d>1", [])
-
+    equal (rune "append") (Right "<c~ d~>1 \\a | <c d>1", [])
 
 
 -- * util

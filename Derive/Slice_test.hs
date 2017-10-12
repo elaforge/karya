@@ -244,9 +244,11 @@ test_slur = do
             [ (">", [(0, 2, "(")])
             , (">", [(0, 1, "+a")])
             ] ++ UiTest.regular_notes 2
+    let key pos dist = Constants.position_key $
+            Constants.CodePosition Constants.Chord pos dist
     equal events
-        [ ((0, 1, "3c"), [(Constants.v_append_first, "'('")], "+a")
-        , ((1, 1, "3d"), [(Constants.v_append_last, "')'")], "+")
+        [ ((0, 1, "3c"), [(key Constants.Append Constants.First, "'('")], "+a")
+        , ((1, 1, "3d"), [(key Constants.Append Constants.Last, "')'")], "+")
         ]
     equal logs []
 

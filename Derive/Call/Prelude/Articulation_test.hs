@@ -17,10 +17,10 @@ import Global
 test_harmonic_ly = do
     let run p = LilypondTest.measures ["harmonic"] $
             LilypondTest.derive_tracks $ UiTest.note_track [(0, 4, p)]
-    equal (run "o -- 3c") (Right "c1-\\flageolet", [])
+    equal (run "o -- 3c") (Right "c1 -\\flageolet", [])
     -- Valid natural harmonics.
     equal (run "open-strings=(list (nn c3)) | o -- 4c")
-        (Right "c'1-\\flageolet", [])
+        (Right "c'1 -\\flageolet", [])
     equal (run "open-strings=(list (nn c3)) | o -- 4g")
         (Right "<c g\\harmonic>1", [])
     -- You can't get that pitch as a natural harmonic.
@@ -41,9 +41,9 @@ test_harmonic_ly = do
     let run2 = LilypondTest.measures ["harmonic"]
             . LilypondTest.derive_tracks . UiTest.note_track
     equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o -- 3d"), (2, 1, "3e")])
-        (Right "c4^\"nv\" d4-\\flageolet e4^\"vib\" r4", [])
+        (Right "c4 ^\"nv\" d4 -\\flageolet e4 ^\"vib\" r4", [])
     equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o art -- 3d"), (2, 1, "3e")])
-        (Right "c4^\"nv\" <g,, d,\\harmonic>4 e4^\"vib\" r4", [])
+        (Right "c4 ^\"nv\" <g,, d,\\harmonic>4 e4 ^\"vib\" r4", [])
 
 test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
@@ -75,25 +75,25 @@ test_attr_slur = do
 test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        (Right "c4 d4( e4) f4", [])
+        (Right "c4 d4 ( e4 ) f4", [])
     -- Arg is ignored in lilypond mode.
     equal (run $
             (">", [(0, 4, "( .5")]) : UiTest.note_track1 ["3a", "3b", "3c"])
-        (Right "a4( b4 c4) r4", [])
+        (Right "a4 ( b4 c4 ) r4", [])
     let tracks =
             -- Irregularly overlapping sub events.
             [ (">", [(0, 3, "("), (3, 3, "(")])
             , (">", [(0, 2, "+legato"), (2, 1, "+sul"), (3, 3, "+sul")])
             ] ++ UiTest.regular_notes 6
     equal (run tracks)
-        (Right "c4( d4 e4) f4( | g4 a4) r2", [])
+        (Right "c4 ( d4 e4 ) f4 ( | g4 a4 ) r2", [])
     -- Goes to the last note in a tie.
     let tracks =
             [ (">", [(0, 12, "(")])
             , (">", [(0, 4, ""), (4, 8, "")])
             , ("*", [(0, 0, "4a"), (4, 0, "4b")])
             ]
-    equal (run tracks) (Right "a'1( | b'1~ | b'1)", [])
+    equal (run tracks) (Right "a'1 ( | b'1~ | b'1 )", [])
     -- Legato on a single note does nothing.
     equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
         (Right "c4 r4 r2", [])
@@ -104,10 +104,10 @@ test_attributed_note_ly = do
     equal (run $
         (">", [(0, 2, "m")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right "a'4-+ b'4-+ c'4 r4", [])
+        (Right "a'4 -+ b'4 -+ c'4 r4", [])
     -- Works as both a transformer and a generator.
     equal (run $
         [ (">", [(0, 1, "m |"), (1, 1, ""), (2, 1, "m")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right "a'4-+ b'4 c'4-+ r4", [])
+        (Right "a'4 -+ b'4 c'4 -+ r4", [])
