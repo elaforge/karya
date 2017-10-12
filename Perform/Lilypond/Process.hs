@@ -12,7 +12,7 @@ module Perform.Lilypond.Process (
     process, convert_to_rests
     , parse_key
     , Ly(..), Note(..)
-    , VoiceLy, Voices(..), Voice(..)
+    , Voices(..), Voice(..)
 #ifdef TESTING
     , module Perform.Lilypond.Process
 #endif
@@ -82,7 +82,7 @@ modal_articulations =
 
 -- | Convert a staff to all rests, keeping the key, clef, and meter changes.
 -- have predicates that recognize those, and keep those Codes
-convert_to_rests :: [VoiceLy] -> [Ly]
+convert_to_rests :: [Either Voices Ly] -> [Ly]
 convert_to_rests = hush . filter wanted . concatMap flatten
     where
     flatten (Left (Voices voices)) = case voices of
@@ -103,9 +103,6 @@ convert_to_rests = hush . filter wanted . concatMap flatten
         where (durs, non_notes) = Seq.span_while has_duration lys
 
 -- * process
-
--- TODO remove
-type VoiceLy = Either Voices Ly
 
 data Chunk =
     ChunkNotes [FreeCode] [Event]
@@ -849,7 +846,7 @@ voices_to_ly voices = do
 -- 'span_voices'.  This way is more complicated because it has to operate on
 -- Lys since it needs to know where the measure boundaries are, but gives much
 -- better results.
-simplify_voices :: VoiceMap Ly -> [VoiceLy]
+simplify_voices :: VoiceMap Ly -> [Either Voices Ly]
 simplify_voices voices =
     concatMap (flatten . strip) $ split_voices_at rest_starts voices
     where
@@ -869,7 +866,7 @@ simplify_voices voices =
         where
         rest_measure = all $
             \ly -> is_full_measure_rest ly || ly_duration ly == 0
-    flatten :: VoiceMap Ly -> [VoiceLy]
+    flatten :: VoiceMap Ly -> [Either Voices Ly]
     flatten [] = []
     flatten [(_, lys)] = map Right lys
     flatten voices = [Left (Voices voices)]
@@ -915,7 +912,7 @@ ly_start_times start = scanl (+) start . map ly_duration
 --
 -- If I wanted to emit Barlines automatically I'd have to collect the output
 -- [Ly] in the State, which I'd then need to parameterize since it can be
--- [VoiceLy] too.
+-- [Either Voices Ly] too.
 advance_measure :: Time -> ConvertM (Maybe Ly)
 advance_measure time = advance =<< State.get
     where

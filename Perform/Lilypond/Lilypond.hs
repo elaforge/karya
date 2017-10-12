@@ -108,7 +108,8 @@ ly_file config title movements = run_output $ do
 
 -- | Convert ly code to all hidden rests, and emit an empty staff with a bass
 -- clef.
-write_empty_staff :: Types.StaffConfig -> [Process.VoiceLy] -> Output ()
+write_empty_staff :: Types.StaffConfig -> [Either Process.Voices Process.Ly]
+    -> Output ()
 write_empty_staff config_ lys =
     write_staff config (Just "down") (Just "\\RemoveEmptyStaves") $
         mapM_ write_ly $
@@ -146,7 +147,7 @@ write_staff config maybe_name context write_contents = do
     write_contents
     output "\n} }\n\n"
 
-write_voice_ly :: Process.VoiceLy -> Output ()
+write_voice_ly :: Either Process.Voices Process.Ly -> Output ()
 write_voice_ly (Left (Process.Voices voices)) = do
     output "<<\n  "
     start <- State.gets output_bar
@@ -228,7 +229,8 @@ set_bar n = State.modify $ \state -> state { output_bar = n }
 type Movement = (Title, [StaffGroup])
 
 -- | If the staff group has >1 staff, it is bracketed as a grand staff.
-data StaffGroup = StaffGroup Score.Instrument [[Process.VoiceLy]]
+data StaffGroup =
+    StaffGroup Score.Instrument [[Either Process.Voices Process.Ly]]
     deriving (Show)
 
 instance Pretty StaffGroup where
