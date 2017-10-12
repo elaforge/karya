@@ -25,6 +25,8 @@ import qualified Perform.Lilypond.Types as Types
 import Global
 
 
+type Error = Text
+
 -- * config
 
 -- | Lilypond code inserted inside the toplevel paper block.
@@ -240,30 +242,34 @@ instance Pretty StaffGroup where
         ]
 
 explicit_movements :: Types.Config -> [(Title, [Types.Event])]
-    -> Either Text [Movement]
+    -> Either Error [Movement]
 explicit_movements config sections = forM sections $ \(title, events) -> do
-    staves <- convert_staff_groups config 0 events
+    let (global, normal) = List.partition
+            ((==Constants.ly_global) . Types.event_instrument) events
+    -- TODO filter out the v_movements since I won't be using them?
+    staves <- convert_staff_groups config 0 global normal
     return (title, staves)
 
-extract_movements :: Types.Config -> [Types.Event] -> Either Text [Movement]
+extract_movements :: Types.Config -> [Types.Event] -> Either Error [Movement]
 extract_movements config events = do
-    movements <- get_movements $
-        filter ((==Constants.ly_global) . Types.event_instrument) events
-    forM (split_movements movements events) $ \(start, title, events) -> do
-        staves <- convert_staff_groups config start events
+    let (global, normal) = List.partition
+            ((==Constants.ly_global) . Types.event_instrument) events
+    (movements, global) <- partition_key Constants.v_movement global
+    forM (split_movements movements normal) $ \(start, title, events) -> do
+        staves <- convert_staff_groups config start global events
         return (title, staves)
 
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.  Then convert each staff of
 -- Events to Notes, divided up into measures.
 convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
-    -> Either Text [StaffGroup]
-convert_staff_groups config start events = do
-    let (global, normal) = List.partition
-            ((==Constants.ly_global) . Types.event_instrument) events
-        staff_groups = split_events normal
+    -> [Types.Event] -> Either Error [StaffGroup]
+convert_staff_groups config start global events = do
+    let staff_groups = split_events events
     let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
-    meters <- get_meters start staff_end global
+    (meters, global) <- parse_meters start staff_end global
+    unless (null global) $
+        Left $ "non-meter global events: " <> pretty global
     forM staff_groups $ \(inst, staves) ->
         staff_group config start meters inst staves
 
@@ -286,7 +292,7 @@ split_events events =
 -- go below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
 staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
-    -> [[Types.Event]] -> Either Text StaffGroup
+    -> [[Types.Event]] -> Either Error StaffGroup
 staff_group config start meters inst staves = do
     staff_measures <- mapM (Process.process config start meters) staves
     return $ StaffGroup inst staff_measures
@@ -309,45 +315,40 @@ split_movements movements =
     split [] events = [(0, "", events)]
     events_of (_, _, x) = x
 
-get_movements :: [Types.Event] -> Either Text [(Types.Time, Title)]
-get_movements = mapMaybeM $ \event -> do
-    title <- Env.checked_val Constants.v_movement
-        (Types.event_environ event)
-    return $ (,) (Types.event_start event) <$> title
-
 -- ** meter
 
 -- | Extract Meters from the Events, and emit one per measure.
-get_meters :: Types.Time -> Types.Time -> [Types.Event]
-    -> Either Text [Meter.Meter]
-get_meters start staff_end events = do
-    meters <- mapMaybeM get_meter events
-    return $ generate start Meter.default_meter meters
+parse_meters :: Types.Time -> Types.Time -> [Types.Event]
+    -> Either Error ([Meter.Meter], [Types.Event])
+parse_meters start staff_end events = do
+    (meters, remain) <- partition_key Constants.v_meter events
+    meters <- mapM (\(pos, meter) -> (pos,) <$> Meter.parse_meter meter) meters
+    return (generate start Meter.default_meter meters, remain)
     where
     generate prev meter [] =
         replicate (measures_in (staff_end-prev) meter) meter
     generate prev prev_meter ((pos, meter) : meters) =
-        replicate mm prev_meter ++ generate next meter meters
+        replicate measures prev_meter ++ generate next meter meters
         where
-        mm = measures_in (pos-prev) prev_meter
-        next = prev + fromIntegral mm * Meter.measure_time prev_meter
+        measures = measures_in (pos-prev) prev_meter
+        next = prev + fromIntegral measures * Meter.measure_time prev_meter
     -- If you try to change the meter in the middle of a meter, it rounds up to
     -- the next barline.  If you put multiple meter changes before the barline,
     -- only the first one is accepted.  TODO arguably it should be the last.
+    -- TODO or an error.
     measures_in dur meter = max 0 $ ceiling $
         fromIntegral dur / fromIntegral (Meter.measure_time meter)
 
-    get_meter event = error_context context $ do
-        maybe_val <- Env.checked_val Constants.v_meter
-            (Types.event_environ event)
-        case maybe_val of
-            Nothing -> return Nothing
-            Just val -> do
-                meter <- Meter.parse_meter val
-                return $ Just (Types.event_start event, meter)
-        where
-        context = pretty Constants.ly_global <> " event at "
-            <> pretty (Types.event_start event)
+-- * util
 
-error_context :: Text -> Either Text a -> Either Text a
-error_context msg = first ((msg <> ": ") <>)
+partition_key :: EnvKey.Key -> [Types.Event]
+    -> Either Error ([(Types.Time, Text)], [Types.Event])
+partition_key key = go
+    where
+    go [] = return ([], [])
+    go (e : es) = case Env.checked_val2 key (Types.event_environ e) of
+        Nothing -> second (e:) <$> go es
+        Just (Left err) -> Left $ pretty Constants.ly_global <> " event at "
+            <> pretty pos <> err
+        Just (Right val) -> first ((pos, val) :) <$> go es
+        where pos = Types.event_start e

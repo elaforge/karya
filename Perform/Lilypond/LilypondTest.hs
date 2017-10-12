@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.LilypondTest where
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Text.Lazy
 
@@ -27,6 +28,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Meter as Meter
@@ -175,8 +177,11 @@ convert_staves ::
     -- Or 'want_all' to see them all, for debugging.
     -> [Types.Event] -> Either Text [StaffGroup]
 convert_staves wanted events =
-    map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
+    map extract_staves <$>
+        Lilypond.convert_staff_groups default_config 0 global normal
     where
+    (global, normal) = List.partition
+        ((==Constants.ly_global) . Types.event_instrument) events
     extract_staves (Lilypond.StaffGroup inst staves) =
         (Score.instrument_name inst, map show_staff staves)
     show_staff = Text.unwords . mapMaybe (either show_voices show_ly)
