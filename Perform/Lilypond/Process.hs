@@ -485,10 +485,9 @@ stretch factor start event
 -- duration, wrap in (), and wrap the whole thing in \repeat tremolo { ... }.
 --
 -- TODO This is sort of an ad-hoc reimplementation of 'convert_chord', which is
--- grody.  That means I have to handle all the zero dur and code all over
--- again, and maybe get it wrong or inconsistent.  But the rules are
--- different in a tremolo, duration-wise it's like a chord, but code always has
--- to go on the notes inside, not after the whole thing.
+-- grody.  But the rules are different in a tremolo, duration-wise it's like
+-- a chord, but code always has to go on the notes inside, not after the whole
+-- thing.
 convert_tremolo :: Event -> [Event] -> ConvertM ([Ly], [Event])
 convert_tremolo tremolo_event events = do
     dur <- get_allowed_dur
@@ -549,7 +548,7 @@ tremolo_notes prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
     where
     make prev_attrs (is_first, event, is_last) = (next_attrs,) $ Note
         { note_pitches =
-            NotePitch (pitch_code is_first event) NoTie slur :| []
+            NotePitch (pitch_code is_first event) NoTie [] slur :| []
         , note_duration = Types.NoteDuration Types.D32 False
         , note_prepend = []
         , note_append = attrs_codes
@@ -664,7 +663,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
         let tie = note_tie event
         let (prepend, append) = event_note_code Constants.Note
                 (is_first event) (is_last event) event
-        return $ NotePitch pitch tie append
+        return $ NotePitch pitch tie prepend append
     (attrs_codes, next_attrs) = attrs_to_code prev_attrs $
         mconcat $ map event_attributes $ NonEmpty.toList chord
 
@@ -1114,8 +1113,8 @@ data Note = Note {
     , note_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
 
--- | Pitch, tie, code to append.
-data NotePitch = NotePitch !Text !Tie ![Code]
+-- | Pitch, tie, code to prepend, code to append.
+data NotePitch = NotePitch !Text !Tie ![Code] ![Code]
     deriving (Show)
 
 data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
@@ -1130,13 +1129,20 @@ instance ToLily Note where
         where
         ly_dur = to_lily dur
         note = case pitches of
-            NotePitch pitch tie code :| [] ->
-                mconcat [pitch, ly_dur, to_lily tie, t_unwords code]
+            NotePitch pitch tie prepend append :| [] -> mconcat
+                [ t_unwords prepend, " "
+                , pitch, ly_dur, to_lily tie
+                , t_unwords append
+                ]
             _ -> "<" <> t_unwords (map to_lily (NonEmpty.toList pitches))
                 <> ">" <> ly_dur
 
 instance ToLily NotePitch where
-    to_lily (NotePitch pitch tie code) = pitch <> to_lily tie <> t_unwords code
+    to_lily (NotePitch pitch tie prepend append) = mconcat
+        [ t_unwords prepend, " "
+        , pitch, to_lily tie
+        , t_unwords append
+        ]
 
 instance ToLily Tie where
     to_lily t = case t of

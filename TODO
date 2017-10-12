@@ -1428,7 +1428,6 @@ lilypond:
         it ever work?
       . Or I could emit the tremolo as a single Ly, with merge points.  So:
         pre, note = "\repeat tremolo 16 { c32(", post, suffix = "g32) }"
-
         \repeat tremolo 16 { c32( g32) }
         "\repeat tremolo 16 {", "c32(", "g32)", "}"
       . merge_free_code still needs to put the code in the prepend and append
@@ -1443,7 +1442,7 @@ lilypond:
       - Update tuplet to use Nested too?
 
     - Handle subdivisions at the top level.
-    - Implement Note Prepend... even though I'm not sure there is lilypond
+    * Implement Note Prepend... even though I'm not sure there is lilypond
       that does that.
     notes:
       . Lilypond.Process has special case hacks to deal with rests and mixing

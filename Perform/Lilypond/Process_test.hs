@@ -116,6 +116,7 @@ test_note_code = do
         notes e1 e2 = [(0, 8, Just c3, e1), (0, 8, Just d3, e2)]
     equal (run (notes (c Chord Prepend First) [])) (Right "x <c~ d~>1 | <c d>1")
     equal (run (notes (c Chord Append First) [])) (Right "<c~ d~>1 x | <c d>1")
+    equal (run (notes (c Note Prepend First) [])) (Right "<x c~ d~>1 | <c d>1")
     equal (run (notes (c Note Append First) [])) (Right "<c~x d~>1 | <c d>1")
     equal (run (notes (c Chord Append Last) [])) (Right "<c~ d~>1 | <c d>1 x")
     equal (run (notes (c Chord Append All) [])) (Right "<c~ d~>1 x | <c d>1 x")
