@@ -60,12 +60,7 @@ time_index = fromIntegral
 index_time :: Int -> Time
 index_time = fromIntegral
 
-instance Pretty Meter where
-    format (Meter nums denom ranks) = Pretty.record "Meter"
-        [ ("nums", Pretty.format nums)
-        , ("denom", Pretty.format denom)
-        , ("ranks", Pretty.format ranks)
-        ]
+instance Pretty Meter where pretty = unparse_meter
 
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
