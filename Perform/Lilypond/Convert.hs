@@ -77,6 +77,10 @@ convert_event :: RealTime -> Score.Event -> [LEvent.LEvent Types.Event]
 convert_event quarter event = run $ do
     let dur = Types.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch event
+    -- Otherwise it will be misinterpreted as an explicit rest, which should be
+    -- a purely internal concept.
+    when (maybe_pitch == Nothing && not has_code_flag) $
+        throw "a note without pitch must have code"
     when (dur == 0 && not has_code_flag) $
         throw $ "zero duration event must have " <> pretty Flags.ly_code
     return $ Types.Event

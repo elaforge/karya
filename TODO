@@ -1580,12 +1580,14 @@ lilypond:
     . Also applies to pizz, and sonically equivalent things like +det detache.
     . Or maybe I can fix detache in VSL by ignoring NoteOff, I think it can do
       that for pizz and staccato too.
-  - warning if ly-prepend or ly-append is being omitted due to a chord
-  - Maybe code events with a voice should go in the voice requested rather
+  / warning if ly-prepend or ly-append is being omitted due to a chord
+  / Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.
-  - one track has voice, the other doesn't, causes a "can't advance time
+    . They do, don't they?
+  * one track has voice, the other doesn't, causes a "can't advance time
     backward" error
-  - Support ly-append-first and ly-append-last for zero-dur notes.
+    . Now I should get a "voice overlaps non-voice" error.
+  / Support ly-append-first and ly-append-last for zero-dur notes.
     . First come up with uses for them?  Or do it just for orthogonality?
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
