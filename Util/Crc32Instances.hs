@@ -15,7 +15,11 @@ import qualified Foreign
 import qualified System.IO.Unsafe as Unsafe
 
 
-instance (CRC32 a) => CRC32 [a] where crc32Update = List.foldl' crc32Update
+instance CRC32 a => CRC32 [a] where crc32Update = List.foldl' crc32Update
+instance (CRC32 a, CRC32 b) => CRC32 (a, b) where
+    crc32Update n (a, b) = n `crc32Update` a `crc32Update` b
+instance (CRC32 a, CRC32 b, CRC32 c) => CRC32 (a, b, c) where
+    crc32Update n (a, b, c) = n `crc32Update` a `crc32Update` b `crc32Update` c
 
 instance CRC32 Bool where crc32Update n = crc32Update n . fromEnum
 instance CRC32 Char where crc32Update n = crc32Update n . fromEnum
@@ -34,7 +38,7 @@ instance CRC32 Float where crc32Update = crcStorable
 
 instance CRC32 Text.Text where crc32Update = Text.foldl' crc32Update
 
-crcStorable :: forall a. (Foreign.Storable a) => Word.Word32 -> a -> Word.Word32
+crcStorable :: forall a. Foreign.Storable a => Word.Word32 -> a -> Word.Word32
 crcStorable n d = Unsafe.unsafePerformIO $ Foreign.alloca $
     \(buf :: Foreign.Ptr a) -> do
         Foreign.poke (Foreign.castPtr buf) d
@@ -42,7 +46,7 @@ crcStorable n d = Unsafe.unsafePerformIO $ Foreign.alloca $
             (Foreign.castPtr buf, Foreign.sizeOf d)
         return $ crc32Update n bytes
 
-crcBytes :: forall a. (Foreign.Storable a) => Word.Word32 -> a -> IO Word.Word32
+crcBytes :: forall a. Foreign.Storable a => Word.Word32 -> a -> IO Word.Word32
 crcBytes n d = Foreign.alloca $ \(buf :: Foreign.Ptr a) -> do
     Foreign.poke (Foreign.castPtr buf) d
     bytes <- ByteString.Unsafe.unsafePackCStringLen
