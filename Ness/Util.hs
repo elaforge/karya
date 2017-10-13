@@ -18,11 +18,13 @@ submit model instrument score demo = do
     let out = scratchDir </> model ++ "-out.wav"
     oldInst <- File.ignoreEnoent $ Text.IO.readFile ifn
     oldScore <- File.ignoreEnoent $ Text.IO.readFile sfn
-    unless (Just instrument == oldInst && Just score == oldScore) $ do
-        Text.IO.writeFile ifn instrument
-        Text.IO.writeFile sfn score
-        Submit.submitDownload demo ifn sfn out
-    Process.callProcess "afplay" [out]
+    ok <- if Just instrument == oldInst && Just score == oldScore
+        then return True
+        else do
+            Text.IO.writeFile ifn instrument
+            Text.IO.writeFile sfn score
+            Submit.submitDownload demo ifn sfn out
+    when ok $ Process.callProcess "afplay" [out]
 
 replayModel :: String -> IO ()
 replayModel model =

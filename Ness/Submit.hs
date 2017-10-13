@@ -42,8 +42,9 @@ main :: IO ()
 main = do
     [instrument, score, out] <- System.Environment.getArgs
     submitDownload False instrument score out
+    return ()
 
-submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO ()
+submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO Bool
 submitDownload isDemo instrument score out = do
     result <- submit isDemo instrument score
     case result of
@@ -54,7 +55,7 @@ submitDownload isDemo instrument score out = do
             Thread.delay $ realToFrac estimatedTime
             ok <- download 5 out url
             unless ok $ putStrLn "=== gave up"
-            return ()
+            return ok
 
 -- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
 -- I should get a cosign-eucsCosign-ness-frontend etc.
