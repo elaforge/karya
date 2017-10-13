@@ -1334,10 +1334,13 @@ lilypond:
       . I guess I could add a tie annotation, which merges duration with the
         next event, and a lilypond mode that ignores the meter and puts down
         each duration explicitly.
-  - add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
+  / add 'ly-~' to add a lilypond-only tie for e.g. trill -> non trill
     transitions
     . Actually I'd want this to delete the following note and extend this one.
       Are there any complications?
+    . Yes, of course, I want this to happen at the track level but of course
+      that's lost by the time it gets to ly.  I can already do this though,
+      with a if-ly type refactor.
   - Can I get it to print time signature on each line?
     . Doesn't work:
       \override Staff.TimeSignature.break-visibility = ##(#t #t #t)

@@ -60,7 +60,6 @@ note_calls = Make.call_maps
     , ("ly-<>", emit0 "ly-crescendo-diminuendo"
         "Crescendo followed by diminuendo, on one note."
         (Ly.Position Constants.FreeAppend, "\\espressivo"))
-    , ("ly-~", c_tie)
     , ("ly-^~", c_tie_direction "^")
     , ("ly-_~", c_tie_direction "_")
     , ("ly-key", c_ly_key)
@@ -225,11 +224,6 @@ c_movement = emit_global "movement"
     "Start a new movement with the given title."
     (Sig.required "title" "Title of this movement.") $
     \title -> return (Ly.SetEnviron Constants.v_movement, title)
-
-c_tie :: Make.Calls Derive.Note
-c_tie = attach0 "ly-tie"
-    "Tie the note in lilypond, even though it's not in the score."
-    (Ly.SetEnviron Constants.v_force_tie, "")
 
 c_tie_direction :: Ly.Ly -> Make.Calls Derive.Note
 c_tie_direction code = attach0 "ly-tie-direction"
