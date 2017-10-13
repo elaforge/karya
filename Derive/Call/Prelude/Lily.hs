@@ -74,6 +74,7 @@ note_calls = Make.call_maps
     , ("ly^", c_ly_text "^")
     , ("ly_", c_ly_text "_")
     , ("ly-", c_ly_articulation)
+    , ("tempo", c_tempo)
     , ("meter", c_meter)
     , ("subdivision", c_subdivision)
     , ("movement", c_movement)
@@ -190,6 +191,12 @@ c_clef :: Make.Calls Derive.Note
 c_clef = emit_start "clef" "Emit lilypond clef change."
     (Sig.required "clef" "Should be `bass`, `treble`, etc.")
     (return . (Ly.Position Constants.FreePrepend,) . ("\\clef "<>))
+
+c_tempo :: Make.Calls Derive.Note
+c_tempo = emit_global "tempo" "Emit tempo marking. It will be distributed to\
+    \ all staves of all instruments."
+    (Sig.required "text" "4 = 120, etc.")
+    (return . (Ly.Position Constants.FreePrepend,) . ("\\tempo "<>))
 
 c_meter :: Make.Calls Derive.Note
 c_meter = emit_global "meter"

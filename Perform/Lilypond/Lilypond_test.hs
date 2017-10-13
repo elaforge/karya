@@ -197,12 +197,17 @@ test_clip_block = do
         ([(0, q, "c"), (q, q, "d"), (q*2, Types.dur_to_time Types.D8, "e")], [])
 
 test_ly_global = do
-    let run global tracks = LilypondTest.derive_measures ["time"] $
+    let run global tracks = LilypondTest.derive_staves ["pre", "tempo"] $
             (">ly-global", global) : concatMap UiTest.note_track tracks
     equal (run [(0, 0, "")] [])
-        (Right "", ["a note without pitch must have code"])
-    left_like (fst $ run [(0, 0, "ly-emit hi prepend")] [])
-        "non-meter global event"
+        (Right [], ["a note without pitch must have code"])
+    equal (run [(0, 0, "ly-emit pre prepend")]
+            [[(0, 1, "inst=i1 | -- 3c")], [(0, 1, "inst=i2 | -- 3d")]])
+        (Right [("i1", ["\\pre c4 r4 r2"]), ("i2", ["\\pre d4 r4 r2"])], [])
+    equal (run [(0, 0, "tempo slow")]
+            [[(0, 1, "inst=i1 | -- 3c")], [(0, 1, "inst=i2 | -- 3d")]])
+        (Right [("i1", ["\\tempo slow c4 r4 r2"]),
+            ("i2", ["\\tempo slow d4 r4 r2"])], [])
 
 test_meter = do
     let run meter notes = LilypondTest.derive_measures ["time"] $

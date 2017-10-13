@@ -268,17 +268,25 @@ convert_staff_groups config start global events = do
     let staff_groups = split_events events
     let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
     (meters, global) <- parse_meters start staff_end global
-    unless (null global) $
-        Left $ "non-meter global events: " <> pretty global
+    -- It would be nicer to partition_on Process.free_code so I don't have to
+    -- re-parse it in each Process.process, but then process would have to
+    -- take an Either FreeCode Event or something.
+    let (global_code, remain) = List.partition
+            (not . null . Constants.environ_free_code . Types.event_environ)
+            global
+    unless (null remain) $
+        Left $ "leftover ly-global events: " <> pretty global
     forM staff_groups $ \(inst, staves) ->
-        staff_group config start meters inst staves
+        staff_group config start meters inst $
+            map (distribute_global global_code inst) staves
 
 -- | Split events by instrument, and if they have 'EnvKey.hand', further split
 -- into right and left hand.
 split_events :: [Types.Event] -> [(Score.Instrument, [[Types.Event]])]
 split_events events =
-    [(inst, Seq.group_sort (lookup_hand . Types.event_environ) events)
-        | (inst, events) <- by_inst]
+    [ (inst, Seq.group_sort (lookup_hand . Types.event_environ) events)
+    | (inst, events) <- by_inst
+    ]
     where
     by_inst = Seq.keyed_group_sort Types.event_instrument events
     lookup_hand environ = case Env.get_val EnvKey.hand environ of
@@ -296,6 +304,13 @@ staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
 staff_group config start meters inst staves = do
     staff_measures <- mapM (Process.process config start meters) staves
     return $ StaffGroup inst staff_measures
+
+-- | Global FreeCode events get distributed to all staves.
+distribute_global :: [Types.Event] -> Score.Instrument -> [Types.Event]
+    -> [Types.Event]
+distribute_global codes inst =
+    Seq.merge_on Types.event_start
+        (map (\e -> e { Types.event_instrument = inst }) codes)
 
 -- ** movements
 

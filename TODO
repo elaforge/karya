@@ -1545,7 +1545,7 @@ lilypond:
       . It would still be nice to have this, but I can't figure out how to get
         lilypond to draw a line right before the note-head.
       . Asked on lilypond-users
-    - tempo: I want to emit \tempo "xyz" as a global marking.
+    * tempo: I want to emit \tempo "xyz" as a global marking.
       . Looks like lilypond is smart enough to suppress it for all but the top
         staff.  Presumably I still have to put it in all the parts, so they'll
         get it when I extract.
@@ -1589,7 +1589,8 @@ lilypond:
     . Now I should get a "voice overlaps non-voice" error.
   / Support ly-append-first and ly-append-last for zero-dur notes.
     . First come up with uses for them?  Or do it just for orthogonality?
-  - code events in >ly-global can be distributed to all staves
+    . Turns out I can't, because I can't know which note to attach to.
+  * code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
     . But ly-key is no good, I really do need to set the key.  I think I have
       to break up the block.  Why can't I do assignment more easily?
