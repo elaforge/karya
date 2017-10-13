@@ -3,6 +3,7 @@ import Prelude hiding (String)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Perform.Pitch as Pitch
 import Global
 import Ness.Global
 
@@ -65,32 +66,41 @@ renderOutputs = array2 "output_def" . map list
 {- | backboard (array) defines the shape of the backboard. This is
     a 3 element array; the elements (which should be negative) define
     a quadratic function describing the shape of the backboard.
+
+    Where x is length: a + bx + bx^2
+    All should be negative or zero (i.e., the backboard is under the strings).
+    E.g. -0.001 -0.000 -0.0002
 -}
 data Backboard = Backboard {
-    b1 :: Double -- ?
-    , b2 :: Double
-    , b3 :: Double
+    ba :: Double
+    , bb :: Double
+    , bc :: Double
     } deriving (Eq, Show)
 
 renderBackboard :: Backboard -> Text
 renderBackboard (Backboard b1 b2 b3) = array "backboard" [b1, b2, b3]
 
 data Fret = Fret {
-    fLocation :: Location
-    , fHeight :: Meters -- negative
+    fHeight :: Meters -- negative
+    , fLocation :: Location
     } deriving (Eq, Show)
 
 renderFrets :: [Fret] -> Text
 renderFrets = array2 "frets" . map list
-    where list (Fret loc height) = [loc, height]
+    where list (Fret height loc) = [loc, height]
 
 {- | barrier_params_def (array) specifies 5 basic parameters for the barrier
     (fret and backboard) collisions. The parameters are: K, alpha, beta, number
     of iterations for Newton solver, and tolerance for Newton solver.
+
+    E.g. 1e10 1.3 10
 -}
 data Barrier = Barrier {
+    -- | stiffness (normally a high number, like 1e10, or 1e13
     bK :: Double
+    -- | stiffness exponent (small number, usually between 1 and 3)
     , bAlpha :: Double
+    -- | loss parameter (positive or zero...bigger means more loss)
     , bBeta :: Double
     , bSolver :: Solver
     } deriving (Eq, Show)
@@ -101,9 +111,14 @@ renderBarrier (Barrier k alpha beta (Solver iterations tolerance)) =
         [k, alpha, beta, fromIntegral iterations, tolerance]
 
 data FingerParams = FingerParams {
-    fMass :: Double -- kg?
+    fMass :: Kg
+    -- | Stiffness.  A big number, like 1e7, usually... tells you the hardness
+    -- of the finger.
     , fK :: Double
+    -- | Exponent, should be between 1-3.
     , fAlpha :: Double
+    -- | Loss.  0 means lossless, greater than zero, means lossy. Usually 1-100
+    -- are good values.
     , fBeta :: Double
     } deriving (Eq, Show)
 
@@ -148,7 +163,8 @@ renderConnections = array2 "ssconnect_def" . map list
         ]
 
 data Instrument = Instrument {
-    iStrings :: [String]
+    iSR :: Int
+    , iStrings :: [String]
     , iFrets :: [Fret]
     , iBarrier :: Barrier
     , iBackboard :: Backboard
@@ -159,11 +175,10 @@ data Instrument = Instrument {
     } deriving (Eq, Show)
 
 renderInstrument :: Instrument -> Text
-renderInstrument (Instrument strings frets barrier backboard fingerParams
+renderInstrument (Instrument sr strings frets barrier backboard fingerParams
         normalizeOutputs solver connections) = Text.unlines
     [ "% gtversion 1.0"
-    , "SR = 44100;"
-    , ""
+    , scalar "SR" sr
     , renderStrings strings
     , renderOutputs [(i, o) | (i, string) <- byIndex, o <- sOutputs string]
     , scalar "itnum" (nIterations solver)
@@ -207,7 +222,7 @@ data Note = Note {
     , nStart :: Seconds
     , nDuration :: Seconds
     , nLocation :: Location
-    , nAmplitude :: Double -- ? what units?
+    , nAmplitude :: Newtons
     } deriving (Eq, Show)
 
 nEnd :: Note -> Seconds
@@ -225,8 +240,8 @@ data Strike = Strike | Pluck deriving (Eq, Show)
 
 data Finger = Finger {
     fString :: String
-    , fInitial :: (Double, Double) -- position, force
-    , fMovement :: [(Seconds, Double, Double)] -- time, position, force
+    , fInitial :: (Location, Velocity)
+    , fMovement :: [(Seconds, Location, Newtons)]
     } deriving (Eq, Show)
     -- finger def (cell array) defines all of the fingers in the simulation,
     -- their movements and the forces associated with them. This is
@@ -253,7 +268,7 @@ renderFingers indexOf fingers = Text.unlines
         ]
     bp (sec, p, v) = Text.unwords $ map render [sec, p, v]
 
--- * util
+-- * render util
 
 array :: Text -> [Double] -> Text
 array name array =
@@ -269,3 +284,11 @@ array2 name array = mconcat
 scalar :: Render a => Text -> a -> Text
 scalar name x = name <> " = " <> render x <> ";"
 
+-- * instrument util
+
+makeFrets :: Meters -> Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Fret]
+makeFrets height open nns =
+    map (Fret height) (map (pitchLocation open) nns)
+
+pitchLocation :: Pitch.NoteNumber -> Pitch.NoteNumber -> Location
+pitchLocation f0 f = 1 - 1 / (Pitch.nn_to_hz f / Pitch.nn_to_hz f0)

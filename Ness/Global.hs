@@ -16,9 +16,12 @@ instance Render Bool where render b = if b then "1" else "0"
 type Meters = Double
 type Seconds = Double
 type Newtons = Double
+type Kg = Double
+type Velocity = Double -- m/s
 -- | From -1 to 1.
 type Pan = Double
-type Location = Double -- from 0 to 1
+-- | Normalized linear position, from 0 to 1.
+type Location = Double
 type Frequency = Double -- hz
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
