@@ -1,9 +1,17 @@
 module Ness.Util where
+import qualified Codec.Binary.Base64Url as Base64Url
+import qualified Data.Bits as Bits
+import Data.Bits ((.&.))
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text.IO as Text.IO
+
+import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Process as Process
 
-import qualified Util.File as File
+import Util.Crc32Instances ()
 import Global
 import qualified Ness.Submit as Submit
 
@@ -13,18 +21,26 @@ scratchDir = "ness-data"
 
 submit :: String -> Text -> Text -> Bool -> IO ()
 submit model instrument score demo = do
-    let ifn = scratchDir </> model ++ ".inst"
-    let sfn = scratchDir </> model ++ ".score"
-    let out = scratchDir </> model ++ "-out.wav"
-    oldInst <- File.ignoreEnoent $ Text.IO.readFile ifn
-    oldScore <- File.ignoreEnoent $ Text.IO.readFile sfn
-    ok <- if Just instrument == oldInst && Just score == oldScore
-        then return True
-        else do
-            Text.IO.writeFile ifn instrument
-            Text.IO.writeFile sfn score
-            Submit.submitDownload demo ifn sfn out
+    let dir = scratchDir </> model </> dirFor demo instrument score
+    let exists = putStrLn ("exists: " <> dir) >> return True
+    let out = dir </> "out.wav"
+    ok <- ifM (Directory.doesDirectoryExist dir) exists $ do
+        let ifn = dir </> "inst"
+        let sfn = dir </> "score"
+        Directory.createDirectory dir
+        Text.IO.writeFile ifn instrument
+        Text.IO.writeFile sfn score
+        Submit.submitDownload demo ifn sfn out
     when ok $ Process.callProcess "afplay" [out]
+
+-- TODO separate out SR and put differing SR in the same dir?
+dirFor :: Bool -> Text -> Text -> FilePath
+dirFor demo instrument score =
+    ByteString.Char8.unpack $ Base64Url.encode $ ByteString.pack bytes
+    where
+    n = CRC32.crc32 (demo, instrument, score)
+    chop = fromIntegral . (.&. 0xff)
+    bytes = map (chop . Bits.shiftR n) [0, 8, 16, 24]
 
 replayModel :: String -> IO ()
 replayModel model =
