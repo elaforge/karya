@@ -26,3 +26,7 @@ type Frequency = Double -- hz
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
+
+zeroPad :: Show a => Int -> a -> String
+zeroPad chars n = replicate (chars - length s) '0' ++ s
+    where s = show n

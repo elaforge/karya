@@ -5,7 +5,7 @@ import qualified Ness.Util as Util
 
 
 Util.Interactive {..} = Util.interactive "bstring" renderAll
-    instrument0 score0
+    (instrument0, score0)
 
 score0 = Score
     { sDuration = 4

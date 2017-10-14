@@ -6,7 +6,7 @@ import qualified Ness.Util as Util
 
 
 Util.Interactive {..} = Util.interactive "multiplate" renderAll
-    instrument0 score0
+    (instrument0, score0)
 
 score0 = Score 6
     [ Strike plate1 0 dur (0.6653034, 0.3507947) 1000

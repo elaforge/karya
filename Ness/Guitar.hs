@@ -18,8 +18,8 @@ silk    = Material 1300   200e9 -- spider silk: 40--280 GPa as strain increases
 
 -- 3k, 6m, 9g, 12t
 
-renderAll :: Instrument -> Score -> (Text, Text)
-renderAll instrument score =
+renderAll :: (Instrument, Score) -> (Text, Text)
+renderAll (instrument, score) =
     (renderInstrument instrument, renderScore (iStrings instrument) score)
 
 -- * Instrument

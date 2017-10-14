@@ -15,13 +15,13 @@ import qualified Util.Thread as Thread
 import Global
 
 
-loginForm :: String
+loginForm :: Url
 -- loginForm = "https://www.ease.ed.ac.uk/"
 loginForm = "https://www.ease.ed.ac.uk/\
     \?cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk\
     \&https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiWebMain.html"
 
-loginUrl :: String
+loginUrl :: Url
 loginUrl = "https://www.ease.ed.ac.uk/cosign.cgi"
 
 cookies :: FilePath
@@ -34,7 +34,7 @@ cookies = "ness-data/cookies"
 -- ref=https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiWebMain.html
 -- service=cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk
 
-submitUrl :: String
+submitUrl :: Url
 submitUrl =
     "https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiZCRemoteRunner.php"
 
@@ -44,7 +44,9 @@ main = do
     submitDownload False instrument score out
     return ()
 
-submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO Bool
+type Url = String
+
+submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO (Bool, Url)
 submitDownload isDemo instrument score out = do
     result <- submit isDemo instrument score
     case result of
@@ -55,7 +57,7 @@ submitDownload isDemo instrument score out = do
             Thread.delay $ realToFrac estimatedTime
             ok <- download 5 out url
             unless ok $ putStrLn "=== gave up"
-            return ok
+            return (ok, url)
 
 -- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
 -- I should get a cosign-eucsCosign-ness-frontend etc.
@@ -86,7 +88,8 @@ login user password = do
         ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
         ++ [loginUrl]
 
-submit :: Bool -> FilePath -> FilePath -> IO (Either Text (String, Double))
+submit :: Bool -> FilePath -> FilePath -> IO (Either Text (Url, Double))
+    -- ^ (urlWithResult, estimatedTime)
 submit isDemo instrument score = do
     putStrLn $ "=== submit " ++ show (instrument, score)
     json <- Process.readProcess "curl"
@@ -99,11 +102,11 @@ submit isDemo instrument score = do
         , submitUrl
         ]
         ""
-    writeFile "ness-data/submit.result" json
+    -- writeFile "ness-data/submit.result" json
     either errorIO return $ first txt $ parseJson $
         ByteString.Lazy.Char8.pack json
 
-download :: Double -> FilePath -> String -> IO Bool
+download :: Double -> FilePath -> Url -> IO Bool
 download timeout out url = go =<< Time.getCurrentTime
     where
     go start = ifM (poll out url) (return True) $ do
@@ -117,7 +120,7 @@ download timeout out url = go =<< Time.getCurrentTime
                 Thread.delay 2
                 go start
 
-poll :: FilePath -> String -> IO Bool
+poll :: FilePath -> Url -> IO Bool
 poll out url = do
     exit <- Process.waitForProcess =<< Process.spawnProcess "curl"
         [ "--insecure"
@@ -132,7 +135,7 @@ poll out url = do
 type Error = String
 
 parseJson :: ByteString.Lazy.ByteString
-    -> Either Error (Either Text (String, Double))
+    -> Either Error (Either Text (Url, Double))
 parseJson json = do
     json <- justErr ("json: " <> show json) $ Aeson.decode json
     flip Aeson.Types.parseEither json $ \obj -> do

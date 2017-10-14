@@ -1,15 +1,53 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Score where
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
+import Global
+import Ness.Global
 import Ness.Guitar
 import qualified Ness.Util as Util
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
-    instrument score
+    (instrument, mkScore notes fingers)
 
+testJawari = multiple "jawari4" (take 1 jawariVars)
 
-(notes, fingers) = (oneNote, [fingerSlide1])
-frets = wholeFrets
+jawariVars =
+    [ ( Seq.join "-" [z hx, z lx,  "ht",  fmt h, "loc", fmt loc]
+      , [set h loc amps]
+      )
+    | (hx, h) <- zip [0..] heights, (lx, loc) <- zip [0..] locations
+    ]
+    where
+    z = zeroPad 2
+    fmt = untxt . Num.showFloat 6
+    set height loc amps =
+        ( instrument { iFrets = [Fret height loc] }
+        , (mkScore (notesEvery 1 amps) []) { sDecay = 3 }
+        )
+    -- heights = [-0.0005, -0.0002, -0.0001, -0.00005, -0.000025, -0.00001]
+    -- locations = [0.02, 0.01, 0.005, 0.0025, 0.001, 0.0001]
+    -- amps = [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.75, 1]
+    -- The last 3 amps get buzz.
+
+    heights =
+        [ -0.0001, -0.00005, -0.000025
+        , -0.00001, -0.000005, -0.000001
+        ]
+    locations = [0.001]
+    amps = [0.05, 0.1, 0.2, 0.5, 0.75, 1, 1.5, 2]
+    {- amp  .05 .1  .2  .5  .75 1   1.5 2
+        0               -   *   *   *
+        1               +   *   *   *
+        2               +   *   *   * <- also nice
+        3               +   *   *   * <- nice
+        4           -   +   *   *   *
+        5   x   x   x   x   x   x   x
+    -}
+
+(notes, fingers) = (oneNote 0.15, [])
+frets = [jawariFret]
 strings = [lowString] -- guitar
 
 -- there's rattle from amp .75 to .4
@@ -17,18 +55,22 @@ strings = [lowString] -- guitar
 -- sound around .03
 
 -- string, start, position, duration, amplitude, 0=strike 1=pluck
-oneNote = map note
-    [ (head strings, 0, 0.15)
+oneNote amp = map mkNote
+    [ (head strings, 0, amp)
     ]
     where
-    note (str, start, amp) = Note
-        { nStrike = Strike
-        , nString = str
-        , nStart = start
-        , nDuration = 0.0013
-        , nLocation = 0.8
-        , nAmplitude = amp
-        }
+
+notesEvery dur amps =
+    [mkNote (head strings, t, amp) | (t, amp) <- zip (iterate (+dur) 0) amps]
+
+mkNote (str, start, amp) = Note
+    { nStrike = Strike
+    , nString = str
+    , nStart = start
+    , nDuration = 0.0013
+    , nLocation = 0.8
+    , nAmplitude = amp
+    }
 
 -- (seconds, location, force)
 fingerSlide1 =
@@ -40,8 +82,8 @@ fingerSlide1 =
     where
     force = 0.15
 
-score = Score
-    { sDecay = 8
+mkScore notes fingers = Score
+    { sDecay = 4
     , sHighpass = True
     , sNotes = notes
     , sFingers = fingers
@@ -54,7 +96,7 @@ instrument = Instrument
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard (-0.001) (-0.0001) 0
     , iFingerParams = FingerParams 0.005 1e7 3.3 100
-    , iNormalizeOutputs = True
+    , iNormalizeOutputs = False
     , iSolver = Solver 20 0
     , iConnections = []
     }
@@ -110,6 +152,8 @@ pipa = map make
     where
     make (tension, radius, t60) =
         String 0.6985 tension nylon radius (15, t60) [Output 0.9 0.5]
+
+jawariFret = Fret { fHeight = (-0.0001), fLocation = 0.01 }
 
 wholeFrets = map (Fret (-0.0005))
     [ 0.109101281859661

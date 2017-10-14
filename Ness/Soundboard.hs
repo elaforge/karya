@@ -8,8 +8,8 @@ import Global
 import Ness.Global
 
 
-renderAll :: Instrument -> Score -> (Text, Text)
-renderAll instrument score =
+renderAll :: (Instrument, Score) -> (Text, Text)
+renderAll (instrument, score) =
     (renderInstrument instrument, renderScore stringNameOf score)
     where
     stringNameOf str =

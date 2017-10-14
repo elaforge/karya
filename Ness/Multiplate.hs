@@ -5,11 +5,10 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import Global
 import Ness.Global
-import qualified Ness.Util as Util
 
 
-renderAll :: Instrument -> Score -> (Text, Text)
-renderAll instrument score =
+renderAll :: (Instrument, Score) -> (Text, Text)
+renderAll (instrument, score) =
     (renderInstrument instrument, renderScore plateNameOf score)
     where
     plateNameOf p = Map.findWithDefault (error $ "no plate: " <> show p) p m

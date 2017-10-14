@@ -15,8 +15,8 @@ instr_numb (scalar) specifies which of the preset instruments to use. Valid
 values are 1-5 for violins, 1-2 for violas and 1-3 for cellos.
 -}
 
-renderAll :: Instrument -> Score -> (Text, Text)
-renderAll instrument score =
+renderAll :: (Instrument, Score) -> (Text, Text)
+renderAll (instrument, score) =
     (render instrument, renderScore indexOf score)
     where
     indexOf str = Map.findWithDefault (error $ "no string: " <> show str)
@@ -130,9 +130,6 @@ renderScore indexOf (Score dur bows fingers) = Text.unlines $ concat
     , map (uncurry (renderFingerMovement indexOf)) (zip [1..] fingers)
     ]
 
-type Position = Double
-type Velocity = Double
-
 {- | bowgest (array of structs) specifies the movement of the bows in the
     simulation. Each bow has the following members: stringnumber (which string
     the bow is on, numbered from 1), w0, vw0, u0, vu0 (initial positions and
@@ -143,8 +140,8 @@ type Velocity = Double
 -}
 data BowMovement = BowMovement {
     bString :: String
-    , bInitialVertical :: (Position, Velocity)
-    , bInitialHorizontal :: (Position, Velocity)
+    , bInitialVertical :: (Location, Velocity)
+    , bInitialHorizontal :: (Location, Velocity)
     , bBreakpoints :: [(Seconds, Breakpoint)]
     } deriving (Eq, Show)
 
@@ -156,8 +153,8 @@ data BowMovement = BowMovement {
 -}
 data FingerMovement = FingerMovement {
     fString :: String
-    , fInitialVertical :: (Position, Velocity)
-    , fInitialHorizontal :: (Position, Velocity)
+    , fInitialVertical :: (Location, Velocity)
+    , fInitialHorizontal :: (Location, Velocity)
     , fBreakpoints :: [(Seconds, Breakpoint)]
     , fVibrato :: Vibrato
     } deriving (Eq, Show)
@@ -171,7 +168,7 @@ data Vibrato = Vibrato {
     } deriving (Eq, Show)
 
 renderMovement :: Text -> (String -> Int) -> Int
-    -> (String, (Position, Velocity), (Position, Velocity),
+    -> (String, (Location, Velocity), (Location, Velocity),
         [(Seconds, Breakpoint)])
     -> [Text] -> Text
 renderMovement name indexOf i (str, vertical, horizontal, bps) fields =
@@ -201,7 +198,7 @@ renderFingerMovement indexOf i (FingerMovement str v h bps vibrato) =
 type Force = Double
 
 data Breakpoint = Breakpoint {
-    bPosition :: Position
+    bPosition :: Location
     , bVertical :: Force
     , bHorizontal :: Force
     } deriving (Eq, Show)

@@ -7,7 +7,7 @@ import qualified Ness.Util as Util
 
 
 Util.Interactive {..} = Util.interactive "soundboard" renderAll
-    instrument0 score0
+    (instrument0, score0)
 
 score0 = Score 4 $
     map (uncurry note) [(str1, 0), (str2, 1), (str3, 2), (str4, 3)]
