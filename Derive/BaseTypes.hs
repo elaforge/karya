@@ -289,7 +289,12 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 -- * Environ
 
 newtype Environ = Environ (Map EnvKey.Key Val)
-    deriving (Show, Monoid, Pretty, DeepSeq.NFData)
+    deriving (Show, Monoid, DeepSeq.NFData)
+
+-- Environ keys are always Text, and it's annoying to have quotes on them.
+instance Pretty Environ where
+    format (Environ env) = Pretty.formatMap
+        . map (Pretty.text *** Pretty.format) . Map.toList $ env
 
 -- | Insert a val directly, with no typechecking.
 insert :: EnvKey.Key -> Val -> Environ -> Environ

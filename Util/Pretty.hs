@@ -15,6 +15,7 @@ module Util.Pretty (
 
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
+    , formatMap
     , constructor
     -- * misc
     , readWord
@@ -149,8 +150,7 @@ instance Pretty a => Pretty (Set.Set a) where
     format = formattedList '{' '}' . Set.toList
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
-    format = formattedList '{' '}' . map pair . Map.toList
-        where pair (k, v) = format k </> (":" <+> format v)
+    format = formatMap . map (\(k, v) -> (format k, format v)) . Map.toList
 
 instance Pretty v => Pretty (IntMap.IntMap v) where
     format = formattedList '{' '}' . map pair . IntMap.toList
@@ -209,6 +209,10 @@ record title fields =
 
 recordTitle :: Text -> [(Text, Doc)] -> Doc
 recordTitle = record . text
+
+formatMap :: [(Doc, Doc)] -> Doc
+formatMap = formattedList '{' '}' . map pair
+    where pair (k, v) = k </> (":" <+> v)
 
 constructor :: Text -> [Doc] -> Doc
 constructor name [] = text name

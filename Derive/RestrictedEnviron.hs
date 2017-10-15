@@ -28,7 +28,12 @@ import Types
 
 
 newtype Environ = Environ (Map EnvKey.Key Val)
-    deriving (Read, Show, Eq, Monoid, Pretty, Serialize.Serialize)
+    deriving (Read, Show, Eq, Monoid, Serialize.Serialize)
+
+-- Environ keys are always Text, and it's annoying to have quotes on them.
+instance Pretty Environ where
+    format (Environ env) = Pretty.formatMap
+        . map (Pretty.text *** Pretty.format) . Map.toList $ env
 
 make :: [(EnvKey.Key, Val)] -> Environ
 make = Environ . Map.fromList
