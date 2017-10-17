@@ -24,6 +24,10 @@ config :: Config
 config = Config $ Map.fromList
     [ (samplerName, sampler)
     , (faustName, faust)
+    , (imFileName, Synth
+        { binary = "/bin/echo"
+        , notesDir = dataDir </> "im-file-notes"
+        })
     ]
 
 data Synth = Synth {
@@ -34,6 +38,10 @@ data Synth = Synth {
     } deriving (Eq, Show)
 
 type SynthName = Text
+
+-- | A dummy synth that just writes its notes to a file.
+imFileName :: SynthName
+imFileName = "im-file"
 
 samplerName :: SynthName
 samplerName = "sampler"

@@ -20,8 +20,12 @@ import System.FilePath ((</>))
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
+
 import qualified Perform.Im.Play
+import qualified Perform.Im.Patch
 import qualified Perform.Lilypond.Constants as Lilypond.Constants
+
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
@@ -46,6 +50,7 @@ import qualified Local.Instrument.Z1 as Z1
 import qualified Synth.Faust.PatchDb as Faust.PatchDb
 import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 #endif
+import qualified Synth.Shared.Config
 
 import qualified App.Config as Config
 import Global
@@ -79,10 +84,19 @@ midi_synths =
 im_synths :: [MidiInst.Synth]
 im_synths =
     [ Perform.Im.Play.play_cache_synth
+    , imFileSynth
 #if defined(ENABLE_IM) && !defined(TESTING)
     , Sampler.PatchDb.synth
     , Faust.PatchDb.synth
 #endif
+    ]
+
+
+imFileSynth :: Inst.SynthDecl Cmd.InstrumentCode
+imFileSynth = Inst.SynthDecl Synth.Shared.Config.imFileName
+    "just write notes to a file"
+    [ ("", Inst.Inst (Inst.Im Perform.Im.Patch.patch)
+        (Common.common Cmd.empty_code))
     ]
 
 internal_synths :: [MidiInst.Synth]
