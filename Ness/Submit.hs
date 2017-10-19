@@ -49,16 +49,13 @@ type Url = String
 
 submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO (Bool, Url)
 submitDownload isDemo instrument score out = do
-    result <- submit isDemo instrument score
-    case result of
-        Left err -> errorIO err
-        Right (url, estimatedTime) -> do
-            putStrLn $ "=== response: " ++ url
-            putStrLn $ "=== run time: " ++ show estimatedTime
-            Thread.delay $ realToFrac estimatedTime
-            ok <- download 5 out url
-            unless ok $ putStrLn "=== gave up"
-            return (ok, url)
+    (url, estimatedTime) <- submit isDemo instrument score
+    putStrLn $ "=== response: " ++ url
+    putStrLn $ "=== run time: " ++ show estimatedTime
+    Thread.delay $ realToFrac estimatedTime
+    ok <- download 5 out url
+    unless ok $ putStrLn "=== gave up"
+    return (ok, url)
 
 -- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
 -- I should get a cosign-eucsCosign-ness-frontend etc.
@@ -89,7 +86,7 @@ login user password = do
         ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
         ++ [loginUrl]
 
-submit :: Bool -> FilePath -> FilePath -> IO (Either Text (Url, Double))
+submit :: Bool -> FilePath -> FilePath -> IO (Url, Double)
     -- ^ (urlWithResult, estimatedTime)
 submit isDemo instrument score = do
     putStrLn $ "=== submit " ++ show (instrument, score)
@@ -104,8 +101,7 @@ submit isDemo instrument score = do
         ]
         ""
     -- writeFile "ness-data/submit.result" json
-    either errorIO return $ first txt $ parseJson $
-        ByteString.Lazy.Char8.pack json
+    either (errorIO . txt) return $ parseJson $ ByteString.Lazy.Char8.pack json
 
 download :: Double -> FilePath -> Url -> IO Bool
 download timeout out url = go =<< Time.getCurrentTime
@@ -135,19 +131,34 @@ poll out url = do
 
 type Error = String
 
-parseJson :: ByteString.Lazy.ByteString
-    -> Either Error (Either Text (Url, Double))
+formatError dir text html = untxt $ Text.unlines
+    [ "=== dir: " <> dir
+    , Text.replace "/localdisk/home/pgraham/PaulJGraham/NUI/BackEnd/" "" $
+        Text.replace "\\/" "/" $
+        text
+    , "=== html"
+    , html
+    ]
+
+-- keys: ['runTextOutput', 'runMode', 'serverMixWav', runExitStatus: Int,
+-- serverError: Bool, 'serverResultDir', 'runEstRunTime', 'serverHtmlOutput']
+-- runTextOutput or serverHtmlOutput
+parseJson :: ByteString.Lazy.ByteString -> Either Error (Url, Double)
 parseJson json = do
     json <- justErr ("json: " <> show json) $ Aeson.decode json
     flip Aeson.Types.parseEither json $ \obj -> do
         status <- obj .: "runExitStatus"
         serverError <- obj .: "serverError"
         if status == (1 :: Int) || serverError
-            then Left <$> obj .: "serverHtmlOutput"
+            then do
+                dir <- obj .: "serverResultDir"
+                text <- obj .: "runTextOutput"
+                html <- obj .: "serverHtmlOutput"
+                fail $ formatError dir text html
             else do
                 dir <- obj .: "serverResultDir"
                 time <- obj .: "runEstRunTime"
-                return $ Right
+                return
                     ( dir <> "/output-mix.wav"
                     , fromMaybe 0 $ ParseText.float time
                     )
