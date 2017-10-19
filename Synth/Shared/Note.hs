@@ -80,13 +80,13 @@ initialPitch = fmap Pitch.nn . initialControl Control.pitch
 -- * serialize
 
 serialize :: FilePath -> [Note] -> IO ()
-serialize = Serialize.serialize notes_magic
+serialize = Serialize.serialize notesMagic
 
 unserialize :: FilePath -> IO (Either Serialize.UnserializeError [Note])
-unserialize  = Serialize.unserialize notes_magic
+unserialize  = Serialize.unserialize notesMagic
 
-notes_magic :: Serialize.Magic [Note]
-notes_magic = Serialize.Magic 's' 'a' 'm' 'p'
+notesMagic :: Serialize.Magic [Note]
+notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 
 unserializeJson :: FilePath -> IO (Either Text [Note])
 unserializeJson filename =

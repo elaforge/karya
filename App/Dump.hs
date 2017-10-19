@@ -88,7 +88,7 @@ dump flag fname =
     try fname Cmd.Serialize.allocations_magic ((:[]) . Pretty.formatted) $
     try fname Cmd.Serialize.views_magic ((:[]) . Pretty.formatted) $
     try fname DiffPerformance.midi_magic dump_midi $
-    try fname Synth.Shared.Note.notes_magic (map Pretty.formatted) $
+    try fname Synth.Shared.Note.notesMagic (map Pretty.formatted) $
     return $ Left "no magic codes match"
 
 -- | Try to unserialize the file, and try the passed continuation if it failed
