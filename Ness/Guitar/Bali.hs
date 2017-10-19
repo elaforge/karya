@@ -1,13 +1,71 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Bali where
 import Prelude hiding (String)
+import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
+import Global
 import Ness.Global
 import Ness.Guitar
 import qualified Ness.Util as Util
 
+
+-- | TODO separate instruments with different parameters
+instruments :: Map Text Instrument
+instruments = Map.fromList
+    [ ("polos", instrument legongGuitar)
+    , ("sangsih", instrument legongGuitar)
+    ]
+
+instrument strings = Instrument
+    { iSR = 44100
+    , iStrings = strings
+    , iFrets = [] -- frets
+    , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
+    , iBackboard = Backboard -- a + bx + bx^2, where x is length
+        -- { ba = -0.005
+        -- , bb = 0
+        -- , bc = 0
+        -- }
+        { ba = -0.001
+        , bb = -0.0001
+        , bc = 0
+        }
+    , iFingerParams = FingerParams
+        -- { fMass = 0.005
+        -- , fStiffness = 2e7
+        -- , fExponent = 3
+        -- , fLoss = 10
+        -- }
+        { fMass = 0.005
+        , fStiffness = 1e7
+        , fExponent = 3.3
+        , fLoss = 100
+        }
+    , iNormalizeOutputs = True
+    , iSolver = Solver 20 0
+    , iConnections = []
+    }
+
+legongStrings :: [(Pitch.NoteNumber, String)]
+legongStrings = zip (drop 3 legong) legongGuitar
+
+legongGuitar =
+    map (lenBy 0.5 . make) strings ++ map (lenBy 0.25 . make) (tail strings)
+    where
+    strings =
+        [ (0.78, 11.0, 0.00020, 5, 0.0) -- 51.82nn
+        , (0.78, 08.0, 0.00015, 5, 0.1) -- *
+        , (0.78, 08.5, 0.00015, 5, 0.2) -- *
+        , (0.78, 14.0, 0.00015, 5, 0.3) -- *
+        , (0.78, 15.0, 0.00015, 7, 0.4) -- *
+        , (0.78, 16.1, 0.00012, 8, 0.5) -- *
+        ]
+    make (len, tension, radius, t60, pan) =
+        String len tension steel radius (15, t60)
+            [Output 0.9 pan, Output 0.7 (pan + 0.2)]
+    lenBy n str = str { sLength = sLength str * n }
 
 (notes, fingers) = (take 1 each_string, take 1 slide_each_string)
 

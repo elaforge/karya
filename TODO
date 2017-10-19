@@ -4,65 +4,149 @@ LEGEND
 
 NESS:
   Questions:
-    . How to mute ringing strings?
     . What are the differences between soundboard, guitar, and bowed string?
       E.g. why not play soundboard or guitar with a bow?  Why not put frets on
-      the bowed string?
+      the bowed string?  Guitar is maybe a strictly better soundboard?
+
     . How to do jawari for soundboard, guitar, or bowed string?  How about
       a curved bridge?
     . What's T60?
+      . 60db
     . Is there a difference between demo mode and just changing sampling rate
       to 11k?
-    . Why not write output in floating point and leave the normalization to
-      the client?
+
+    . Generally is it useful to try to get the values for the real materials,
+      lengths, tension etc., or just adjust parameters and listen?
 
     multiplate:
       . You can define membrane and drumshell, but not strike them?
         . It seems like 'strike membrane1 ...' works, but is undocumented?
+          Are there any examples of its use?  The demos on the website sound
+          pretty good.
       . What's the point of the name on drumshell?
-      . In plate and membrane, what's rho, H, E, nu, T60, sig1?
-        Membrane has an extra T parameter.
+      . In plate, what's rho, H, E, nu, T60, sig1?  Membrane has the same
+        parameters, but with an extra T.
         . nu = poisson's ratio?
       . In plate, what does the center coordinates mean?
-      . What shape are the plates?  Depending on the parameters, they can have
+      . What shape are the plates?  Square, circular?  I assume they're the
+        same thickness everywhere?  Depending on the parameters, they can have
         a definite pitch, but where is the continuum between gong and tamtam?
       . How difficult would it be to add features like hand damping, striking
         with soft or hard mallets?
-      . Multiplate is slow!  61m for a 4 second simulation (5m in demo mode).
-        Are there guidelines about what parameters influence runtime?
+      . Multiplate can be slow!  61m for a 4 second simulation (5m in demo
+        mode).  Are there guidelines about what parameters influence runtime?
         It seems like the presence of a membrane makes demo runtime go from
         34s to 5m, and sound become empty.
 
     soundboard:
-      . Where are the frets?  Since all you can do is pluck an open string,
-        I guess you can't actually use them?
+      . Each string has its own frets count and distance from the string, but
+        you can't place them, and since you can't press on a string, you can't
+        generally hear them... I assume they're for collisions only?
       . What's the meaning of the baseboard profile?
-      . What about string start and end coordinates?
+      . Each string has start and end coordinates, what does that affect?
 
     guitar:
-      . "itnum" is presumably iterations for a newton solver... which does what?
-      . I guess "tol" would have been its tolerance, but isn't used for the C++
+      - What's the formula to derive the sounding frequency from the string's
+        length, tension, and material?
+      - How about the inharmonicity value as used by string_def_gen()?
+        I assume it also affects material.
+
+      - "itnum" is presumably iterations for a newton solver... which does what?
+      - I guess "tol" would have been its tolerance, but isn't used for the C++
         version?
-      . What does inharmonicity as taken by the string_def_gen() actually
-        influence in the string_defs array?  Presumably density or radius?  Can
-        I see the definitions for the various functions?
 
     bowed string:
-      . The (instrument, instrument_numb) affect only strings, right?  What
-        string definitions do they correspond to?
-      . What's kw, alpha, beta, lambda and M in the finger and bow definitions?
+      - In this model you can directly set the frequency of a string, but
+        isn't that determined by length, tension, and material?
+      - The (instrument, instrument_numb) presets affect only strings, right?
+        What string definitions do they correspond to?
+      - What's kw, alpha, beta, lambda and M in the finger and bow definitions?
         Finger has an extra ku.
-      . The bow movements have: w0, vw0, u0, vu0 (initial positions and
+      - The bow movements have: w0, vw0, u0, vu0 (initial positions and
         velocities).  I assume w is vertical, and u is horizontal?
-      . Then the breakpoints are (position, vertical force, horiz force).
+      - Then the breakpoints are (position, vertical force, horiz force).
         If the position is horizontal position, what's the relationship
         between it and force?  Wouldn't the force be whatever is necessary to
         put it at the given position and time?
-      - What are the definitions of the presets?
 
-  short piece:
-    - multiplate for gongs
-    - guitar for kotekan
+    brass:
+      - is the online version the same as the downloadable binary?
+
+  percussion guitar:
+    . Use two strings with "jawari" fret for percussion with rolls.
+    . I could play this like kendang, or like trompong.
+    - Generate samples for the jawari strings at each amp level.
+    - Make kontakt patch.
+    - Write a converter back to the ness score.
+
+  guitar:
+    Things that work:
+      . Strike open strings, with possible collisions, "jawari fret".
+      . Originally, sliding up worked, but not sure how to get that back.
+    Things that don't work:
+      . Seems like >2 fingers on one string crashes (no sound output).
+      . The simulation cuts off at 330s
+      . The output directories marked with seconds means parallel submits are
+        unreliable.
+
+      . Interaction with frets is hard to get right.  If the frets are
+        very close (0.0005), then there are lots of string collisions, but
+        further distance produces only silence or unpitched jangle.
+      . For instance, "fingering", striking with the finger at or below each
+        fret, tends to just get a jangle with a tiny bit of pitch.  Also
+        touching at or below a fret and striking the string gets a lot of
+        collisions.  So try as I might, I can't get the effect of normal
+        fingering.
+      . However, with no frets and a more distant backboard, and touching with
+        high force, I can get another pitch, which is presumably the string
+        segment on the other side of the finger, which is a nice effect.
+
+    . Use legongGuitar, no frets.  Map pitch changes to finger positions.
+      . First just that.  I can try the jawari fret stuff later.
+    * Make a sample set: each string, each amp.
+      . Should I experiment with different durations?  It might get the softer
+        notes sounding more natural.
+      . Also try with pluck, not just strike.
+      . What's the difference between strike and pluck? Watch the JOS video
+        again.
+    * Program to split the samples on n seconds.  conduit-audio should be able
+      to do it.  Also sox, but looks really awkward.
+    * The model is Im.Convert.  Make a generic im synth that just saves to
+      disk, and doesn't run a synthesizer.
+    Write a converter to NESS score.
+      * Initial implementation.
+      . Test on serialized notes.
+      / Implement +mute as a finger lift.
+    - Adapt reyong infer-damp for ness instruments.
+      - I'll also have to get the kontakt version to support it so I can hear
+        the results.
+      - What if I implement +mute as return to open string in karya?  I would
+        also move string selection there, but it means I can more easily
+        override the string.
+
+
+    - Design instruments with frets at legong scale, umbang and isep.
+      . Have a string for each pitch?
+
+      . There should be enough random variation to make each noticeably
+        distinct.  Vary: string material, length, tenson, strike position,
+        strike duration.
+      . Separate strings at 3rds.
+      . Test gestures: press on next fret, press in between frets, lift to
+        open.
+      . 2 sangsih, 2 polos
+    - Make samples for open notes, integrate into kontakt.
+    - Write a converter back to the ness score:
+      . Start of phrase, pick the appropriate string.
+      . Pitch change to finger movements.
+      . Mute as press between frets, next one up.
+      . End of phrase, lift finger.
+
+    - Maybe I can use the "jawari" fret with parallel strings as a special
+      effect.
+  gong:
+    - Find 3 gongs and make samples for them.
+
   ideas:
     . yangqin?
     . play string like reyong, with a hand damp
