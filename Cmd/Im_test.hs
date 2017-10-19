@@ -48,10 +48,10 @@ test_respond = do
     right_equal (map Note.start <$> notes) [0, 1]
     right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
             <$> notes)
-        [ [ (Control.amp, [(0, 0.5)])
+        [ [ (Control.dynamic, [(0, 0.5)])
           , (Control.pitch, [(0, realToFrac NN.c4)])
           ]
-        , [ (Control.amp, [(0, 0.5)])
+        , [ (Control.dynamic, [(0, 0.5)])
           , (Control.pitch, [(1, realToFrac NN.d4)])
           ]
         ]

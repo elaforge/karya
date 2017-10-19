@@ -9,7 +9,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -47,8 +46,7 @@ makeInst description controls = Inst.Inst
 
 makePatch :: [(Control.Control, Text)] -> Patch.Patch
 makePatch controls = Patch.Patch
-    { patch_controls = Map.fromList
-        [(ScoreTypes.Control c, doc) | (Control.Control c, doc) <- controls]
+    { patch_controls = Map.fromList controls
     , patch_attribute_map = Common.attribute_map []
     , patch_flags = mempty
     }

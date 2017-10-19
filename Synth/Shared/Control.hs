@@ -11,13 +11,13 @@ import qualified Util.Serialize as Serialize
 import Global
 
 
+-- | Unlike ScoreTypes.Control, pitch is just another control.
 newtype Control = Control Text
     deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
         Aeson.ToJSONKey, Aeson.FromJSONKey, Serialize.Serialize, Pretty)
 
--- | Volume amplitude.
-amp :: Control
-amp = "amp"
+dynamic :: Control
+dynamic = "dyn" -- TODO this and Score.c_dynamic should come from the same place
 
 -- | Pitch in NoteNumbers.
 pitch :: Control

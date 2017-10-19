@@ -6,7 +6,7 @@
 module Perform.Im.Patch where
 import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Synth.Shared.Control as Control
 import qualified Instrument.Common as Common
 import Global
 
@@ -14,7 +14,7 @@ import Global
 data Patch = Patch {
     -- | Map supported controls to documentation.
     -- TODO maybe I need a separate one for pitch controls.
-    patch_controls :: !(Map ScoreTypes.Control Text)
+    patch_controls :: !(Map Control.Control Text)
     , patch_attribute_map :: !AttributeMap
     , patch_flags :: !(Set Flag)
     } deriving (Show)
@@ -34,7 +34,7 @@ instance Pretty Patch where
         ]
 
 -- | Since the synth understands Attributes directly, this is just a list of
--- support Attributes along with their priority.
+-- supported Attributes along with their priority.
 type AttributeMap = Common.AttributeMap Attrs.Attributes
 
 attribute_map :: [Attrs.Attributes] -> AttributeMap

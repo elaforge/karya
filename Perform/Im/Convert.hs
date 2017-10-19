@@ -13,7 +13,6 @@ import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Controls as Controls
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -53,9 +52,8 @@ convert_event :: Score.Event -> Patch.Patch -> InstTypes.Name
     -> [LEvent.LEvent Note.Note]
 convert_event event patch name = run $ do
     let supported = Patch.patch_controls patch
-        -- TODO trim controls
-        controls = Score.event_transformed_controls event
-    pitch <- if Map.member (convert_control Control.pitch) supported
+    let controls = Score.event_transformed_controls event
+    pitch <- if Map.member Control.pitch supported
         then Just . convert_signal <$>
             convert_pitch (Score.event_environ event) controls
                 (Score.event_transformed_pitch event)
@@ -65,10 +63,8 @@ convert_event event patch name = run $ do
         , patch = name
         , start = Score.event_start event
         , duration = Score.event_duration event
-        , controls =
-            let converted = convert_controls controls
-            in maybe converted (\p -> Map.insert Control.pitch p converted)
-                pitch
+        , controls = maybe id (Map.insert Control.pitch) pitch $
+            convert_controls supported controls
         , attributes = maybe mempty convert_attributes $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
@@ -81,19 +77,18 @@ run = merge . Identity.runIdentity . Log.run
 convert_attributes :: Attrs.Attributes -> Shared.Types.Attributes
 convert_attributes = Shared.Types.Attributes . Attrs.to_set
 
--- | TODO use the same type
-convert_control :: Control.Control -> Score.Control
-convert_control (Control.Control a) = ScoreTypes.Control a
-
 convert_signal :: Perform.Signal.Signal a -> Signal.Signal
 convert_signal = Perform.Signal.sig_vec
 
-convert_controls :: Score.ControlMap -> Map Control.Control Signal.Signal
-convert_controls controls = Map.fromList $ concat
-    [ [ (Control.amp, convert_signal (Score.typed_val sig))
-      | Just sig <- [Map.lookup Controls.dynamic controls]
-      ]
+-- TODO trim controls?
+convert_controls :: Map Control.Control a -> Score.ControlMap
+    -> Map Control.Control Signal.Signal
+convert_controls supported controls = Map.fromList
+    [ (to_control c, convert_signal sig)
+    | (c, ScoreTypes.Typed _ sig) <- Map.toList controls
+    , Map.member (to_control c) supported
     ]
+    where to_control = Control.Control . ScoreTypes.control_name
 
 convert_pitch :: Log.LogMonad m => BaseTypes.Environ
     -> Score.ControlMap -> PSignal.PSignal -> m Perform.Signal.NoteNumber

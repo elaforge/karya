@@ -55,7 +55,6 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -502,13 +501,12 @@ im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
     inst = Inst.Inst
         { inst_backend = Inst.Im $ Im.Patch.patch
             { Im.Patch.patch_controls = Map.fromList
-                [ (c Control.pitch, "pitch")
-                , (c Control.amp, "amp")
+                [ (Control.pitch, "pitch doc")
+                , (Control.dynamic, "dyn doc")
                 ]
             }
         , inst_common = Common.common Cmd.empty_code
         }
-    c (Control.Control a) = ScoreTypes.Control a
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Cmd.lookup_scale

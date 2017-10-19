@@ -13,7 +13,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Attrs as Attrs
-import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
@@ -81,15 +80,13 @@ makeInst patch = Inst.Inst
 inferPatch :: [Sample] -> Patch.Patch
 inferPatch samples = Patch.Patch
     { patch_controls = Map.fromList $ concat
-        [ [(c Control.pitch, "Pitch signal.")
-            | any (Maybe.isJust . pitch) samples]
+        [ [(Control.pitch, "Pitch signal.") |any (Maybe.isJust . pitch) samples]
         ]
     , patch_attribute_map = Patch.attribute_map $ map convertAttributes $
         Seq.unique $ map attributes samples
     , patch_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
     }
-    where c (Control.Control a) = ScoreTypes.Control a
 
 convertAttributes :: Types.Attributes -> Attrs.Attributes
 convertAttributes (Types.Attributes attrs) = Attrs.from_set attrs
