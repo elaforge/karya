@@ -61,7 +61,8 @@ convert_event event patch name = run $ do
                 (Score.event_transformed_pitch event)
         else return Nothing
     return $ Note.Note
-        { instrument = name
+        { instrument = ScoreTypes.instrument_name $ Score.event_instrument event
+        , patch = name
         , start = Score.event_start event
         , duration = Score.event_duration event
         , controls =

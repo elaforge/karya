@@ -24,10 +24,10 @@ import Global
 
 -- TODO use dur for an envelope
 noteToSample :: Note.Note -> Either Text Sample.Sample
-noteToSample note@(Note.Note instName start _dur controls attrs) = do
-    inst <- justErr ("instrument not found: " <> instName) $
-        Map.lookup instName PatchDb.db
-    let msg = "sample not found for " <> showt (instName, attrs)
+noteToSample note@(Note.Note _instrument patch start _dur controls attrs) = do
+    -- TODO I think the sampler doesn't care about individual instruments?
+    inst <- justErr ("patch not found: " <> patch) $ Map.lookup patch PatchDb.db
+    let msg = "sample not found for " <> showt (patch, attrs)
             <> " with pitch " <> showt (Note.initialPitch note)
     (samplePath, instSample) <- justErr msg $
         lookupSample inst attrs (Note.initialPitch note)

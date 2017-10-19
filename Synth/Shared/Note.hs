@@ -28,7 +28,12 @@ import Global
 -- | High level representation of one note.  This will be converted into
 -- one or more 'Sample.Sample's.
 data Note = Note {
-    instrument :: !Types.PatchName
+    -- | The score-level identifier for the note's instrument.  This names
+    -- a particular instantiation of the 'patch', and corresponds to
+    -- 'Derive.ScoreTypes.Instrument'.
+    instrument :: !InstrumentName
+    -- | Map this note to one of the synthesizer's patches.
+    , patch :: !Types.PatchName
     , start :: !RealTime
     , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
@@ -36,25 +41,29 @@ data Note = Note {
     , attributes :: !Types.Attributes
     } deriving (Show, Generics.Generic, Aeson.ToJSON, Aeson.FromJSON)
 
+type InstrumentName = Text
+
 end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e) = put a *> put b *> put c *> put d *> put e
-    get = Note <$> get <*> get <*> get <*> get <*> get
+    put (Note a b c d e f) = put a *> put b *> put c *> put d *> put e *> put f
+    get = Note <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Pretty Note where
-    format (Note inst start dur controls attrs) = Pretty.record "Note"
+    format (Note inst patch start dur controls attrs) = Pretty.record "Note"
         [ ("instrument", Pretty.format inst)
+        , ("patch", Pretty.format patch)
         , ("start", Pretty.format start)
         , ("duration", Pretty.format dur)
         , ("controls", Pretty.format controls)
         , ("attributes", Pretty.format attrs)
         ]
 
-note :: Types.PatchName -> RealTime -> RealTime -> Note
-note inst start duration = Note
+note :: InstrumentName -> Types.PatchName -> RealTime -> RealTime -> Note
+note inst patch start duration = Note
     { instrument = inst
+    , patch = patch
     , start = start
     , duration = duration
     , controls = mempty
