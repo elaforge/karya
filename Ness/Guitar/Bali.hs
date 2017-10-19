@@ -68,7 +68,8 @@ score0 = Score
     }
 
 instrument0 = Instrument
-    { iStrings = strings
+    { iSR = 44100
+    , iStrings = strings
     , iFrets = frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard (-0.002) (-0.001) (-0.0002)
@@ -124,4 +125,4 @@ legong = map Pitch.nn
     ]
 
 Util.Interactive {..} = Util.interactive "guitar-bali" renderAll
-    instrument0 score0
+    (instrument0, score0)

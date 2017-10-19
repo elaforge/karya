@@ -8,7 +8,7 @@ import Global
 import Ness.Global
 
 
-steel   = Material 7850   200e9 -- 8050 kg/m^3, 200 GPa
+steel   = Material 7860   200e9 -- 8050 kg/m^3, 200 GPa
 gold    = Material 19300  79e9 -- 19320
 uranium = Material 19050  208e9
 nylon   = Material 1150   3e9 -- 1.15 g/m^3, 2--4 GPa
@@ -34,7 +34,7 @@ data String = String {
     , sTension :: Newtons
     , sMaterial :: Material
     , sRadius :: Meters
-    , sT60 :: (Double, Double) -- at 0 and 1k
+    , sT60 :: (Double, Double) -- -60db at 0hz and 1k
     , sOutputs :: [Output]
     } deriving (Eq, Ord, Show)
 
@@ -114,12 +114,12 @@ data FingerParams = FingerParams {
     fMass :: Kg
     -- | Stiffness.  A big number, like 1e7, usually... tells you the hardness
     -- of the finger.
-    , fK :: Double
+    , fStiffness :: Double
     -- | Exponent, should be between 1-3.
-    , fAlpha :: Double
+    , fExponent :: Double
     -- | Loss.  0 means lossless, greater than zero, means lossy. Usually 1-100
     -- are good values.
-    , fBeta :: Double
+    , fLoss :: Double
     } deriving (Eq, Show)
 
 renderFingerParams :: FingerParams -> Text
@@ -211,7 +211,7 @@ renderScore strings (Score decay highpass notes fingers) = Text.unlines
     , renderFingers indexOf fingers
     ]
     where
-    duration = maximum (map nEnd notes) + decay
+    duration = maximum (map nStart notes) + decay
     indexOf str = fromMaybe (error $ "no string: " <> show str) $
         Map.lookup str toNum
         where toNum = Map.fromList $ zip strings [1..]
@@ -224,9 +224,6 @@ data Note = Note {
     , nLocation :: Location
     , nAmplitude :: Newtons
     } deriving (Eq, Show)
-
-nEnd :: Note -> Seconds
-nEnd n = nStart n + nDuration n
 
 renderNotes :: (String -> StringIndex) -> [Note] -> Text
 renderNotes indexOf = array2 "exc" . map list

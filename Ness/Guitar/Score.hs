@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Score where
+import Prelude hiding (String)
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
@@ -11,60 +12,127 @@ import qualified Ness.Util as Util
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     (instrument, mkScore notes fingers)
 
-testJawari = multiple "jawari4" (take 1 jawariVars)
+testJawari = multiple "jawari3" jawariVars
 
+jawariVars :: [(FilePath, [(Instrument, Score)])]
 jawariVars =
-    [ ( Seq.join "-" [z hx, z lx,  "ht",  fmt h, "loc", fmt loc]
-      , [set h loc amps]
+    [ ( Seq.join "-" ["str" <> show strx, z hx, "ht",  fmt h]
+      , [makeScore str h loc amps]
       )
-    | (hx, h) <- zip [0..] heights, (lx, loc) <- zip [0..] locations
+    | (strx, str) <- zip [0..] (take 1 strings)
+    , (hx, h) <- zip [0..] (take 1 heights)
     ]
     where
-    z = zeroPad 2
+    z = Util.zeroPad 2
     fmt = untxt . Num.showFloat 6
-    set height loc amps =
+    makeScore str height loc amps =
         ( instrument { iFrets = [Fret height loc] }
-        , (mkScore (notesEvery 1 amps) []) { sDecay = 3 }
+        , mkScore (repeatNote str 1 amps) []
         )
-    -- heights = [-0.0005, -0.0002, -0.0001, -0.00005, -0.000025, -0.00001]
-    -- locations = [0.02, 0.01, 0.005, 0.0025, 0.001, 0.0001]
-    -- amps = [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 0.75, 1]
-    -- The last 3 amps get buzz.
-
     heights =
-        [ -0.0001, -0.00005, -0.000025
-        , -0.00001, -0.000005, -0.000001
+        [ -0.00001, -0.000005, -0.000001
         ]
-    locations = [0.001]
-    amps = [0.05, 0.1, 0.2, 0.5, 0.75, 1, 1.5, 2]
+    loc = 0.001
+    amps = [0.1, 0.15, 0.2, 0.25, 0.4, 0.5, 0.75, 1, 1.5, 2]
     {- amp  .05 .1  .2  .5  .75 1   1.5 2
-        0               -   *   *   *
-        1               +   *   *   *
-        2               +   *   *   * <- also nice
-        3               +   *   *   * <- nice
-        4           -   +   *   *   *
-        5   x   x   x   x   x   x   x
+      ht0               +   *   *   * <- nice
+      ht1           -   +   *   *   *
+      ht2   x   x   x   x   x   x   x
     -}
 
-(notes, fingers) = (oneNote 0.15, [])
-frets = [jawariFret]
-strings = [lowString] -- guitar
+-- (notes, fingers) = strikeEachFret (head strings) 0.5
+-- (notes, fingers) = (ns, slideUp ns 3.5)
+--     where ns = take 1 $ eachOpenString 0.3 1 4
+-- (notes, fingers) = (ns, fingerUp ns 0.5 6)
+--     where ns = take 4 $ eachOpenString 0.3 1 4
+-- (notes, fingers) = (ns, [])
+--     where ns = eachOpenString 0.3 0 4
+(notes, fingers) = (ns, [])
+    where
+    ns = eachAmpEachString (drop 1 $ Seq.range 0 maxAmp (maxAmp/16)) 6
+    maxAmp = 0.65
+
+frets = legongFrets
+-- strings = [lowerString, lowString] -- guitar
+strings = legongGuitar
+
+eachOpenString amp start dur =
+    [strike (str, t, amp) | (str, t) <- zip strings (iterate (+dur) start)]
+
+eachAmpEachString amps dur = [strike (str, t, amp) | (t, (str, amp)) <- strikes]
+    where
+    strikes = zip ts [(str, amp) | str <- strings, amp <- amps]
+    ts = iterate (+dur) 0
+
+-- Strike with the finger right below each fret.
+fingerUp notes dur noteCount = do
+    n <- notes
+    return $ Finger (nString n) (0.01, 0) $ concat $ do
+        (t, fret) <- zip (drop 2 $ iterate (+dur) (nStart n)) (take noteCount frets)
+        let loc = fLocation fret - offset
+        let end = t + dur
+        return
+            [ (t, loc, 0), (t+eta, loc, amp)
+            , (end-eta-eta, loc, amp), (end-eta, loc, 0)
+            ]
+    where
+    eta = 0.05
+    amp = 0.5
+    offset = 0.01 -- below the fret
+
+-- strikeEachFret str dur =
+--     ( repeatNote str dur (replicate (length frets) amp)
+--     , [Finger str (0, 0) $ (dur-eta, 0, 0) : concat
+--         [ [(t, loc f, force), (t+dur-eta, loc f, force)]
+--         | (t, f) <- zip (iterate (+dur) 0) frets
+--         ]]
+--     )
+--     where
+--     loc = subtract 0.01 . fLocation
+--     amp = 0.25
+--     force = 0.15
+--     eta = 0.05
+
+-- fingersUp :: [Note] -> Seconds -> Int -> [Finger]
+-- fingersUp notes dur noteCount = do
+--     n <- notes
+--     (t, fret) <- zip (iterate (+dur) (nStart n))
+--         (take noteCount (map fLocation frets))
+--     return $ Finger (nString n) (fret, 0)
+--         [ (t, fret, 0), (t+eta, fret, amp) ]
+--     where
+--     eta = 0.05
+--     amp = 0.15
+--     -- One Finger with a strike right below each fret.
+
+slideUp notes dur = do
+    n <- notes
+    let start = nStart n + 0.5
+    let end = nStart n + dur
+    return $ Finger (nString n) (0.01, 0)
+        [ (start, 0.05, 0), (start+eta, 0.05, amp)
+        , (end, 0.5, amp), (end + eta, 0.5, 0)
+        ]
+    where
+    amp = 0.15
+    eta = 0.05
 
 -- there's rattle from amp .75 to .4
 -- duration makes a more rounded sound around 0.007 to .015, but becomes no
 -- sound around .03
 
 -- string, start, position, duration, amplitude, 0=strike 1=pluck
-oneNote amp = map mkNote
+oneNote amp = map strike
     [ (head strings, 0, amp)
     ]
-    where
 
-notesEvery dur amps =
-    [mkNote (head strings, t, amp) | (t, amp) <- zip (iterate (+dur) 0) amps]
+repeatNote :: String -> Seconds -> [Newtons] -> [Note]
+repeatNote str dur amps =
+    [strike (str, t, amp) | (t, amp) <- zip (iterate (+dur) 0) amps]
 
-mkNote (str, start, amp) = Note
-    { nStrike = Strike
+strike :: (String, Seconds, Newtons) -> Note
+strike (str, start, amp) = Note
+    { nStrike = Pluck
     , nString = str
     , nStart = start
     , nDuration = 0.0013
@@ -83,31 +151,40 @@ fingerSlide1 =
     force = 0.15
 
 mkScore notes fingers = Score
-    { sDecay = 4
+    { sDecay = 6
     , sHighpass = True
     , sNotes = notes
     , sFingers = fingers
     }
 
 instrument = Instrument
-    { iSR = 48000
+    { iSR = 44100
     , iStrings = strings
     , iFrets = frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
-    , iBackboard = Backboard (-0.001) (-0.0001) 0
-    , iFingerParams = FingerParams 0.005 1e7 3.3 100
-    , iNormalizeOutputs = False
+    , iBackboard = Backboard -- a + bx + bx^2, where x is length
+        -- { ba = -0.005
+        -- , bb = 0
+        -- , bc = 0
+        -- }
+        { ba = -0.001
+        , bb = -0.0001
+        , bc = 0
+        }
+    , iFingerParams = FingerParams
+        -- { fMass = 0.005
+        -- , fStiffness = 2e7
+        -- , fExponent = 3
+        -- , fLoss = 10
+        -- }
+        { fMass = 0.005
+        , fStiffness = 1e7
+        , fExponent = 3.3
+        , fLoss = 100
+        }
+    , iNormalizeOutputs = True
     , iSolver = Solver 20 0
     , iConnections = []
-    }
-
-str0 = String
-    { sLength = 0.68
-    , sTension = 12.1
-    , sMaterial = steel
-    , sRadius = 0.002
-    , sT60 = (15, 5)
-    , sOutputs = []
     }
 
 stringSets =
@@ -125,8 +202,33 @@ lowString = String
     , sMaterial = steel
     , sRadius = 0.0002
     , sT60 = (15, 5)
-    , sOutputs = [Output 0.9 (-0.5), Output 0.9 0.5]
+    , sOutputs = [Output 0.9 (-0.5), Output 0.8 0.5]
     }
+
+lowerString = String
+    { sLength = 0.9
+    , sTension = 12.1
+    , sMaterial = steel
+    , sRadius = 0.0002
+    , sT60 = (15, 5)
+    , sOutputs = [Output 0.8 (-0.8), Output 0.5 0.8]
+    }
+
+legongGuitar =
+    map (lenBy 0.5 . make) strings ++ map (lenBy 0.25 . make) (tail strings)
+    where
+    strings =
+        [ (0.78, 11.0, 0.00020, 5, 0.0) -- 51.82nn
+        , (0.78, 08.0, 0.00015, 5, 0.1) -- *
+        , (0.78, 08.5, 0.00015, 5, 0.2) -- *
+        , (0.78, 14.0, 0.00015, 5, 0.3) -- *
+        , (0.78, 15.0, 0.00015, 7, 0.4) -- *
+        , (0.78, 16.1, 0.00012, 8, 0.5) -- *
+        ]
+    make (len, tension, radius, t60, pan) =
+        String len tension steel radius (15, t60)
+            [Output 0.9 pan, Output 0.7 (pan + 0.2)]
+    lenBy n str = str { sLength = sLength str * n }
 
 -- length, young, tension, radius, density, t60, t60
 -- lowString = string_def = [0.68 2e11 12.1 0.0002 7850 15 5];
@@ -141,7 +243,24 @@ guitar = map make
     ]
     where
     make (tension, radius, t60, pan) =
-        String 0.78 tension silk radius (15, t60) [Output 0.9 pan]
+        String 0.78 tension steel radius (15, t60) [Output 0.9 pan]
+
+-- middle C = 60nn
+--
+-- 4 4 2M 3m 6
+-- semitones: 5 5 2 3 9
+
+samePitchStrings = map make
+    [ (0.78, 12.1, 0.00020, 5, 0.2)
+    , (1.05, 12.3, 0.00015, 5, 0.3) -- *
+    , (1.40, 21.9, 0.00015, 5, 0.4) -- *
+    , (1.55, 27.6, 0.00015, 5, 0.5) -- *
+    , (1.89, 39.2, 0.00015, 7, 0.6) -- *
+    , (3.23, 49.2, 0.00010, 8, 0.7) -- *
+    ]
+    where
+    make (len, tension, radius, t60, pan) =
+        String len tension steel radius (15, t60) [Output 0.9 pan]
 
 pipa = map make
     [ (40, 0.0010, 5) -- it's actually 0.0016 but that gets inharmonic
@@ -191,10 +310,11 @@ chromaticFrets = map (Fret (-0.0005))
     , 0.685019737526282
     ]
 
+-- legongFrets = makeFrets (-0.0005) (head legong) (tail legong)
 legongFrets = makeFrets (-0.0005) (head legong) (tail legong)
 
 legong :: [Pitch.NoteNumber]
-legong = map Pitch.nn
+legong = drop 3 $ map Pitch.nn
     [ 51.82  -- 3e, rambat begin
     , 55.70  -- 3u
     , 56.82  -- 3a, trompong begin

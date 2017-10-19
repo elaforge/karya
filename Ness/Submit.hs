@@ -4,6 +4,7 @@ import Data.Aeson ((.:))
 import qualified Data.Aeson.Types as Aeson.Types
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified System.Environment

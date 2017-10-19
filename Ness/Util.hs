@@ -20,7 +20,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Global
-import Ness.Global
 import qualified Ness.Submit as Submit
 
 
@@ -58,6 +57,7 @@ submitOne model (instrument, score) demo = do
     ok <- ifM (Directory.doesDirectoryExist dir)
         (putStrLn ("exists: " <> dir) >> return True)
         (fst <$> submit demo instrument score dir)
+    putStrLn out
     when ok $ Process.callProcess "afplay" [out]
 
 submit :: Bool -> Text -> Text -> FilePath -> IO (Bool, Submit.Url)
@@ -73,27 +73,23 @@ submit demo instrument score dir = do
 -- TODO separate out SR and put differing SR in the same dir?
 dirFor :: Bool -> Text -> Text -> FilePath
 dirFor demo instrument score =
-    ByteString.Char8.unpack $ Base64Url.encode $ ByteString.pack bytes
+    dropR (=='=') $ ByteString.Char8.unpack $ Base64Url.encode $
+        ByteString.pack bytes
     where
     n = CRC32.crc32 (demo, instrument, score)
     chop = fromIntegral . (.&. 0xff)
     bytes = map (chop . Bits.shiftR n) [0, 8, 16, 24]
-
-replayModel :: String -> IO ()
-replayModel model =
-    Process.callProcess "afplay" [scratchDir </> model ++ "-out.wav"]
+    dropR f = reverse . dropWhile f . reverse
 
 data Interactive score = Interactive {
-    replay :: IO ()
-    , r :: IO ()
+    r :: IO ()
     , demo :: IO ()
     , multiple :: FilePath -> [(FilePath, [score])] -> IO ()
     }
 
 interactive :: String -> (score -> (Text, Text)) -> score -> Interactive score
 interactive model render score = Interactive
-    { replay = replayModel model
-    , r = submitOne model (render score) False
+    { r = submitOne model (render score) False
     , demo = submitOne model (render score) True
     , multiple = submitMultiple render model
     }
@@ -108,8 +104,7 @@ mapDelay :: Int -> (a -> IO b) -> [a] -> IO [b]
 mapDelay threads f =
     fmap concat . mapM (Async.mapConcurrently go) . map (zip [0..])
         . Seq.chunked threads
-    where
-    go (i, a) = Thread.delay (fromIntegral i) >> f a
+    where go (i, a) = Thread.delay (fromIntegral i * 2) >> f a
 
 mapConcurrent :: Int -> (a -> IO b) -> [a] -> IO [b]
 mapConcurrent threads f as = do
@@ -141,3 +136,7 @@ mapConcurrent threads f as = do
 --         Thread.delay $ fromIntegral x / 10
 --         putStrLn $ "end " ++ show x
 --         return (x + 1)) xs
+
+zeroPad :: Show a => Int -> a -> String
+zeroPad chars n = replicate (chars - length s) '0' ++ s
+    where s = show n
