@@ -692,7 +692,9 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     \ The " <> ShowVal.doc damped <> " attribute will force a damp, while "
     <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
-    \ to become damped because the hand is now freed up.")
+    \ to become damped because the hand is now freed up.\
+    \\nThe output is additional notes with `+mute` and zero duration at note\
+    \end.")
     $ Sig.callt ((,)
         <$> Sig.required "inst" "Apply damping to this instrument."
         <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)

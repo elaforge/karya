@@ -15,6 +15,18 @@
     - monadic vs. pure
 
     - state vs. stateless
+
+    - 1:1 vs. 1:many
+
+    - preserves order vs. doesn't preserve order
+
+    TODO
+
+    One big problem with this is the permutations.  Another is that I should be
+    able to fuse composed maps, but I think it'll mostly be defeated by the
+    monadic bits, and maybe state.  But even monadic bits should be
+    theoretically fusible since I don't mind if the effects (i.e. exceptions)
+    are interleaved.  A job for pipes maybe?
 -}
 module Derive.Call.Post where
 import qualified Data.DList as DList
@@ -188,29 +200,25 @@ neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
 -- choose between hand or voice when they want the next \"relevant\" note.
 -- Perhaps hand and voice should be merged into a single concept.  They have to
 -- be distinct for the lilypond backend though.
-neighbors_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
-    -> Stream (Maybe a, a, Maybe a)
-neighbors_by key event_of = emap1_ extract . neighbors
+neighbors_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a, Maybe a)
+neighbors_by key = emap1_ extract . neighbors
     where
     extract (ps, e, ns) = (same ps, e, same ns)
-        where same = Seq.head . filter ((== key (event_of e)) . key . event_of)
+        where same = Seq.head . filter ((== key e) . key)
 
-nexts_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
-    -> Stream (a, [a])
-nexts_by key event_of = emap1_ extract . Stream.zip_on nexts
+nexts_by :: Eq key => (a -> key) -> Stream a -> Stream (a, [a])
+nexts_by key = emap1_ extract . Stream.zip_on nexts
     where
     extract (ns, e) = (e, same ns)
-        where same = filter ((== key (event_of e)) . key . event_of)
+        where same = filter ((== key e) . key)
 
 -- | Like 'neighbors_by', but only the next neighbor.
-next_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
-    -> Stream (a, Maybe a)
-next_by key event_of = emap1_ extract . neighbors_by key event_of
+next_by :: Eq key => (a -> key) -> Stream a -> Stream (a, Maybe a)
+next_by key = emap1_ extract . neighbors_by key
     where extract (_, e, n) = (e, n)
 
-prev_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
-    -> Stream (Maybe a, a)
-prev_by key event_of = emap1_ extract . neighbors_by key event_of
+prev_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a)
+prev_by key = emap1_ extract . neighbors_by key
     where extract (p, e, _) = (p, e)
 
 hand_key :: Score.Event -> (Score.Instrument, Maybe Text)

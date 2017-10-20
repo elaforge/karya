@@ -65,7 +65,7 @@ c_realize_retune = Derive.transformer module_ "retune-realize"
     Tags.realize_delayed "Perform annotations added by `retune`."
     $ Sig.call0t $ \_args deriver -> do
         srate <- Call.get_srate
-        Post.emap_m_ snd (realize srate) . Post.prev_by Post.hand_key id
+        Post.emap_m_ snd (realize srate) . Post.prev_by Post.hand_key
             =<< deriver
     where
     realize srate (prev, event) = do

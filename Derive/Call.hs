@@ -540,14 +540,14 @@ duration_from_end args t = do
     return (end - dur, end)
 
 -- | This is 'real_duration', but takes a TypedVal.
-typed_real_duration :: Typecheck.TimeType -> ScoreTime -> Score.TypedVal
-    -> Derive.Deriver RealTime
+typed_real_duration :: Derive.Time t => Typecheck.TimeType -> t
+    -> Score.TypedVal -> Derive.Deriver RealTime
 typed_real_duration default_type from (Score.Typed typ val)
-    | typ == Score.Real || typ == Score.Untyped
-        && default_type == Typecheck.Real =
+    | typ == Score.Real
+        || typ == Score.Untyped && default_type == Typecheck.Real =
             return (RealTime.seconds val)
-    | typ == Score.Score || typ == Score.Untyped
-        && default_type == Typecheck.Score =
+    | typ == Score.Score
+        || typ == Score.Untyped && default_type == Typecheck.Score =
             real_duration from (ScoreTime.double val)
     | otherwise = Derive.throw $
         "expected time type for " <> ShowVal.show_val (Score.Typed typ val)

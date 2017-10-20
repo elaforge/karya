@@ -1209,7 +1209,7 @@ c_realize_noltol = Derive.transformer module_ "realize-noltol"
 
 realize_noltol_call :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_noltol_call =
-    Post.emap_asc_m_ fst realize . Post.next_by Score.event_instrument id
+    Post.emap_asc_m_ fst realize . Post.next_by Score.event_instrument
     where
     realize (event, next) = do
         (event, maybe_arg) <- Derive.require_right id $
