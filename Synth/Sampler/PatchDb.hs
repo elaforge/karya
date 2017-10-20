@@ -18,7 +18,7 @@ type Db = Map.Map Types.PatchName Patch.Patch
 
 db :: Db
 db = Map.fromList
-    [ (,) "inst" $ Patch.instrument "inst"
+    [ ("test",) $ Patch.patch "test"
         [ ("cek.wav", attrs cek Patch.sample)
         , ("open.wav", attrs open $ Patch.pitchedSample 60)
         ]

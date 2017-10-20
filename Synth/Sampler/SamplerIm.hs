@@ -30,13 +30,9 @@ main = do
     let process_ name = process Config.cacheDir name <=< either errorIO return
     args <- Environment.getArgs
     case args of
-        [fname]
-            | ".json" `List.isSuffixOf` fname ->
-                process_ name =<< Note.unserializeJson fname
-            | otherwise ->
-                process_ name . first pretty =<< Note.unserialize fname
+        [fname] -> process_ name . first pretty =<< Note.unserialize fname
             where name = FilePath.takeFileName fname
-        _ -> errorIO $ "usage: sampler notes.json"
+        _ -> errorIO $ "usage: sampler notes"
 
 process :: FilePath -> String -> [Note.Note] -> IO ()
 process outputDir name notes = do

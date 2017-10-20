@@ -6,11 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Map.Strict as Map
-
-import qualified GHC.Generics as Generics
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -39,7 +35,7 @@ data Note = Note {
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map Control.Control Signal.Signal)
     , attributes :: !Types.Attributes
-    } deriving (Show, Generics.Generic, Aeson.ToJSON, Aeson.FromJSON)
+    } deriving (Show)
 
 type InstrumentName = Text
 
@@ -87,7 +83,3 @@ unserialize  = Serialize.unserialize notesMagic
 
 notesMagic :: Serialize.Magic [Note]
 notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
-
-unserializeJson :: FilePath -> IO (Either Text [Note])
-unserializeJson filename =
-    first txt . Aeson.eitherDecode <$> ByteString.Lazy.readFile filename

@@ -5,12 +5,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
-import qualified Data.Aeson as Aeson
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.SampleRate as SampleRate
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
 
-import qualified GHC.Generics as Generics
 import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
@@ -39,10 +37,7 @@ data Sample = Sample {
     , envelope :: !Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.
     , ratio :: !Signal.Signal
-    } deriving (Show, Generics.Generic)
-
-instance Aeson.ToJSON Sample
-instance Aeson.FromJSON Sample
+    } deriving (Show)
 
 -- | Evaluating the Audio could probably produce more exceptions...
 realize :: Sample -> IO AUtil.Audio

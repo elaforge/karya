@@ -36,7 +36,7 @@ noteToSample note@(Note.Note _instrument patch start _dur controls attrs) = do
         { start = start
         , filename = Patch.sampleDirectory inst </> samplePath
         , offset = 0
-        , envelope = fromMaybe (Signal.constant 1) $ get Control.amp
+        , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
         , ratio = case (Patch.pitch instSample, get Control.pitch) of
             (Just sampleNn, Just noteNns) ->
                 Signal.map_y (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)

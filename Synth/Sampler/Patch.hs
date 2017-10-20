@@ -35,8 +35,8 @@ data Patch = Patch {
 -- to maintain a separate DB in the sequencer that matches up by name.  For the
 -- moment, linking in the extra code doesn't seem like a problem.
 
-instrument :: FilePath -> [(FilePath, Sample)] -> Patch
-instrument dir samples = Patch
+patch :: FilePath -> [(FilePath, Sample)] -> Patch
+patch dir samples = Patch
     { sampleDirectory = dir
     , karyaCommon = Common.common Cmd.empty_code
     , samples = Map.fromList samples

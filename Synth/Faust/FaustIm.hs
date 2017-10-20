@@ -12,7 +12,6 @@ import qualified Data.Conduit as Conduit
 import qualified Data.Conduit.Audio as Audio
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
 import qualified Data.Either as Either
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Storable as Storable
@@ -50,13 +49,9 @@ main = do
             Text.IO.putStrLn name
             print =<< DriverC.getControls patch
             print =<< DriverC.getUiControls patch
-        [fname]
-            | ".json" `List.isSuffixOf` fname ->
-                process_ name =<< Note.unserializeJson fname
-            | otherwise ->
-                process_ name . first pretty =<< Note.unserialize fname
+        [fname] -> process_ name . first pretty =<< Note.unserialize fname
             where name = FilePath.takeFileName fname
-        _ -> errorIO $ "usage: faust-im [notes | notes.json | print-patches]"
+        _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
 process :: Map Types.PatchName DriverC.Patch -> FilePath -> String
     -> [Note.Note] -> IO ()
