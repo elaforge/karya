@@ -12,10 +12,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
+import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
-import qualified Synth.Shared.Types as Types
 import Synth.Types
 
 import Global
@@ -29,15 +29,17 @@ data Note = Note {
     -- 'Derive.ScoreTypes.Instrument'.
     instrument :: !InstrumentName
     -- | Map this note to one of the synthesizer's patches.
-    , patch :: !Types.PatchName
+    , patch :: !PatchName
     , start :: !RealTime
     , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map Control.Control Signal.Signal)
-    , attributes :: !Types.Attributes
+    , attributes :: !Attrs.Attributes
     } deriving (Show)
 
 type InstrumentName = Text
+-- | Unique identifier for a patch.
+type PatchName = Text
 
 end :: Note -> RealTime
 end n = start n + duration n

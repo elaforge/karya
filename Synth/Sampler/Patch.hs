@@ -18,7 +18,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Types as Types
 import Global
 
 
@@ -53,7 +52,7 @@ instance Pretty Patch where
 data Sample = Sample {
     pitch :: !(Maybe Pitch.NoteNumber)
     -- | Select Samples whose attribute match the Note's attribute.
-    , attributes :: !Types.Attributes
+    , attributes :: !Attrs.Attributes
     } deriving (Show)
 
 sample :: Sample
@@ -82,11 +81,8 @@ inferPatch samples = Patch.Patch
     { patch_controls = Map.fromList $ concat
         [ [(Control.pitch, "Pitch signal.") |any (Maybe.isJust . pitch) samples]
         ]
-    , patch_attribute_map = Patch.attribute_map $ map convertAttributes $
+    , patch_attribute_map = Patch.attribute_map $
         Seq.unique $ map attributes samples
     , patch_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
     }
-
-convertAttributes :: Types.Attributes -> Attrs.Attributes
-convertAttributes (Types.Attributes attrs) = Attrs.from_set attrs

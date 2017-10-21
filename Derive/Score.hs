@@ -43,6 +43,7 @@ module Derive.Score (
     , default_pitch, set_pitch, set_named_pitch, event_pitch, event_named_pitch
     , transposed_at, pitch_at, pitch_sample_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
+    , nn_signal
 
     -- ** warp
     , Warp(..), id_warp, id_warp_signal
@@ -276,6 +277,7 @@ add_log_msg msg event = event { event_logs = msg : event_logs event }
 modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
+-- | Modify the value at the given key.
 modify_environ_key :: EnvKey.Key
     -> (Maybe BaseTypes.Val -> BaseTypes.Val) -> Event -> Event
 modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
@@ -529,6 +531,12 @@ note_at pos event = either (const Nothing) Just . PSignal.pitch_note
 
 initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event
+
+nn_signal :: Event -> (Signal.NoteNumber, [PSignal.PitchError])
+nn_signal event =
+    PSignal.to_nn $ PSignal.apply_controls (event_transformed_controls event) $
+        PSignal.apply_environ (event_environ event) $
+        event_transformed_pitch event
 
 
 -- ** warp

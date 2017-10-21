@@ -24,7 +24,6 @@ import Util.ForeignC
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
-import qualified Synth.Shared.Types as Types
 
 import Global
 
@@ -38,7 +37,7 @@ type Instrument = Ptr DspI
 data DspI
 
 -- | Get all patches and their names.
-getPatches :: IO (Map Types.PatchName Patch)
+getPatches :: IO (Map Text Patch)
 getPatches = alloca $ \namespp -> alloca $ \patchpp -> do
     count <- fromIntegral <$> c_faust_patches namespp patchpp
     names <- peekTexts count =<< peek namespp

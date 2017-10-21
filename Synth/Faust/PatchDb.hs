@@ -15,7 +15,7 @@ import qualified Instrument.Inst as Inst
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Types as Types
+import qualified Synth.Shared.Note as Note
 
 import Global
 
@@ -30,7 +30,7 @@ synth = Unsafe.unsafePerformIO $ do
     return $ makeSynth patches
 
 -- | Declaration for "Local.Instrument".
-makeSynth :: [(Types.PatchName, (Text, [(Control.Control, Text)]))]
+makeSynth :: [(Note.PatchName, (Text, [(Control.Control, Text)]))]
     -> Inst.SynthDecl Cmd.InstrumentCode
 makeSynth patches = Inst.SynthDecl Config.faustName "音 faust synthesizer"
     [ (name, makeInst description controls)
@@ -45,8 +45,5 @@ makeInst description controls = Inst.Inst
     }
 
 makePatch :: [(Control.Control, Text)] -> Patch.Patch
-makePatch controls = Patch.Patch
-    { patch_controls = Map.fromList controls
-    , patch_attribute_map = Common.attribute_map []
-    , patch_flags = mempty
-    }
+makePatch controls =
+    Patch.patch { Patch.patch_controls = Map.fromList controls }

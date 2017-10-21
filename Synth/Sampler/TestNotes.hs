@@ -6,12 +6,12 @@
 module Synth.Sampler.TestNotes where
 import qualified Data.Map as Map
 
+import qualified Derive.Attrs as Attrs
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
-import qualified Synth.Shared.Types as Types
 
 
 write :: IO ()
@@ -37,5 +37,5 @@ notes = map make
                 Nothing -> []
                 Just nn ->
                     [(Control.pitch, Signal.constant (Pitch.nn_to_double nn))]
-        , attributes = mconcat $ map Types.attribute attrs
+        , attributes = Attrs.attrs attrs
         }

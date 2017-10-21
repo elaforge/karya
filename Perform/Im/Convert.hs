@@ -11,10 +11,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 
@@ -27,7 +24,6 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
-import qualified Synth.Shared.Types as Shared.Types
 
 import Global
 
@@ -54,9 +50,7 @@ convert_event event patch name = run $ do
     let supported = Patch.patch_controls patch
     let controls = Score.event_transformed_controls event
     pitch <- if Map.member Control.pitch supported
-        then Just . convert_signal <$>
-            convert_pitch (Score.event_environ event) controls
-                (Score.event_transformed_pitch event)
+        then Just . convert_signal <$> convert_pitch event
         else return Nothing
     return $ Note.Note
         { instrument = ScoreTypes.instrument_name $ Score.event_instrument event
@@ -65,7 +59,7 @@ convert_event event patch name = run $ do
         , duration = Score.event_duration event
         , controls = maybe id (Map.insert Control.pitch) pitch $
             convert_controls supported controls
-        , attributes = maybe mempty convert_attributes $
+        , attributes = fromMaybe mempty $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
         }
@@ -73,9 +67,6 @@ convert_event event patch name = run $ do
 run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
 run = merge . Identity.runIdentity . Log.run
     where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
-
-convert_attributes :: Attrs.Attributes -> Shared.Types.Attributes
-convert_attributes = Shared.Types.Attributes . Attrs.to_set
 
 convert_signal :: Perform.Signal.Signal a -> Signal.Signal
 convert_signal = Perform.Signal.sig_vec
@@ -90,11 +81,9 @@ convert_controls supported controls = Map.fromList
     ]
     where to_control = Control.Control . ScoreTypes.control_name
 
-convert_pitch :: Log.LogMonad m => BaseTypes.Environ
-    -> Score.ControlMap -> PSignal.PSignal -> m Perform.Signal.NoteNumber
-convert_pitch env controls psig = do
-    let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
-            PSignal.apply_environ env psig
-    unless (null nn_errs) $ Log.warn $
-        "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
+convert_pitch :: Log.LogMonad m => Score.Event -> m Perform.Signal.NoteNumber
+convert_pitch event = do
+    let (sig, warns) = Score.nn_signal event
+    unless (null warns) $ Log.warn $
+        "convert pitch: " <> Text.intercalate ", " (map pretty warns)
     return sig

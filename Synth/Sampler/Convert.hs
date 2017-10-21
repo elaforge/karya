@@ -10,12 +10,12 @@ import qualified Data.Map as Map
 import System.FilePath ((</>))
 
 import qualified Util.Seq as Seq
+import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Types as Types
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -24,16 +24,17 @@ import Global
 
 -- TODO use dur for an envelope
 noteToSample :: Note.Note -> Either Text Sample.Sample
-noteToSample note@(Note.Note _instrument patch start _dur controls attrs) = do
+noteToSample note = do
+    let patch = Note.patch note
     -- TODO I think the sampler doesn't care about individual instruments?
     inst <- justErr ("patch not found: " <> patch) $ Map.lookup patch PatchDb.db
-    let msg = "sample not found for " <> showt (patch, attrs)
+    let msg = "sample not found for " <> showt (patch, Note.attributes note)
             <> " with pitch " <> showt (Note.initialPitch note)
     (samplePath, instSample) <- justErr msg $
-        lookupSample inst attrs (Note.initialPitch note)
-    let get k = Map.lookup k controls
+        lookupSample inst (Note.attributes note) (Note.initialPitch note)
+    let get k = Map.lookup k (Note.controls note)
     return $ Sample.Sample
-        { start = start
+        { start = Note.start note
         , filename = Patch.sampleDirectory inst </> samplePath
         , offset = 0
         , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
@@ -46,7 +47,7 @@ noteToSample note@(Note.Note _instrument patch start _dur controls attrs) = do
 
 -- | Find the sample with the closest pitch, or if there is no pitch, the first
 -- unpitched sample.
-lookupSample :: Patch.Patch -> Types.Attributes
+lookupSample :: Patch.Patch -> Attrs.Attributes
     -> Maybe Pitch.NoteNumber -> Maybe (FilePath, Patch.Sample)
 lookupSample inst attrs maybePitch = case maybePitch of
     Nothing -> List.find ((==Nothing) . Patch.pitch . snd) samples
