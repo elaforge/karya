@@ -215,12 +215,15 @@ instrument_fields name inst =
         } = settings
 
 patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-patch_fields (Im.Patch.Patch controls attr_map flags) =
+patch_fields (Im.Patch.Patch controls attr_map flags element_key) =
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
     , ("Attributes", Text.intercalate ", " $ map pretty $
         Common.mapped_attributes attr_map)
-    , ("Controls", Text.unlines [pretty control <> "\t" <> doc |
-        (control, doc) <- Map.toAscList controls])
+    , ("Controls", Text.unlines
+        [ pretty control <> "\t" <> doc
+        | (control, doc) <- Map.toAscList controls
+        ])
+    , ("Element key", fromMaybe "" element_key)
     ]
 
 format_fields :: [(Text, Text)] -> Text

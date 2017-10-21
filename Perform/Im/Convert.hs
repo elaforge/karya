@@ -11,6 +11,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -55,6 +56,7 @@ convert_event event patch name = run $ do
     return $ Note.Note
         { instrument = ScoreTypes.instrument_name $ Score.event_instrument event
         , patch = name
+        , element = fromMaybe "" $ convert_element_key patch event
         , start = Score.event_start event
         , duration = Score.event_duration event
         , controls = maybe id (Map.insert Control.pitch) pitch $
@@ -63,6 +65,11 @@ convert_event event patch name = run $ do
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
         }
+
+convert_element_key :: Patch.Patch -> Score.Event -> Maybe Text
+convert_element_key patch event = do
+    key <- Patch.patch_element_key patch
+    Env.maybe_val key $ Score.event_environ event
 
 run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
 run = merge . Identity.runIdentity . Log.run

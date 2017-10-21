@@ -29,6 +29,7 @@ notes = map make
     make (start, pitch, dyn, attrs) = Note.Note
         { instrument = "inst"
         , patch = "test"
+        , element = ""
         , start = start
         , duration = 0 -- the sampler uses envelope, not duration
         , controls = Map.fromList $

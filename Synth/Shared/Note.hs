@@ -30,6 +30,11 @@ data Note = Note {
     instrument :: !InstrumentName
     -- | Map this note to one of the synthesizer's patches.
     , patch :: !PatchName
+    -- | Address this note to a particular element within the patch.  What it
+    -- is depends on the instrument.  For instance, it might the a particular
+    -- string on a pipa.  The difference from 'attributes' is that each element
+    -- is mutually exclusive.
+    , element :: !Text
     , start :: !RealTime
     , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
@@ -45,23 +50,27 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f) = put a *> put b *> put c *> put d *> put e *> put f
-    get = Note <$> get <*> get <*> get <*> get <*> get <*> get
+    put (Note a b c d e f g) =
+        put a *> put b *> put c *> put d *> put e *> put f *> put g
+    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
 
 instance Pretty Note where
-    format (Note inst patch start dur controls attrs) = Pretty.record "Note"
-        [ ("instrument", Pretty.format inst)
-        , ("patch", Pretty.format patch)
-        , ("start", Pretty.format start)
-        , ("duration", Pretty.format dur)
-        , ("controls", Pretty.format controls)
-        , ("attributes", Pretty.format attrs)
-        ]
+    format (Note inst patch element start dur controls attrs) =
+        Pretty.record "Note"
+            [ ("instrument", Pretty.format inst)
+            , ("patch", Pretty.format patch)
+            , ("element", Pretty.format element)
+            , ("start", Pretty.format start)
+            , ("duration", Pretty.format dur)
+            , ("controls", Pretty.format controls)
+            , ("attributes", Pretty.format attrs)
+            ]
 
-note :: InstrumentName -> Types.PatchName -> RealTime -> RealTime -> Note
+note :: InstrumentName -> PatchName -> RealTime -> RealTime -> Note
 note inst patch start duration = Note
     { instrument = inst
     , patch = patch
+    , element = ""
     , start = start
     , duration = duration
     , controls = mempty
@@ -74,6 +83,7 @@ initialControl control note =
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
 initialPitch = fmap Pitch.nn . initialControl Control.pitch
+
 
 -- * serialize
 

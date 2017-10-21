@@ -6,8 +6,9 @@
 module Perform.Im.Patch where
 import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
-import qualified Synth.Shared.Control as Control
+import qualified Derive.EnvKey as EnvKey
 import qualified Instrument.Common as Common
+import qualified Synth.Shared.Control as Control
 import Global
 
 
@@ -17,6 +18,8 @@ data Patch = Patch {
     patch_controls :: !(Map Control.Control Text)
     , patch_attribute_map :: !AttributeMap
     , patch_flags :: !(Set Flag)
+    -- | If set, this Str env var goes into Note.element.
+    , patch_element_key :: !(Maybe EnvKey.Key)
     } deriving (Show)
 
 patch :: Patch
@@ -24,13 +27,15 @@ patch = Patch
     { patch_controls = mempty
     , patch_attribute_map = Common.AttributeMap []
     , patch_flags = mempty
+    , patch_element_key = Nothing
     }
 
 instance Pretty Patch where
-    format (Patch controls attr_map flags) = Pretty.record "Patch"
+    format (Patch controls attr_map flags element_key) = Pretty.record "Patch"
         [ ("controls", Pretty.format controls)
         , ("attribute_map", Pretty.format attr_map)
         , ("flags", Pretty.format flags)
+        , ("element_key", Pretty.format element_key)
         ]
 
 -- | Since the synth understands Attributes directly, this is just a list of
