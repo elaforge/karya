@@ -24,9 +24,9 @@ config :: Config
 config = Config $ Map.fromList
     [ (samplerName, sampler)
     , (faustName, faust)
-    , (imFileName, Synth
+    , (nessName, Synth
         { binary = "/bin/echo"
-        , notesDir = dataDir </> "im-file-notes"
+        , notesDir = dataDir </> "ness-notes"
         })
     ]
 
@@ -39,9 +39,8 @@ data Synth = Synth {
 
 type SynthName = Text
 
--- | A dummy synth that just writes its notes to a file.
-imFileName :: SynthName
-imFileName = "im-file"
+nessName :: SynthName
+nessName = "ness"
 
 samplerName :: SynthName
 samplerName = "sampler"

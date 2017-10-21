@@ -115,15 +115,51 @@ NESS:
       disk, and doesn't run a synthesizer.
     Write a converter to NESS score.
       * Initial implementation.
-      . Test on serialized notes.
+      * Test on serialized notes.
       / Implement +mute as a finger lift.
-    - Adapt reyong infer-damp for ness instruments.
-      - I'll also have to get the kontakt version to support it so I can hear
-        the results.
-      - What if I implement +mute as return to open string in karya?  I would
-        also move string selection there, but it means I can more easily
-        override the string.
+        . Or try touching with low amplitude.
+    - Test run for various backboard distances.
+    - Test run for touching with various amps.
+    - Use stopped-string and take explicit string assignment from karya.
+      . There's no Environ in Note so there's nothing right for string.
+      . I used attributes for other strings, but it's too easy to choose
+        multiple strings.  The VSL keyswitches should probably be env too,
+        e.g. string=d | +port instead of +porta+d.
+      . Do I really need a full on Val?  Maybe just a Map Text Text?
+        Could be used: VNum, VAttributes, VNotePitch, VStr, VList
+        Definitely useless: VControlRef, VQuoted
+      . This introduces some more dynamic typing, but Notes are just bags of
+        values anyway.
+      . Originally I think I was avoiding it because Synth was a separate
+        project without shared types.  I'd still like to minimize sharing
+        though.
+      . On the other hand, logic is supposed to be in the sequencer, Note
+        should be low level.  I could even have each string be a separate
+        "synthesizer".  But it is convenient to just use a generic im
+        instrument for everything.
+      . Of course, as I go toward dumping everything in the Note, then they
+        get messier.  But that's a fundamental tradeoff... and why put
+        redundant clean-up work in when the ultimate destination already
+        decides to use or ignore?
+      . But I'm already doing that for controls and attrs since it doubles as
+        a place to put documentation.
+      . Ok, so maybe keep doing that but add one for environ?  I could put in
+        types as well, as in Env.hardcoded_types.  The advantage is that I get
+        the error closer, so it gets the stack and goes in logview.  Also it
+        defines an interface, which is generally useful.
+        . Though I could put stack in the Note too...
+      . String is actually like sub-patch, maybe I should do that.
+        I can still get it automatically by putting a patch environ to
+        element.
+      . The problem is patch is unstructured text, which should remain atomic.
 
+    - Adapt reyong infer-damp for ness instruments.
+      . All it does is add +mute events, so I can just teach the instrument to
+        recognize those.
+      . So modify the kontakt instrument to treat those as a pitch change.
+
+    - Test different backboard distances, to create more or less buzzy
+      instruments.
 
     - Design instruments with frets at legong scale, umbang and isep.
       . Have a string for each pitch?
@@ -156,7 +192,6 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
-  - enable FlexibleInstances globally.  Should I add any other instance ones?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.

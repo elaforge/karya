@@ -29,7 +29,7 @@ run = do
 
 loadConvert :: IO (Either Error [(Guitar.Instrument, Guitar.Score)])
 loadConvert = convert Bali.instruments Bali.legongStrings <$>
-    load "im/im-file-notes/untitled-b1"
+    load "im/ness-notes/untitled-b1"
 
 load :: FilePath -> IO [Note.Note]
 load fname = either (errorIO . pretty) return =<< Note.unserialize fname
