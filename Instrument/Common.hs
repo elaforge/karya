@@ -176,7 +176,7 @@ instance Pretty Config where
 
 add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_environ key val = cenviron %= (RestrictedEnviron.make [(key, v)] <>)
+add_environ key val = cenviron %= (RestrictedEnviron.from_list [(key, v)] <>)
     where v = RestrictedEnviron.to_val val
 
 get_environ :: Config -> BaseTypes.Environ

@@ -262,7 +262,7 @@ pressure = patch %= (Patch.defaults#Patch.decay #= Just 0)
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Patch -> Patch
 environ name val = common#Common.environ
-    %= (RestrictedEnviron.make [(name, RestrictedEnviron.to_val val)] <>)
+    %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch

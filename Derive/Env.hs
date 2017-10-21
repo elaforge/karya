@@ -108,11 +108,11 @@ maybe_val name = Typecheck.from_val_simple <=< lookup name
 checked_val :: forall a. Typecheck.Typecheck a => Key -> Environ
     -> Either Text (Maybe a)
 checked_val name environ = case get_val name environ of
-        Left NotFound -> return Nothing
-        Left (WrongType typ) ->
-            Left $ showt name <> ": expected " <> pretty return_type
-                <> " but val type is " <> pretty typ
-        Right v -> return (Just v)
+    Left NotFound -> return Nothing
+    Left (WrongType typ) ->
+        Left $ showt name <> ": expected " <> pretty return_type
+            <> " but val type is " <> pretty typ
+    Right v -> return (Just v)
     where return_type = Typecheck.to_type (Proxy :: Proxy a)
 
 -- | Like 'checked_val', but juggle the return type around so NotFound is just

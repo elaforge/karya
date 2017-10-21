@@ -7,6 +7,7 @@
 -- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
+import Prelude hiding (lookup)
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
@@ -27,6 +28,8 @@ import Global
 import Types
 
 
+-- * Environ
+
 newtype Environ = Environ (Map EnvKey.Key Val)
     deriving (Read, Show, Eq, Monoid, Serialize.Serialize)
 
@@ -35,11 +38,14 @@ instance Pretty Environ where
     format (Environ env) = Pretty.formatMap
         . map (Pretty.text *** Pretty.format) . Map.toList $ env
 
-make :: [(EnvKey.Key, Val)] -> Environ
-make = Environ . Map.fromList
+from_list :: [(EnvKey.Key, Val)] -> Environ
+from_list = Environ . Map.fromList
 
 convert :: Environ -> BaseTypes.Environ
 convert (Environ env) = BaseTypes.Environ $ convert_val <$> env
+
+lookup :: EnvKey.Key -> Environ -> Maybe Val
+lookup key (Environ env) = Map.lookup key env
 
 -- * val
 
