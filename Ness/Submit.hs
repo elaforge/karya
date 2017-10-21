@@ -6,6 +6,7 @@ import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Text as Text
 import qualified Data.Time as Time
+import qualified Data.Time.Clock.POSIX as Clock.POSIX
 
 import qualified System.Environment
 import qualified System.Exit as Exit
@@ -49,13 +50,22 @@ type Url = String
 
 submitDownload :: Bool -> FilePath -> FilePath -> FilePath -> IO (Bool, Url)
 submitDownload isDemo instrument score out = do
-    (url, estimatedTime) <- submit isDemo instrument score
+    (url, estimatedTime) <- printTime "=== submit time" $
+        submit isDemo instrument score
     putStrLn $ "=== response: " ++ url
-    putStrLn $ "=== run time: " ++ show estimatedTime
+    putStrLn $ "=== estimated time: " ++ show estimatedTime
     Thread.delay $ realToFrac estimatedTime
-    ok <- download 5 out url
+    ok <- printTime "=== download time" $ download 5 out url
     unless ok $ putStrLn "=== gave up"
     return (ok, url)
+
+printTime :: String -> IO a -> IO a
+printTime name action = do
+    start <- Clock.POSIX.getPOSIXTime
+    v <- action
+    end <- Clock.POSIX.getPOSIXTime
+    putStrLn $ name ++ ": " ++ show (end - start)
+    return v
 
 -- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
 -- I should get a cosign-eucsCosign-ness-frontend etc.
@@ -93,6 +103,7 @@ submit isDemo instrument score = do
     json <- Process.readProcess "curl"
         [ "--insecure"
         , "--cookie", cookies
+        , "--silent" -- no progress bar
         , "--form", "scorefile=@" <> score
         , "--form", "instrfile=@" <> instrument
         , "--form", "booleanDemo=" <> if isDemo then "true" else "false"
