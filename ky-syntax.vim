@@ -4,7 +4,7 @@ syn match kySection "^val:$"
 syn match kySection "^alias:$"
 hi kySection cterm=underline
 
-syn keyword kyKeyword import
+syn keyword kyKeyword import imports
 hi kyKeyword cterm=underline
 
 " Skip the definition, since it can contain 's, but is not a symbol.
