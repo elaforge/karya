@@ -343,8 +343,8 @@ view_updates ui_from ui_to = fst $ Diff.run $
 
 -- ** hooks
 
-default_selection_hooks ::
-    [[(ViewId, Maybe Cmd.TrackSelection)] -> Cmd.CmdId ()]
+default_selection_hooks :: [[(ViewId, Maybe Cmd.TrackSelection)]
+    -> Cmd.CmdId ()]
 default_selection_hooks =
     [ mapM_ (uncurry sync_selection_status)
     , mapM_ (uncurry sync_selection_control)
@@ -472,12 +472,15 @@ sync_defaults :: Cmd.M m => Ui.Default -> m ()
 sync_defaults (Ui.Default tempo) =
     Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
 
--- Zoom is actually not very useful, so this is disabled for now.
+-- Zoom is actually not very useful, so this is disabled for now.  I'll leave
+-- it here and the callers in place instead of deleting them so if I change my
+-- mind then I still know where all the callers should be.
 sync_zoom_status :: Cmd.M m => ViewId -> m ()
-sync_zoom_status view_id = do
-    view <- Ui.get_view view_id
-    Cmd.set_view_status view_id Config.status_zoom
-        (Just (pretty (Block.view_zoom view)))
+sync_zoom_status _ = return ()
+-- sync_zoom_status view_id = do
+--     view <- Ui.get_view view_id
+--     Cmd.set_view_status view_id Config.status_zoom
+--         (Just (pretty (Block.view_zoom view)))
 
 -- * selection
 
