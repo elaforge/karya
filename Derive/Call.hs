@@ -179,6 +179,11 @@ nn_at pos control = -- TODO throw exception?
         =<< Derive.resolve_pitch pos
         =<< pitch_at pos control
 
+real_duration_at :: Typecheck.TypedFunction -> RealTime
+    -> Derive.Deriver RealTime
+real_duration_at f t =
+    typed_real_duration Typecheck.Real t (f t)
+
 -- * dynamic
 
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.

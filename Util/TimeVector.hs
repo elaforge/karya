@@ -339,7 +339,7 @@ drop_before_strict x vec = V.drop (lowest_index x vec) vec
 drop_before_at :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before_at x = V.dropWhile ((<=x) . sx) . drop_before_strict x
 
--- | Return samples within a range.  This is a combination of 'drop_before'
+-- | Return samples start <= t < end.  This is a combination of 'drop_before'
 -- and 'drop_at_after'.
 within :: V.Vector v (Sample y) => X -> X -> v (Sample y) -> v (Sample y)
 within start end = drop_at_after end . drop_before start

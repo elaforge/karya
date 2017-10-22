@@ -129,6 +129,16 @@ apply_m f stream =
     Stream.merge_logs logs . Stream.from_sorted_events <$> f events
     where (events, logs) = Stream.partition stream
 
+-- | 1:1 monadic map without state.
+emap1m_ :: (a -> Score.Event) -> (a -> Derive.Deriver b) -> Stream a
+    -> Derive.Deriver (Stream b)
+emap1m_ event_of f =
+    fmap Stream.from_sorted_list . mapMaybeM process . Stream.to_list
+    where
+    process (LEvent.Log log) = return $ Just $ LEvent.Log log
+    process (LEvent.Event a) =
+        Derive.with_event (event_of a) $ LEvent.Event <$> f a
+
 -- | Monadic map with state.  The event type is polymorphic, so you can use
 -- 'LEvent.zip' and co. to zip up unthreaded state, constructed with 'control'
 -- and 'nexts' and such.
@@ -253,16 +263,15 @@ uncurry4 f (a, b, c, d) = f a b c d
 -- TODO this shouldn't destroy the order, but it isn't checkded.
 map_first :: (a -> Derive.Deriver a) -> Stream a
     -> Derive.Deriver (Stream.Stream a)
-map_first f events = event_head events $ \e es -> do
+map_first f = map_head_tail $ \e es -> do
     e <- f e
     return $ Stream.from_sorted_list $ LEvent.Event e : Stream.to_list es
 
 -- | Transform the first event and the rest of the events.
--- TODO weird function with crummy name.
-event_head :: Stream a
-    -> (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
+map_head_tail :: (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
+    -> Stream a
     -> Derive.Deriver (Stream.Stream a)
-event_head stream f = go (Stream.to_list stream)
+map_head_tail f = go . Stream.to_list
     where
     go [] = return Stream.empty
     go (LEvent.Log log : rest) = Stream.merge_log log <$> go rest

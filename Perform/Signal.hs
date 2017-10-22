@@ -35,6 +35,7 @@ module Perform.Signal (
     , constant_val
     , head, last, uncons
     , Sample(..)
+    , minimum, maximum
 
     -- * transformation
     , merge, concat, interleave, prepend
@@ -54,7 +55,8 @@ module Perform.Signal (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (concat, head, last, length, null, take, drop)
+import Prelude
+       hiding (concat, head, last, length, maximum, minimum, null, take, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as Monad.State
@@ -402,6 +404,16 @@ scalar_divide n = map_y (/n)
 scalar_max, scalar_min :: Y -> Signal y -> Signal y
 scalar_max val = map_y (min val)
 scalar_min val = map_y (max val)
+
+minimum, maximum :: Signal y -> Maybe (X, Y)
+minimum sig
+    | null sig = Nothing
+    | otherwise = Just $ TimeVector.to_pair $
+        Vector.minimumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
+maximum sig
+    | null sig = Nothing
+    | otherwise = Just $ TimeVector.to_pair $
+        Vector.maximumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
 -- half-open ranges during which the Y was out of range, if any.
