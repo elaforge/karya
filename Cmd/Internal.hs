@@ -506,17 +506,20 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
 
 selection_status :: Sel.Selection -> Maybe RealTime -> Maybe RealTime -> Text
 selection_status sel start_secs end_secs =
-    "t" <> show_range show_score (Sel.min sel) (Sel.max sel)
+    show_range show_score (Sel.min sel) (Sel.max sel) <> "t"
     `TextUtil.join2` case get start_secs end_secs of
-        Just (start, end) -> "s" <> show_range show_real start end
+        Just (start, end) -> show_range show_real start end <> "s"
         Nothing -> ""
     where
     get (Just a) (Just b) = Just (a, b)
     get (Just a) Nothing = Just (a, a)
     get Nothing (Just b) = Just (b, b)
     get Nothing Nothing = Nothing
-    show_score = pretty_rational . ScoreTime.to_double
-    show_real = pretty_rational . RealTime.to_seconds
+    -- ScoreTime tends to be low numbers and have fractions.  RealTime is
+    -- just seconds though, so unless there's a unicode fraction, just use
+    -- decimal notation.
+    show_score = pretty_rational True . ScoreTime.to_double
+    show_real = pretty_rational False . RealTime.to_seconds
 
 show_range :: (Eq a, Num a) => (a -> Text) -> a -> a -> Text
 show_range fmt start end = fmt start
@@ -536,16 +539,17 @@ track_selection_status ns sel maybe_track_id =
 -- a decimal.  This is useful because e.g. meters in three will have lots of
 -- repeating decimals.  I also use fractions for power of two denominators
 -- which are just fine in decimal, but the fraction still takes up less space.
-pretty_rational :: Double -> Text
-pretty_rational d
+pretty_rational :: Bool -> Double -> Text
+pretty_rational favor_fraction d
     | d == 0 = "0"
-    | Ratio.denominator ratio <= 12 =
-        Text.strip $ (if int == 0 then "" else showt int) <> pp
+    | Just frac <- Map.lookup ratio fractions = int_s <> frac
+    | favor_fraction && Ratio.denominator ratio <= 12 =
+        int_s <> "+" <> pretty ratio
     | otherwise = pretty d
     where
     (int, frac) = properFraction d
+    int_s = if int == 0 then "" else showt int
     ratio = Ratio.approxRational frac 0.0001
-    pp = Map.findWithDefault (" " <> pretty ratio) ratio fractions
     fractions = Map.fromList
         [ (0 % 1, "")
         , (1 % 4, "¼"), (1 % 2, "½"), (3 % 4, "¾")

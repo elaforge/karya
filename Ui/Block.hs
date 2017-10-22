@@ -473,7 +473,9 @@ data View = View {
     view_block :: !BlockId
     , view_rect :: !Rect.Rect
     , view_padding :: !Padding
-    -- | Contents of the status line.  Map (sort_order, name) contents.
+    -- | Contents of the status line.  Map (sort_order, name) contents.  This
+    -- is formatted with 'show_status' and goes in the bar at the bottom of the
+    -- window.
     , view_status :: !(Map (Int, Text) Text)
     , view_track_scroll :: !Types.Width
     , view_zoom :: !Zoom.Zoom
