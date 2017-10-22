@@ -1,4 +1,5 @@
 module Ness.Guitar.Convert where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
@@ -28,8 +29,7 @@ run = do
     Util.submitOne "guitar-bali" (Guitar.renderAll (head scores)) False
 
 loadConvert :: IO (Either Error [(Guitar.Instrument, Guitar.Score)])
-loadConvert = convert Bali.instruments Bali.legongStrings <$>
-    load "im/ness-notes/untitled-b1"
+loadConvert = convert Bali.instruments <$> load "im/ness-notes/untitled-b1"
 
 load :: FilePath -> IO [Note.Note]
 load fname = either (errorIO . pretty) return =<< Note.unserialize fname
@@ -48,12 +48,11 @@ load fname = either (errorIO . pretty) return =<< Note.unserialize fname
 
     How do I know which string for +mute?  Use the pitch as usual.
 -}
-convert :: Map Text Guitar.Instrument -> [(Pitch.NoteNumber, Guitar.String)]
-    -> [Note.Note]
+convert :: Map Text Guitar.Instrument -> [Note.Note]
     -> Either Error [(Guitar.Instrument, Guitar.Score)]
-convert instruments strings =
+convert instruments =
     fmap (map (second (uncurry makeScore))) . collectFingers
-    <=< mapM (assignString strings <=< convertNote instruments)
+        <=< mapM (convertNote instruments)
 
 makeScore :: [Guitar.Note] -> [Guitar.Finger] -> Guitar.Score
 makeScore notes fingers = Guitar.Score
@@ -68,22 +67,31 @@ convertNote instruments note = first ((pretty note <> ": ")<>) $ do
     inst <- tryJust "no instrument" $
         Map.lookup (Note.instrument note) instruments
     pitch <- tryJust "no pitch" $ Map.lookup Control.pitch $ Note.controls note
+    finger <- tryJust "no finger" $ Map.lookup "finger" $ Note.controls note
     dyn <- tryJust "no amp" $ Note.initialControl Control.dynamic note
     loc <- tryJust "no location" $ Note.initialControl "location" note
+    string <- tryJust ("no string: " <> Note.element note) $
+        List.find ((== Note.element note) . pretty . Guitar.sNn)
+            (Guitar.iStrings inst)
     return $ Note
         { _instrument = inst
+        , _string = string
         , _start = Note.start note
         , _duration = Note.duration note
         , _pitch = pitch
+        , _finger = finger
         , _dynamic = dyn
         , _location = loc
         }
 
 data Note = Note {
     _instrument :: !Guitar.Instrument
+    , _string :: !Guitar.String
     , _start :: !RealTime.RealTime
     , _duration :: !RealTime.RealTime
     , _pitch :: !Signal.Signal
+    -- | Finger touch strength.
+    , _finger :: !Signal.Signal
     , _dynamic :: !Newtons
     , _location :: !Location
     } deriving (Show)
@@ -101,19 +109,19 @@ assignString strings note = first ((pretty note <> ": ")<>) $ do
     -- It's ok to be this far below the string.
     eta = 0.005
 
-collectFingers :: [((Pitch.NoteNumber, Guitar.String), Note)]
+collectFingers :: [Note]
     -> Either Error [(Guitar.Instrument, ([Guitar.Note], [Guitar.Finger]))]
-collectFingers = mapM collect . map (second byString) . byInst
+collectFingers =
+    mapM collect . map (second (Seq.keyed_group_stable _string))
+        . Seq.keyed_group_stable _instrument
     where
-    byString = Seq.group_fst
-    byInst = Seq.keyed_group_stable (_instrument . snd)
     collect (inst, strings) = do
         (notes, fingers) <- unzip <$> mapM collectFingers strings
         -- TODO merge by start?
         return (inst, (concat notes, fingers))
 
     -- complain about overlapping runs
-    collectFingers :: ((Pitch.NoteNumber, Guitar.String), [Note])
+    collectFingers :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)
     collectFingers (string, notes) = do
         let overlaps = findOverlaps notes
@@ -121,28 +129,30 @@ collectFingers = mapM collect . map (second byString) . byInst
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
         let pitch = Signal.merge $ map _pitch notes
-        return (map (makeNote string) notes, makeFinger string pitch)
+            finger = Signal.merge $ map _finger notes
+        return (map (makeNote string) notes, makeFinger string pitch finger)
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
-        , nString = snd string
+        , nString = string
         , nStart = RealTime.to_seconds (_start note)
         , nDuration = 0.0013
         , nLocation = _location note
         , nAmplitude = _dynamic note * maxAmp
         }
     -- TODO implement +mute
-    makeFinger (nn, string) pitch = Guitar.Finger
+    makeFinger string pitch finger = Guitar.Finger
         { fString = string
         , fInitial = (0.01, 0)
         , fMovement =
             [ ( RealTime.to_seconds x
               , Guitar.pitchLocation nn (Pitch.nn y)
-              , if Pitch.nns_equal (Pitch.nn y) nn then 0 else fingerForce
+              , if Pitch.nns_equal (Pitch.nn y) nn then 0
+                else fromMaybe 0 (Signal.at x finger) * maxAmp
               )
             | (x, y) <- Signal.unsignal pitch
             ]
         }
-    fingerForce = 0.25
+        where nn = Guitar.sNn string
 
 findOverlaps :: [Note] -> [(Note, Note)]
 findOverlaps [] = []
@@ -150,6 +160,7 @@ findOverlaps [_] = []
 findOverlaps (n1 : n2 : ns)
     | _start n1 + _duration n1 > _start n2 = (n1, n2) : findOverlaps (n2 : ns)
     | otherwise = findOverlaps (n2 : ns)
+
 
 -- * util
 
@@ -165,10 +176,13 @@ lastLessEqual key k = go
         | otherwise = go [x1]
 
 instance Pretty Note where
-    format (Note _inst start dur pitch dyn loc) = Pretty.record "Note"
-        [ ("start", Pretty.format start)
-        , ("duration", Pretty.format dur)
-        , ("pitch", Pretty.format pitch)
-        , ("dynamic", Pretty.format dyn)
-        , ("location", Pretty.format loc)
-        ]
+    format (Note _inst _str start dur pitch finger dyn loc) =
+        Pretty.record "Note"
+            [ ("start", Pretty.format start)
+            -- , ("string", Pretty.format str)
+            , ("duration", Pretty.format dur)
+            , ("pitch", Pretty.format pitch)
+            , ("finger", Pretty.format finger)
+            , ("dynamic", Pretty.format dyn)
+            , ("location", Pretty.format loc)
+            ]

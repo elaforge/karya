@@ -116,11 +116,11 @@ NESS:
     Write a converter to NESS score.
       * Initial implementation.
       * Test on serialized notes.
-      / Implement +mute as a finger lift.
+      - Implement +mute as a finger lift.
         . Or try touching with low amplitude.
     - Test run for various backboard distances.
     - Test run for touching with various amps.
-    - Use stopped-string and take explicit string assignment from karya.
+    * Use stopped-string and take explicit string assignment from karya.
       . There's no Environ in Note so there's nothing right for string.
       . I used attributes for other strings, but it's too easy to choose
         multiple strings.  The VSL keyswitches should probably be env too,
@@ -152,6 +152,12 @@ NESS:
         I can still get it automatically by putting a patch environ to
         element.
       . The problem is patch is unstructured text, which should remain atomic.
+      . I could also see the (patch, instrument) thing as being yet another
+        config variable, like string.  If it really is a different patch, I'd
+        put it in the instrument db, but since I'm treating it just as
+        a variation, I can get away with one entry and a config value.
+      . So maybe I can use some kind of [Text] to configure the patch.
+      . Of course then I don't get it automatically from inst and environ.
 
     - Adapt reyong infer-damp for ness instruments.
       . All it does is add +mute events, so I can just teach the instrument to

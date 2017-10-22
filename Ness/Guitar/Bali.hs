@@ -11,6 +11,8 @@ import Ness.Guitar
 import qualified Ness.Util as Util
 
 
+lowSR = True
+
 -- | TODO separate instruments with different parameters
 instruments :: Map Text Instrument
 instruments = Map.fromList
@@ -19,7 +21,7 @@ instruments = Map.fromList
     ]
 
 instrument strings = Instrument
-    { iSR = 44100
+    { iSR = if lowSR then 11000 else 44100
     , iStrings = strings
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
@@ -48,36 +50,36 @@ instrument strings = Instrument
     , iConnections = []
     }
 
-legongStrings :: [(Pitch.NoteNumber, String)]
-legongStrings = zip (drop 3 legong) legongGuitar
-
-legongGuitar =
-    map (lenBy 0.5 . make) strings ++ map (lenBy 0.25 . make) (tail strings)
+legongGuitar = zipWith withNn (drop 3 legong) $ concat
+    [ map (lenBy 0.5 . make) strings
+    , map (lenBy 0.25 . make) (tail strings)
+    ]
     where
     strings =
-        [ (0.78, 11.0, 0.00020, 5, 0.0) -- 51.82nn
-        , (0.78, 08.0, 0.00015, 5, 0.1) -- *
-        , (0.78, 08.5, 0.00015, 5, 0.2) -- *
-        , (0.78, 14.0, 0.00015, 5, 0.3) -- *
-        , (0.78, 15.0, 0.00015, 7, 0.4) -- *
-        , (0.78, 16.1, 0.00012, 8, 0.5) -- *
+        [ (0.78, 11.0, 0.00020, 5, 0.0)
+        , (0.78, 08.0, 0.00015, 5, 0.1)
+        , (0.78, 08.5, 0.00015, 5, 0.2)
+        , (0.78, 14.0, 0.00015, 5, 0.3)
+        , (0.78, 15.0, 0.00015, 7, 0.4)
+        , (0.78, 16.1, 0.00012, 8, 0.5)
         ]
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60)
+        String len tension steel radius (15, t60) 0
             [Output 0.9 pan, Output 0.7 (pan + 0.2)]
+    withNn nn str = str { sNn = nn }
     lenBy n str = str { sLength = sLength str * n }
 
-(notes, fingers) = (take 1 each_string, take 1 slide_each_string)
+(notes, fingers) = (take 1 eachString, take 1 slide_each_string)
 
 -- (notes, fingers) =
---     (same_string, [each_pitch (head strings) 0.5 (head scale) scale])
+--     (same_string, [eachPitch (head strings) 0.5 (head scale) scale])
 
 same_string = take (length scale)
     [note (head strings) t 0.25 | t <- iterate (+0.5) 0]
 
-each_string = [note str t 0.65 | (str, t) <- zip strings (iterate (+2) 0)]
+eachString = [note str t 0.65 | (str, t) <- zip strings (iterate (+2) 0)]
 
-rolled_strings =
+rolledStrings =
     concat [roll str t 2 | (str, t) <- zip strings (iterate (+2) 0)]
     where
     roll str t dur =
@@ -86,9 +88,9 @@ rolled_strings =
         ]
 
 
-each_pitch :: String -> Seconds -> Pitch.NoteNumber -> [Pitch.NoteNumber]
+eachPitch :: String -> Seconds -> Pitch.NoteNumber -> [Pitch.NoteNumber]
     -> Finger
-each_pitch str dur open pitches = Finger str (0, 0) notes
+eachPitch str dur open pitches = Finger str (0, 0) notes
     where
     notes = concat $ do
         (p, t) <- zip pitches (iterate (+dur) 0)
@@ -150,7 +152,7 @@ strings = map make
     ]
     where
     make (length, tension, radius, t60, pan) =
-        String length tension silk radius (15, t60) [Output 0.9 pan]
+        String length tension silk radius (15, t60) 0 [Output 0.9 pan]
 
 frets = makeFrets (-0.0005) (head scale) (tail scale)
 

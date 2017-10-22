@@ -14,6 +14,8 @@ Util.Interactive {..} = Util.interactive "guitar" renderAll
 
 testJawari = multiple "jawari3" jawariVars
 
+lowSR = True
+
 jawariVars :: [(FilePath, [(Instrument, Score)])]
 jawariVars =
     [ ( Seq.join "-" ["str" <> show strx, z hx, "ht",  fmt h]
@@ -40,17 +42,40 @@ jawariVars =
       ht2   x   x   x   x   x   x   x
     -}
 
+testBackboard = multiple "backboard" backboardVars
+
+backboardVars :: [(FilePath, [(Instrument, Score)])]
+backboardVars =
+    [ (Seq.join "-" ["backboard", show distance], [makeScore distance])
+    | distance <- distances
+    ]
+    where
+    makeScore distance =
+        ( instrument { iBackboard = backboard distance }
+        , mkScore (repeatNote (head strings) 1 standardAmps) []
+        )
+    distances = [-1, -0.1, -0.01, -0.005, -0.001, -0.0005]
+    backboard distance = Backboard
+        { ba = distance
+        , bb = 0
+        , bc = 0
+        }
+
+standardAmps = take 4 $ drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
+    where maxAmp = 0.65
+
+(notes, fingers) = ([strike (head strings, 0.8, 0.25)], [])
+
 -- (notes, fingers) = strikeEachFret (head strings) 0.5
+
 -- (notes, fingers) = (ns, slideUp ns 3.5)
 --     where ns = take 1 $ eachOpenString 0.3 1 4
+
 -- (notes, fingers) = (ns, fingerUp ns 0.5 6)
 --     where ns = take 4 $ eachOpenString 0.3 1 4
--- (notes, fingers) = (ns, [])
---     where ns = eachOpenString 0.3 0 4
-(notes, fingers) = (ns, [])
-    where
-    ns = eachAmpEachString (drop 1 $ Seq.range 0 maxAmp (maxAmp/16)) 6
-    maxAmp = 0.65
+
+-- (notes, fingers) = (ns, []) where ns = eachOpenString 0.3 0 4
+-- (notes, fingers) = (ns, []) where ns = eachAmpEachString standardAmps 0.5
 
 frets = legongFrets
 -- strings = [lowerString, lowString] -- guitar
@@ -61,7 +86,7 @@ eachOpenString amp start dur =
 
 eachAmpEachString amps dur = [strike (str, t, amp) | (t, (str, amp)) <- strikes]
     where
-    strikes = zip ts [(str, amp) | str <- strings, amp <- amps]
+    strikes = zip ts [(str, amp) | str <- take 1 strings, amp <- amps]
     ts = iterate (+dur) 0
 
 -- Strike with the finger right below each fret.
@@ -151,16 +176,16 @@ fingerSlide1 =
     force = 0.15
 
 mkScore notes fingers = Score
-    { sDecay = 6
+    { sDecay = 4
     , sHighpass = True
     , sNotes = notes
     , sFingers = fingers
     }
 
 instrument = Instrument
-    { iSR = 44100
+    { iSR = if lowSR then 11000 else 44100
     , iStrings = strings
-    , iFrets = frets
+    , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard -- a + bx + bx^2, where x is length
         -- { ba = -0.005

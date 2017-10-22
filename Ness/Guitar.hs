@@ -35,6 +35,10 @@ data String = String {
     , sMaterial :: Material
     , sRadius :: Meters
     , sT60 :: (Double, Double) -- -60db at 0hz and 1k
+    -- | This can be derived from the others, but I can't figure out a formula
+    -- that works.  But even if I could, this is the logical pitch, in order to
+    -- select a string, which is different from the actual pitch.
+    , sNn :: Pitch.NoteNumber
     , sOutputs :: [Output]
     } deriving (Eq, Ord, Show)
 
@@ -45,7 +49,7 @@ data Material = Material {
 renderStrings :: [String] -> Text
 renderStrings = array2 "string_def" . map list
     where
-    list (String len tension (Material density young) radius (t600, t601) _) =
+    list (String len tension (Material density young) radius (t600, t601) _ _) =
         [len, young, tension, radius, density, t600, t601]
 
 {- | output_def (array) defines the locations of the outputs. This is
