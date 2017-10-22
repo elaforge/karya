@@ -184,14 +184,13 @@ add_release config open_string maybe_next event = do
     let enough_time = case maybe_next of
             Nothing -> True
             Just next -> next - end > delay + dur
-    return $ fromMaybe event $ if enough_time
-        then do
+    return $ fromMaybe event $ if not enough_time
+        then Nothing else do
             from_pitch <- Score.pitch_at (end+delay) event
             return $ merge_curve (fst (_release_curve config))
                 (end + delay) from_pitch
                 (end + delay + dur) open_string
                 event
-        else Nothing
 
 -- | Bend the event up to the next note.
 --
@@ -213,5 +212,5 @@ merge_curve :: PitchUtil.Interpolate -> RealTime -> PSignal.Pitch
     -> RealTime -> PSignal.Pitch -> Score.Event -> Score.Event
 merge_curve interpolate x0 y0 x1 y1 event = Score.set_pitch new_pitch event
     where
-    curve = interpolate False x0 y0 x1 y1
-    new_pitch = Score.event_transformed_pitch event <> curve
+    curve = interpolate True x0 y0 x1 y1
+    new_pitch = PSignal.append (Score.event_transformed_pitch event) curve

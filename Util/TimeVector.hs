@@ -180,12 +180,32 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
 merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge = merge_right
 
+-- | This is like 'merge_right' except assuming NOTE [signal-discontinuity].
+-- If the first signal is cut off by the second, its last sample will be
+-- extended up to the cut-off point.
+--
+-- TODO this should probably replace 'merge_right'.  But I should really have
+-- an organized design around line segments, and not this ad-hoc thing where
+-- everyone has to manually remember to treat Samples right.
+append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
+    -> v (Sample y)
+append_extend v1 v2 = case head v2 of
+    Nothing -> v1
+    Just start -> case last clipped of
+        Nothing -> v2
+        Just end
+            | sx end < sx start ->
+                V.concat [clipped, V.singleton (Sample (sx start) (sy end)), v2]
+            | otherwise -> clipped V.++ v2
+        where clipped = V.take (lowest_index_1 (sx start) v1) v1
+
 -- | This is a merge where the vectors to the right will win in the case of
 -- overlap.
 {-# SPECIALIZE merge_right :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge_right #-}
 merge_right :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_right vs = case next_start (reverse vs) of
+merge_right [v] = v
+merge_right vs = V.force $ case next_start (reverse vs) of
     Nothing -> V.empty
     Just (v, vs, x) -> V.concat $ reverse $ v : trim x vs
     where
@@ -203,7 +223,8 @@ merge_right vs = case next_start (reverse vs) of
 {-# SPECIALIZE merge_left :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge_left #-}
 merge_left :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_left vs = case next_end vs of
+merge_left [v] = v
+merge_left vs = V.force $ case next_end vs of
     Nothing -> V.empty
     Just (v, vs, x) -> V.concat $ v : trim x vs
     where
@@ -463,6 +484,14 @@ lowest_index x vec = go 0 (V.length vec)
         | x <= sx (V.unsafeIndex vec mid) = go low mid
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
+
+{-# SPECIALIZE lowest_index_1 :: X -> Unboxed -> Int #-}
+{-# INLINEABLE lowest_index_1 #-}
+lowest_index_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+lowest_index_1 x vec = case vec V.!? i of
+    Just vi | sx vi == x -> i + 1
+    _ -> i
+    where i = lowest_index x vec
 
 -- | Binary search for the highest index of the given X.  So the next value is
 -- guaranteed to be >X, if it exists.  Return -1 if @x@ is before

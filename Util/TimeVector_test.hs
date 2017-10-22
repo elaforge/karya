@@ -59,6 +59,11 @@ test_descending = do
 
 -- * transformation
 
+test_append_extend = do
+    let f s1 s2 = unsignal $ V.append_extend (signal s1) (signal s2)
+    equal (f [(0, 1)] [(4, 2)]) [(0, 1), (4, 1), (4, 2)]
+    equal (f [(0, 1), (1, 2)] [(1, 4)]) [(0, 1), (1, 2), (1, 4)]
+
 test_merge_right = do
     let f = unsignal . V.merge_right . map signal
     equal (f []) []
@@ -83,7 +88,6 @@ test_merge_right = do
     -- |--->           |--->
     equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(0, 3), (4, 3)]])
         [(0, 3), (4, 3)]
-
 
 test_merge_left = do
     let f = unsignal . V.merge_left . map signal

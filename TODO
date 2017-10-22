@@ -192,6 +192,59 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - I got confused when LInst.add_play_cache was assigned to the same channel
+    as a real instrument.  There should be a warning when different
+    instruments have the same address.
+  - Does pitch bend on a tuned MIDI instrument work?
+  - It seems too complicated to set up patch scales, how can I make that
+    easier?
+  * String idiom doesn't emit signal segments properly.
+    . The MIDI / im inconsistency is really awkward, and I'll need some
+      solution.
+  - I need a more systematic solution for signal-discontinuity.
+    . As well as docs for the NOTE in Util.TimeVector.
+    . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
+      disable it if there are no im instruments?
+    . Possibly I can model the signal as line segments, not Samples?  If
+      I still want it to be disabled, then I'd need some awkward thing in
+      between.
+    . Or maybe I can optimize the flat line somehow?  The reason I originally
+      didn't go with line segments was that I didn't want every single MIDI
+      style sample to wind up as two.  I could have some magic flag to
+      indicate flat until next sample.
+    . But am I really sure efficiency is a concern at all?  Signals are
+      relatively small, and I have a lot of memory.  Most memory is probably
+      used up on lazy thunks or something anyway.
+    ? Actually I should know what most memory is used on. Do some more heap
+      profile runs and write that down somewhere.
+    . Should I get rid of score level srate, and put it in the MIDI performer?
+      In practice I haven't used srate for special effects, and even if
+      I wanted to I could insert a sample and hold.  All I've done is adjusted
+      it down for gamakams.
+    . Then of course there's the continuous signal idea: signal is just
+      a function.  This would solve efficient translate and scale too: just
+      compose with another function.  If I can figure out the coerce to
+      Typecheck.TypedFunction thing, then that's how the Derivers see it too.
+  - lily in complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
+  * Move string assignment to karya.  This is a general purpose thing.
+    . What about stopped-string?
+    . It doesn't emit the chosen string, but it could?
+    . Also I want to make sure to pick the string based on the lowest pitch.
+      I think it just does initial pitch?
+    . Also it's monophonic.
+    . I could make a new assign-string, but I'd also like to possibly use
+      the start delay and release effects.
+    . So, extend string_idiom:
+      - Select string based on the lowest pitch.
+      - Assign the selected string as an env var to the note.
+      - Handle polyphonic parts.  Why does it have that restriction?
+        . It's because it's designed to bend the end of the note based on the
+          next note.  I can still do that if I require hand or voice
+          assignment.
+    - Currently the end of the attack curve always coincides with the start of
+      the next note.  There also could be an attack prepare time, analogous to
+      the release delay.
+  - enable FlexibleInstances globally.  Should I add any other instance ones?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.

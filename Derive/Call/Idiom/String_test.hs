@@ -51,18 +51,27 @@ test_string_select = do
         ([(Just "60nn", (0, [(0, NN.c4)]))], [])
     equal (run $ UiTest.note_track [(0, 1, "4d")])
         ([(Just "62nn", (0, [(0, NN.d4)]))], [])
-
     -- The string is assigned based on the lowest pitch.
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4d"), (1, 0, "4c")])])
         ([(Just "60nn", (0, [(0, NN.d4), (1, NN.c4)]))], [])
 
+
+-- TODO I have to test this ad-hoc per call until I figure out a better
+-- solution, see NOTE [signal-discontinuity]
+test_signal_discontinuity = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks (title <> " | bent-string 0 0 1")
+        extract = fst . DeriveTest.e_nns_errors
+    equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
+        ([[(0, NN.c4), (1, NN.c4), (1, NN.d4), (3, NN.d4), (3, NN.c4)]], [])
+
 run_string :: (Score.Event -> a) -> Text -> [UiTest.TrackSpec] -> ([a], [Text])
-run_string extract call = DeriveTest.extract extract
-    . DeriveTest.derive_tracks title
-    where
-    title = "import idiom.string\
-        \ | open-strings = (list (4c) (4d) (4e) (4g) (4a))\
-        \ | " <> call
+run_string extract call =
+    DeriveTest.extract extract
+        . DeriveTest.derive_tracks (title <> " | " <> call)
+
+title :: Text
+title = "import idiom.string | open-strings = (list (4c) (4d) (4e) (4g) (4a))"
 
 e_nns :: Score.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
 e_nns e = (Score.event_start e, Seq.drop_dups snd $ DeriveTest.e_nns e)
