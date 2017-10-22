@@ -1,12 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Score where
 import Prelude hiding (String)
+
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
 import Global
 import Ness.Global
 import Ness.Guitar
+import qualified Ness.Guitar.Bali as Bali
 import qualified Ness.Util as Util
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
@@ -61,7 +63,7 @@ backboardVars =
         , bc = 0
         }
 
-standardAmps = take 4 $ drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
+standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
     where maxAmp = 0.65
 
 (notes, fingers) = ([strike (head strings, 0.8, 0.25)], [])
@@ -77,9 +79,9 @@ standardAmps = take 4 $ drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
 -- (notes, fingers) = (ns, []) where ns = eachOpenString 0.3 0 4
 -- (notes, fingers) = (ns, []) where ns = eachAmpEachString standardAmps 0.5
 
-frets = legongFrets
+frets = [] -- legongFrets
 -- strings = [lowerString, lowString] -- guitar
-strings = legongGuitar
+strings = Bali.legongGuitar
 
 eachOpenString amp start dur =
     [strike (str, t, amp) | (str, t) <- zip strings (iterate (+dur) start)]
@@ -227,6 +229,7 @@ lowString = String
     , sMaterial = steel
     , sRadius = 0.0002
     , sT60 = (15, 5)
+    , sNn = 0 -- TODO
     , sOutputs = [Output 0.9 (-0.5), Output 0.8 0.5]
     }
 
@@ -236,24 +239,9 @@ lowerString = String
     , sMaterial = steel
     , sRadius = 0.0002
     , sT60 = (15, 5)
+    , sNn = 0 -- TODO
     , sOutputs = [Output 0.8 (-0.8), Output 0.5 0.8]
     }
-
-legongGuitar =
-    map (lenBy 0.5 . make) strings ++ map (lenBy 0.25 . make) (tail strings)
-    where
-    strings =
-        [ (0.78, 11.0, 0.00020, 5, 0.0) -- 51.82nn
-        , (0.78, 08.0, 0.00015, 5, 0.1) -- *
-        , (0.78, 08.5, 0.00015, 5, 0.2) -- *
-        , (0.78, 14.0, 0.00015, 5, 0.3) -- *
-        , (0.78, 15.0, 0.00015, 7, 0.4) -- *
-        , (0.78, 16.1, 0.00012, 8, 0.5) -- *
-        ]
-    make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60)
-            [Output 0.9 pan, Output 0.7 (pan + 0.2)]
-    lenBy n str = str { sLength = sLength str * n }
 
 -- length, young, tension, radius, density, t60, t60
 -- lowString = string_def = [0.68 2e11 12.1 0.0002 7850 15 5];
@@ -268,7 +256,7 @@ guitar = map make
     ]
     where
     make (tension, radius, t60, pan) =
-        String 0.78 tension steel radius (15, t60) [Output 0.9 pan]
+        String 0.78 tension steel radius (15, t60) 0 [Output 0.9 pan]
 
 -- middle C = 60nn
 --
@@ -285,7 +273,8 @@ samePitchStrings = map make
     ]
     where
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60) [Output 0.9 pan]
+        String len tension steel radius (15, t60) 0 -- TODO pitch
+            [Output 0.9 pan]
 
 pipa = map make
     [ (40, 0.0010, 5) -- it's actually 0.0016 but that gets inharmonic
@@ -295,7 +284,7 @@ pipa = map make
     ]
     where
     make (tension, radius, t60) =
-        String 0.6985 tension nylon radius (15, t60) [Output 0.9 0.5]
+        String 0.6985 tension nylon radius (15, t60) 0 [Output 0.9 0.5]
 
 jawariFret = Fret { fHeight = (-0.0001), fLocation = 0.01 }
 
