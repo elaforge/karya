@@ -38,7 +38,7 @@ module Perform.Signal (
     , minimum, maximum
 
     -- * transformation
-    , merge, concat, interleave, prepend
+    , merge, merge_extend, concat, interleave, prepend
     , sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
     -- ** scalar transformation
@@ -349,6 +349,9 @@ uncons sig = case TimeVector.uncons (sig_vec sig) of
 
 merge :: [Signal y] -> Signal y
 merge = Signal . TimeVector.merge . map sig_vec
+
+merge_extend :: [Signal y] -> Signal y
+merge_extend = Signal . TimeVector.merge_right_extend . map sig_vec
 
 -- | This is like 'merge', but directly concatenates the signals.  It should be
 -- more efficient when you know the signals don't overlap.

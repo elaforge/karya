@@ -180,6 +180,10 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
 merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge = merge_right
 
+append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
+    -> v (Sample y)
+append_extend v1 v2 = merge_right_extend [v1, v2]
+
 -- | This is like 'merge_right' except assuming NOTE [signal-discontinuity].
 -- If the first signal is cut off by the second, its last sample will be
 -- extended up to the cut-off point.
@@ -187,17 +191,27 @@ merge = merge_right
 -- TODO this should probably replace 'merge_right'.  But I should really have
 -- an organized design around line segments, and not this ad-hoc thing where
 -- everyone has to manually remember to treat Samples right.
-append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-    -> v (Sample y)
-append_extend v1 v2 = case head v2 of
-    Nothing -> v1
-    Just start -> case last clipped of
-        Nothing -> v2
-        Just end
-            | sx end < sx start ->
-                V.concat [clipped, V.singleton (Sample (sx start) (sy end)), v2]
-            | otherwise -> clipped V.++ v2
-        where clipped = V.take (lowest_index_1 (sx start) v1) v1
+{-# SPECIALIZE merge_right_extend :: [Unboxed] -> Unboxed #-}
+{-# INLINEABLE merge_right_extend #-}
+merge_right_extend :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
+merge_right_extend = V.concat . reverse . chunks . reverse
+    where
+    chunks [] = []
+    chunks [v] = [v]
+    -- head of v1 cuts of tail of v2
+    -- v1:     |--->        |--->
+    -- v2:   |--->        |->
+    -- vs: |--->     => |->
+    chunks (v1:v2:vs) = case head v1 of
+        Nothing -> chunks (v2:vs)
+        Just start -> case last clipped of
+            Nothing -> chunks (v1:vs)
+            Just end
+                | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
+                | otherwise -> v1 : chunks (clipped:vs)
+            where
+            clipped = V.take (lowest_index_1 (sx start) v2) v2
+            extension end = V.singleton (Sample (sx start) (sy end))
 
 -- | This is a merge where the vectors to the right will win in the case of
 -- overlap.
@@ -205,7 +219,7 @@ append_extend v1 v2 = case head v2 of
 {-# INLINEABLE merge_right #-}
 merge_right :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge_right [v] = v
-merge_right vs = V.force $ case next_start (reverse vs) of
+merge_right vs = case next_start (reverse vs) of
     Nothing -> V.empty
     Just (v, vs, x) -> V.concat $ reverse $ v : trim x vs
     where
@@ -224,7 +238,7 @@ merge_right vs = V.force $ case next_start (reverse vs) of
 {-# INLINEABLE merge_left #-}
 merge_left :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge_left [v] = v
-merge_left vs = V.force $ case next_end vs of
+merge_left vs = case next_end vs of
     Nothing -> V.empty
     Just (v, vs, x) -> V.concat $ v : trim x vs
     where
