@@ -118,7 +118,9 @@ NESS:
       * Test on serialized notes.
       - Implement +mute as a finger lift.
         . Or try touching with low amplitude.
-    - Test run for various backboard distances.
+    * Test run for various backboard distances.
+      . Where maxAmp=0.65, -0.0010 to -0.0020 to is a good range where 10 has
+        collision from 0.5 up, and 20 has collision only at amp >=7/8.
     - Test run for touching with various amps.
     * Use stopped-string and take explicit string assignment from karya.
       . There's no Environ in Note so there's nothing right for string.

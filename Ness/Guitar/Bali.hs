@@ -26,12 +26,9 @@ instrument strings = Instrument
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard -- a + bx + bx^2, where x is length
-        -- { ba = -0.005
-        -- , bb = 0
-        -- , bc = 0
-        -- }
-        { ba = -0.001
-        , bb = -0.0001
+        -- distances = [-0.002, -0.0017, -0.0015, -0.0013,  -0.001]
+        { ba = -0.0017
+        , bb = 0
         , bc = 0
         }
     , iFingerParams = FingerParams

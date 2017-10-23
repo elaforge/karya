@@ -75,7 +75,7 @@ login user password = do
     -- go to loginForm, to get the cosign cookie
     Process.callProcess "curl"
         [ "--cookie-jar", cookies
-        , "--output", "curl.loginForm"
+        , "--output", "ness-data/curl.loginForm"
         , loginForm
         ]
     let values =
@@ -90,7 +90,7 @@ login user password = do
         , "--verbose"
         , "--cookie", cookies
         , "--cookie-jar", cookies
-        , "--output", "curl.login"
+        , "--output", "ness-data/curl.login"
         -- follow the location response to pick up the next cookie
         , "--location"
         ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]

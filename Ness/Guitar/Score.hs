@@ -44,11 +44,11 @@ jawariVars =
       ht2   x   x   x   x   x   x   x
     -}
 
-testBackboard = multiple "backboard" backboardVars
+testBackboard = multiple "backboard2" backboardVars
 
 backboardVars :: [(FilePath, [(Instrument, Score)])]
 backboardVars =
-    [ (Seq.join "-" ["backboard", show distance], [makeScore distance])
+    [ (Seq.join "-" ["backboard", fmt distance], [makeScore distance])
     | distance <- distances
     ]
     where
@@ -56,7 +56,14 @@ backboardVars =
         ( instrument { iBackboard = backboard distance }
         , mkScore (repeatNote (head strings) 1 standardAmps) []
         )
-    distances = [-1, -0.1, -0.01, -0.005, -0.001, -0.0005]
+    distances = [-0.002, -0.0017, -0.0015, -0.0013,  -0.001]
+    fmt = show . abs . round . (*1e4)
+
+    -- -0.0020: - - - - - - - - - - - - - - + +
+    -- -0.0017: - - - - - - - - - - - + + + * *
+    -- -0.0015: - - - - - - - - - - + + + + * *
+    -- -0.0013: - - - - - - - - - + + + + + * *
+    -- -0.0010: - - - - - - - + + + + + + * * *
     backboard distance = Backboard
         { ba = distance
         , bb = 0
@@ -190,12 +197,9 @@ instrument = Instrument
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard -- a + bx + bx^2, where x is length
-        -- { ba = -0.005
-        -- , bb = 0
-        -- , bc = 0
-        -- }
-        { ba = -0.001
-        , bb = -0.0001
+        -- distances = [-0.002, -0.0017, -0.0015, -0.0013,  -0.001]
+        { ba = -0.0015
+        , bb = 0
         , bc = 0
         }
     , iFingerParams = FingerParams
