@@ -135,8 +135,8 @@ collectFingers =
         let startDur n = (_start n, _duration n)
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
-        let pitch = Signal.merge $ map _pitch notes
-            finger = Signal.merge $ map _finger notes
+        let pitch = Signal.merge_right_extend $ map _pitch notes
+            finger = Signal.merge_right_extend $ map _finger notes
         return (map (makeNote string) notes, makeFinger string pitch finger)
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
