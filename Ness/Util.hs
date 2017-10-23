@@ -43,7 +43,7 @@ submitMany :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
 submitMany render dir scores = do
     okUrls <- forDelay concurrentSubmits scores $ \(name, score) -> do
         let (i, s) = render score
-        submit False i s (scratchDir </> dir </> name)
+        submit i s (scratchDir </> dir </> name)
     let (oks, urls) = unzip okUrls
     mapM_ putStrLn ["failed: " <> name | (False, (name, _)) <- zip oks scores]
     forM_ (findDups fst (zip urls (map fst scores))) $ \(count, (url, name)) ->
@@ -54,47 +54,48 @@ findDups :: Ord k => (a -> k) -> [a] -> [(Int, a)]
 findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
     . Seq.group_sort key
 
-submitOne :: String -> (Text, Text) -> Bool -> IO ()
-submitOne model (instrument, score) demo = do
-    let dir = scratchDir </> model </> dirFor demo instrument score
+submitOne :: String -> (Text, Text) -> IO ()
+submitOne model (instrument, score) = do
+    let dir = scratchDir </> model </> dirFor instrument score
     let out = dir </> "out.wav"
     ok <- ifM (Directory.doesDirectoryExist dir)
         (putStrLn ("exists: " <> dir) >> return True)
-        (fst <$> submit demo instrument score dir)
+        (fst <$> submit instrument score dir)
     putStrLn out
     when ok $ Process.callProcess "afplay" [out]
 
-submit :: Bool -> Text -> Text -> FilePath -> IO (Bool, Submit.Url)
-submit demo instrument score dir = do
+submit :: Text -> Text -> FilePath -> IO (Bool, Submit.Url)
+submit instrument score dir = do
     let ifn = dir </> "inst"
     let sfn = dir </> "score"
     let out = dir </> "out.wav"
     Directory.createDirectoryIfMissing True dir
     Text.IO.writeFile ifn instrument
     Text.IO.writeFile sfn score
-    Submit.submitDownload demo ifn sfn out
+    Submit.submitDownload False ifn sfn out
 
 -- TODO separate out SR and put differing SR in the same dir?
-dirFor :: Bool -> Text -> Text -> FilePath
-dirFor demo instrument score =
+dirFor :: Text -> Text -> FilePath
+dirFor instrument score = fingerprint [instrument, score]
+
+fingerprint :: [Text] -> FilePath
+fingerprint texts =
     dropR (=='=') $ ByteString.Char8.unpack $ Base64Url.encode $
         ByteString.pack bytes
     where
-    n = CRC32.crc32 (demo, instrument, score)
+    n = CRC32.crc32 texts
     chop = fromIntegral . (.&. 0xff)
     bytes = map (chop . Bits.shiftR n) [0, 8, 16, 24]
     dropR f = reverse . dropWhile f . reverse
 
 data Interactive score = Interactive {
     r :: IO ()
-    , demo :: IO ()
     , variations :: FilePath -> [(FilePath, [score])] -> IO ()
     }
 
 interactive :: String -> (score -> (Text, Text)) -> score -> Interactive score
 interactive model render score = Interactive
-    { r = submitOne model (render score) False
-    , demo = submitOne model (render score) True
+    { r = submitOne model (render score)
     , variations = submitVariations render model
     }
 
