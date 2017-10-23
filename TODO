@@ -121,7 +121,7 @@ NESS:
     * Test run for various backboard distances.
       . Where maxAmp=0.65, -0.0010 to -0.0020 to is a good range where 10 has
         collision from 0.5 up, and 20 has collision only at amp >=7/8.
-    - Test run for touching with various amps.
+    * Test run for touching with various amps.
     * Use stopped-string and take explicit string assignment from karya.
       . There's no Environ in Note so there's nothing right for string.
       . I used attributes for other strings, but it's too easy to choose
@@ -160,14 +160,12 @@ NESS:
         a variation, I can get away with one entry and a config value.
       . So maybe I can use some kind of [Text] to configure the patch.
       . Of course then I don't get it automatically from inst and environ.
-
-    - Adapt reyong infer-damp for ness instruments.
+    * Adapt reyong infer-damp for ness instruments.
       . All it does is add +mute events, so I can just teach the instrument to
         recognize those.
       . So modify the kontakt instrument to treat those as a pitch change.
-
-    - Test different backboard distances, to create more or less buzzy
-      instruments.
+    - Submit multiple instruments.
+    - Mix the output automatically.
 
     - Design instruments with frets at legong scale, umbang and isep.
       . Have a string for each pitch?

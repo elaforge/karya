@@ -13,6 +13,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -696,17 +697,18 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     \\nThe output is additional notes with `+mute` and zero duration at note\
     \end.")
     $ Sig.callt ((,)
-        <$> Sig.required "inst" "Apply damping to this instrument."
+        <$> Sig.required "insts" "Apply damping to these instruments."
         <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
             "This is how fast the player is able to damp. A note is only damped\
             \ if there is a hand available which has this much time to move\
             \ into position for the damp stroke, and then move into position\
             \ for its next note afterwards."
-    ) $ \(inst, dur) _args deriver -> do
+    ) $ \(insts, dur) _args deriver -> do
         dur <- Call.to_function dur
         -- infer_damp can only add a %damp control, so it preserves order, so
         -- Post.apply is safe.  TODO Is there a way to express this statically?
-        Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
+        Post.apply (infer_damp_voices (Set.fromList insts)
+            (RealTime.seconds . dur)) <$> deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
@@ -717,14 +719,15 @@ damp_control = "damp"
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is sufficiently far, or the opposite hand if it is not too
 -- busy.
-infer_damp_voices :: Score.Instrument -> (RealTime -> RealTime) -> [Score.Event]
+infer_damp_voices :: Set Score.Instrument -> (RealTime -> RealTime)
     -> [Score.Event]
-infer_damp_voices reyong_inst dur_at =
+    -> [Score.Event]
+infer_damp_voices damped_insts dur_at =
     Seq.merge_lists Score.event_start . map infer1
         . Seq.keyed_group_sort Post.voice_key
     where
     infer1 ((inst, _voice), events)
-        | inst /= reyong_inst = events
+        | not $ Set.member inst damped_insts = events
         | otherwise = Seq.merge_on Score.event_start events
             (mapMaybe (uncurry set_damp) (zip damps events))
         where damps = infer_damp dur_at events
