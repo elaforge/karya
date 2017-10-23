@@ -1,6 +1,7 @@
 module Ness.Guitar.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -23,13 +24,19 @@ maxAmp = 0.65
 
 type Error = Text
 
-run :: IO ()
-run = do
-    scores <- either errorIO return =<< loadConvert
+run :: String -> IO ()
+run block = do
+    scores <- either errorIO return =<< loadConvert block
     Util.submitOne "guitar-bali" (Guitar.renderAll (head scores)) False
 
-loadConvert :: IO (Either Error [(Guitar.Instrument, Guitar.Score)])
-loadConvert = convert Bali.instruments <$> load "im/ness-notes/untitled-b1"
+loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])
+loadConvert b = convert Bali.instruments <$> load (blockFile b)
+
+blockFile :: String -> FilePath
+blockFile b = "im/ness-notes/untitled-" ++ b
+
+printScore block = mapM_ (Text.IO.putStrLn . snd . Guitar.renderAll)
+    =<< either errorIO return =<< loadConvert block
 
 load :: FilePath -> IO [Note.Note]
 load fname = either (errorIO . pretty) return =<< Note.unserialize fname
