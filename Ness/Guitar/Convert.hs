@@ -115,6 +115,7 @@ muteOffset = 0.5
 
 data Note = Note {
     _instrument :: !Guitar.Instrument
+    , _instrumentName :: !Text
     , _string :: !Guitar.String
     , _start :: !RealTime.RealTime
     -- | Since strings are only damped explicitly, this is only used to
@@ -213,9 +214,10 @@ lastLessEqual key k = go
         | otherwise = go [x1]
 
 instance Pretty Note where
-    format (Note _inst _str start dur pitch finger dyn loc) =
+    format (Note _inst instName _str start dur pitch finger dyn loc) =
         Pretty.record "Note"
-            [ ("start", Pretty.format start)
+            [ ("instrument", Pretty.format instName)
+            , ("start", Pretty.format start)
             -- , ("string", Pretty.format str)
             , ("duration", Pretty.format dur)
             , ("pitch", Pretty.format pitch)

@@ -167,7 +167,8 @@ renderConnections = array2 "ssconnect_def" . map list
         ]
 
 data Instrument = Instrument {
-    iSR :: Int
+    iName :: Text
+    , iSR :: Int
     , iStrings :: [String]
     , iFrets :: [Fret]
     , iBarrier :: Barrier
@@ -179,9 +180,10 @@ data Instrument = Instrument {
     } deriving (Eq, Show)
 
 renderInstrument :: Instrument -> Text
-renderInstrument (Instrument sr strings frets barrier backboard fingerParams
-        normalizeOutputs solver connections) = Text.unlines
+renderInstrument (Instrument name sr strings frets barrier backboard
+        fingerParams normalizeOutputs solver connections) = Text.unlines
     [ "% gtversion 1.0"
+    , "% name: " <> name
     , scalar "SR" sr
     , renderStrings strings
     , renderOutputs [(i, o) | (i, string) <- byIndex, o <- sOutputs string]
