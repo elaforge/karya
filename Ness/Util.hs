@@ -29,20 +29,24 @@ scratchDir = "ness-data"
 concurrentSubmits :: Int
 concurrentSubmits = 10
 
-submitMultiple :: (score -> (Text, Text)) -> String
+submitVariations :: (score -> (Text, Text)) -> String
     -> FilePath -> [(FilePath, [score])] -> IO ()
-submitMultiple render model baseDir variations = do
-    let base = scratchDir </> model </> baseDir
-    Directory.createDirectoryIfMissing True base
-    let jobs =
-            [ (base </> name </> zeroPad 3 idx, render var)
-            | (name, vars) <- variations, (idx, var) <- zip [0..] vars
-            ]
-    okUrls <- forDelay concurrentSubmits jobs $
-        \(d, (i, s)) -> submit False i s d
+submitVariations render model baseDir variations =
+    submitMany render (model </> baseDir)
+        [ (name </> zeroPad 3 idx, score)
+        | (name, scores) <- variations
+        , (idx, score) <- zip [0..] scores
+        ]
+
+submitMany :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
+    -> IO ()
+submitMany render dir scores = do
+    okUrls <- forDelay concurrentSubmits scores $ \(name, score) -> do
+        let (i, s) = render score
+        submit False i s (scratchDir </> dir </> name)
     let (oks, urls) = unzip okUrls
-    mapM_ putStrLn ["failed: " <> name | (False, (name, _)) <- zip oks jobs]
-    forM_ (findDups fst (zip urls (map fst jobs))) $ \(count, (url, name)) ->
+    mapM_ putStrLn ["failed: " <> name | (False, (name, _)) <- zip oks scores]
+    forM_ (findDups fst (zip urls (map fst scores))) $ \(count, (url, name)) ->
         putStrLn $ "duplicate: " <> show count <> ": " <> url
             <> " -> " <> name
 
@@ -84,14 +88,14 @@ dirFor demo instrument score =
 data Interactive score = Interactive {
     r :: IO ()
     , demo :: IO ()
-    , multiple :: FilePath -> [(FilePath, [score])] -> IO ()
+    , variations :: FilePath -> [(FilePath, [score])] -> IO ()
     }
 
 interactive :: String -> (score -> (Text, Text)) -> score -> Interactive score
 interactive model render score = Interactive
     { r = submitOne model (render score) False
     , demo = submitOne model (render score) True
-    , multiple = submitMultiple render model
+    , variations = submitVariations render model
     }
 
 forConcurrent :: Int -> [a] -> (a -> IO b) -> IO [b]

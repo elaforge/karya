@@ -14,7 +14,7 @@ import qualified Ness.Util as Util
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     (instrument, mkScore notes fingers)
 
-testJawari = multiple "jawari3" jawariVars
+testJawari = variations "jawari3" jawariVars
 
 lowSR = True
 
@@ -44,7 +44,7 @@ jawariVars =
       ht2   x   x   x   x   x   x   x
     -}
 
-testBackboard = multiple "backboard2" backboardVars
+testBackboard = variations "backboard2" backboardVars
 
 backboardVars :: [(FilePath, [(Instrument, Score)])]
 backboardVars =
@@ -192,7 +192,8 @@ mkScore notes fingers = Score
     }
 
 instrument = Instrument
-    { iSR = if lowSR then 11000 else 44100
+    { iName = "test"
+    , iSR = if lowSR then 11000 else 44100
     , iStrings = strings
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
