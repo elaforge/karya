@@ -5,6 +5,8 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
+import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Control as Control
@@ -80,25 +82,49 @@ convertNote instruments note = first ((pretty note <> ": ")<>) $ do
     string <- tryJust ("no string: " <> Note.element note) $
         List.find ((== Note.element note) . pretty . Guitar.sNn)
             (Guitar.iStrings inst)
-    return $ Note
-        { _instrument = inst
-        , _string = string
-        , _start = Note.start note
-        , _duration = Note.duration note
-        , _pitch = pitch
-        , _finger = finger
-        , _dynamic = dyn
-        , _location = loc
-        }
+    let muted = Attrs.contain (Note.attributes note) Attrs.mute
+    -- Mute by touching lightly higher up on the string.
+    return $ if muted
+        then Note
+            { _instrument = inst
+            , _instrumentName = Note.instrument note
+            , _string = string
+            , _start = Note.start note
+            , _duration = Note.duration note
+            , _pitch = Signal.constant $
+                fromMaybe 0 (Signal.at (Note.start note) pitch)
+                    + Pitch.nn_to_double muteOffset
+            , _finger = Signal.constant 0.01
+            , _dynamic = 0
+            , _location = 0
+            }
+        else Note
+            { _instrument = inst
+            , _instrumentName = Note.instrument note
+            , _string = string
+            , _start = Note.start note
+            , _duration = Note.duration note
+            , _pitch = pitch
+            , _finger = finger
+            , _dynamic = dyn
+            , _location = loc
+            }
+
+muteOffset :: Pitch.NoteNumber
+muteOffset = 0.5
 
 data Note = Note {
     _instrument :: !Guitar.Instrument
     , _string :: !Guitar.String
     , _start :: !RealTime.RealTime
+    -- | Since strings are only damped explicitly, this is only used to
+    -- define the pitch range when selecting a string.
     , _duration :: !RealTime.RealTime
     , _pitch :: !Signal.Signal
     -- | Finger touch strength.
     , _finger :: !Signal.Signal
+    -- | If 0, there is no corresponding pluck, so this is just a finger
+    -- movement.
     , _dynamic :: !Newtons
     , _location :: !Location
     } deriving (Show)
@@ -122,22 +148,27 @@ collectFingers =
     mapM collect . map (second (Seq.keyed_group_stable _string))
         . Seq.keyed_group_stable _instrument
     where
-    collect (inst, strings) = do
-        (notes, fingers) <- unzip <$> mapM collectFingers strings
+    collect (inst, stringNotes) = do
+        (notes, fingers) <- unzip <$> mapM oneString stringNotes
         -- TODO merge by start?
         return (inst, (concat notes, fingers))
 
-    -- complain about overlapping runs
-    collectFingers :: (Guitar.String, [Note])
+    -- All the notes on a single string get a single finger.
+    oneString :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)
-    collectFingers (string, notes) = do
+    oneString (string, notes) = do
         let overlaps = findOverlaps notes
         let startDur n = (_start n, _duration n)
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
-        let pitch = Signal.merge_right_extend $ map _pitch notes
-            finger = Signal.merge_right_extend $ map _finger notes
-        return (map (makeNote string) notes, makeFinger string pitch finger)
+        let pitch = Signal.merge_right_extend
+                [Signal.clip_to (_start n) (_pitch n) | n <- notes]
+            finger = Signal.merge_right_extend
+                [Signal.clip_to (_start n) (_finger n) | n <- notes]
+        return
+            ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
+            , makeFinger string pitch finger
+            )
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
         , nString = string
@@ -146,7 +177,6 @@ collectFingers =
         , nLocation = _location note
         , nAmplitude = _dynamic note * maxAmp
         }
-    -- TODO implement +mute
     makeFinger string pitch finger = Guitar.Finger
         { fString = string
         , fInitial = (0.01, 0)

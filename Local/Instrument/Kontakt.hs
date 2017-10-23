@@ -31,6 +31,8 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.Selisir as Selisir
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -84,7 +86,16 @@ mine_patches :: [MidiInst.Patch]
 mine_patches =
     [ MidiInst.make_patch $ MidiInst.add_flag Patch.ResumePlay $
         Patch.patch pb_range "tambura"
+    , set_scale $ MidiInst.make_patch $ Patch.patch pb_range "bali-guitar"
     ]
+    where
+    set_scale =
+        (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
+        . MidiInst.default_scale Selisir.scale_id
+        . MidiInst.environ EnvKey.tuning tuning
+    tuning = BaliScales.Umbang -- TODO verify how mine are tuned
+    instrument_scale =
+        Selisir.instrument_scale (take 10 . drop 5) Selisir.laras_rambat tuning
 
 -- * misc
 

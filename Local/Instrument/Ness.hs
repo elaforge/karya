@@ -6,6 +6,7 @@ module Local.Instrument.Ness where
 import qualified Data.Map as Map
 
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Common as Common
@@ -28,4 +29,7 @@ synth = Inst.SynthDecl Config.nessName
             , ("finger", "")
             ]
         , Patch.patch_element_key = Just EnvKey.string
+        , Patch.patch_attribute_map = Patch.attribute_map
+            [ Attrs.mute
+            ]
         }
