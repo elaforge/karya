@@ -164,8 +164,8 @@ NESS:
       . All it does is add +mute events, so I can just teach the instrument to
         recognize those.
       . So modify the kontakt instrument to treat those as a pitch change.
-    - Submit multiple instruments.
-    - Mix the output automatically.
+    * Submit multiple instruments.
+    * Mix the output automatically.
 
     - Design instruments with frets at legong scale, umbang and isep.
       . Have a string for each pitch?

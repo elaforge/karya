@@ -9,6 +9,7 @@ import Data.Bits ((.&.))
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Maybe as Maybe
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
@@ -20,6 +21,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Global
+import qualified Ness.Sound as Sound
 import qualified Ness.Submit as Submit
 
 
@@ -40,15 +42,35 @@ submitVariations render model baseDir variations =
 
 submitMany :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
     -> IO ()
-submitMany render dir scores = do
-    okUrls <- forDelay concurrentSubmits scores $ \(name, score) -> do
-        let (i, s) = render score
-        submit i s (scratchDir </> dir </> name)
+submitMany render dir nameScores = do
+    let (names, scores) = unzip nameScores
+    let rendered = map render scores
+    checkSubmits (scratchDir </> dir) names rendered
+    return ()
+
+submitInstruments :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
+    -> IO ()
+submitInstruments render dir nameScores = do
+    let (names, scores) = unzip nameScores
+    let rendered = map render scores
+    let fprint = fingerprint $ concat [[i, s] | (i, s) <- rendered]
+    let out = scratchDir </> dir </> fprint </> "out.wav"
+    unlessM (Directory.doesFileExist out) $ do
+        outs <- checkSubmits (scratchDir </> dir </> fprint) names rendered
+        Sound.mix outs out
+    putStrLn out
+    play out
+
+checkSubmits :: FilePath -> [FilePath] -> [(Text, Text)] -> IO [FilePath]
+checkSubmits dir names rendered = do
+    okUrls <- forDelay concurrentSubmits (zip names rendered) $
+        \(name, (i, s)) -> submit i s (dir </> name)
     let (oks, urls) = unzip okUrls
-    mapM_ putStrLn ["failed: " <> name | (False, (name, _)) <- zip oks scores]
-    forM_ (findDups fst (zip urls (map fst scores))) $ \(count, (url, name)) ->
+    mapM_ putStrLn ["failed: " <> name | (Nothing, name) <- zip oks names]
+    forM_ (findDups fst (zip urls names)) $ \(count, (url, name)) ->
         putStrLn $ "duplicate: " <> show count <> ": " <> url
             <> " -> " <> name
+    return $ Maybe.catMaybes oks
 
 findDups :: Ord k => (a -> k) -> [a] -> [(Int, a)]
 findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
@@ -57,14 +79,16 @@ findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
 submitOne :: String -> (Text, Text) -> IO ()
 submitOne model (instrument, score) = do
     let dir = scratchDir </> model </> dirFor instrument score
-    let out = dir </> "out.wav"
-    ok <- ifM (Directory.doesDirectoryExist dir)
-        (putStrLn ("exists: " <> dir) >> return True)
+    out <- ifM (Directory.doesDirectoryExist dir)
+        (putStrLn ("exists: " <> dir) >> return Nothing)
         (fst <$> submit instrument score dir)
-    putStrLn out
-    when ok $ Process.callProcess "afplay" [out]
+    print out
+    whenJust out play
 
-submit :: Text -> Text -> FilePath -> IO (Bool, Submit.Url)
+play :: FilePath -> IO ()
+play fn = Process.callProcess "afplay" [fn]
+
+submit :: Text -> Text -> FilePath -> IO (Maybe FilePath, Submit.Url)
 submit instrument score dir = do
     let ifn = dir </> "inst"
     let sfn = dir </> "score"
@@ -72,9 +96,9 @@ submit instrument score dir = do
     Directory.createDirectoryIfMissing True dir
     Text.IO.writeFile ifn instrument
     Text.IO.writeFile sfn score
-    Submit.submitDownload False ifn sfn out
+    (ok, url) <- Submit.submitDownload False ifn sfn out
+    return $ if ok then (Just out, url) else (Nothing, url)
 
--- TODO separate out SR and put differing SR in the same dir?
 dirFor :: Text -> Text -> FilePath
 dirFor instrument score = fingerprint [instrument, score]
 

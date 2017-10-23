@@ -29,7 +29,7 @@ type Error = Text
 run :: String -> IO ()
 run block = do
     scores <- either errorIO return =<< loadConvert block
-    Util.submitMany Guitar.renderAll "guitar-bali"
+    Util.submitInstruments Guitar.renderAll "guitar-bali"
         [(untxt $ Guitar.iName i, (i, s)) | (i, s) <- scores]
 
 loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])
