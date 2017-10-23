@@ -4,6 +4,7 @@ import Prelude hiding (String)
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Global
 import Ness.Global
@@ -18,6 +19,7 @@ instruments :: Map Text Instrument
 instruments = Map.fromList
     [ ("polos", instrument "polos" legongGuitar)
     , ("sangsih", instrument "sangsih" legongGuitar)
+    , ("g12", instrument "guitar12" guitar12)
     ]
 
 instrument name strings = Instrument
@@ -48,6 +50,43 @@ instrument name strings = Instrument
     , iConnections = []
     }
 
+guitar12 = map make
+    [ (12.1, 0.00020, 5, NN.e3)
+    , (12.3, 0.00015, 5, NN.a3)
+    , (21.9, 0.00015, 5, NN.d4)
+    , (39.2, 0.00015, 7, NN.g4)
+    , (27.6, 0.00010, 5, NN.b5)
+    , (49.2, 0.00010, 8, NN.e5)
+    ]
+    where
+    make (tension, radius, t60, nn) = String
+        { sLength = 0.68
+        , sTension = tension
+        , sMaterial = steel
+        , sRadius = radius
+        , sT60 = (15, t60)
+        , sNn = nn
+        , sOutputs = outputsAt 0.5
+        }
+
+bass12 = map make
+    [ (4.8, 0.0002, NN.e1)
+    , (9.3, 0.0002, NN.a1)
+    , (9.2, 0.00015, NN.d2)
+    , (10.5, 0.00012, NN.g2)
+    ]
+    where
+    make (tension, radius, nn) = String
+        { sLength = 0.88
+        , sTension = tension
+        , sMaterial = steel
+        , sRadius = radius
+        , sT60 = (15, 3)
+        , sNn = nn
+        , sOutputs =  outputsAt 0.5
+        }
+
+
 legongGuitar = zipWith withNn (drop 3 legong) $ concat
     [ map (lenBy 0.5 . make) strings
     , map (lenBy 0.25 . make) (tail strings)
@@ -62,10 +101,11 @@ legongGuitar = zipWith withNn (drop 3 legong) $ concat
         , (0.78, 16.1, 0.00012, 8, 0.5)
         ]
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60) 0
-            [Output 0.9 pan, Output 0.7 (pan + 0.2)]
+        String len tension steel radius (15, t60) 0 (outputsAt pan)
     withNn nn str = str { sNn = nn }
     lenBy n str = str { sLength = sLength str * n }
+
+outputsAt pan = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
 
 (notes, fingers) = (take 1 eachString, take 1 slide_each_string)
 

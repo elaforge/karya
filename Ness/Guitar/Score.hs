@@ -14,10 +14,10 @@ import qualified Ness.Util as Util
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     (instrument, mkScore notes fingers)
 
-testJawari = variations "jawari3" jawariVars
 
 lowSR = True
 
+testJawari = variations "jawari3" jawariVars
 jawariVars :: [(FilePath, [(Instrument, Score)])]
 jawariVars =
     [ ( Seq.join "-" ["str" <> show strx, z hx, "ht",  fmt h]
@@ -45,7 +45,6 @@ jawariVars =
     -}
 
 testBackboard = variations "backboard2" backboardVars
-
 backboardVars :: [(FilePath, [(Instrument, Score)])]
 backboardVars =
     [ (Seq.join "-" ["backboard", fmt distance], [makeScore distance])
@@ -73,7 +72,7 @@ backboardVars =
 standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
     where maxAmp = 0.65
 
-(notes, fingers) = ([strike (head strings, 0.8, 0.25)], [])
+-- (notes, fingers) = ([strike (head strings, 0.8, 0.25)], [])
 
 -- (notes, fingers) = strikeEachFret (head strings) 0.5
 
@@ -83,7 +82,7 @@ standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
 -- (notes, fingers) = (ns, fingerUp ns 0.5 6)
 --     where ns = take 4 $ eachOpenString 0.3 1 4
 
--- (notes, fingers) = (ns, []) where ns = eachOpenString 0.3 0 4
+(notes, fingers) = (ns, []) where ns = eachOpenString 0.3 0 0.5
 -- (notes, fingers) = (ns, []) where ns = eachAmpEachString standardAmps 0.5
 
 frets = [] -- legongFrets
@@ -218,15 +217,6 @@ instrument = Instrument
     , iSolver = Solver 20 0
     , iConnections = []
     }
-
-stringSets =
-    [ ("guitar",
-        [ -- string_def = [0.68 2e11 12.1 0.0002 7850 15 5; 0.68 2e11 12.3 0.00015 7850 15 5; 0.68 2e11 21.9 0.00015 7850 15 5; 0.68 2e11 39.2 0.00015 7850 15 7; 0.68 2e11 27.6 0.0001 7850 15 5; 0.68 2e11 49.2 0.0001 7850 15 8];
-        ])
-    , ("bass",
-        [ -- string_def = [0.88 2e11 4.8 0.0002 7850 15 3; 0.88 2e11 9.3 0.0002 7850 15 3; 0.88 2e11 9.2 0.00015 7850 15 3; 0.88 2e11 10.5 0.00012 7850 15 3];
-        ])
-    ]
 
 lowString = String
     { sLength = 0.68
