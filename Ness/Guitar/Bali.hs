@@ -17,12 +17,15 @@ lowSR = True
 -- | TODO separate instruments with different parameters
 instruments :: Map Text Instrument
 instruments = Map.fromList
-    [ ("polos", instrument "polos" legongGuitar)
-    , ("sangsih", instrument "sangsih" legongGuitar)
-    , ("g12", instrument "guitar12" guitar12)
+    [ ("polos",     polos)
+    , ("sangsih",   sangsih)
+    , ("g12",       instrument "guitar12" (-0.0020) guitarStrings)
     ]
 
-instrument name strings = Instrument
+polos = instrument "polos" (-0.0017) legongStrings
+sangsih = instrument "sangsih" (-0.0013) legongStrings2
+
+instrument name backboard strings = Instrument
     { iName = name
     , iSR = if lowSR then 11000 else 44100
     , iStrings = strings
@@ -30,7 +33,7 @@ instrument name strings = Instrument
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
     , iBackboard = Backboard -- a + bx + bx^2, where x is length
         -- distances = [-0.002, -0.0017, -0.0015, -0.0013,  -0.001]
-        { ba = -0.0017
+        { ba = backboard
         , bb = 0
         , bc = 0
         }
@@ -50,26 +53,26 @@ instrument name strings = Instrument
     , iConnections = []
     }
 
-guitar12 = map make
-    [ (12.1, 0.00020, 5, NN.e3)
-    , (12.3, 0.00015, 5, NN.a3)
-    , (21.9, 0.00015, 5, NN.d4)
-    , (39.2, 0.00015, 7, NN.g4)
-    , (27.6, 0.00010, 5, NN.b5)
-    , (49.2, 0.00010, 8, NN.e5)
+guitarStrings = map make
+    [ (12.1, 0.00020, 5, NN.e3, 0.1)
+    , (12.3, 0.00015, 5, NN.a3, 0.2)
+    , (21.9, 0.00015, 5, NN.d4, 0.3)
+    , (39.2, 0.00015, 7, NN.g4, 0.4)
+    , (27.6, 0.00010, 5, NN.b5, 0.5)
+    , (49.2, 0.00010, 8, NN.e5, 0.6)
     ]
     where
-    make (tension, radius, t60, nn) = String
+    make (tension, radius, t60, nn, pan) = String
         { sLength = 0.68
         , sTension = tension
         , sMaterial = steel
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
-        , sOutputs = outputsAt 0.5
+        , sOutputs = outputsAt pan
         }
 
-bass12 = map make
+bassStrings = map make
     [ (4.8, 0.0002, NN.e1)
     , (9.3, 0.0002, NN.a1)
     , (9.2, 0.00015, NN.d2)
@@ -86,14 +89,16 @@ bass12 = map make
         , sOutputs =  outputsAt 0.5
         }
 
+legongNns = head (drop 3 legong) - 12 : drop 3 legong
 
-legongGuitar = zipWith withNn (drop 3 legong) $ concat
+legongStrings = zipWith withNn legongNns $ concat
     [ map (lenBy 0.5 . make) strings
-    , map (lenBy 0.25 . make) (tail strings)
+    , map (lenBy 0.25 . make) (drop 2 strings)
     ]
     where
     strings =
-        [ (0.78, 11.0, 0.00020, 5, 0.0)
+        [ (1.56, 11.0, 0.00020, 5, 0.0)
+        , (0.78, 11.0, 0.00020, 5, 0.0)
         , (0.78, 08.0, 0.00015, 5, 0.1)
         , (0.78, 08.5, 0.00015, 5, 0.2)
         , (0.78, 14.0, 0.00015, 5, 0.3)
@@ -104,6 +109,26 @@ legongGuitar = zipWith withNn (drop 3 legong) $ concat
         String len tension steel radius (15, t60) 0 (outputsAt pan)
     withNn nn str = str { sNn = nn }
     lenBy n str = str { sLength = sLength str * n }
+
+legongStrings2 = zipWith withNn legongNns $ concat
+    [ map (lenBy 0.5 . make) strings
+    , map (lenBy 0.25 . make) (drop 2 strings)
+    ]
+    where
+    strings =
+        [ (1.56, 11.1, 0.00020, 5, 0.3)
+        , (0.78, 11.1, 0.00020, 5, 0.3)
+        , (0.78, 08.2, 0.00015, 5, 0.4)
+        , (0.78, 08.7, 0.00015, 5, 0.5)
+        , (0.78, 14.2, 0.00015, 5, 0.6)
+        , (0.78, 15.3, 0.00015, 7, 0.7)
+        , (0.78, 16.7, 0.00012, 8, 0.8)
+        ]
+    make (len, tension, radius, t60, pan) =
+        String len tension steel radius (15, t60) 0 (outs pan)
+    withNn nn str = str { sNn = nn }
+    lenBy n str = str { sLength = sLength str * n }
+    outs pan = [Output 0.8 pan, Output 0.6 (pan - 0.2)]
 
 outputsAt pan = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
 

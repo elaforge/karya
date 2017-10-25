@@ -12,8 +12,15 @@ import qualified Ness.Guitar.Bali as Bali
 import qualified Ness.Util as Util
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
-    (instrument, mkScore notes fingers)
+    -- (instrument, mkScore notes fingers)
+    (Bali.sangsih, mkScore notes fingers)
 
+
+(notes, fingers) = sampleSet
+
+frets = [] -- legongFrets
+-- strings = [lowerString, lowString] -- guitar
+strings = Bali.legongStrings2
 
 lowSR = True
 
@@ -58,6 +65,8 @@ backboardVars =
     distances = [-0.002, -0.0017, -0.0015, -0.0013,  -0.001]
     fmt = show . abs . round . (*1e4)
 
+    --          1 2 3 4 5 6 7 8 9 a b c d e f 10
+    --          1/16  .25     .5      .75     1
     -- -0.0020: - - - - - - - - - - - - - - + +
     -- -0.0017: - - - - - - - - - - - + + + * *
     -- -0.0015: - - - - - - - - - - + + + + * *
@@ -69,8 +78,12 @@ backboardVars =
         , bc = 0
         }
 
+sampleSet = (eachAmpEachString (take 1 strings) standardAmps decay, [])
+    where decay = 6 -- time for each string to go to 0
+
 standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
-    where maxAmp = 0.65
+
+maxAmp = 0.65
 
 -- (notes, fingers) = ([strike (head strings, 0.8, 0.25)], [])
 
@@ -82,19 +95,16 @@ standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
 -- (notes, fingers) = (ns, fingerUp ns 0.5 6)
 --     where ns = take 4 $ eachOpenString 0.3 1 4
 
-(notes, fingers) = (ns, []) where ns = eachOpenString 0.3 0 0.5
+-- (notes, fingers) = (ns, []) where ns = eachOpenString (0.7*maxAmp) 0 0.5
 -- (notes, fingers) = (ns, []) where ns = eachAmpEachString standardAmps 0.5
-
-frets = [] -- legongFrets
--- strings = [lowerString, lowString] -- guitar
-strings = Bali.legongGuitar
 
 eachOpenString amp start dur =
     [strike (str, t, amp) | (str, t) <- zip strings (iterate (+dur) start)]
 
-eachAmpEachString amps dur = [strike (str, t, amp) | (t, (str, amp)) <- strikes]
+eachAmpEachString strings amps dur =
+    [strike (str, t, amp) | (t, (str, amp)) <- strikes]
     where
-    strikes = zip ts [(str, amp) | str <- take 1 strings, amp <- amps]
+    strikes = zip ts [(str, amp) | str <- strings, amp <- amps]
     ts = iterate (+dur) 0
 
 -- Strike with the finger right below each fret.

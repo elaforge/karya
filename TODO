@@ -100,6 +100,26 @@ NESS:
       . However, with no frets and a more distant backboard, and touching with
         high force, I can get another pitch, which is presumably the string
         segment on the other side of the finger, which is a nice effect.
+    Bugs:
+      . Occasionally the guitar model renders the whole sequence with
+        a high-pitched whine.  E.g. ness-data/whine-1
+
+    - Pitch bend for tuned patches seems to be off.  Maybe the problem is that
+      the pitch gamut is not linear, but pitch bend is?
+      . Can I put the kontakt in 12tet?
+
+    - Make new kontakt samples for far backboard and mid backboard.
+    - Write melody from legong kraton for both, using roll and pitch bends.
+
+    try:
+      * Experiment with zheng-style bent-string.
+        . Interesting.  Not sure if I'll use it, but stopped-string leads to
+          interesting artifacts.
+      - Put +mute on the end of notes that don't touch the next one.  Do this
+        at the convert level so I can get the string right.
+      - Ornament for pipa style 4 note roll with collision at the end.
+        roll .1 .2 .3 .8
+      - Use gamakam notation.
 
     . Use legongGuitar, no frets.  Map pitch changes to finger positions.
       . First just that.  I can try the jawari fret stuff later.
@@ -116,7 +136,7 @@ NESS:
     Write a converter to NESS score.
       * Initial implementation.
       * Test on serialized notes.
-      - Implement +mute as a finger lift.
+      * Implement +mute as a finger lift.
         . Or try touching with low amplitude.
     * Test run for various backboard distances.
       . Where maxAmp=0.65, -0.0010 to -0.0020 to is a good range where 10 has
@@ -167,7 +187,7 @@ NESS:
     * Submit multiple instruments.
     * Mix the output automatically.
 
-    - Design instruments with frets at legong scale, umbang and isep.
+    * Design instruments with frets at legong scale, umbang and isep.
       . Have a string for each pitch?
 
       . There should be enough random variation to make each noticeably
