@@ -519,10 +519,9 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
     , dit.__4 . sarvaD 2 . theme . na.__
     , repeat 2 $ dit.__4 . sarvaD 2 . tri theme . na.__
 
-    , tri_ (tat.__4.tam.__8) (t1.t2.t3)
-        . sandi (t2.t3) (tri_ (tat.__4.tam.__8) (t2.t3))
-        . sandi t3      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t3))
-        . tat.__.tam
+    , sequence theme2
+    , sequence theme3
+    , sequence theme4
     -- (4 3 2) 2 4
     -- (4 3 2) 2 4
     -- (4 3 2) 2 4
@@ -538,9 +537,16 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
     --     (2) 1
     ]
     where
+    sequence t =
+        tri_ (tat.__4.tam.__8) (t1.t2.t3)
+        . sandi (t2.t3) (tri_ (tat.__4.tam.__8) (t2.t3))
+        . sandi t3      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t3))
+        . tat.__.tam
+        where [t1, t2, t3] = take 3 $ reduceToL 0 2 t
     theme = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
-    [t1, t2, t3] = take 3 $ reduceToL 0 2 theme2
     theme2 = na.__.na.__.na.dinga
+    theme3 = dhom.ka.dhom.ka.din.na . su kitataka
+    theme4 = taka.na.ka . su (kita.tarikita) . dhom
     mridangam = make_mridangam
         [ (na, [n])
         , (na.dinga, [n, d, p])
@@ -551,4 +557,14 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
         , (tat, [on])
         , (tam, [u])
         , (mid^tam, [i])
+
+        , (theme3, [o, k, o, k, o, n, k, t, o, k])
+        -- TODO sandi breaks groups, fix it and I can delete these
+        , (dhom.ka.din.na . su kitataka, [o, k, o, n, k, t, o, k])
+        , (din.na . su kitataka, [o, n, k, t, o, k])
+
+        , (theme4, [k, o, n, o, k, t, p, k, p, t, o])
+        -- TODO as above
+        , (na.ka . su (kita.tarikita) . dhom, [n, o, k, t, p, k, p, t, o])
+        , (su (kita.tarikita) . dhom, [k, t, p, k, p, t, o])
         ]
