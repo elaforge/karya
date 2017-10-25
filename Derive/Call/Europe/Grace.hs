@@ -289,7 +289,7 @@ c_roll = Derive.generator Module.europe "roll" Tags.ornament
     <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
     ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
-    Sub.inverting $ roll (times+1) time dyn_scale
+    Sub.inverting $ roll times time dyn_scale
 
 roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
@@ -297,11 +297,10 @@ roll times time dyn_scale args = do
     start <- Args.real_start args
     pitch <- Call.get_pitch start
     dyn <- Call.dynamic start
-    notes <- repeat_notes (Call.with_pitch pitch Call.note) times time 0 args
-    Sub.derive $ case Seq.viewr notes of
-        Just (graces, main) ->
-            map (fmap (Call.with_dynamic (dyn*dyn_scale))) graces ++ [main]
-        Nothing -> []
+    notes <- Seq.rdrop 1 <$> repeat_notes (Call.with_pitch pitch Call.note)
+        (times+1) time 0 args
+    Sub.derive (map (fmap (Call.with_dynamic (dyn*dyn_scale))) notes)
+        <> Call.placed_note args
 
 repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration
     -> Signal.Y -- ^ placement, 'grace_place_doc'
