@@ -36,9 +36,9 @@ loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])
 loadConvert b = convert Bali.instruments <$> load (blockFile b)
 
 blockFile :: String -> FilePath
-blockFile b = "im/ness-notes/untitled-" ++ b
+blockFile b = "im/ness-notes/ness-" ++ b
 
-printScore block = mapM_ (Text.IO.putStrLn . snd . Guitar.renderAll)
+printScore block = mapM_ (PPrint.pprint . snd)
     =<< either errorIO return =<< loadConvert block
 
 load :: FilePath -> IO [Note.Note]
@@ -85,21 +85,7 @@ convertNote instruments note = first ((pretty note <> ": ")<>) $ do
             (Guitar.iStrings inst)
     let muted = Attrs.contain (Note.attributes note) Attrs.mute
     -- Mute by touching lightly higher up on the string.
-    return $ if muted
-        then Note
-            { _instrument = inst
-            , _instrumentName = Note.instrument note
-            , _string = string
-            , _start = Note.start note
-            , _duration = Note.duration note
-            , _pitch = Signal.constant $
-                fromMaybe 0 (Signal.at (Note.start note) pitch)
-                    + Pitch.nn_to_double muteOffset
-            , _finger = Signal.constant 0.01
-            , _dynamic = 0
-            , _location = 0
-            }
-        else Note
+    let converted = Note
             { _instrument = inst
             , _instrumentName = Note.instrument note
             , _string = string
@@ -110,9 +96,21 @@ convertNote instruments note = first ((pretty note <> ": ")<>) $ do
             , _dynamic = dyn
             , _location = loc
             }
+    return $ if muted then muteNote (Note.start note) converted else converted
+
+muteNote :: RealTime.RealTime -> Note -> Note
+muteNote start note = note
+    { _start = start
+    , _pitch = Signal.constant $
+        fromMaybe 0 (Signal.at (_start note) (_pitch note))
+            + Pitch.nn_to_double muteOffset
+    , _finger = Signal.constant 0.01
+    , _dynamic = 0
+    , _location = 0
+    }
 
 muteOffset :: Pitch.NoteNumber
-muteOffset = 0.5
+muteOffset = 0.25
 
 data Note = Note {
     _instrument :: !Guitar.Instrument
@@ -149,6 +147,7 @@ collectFingers :: [Note]
 collectFingers =
     mapM collect . map (second (Seq.keyed_group_stable _string))
         . Seq.keyed_group_stable _instrument
+        -- TODO group on (Guitar.iName . _instrument)
     where
     collect (inst, stringNotes) = do
         (notes, fingers) <- unzip <$> mapM oneString stringNotes
@@ -181,24 +180,32 @@ collectFingers =
         }
     makeFinger string pitch finger = Guitar.Finger
         { fString = string
-        , fInitial = (0.01, 0)
-        , fMovement =
-            [ ( RealTime.to_seconds x
-              , Guitar.pitchLocation nn (Pitch.nn y)
-              , if Pitch.nns_equal (Pitch.nn y) nn then 0
-                else fromMaybe 0 (Signal.at x finger) * maxAmp
-              )
-            | (x, y) <- Signal.unsignal pitch
-            ]
+        , fInitial = (0, 0)
+        , fMovement = movement string (Signal.unsignal pitch) finger
         }
-        where nn = Guitar.sNn string
+    movement _ [] _ = []
+    movement string ((x0, y0) : pitch) finger =
+        position nn (x0-offset) y0 0
+        : position nn (x0-offset) y0 (fingerAt x0)
+        : [position nn x y (fingerAt x) | (x, y) <- pitch]
+        where
+        nn = Guitar.sNn string
+        fingerAt x = fromMaybe 0 $ Signal.at x finger
+    offset = 0.01
+    position stringNn x y amp =
+        ( RealTime.to_seconds x
+        , Guitar.pitchLocation stringNn (Pitch.nn y)
+        , if Pitch.nns_equal (Pitch.nn y) stringNn then 0 else amp * maxAmp
+        )
 
 findOverlaps :: [Note] -> [(Note, Note)]
 findOverlaps [] = []
 findOverlaps [_] = []
 findOverlaps (n1 : n2 : ns)
-    | _start n1 + _duration n1 > _start n2 = (n1, n2) : findOverlaps (n2 : ns)
+    | _start n1 + _duration n1 - eta > _start n2 =
+        (n1, n2) : findOverlaps (n2 : ns)
     | otherwise = findOverlaps (n2 : ns)
+    where eta = 0.001
 
 
 -- * util
