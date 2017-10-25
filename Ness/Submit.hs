@@ -29,13 +29,6 @@ loginUrl = "https://www.ease.ed.ac.uk/cosign.cgi"
 cookies :: FilePath
 cookies = "ness-data/cookies"
 
--- post
--- enctype="application/x-www-form-urlencoded"
---
--- login=qdunkan@gmail.com password=***
--- ref=https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiWebMain.html
--- service=cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk
-
 submitUrl :: Url
 submitUrl =
     "https://ness-frontend.epcc.ed.ac.uk/~pgraham/NUI/Web/nuiZCRemoteRunner.php"
@@ -67,9 +60,12 @@ printTime name action = do
     putStrLn $ name ++ ": " ++ show (end - start)
     return v
 
--- TODO I get a cosign=xyz cookie, and get "logged in but no access to service"
--- I should get a cosign-eucsCosign-ness-frontend etc.
--- is it ignoring the service= in the login?
+doLogin :: IO ()
+doLogin = do
+    [name, passwd] <- words <$> readFile "ness.login"
+    login name passwd
+
+-- | Login and put cookies in 'cookies'.
 login :: String -> String -> IO ()
 login user password = do
     -- go to loginForm, to get the cosign cookie
@@ -140,8 +136,7 @@ poll out url = do
         ]
     return $ exit == Exit.ExitSuccess
 
-type Error = String
-
+formatError :: Text -> Text -> Text -> String
 formatError dir text html = untxt $ Text.unlines
     [ "=== dir: " <> dir
     , Text.replace "/localdisk/home/pgraham/PaulJGraham/NUI/BackEnd/" "" $
@@ -154,7 +149,7 @@ formatError dir text html = untxt $ Text.unlines
 -- keys: ['runTextOutput', 'runMode', 'serverMixWav', runExitStatus: Int,
 -- serverError: Bool, 'serverResultDir', 'runEstRunTime', 'serverHtmlOutput']
 -- runTextOutput or serverHtmlOutput
-parseJson :: ByteString.Lazy.ByteString -> Either Error (Url, Double)
+parseJson :: ByteString.Lazy.ByteString -> Either String (Url, Double)
 parseJson json = do
     json <- justErr ("json: " <> show json) $ Aeson.decode json
     flip Aeson.Types.parseEither json $ \obj -> do
