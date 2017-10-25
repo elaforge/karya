@@ -48,12 +48,12 @@ test_string_select = do
     let run = run_string extract "bent-string 0 0 1"
         extract e = (DeriveTest.e_environ EnvKey.string e, e_nns e)
     equal (run $ UiTest.note_track [(0, 1, "4c")])
-        ([(Just "60nn", (0, [(0, NN.c4)]))], [])
+        ([(Just "'60nn'", (0, [(0, NN.c4)]))], [])
     equal (run $ UiTest.note_track [(0, 1, "4d")])
-        ([(Just "62nn", (0, [(0, NN.d4)]))], [])
+        ([(Just "'62nn'", (0, [(0, NN.d4)]))], [])
     -- The string is assigned based on the lowest pitch.
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4d"), (1, 0, "4c")])])
-        ([(Just "60nn", (0, [(0, NN.d4), (1, NN.c4)]))], [])
+        ([(Just "'60nn'", (0, [(0, NN.d4), (1, NN.c4)]))], [])
 
 
 -- TODO I have to test this ad-hoc per call until I figure out a better

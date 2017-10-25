@@ -151,7 +151,8 @@ string_idiom config = do
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
             Util.Map.lookup_below lowest (_open_strings config)
         return
-            ( Score.modify_environ (Env.insert_val EnvKey.string (fst string))
+            ( Score.modify_environ
+                (Env.insert_val EnvKey.string (ShowVal.show_val (fst string)))
                 event
             , string
             )

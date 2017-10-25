@@ -15,7 +15,6 @@ import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Im.Patch as Patch
@@ -70,7 +69,7 @@ convert_event event patch name = run $ do
 convert_element_key :: Patch.Patch -> Score.Event -> Maybe Text
 convert_element_key patch event = do
     key <- Patch.patch_element_key patch
-    ShowVal.show_val <$> Env.lookup key (Score.event_environ event)
+    Env.maybe_val key (Score.event_environ event)
 
 run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
 run = merge . Identity.runIdentity . Log.run
