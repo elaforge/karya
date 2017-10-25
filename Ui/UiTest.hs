@@ -374,8 +374,10 @@ remove_event = remove_event_in default_block_name
 --
 -- @(inst, [(t, dur, pitch)], [(control, [(t, val)])])@
 --
--- If the pitch looks like \"a -- b\" then \"a\" is the note track's event and
--- \"b\" is the pitch track's event.
+-- If the pitch looks like \"a -- 4c\" then \"a\" is the note track's event and
+-- \"4c\" is the pitch track's event.  If the pitch is missing, the empty
+-- pitch event is filtered out.  This doesn't happen for the note event since
+-- empty note event has a meaning.
 type NoteSpec = (Text, [EventSpec], [(Text, [(ScoreTime, Text)])])
 
 note_spec :: NoteSpec -> [TrackSpec]
@@ -387,13 +389,14 @@ note_spec (inst, pitches, controls) =
     where
     note_track = (">" <> inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
     pitch_track =
-        ("*", [(t, 0, s) | (t, _, (_, s)) <- track, not (Text.null s)])
+        ("*", [(t, 0, p) | (t, _, (_, p)) <- track, not (Text.null p)])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
     track = [(t, d, split s) | (t, d, s) <- pitches]
     split s
-        | "--" `Text.isInfixOf` s = let (pre, post) = TextUtil.split1 "--" s
-            in (Text.strip pre, Text.strip post)
+        | "--" `Text.isInfixOf` s = (note, pitch)
         | otherwise = ("", s)
+        where
+        (note, pitch) = (Text.strip *** Text.strip) $ TextUtil.split1 "--" s
 
 -- | Abbreviation for 'note_spec' where the inst and controls are empty.
 note_track :: [EventSpec] -> [TrackSpec]
