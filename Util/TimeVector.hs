@@ -365,6 +365,14 @@ drop_before x vec
     | otherwise = V.drop (V.length vec - 1) vec
     where i = highest_index x vec
 
+clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+clip_to x vec = case head clipped of
+    Nothing -> clipped
+    Just s
+        | sx s < x -> V.cons (s { sx = x}) (V.drop 1 clipped)
+        | otherwise -> clipped
+    where clipped = drop_before x vec
+
 -- | The reverse of 'drop_at_after': trim a signal's head up until, but not
 -- including, the given X.
 drop_before_strict :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
@@ -374,10 +382,12 @@ drop_before_strict x vec = V.drop (lowest_index x vec) vec
 drop_before_at :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before_at x = V.dropWhile ((<=x) . sx) . drop_before_strict x
 
--- | Return samples start <= t < end.  This is a combination of 'drop_before'
--- and 'drop_at_after'.
+-- | Return samples to set the value at start and until end.  This means
+-- samples start <= t < end, along with one < start if necessary to set
+-- the initial value, and the end sample if start == end.
 within :: V.Vector v (Sample y) => X -> X -> v (Sample y) -> v (Sample y)
-within start end = drop_at_after end . drop_before start
+within start end = (if start == end then drop_after end else drop_at_after end)
+    . drop_before start
 
 map_x :: V.Vector v (Sample y) => (X -> X) -> v (Sample y) -> v (Sample y)
 map_x f = V.map $ \(Sample x y) -> Sample (f x) y

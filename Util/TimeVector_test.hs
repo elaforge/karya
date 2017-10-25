@@ -56,13 +56,19 @@ test_descending = do
     equal (f 2) [(1, 1)]
     equal (f 1) []
 
+test_within = do
+    let f s e = unsignal . V.within s e . signal
+    equal (f 3 3 [(0, 0)]) [(0, 0)]
+    equal (f 3 3 [(0, 0), (3, 3), (4, 4)]) [(3, 3)]
 
 -- * transformation
 
-test_append_extend = do
-    let f s1 s2 = unsignal $ V.append_extend (signal s1) (signal s2)
-    equal (f [(0, 1)] [(4, 2)]) [(0, 1), (4, 1), (4, 2)]
-    equal (f [(0, 1), (1, 2)] [(1, 4)]) [(0, 1), (1, 2), (1, 4)]
+test_merge_right_extend = do
+    let f = unsignal . V.merge_right_extend . map signal
+    equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
+    equal (f [[(0, 1), (1, 2)], [(1, 4)]]) [(0, 1), (1, 2), (1, 4)]
+    -- The rightmost one wins.
+    equal (f [[(0, 0)], [(2, 2)], [(1, 1)]]) [(0, 0), (1, 0), (1, 1)]
 
 test_merge_right = do
     let f = unsignal . V.merge_right . map signal
@@ -149,8 +155,12 @@ test_drop_before = do
     equal (f 4 vec) [(4, 1)]
     equal (f 900 vec) [(4, 1)]
     equal (f 1 []) []
-
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1)]) [(1, 1), (2, 1)]
+
+test_clip_to = do
+    let f x = unsignal . V.clip_to x . signal
+    equal (f 1 [(0, 0), (1, 1), (2, 2)]) [(1, 1), (2, 2)]
+    equal (f 1.5 [(0, 0), (1, 1), (2, 2)]) [(1.5, 1), (2, 2)]
 
 test_drop_before_strict = do
     let f x = unsignal $ V.drop_before_strict x (signal [(2, 0), (4, 1)])
