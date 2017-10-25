@@ -1,8 +1,9 @@
 module Ness.Guitar.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Text.IO as Text.IO
+import qualified System.FilePath as FilePath
 
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -30,6 +31,7 @@ run :: String -> IO ()
 run block = do
     scores <- either errorIO return =<< loadConvert block
     Util.submitInstruments Guitar.renderAll "guitar-bali"
+        (FilePath.takeFileName (blockFile block))
         [(untxt $ Guitar.iName i, (i, s)) | (i, s) <- scores]
 
 loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])

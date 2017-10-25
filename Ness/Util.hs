@@ -48,9 +48,10 @@ submitMany render dir nameScores = do
     checkSubmits (scratchDir </> dir) names rendered
     return ()
 
-submitInstruments :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
+submitInstruments :: (score -> (Text, Text)) -> FilePath -> FilePath
+    -> [(FilePath, score)]
     -> IO ()
-submitInstruments render dir nameScores = do
+submitInstruments render dir blockName nameScores = do
     let (names, scores) = unzip nameScores
     let rendered = map render scores
     let fprint = fingerprint $ concat [[i, s] | (i, s) <- rendered]
@@ -59,6 +60,7 @@ submitInstruments render dir nameScores = do
         outs <- checkSubmits (scratchDir </> dir </> fprint) names rendered
         Sound.mix outs out
     putStrLn out
+    Directory.copyFile out ("im/cache" </> blockName ++ ".wav")
     play out
 
 checkSubmits :: FilePath -> [FilePath] -> [(Text, Text)] -> IO [FilePath]
@@ -79,8 +81,9 @@ findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
 submitOne :: String -> (Text, Text) -> IO ()
 submitOne model (instrument, score) = do
     let dir = scratchDir </> model </> dirFor instrument score
-    out <- ifM (Directory.doesDirectoryExist dir)
-        (putStrLn ("exists: " <> dir) >> return Nothing)
+        out = dir </> "out.wav"
+    out <- ifM (Directory.doesFileExist out)
+        (putStrLn ("exists: " <> out) >> return (Just out))
         (fst <$> submit instrument score dir)
     print out
     whenJust out play
