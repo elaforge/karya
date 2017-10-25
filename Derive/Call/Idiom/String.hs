@@ -7,6 +7,7 @@ module Derive.Call.Idiom.String where
 import qualified Data.Map as Map
 
 import qualified Util.Map
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
@@ -35,6 +36,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("bent-string", c_bent_string)
     , ("stopped-string", c_stopped_string)
+    , ("mute-end", c_mute_end)
     ]
 
 module_ :: Module.Module
@@ -214,3 +216,36 @@ merge_curve interpolate x0 y0 x1 y1 event = Score.set_pitch new_pitch event
     where
     curve = interpolate True x0 y0 x1 y1
     new_pitch = PSignal.append (Score.event_transformed_pitch event) curve
+
+
+-- * mute end
+
+c_mute_end :: Derive.Transformer Derive.Note
+c_mute_end = Derive.transformer module_ "mute-end"
+    (Tags.postproc <> Tags.inst)
+    ("Put a +mute note at the end of each note, unless there's another note on\
+    \ the same string. The " <> ShowVal.doc ring <> " attr suppresses this.")
+    $ Sig.callt (
+    Sig.required "threshold" "Mute if the string is free for this long."
+    ) $ \threshold _args deriver -> Ly.when_lilypond deriver $
+        Post.emap_ (mute_end threshold) . Post.nexts_by string_of <$> deriver
+    where
+    string_of :: Score.Event -> Maybe Text
+    string_of = Env.maybe_val EnvKey.string . Score.event_environ
+
+mute_end :: RealTime -> (Score.Event, [Score.Event]) -> [Score.Event]
+mute_end threshold (event, nexts)
+    | should_mute = [event, set_mute end event]
+    | otherwise = [event]
+    where
+    end = Score.event_end event
+    should_mute = not (Score.has_attribute ring event) && case nexts of
+        [] -> True
+        next : _ -> Score.event_start next - end > threshold
+
+ring :: Attrs.Attributes
+ring = Attrs.attr "ring"
+
+set_mute :: RealTime -> Score.Event -> Score.Event
+set_mute start event = Score.add_attributes Attrs.mute $
+    event { Score.event_start = start, Score.event_duration = 0 }

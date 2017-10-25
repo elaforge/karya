@@ -115,10 +115,11 @@ NESS:
       * Experiment with zheng-style bent-string.
         . Interesting.  Not sure if I'll use it, but stopped-string leads to
           interesting artifacts.
-      - Put +mute on the end of notes that don't touch the next one.  Do this
+      * Put +mute on the end of notes that don't touch the next one.  Do this
         at the convert level so I can get the string right.
-      - Ornament for pipa style 4 note roll with collision at the end.
+      / Ornament for pipa style 4 note roll with collision at the end.
         roll .1 .2 .3 .8
+        . There's already a 'roll' call.
       - Use gamakam notation.
 
     . Use legongGuitar, no frets.  Map pitch changes to finger positions.
