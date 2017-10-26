@@ -18,11 +18,14 @@ Util.Interactive {..} = Util.interactive "guitar" renderAll
 
 (notes, fingers) = sampleSet
 
+srate :: SamplingRate
+srate = 11000
+
+variations = Util.submitVariations srate renderAll "guitar"
+
 frets = [] -- legongFrets
 -- strings = [lowerString, lowString] -- guitar
 strings = Bali.legongStrings2
-
-lowSR = True
 
 testJawari = variations "jawari3" jawariVars
 jawariVars :: [(FilePath, [(Instrument, Score)])]
@@ -202,7 +205,6 @@ mkScore notes fingers = Score
 
 instrument = Instrument
     { iName = "test"
-    , iSR = if lowSR then 11000 else 44100
     , iStrings = strings
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)

@@ -27,10 +27,13 @@ maxAmp = 0.65
 
 type Error = Text
 
+srate :: SamplingRate
+srate = 11000
+
 run :: String -> IO ()
 run block = do
     scores <- either errorIO return =<< loadConvert block
-    Util.submitInstruments Guitar.renderAll "guitar-bali"
+    Util.submitInstruments Guitar.renderAll srate "guitar-bali"
         (FilePath.takeFileName (blockFile block))
         [(untxt $ Guitar.iName i, (i, s)) | (i, s) <- scores]
 
@@ -40,6 +43,7 @@ loadConvert b = convert Bali.instruments <$> load (blockFile b)
 blockFile :: String -> FilePath
 blockFile b = "im/ness-notes/ness-" ++ b
 
+printScore :: String -> IO ()
 printScore block = mapM_ (PPrint.pprint . snd)
     =<< either errorIO return =<< loadConvert block
 

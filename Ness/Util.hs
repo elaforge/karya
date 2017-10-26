@@ -21,6 +21,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import Global
+import Ness.Global (SamplingRate)
 import qualified Ness.Sound as Sound
 import qualified Ness.Submit as Submit
 
@@ -31,29 +32,33 @@ scratchDir = "ness-data"
 concurrentSubmits :: Int
 concurrentSubmits = 10
 
-submitVariations :: (score -> (Text, Text)) -> String
-    -> FilePath -> [(FilePath, [score])] -> IO ()
-submitVariations render model baseDir variations =
-    submitMany render (model </> baseDir)
+defaultSR :: SamplingRate
+defaultSR = 11000
+
+type Render score = SamplingRate -> score -> (Text, Text)
+
+submitVariations :: SamplingRate -> Render score -> String -> FilePath
+    -> [(FilePath, [score])] -> IO ()
+submitVariations sr render model baseDir variations =
+    submitMany sr render (model </> baseDir)
         [ (name </> zeroPad 3 idx, score)
         | (name, scores) <- variations
         , (idx, score) <- zip [0..] scores
         ]
 
-submitMany :: (score -> (Text, Text)) -> FilePath -> [(FilePath, score)]
+submitMany :: SamplingRate -> Render score -> FilePath -> [(FilePath, score)]
     -> IO ()
-submitMany render dir nameScores = do
+submitMany sr render dir nameScores = do
     let (names, scores) = unzip nameScores
-    let rendered = map render scores
+    let rendered = map (render sr) scores
     checkSubmits (scratchDir </> dir) names rendered
     return ()
 
-submitInstruments :: (score -> (Text, Text)) -> FilePath -> FilePath
-    -> [(FilePath, score)]
-    -> IO ()
-submitInstruments render dir blockName nameScores = do
+submitInstruments :: Render score -> SamplingRate -> FilePath -> FilePath
+    -> [(FilePath, score)] -> IO ()
+submitInstruments render sr dir blockName nameScores = do
     let (names, scores) = unzip nameScores
-    let rendered = map render scores
+    let rendered = map (render sr) scores
     let fprint = fingerprint $ concat [[i, s] | (i, s) <- rendered]
     let out = scratchDir </> dir </> fprint </> "out.wav"
     unlessM (Directory.doesFileExist out) $ do
@@ -117,13 +122,13 @@ fingerprint texts =
 
 data Interactive score = Interactive {
     r :: IO ()
-    , variations :: FilePath -> [(FilePath, [score])] -> IO ()
+    , rsr :: SamplingRate -> IO ()
     }
 
-interactive :: String -> (score -> (Text, Text)) -> score -> Interactive score
+interactive :: String -> Render score -> score -> Interactive score
 interactive model render score = Interactive
-    { r = submitOne model (render score)
-    , variations = submitVariations render model
+    { r = submitOne model (render defaultSR score)
+    , rsr = \sr -> submitOne model (render sr score)
     }
 
 forConcurrent :: Int -> [a] -> (a -> IO b) -> IO [b]

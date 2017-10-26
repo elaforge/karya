@@ -18,9 +18,9 @@ silk    = Material 1300   200e9 -- spider silk: 40--280 GPa as strain increases
 
 -- 3k, 6m, 9g, 12t
 
-renderAll :: (Instrument, Score) -> (Text, Text)
-renderAll (instrument, score) =
-    (renderInstrument instrument, renderScore (iStrings instrument) score)
+renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
+renderAll sr (instrument, score) =
+    (renderInstrument sr instrument, renderScore (iStrings instrument) score)
 
 -- * Instrument
 
@@ -168,7 +168,6 @@ renderConnections = array2 "ssconnect_def" . map list
 
 data Instrument = Instrument {
     iName :: Text
-    , iSR :: Int
     , iStrings :: [String]
     , iFrets :: [Fret]
     , iBarrier :: Barrier
@@ -179,8 +178,8 @@ data Instrument = Instrument {
     , iConnections :: [Connection]
     } deriving (Eq, Show)
 
-renderInstrument :: Instrument -> Text
-renderInstrument (Instrument name sr strings frets barrier backboard
+renderInstrument :: SamplingRate -> Instrument -> Text
+renderInstrument sr (Instrument name strings frets barrier backboard
         fingerParams normalizeOutputs solver connections) = Text.unlines
     [ "% gtversion 1.0"
     , "% name: " <> name

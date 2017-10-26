@@ -8,9 +8,9 @@ import Global
 import Ness.Global
 
 
-renderAll :: (Instrument, Score) -> (Text, Text)
-renderAll (instrument, score) =
-    (renderInstrument instrument, renderScore stringNameOf score)
+renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
+renderAll sr (instrument, score) =
+    (renderInstrument sr instrument, renderScore stringNameOf score)
     where
     stringNameOf str =
         Map.findWithDefault (error $ "no string: " <> show str) str m
@@ -28,10 +28,10 @@ data Instrument = Instrument {
     , iCollision :: Collision
     } deriving (Eq, Show)
 
-renderInstrument :: Instrument -> Text
-renderInstrument (Instrument strings plate collision) = Text.unlines $ concat
+renderInstrument :: SamplingRate -> Instrument -> Text
+renderInstrument sr (Instrument strings plate collision) = Text.unlines $ concat
     [ [ "# sbversion 0.1"
-      , "samplerate 44100"
+      , "samplerate " <> render sr
       ]
     , map (uncurry renderString) nameStrings
     , [ render plate, render collision ]

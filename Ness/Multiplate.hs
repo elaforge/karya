@@ -7,9 +7,9 @@ import Global
 import Ness.Global
 
 
-renderAll :: (Instrument, Score) -> (Text, Text)
-renderAll (instrument, score) =
-    (renderInstrument instrument, renderScore plateNameOf score)
+renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
+renderAll sr (instrument, score) =
+    (renderInstrument sr instrument, renderScore plateNameOf score)
     where
     plateNameOf p = Map.findWithDefault (error $ "no plate: " <> show p) p m
         where
@@ -26,11 +26,11 @@ data Instrument = Instrument {
     , iDrumshells :: [Drumshell]
     } deriving (Eq, Show)
 
-renderInstrument :: Instrument -> Text
-renderInstrument (Instrument normalize airbox plates membranes drumshells) =
+renderInstrument :: SamplingRate -> Instrument -> Text
+renderInstrument sr (Instrument normalize airbox plates membranes drumshells) =
     Text.unlines $ concat
         [ [ "# mpversion 0.1"
-          , "samplerate 44100"
+          , "samplerate " <> render sr
           , "normalise_outs " <> render normalize
           , render airbox
           ]

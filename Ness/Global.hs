@@ -4,6 +4,8 @@ import qualified Data.Text as Text
 import Global
 
 
+type SamplingRate = Int
+
 class Render a where
     render :: a -> Text
 

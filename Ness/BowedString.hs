@@ -15,9 +15,9 @@ instr_numb (scalar) specifies which of the preset instruments to use. Valid
 values are 1-5 for violins, 1-2 for violas and 1-3 for cellos.
 -}
 
-renderAll :: (Instrument, Score) -> (Text, Text)
-renderAll (instrument, score) =
-    (render instrument, renderScore indexOf score)
+renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
+renderAll sr (instrument, score) =
+    (renderInstrument sr instrument, renderScore indexOf score)
     where
     indexOf str = Map.findWithDefault (error $ "no string: " <> show str)
         str strings
@@ -33,15 +33,15 @@ data Instrument = Instrument {
     , iFinger :: Finger
     } deriving (Eq, Show)
 
-instance Render Instrument where
-    render (Instrument normalize strings bow finger) = Text.unlines $
-        [ "% bsversion 1.0"
-        , "Fs = 44100;"
-        , scalar "normalize_outs" normalize
-        , renderStrings strings
-        , render bow
-        , render finger
-        ]
+renderInstrument :: SamplingRate -> Instrument -> Text
+renderInstrument sr (Instrument normalize strings bow finger) = Text.unlines $
+    [ "% bsversion 1.0"
+    , scalar "Fs" sr
+    , scalar "normalize_outs" normalize
+    , renderStrings strings
+    , render bow
+    , render finger
+    ]
 
 {- | strings (array of structs) can be used to specify all the string
     parameters manually instead of using a preset instrument. Each string has

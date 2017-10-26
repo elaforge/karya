@@ -12,8 +12,6 @@ import Ness.Guitar
 import qualified Ness.Util as Util
 
 
-lowSR = True
-
 -- | TODO separate instruments with different parameters
 instruments :: Map Text Instrument
 instruments = Map.fromList
@@ -27,7 +25,6 @@ sangsih = instrument "sangsih" (-0.0013) legongStrings2
 
 instrument name backboard strings = Instrument
     { iName = name
-    , iSR = if lowSR then 11000 else 44100
     , iStrings = strings
     , iFrets = [] -- frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
@@ -192,7 +189,6 @@ score0 = Score
 
 instrument0 = Instrument
     { iName = "i0"
-    , iSR = 44100
     , iStrings = strings
     , iFrets = frets
     , iBarrier = Barrier 1e10 1.3 10 (Solver 20 1e-12)
