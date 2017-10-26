@@ -11,6 +11,7 @@ module Ui.UiConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
@@ -105,17 +106,43 @@ empty_config = Config
 -- lens, but there is still uncontrolled access through 'State.modify_config'.
 -- On the other hand, it might not really matter, and I do use unchecked
 -- modification when the backend doesn't change.
-allocate :: Inst.Backend -- ^ This should correspond to the 'alloc_qualified'.
+allocate :: Inst.Backend -- ^ This should the result of looking up
+    -- 'alloc_qualified' in the instrument db.
     -> Score.Instrument -> Allocation -> Allocations
     -> Either Text Allocations
 allocate backend instrument alloc (Allocations allocs) =
-    maybe (Right inserted) Left $ verify_allocation backend instrument alloc
+    maybe (Right inserted) Left $
+        verify_allocation (Allocations allocs) backend instrument alloc
     where inserted = Allocations $ Map.insert instrument alloc allocs
 
-verify_allocation :: Inst.Backend -> Score.Instrument -> Allocation
-    -> Maybe Text
-verify_allocation backend instrument alloc =
-    fmap (prefix<>) $ case (alloc_backend alloc, backend) of
+verify_allocation :: Allocations -> Inst.Backend -> Score.Instrument
+    -> Allocation -> Maybe Text
+verify_allocation allocs backend instrument alloc =
+    fmap (prefix<>) $ verify_backends_match backend alloc
+        <|> verify_no_overlapping_addrs allocs alloc
+    where
+    prefix = pretty instrument <> " from " <> pretty qualified <> ": "
+    qualified = alloc_qualified alloc
+
+verify_no_overlapping_addrs :: Allocations -> Allocation -> Maybe Text
+verify_no_overlapping_addrs (Allocations allocs) alloc
+    | null overlaps = Nothing
+    | otherwise = Just $ "instruments with overlapping channel allocations: "
+        <> Text.intercalate ", " (map pretty overlaps)
+    where
+    new = Set.fromList (addrs_of alloc)
+    overlaps =
+        [ inst
+        | (inst, alloc) <- Map.toList allocs
+        , any (`Set.member` new) (addrs_of alloc)
+        ]
+    addrs_of alloc = case alloc_backend alloc of
+        Midi config -> map fst (Patch.config_allocation config)
+        _ -> []
+
+verify_backends_match :: Inst.Backend -> Allocation -> Maybe Text
+verify_backends_match backend alloc =
+    case (alloc_backend alloc, backend) of
         (Midi {}, Inst.Midi {}) -> Nothing
         (Im, Inst.Im {}) -> Nothing
         -- I can make any patch into a dummy allocation by tossing the
@@ -127,8 +154,6 @@ verify_allocation backend instrument alloc =
         (_, backend) -> Just $ "allocation type " <> allocation_type
             <> " /= instrument type " <> backend_type backend
     where
-    qualified = alloc_qualified alloc
-    prefix = pretty instrument <> " from " <> pretty qualified <> ": "
     allocation_type = case alloc_backend alloc of
         Midi {} -> "midi"
         Im -> "im"

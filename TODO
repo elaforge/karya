@@ -220,7 +220,7 @@ NESS:
 
 UNSORTED
   - visualize module dependencies: https://github.com/yav/graphmod
-  - I got confused when LInst.add_play_cache was assigned to the same channel
+  * I got confused when LInst.add_play_cache was assigned to the same channel
     as a real instrument.  There should be a warning when different
     instruments have the same address.
   - Pitch bend doesn't work right on a MIDI instrument with patch scale.
@@ -260,6 +260,8 @@ UNSORTED
       fix the problem where Signal.constant uses [(0, y)]... but then it
       doesn't work right at <0.  Or Signal.constant could use -big_x.
   - lily in complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
+    . Probably to do with lily in general being broken after the explicit rent
+      refactor.
   * Move string assignment to karya.  This is a general purpose thing.
     . What about stopped-string?
     . It doesn't emit the chosen string, but it could?
