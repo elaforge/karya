@@ -6,6 +6,7 @@
 module Cmd.Instrument.MidiInst (
     Synth, synth
     -- * code
+    , make_code
     , Code(..), Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, val_calls

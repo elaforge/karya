@@ -202,6 +202,8 @@ NESS:
     awkward, because then I can't rename it in the score for convenience.
     I should use the qualified name, which is fine if I derive that from the
     ness source.
+  - Integrate Guitar.Convert and Multiplate.Convert so they can be mixed
+    together.
 
   gong:
     - Find 3 gongs and make samples for them.
