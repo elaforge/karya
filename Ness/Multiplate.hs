@@ -1,5 +1,5 @@
 module Ness.Multiplate where
-import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -9,46 +9,50 @@ import Ness.Global
 
 renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
 renderAll sr (instrument, score) =
-    (renderInstrument sr instrument, renderScore plateNameOf score)
+    (renderInstrument sr instrument, render score)
+
+verify :: Instrument -> Score -> [Text]
+verify instrument score =
+    map ("duplicate object name: "<>) duplicates
+        ++ mapMaybe strike (sStrikes score)
     where
-    plateNameOf p = Map.findWithDefault (error $ "no plate: " <> show p) p m
-        where
-        m = Map.fromList $ map (second plateName) $
-            zip (iPlates instrument) [1..]
+    (objects, duplicates) =
+        (Set.fromList *** map fst) $ Seq.partition_dups id (iObjects instrument)
+    strike s
+        | sObject s `Set.notMember` objects =
+            Just $ "strike at " <> pretty (sStart s) <> ": unknown object "
+                <> sObject s
+        | otherwise = Nothing
 
 -- * instrument
 
 data Instrument = Instrument {
-    iNormalize :: Bool
+    iName :: Text
+    , iNormalize :: Bool
     , iAirbox :: Airbox
     , iPlates :: [Plate]
     , iMembranes :: [Membrane]
     , iDrumshells :: [Drumshell]
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
+
+iObjects :: Instrument -> [Text]
+iObjects i = map pName (iPlates i) ++ map mName (iMembranes i)
 
 renderInstrument :: SamplingRate -> Instrument -> Text
-renderInstrument sr (Instrument normalize airbox plates membranes drumshells) =
+renderInstrument sr
+        (Instrument _ normalize airbox plates membranes drumshells) =
     Text.unlines $ concat
         [ [ "# mpversion 0.1"
           , "samplerate " <> render sr
           , "normalise_outs " <> render normalize
           , render airbox
           ]
-        , renderPlates namePlates
+        , map render plates
         , map render (aOutputs airbox)
-        , renderPlateOutputs namePlates
-        , renderMembranes nameMembranes
-        , renderDrumshells nameDrumshells
+        , renderPlateOutputs plates
+        , map render membranes
+        , map render drumshells
         ]
-    where
-    namePlates = map (first plateName) $ zip [1..] plates
-    nameMembranes = map (first membraneName) $ zip [1..] membranes
-    nameDrumshells = map (first drumshellName) $ zip [1..] drumshells
-
-plateName, membraneName, drumshellName :: Int -> Text
-plateName i = "plate" <> showt i
-membraneName i = "membrane" <> showt i
-drumshellName i = "drumshell" <> showt i
 
 {- | • airbox defines the dimensions and other parameters of the airbox.
     Parameters are the width, the depth, the height, c_a and rho_a. Only one
@@ -58,7 +62,7 @@ data Airbox = Airbox {
     aWidth, aDepth, aHeight :: Meters
     , aC_a, aRho_a :: Double
     , aOutputs :: [AirboxOutput]
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Render Airbox where
     render = Text.unwords . ("airbox":) . map render . list
@@ -69,7 +73,8 @@ instance Render Airbox where
 {- | • airbox output defines an output taken from within the airbox. The
     parameters are its X, Y and Z position.
 -}
-data AirboxOutput = AirboxOutput { aoX, aoY, aoZ :: Meters } deriving (Eq, Show)
+data AirboxOutput = AirboxOutput { aoX, aoY, aoZ :: Meters }
+    deriving (Eq, Ord, Show)
 
 instance Render AirboxOutput where
     render = Text.unwords . ("airbox_output":) . map render . list
@@ -81,20 +86,19 @@ instance Render AirboxOutput where
     size Y, centre X, centre Y, centre Z, rho, H, E, nu, T60, sig1.
 -}
 data Plate = Plate {
-    pSize :: (Meters, Meters)
+    pName :: Text
+    , pSize :: (Meters, Meters)
     , pCenter :: (Meters, Meters, Meters)
     , pMaterial :: Material
     , pOutputs :: [PlateOutput]
     } deriving (Eq, Ord, Show)
 
-renderPlates :: [(Text, Plate)] -> [Text]
-renderPlates namePlates =
-    [ Text.unwords $ "plate" : name : map render (list plate)
-    | (name, plate) <- namePlates
-    ]
-    where
-    list (Plate (sx, sy) (cx, cy, cz) (Material rho h e nu t60 sig1) _) =
-        [sx, sy, cx, cy, cz, rho, h, e, nu, t60, sig1]
+instance Render Plate where
+    render plate =
+        Text.unwords $ "plate" : pName plate : map render (list plate)
+        where
+        list (Plate _ (sx, sy) (cx, cy, cz) (Material rho h e nu t60 sig1) _) =
+            [sx, sy, cx, cy, cz, rho, h, e, nu, t60, sig1]
 
 data Material = Material {
     mRho, mH, mE, mNu, mT60, mSig1 :: Double
@@ -106,11 +110,11 @@ data Material = Material {
 -}
 data PlateOutput = PlateOutput { poX, poY :: Meters } deriving (Eq, Ord, Show)
 
-renderPlateOutputs :: [(Text, Plate)] -> [Text]
-renderPlateOutputs namePlates =
-    [ Text.unwords ["plate_output", name, render x, render y]
-    | (name, p) <- namePlates
-    , PlateOutput x y <- pOutputs p
+renderPlateOutputs :: [Plate] -> [Text]
+renderPlateOutputs plates =
+    [ Text.unwords ["plate_output", pName plate, render x, render y]
+    | plate <- plates
+    , PlateOutput x y <- pOutputs plate
     ]
 
 {- | • membrane defines a circular drum membrane within the airbox. The first
@@ -120,20 +124,18 @@ renderPlateOutputs namePlates =
     T60 and sig1.
 -}
 data Membrane = Membrane {
-    mRadius :: Meters
+    mName :: Text
+    , mRadius :: Meters
     , mCenter :: (Meters, Meters, Meters)
     , mMaterial :: Material
     , mT :: Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
-renderMembranes :: [(Text, Membrane)] -> [Text]
-renderMembranes nameMembranes =
-    [ Text.unwords $ "membrane" : name : map render (list membrane)
-    | (name, membrane) <- nameMembranes
-    ]
-    where
-    list (Membrane radius (cx, cy, cz) (Material rho h e nu t60 sig1) t) =
-        [radius, cx, cy, cz, rho, h, t, e, nu, t60, sig1]
+instance Render Membrane where
+    render m = Text.unwords $ "membrane" : mName m : map render (list m)
+        where
+        list (Membrane _ radius (cx, cy, cz) (Material rho h e nu t60 sig1) t) =
+            [radius, cx, cy, cz, rho, h, t, e, nu, t60, sig1]
 
 {- | • drumshell defines a cylindrical drum shell that acts as a barrier within
     the airbox. The first parameter is a name for the drum shell which must be
@@ -141,19 +143,18 @@ renderMembranes nameMembranes =
     radius and shell height.
 -}
 data Drumshell = Drumshell {
-    dCenter :: (Meters, Meters)
+    dName :: Text
+    , dCenter :: (Meters, Meters)
     , dBottomZ :: Meters
     , dRadius :: Meters
     , dHeight :: Meters
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
-renderDrumshells :: [(Text, Drumshell)] -> [Text]
-renderDrumshells nameDrumshells =
-    [ Text.unwords $ "drumshell" : name : map render (list drumshell)
-    | (name, drumshell) <- nameDrumshells
-    ]
-    where
-    list (Drumshell (cx, cy) bz radius height) = [cx, cy, bz, radius, height]
+instance Render Drumshell where
+    render d = Text.unwords $ "drumshell" : dName d : map render (list d)
+        where
+        list (Drumshell _ (cx, cy) bz radius height) =
+            [cx, cy, bz, radius, height]
 
 {- |
     • bassdrum defines a bass drum embedded in an airbox. This is just
@@ -172,13 +173,13 @@ data Score = Score {
     , sStrikes :: [Strike]
     } deriving (Eq, Show)
 
-renderScore :: (Plate -> Text) -> Score -> Text
-renderScore plateNameOf (Score decay strikes) = Text.unlines $
-    "duration " <> render (end + decay)
-    : map (renderStrike plateNameOf) strikes
-    where
-    end = fromMaybe 0 $ Seq.maximum $ map sStart strikes
+instance Render Score where
+    render (Score decay strikes) = Text.unlines $
+        "duration " <> render (end + decay) : map render strikes
+        where
+        end = fromMaybe 0 $ Seq.maximum $ map sStart strikes
 
+-- | Probably Newtons?
 type Force = Double
 
 {- | The first parameter of a strike is the start time. The other parameters
@@ -186,15 +187,15 @@ type Force = Double
     and the maximum force. The position values are normalised to the range 0-1.
 -}
 data Strike = Strike {
-    sPlate :: Plate
+    sObject :: Text
     , sStart :: Seconds
     , sDuration :: Seconds
     , sPosition :: (Meters, Meters)
     , sForce :: Force
     } deriving (Eq, Show)
 
-renderStrike :: (Plate -> Text) -> Strike -> Text
-renderStrike plateNameOf (Strike plate start dur (x, y) force) = Text.unwords
-    [ "strike", render start, plateNameOf plate, render x, render y
-    , render dur, render force
-    ]
+instance Render Strike where
+    render (Strike name start dur (x, y) force) = Text.unwords
+        [ "strike", render start, name, render x, render y
+        , render dur, render force
+        ]
