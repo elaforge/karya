@@ -17,6 +17,13 @@ import qualified Util.Thread as Thread
 import Global
 
 
+-- * login
+
+doLogin :: IO ()
+doLogin = do
+    [name, passwd] <- words <$> readFile "ness.login"
+    login name passwd
+
 loginForm :: Url
 -- loginForm = "https://www.ease.ed.ac.uk/"
 loginForm = "https://www.ease.ed.ac.uk/\
@@ -28,6 +35,35 @@ loginUrl = "https://www.ease.ed.ac.uk/cosign.cgi"
 
 cookies :: FilePath
 cookies = "ness-data/cookies"
+
+-- | Login and put cookies in 'cookies'.
+login :: String -> String -> IO ()
+login user password = do
+    -- go to loginForm, to get the cosign cookie
+    Process.callProcess "curl"
+        [ "--cookie-jar", cookies
+        , "--output", "ness-data/curl.loginForm"
+        , loginForm
+        ]
+    let values =
+            [ ("ref", "https://ness-frontend.epcc.ed.ac.uk/\
+                \~pgraham/NUI/Web/nuiWebMain.html")
+            , ("service", "cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk")
+            , ("login", user)
+            , ("password", password)
+            ]
+    Process.callProcess "curl" $
+        [ "--insecure"
+        , "--verbose"
+        , "--cookie", cookies
+        , "--cookie-jar", cookies
+        , "--output", "ness-data/curl.login"
+        -- follow the location response to pick up the next cookie
+        , "--location"
+        ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
+        ++ [loginUrl]
+
+-- * submit
 
 submitUrl :: Url
 submitUrl =
@@ -59,38 +95,6 @@ printTime name action = do
     end <- Clock.POSIX.getPOSIXTime
     putStrLn $ name ++ ": " ++ show (end - start)
     return v
-
-doLogin :: IO ()
-doLogin = do
-    [name, passwd] <- words <$> readFile "ness.login"
-    login name passwd
-
--- | Login and put cookies in 'cookies'.
-login :: String -> String -> IO ()
-login user password = do
-    -- go to loginForm, to get the cosign cookie
-    Process.callProcess "curl"
-        [ "--cookie-jar", cookies
-        , "--output", "ness-data/curl.loginForm"
-        , loginForm
-        ]
-    let values =
-            [ ("ref", "https://ness-frontend.epcc.ed.ac.uk/\
-                \~pgraham/NUI/Web/nuiWebMain.html")
-            , ("service", "cosign-eucsCosign-ness-frontend.epcc.ed.ac.uk")
-            , ("login", user)
-            , ("password", password)
-            ]
-    Process.callProcess "curl" $
-        [ "--insecure"
-        , "--verbose"
-        , "--cookie", cookies
-        , "--cookie-jar", cookies
-        , "--output", "ness-data/curl.login"
-        -- follow the location response to pick up the next cookie
-        , "--location"
-        ] ++ concat [["--data-raw", k <> "=" <> v] | (k, v) <- values]
-        ++ [loginUrl]
 
 submit :: Bool -> FilePath -> FilePath -> IO (Url, Double)
     -- ^ (urlWithResult, estimatedTime)

@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Ness.MultiplateScore where
+module Ness.Multiplate.Score where
 import Ness.Global
 import Ness.Multiplate
 import qualified Ness.Util as Util
