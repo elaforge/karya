@@ -1,20 +1,25 @@
 {-# LANGUAGE RecordWildCards #-}
-module Ness.Guitar.Bali where
+module Ness.Guitar.Patch where
 import Prelude hiding (String)
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Shared.Control as Control
 import Global
 import Ness.Global
 import Ness.Guitar
-import qualified Ness.Util as Util
 
 
--- | TODO separate instruments with different parameters
-instruments :: Map Text Instrument
-instruments = Map.fromList
+c_location :: Control.Control
+c_location = "location"
+
+c_finger :: Control.Control
+c_finger = "finger"
+
+patches :: Map Text Instrument
+patches = Map.fromList $ map (first ("guitar-"<>))
     [ ("polos",     polos)
     , ("sangsih",   sangsih)
     , ("g12",       instrument "guitar12" (-0.0020) guitarStrings)
@@ -22,6 +27,8 @@ instruments = Map.fromList
 
 polos = instrument "polos" (-0.0017) legongStrings
 sangsih = instrument "sangsih" (-0.0013) legongStrings2
+
+-- * implementation
 
 instrument name backboard strings = Instrument
     { iName = name
@@ -131,12 +138,6 @@ outputsAt pan = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
 
 (notes, fingers) = (take 1 eachString, take 1 slide_each_string)
 
--- (notes, fingers) =
---     (same_string, [eachPitch (head strings) 0.5 (head scale) scale])
-
-same_string = take (length scale)
-    [note (head strings) t 0.25 | t <- iterate (+0.5) 0]
-
 eachString = [note str t 0.65 | (str, t) <- zip strings (iterate (+2) 0)]
 
 rolledStrings =
@@ -243,6 +244,3 @@ legong = map Pitch.nn
 
     , 84.46  -- 6i, rambat end, pemade end
     ]
-
-Util.Interactive {..} = Util.interactive "guitar-bali" renderAll
-    (instrument0, score0)

@@ -17,7 +17,7 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 import Ness.Global
 import qualified Ness.Guitar as Guitar
-import qualified Ness.Guitar.Bali as Bali
+import qualified Ness.Guitar.Patch as Patch
 import qualified Ness.Util as Util
 
 
@@ -38,7 +38,7 @@ run block = do
         [(untxt $ Guitar.iName i, (i, s)) | (i, s) <- scores]
 
 loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])
-loadConvert b = convert Bali.instruments <$> load (blockFile b)
+loadConvert b = convert Patch.patches <$> load (blockFile b)
 
 blockFile :: String -> FilePath
 blockFile b = "im/ness-notes/ness-" ++ b
@@ -66,9 +66,9 @@ load fname = either (errorIO . pretty) return =<< Note.unserialize fname
 -}
 convert :: Map Text Guitar.Instrument -> [Note.Note]
     -> Either Error [(Guitar.Instrument, Guitar.Score)]
-convert instruments =
+convert patches =
     fmap (map (second (uncurry makeScore))) . collectFingers
-        <=< mapM (convertNote instruments)
+        <=< mapM (convertNote patches)
 
 makeScore :: [Guitar.Note] -> [Guitar.Finger] -> Guitar.Score
 makeScore notes fingers = Guitar.Score
@@ -79,13 +79,14 @@ makeScore notes fingers = Guitar.Score
     }
 
 convertNote :: Map Text Guitar.Instrument -> Note.Note -> Either Error Note
-convertNote instruments note = first ((pretty note <> ": ")<>) $ do
-    inst <- tryJust "no instrument" $
-        Map.lookup (Note.instrument note) instruments
+convertNote patches note = first ((pretty note <> ": ")<>) $ do
+    inst <- tryJust "no patch" $
+        Map.lookup (Note.patch note) patches
     pitch <- tryJust "no pitch" $ Map.lookup Control.pitch $ Note.controls note
-    finger <- tryJust "no finger" $ Map.lookup "finger" $ Note.controls note
+    finger <- tryJust "no finger" $
+        Map.lookup Patch.c_finger $ Note.controls note
     dyn <- tryJust "no amp" $ Note.initialControl Control.dynamic note
-    loc <- tryJust "no location" $ Note.initialControl "location" note
+    loc <- tryJust "no location" $ Note.initialControl Patch.c_location note
     string <- tryJust ("no string: " <> Note.element note) $
         List.find ((== Note.element note) . pretty . Guitar.sNn)
             (Guitar.iStrings inst)

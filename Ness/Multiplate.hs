@@ -177,7 +177,7 @@ renderScore plateNameOf (Score decay strikes) = Text.unlines $
     "duration " <> render (end + decay)
     : map (renderStrike plateNameOf) strikes
     where
-    end = fromMaybe 0 $ Seq.maximum $ map sEnd strikes
+    end = fromMaybe 0 $ Seq.maximum $ map sStart strikes
 
 type Force = Double
 
@@ -192,9 +192,6 @@ data Strike = Strike {
     , sPosition :: (Meters, Meters)
     , sForce :: Force
     } deriving (Eq, Show)
-
-sEnd :: Strike -> Seconds
-sEnd s = sStart s + sDuration s
 
 renderStrike :: (Plate -> Text) -> Strike -> Text
 renderStrike plateNameOf (Strike plate start dur (x, y) force) = Text.unwords

@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+-- | For interactive experimentation.
 module Ness.Guitar.Score where
 import Prelude hiding (String)
 
@@ -8,12 +9,12 @@ import qualified Perform.Pitch as Pitch
 import Global
 import Ness.Global
 import Ness.Guitar
-import qualified Ness.Guitar.Bali as Bali
+import qualified Ness.Guitar.Patch as Patch
 import qualified Ness.Util as Util
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     -- (instrument, mkScore notes fingers)
-    (Bali.sangsih, mkScore notes fingers)
+    (Patch.sangsih, mkScore notes fingers)
 
 
 (notes, fingers) = sampleSet
@@ -25,7 +26,7 @@ variations = Util.submitVariations srate renderAll "guitar"
 
 frets = [] -- legongFrets
 -- strings = [lowerString, lowString] -- guitar
-strings = Bali.legongStrings2
+strings = Patch.legongStrings2
 
 testJawari = variations "jawari3" jawariVars
 jawariVars :: [(FilePath, [(Instrument, Score)])]

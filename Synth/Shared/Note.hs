@@ -24,12 +24,8 @@ import Global
 -- | High level representation of one note.  This will be converted into
 -- one or more 'Sample.Sample's.
 data Note = Note {
-    -- | The score-level identifier for the note's instrument.  This names
-    -- a particular instantiation of the 'patch', and corresponds to
-    -- 'Derive.ScoreTypes.Instrument'.
-    instrument :: !InstrumentName
     -- | Map this note to one of the synthesizer's patches.
-    , patch :: !PatchName
+    patch :: !PatchName
     -- | Address this note to a particular element within the patch.  What it
     -- is depends on the instrument.  For instance, it might the a particular
     -- string on a pipa.  The difference from 'attributes' is that each element
@@ -50,15 +46,14 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f g) =
-        put a *> put b *> put c *> put d *> put e *> put f *> put g
-    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+    put (Note a b c d e f) =
+        put a *> put b *> put c *> put d *> put e *> put f
+    get = Note <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Pretty Note where
-    format (Note inst patch element start dur controls attrs) =
+    format (Note patch element start dur controls attrs) =
         Pretty.record "Note"
-            [ ("instrument", Pretty.format inst)
-            , ("patch", Pretty.format patch)
+            [ ("patch", Pretty.format patch)
             , ("element", Pretty.format element)
             , ("start", Pretty.format start)
             , ("duration", Pretty.format dur)
@@ -66,10 +61,9 @@ instance Pretty Note where
             , ("attributes", Pretty.format attrs)
             ]
 
-note :: InstrumentName -> PatchName -> RealTime -> RealTime -> Note
-note inst patch start duration = Note
-    { instrument = inst
-    , patch = patch
+note :: PatchName -> RealTime -> RealTime -> Note
+note patch start duration = Note
+    { patch = patch
     , element = ""
     , start = start
     , duration = duration

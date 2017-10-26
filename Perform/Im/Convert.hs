@@ -54,8 +54,7 @@ convert_event event patch name = run $ do
         then Just . convert_signal <$> convert_pitch event
         else return Nothing
     return $ Note.Note
-        { instrument = ScoreTypes.instrument_name $ Score.event_instrument event
-        , patch = name
+        { patch = name
         , element = fromMaybe "" $ convert_element_key patch event
         , start = Score.event_start event
         , duration = Score.event_duration event
