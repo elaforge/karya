@@ -25,13 +25,13 @@ config = Config $ Map.fromList
     [ (samplerName, sampler)
     , (faustName, faust)
     , (nessName, Synth
-        { binary = "/bin/echo"
+        { binary = ""
         , notesDir = dataDir </> "ness-notes"
         })
     ]
 
 data Synth = Synth {
-    -- | Path to the binary.
+    -- | Path to the binary.  Don't run a binary if it's empty.
     binary :: !FilePath
     -- | Write serialized notes to this file.
     , notesDir :: !FilePath

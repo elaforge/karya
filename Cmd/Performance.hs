@@ -286,8 +286,9 @@ evaluate_im config lookup_inst block_id events
                 let notes = Shared.Config.notesDir config
                         </> Im.Play.block_filename block_id
                 Im.Convert.write lookup_inst notes events
-                return $ Just $
-                    Process.proc (Shared.Config.binary config) [notes]
+                let binary = Shared.Config.binary config
+                return $ if null binary then Nothing
+                    else Just $ Process.proc binary [notes]
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth <> " with "
                     <> showt (Vector.length events) <> " events"
