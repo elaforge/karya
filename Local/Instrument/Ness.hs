@@ -10,27 +10,30 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.Derive as Derive
 
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import Global
 import qualified Ness.Guitar.Patch as Guitar.Patch
+import qualified Ness.Instruments as Instruments
 import qualified Ness.Multiplate as Multiplate
 import qualified Ness.Multiplate.Patch as Multiplate.Patch
 
 
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl Config.nessName
-    "Write notes to a file, to submit to NESS by hand." $ concat
-    [ map (,guitar) (Map.keys Guitar.Patch.patches)
-    , map (second multiplate) $ Map.toList Multiplate.Patch.patches
-    ]
+    "Write notes to a file, to submit to NESS by hand." $
+    map make (Map.toList Instruments.instruments)
+
+make :: (name, Instruments.Instrument) -> (name, Inst.Inst Cmd.InstrumentCode)
+make (name, instrument) = (name,) $ case instrument of
+    Instruments.IGuitar _ -> guitar
+    Instruments.IMultiplate inst -> multiplate inst
 
 guitar :: Inst.Inst Cmd.InstrumentCode
 guitar = Inst.Inst (Inst.Im patch) (Common.common Cmd.empty_code)

@@ -1,13 +1,11 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Patch where
 import Prelude hiding (String)
-import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
-import Global
 import Ness.Global
 import Ness.Guitar
 
@@ -18,11 +16,10 @@ c_location = "location"
 c_finger :: Control.Control
 c_finger = "finger"
 
-patches :: Map Text Instrument
-patches = Map.fromList $ map (first ("guitar-"<>))
-    [ ("polos",     polos)
-    , ("sangsih",   sangsih)
-    , ("g12",       instrument "guitar12" (-0.0020) guitarStrings)
+instruments :: [Instrument]
+instruments =
+    [ polos, sangsih
+    , instrument "g12" (-0.0020) guitarStrings
     ]
 
 polos = instrument "polos" (-0.0017) legongStrings

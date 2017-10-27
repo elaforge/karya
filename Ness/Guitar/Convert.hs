@@ -1,12 +1,9 @@
 module Ness.Guitar.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified System.FilePath as FilePath
 
-import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -18,7 +15,6 @@ import Global
 import Ness.Global
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.Patch as Patch
-import qualified Ness.Util as Util
 
 
 -- | Scale dynamic=1 to this.
@@ -26,29 +22,6 @@ maxAmp :: Newtons
 maxAmp = 0.65
 
 type Error = Text
-
-srate :: SamplingRate
-srate = 11000
-
-run :: String -> IO ()
-run block = do
-    scores <- either errorIO return =<< loadConvert block
-    Util.submitInstruments Guitar.renderAll srate "guitar-bali"
-        (FilePath.takeFileName (blockFile block))
-        [(untxt $ Guitar.iName i, (i, s)) | (i, s) <- scores]
-
-loadConvert :: String -> IO (Either Error [(Guitar.Instrument, Guitar.Score)])
-loadConvert b = convert Patch.patches <$> load (blockFile b)
-
-blockFile :: String -> FilePath
-blockFile b = "im/ness-notes/ness-" ++ b
-
-printScore :: String -> IO ()
-printScore block = mapM_ (PPrint.pprint . snd)
-    =<< either errorIO return =<< loadConvert block
-
-load :: FilePath -> IO [Note.Note]
-load fname = either (errorIO . pretty) return =<< Note.unserialize fname
 
 {- | I want to do explicit damping like reyong, so ignore all durations, but
     treat a special +mute note.
@@ -64,11 +37,10 @@ load fname = either (errorIO . pretty) return =<< Note.unserialize fname
 
     How do I know which string for +mute?  Use the pitch as usual.
 -}
-convert :: Map Text Guitar.Instrument -> [Note.Note]
+convert :: [(Guitar.Instrument, Note.Note)]
     -> Either Error [(Guitar.Instrument, Guitar.Score)]
-convert patches =
-    fmap (map (second (uncurry makeScore))) . collectFingers
-        <=< mapM (convertNote patches)
+convert = fmap (map (second (uncurry makeScore))) . collectFingers
+    <=< mapM (uncurry convertNote)
 
 makeScore :: [Guitar.Note] -> [Guitar.Finger] -> Guitar.Score
 makeScore notes fingers = Guitar.Score
@@ -78,10 +50,8 @@ makeScore notes fingers = Guitar.Score
     , sFingers = fingers
     }
 
-convertNote :: Map Text Guitar.Instrument -> Note.Note -> Either Error Note
-convertNote patches note = first ((pretty note <> ": ")<>) $ do
-    inst <- tryJust "no patch" $
-        Map.lookup (Note.patch note) patches
+convertNote :: Guitar.Instrument -> Note.Note -> Either Error Note
+convertNote inst note = first ((pretty note <> ": ")<>) $ do
     pitch <- tryJust "no pitch" $ Map.lookup Control.pitch $ Note.controls note
     finger <- tryJust "no finger" $
         Map.lookup Patch.c_finger $ Note.controls note
@@ -91,10 +61,8 @@ convertNote patches note = first ((pretty note <> ": ")<>) $ do
         List.find ((== Note.element note) . pretty . Guitar.sNn)
             (Guitar.iStrings inst)
     let muted = Attrs.contain (Note.attributes note) Attrs.mute
-    -- Mute by touching lightly higher up on the string.
     let converted = Note
             { _instrument = inst
-            , _instrumentName = Note.instrument note
             , _string = string
             , _start = Note.start note
             , _duration = Note.duration note
@@ -105,6 +73,7 @@ convertNote patches note = first ((pretty note <> ": ")<>) $ do
             }
     return $ if muted then muteNote (Note.start note) converted else converted
 
+-- | Mute by touching lightly higher up on the string.
 muteNote :: RealTime.RealTime -> Note -> Note
 muteNote start note = note
     { _start = start
@@ -121,7 +90,6 @@ muteOffset = 0.25
 
 data Note = Note {
     _instrument :: !Guitar.Instrument
-    , _instrumentName :: !Text
     , _string :: !Guitar.String
     , _start :: !RealTime.RealTime
     -- | Since strings are only damped explicitly, this is only used to
@@ -229,9 +197,9 @@ lastLessEqual key k = go
         | otherwise = go [x1]
 
 instance Pretty Note where
-    format (Note _inst instName _str start dur pitch finger dyn loc) =
+    format (Note inst _str start dur pitch finger dyn loc) =
         Pretty.record "Note"
-            [ ("instrument", Pretty.format instName)
+            [ ("instrument", Pretty.format (Guitar.iName inst))
             , ("start", Pretty.format start)
             -- , ("string", Pretty.format str)
             , ("duration", Pretty.format dur)

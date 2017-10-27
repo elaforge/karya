@@ -54,15 +54,13 @@ submitMany sr render dir nameScores = do
     checkSubmits (scratchDir </> dir) names rendered
     return ()
 
-submitInstruments :: Render score -> SamplingRate -> FilePath -> FilePath
-    -> [(FilePath, score)] -> IO ()
-submitInstruments render sr dir blockName nameScores = do
+submitInstruments :: FilePath -> FilePath -> [(FilePath, (Text, Text))] -> IO ()
+submitInstruments dir blockName nameScores = do
     let (names, scores) = unzip nameScores
-    let rendered = map (render sr) scores
-    let fprint = fingerprint $ concat [[i, s] | (i, s) <- rendered]
+    let fprint = fingerprint $ concat [[i, s] | (i, s) <- scores]
     let out = scratchDir </> dir </> fprint </> "out.wav"
     unlessM (Directory.doesFileExist out) $ do
-        outs <- checkSubmits (scratchDir </> dir </> fprint) names rendered
+        outs <- checkSubmits (scratchDir </> dir </> fprint) names scores
         Sound.mix outs out
     putStrLn out
     Directory.copyFile out ("im/cache" </> blockName ++ ".wav")

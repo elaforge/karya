@@ -1,17 +1,12 @@
 module Ness.Multiplate.Patch where
-import qualified Data.Map as Map
-
-import qualified Util.Seq as Seq
 import qualified Derive.EnvKey as EnvKey
 import qualified Synth.Shared.Control as Control
-import Global
 import Ness.Global
 import Ness.Multiplate
 
 
-patches :: Map Text Instrument
-patches = Map.fromList $ map (first ("multiplate-"<>)) $
-    Seq.key_on iName [instrument1]
+instruments :: [Instrument]
+instruments = [instrument1]
 
 k_object :: EnvKey.Key
 k_object = "object"
@@ -43,7 +38,7 @@ instrument1 = Instrument
             , (0.6, 0.012, -0.15)
             ]
         }
-    , iPlates = [plate1, plate2, plate3]
+    , iPlates = [low, high, mid]
     , iMembranes = []
     , iDrumshells = []
     }
@@ -56,7 +51,7 @@ membrane1 = Membrane
     , mT = 0
     }
 
-plate1 = Plate
+low = Plate
     { pName = "low"
     , pSize = (0.81, 0.87)
     , pCenter = (0, 0, 0.22)
@@ -66,7 +61,7 @@ plate1 = Plate
         , (-0.282842712474619, 0.056568542494924)
         ]
     }
-plate2 = Plate
+high = Plate
     { pName = "high"
     , pSize = (0.39, 0.42)
     , pCenter = (-0.1, -0.1, 0)
@@ -76,7 +71,7 @@ plate2 = Plate
         , (-0.282842712474619, 0.056568542494924)
         ]
     }
-plate3 = Plate
+mid = Plate
     { pName = "mid"
     , pSize = (0.65, 0.61)
     , pCenter = (0.1, 0.1, -0.27)

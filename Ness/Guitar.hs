@@ -79,7 +79,7 @@ data Backboard = Backboard {
     ba :: Double
     , bb :: Double
     , bc :: Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderBackboard :: Backboard -> Text
 renderBackboard (Backboard b1 b2 b3) = array "backboard" [b1, b2, b3]
@@ -87,7 +87,7 @@ renderBackboard (Backboard b1 b2 b3) = array "backboard" [b1, b2, b3]
 data Fret = Fret {
     fHeight :: Meters -- negative
     , fLocation :: Location
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderFrets :: [Fret] -> Text
 renderFrets = array2 "frets" . map list
@@ -107,7 +107,7 @@ data Barrier = Barrier {
     -- | loss parameter (positive or zero...bigger means more loss)
     , bBeta :: Double
     , bSolver :: Solver
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderBarrier :: Barrier -> Text
 renderBarrier (Barrier k alpha beta (Solver iterations tolerance)) =
@@ -124,7 +124,7 @@ data FingerParams = FingerParams {
     -- | Loss.  0 means lossless, greater than zero, means lossy. Usually 1-100
     -- are good values.
     , fLoss :: Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderFingerParams :: FingerParams -> Text
 renderFingerParams (FingerParams mass k alpha beta) =
@@ -133,7 +133,7 @@ renderFingerParams (FingerParams mass k alpha beta) =
 data Solver = Solver {
     nIterations :: Int
     , nTolerance :: Double
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 -- | 1-based, I think.
 type StringIndex = Int
@@ -156,7 +156,7 @@ data Connection = Connection {
     , cRattlingDistance :: Meters
     , cString1 :: (StringIndex, Location)
     , cString2 :: (StringIndex, Location)
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderConnections :: [Connection] -> Text
 renderConnections = array2 "ssconnect_def" . map list
@@ -176,7 +176,7 @@ data Instrument = Instrument {
     , iNormalizeOutputs :: Bool
     , iSolver :: Solver
     , iConnections :: [Connection]
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 renderInstrument :: SamplingRate -> Instrument -> Text
 renderInstrument sr (Instrument name strings frets barrier backboard

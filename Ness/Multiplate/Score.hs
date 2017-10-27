@@ -29,7 +29,8 @@ score1 = Score 6 $ map strike
         }
 
 instrument1 = Instrument
-    { iNormalize = False
+    { iName = "i1"
+    , iNormalize = False
     , iAirbox = Airbox
         { aWidth = 1.32
         , aDepth = 1.32
