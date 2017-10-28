@@ -46,7 +46,7 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
     let object = Note.element note
     unless (object `elem` map Multiplate.pName (Multiplate.iPlates inst)) $
         Left $ "no object: " <> object
-    let get c = tryJust ("no " <> pretty c) $ Note.initialControl c note
+    let get c = tryJust ("no " <> pretty c) $ Note.controlVal c note
     dyn <- get Control.dynamic
     (x, y) <- (,) <$> get Patch.c_x <*> get Patch.c_y
     dur <- get Patch.c_duration

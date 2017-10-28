@@ -55,8 +55,8 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
     pitch <- tryJust "no pitch" $ Map.lookup Control.pitch $ Note.controls note
     finger <- tryJust "no finger" $
         Map.lookup Patch.c_finger $ Note.controls note
-    dyn <- tryJust "no amp" $ Note.initialControl Control.dynamic note
-    loc <- tryJust "no location" $ Note.initialControl Patch.c_location note
+    dyn <- tryJust "no amp" $ Note.controlVal Control.dynamic note
+    loc <- tryJust "no location" $ Note.controlVal Patch.c_location note
     string <- tryJust ("no string: " <> Note.element note) $
         List.find ((== Note.element note) . pretty . Guitar.sNn)
             (Guitar.iStrings inst)

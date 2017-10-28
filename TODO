@@ -199,6 +199,17 @@ NESS:
   * Integrate Guitar.Convert and Multiplate.Convert so they can be mixed
     together.
 
+  - Have some way to more easily switch between kontakt mockup and ness.
+    . How would this look for real?  A hybrid instrument that writes to im but
+      otherwise acts like a MIDI instrument.
+    . But on playback I want either im or not, which means I'd have to tell im
+      to mute the tracks that are now MIDI.
+  Expressive things:
+    . mute note: just do a short note?
+    . pdm: make a quick turn at the beginning.  Use hybrid tempo?
+    . ping: rapid pitch drop
+    . roll
+
   gong:
     - Find 3 gongs and make samples for them.
 
@@ -211,6 +222,10 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - Why is midi thru suddenly no longer emitting pitch bend 0?
+  - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
+    same problem as extending 'grace' to be able to put stuff on the main
+    note.
   - visualize module dependencies: https://github.com/yav/graphmod
   * I got confused when LInst.add_play_cache was assigned to the same channel
     as a real instrument.  There should be a warning when different
@@ -926,6 +941,10 @@ UNSORTED
         . Make a REPL cmd to open vi with the file and bind save to the :dsl
           cmd.
   - ControlFunctions are still super confusing. NOTE [fix-control-functions]
+    . Yet another confusing thing is that they don't work for arbitrary
+      signals given to notes.  I think it would be better to override '' to
+      get e.g. %location as %location + rnd ...
+
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
       the CF is %strength=_.
