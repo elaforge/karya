@@ -13,12 +13,15 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
+import Global
+import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.Patch as Guitar.Patch
 import qualified Ness.Instruments as Instruments
 import qualified Ness.Multiplate as Multiplate
@@ -32,12 +35,15 @@ synth = Inst.SynthDecl Config.nessName
 
 make :: (name, Instruments.Instrument) -> (name, Inst.Inst Cmd.InstrumentCode)
 make (name, instrument) = (name,) $ case instrument of
-    Instruments.IGuitar _ -> guitar
+    Instruments.IGuitar inst -> guitar inst
     Instruments.IMultiplate inst -> multiplate inst
 
-guitar :: Inst.Inst Cmd.InstrumentCode
-guitar = Inst.Inst (Inst.Im patch) (Common.common Cmd.empty_code)
+guitar :: Guitar.Instrument -> Inst.Inst Cmd.InstrumentCode
+guitar inst =
+    Inst.Inst (Inst.Im patch)
+        (environ EnvKey.open_strings strings $ Common.common Cmd.empty_code)
     where
+    strings = map Guitar.sNn $ Guitar.iStrings inst
     patch = Patch.patch
         { Patch.patch_controls = Map.fromList
             [ (Control.pitch, "")
@@ -48,6 +54,12 @@ guitar = Inst.Inst (Inst.Im patch) (Common.common Cmd.empty_code)
         , Patch.patch_element_key = Just EnvKey.string
         , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
         }
+
+-- -- | The instrument will also set the given environ when it comes into scope.
+environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+    -> Common.Common code -> Common.Common code
+environ name val = Common.environ
+    %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
 
 multiplate :: Multiplate.Instrument -> Inst.Inst Cmd.InstrumentCode
 multiplate inst =

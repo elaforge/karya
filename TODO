@@ -72,13 +72,6 @@ NESS:
     brass:
       - is the online version the same as the downloadable binary?
 
-  percussion guitar:
-    . Use two strings with "jawari" fret for percussion with rolls.
-    . I could play this like kendang, or like trompong.
-    - Generate samples for the jawari strings at each amp level.
-    - Make kontakt patch.
-    - Write a converter back to the ness score.
-
   guitar:
     Things that work:
       . Strike open strings, with possible collisions, "jawari fret".
@@ -202,8 +195,7 @@ NESS:
     awkward, because then I can't rename it in the score for convenience.
     I should use the qualified name, which is fine if I derive that from the
     ness source.
-  - Can I implement +mute guitar note by plucking while touching lightly?
-    Change the existing +mute to +damp.
+  * Can I implement +mute guitar note by plucking while touching lightly?
   * Integrate Guitar.Convert and Multiplate.Convert so they can be mixed
     together.
 

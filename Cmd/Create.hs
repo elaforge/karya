@@ -52,8 +52,8 @@ import Types
 -- * global modifications
 
 -- | Set the project to the given value and renamespace the old project to the
--- new one.  The 'Ui.state_project_dir' is not modified, so it will keep
--- saving to the old save file.
+-- new one.  'Cmd.state_save_file' is not modified, so it will keep saving to
+-- the old save file.
 rename_project :: Ui.M m => Id.Namespace -> m ()
 rename_project ns = do
     old_ns <- Ui.get_namespace
