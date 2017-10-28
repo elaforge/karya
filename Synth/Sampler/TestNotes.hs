@@ -27,8 +27,7 @@ notes = map make
     ]
     where
     make (start, pitch, dyn, attrs) = Note.Note
-        { instrument = "inst"
-        , patch = "test"
+        { patch = "test"
         , element = ""
         , start = start
         , duration = 0 -- the sampler uses envelope, not duration

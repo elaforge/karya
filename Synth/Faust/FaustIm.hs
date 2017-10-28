@@ -79,8 +79,8 @@ process patches outputDir name notes = do
 -- | Render samples for a single note.
 renderNote :: Map Types.PatchName DriverC.Patch -> Note.Note
     -> IO (Either Text (RealTime, AUtil.Audio))
-renderNote patches note = case Map.lookup (Note.instrument note) patches of
-    Nothing -> return $ Left $ "no patch: " <> Note.instrument note
+renderNote patches note = case Map.lookup (Note.patch note) patches of
+    Nothing -> return $ Left $ "no patch: " <> Note.patch note
     Just patch -> DriverC.withInstrument patch $ \inst -> do
         patchControls <- map fst . snd <$> DriverC.getControls patch
         Convert.controls patchControls (Note.controls note) $
@@ -98,8 +98,7 @@ renderNoteAudio note inst controlLengths = do
             Audio.merge (audioSource left) (audioSource right)
         [center] -> Right $
             Audio.merge (audioSource center) (audioSource center)
-        _ -> Left $ "expected 1 or 2 outputs for "
-            <> Note.instrument note
+        _ -> Left $ "expected 1 or 2 outputs for " <> Note.patch note
 
 audioSource :: Storable.Vector Float -> AUtil.Audio
 audioSource samples = Audio.AudioSource
