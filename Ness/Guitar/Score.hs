@@ -2,6 +2,7 @@
 -- | For interactive experimentation.
 module Ness.Guitar.Score where
 import Prelude hiding (String)
+import qualified Data.List as List
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -13,20 +14,21 @@ import qualified Ness.Guitar.Patch as Patch
 import qualified Ness.Util as Util
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
-    -- (instrument, mkScore notes fingers)
-    (Patch.sangsih, mkScore notes fingers)
+    (get "g12-2", mkScore notes fingers)
 
+frets = []
+strings = Patch.guitarStrings2
 
-(notes, fingers) = sampleSet
+get :: Text -> Instrument
+get name = fromMaybe (error (show name)) $
+    List.find ((==name) . iName) Patch.instruments
+
+(notes, fingers) = sampleSet strings
 
 srate :: SamplingRate
 srate = 11000
 
 variations = Util.submitVariations srate renderAll "guitar"
-
-frets = [] -- legongFrets
--- strings = [lowerString, lowString] -- guitar
-strings = Patch.legongStrings2
 
 testJawari = variations "jawari3" jawariVars
 jawariVars :: [(FilePath, [(Instrument, Score)])]
@@ -82,7 +84,7 @@ backboardVars =
         , bc = 0
         }
 
-sampleSet = (eachAmpEachString (take 1 strings) standardAmps decay, [])
+sampleSet strings = (eachAmpEachString strings standardAmps decay, [])
     where decay = 6 -- time for each string to go to 0
 
 standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)

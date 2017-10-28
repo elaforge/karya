@@ -12,8 +12,10 @@ import System.FilePath ((</>))
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
+
 import Global
 
 
@@ -32,11 +34,15 @@ mix inputs output = Resource.runResourceT $ do
 
 -- * split
 
-splitPolos = split 6 velocityNames polos "ness-data/polos-samples"
-splitSangsih = split 6 velocityNames sangsih "ness-data/sangsih-samples"
+g12_1 = split 6 (velocityNames g12_keys)
+    "ness-data/guitar/WQ4zOg/out.wav" "ness-data/g12-1"
+g12_2 = split 6 (velocityNames g12_keys)
+    "ness-data/guitar/hxJpaw/out.wav" "ness-data/g12-2"
 
-polos = "ness-data/guitar/aczB_w/out.wav"
-sangsih = "ness-data/guitar/EdsAkw/out.wav"
+splitPolos = split 6 (velocityNames legongKeys)
+    "ness-data/guitar/aczB_w/out.wav" "ness-data/polos-samples"
+splitSangsih = split 6 (velocityNames legongKeys)
+    "ness-data/guitar/EdsAkw/out.wav" "ness-data/sangsih-samples"
 
 split :: Double -> [FilePath] -> FilePath -> FilePath -> IO ()
 split dur names fname outDir = Resource.runResourceT $ do
@@ -48,7 +54,7 @@ split dur names fname outDir = Resource.runResourceT $ do
             Audio.takeStart (Audio.Seconds dur) $
             Audio.dropStart (Audio.Seconds t) audio
 
-velocityNames =
+velocityNames keys =
     [ Seq.join "-"
         ["str" <> show str, fmt (Midi.from_key key), fmt low, fmt high]
     | (str, key) <- zip [1..10] keys, (low, high) <- rangesFrom vels
@@ -61,7 +67,9 @@ rangesFrom xs =
 fmt :: Int -> String
 fmt = show -- Util.zeroPad 3
 
-keys = Key2.c2 : oct ++ map (+12) oct
+g12_keys = [Key.e3, Key.a3, Key.d4, Key.g4, Key.b4, Key.e5]
+
+legongKeys = Key2.c2 : oct ++ map (+12) oct
     where oct = [Key2.c3, Key2.d3, Key2.e3, Key2.g3, Key2.a3]
 
 format16 :: File.Sndfile.Format

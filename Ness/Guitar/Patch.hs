@@ -18,12 +18,12 @@ c_finger = "finger"
 
 instruments :: [Instrument]
 instruments =
-    [ polos, sangsih
-    , instrument "g12" (-0.0020) guitarStrings
+    [ instrument "polos" (-0.0017) legongStrings
+    , instrument "sangsih" (-0.0013) legongStrings2
+    , instrument "g12-1" (-0.0020) guitarStrings
+    , instrument "g12-2" (-0.0015) guitarStrings2
     ]
 
-polos = instrument "polos" (-0.0017) legongStrings
-sangsih = instrument "sangsih" (-0.0013) legongStrings2
 
 -- * implementation
 
@@ -56,11 +56,11 @@ instrument name backboard strings = Instrument
 
 guitarStrings = map make
     [ (12.1, 0.00020, 5, NN.e3, 0.1)
-    , (12.3, 0.00015, 5, NN.a3, 0.2)
-    , (21.9, 0.00015, 5, NN.d4, 0.3)
-    , (39.2, 0.00015, 7, NN.g4, 0.4)
-    , (27.6, 0.00010, 5, NN.b5, 0.5)
-    , (49.2, 0.00010, 8, NN.e5, 0.6)
+    , (12.3, 0.00015, 5, NN.a3, 0.15)
+    , (21.9, 0.00015, 5, NN.d4, 0.2)
+    , (39.2, 0.00015, 7, NN.g4, 0.25)
+    , (27.6, 0.00010, 5, NN.b4, 0.3)
+    , (49.2, 0.00010, 8, NN.e5, 0.35)
     ]
     where
     make (tension, radius, t60, nn, pan) = String
@@ -70,7 +70,26 @@ guitarStrings = map make
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
-        , sOutputs = outputsAt pan
+        , sOutputs = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
+        }
+
+guitarStrings2 = map make
+    [ (12.2, 0.00020, 5, NN.e3, 0.6)
+    , (12.4, 0.00015, 5, NN.a3, 0.65)
+    , (22.0, 0.00015, 5, NN.d4, 0.7)
+    , (39.3, 0.00015, 7, NN.g4, 0.75)
+    , (27.7, 0.00010, 5, NN.b4, 0.8)
+    , (49.3, 0.00010, 8, NN.e5, 0.85)
+    ]
+    where
+    make (tension, radius, t60, nn, pan) = String
+        { sLength = 0.68
+        , sTension = tension
+        , sMaterial = steel
+        , sRadius = radius
+        , sT60 = (15, t60)
+        , sNn = nn
+        , sOutputs = [Output 0.9 (pan - 0.2), Output 0.7 pan]
         }
 
 bassStrings = map make
