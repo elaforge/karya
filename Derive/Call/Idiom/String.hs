@@ -27,7 +27,9 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -224,21 +226,32 @@ merge_curve interpolate x0 y0 x1 y1 event = Score.set_pitch new_pitch event
 c_mute_end :: Derive.Transformer Derive.Note
 c_mute_end = Derive.transformer module_ "mute-end"
     (Tags.postproc <> Tags.inst)
-    ("Put a +mute note at the end of each note, unless there's another note on\
-    \ the same string. The " <> ShowVal.doc ring <> " attr suppresses this.")
-    $ Sig.callt (
-    Sig.required "threshold" "Mute if the string is free for this long."
-    ) $ \threshold _args deriver -> Ly.when_lilypond deriver $
-        Post.emap_ (mute_end threshold) . Post.nexts_by string_of <$> deriver
+    ("Put a note and then +mute note at the end of each note, unless there's\
+    \ another note on the same string. The " <> ShowVal.doc ring
+    <> " attr suppresses this.")
+    $ Sig.callt ((,,)
+    <$> Sig.required "threshold" "Mute if the string is free for this long."
+    <*> Sig.required "dur" "Duration of mute note. If it's zero, its omitted\
+        \ and only the +mute note is emitted."
+    <*> Sig.required "dyn" "Dyn of mute note."
+    ) $ \(threshold, dur, dyn) _args deriver -> Ly.when_lilypond deriver $ do
+        dur <- Typecheck.to_function dur
+        dyn <- Typecheck.to_function dyn
+        Post.emap_ (mute_end (RealTime.seconds . dur) dyn threshold)
+            . Post.nexts_by string_of <$> deriver
     where
     string_of :: Score.Event -> Maybe Text
     string_of = Env.maybe_val EnvKey.string . Score.event_environ
 
-mute_end :: RealTime -> (Score.Event, [Score.Event]) -> [Score.Event]
-mute_end threshold (event, nexts)
-    | should_mute = [event, set_mute end event]
+mute_end :: (RealTime -> RealTime) -> Typecheck.Function -> RealTime
+    -> (Score.Event, [Score.Event]) -> [Score.Event]
+mute_end dur_at dyn_at threshold (event, nexts)
+    | should_mute = event
+        : [mute_note end dur (dyn_at end) event | dur > 0]
+        ++ [set_mute (end + dur) event]
     | otherwise = [event]
     where
+    dur = dur_at end
     end = Score.event_end event
     should_mute = not (Score.has_attribute ring event) && case nexts of
         [] -> True
@@ -246,6 +259,12 @@ mute_end threshold (event, nexts)
 
 ring :: Attrs.Attributes
 ring = Attrs.attr "ring"
+
+mute_note :: RealTime -> RealTime -> Signal.Y -> Score.Event -> Score.Event
+mute_note start dur dyn event = Score.set_dynamic dyn $ event
+    { Score.event_start = start
+    , Score.event_duration = dur
+    }
 
 set_mute :: RealTime -> Score.Event -> Score.Event
 set_mute start event = Score.add_attributes Attrs.mute $

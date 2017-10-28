@@ -65,6 +65,18 @@ test_signal_discontinuity = do
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
         ([[(0, NN.c4), (1, NN.c4), (1, NN.d4), (3, NN.d4), (3, NN.c4)]], [])
 
+test_mute_end = do
+    let run args = run_string extract ("mute-end " <> args) . UiTest.note_track
+        extract e = (DeriveTest.e_start_dur e, Score.initial_dynamic e,
+            DeriveTest.e_attributes e)
+    equal (run "1 1 .5" [(0, 1, "3c")])
+        ([((0, 1), 1, "+"), ((1, 1), 0.5, "+"), ((2, 0), 1, "+mute")], [])
+    equal (run "1 1 .5" [(0, 1, "+ring -- 3c")])
+        ([((0, 1), 1, "+ring")], [])
+    equal (run "1 0 .5" [(0, 1, "3c")])
+        ([((0, 1), 1, "+"), ((1, 0), 1, "+mute")], [])
+
+
 run_string :: (Score.Event -> a) -> Text -> [UiTest.TrackSpec] -> ([a], [Text])
 run_string extract call =
     DeriveTest.extract extract

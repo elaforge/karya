@@ -698,6 +698,9 @@ to_typed_function :: BaseTypes.ControlRef -> Derive.Deriver TypedFunction
 to_typed_function control =
     convert_to_function control =<< to_signal_or_function control
 
+to_function :: BaseTypes.ControlRef -> Derive.Deriver Function
+to_function = fmap (Score.typed_val .) . to_typed_function
+
 convert_to_function :: BaseTypes.ControlRef
     -> Either Score.TypedControl BaseTypes.ControlFunction
     -> Derive.Deriver TypedFunction
