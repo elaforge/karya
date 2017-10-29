@@ -70,7 +70,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
-import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -122,6 +121,12 @@ midi_thru_instrument score_inst attrs input = do
         Nothing -> default_thru resolved score_inst attrs input
         Just thru -> thru attrs input
 
+-- | I used to keep track of the previous PitchBend to avoid sending extra ones.
+-- But it turns out I don't actually know the state of the MIDI channel, so
+-- now I always send PitchBend.  I'm not sure why I ever thought it could work.
+-- I could still do this by tracking channel state at the Midi.Interface level.
+-- I actually already do that a bit tracking with note_tracker, but it's simpler
+-- to just always send PitchBend, unless it becomes a problem.
 default_thru :: Cmd.ResolvedInstrument -> Score.Instrument -> Cmd.ThruFunction
 default_thru resolved score_inst attrs input = do
     (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
@@ -240,27 +245,23 @@ input_to_midi pb_range wdev_state addrs input_nn = case alloc addrs input_nn of
     (Nothing, _) -> Nothing
     (Just addr, new_state) -> Just (map (with_addr addr) msgs, state)
         where
-        last_pb = Map.get 0 addr (Cmd.wdev_pb wdev_state)
-        (msgs, note_key) = InputNote.to_midi pb_range last_pb
+        (msgs, note_key) = InputNote.to_midi pb_range
             (Cmd.wdev_note_key wdev_state) input_nn
-        state = merge_state new_state addr (pb_of last_pb msgs)
+        state = merge_state new_state
             (wdev_state { Cmd.wdev_note_key = note_key })
     where
     alloc = alloc_addr (Cmd.wdev_note_addr wdev_state)
         (Cmd.wdev_addr_serial wdev_state) (Cmd.wdev_serial wdev_state)
 
 merge_state :: Maybe (Map NoteId Addr, Map Addr Cmd.Serial)
-    -> Addr -> Midi.PitchBendValue -> Cmd.WriteDeviceState
-    -> Cmd.WriteDeviceState
-merge_state new_state addr pb old = case new_state of
-    Nothing -> old { Cmd.wdev_pb = new_pb }
+    -> Cmd.WriteDeviceState -> Cmd.WriteDeviceState
+merge_state new_state old = case new_state of
+    Nothing -> old
     Just (note_addr, addr_serial) -> old
-        { Cmd.wdev_pb = new_pb
-        , Cmd.wdev_note_addr = note_addr
+        { Cmd.wdev_note_addr = note_addr
         , Cmd.wdev_addr_serial = addr_serial
         , Cmd.wdev_serial = Cmd.wdev_serial old + 1
         }
-    where new_pb = Map.insert addr pb (Cmd.wdev_pb old)
 
 -- | If the note_id is already playing in an addr, return that one.  Otherwise,
 -- if it's not NoteOn or NoteOff, abort.  If it is, pick a free addr, and if

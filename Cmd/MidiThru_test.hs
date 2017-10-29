@@ -32,6 +32,7 @@ import Global
 
 test_midi_thru_instrument = do
     -- Use *just instead of *twelve, because *twelve has a special thru that
+    -- just passes the NN directly.
     let run cmd_state title =
             run_thru cmd_state (" | scale=just" <> title) (return ())
             . (mempty,)
@@ -81,18 +82,18 @@ test_patch_scale = do
         ([Midi.PitchBend 0.365, Midi.NoteOn Key.c4 127], [])
 
     io_equal (e_pitches <$> run cstate db (Just legong) (mempty, c4))
-        ([Midi.NoteOn Key.c4 127], [])
+        ([Midi.PitchBend 0, Midi.NoteOn Key.c4 127], [])
 
     -- PitchKeymap also goes through the Patch.Scale.
     let inst_db = UiTest.make_db [("s", [pitched_keymap_patch legong])]
     io_equal (e_pitches <$> run cstate inst_db (Just legong) (mempty, c4))
-        ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
+        ([Midi.NoteOn 1 64, Midi.PitchBend 0, Midi.NoteOn Key.c3 127], [])
     io_equal (e_pitches <$> run cstate inst_db (Just legong) (Attrs.mute, c4))
-        ([Midi.NoteOn 0 64, Midi.NoteOn Key.c1 127], [])
+        ([Midi.NoteOn 0 64, Midi.PitchBend 0, Midi.NoteOn Key.c1 127], [])
 
     result <- run cstate inst_db (Just legong) (mempty, c4)
     equal (e_pitches result)
-        ([Midi.NoteOn 1 64, Midi.NoteOn Key.c3 127], [])
+        ([Midi.NoteOn 1 64, Midi.PitchBend 0, Midi.NoteOn Key.c3 127], [])
     result <- run (CmdTest.result_cmd_state result) inst_db (Just legong)
         (mempty, CmdTest.note_off 1)
     equal (e_pitches result)
@@ -146,15 +147,17 @@ test_input_to_midi = do
         note_on = CmdTest.note_on_nn
     let on key = Midi.NoteOn key 127
         off key = Midi.NoteOff key 127
+        pb = Midi.PitchBend
 
     -- orphan controls are ignored
     equal (f [control 1 "cc1" 127, pitch 1 64]) []
 
-    -- redundant and unrelated pitch_changes filtered
-    equal (f [note_on 64, pitch 1 65, pitch 64 63, pitch 64 1, pitch 64 1])
-        [ (0, on 64)
-        , (0, Midi.PitchBend (-0.5))
-        , (0, Midi.PitchBend (-1))
+    -- unrelated pitch_changes don't show up
+    equal (f [note_on 64, pitch 1 65, pitch 64 63, pitch 64 1])
+        [ (0, pb 0)
+        , (0, on 64)
+        , (0, pb (-0.5))
+        , (0, pb (-1))
         ]
 
     -- null addrs discards msgs
@@ -162,17 +165,18 @@ test_input_to_midi = do
         ([], Cmd.empty_wdev_state)
 
     -- Too many notes get addrs in round-robin.
-    equal (f (map note_on (Seq.range 1 6 1)))
-        [(chan, on n) | (chan, n) <- zip (cycle [0..2]) [1..6]]
+    equal (f (map note_on (Seq.range 1 6 1))) $ concat
+        [[(chan, pb 0), (chan, on n)] | (chan, n) <- zip (cycle [0..2]) [1..6]]
 
     -- It's round-robin even after a note-off.
     equal (f [note_on 1, note_off 1, note_on 2])
-        [(0, on 1), (0, off 1), (1, on 2)]
+        [(0, pb 0), (0, on 1), (0, off 1), (1, pb 0), (1, on 2)]
 
     -- once assigned a note_id, controls get mapped to that channel
     equal (f [note_on 64, note_on 66, control 64 "mod" 1,
             control 66 "breath" 0.5])
-        [ (0, Midi.NoteOn 64 127), (1, Midi.NoteOn 66 127)
+        [ (0, pb 0), (0, on 64)
+        , (1, pb 0), (1, on 66)
         , (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 63)
         ]
 
@@ -181,7 +185,9 @@ test_input_to_midi = do
             [ ([(wdev, 2)], note_on 64)
             , ([(wdev, 3)], note_on 64)
             ])
-        [(2, Midi.NoteOn 64 127), (3, Midi.NoteOn 64 127)]
+        [ (2, pb 0), (2, on 64)
+        , (3, pb 0), (3, on 64)
+        ]
 
 extract_msg :: CallStack.Stack => Midi.Message
     -> (Midi.Channel, Midi.ChannelMessage)

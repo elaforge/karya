@@ -747,10 +747,8 @@ instance Pretty Action where
 
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
-    -- | Last pb val for each Addr.
-    wdev_pb :: !(Map Patch.Addr Midi.PitchBendValue)
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    , wdev_note_addr :: !(Map InputNote.NoteId Patch.Addr)
+    wdev_note_addr :: !(Map InputNote.NoteId Patch.Addr)
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
     , wdev_note_key :: !(Map InputNote.NoteId Midi.Key)
@@ -780,8 +778,7 @@ type Serial = Int
 
 empty_wdev_state :: WriteDeviceState
 empty_wdev_state = WriteDeviceState
-    { wdev_pb = Map.empty
-    , wdev_note_addr = Map.empty
+    { wdev_note_addr = Map.empty
     , wdev_note_key = Map.empty
     , wdev_addr_serial = Map.empty
     , wdev_serial = 0

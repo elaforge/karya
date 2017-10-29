@@ -66,19 +66,20 @@ test_from_midi = do
 test_to_midi = do
     let id_to_key ns = Map.fromList
             [(InputNote.NoteId nid, key) | (nid, key) <- ns]
-    let f pb = InputNote.to_midi (-1, 1) pb Map.empty
+    let f = InputNote.to_midi (-1, 1) Map.empty
         note_on note_id nn = InputNote.NoteOn (InputNote.NoteId note_id) nn 1
+        pb = Midi.PitchBend
 
     let n = Midi.NoteOn 64 127
-    equal (f 0 (note_on 60 64)) ([n], id_to_key [(60, 64)])
-    equal (f 0 (note_on 64 64.5))
+    equal (f (note_on 60 64)) ([pb 0, n], id_to_key [(60, 64)])
+    equal (f (note_on 64 64.5))
         ([Midi.PitchBend 0.5, n], id_to_key [(64, 64)])
-    equal (f 0.5 (note_on 64 64.5)) ([n], id_to_key [(64, 64)])
+    equal (f (note_on 64 64.5)) ([pb 0.5, n], id_to_key [(64, 64)])
     -- NoteOffs remove from the state.
-    equal (InputNote.to_midi (-1, 1) 0 (id_to_key [(60, 70)])
+    equal (InputNote.to_midi (-1, 1) (id_to_key [(60, 70)])
             (CmdTest.note_off 60))
         ([Midi.NoteOff 70 127], Map.empty)
-    equal (f 0 (CmdTest.control 64 "cc1" 1))
+    equal (f (CmdTest.control 64 "cc1" 1))
         ([Midi.ControlChange 1 127], Map.empty)
     -- Unrecognized cc.
-    equal (f 0 (CmdTest.control 64 "blahblah" 1)) ([], Map.empty)
+    equal (f (CmdTest.control 64 "blahblah" 1)) ([], Map.empty)

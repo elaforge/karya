@@ -251,15 +251,14 @@ pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 -- * to midi
 
 -- | Convert an InputNn to MIDI.
-to_midi :: Control.PbRange -> Midi.PitchBendValue
-    -> Map NoteId Midi.Key -> InputNn
+to_midi :: Control.PbRange -> Map NoteId Midi.Key -> InputNn
     -> ([Midi.ChannelMessage], Map NoteId Midi.Key)
-to_midi pb_range prev_pb id_to_key input_nn = case input_nn of
+to_midi pb_range id_to_key input_nn = case input_nn of
     NoteOn note_id nn vel -> note_on note_id nn vel
     NoteOff note_id vel -> with_key note_id $ \key ->
         ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
     PitchChange note_id nn -> with_key note_id $ \key ->
-        (cons_pb (Control.pb_from_nn pb_range key nn) [], id_to_key)
+        ([Midi.PitchBend (Control.pb_from_nn pb_range key nn)], id_to_key)
     Control _ control val -> case control_to_cc control of
         Nothing -> ([], id_to_key)
         Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)
@@ -271,9 +270,6 @@ to_midi pb_range prev_pb id_to_key input_nn = case input_nn of
     note_on note_id nn vel = case Control.pitch_to_midi pb_range nn of
         Nothing -> ([], id_to_key)
         Just (key, pb) ->
-            ( cons_pb pb [Midi.NoteOn key (from_val vel)]
+            ( [Midi.PitchBend pb, Midi.NoteOn key (from_val vel)]
             , Map.insert note_id key id_to_key
             )
-    cons_pb pb
-        | prev_pb /= pb = (Midi.PitchBend pb:)
-        | otherwise = id

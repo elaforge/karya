@@ -93,7 +93,7 @@ mine_patches =
         (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
         . MidiInst.default_scale Selisir.scale_id
         . MidiInst.environ EnvKey.tuning tuning
-    tuning = BaliScales.Umbang -- TODO verify how mine are tuned
+    tuning = BaliScales.Umbang
     instrument_scale =
         Selisir.instrument_scale (take 10 . drop 5) Selisir.laras_rambat tuning
 

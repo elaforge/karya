@@ -25,16 +25,20 @@ test_pasang_thru = do
     equal (CmdTest.e_logs result) []
     equal (CmdTest.e_midi result)
         [ Midi.ChannelMessage 6 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 6 (Midi.PitchBend 0)
         , Midi.ChannelMessage 6 (Midi.NoteOn 60 127)
         , Midi.ChannelMessage 7 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 7 (Midi.PitchBend 0)
         , Midi.ChannelMessage 7 (Midi.NoteOn 60 127)
         ]
     result <- run_pasang (note_on (Pitch.pitch 4 1))
     equal (CmdTest.e_logs result) []
     equal (CmdTest.e_midi result)
         [ Midi.ChannelMessage 6 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 6 (Midi.PitchBend 0)
         , Midi.ChannelMessage 6 (Midi.NoteOn 62 127)
         , Midi.ChannelMessage 7 (Midi.NoteOn open_ks 64)
+        , Midi.ChannelMessage 7 (Midi.PitchBend 0)
         , Midi.ChannelMessage 7 (Midi.NoteOn 62 127)
         ]
 
