@@ -277,9 +277,7 @@ modify_allocations :: Ui.M m => Instrument
     -> m ()
 modify_allocations inst modify = do
     alloc <- get_allocation inst
-    Ui.modify_config $ Ui.allocations %=
-        (\(UiConfig.Allocations allocs) ->
-            UiConfig.Allocations (modify alloc allocs))
+    Ui.modify_config $ UiConfig.allocations_map %= modify alloc
 
 -- ** Common.Config
 
@@ -338,6 +336,11 @@ get_scale inst =
 
 set_scale :: Ui.M m => Patch.Scale -> Instrument -> m ()
 set_scale scale = modify_midi_config $ Patch.settings#Patch.scale #= Just scale
+
+copy_scale :: Cmd.M m => Instrument -> Instrument -> m ()
+copy_scale from to = do
+    scale <- Cmd.require "no scale" =<< get_scale (Util.instrument from)
+    set_scale scale to
 
 add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
 add_flag flag = modify_midi_config $
