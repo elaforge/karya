@@ -568,3 +568,24 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
         , (na.ka . su (kita.tarikita) . dhom, [n, o, k, t, p, k, p, t, o])
         , (su (kita.tarikita) . dhom, [k, t, p, k, p, t, o])
         ]
+
+c_17_10_23 :: Korvai
+c_17_10_23 = date 2017 10 23 $ ganesh $ korvai adi mridangam
+    [ sequence theme
+    , sequence (theme2a.theme2b)
+    ]
+    where
+    sequence t = mconcat $ map (sarvaA 8)
+        [t, kitataka.t, kitakita.kitakita.t]
+    theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
+    theme2a = su $ dit.__.taka.na.taka.na.ta.kita.ki.na.thom
+    theme2b = ta.__.ka.din.__.ta.__
+    kitataka = su $ kita.taka
+    kitakita = su $ kita.kita
+    mridangam = make_mridangam
+        [ (theme, [k, t, k, t, k, k, o, od, k])
+        , (kitataka, [p, k, n, p])
+        , (kitakita, [k, t, k, t])
+        , (theme2a, [k, p, k, n, p, k, n, p, k, t, k, n, o])
+        , (theme2b, [k, o, od, k])
+        ]

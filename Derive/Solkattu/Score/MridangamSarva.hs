@@ -130,3 +130,13 @@ kir_misra_2 :: Korvai
 kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvai1 Tala.misra_chapu $
     sd $ sd $ rh & thom_lh rh . o1 rh
     where rh = n.d.n . su (n.n) . d.d.n
+
+c_17_10_23a :: Korvai
+c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvai1 adi $
+    repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k)
+    where
+    cell = n.d . su (p.k) . d
+
+c_17_10_23b :: Korvai
+c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvai1 adi $
+    su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k)
