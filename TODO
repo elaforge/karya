@@ -1598,7 +1598,7 @@ lilypond:
   - complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
     . Probably to do with lily in general being broken after the explicit rest
       refactor.
-  - squart/6 broken with incompatible subdivision
+  * squart/6 broken with incompatible subdivision
     . Note convert has gotten further ahead in time than it should, so it's
       already advanced to the 4/4 meter when it should be on 6/8.
     . Beginning of b3 is mm47, which is time 37+1/4

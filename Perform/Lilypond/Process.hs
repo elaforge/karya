@@ -586,13 +586,13 @@ convert_chord metered events = do
     key <- lookup_key (NonEmpty.head events)
     state <- State.get
     let key_change = [LyCode (to_lily key) | key /= state_key state]
-    meter <- if metered then Just <$> get_subdivision else return Nothing
     config <- State.gets state_config
     let (here, there) = break
             ((> event_start (NonEmpty.head events)) . event_start)
             (NonEmpty.tail events)
         next = event_start <$> List.find (not . zero_dur) there
     here <- consume_subdivisions (NonEmpty.head events : here)
+    meter <- if metered then Just <$> get_subdivision else return Nothing
     case NonEmpty.nonEmpty here of
         Nothing -> return ([], there)
         Just here -> do
