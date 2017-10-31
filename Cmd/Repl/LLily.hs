@@ -169,8 +169,8 @@ compile_explicit title movements = do
         Cmd.Lilypond.explicit_movements config title movements
     case result of
         Left err -> do
-            Log.warn $ "compile_explicit: " <> err
-            return err
+            Log.write err
+            return $ Log.msg_text err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
@@ -184,8 +184,8 @@ compile_extract title events = do
         Cmd.Lilypond.extract_movements config title events
     case result of
         Left err -> do
-            Log.warn $ "compile_ly: " <> err
-            return err
+            Log.write err
+            return $ Log.msg_text err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
@@ -204,7 +204,8 @@ make_ly = do
     (events, derive_logs) <- LEvent.partition <$> derive block_id
     let (result, logs) = Cmd.Lilypond.extract_movements config
             (block_id_title block_id) events
-    return (result, derive_logs ++ logs)
+    return (first Log.msg_text result,
+        either (:) (const id) result $ derive_logs ++ logs)
 
 -- | Derive focused block to ly events.
 convert :: Cmd.CmdT IO ([Lilypond.Event], [Log.Msg])

@@ -16,13 +16,14 @@ import qualified System.Posix as Posix
 
 import qualified Util.File as File
 import qualified Util.Lens as Lens
+import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
 import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -174,7 +175,9 @@ lilypond_performance block_id = do
     config <- Ui.config#Ui.lilypond <#> Ui.get
     result <- LEvent.write_snd $
         Cmd.Lilypond.extract_movements config "title" events
-    Text.Lazy.toStrict <$> Cmd.require_right id result
+    case result of
+        Left err -> Log.write err >> return (Log.msg_text err)
+        Right ly -> return $ Text.Lazy.toStrict ly
 
 
 -- * transform

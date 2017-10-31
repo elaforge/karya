@@ -10,8 +10,11 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
+import qualified Util.CallStack as CallStack
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
@@ -242,7 +245,7 @@ instance Pretty StaffGroup where
         ]
 
 explicit_movements :: Types.Config -> [(Title, [Types.Event])]
-    -> Either Error [Movement]
+    -> Either Log.Msg [Movement]
 explicit_movements config sections = forM sections $ \(title, events) -> do
     let (global, normal) = List.partition
             ((==Constants.ly_global) . Types.event_instrument) events
@@ -250,11 +253,12 @@ explicit_movements config sections = forM sections $ \(title, events) -> do
     staves <- convert_staff_groups config 0 global normal
     return (title, staves)
 
-extract_movements :: Types.Config -> [Types.Event] -> Either Error [Movement]
+extract_movements :: Types.Config -> [Types.Event] -> Either Log.Msg [Movement]
 extract_movements config events = do
     let (global, normal) = List.partition
             ((==Constants.ly_global) . Types.event_instrument) events
-    (movements, global) <- partition_key Constants.v_movement global
+    (movements, global) <- either warn return $
+        partition_key Constants.v_movement global
     forM (split_movements movements normal) $ \(start, title, events) -> do
         staves <- convert_staff_groups config start global events
         return (title, staves)
@@ -263,11 +267,11 @@ extract_movements config events = do
 -- for keyboard instruments, left or right hand.  Then convert each staff of
 -- Events to Notes, divided up into measures.
 convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
-    -> [Types.Event] -> Either Error [StaffGroup]
+    -> [Types.Event] -> Either Log.Msg [StaffGroup]
 convert_staff_groups config start global events = do
     let staff_groups = split_events events
     let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
-    (meters, global) <- parse_meters start staff_end global
+    (meters, global) <- either warn return $ parse_meters start staff_end global
     -- It would be nicer to partition_on Process.free_code so I don't have to
     -- re-parse it in each Process.process, but then process would have to
     -- take an Either FreeCode Event or something.
@@ -275,7 +279,7 @@ convert_staff_groups config start global events = do
             (not . null . Constants.environ_free_code . Types.event_environ)
             global
     unless (null remain) $
-        Left $ "leftover ly-global events: " <> pretty global
+        warn $ "leftover ly-global events: " <> pretty global
     forM staff_groups $ \(inst, staves) ->
         staff_group config start meters inst $
             map (distribute_global global_code inst) staves
@@ -300,7 +304,7 @@ split_events events =
 -- go below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
 staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
-    -> [[Types.Event]] -> Either Error StaffGroup
+    -> [[Types.Event]] -> Either Log.Msg StaffGroup
 staff_group config start meters inst staves = do
     staff_measures <- mapM (Process.process config start meters) staves
     return $ StaffGroup inst staff_measures
@@ -355,6 +359,9 @@ parse_meters start staff_end events = do
         fromIntegral dur / fromIntegral (Meter.measure_time meter)
 
 -- * util
+
+warn :: CallStack.Stack => Text -> Either Log.Msg a
+warn = Left . Log.msg Log.Warn Nothing
 
 partition_key :: EnvKey.Key -> [Types.Event]
     -> Either Error ([(Types.Time, Text)], [Types.Event])

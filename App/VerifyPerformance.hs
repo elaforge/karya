@@ -224,7 +224,7 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     case result of
-        Left err -> return $ Just $ "error deriving: " <> err
+        Left err -> return $ Just $ "error deriving: " <> Log.format_msg err
         Right got -> do
             (maybe_diff, wrote_files) <- liftIO $
                 DiffPerformance.diff_lilypond (basename fname ++ ".ly") out_dir

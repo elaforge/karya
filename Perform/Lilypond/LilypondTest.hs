@@ -8,6 +8,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Text.Lazy
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -177,7 +178,7 @@ convert_staves ::
     -- Or 'want_all' to see them all, for debugging.
     -> [Types.Event] -> Either Text [StaffGroup]
 convert_staves wanted events =
-    map extract_staves <$>
+    (Log.msg_text *** map extract_staves) $
         Lilypond.convert_staff_groups default_config 0 global normal
     where
     (global, normal) = List.partition

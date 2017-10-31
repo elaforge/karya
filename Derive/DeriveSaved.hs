@@ -92,9 +92,9 @@ timed_derive2 name ui_state cmd_state block_id =
         run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
 
 timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
-    -> IO (Either Text Text, [Log.Msg])
+    -> IO (Either Log.Msg Text, [Log.Msg])
 timed_lilypond name ui_state cmd_state block_id = case result of
-    Left err -> return (Left err, [])
+    Left err -> return (Left $ Log.msg Log.Warn Nothing err, [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
         events <- Testing.print_timer ("lilypond " <> name) (timer_msg length)

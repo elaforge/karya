@@ -5,8 +5,10 @@
 module Perform.Lilypond.Process_test where
 import qualified Data.Text as Text
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Env as Env
@@ -378,4 +380,5 @@ event_measures = ceiling . LilypondTest.time_to_wholes . fromMaybe 0
 
 process :: [Meter.Meter] -> [Types.Event]
     -> Either Text [Either Process.Voices Process.Ly]
-process meters = Process.process LilypondTest.default_config 0 meters
+process meters =
+    first Log.msg_text . Process.process LilypondTest.default_config 0 meters

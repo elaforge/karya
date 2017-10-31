@@ -28,7 +28,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
-import qualified Util.Control as Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -52,8 +52,6 @@ import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
-
-type Error = Text
 
 -- | Automatically add lilypond code for certain attributes.
 simple_articulations :: [(Attrs.Attributes, Code)]
@@ -124,9 +122,10 @@ instance Pretty Chunk where
 -- . Merge 0 dur events 'FreeCode' in [Ly] since they have been split according
 -- to the meter.
 process :: Types.Config -> Time -> [Meter.Meter] -- ^ one for each measure
-    -> [Event] -> Either Error [Either Voices Ly]
-process config start meters events = do
-    chunks <- collect_chunks events
+    -> [Event] -> Either Log.Msg [Either Voices Ly]
+process config start meters events = first to_log $ do
+    chunks <- either (Left . ConvertError Nothing) return $
+        collect_chunks events
     let end = start + sum (map Meter.measure_time meters)
     chunks <- return $ merge_note_code_chunks $
         insert_rests_chunks start end chunks
@@ -134,8 +133,8 @@ process config start meters events = do
     key <- maybe (return default_key)
         (fmap fst . run_convert state . lookup_key) (Seq.head events)
     state <- return $ state { state_key = key }
-    (lys, _) <- run_convert state $
-        error_context ("start: " <> pretty start) $ convert chunks
+    (lys, _) <- run_convert state $ with_context ("start " <> pretty start) $
+        convert chunks
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (LyCode $ "\\time " <> to_lily meter)
         : Right (LyCode $ to_lily key) : lys
@@ -363,7 +362,7 @@ until_complete f = go
 -- TODO the name should change, now that Chunk is something else
 convert_chunk :: Bool -> [Event] -> ConvertM ([Ly], [Event])
 convert_chunk _ [] = return ([], [])
-convert_chunk metered (event : events) = error_context (pretty event) $ if
+convert_chunk metered (event : events) = with_event event $ if
     | Just ((score_dur, real_dur), (_, remain))
             <- find Constants.get_tuplet -> do
         score_dur <- real_to_time score_dur
@@ -450,7 +449,7 @@ convert_tuplet start score_dur real_dur events = do
         , state_measure_start = state_measure_start old
         , state_measure_end = state_measure_end old
         }
-    barline <- Control.rethrow ("converting tuplet: "<>) $
+    barline <- with_context "converting tuplet" $
         advance_measure (start + real_dur)
     let code = tuplet_code (count_notes_rests lys) divisor
     return (code : lys ++ [LyCode "}"] ++ maybe [] (:[]) barline, out)
@@ -623,7 +622,7 @@ consume_subdivisions events = mapM_ update subdivisions >> return normal
     update "" = State.modify' $ \state ->
         state { state_subdivision = Nothing }
     update m = do
-        meter <- tryRight $ first
+        meter <- either throw return $ first
             (("can't parse meter in " <> pretty Constants.v_subdivision
                 <> ": " <> showt m <> ": ")<>)
             (Meter.parse_meter m)
@@ -844,7 +843,7 @@ voices_to_ly voices = do
     return voice_lys
     where
     convert state (v, events) = do
-        (measures, final_state) <- either throw return $ run_convert state $
+        (measures, final_state) <- tryRight $ run_convert state $
             until_complete (convert_chunk True) events
         return (final_state, (v, measures))
 
@@ -969,7 +968,7 @@ advance_unmetered time = advance =<< State.get
 get_subdivision :: ConvertM Meter.Meter
 get_subdivision = do
     meters <- State.gets state_meters
-    meter <- tryJust "out of meters" $ Seq.head meters
+    meter <- maybe (throw "out of meters") return $ Seq.head meters
     subdivision <- State.gets state_subdivision
     case subdivision of
         Just sub
@@ -980,18 +979,28 @@ get_subdivision = do
 
 -- * ConvertM
 
-run_convert :: State -> ConvertM a -> Either Error (a, State)
+type ConvertM =
+    State.StateT State (Except.ExceptT ConvertError Identity.Identity)
+
+data ConvertError = ConvertError !(Maybe Stack.Stack) !Error
+    deriving (Eq, Show)
+
+to_log :: ConvertError -> Log.Msg
+to_log (ConvertError stack msg) = Log.msg Log.Warn stack msg
+
+type Error = Text
+
+run_convert :: State -> ConvertM a -> Either ConvertError (a, State)
 run_convert state = Identity.runIdentity . Except.runExceptT
     . flip State.runStateT state
 
-type ConvertM = State.StateT State (Except.ExceptT Error Identity.Identity)
+with_event :: Event -> ConvertM a -> ConvertM a
+with_event event = flip Except.catchError $ \(ConvertError _ msg) ->
+    Except.throwError $ ConvertError (Just (event_stack event)) msg
 
-error_context :: Error -> ConvertM a -> ConvertM a
-error_context msg = map_error ((msg <> ": ") <>)
-
-map_error :: (Error -> Error) -> ConvertM a -> ConvertM a
-map_error f action = Except.catchError action $ \err ->
-    Except.throwError (f err)
+with_context :: Text -> ConvertM a -> ConvertM a
+with_context prefix = flip Except.catchError $ \(ConvertError stack msg) ->
+    Except.throwError $ ConvertError stack (prefix <> ": " <> msg)
 
 data State = State {
     -- Constant:
@@ -1046,7 +1055,7 @@ make_state config start meters key = State
 throw :: Error -> ConvertM a
 throw msg = do
     now <- State.gets state_time
-    Except.throwError $ pretty now <> ": " <> msg
+    Except.throwError $ ConvertError Nothing (pretty now <> ": " <> msg)
 
 lookup_val :: Env.Key -> (Error -> Either Error a) -> a -> Event -> ConvertM a
 lookup_val key parse deflt event = prefix $ do

@@ -105,7 +105,7 @@ type Movement = (Lilypond.Title, [Score.Event])
 -- | Generate lilypond code.  If there are movement divisions, they will
 -- be extracted from the events.
 extract_movements :: Lilypond.Config -> Lilypond.Title -> [Score.Event]
-    -> (Either Text Lazy.Text, [Log.Msg])
+    -> (Either Log.Msg Lazy.Text, [Log.Msg])
 extract_movements config title score_events = (output, logs)
     where
     (ly_events, logs) = convert config score_events
@@ -114,14 +114,14 @@ extract_movements config title score_events = (output, logs)
 
 -- | Generate lilypond from an explicit list of movements.
 explicit_movements :: Lilypond.Config -> Lilypond.Title -> [Movement]
-    -> (Either Text Lazy.Text, [Log.Msg])
+    -> (Either Log.Msg Lazy.Text, [Log.Msg])
 explicit_movements config title movements = (output, logs)
     where
     (result, logs) = convert_movements config movements
     output = Lilypond.ly_file config title <$> result
 
 convert_movements :: Lilypond.Config -> [Movement]
-    -> (Either Text [Lilypond.Movement], [Log.Msg])
+    -> (Either Log.Msg [Lilypond.Movement], [Log.Msg])
 convert_movements config movements =
     (Lilypond.explicit_movements config (zip (map fst movements) mvt_events),
         concat logs)
