@@ -222,7 +222,7 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
-  - Why is midi thru suddenly no longer emitting pitch bend 0?
+  * Why is midi thru suddenly no longer emitting pitch bend 0?
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
     same problem as extending 'grace' to be able to put stuff on the main
     note.
@@ -266,9 +266,6 @@ UNSORTED
     . Explicit line segments or a continuous signal or whatever would also
       fix the problem where Signal.constant uses [(0, y)]... but then it
       doesn't work right at <0.  Or Signal.constant could use -big_x.
-  - lily in complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
-    . Probably to do with lily in general being broken after the explicit rent
-      refactor.
   * Move string assignment to karya.  This is a general purpose thing.
     . What about stopped-string?
     . It doesn't emit the chosen string, but it could?
@@ -288,12 +285,12 @@ UNSORTED
       the next note.  There also could be an attack prepare time, analogous to
       the release delay.
   - enable FlexibleInstances globally.  Should I add any other instance ones?
+    TypeSynonymInstances?  GeneralizedNewtypeDeriving?
+  - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.
   * add a LInst.copy to copy an allocation to a new name
-  - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does k_\ and
-    k//\\ (and shouldn't the last be k/\ for consistency with gangsa?).
   - binary-serialise-cbor is out and implemented by serialise, try switching
     save format to that.
     . But figure out how to use the built-in versioning first.
@@ -1598,6 +1595,19 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
+    . Probably to do with lily in general being broken after the explicit rest
+      refactor.
+  - squart/6 broken with incompatible subdivision
+    . Note convert has gotten further ahead in time than it should, so it's
+      already advanced to the 4/4 meter when it should be on 6/8.
+    . Beginning of b3 is mm47, which is time 37+1/4
+    . At 40+1/2 subdivision 3/4, at 43+1/4, subdivision ''.
+    . It advances to 4/4 before it updates the subdivision.
+  - It's really confusing how transformer and generators work for ly calls.
+    . E.g. I assign ly-span in ky to generator, then doesn't work as
+      a transformer.  But if I make it a transformer and add |, then I get the
+      bogus 0 dur empty event implied.
   ties: rhythmic spelling:
     * 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8
@@ -1630,8 +1640,8 @@ lilypond:
       that's lost by the time it gets to ly.  I can already do this though,
       with a if-ly type refactor.
   - Can I get it to print time signature on each line?
-    . Doesn't work:
-      \override Staff.TimeSignature.break-visibility = ##(#t #t #t)
+    . There's no built-in support, I'd have to hook into clef display code to
+      add the time signature.
   trill:
     * put accidentals on if it's not diatonic
       * For trill with span, use on multiple notes:
@@ -1690,16 +1700,6 @@ lilypond:
         . Isn't there a better way to configure lilypond than an ad-hoc
           event which has to be special cased everywhere?
           . I could do subdivisions in advance, by modifying the meters list.
-          . Except they can change in the middle of a meter, so maybe not.
-          . I think they get forgotten about if they're in a voice.
-          . I think meters are pre-processed... handle the same as meters?
-          . In fact, why not have a meter with separate spelling and beaming?
-            Subdivision is not global while meter is.  I can do it as
-            a separate pass on the instrument level, but now I'm back to
-            "do in advance."
-          . Maybe I don't need to change in the middle of a measure.
-          . Or I could keep doing it the old way, map update_sudivisions and
-            then filter out 0 durs.  I can fix it later.
       * tuplets
       * tremolo
         . There's a problem with the new way I merge 0 dur FreeCode
@@ -1732,7 +1732,15 @@ lilypond:
       * merge_free_code and merge_note_code have to understand LyNested.
       - Update tuplet to use Nested too?
 
-    - Handle subdivisions at the top level.
+    / Handle subdivisions at the top level.
+      . I would have to extend Meter with a separate \time trigger.  Maybe
+        just separate Meters for subdivisions and display.
+      . Except subdivisions can change in the middle of a measure.  I'd have to
+        put a sub-measure timestamp on it, and have get_meter understand that.
+      . I think they get forgotten about if they're in a voice, but top level
+        would also fix this.
+      . Well, but shouldn't subdivisions also be per-voice?  So it's
+        a feature.
     * Implement Note Prepend... even though I'm not sure there is lilypond
       that does that.
     notes:
@@ -1791,6 +1799,19 @@ lilypond:
       meter than the other way around.
   squart/spawn:
     - Tempo markings.
+      \relative c' {
+        \tempo \markup {
+          \concat {
+            (
+            \smaller \general-align #Y #DOWN \note #"16." #1
+            " = "
+            \smaller \general-align #Y #DOWN \note #"8" #1
+            )
+          }
+        }
+        c1
+        c4 c' c,2
+      }
     * extend vln2 at measure 87 so it has more time to accelerate
       . I want to have an easier way to add a measure in the middle for this.
     - put just the harmonic gliss line on @b2 vla 27
@@ -1968,6 +1989,8 @@ external
   + send a patch to improve Random.Shuffle?
 
 local: plugins:
+  . http://simonmar.github.io/posts/2017-10-17-hotswapping-haskell.html
+    . packages: ghc-hotswap, ghc-hotswap-demo, ghc-hotswap-so
   I also want local code in haskell.
     . I could put code in Local.Score.SomeName, and have those either
       statically linked in, or dynamically compiled and loaded on each
@@ -3441,6 +3464,9 @@ Derive:
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram
         kotekan
+          - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does
+            k_\ and k//\\ (and shouldn't the last be k/\ for consistency with
+            gangsa?).
           - support high dung for position 4
       gender:
         - rambat damping emulation: notes ring on by default until they can be

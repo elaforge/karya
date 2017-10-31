@@ -127,17 +127,22 @@ process config start meters events = first to_log $ do
     chunks <- either (Left . ConvertError Nothing) return $
         collect_chunks events
     let end = start + sum (map Meter.measure_time meters)
+    -- Debug.tracepM "meters" (start, end, length meters,
+    --     zip [1 :: Int ..] (_meter_starts start meters))
     chunks <- return $ merge_note_code_chunks $
         insert_rests_chunks start end chunks
     let state = make_state config start meters default_key
     key <- maybe (return default_key)
         (fmap fst . run_convert state . lookup_key) (Seq.head events)
     state <- return $ state { state_key = key }
-    (lys, _) <- run_convert state $ with_context ("start " <> pretty start) $
-        convert chunks
+    (lys, _) <- run_convert state $ convert chunks
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (LyCode $ "\\time " <> to_lily meter)
         : Right (LyCode $ to_lily key) : lys
+
+_meter_starts :: Time -> [Meter.Meter] -> [(Time, Meter.Meter)]
+_meter_starts start meters = snd $ List.mapAccumL add start meters
+    where add t meter = (t + Meter.measure_time meter, (t, meter))
 
 -- | Group voice and non-voice Events together into Chunks.
 collect_chunks :: [Event] -> Either Error [Chunk]
@@ -234,9 +239,9 @@ merge_note_code = go
         (here, there) = span ((<= event_start event) . event_start) events
         (zero, nonzero) = List.partition code_event (event : here)
         codes = concatMap (Constants.environ_code . event_environ) zero
-    -- TODO subdivision events are a special case of zero-dur events which
-    -- are not code, but are directives to the meter splitting.  I should
-    -- handle these at the top level, like meter events themselves.
+    -- Subdivision events are a special case of zero-dur events which
+    -- are not code, but are directives to the meter splitting.
+    -- TODO isn't there a better way?
     code_event e = zero_dur e && lookup_subdivision e == Nothing
 
 add_note_code :: [(Constants.CodePosition, Text)] -> Event -> Event
@@ -587,7 +592,6 @@ convert_chord metered events = do
             ((> event_start (NonEmpty.head events)) . event_start)
             (NonEmpty.tail events)
         next = event_start <$> List.find (not . zero_dur) there
-    -- TODO if I handle subdivisions at the top I can get rid of this
     here <- consume_subdivisions (NonEmpty.head events : here)
     case NonEmpty.nonEmpty here of
         Nothing -> return ([], there)
@@ -597,14 +601,6 @@ convert_chord metered events = do
                     meter here next
             barline <- if metered then advance_measure end
                 else advance_unmetered end >> return Nothing
-
-            -- Lilypond will throw a barcheck error and produce broken score,
-            -- and 'convert_tuplet' rewinds I'll get an extra barline, so
-            -- disallow this.
-            -- unless metered $ whenJust barline $ const $
-            --     throw $ "An unmetered note went past a barline. This\
-            --         \ probably means a tuplet tried to go over a barline: "
-            --         <> pretty end
             State.modify' $ \state -> state
                 { state_key = key
                 , state_prev_attrs = last_attrs
@@ -947,10 +943,9 @@ advance_measure time = advance =<< State.get
             , state_time = time
             }
         return $ case Seq.head meters of
-            Just meter
-                | to_lily prev_meter == to_lily meter ->
-                    Just (LyBarline Nothing)
-                | otherwise -> Just (LyBarline (Just meter))
+            Just meter -> Just $ LyBarline $
+                if to_lily prev_meter == to_lily meter
+                    then Nothing else Just meter
             _ -> Nothing
 
 -- | Advance time without regard to meter or barlines.
