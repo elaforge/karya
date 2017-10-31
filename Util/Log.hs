@@ -262,9 +262,9 @@ notice_stack = log_stack Notice
 warn_stack = log_stack Warn
 error_stack = log_stack Error
 
--- | Prefix msgs with the given string.
-add_prefix :: Text -> [Msg] -> [Msg]
-add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
+-- | Prefix a msg with the given string.
+add_prefix :: Text -> Msg -> Msg
+add_prefix pref m = m { msg_text = pref <> ": " <> msg_text m }
 
 -- | Write log msgs with 'trace', for debugging.
 trace_logs :: [Msg] -> a -> a

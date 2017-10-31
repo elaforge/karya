@@ -158,7 +158,7 @@ get_note_events = do
 lookup_pitch_at :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
     \(maybe_sig, logs) -> do
-        mapM_ Log.write $ Log.add_prefix ("lookup_pitch_at " <> pretty pos) $
+        mapM_ (Log.write . Log.add_prefix ("lookup_pitch_at " <> pretty pos)) $
             filter ((>=Log.Warn) . Log.msg_priority) logs
         return $ PSignal.at pos =<< maybe_sig
 

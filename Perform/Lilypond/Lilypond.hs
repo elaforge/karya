@@ -306,8 +306,11 @@ split_events events =
 staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
     -> [[Types.Event]] -> Either Log.Msg StaffGroup
 staff_group config start meters inst staves = do
-    staff_measures <- mapM (Process.process config start meters) staves
+    staff_measures <- forM (zip [1..] staves) $ \(i, es) ->
+        annotate i $ Process.process config start meters es
     return $ StaffGroup inst staff_measures
+    where
+    annotate i = first (Log.add_prefix (pretty inst <> ":" <> showt i))
 
 -- | Global FreeCode events get distributed to all staves.
 distribute_global :: [Types.Event] -> Score.Instrument -> [Types.Event]

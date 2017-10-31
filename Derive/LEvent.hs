@@ -108,7 +108,7 @@ write_snd (result, logs) = mapM_ Log.write logs >> return result
 
 write_snd_prefix :: Log.LogMonad m => Text -> (a, [Log.Msg]) -> m a
 write_snd_prefix prefix (result, logs) =
-    mapM_ Log.write (Log.add_prefix prefix logs) >> return result
+    mapM_ Log.write (map (Log.add_prefix prefix) logs) >> return result
 
 partition :: [LEvent d] -> ([d], [Log.Msg])
 partition = Either.partitionEithers . map to_either
