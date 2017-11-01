@@ -1595,10 +1595,12 @@ integrate / integration:
     - quantization
 
 lilypond:
+  * Extra "pizz" which should be suppressed.
   - Warning: cannot add text scripts to individual note heads
       <g'~ d''~ ^\trFlat>1
     . It's doing note attach, when it should be chord attach.
     . But it was always note attach... why did it work before?
+    . It didn't work before, it probably broke when I switched to \trillFlat.
   * \sfz in the wrong place.
     . Mixing free code is getting confused by tuplets.
     . Maybe the Ly duration is not right?

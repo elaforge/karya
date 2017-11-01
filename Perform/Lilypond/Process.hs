@@ -675,8 +675,10 @@ make_note config measure_start prev_attrs maybe_meter chord next =
             , pitch_prepend = prepend
             , pitch_append = append
             }
-    (attrs_codes, next_attrs) = attrs_to_code prev_attrs $
-        mconcat $ map event_attributes $ NonEmpty.toList chord
+    (attrs_codes, next_attrs)
+        | is_rest = ([], prev_attrs)
+        | otherwise = attrs_to_code prev_attrs $
+            mconcat $ map event_attributes $ NonEmpty.toList chord
 
     (prepend_chord, append_chord) =
         (Seq.unique . concat *** Seq.unique . concat) $ unzip
@@ -704,7 +706,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
     -- time.
     allowed_end = start + allowed_time
     (full_measure_rest, allowed_time) = case maybe_meter of
-        Just meter | null note_pitches && start == measure_start
+        Just meter | is_rest && start == measure_start
                 && max_end - start >= Meter.measure_time meter ->
             (True, Meter.measure_time meter)
         _ -> (False, Types.note_dur_to_time allowed_dur)
@@ -713,7 +715,6 @@ make_note config measure_start prev_attrs maybe_meter chord next =
         Just meter ->
             Meter.allowed_duration use_dot meter in_measure (max_end - start)
             where
-            is_rest = null note_pitches
             -- Dots are always allowed for non-binary meters.
             use_dot = not is_rest || Types.config_dotted_rests config
                 || not (Meter.is_binary meter)
@@ -721,6 +722,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
     max_end = min_if next $ Seq.ne_minimum (fmap event_end chord)
+    is_rest = null note_pitches
 
 events_note_code :: Constants.Attach -> Bool -> Bool -> [Event]
     -> ([Text], [Text])

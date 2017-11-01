@@ -153,6 +153,13 @@ test_note_code = do
     left_like (run [(0, 8, Just c3, []), (1, 0, Nothing, c Chord Append All)])
         "note code without a note to attach"
 
+test_modal_articulations = do
+    let run = process_simple . map LilypondTest.attrs_event
+    -- Not interrupted by rests.
+    equal (run [(0, 1, c3, Attrs.pizz), (2, 1, d3, Attrs.pizz),
+            (3, 1, e3, mempty)]) $
+        Right "c4^\"pizz.\" r4 d4 e4^\"arco\""
+
 test_attrs_to_code = do
     let f = Process.attrs_to_code
     equal (f Attrs.nv Attrs.accent) (["->", "^\"vib\""], Attrs.accent)
