@@ -592,7 +592,6 @@ convert_chord :: Bool -> NonEmpty Event -> ConvertM ([Ly], [Event])
 convert_chord metered events = do
     key <- lookup_key (NonEmpty.head events)
     state <- State.get
-    let key_change = [LyCode (to_lily key) | key /= state_key state]
     config <- State.gets state_config
     let (here, there) = break
             ((> event_start (NonEmpty.head events)) . event_start)
@@ -608,12 +607,19 @@ convert_chord metered events = do
                     meter here next
             barline <- if metered then advance_measure end
                 else advance_unmetered end >> return Nothing
-            State.modify' $ \state -> state
-                { state_key = key
-                , state_prev_attrs = last_attrs
-                }
+            -- Rests don't affect the key, or emit key changes.  This is
+            -- because rests are created with an empty environ, so otherwise
+            -- they would be constantly unsetting the key.
+            key_change <- case chord_ly of
+                LyRest {} -> return []
+                _ -> do
+                    State.modify' $ \state -> state
+                        { state_key = key
+                        , state_prev_attrs = last_attrs
+                        }
+                    return [LyCode (to_lily key) | key /= state_key state]
             return
-                ( key_change <> [chord_ly] <> maybe [] (:[]) barline
+                ( key_change ++ [chord_ly] ++ maybe [] (:[]) barline
                 , clipped ++ there
                 )
 

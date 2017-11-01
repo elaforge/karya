@@ -222,6 +222,8 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - Print something on stdout when I can't find the file to load from the
+    cmdline.  Otherwise I get confused.
   * Why is midi thru suddenly no longer emitting pitch bend 0?
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
     same problem as extending 'grace' to be able to put stuff on the main
@@ -1595,6 +1597,15 @@ integrate / integration:
     - quantization
 
 lilypond:
+  fix viola-sonata
+    * It looks like rests also forget about keys.
+    - \mf<< syntax error.
+      . \mf moved from inside voice to outside.  Probably code event mixing.
+    - Extra rests at the end of movements.
+      . Probably movement splits not right.
+  - \flageolets disappeared.
+    . squart/6 is somehow not using the 'o' call... how did that happen?  Did
+      I somehow revert to an old version?
   * Extra "pizz" which should be suppressed.
   - Warning: cannot add text scripts to individual note heads
       <g'~ d''~ ^\trFlat>1

@@ -48,6 +48,7 @@ extract_rights = Text.unwords . map expect_right
 
 -- * extract
 
+-- | Extract lilypond with no voices and concatenate.
 extract_simple :: [Text] -> Either Text [Either Process.Voices Process.Ly]
     -> Either Text Text
 extract_simple wanted = fmap extract_rights . extract_lys wanted

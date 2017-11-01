@@ -80,6 +80,17 @@ test_meters = do
     equal (run ["time", "bar"] ["4/4", "3/4", "4/4"] []) $
         Right "\\time 4/4 R4*4 | \\time 3/4 R4*3 | \\time 4/4 R4*4 \\bar \"|.\""
 
+test_keys = do
+    let run = LilypondTest.extract_simple ["key"]
+            . process_44 . map key_event
+        key_event (s, d, p, key) = LilypondTest.environ_event
+            (s, d, Just p, [(EnvKey.key, Typecheck.to_val (key :: Text))])
+    equal (run [(0, 4, c3, "c-min"), (4, 4, d3, "d-min")]) $
+        Right "\\key c \\minor c1 | \\key d \\minor d1"
+    -- Not interrupted by rests.
+    equal (run [(0, 2, c3, "c-min"), (4, 4, d3, "c-min")]) $
+        Right "\\key c \\minor c2 r2 | d1"
+
 test_dotted_rests = do
     let run meter = LilypondTest.extract_simple []
             . process [LilypondTest.parse_meter meter]
@@ -255,7 +266,7 @@ test_simplify_voices = do
             , Left [(VoiceOne, "d1"), (VoiceTwo, "e1")]
             ]
 
-test_voices_and_free_code = do
+test_free_code_voices = do
     let run = LilypondTest.extract_lys []
             . process_44 . map LilypondTest.environ_event
         v n = (EnvKey.voice, BaseTypes.num n)
