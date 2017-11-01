@@ -446,6 +446,7 @@ convert_tuplet start score_dur real_dur events = do
     lys <- until_complete (convert_chunk False) $
         snd $ insert_rests (Just (start + score_dur)) start $
         map (stretch factor start) in_tuplet
+    lys <- maybe (throw "empty tuplet") return $ NonEmpty.nonEmpty lys
 
     -- Rewind time back to before the tuplet.
     State.modify' $ \state -> state
@@ -456,18 +457,24 @@ convert_tuplet start score_dur real_dur events = do
         }
     barline <- with_context "converting tuplet" $
         advance_measure (start + real_dur)
-    let code = tuplet_code (count_notes_rests lys) divisor
-    return (code : lys ++ [LyCode "}"] ++ maybe [] (:[]) barline, out)
+    let code = tuplet_code real_dur divisor
+            (count_notes_rests (NonEmpty.toList lys)) lys
+    return (code : maybe [] (:[]) barline, out)
 
 -- | Convention is that the number on the tuplet is at least the number of
 -- notes inside, but lilypond doesn't do that automatically.
-tuplet_code :: Int -> Rational -> Ly
-tuplet_code notes r =
-    LyCode $ "\\tuplet " <> showt num <> "/" <> showt denom <> " {"
+tuplet_code :: Time -> Rational -> Int -> NonEmpty Ly -> Ly
+tuplet_code dur ratio notes contents = LyNested $ Nested
+    { nested_prefix = "\\tuplet " <> showt num <> "/" <> showt denom <> " {"
+    , nested_contents = contents
+    , nested_suffix = "}"
+    , nested_duration = dur
+    }
     where
-    (num, denom) = (Ratio.numerator r * factor, Ratio.denominator r * factor)
+    num = Ratio.numerator ratio * factor
+    denom = Ratio.denominator ratio * factor
     factor = (2^) $ max 0 $ ceiling $ logBase 2 $
-        fromIntegral notes / fromIntegral (Ratio.numerator r)
+        fromIntegral notes / fromIntegral (Ratio.numerator ratio)
 
 real_to_time :: RealTime -> ConvertM Time
 real_to_time t = do

@@ -25,6 +25,7 @@ import Perform.Lilypond.Process (Voice(..))
 import qualified Perform.Lilypond.Types as Types
 
 import Global
+import Types
 
 
 test_simple = do
@@ -90,6 +91,10 @@ test_dotted_rests = do
 free_code :: Constants.FreeCodePosition -> Text -> [(Env.Key, BaseTypes.Val)]
 free_code pos code = [(Constants.free_code_key pos, Typecheck.to_val code)]
 
+mk_free_code :: RealTime -> Constants.FreeCodePosition -> Text -> Types.Event
+mk_free_code start pos code =
+    LilypondTest.environ_event (start, 0, Nothing, free_code pos code)
+
 test_free_code = do
     let run = process_simple . map LilypondTest.environ_event
         prepend = free_code Constants.FreePrepend "pre"
@@ -108,6 +113,14 @@ test_free_code = do
     equal (run [(0, 8, Just a3, []), (2, 0, Nothing, append),
             (6, 0, Nothing, prepend), (8, 4, Just b3, [])])
         (Right "a1~ post | pre a1 | b1")
+
+test_free_code_tuplet = do
+    let run = LilypondTest.extract_simple ["tuplet"] . process_44
+    let e = LilypondTest.simple_event
+        append start = mk_free_code start Constants.FreeAppend "post"
+    let triplet = mk_tuplet 0 3 4 : map e [(0, 1, c3), (1, 1, d3), (2, 1, e3)]
+    equal (run $ triplet ++ [append 4, e (4, 4, f3)]) $
+        Right "\\tuplet 3/2 { c2 d2 e2 } | f1 post"
 
 note_code :: Constants.CodePosition -> Text -> [(Env.Key, BaseTypes.Val)]
 note_code pos code = [(Constants.position_key pos, Typecheck.to_val code)]
@@ -269,25 +282,26 @@ test_voices_and_free_code = do
             ]) $
         Right [Right "c1 post | d1"]
 
+mk_tuplet :: RealTime -> RealTime -> RealTime -> Types.Event
+mk_tuplet start score_dur real_dur =
+    (LilypondTest.mkevent start real_dur Nothing LilypondTest.default_inst [])
+    { Types.event_environ = Constants.set_tuplet score_dur real_dur }
+
 test_convert_tuplet = do
     let run = second extract . process (replicate 2 Meter.default_meter)
-        tuplet start score_dur real_dur =
-            (LilypondTest.mkevent start real_dur Nothing
-                LilypondTest.default_inst [])
-            { Types.event_environ = Constants.set_tuplet score_dur real_dur }
         e = LilypondTest.simple_event
         extract = Text.unwords . map Types.to_lily . strip_ly . map expect_right
 
-    equal (run $ tuplet 0 3 4 : map e [(0, 1, c3), (1, 1, d3), (2, 1, e3)])
+    equal (run $ mk_tuplet 0 3 4 : map e [(0, 1, c3), (1, 1, d3), (2, 1, e3)])
         (Right "\\tuplet 3/2 { c2 d2 e2 } | R4*4")
     -- leading and trailing rests
-    equal (run [tuplet 0 3 4, e (1, 1, d3)])
+    equal (run [mk_tuplet 0 3 4, e (1, 1, d3)])
         (Right "\\tuplet 3/2 { r2 d2 r2 } | R4*4")
     -- can't go past a barline
-    left_like (run [tuplet 3 3 4, e (3, 1, c3)]) "tuplet: * past barline"
+    left_like (run [mk_tuplet 3 3 4, e (3, 1, c3)]) "tuplet: * past barline"
 
     -- Spell with a 6 because there are 6 notes:
-    equal (run $ tuplet 0 3 4 :
+    equal (run $ mk_tuplet 0 3 4 :
             [ e (s, 0.5, p)
             | (s, p) <- zip (Seq.range_ 0 0.5) [a3, b3, c3, d3, e3, f3]
             ])
@@ -309,8 +323,8 @@ test_convert_tuplet = do
     -- this out, and tracklang can't generate nested tuplets properly anyway,
     -- as documented in Parent_test.test_tuplet_ly.
     -- let nested =
-    --         [ tuplet 0 3 4, e (0, 1, "c")
-    --         , tuplet 1 1.5 2
+    --         [ mk_tuplet 0 3 4, e (0, 1, "c")
+    --         , mk_tuplet 1 1.5 2
     --         , e (1, 0.5, "d"), e (1.5, 0.5, "e"), e (2, 0.5, "f")
     --         ]
     -- equal (run nested)

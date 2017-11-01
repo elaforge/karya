@@ -1595,6 +1595,14 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - Warning: cannot add text scripts to individual note heads
+      <g'~ d''~ ^\trFlat>1
+    . It's doing note attach, when it should be chord attach.
+    . But it was always note attach... why did it work before?
+  * \sfz in the wrong place.
+    . Mixing free code is getting confused by tuplets.
+    . Maybe the Ly duration is not right?
+    . Use Nested, so the Ly has the right duration.
   - complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
     . Probably to do with lily in general being broken after the explicit rest
       refactor.
@@ -1654,6 +1662,17 @@ lilypond:
       http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
     - It doesn't like my ^\trFlat variants on notes within a chord, while
       \trill is fine with it.
+      . This might work:
+        trFlat = \once \override TrillSpanner.bound-details.left.text = \markup{
+          \concat {
+            \musicglyph #"scripts.trill"
+            \translate #'(-0.5 . 1.9)
+            \fontsize #-7
+            \with-dimensions #'(0 . 0) #'(0 . 0)
+            \flat
+          }
+        }
+      . Nope, but maybe I have to use that with \trill.
     - Wavy line should extend to the end of the note, not stop at the
       beginning.  Lilypond seems to stop too early.
       . It wants \stopTrillSpan to go after the note *after* it ends.
@@ -1695,11 +1714,11 @@ lilypond:
         . Actually, should I not have separate NoteCodes at all?  No, I think
           they are still useful for ly-only tracks.
       - Warn about free standing NoteCodes that don't line up with a note.
-      - merge subdivision CodeEvents, distribute in voices
-        - add subdivision tests to Process_test
-        . Isn't there a better way to configure lilypond than an ad-hoc
-          event which has to be special cased everywhere?
-          . I could do subdivisions in advance, by modifying the meters list.
+      / merge subdivision CodeEvents, distribute in voices
+      - add subdivision tests to Process_test
+        . Make sure per-voice subdivision changes also work.
+      . Isn't there a better way to configure lilypond than an ad-hoc
+        event which has to be special cased everywhere?
       * tuplets
       * tremolo
         . There's a problem with the new way I merge 0 dur FreeCode
@@ -1730,7 +1749,7 @@ lilypond:
       . If I wanted to really rerpsent this it would be
         Nested Code [Ly] Code Duration.  Why not?
       * merge_free_code and merge_note_code have to understand LyNested.
-      - Update tuplet to use Nested too?
+      * Update tuplet to use Nested too?
 
     / Handle subdivisions at the top level.
       . I would have to extend Meter with a separate \time trigger.  Maybe
