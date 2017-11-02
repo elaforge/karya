@@ -1605,8 +1605,9 @@ lilypond:
         though it should go on the front of the voices, just by timing.
       . In fact, I think free code should only be merged by time, not by
         chunk.
-    - Extra rests at the end of movements.
+    * Extra rests at the end of movements.
       . Probably movement splits not right.
+      . First movement ends at mm58, but I get meters up until 110.
   - \flageolets disappeared.
     . squart/6 is somehow not using the 'o' call... how did that happen?  Did
       I somehow revert to an old version?

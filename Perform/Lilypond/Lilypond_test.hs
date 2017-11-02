@@ -14,6 +14,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
+import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Types as Types
 
@@ -282,12 +283,21 @@ test_voices = do
     match text "voiceOne*voiceTwo*oneVoice"
 
 test_movements = do
-    let (text, logs) = make_ly Types.default_config $
-            (">", [(4, 0, "movement 'number 2'")])
-            : UiTest.regular_notes 6
+    let run = make_ly Types.default_config
+    let (text, logs) = run $
+            (">", [(4, 0, "movement 'number 2'")]) : UiTest.regular_notes 6
     equal logs []
     -- \score, first movement, movement title, \score, second movement
     match text "score * c4 d4 e4 f4 *number 2*score * g4 a4 r2"
+
+test_parse_meters = do
+    let f end = fmap (map pretty *** map pretty)
+            . Lilypond.parse_meters 0 (end * Types.time_per_whole)
+            . map LilypondTest.environ_event
+        meter m = (Constants.v_meter, Typecheck.to_val (m :: Text))
+    equal (f 2 []) (Right (["4/4", "4/4"], []))
+    -- Not mislead by a meter change past the end.
+    equal (f 2 [(32, 0, Nothing, [meter "3/4"])]) (Right (["4/4", "4/4"], []))
 
 make_ly :: Types.Config -> [UiTest.TrackSpec] -> (Text, [Text])
 make_ly config = first (LilypondTest.make_ly config)

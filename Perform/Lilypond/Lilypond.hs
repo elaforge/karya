@@ -347,13 +347,12 @@ parse_meters start staff_end events = do
     meters <- mapM (\(pos, meter) -> (pos,) <$> Meter.parse_meter meter) meters
     return (generate start Meter.default_meter meters, remain)
     where
-    generate prev meter [] =
-        replicate (measures_in (staff_end-prev) meter) meter
-    generate prev prev_meter ((pos, meter) : meters) =
+    generate prev prev_meter ((pos, meter) : meters) | pos < staff_end =
         replicate measures prev_meter ++ generate next meter meters
         where
         measures = measures_in (pos-prev) prev_meter
         next = prev + fromIntegral measures * Meter.measure_time prev_meter
+    generate prev meter _ = replicate (measures_in (staff_end-prev) meter) meter
     -- If you try to change the meter in the middle of a meter, it rounds up to
     -- the next barline.  If you put multiple meter changes before the barline,
     -- only the first one is accepted.  TODO arguably it should be the last.
