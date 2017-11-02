@@ -138,7 +138,9 @@ process config start meters events_ = first to_log $ do
     lys <- pure $ merge_free_code start free_codes lys
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (LyCode $ "\\time " <> to_lily meter)
-        : Right (LyCode $ to_lily key) : lys
+        : Right (LyCode $ to_lily key)
+        : lys
+        ++ [Right (LyCode "\\bar \"|.\"")]
 
 _meter_starts :: Time -> [Meter.Meter] -> [(Time, Meter.Meter)]
 _meter_starts start meters = snd $ List.mapAccumL add start meters
@@ -267,7 +269,7 @@ add_note_code codes event =
 -- TODO maybe return Either Voices [Ly] so I can avoid the concat and all the
 -- extra Rights?
 convert :: [Chunk] -> ConvertM [Either Voices Ly]
-convert = fmap concat . Then.mapM go (return [[Right final_barline]])
+convert = concatMapM go
     where
     final_barline = LyCode "\\bar \"|.\""
     go :: Chunk -> ConvertM [Either Voices Ly]

@@ -1600,8 +1600,9 @@ lilypond:
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?
-  fix squart/spawn
-    - \alNiente went after the final \bar, nothing should do that.
+  fix squart/6
+    * \alNiente went after the final \bar, nothing should do that.
+      . This happens because I mix free code at the end now.
   fix viola-sonata
     * It looks like rests also forget about keys.
     * \mf<< syntax error.
