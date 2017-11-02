@@ -1597,6 +1597,11 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - Lilypond complains about simultaneous tempo marks due to the ly-global
+    distribution.
+    . I guess I want just one after all.  But what about extracted parts?
+  fix squart/spawn
+    - \alNiente went after the final \bar, nothing should do that.
   fix viola-sonata
     * It looks like rests also forget about keys.
     * \mf<< syntax error.
@@ -1608,9 +1613,11 @@ lilypond:
     * Extra rests at the end of movements.
       . Probably movement splits not right.
       . First movement ends at mm58, but I get meters up until 110.
-  - \flageolets disappeared.
+  - fix harmonics on squart/6, squart/spawn, viola-sonata
+    . \flageolets disappeared.
     . squart/6 is somehow not using the 'o' call... how did that happen?  Did
       I somehow revert to an old version?
+  * fix errors in squart/spawn
   * Extra "pizz" which should be suppressed.
   - Warning: cannot add text scripts to individual note heads
       <g'~ d''~ ^\trFlat>1
@@ -1634,6 +1641,9 @@ lilypond:
     . E.g. I assign ly-span in ky to generator, then doesn't work as
       a transformer.  But if I make it a transformer and add |, then I get the
       bogus 0 dur empty event implied.
+  - Similarly, it's awkward to have transformer + generators just so I can put
+    multiple bits of code on one event.  I wonder if it's worth adding a ';'
+    separator that allows multiple expressions?
   ties: rhythmic spelling:
     * 3/4 tieing is too conservative.  Quarters should be able to break an 8th
       line, e.g. 8 4 8 8 8

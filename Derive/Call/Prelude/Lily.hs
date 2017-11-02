@@ -267,19 +267,19 @@ c_ly_emit :: Make.Calls Derive.Note
 c_ly_emit = emit_start "ly-emit"
     "Emit a single fragment of freestanding lilypond code."
     ((,)
-    <$> Sig.required "code" "A leading \\ will be prepended."
+    <$> Sig.required "code" "Emit this code."
     <*> Sig.defaulted "pos" Constants.FreeAppend
         "Where to put it: 'Derive.Call.Ly.CodePosition'."
-    ) $ \(code, pos) -> return (Ly.Position pos, "\\" <> code)
+    ) $ \(code, pos) -> return (Ly.Position pos, code)
 
 c_ly_attach :: Make.Calls Derive.Note
 c_ly_attach = attach All "ly-attach"
     "Attach lilypond code to each transformed note."
     ((,)
-    <$> Sig.required "code" "A leading \\ will be prepended."
+    <$> Sig.required "code" "Attach this code."
     <*> Sig.defaulted "pos" (Ly.append Constants.Last)
         "Where to put it: 'Derive.Call.Ly.CodePosition'."
-    ) $ \(code, pos) -> (pos, "\\" <> code)
+    ) $ \(code, pos) -> (pos, code)
 
 c_ly_key :: Make.Calls Derive.Note
 c_ly_key = emit_start "ly-key"

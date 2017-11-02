@@ -122,10 +122,10 @@ test_articulation = do
 test_ly_notes_attach = do
     let run = measures_linear ["down"]
     equal (run $ (">", [(0, 3, "ly-attach down")]) : UiTest.regular_notes 3)
-        (Right "c4 \\down d4 \\down e4 \\down r4", [])
+        (Right "c4 down d4 down e4 down r4", [])
     equal (run $ (">", [(0, 3, "ly-attach down chord-prepend-first")])
             : UiTest.regular_notes 3)
-        (Right "\\down c4 \\down d4 \\down e4 r4", [])
+        (Right "down c4 down d4 down e4 r4", [])
 
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
@@ -275,17 +275,17 @@ test_code_position = do
                 , [(0, 8, "3d")]
                 ]
     let runa = runc "ly-attach"
-    equal (runa "chord-prepend-all") (Right "\\a <c~ d~>1 | \\a <c d>1", [])
-    equal (runa "chord-prepend-first") (Right "\\a <c~ d~>1 | <c d>1", [])
-    equal (runa "chord-prepend-last") (Right "<c~ d~>1 | \\a <c d>1", [])
-    equal (runa "chord-append-all") (Right "<c~ d~>1 \\a | <c d>1 \\a", [])
-    equal (runa "chord-append-first") (Right "<c~ d~>1 \\a | <c d>1", [])
-    equal (runa "chord-append-last") (Right "<c~ d~>1 | <c d>1 \\a", [])
-    equal (runa "note-append-all") (Right "<c~\\a d~>1 | <c\\a d>1", [])
-    equal (runa "note-append-first") (Right "<c~\\a d~>1 | <c d>1", [])
+    equal (runa "chord-prepend-all") (Right "a <c~ d~>1 | a <c d>1", [])
+    equal (runa "chord-prepend-first") (Right "a <c~ d~>1 | <c d>1", [])
+    equal (runa "chord-prepend-last") (Right "<c~ d~>1 | a <c d>1", [])
+    equal (runa "chord-append-all") (Right "<c~ d~>1 a | <c d>1 a", [])
+    equal (runa "chord-append-first") (Right "<c~ d~>1 a | <c d>1", [])
+    equal (runa "chord-append-last") (Right "<c~ d~>1 | <c d>1 a", [])
+    equal (runa "note-append-all") (Right "<c~a d~>1 | <ca d>1", [])
+    equal (runa "note-append-first") (Right "<c~a d~>1 | <c d>1", [])
     let rune = runc "ly-emit"
-    equal (rune "prepend") (Right "\\a <c~ d~>1 | <c d>1", [])
-    equal (rune "append") (Right "<c~ d~>1 \\a | <c d>1", [])
+    equal (rune "prepend") (Right "a <c~ d~>1 | <c d>1", [])
+    equal (rune "append") (Right "<c~ d~>1 a | <c d>1", [])
 
 
 -- * util

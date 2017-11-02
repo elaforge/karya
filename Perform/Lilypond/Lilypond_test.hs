@@ -204,7 +204,7 @@ test_ly_global = do
         (Right [], ["a note without pitch must have code"])
     equal (run [(0, 0, "ly-emit pre prepend")]
             [[(0, 1, "inst=i1 | -- 3c")], [(0, 1, "inst=i2 | -- 3d")]])
-        (Right [("i1", ["\\pre c4 r4 r2"]), ("i2", ["\\pre d4 r4 r2"])], [])
+        (Right [("i1", ["pre c4 r4 r2"]), ("i2", ["pre d4 r4 r2"])], [])
     equal (run [(0, 0, "tempo slow")]
             [[(0, 1, "inst=i1 | -- 3c")], [(0, 1, "inst=i2 | -- 3d")]])
         (Right [("i1", ["\\tempo slow c4 r4 r2"]),
