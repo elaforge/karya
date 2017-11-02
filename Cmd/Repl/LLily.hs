@@ -133,7 +133,7 @@ solo_instrument inst = Lilypond.staves %= map solo
         | fst staff == inst = staff
         | otherwise = second (Lilypond.display %= not) staff
 
-block_title :: Lilypond.Title -> BlockId -> Cmd.CmdL Text
+block_title :: Lilypond.Title -> BlockId -> Cmd.CmdT IO Text
 block_title title block_id =
     compile_extract title =<< LEvent.write_logs =<< derive block_id
 
@@ -177,7 +177,7 @@ compile_explicit title movements = do
             return ""
 
 -- | Extract movements from the events and run lilypond.  Return any error.
-compile_extract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL Text
+compile_extract :: Lilypond.Title -> [Score.Event] -> Cmd.CmdT IO Text
 compile_extract title events = do
     config <- get_config
     result <- LEvent.write_snd $
@@ -196,25 +196,28 @@ block_id_title = Id.ident_name
 
 -- * debugging
 
--- | Convert current block to lilypond score.
-make_ly :: Cmd.CmdL (Either Text Lazy.Text, [Log.Msg])
-make_ly = do
-    block_id <- Cmd.get_focused_block
+-- | Convert the block to lilypond score.
+block_ly :: Cmd.M m => BlockId -> m Lazy.Text
+block_ly block_id = do
     config <- get_config
     (events, derive_logs) <- LEvent.partition <$> derive block_id
     let (result, logs) = Cmd.Lilypond.extract_movements config
             (block_id_title block_id) events
-    return (first Log.msg_text result,
-        either (:) (const id) result $ derive_logs ++ logs)
+    mapM_ Log.write $ derive_logs ++ logs
+    case result of
+        Left err -> do
+            Log.write err
+            Cmd.throw $ Log.msg_text err
+        Right ly -> return ly
 
--- | Derive focused block to ly events.
-convert :: Cmd.CmdT IO ([Lilypond.Event], [Log.Msg])
-convert = do
+-- | Derive the block to ly events.
+convert :: Cmd.M m => BlockId -> m [Lilypond.Event]
+convert block_id = do
     config <- get_config
-    (score_events, derive_logs) <-
-        LEvent.partition <$> (derive =<< Cmd.get_focused_block)
+    (score_events, derive_logs) <- LEvent.partition <$> derive block_id
     let (events, logs) = Cmd.Lilypond.convert config score_events
-    return (events, derive_logs ++ logs)
+    mapM_ Log.write $ derive_logs ++ logs
+    return events
 
 e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
 e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
@@ -223,7 +226,7 @@ e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
 -- ** LPerf
 
 -- | Run a lilypond derive and return score events.
-derive :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
+derive :: Cmd.M m => BlockId -> m [LEvent.LEvent Score.Event]
 derive block_id =
     Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
