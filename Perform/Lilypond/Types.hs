@@ -299,6 +299,7 @@ strip_environ (BaseTypes.Environ env) =
     where
     interesting key val = "ly-" `Text.isPrefixOf` key
         || (key == EnvKey.attributes && has_attrs val)
+        || key `elem` [EnvKey.voice, EnvKey.hand]
     has_attrs (BaseTypes.VAttributes attrs) = attrs /= mempty
     has_attrs _ = True
 

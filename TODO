@@ -1599,8 +1599,12 @@ integrate / integration:
 lilypond:
   fix viola-sonata
     * It looks like rests also forget about keys.
-    - \mf<< syntax error.
+    * \mf<< syntax error.
       . \mf moved from inside voice to outside.  Probably code event mixing.
+      . The non-voice chunk gets the free code, because it has no voice, even
+        though it should go on the front of the voices, just by timing.
+      . In fact, I think free code should only be merged by time, not by
+        chunk.
     - Extra rests at the end of movements.
       . Probably movement splits not right.
   - \flageolets disappeared.

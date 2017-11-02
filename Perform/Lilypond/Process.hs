@@ -102,16 +102,14 @@ convert_to_rests = hush . filter wanted . concatMap flatten
 
 -- * process
 
-data Chunk =
-    ChunkNotes [FreeCode] [Event]
-    | ChunkVoices [FreeCode] (VoiceMap Event)
+data Chunk = ChunkNotes [Event] | ChunkVoices (VoiceMap Event)
     deriving (Show)
 
 instance Pretty Chunk where
-    format (ChunkNotes code events) = Pretty.constructor "ChunkNotes"
-        [Pretty.format code, Pretty.format events]
-    format (ChunkVoices code voices) = Pretty.constructor "ChunkVoices"
-        [Pretty.format code, Pretty.format voices]
+    format (ChunkNotes events) =
+        Pretty.constructor "ChunkNotes" [Pretty.format events]
+    format (ChunkVoices voices) =
+        Pretty.constructor "ChunkVoices" [Pretty.format voices]
 
 -- | This is the top level function which converts a stream of Events on one
 -- staff into lilypond code.
@@ -123,7 +121,8 @@ instance Pretty Chunk where
 -- to the meter.
 process :: Types.Config -> Time -> [Meter.Meter] -- ^ one for each measure
     -> [Event] -> Either Log.Msg [Either Voices Ly]
-process config start meters events = first to_log $ do
+process config start meters events_ = first to_log $ do
+    let (free_codes, events) = Seq.partition_on free_code events_
     chunks <- either (Left . ConvertError Nothing) return $
         collect_chunks events
     let end = start + sum (map Meter.measure_time meters)
@@ -136,6 +135,7 @@ process config start meters events = first to_log $ do
         (fmap fst . run_convert state . lookup_key) (Seq.head events)
     state <- return $ state { state_key = key }
     (lys, _) <- run_convert state $ convert chunks
+    lys <- pure $ merge_free_code start free_codes lys
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (LyCode $ "\\time " <> to_lily meter)
         : Right (LyCode $ to_lily key) : lys
@@ -144,52 +144,61 @@ _meter_starts :: Time -> [Meter.Meter] -> [(Time, Meter.Meter)]
 _meter_starts start meters = snd $ List.mapAccumL add start meters
     where add t meter = (t + Meter.measure_time meter, (t, meter))
 
--- | Group voice and non-voice Events together into Chunks.
+-- | Group voice and non-voice Events into Chunks.
 collect_chunks :: [Event] -> Either Error [Chunk]
 collect_chunks = go
     where
     go [] = return []
     go events = do
-        (no_voice, code1, events) <- without_voice events
-        (voice, code2, events) <- with_voice events
-        let collected
-                | null no_voice = [ChunkVoices (code1++code2) voice]
-                | otherwise =
-                    [ChunkNotes code1 no_voice, ChunkVoices code2 voice]
-        (filter nonempty collected ++) <$> go events
-    nonempty (ChunkNotes [] []) = False
-    nonempty (ChunkVoices [] []) = False
+        (no_voice, events) <- without_voice events
+        (voice, events) <- with_voice events
+        let collected = filter nonempty [ChunkNotes no_voice, ChunkVoices voice]
+        (collected ++) <$> go events
+    nonempty (ChunkNotes []) = False
+    nonempty (ChunkVoices []) = False
     nonempty _ = True
     with_voice events = do
-        (voice, code, remain) <- collect_voices events
+        (voice, remain) <- collect_voices events
         let tails = mapMaybe (Seq.last . snd) voice
         whenJust (Seq.head remain) $ \e ->
             whenJust (List.find (Types.event_overlaps e) tails) $ \over ->
                 Left $ "last voice " <> pretty over
                     <> " overlaps first non-voice " <> pretty e
-        return (voice, code, remain)
+        return (voice, remain)
     without_voice events = do
         let (without, remain) = span ((==Nothing) . event_voice) events
         whenJust ((,) <$> Seq.last without <*> Seq.head remain) $ \(e1, e2) ->
             when (Types.event_overlaps e1 e2) $
                 Left $ "last non-voice " <> pretty e1
                     <> " overlaps first voice " <> pretty e2
-        let (code, notes) = Seq.partition_on free_code without
-        return (notes, code, remain)
+        return (without, remain)
+
+-- | Span events until they don't have a 'Constants.v_voice' val.
+--
+-- Previously I tried to only split voices where necessary by only spanning
+-- overlapping notes, or notes with differing voices.  But even when it worked
+-- as intended, joining voices this aggressively led to oddities because it
+-- would turn any two voices with the same duration notes into a chord.  So now
+-- I simplify voices only at the measure level, in 'simplify_voices'.
+collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event])
+collect_voices events = do
+    let (voice, remain) = Seq.span_while (\e -> (,e) <$> event_voice e) events
+    voice <- forM voice $ \(err_or_voice, event) -> (,event) <$> err_or_voice
+    return (Seq.group_fst voice, remain)
 
 insert_rests_chunks :: Time -> Time -> [Chunk] -> [Chunk]
 insert_rests_chunks start end = Then.mapAccumL insert start final
     where
-    insert !t (ChunkNotes code events) =
-        ChunkNotes code <$> insert_rests Nothing t events
-    insert !t (ChunkVoices code voices) = case get_end voices of
-        Nothing -> (t, ChunkVoices code [])
-        Just end -> (end, ChunkVoices code voices2)
+    insert !t (ChunkNotes events) =
+        ChunkNotes <$> insert_rests Nothing t events
+    insert !t (ChunkVoices voices) = case get_end voices of
+        Nothing -> (t, ChunkVoices [])
+        Just end -> (end, ChunkVoices voices2)
             where
             voices2 = map (second (snd . insert_rests (Just end) t)) voices
     get_end = Seq.maximum . map event_end . mapMaybe (Seq.last . snd)
     final t
-        | t < end = [ChunkNotes [] [rest_event t (end-t)]]
+        | t < end = [ChunkNotes [rest_event t (end-t)]]
         | otherwise = []
 
 -- | Fill gaps between events with explicit rests.  Zero duration note code
@@ -222,9 +231,9 @@ rest_event start dur = Event
 merge_note_code_chunks :: [Chunk] -> [Chunk]
 merge_note_code_chunks = map merge
     where
-    merge (ChunkNotes code events) = ChunkNotes code (merge_note_code events)
-    merge (ChunkVoices code voices) =
-        ChunkVoices code (map (second merge_note_code) voices)
+    merge (ChunkNotes events) = ChunkNotes (merge_note_code events)
+    merge (ChunkVoices voices) =
+        ChunkVoices (map (second merge_note_code) voices)
 
 -- This has to be done after rests are present, so it can attach to rests.
 merge_note_code :: [Event] -> [Event]
@@ -262,62 +271,41 @@ convert = fmap concat . Then.mapM go (return [[Right final_barline]])
     where
     final_barline = LyCode "\\bar \"|.\""
     go :: Chunk -> ConvertM [Either Voices Ly]
-    go c = do
-        start <- State.gets state_time
-        case c of
-            ChunkNotes code events ->
-                map Right . merge_free_code start code <$>
-                    until_complete (convert_chunk True) events
-            ChunkVoices code voices ->
-                merge_free_code_voices start code . simplify_voices <$>
-                    voices_to_ly voices
-
-merge_free_code_voices :: Time -> [FreeCode] -> [Either Voices Ly]
-    -> [Either Voices Ly]
-merge_free_code_voices = go
-    where
-    go _ codes [] = map (Right . LyCode . snd) (concatMap snd codes)
-    go start codes (Left (Voices ((v, v1_lys) : voices)) : lys) =
-        Left (Voices ((v, merged) : voices)) : go end codes_remain lys
-        where
-        (merged, (end, codes_remain)) = merge_free_code1 start codes v1_lys
-    go start codes lys = map Right merged ++ go end codes_remain remain
-        where
-        (non_voice, remain) = Seq.span_while (either (const Nothing) Just) lys
-        (merged, (end, codes_remain)) = merge_free_code1 start codes non_voice
+    go (ChunkNotes events) =
+        map Right <$> until_complete (convert_chunk True) events
+    go (ChunkVoices voices) = simplify_voices <$> voices_to_ly voices
 
 -- | Mix code events into the Lys, depending on their prepend or append attrs.
-merge_free_code :: Time -> [FreeCode] -> [Ly] -> [Ly]
-merge_free_code start codes lys =
-    merged ++ map (LyCode . snd) (concatMap snd codes_remain)
-    where (merged, (_end, codes_remain)) = merge_free_code1 start codes lys
-
--- TODO more efficient but repetitious
--- merge_free_code start codes lys = go codes $ with_starts start lys
---     where
---     go codes [] = map (LyCode . snd) (concatMap snd codes)
---     go codes ((start, ly) : lys) = applied ++ go rest_code lys
---         where (applied, rest_code) = apply_free_code start codes ly
-
--- | Merge in the FreeCodes that overlap with the Ly start times.  Return the
--- unconsumed one and end time.
-merge_free_code1 :: Time -> [FreeCode] -> [Ly] -> ([Ly], (Time, [FreeCode]))
-merge_free_code1 start codes = go codes . with_starts start
+merge_free_code :: Time -> [FreeCode] -> [Either Voices Ly]
+    -> [Either Voices Ly]
+merge_free_code = go
     where
-    go codes [] = ([], (start, codes))
-    go codes ((start, ly) : lys) = case ly of
-        _ | null here -> continue ly codes
-        LyBarline {} -> continue ly codes
-        LyCode {} -> continue ly codes
+    go start codes (Right ly : lys) =
+        Right applied : go (start + ly_duration ly) remain lys
+        where (applied, remain) = merge_ly start codes ly
+    go start codes (Left (Voices ((v, v1_lys) : voices)) : lys) =
+        Left (Voices ((v, applied) : voices)) : go end remain lys
+        where (applied, (end, remain)) = merge_lys start codes v1_lys
+    go start codes (Left (Voices []) : lys) = go start codes lys
+    go _ codes [] = map (Right . LyCode . snd) (concatMap snd codes)
+
+    merge_lys start codes (ly : lys) =
+        first (applied:) $ merge_lys (start + ly_duration ly) remain lys
+        where (applied, remain) = merge_ly start codes ly
+    merge_lys start codes [] = ([], (start, codes))
+
+    merge_ly start codes ly = case ly of
+        _ | null here -> (ly, codes)
+        LyBarline {} -> (ly, codes)
+        LyCode {} -> (ly, codes)
         _ -> case apply_free_code (concatMap snd here) ly of
             -- TODO I couldn't find anything to attach to, so I should drop it
             -- and emit a warning instead of just attaching it to the next one.
-            Nothing -> continue ly codes
-            Just applied -> continue applied there
+            Nothing -> (ly, codes)
+            Just applied -> (applied, there)
         where
         (here, there) = span ((<end) . fst) codes
         end = start + ly_duration ly
-        continue ly cs = first (ly:) (go cs lys)
 
 apply_free_code :: [(Constants.FreeCodePosition, Code)] -> Ly -> Maybe Ly
 apply_free_code codes ly = case ly of
@@ -788,54 +776,6 @@ attrs_to_code prev current =
     inherently_nv = [Attrs.staccato, Attrs.harm, Attrs.pizz]
     has = Attrs.contain
 
--- ** collect_voices
-
--- | Span events until they don't have a 'Constants.v_voice' val.
---
--- I used to mix the code into the first voice here, but 'simplify_voices' may
--- then get rid of it.  So return the code events and mix them in after
--- simplification.
-collect_voices :: [Event] -> Either Text (VoiceMap Event, [FreeCode], [Event])
-collect_voices events = do
-    let (voice, code, remain) = span_voices events
-    with_voice <- forM voice $ \(err_or_voice, event) ->
-        (, event) <$> err_or_voice
-    return $ case Seq.group_fst with_voice of
-        [] -> ([], [], events)
-        voices -> (voices, code, remain)
-
--- | Strip off events with voices.  Any FreeCode events mixed in won't break
--- the voice span, and are returned separately.
-span_voices :: [Event] -> ([(Either Error Voice, Event)], [FreeCode], [Event])
-span_voices events = (concat voice, concat code, remain)
-    where
-    ((voice, code), remain) = first unzip $
-        span_xy (\e -> (, e) <$> event_voice e) free_code events
-    -- Previously I tried to only split voices where necessary by only spanning
-    -- overlapping notes, or notes with differing voices.  But even when it
-    -- worked as intended, joining voices this aggressively led to oddities
-    -- because it would turn any two voices with the same duration notes into
-    -- a chord.  So now I simplify voices only at the measure level, in
-    -- 'simplify_voices'.
-
--- | Span xs, then span ys.  Only span ys if there are subsequent xs.
--- So e.g. if xs is letters and ys is spaces, it will get words up until it hits
--- digits, but not span the final spaces.
-span_xy :: (a -> Maybe x) -> (a -> Maybe y) -> [a] -> ([([x], [y])], [a])
-span_xy get_x get_y = go
-    where
-    go as
-        | null xs && null ys = ([], as)
-        | null spanned && not (null remain) = ([(xs, [])], as1)
-        | otherwise = ((xs, ys) : spanned, remain)
-        where
-        (xs, as1) = Seq.span_while get_x as
-        (ys, as2) = Seq.span_while get_y as1
-        (spanned, remain) = go as2
-
-event_context :: Event -> Either Error a -> Either Error a
-event_context event = first ((pretty event <> ": ")<>)
-
 -- ** voices_to_ly
 
 -- | Like 'convert_chunk', but converts within a voice, which means no nested
@@ -1279,12 +1219,13 @@ parse_voice v = case v of
 
 event_voice :: Event -> Maybe (Either Error Voice)
 event_voice event =
-    event_context event . parse <$>
+    event_context . parse <$>
         Env.checked_val2 EnvKey.voice (event_environ event)
     where
     parse (Left err) = Left err
     parse (Right voice) =
         justErr ("voice should be 1--4: " <> showt voice) $ parse_voice voice
+    event_context = first ((pretty event <> ": ")<>)
 
 -- * Event
 

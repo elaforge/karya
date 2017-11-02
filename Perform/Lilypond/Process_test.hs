@@ -221,6 +221,19 @@ test_voices = do
     left_like (run [(0, 2, a3, Just 1), (1, 3, b3, Nothing)])
         "last voice * overlaps first non-voice"
 
+    equal (run
+            [ (0, 1, a3, Just 1), (0, 1, b3, Just 2)
+            , (1, 1, c3, Nothing)
+            , (2, 1, e3, Just 1), (2, 1, f3, Just 2)
+            ]) $
+        Right
+            [ Left [(VoiceOne, "a4"), (VoiceTwo, "b4")]
+            , Right "c4"
+            , Left [(VoiceOne, "e4"), (VoiceTwo, "f4")]
+            , Right "r4"
+            ]
+
+
 test_voices_meter = do
     let run wanted meters = LilypondTest.extract_lys wanted
             . process (map LilypondTest.parse_meter meters)
@@ -300,6 +313,12 @@ test_free_code_voices = do
             ]) $
         Right [Right "c1 post | d1"]
 
+    equal (run
+            [ (0, 2, Just c3, []), (2, 0, Nothing, append)
+            , (2, 2, Just d3, [v 1]), (2, 2, Just e3, [v 2])
+            ]) $
+        Right [Right "c2", Left [(VoiceOne, "d2 post"), (VoiceTwo, "e2")]]
+
 mk_tuplet :: RealTime -> RealTime -> RealTime -> Types.Event
 mk_tuplet start score_dur real_dur =
     (LilypondTest.mkevent start real_dur Nothing LilypondTest.default_inst [])
@@ -372,18 +391,6 @@ test_convert_tremolo = do
     equal (run [tremolo 0 4, (0, 0, Nothing, free_pre),
             (0, 4, Just c3, []), (0, 4, Just d3, [])]) $
         Right "\\repeat tremolo 16 { pre c32( d32) }"
-
-test_span_xy = do
-    let f = Process.span_xy fst snd
-        a = (Just 'a', Nothing)
-        b = (Nothing, Just 'b')
-        x = (Nothing, Nothing)
-    equal (f [a]) ([("a", "")], [])
-    equal (f [a, b, a]) ([("a", "b"), ("a", "")], [])
-    equal (f [a, a, b]) ([("aa", "b")], [])
-    equal (f [a, x, a]) ([("a", "")], [x, a])
-    equal (f [a, b, x, a]) ([("a", "")], [b, x, a])
-    equal (f [a, b, a, x, a]) ([("a", "b"), ("a", "")], [x, a])
 
 -- * util
 
