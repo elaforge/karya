@@ -30,9 +30,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Selisir as Selisir
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -203,7 +203,7 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
         ("Set " <> ShowVal.doc EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.doc strings)
         $ \_ deriver -> Derive.with_val EnvKey.open_strings
-            (map PSignal.nn_pitch strings) deriver
+            (map Twelve.nn_pitch strings) deriver
     ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick

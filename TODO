@@ -1600,6 +1600,20 @@ lilypond:
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?
+  - yangqin-zheng-kendang/house-2014
+    . :179:21: error: syntax error, unexpected SCM_IDENTIFIER
+      \new Staff = "down"
+                          \RemoveEmptyStaves {
+  yangqin-zheng-kendang/huiyin-concert
+    * Ly.pitch_to_lily: scale id not found
+      . Likely gliss doesn't set scale id.
+      . Ultimately due to use of PSignal.nn_pitch.  There are a lot of those,
+        I should evaluate them all.
+    * a note without pitch must have code
+      . switch e->q to use 'tempo' and be a generator
+    - notation is showing c natural, when it's really b.
+  - write a ly function for that quarter = eighth stuff?  I have it in both
+    huiyin-concert and squart/spawn
   fix squart/6
     * \alNiente went after the final \bar, nothing should do that.
       . This happens because I mix free code at the end now.
