@@ -177,7 +177,8 @@ input_to_nn inst attr_map patch_scale scale attrs inote = case inote of
             return $ Just (InputNote.PitchChange note_id nn, [])
     InputNote.NoteOff note_id vel ->
         return $ Just (InputNote.NoteOff note_id vel, ks)
-        where ks = maybe [] fst $ Common.lookup_attributes attrs attr_map
+        where
+        ks = maybe [] (fst . snd) $ Common.lookup_attributes attrs attr_map
     InputNote.Control note_id control val ->
         return $ Just (InputNote.Control note_id control val, [])
     where
@@ -227,7 +228,7 @@ convert_pitch :: Patch.AttributeMap -> Maybe Patch.Scale -> Attrs.Attributes
 convert_pitch attr_map patch_scale attrs nn =
     case Common.lookup_attributes attrs attr_map of
         Nothing -> ((, []) <$> maybe_pitch, attrs /= mempty)
-        Just (keyswitches, maybe_keymap) ->
+        Just (_, (keyswitches, maybe_keymap)) ->
             ( (, keyswitches) <$> maybe maybe_pitch set_keymap maybe_keymap
             , False
             )
@@ -292,12 +293,6 @@ alloc_addr note_addr addr_serial serial addrs input
     -- allocated.  Previously I would try to pick a free one, but reusing
     -- a free channel led to audible artifacts with long-ringing instruments.
     oldest = Seq.minimum_on (flip Map.lookup addr_serial) addrs
-
-pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
-pb_of = foldl' f
-    where
-    f _ (Midi.PitchBend pb) = pb
-    f pb _ = pb
 
 with_addr :: Addr -> Midi.ChannelMessage -> (Midi.WriteDevice, Midi.Message)
 with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)

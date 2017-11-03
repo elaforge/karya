@@ -62,7 +62,7 @@ convert_event event patch name = run $ do
             convert_controls supported controls
         , control_vals = convert_control_vals supported $
             Score.event_control_vals event
-        , attributes = fromMaybe mempty $
+        , attributes = maybe mempty snd $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
         }

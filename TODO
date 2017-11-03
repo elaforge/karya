@@ -1633,10 +1633,20 @@ lilypond:
     * Extra rests at the end of movements.
       . Probably movement splits not right.
       . First movement ends at mm58, but I get meters up until 110.
-  - fix harmonics on squart/6, squart/spawn, viola-sonata
+    - Looks like another lilypond change:
+      . score.ly:663:63: warning: this Voice needs a \voiceXx or \shiftXx
+        setting
+        af8 \mf bf8 c'8 df'8 d'8 a'16 ^( d'16 \change Staff = "down"
+        ><
+        a16 \change Staff = "up" gf'16 d'16 \change Staff = "down" d16 ) |
+        % viola-sonata/pno3-2 viola-sonata/pno3-2.t15 62.75-63; 52
+  * fix harmonics on squart/6, viola-sonata
     . \flageolets disappeared.
     . squart/6 is somehow not using the 'o' call... how did that happen?  Did
-      I somehow revert to an old version?
+      I somehow revert to an old version?  I think it never had them.
+    . Using 'o nat' is awkward since +harm+nat+stac doesn't resolve.
+      It should resolve to +harm+stac.
+    . It does, but I think it uses the natural harmonic key selection.
   * fix errors in squart/spawn
   * Extra "pizz" which should be suppressed.
   - Warning: cannot add text scripts to individual note heads

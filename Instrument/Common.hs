@@ -96,9 +96,10 @@ attribute_vals :: AttributeMap a -> [a]
 attribute_vals (AttributeMap table) = map snd table
 
 -- | Look up the value as described in 'AttributeMap'.
-lookup_attributes :: Attrs.Attributes -> AttributeMap a -> Maybe a
+lookup_attributes :: Attrs.Attributes -> AttributeMap a
+    -> Maybe (Attrs.Attributes, a)
 lookup_attributes attrs (AttributeMap table) =
-    snd <$> List.find ((attrs `Attrs.contain`) . fst) table
+    List.find ((attrs `Attrs.contain`) . fst) table
 
 -- | Figured out if any attributes shadow other attributes.  I think this
 -- shouldn't happen if you called 'sort_attribute_map', or used any of the

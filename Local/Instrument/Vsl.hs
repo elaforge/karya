@@ -165,7 +165,10 @@ note_calls maybe_hmap patch =
     note_call patch = Note.note_call ""
         "This is like the standard note call, but ignores attrs that are\
             \ already handled with keyswitches."
-        mempty (maybe (Note.default_note config) (harmonic config) maybe_hmap)
+        mempty $
+        maybe (Note.default_note config)
+            (harmonic (Patch.patch_attribute_map patch) config)
+            maybe_hmap
         where config = note_config patch
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
@@ -189,12 +192,14 @@ grace_intervals = Map.fromList $
 -- | If +harm+nat (and optionally a string) attributes are present, try to
 -- play this pitch as a natural harmonic.  That means replacing the pitch and
 -- reapplying the default note call.
-harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
-harmonic config hmap args = do
+harmonic :: Patch.AttributeMap -> Note.Config -> HarmonicMap
+    -> Note.GenerateNote
+harmonic attr_map config hmap args = do
     attrs <- Call.get_attributes
     let has = Attrs.contain attrs
+    let matched = maybe mempty fst $ Common.lookup_attributes attrs attr_map
     with_pitch <- if
-        | has (Attrs.harm <> Attrs.natural) ->
+        | Attrs.contain matched (Attrs.harm <> Attrs.natural) ->
             natural_harmonic (has Attrs.gliss) $
                 List.find has (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.

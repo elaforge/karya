@@ -58,6 +58,15 @@ test_natural_harmonic = do
     equal (run "+harm+nat" "6d") ([Key.gs3], [])
     equal (run "+harm+nat+d" "6d") ([Key.f4], [])
 
+    -- Artificial harmonics are one octave too high.
+    equal (run "+harm" "3g") ([Key.g2], [])
+    equal (run "+harm+stac" "3g") ([Key.g2], [])
+    -- Even though I ask for +nat, I won't get it, so use +harm+stac.
+    equal (run "+harm+stac+nat" "3g") ([Key.g2], [])
+    -- Gliss is treated specially.
+    equal (run "+harm+nat+gliss+up" "4g") ([Key.c3], [])
+    equal (run "+harm+nat+gliss+down" "4g") ([Key.c3], [])
+
 test_infer_seconds = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with "" [(">v", [(0, 2, call)])]

@@ -104,7 +104,7 @@ convert_midi_pitch :: Log.LogMonad m => Score.Instrument -> Patch.Patch
 convert_midi_pitch inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (perf_patch,) . round_sig <$> get_signal
-        Just (keyswitches, maybe_keymap) -> do
+        Just (_, (keyswitches, maybe_keymap)) -> do
             sig <- maybe get_signal set_keymap maybe_keymap
             return (set_keyswitches keyswitches, round_sig sig)
     where
