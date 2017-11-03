@@ -122,7 +122,11 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
-  - Print something on stdout when I can't find the file to load from the
+  - decide if the ( call is called slur or legato, not half and half.
+  - Use EnvKey.string for string selection in vsl, not attributes.
+    . It would be nice to be able to select by name instead of NN, but the
+      calls like NNs.  Maybe val calls that emit the right NNs.
+  * Print something on stdout when I can't find the file to load from the
     cmdline.  Otherwise I get confused.
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
     same problem as extending 'grace' to be able to put stuff on the main
@@ -1244,6 +1248,9 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - The Lily module shouldn't be in Prelude, since it's actually not in the
+    prelude namespace.  It could go to Derive.Call.Ly, and current
+    Derive.Call.Ly to Derive.Call.Lily or Derive.Call.LyUtil.
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?

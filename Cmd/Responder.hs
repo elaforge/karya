@@ -31,6 +31,7 @@ import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.Map as Map
+import qualified Data.Text.IO as Text.IO
 import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix.IO as Posix.IO
@@ -148,7 +149,7 @@ setup_state state = state
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Cmd.CmdT IO Cmd.Status -> State -> IO State
 run_setup_cmd cmd state = fmap snd $ run_responder state $ do
-    result <- run_continue "initial setup" $ Right $ do
+    result <- run_continue True "initial setup" $ Right $ do
         cmd
         Cmd.modify $ \st -> st
             { Cmd.state_history = (Cmd.state_history st)
@@ -355,7 +356,7 @@ respond state msg = run_responder state $ do
 -- throws the key record won't be rolled back.
 record_keys :: Msg.Msg -> ResponderM ()
 record_keys msg = do
-    result <- run_continue "record_keys" $ Left $
+    result <- run_continue False "record_keys" $ Left $
         Internal.cmd_record_keys msg
     whenJust result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
@@ -388,7 +389,7 @@ record_ui_updates msg = do
 run_sync_status :: ResponderM ()
 run_sync_status = do
     rstate <- Monad.State.get
-    result <- run_continue "sync_status" $ Left $
+    result <- run_continue False "sync_status" $ Left $
         Internal.sync_status (rstate_ui_from rstate) (rstate_cmd_from rstate)
     whenJust result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
@@ -434,13 +435,17 @@ type ErrorResponderM = Except.ExceptT Done ResponderM
 
 -- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't
 -- Continue.
-run_continue :: Text -> EitherCmd
+run_continue :: Bool -- ^ A special hack so I don't get confused when I typo
+    -- a score filename.
+    -> Text -> EitherCmd
     -> ResponderM (Maybe (Cmd.Status, Ui.State, Cmd.State))
-run_continue caller cmd = do
+run_continue log_to_stderr caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
             liftIO $ Log.error $ caller <> ": " <> pretty err
+            when log_to_stderr $ liftIO $
+                Text.IO.hPutStrLn IO.stderr $ caller <> ": " <> pretty err
             return Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $
