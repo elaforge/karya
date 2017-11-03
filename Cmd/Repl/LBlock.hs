@@ -276,6 +276,9 @@ stretch factor = (Event.start_ %= (*factor)) . (Event.duration_ %= (*factor))
 
 -- * add / remove time
 
+-- | Add time encompassed by the selection to this block, expand its event in
+-- caller blocks, and renumber the ruler globally.  This is like a super
+-- 'Cmd.Edit.cmd_insert_time'.
 add_time :: Cmd.M m => m ()
 add_time = do
     sel <- Selection.get

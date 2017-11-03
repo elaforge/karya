@@ -131,45 +131,17 @@ UNSORTED
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
     same problem as extending 'grace' to be able to put stuff on the main
     note.
-  - visualize module dependencies: https://github.com/yav/graphmod
   - Pitch bend doesn't work right on a MIDI instrument with patch scale.
     . Likely because the pitch gamut is not linear, but pitch bend is.
     . I would need to warp the pitch bend by the patch scale... but don't I do
       that?
   - It seems too complicated to set up patch scales, how can I make that
     easier?
-  - I need a more systematic solution for signal-discontinuity.
-    . As well as docs for the NOTE in Util.TimeVector.
-    . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
-      disable it if there are no im instruments?
-    . Possibly I can model the signal as line segments, not Samples?  If
-      I still want it to be disabled, then I'd need some awkward thing in
-      between.
-    . Or maybe I can optimize the flat line somehow?  The reason I originally
-      didn't go with line segments was that I didn't want every single MIDI
-      style sample to wind up as two.  I could have some magic flag to
-      indicate flat until next sample.
-    . But am I really sure efficiency is a concern at all?  Signals are
-      relatively small, and I have a lot of memory.  Most memory is probably
-      used up on lazy thunks or something anyway.
-    ? Actually I should know what most memory is used on. Do some more heap
-      profile runs and write that down somewhere.
-    . Should I get rid of score level srate, and put it in the MIDI performer?
-      In practice I haven't used srate for special effects, and even if
-      I wanted to I could insert a sample and hold.  All I've done is adjusted
-      it down for gamakams.
-    . Then of course there's the continuous signal idea: signal is just
-      a function.  This would solve efficient translate and scale too: just
-      compose with another function.  If I can figure out the coerce to
-      Typecheck.TypedFunction thing, then that's how the Derivers see it too.
-    . Explicit line segments or a continuous signal or whatever would also
-      fix the problem where Signal.constant uses [(0, y)]... but then it
-      doesn't work right at <0.  Or Signal.constant could use -big_x.
   - In string-idiom, the end of the attack curve always coincides with the
     start of the next note.  There also could be an attack prepare time,
     analogous to the release delay.
   - enable FlexibleInstances globally.  Should I add any other instance ones?
-    TypeSynonymInstances?  GeneralizedNewtypeDeriving?
+    TypeSynonymInstances?
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
@@ -210,89 +182,6 @@ UNSORTED
       signals, and then each instrument can pick out its dyn-me.
     . And of course this should generalize for all controls... well, I don't
       have a use for non-dyn, so I don't really need to generalize.
-  Support for adding or removing time in the middle of a score:
-    - Add a ^z that moves events below and track children.
-
-    . This has overlap with the idea to have a track as a read-only view of an
-      expression.  E.g., the expression would be b1, b2, b3, ..., and the
-      view would be to get the CallDuration of each and sequence them.  The
-      trick is that it would have to re-integrate whenever the callees changed
-      CallDuration.  In this approach, I'd have a separate expression with the
-      sequence of calls.  That would then be bound to a track, which would
-      then become read-only.  I'd have to edit the original expression.
-      . The cmds that change a block ruler could trigger re-integration in the
-        same way they would have to trigger the caller resize.
-      . Even in this case, I need something to put in for ruler.  I guess I'd
-        use 'extract'.
-      . It may be more awkward to edit the expression instead of directly
-        editing the track.
-      Advantages:
-        . It would be a specific case of a generalized integrate-expression
-          feature, which I'm pretty sure I'll eventually add anyway.  Actually
-          I can just add an optional read-only option, otherwise it could be
-          integrated as normal.
-        . If I lock a whole track, then I don't need some special "time locked
-          event", I have a whole locked track.  That seems simpler because it
-          doesn't have to coexist with normal events.
-        . I don't have to scan blocks for calls, since they are explicitly
-          listed in an expression.  Presumably the expression is data, not
-          code, so I don't have to do any evaluation.  But maybe I have to
-          evaluate anyway to get CallDuration?  But it seems clearer to update
-          specific expressions, rather than just scan the entire score for all
-          calless and try to mess with their durations.  Also, mixing block
-          call events and normal events is not necessarily something I want to
-          support... even though I have done it in the past.
-      Disadvantages:
-        . Another language.  If it's just linear sequence then it's trivial,
-          but surely that won't be enough.
-        . The whole point of the track is that I can line things up in time,
-          and I still want to do that with score blocks.  Why should I wind up
-          with a whole new language for that?  E.g. initially it's just
-          sequence.  But then I want 'clip', so I need explicit durations.
-          Then I want time gaps, so I need start times too.  Then I want to
-          express alignment, so I don't have to calculate start times... and
-          in any case, those times will be invalid when the callee changes, so
-          I need alignment anyway.
-        . But the clip problem is something I need to express anyway.  In
-          a language I could say "Clip | awak" dur=-1gong, but how would
-          I tell a track version that?  I guess it would just not update the
-          duration of clipped calls.  In fact 'clip' and 'Clip' could express
-          that by setting the CallDuration to the event duration.
-      . But in fact I don't need a locked event at all, I can just update it
-        on demand, but have no particular requirement that it stay that way.
-        I could do a universal thing where block calls get a subtle hue that
-        indicates they are 1:1.  Or use event width?
-
-    older notes:
-    . I want add a measure, and then automatically:
-      . Extend the ruler of this block.
-      . Extend or contract the duration of the caller in the parent, moving
-        all its events as necessary.
-      . Also extend or contract the caller's ruler, if necessary.
-      . Renumber the ruler in other callees as necessary, e.g. inverse
-        LRuler.extract aka LRuler.inject.
-
-      . All of this ruler resizing would not be necessary if I used
-        Ui.event_end instead of Ui.ruler_end for the logical block end.  But
-        then I'd need a -- event to mark the explicit end.  And it's just
-        putting off the inevitable... I'd still need to extend the ruler, so
-        why not make it easy, so now I don't mind doing it frequently.
-    . If I have a way to mark a call as "unstretchy" it can try to move events
-      below it, or at least highlight if it's not 1:1.
-      . Or maybe it should even default to unstretchy, and you have to mark
-        stretchy.
-      . I could do it with special metadata in the event that could cause it
-        to render differently, or by prefixing with a magic character, say '='.
-      . The advantage of the magic character is that it's visible and I don't
-        need any special editing support, but the disadvantage it that it's
-        metadata interfering in notation.
-      . Presumably it only has an effect on events with CallDuration, and
-        maybe even an error on ones without... but I can't find that out
-        syntactically.
-      . Maybe the first step is to implement the move later events part,
-        triggered by a keystroke (like cmd-z for events), and worry about
-        doing it automatically later.
-
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
     . Here's a use for multiple selections.
@@ -393,6 +282,7 @@ UNSORTED
     . Triggered is duplicated in Im.Patch, so I could get rid of that.
   - can I have a block template kind of thing, with a standard set of
     instruments?  Maybe REPL cmds.
+    . E.g. for a standard orchestral template.
     . I could also add a track for each allocated instrument, but I'd need an
       order.
   - Also cmds to re-order tracks by instrument.
@@ -426,9 +316,6 @@ UNSORTED
   - why does fltk on linux subtract 100 from window width and height?
     . does os x? nope
   selection-orientation branch cleanup:
-    / It's surprising how positive always wins to negative.  This means adding
-      a positive events with +END will destroy all negative ones below it.
-      . Fixed by making positive not unconditionally override negative.
     - set_duration: If I have ><---|, I can't set the negative event back to the
       zero dur event because it sets the previous positive event, regardless of
       selection orientation.
@@ -441,48 +328,6 @@ UNSORTED
       that, but Sekar used it.  Can I use Sekar with negative events to get
       end bias back?
 
-  - track calls / track macros:
-    . Status: lost motivation after I figured out another solution for
-      gamakam, but I sort of forget what it was.  It's implemented all the way
-      up to having a spot in Derive.Scopes and special control track syntax,
-      but there are no implemented track calls.
-      . See also signal-discontinuities.
-    - More general and descriptive names for Derive.Scopes and Scope.
-    - Use Scopes in Derive.Library
-    - Implement calling TrackCalls.
-      . Overloading 'x' to mean a call to x or a control %x might cause some
-        problems.  E.g. title_to_control can't know unless it looks
-      . If I just use a symbol there's no way to tell if it's a control,
-        pitch, or note track.  So I need to keep the syntactic clues.
-      . Maybe control: '!call', note: '> !call', pitch '*xyz !call'?
-      . I'd like to be able to abstract control, e.g. '!gamakam', and the t-nn
-        is an implementation detail.  But I can't have track calls return
-        (Control, d), because that's only control tracks.
-      . I could have it set a control with the same name as the track call,
-        and then some way to rename it.  But what is that way?
-      . Or I could just fake it by returning Score.Control, and pitch tracks
-        just use Score.Control, and note tracks just ignore it.
-      . It seems awkward that this is simultaneously giving a way to abstract
-        syntax and control name, and they don't seem naturally related.  Can't
-        I have an orthogonal way to make 'gamak' an alias to t-nn?
-    - Write a TrackCall for gamakam4.  ! calls quote the argument and pass
-      to gamakam call.  Or I could invert it and use ! for non-gamakam calls.
-      Copy pitch calls over.
-    . Maybe this is how to do macros: track title is a lookup in
-      a track-macros namespace.  If 'name' isn't found, then it defaults
-      to '%name' ala LookupPattern.  Track call namespace should also be
-      in the CallMaps and Library so it can be imported with modules.
-      Also I think it needs note, pitch, and control variants in the same
-      way.
-    . As long as I'm doing this I can go back to using pitches for
-      gamakam, and just copy over from the pitch track.  Not sure if
-      I should though.
-    . old notes:
-      . consider track calls and block calls:
-        note_track :: TrackTree.EventsNode -> Derive.EventDeriver
-        derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
-      . I could use this to implement is-ly and no-ly, and also totally custom
-        track types and block types.
   - QuickCheck for Midi.Encode_test just for practice
     . Ui.Events_test.test_from_list_qc is an example.
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
@@ -494,6 +339,286 @@ UNSORTED
       Scale from a val call would be better, but I think that runs into the
       big Derive / Val circular dependency problem.
     . Do as a Make for now.
+  - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
+    bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
+    only absolute updates to the skeleton.
+    . Can't reproduce this now.
+    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
+    . It definitely happens occasionally, but always when I'm busy.
+  - Add 'angklung' and 'beleganjur' scales.
+  - BaliScales should have a default ombak, depending on laras.
+    - Also there should be a way to randomize per instrument, so it's not too
+      perfect.
+  - Legong scale umbang and isep is too close.
+    . Maybe something wrong with how I retuned the sc gamelan samples.
+  - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
+    . This would get back the documentation I lost when I got rid of
+      VInstrument.
+  - OutOfRange pitch error should show the pre-transposition pitch.
+    . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
+      with information about the pitch.
+  - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
+    print it out in shadowed msgs.
+  - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
+    . Not quite, since Backend encodes that alloc and patch backends are
+      equal, but is it really necessary?
+  - do a renaming pass on all the prev/next pitch function names in Derive.Args.
+    . Should Prelude.Pitch.approach use the lookup pitch style?
+
+  - it looks like special kajar calls like 'oo' mess up track signal.
+    . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
+      work for 'o..'.
+    . DUtil.multiple_call doesn't need inverting because it dispatches to
+      call that do invert, right?
+    . Actually it's pretty pernicious, because without inverting, doubled_call
+      will still appear to work because the underlying call inverts.  But
+      TrackSignal gets messed up, and if it did anything based on controls
+      then they would not take child controls into account.
+    . Why is TrackSignal messed up though?
+  - do nruk with a static macro
+    alias 'o..' 'nruk | o'
+    . I could modify c_nruk to have a generator version that takes a deriver,
+      but then I have to copy paste it.
+    . How can I inherit args?  StaticMacro is no good because I want the
+      generator to be late bound.  But 'nruk' should be static bound because
+      it's in another module and I want to inherit its args.
+    . What I really want is to inherit args and docs from the transformer, and
+      apply to the generator dynamically.  So something like a static macro
+      where I give all args to one transformer, and the generator is dynamic.
+      I think I can do the former with a special arg, and the latter with an
+      eval "static call".
+    . But what happens with StaticMacro when it hits a Sig.many?  I think it's
+      broken.
+    . To support this, Sig.required_vals needs to support 'many' parsers.
+      I could infer from ArgParser but it seems like it's getting too
+      complicated.  I think at that point I had better just be able to copy
+      the parser over.  Can't I just reapply to the callee?
+  save/sketch/16-04-10-charukesi:
+    - fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
+    - Use kotekan for >wy with sargam scale.
+  - I should collapse adjacent Collapsed tracks so they don't turn into
+    a giant blue block.
+    . If I do it at the fltk draw level, then I don't have to worry about diff
+      complications or tweaking indices, but I still have to model as fewer
+      widgets so the index tweaking just happens lower down.
+    . If I do it at the haskell level, hopefully I can reuse the existing
+      Track / DisplayTrack distinction used for collapsed tracks in the first
+      place.
+    - I have to also collapse the skeleton, which means I need
+      a Block.display_skeleton and Block.display_integrate_skeleton.
+    . However, I'm not sure it's worth it.
+  * The error selection is still hard to see on a busy block, I usually have
+    to zoom in and do it again.
+    . I think to be more visible it would have to blink or somehow be larger.
+      Ideally I could have some kind of glow
+      Or maybe red is just overused, if it were green or blue?
+  vsl:
+    - figure out how to do tuning
+      . I think it needs to be pitch bend, since it doesn't seem to respond to
+        MTS.  But VSL ensemble should be able to load multiple copies of the
+        patch and share sample data.
+      . Figure this out before doing too many more patches, because I'll have
+        to update them all with global control config, unless there's a way
+        to copy paste that.
+      . However, it apparently can be used with hermode, so not sure how that
+        happens.  Maybe I can just ask VSL support.
+      . Scala files are not very good because I'd have to go manually load
+        them every time, and they're static.
+    . Legato attack scale control affects the crossfade level of interval
+      samples, experiment with that.
+      . Wait, where did this go?
+    . figure out how perf reps work, and how I should handle them
+    - make sure perf_upbeat_repetitions are consistent
+    - make sure grace vs. grace.updown is correct
+    attribute groups:
+      . bass clarinet has nv without vib
+    - rename +sec# to +s#?
+  - Perf.lookup_instrument on a pitch track could look at its note track.
+  - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
+    I have a warning for when a non-inverting call has a note track below it?
+
+  - empty track doesn't get an Environ, which causes Cmd.Track to not be able
+    to find the instrument.
+    . It was because the kendang tracks were below >pno, not "tempo".  So, two
+      problems:
+      . It's too hard to see that the skeleton is wrong.
+      . Note track children should have dynamics too.
+  - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
+    write a test if I do need it.
+  - fix control scope in parent events that cover up an orphan, as
+    demonstrated in Sub_test.test_overlapping_parent_control_scope
+  - Better solution for the "sample at end of block" problem, as demonstrated
+    by Block_test.test_trim_controls_problem
+  wayang
+    - Infer late damping.  E.g., if there is a jump wider than 2 notes, then
+      wait until the hand is free for long enough to damp it.
+    - Automatically fill in weak notes?
+      . This also applies to reyongan, even more so.
+      . In fact this is similar to noltol.
+    - many double strikes or ngoret tones land a bit ahead of the beat
+    - I want some optional ngoret to happen the same way in both hands.
+      I could make it apply to a parallel kempyung or octave.
+      . I'd need a fancier ngoret that understands 'inst-top' so it can go
+        down if necessary.
+  - thru on *legong notes is wrong the first time
+    can see this editing rehearsal/kendang-legong
+  - %sus-abs=-.x is not quite right for detached, because it should scale
+    a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
+    a certain threshold.
+  - network midi doesn't seem to handle abort?
+    playing the second time doesn't happen
+  - I have a feeling like FM8 doesn't obey ResetAllControls
+    Maybe I should extend Midi.Interface.note_tracker to keep track of
+    used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
+    the rest reset to 0.
+
+IN PROGRESS / branch: branches:
+  . This has longer term projects, which are partially complete.
+  signal-discontinuity:
+    - I need a more systematic solution for signal-discontinuity.
+      . As well as docs for the NOTE in Util.TimeVector.
+      . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
+        disable it if there are no im instruments?
+      . Possibly I can model the signal as line segments, not Samples?  If
+        I still want it to be disabled, then I'd need some awkward thing in
+        between.
+      . Or maybe I can optimize the flat line somehow?  The reason I originally
+        didn't go with line segments was that I didn't want every single MIDI
+        style sample to wind up as two.  I could have some magic flag to
+        indicate flat until next sample.
+      . But am I really sure efficiency is a concern at all?  Signals are
+        relatively small, and I have a lot of memory.  Most memory is probably
+        used up on lazy thunks or something anyway.
+      ? Actually I should know what most memory is used on. Do some more heap
+        profile runs and write that down somewhere.
+      . Should I get rid of score level srate, and put it in the MIDI performer?
+        In practice I haven't used srate for special effects, and even if
+        I wanted to I could insert a sample and hold.  All I've done is adjusted
+        it down for gamakams.
+      . Then of course there's the continuous signal idea: signal is just
+        a function.  This would solve efficient translate and scale too: just
+        compose with another function.  If I can figure out the coerce to
+        Typecheck.TypedFunction thing, then that's how the Derivers see it too.
+      . Explicit line segments or a continuous signal or whatever would also
+        fix the problem where Signal.constant uses [(0, y)]... but then it
+        doesn't work right at <0.  Or Signal.constant could use -big_x.
+  - ControlFunctions are still super confusing. NOTE [fix-control-functions]
+    . Yet another confusing thing is that they don't work for arbitrary
+      signals given to notes.  I think it would be better to override '' to
+      get e.g. %location as %location + rnd ...
+
+    . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
+      %strength is .5, but it's actually not, and the only way to get rid of
+      the CF is %strength=_.
+    . Also the whole implementation is a mess.  Isn't there some other way to
+      randomize signals?
+    . I could pass a Quoted, and then control functions are val calls that
+      return Quoteds: (cf-rnd control 0 1)
+    . Then I want to be able to treat those as signals, or coerce them both
+      to the same thing.  Really that's a SignalFunction, or maybe just
+      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
+      various types into SignalFunction, but not have to have an opaque
+      SignalFunction for all the defaults.
+    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
+      split Typecheck and Convert?
+      Typecheck: Val -> Maybe a, Convert: a -> b
+      Convert would be: Int -> SignalFunction.
+    . I think this won't work because the intermediate 'a' will be
+      ambiguous.
+    . I can always have a Default class that is used only for Sig defaults,
+      and provides both ShowVal and the coercion.  It would mean I have to
+      duplicate everything in Typecheck, unless I use an overlapping
+      typeclass.  Or I could default to... what exactly?
+    . The problem with `Convert a b` is that 'a' needs a type annotation,
+      which would make signatures annoying to write.  Normally I don't need
+      them because they are the Typecheck val, which already needs to be
+      fixed.
+    . Or I could have defaults be either a Typecheck val, or
+      (Doc, Typecheck val), and then have an explicit constructor for Function
+      which promotes various types to (Doc, Function).
+  Support for adding or removing time in the middle of a score:
+    . Status: this is implemented manually via Cmd.BlockResize, and
+      specifically LBlock.add_time and remove_time.  It seems to work, but I
+      haven't used it extensively.
+    - Add a ^z that moves events below and track children.
+    . This has overlap with the idea to have a track as a read-only view of an
+      expression.  E.g., the expression would be b1, b2, b3, ..., and the
+      view would be to get the CallDuration of each and sequence them.  The
+      trick is that it would have to re-integrate whenever the callees changed
+      CallDuration.  In this approach, I'd have a separate expression with the
+      sequence of calls.  That would then be bound to a track, which would
+      then become read-only.  I'd have to edit the original expression.
+      . The cmds that change a block ruler could trigger re-integration in the
+        same way they would have to trigger the caller resize.
+      . Even in this case, I need something to put in for ruler.  I guess I'd
+        use 'extract'.
+      . It may be more awkward to edit the expression instead of directly
+        editing the track.
+      Advantages:
+        . It would be a specific case of a generalized integrate-expression
+          feature, which I'm pretty sure I'll eventually add anyway.  Actually
+          I can just add an optional read-only option, otherwise it could be
+          integrated as normal.
+        . If I lock a whole track, then I don't need some special "time locked
+          event", I have a whole locked track.  That seems simpler because it
+          doesn't have to coexist with normal events.
+        . I don't have to scan blocks for calls, since they are explicitly
+          listed in an expression.  Presumably the expression is data, not
+          code, so I don't have to do any evaluation.  But maybe I have to
+          evaluate anyway to get CallDuration?  But it seems clearer to update
+          specific expressions, rather than just scan the entire score for all
+          calless and try to mess with their durations.  Also, mixing block
+          call events and normal events is not necessarily something I want to
+          support... even though I have done it in the past.
+      Disadvantages:
+        . Another language.  If it's just linear sequence then it's trivial,
+          but surely that won't be enough.
+        . The whole point of the track is that I can line things up in time,
+          and I still want to do that with score blocks.  Why should I wind up
+          with a whole new language for that?  E.g. initially it's just
+          sequence.  But then I want 'clip', so I need explicit durations.
+          Then I want time gaps, so I need start times too.  Then I want to
+          express alignment, so I don't have to calculate start times... and
+          in any case, those times will be invalid when the callee changes, so
+          I need alignment anyway.
+        . But the clip problem is something I need to express anyway.  In
+          a language I could say "Clip | awak" dur=-1gong, but how would
+          I tell a track version that?  I guess it would just not update the
+          duration of clipped calls.  In fact 'clip' and 'Clip' could express
+          that by setting the CallDuration to the event duration.
+      . But in fact I don't need a locked event at all, I can just update it
+        on demand, but have no particular requirement that it stay that way.
+        I could do a universal thing where block calls get a subtle hue that
+        indicates they are 1:1.  Or use event width?
+    older notes:
+    . I want add a measure, and then automatically:
+      . Extend the ruler of this block.
+      . Extend or contract the duration of the caller in the parent, moving
+        all its events as necessary.
+      . Also extend or contract the caller's ruler, if necessary.
+      . Renumber the ruler in other callees as necessary, e.g. inverse
+        LRuler.extract aka LRuler.inject.
+
+      . All of this ruler resizing would not be necessary if I used
+        Ui.event_end instead of Ui.ruler_end for the logical block end.  But
+        then I'd need a -- event to mark the explicit end.  And it's just
+        putting off the inevitable... I'd still need to extend the ruler, so
+        why not make it easy, so now I don't mind doing it frequently.
+    . If I have a way to mark a call as "unstretchy" it can try to move events
+      below it, or at least highlight if it's not 1:1.
+      . Or maybe it should even default to unstretchy, and you have to mark
+        stretchy.
+      . I could do it with special metadata in the event that could cause it
+        to render differently, or by prefixing with a magic character, say '='.
+      . The advantage of the magic character is that it's visible and I don't
+        need any special editing support, but the disadvantage it that it's
+        metadata interfering in notation.
+      . Presumably it only has an effect on events with CallDuration, and
+        maybe even an error on ones without... but I can't find that out
+        syntactically.
+      . Maybe the first step is to implement the move later events part,
+        triggered by a keystroke (like cmd-z for events), and worry about
+        doing it automatically later.
   Integrate from dsl.
     . Status: I think it just barely works, via LSol.edit_new, and
       reintegrate, but not tested and not hooked up to the editor.
@@ -588,200 +713,51 @@ UNSORTED
         . Add the "dsl modules" score field.
         . Make a REPL cmd to open vi with the file and bind save to the :dsl
           cmd.
-  - ControlFunctions are still super confusing. NOTE [fix-control-functions]
-    . Yet another confusing thing is that they don't work for arbitrary
-      signals given to notes.  I think it would be better to override '' to
-      get e.g. %location as %location + rnd ...
-
-    . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
-      %strength is .5, but it's actually not, and the only way to get rid of
-      the CF is %strength=_.
-    . Also the whole implementation is a mess.  Isn't there some other way to
-      randomize signals?
-    . I could pass a Quoted, and then control functions are val calls that
-      return Quoteds: (cf-rnd control 0 1)
-    . Then I want to be able to treat those as signals, or coerce them both
-      to the same thing.  Really that's a SignalFunction, or maybe just
-      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
-      various types into SignalFunction, but not have to have an opaque
-      SignalFunction for all the defaults.
-    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
-      split Typecheck and Convert?
-      Typecheck: Val -> Maybe a, Convert: a -> b
-      Convert would be: Int -> SignalFunction.
-    . I think this won't work because the intermediate 'a' will be
-      ambiguous.
-    . I can always have a Default class that is used only for Sig defaults,
-      and provides both ShowVal and the coercion.  It would mean I have to
-      duplicate everything in Typecheck, unless I use an overlapping
-      typeclass.  Or I could default to... what exactly?
-    . The problem with `Convert a b` is that 'a' needs a type annotation,
-      which would make signatures annoying to write.  Normally I don't need
-      them because they are the Typecheck val, which already needs to be
-      fixed.
-    . Or I could have defaults be either a Typecheck val, or
-      (Doc, Typecheck val), and then have an explicit constructor for Function
-      which promotes various types to (Doc, Function).
-  - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
-    bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
-    only absolute updates to the skeleton.
-    . Can't reproduce this now.
-    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-    . It definitely happens occasionally, but always when I'm busy.
-  - Add 'angklung' and 'beleganjur' scales.
-  - BaliScales should have a default ombak, depending on laras.
-    - Also there should be a way to randomize per instrument, so it's not too
-      perfect.
-  - Disallow 4e# in selisir.  And generally accidentals.
-    . Validating the absolute pitch is broken for *legong, because I want to
-      make sure the relative pitch is in the key's intervals.
-    . I could make validation more complicated, but I think not using
-      ChromaticScales would also fix this.
-    . I don't get an error because the pitch is created, but will evaluate to
-      UnparseableNote, which makes an error only on conversion.
-    . It's because ChromaticScales reads a relative pitch, and only checks
-      for validity once it's absolute, at which point it already created
-      a ScaleDegree.  I could either also validate relative, or get rid of
-      the fancy ChromaticScales use for scales without modes.
-    . Or maybe UnparseableNote should have a msg arg to show what it was?
-    . The thing is, I don't want the whole accidental parsing mechanism,
-      I just want 7 symbols, and a relative pitch system.
-    . So I could have a simplified ChromaticScales which dispenses with letter
-      + accidental, and instead just has a unique name for each scale degree.
-    . Then I could use 1234567 for javanese-style notation.
-    . I'd basically replace the show/read pitch stuff with a hardcoded map to
-      RelativePitches.
-    - I can't have different pc_per_octave based on key, without parsing
-      the key in input_to_note.
-  - It would be nice to have a no-keys version of BaliScales so I don't have
-    to mess with a fake key in *selisir and *wayang.
-    . I guess it's not a big deal, but at least it means it ignores key.
-    . Actually it seems like it might be a pain, because then I can't use
-      the same Config.
-  Why are scales so complicated?
-    - Can I make it simpler?  If I were to rewrite it knowing all this stuff,
-      what would it look like?
-    . twelve: Keys have mode and tonic, so each key has a signature that
-      influences enharmonic spelling.  Has accidentals with enharmonic
-      spelling, and a layout which says which pitches are skipped, also based
-      on the key.  Both the pitches and accidentals are absolute and so
-      independent of the key.
-    . twelve-k: Like 'twelve', but while pitches are still absolute,
-      accidentals are relative to the scale.
-    . twelve-r: like 'twelve', but both pitches and accidentals are relative
-      from the key's tonic.
-    . just: Keys have mode and tonic as with 'twelve', but they affect the
-      tuning.  The layout is diatonic in that there are no skipped pitches,
-      and hence no enharmonics and accidentals.  Accidentals are supported
-      just as a constant ratio offset, so respelling enharmonics will change
-      the frequency.  Since there's no per-key spelling, the key is much
-      simpler, just a tonic pitch.
-    . just-r: Like 'just', except that pitches and accidentals are relative to
-      the tonic.
-    . raga: Like 'just-r', except with a much larger selection of modes.
-      Also, instead of accidentals, there are multiple candidates for
-      certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
-      the key.  TODO the last bit is not implemented yet.
-    . legong, pelog: These have keys, but like 'just-r', they are simply a
-      starting note (tonic) and a layout to indicate skipped notes.  However,
-      there are no accidentals, and instead each note has a unique name.
-      'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
-      pengisep, and they also have a 'laras' value, which indicates the tuning
-      variant.
-    . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
-      relative to the tessitura of a particular instrument.
-    . selisir, wayang:
-    . selisir, wayang -pemade etc.: Relative octave variants.
-    . belaganjur, angklung:
-    misc notes:
-      . Simplest is an absolute scale with no key and no octave structure, just
-        a mapping from symbol to pitch.
-      . Then we have a relative diatonic scale.  This has a key which influences
-        the note names, since they are relative to a certain pitch, but no other
-        structure.
-  - Legong scale umbang and isep is too close.
-    . Maybe something wrong with how I retuned the sc gamelan samples.
-  - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
-    . This would get back the documentation I lost when I got rid of
-      VInstrument.
-  - OutOfRange pitch error should show the pre-transposition pitch.
-    . In fact, all the errors from e.g. Pitches.pitch_nn should be annotated
-      with information about the pitch.
-  - Cmd.Ky: Keep the defining file in a special slot in the call doc, so I can
-    print it out in shadowed msgs.
-  - Cmd.Backend's Midi.Patch is redundant, since the Inst already has it
-    . Not quite, since Backend encodes that alloc and patch backends are
-      equal, but is it really necessary?
-  - do a renaming pass on all the prev/next pitch function names in Derive.Args.
-    . Should Prelude.Pitch.approach use the lookup pitch style?
-
-  - it looks like special kajar calls like 'oo' mess up track signal.
-    . I can fix 'oo' by making DUtil.doubled_call inverting, but that doesn't
-      work for 'o..'.
-    . DUtil.multiple_call doesn't need inverting because it dispatches to
-      call that do invert, right?
-    . Actually it's pretty pernicious, because without inverting, doubled_call
-      will still appear to work because the underlying call inverts.  But
-      TrackSignal gets messed up, and if it did anything based on controls
-      then they would not take child controls into account.
-    . Why is TrackSignal messed up though?
-  - do nruk with a static macro
-    alias 'o..' 'nruk | o'
-    . I could modify c_nruk to have a generator version that takes a deriver,
-      but then I have to copy paste it.
-    . How can I inherit args?  StaticMacro is no good because I want the
-      generator to be late bound.  But 'nruk' should be static bound because
-      it's in another module and I want to inherit its args.
-    . What I really want is to inherit args and docs from the transformer, and
-      apply to the generator dynamically.  So something like a static macro
-      where I give all args to one transformer, and the generator is dynamic.
-      I think I can do the former with a special arg, and the latter with an
-      eval "static call".
-    . But what happens with StaticMacro when it hits a Sig.many?  I think it's
-      broken.
-    . To support this, Sig.required_vals needs to support 'many' parsers.
-      I could infer from ArgParser but it seems like it's getting too
-      complicated.  I think at that point I had better just be able to copy
-      the parser over.  Can't I just reapply to the callee?
-  - charukesi: fltk/EventTrack.cc:109 sample time didn't increase: 37.2 <= 37.2
-  - Use kotekan for >wy with sargam scale.
-  - I should collapse adjacent Collapsed tracks so they don't turn into
-    a giant blue block.
-    . If I do it at the fltk draw level, then I don't have to worry about diff
-      complications or tweaking indices, but I still have to model as fewer
-      widgets so the index tweaking just happens lower down.
-    . If I do it at the haskell level, hopefully I can reuse the existing
-      Track / DisplayTrack distinction used for collapsed tracks in the first
-      place.
-    - I have to also collapse the skeleton, which means I need
-      a Block.display_skeleton and Block.display_integrate_skeleton.
-    . However, I'm not sure it's worth it.
-  - The error selection is still hard to see on a busy block, I usually have
-    to zoom in and do it again.
-    . I think to be more visible it would have to blink or somehow be larger.
-      Ideally I could have some kind of glow
-      Or maybe red is just overused, if it were green or blue?
-  vsl:
-    - figure out how to do tuning
-      . I think it needs to be pitch bend, since it doesn't seem to respond to
-        MTS.  But VSL ensemble should be able to load multiple copies of the
-        patch and share sample data.
-      . Figure this out before doing too many more patches, because I'll have
-        to update them all with global control config, unless there's a way
-        to copy paste that.
-      . However, it apparently can be used with hermode, so not sure how that
-        happens.  Maybe I can just ask VSL support.
-      . Scala files are not very good because I'd have to go manually load
-        them every time, and they're static.
-    . Legato attack scale control affects the crossfade level of interval
-      samples, experiment with that.
-      . Wait, where did this go?
-    . figure out how perf reps work, and how I should handle them
-    - make sure perf_upbeat_repetitions are consistent
-    - make sure grace vs. grace.updown is correct
-    attribute groups:
-      . bass clarinet has nv without vib
-    - rename +sec# to +s#?
+  - track calls / track macros:
+    . Status: lost motivation after I figured out another solution for
+      gamakam, but I sort of forget what it was.  It's implemented all the way
+      up to having a spot in Derive.Scopes and special control track syntax,
+      but there are no implemented track calls.
+      . See also signal-discontinuities.
+    - More general and descriptive names for Derive.Scopes and Scope.
+    - Use Scopes in Derive.Library
+    - Implement calling TrackCalls.
+      . Overloading 'x' to mean a call to x or a control %x might cause some
+        problems.  E.g. title_to_control can't know unless it looks
+      . If I just use a symbol there's no way to tell if it's a control,
+        pitch, or note track.  So I need to keep the syntactic clues.
+      . Maybe control: '!call', note: '> !call', pitch '*xyz !call'?
+      . I'd like to be able to abstract control, e.g. '!gamakam', and the t-nn
+        is an implementation detail.  But I can't have track calls return
+        (Control, d), because that's only control tracks.
+      . I could have it set a control with the same name as the track call,
+        and then some way to rename it.  But what is that way?
+      . Or I could just fake it by returning Score.Control, and pitch tracks
+        just use Score.Control, and note tracks just ignore it.
+      . It seems awkward that this is simultaneously giving a way to abstract
+        syntax and control name, and they don't seem naturally related.  Can't
+        I have an orthogonal way to make 'gamak' an alias to t-nn?
+    - Write a TrackCall for gamakam4.  ! calls quote the argument and pass
+      to gamakam call.  Or I could invert it and use ! for non-gamakam calls.
+      Copy pitch calls over.
+    . Maybe this is how to do macros: track title is a lookup in
+      a track-macros namespace.  If 'name' isn't found, then it defaults
+      to '%name' ala LookupPattern.  Track call namespace should also be
+      in the CallMaps and Library so it can be imported with modules.
+      Also I think it needs note, pitch, and control variants in the same
+      way.
+    . As long as I'm doing this I can go back to using pitches for
+      gamakam, and just copy over from the pitch track.  Not sure if
+      I should though.
+    . old notes:
+      . consider track calls and block calls:
+        note_track :: TrackTree.EventsNode -> Derive.EventDeriver
+        derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
+      . I could use this to implement is-ly and no-ly, and also totally custom
+        track types and block types.
+  - draw-text-lines
+    . I think it's a bit of an improvement for code simplicity, but still has
+      an annoying redraw bug.  So it's almost done but not merged.
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
@@ -795,56 +771,76 @@ UNSORTED
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-  - Perf.lookup_instrument on a pitch track could look at its note track.
-  - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
-    I have a warning for when a non-inverting call has a note track below it?
-
-  - empty track doesn't get an Environ, which causes Cmd.Track to not be able
-    to find the instrument.
-    . It was because the kendang tracks were below >pno, not "tempo".  So, two
-      problems:
-      . It's too hard to see that the skeleton is wrong.
-      . Note track children should have dynamics too.
-  - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
-    write a test if I do need it.
-  - fix control scope in parent events that cover up an orphan, as
-    demonstrated in Sub_test.test_overlapping_parent_control_scope
-  - Better solution for the "sample at end of block" problem, as demonstrated
-    by Block_test.test_trim_controls_problem
-  wayang
-    - Infer late damping.  E.g., if there is a jump wider than 2 notes, then
-      wait until the hand is free for long enough to damp it.
-    - Automatically fill in weak notes?
-      . This also applies to reyongan, even more so.
-      . In fact this is similar to noltol.
-    - many double strikes or ngoret tones land a bit ahead of the beat
-    - I want some optional ngoret to happen the same way in both hands.
-      I could make it apply to a parallel kempyung or octave.
-      . I'd need a fancier ngoret that understands 'inst-top' so it can go
-        down if necessary.
-  - thru on *legong notes is wrong the first time
-    can see this editing rehearsal/kendang-legong
-  / can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
-    modify_event_near_point, doesn't ModifyEvent.selection already do that?
-
-  - %sus-abs=-.x is not quite right for detached, because it should scale
-    a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
-    a certain threshold.
-
-  - network midi doesn't seem to handle abort?
-    playing the second time doesn't happen
-  - I have a feeling like FM8 doesn't obey ResetAllControls
-    Maybe I should extend Midi.Interface.note_tracker to keep track of
-    used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
-    the rest reset to 0.
-
-IN PROGRESS / branch: branches:
-  - draw-text-lines
-    . I think it's a bit of an improvement for code simplicity, but still has
-      an annoying redraw bug.  So it's almost done but not merged.
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
+    - Disallow 4e# in selisir.  And generally accidentals.
+      . Validating the absolute pitch is broken for *legong, because I want to
+        make sure the relative pitch is in the key's intervals.
+      . I could make validation more complicated, but I think not using
+        ChromaticScales would also fix this.
+      . I don't get an error because the pitch is created, but will evaluate to
+        UnparseableNote, which makes an error only on conversion.
+      . It's because ChromaticScales reads a relative pitch, and only checks
+        for validity once it's absolute, at which point it already created
+        a ScaleDegree.  I could either also validate relative, or get rid of
+        the fancy ChromaticScales use for scales without modes.
+      . Or maybe UnparseableNote should have a msg arg to show what it was?
+      . The thing is, I don't want the whole accidental parsing mechanism,
+        I just want 7 symbols, and a relative pitch system.
+      . So I could have a simplified ChromaticScales which dispenses with letter
+        + accidental, and instead just has a unique name for each scale degree.
+      . Then I could use 1234567 for javanese-style notation.
+      . I'd basically replace the show/read pitch stuff with a hardcoded map to
+        RelativePitches.
+      - I can't have different pc_per_octave based on key, without parsing
+        the key in input_to_note.
+    - It would be nice to have a no-keys version of BaliScales so I don't have
+      to mess with a fake key in *selisir and *wayang.
+      . I guess it's not a big deal, but at least it means it ignores key.
+      . Actually it seems like it might be a pain, because then I can't use
+        the same Config.
+    Why are scales so complicated?
+      - Can I make it simpler?  If I were to rewrite it knowing all this stuff,
+        what would it look like?
+      . twelve: Keys have mode and tonic, so each key has a signature that
+        influences enharmonic spelling.  Has accidentals with enharmonic
+        spelling, and a layout which says which pitches are skipped, also based
+        on the key.  Both the pitches and accidentals are absolute and so
+        independent of the key.
+      . twelve-k: Like 'twelve', but while pitches are still absolute,
+        accidentals are relative to the scale.
+      . twelve-r: like 'twelve', but both pitches and accidentals are relative
+        from the key's tonic.
+      . just: Keys have mode and tonic as with 'twelve', but they affect the
+        tuning.  The layout is diatonic in that there are no skipped pitches,
+        and hence no enharmonics and accidentals.  Accidentals are supported
+        just as a constant ratio offset, so respelling enharmonics will change
+        the frequency.  Since there's no per-key spelling, the key is much
+        simpler, just a tonic pitch.
+      . just-r: Like 'just', except that pitches and accidentals are relative to
+        the tonic.
+      . raga: Like 'just-r', except with a much larger selection of modes.
+        Also, instead of accidentals, there are multiple candidates for
+        certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
+        the key.  TODO the last bit is not implemented yet.
+      . legong, pelog: These have keys, but like 'just-r', they are simply a
+        starting note (tonic) and a layout to indicate skipped notes.  However,
+        there are no accidentals, and instead each note has a unique name.
+        'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
+        pengisep, and they also have a 'laras' value, which indicates the tuning
+        variant.
+      . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
+        relative to the tessitura of a particular instrument.
+      . selisir, wayang:
+      . selisir, wayang -pemade etc.: Relative octave variants.
+      . belaganjur, angklung:
+      misc notes:
+        . Simplest is an absolute scale with no key and no octave structure, just
+          a mapping from symbol to pitch.
+        . Then we have a relative diatonic scale.  This has a key which influences
+          the note names, since they are relative to a certain pitch, but no other
+          structure.
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . branch shake-targets
@@ -1181,7 +1177,7 @@ synth: im:
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
     by the PlayCache vst.
-  - Im signals have to either be audio level, or interpolate between their
+  * Im signals have to either be audio level, or interpolate between their
     points.  Audio rate is overkill at the sequencer level, so I think I
     make them interpolated.  But since it's ambiguous whether the sequencer
     wants interpolation or a discontinuity, I think I have to disambiguate by
@@ -1478,6 +1474,7 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - visualize module dependencies: https://github.com/yav/graphmod
   . Merge Val and MiniVal (RestrictedEnviron.Val for now).
     . NOTE [val-and-minival]
     . The problem is that I'd like to use Val to communicate with tracklang
@@ -3224,7 +3221,7 @@ tracklang problems
     . Maybe the problem is blocks are too large.  They're generally awkward to
       navigate.  But on the other hand, things scattered into lots of separate
       blocks make it hard to read, and annoying to update.  A "1:1" mode could
-      alleviate the updte part.
+      alleviate the update part.
   Solutions?
     . Theoretically lilypond could give the advantages of staff notation for
       reading only, but it's too slow for realtime update.
