@@ -461,3 +461,114 @@ There is a price to generality, why BlockResize is so complicated:
 - problem of hierarchical score with arbitrary calls
 - problem of generalized ruler with meter merely as a convention
 (evolution of meter)
+
+TODO notes about block resize:
+
+* Implement LRuler.inject.
+  . This starts from the root block, and finds block callees.  If a callee
+    occurs only once, and is 1:1 with the caller, copy the caller's ruler.
+  . I can warn about blocks which aren't 1:1.
+  . If it occurs >1, I could possibly put on multiple rulers, or I could
+    just pick the first one.
+  . I still need to retain start time so further modifications work.
+    This is why I shouldn't store a separate start number, I should get it
+    from the ranks.
+* Handle [section, measure] generically.
+* Move start_measure to Ruler so I don't have to parse MeterType.
+* I don't like the extract/inject names.  Extract is too generic. Should
+  be something like children to parent, parent to children.
+* Insert/delete time that propagates up to callers.
+  * Add the time in the bottom block.
+  * When I move events, move the children too.
+* When I add time, I need to also update the ruler.
+  . This is tricky because I need to know where to delete or add ruler.
+  . If there are multiple note tracks, then I can't know which one should
+    get ruler changes, but it should only be one.  I could guess the first
+    one, or the one with the most calls, but let's just require that there
+    is a single one.
+  . For this I need to keep track of the update offset within the event.
+  . Implement update_ruler:
+    . 'caller_updates' has to return a call tree, along with the caller
+      positions.
+    . 'apply_updates' uses that to move events.
+    . 'update_rulers' uses it to determine that ranges at the top
+      correspond to the affected (added or deleted) range at the bottom.
+      This is why 1:1 is important!
+    . Then I can splice or delete those top ranges.
+    . To add event durations: block order doesn't matter, event order is
+      highest to lowest.
+    . To update the ruler: if I copy from the bottom to the top, then
+      I need to go in child->parent order.  If I copy directly to the top
+      and then use push_down, then block order doesn't matter.
+    . push_down will also fix the measure numbers, which I'll want to do
+      anyway.  push_down also handles the parent->child order.
+    . What to do if affected events overlap?  If I'm deleting time, I just
+      merge the ranges and delete that.  Otherwise it's complicated.
+    . I have to add a set amount of time to the top block, which is the
+      max of the the track deltas.
+  . But I guess push_down can't work with overlapping events anyway.
+    To get measure numbers right, it can't even deal with
+    non-overlapping repeats.
+    really what I want is to add some time.  I'm just adding a set
+    amount of time at the bottom, and due to multiple events that may
+    get multiplied.
+  . What if I went the other way, added time at the top and pushed it
+    down?
+    . This way the amount of time never changes.  It propagates into all
+      of the calls it overlaps, but will always have the same delta.
+    . The ruler becomes just push_down, I think.
+    . The problem is that it's more convenient to work at the bottom.  But
+      if I can make the "highlight in callee" feature go the other way,
+      maybe it's not so bad.
+    . But then I have the same problem with repeated calls.  The time will
+      of course get added to all of them, but I need to resize their
+      events wherever they occur.
+    . So I think this is no good, it has the same problem only worse
+      because it doesn't give me a natural way to find those other
+      callees.  Basically the "amount of time doesn't change" is not true.
+  . So back to bottom-up.
+    . Actually the change in block length is not  the max of the time on
+      each track, because I still multiple the time if the events are
+      non-overlapping.  It's because two overlapping events share their
+      time delta.
+    . No wait, that's not true.  It's applies only to two events in the
+      same track, because shortening one is going to move back the other.
+      Ok, so I can do max track delta.
+    . Still, the ruler to add for overlapping events is ambiguous, because
+      they put the callee at different parts of the meter.
+    . Of course maybe all this messing with meter is getting ahead of
+      myself.  Maybe I first implement just the event duration changes.
+      Then I worry about setting meter... maybe I just want to double the
+      meter at the top level and the callees are not meant to line up in
+      a constant way.  Then, to serve the common case of adding a single
+      measure I can come up with an extension for that.
+  . It can't be done in general because the meter may be irregular, and
+    you can't know what kind of meter to append.
+  . I could have a thing that gets the meter in the selection, and adds
+    another one of those at the selection.
+  . A whole meter would be more useful to retain the structure.  I'll
+    still need a delete range though, so I could add the measure and
+    then delete the unwanted beats.
+  . But the common infrastructure is to add/delete time, then find callers
+    and apply recursively.
+  . To extend rulers, I could splice in the bit of ruler from the callees.
+  , Or I could just do a ruler pull_up on each affected block.  The latter
+    would destroy any trailing silence though.
+  . Or I could assume the toplevel ruler is right, and do a push_down...
+    but it's probably wrong since I'm editing from the bottom.
+  . I could require a -- event to explicitly mark the end, and otherwise
+    assume that rulers for score blocks are managed automatically.
+  . Splicing the ruler from the callee would also do the right thing by
+    moving down non-meter ruler bits like cue marks.  Not that I use
+    those.  Well, it might be the right thing.  Or the cue might be tied
+    to time, not score.
+  . Of course pull_up only works on a single track.  So this breaks down
+    with multiple simultaneous callees.  In that case there is no single
+    meter, so I have to say the top level is canonical, and push_down.
+  . Wait, the problem with pull_up is how do I get start_measure correct?
+    That's the whole reason I wrote push_down in the first place!  I think
+    I have to find the roots, splice in the new bit of meter, then push
+    down.  But knowing where to splice in the new meter means propagating
+    the ranges from the bottom... I should have this available from
+    'caller_updates', but I need it to retain parent-child relationships.
+    I actually need that anyway, so I can know which blocks are the roots.

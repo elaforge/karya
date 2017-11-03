@@ -96,108 +96,11 @@ NESS:
       . For the web interface, output directories marked with seconds means
         parallel submits are unreliable.
 
-    * Make new kontakt samples for far backboard and mid backboard.
-    * Write melody from legong kraton for both, using roll and pitch bends.
-
-    try:
-      * Experiment with zheng-style bent-string.
-        . Interesting.  Not sure if I'll use it, but stopped-string leads to
-          interesting artifacts.
-      * Put +mute on the end of notes that don't touch the next one.  Do this
-        at the convert level so I can get the string right.
-      / Ornament for pipa style 4 note roll with collision at the end.
-        roll .1 .2 .3 .8
-        . There's already a 'roll' call.
-      - Use gamakam notation.
-
-    . Use legongGuitar, no frets.  Map pitch changes to finger positions.
-      . First just that.  I can try the jawari fret stuff later.
-    * Make a sample set: each string, each amp.
-      . Should I experiment with different durations?  It might get the softer
-        notes sounding more natural.
-      . Also try with pluck, not just strike.
-      . What's the difference between strike and pluck? Watch the JOS video
-        again.
-    * Program to split the samples on n seconds.  conduit-audio should be able
-      to do it.  Also sox, but looks really awkward.
-    * The model is Im.Convert.  Make a generic im synth that just saves to
-      disk, and doesn't run a synthesizer.
-    Write a converter to NESS score.
-      * Initial implementation.
-      * Test on serialized notes.
-      * Implement +mute as a finger lift.
-        . Or try touching with low amplitude.
-    * Test run for various backboard distances.
-      . Where maxAmp=0.65, -0.0010 to -0.0020 to is a good range where 10 has
-        collision from 0.5 up, and 20 has collision only at amp >=7/8.
-    * Test run for touching with various amps.
-    * Use stopped-string and take explicit string assignment from karya.
-      . There's no Environ in Note so there's nothing right for string.
-      . I used attributes for other strings, but it's too easy to choose
-        multiple strings.  The VSL keyswitches should probably be env too,
-        e.g. string=d | +port instead of +porta+d.
-      . Do I really need a full on Val?  Maybe just a Map Text Text?
-        Could be used: VNum, VAttributes, VNotePitch, VStr, VList
-        Definitely useless: VControlRef, VQuoted
-      . This introduces some more dynamic typing, but Notes are just bags of
-        values anyway.
-      . Originally I think I was avoiding it because Synth was a separate
-        project without shared types.  I'd still like to minimize sharing
-        though.
-      . On the other hand, logic is supposed to be in the sequencer, Note
-        should be low level.  I could even have each string be a separate
-        "synthesizer".  But it is convenient to just use a generic im
-        instrument for everything.
-      . Of course, as I go toward dumping everything in the Note, then they
-        get messier.  But that's a fundamental tradeoff... and why put
-        redundant clean-up work in when the ultimate destination already
-        decides to use or ignore?
-      . But I'm already doing that for controls and attrs since it doubles as
-        a place to put documentation.
-      . Ok, so maybe keep doing that but add one for environ?  I could put in
-        types as well, as in Env.hardcoded_types.  The advantage is that I get
-        the error closer, so it gets the stack and goes in logview.  Also it
-        defines an interface, which is generally useful.
-        . Though I could put stack in the Note too...
-      . String is actually like sub-patch, maybe I should do that.
-        I can still get it automatically by putting a patch environ to
-        element.
-      . The problem is patch is unstructured text, which should remain atomic.
-      . I could also see the (patch, instrument) thing as being yet another
-        config variable, like string.  If it really is a different patch, I'd
-        put it in the instrument db, but since I'm treating it just as
-        a variation, I can get away with one entry and a config value.
-      . So maybe I can use some kind of [Text] to configure the patch.
-      . Of course then I don't get it automatically from inst and environ.
-    * Adapt reyong infer-damp for ness instruments.
-      . All it does is add +mute events, so I can just teach the instrument to
-        recognize those.
-      . So modify the kontakt instrument to treat those as a pitch change.
-    * Submit multiple instruments.
-    * Mix the output automatically.
-
-    * Design instruments with frets at legong scale, umbang and isep.
-      . Have a string for each pitch?
-      . There should be enough random variation to make each noticeably
-        distinct.  Vary: string material, length, tenson, strike position,
-        strike duration.
-      . Separate strings at 3rds.
-      . Test gestures: press on next fret, press in between frets, lift to
-        open.
-      . 2 sangsih, 2 polos
-
     - Maybe I can use the "jawari" fret with parallel strings as a special
       effect.
     - Can I get a muted string effect by plucking while touching with low
       force?
-
-  * It turns out using the instrument name to select the ness instrument is
-    awkward, because then I can't rename it in the score for convenience.
-    I should use the qualified name, which is fine if I derive that from the
-    ness source.
-  * Can I implement +mute guitar note by plucking while touching lightly?
-  * Integrate Guitar.Convert and Multiplate.Convert so they can be mixed
-    together.
+    - Get harmonics working.
 
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
@@ -210,9 +113,6 @@ NESS:
     . ping: rapid pitch drop
     . roll
 
-  gong:
-    - Find 3 gongs and make samples for them.
-
   ideas:
     . yangqin?
     . play string like reyong, with a hand damp
@@ -224,23 +124,16 @@ NESS:
 UNSORTED
   - Print something on stdout when I can't find the file to load from the
     cmdline.  Otherwise I get confused.
-  * Why is midi thru suddenly no longer emitting pitch bend 0?
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
     same problem as extending 'grace' to be able to put stuff on the main
     note.
   - visualize module dependencies: https://github.com/yav/graphmod
-  * I got confused when LInst.add_play_cache was assigned to the same channel
-    as a real instrument.  There should be a warning when different
-    instruments have the same address.
   - Pitch bend doesn't work right on a MIDI instrument with patch scale.
     . Likely because the pitch gamut is not linear, but pitch bend is.
     . I would need to warp the pitch bend by the patch scale... but don't I do
       that?
   - It seems too complicated to set up patch scales, how can I make that
     easier?
-  * String idiom doesn't emit signal segments properly.
-    . The MIDI / im inconsistency is really awkward, and I'll need some
-      solution.
   - I need a more systematic solution for signal-discontinuity.
     . As well as docs for the NOTE in Util.TimeVector.
     . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
@@ -268,31 +161,15 @@ UNSORTED
     . Explicit line segments or a continuous signal or whatever would also
       fix the problem where Signal.constant uses [(0, y)]... but then it
       doesn't work right at <0.  Or Signal.constant could use -big_x.
-  * Move string assignment to karya.  This is a general purpose thing.
-    . What about stopped-string?
-    . It doesn't emit the chosen string, but it could?
-    . Also I want to make sure to pick the string based on the lowest pitch.
-      I think it just does initial pitch?
-    . Also it's monophonic.
-    . I could make a new assign-string, but I'd also like to possibly use
-      the start delay and release effects.
-    . So, extend string_idiom:
-      - Select string based on the lowest pitch.
-      - Assign the selected string as an env var to the note.
-      - Handle polyphonic parts.  Why does it have that restriction?
-        . It's because it's designed to bend the end of the note based on the
-          next note.  I can still do that if I require hand or voice
-          assignment.
-    - Currently the end of the attack curve always coincides with the start of
-      the next note.  There also could be an attack prepare time, analogous to
-      the release delay.
+  - In string-idiom, the end of the attack curve always coincides with the
+    start of the next note.  There also could be an attack prepare time,
+    analogous to the release delay.
   - enable FlexibleInstances globally.  Should I add any other instance ones?
     TypeSynonymInstances?  GeneralizedNewtypeDeriving?
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.
-  * add a LInst.copy to copy an allocation to a new name
   - binary-serialise-cbor is out and implemented by serialise, try switching
     save format to that.
     . But figure out how to use the built-in versioning first.
@@ -302,15 +179,10 @@ UNSORTED
       [tag, length, ...] instead of [length, tag, ...], but the former makes
       more sense to me anyway, since the length will likely be different
       depending on tag/version.
-  * insert/delete time is messed up for negative events.
-    . Go to 2.5, invert the event, ^j two times and the event is duplicated.
-  * cmd-T Create.insert_brach should put the new track to the right of the
-    selection, not at the end of the block.
-    * It could copy the collapsed status too.
   - Adding a new track puts a bit of extra padding on the right side.
   tabuh gari:
     - infer-damp for trompong, or better reyong one
-    - double strike, like 'oo'
+    / double strike, like 'oo'
       . I have this in `t oo`
     - octaves notation for trompong
     - octaves for gender rambat
@@ -323,13 +195,6 @@ UNSORTED
       working right as soon as I change it.  But it does have a definite
       single caller, so shouldn't it be able to figure out a root all the
       same?
-  * When adding a positive event above a negative one, it deletes the next
-    negative event and then goes right through it.  How is that even possible?
-  * I could make add positive above negative more friendly by using a "until
-    next event" timestep instead of to block end.
-    . This is what I get already for positive events, so it winds up being the
-      same except that positive to negative wouldn't eat up some probably wrong
-      amount of the negative event.
   - It's really tempting to put a '>inst = %dyn=.5', but that just forces it
     to always have that dyn.  How can I set a per-instrument default dynamic
     which I can still override?
@@ -341,120 +206,8 @@ UNSORTED
       signals, and then each instrument can pick out its dyn-me.
     . And of course this should generalize for all controls... well, I don't
       have a use for non-dyn, so I don't really need to generalize.
-  * the 'u' call doesn't seem to work in the tempo track
-    . Because it's capped at 1.
   Support for adding or removing time in the middle of a score:
-    * Implement LRuler.inject.
-      . This starts from the root block, and finds block callees.  If a callee
-        occurs only once, and is 1:1 with the caller, copy the caller's ruler.
-      . I can warn about blocks which aren't 1:1.
-      . If it occurs >1, I could possibly put on multiple rulers, or I could
-        just pick the first one.
-      . I still need to retain start time so further modifications work.
-        This is why I shouldn't store a separate start number, I should get it
-        from the ranks.
-    * Handle [section, measure] generically.
-    * Move start_measure to Ruler so I don't have to parse MeterType.
-    * I don't like the extract/inject names.  Extract is too generic. Should
-      be something like children to parent, parent to children.
-    * Insert/delete time that propagates up to callers.
-      * Add the time in the bottom block.
-      * When I move events, move the children too.
-    * When I add time, I need to also update the ruler.
-      . This is tricky because I need to know where to delete or add ruler.
-      . If there are multiple note tracks, then I can't know which one should
-        get ruler changes, but it should only be one.  I could guess the first
-        one, or the one with the most calls, but let's just require that there
-        is a single one.
-      . For this I need to keep track of the update offset within the event.
-      . Implement update_ruler:
-        . 'caller_updates' has to return a call tree, along with the caller
-          positions.
-        . 'apply_updates' uses that to move events.
-        . 'update_rulers' uses it to determine that ranges at the top
-          correspond to the affected (added or deleted) range at the bottom.
-          This is why 1:1 is important!
-        . Then I can splice or delete those top ranges.
-        . To add event durations: block order doesn't matter, event order is
-          highest to lowest.
-        . To update the ruler: if I copy from the bottom to the top, then
-          I need to go in child->parent order.  If I copy directly to the top
-          and then use push_down, then block order doesn't matter.
-        . push_down will also fix the measure numbers, which I'll want to do
-          anyway.  push_down also handles the parent->child order.
-        . What to do if affected events overlap?  If I'm deleting time, I just
-          merge the ranges and delete that.  Otherwise it's complicated.
-        . I have to add a set amount of time to the top block, which is the
-          max of the the track deltas.
-      . But I guess push_down can't work with overlapping events anyway.
-        To get measure numbers right, it can't even deal with
-        non-overlapping repeats.
-        really what I want is to add some time.  I'm just adding a set
-        amount of time at the bottom, and due to multiple events that may
-        get multiplied.
-      . What if I went the other way, added time at the top and pushed it
-        down?
-        . This way the amount of time never changes.  It propagates into all
-          of the calls it overlaps, but will always have the same delta.
-        . The ruler becomes just push_down, I think.
-        . The problem is that it's more convenient to work at the bottom.  But
-          if I can make the "highlight in callee" feature go the other way,
-          maybe it's not so bad.
-        . But then I have the same problem with repeated calls.  The time will
-          of course get added to all of them, but I need to resize their
-          events wherever they occur.
-        . So I think this is no good, it has the same problem only worse
-          because it doesn't give me a natural way to find those other
-          callees.  Basically the "amount of time doesn't change" is not true.
-      . So back to bottom-up.
-        . Actually the change in block length is not  the max of the time on
-          each track, because I still multiple the time if the events are
-          non-overlapping.  It's because two overlapping events share their
-          time delta.
-        . No wait, that's not true.  It's applies only to two events in the
-          same track, because shortening one is going to move back the other.
-          Ok, so I can do max track delta.
-        . Still, the ruler to add for overlapping events is ambiguous, because
-          they put the callee at different parts of the meter.
-        . Of course maybe all this messing with meter is getting ahead of
-          myself.  Maybe I first implement just the event duration changes.
-          Then I worry about setting meter... maybe I just want to double the
-          meter at the top level and the callees are not meant to line up in
-          a constant way.  Then, to serve the common case of adding a single
-          measure I can come up with an extension for that.
-      . It can't be done in general because the meter may be irregular, and
-        you can't know what kind of meter to append.
-      . I could have a thing that gets the meter in the selection, and adds
-        another one of those at the selection.
-      . A whole meter would be more useful to retain the structure.  I'll
-        still need a delete range though, so I could add the measure and
-        then delete the unwanted beats.
-      . But the common infrastructure is to add/delete time, then find callers
-        and apply recursively.
-      . To extend rulers, I could splice in the bit of ruler from the callees.
-      , Or I could just do a ruler pull_up on each affected block.  The latter
-        would destroy any trailing silence though.
-      . Or I could assume the toplevel ruler is right, and do a push_down...
-        but it's probably wrong since I'm editing from the bottom.
-      . I could require a -- event to explicitly mark the end, and otherwise
-        assume that rulers for score blocks are managed automatically.
-      . Splicing the ruler from the callee would also do the right thing by
-        moving down non-meter ruler bits like cue marks.  Not that I use
-        those.  Well, it might be the right thing.  Or the cue might be tied
-        to time, not score.
-      . Of course pull_up only works on a single track.  So this breaks down
-        with multiple simultaneous callees.  In that case there is no single
-        meter, so I have to say the top level is canonical, and push_down.
-      . Wait, the problem with pull_up is how do I get start_measure correct?
-        That's the whole reason I wrote push_down in the first place!  I think
-        I have to find the roots, splice in the new bit of meter, then push
-        down.  But knowing where to splice in the new meter means propagating
-        the ranges from the bottom... I should have this available from
-        'caller_updates', but I need it to retain parent-child relationships.
-        I actually need that anyway, so I can know which blocks are the roots.
-
     - Add a ^z that moves events below and track children.
-    - Add an event highlight for block calls which are 1:1.
 
     . This has overlap with the idea to have a track as a read-only view of an
       expression.  E.g., the expression would be b1, b2, b3, ..., and the
@@ -535,45 +288,6 @@ UNSORTED
       . Maybe the first step is to implement the move later events part,
         triggered by a keystroke (like cmd-z for events), and worry about
         doing it automatically later.
-    . I want to separate measure numbering from the other parts.  I could do
-      that by making the first two levels of labels always be
-      [section, measure], and config_label_components only configures rank>=2.
-    Status:
-      . Making Meter.config_label_components into a function is awkward for
-        Tala, because I don't have a place to remember the toplevel
-        components, and unlike meter I can't derive it from the ranks, because
-        of drutam etc.
-      . But if I make the first two levels always [section, measure], then I
-        can handle renumber entirely config independent.
-        config_label_components starts after measure.  All of the other rank
-        configuration stuff would too.
-
-      . It's still awkward to deal with blocks that don't start or end on
-        a section.  I have to clip to the section and then double... but it's
-        annoying if there's a pickup.  I guess LRuler.append works, but must
-        be done manually.
-      . Basically what I need to describe a meter is a single measure of
-        LabelComponents, a start offset as (measure, TrackTime), and duration
-        as (measures, TrackTime).
-      . If I'm doing something fancy like cycling meters it doesn't work, but
-        I can still use LRuler.double or LRuler.append.
-      . But if all rulers can share the same config, then I could attach it
-        directly to Ui.Ruler, and get rid of MeterType.  LabelComponents can't
-        be infinite if I'm going to serialize it, though.
-      . The reason LabelComponents fields are infinite is they count 0--n.
-        But I can assume a rank is a count unless it has a LabelComponent.
-        So it becomes Map Rank [Label], which is then cycled.
-
-      . What do I get out of this?  Originally I want to be able to be able to
-        figure out measure number and start sub-block measures at that measure
-        number.
-      . But why do I have to do any of that, why not just copy the parent
-        sections literally?  No need to renumber.
-      - Ok, so just copy literally.  But I still want to handle section and
-        start number generically.  Then they're always the same.  Also, store
-        Start explicitly instead of encoding in MeterType.
-      * First factor out the top two ranks so all meters do it the same.  Then
-        config_label_components is just [LabelComponent].
 
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
@@ -583,67 +297,30 @@ UNSORTED
     . Maybe I can get space to do that?
     . Or I could set it to a timestep, e.g. one measure.  Then it would turn
       into move within measure.
-  * ^M collapses unrelated control tracks into adjacent note tracks.  It
-    should only collapse children.
+    . If I stop clipping events at the end of a block, it's not so annoying to
+      move everything, as long as I move it back.  I guess it's still kind of
+      annoying though.
   - Figure out how to control vsl legato transition volume mismatches.
     . slur call has a legato-dyn arg to try to address this.
     . Look into http://www.beat-kaufmann.com/vitutorials/index.php
   - (Sig.typed_control "tr-neighbor" 1 Score.Diatonic) when given 1 returns
     an untyped ControlRef.  Can I make it default to Diatonic?
-  * ^o deletes too much.
-    . Given [(0, 1, "x"), (1, 1, "y"), (2, 1, "z")]
-      [("*", [(0, 0, "c"), (2, 0, "d")])], it deletes both y and d.  It should
-      merge only to the minimum time, i.e. 1.
   - ^o should ignore orientation on child control tracks.
     . Otherwise, it would confusingly not delete +0 controls on a negative
       note.
   - LRuler's sections*per_section is awkward when I'm really thinking in
     measures.
-  * How can I have a ruler start at >1?  Ideally I'd like to do it
-    automatically, like a reverse LRuler.extract.
-    . MeterConfig can do it, but the real thing is that
-      Ruler.Modify.modify_meter should not destroy the starting measure
-      number.
-    . I could infer the starting number from the existing labels, but it's
-      sketchy since they likely have embedded markup for big numbers.
-  * Now that I have an explicit ruler start number, I should be able to
-    simplify tala renumbering.
   - I had a bug due to using 'Derive.real dur' instead of
     'Call.real_duration start dur'.
     . Separate types for {Score,Real}Time and {Score,Real}Duration would fix
       this, but how much hassle would it be?
-  * I think slur is setting +legato on the first note, which it shouldn't do.
-  Trill.c_attr_trill:
-    / support trill attrs as an argument
-    * fall back on plain +trill attr for wider trills
-  * trill: emit lilypond for two-note tremolo for wide trills, or even narrow
-    ones too if so configured.
   - An 'accent' call on squart/6 @b4 causes a very distant %breath sample to
     go >1.  Why is the note including such distant samples anyway?  Isn't it
     inefficient to scale samples which are clearly not in the note bounds?
-  * If the 's' repl function set primary selection in addition to (or instead
-    of) red highlight, then I could find it by wiggling, or zoom on it.
   - I often want to see where I am in the parent, e.g. like parent->child
     selection but the other way.
     . I can get this by playing from the point, but why not do it
       automatically?
-  * Status bar visibility:
-    . I often want to see score time selection and RealTime selection in
-      a narrow block, and it's annoying to resize it.  Can I have a pop-up?
-      Or two lines of status if necessary?
-    . Would a tooltip in the status bar be obnoxious?
-    . Or maybe summon it explicitly with a click.  If I leave it up
-      persistently, then I can see values change, e.g. to look for a particular
-      time.  This dismiss by clicking on it, or focusing another block.
-    . It seems like a shame to waste space with global fields like
-      8, t, and d.  But even without them, I won't be able to see time marks
-      in a narrow block.
-    . Really it's just 's' and 'sec'.  Could I squeeze some stuff into other
-      places?
-    . I could put 't' and 'd' together: t: q+E
-    . I could get rid of the keys entirely.
-    . This helps, but I might still have the problem.
-    . TrackId is not so useful...
   - I'd like to use Ui.allocation lens for modification, but I need to be able
     to put it in the monad.  Research once and for all how to do that with
     either fclabels or van-laarhoven lenses.
@@ -700,6 +377,7 @@ UNSORTED
       . Sent mail to glasgow-haskell-users
       + Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
       . Should be fixed in 8.2.2.
+      . Nope.  Maybe the next release.
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -744,8 +422,9 @@ UNSORTED
   - why does fltk on linux subtract 100 from window width and height?
     . does os x? nope
   selection-orientation branch cleanup:
-    - It's surprising how positive always wins to negative.  This means adding
+    / It's surprising how positive always wins to negative.  This means adding
       a positive events with +END will destroy all negative ones below it.
+      . Fixed by making positive not unconditionally override negative.
     - set_duration: If I have ><---|, I can't set the negative event back to the
       zero dur event because it sets the previous positive event, regardless of
       selection orientation.
@@ -759,9 +438,11 @@ UNSORTED
       end bias back?
 
   - track calls / track macros:
-    * Add TrackCall to Monad.Scopes.
-      . Kind: Note, Control, Pitch, Val -- return type
-      . Type: Generator, Transformer, Val -- argument type
+    . Status: lost motivation after I figured out another solution for
+      gamakam, but I sort of forget what it was.  It's implemented all the way
+      up to having a spot in Derive.Scopes and special control track syntax,
+      but there are no implemented track calls.
+      . See also signal-discontinuities.
     - More general and descriptive names for Derive.Scopes and Scope.
     - Use Scopes in Derive.Library
     - Implement calling TrackCalls.
@@ -799,6 +480,7 @@ UNSORTED
       . I could use this to implement is-ly and no-ly, and also totally custom
         track types and block types.
   - QuickCheck for Midi.Encode_test just for practice
+    . Ui.Events_test.test_from_list_qc is an example.
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
@@ -808,46 +490,9 @@ UNSORTED
       Scale from a val call would be better, but I think that runs into the
       big Derive / Val circular dependency problem.
     . Do as a Make for now.
-  * Bind keys to Edit.insert_block_time and Edit.delete_block_time?
-    * Or a key to expand the selection to all tracks?
-    . A downside is that I might want to go back to my original selection.
-    . Would it be useful to have an undo stack for selections?  I could also
-      do things like select to end of track, delete, then go back to the
-      selection.  This is like ^o and tab in vim.
-    . Let's try just toggle previous for now.
-    . Record on a click, but only at the end of a drag.
-      How though?  Have to catch mouse up.  UiMsg.MouseUp.
-    . But MouseUp doesn't go to bind_drag, because it doesn't have a button
-      down.  Real drag has: [MouseMod 1 Nothing]
-      . MouseMod Types.MouseButton (Maybe (TrackNum, UiMsg.Track))
-    . But drag is captured by the original mouse down point, won't it be
-      confused since I lost that?
-    . But it looks like Keymap.OnTrack, and that comes out of the current
-      position, not click position.  I'm binding to (MouseMod n Nothing), so
-      I must be stripping it out, but then how do I know it was originally
-      on a track?
-    . It looks like like track vs. skel is in the UiMsg, so the fltk layer
-      must keep track of it.
-    . Ok, so bind to [], but with the right button.
-    . Wait, MouseUp is wrong.  I want to record at mouse down!
-    . But not recording hjkl seems confusing.  What do I really want?
-      I want to go back to the last click, which sure seems like I should
-      remember the selection when the mouse goes up.  But if I record there,
-      then I can go back if I hjkl, but can't go back to the pre-click
-      position.
-    . What I want is to record on the first hjkl after a click.
-    . Or what if I record multiple histories, just not *during* the drag.
-    . Do I record the destination selection, or the source?
-      . If I record the dest, then I can jump back to the last jump or drag,
-        but I don't go to where a jumped from, but the previous jump point
-        before that... so if I moved with hjkl I'll go further than I want.
-      . How about both, and rely on skipping duplicates?
-  * A variant of selection to point that uses start_pos.
-  * Undo stack for selection.
-    . For drags, don't record until mouse-up.
-    . ^o is still available, but it would become alt-o on linux.
-    . Also this tracks focused ViewId and focus changes.
   Integrate from dsl.
+    . Status: I think it just barely works, via LSol.edit_new, and
+      reintegrate, but not tested and not hooked up to the editor.
     - I tend to use multiple korvai sequences as versions of a single korvai.
       Maybe use index -1 to concatenate them all?  Or have a general way to
       concatenate multiple korvais?
@@ -978,6 +623,7 @@ UNSORTED
     only absolute updates to the skeleton.
     . Can't reproduce this now.
     . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
+    . It definitely happens occasionally, but always when I'm busy.
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
@@ -1191,7 +837,7 @@ UNSORTED
 IN PROGRESS / branch: branches:
   - draw-text-lines
     . I think it's a bit of an improvement for code simplicity, but still has
-      an annoying redraw bug.
+      an annoying redraw bug.  So it's almost done but not merged.
   - Make BaliScales which are not saih pitu be fundamentally diatonic, not
     just degenerate chromatic.  Or figure out how to simplify the whole scales
     mess.
@@ -1296,7 +942,8 @@ synth: im:
       the right start times and start pitches.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will then play a sample, starting at the right time.
-  + Emit signal discontinuities explicitly.
+  signal-discontinuities:
+    . Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
       the linear interpolator can just emit one sample, but now MIDI needs
       interpolation.  I'd have to put srate in the event so it can be
@@ -1608,35 +1255,9 @@ lilypond:
       . Looks like lilypond changed.
     - xstaff notes are not appearing in the right places
     - Where do those double sharps come from?
-  yangqin-zheng-kendang/huiyin-concert
-    * Ly.pitch_to_lily: scale id not found
-      . Likely gliss doesn't set scale id.
-      . Ultimately due to use of PSignal.nn_pitch.  There are a lot of those,
-        I should evaluate them all.
-    * a note without pitch must have code
-      . switch e->q to use 'tempo' and be a generator
-    * notation is showing c natural, when it's really b.
-      . Pitch is 71nn, which is b4, notation shows as 3rb, but it's really 4s.
-        It looks like the symbolic note is being adjusted to be absolute,
-        but if 5s is 5c, then surely 4b should be 4n?
-      . But I think symbolic pitch shouldn't be adjusting for absolute, since
-        srg notation is fundamentally relative.
   - write a ly function for that quarter = eighth stuff?  I have it in both
     huiyin-concert and squart/spawn
-  fix squart/6
-    * \alNiente went after the final \bar, nothing should do that.
-      . This happens because I mix free code at the end now.
   fix viola-sonata
-    * It looks like rests also forget about keys.
-    * \mf<< syntax error.
-      . \mf moved from inside voice to outside.  Probably code event mixing.
-      . The non-voice chunk gets the free code, because it has no voice, even
-        though it should go on the front of the voices, just by timing.
-      . In fact, I think free code should only be merged by time, not by
-        chunk.
-    * Extra rests at the end of movements.
-      . Probably movement splits not right.
-      . First movement ends at mm58, but I get meters up until 110.
     - Looks like another lilypond change:
       . score.ly:663:63: warning: this Voice needs a \voiceXx or \shiftXx
         setting
@@ -1644,28 +1265,6 @@ lilypond:
         ><
         a16 \change Staff = "up" gf'16 d'16 \change Staff = "down" d16 ) |
         % viola-sonata/pno3-2 viola-sonata/pno3-2.t15 62.75-63; 52
-  * fix harmonics on squart/6, viola-sonata
-    . \flageolets disappeared.
-    . squart/6 is somehow not using the 'o' call... how did that happen?  Did
-      I somehow revert to an old version?  I think it never had them.
-    . Using 'o nat' is awkward since +harm+nat+stac doesn't resolve.
-      It should resolve to +harm+stac.
-    . It does, but I think it uses the natural harmonic key selection.
-  * fix errors in squart/spawn
-  * Extra "pizz" which should be suppressed.
-  * \sfz in the wrong place.
-    . Mixing free code is getting confused by tuplets.
-    . Maybe the Ly duration is not right?
-    . Use Nested, so the Ly has the right duration.
-  * complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
-    . Probably to do with lily in general being broken after the explicit rest
-      refactor.
-  * squart/6 broken with incompatible subdivision
-    . Note convert has gotten further ahead in time than it should, so it's
-      already advanced to the 4/4 meter when it should be on 6/8.
-    . Beginning of b3 is mm47, which is time 37+1/4
-    . At 40+1/2 subdivision 3/4, at 43+1/4, subdivision ''.
-    . It advances to 4/4 before it updates the subdivision.
   - It's really confusing how transformer and generators work for ly calls.
     . E.g. I assign ly-span in ky to generator, then doesn't work as
       a transformer.  But if I make it a transformer and add |, then I get the
@@ -1674,12 +1273,6 @@ lilypond:
     multiple bits of code on one event.  I wonder if it's worth adding a ';'
     separator that allows multiple expressions?
   ties: rhythmic spelling:
-    * 3/4 tieing is too conservative.  Quarters should be able to break an 8th
-      line, e.g. 8 4 8 8 8
-      . Maybe this is the reason I used greedy before.
-      . If I want r8 x4 r8, then I shouldn't break x4.  But if it's longer,
-        I should break on the beat, e.g. r8 x8~ x4.  So I think I need to also
-        ask about the duration, not just the start time.
     - I prefer the old 3/4 spelling: 2~ 8 8 | to the new spelling 4~4. 8
       . Beaming should at least be 3/4, but that's lilypond.
       . Shouldn't I be able to write 16 8. instead of 16 16~8?  Both old and
@@ -1708,15 +1301,7 @@ lilypond:
     . There's no built-in support, I'd have to hook into clef display code to
       add the time signature.
   trill:
-    * put accidentals on if it's not diatonic
-      * For trill with span, use on multiple notes:
-        . \pitchedTrill p1 \startTrillSpan p2 \stopTrillSpan
-      * Without span, use on a single note:
-        . ^ \markup { \musicglyph #"scripts.trill"
-          \fontsize #-4 \raise #1 \sharp
-          \fontsize #-2 \raise #1 \flat
-          }
-      http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
+    . http://lilypond.org/doc/v2.18/Documentation/internals/trillpitchaccidental
     - It doesn't like my ^\trFlat variants on notes within a chord, while
       \trill is fine with it.
       . This might work:
@@ -1737,133 +1322,15 @@ lilypond:
         before any of its other appends.
     - Also the example pitch has an extraneous natural, but this seems to be
       built in to \pitchedTrill.
-  Refactor Process to fix all the CodePosition stuff:
-    * First pass finds voice boundaries.
-      . collect_voices does this.  It separates out CodeEvents, but it's
-        because I need to do simplify_voices without messing up CodeEvents.
-        Then 'mix_in_code_voices' puts it on the first VoiceMap element.
-      . But I want to mix code events after rhythms are split, which means
-        it's after everything.  So merge has to go last.
-      . So this also has to split out CodeEvents.
-    * Then insert rests.
-    Convert [Event]->[Ly]: keys, meter splitting, tuplet and tremolo.
-      . This is a new version of 'convert', but it processes each Chunk in
-        entirety.
-      . It can omit the 0 dur and mix_in_code, since those should no longer be
-        present.
-      . Except I need to call update_subdivision on zero dur events in the
-        right order.  I guess I can mix them in to the note events just for
-        the purpose of update_subdivision.
-        . Or maybe I can do this first by making subdivision CodeEvents an
-          exception, and leaving them in-line.  They don't need post-meter
-          split anyway.
-        . I think subdivisions won't work in voices, the event would need to
-          be distributed to all voices.
-      . I could also attach the append-all type CodeEvents to make it easy to
-        put them on all tied events.
-      * convert_chunk
-      * Use FullMeasure rests.  I need to create them in make_lys because
-        I don't use 'rests_until' any more.
-      * FreeCode
-      * NoteCode
-        . Merge NoteCodes into their coincident notes, or warn if there are
-          none.
-        . Actually, should I not have separate NoteCodes at all?  No, I think
-          they are still useful for ly-only tracks.
-      - Warn about free standing NoteCodes that don't line up with a note.
-      / merge subdivision CodeEvents, distribute in voices
-      - add subdivision tests to Process_test
-        . Make sure per-voice subdivision changes also work.
-      . Isn't there a better way to configure lilypond than an ad-hoc
-        event which has to be special cased everywhere?
-      * tuplets
-      * tremolo
-        . There's a problem with the new way I merge 0 dur FreeCode
-          afterwards, they have to go inside the \tremolo {...} mark.
-        . No wait, it should be ok, because tremolo still emits [Ly].
 
-    * delete Constants.v_*, and update Derive.Call.Ly
-    * Update everything that depends on it.
-    * tuplet event now has a duration
-    * update Lilypond.Convert for 0 dur notes?
-    * Now the problem is that free code like \f goes to the end of the tremolo
-      instead of the first note.  Previously I handled code mixing in tremolo
-      itself, so it could have a special rule.
-      . To get around this, I'd have to make the notes after the first tremolo
-        note have a greater time, for the purpose of merge_free_code.
-      . The note_duration of the things in tremolo were always wrong, why did
-        it ever work?
-      . Or I could emit the tremolo as a single Ly, with merge points.  So:
-        pre, note = "\repeat tremolo 16 { c32(", post, suffix = "g32) }"
-        \repeat tremolo 16 { c32( g32) }
-        "\repeat tremolo 16 {", "c32(", "g32)", "}"
-      . merge_free_code still needs to put the code in the prepend and append
-        slots, not in separate LyCode events.
-      . I can put the real duration in note_duration, but then it appends it
-        to the output!  Maybe I have to make note_pitches into
-        Either Code (NonEmpty NotePitch) after all.
-      . Wait, that makes no sense, the problem is duration.
-      . If I wanted to really rerpsent this it would be
-        Nested Code [Ly] Code Duration.  Why not?
-      * merge_free_code and merge_note_code have to understand LyNested.
-      * Update tuplet to use Nested too?
-
-    / Handle subdivisions at the top level.
-      . I would have to extend Meter with a separate \time trigger.  Maybe
-        just separate Meters for subdivisions and display.
-      . Except subdivisions can change in the middle of a measure.  I'd have to
-        put a sub-measure timestamp on it, and have get_meter understand that.
-      . I think they get forgotten about if they're in a voice, but top level
-        would also fix this.
-      . Well, but shouldn't subdivisions also be per-voice?  So it's
-        a feature.
-    * Implement Note Prepend... even though I'm not sure there is lilypond
-      that does that.
-    notes:
-      . Lilypond.Process has special case hacks to deal with rests and mixing
-        code into rests.  Maybe I could get rid of that by inserting explicit
-        rests, as events with pitch=Nothing.
-        . The tricky part is that I have to do the same for voices.  Not sure if
-          worth it?
-      . many CodePositions don't work for ly-emit
-        . append-all, append-first, append-last, note-append-all,
-          note-append-last
-        . Partly it's because the code to mix in 0 dur events doesn't support
-          append-first and append-last, but maybe it should.
-        . Either support them or at least throw an error when I see them.
-        . ly-< shows how confusing the situation is: I use AppendFirst even
-          though it doesn't work for 0 dur.  But that's what's appropriate.
-        . The emit/attach distinction is confusing, can I get rid of it?
-          . What purpose does it serve?
-          . It's useful to e.g. put 0 dur text annotations on the ly-track.
-  * artificial harmonic notation doesn't understand that harmonics can count
-    as +nv.
-    . Actually since I don't use +harm any more, maybe all of that is broken
-      now.
+  - Warn about free code events that don't line up with a note.
+  - add subdivision tests to Process_test
+    . Make sure per-voice subdivision changes also work.
   - ly^ is confusing, it seems like it should be ly-^
     . Either that or get rid of the hyphen for everyone.
-  / Variant of ly^ for \markup {...}.
-    . Already have it: ly- '\markup \italic "..."'
   - harmonic string arg is hard to use if I have to give nn.  How about
     strings export (g) (d) etc. calls which emit the appropriate string's nn?
     Or should I understand string names?
-  * force diamond notation for natural 2nd harmonic
-  / add a ly.track module, which has everything from ly, but without the ly-
-    prefix.  I can have ly-track and ly-global import it.
-    . Actually there aren't many of those, so maybe don't bother?
-  * In Perform.Lilypond.Convert.pitch_to_lily, always use Pitch.Pitch.
-    Not only does it not go crazy for non 12-tet, but it preserves accidentals.
-  * Ly uses SuffixAll PrefixAll etc., but Lilypond uses append and prepend.
-  * emit artificial harmonics notation: <e a\harmonic>2
-    . I need to know open strings, and optionally a desired string.  Use
-      standard env vars: open-strings = (list ...), string = pitch, as used by
-      guzheng.
-    . EnvKey.open_strings
-    . The vsl natural harmonic code uses +d +e etc. for strings, I should
-      update it.
-  / move c_slur from Articulation to Parent.  I looked for it first in Parent,
-    and in fact there's an extra test in Parent_test.
-    . Or not, it fits with the other length-changing things in Articulation.
   - What's the difference between tracks '> | ly-track' and '> | when-ly'?
   - It would be convenient to be able to see where I am in the ly score, e.g.
     measure number.  Lilypond derivation makes a ScoreTime -> measure mapping,
@@ -1873,72 +1340,7 @@ lilypond:
     similarly convenient.
     . But since the ruler is more flexible, it's easier to infer ruler from
       meter than the other way around.
-  squart/spawn:
-    - Tempo markings.
-      \relative c' {
-        \tempo \markup {
-          \concat {
-            (
-            \smaller \general-align #Y #DOWN \note #"16." #1
-            " = "
-            \smaller \general-align #Y #DOWN \note #"8" #1
-            )
-          }
-        }
-        c1
-        c4 c' c,2
-      }
-    * extend vln2 at measure 87 so it has more time to accelerate
-      . I want to have an easier way to add a measure in the middle for this.
-    - put just the harmonic gliss line on @b2 vla 27
-    * trill at wider intervals should emit tremolo notation
-      . \repeat tremolo 8 { c32( d) } -> duration winds up being 1/32*2 * 8
-      . This is yet another nested notation, just like triplet.
-        It's simpler in that I just have two pitches inside, with no code
-        attachments.
-      * However, it has to break across barlines, which means it needs to be
-        aware of the meter, which implies it has to go at the lilypond level.
-        Bother.
-        . I can work around just by breaking the notes myself.
-        . Another reason is that articulation markings have to go on the notes
-          inside, not on the \repeat expression.  Double bother.
-        . So, similar to tuplet, emit a 0 dur note with a tremolo tag.  When
-          Process sees it, take the overlapped notes and wrap in
-          \repeat tremolo.  I get pitch and ly code from the notes, and
-          overall duration from the tagged event.
-      * How do I set the accidental on the neighbor pitch?
-        . I could extend 'tr' to take an explicit neighbor pitch.
-      * Configure to use tremolo for all trills.
-      * It should be able to notice that for tr 1c, c db is better than c c#.
-    * Now that 'tr' emits trills, +tr shouldn't, so I can use it as
-      a performance attr without putting 'tr's everywhere.
-    * Lilypond puts 3 on sextuplets.
-      . \tuplet 3/2 { d'16 a'16 d'16 a'16 d'16 a'16 }
-      . I can get a 6 with 6/4, but should I write that, or should lilypond
-        know that 6 notes should always have a 6 numerator?
-    * how to write harmonic gliss?
-      I can do it manually but I need Ly.NoteAppendFirst.
-      . \set glissandoMap = #'((1 . 1))
-        \once \override Glissando.style = #'dashed-line
-        <...> \glissando
-      * But I need to sort the notes in a chord.
   squart/6:
-    / Put glissando line only right at the end:
-      \once \override Glissando.bound-details.right.Y = #-2
-      . Can't figure out how to do it. If I manually tweak
-        Glissando.bound-details.left.padding, it doesn't change the slope.
-      . If I tie to a short note before hand, the glissando line is not
-        visible.
-      . I think it's a portamento, maybe I just write port.
-      . It would still be nice to have this, but I can't figure out how to get
-        lilypond to draw a line right before the note-head.
-      . Asked on lilypond-users
-    * tempo: I want to emit \tempo "xyz" as a global marking.
-      . Looks like lilypond is smart enough to suppress it for all but the top
-        staff.  Presumably I still have to put it in all the parts, so they'll
-        get it when I extract.
-      . I could have >ly-global distribute code to all instruments.
-    - 'incompatible with meter' errors don't have a clickable stack
     - Why does 7/8 not bar the eighth notes?
       . Because lilypond does beaming on its own: lily/Auto_beam_engraver.cc,
         configured in scm/auto-beam.scm and scm/time-signature-settings.scm
@@ -1968,30 +1370,6 @@ lilypond:
     . Also applies to pizz, and sonically equivalent things like +det detache.
     . Or maybe I can fix detache in VSL by ignoring NoteOff, I think it can do
       that for pizz and staccato too.
-  / warning if ly-prepend or ly-append is being omitted due to a chord
-  / Maybe code events with a voice should go in the voice requested rather
-    than mixed into the first one.  E.g. would have fixed grace notes.
-    . They do, don't they?
-  * one track has voice, the other doesn't, causes a "can't advance time
-    backward" error
-    . Now I should get a "voice overlaps non-voice" error.
-  / Support ly-append-first and ly-append-last for zero-dur notes.
-    . First come up with uses for them?  Or do it just for orthogonality?
-    . Turns out I can't, because I can't know which note to attach to.
-  * code events in >ly-global can be distributed to all staves
-    Otherwise I have to remember to add e.g. ly-key to all staves manually.
-    . But ly-key is no good, I really do need to set the key.  I think I have
-      to break up the block.  Why can't I do assignment more easily?
-    . Well, I have to grab a deriver to dynamically scope the new value around.
-      Unless I let a deriver mutate the environ, then it has to be nested.  If
-      a deriver can mutate, then events have to be evaluated in order.  Of
-      course, they already do for controls because of the previous sample.
-      And since it's unset at the end of the block, block caching still works,
-      the same way as for previous sample.
-    . On the other hand, I think I want to encourage nestedness and it should
-      be easy to split.  The only reason viola-sonata has huge blocks is that
-      it's a midi import.
-
   - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
   jianpu
     . Research jianpu conventions, but basically:
@@ -2063,6 +1441,7 @@ external
     it always backtracks.
     - Need to add <||> to attoparsec.
   + send a patch to improve Random.Shuffle?
+    . I did a very long time ago, but author unresponsive.
 
 local: plugins:
   . http://simonmar.github.io/posts/2017-10-17-hotswapping-haskell.html
@@ -2195,8 +1574,6 @@ cleanup:
   - use Data.Vector.Algorithms.Search.binarySearch instead of my own, but
     make sure it has the right specializations.
     . Or at least use mine in Util.Vector.
-  / BaseTypes.CallId should have a name more reminiscent of Symbol.
-    CallSymbol?
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe
@@ -2804,7 +2181,7 @@ Cmd:
       be more of an annoyance than a convenience.
 
   Undo:
-    - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
+    * shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
       . record view changes, at least zoom / scroll so it can be undone
         and redone separately
     - Suppressed undo for val edit is surprising since I tend to do a lot of
@@ -3043,36 +2420,6 @@ Derive:
         - adjust to the talam
         - subdivide at slower speeds
     solkattu:
-      * It's confusing when the mid tag replaces an existing tag.  Either
-        tags should not apply if there already is one, or they should stack.
-        . Using a Set would be more powerful, and I could look for the best
-          match, but I think in practice I don't want to get that complicated,
-          and I don't want to deal with trying to figure out the best match,
-          and anyway I still can't make a decision if it's 1 overlap vs.
-          1 overlap.
-      * How to represent chatusra tisram, and other similar things?
-        . Basically it's changing the nadai, but not the speed.
-        . If I say stride=3, then each note is 3 matras.  s1 means each one is
-          1.5, s2 is 3/4.  Nadai 6 means 1/2.
-        . Maybe this can just be a multiplier on the time advance.
-        . I want to be able to use speed=2 etc. and do metric modulation type
-          stuff.  Also experiment with chatusra kandam and other combinations.
-        . E.g. 8 into 3 is 1.5 per.  How would I do a relative tisram in that?
-        . I need to not normalize nadai and return it instead because format
-          changes the spaces given according to the nadai.
-        . I want to only expand based on speed, not nadai.  Which is what
-          I used to do, except that I also need to use stride.  So the effect
-          of stride is to possibly round up step_dur.
-        . With nadai 4, then 0 means step_dur = 1/4.  But with nadai 5,
-          step_dur is 1/5... I guess I could model this as the step_dur
-          changes.
-        . Actually what happens if I ignore stride?  Maybe I don't need it,
-          if it's integral, then it will always fit into the slots given.
-        . 1   2   3   4   5   6 -- 3 into 4, stride = 3
-          1  2  3  4  5
-        . 1   2   3   4   5   6 -- 5 into 4, stride = 5
-          1    2    3    4    5
-          1 2  3 4  5 1  2 3  4 5
       - How can I do a reduction with irregular bits?  E.g. replace the
         4 matra version tat.__.din.__ with ta.ka.din.__.
       . Solkattu2017.c_17_07_13 is showing the difficulty of the
@@ -3165,28 +2512,6 @@ Derive:
       ? rename tri to tir, for tirmanam?
       - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
         any arithmetic progression.
-      * Get Taka and Takanaka out of Pattern.
-        . nakatiku, tk and tknk can be a sollu fragment plus an entry in the
-          default stroke map.  That way they work with functions that
-          manipulate sollus like dropM, and can also be overridden.
-        . It would be nice to do the same with Patterns, but they don't have
-          sollus, and wouldn't necessarily have them since they have
-          completely different realizations.  So dropM can't work on a generic
-          Pattern anyway.
-        . The other thing about patterns is that I can choose to not realize
-          them.  I could generalize that to not realizing groups, but I'd need
-          some way to distinguish standard pattern groups, and korvai-specific
-          groups.
-        . I can put an optional name in Solkattu.Group, and choose to not
-          replace named patterns.
-        . For Patterns, I need duration but no content... but at this point,
-          why use a group at all?  What would make it better than the existing
-          Pattern?  I can still put Patterns in the StrokeMap.
-        . Ok, so add a name to Solkattu.Group.  Then realize can replace it
-          with a Realize.Pattern name, or not, based on a flag.
-        . The reason tk and tknk are Patterns is that their realization should
-          be independent of taka or takatiku bindings.  But I could do that
-          with a Tag.
       - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
         the unexpanded form.  I think this does need named groups.
       solkattu-group:
@@ -3246,18 +2571,6 @@ Derive:
           k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
       - format: if the ruler changes after an avartanam line break, show the
         partial ruler, e.g. Realize_test.test_format_nadai_change
-      * I could have an 'sandi' annotation.  It deletes the previous notes
-        so far as they match the next ones.
-        . E.g. tri_ (din.__) p7 . sandi . p7.p6.p5
-          or: tri_ (din.__3) (ta.__3.ta.ta.ka.din.na)
-            . sandi . tri_ (din.__2) (ta.ta.ka.din.na.din)
-        . To keep if from eliding large repeats, it should stop at the
-          shortest match.  But then if it happens to end and start with the
-          same sollu it will just drop that single sollu.
-        . I can do it much more simply by supplying the elided sequence
-          explicitly and using dropM (matrasOf x).  This might even be
-          better, because it gets harder to read when there are these
-          implicit notations.
       - dropM shouldn't make a new group if there already is one, e.g.
         dropM n (group x . y) puts both x and y into a group, instead of
         leaving y out.
@@ -3939,7 +3252,7 @@ long term:
   - stable api
   - solution for per score haskell
   - text score
-  - non-realtime synthesizer: doc/dev_notes/synthesizer
+  + non-realtime synthesizer: doc/dev_notes/synthesizer
     - include audio inline, so I can write signal transforms like event
       transforms
   - horizontal layout

@@ -193,6 +193,10 @@ rtakeM = rtakeD . mToD
 
 -- | Drop sollus equal in length to some others.  This is intenedd for
 -- repeated sequences that get elided away, e.g. @tri p7 . sandi p7 (p7.p6.p5)@.
+--
+-- I considered an annotation that automatically drops stuff from before which
+-- matches stuff afterwards, but it seemed more complicated and less reliable
+-- than just dropping explicitly.
 sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 sandi dropped = dropM (matrasOf dropped)
