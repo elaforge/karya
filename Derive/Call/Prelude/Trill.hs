@@ -221,7 +221,9 @@ note_trill_ly style args neighbor = do
                     Types.Natural -> "^\\trNatural"
                     Types.Sharp -> "^\\trSharp"
                     Types.SharpSharp -> "^\\trSharpSharp"
-            Ly.add_first (Ly.note_append Constants.All, code)
+            -- TODO this should by Ly.note_append, but I can't put the \trFlat
+            -- macros on a single pitch.
+            Ly.add_first (Ly.append Constants.All, code)
                 (Call.placed_note args)
         Span -> do
             npitch <- ly_pitch

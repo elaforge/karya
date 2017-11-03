@@ -51,9 +51,9 @@ test_note_trill = do
 test_note_trill_ly = do
     let run = LilypondTest.measures ["repeat"]
             . LilypondTest.derive_tracks . UiTest.note_track
-    equal (run [(0, 4, "tr -- 3c")]) (Right "c1\\trill", [])
-    equal (run [(0, 2, "tr -- 3c")]) (Right "c2\\trill r2", [])
-    equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1^\\trFlat", [])
+    equal (run [(0, 4, "tr -- 3c")]) (Right "c1 \\trill", [])
+    equal (run [(0, 2, "tr -- 3c")]) (Right "c2 \\trill r2", [])
+    equal (run [(0, 4, "tr 1c -- 3c")]) (Right "c1 ^\\trFlat", [])
     equal (run [(0, 4, "tr 7c -- 3c")])
         (Right "\\repeat tremolo 16 { c32( g32) }", [])
     -- Split across measures.
@@ -98,9 +98,9 @@ test_note_trill_ly_style = do
         (Right "\\repeat tremolo 16 { c32( d32) }\
             \ | \\repeat tremolo 8 { c32( d32) } r2", [])
     equal (run [(0, 6, "tr-style=tr | tr -- 3c")])
-        (Right "c1~\\trill | c2\\trill r2", [])
+        (Right "c1~ \\trill | c2 \\trill r2", [])
     equal (run [(0, 4, "key=c-min | trill-style=tr | tr (3e) -- 3d")])
-        (Right "d1^\\trNatural", [])
+        (Right "d1 ^\\trNatural", [])
 
     -- with accidentals
     -- Also 1c figures out d flat instead of c#.
@@ -109,7 +109,7 @@ test_note_trill_ly_style = do
         , []
         )
     equal (run [(0, 6, "tr-style=tr | tr 1c -- 3c")])
-        (Right "c1~^\\trFlat | c2^\\trFlat r2", [])
+        (Right "c1~ ^\\trFlat | c2 ^\\trFlat r2", [])
 
 test_attr_trill = do
     let run = DeriveTest.extract extract
