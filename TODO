@@ -1600,6 +1600,8 @@ lilypond:
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?
+    . I probably extract parts by succesively setting staff_display, so I'd
+      need something to put ly-global or something in the top visible staff.
   yangqin-zheng-kendang/house-2014
     * :179:21: error: syntax error, unexpected SCM_IDENTIFIER
         \new Staff = "down" \RemoveEmptyStaves {
@@ -1660,7 +1662,7 @@ lilypond:
     . Mixing free code is getting confused by tuplets.
     . Maybe the Ly duration is not right?
     . Use Nested, so the Ly has the right duration.
-  - complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
+  * complete/yangqin-zheng-kendang/house-2014 and huiyin-concert broken
     . Probably to do with lily in general being broken after the explicit rest
       refactor.
   * squart/6 broken with incompatible subdivision

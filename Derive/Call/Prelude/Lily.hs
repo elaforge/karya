@@ -192,8 +192,7 @@ c_clef = emit_start "clef" "Emit lilypond clef change."
     (return . (Ly.Position Constants.FreePrepend,) . ("\\clef "<>))
 
 c_tempo :: Make.Calls Derive.Note
-c_tempo = emit_global "tempo" "Emit tempo marking. It will be distributed to\
-    \ all staves of all instruments."
+c_tempo = emit_start "tempo" "Emit tempo marking."
     (Sig.required "text" "4 = 120, etc.")
     (return . (Ly.Position Constants.FreePrepend,) . ("\\tempo "<>))
 
