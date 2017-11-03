@@ -112,19 +112,16 @@ ly_file config title movements = run_output $ do
         write_staff config maybe_name Nothing (mapM_ write_voice_ly lys)
 
 -- | Convert ly code to all hidden rests, and emit an empty staff with a bass
--- clef.
+-- clef.  This is so xstaff commands can later cause it to appear, only when
+-- needed.
 write_empty_staff :: Types.StaffConfig -> [Either Process.Voices Process.Ly]
     -> Output ()
 write_empty_staff config_ lys =
-    write_staff config (Just "down") (Just "\\RemoveEmptyStaves") $
+    write_staff config (Just "down") (Just "\\with { \\RemoveAllEmptyStaves }")$
         mapM_ write_ly $
             Process.LyCode "\\clef bass" : Process.convert_to_rests lys
     where
-    config = config_ { Types.staff_code = Types.staff_code config_ ++ [code] }
-    -- Normally RemoveEmptyStaves won't remove the staff from the first system,
-    -- even if it's empty.  This causes the first system's staff to also be
-    -- removed.
-    code = "\\override Staff.VerticalAxisGroup.remove-first = ##t"
+    config = config_ { Types.staff_code = Types.staff_code config_ }
 
 str :: Text -> Text
 str = Types.to_lily

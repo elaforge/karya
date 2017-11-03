@@ -72,7 +72,7 @@ test_add_bass_staff = do
     -- Key and meter are in, but the clef is replaced.
     match text
         "new Staff = \"up\"\
-        \*new Staff = \"down\" \\RemoveEmptyStaves\
+        \*new Staff = \"down\" * \\RemoveAllEmptyStaves\
         \*\\clef bass \\time 4/4 \\key c \\major s4 s2. \\bar \"|.\""
 
     -- FullMeasure rests are correctly converted to an empty track with hidden

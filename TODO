@@ -1600,10 +1600,12 @@ lilypond:
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?
-  - yangqin-zheng-kendang/house-2014
-    . :179:21: error: syntax error, unexpected SCM_IDENTIFIER
-      \new Staff = "down"
-                          \RemoveEmptyStaves {
+  yangqin-zheng-kendang/house-2014
+    * :179:21: error: syntax error, unexpected SCM_IDENTIFIER
+        \new Staff = "down" \RemoveEmptyStaves {
+      . Looks like lilypond changed.
+    - xstaff notes are not appearing in the right places
+    - Where do those double sharps come from?
   yangqin-zheng-kendang/huiyin-concert
     * Ly.pitch_to_lily: scale id not found
       . Likely gliss doesn't set scale id.
