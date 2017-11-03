@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Basic types used by both "Perform.Lilypond.Lilypond" and module that use
 -- it.  Defined here to avoid circular imports.
 module Perform.Lilypond.Types where

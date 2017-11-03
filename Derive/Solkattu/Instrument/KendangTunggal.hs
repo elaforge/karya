@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Derive.Solkattu.Instrument.KendangTunggal where
 import qualified Derive.Expr as Expr

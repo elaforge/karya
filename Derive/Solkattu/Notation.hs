@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Generic combinators for solkattu patterns.  Because these are expected to
 -- be called as part of the dsl, impure exceptions are allowed, via
 -- 'Solkattu.throw'.

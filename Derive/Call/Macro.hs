@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 -- | Create macros, which are calls that can substitute arguments into
 -- an expression.  E.g. @apply-start-offset | start-s = (cf-rnd-a $distance)@.
 module Derive.Call.Macro (

@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Derive.Solkattu.Instrument.Mridangam where
 import qualified Data.Text as Text

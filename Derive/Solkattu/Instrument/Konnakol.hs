@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE FlexibleInstances #-}
 -- | Realize to konnakol.  This is simpler than instruments since I just use
 -- the sollus directly, but I still need realizations for 'Patterns'.
 module Derive.Solkattu.Instrument.Konnakol where

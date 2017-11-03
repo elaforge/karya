@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {- | Updates are diffs against Ui.State and are used in a number of contexts.
     They are produced by "Ui.Diff".  The different uses all require slightly
     different data, and I capture the major differences in separate types.

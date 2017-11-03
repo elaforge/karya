@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE FlexibleInstances, StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {- | Functions to save and load the midi db.
 
     Unlike in "Cmd.Serialize", I don't bother with versions here, because this

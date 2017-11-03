@@ -140,7 +140,7 @@ UNSORTED
   - In string-idiom, the end of the attack curve always coincides with the
     start of the next note.  There also could be an attack prepare time,
     analogous to the release delay.
-  - enable FlexibleInstances globally.  Should I add any other instance ones?
+  * enable FlexibleInstances globally.  Should I add any other instance ones?
     TypeSynonymInstances?
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - Highlight for block calls which are 1:1, or not 1:1.

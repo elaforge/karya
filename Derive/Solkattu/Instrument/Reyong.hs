@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
 -- | Realize abstract solkattu Notes to concrete reyong 'Note's.
 module Derive.Solkattu.Instrument.Reyong where
 import qualified Derive.Expr as Expr

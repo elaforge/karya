@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
 -- | The Str and Symbol types, and ToExpr class, in a module with few
 -- dependencies so modules can make exprs without incurring a dependency on

@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+-- | The 'show_val' method turns haskell values back to tracklang expressions.
+-- It's similar to the opposite of 'Derive.Typecheck.Typecheck'.
 module Derive.ShowVal where
 import qualified Data.Text as Text
 import qualified Numeric

@@ -1299,6 +1299,8 @@ ghcLanguageFlags = map ("-X"++)
     -- It's nicer than flip (,), but not worth using if you have to put in
     -- a LANGUAGE.
     , "TupleSections"
+    -- Allow instances on nested types, and fully applied type synonyms.
+    , "FlexibleInstances", "TypeSynonymInstances"
     ]
 
 -- * cc

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- | This is the core of the Deriver monad, instantiated in detail in
 -- "Derive.Deriver.Monad".
 module Derive.Deriver.DeriveM (

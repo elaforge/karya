@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP, StandaloneDeriving #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Instances that are not safe but very useful for testing.
 module Derive.TestInstances where
 

@@ -2,8 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
 {- | This module defines basic tracklang types.
 
     They all have to pretty much be here to avoid circular imports.  But to

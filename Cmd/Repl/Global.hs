@@ -20,7 +20,7 @@
     should go here.  Cmds which are meant to be used from the REPL but may be
     more specialized can go in Cmd.Repl.L* modules.
 -}
-{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Cmd.Repl.Global (
     module Cmd.Repl.Global, module Cmd.ModifyEvents
 ) where

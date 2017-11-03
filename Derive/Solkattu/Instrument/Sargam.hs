@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
 -- | Realize abstract solkattu Notes to sa-relative notes.
 module Derive.Solkattu.Instrument.Sargam where
 import qualified Data.Set as Set
