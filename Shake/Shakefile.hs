@@ -808,8 +808,7 @@ dispatch modeConfig targets = do
             needEverything [opt "verify_performance", runProfileTest]
             Util.system "test/run_tests" [runTests, runProfileTest]
             Util.system "mkdir" ["-p", build </> "verify"]
-            Util.shell $ opt "verify_performance --out=build/verify"
-                <> " save/complete/*"
+            Util.shell "tools/verify-all"
         -- Compile everything, like validate but when I don't want to test.
         "typecheck" -> action $ needEverything []
         "binaries" -> do
