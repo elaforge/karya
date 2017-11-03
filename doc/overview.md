@@ -4,7 +4,6 @@ Karya is a music sequencer.
 
 Its main goal is to let you write a high level score which is then realized to
 expressive and idiomatic instrumental parts, primarily for electronic music.
-It's not oriented around realtime use, or recording realtime input.
 
 It uses its own score format.  One way to look at it is a 2D language for
 expressing music along with an editor for that language.  The score language
