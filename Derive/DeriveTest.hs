@@ -829,16 +829,23 @@ mkevent = mkevent_scale Twelve.scale
 mkevent_scale :: CallStack.Stack => Scale.Scale
     -> (RealTime, RealTime, Text, Controls, Score.Instrument)
     -> Score.Event
-mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
-    { Score.event_start = start
-    , Score.event_duration = dur
-    , Score.event_text = pitch
-    , Score.event_untransformed_controls = mkcontrols controls
-    , Score.event_untransformed_pitch =
-        PSignal.signal [(start, mkpitch scale pitch)]
-    , Score.event_stack = fake_stack
-    , Score.event_instrument = inst
-    }
+mkevent_scale scale = mkevent_scale_key scale Nothing
+
+mkevent_scale_key :: CallStack.Stack => Scale.Scale -> Maybe Text
+    -> (RealTime, RealTime, Text, Controls, Score.Instrument)
+    -> Score.Event
+mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
+    maybe id (\k -> Score.modify_environ (Env.insert_val EnvKey.key k)) key $
+    Score.empty_event
+        { Score.event_start = start
+        , Score.event_duration = dur
+        , Score.event_text = pitch
+        , Score.event_untransformed_controls = mkcontrols controls
+        , Score.event_untransformed_pitch =
+            PSignal.signal [(start, mkpitch scale pitch)]
+        , Score.event_stack = fake_stack
+        , Score.event_instrument = inst
+        }
 
 psignal :: [(RealTime, Text)] -> PSignal.PSignal
 psignal = PSignal.signal . map (second mkpitch12)

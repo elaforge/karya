@@ -82,7 +82,7 @@ data RelativePitch =
 
 instance Pretty RelativePitch where
     pretty (RelativePitch oct pc accs) = "relative:"
-        <> pretty (Pitch.Pitch oct (Pitch.Degree pc (fromMaybe 0 accs)))
+        <> showt oct <> "-" <> showt pc <> "-" <> pretty accs
 
 relative_to_absolute :: RelativePitch -> Pitch.Pitch
 relative_to_absolute (RelativePitch oct pc acc) =

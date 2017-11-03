@@ -123,13 +123,16 @@ pitch_note :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNote
 pitch_note smap relative (PSignal.PitchConfig env controls) = do
     -- Adjustment to absolute is only necessary for 'pitch_nn', since
     -- NoteNumbers are absolute.
-    -- TODO I should leave as relative to preserve naturals
+    -- TODO I should leave as relative to preserve naturals, otherwise twelve-k
+    -- doesn't preserve it through a pitch->note.
     let pitch = TheoryFormat.relative_to_absolute relative
     let maybe_key = Scales.environ_key env
     let c = round chromatic
         o = round octave
         d = round diatonic
-    show_pitch smap maybe_key =<< if o == 0 && d == 0 && c == 0
+    -- Symbolic pitch is still relative, so while I transpose with the key,
+    -- I don't give it to 'show_pitch'.
+    show_pitch smap Nothing =<< if o == 0 && d == 0 && c == 0
         then return pitch
         else do
             key <- read_key smap maybe_key

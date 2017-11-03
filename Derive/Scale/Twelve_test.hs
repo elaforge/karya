@@ -3,9 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Twelve_test where
+import qualified Data.Text as Text
+
 import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.ScaleTest as ScaleTest
@@ -18,8 +20,7 @@ import Global
 
 
 test_note_to_nn = do
-    let f p = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
+    let f = DeriveTest.extract Score.initial_nn . derive_pitch "twelve" ""
     equal (f "3b") ([Just NN.b3], [])
     equal (f "4c") ([Just NN.c4], [])
     equal (f "-2c") ([Nothing], [])
@@ -31,28 +32,38 @@ test_note_to_nn = do
     equal (f "9g#") ([Nothing], [])
 
 test_note_to_call_relative = do
-    let f key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
-            [(">" <> key, [(0, 1, "")]), ("*twelve-r", [(0, 0, p)])]
-        extract = Score.initial_nn
+    let f key = DeriveTest.extract Score.initial_nn
+            . derive_pitch "twelve-r" key
     equal (f "" "4s") ([Just NN.c4], [])
     equal (f "" "4g") ([Just NN.e4], [])
-    equal (f " | key = c-min" "4g") ([Just NN.ds4], [])
-    equal (f " | key = d-maj" "4s") ([Just NN.d4], [])
-    equal (f " | key = d#-maj" "4s") ([Just NN.ds4], [])
+    equal (f "c-min" "4g") ([Just NN.ds4], [])
+    equal (f "d-maj" "4s") ([Just NN.d4], [])
+    equal (f "d#-maj" "4s") ([Just NN.ds4], [])
 
-    equal (f " | key = c-min" "4p") ([Just NN.g4], [])
-    equal (f " | key = c-min" "4p#") ([Just NN.gs4], [])
-    equal (f " | key = c-min" "4d") ([Just NN.gs4], [])
-    equal (f " | key = c-min" "4db") ([Just NN.g4], [])
+    equal (f "c-min" "4p") ([Just NN.g4], [])
+    equal (f "c-min" "4p#") ([Just NN.gs4], [])
+    equal (f "c-min" "4d") ([Just NN.gs4], [])
+    equal (f "c-min" "4db") ([Just NN.g4], [])
+
+test_pitch_note_relative = do
+    let f key = DeriveTest.extract Score.initial_note
+            . derive_pitch "twelve-r" key
+    equal (f "c-min" "4s") ([Just "4s"], [])
+    -- Symbolic Pitch.Note is still relative.
+    equal (f "b-min" "4s") ([Just "4s"], [])
 
 test_keyed_to_nn = do
-    let run p = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks "scale=twelve-k | key=d-min" $
-            UiTest.note_track [(0, 1, p)]
+    let run = DeriveTest.extract Score.initial_nn
+            . derive_pitch "twelve-k" "d-min"
     equal (run "4c") ([Just NN.c4], [])
     equal (run "4b") ([Just NN.as4], [])
     equal (run "4b`n`") ([Just NN.b4], [])
     equal (run "4b`#`") ([Just NN.c5], [])
+
+    -- TODO should preserve the natural
+    -- let runp = DeriveTest.extract Score.initial_note
+    --         . derive_pitch "twelve-k" "d-min"
+    -- equal (runp "4b`n`") ([Just "4b`n`"], [])
 
 test_keyed_input_to_note = do
     let f key = either pretty Pitch.note_text <$>
@@ -65,3 +76,10 @@ test_keyed_input_to_note = do
         , "4g", "4a`b`", "4a", "4b", "4b`n`", invalid
         ]
     equal (f "d-min" (ascii (4, 1, 1))) "4e`b`"
+
+-- * util
+
+derive_pitch :: Text -> Text -> Text -> Derive.Result
+derive_pitch scale key pitch =
+    DeriveTest.derive_tracks (if Text.null key then "" else "key = " <> key)
+        [(">", [(0, 1, "")]), ("*" <> scale, [(0, 0, pitch)])]

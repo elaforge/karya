@@ -312,6 +312,7 @@ data PitchClass = C | D | E | F | G | A | B
 data Accidental = FlatFlat | Flat | Natural | Sharp | SharpSharp
     deriving (Eq, Show, Ord)
 
+instance Pretty Pitch where pretty = to_lily
 instance ToLily Pitch where
     to_lily (Pitch octave pc acc) = to_lily pc <> to_lily acc <> oct_mark
         where

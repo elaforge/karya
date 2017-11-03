@@ -1611,7 +1611,12 @@ lilypond:
         I should evaluate them all.
     * a note without pitch must have code
       . switch e->q to use 'tempo' and be a generator
-    - notation is showing c natural, when it's really b.
+    * notation is showing c natural, when it's really b.
+      . Pitch is 71nn, which is b4, notation shows as 3rb, but it's really 4s.
+        It looks like the symbolic note is being adjusted to be absolute,
+        but if 5s is 5c, then surely 4b should be 4n?
+      . But I think symbolic pitch shouldn't be adjusting for absolute, since
+        srg notation is fundamentally relative.
   - write a ly function for that quarter = eighth stuff?  I have it in both
     huiyin-concert and squart/spawn
   fix squart/6
@@ -3634,6 +3639,11 @@ Derive:
         fields in TrackLang.Dynamic in a typeclass.
 
 pitch: scales: scale:
+  - twelve-k doesn't work entirely correctly.
+    . The problem is that ChromaticScales.pitch_note doesn't preserve an
+      explicit natural, so it gets lost after a pitch->note.  I think
+      show_pitch has to have twelve-k support.
+    . I don't care enough about twelve-k to fix this now, but maybe some day.
   scales / Derive.Scale:
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
