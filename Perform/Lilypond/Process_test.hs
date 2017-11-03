@@ -160,9 +160,9 @@ test_note_code = do
     equal (run [(0, 8, Just c3, []), (0, 0, Nothing, c Chord Append All)])
         (Right "c1~ x | c1 x")
 
-    -- TODO implement
-    left_like (run [(0, 8, Just c3, []), (1, 0, Nothing, c Chord Append All)])
-        "note code without a note to attach"
+    -- -- TODO implement
+    -- left_like (run [(0, 8, Just c3, []), (1, 0, Nothing, c Chord Append All)])
+    --     "note code without a note to attach"
 
 test_modal_articulations = do
     let run = process_simple . map LilypondTest.attrs_event

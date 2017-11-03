@@ -271,7 +271,6 @@ add_note_code codes event =
 convert :: [Chunk] -> ConvertM [Either Voices Ly]
 convert = concatMapM go
     where
-    final_barline = LyCode "\\bar \"|.\""
     go :: Chunk -> ConvertM [Either Voices Ly]
     go (ChunkNotes events) =
         map Right <$> until_complete (convert_chunk True) events
