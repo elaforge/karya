@@ -101,6 +101,8 @@ synthPackages :: [(Package, String)]
 synthPackages = concat
     [ w "conduit conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
     , w "hsndfile resourcet"
+    -- NESS
+    , w "sandi" -- for Codec.Binary.Base64Url
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -808,7 +810,8 @@ dispatch modeConfig targets = do
             needEverything [opt "verify_performance", runProfileTest]
             Util.system "test/run_tests" [runTests, runProfileTest]
             Util.system "mkdir" ["-p", build </> "verify"]
-            Util.shell "tools/verify-all"
+            Util.shell $ opt "verify_performance --out=build/verify\
+                \ save/complete/*"
         -- Compile everything, like validate but when I don't want to test.
         "typecheck" -> action $ needEverything []
         "binaries" -> do

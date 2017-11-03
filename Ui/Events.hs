@@ -415,26 +415,26 @@ clip_events =
         | Event.is_negative cur = case maybe_prev of
             Nothing -> cur
             Just prev
-                -- |--->    prev
-                --    <---| cur
+                -- prev |--->
+                -- cur    <---|
                 | Event.is_positive prev -> if Event.end cur < Event.end prev
                     then Event.end_ #= midpoint prev cur $ cur
                     else cur
-                -- <---|
-                --    <---|
+                -- prev <---|
+                -- cur    <---|
                 | Event.start prev > Event.end cur ->
                     Event.end_ #= Event.start prev $ cur
                 | otherwise -> cur
         | otherwise = case maybe_next of
             Nothing -> cur
             Just next
-                -- |--->    cur
-                --    <---| next
+                -- cur  |--->
+                -- next    <---|
                 | Event.is_negative next -> if Event.end next < Event.end cur
                     then Event.end_ #= midpoint cur next $ cur
                     else cur
-                -- |--->
-                --    |--->
+                -- cur  |--->
+                -- next    |--->
                 | Event.start next < Event.end cur ->
                     Event.end_ #= Event.start next $ cur
                 | otherwise -> cur

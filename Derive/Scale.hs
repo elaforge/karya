@@ -116,7 +116,7 @@ instance Pretty Range where
 
 -- | Return the pitches in the scale.  If the scale has an unbounded range,
 -- this may go on forever, so zip with 'note_numbers' if you want the usable
--- range.  ALso, not all scales actually have defined degrees.
+-- range.  Also, not all scales actually have defined degrees.
 pitches :: Scale -> Env.Environ -> [Pitch.Pitch]
 pitches scale environ = go (scale_bottom scale)
     where
