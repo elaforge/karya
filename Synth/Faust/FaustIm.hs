@@ -28,7 +28,6 @@ import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Types as Types
 import Synth.Types
 
 import Global
@@ -53,7 +52,7 @@ main = do
             where name = FilePath.takeFileName fname
         _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
-process :: Map Types.PatchName DriverC.Patch -> FilePath -> String
+process :: Map Note.PatchName DriverC.Patch -> FilePath -> String
     -> [Note.Note] -> IO ()
 process patches outputDir name notes = do
     pid <- Posix.Process.getProcessID
@@ -77,7 +76,7 @@ process patches outputDir name notes = do
         put "done"
 
 -- | Render samples for a single note.
-renderNote :: Map Types.PatchName DriverC.Patch -> Note.Note
+renderNote :: Map Note.PatchName DriverC.Patch -> Note.Note
     -> IO (Either Text (RealTime, AUtil.Audio))
 renderNote patches note = case Map.lookup (Note.patch note) patches of
     Nothing -> return $ Left $ "no patch: " <> Note.patch note
