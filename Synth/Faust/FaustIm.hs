@@ -62,9 +62,11 @@ process patches outputDir name notes = do
         sigint exc = put $ "exception: " <> showt exc
     Exception.handle sigint $ do
         put $ "processing " <> showt (length notes) <> " notes"
-        (errs, rendered) <- Either.partitionEithers <$>
-            mapM (\(i, n) -> when (i `mod` 10 == 0) (put $ "note " <> showt i)
-                >> renderNote patches n) (zip [0..] notes)
+        (errs, rendered) <- fmap Either.partitionEithers $
+            forM (zip [0..] notes) $ \(i, n) -> do
+                when (i > 0 && i `mod` 10 == 0) $
+                    put $ "compute note " <> showt i
+                renderNote patches n
         mapM_ put errs
         put $ "writing " <> txt output
         result <- AUtil.catchSndfile $ Resource.runResourceT $
