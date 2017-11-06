@@ -94,9 +94,10 @@ notesFilename synth blockId =
 outputFilename :: FilePath -- ^ Names as produced by 'notesFilename'.
     -> Maybe Text -- ^ Score.Instrument, but I don't want to import it.
     -> FilePath
-outputFilename notesFilename maybeInstrument =
-    cacheDir </> FilePath.takeFileName notesFilename <> suffix <> ".wav"
-    where suffix = maybe "" ((","<>) . untxt) maybeInstrument
+outputFilename notesFilename maybeInstrument = case maybeInstrument of
+    Nothing -> cacheDir </> name <> ".wav"
+    Just instrument -> cacheDir </> name </> untxt instrument <> ".wav"
+    where name = FilePath.takeFileName notesFilename
 
 blockFilename :: BlockId -> Text
 blockFilename = Text.replace "/" "-" . Id.ident_text

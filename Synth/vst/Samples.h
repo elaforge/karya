@@ -36,8 +36,8 @@ public:
     const std::vector<string> &filenames() const { return filenames_; }
 
 private:
-    void openSamples(std::ofstream &log, int sampleRate, const char *dir,
-        const string &blockId, const std::vector<string> &muted);
+    void openSamples(std::ofstream &log, int sampleRate, const string &dir,
+        const std::vector<string> &mutes);
     bool openSample(int sampleRate, const std::string &fname);
 
     std::vector<string> errors_;

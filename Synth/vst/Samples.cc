@@ -11,65 +11,54 @@
 
 
 Samples::Samples(std::ofstream &log, int sampleRate, const char *dir,
-    const string &blockId, const std::vector<string> &muted)
+    const string &blockId, const std::vector<string> &mutes)
 {
+    // First try dir/blockId.wav.  If that doesn't exist, look for
+    // dir/blockId/*.wav.
     string wholeBlock = string(dir) + blockId + ".wav";
     if (!openSample(sampleRate, wholeBlock)) {
-        openSamples(log, sampleRate, dir, blockId, muted);
+        string subdir = string(dir) + blockId;
+        openSamples(log, sampleRate, subdir, mutes);
     }
 }
 
 
 // See if the fname matches any of the muted instruments.
-// The filename should look like blockId,instrument.*
 static bool
-suffixMatch(const std::vector<string> &muted, const string &fname)
+suffixMatch(const std::vector<string> &mutes, const char *fname)
 {
-    if (muted.empty())
-        return false;
+    const char *endp = strrchr(fname, '.');
+    int end = endp ? endp - fname : strlen(fname);
 
-    size_t end = fname.rfind('.');
-    if (end == string::npos)
-        end = fname.size();
-    size_t begin = fname.rfind(',', end);
-    if (begin == string::npos)
-        begin = 0;
-    else
-        begin++; // skip the ,
-    string instrument = fname.substr(begin, end - begin);
-    // log << "match: '" << fname << "' " << begin << ", " << end << ": "
-    //     << instrument << " -> "
-    //     << (std::find(muted.begin(), muted.end(), instrument) != muted.end())
-    //     << "\n";
-    return std::find(muted.begin(), muted.end(), instrument) != muted.end();
+    for (const string &mute : mutes) {
+        if (strncmp(mute.c_str(), fname, end) == 0)
+            return true;
+    }
+    return false;
 }
 
 void
-Samples::openSamples(std::ofstream &log, int sampleRate, const char *dir,
-    const string &blockId, const std::vector<string> &muted)
+Samples::openSamples(std::ofstream &log, int sampleRate, const string &dir,
+    const std::vector<string> &mutes)
 {
-    string prefix = string(dir) + blockId;
-    DIR *d = opendir(dir);
-    ASSERT(d);
+    DIR *d = opendir(dir.c_str());
+    if (!d)
+        return;
     struct dirent *ent;
     while ((ent = readdir(d)) != nullptr) {
         if (ent->d_type != DT_REG)
            continue;
-        if (strncmp(blockId.c_str(), ent->d_name, std::min(blockId.length(),
-                (size_t) ent->d_namlen)) != 0) {
-            continue;
-        }
 
-        string fname = string(dir) + string(ent->d_name);
-        if (suffixMatch(muted, fname))
+        if (suffixMatch(mutes, ent->d_name))
             continue;
+        string fname = dir + "/" + string(ent->d_name);
         if (!openSample(sampleRate, fname)) {
             errors_.push_back(fname + ": not found");
         }
     }
     closedir(d);
     if (samples.empty())
-        errors_.push_back("no samples matching '" + prefix + "'");
+        errors_.push_back("no samples matching '" + dir + "'");
 }
 
 bool

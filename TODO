@@ -959,7 +959,7 @@ synth: im:
     * PlayCache reads blocks and mutes, mixes multiple outfile files
     - FaustIm writes separate files for each instrument
     * Ness.Convert writes separate files for each instrument
-    - I should use a subdir for the tracks.
+    * I should use a subdir for the tracks.
 
   - Move resampling to play_cache.
   - The im/ directory is fundamentally global, since PlayCache hardcodes

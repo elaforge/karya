@@ -70,6 +70,7 @@ submitInstruments dir outputNameScores = do
         (submitAndCheck scratchDir outputNameScores)
     forM_ outputFiles $ \(output, scratch) -> do
         putStrLn $ scratch <> " -> " <> output
+        Directory.createDirectoryIfMissing True (FilePath.takeDirectory output)
         Sound.resample Config.samplingRate scratch output
 
 previousRender :: Map Text FilePath -> FilePath -> IO [(FilePath, FilePath)]

@@ -212,7 +212,7 @@ PlayConfig::collect(std::ofstream &log, unsigned char d1, unsigned char d2)
     // if a muted instrument starts with '@', but that character isn't allowed
     // in instrument names anyway.
     if (d1 == 0 && d2 == 64) {
-        LOG_TO(log, "ignoring (0, 64) pitch bend");
+        // LOG_TO(log, "ignoring (0, 64) pitch bend");
         return;
     }
     // LOG_TO(log, "collect: " << int(d1) << ", " << int(d2));
