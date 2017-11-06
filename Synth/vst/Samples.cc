@@ -15,7 +15,7 @@ Samples::Samples(std::ofstream &log, int sampleRate, const char *dir,
 {
     string wholeBlock = string(dir) + blockId + ".wav";
     if (!openSample(sampleRate, wholeBlock)) {
-        openSamples(sampleRate, dir, blockId, muted);
+        openSamples(log, sampleRate, dir, blockId, muted);
     }
 }
 
@@ -32,13 +32,21 @@ suffixMatch(const std::vector<string> &muted, const string &fname)
     if (end == string::npos)
         end = fname.size();
     size_t begin = fname.rfind(',', end);
-    string instrument = fname.substr(begin, end);
+    if (begin == string::npos)
+        begin = 0;
+    else
+        begin++; // skip the ,
+    string instrument = fname.substr(begin, end - begin);
+    // log << "match: '" << fname << "' " << begin << ", " << end << ": "
+    //     << instrument << " -> "
+    //     << (std::find(muted.begin(), muted.end(), instrument) != muted.end())
+    //     << "\n";
     return std::find(muted.begin(), muted.end(), instrument) != muted.end();
 }
 
 void
-Samples::openSamples(int sampleRate, const char *dir, const string &blockId,
-    const std::vector<string> &muted)
+Samples::openSamples(std::ofstream &log, int sampleRate, const char *dir,
+    const string &blockId, const std::vector<string> &muted)
 {
     string prefix = string(dir) + blockId;
     DIR *d = opendir(dir);
@@ -52,7 +60,7 @@ Samples::openSamples(int sampleRate, const char *dir, const string &blockId,
             continue;
         }
 
-        string fname = string(dir) + "/" + string(ent->d_name);
+        string fname = string(dir) + string(ent->d_name);
         if (suffixMatch(muted, fname))
             continue;
         if (!openSample(sampleRate, fname)) {
@@ -91,7 +99,7 @@ Samples::read(sf_count_t fromFrame, sf_count_t wantedFrames, float **frames)
         return samples[0]->read(fromFrame, frames);
     } else {
         mixBuffer.clear();
-        mixBuffer.resize(wantedFrames);
+        mixBuffer.resize(wantedFrames * 2);
         float *sFrames = nullptr;
         for (const auto &sample : samples) {
             sf_count_t count = sample->read(fromFrame, &sFrames);
