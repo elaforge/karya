@@ -55,6 +55,7 @@ convert_event event patch name = run $ do
         else return Nothing
     return $ Note.Note
         { patch = name
+        , instrument = ScoreTypes.instrument_name (Score.event_instrument event)
         , element = fromMaybe "" $ convert_element_key patch event
         , start = Score.event_start event
         , duration = Score.event_duration event

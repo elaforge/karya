@@ -1,21 +1,23 @@
 module Ness.Convert where
 import qualified Data.Map as Map
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
-import Types
 import Global
 import Ness.Global
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.Convert as Guitar.Convert
-import qualified Ness.Instruments as Instruments
-import Ness.Instruments (Instrument(..), Performance(..))
+import qualified Ness.Patches as Patches
+import Ness.Patches (Patch(..), Performance(..))
 import qualified Ness.Multiplate as Multiplate
 import qualified Ness.Multiplate.Convert as Multiplate.Convert
 import qualified Ness.Util as Util
+
+import Types
 
 
 srate :: SamplingRate
@@ -30,28 +32,32 @@ mkBlockId block = Id.BlockId $ Id.id namespace block
 
 printPerformance :: Text -> IO ()
 printPerformance block =
-    mapM_ scoreOf =<< either errorIO return =<< loadConvert block
+    mapM_ ppr =<< either errorIO return =<< loadConvert block
     where
-    scoreOf (Guitar _ s) = PPrint.pprint s
-    scoreOf (Multiplate _ s) = PPrint.pprint s
+    ppr (inst, perf) = Text.IO.putStrLn inst >> case perf of
+        Guitar _ s -> PPrint.pprint s
+        Multiplate _ s -> PPrint.pprint s
 
 run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
     let notesFilename = Config.notesFilename Config.ness blockId
-    performances <- either errorIO return =<< loadConvert block
-    Util.submitInstruments "convert" notesFilename
-        (map nameScore performances)
+    instPerformances <- either errorIO return =<< loadConvert block
+    Util.submitInstruments "convert"
+        (map (nameScore notesFilename) instPerformances)
     where
-    nameScore p =
-        (untxt $ Instruments.performanceName p, renderPerformance srate p)
+    nameScore notesFilename (inst, p) =
+        ( Config.outputFilename notesFilename (Just inst)
+        , inst
+        , renderPerformance srate p
+        )
 
 
 -- * implementation
 
 type Error = Text
 
-loadConvert :: Text -> IO (Either Error [Performance])
+loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
 loadConvert b =
     convert <$> load (Config.notesFilename Config.ness (mkBlockId b))
 
@@ -59,22 +65,20 @@ renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)
 renderPerformance sr (Multiplate i s) = Multiplate.renderAll sr (i, s)
 
-convert :: [Note.Note] -> Either Error [Performance]
+convert :: [Note.Note] -> Either Error [(Note.InstrumentName, Performance)]
 convert notes = do
-    insts <- forM notes $ \n -> tryJust ("no patch: " <> pretty n) $
-        Map.lookup (Note.patch n) Instruments.instruments
-    concatMapM (uncurry convertBackend) $
-        Seq.keyed_group_sort fst (zip insts notes)
+    -- Group by patches, and then instruments within the patches.
+    patches <- forM notes $ \n -> tryJust ("no patch: " <> pretty n) $
+        Map.lookup (Note.patch n) Patches.patches
+    concatMapM (uncurry convertPatch) $ Seq.group_fst (zip patches notes)
 
-convertBackend :: Instrument -> [(Instrument, Note.Note)]
-    -> Either Error [Performance]
-convertBackend (IGuitar _) =
-    fmap (map (uncurry Guitar)) . Guitar.Convert.convert . extract
-    where extract notes = [(inst, note) | (IGuitar inst, note) <- notes]
-convertBackend (IMultiplate _) =
-    fmap (map (uncurry Multiplate)) . Multiplate.Convert.convert . extract
+convertPatch :: Patch -> [Note.Note]
+    -> Either Error [(Note.InstrumentName, Performance)]
+convertPatch patch = mapM convert1 . Seq.keyed_group_sort Note.instrument
     where
-    extract notes = [(inst, note) | (IMultiplate inst, note) <- notes]
+    convert1 (inst, notes) = (inst,) <$> case patch of
+        PGuitar i -> Guitar i <$> Guitar.Convert.convert i notes
+        PMultiplate i -> Multiplate i <$> Multiplate.Convert.convert i notes
 
 load :: FilePath -> IO [Note.Note]
 load fname = either (errorIO . pretty) return =<< Note.unserialize fname

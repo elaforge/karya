@@ -37,10 +37,9 @@ type Error = Text
 
     How do I know which string for +mute?  Use the pitch as usual.
 -}
-convert :: [(Guitar.Instrument, Note.Note)]
-    -> Either Error [(Guitar.Instrument, Guitar.Score)]
-convert = fmap (map (second (uncurry makeScore))) . collectFingers
-    <=< mapM (uncurry convertNote)
+convert :: Guitar.Instrument -> [Note.Note] -> Either Error Guitar.Score
+convert inst =
+    fmap (uncurry makeScore) . collectFingers <=< mapM (convertNote inst)
 
 makeScore :: [Guitar.Note] -> [Guitar.Finger] -> Guitar.Score
 makeScore notes fingers = Guitar.Score
@@ -117,18 +116,13 @@ assignString strings note = first ((pretty note <> ": ")<>) $ do
     -- It's ok to be this far below the string.
     eta = 0.005
 
-collectFingers :: [Note]
-    -> Either Error [(Guitar.Instrument, ([Guitar.Note], [Guitar.Finger]))]
-collectFingers =
-    mapM collect . map (second (Seq.keyed_group_stable _string))
-        . Seq.keyed_group_stable _instrument
-        -- TODO group on (Guitar.iName . _instrument)
+collectFingers :: [Note] -> Either Error ([Guitar.Note], [Guitar.Finger])
+collectFingers = collect . Seq.keyed_group_stable _string
     where
-    collect (inst, stringNotes) = do
+    collect stringNotes = do
         (notes, fingers) <- unzip <$> mapM oneString stringNotes
         -- TODO merge by start?
-        return (inst, (concat notes, fingers))
-
+        return (concat notes, fingers)
     -- All the notes on a single string get a single finger.
     oneString :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)

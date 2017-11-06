@@ -32,6 +32,13 @@ mix srate inputs output = Resource.runResourceT $ do
         Audio.gain (1 / fromIntegral (length audios)) $
         List.foldl1' Audio.mix audios
 
+resample :: Int -> FilePath -> FilePath -> IO ()
+resample srate input output = Resource.runResourceT $ do
+    audio :: AudioF <- liftIO $ Sndfile.sourceSnd input
+    Sndfile.sinkSnd output format16 $
+        SampleRate.resampleTo (fromIntegral srate) SampleRate.SincBestQuality
+            audio
+
 -- * split
 
 g12_1 = split 6 (velocityNames g12_keys)

@@ -958,8 +958,14 @@ synth: im:
     * karya infers muted instruments and sends them to PlayCache
     * PlayCache reads blocks and mutes, mixes multiple outfile files
     - FaustIm writes separate files for each instrument
-    - Ness.Convert writes separate files for each instrument
+    * Ness.Convert writes separate files for each instrument
+    - I should use a subdir for the tracks.
 
+  - Move resampling to play_cache.
+  - The im/ directory is fundamentally global, since PlayCache hardcodes
+    a single path.  It could be theoretically configured, but I'd probably
+    have to do it manually via some kind of VST GUI, and save in the VST
+    preset mechanism, and it sounds like a lot of hassle.
   signal-discontinuities:
     . Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
@@ -1037,9 +1043,6 @@ synth: im:
 
         . Which of these would be best for possible future kinds of notation,
           or further extension?
-  - Use a gate signal for note duration.
-  - Handle amp outside of faust, just by multiplying the signal.  That way all
-    instruments support it uniformly.  'dyn' should go to 'dynamic' or 'gain'.
   efficient conduit-audio:
     . Currently I mix [(RealTime, Audio)] by padding all to their start time,
       and mixing them all.  This is inefficient because it generates and adds
@@ -1060,6 +1063,12 @@ synth: im:
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
   faust:
+    - Concatenate signals for all notes, and synthesize a gate signal to mark
+      note starts and stops.
+    - Handle amp outside of faust, just by multiplying the signal.  That way
+      all instruments support it uniformly.  'dyn' should go to 'dynamic' or
+      'gain'.
+    - Process each instrument in parallel.
     + If I use GUI elements for controls then they update at "control rate",
       which is probably enough actually.  It also means I can reuse the GUI
       controls.

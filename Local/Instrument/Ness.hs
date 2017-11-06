@@ -23,20 +23,20 @@ import qualified Synth.Shared.Control as Control
 import Global
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.Patch as Guitar.Patch
-import qualified Ness.Instruments as Instruments
 import qualified Ness.Multiplate as Multiplate
 import qualified Ness.Multiplate.Patch as Multiplate.Patch
+import qualified Ness.Patches as Patches
 
 
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl Config.nessName
     "Write notes to a file, to submit to NESS by hand." $
-    map make (Map.toList Instruments.instruments)
+    map make (Map.toList Patches.patches)
 
-make :: (name, Instruments.Instrument) -> (name, Inst.Inst Cmd.InstrumentCode)
+make :: (name, Patches.Patch) -> (name, Inst.Inst Cmd.InstrumentCode)
 make (name, instrument) = (name,) $ case instrument of
-    Instruments.IGuitar inst -> guitar inst
-    Instruments.IMultiplate inst -> multiplate inst
+    Patches.PGuitar inst -> guitar inst
+    Patches.PMultiplate inst -> multiplate inst
 
 guitar :: Guitar.Instrument -> Inst.Inst Cmd.InstrumentCode
 guitar inst =

@@ -1,7 +1,6 @@
 module Ness.Multiplate.Convert where
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -19,20 +18,15 @@ type Error = Text
 
 -- * implementation
 
-convert :: [(Multiplate.Instrument, Note.Note)]
-    -> Either Error [(Multiplate.Instrument, Multiplate.Score)]
-convert instNotes = do
-    strikes <- mapM (uncurry convertNote) instNotes
-    let instScores = map (second makeScore) $
-            Seq.group_fst (zip (map fst instNotes) strikes)
-    let verifyErrors = do
-            (i, s) <- instScores
-            let errors = Multiplate.verify i s
-            guard $ not (null errors)
-            return $ Multiplate.iName i <> ": " <> Text.intercalate "; " errors
-    unless (null verifyErrors) $
-        Left $ Text.unlines verifyErrors
-    return instScores
+convert :: Multiplate.Instrument -> [Note.Note] -> Either Error Multiplate.Score
+convert inst notes = do
+    strikes <- mapM (convertNote inst) notes
+    let score = makeScore strikes
+    let errors = Multiplate.verify inst score
+    unless (null errors) $
+        Left $ Multiplate.iName inst <> ": " <> Text.intercalate "; " errors
+    return score
+
 
 makeScore :: [Multiplate.Strike] -> Multiplate.Score
 makeScore strikes = Multiplate.Score
