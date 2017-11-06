@@ -18,7 +18,6 @@ import qualified Data.Vector.Storable as Storable
 
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
@@ -37,8 +36,6 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     patches <- DriverC.getPatches
-    let process_ name =
-            process patches Config.cacheDir name <=< either errorIO return
     -- Make sure I get some output if the process is killed.
     thread <- Concurrent.myThreadId
     Signals.installHandler Signals.sigTERM
@@ -48,24 +45,30 @@ main = do
             Text.IO.putStrLn name
             print =<< DriverC.getControls patch
             print =<< DriverC.getUiControls patch
-        [fname] -> process_ name . first pretty =<< Note.unserialize fname
-            where name = FilePath.takeFileName fname
+        [notesFilename] -> do
+            notes <- either (errorIO . pretty) return
+                =<< Note.unserialize notesFilename
+            process patches notesFilename notes
         _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
-process :: Map Note.PatchName DriverC.Patch -> FilePath -> String
-    -> [Note.Note] -> IO ()
-process patches outputDir name notes = do
+process :: Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note] -> IO ()
+process patches notesFilename notes = do
     pid <- Posix.Process.getProcessID
-    let put = Text.IO.putStrLn . ((showt pid <> ": " <> txt name <> ": ")<>)
-    let output = outputDir </> name ++ ".wav"
-    let sigint :: Exception.AsyncException -> IO ()
-        sigint exc = put $ "exception: " <> showt exc
-    Exception.handle sigint $ do
+    let put = Text.IO.putStrLn . (prefix<>)
+        prefix = showt pid <> ": " <> txt (FilePath.takeFileName notesFilename)
+            <> ": "
+    -- TODO divide up output by instrument instead of mixing them here
+    let output = Config.outputFilename notesFilename Nothing
+
+    -- This should catch SIGINT, so I can see who was killed.
+    let catchAsync :: Exception.AsyncException -> IO ()
+        catchAsync exc = put $ "exception: " <> showt exc
+    Exception.handle catchAsync $ do
         put $ "processing " <> showt (length notes) <> " notes"
         (errs, rendered) <- fmap Either.partitionEithers $
             forM (zip [0..] notes) $ \(i, n) -> do
                 when (i > 0 && i `mod` 10 == 0) $
-                    put $ "compute note " <> showt i
+                    put $ "note #" <> showt i
                 renderNote patches n
         mapM_ put errs
         put $ "writing " <> txt output

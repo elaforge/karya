@@ -5,16 +5,18 @@
 -- | Fire up the play-cache vst.
 module Perform.Im.Play (
     play_cache_synth, qualified
-    , encode_time, block_filename, encode_block, decode_time, start, stop
+    , encode_time, encode_play_config, decode_time, start, stop
 ) where
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
 import qualified Data.Char as Char
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Midi.Midi as Midi
-import qualified Ui.Id as Id
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Instrument.Common as Common
@@ -65,19 +67,25 @@ encode_time t = [at 0, at 1, at 2, at 3]
         (fromIntegral $ Bits.shiftR pos (i * 7) .&. 0x7f)
     pos = to_sample t
 
-block_filename :: BlockId -> FilePath
-block_filename = untxt . Text.replace "/" "-" . Id.ident_text
+-- | Send the block to play, along with muted instruments, if any.  Each
+-- is separated by a \0.
+encode_play_config :: Set Score.Instrument -> BlockId -> [Midi.ChannelMessage]
+encode_play_config muted block_id = encode_text $ Text.intercalate "\0" $
+    Shared.Config.blockFilename block_id
+        : map ScoreTypes.instrument_name (Set.toList muted)
 
-encode_block :: BlockId -> [Midi.ChannelMessage]
-encode_block = encode_string . block_filename
-
-encode_string :: String -> [Midi.ChannelMessage]
-encode_string str = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
+-- | Encode text in MIDI.  This uses a PitchBend to encode a pair of
+-- characters, with a leading '\DEL' to mark the start of the sequence, and
+-- possibly padding with a ' ' at the end.
+--
+-- TODO this only works for ASCII, because the PitchBend encoding is 7-bit.
+encode_text :: Text -> [Midi.ChannelMessage]
+encode_text text = [Midi.PitchBendInt (ord c1) (ord c2) | (c1, c2) <- name]
     where
     ord = fromIntegral . Char.ord
     -- Prepend 0x7f to tell PlayCache to clear any accumulated junk.  It
     -- happens to be \DEL, which is a nice coincidence.
-    name = pairs ('\DEL' : str)
+    name = pairs ('\DEL' : Text.unpack text)
     pairs (x:y:xs) = (x, y) : pairs xs
     pairs [x] = [(x, ' ')]
     pairs [] = []

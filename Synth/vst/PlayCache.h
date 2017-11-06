@@ -4,12 +4,44 @@
 
 #pragma once
 #include <fstream>
+#include <vector>
 #include <string>
 
 #include "public.sdk/source/vst2.x/audioeffectx.h"
 
-#include "Sample.h"
+#include "Samples.h"
 
+
+// Per-play config.  This decodes the config sent by
+// 'Perform.Im.Play.encode_play_config'.
+//
+// This is nothing like a robust protocol, because I just assume the PlayConfig
+// MIDI msgs will be complete before the start play one comes in, and there's
+// no protection against the host deciding to toss in some MIDI just for fun.
+// It seems to work for now, but if it gets to be too much bother I can switch
+// to sysex, or perhaps a separate socket and a real protocol like OSC.
+class PlayConfig {
+public:
+    PlayConfig() {
+        // Try to avoid some allocation, not that I'm consistent about that.
+        blockId.reserve(64);
+        mutedInstruments.reserve(8);
+        clear();
+    }
+    void collect(std::ofstream &log, unsigned char d1, unsigned char d2);
+    void clear() {
+        blockId.clear();
+        mutedInstruments.clear();
+        instrumentIndex = -1;
+    }
+
+    // Current playing block.
+    std::string blockId;
+    std::vector<std::string> mutedInstruments;
+private:
+    void collect1(unsigned char d);
+    int instrumentIndex;
+};
 
 // This is a simple VST that understands MIDI messages to play from a certain
 // time, and plays back samples from the cache directory.  It's expected that
@@ -78,7 +110,6 @@ private:
     float volume;
 
     std::ofstream log;
-    Sample *sample;
-    // Current playing block.
-    std::string blockId;
+    Samples *samples;
+    PlayConfig playConfig;
 };

@@ -137,9 +137,6 @@ UNSORTED
       that?
   - It seems too complicated to set up patch scales, how can I make that
     easier?
-  - In string-idiom, the end of the attack curve always coincides with the
-    start of the next note.  There also could be an attack prepare time,
-    analogous to the release delay.
   * enable FlexibleInstances globally.  Should I add any other instance ones?
     TypeSynonymInstances?
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
@@ -175,13 +172,17 @@ UNSORTED
     to always have that dyn.  How can I set a per-instrument default dynamic
     which I can still override?
     . First define exactly what I want.
-    . Basically that I can set a baseline dyn per instrument, which can be
-      scaled as normal.
+    . I want to set a baseline dyn per instrument, but I want to be able to
+      override it.
     . It should be as if I set a global %dyn, so specific ones can override
       it, but only for that instrument.  So each 'dyn' affects all dyn-*
       signals, and then each instrument can pick out its dyn-me.
     . And of course this should generalize for all controls... well, I don't
       have a use for non-dyn, so I don't really need to generalize.
+    . If I always set dyn absolute, I could just set when the instrument comes
+      into scope.
+    . Wait, why does '>inst=...' not work?  Wouldn't it set at the note track,
+      and then the child dyn track would be able to override?
   - Can I have ^j and ^k only move events up to a limit?  How do I set the
     limit?
     . Here's a use for multiple selections.
@@ -540,7 +541,7 @@ IN PROGRESS / branch: branches:
     . Status: this is implemented manually via Cmd.BlockResize, and
       specifically LBlock.add_time and remove_time.  It seems to work, but I
       haven't used it extensively.
-    - Add a ^z that moves events below and track children.
+    - Add a variant of ^z that moves events below and track children.
     . This has overlap with the idea to have a track as a read-only view of an
       expression.  E.g., the expression would be b1, b2, b3, ..., and the
       view would be to get the CallDuration of each and sequence them.  The
@@ -715,7 +716,7 @@ IN PROGRESS / branch: branches:
           cmd.
   - track calls / track macros:
     . Status: lost motivation after I figured out another solution for
-      gamakam, but I sort of forget what it was.  It's implemented all the way
+      gamakam, which now uses a t-nn track.  It's implemented all the way
       up to having a spot in Derive.Scopes and special control track syntax,
       but there are no implemented track calls.
       . See also signal-discontinuities.
@@ -942,6 +943,23 @@ synth: im:
       the right start times and start pitches.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will then play a sample, starting at the right time.
+  Support track muting.
+    . First, I need to separate notes per-track.  For models I actually can't
+      do this, because notes on the same instrument affect each other.  It
+      should be possible if notes are independent, e.g. samples.
+    . I can do per-instrument.  For NESS I just have to not mix down the
+      result, and save namespace-block-instrument.wav.
+    . Then PlayCache has to read namespace-block-*.wav and mix itself.
+    . Karya needs to turn track mutes into instrument mutes, then send msgs
+      about muted instruments.  I guess it can be more send text with disabled
+      instruments with the block.
+    . So I need to infer muted instruments from tracks.  This is instrument
+      level mute and solo, but track level is more convenient to use.
+    * karya infers muted instruments and sends them to PlayCache
+    * PlayCache reads blocks and mutes, mixes multiple outfile files
+    - FaustIm writes separate files for each instrument
+    - Ness.Convert writes separate files for each instrument
+
   signal-discontinuities:
     . Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
@@ -1327,6 +1345,7 @@ lilypond:
       built in to \pitchedTrill.
 
   - Warn about free code events that don't line up with a note.
+    . Test in Process_test.test_note_code
   - add subdivision tests to Process_test
     . Make sure per-voice subdivision changes also work.
   - ly^ is confusing, it seems like it should be ly-^
@@ -1924,7 +1943,7 @@ fltk:
       to put the input.  I think I'd want the input itself to know it's
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
-  - It's annoying to edit long words (e.g. kotekan kernel) in FloatingInput
+  * It's annoying to edit long words (e.g. kotekan kernel) in FloatingInput
     because the box is too narrow.  Can I automatically expand the width to
     fit the longest word?
   better drawing
@@ -2121,6 +2140,8 @@ REPL: repl:
     something like :h to search it.
   - It's easy to leave vi open on a ky file and change scores.  Maybe it could
     send the score name, and reject if it's changed.
+    . Another way is if I add back push notifications that the score has
+      changed, I could kill off the editor.  But I'd lose unwritten changes.
   - Now that save file is a poll instead of being pushed, it takes a return
     to notice a change.  Can I restore the notification thing?  Or maybe it's
     enough to make sure I write the history to the new name?
@@ -2232,6 +2253,10 @@ Derive:
     . I could put just the event controls into Offset, and require a translate
       to get the control out.  This would be like event_untransformed_controls
       except put it in the type.
+  idiom
+    - In string-idiom, the end of the attack curve always coincides with the
+      start of the next note.  There also could be an attack prepare time,
+      analogous to the release delay.
   sekaran
     How to apply sekaran?
       . >hang -> sekar abab -> notes

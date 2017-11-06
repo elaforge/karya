@@ -13,7 +13,6 @@ import qualified Data.Maybe as Maybe
 
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Synth.Lib.AUtil as AUtil
@@ -27,34 +26,37 @@ import Global
 
 main :: IO ()
 main = do
-    let process_ name = process Config.cacheDir name <=< either errorIO return
     args <- Environment.getArgs
     case args of
-        [fname] -> process_ name . first pretty =<< Note.unserialize fname
-            where name = FilePath.takeFileName fname
+        [notesFilename] -> do
+            notes <- either (errorIO . pretty) return
+                =<< Note.unserialize notesFilename
+            process notesFilename notes
         _ -> errorIO $ "usage: sampler notes"
 
-process :: FilePath -> String -> [Note.Note] -> IO ()
-process outputDir name notes = do
+process :: FilePath -> [Note.Note] -> IO ()
+process notesFilename notes = do
     samples <- either errorIO return $ mapM Convert.noteToSample notes
     mapM_ print samples
-    realizeSamples outputDir name samples
+    realizeSamples notesFilename samples
 
-realizeSamples :: FilePath -> String -> [Sample.Sample] -> IO ()
-realizeSamples outputDir name samples = do
+realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
+realizeSamples notesFilename samples = do
     put $ "load " <> show (length samples) <> " samples"
     audios <- mapM realizeSample samples
     put "processing"
+    -- TODO divide up output by instrument instead of mixing them here
+    let output = Config.outputFilename notesFilename Nothing
     result <- AUtil.catchSndfile $ Resource.runResourceT $
-        Sndfile.sinkSnd (outputDir </> name <> ".wav") AUtil.outputFormat
+        Sndfile.sinkSnd output AUtil.outputFormat
             (mixAll (Maybe.catMaybes audios))
     case result of
-        Left err -> Log.error $ "writing to output: "
-            <> showt (outputDir </> name <> ".wav") <> ": " <> err
+        Left err ->
+            Log.error $ "writing to output: " <> showt output <> ": " <> err
         Right () -> return ()
     put "done"
     where
-    put = putStrLn . ((name <> ": ")<>)
+    put = putStrLn . ((FilePath.takeFileName notesFilename <> ": ")<>)
 
 realizeSample :: Sample.Sample -> IO (Maybe AUtil.Audio)
 realizeSample sample = AUtil.catchSndfile (Sample.realize sample) >>= \case

@@ -4,21 +4,28 @@
 
 #pragma once
 #include <memory>
-#include <sstream>
 #include <string>
 
+#include <sndfile.h>
+
+
 // Hold one sample.
+//
+// Currently this loads the entire sample into memory, so it should be
+// allocation-free after the creation.  In the future I could try streaming,
+// but I'd need to put the reading part in a separate thread.
 class Sample {
 public:
-    Sample(const char *fname);
-    ~Sample();
-    std::string error() const { return error_; }
-    int samplerate() const { return info.samplerate; }
+    enum Error {
+        NoError, FileNotFound, ErrorMessage
+    };
+
+    Sample(int sampleRate, const std::string &fname);
     const sf_count_t read(sf_count_t fromFrame, float **frames) const;
+
+    Error error;
+    std::string errorMessage;
 private:
-    // If set, there was an error reading the sample.
-    std::string error_;
-    SNDFILE *sndfile;
     SF_INFO info;
     std::unique_ptr<float[]> frames;
 };

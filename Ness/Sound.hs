@@ -24,11 +24,11 @@ type AudioF = Audio.AudioSource (Resource.ResourceT IO) Float
 
 -- * mix
 
-mix :: [FilePath] -> FilePath -> IO ()
-mix inputs output = Resource.runResourceT $ do
+mix :: Int -> [FilePath] -> FilePath -> IO ()
+mix srate inputs output = Resource.runResourceT $ do
     audios :: [AudioF] <- mapM (liftIO . Sndfile.sourceSnd) inputs
     Sndfile.sinkSnd output format16 $
-        SampleRate.resampleTo 44100 SampleRate.SincBestQuality $
+        SampleRate.resampleTo (fromIntegral srate) SampleRate.SincBestQuality $
         Audio.gain (1 / fromIntegral (length audios)) $
         List.foldl1' Audio.mix audios
 

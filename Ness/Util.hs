@@ -20,6 +20,7 @@ import Util.Crc32Instances ()
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Synth.Shared.Config as Config
 import Global
 import Ness.Global (SamplingRate)
 import qualified Ness.Sound as Sound
@@ -55,15 +56,16 @@ submitMany sr render dir nameScores = do
     return ()
 
 submitInstruments :: FilePath -> FilePath -> [(FilePath, (Text, Text))] -> IO ()
-submitInstruments dir blockName nameScores = do
+submitInstruments dir notesFilename nameScores = do
     let (names, scores) = unzip nameScores
     let fprint = fingerprint $ concat [[i, s] | (i, s) <- scores]
     let out = scratchDir </> dir </> fprint </> "out.wav"
     unlessM (Directory.doesFileExist out) $ do
         outs <- checkSubmits (scratchDir </> dir </> fprint) names scores
-        Sound.mix outs out
+        Sound.mix Config.samplingRate outs out
     putStrLn out
-    Directory.copyFile out ("im/cache" </> blockName ++ ".wav")
+    -- TODO copy out separate instruments
+    Directory.copyFile out (Config.outputFilename notesFilename Nothing)
     play out
 
 checkSubmits :: FilePath -> [FilePath] -> [(Text, Text)] -> IO [FilePath]

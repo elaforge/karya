@@ -1,10 +1,12 @@
 module Ness.Convert where
 import qualified Data.Map as Map
-import qualified System.FilePath as FilePath
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
+import qualified Ui.Id as Id
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
+import Types
 import Global
 import Ness.Global
 import qualified Ness.Guitar as Guitar
@@ -19,20 +21,26 @@ import qualified Ness.Util as Util
 srate :: SamplingRate
 srate = 11000
 
-blockFile :: String -> FilePath
-blockFile b = "im/ness-notes/ness-" ++ b
+-- TODO don't hard code this
+namespace :: Id.Namespace
+namespace = Id.namespace "ness2"
 
-printPerformance :: String -> IO ()
+mkBlockId :: Text -> BlockId
+mkBlockId block = Id.BlockId $ Id.id namespace block
+
+printPerformance :: Text -> IO ()
 printPerformance block =
     mapM_ scoreOf =<< either errorIO return =<< loadConvert block
     where
     scoreOf (Guitar _ s) = PPrint.pprint s
     scoreOf (Multiplate _ s) = PPrint.pprint s
 
-run :: String -> IO ()
+run :: Text -> IO ()
 run block = do
+    let blockId = mkBlockId block
+    let notesFilename = Config.notesFilename Config.ness blockId
     performances <- either errorIO return =<< loadConvert block
-    Util.submitInstruments "convert" (FilePath.takeFileName (blockFile block))
+    Util.submitInstruments "convert" notesFilename
         (map nameScore performances)
     where
     nameScore p =
@@ -43,8 +51,9 @@ run block = do
 
 type Error = Text
 
-loadConvert :: String -> IO (Either Error [Performance])
-loadConvert b = convert <$> load (blockFile b)
+loadConvert :: Text -> IO (Either Error [Performance])
+loadConvert b =
+    convert <$> load (Config.notesFilename Config.ness (mkBlockId b))
 
 renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)

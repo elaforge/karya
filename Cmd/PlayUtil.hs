@@ -15,6 +15,8 @@ module Cmd.PlayUtil (
     , events_from, overlapping_events
     , perform_events, get_convert_lookup
     , midi_configs
+    -- * mute and solo
+    , get_muted_tracks, muted_instruments
 ) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -232,27 +234,29 @@ perform_events_list events = do
     allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
     lookup <- get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
-    blocks <- Ui.gets (Map.toList . Ui.state_blocks)
-    tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
+    muted <- get_muted_tracks
     let alloc = Perform.config <$> midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state alloc $
         Convert.convert lookup lookup_inst $
-        filter_track_muted tree blocks $ filter_instrument_muted allocs events
+        filter_track_muted muted $ filter_instrument_muted allocs events
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.
 filter_instrument_muted :: UiConfig.Allocations -> [Score.Event]
     -> [Score.Event]
-filter_instrument_muted (UiConfig.Allocations allocs)
-    | not (Set.null soloed) = filter $
-        (`Set.member` soloed) . Score.event_instrument
-    | not (Set.null muted) = filter $
-        (`Set.notMember` muted) . Score.event_instrument
-    | otherwise = id
+filter_instrument_muted allocs =
+    filter ((`Set.notMember` muted) . Score.event_instrument)
+    where muted = muted_instruments allocs
+
+muted_instruments :: UiConfig.Allocations -> Set Score.Instrument
+muted_instruments (UiConfig.Allocations allocs)
+    | not (null soloed) = instruments Set.\\ Set.fromList soloed
+    | otherwise = Set.fromList muted
     where
     configs = map (second UiConfig.alloc_config) (Map.toList allocs)
-    soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
-    muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
+    instruments = Set.fromList $ map fst configs
+    soloed = map fst $ filter (Common.config_solo . snd) configs
+    muted = map fst $ filter (Common.config_mute . snd) configs
 
 -- | Filter events according to the Solo and Mute flags in the tracks of the
 -- given blocks.
@@ -261,18 +265,27 @@ filter_instrument_muted (UiConfig.Allocations allocs)
 -- a track on one block, other blocks will still play.
 --
 -- Solo takes priority over Mute.
-filter_track_muted :: TrackTree.TrackTree -> [(BlockId, Block.Block)]
-    -> [Score.Event] -> [Score.Event]
-filter_track_muted tree blocks
-    | not (Set.null soloed) = filter (not . stack_contains solo_muted)
-    | not (Set.null muted) = filter (not . stack_contains muted)
-    | otherwise = id
+filter_track_muted :: Set TrackId -> [Score.Event] -> [Score.Event]
+filter_track_muted muted
+    | Set.null muted = id
+    | otherwise = filter (not . stack_contains muted)
     where
     stack_contains track_ids = any (`Set.member` track_ids) . stack_tracks
     stack_tracks = mapMaybe Stack.track_of . Stack.innermost . Score.event_stack
+
+get_muted_tracks :: Ui.M m => m (Set TrackId)
+get_muted_tracks = do
+    blocks <- Ui.gets (Map.toList . Ui.state_blocks)
+    tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
+    return $ muted_tracks tree blocks
+
+muted_tracks :: TrackTree.TrackTree -> [(BlockId, Block.Block)] -> Set TrackId
+muted_tracks tree blocks
+    | not (Set.null soloed) = solo_to_mute tree blocks soloed
+    | otherwise = muted
+    where
     soloed = with_flag Block.Solo
     muted = with_flag Block.Mute
-    solo_muted = solo_to_mute tree blocks soloed
     with_flag flag = Set.fromList
         [ track_id
         | (_, block) <- blocks

@@ -10,6 +10,7 @@
 module Cmd.Perf where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
@@ -278,6 +279,31 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
                 (Map.toAscList track_dyns)
             return dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
+
+-- * infer muted tracks
+
+infer_muted_instruments :: Cmd.M m => m (Set Score.Instrument)
+infer_muted_instruments = do
+    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
+    (<> PlayUtil.muted_instruments allocs) <$> infer_track_muted_instruments
+
+-- | Infer that instruments are muted if any of their tracks are muted.  This
+-- is just a heuristic because of course a track may have multiple instruments.
+-- The only reason I do this is that muting and soloing tracks is easier than
+-- instruments since they're on the UI, and im supports only instrument mute,
+-- not track mute.
+--
+-- This should be in PlayUtil along with 'PlayUtil.muted_instruments', but
+-- can't due to using 'lookup_instrument' and circular imports.
+infer_track_muted_instruments :: Cmd.M m => m (Set Score.Instrument)
+infer_track_muted_instruments = do
+    muted <- PlayUtil.get_muted_tracks
+    Set.fromList <$> mapMaybeM infer_instrument (Set.toList muted)
+
+infer_instrument :: Cmd.M m => TrackId -> m (Maybe Score.Instrument)
+infer_instrument track_id =
+    justm (fmap fst . Seq.head <$> Ui.blocks_with_track_id track_id) $
+        \block_id -> lookup_instrument (block_id, Just track_id)
 
 -- * default
 

@@ -10,9 +10,13 @@
 -- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Ui.Id as Id
 import Global
+import Types
 
 #include "config.h"
 
@@ -24,10 +28,7 @@ config :: Config
 config = Config $ Map.fromList
     [ (samplerName, sampler)
     , (faustName, faust)
-    , (nessName, Synth
-        { binary = ""
-        , notesDir = dataDir </> "ness-notes"
-        })
+    , (nessName, ness)
     ]
 
 data Synth = Synth {
@@ -60,6 +61,12 @@ faust = Synth
     , notesDir = dataDir </> "faust-notes"
     }
 
+ness ::Synth
+ness = Synth
+    { binary = ""
+    , notesDir = dataDir </> "ness-notes"
+    }
+
 -- | All of the data files used by the Im backend are based in this directory.
 -- Everything in here should be temporary files, used for communication or
 -- caching.
@@ -73,3 +80,23 @@ cacheDir = dataDir </> "cache"
 -- start time by it.
 samplingRate :: Int
 samplingRate = SAMPLING_RATE
+
+
+-- * cache files
+
+-- | Write serialized notes to this file.
+notesFilename :: Synth -> BlockId -> FilePath
+notesFilename synth blockId =
+    notesDir synth </> Text.unpack (blockFilename blockId)
+
+-- | Get the filename that should be used for the output of a certain block and
+-- instrument.
+outputFilename :: FilePath -- ^ Names as produced by 'notesFilename'.
+    -> Maybe Text -- ^ Score.Instrument, but I don't want to import it.
+    -> FilePath
+outputFilename notesFilename maybeInstrument =
+    cacheDir </> FilePath.takeFileName notesFilename <> suffix <> ".wav"
+    where suffix = maybe "" ((","<>) . untxt) maybeInstrument
+
+blockFilename :: BlockId -> Text
+blockFilename = Text.replace "/" "-" . Id.ident_text

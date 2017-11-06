@@ -20,7 +20,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import System.FilePath ((</>))
 import qualified System.Process as Process
 
 import qualified Util.Log as Log
@@ -43,9 +42,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Im.Convert as Im.Convert
-import qualified Perform.Im.Play as Im.Play
 import qualified Perform.RealTime as RealTime
-
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
@@ -282,11 +279,10 @@ evaluate_im config lookup_inst block_id events
 
     write_notes (Just synth, events) =
         case Map.lookup synth (Shared.Config.synths config) of
-            Just config -> do
-                let notes = Shared.Config.notesDir config
-                        </> Im.Play.block_filename block_id
+            Just synth -> do
+                let notes = Shared.Config.notesFilename synth block_id
                 Im.Convert.write lookup_inst notes events
-                let binary = Shared.Config.binary config
+                let binary = Shared.Config.binary synth
                 return $ if null binary then Nothing
                     else Just $ Process.proc binary [notes]
             Nothing -> do

@@ -3,23 +3,26 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <memory>
+#include <sstream>
 #include <sndfile.h>
 
 #include "Sample.h"
 #include "../Shared/config.h"
 
 
-Sample::Sample(const char *fname)
+Sample::Sample(int sampleRate, const std::string &fname)
 {
-    this->sndfile = sf_open(fname, SFM_READ, &this->info);
+    SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &this->info);
     std::stringstream errors;
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
-        errors << sf_strerror(sndfile);
+        error = FileNotFound;
     } else if (info.channels != 2) {
         errors << "expected 2 channels, got " << info.channels;
-    } else if (info.samplerate != SAMPLING_RATE) {
-        errors << "expected srate of " << SAMPLING_RATE << ", got "
+        error = ErrorMessage;
+    } else if (info.samplerate != sampleRate) {
+        errors << "expected srate of " << sampleRate << ", got "
             << info.samplerate;
+        error = ErrorMessage;
     } else {
         this->frames.reset(new float[info.frames * info.channels]);
         sf_count_t read = sf_readf_float(sndfile, frames.get(), info.frames);
@@ -27,24 +30,25 @@ Sample::Sample(const char *fname)
             errors << "expected " << info.frames << " frames, but read "
                 << read;
         }
+        error = NoError;
     }
     if (!errors.str().empty()) {
-        error_ = std::string(fname) + ": " + errors.str();
+        errorMessage = fname + ": " + errors.str();
     }
+
+    sf_close(sndfile);
+    // if (int r = (sf_close(snd) != 0)) {
+    //     const char *err = sf_error_number(r);
+    // }
 }
 
-const sf_count_t Sample::read(sf_count_t fromFrame, float **frames) const {
-    if (!error().empty() || fromFrame >= info.frames)
+
+const sf_count_t
+Sample::read(sf_count_t fromFrame, float **frames) const
+{
+    if (error != NoError || fromFrame >= info.frames)
         return 0;
 
     *frames = this->frames.get() + fromFrame * info.channels;
     return info.frames - fromFrame;
-}
-
-Sample::~Sample()
-{
-    sf_close(this->sndfile);
-    // if (int r = (sf_close(snd) != 0)) {
-    //     const char *err = sf_error_number(r);
-    // }
 }

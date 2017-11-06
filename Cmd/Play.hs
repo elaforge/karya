@@ -406,7 +406,8 @@ from_realtime block_id repeat_at start_ = do
             return (im_insts, Just play_cache_addr)
         Left Nothing -> return (mempty, Nothing)
         Left (Just msg) -> Cmd.throw msg
-    let im_msgs = maybe [] (im_play_msgs block_id start) play_cache_addr
+    muted <- Perf.infer_muted_instruments
+    let im_msgs = maybe [] (im_play_msgs muted block_id start) play_cache_addr
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs
@@ -462,10 +463,11 @@ lookup_play_cache_addr = do
                 _ -> Ui.throw $
                         pretty Im.Play.qualified <> " with non-MIDI allocation"
 
-im_play_msgs :: BlockId -> RealTime -> Patch.Addr
+im_play_msgs :: Set Score.Instrument -> BlockId -> RealTime -> Patch.Addr
     -> [LEvent.LEvent Midi.WriteMessage]
-im_play_msgs block_id start (wdev, chan) =
-    zipWith msg ts $ Im.Play.encode_time start ++ Im.Play.encode_block block_id
+im_play_msgs muted block_id start (wdev, chan) =
+    zipWith msg ts $ Im.Play.encode_time start
+        ++ Im.Play.encode_play_config muted block_id
         ++ [Im.Play.start]
     where
     msg t = LEvent.Event . Midi.WriteMessage wdev t . Midi.ChannelMessage chan
