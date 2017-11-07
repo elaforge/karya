@@ -274,23 +274,32 @@ strip_controls = map $ \event ->
 -- | Pretty-print events, presumably from 'sel_events'.  Extract the given
 -- fields, and format them in columns.
 --
--- There are a set of e_* functions designed for this.
-e :: [Score.Event -> Text] -> [Score.Event] -> Text
-e extract = Text.unlines
-    . TextUtil.formatColumns 1 . map (\event -> map ($event) extract)
+-- There are a set of e_* functions designed for this.  E.g.
+--
+-- > LPerf.sel_events $> LPerf.e [LPerf.e_sp, LPerf.e_attr]
+e :: [Fmt] -> [Score.Event] -> Text
+e extract = Text.unlines . TextUtil.formatColumns 1
+    . map (\event -> map ($event) (concat extract))
+
+type Fmt = [Score.Event -> Text]
 
 -- Start, dur, text.
-e_sdt e =
-    pretty (Score.event_start e, Score.event_duration e, Score.event_text e)
-e_start_dur e = pretty (Score.event_start e, Score.event_duration e)
-e_start = pretty . Score.event_start
-e_pitch = maybe "?" PSignal.symbolic_pitch . Score.initial_pitch
-e_attr = pretty . Score.event_attributes
-e_inst = pretty . Score.event_instrument
-e_env = pretty . Score.event_environ
-e_env_like key = pretty . filter ((key `Text.isInfixOf`) . fst) . Env.to_list
-    . Score.event_environ
-e_env_k key = pretty . Env.lookup key . Score.event_environ
+e_sdt, e_sd, e_sp, e_s :: Fmt
+e_sdt = e_sd ++ [pretty . Score.event_text]
+e_sd = [pretty . Score.event_start, pretty . Score.event_duration]
+e_sp = e_s ++ e_pitch
+e_s = [pretty . Score.event_start]
+
+e_pitch, e_attr, e_inst, e_env :: Fmt
+e_pitch = [maybe "?" PSignal.symbolic_pitch . Score.initial_pitch]
+e_attr = [pretty . Score.event_attributes]
+e_inst = [pretty . Score.event_instrument]
+e_env = [pretty . Score.event_environ]
+
+e_env_like, e_env_k :: Text -> Fmt
+e_env_like key = [pretty . filter ((key `Text.isInfixOf`) . fst) . Env.to_list
+    . Score.event_environ]
+e_env_k key = [pretty . Env.lookup key . Score.event_environ]
 
 -- * play from
 
