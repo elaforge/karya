@@ -15,7 +15,7 @@ module Derive.Call.Sub (
     , sub_events, sub_events_negative
     , assert_no_subs
     , modify_notes
-    , derive_subs, derive, derive_tracks, derive_subs, derive_pitch, fit
+    , derive_subs, derive, derive_tracks, derive_pitch, fit
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests

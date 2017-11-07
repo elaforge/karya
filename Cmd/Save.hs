@@ -190,14 +190,14 @@ write_current_state fname = do
     state <- Ui.get
     ((), _, wall_secs) <- rethrow_io "write_current_state" $ liftIO $
         Log.time_eval $ write_state fname state
-    Log.notice $ "wrote state to " <> showt fname
-        <> ", took " <> pretty wall_secs <> "s"
+    Log.notice $ "wrote state to " <> showt fname <> ", took "
+        <> pretty wall_secs <> "s"
     return fname
 
 write_state :: FilePath -> Ui.State -> IO ()
 write_state fname state = do
     now <- Time.getCurrentTime
-    Serialize.serialize Cmd.Serialize.score_magic fname $
+    void $ Serialize.serialize Cmd.Serialize.score_magic fname $
         Ui.config#Ui.meta#Ui.last_save #= now $
         Ui.clear state
 
@@ -401,7 +401,7 @@ save_allocations fname = do
     allocs <- Ui.config#Ui.allocations <#> Ui.get
     fname <- expand_filename fname
     Log.notice $ "write instrument allocations to " <> showt fname
-    rethrow_io "save_allocations" $ liftIO $
+    rethrow_io "save_allocations" $ liftIO $ void $
         Serialize.serialize Cmd.Serialize.allocations_magic fname allocs
 
 load_allocations :: FilePath -> Cmd.CmdT IO ()

@@ -49,7 +49,7 @@ load_midi fname =
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
 save_midi :: FilePath -> Messages -> IO ()
-save_midi = Serialize.serialize midi_magic
+save_midi fn = void . Serialize.serialize midi_magic fn
 
 -- | Saved MIDI performance.
 midi_magic :: Serialize.Magic (Vector.Vector Midi.WriteMessage)

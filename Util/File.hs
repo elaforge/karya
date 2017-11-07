@@ -10,7 +10,7 @@ import qualified Codec.Compression.GZip as GZip
 import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
 import Control.Monad (void, guard)
-import Control.Monad.Extra (whenM, orM)
+import Control.Monad.Extra (whenM, orM, whenJust, ifM)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
@@ -35,15 +35,31 @@ decompress bytes =
         Right <$> Exception.evaluate (Lazy.toStrict (GZip.decompress bytes))
     where handle (exc :: Zlib.Internal.DecompressError) = Left (show exc)
 
--- | Write a gzipped file.  Try to do so atomically by writing to @fn.write@
+-- | Write a gzipped file.  Try to do so atomically by writing to a tmp file
 -- first and renaming it.
 --
 -- Like @mv@, this will refuse to overwrite a file if it isn't writable.
-writeGz :: FilePath -> ByteString.ByteString -> IO ()
-writeGz fn bytes = do
+writeGz :: Maybe FilePath
+    -- ^ If Just, and the file was written, move any old file to fn++suffix.
+    -> FilePath -> ByteString.ByteString -> IO Bool
+    -- ^ False if the file wasn't written because it wouldn't have changed.
+writeGz backupSuffix fn bytes = do
     requireWritable fn
-    Lazy.writeFile (fn ++ ".write") $ GZip.compress $ Lazy.fromStrict bytes
-    Directory.renameFile (fn ++ ".write") fn
+    whenJust backupSuffix $ requireWritable . (fn++)
+    let tmp = fn ++ ".write.tmp"
+    Lazy.writeFile tmp $ GZip.compress $ Lazy.fromStrict bytes
+    ifM (sameContents fn tmp)
+        (Directory.removeFile tmp >> return False) $ do
+            whenJust backupSuffix $ \suffix ->
+                void $ ignoreEnoent $ Directory.renameFile fn (fn ++ suffix)
+            Directory.renameFile tmp fn
+            return True
+
+sameContents :: FilePath -> FilePath -> IO Bool
+sameContents fn1 fn2 = do
+    c1 <- ignoreEnoent $ Lazy.readFile fn1
+    c2 <- ignoreEnoent $ Lazy.readFile fn2
+    return $ c1 == c2
 
 -- | Throw if this file exists but isn't writable.
 requireWritable :: FilePath -> IO ()

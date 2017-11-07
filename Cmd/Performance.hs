@@ -259,8 +259,7 @@ subprocesses procs = do
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
 evaluate_im :: Shared.Config.Config
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> BlockId
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> BlockId
     -> Vector.Vector Score.Event
     -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
 evaluate_im config lookup_inst block_id events
@@ -281,9 +280,12 @@ evaluate_im config lookup_inst block_id events
         case Map.lookup synth (Shared.Config.synths config) of
             Just synth -> do
                 let notes = Shared.Config.notesFilename synth block_id
-                Im.Convert.write lookup_inst notes events
+                -- TODO It would be better to not reach this point at all if
+                -- the block hasn't changed, but until then at least I can
+                -- skip running the binary if the notes haven't changed.
+                changed <- Im.Convert.write lookup_inst notes events
                 let binary = Shared.Config.binary synth
-                return $ if null binary then Nothing
+                return $ if null binary || not changed then Nothing
                     else Just $ Process.proc binary [notes]
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth <> " with "

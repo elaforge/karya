@@ -91,7 +91,7 @@ initialPitch note =
 
 -- * serialize
 
-serialize :: FilePath -> [Note] -> IO ()
+serialize :: FilePath -> [Note] -> IO Bool
 serialize = Serialize.serialize notesMagic
 
 unserialize :: FilePath -> IO (Either Serialize.UnserializeError [Note])

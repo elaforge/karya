@@ -312,7 +312,7 @@ unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
 save_views :: Git.Repo -> Map ViewId Block.View -> IO ()
 save_views repo =
-    Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
+    void . Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
 
 load_views :: Git.Repo -> IO (Either Text (Map ViewId Block.View))
 load_views repo = do

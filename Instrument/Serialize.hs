@@ -20,11 +20,12 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Search as Search
+import Global
 
 
 -- | Serialize instrument definitions to a file.
 serialize :: FilePath -> InstrumentDb -> IO ()
-serialize = Serialize.serialize instrument_db_magic
+serialize fn = void . Serialize.serialize instrument_db_magic fn
 
 -- | Unserialize instrument definitions.
 unserialize :: FilePath -> IO (Either Serialize.UnserializeError InstrumentDb)

@@ -32,7 +32,8 @@ import Global
 -- | Serialize the events to the given patch.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
 write :: (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> FilePath -> Vector.Vector Score.Event -> IO ()
+    -> FilePath -> Vector.Vector Score.Event -> IO Bool
+    -- ^ False if the file would have been the same as an existing one.
 write lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert lookup_inst (Vector.toList events)
     Note.serialize filename notes

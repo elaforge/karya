@@ -75,11 +75,11 @@ magicBytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
 magicLength :: Int
 magicLength = 4
 
-serialize :: Serialize a => Magic a -> FilePath -> a -> IO ()
+serialize :: Serialize a => Magic a -> FilePath -> a -> IO Bool
+    -- ^ result of 'File.writeGz'.
 serialize magic fname state = do
-    backupFile fname
-    makeDir fname
-    File.writeGz fname $ magicBytes magic <> encode state
+    Directory.createDirectoryIfMissing True $ FilePath.takeDirectory fname
+    File.writeGz (Just ".last") fname $ magicBytes magic <> encode state
 
 data UnserializeError = BadMagic ByteString ByteString
     | IOError IO.Error.IOError | UnserializeError String
@@ -104,17 +104,6 @@ instance Pretty UnserializeError where
             <> " but got " <> showt got
         IOError exc -> "io error: " <> showt exc
         UnserializeError err -> "unserialize error: " <> txt err
-
--- | Move @file@ to @file.last@.  Do this before writing a new one that may
--- fail.
-backupFile :: FilePath -> IO ()
-backupFile fname = do
-    File.requireWritable fname
-    File.requireWritable (fname ++ ".last")
-    void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
-
-makeDir :: FilePath -> IO ()
-makeDir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 
 -- * numeric
 
