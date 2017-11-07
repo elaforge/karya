@@ -14,7 +14,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 
-write :: IO ()
+write :: IO Bool
 write = Note.serialize "sampler.notes" notes
 
 notes :: [Note.Note]
@@ -28,6 +28,7 @@ notes = map make
     where
     make (start, pitch, dyn, attrs) = Note.Note
         { patch = "test"
+        , instrument = "test"
         , element = ""
         , start = start
         , duration = 0 -- the sampler uses envelope, not duration
