@@ -4,11 +4,8 @@
 
 -- | Calls for 箏.
 module Derive.C.China.Zheng where
-import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Idiom.String as String
 import qualified Derive.C.India.Gamakam as Gamakam
 import qualified Derive.C.Prelude.Trill as Trill
@@ -20,15 +17,11 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
 import Global
 import Types
 
@@ -38,8 +31,8 @@ module_ = "china" <> "zheng"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    ([ ("gliss-a", make_gliss "gliss-a" True)
-    , ("gliss", make_gliss "gliss" False)
+    ([ ("gliss-a", Derive.set_module module_ String.c_gliss_absolute)
+    , ("gliss", Derive.set_module module_ String.c_gliss)
     ] ++ trill_variations c_note_trill)
     [ ("bent-string", Derive.set_module module_ String.c_bent_string)
     ]
@@ -53,74 +46,6 @@ trill_variations make =
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.High, Just Trill.Low]
-
--- * gliss
-
--- | Gracelessly factor both forms of glissando.
---
--- The other option would be a single call with an environ to switch between
--- the two behaviours, and expect to bind locally.  But it seems like both
--- would be useful simultaneously, and why not have a reasonable default
--- vocabulary if I can manage it?
-make_gliss :: Derive.CallName -> Bool -> Derive.Generator Derive.Note
-make_gliss name is_absolute = Derive.generator module_ name mempty
-    "Glissando along the open strings. The standard version divides the `time`\
-    \ among the number of notes, while the -a (absolute) version gives `time`\
-    \ to each note."
-    $ Sig.call ((,,,)
-    <$> Sig.required "start"
-        "Start this many strings above or below the destination pitch."
-    <*> (if is_absolute
-        then Sig.defaulted "time" (Typecheck.real 0.25)
-            "Time in which to play the glissando."
-        else Sig.defaulted "time" (Typecheck.real 0.075)
-            "Time between each note.")
-    <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
-        \ to the destination dyn. If not given, the dyn is constant."
-    <*> String.open_strings_env
-    ) $ \(gliss_start, time, maybe_start_dyn, open_strings) -> Sub.inverting $
-    \args -> do
-        end <- Args.real_start args
-        time <- Call.real_duration end time
-        dest_pitch <- Call.get_transposed end
-        dest_dyn <- Call.dynamic end
-        let start_dyn = fromMaybe dest_dyn maybe_start_dyn
-        pitches <- gliss_pitches open_strings dest_pitch gliss_start
-        let total_time = if is_absolute then time
-                else time * fromIntegral (length pitches)
-        Ly.when_lilypond (Grace.lily_grace args (end - time) pitches) $
-            gliss pitches total_time start_dyn dest_dyn end
-                <> Call.placed_note args
-
-gliss_pitches :: [PSignal.Pitch] -> PSignal.Transposed -> Int
-    -> Derive.Deriver [PSignal.Pitch]
-gliss_pitches open_strings dest_pitch gliss_start = do
-    dest_nn <- Pitches.pitch_nn dest_pitch
-    -- TODO shouldn't need to eval them all
-    open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
-    let strings = Seq.sort_on snd $ zip open_strings open_nns
-    -- 0 2 4 6 8 10
-    return $ if gliss_start >= 0
-        -- 5 -> 6 8 10 -> 10 8 6 5
-        then reverse $ take gliss_start $ map fst $
-            dropWhile ((<=dest_nn) . snd) strings
-        -- 5 -> 0 2 4
-        else Seq.rtake (-gliss_start) $ map fst $
-            takeWhile ((<dest_nn) . snd) strings
-
-gliss :: [PSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
-    -> Derive.NoteDeriver
-gliss pitches time start_dyn end_dyn end = do
-    let dur = time / fromIntegral (length pitches)
-        start = end - time
-        ts = take (length pitches) (Seq.range_ start dur)
-        dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
-            . Num.normalize start end) ts
-    score_ts <- mapM Derive.score ts
-    score_dur <- Call.score_duration end dur
-    let note (t, p, dyn) = Derive.place t score_dur $ Call.with_dynamic dyn $
-            Call.pitched_note p
-    mconcat $ map note $ zip3 score_ts pitches dyns
 
 -- * trill
 

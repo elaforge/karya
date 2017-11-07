@@ -102,6 +102,7 @@ NESS:
       force?
     - Get harmonics working.
     - Ornament for strums.
+      . zheng gliss should be able to do this.
 
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
