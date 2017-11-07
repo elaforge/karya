@@ -1068,12 +1068,13 @@ synth: im:
       have to do it manually via some kind of VST GUI, and save in the VST
       preset mechanism, and it sounds like a lot of hassle.
   faust:
-    - Write separate files for each instrument
-      - Concatenate signals for all notes, and synthesize a gate signal to mark
+    * Write separate files for each instrument
+      * Concatenate signals for all notes, and synthesize a gate signal to mark
         note starts and stops.
+    - Distinguish attack time controls and continuous controls, so I can use
+      Note.controlVals for the continuous ones.
     - Handle amp outside of faust, just by multiplying the signal.  That way
-      all instruments support it uniformly.  'dyn' should go to 'dynamic' or
-      'gain'.
+      all instruments support it uniformly.
     - Process each instrument in parallel.
     + If I use GUI elements for controls then they update at "control rate",
       which is probably enough actually.  It also means I can reuse the GUI
@@ -1085,7 +1086,7 @@ synth: im:
         worth it.  Also MIDI is "GUI."  Probably yes.
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
-    - Add plucked string and woodwind instruments, with control signals.
+    * Add plucked string and woodwind instruments, with control signals.
     - Assert that inst->getNumInputs() == length controls.
     - How to know when to drop notes?  I think I have to use a heuristic
       like >1s of audio under a threshold after note off.

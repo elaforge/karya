@@ -28,20 +28,26 @@ warnings :: [Text]
     -- static data.
     patches <- Map.toList <$> DriverC.getPatches
     inputs <- mapM (DriverC.patchInputs . snd) patches
+    outputs <- mapM (DriverC.patchOutputs . snd) patches
     (warnings, patches) <- fmap Either.partitionEithers $
-        forM (zip patches inputs) $ \((name, patch), inputs) -> do
-            (doc, controls) <- DriverC.getControls patch
-            return $ if length controls == inputs
-                then Right (name, (doc, controls))
-                else Left $ "faust/" <> name <> " input count " <> showt inputs
-                    <> " doesn't match controls: " <> pretty (map fst controls)
+        forM (zip3 patches inputs outputs) $ \((name, patch), ins, outs) -> do
+            (doc, controls) <- DriverC.getPatchMetadata patch
+            return $ first (("faust/" <> name <> ": ") <>) $ do
+                unless (length controls == ins) $
+                    Left $ "input count " <> showt ins
+                        <> " doesn't match controls: "
+                        <> pretty (map fst controls)
+                unless (outs `elem` [1, 2]) $
+                    Left $ "expected 1 or 2 outputs, got " <> showt outs
+                Right (name, (doc, controls))
     return (makeSynth patches, warnings)
 
 -- | Declaration for "Local.Instrument".
 makeSynth :: [(Note.PatchName, (Text, [(Control.Control, Text)]))]
     -> Inst.SynthDecl Cmd.InstrumentCode
 makeSynth patches = Inst.SynthDecl Config.faustName "音 faust synthesizer"
-    [ (name, makeInst description controls)
+    -- Control.gate is used internally, so don't expose that.
+    [ (name, makeInst description (filter ((/=Control.gate) . fst) controls))
     | (name, (description, controls)) <- patches
     ]
 

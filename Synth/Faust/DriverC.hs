@@ -6,6 +6,7 @@
 module Synth.Faust.DriverC (
     Patch, Instrument, asPatch
     , getPatches
+    , getPatchMetadata
     , getControls
     , getUiControls
     -- * Instrument
@@ -57,9 +58,9 @@ foreign import ccall "faust_patches"
 -- The convention is that controls are called declare control#_name "Doc.".
 -- The # is so they sort in the same order as the input signals to which they
 -- correspond.
-getControls :: Patch -> IO (Text, [(Control.Control, Text)])
+getPatchMetadata :: Patch -> IO (Text, [(Control.Control, Text)])
     -- ^ patch description, control names in their input order
-getControls patch = do
+getPatchMetadata patch = do
     meta <- getMetadata patch
     return
         ( Map.findWithDefault "" "description" meta
@@ -68,6 +69,11 @@ getControls patch = do
           , "control" `Text.isPrefixOf` k
           ]
         )
+
+-- | Get supported controls.  The order is important, since it's the same order
+-- 'render' expects to see them.
+getControls :: Patch -> IO [Control.Control]
+getControls = fmap (map fst . snd) . getPatchMetadata
 
 getMetadata :: Patch -> IO (Map Text Text)
 getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do

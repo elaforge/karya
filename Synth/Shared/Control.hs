@@ -21,3 +21,8 @@ dynamic = "dyn" -- TODO this and Score.c_dynamic should come from the same place
 -- | Pitch in NoteNumbers.
 pitch :: Control
 pitch = "pitch"
+
+-- | Used by some synths to mark note start and end times.  This should be used
+-- internally, not exposed.
+gate :: Control
+gate = "gate"
