@@ -425,7 +425,7 @@ playCacheBinary = CcBinary
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
     , ccRelativeDeps =
-        map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
+        map ("Synth/vst"</>) ["Sample.cc.o", "Samples.cc.o", "PlayCache.cc.o"]
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
         , "-I" ++ Config.vstBase
@@ -1264,7 +1264,7 @@ writeGhciFlags modeConfig =
 makeDataLinks :: IO ()
 makeDataLinks = do
     Directory.createDirectoryIfMissing True buildDocDir
-    run $ Posix.createSymbolicLink "../../../data" (buildDocDir </> "data")
+    run $ Posix.createSymbolicLink "../../../data/www" (buildDocDir </> "data")
     run $ Posix.createSymbolicLink "../../doc/img" (buildDocDir </> "img")
     return ()
     where run = File.ignoreError IO.Error.isAlreadyExistsError
