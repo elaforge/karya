@@ -11,7 +11,9 @@ import Global
 
 -- | Unlike ScoreTypes.Control, pitch is just another control.
 newtype Control = Control Text
-    deriving (Eq, Ord, Show, String.IsString, Serialize.Serialize, Pretty)
+    deriving (Eq, Ord, Show, String.IsString, Serialize.Serialize)
+
+instance Pretty Control where pretty (Control c) = c
 
 dynamic :: Control
 dynamic = "dyn" -- TODO this and Score.c_dynamic should come from the same place

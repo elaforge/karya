@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Export a 'synth' with all the supported patches.
-module Synth.Faust.PatchDb (synth) where
+module Synth.Faust.PatchDb (synth, warnings) where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified System.IO.Unsafe as Unsafe
 
@@ -21,13 +22,20 @@ import Global
 
 
 synth :: Inst.SynthDecl Cmd.InstrumentCode
-synth = Unsafe.unsafePerformIO $ do
+warnings :: [Text]
+(synth, warnings) = Unsafe.unsafePerformIO $ do
     -- These are in IO, but should be safe, because they are just reading
     -- static data.
-    patches <- DriverC.getPatches
-    patches <- forM (Map.toList patches) $ \(name, patch) -> do
-        (name,) <$> DriverC.getControls patch
-    return $ makeSynth patches
+    patches <- Map.toList <$> DriverC.getPatches
+    inputs <- mapM (DriverC.patchInputs . snd) patches
+    (warnings, patches) <- fmap Either.partitionEithers $
+        forM (zip patches inputs) $ \((name, patch), inputs) -> do
+            (doc, controls) <- DriverC.getControls patch
+            return $ if length controls == inputs
+                then Right (name, (doc, controls))
+                else Left $ "faust/" <> name <> " input count " <> showt inputs
+                    <> " doesn't match controls: " <> pretty (map fst controls)
+    return (makeSynth patches, warnings)
 
 -- | Declaration for "Local.Instrument".
 makeSynth :: [(Note.PatchName, (Text, [(Control.Control, Text)]))]

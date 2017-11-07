@@ -39,8 +39,8 @@ int faust_controls(Patch patch, const char ***out_controls,
 // Initilaize a new instrument.
 Instrument faust_initialize(Patch patch, int sample_rate);
 void faust_destroy(Instrument instrument);
-int faust_num_inputs(Instrument instrument);
-int faust_num_outputs(Instrument instrument);
+int faust_num_inputs(Patch patch);
+int faust_num_outputs(Patch patch);
 
 // Pass a ControlSample array for each control.  Interpolate controls from
 // start_frame to end_frame, passing them to inst->compute, and writing output.

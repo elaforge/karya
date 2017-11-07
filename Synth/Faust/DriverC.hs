@@ -4,12 +4,12 @@
 
 -- | Low level binding to driver.cc.
 module Synth.Faust.DriverC (
-    Patch, Instrument
+    Patch, Instrument, asPatch
     , getPatches
     , getControls
     , getUiControls
     -- * Instrument
-    , withInstrument, instrumentInputs, instrumentOutputs
+    , withInstrument, patchInputs, patchOutputs
     , render
 ) where
 import qualified Control.Exception as Exception
@@ -35,6 +35,10 @@ data DspP
 -- | An allocated patch.
 type Instrument = Ptr DspI
 data DspI
+
+-- | A Patch is just a const Instrument.
+asPatch :: Instrument -> Patch
+asPatch = Foreign.castPtr
 
 -- | Get all patches and their names.
 getPatches :: IO (Map Text Patch)
@@ -116,24 +120,28 @@ destroy = c_faust_destroy
 -- void faust_destroy(Instrument instrument);
 foreign import ccall "faust_destroy" c_faust_destroy :: Instrument -> IO ()
 
-instrumentInputs, instrumentOutputs :: Instrument -> IO Int
-instrumentInputs = fmap fromIntegral . c_faust_num_inputs
-instrumentOutputs = fmap fromIntegral . c_faust_num_outputs
+patchInputs, patchOutputs :: Patch -> IO Int
+patchInputs = fmap fromIntegral . c_faust_num_inputs
+patchOutputs = fmap fromIntegral . c_faust_num_outputs
 
-foreign import ccall "faust_num_inputs"
-    c_faust_num_inputs :: Instrument -> IO CInt
-foreign import ccall "faust_num_outputs"
-    c_faust_num_outputs :: Instrument -> IO CInt
+foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> IO CInt
+foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> IO CInt
 
 type Frames = Int
 type Sample = Signal.Sample Double
 
+-- | Render a note on the instrument, and return samples.
 render :: Instrument  -> Frames -> Frames -> [(Ptr Sample, Int)]
+    -- ^ (control signal breakpoints, number of Samples)
     -> IO [Vector.Storable.Vector Float]
 render inst start end controlLengths = do
+    inputs <- patchInputs (asPatch inst)
+    unless (length controlLengths == inputs) $
+        errorIO $ "instrument has " <> showt inputs
+            <> " controls, but was given " <> showt (length controlLengths)
     let (controls, lens) = unzip controlLengths
     let frames = end - start
-    outputs <- instrumentOutputs inst
+    outputs <- patchOutputs (asPatch inst)
     buffer_fptrs <- mapM Foreign.mallocForeignPtrArray
         (replicate outputs frames)
     -- Holy manual memory management, Batman.

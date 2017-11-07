@@ -146,15 +146,15 @@ faust_destroy(Instrument instrument)
 }
 
 int
-faust_num_inputs(Instrument instrument)
+faust_num_inputs(Patch patch)
 {
-    return instrument->getNumInputs();
+    return const_cast<dsp *>(patch)->getNumInputs();
 }
 
 int
-faust_num_outputs(Instrument instrument)
+faust_num_outputs(Patch patch)
 {
-    return instrument->getNumOutputs();
+    return const_cast<dsp *>(patch)->getNumOutputs();
 }
 
 // render //////////////////////////////
@@ -227,16 +227,16 @@ faust_render(Instrument inst, int start_frame, int end_frame,
 {
     ASSERT(end_frame >= start_frame);
 
-    int controls_length = inst->getNumInputs();
+    int ncontrols = inst->getNumInputs();
     FAUSTFLOAT **input =
-        (FAUSTFLOAT **) calloc(controls_length, sizeof(FAUSTFLOAT *));
-    for (int i = 0; i < controls_length; i++) {
+        (FAUSTFLOAT **) calloc(ncontrols, sizeof(FAUSTFLOAT *));
+    for (int i = 0; i < ncontrols; i++) {
         input[i] = interpolate_control(
             inst->getSampleRate(), controls[i], control_lengths[i],
             start_frame, end_frame);
     }
     inst->compute(end_frame - start_frame, input, output);
-    for (int i = 0; i < controls_length; i++) {
+    for (int i = 0; i < ncontrols; i++) {
         free(input[i]);
     }
     free(input);

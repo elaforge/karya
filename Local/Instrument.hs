@@ -89,6 +89,16 @@ im_synths =
 #endif
     ]
 
+-- | Warnings validating synths.  TODO this should probably be merged with
+-- MidiInst.Synth.
+synth_warnings :: [Text]
+synth_warnings = concat
+    [
+#if defined(ENABLE_IM) && !defined(TESTING)
+    Faust.PatchDb.warnings
+#endif
+    ]
+
 internal_synths :: [MidiInst.Synth]
 internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
 
@@ -114,7 +124,7 @@ load app_dir = do
         Left err -> Log.warn (txt err) >> return mempty
         Right annots -> return annots
     let (db, warns) = Inst.db synths
-    forM_ warns $ \msg -> Log.warn $ "inst db: " <> msg
+    forM_ (synth_warnings ++ warns) $ \msg -> Log.warn $ "inst db: " <> msg
     (db, not_found) <- return $ Inst.annotate annots db
     unless (null not_found) $
         Log.warn $ "annotated instruments not found: " <> pretty not_found

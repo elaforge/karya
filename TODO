@@ -101,6 +101,7 @@ NESS:
     - Can I get a muted string effect by plucking while touching with low
       force?
     - Get harmonics working.
+    - Ornament for strums.
 
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
@@ -476,6 +477,7 @@ UNSORTED
 IN PROGRESS / branch: branches:
   . This has longer term projects, which are partially complete.
   signal-discontinuity:
+    . A solution here should also be able to solve signal-offset below.
     - I need a more systematic solution for signal-discontinuity.
       . As well as docs for the NOTE in Util.TimeVector.
       . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
@@ -845,7 +847,7 @@ IN PROGRESS / branch: branches:
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . branch shake-targets
-  - signal-offset
+  - signal-offset:
     . Extend TimeVector with an offset, so I can get rid of
       Score.event_untransformed_controls and the like.
     . After this I'd like to make Score.Event's fields private so e.g.
@@ -957,15 +959,9 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
     * karya infers muted instruments and sends them to PlayCache
     * PlayCache reads blocks and mutes, mixes multiple outfile files
-    - FaustIm writes separate files for each instrument
     * Ness.Convert writes separate files for each instrument
     * I should use a subdir for the tracks.
 
-  - Move resampling to play_cache.
-  - The im/ directory is fundamentally global, since PlayCache hardcodes
-    a single path.  It could be theoretically configured, but I'd probably
-    have to do it manually via some kind of VST GUI, and save in the VST
-    preset mechanism, and it sounds like a lot of hassle.
   signal-discontinuities:
     . Emit signal discontinuities explicitly.
     . If I say signals are now have linear interpolation by default, then
@@ -1062,9 +1058,19 @@ synth: im:
     . Per-instrument or per-track rendering.  The synth tags rendered chunks
       with track and instrument, karya protocal can disable, and play_cache
       omits those.
+  play_cache: PlayCache:
+    - Move resampling to play_cache.
+    - Theoretically I should be doing sample loading in a non-audio thread.
+      In practice it seems to be fine
+    - Stream samples instead of loading them all at once.
+    - The im/ directory is fundamentally global, since PlayCache hardcodes
+      a single path.  It could be theoretically configured, but I'd probably
+      have to do it manually via some kind of VST GUI, and save in the VST
+      preset mechanism, and it sounds like a lot of hassle.
   faust:
-    - Concatenate signals for all notes, and synthesize a gate signal to mark
-      note starts and stops.
+    - Write separate files for each instrument
+      - Concatenate signals for all notes, and synthesize a gate signal to mark
+        note starts and stops.
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.  'dyn' should go to 'dynamic' or
       'gain'.
