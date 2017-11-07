@@ -179,7 +179,7 @@ another note track below it.  E.g.
 ```
 
 In this case, the `tuplet` call (really named `t`, defined in
-'Derive.Call.Prelude.Parent') slices events within its duration, so it gets
+'Derive.C.Prelude.Parent') slices events within its duration, so it gets
 `a` and `b` as arguments and is free to do with them as it wishes.  This is
 how ornaments that transform multiple other notes are implemented.
 

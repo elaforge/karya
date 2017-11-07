@@ -15,7 +15,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
-import qualified Derive.Call.All as Call.All
+import qualified Derive.C.All as C.All
 import qualified Local.Config.Mehitabel as Mehitabel
 import qualified Local.Config.Tammananny as Tammananny
 import qualified Local.Instrument
@@ -34,7 +34,7 @@ load_static_config = do
     return $ StaticConfig.StaticConfig
         { instrument_db = instrument_db
         , global_cmds = global_cmds
-        , library = Call.All.library
+        , library = C.All.library
         , setup_cmd = parse_args
         , midi = midi
         , highlight_colors = Config.highlight_colors

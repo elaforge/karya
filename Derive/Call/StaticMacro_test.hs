@@ -5,11 +5,11 @@
 module Derive.Call.StaticMacro_test where
 import Util.Test
 import qualified Derive.Attrs as Attrs
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.StaticMacro as StaticMacro
 import Derive.Call.StaticMacro (Arg(..))
 import qualified Derive.Derive as Derive

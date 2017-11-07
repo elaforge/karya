@@ -5,14 +5,14 @@
 module Cmd.CallDoc_test where
 import Util.Test
 import qualified Cmd.CallDoc as CallDoc
-import qualified Derive.Call.All as Call.All
+import qualified Derive.C.All as C.All
 import qualified Derive.Scale.All as Scale.All
 
 
 test_doc_html = do
     -- Mostly this just makes HPC coverage for all the documentation.
     let hstate = ("haddock", mempty)
-    not_equal (CallDoc.doc_html hstate (CallDoc.library Call.All.library))
+    not_equal (CallDoc.doc_html hstate (CallDoc.library C.All.library))
         mempty
     not_equal (CallDoc.scales_html hstate (CallDoc.scale_docs Scale.All.docs))
         mempty

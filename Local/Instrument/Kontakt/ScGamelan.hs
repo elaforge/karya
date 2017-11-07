@@ -15,7 +15,7 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Bali.Gangsa as Gangsa
+import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales

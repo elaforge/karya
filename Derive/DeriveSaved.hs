@@ -25,7 +25,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Cache as Cache
-import qualified Derive.Call.All as Call.All
+import qualified Derive.C.All as C.All
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -184,7 +184,7 @@ cmd_config inst_db = do
         , config_rdev_map = mempty
         , config_wdev_map = mempty
         , config_instrument_db = inst_db
-        , config_library = Call.All.library
+        , config_library = C.All.library
         , config_highlight_colors = mempty
         , config_im = Shared.Config.Config mempty
         -- You shouldn't be saving any checkpoints from here, so I can use

@@ -14,10 +14,10 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.C.Europe.Grace as Grace
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
-import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal

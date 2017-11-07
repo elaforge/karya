@@ -22,7 +22,7 @@ import qualified Cmd.KeyLayouts as KeyLayouts
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
-import qualified Derive.Call.All as Call.All
+import qualified Derive.C.All as C.All
 import qualified Derive.Scale.All as Scale.All
 import Global
 
@@ -35,7 +35,7 @@ main = do
         ["calls"] -> do
             hstate <- Doc.get_html_state "../haddock" "."
             Text.IO.putStr $ Doc.un_html $ CallDoc.doc_html hstate $
-                CallDoc.library Call.All.library
+                CallDoc.library C.All.library
         ["scales"] -> do
             hstate <- Doc.get_html_state "../haddock" "."
             Text.IO.putStr $ Doc.un_html $ CallDoc.scales_html hstate $

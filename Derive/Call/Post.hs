@@ -35,7 +35,7 @@ import qualified Data.List as List
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env

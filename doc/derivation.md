@@ -621,7 +621,7 @@ on the relevant bit of track.
 random, but always the same random, and if you get something you like, you want
 to fix it to that version.
 
-Calls that want randomness can use the various calls in 'Derive.Call.Util' to
+Calls that want randomness can use the various functions in 'Derive.Call' to
 get a pseudo-random number.  The number depends soley on the random
 'Derive.EnvKey.seed', so if the seed is the same, the number will always be
 the same.  The seed is hashed with each stack frame as it is added, so
@@ -635,4 +635,4 @@ it manually, or you can ask for a different variation by setting a new seed.
 Because the seed depends on the stack, two calls on the same event will get the
 same random sequence.  Hopefully that's not a problem.
 
-'Derive.Call.Prelude.Random' has some randomness-using calls.
+'Derive.C.Prelude.Random' has some randomness-using calls.

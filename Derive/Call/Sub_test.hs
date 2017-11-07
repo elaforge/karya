@@ -9,8 +9,8 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Args as Args
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest

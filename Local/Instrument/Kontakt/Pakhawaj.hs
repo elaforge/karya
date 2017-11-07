@@ -10,8 +10,8 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.India.Pakhawaj as Pakhawaj
-import Derive.Call.India.Pakhawaj (Stroke(..))
+import qualified Derive.C.India.Pakhawaj as Pakhawaj
+import Derive.C.India.Pakhawaj (Stroke(..))
 import qualified Derive.Expr as Expr
 
 import qualified Perform.NN as NN

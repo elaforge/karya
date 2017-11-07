@@ -6,9 +6,8 @@
 module Derive.SpaceLeak_profile where
 import qualified Util.Seq as Seq
 import qualified Util.Testing as Testing
-
+import qualified Derive.C.Post.Postproc as Postproc
 import qualified Derive.Call.Post as Post
-import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream

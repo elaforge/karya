@@ -16,7 +16,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Ruler.Meter as Meter
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Bali.Gong as Gong
+import qualified Derive.C.Bali.Gong as Gong
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive

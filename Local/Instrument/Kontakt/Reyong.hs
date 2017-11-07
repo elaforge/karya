@@ -7,7 +7,7 @@ module Local.Instrument.Kontakt.Reyong where
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Bali.Reyong as Reyong
+import qualified Derive.C.Bali.Reyong as Reyong
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Selisir as Selisir

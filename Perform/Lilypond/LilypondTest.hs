@@ -18,8 +18,8 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env

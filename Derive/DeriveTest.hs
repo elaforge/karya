@@ -40,8 +40,8 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Call.All as Call.All
-import qualified Derive.Call.Prelude.Block as Prelude.Block
+import qualified Derive.C.All as C.All
+import qualified Derive.C.Prelude.Block as Prelude.Block
 import Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -478,7 +478,7 @@ cmd_config inst_db = Cmd.Config
     , config_rdev_map = mempty
     , config_wdev_map = mempty
     , config_instrument_db = inst_db
-    , config_library = Call.All.library
+    , config_library = C.All.library
     , config_highlight_colors = Config.highlight_colors
     , config_im = Shared.Config.Config $ Map.fromList
         [ ("im-synth", Shared.Config.Synth
@@ -512,7 +512,7 @@ default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Cmd.lookup_scale
 
 default_library :: Derive.Library
-default_library = Call.All.library
+default_library = C.All.library
 
 default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant

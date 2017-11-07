@@ -20,11 +20,11 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.C.Prelude.Articulation as Articulation
+import qualified Derive.C.Prelude.Highlight as Highlight
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Articulation as Articulation
-import qualified Derive.Call.Prelude.Highlight as Highlight
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey

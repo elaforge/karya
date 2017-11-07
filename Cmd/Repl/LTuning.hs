@@ -34,8 +34,8 @@ import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.C.Prelude.Equal as Equal
 import qualified Derive.Call as Call
-import qualified Derive.Call.Prelude.Equal as Equal
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales

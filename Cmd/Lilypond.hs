@@ -29,8 +29,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
-import qualified Derive.Call.Prelude.Block as Call.Block
-import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.C.Prelude.Block as C.Block
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -53,7 +53,7 @@ derive_block :: Cmd.M m => BlockId -> m Derive.Result
 derive_block block_id = do
     -- Make sure a bad block id will fail right away.
     _ <- Ui.get_block block_id
-    derive $ Call.Block.eval_root_block block_id
+    derive $ C.Block.eval_root_block block_id
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.

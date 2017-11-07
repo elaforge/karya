@@ -15,9 +15,9 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
+import qualified Derive.C.Bali.Gangsa as Gangsa
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
-import qualified Derive.Call.Bali.Gangsa as Gangsa
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval

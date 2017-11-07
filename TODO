@@ -1278,9 +1278,12 @@ integrate / integration:
     - quantization
 
 lilypond:
-  - The Lily module shouldn't be in Prelude, since it's actually not in the
+  * The Lily module shouldn't be in Prelude, since it's actually not in the
     prelude namespace.  It could go to Derive.Call.Ly, and current
     Derive.Call.Ly to Derive.Call.Lily or Derive.Call.LyUtil.
+    . On the other hand, it's nice to have call definitions in a directory.
+      Maybe they should all be in something like Derive.Call.C.Prelude,
+      Derive.Call.C.Bali, etc.
   - Lilypond complains about simultaneous tempo marks due to the ly-global
     distribution.
     . I guess I want just one after all.  But what about extracted parts?

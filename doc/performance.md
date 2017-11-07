@@ -119,7 +119,7 @@ While some calls are replaced outright with lilypond-emitting versions, others
 change their behaviour when they notice they are being derived in lilypond
 mode.  Which is which is just a question of code modularity.  Other calls exist
 only to emit lilypond.  The library of lilypond-specific calls is in
-'Derive.Call.Lily', and are in the 'Derive.Call.Module.ly' module.  You can
+'Derive.C.Lily', and are in the 'Derive.Call.Module.ly' module.  You can
 search for them [call doc](calls.html) with `m:ly`.
 
 <img align=right width=180 src="img/example-tracks.png">
