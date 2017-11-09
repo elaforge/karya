@@ -204,34 +204,58 @@ test_c_byong = do
 -- * damp
 
 test_c_infer_damp = do
-    let run = DeriveTest.extract extract
+    let run = DeriveTest.extract e_damped_event
             . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
             . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp_dyn e)
     -- +undamped prevents damping.
     equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])
-        ([(0, "4i", Nothing), (1, "4o", Nothing), (1, "4i", Just 0.5)], [])
+        ([(0, "4i", '-'), (1, "4o", '-'), (1, "4i", '+')], [])
     -- Too fast, no damp for 4i.
     equal (run [(0, 0.5, "4i"), (0.5, 0.5, "4o"), (1, 1, "4i")])
-        ( [ (0, "4i", Nothing), (0.5, "4o", Nothing)
-          , (1, "4i", Nothing), (1, "4o", Just 0.5), (2, "4i", Just 0.5)
+        ( [ (0, "4i", '-'), (0.5, "4o", '-')
+          , (1, "4i", '-'), (1, "4o", '+'), (2, "4i", '+')
           ]
         , []
         )
     -- Repeated notes, only the second is damped.
     equal (run [(0, 1, "4i"), (1, 1, "4i")])
-        ([(0, "4i", Nothing), (1, "4i", Nothing), (2, "4i", Just 0.5)], [])
+        ([(0, "4i", '-'), (1, "4i", '-'), (2, "4i", '+')], [])
+    equal (run [(0, 1, "4i")]) ([(0, "4i", '-'), (1, "4i", '+')], [])
+
+test_c_infer_damp_ngoret = do
+    let run = DeriveTest.extract e_damped_event
+            . DeriveTest.derive_tracks title_realize
+            . UiTest.note_track
+    -- First note is muted, but the grace note is too quick.
+    equal (run [(0, 1, "4i"), (1, 1, "' -- 4e")])
+        ( [ (0, "4i", '-'), (0.9, "4o", '-')
+          , (1, "4e", '-'), (1, "4i", '+')
+          , (2, "4e", '+')
+          ]
+        , []
+        )
+
+-- TODO oops, is this a duplicate with the above?
+test_ngoret = do
+    let run = DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
+            . DeriveTest.derive_tracks title_realize
+            . UiTest.note_track
+    let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
+    let e_notes ns = [n | (Nothing, n) <- ns]
+    equal (first e_notes $ run tracks)
+        ([(0, 2, "4i"), (1.75, 0.25, "4o"), (2, 2, "4e")], [])
+    let e_damps ns = [(s, p) | (Just _, (s, _, p)) <- ns]
+    equal (first e_damps $ run tracks) ([(2, "4i"), (4, "4e")], [])
 
 test_c_infer_damp_kotekan = do
-    let run = e_voice 2 extract . DeriveTest.derive_tracks (title_damp 1.5)
-            . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp_dyn e)
+    let run = e_voice 2 e_damped_event
+            . DeriveTest.derive_tracks (title_damp 1.5) . UiTest.note_track
     -- The first 5i is too fast, so no damp.
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
         ( Just
-            [ (0, "5i", Nothing)
-            , (2, "5i", Nothing), (3, "5o", Nothing)
-            , (3, "5i", Just 1), (4, "5o", Just 1)
+            [ (0, "5i", '-')
+            , (2, "5i", '-'), (3, "5o", '-')
+            , (3, "5i", '+'), (4, "5o", '+')
             ]
         , []
         )
@@ -253,13 +277,19 @@ test_c_infer_damp_cek = do
         , []
         )
 
+e_damped_event :: Score.Event -> (RealTime, Text, Char)
+e_damped_event e = (Score.event_start e, DeriveTest.e_pitch e, e_damped e)
+
+e_damped :: Score.Event -> Char
+e_damped e = if Score.has_attribute Attrs.mute e then '+' else '-'
+
 e_damp_dyn :: Score.Event -> Maybe Signal.Y
 e_damp_dyn e
     | Score.has_attribute Attrs.mute e = Just (Score.initial_dynamic e)
     | otherwise = Nothing
 
 test_infer_damp = do
-    let f dur = Reyong.infer_damp (const dur) . mkevents
+    let f dur = fst . Reyong.infer_damp (const dur) . mkevents
     -- Damp with the other hand.
     equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [1, 1, 1]
     -- 4e can't be damped because both hands are busy.
@@ -271,7 +301,7 @@ test_infer_damp = do
     equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) [1, 1, 1, 1]
 
 test_assign_hands = do
-    let f = map fst . Reyong.assign_hands . mkevents
+    let f = map fst . fst . Reyong.assign_hands . mkevents
     equal (f [(0, "4c"), (1, "4c"), (2, "4d"), (3, "4d"), (4, "4c")])
         [L, L, R, R, L]
     equal (f [(0, "4c"), (1, "4d"), (2, "4e")]) [L, R, R]
@@ -285,19 +315,6 @@ show_pitch :: Maybe Pitch.Pitch -> Text
 show_pitch Nothing = "-"
 show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
     showt oct <> Text.singleton ("ioeua" !! d)
-
--- * ngoret
-
-test_ngoret = do
-    let run = DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
-            . DeriveTest.derive_tracks title_realize
-            . UiTest.note_track
-    let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
-    let e_notes ns = [n | (Nothing, n) <- ns]
-    equal (first e_notes $ run tracks)
-        ([(0, 2, "4i"), (1.75, 0.25, "4o"), (2, 2, "4e")], [])
-    let e_damps ns = [(s, p) | (Just _, (s, _, p)) <- ns]
-    equal (first e_damps $ run tracks) ([(2, "4i"), (4, "4e")], [])
 
 -- * octave transposition
 

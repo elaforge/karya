@@ -156,7 +156,24 @@ UNSORTED
       depending on tag/version.
   - Adding a new track puts a bit of extra padding on the right side.
   tabuh gari:
-    - infer-damp for trompong, or better reyong one
+    * infer-damp for trompong, or better reyong one
+      . After ngoret, the first note overlaps the grace, so the damp is later.
+      . But why two +mutes?
+      . I should treat a note end before the next note as as a suggestion to
+        mute there, which can be ignored.
+      . So first transform to use explicit mutes.
+      . Normally ngoret's grace note doesn't get damped, so give it +undamped.
+        Sometimes it might though, so it could have a flag.
+      . Or I could accept the overlap, and infer that I can't damp the grace
+        note while striking the next.
+      . It was all due to using infer-damp instead of realize-reyong.  Ouch.
+    - Have a Derive.run_logs :: Log.LogMonad m => m a -> Derive.Deriver a
+      which lets me run pure-except-logs.
+    - Log events with their stacks.
+    - Can I have a way to display inferred things about notes, such as reyong
+      hand, and damping status?  I could integrate it back into a score but
+      with text on the notes, sort of like a visual log.
+
     / double strike, like 'oo'
       . I have this in `t oo`
     - octaves notation for trompong
@@ -2153,6 +2170,8 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - sometimes vim fails even though the app is open:
+    App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
   - :h should put the selected cmd into the history
   - something like :h where I can edit a single line
     . Maybe a control key, so I can edit the contents of the current line.
