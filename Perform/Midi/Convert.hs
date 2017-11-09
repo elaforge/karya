@@ -9,7 +9,6 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -88,9 +87,9 @@ convert_event lookup event patch config = run $ do
         , event_stack = Score.event_stack event
         }
 
-run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
-run = merge . Identity.runIdentity . Log.run
-    where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
+run :: Log.LogId a -> [LEvent.LEvent a]
+run action = LEvent.Event note : map LEvent.Log logs
+    where (note, logs) = Log.run_id action
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the
 -- keymap.  Otherwise convert the pitch signal.

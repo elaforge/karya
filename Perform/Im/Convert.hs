@@ -4,7 +4,6 @@
 
 -- | Convert 'Score.Event's to the low-level event format, 'Note.Note'.
 module Perform.Im.Convert (write) where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
@@ -74,9 +73,9 @@ convert_element_key patch event = do
     key <- Patch.patch_element_key patch
     Env.maybe_val key (Score.event_environ event)
 
-run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
-run = merge . Identity.runIdentity . Log.run
-    where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
+run :: Log.LogId a -> [LEvent.LEvent a]
+run action = LEvent.Event note : map LEvent.Log logs
+    where (note, logs) = Log.run_id action
 
 convert_signal :: Perform.Signal.Signal a -> Signal.Signal
 convert_signal = Perform.Signal.sig_vec

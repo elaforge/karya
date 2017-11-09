@@ -27,7 +27,7 @@ module Util.Log (
     , trace_logs
     -- * LogT monad
     , LogMonad(..)
-    , LogT, run
+    , LogT, run, LogId, run_id
     , format_msg
     , serialize, deserialize
 
@@ -40,6 +40,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
 import qualified Control.Monad.State.Lazy as State.Lazy
@@ -328,6 +329,11 @@ newtype LogT m a = LogT { run_log_t :: LogM m a }
 
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t
+
+type LogId a = LogT Identity.Identity a
+
+run_id :: LogId a -> (a, [Msg])
+run_id = Identity.runIdentity . run
 
 -- ** mtl instances
 

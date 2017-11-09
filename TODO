@@ -167,7 +167,7 @@ UNSORTED
       . Or I could accept the overlap, and infer that I can't damp the grace
         note while striking the next.
       . It was all due to using infer-damp instead of realize-reyong.  Ouch.
-    - Have a Derive.run_logs :: Log.LogMonad m => m a -> Derive.Deriver a
+    * Have a Derive.run_logs :: Log.LogMonad m => m a -> Derive.Deriver a
       which lets me run pure-except-logs.
     * Log events with their stacks.
     - Can I have a way to display inferred things about notes, such as reyong

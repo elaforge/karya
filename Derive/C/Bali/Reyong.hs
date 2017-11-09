@@ -708,8 +708,9 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
         dur <- Call.to_function dur
         -- infer_damp only adds a %damp control, so it preserves order, so
         -- Post.apply is safe.  TODO Is there a way to express this statically?
-        Post.apply_m (infer_damp_voices (Set.fromList insts)
-            (RealTime.seconds . dur)) =<< deriver
+        Post.apply_m (Derive.run_logs
+            . infer_damp_voices (Set.fromList insts) (RealTime.seconds . dur))
+                =<< deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
@@ -722,7 +723,7 @@ damp_control = "damp"
 -- it is not too busy.
 infer_damp_voices :: Set Score.Instrument -> (RealTime -> RealTime)
     -- ^ duration required to damp
-    -> [Score.Event] -> Derive.Deriver [Score.Event]
+    -> [Score.Event] -> Log.LogId [Score.Event]
 infer_damp_voices damped_insts dur_at events = do
     unless (null skipped) $
         Log.warn $ "skipped events without pitch: "

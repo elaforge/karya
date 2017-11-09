@@ -955,6 +955,14 @@ shift_control shift deriver = do
     nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PSignal.shift
 
+-- | Embed a LogId into Deriver.  This is for computations that need logging
+-- but not a full Deriver.
+run_logs :: Log.LogId a -> Deriver a
+run_logs action = do
+    let (val, logs) = Log.run_id action
+    mapM_ Log.write logs
+    return val
+
 -- * call
 
 -- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
