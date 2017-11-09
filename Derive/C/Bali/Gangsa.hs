@@ -74,7 +74,7 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("norot", c_norot False Nothing)
+    ([ ("norot", c_norot False Nothing)
     -- Alias for norot.  It's separate so I can rebind this locally.
     , ("nt", c_norot False Nothing)
     , ("nt-", c_norot False (Just False))
@@ -130,12 +130,7 @@ note_calls = Derive.call_maps
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_regular Nothing Telu)
     , ("ke", c_kotekan_explicit)
-
-    , ("'", c_ngoret $ pure Nothing)
-    , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
-    , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
-    , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
-    ]
+    ] ++ Gender.ngoret_variations c_ngoret)
     [ ("i+", Make.environ_val module_ "i+" "initial" True
         "Kotekan calls will emit a note on the initial beat.")
     , ("i-", Make.environ_val module_ "i-" "initial" False

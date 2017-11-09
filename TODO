@@ -174,8 +174,8 @@ UNSORTED
       hand, and damping status?  I could integrate it back into a score but
       with text on the notes, sort of like a visual log.
 
-    / double strike, like 'oo'
-      . I have this in `t oo`
+    * double strike, like 'oo'
+      . For after, I have 't oo', for before I have '-.
     - octaves notation for trompong
     - octaves for gender rambat
     - I get the wrong pitch on too-high trompong notes

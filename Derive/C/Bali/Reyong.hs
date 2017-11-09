@@ -71,7 +71,7 @@ module_ = "bali" <> "reyong"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("kilit", realize_pattern norot_patterns)
+    ([ ("kilit", realize_pattern norot_patterns)
     , (">kilit", realize_pattern norot_prepare_patterns)
     -- kilit is probably redundant now that I have norot.
     , ("norot", c_norot Nothing)
@@ -98,17 +98,13 @@ note_calls = Derive.call_maps
     , ("-", articulation False "byut-loose"
         pos_byong (Attrs.mute <> Attrs.open))
     , ("+", articulation False "byut" pos_byong Attrs.mute)
-    , ("'", c_ngoret $ pure Nothing)
-    , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
-    , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
-    , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
 
     , ("n1", c_solkattu_note [0])
     , ("n2", c_solkattu_note [1])
     , ("n3", c_solkattu_note [2])
     , ("n4", c_solkattu_note [3])
     , ("n14", c_solkattu_note [0, 3])
-    ]
+    ] ++ Gender.ngoret_variations c_ngoret)
     [ ("infer-damp", c_infer_damp)
     , ("cancel-kotekan", c_cancel_kotekan)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)

@@ -5,12 +5,14 @@
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.C.Bali.Gender (
-    note_calls, interval_arg, ngoret, c_realize_ngoret, realize_ngoret
+    note_calls, ngoret_variations
+    , interval_arg, ngoret, c_realize_ngoret, realize_ngoret
     , weak
 ) where
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -19,6 +21,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
@@ -27,7 +30,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (control, typed_control)
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -36,13 +38,18 @@ import Global
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("'", gender_ngoret $ pure Nothing)
-    , ("'n", gender_ngoret $ Just <$> interval_arg)
-    , ("'^", gender_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
-    , ("'_", gender_ngoret $ pure $ Just $ Pitch.Diatonic 1)
-    , ("weak", c_weak)
-    ]
+    (("weak", c_weak) : ngoret_variations gender_ngoret)
     [ ("realize-ngoret", c_realize_ngoret)
+    ]
+
+ngoret_variations :: (Sig.Parser (Maybe Pitch.Transpose) -> call)
+    -> [(Expr.Symbol, call)]
+ngoret_variations make =
+    [ ("'", make $ pure Nothing)
+    , ("'n", make $ Just <$> interval_arg)
+    , ("'^", make $ pure $ Just $ Pitch.Diatonic (-1))
+    , ("'-", make $ pure $ Just $ Pitch.Diatonic 0)
+    , ("'_", make $ pure $ Just $ Pitch.Diatonic 1)
     ]
 
 module_ :: Module.Module
