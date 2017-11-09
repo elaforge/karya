@@ -724,12 +724,12 @@ infer_damp_voices :: Set Score.Instrument -> (RealTime -> RealTime)
     -- ^ duration required to damp
     -> [Score.Event] -> Derive.Deriver [Score.Event]
 infer_damp_voices damped_insts dur_at events = do
-    forM_ (concat skipped) $ \e ->
-        Derive.with_event_stack e $
-            Log.warn $ "skipped event without a pitch: " <> pretty e
+    unless (null skipped) $
+        Log.warn $ "skipped events without pitch: "
+            <> Score.short_events skipped
     return damped
     where
-    (damped, skipped) = first (Seq.merge_lists Score.event_start)
+    (damped, skipped) = (Seq.merge_lists Score.event_start *** concat)
         . unzip . map infer1
         . Seq.keyed_group_sort Post.voice_key $ events
     infer1 ((inst, _voice), events)

@@ -169,7 +169,7 @@ UNSORTED
       . It was all due to using infer-damp instead of realize-reyong.  Ouch.
     - Have a Derive.run_logs :: Log.LogMonad m => m a -> Derive.Deriver a
       which lets me run pure-except-logs.
-    - Log events with their stacks.
+    * Log events with their stacks.
     - Can I have a way to display inferred things about notes, such as reyong
       hand, and damping status?  I could integrate it back into a score but
       with text on the notes, sort of like a visual log.

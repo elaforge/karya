@@ -155,6 +155,8 @@ data Event = Event {
 -- | Format an event in a way suitable for including inline in log messages.
 -- It's short, but hopefully enough information to identify the event in
 -- question.
+--
+-- This is the derive equivalent to 'Cmd.Cmd.log_event'.
 short_event :: Event -> Text
 short_event e = pretty $ foldr1 (Pretty.<+>) $ concat $ filter (not . null)
     [ [Pretty.format (event_start e, event_duration e)]

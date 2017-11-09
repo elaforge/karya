@@ -1342,10 +1342,8 @@ suppress_history mode name cmd = cmd <* modify (\st -> st
 
 -- | Log an event so that it can be clicked on in logview.
 log_event :: BlockId -> TrackId -> Event.Event -> Text
-log_event block_id track_id event = "{s" <> showt frame <> "}"
-    where
-    frame = Stack.unparse_ui_frame
-        (Just block_id, Just track_id, Just (Event.range event))
+log_event block_id track_id event =
+    Stack.log_ui_frame (Just block_id, Just track_id, Just (Event.range event))
 
 -- | Turn off all sounding notes, reset controls.
 -- TODO clear out WriteDeviceState?

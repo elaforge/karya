@@ -88,6 +88,8 @@ generator_macro trans gen vals ctx = do
 
 transformer :: Derive.Callable d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
+    -- ^ Apply these transformers. This is in compose order, so the last one
+    -- is applied first.
     -> Either Text (Derive.Transformer d)
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
