@@ -24,6 +24,7 @@ import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 import qualified Synth.Faust.Convert as Convert
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
@@ -39,19 +40,23 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     patches <- DriverC.getPatches
-    -- Make sure I get some output if the process is killed.
     thread <- Concurrent.myThreadId
+    -- Make sure I get some output if the process is killed.
     Signals.installHandler Signals.sigTERM
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
         ["print-patches"] -> forM_ (Map.toList patches) $ \(name, patch) -> do
-            (doc, controls) <- DriverC.getPatchMetadata patch
-            Text.IO.putStrLn $ name <> " - " <> doc
-            forM_ controls $ \(c, cdoc) ->
-                Text.IO.putStrLn $ pretty c <> ": " <> cdoc
-            uiControls <- DriverC.getUiControls patch
-            forM_ uiControls $ \(c, _, cdoc) ->
-                Text.IO.putStrLn $ "UI: " <> pretty c <> ": " <> cdoc
+            Text.IO.putStrLn $ name <> ":"
+            result <- DriverC.getParsedMetadata patch
+            case result of
+                Left err -> Text.IO.putStrLn $ "ERROR: " <> err
+                Right (doc, controls) -> do
+                    Text.IO.putStrLn $ TextUtil.toText doc
+                    forM_ controls $ \(c, cdoc) ->
+                        Text.IO.putStrLn $ pretty c <> ": " <> cdoc
+                    uiControls <- DriverC.getUiControls patch
+                    forM_ uiControls $ \(c, _, cdoc) ->
+                        Text.IO.putStrLn $ "UI: " <> pretty c <> ": " <> cdoc
             putStrLn ""
         [notesFilename] -> do
             notes <- either (errorIO . pretty) return

@@ -248,3 +248,22 @@ composite_call args composites = mconcatMap (split args) composites
         let strip = Map.filterWithKey $ \control _ -> maybe
                 (Set.notMember control allocated) (Set.member control) controls
         Derive.with_control_maps (strip cmap) (strip cfuncs) deriver
+
+
+-- * control vals
+
+attack_sample_note :: Set Score.Control -> Derive.Generator Derive.Note
+attack_sample_note controls =
+    Note.transformed_note doc mempty (attack_sample controls)
+    where
+    doc = "These controls are sampled at attack time, which means they work\
+        \ with ControlFunctions: "
+        <> Doc.commas (map Doc.pretty (Set.toList controls)) <> ".\n"
+
+attack_sample :: Set Score.Control -> Derive.PassedArgs b -> Derive.Deriver a
+    -> Derive.Deriver a
+attack_sample controls args deriver = do
+    vals <- Derive.controls_at =<< Args.real_start args
+    let sampled = Score.untyped . Signal.constant <$>
+            Map.filterWithKey (\k _ -> k `Set.member` controls) vals
+    Derive.with_controls (Map.toList sampled) deriver

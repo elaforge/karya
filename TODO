@@ -170,9 +170,6 @@ UNSORTED
     * Have a Derive.run_logs :: Log.LogMonad m => m a -> Derive.Deriver a
       which lets me run pure-except-logs.
     * Log events with their stacks.
-    - Can I have a way to display inferred things about notes, such as reyong
-      hand, and damping status?  I could integrate it back into a score but
-      with text on the notes, sort of like a visual log.
 
     * double strike, like 'oo'
       . For after, I have 't oo', for before I have '-.
@@ -957,12 +954,28 @@ documentation:
       that have someone listening to them in a certain scope.
 
 synth: im:
-  What's the current status?
+  overview:
     . Cmd.Performance will serialize im notes and start the binary.
-    . Synth.Sampler will read the notes and write a single wav file with
-      the right start times and start pitches.
+    . sampler-im or faust-im will read the notes and render wav files for each
+      instrument.
     . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
-      which will then play a sample, starting at the right time.
+      which will mix together the unmuted instruments, starting at the given
+      time.
+    - Im instruments should have a midi thru-like preview sound.
+      . One way would be to assign a parallel MIDI instrument for thru.
+      . A fancier way would be to have a realtime im interface.  For that
+        I think I'd need to run the im synthesizers persistently, and talk to
+        them via MIDI or OSC.
+      . A compromise would be a general mechanism to render samples, and then
+        feed that into a realtime sampler.  Of course commercial samplers can
+        do that but would insert a lot of manual work into the process.  So
+        maybe I can write a minimal MIDI VST sampler.
+      . All it needs to do is play a sample with a given pitch (pitch bend
+        and pitch) and velocity.
+    - Incremnetal rendering.
+      . Propagate score damage up to the im perform step.
+      . I have to split the cache into chunks.
+      . Save and restore sythesize state.
   Support track muting.
     . First, I need to separate notes per-track.  For models I actually can't
       do this, because notes on the same instrument affect each other.  It
@@ -1086,11 +1099,34 @@ synth: im:
       have to do it manually via some kind of VST GUI, and save in the VST
       preset mechanism, and it sounds like a lot of hassle.
   faust:
+    - Extend the guitar single string model into a multi-string instrument.
     * Write separate files for each instrument
       * Concatenate signals for all notes, and synthesize a gate signal to mark
         note starts and stops.
-    - Distinguish attack time controls and continuous controls, so I can use
+    * Distinguish attack time controls and continuous controls, so I can use
       Note.controlVals for the continuous ones.
+      . "Point" controls aren't necessarily only wanted at attack time.
+      . And I can imagine wanting pitch plus random offset.  But this requires
+        some kind of more complicated per-control thing, because it depends
+        a lot on the instrument.  E.g. one with continuous pitch I might want
+        to add a offset to 0 curve.
+      . So maybe it's better to do this at instrument-level config, where
+        I can sample some controls.
+      . So revert the Note.control_vals stuff, and introduce a mechanism to
+        sample control vals.
+      . Actually, configuring an instrument's controls as signals or sampled
+        or whatever seems useful for all instruments.  I should have a generic
+        way to configure all patches.
+      . This could be done by per-instrument note call override.  It would be
+        nice to generate this from a description so it can automatically go in
+        the doc though.
+      . I think the place for that is Instrument.Common, so I could add
+        a section concerned with configuration, which is used to automatically
+        configure the note call, or whatever else.
+      . Or actually, why not just use the note call's documentation?  Just
+        make a Derive.Instrument function to make note calls.
+    - Get rid of Score.event_control_vals, and use DUtil.attack_sample_note
+      instead.
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
     - Process each instrument in parallel.
@@ -2162,6 +2198,11 @@ test: testing:
     - stack: generate nested events, check that stack is as expected
   - count number of tests in addition to checks within each test
 
+debugging:
+  - Can I have a way to display inferred things about notes, such as reyong
+    hand, and damping status?  I could integrate it back into a score but
+    with text on the notes, sort of like a visual log.
+
 midi record:
   - implement
   . Ideas for editing recorded MIDI:
@@ -2266,7 +2307,7 @@ Cmd:
 
 Derive:
   - A block with logical range called at time 0 gets messed up.
-  - Add time offset to TimeVector
+  - signal-offset: Add time offset to TimeVector
     . event_transformed_controls etc. are really annoying.  I can get rid of
       them by building the translation into Perform.Signal.
     . The downside is that every signal gets an offset, even though it's

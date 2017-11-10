@@ -6,7 +6,7 @@
 module Synth.Faust.DriverC (
     Patch, Instrument, asPatch
     , getPatches
-    , getPatchMetadata
+    , getParsedMetadata
     , getControls
     , getUiControls
     -- * Instrument
@@ -21,7 +21,10 @@ import qualified Data.Vector.Storable as Vector.Storable
 import qualified Foreign
 
 import qualified Util.CUtil as CUtil
+import qualified Util.Doc as Doc
 import Util.ForeignC
+
+import qualified Ui.Id as Id
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
@@ -53,27 +56,50 @@ getPatches = alloca $ \namespp -> alloca $ \patchpp -> do
 foreign import ccall "faust_patches"
     c_faust_patches :: Ptr (Ptr CString) -> Ptr (Ptr Patch) -> IO CInt
 
--- | Get control names and docs from the faust metadata.
+getParsedMetadata :: Patch
+    -> IO (Either Text (Doc.Doc, [(Control.Control, Text)]))
+getParsedMetadata patch = do
+    inputs <- patchInputs patch
+    outputs <- patchOutputs patch
+    meta <- getMetadata patch
+    return $ do
+        (doc, controls) <- parseMetadata meta
+        unless (length controls == inputs) $
+            Left $ "input count " <> showt inputs
+                <> " doesn't match controls: "
+                <> pretty (map fst controls)
+        unless (outputs `elem` [1, 2]) $
+            Left $ "expected 1 or 2 outputs, got " <> showt outputs
+        -- Control.gate is used internally, so don't expose that.
+        return (Doc.Doc doc, filter ((/=Control.gate) . fst) controls)
+
+parseMetadata :: Map Text Text -> Either Text (Text, [(Control.Control, Text)])
+parseMetadata meta =
+    (Map.findWithDefault "" "description" meta ,) <$> metadataControls meta
+
+-- | Get control names from the faust metadata.
 --
--- The convention is that controls are called declare control#_name "Doc.".
+-- The convention is that controls are declared via:
+--
+-- > declare control#_name "Doc."
+--
 -- The # is so they sort in the same order as the input signals to which they
 -- correspond.
-getPatchMetadata :: Patch -> IO (Text, [(Control.Control, Text)])
-    -- ^ patch description, control names in their input order
-getPatchMetadata patch = do
-    meta <- getMetadata patch
-    return
-        ( Map.findWithDefault "" "description" meta
-        , [ (Control.Control (Text.drop 1 (Text.dropWhile (/='_') k)), v)
-          | (k, v) <- Map.toAscList meta
-          , "control" `Text.isPrefixOf` k
-          ]
-        )
+metadataControls :: Map Text Text -> Either Text [(Control.Control, Text)]
+metadataControls = mapMaybeM parse . Map.toAscList
+    where
+    parse (c, doc)
+        | c == "description" = Right Nothing
+        | Id.valid_symbol stripped =
+            Right $ Just (Control.Control stripped, doc)
+        | otherwise = Left $ "invalid control name: " <> c
+        where stripped = Text.drop 1 $ Text.dropWhile (/='_') c
 
 -- | Get supported controls.  The order is important, since it's the same order
 -- 'render' expects to see them.
 getControls :: Patch -> IO [Control.Control]
-getControls = fmap (map fst . snd) . getPatchMetadata
+getControls =
+    fmap (either (const []) (map fst) . metadataControls) . getMetadata
 
 getMetadata :: Patch -> IO (Map Text Text)
 getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do
