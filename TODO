@@ -1129,7 +1129,7 @@ synth: im:
       instead.
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
-    - Process each instrument in parallel.
+    * Process each instrument in parallel.
     + If I use GUI elements for controls then they update at "control rate",
       which is probably enough actually.  It also means I can reuse the GUI
       controls.
@@ -1141,7 +1141,7 @@ synth: im:
       . UI metadata like [key1: val][key2: val] winds up as calls to
         ui->metadata("key1", "val")
     * Add plucked string and woodwind instruments, with control signals.
-    - Assert that inst->getNumInputs() == length controls.
+    * Assert that inst->getNumInputs() == length controls.
     - Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.
@@ -1196,6 +1196,14 @@ synth: im:
           be able to just save those.
     . https://ccrma.stanford.edu/~rmichon/faustDay2017/
     . http://faust.grame.fr/faustplayground/
+
+  things to change with faust:
+    - Use const on const methods.
+    - Have a way to save and restore state.  E.g. stick instance variables in
+      a bytestring.
+    - Provide access to input signal names so I can get rid of the awkward
+      declare thing.
+    - Export metadata as data, not via the complicated visitor pattern thing.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440

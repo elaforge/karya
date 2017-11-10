@@ -5,6 +5,8 @@
 -- | Offline synthesizer that uses FAUST.
 module Synth.Faust.FaustIm (main) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Async as Async
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
@@ -70,16 +72,18 @@ main = do
 process :: Text -> Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note]
     -> IO ()
 process prefix patches notesFilename notes = do
+    putLock <- MVar.newMVar ()
+    let put msg = MVar.withMVar putLock $ const $
+            Text.IO.putStrLn $ prefix <> ": " <> msg
     put $ "processing " <> showt (length notes) <> " notes"
     let (notFound, patchInstNotes) = lookupPatches patches notes
     unless (null notFound) $
         put $ "patches not found: " <> Text.unwords notFound
-    -- This should catch SIGINT, so I can see who was killed.
+    -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
         async exc = put $ "exception: " <> showt exc
-    -- TODO concurrent map
-    Exception.handle async $ forM_ patchInstNotes $ \(patch, instNotes) ->
-        forM_ instNotes $ \(inst, notes) -> do
+    Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
+        \(patch, inst, notes) -> do
             let output = Config.outputFilename notesFilename (Just inst)
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
@@ -89,11 +93,16 @@ process prefix patches notesFilename notes = do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Sndfile.sinkSnd output AUtil.outputFormat audio
             case result of
-                Left err -> put $ "writing " <> showt output <> ": " <> err
-                Right () -> return ()
+                Left err -> put $ inst <> " writing " <> showt output <> ": "
+                    <> err
+                Right () -> put $ inst <> " done"
     put "done"
     where
-    put = Text.IO.putStrLn . ((prefix <> ": ") <>)
+    flatten patchInstNotes =
+        [ (patch, inst, notes)
+        | (patch, instNotes) <- patchInstNotes
+        , (inst, notes) <- instNotes
+        ]
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])
