@@ -39,6 +39,11 @@ test_at = do
     equal (f (-1) [(1, 2)]) Nothing
     equal (f 0 [(1, 2)]) Nothing
 
+test_at_before = do
+    let sig = signal [(0, 0), (1, 0), (1, 1), (2, 1)]
+    equal (V.at 1 sig) (Just 1)
+    equal (V.at_before 1 sig) (Just 0)
+
 test_at_eta = do
     let f x sig = V.at x (signal sig)
     equal (f 6.666666666666664 [(6.666666666666666, 1)]) (Just 1)
@@ -189,3 +194,9 @@ test_concat_map_accum = do
         , (1, 1), (2, 2)
         , (20, 23)
         ]
+
+test_strip = do
+    let f = unsignal . V.strip . signal
+    equal (f [(0, 0), (1, 0), (1, 1), (2, 1)]) [(0, 0), (1, 0), (1, 1), (2, 1)]
+    equal (f [(0, 0), (1, 1), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]
+    equal (f [(0, 0), (1, 1), (1, 2), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]

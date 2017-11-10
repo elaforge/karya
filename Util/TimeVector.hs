@@ -292,6 +292,14 @@ prepend vec1 vec2 = case last vec1 of
 at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
 at x = fmap snd . sample_at x
 
+-- | This is like 'at', but if there is a signal discontinuity, this is the
+-- value before the discontinuity.  So if you have (1, 0), (1, 1) and ask for 1,
+-- this will be 0, not 1.
+{-# SPECIALIZE at_before :: X -> Unboxed -> Maybe UnboxedY #-}
+{-# INLINEABLE at_before #-}
+at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
+at_before x = fmap snd . sample_at_before x
+
 -- | Find the sample at or before X.  Nothing if the X is before the first
 -- sample.
 --
@@ -307,6 +315,16 @@ sample_at x vec
         Just (Sample x y, _) | x <= 0 -> Just (x, y)
         _ -> Nothing
     where i = highest_index x vec
+
+{-# SPECIALIZE sample_at_before :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
+{-# INLINEABLE sample_at_before #-}
+sample_at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
+sample_at_before x vec
+    | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
+    | otherwise = case uncons vec of
+        Just (Sample x y, _) | x <= 0 -> Just (x, y)
+        _ -> Nothing
+    where i = lowest_index x vec
 
 -- | Find the sample before the given X.
 {-# SPECIALIZE before :: X -> Unboxed -> Maybe (Sample UnboxedY) #-}
@@ -328,6 +346,21 @@ ascending x vec =
 descending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 descending x vec =
     [V.unsafeIndex vec i | i <- Seq.range (lowest_index x vec - 1) 0 (-1)]
+
+-- * transform
+
+-- | Strip out samples that don't have any effect.
+--
+-- TODO verify that the intermediate list is eliminated
+{-# SPECIALIZE strip :: Unboxed -> Unboxed #-}
+{-# INLINEABLE strip #-}
+strip :: Eq y => V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
+strip = V.fromList . go . V.toList
+    where
+    go [] = []
+    go (s1:s2:s3:ss) | sx s1 == sx s2 && sx s2 == sx s3 = go (s1:s3:ss)
+    go (s1:s2:ss) | s1 == s2 = go (s2:ss)
+    go (s1:ss) = s1 : go ss
 
 -- | Shift the signal in time.
 shift :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
