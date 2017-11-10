@@ -1000,7 +1000,7 @@ synth: im:
     * I should use a subdir for the tracks.
 
   - if notes start >0, play from doesn't send the right start offset
-  - no sample match when guit.wav is muted?
+  * no sample match when guit.wav is muted?
 
   signal-discontinuities:
     . Emit signal discontinuities explicitly.

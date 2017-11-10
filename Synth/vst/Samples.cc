@@ -29,9 +29,8 @@ suffixMatch(const std::vector<string> &mutes, const char *fname)
 {
     const char *endp = strrchr(fname, '.');
     int end = endp ? endp - fname : strlen(fname);
-
     for (const string &mute : mutes) {
-        if (strncmp(mute.c_str(), fname, end) == 0)
+        if (mute.length() == end && strncmp(mute.c_str(), fname, end) == 0)
             return true;
     }
     return false;
