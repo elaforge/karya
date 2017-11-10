@@ -112,8 +112,13 @@ renderInstrument patch notes = DriverC.withInstrument patch $ \inst -> do
             then makeGate notes else mempty
     let controls = Map.insert Control.gate gate $ mergeControls supported notes
     Convert.controls supported controls $ \controlLengths -> do
-        let start = maybe 0 (AUtil.toFrames . Note.start) (Seq.head notes)
-            end = maybe 0 (AUtil.toFrames . Note.end) (Seq.last notes)
+        let start = 0
+            end = maybe 0 (AUtil.toFrames . (+decay) . Note.end)
+                (Seq.last notes)
+            decay = 2
+            -- TODO how can I figure out how long decay actually is?
+            -- I probably have to keep rendering until the samples stay below
+            -- a threshold.
         buffers <- DriverC.render inst start end controlLengths
         case buffers of
             [left, right] -> return $

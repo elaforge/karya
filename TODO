@@ -999,7 +999,7 @@ synth: im:
     * Ness.Convert writes separate files for each instrument
     * I should use a subdir for the tracks.
 
-  - if notes start >0, play from doesn't send the right start offset
+  * if notes start >0, rendering starts at 0 anyway
   * no sample match when guit.wav is muted?
 
   signal-discontinuities:
@@ -1125,7 +1125,7 @@ synth: im:
         configure the note call, or whatever else.
       . Or actually, why not just use the note call's documentation?  Just
         make a Derive.Instrument function to make note calls.
-    - Get rid of Score.event_control_vals, and use DUtil.attack_sample_note
+    * Get rid of Score.event_control_vals, and use DUtil.attack_sample_note
       instead.
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
@@ -1142,8 +1142,9 @@ synth: im:
         ui->metadata("key1", "val")
     * Add plucked string and woodwind instruments, with control signals.
     - Assert that inst->getNumInputs() == length controls.
-    - How to know when to drop notes?  I think I have to use a heuristic
-      like >1s of audio under a threshold after note off.
+    - Figure out decay time instead of hardcoding it.
+      . How to know when to drop notes?  I think I have to use a heuristic
+        like >1s of audio under a threshold after note off.
       . I think this has to go in the driver.  Implement a gate signal, and
         the driver renders until the output gets low enough and gate is 0.
       . For instruments that play multiple notes, I can use this to suspend
