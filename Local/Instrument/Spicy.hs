@@ -32,7 +32,7 @@ synth = MidiInst.synth synth_name "Spicy Guitar, http://www.spicyguitar.com" $
 
 patches :: [MidiInst.Patch]
 patches = (:[]) $
-    MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
+    MidiInst.code #= MidiInst.null_call note_call $
     MidiInst.make_patch $
     MidiInst.add_flag Patch.HoldKeyswitch $
     Patch.attribute_map #= Patch.single_keyswitches keyswitches $

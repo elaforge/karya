@@ -150,15 +150,16 @@ solo_string_instruments = map (second Just)
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
 note_calls :: Maybe HarmonicMap -> Patch.Patch -> [MidiInst.Call Derive.Note]
-note_calls maybe_hmap patch =
-    with_attr Attrs.trill [g "tr" (Trill.c_note_trill True Nothing Nothing)]
-    <> with_attr Attrs.trem [MidiInst.generator "trem"
+note_calls maybe_hmap patch = concat
+    [ with_attr Attrs.trill [g "tr" (Trill.c_note_trill True Nothing Nothing)]
+    , with_attr Attrs.trem [MidiInst.generator "trem"
         (Trill.c_tremolo_generator (Just ([Attrs.harm], VslInst.rep)))]
-    <> with_attr VslInst.grace [g "g" (grace_call (patch_attributes patch))]
-    <> with_attr VslInst.legato
+    , with_attr VslInst.grace [g "g" (grace_call (patch_attributes patch))]
+    , with_attr VslInst.legato
         [g "(" (Articulation.c_attr_slur VslInst.fa Attrs.legato)]
-    <> MidiInst.null_call (note_call patch)
-    <> [MidiInst.both "sec" c_infer_seconds]
+    , MidiInst.null_calls (note_call patch)
+    , [MidiInst.both "sec" c_infer_seconds]
+    ]
     where
     g = MidiInst.generator
     with_attr attr calls = if has_attr attr patch then calls else []

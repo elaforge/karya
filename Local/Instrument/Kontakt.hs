@@ -198,7 +198,7 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
     where
     code = MidiInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
-        <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
+        <> MidiInst.null_call c_highlight_strings
     standard_strings = DUtil.transformer0 "standard-strings"
         ("Set " <> ShowVal.doc EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.doc strings)

@@ -24,7 +24,7 @@ synth :: MidiInst.Synth
 synth = MidiInst.synth "reaktor" "Native Instruments Reaktor" patches
 
 resonant_filter :: MidiInst.Code
-resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
+resonant_filter = MidiInst.null_call $
     DUtil.double_pitch "res" Nothing "res"
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 

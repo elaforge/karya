@@ -10,7 +10,7 @@ module Cmd.Instrument.MidiInst (
     , Code(..), Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, val_calls
-    , null_call
+    , null_call, null_calls
     , postproc, cmd, thru
 
     -- * Patch
@@ -149,8 +149,11 @@ both name (g, t) = Both name g t
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
-null_call :: Derive.Generator Derive.Note -> [Call Derive.Note]
-null_call call = [generator "" call, generator "n" call]
+null_call :: Derive.Generator Derive.Note -> Code
+null_call = note_calls . null_calls
+
+null_calls :: Derive.Generator Derive.Note -> [Call Derive.Note]
+null_calls call = [generator "" call, generator "n" call]
 
 note_calls :: [Call Derive.Note] -> Code
 note_calls calls =

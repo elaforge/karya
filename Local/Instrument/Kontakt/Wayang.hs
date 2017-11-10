@@ -60,8 +60,7 @@ patches = map (MidiInst.code #= code <> with_weak)
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
-    with_weak = MidiInst.note_calls null_call
-    null_call = MidiInst.null_call $ DUtil.zero_duration "note"
+    with_weak = MidiInst.null_call $ DUtil.zero_duration "note"
         "This a normal note with non-zero duration, but when the duration is\
         \ zero, it uses the `weak` call."
         (Sub.inverting weak_call)

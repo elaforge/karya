@@ -73,7 +73,7 @@ zero_dur_mute_doc =
 
 zero_dur_reapply :: Expr.Symbol -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
-zero_dur_reapply mute_call doc note = MidiInst.note_calls $ MidiInst.null_call $
+zero_dur_reapply mute_call doc note = MidiInst.null_call $
     DUtil.zero_duration "note"
         ("When the event has zero duration, dispatch to the "
             <> ShowVal.doc mute_call <> " call." <> doc)
