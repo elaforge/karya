@@ -2,21 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Instruments for the offline NESS synthesizer.
 module Local.Instrument.Ness where
 import qualified Data.Map as Map
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
 
 import qualified Perform.Im.Patch as Patch
-import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -29,22 +28,18 @@ import qualified Ness.Patches as Patches
 
 
 synth :: Inst.SynthDecl Cmd.InstrumentCode
-synth = Inst.SynthDecl Config.nessName
+synth = ImInst.synth Config.nessName
     "Write notes to a file, to submit to NESS by hand." $
-    map make (Map.toList Patches.patches)
+    map (second make) (Map.toList Patches.patches)
 
-make :: (name, Patches.Patch) -> (name, Inst.Inst Cmd.InstrumentCode)
-make (name, instrument) = (name,) $ case instrument of
+make :: Patches.Patch -> ImInst.Patch
+make patch = case patch of
     Patches.PGuitar inst -> guitar inst
     Patches.PMultiplate inst -> multiplate inst
 
-guitar :: Guitar.Instrument -> Inst.Inst Cmd.InstrumentCode
-guitar inst =
-    Inst.Inst (Inst.Im patch)
-        (environ EnvKey.open_strings strings $ Common.common Cmd.empty_code)
-    where
-    strings = map Guitar.sNn $ Guitar.iStrings inst
-    patch = Patch.patch
+guitar :: Guitar.Instrument -> ImInst.Patch
+guitar inst = ImInst.environ EnvKey.open_strings strings $
+    ImInst.make_patch $ Patch.patch
         { Patch.patch_controls = Map.fromList
             [ (Control.pitch, "")
             , (Control.dynamic, "")
@@ -54,19 +49,14 @@ guitar inst =
         , Patch.patch_element_key = Just EnvKey.string
         , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
         }
-
--- -- | The instrument will also set the given environ when it comes into scope.
-environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
-    -> Common.Common code -> Common.Common code
-environ name val = Common.environ
-    %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
-
-multiplate :: Multiplate.Instrument -> Inst.Inst Cmd.InstrumentCode
-multiplate inst =
-    Inst.Inst (Inst.Im patch) (Common.common (MidiInst.make_code code))
     where
-    code = MidiInst.note_calls
-        [ MidiInst.generator (Expr.Symbol object) $ generator object
+    strings = map Guitar.sNn $ Guitar.iStrings inst
+
+multiplate :: Multiplate.Instrument -> ImInst.Patch
+multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
+    where
+    code = ImInst.note_calls
+        [ ImInst.generator (Expr.Symbol object) $ generator object
         | object <- Multiplate.iObjects inst
         ]
     generator object = fst $ Make.environ_note Module.instrument
