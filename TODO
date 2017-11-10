@@ -976,6 +976,12 @@ synth: im:
       . Propagate score damage up to the im perform step.
       . I have to split the cache into chunks.
       . Save and restore sythesize state.
+    . Cache / incremental rendering.  Karya has to also emit damage ranges,
+      and the synth has to expand that to notes and rerender just those
+      sections.  play_cache has to understand the more complicated cache
+      and mix or concatenate the chunks.
+    . Atomic cache replacement.  The synth generates a new cache dir, and
+      play_cache GCs the old one when it stops.
   Support track muting.
     . First, I need to separate notes per-track.  For models I actually can't
       do this, because notes on the same instrument affect each other.  It
@@ -992,6 +998,9 @@ synth: im:
     * PlayCache reads blocks and mutes, mixes multiple outfile files
     * Ness.Convert writes separate files for each instrument
     * I should use a subdir for the tracks.
+
+  - if notes start >0, play from doesn't send the right start offset
+  - no sample match when guit.wav is muted?
 
   signal-discontinuities:
     . Emit signal discontinuities explicitly.
@@ -1080,15 +1089,6 @@ synth: im:
     . Author is nonresponsive.  Maybe I should just write my own:
       . Only one sample rate, only one channel, support only Float.
   TODO
-    . Cache / incremental rendering.  Karya has to also emit damage ranges,
-      and the synth has to expand that to notes and rerender just those
-      sections.  play_cache has to understand the more complicated cache
-      and mix or concatenate the chunks.
-    . Atomic cache replacement.  The synth generates a new cache dir, and
-      play_cache GCs the old one when it stops.
-    . Per-instrument or per-track rendering.  The synth tags rendered chunks
-      with track and instrument, karya protocal can disable, and play_cache
-      omits those.
   play_cache: PlayCache:
     - Move resampling to play_cache.
     - Theoretically I should be doing sample loading in a non-audio thread.

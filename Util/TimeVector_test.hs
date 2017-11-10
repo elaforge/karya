@@ -9,6 +9,7 @@ import qualified Util.TimeVector as V
 import Util.TimeVector (X)
 
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 type Y = Double
@@ -200,3 +201,10 @@ test_strip = do
     equal (f [(0, 0), (1, 0), (1, 1), (2, 1)]) [(0, 0), (1, 0), (1, 1), (2, 1)]
     equal (f [(0, 0), (1, 1), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]
     equal (f [(0, 0), (1, 1), (1, 2), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]
+
+
+-- * signal-discontinuity
+
+test_merge_segments = do
+    let f = unsignal . V.merge_segments . map (second signal)
+    equal (f [(0, [(0, 1)]), (1, [(0, 2)])]) [(0, 1), (1, 1), (1, 2)]

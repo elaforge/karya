@@ -131,10 +131,8 @@ collectFingers = collect . Seq.keyed_group_stable _string
         let startDur n = (_start n, _duration n)
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
-        let pitch = Signal.merge_right_extend
-                [Signal.clip_to (_start n) (_pitch n) | n <- notes]
-            finger = Signal.merge_right_extend
-                [Signal.clip_to (_start n) (_finger n) | n <- notes]
+        let pitch = Signal.merge_segments [(_start n, _pitch n) | n <- notes]
+            finger = Signal.merge_segments [(_start n, _finger n) | n <- notes]
         return
             ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
             , makeFinger string pitch finger

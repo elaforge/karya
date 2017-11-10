@@ -120,17 +120,20 @@ renderInstrument patch notes = DriverC.withInstrument patch $ \inst -> do
                 Audio.merge (audioSource left) (audioSource right)
             [center] -> return $
                 Audio.merge (audioSource center) (audioSource center)
-            -- This should have been verified in PatchDb already.
+            -- This should have been verified by DriverC.getParsedMetadata.
             _ -> errorIO $ "expected 1 or 2 outputs, but got "
                 <> showt (length buffers)
 
 mergeControls :: [Control.Control] -> [Note.Note]
     -> Map Control.Control Signal.Signal
 mergeControls supported notes =
-    Map.fromList $ map (second Signal.merge_right_extend) $
-        filter (not . null . snd) $ zip supported $ map get supported
+    Map.fromList $ filter (not . Signal.null . snd) $ map merge supported
     where
-    get c = mapMaybe (Map.lookup c . Note.controls) notes
+    merge control = (control,) $ Signal.merge_segments
+        [ (Note.start n, signal)
+        | n <- notes
+        , signal <- maybe [] (:[]) $ Map.lookup control (Note.controls n)
+        ]
 
 -- | This makes a sawtooth that goes to 1 on every note start.  This is
 -- suitable for percussion, but maybe continuious instruments expect a constant

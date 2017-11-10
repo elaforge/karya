@@ -180,39 +180,6 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
 merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge = merge_right
 
-append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-    -> v (Sample y)
-append_extend v1 v2 = merge_right_extend [v1, v2]
-
--- | This is like 'merge_right' except assuming NOTE [signal-discontinuity].
--- If the first signal is cut off by the second, its last sample will be
--- extended up to the cut-off point.
---
--- TODO this should probably replace 'merge_right'.  But I should really have
--- an organized design around line segments, and not this ad-hoc thing where
--- everyone has to manually remember to treat Samples right.
-{-# SPECIALIZE merge_right_extend :: [Unboxed] -> Unboxed #-}
-{-# INLINEABLE merge_right_extend #-}
-merge_right_extend :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_right_extend = V.concat . reverse . chunks . reverse
-    where
-    chunks [] = []
-    chunks [v] = [v]
-    -- head of v1 cuts of tail of v2
-    -- v1:     |--->        |--->
-    -- v2:   |--->        |->
-    -- vs: |--->     => |->
-    chunks (v1:v2:vs) = case head v1 of
-        Nothing -> chunks (v2:vs)
-        Just start -> case last clipped of
-            Nothing -> chunks (v1:vs)
-            Just end
-                | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
-                | otherwise -> v1 : chunks (clipped:vs)
-            where
-            clipped = V.take (lowest_index_1 (sx start) v2) v2
-            extension end = V.singleton (Sample (sx start) (sy end))
-
 -- | This is a merge where the vectors to the right will win in the case of
 -- overlap.
 {-# SPECIALIZE merge_right :: [Unboxed] -> Unboxed #-}
@@ -255,6 +222,7 @@ merge_left vs = case next_end vs of
 -- | Merge two vectors, interleaving their samples.  Analogous to
 -- 'Data.Map.union', if two samples coincide, the one from the first vector
 -- wins.
+-- TODO this doesn't work with signal-discontinuity and is sketchy anyway
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE interleave #-}
 interleave :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
@@ -292,14 +260,6 @@ prepend vec1 vec2 = case last vec1 of
 at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
 at x = fmap snd . sample_at x
 
--- | This is like 'at', but if there is a signal discontinuity, this is the
--- value before the discontinuity.  So if you have (1, 0), (1, 1) and ask for 1,
--- this will be 0, not 1.
-{-# SPECIALIZE at_before :: X -> Unboxed -> Maybe UnboxedY #-}
-{-# INLINEABLE at_before #-}
-at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
-at_before x = fmap snd . sample_at_before x
-
 -- | Find the sample at or before X.  Nothing if the X is before the first
 -- sample.
 --
@@ -315,16 +275,6 @@ sample_at x vec
         Just (Sample x y, _) | x <= 0 -> Just (x, y)
         _ -> Nothing
     where i = highest_index x vec
-
-{-# SPECIALIZE sample_at_before :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
-{-# INLINEABLE sample_at_before #-}
-sample_at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
-sample_at_before x vec
-    | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
-    | otherwise = case uncons vec of
-        Just (Sample x y, _) | x <= 0 -> Just (x, y)
-        _ -> Nothing
-    where i = lowest_index x vec
 
 -- | Find the sample before the given X.
 {-# SPECIALIZE before :: X -> Unboxed -> Maybe (Sample UnboxedY) #-}
@@ -348,19 +298,6 @@ descending x vec =
     [V.unsafeIndex vec i | i <- Seq.range (lowest_index x vec - 1) 0 (-1)]
 
 -- * transform
-
--- | Strip out samples that don't have any effect.
---
--- TODO verify that the intermediate list is eliminated
-{-# SPECIALIZE strip :: Unboxed -> Unboxed #-}
-{-# INLINEABLE strip #-}
-strip :: Eq y => V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-strip = V.fromList . go . V.toList
-    where
-    go [] = []
-    go (s1:s2:s3:ss) | sx s1 == sx s2 && sx s2 == sx s3 = go (s1:s3:ss)
-    go (s1:s2:ss) | s1 == s2 = go (s2:ss)
-    go (s1:ss) = s1 : go ss
 
 -- | Shift the signal in time.
 shift :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
@@ -397,14 +334,6 @@ drop_before x vec
     | i < V.length vec = V.drop i vec
     | otherwise = V.drop (V.length vec - 1) vec
     where i = highest_index x vec
-
-clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-clip_to x vec = case head clipped of
-    Nothing -> clipped
-    Just s
-        | sx s < x -> V.cons (s { sx = x}) (V.drop 1 clipped)
-        | otherwise -> clipped
-    where clipped = drop_before x vec
 
 -- | The reverse of 'drop_at_after': trim a signal's head up until, but not
 -- including, the given X.
@@ -591,3 +520,87 @@ concat_map_accum zero f final accum vec = V.fromList (DList.toList result)
     go (accum, Sample x0 y0, lst) (Sample x1 y1) =
         (accum2, Sample x1 y1, lst `DList.append` DList.fromList samples)
         where (accum2, samples) = f accum x0 y0 x1 y1
+
+
+-- * signal-discontinuity
+
+-- Functions with ad-hoc signal-discontinuity support.
+
+merge_segments :: [(X, Unboxed)] -> Unboxed
+merge_segments segments =
+    merge_right_extend [clip_to start v | (start, v) <- segments]
+
+-- let pitch = Signal.merge_right_extend
+--         [Signal.clip_to (_start n) (_pitch n) | n <- notes]
+
+-- | This is like 'at', but if there is a discontinuity, this is the value
+-- before the discontinuity.  So if you have (1, 0), (1, 1) and ask for 1,
+-- this will be 0, not 1.
+{-# SPECIALIZE at_before :: X -> Unboxed -> Maybe UnboxedY #-}
+{-# INLINEABLE at_before #-}
+at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
+at_before x = fmap snd . sample_at_before x
+
+{-# SPECIALIZE sample_at_before :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
+{-# INLINEABLE sample_at_before #-}
+sample_at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
+sample_at_before x vec
+    | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
+    | otherwise = case uncons vec of
+        Just (Sample x y, _) | x <= 0 -> Just (x, y)
+        _ -> Nothing
+    where i = lowest_index x vec
+
+clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+clip_to x vec = case head clipped of
+    Nothing -> clipped
+    Just s
+        | sx s < x -> V.cons (s { sx = x}) (V.drop 1 clipped)
+        | otherwise -> clipped
+    where clipped = drop_before x vec
+
+append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
+    -> v (Sample y)
+append_extend v1 v2 = merge_right_extend [v1, v2]
+
+-- | This is like 'merge_right' except assuming NOTE [signal-discontinuity].
+-- If the first signal is cut off by the second, its last sample will be
+-- extended up to the cut-off point.
+--
+-- TODO this should probably replace 'merge_right'.  But I should really have
+-- an organized design around line segments, and not this ad-hoc thing where
+-- everyone has to manually remember to treat Samples right.
+{-# SPECIALIZE merge_right_extend :: [Unboxed] -> Unboxed #-}
+{-# INLINEABLE merge_right_extend #-}
+merge_right_extend :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
+merge_right_extend = V.concat . reverse . chunks . reverse
+    where
+    chunks [] = []
+    chunks [v] = [v]
+    -- head of v1 cuts of tail of v2
+    -- v1:     |--->        |--->
+    -- v2:   |--->        |->
+    -- vs: |--->     => |->
+    chunks (v1:v2:vs) = case head v1 of
+        Nothing -> chunks (v2:vs)
+        Just start -> case last clipped of
+            Nothing -> chunks (v1:vs)
+            Just end
+                | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
+                | otherwise -> v1 : chunks (clipped:vs)
+            where
+            clipped = V.take (lowest_index_1 (sx start) v2) v2
+            extension end = V.singleton (Sample (sx start) (sy end))
+
+-- | Strip out samples that don't have any effect.
+--
+-- TODO verify that the intermediate list is eliminated
+{-# SPECIALIZE strip :: Unboxed -> Unboxed #-}
+{-# INLINEABLE strip #-}
+strip :: Eq y => V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
+strip = V.fromList . go . V.toList
+    where
+    go [] = []
+    go (s1:s2:s3:ss) | sx s1 == sx s2 && sx s2 == sx s3 = go (s1:s3:ss)
+    go (s1:s2:ss) | s1 == s2 = go (s2:ss)
+    go (s1:ss) = s1 : go ss
