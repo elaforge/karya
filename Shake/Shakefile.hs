@@ -1108,6 +1108,10 @@ faustAll :: [FilePath] -> String
 faustAll dsps = unlines
     -- For some reason faust assumes these are global.
     [ "#include <algorithm>"
+    -- Even though it's a GCC pragma, clang seems to understand it too:
+    -- https://clang.llvm.org/docs/UsersManual.html#pragma-gcc-diagnostic
+    , "#pragma GCC diagnostic ignored \"-Wunused-variable\""
+    , ""
     , "using std::min;"
     , "using std::max;"
     , ""
