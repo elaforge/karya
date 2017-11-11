@@ -58,6 +58,7 @@ makePatch doc controls name = do
     code attackSampled = (ImInst.code #=) $ ImInst.null_call $
         DUtil.attack_sample_note (Set.fromList (map control attackSampled))
 
+control :: Control.Control -> ScoreTypes.Control
 control (Control.Control c) = ScoreTypes.Control c
 
 controlConfigs :: Map Note.PatchName [Control.Control]

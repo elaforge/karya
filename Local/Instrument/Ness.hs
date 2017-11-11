@@ -5,6 +5,7 @@
 -- | Instruments for the offline NESS synthesizer.
 module Local.Instrument.Ness where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -14,6 +15,8 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.Inst as Inst
@@ -38,7 +41,7 @@ make patch = case patch of
     Patches.PMultiplate inst -> multiplate inst
 
 guitar :: Guitar.Instrument -> ImInst.Patch
-guitar inst = ImInst.environ EnvKey.open_strings strings $
+guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
     ImInst.make_patch $ Patch.patch
         { Patch.patch_controls = Map.fromList
             [ (Control.pitch, "")
@@ -51,6 +54,11 @@ guitar inst = ImInst.environ EnvKey.open_strings strings $
         }
     where
     strings = map Guitar.sNn $ Guitar.iStrings inst
+    code = ImInst.null_call $ DUtil.attack_sample_note $
+        Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
+
+control :: Control.Control -> ScoreTypes.Control
+control (Control.Control c) = ScoreTypes.Control c
 
 multiplate :: Multiplate.Instrument -> ImInst.Patch
 multiplate inst = ImInst.code #= code $ ImInst.make_patch patch

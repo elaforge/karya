@@ -35,9 +35,6 @@ data Note = Note {
     , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map Control.Control Signal.Signal)
-    -- | Scalar versions of 'controls'.  These have had ControlFunctions
-    -- applied.
-    , control_vals :: !(Map Control.Control Signal.Y)
     , attributes :: !Attrs.Attributes
     } deriving (Show)
 
@@ -51,12 +48,12 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f g h) =
-        put a *> put b *> put c *> put d *> put e *> put f *> put g *> put h
-    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get <*> get
+    put (Note a b c d e f g) =
+        put a *> put b *> put c *> put d *> put e *> put f *> put g
+    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
 
 instance Pretty Note where
-    format (Note patch inst element start dur controls control_vals attrs) =
+    format (Note patch inst element start dur controls attrs) =
         Pretty.record "Note"
             [ ("patch", Pretty.format patch)
             , ("instrument", Pretty.format inst)
@@ -64,7 +61,6 @@ instance Pretty Note where
             , ("start", Pretty.format start)
             , ("duration", Pretty.format dur)
             , ("controls", Pretty.format controls)
-            , ("control_vals", Pretty.format control_vals)
             , ("attributes", Pretty.format attrs)
             ]
 
@@ -76,12 +72,8 @@ note patch instrument start duration = Note
     , start = start
     , duration = duration
     , controls = mempty
-    , control_vals = mempty
     , attributes = mempty
     }
-
-controlVal :: Control.Control -> Note -> Maybe Signal.Y
-controlVal control = Map.lookup control . control_vals
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
 initialPitch note =

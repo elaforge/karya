@@ -225,7 +225,6 @@ make_event_control_vals control_vals args dyn start dur flags = do
         , event_duration = dur
         , event_text = Event.text (Args.event args)
         , event_untransformed_controls = controls
-        , event_control_vals = control_vals
         , event_untransformed_pitch = trim_pitch start (Derive.state_pitch dyn)
         , event_control_offset = 0
         -- I don't have to trim these because the performer doesn't use them,

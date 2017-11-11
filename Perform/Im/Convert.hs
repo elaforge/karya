@@ -61,8 +61,6 @@ convert_event event patch name = run $ do
         , duration = Score.event_duration event
         , controls = maybe id (Map.insert Control.pitch) pitch $
             convert_controls supported controls
-        , control_vals = convert_control_vals supported $
-            Score.event_control_vals event
         , attributes = maybe mempty snd $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
@@ -91,14 +89,6 @@ convert_controls supported controls = Map.fromList
 
 to_control :: ScoreTypes.Control -> Control.Control
 to_control = Control.Control . ScoreTypes.control_name
-
-convert_control_vals :: Map Control.Control a -> Score.ControlValMap
-    -> Map Control.Control Signal.Y
-convert_control_vals supported cmap = Map.fromList
-    [ (to_control c, v)
-    | (c, v) <- Map.toList cmap
-    , Map.member (to_control c) supported
-    ]
 
 convert_pitch :: Log.LogMonad m => Score.Event -> m Perform.Signal.NoteNumber
 convert_pitch event = do

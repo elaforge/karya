@@ -114,10 +114,6 @@ data Event = Event {
     , event_text :: !Text
     -- | See NOTE [event_control_offset] for what the untransformed is about.
     , event_untransformed_controls :: !ControlMap
-    -- | Constant control vals.  These have had ControlFunctions applied,
-    -- unlike the 'ControlMap' above.  ControlFunctions apply to scalar values
-    -- only.
-    , event_control_vals :: !ControlValMap
     , event_untransformed_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
     , event_untransformed_pitches :: !PitchMap
@@ -196,7 +192,6 @@ empty_event = Event
     , event_duration = 0
     , event_text = mempty
     , event_untransformed_controls = mempty
-    , event_control_vals = mempty
     , event_untransformed_pitch = mempty
     , event_untransformed_pitches = mempty
     , event_control_offset = 0
@@ -318,14 +313,13 @@ remove_attributes attrs event
     | otherwise = modify_attributes (Attrs.remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls control_vals pitch pitches _ _ _ _ _
+    rnf (Event start dur text controls pitch pitches _ _ _ _ _
             flags _delayed_args logs) =
         -- I can't force Dynamic, so leave off _delayed_args.
-        rnf (start, dur, text, controls, control_vals, pitch, pitches, flags,
-            logs)
+        rnf (start, dur, text, controls, pitch, pitches, flags, logs)
 
 instance Pretty Event where
-    format (Event start dur text controls control_vals pitch pitches coffset
+    format (Event start dur text controls pitch pitches coffset
             stack highlight inst env flags delayed_args logs) =
         Pretty.record ("Event"
                 Pretty.<+> Pretty.format (start, dur)
@@ -334,7 +328,6 @@ instance Pretty Event where
             , ("pitch", Pretty.format pitch)
             , ("pitches", Pretty.format pitches)
             , ("controls", Pretty.format controls)
-            , ("control_vals", Pretty.format control_vals)
             , ("control_offset", Pretty.format coffset)
             , ("stack", Pretty.format stack)
             , ("highlight", Pretty.text $ showt highlight)
