@@ -51,11 +51,13 @@ makeScore notes fingers = Guitar.Score
 
 convertNote :: Guitar.Instrument -> Note.Note -> Either Error Note
 convertNote inst note = first ((pretty note <> ": ")<>) $ do
-    pitch <- tryJust "no pitch" $ Map.lookup Control.pitch $ Note.controls note
-    finger <- tryJust "no finger" $
-        Map.lookup Patch.c_finger $ Note.controls note
-    dyn <- tryJust "no amp" $ Note.controls Control.dynamic note
-    loc <- tryJust "no location" $ Note.controls Patch.c_location note
+    let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
+    let getStart c = tryJust ("no value: " <> pretty c)
+            . Signal.at (Note.start note) =<< get c
+    pitch <- get Control.pitch
+    finger <- get Patch.c_finger
+    dyn <- getStart Control.dynamic
+    loc <- getStart Patch.c_location
     string <- tryJust ("no string: " <> Note.element note) $
         List.find ((== Note.element note) . pretty . Guitar.sNn)
             (Guitar.iStrings inst)
