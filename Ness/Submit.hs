@@ -13,7 +13,9 @@ import qualified System.Exit as Exit
 import qualified System.Process as Process
 
 import qualified Util.ParseText as ParseText
+import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
+
 import Global
 
 
@@ -143,12 +145,20 @@ poll out url = do
 formatError :: Text -> Text -> Text -> String
 formatError dir text html = untxt $ Text.unlines
     [ "=== dir: " <> dir
-    , Text.replace "/localdisk/home/pgraham/PaulJGraham/NUI/BackEnd/" "" $
-        Text.replace "\\/" "/" $
-        text
+    , clean text
     , "=== html"
-    , html
+    , clean $ TextUtil.replaceMany
+        [ ("<b>", ""), ("</b>", ""), ("<p>", ""), ("</p>", "")
+        ]
+        html
     ]
+    where
+    clean = TextUtil.replaceMany
+        [ ("/localdisk/home/pgraham/PaulJGraham/NUI/BackEnd/", "")
+        , ("\\/", "/")
+        , ("\\\"", "\"")
+        , ("\\n", "\n")
+        ]
 
 -- keys: ['runTextOutput', 'runMode', 'serverMixWav', runExitStatus: Int,
 -- serverError: Bool, 'serverResultDir', 'runEstRunTime', 'serverHtmlOutput']
