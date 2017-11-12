@@ -77,9 +77,6 @@ Block::Block(int x, int y, int w, int h,
     this->no_ruler = new Divider(DividerConfig(Color::black));
     this->replace_ruler_track(no_ruler, 0);
 
-    // Remove the status line from the tab focus list.  I bypass that anyway
-    // so this doesn't have any effect.
-    // status_line.visible_focus(false);
     skel_box.box(FL_FLAT_BOX);
     status_line.box(FL_FLAT_BOX);
     track_box.box(FL_FLAT_BOX);

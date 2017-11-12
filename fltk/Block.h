@@ -84,10 +84,6 @@ struct Padding {
 
 std::ostream &operator<<(std::ostream &os, const Padding &p);
 
-// The ruler track is a special track that doesn't scroll with set_track_scroll
-// like the other tracks do.  There is always just one ruler track and it's
-// at tracknum 0.  It ignores remove_track, but will be replaced by
-// insert_track.
 class Block : public Fl_Group {
 public:
     Block(int x, int y, int w, int h,
@@ -180,6 +176,11 @@ private:
     Zoom zoom;
     // The ruler track gets this when there's "nothing" in it.
     Track *no_ruler;
+
+    // The ruler track is a special track that doesn't scroll with
+    // set_track_scroll like the other tracks do.  There is always just one
+    // ruler track and it's at tracknum 0.  It ignores remove_track, but will
+    // be replaced by insert_track.
 
     WrappedInput title;
     SymbolOutput status_line;
