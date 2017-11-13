@@ -570,15 +570,23 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
         ]
 
 c_17_10_23 :: Korvai
-c_17_10_23 = date 2017 10 23 $ ganesh $ korvai adi mridangam
+c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
     [ sequence theme
     , sequence (theme2a.theme2b)
+    , mconcatMap (sarvaA 16) [theme, kitataka.theme, kitakita.kitakita.theme]
+        . sarvaA 8 (kitataka.theme) . sarvaA 8 (kitakita.kitataka.theme)
+    , din.__8 . repeat 3 (theme2a.tat.__7) . theme -- repeat 2
+    , din.__8 . repeat 3 (theme2a_o.theme2a) . theme -- repeat 2
+    , din.__4 . theme2a_o.theme2a . theme -- repeat 2
+    , din.__2 . tri_ (din.__2) (theme2a.theme2b)
+        . sandi theme2b (tri_ __ (theme2b))
     ]
     where
-    sequence t = mconcat $ map (sarvaA 8)
+    sequence t = mconcatMap (sarvaA 8)
         [t, kitataka.t, kitakita.kitakita.t]
     theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
     theme2a = su $ dit.__.taka.na.taka.na.ta.kita.ki.na.thom
+    theme2a_o = 1^theme2a
     theme2b = ta.__.ka.din.__.ta.__
     kitataka = su $ kita.taka
     kitakita = su $ kita.kita
@@ -587,5 +595,8 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ korvai adi mridangam
         , (kitataka, [p, k, n, p])
         , (kitakita, [k, t, k, t])
         , (theme2a, [k, p, k, n, p, k, n, p, k, t, k, n, o])
+        , (1^theme2a, [o&k, o, k, n, o, k, n, p, k, t, k, n, o])
         , (theme2b, [k, o, od, k])
+        , (din, [od])
+        , (tat, [k])
         ]
