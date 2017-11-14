@@ -85,6 +85,8 @@ NESS:
         touching at or below a fret and striking the string gets a lot of
         collisions.  So try as I might, I can't get the effect of normal
         fingering.
+      . Since a finger can only be in one place, I don't think I can do
+        artificial harmonics.
       . However, with no frets and a more distant backboard, and touching with
         high force, I can get another pitch, which is presumably the string
         segment on the other side of the finger, which is a nice effect.
@@ -93,6 +95,8 @@ NESS:
         a high-pitched whine.  E.g. ness-data/whine-1
       . Segfault, probably when finger movements overlap.
       . Seems like >2 fingers on one string results in no sound output.
+      . Negative times or string locations in finger_def causes segfaults or
+        no results.
       . For the web interface, output directories marked with seconds means
         parallel submits are unreliable.
 
@@ -101,9 +105,53 @@ NESS:
     - Can I get a muted string effect by plucking while touching with low
       force?
     - Get harmonics working.
+      . 1/256 is a good finger pressure for harmonics, 4/256 at a high node is
+        good for a muted stroke.
+      . For general harmonics, I should be able to address by harmonic number,
+        such as 'string=x | o 3', but also find a harmonic by pitch, with
+        optional string restriction.
+      . For the latter, I can use the harmonic guessing heuristic the lilypond
+        call uses.
+
     - Ornament for strums.
       . zheng gliss should be able to do this.
+      . But it only does open strings, I'd have to extend it to work with
+        stopped strings.
 
+  - I need a better way to name strings.  string.idiom needs pitches, but the
+    instrument needs symbolic names.
+    . Maybe I could use custom pitches with a symbolic name, then convert via
+      PSignal.pitch_note?  It seems like a misuse, since it's not really the
+      pitch name.  Unless it is, and I also name the strings like that, but
+      then I can only use an instrument with one scale.
+    . Articulation.c_harmonic open_strings uses [NoteNumber]
+    . Or why not use PSignal.Pitch, but the instrument definition converts it
+      to a Text of the NN?
+    . But I can't use just NN as string name, because then it breaks on
+      scales.  It's the symbolic name.
+    . I can't put PSignal.Pitch in the patch for open_strings, because Pitch
+      can't go in a RestrictedEnviron.  Even though these patches are
+      definitely code, and don't need to be serialized.  I only need
+      RestrictedEnviron for local config, which is saved with the score.
+    . Other than that, is using PSignal.Pitch for strings ok?  Basically
+      I need a symbolic name and a NN, which is basically what Pitch is, minus
+      the transposing stuff.
+    . I think only Common.config_environ really needs to be RestrictedEnviron.
+      But since Cmd.ResolvedInstrument merges common_environ into
+      Common.Config, I'd have to make the environ a type parameter.
+    . But there's no reason the string kind of pitch can't be in
+      RestrictedEnviron, because it's just a pair.  So the other approach is
+      to add an untranspoesable pitch to RestrictedEnviron.
+    . Would it be really awful to just call it VPitch?  Then coerce via
+      PSignal.constant_pitch.  The danger is silently casting away
+      transposability, for instance put pitches in patch environ and expect to
+      transpose them.  I could make it a bit clearer by not having ToVal
+      Pitch, but requiring an explicit constructor, or ToVal ConstantPitch.
+    . Setting patch element in the note call doesn't work, because it's too
+      early.  I assign string via postproc.  So I need to assign at convert
+      time.  Don't I have a postproc field for that?
+    . Yes, Cmd.inst_postproc.
+  - Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
       otherwise acts like a MIDI instrument.

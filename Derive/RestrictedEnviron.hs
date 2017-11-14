@@ -18,6 +18,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
@@ -30,7 +31,7 @@ import Types
 -- * Environ
 
 newtype Environ = Environ (Map EnvKey.Key Val)
-    deriving (Read, Show, Eq, Monoid, Serialize.Serialize)
+    deriving (Show, Eq, Monoid, Serialize.Serialize)
 
 -- Environ keys are always Text, and it's annoying to have quotes on them.
 instance Pretty Environ where
@@ -58,17 +59,20 @@ data Val =
     VNum !ScoreTypes.TypedVal
     | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
+    | VConstantPitch !ConstantPitch
     | VNotePitch !Pitch.Pitch
     | VStr !Expr.Str
     | VQuoted !Expr
     | VList ![Val]
-    deriving (Eq, Read, Show)
+    deriving (Eq, Show)
 
 convert_val :: Val -> BaseTypes.Val
 convert_val val = case val of
     VNum v -> BaseTypes.VNum v
     VAttributes v -> BaseTypes.VAttributes v
     VControlRef v -> BaseTypes.VControlRef v
+    VConstantPitch (ConstantPitch scale_id note nn) ->
+        BaseTypes.VPitch $ PSignal.constant_pitch scale_id note nn
     VNotePitch v -> BaseTypes.VNotePitch v
     VStr v -> BaseTypes.VStr v
     VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $
@@ -117,6 +121,11 @@ instance ToVal Expr.Str where to_val = VStr
 instance ToVal Text where to_val = VStr . Expr.Str
 instance ToVal Expr where to_val = VQuoted
 
+data ConstantPitch = ConstantPitch !Pitch.ScaleId !Pitch.Note !Pitch.NoteNumber
+    deriving (Show, Eq)
+
+instance ToVal ConstantPitch where to_val = VConstantPitch
+
 -- * call
 
 type Expr = Expr.Expr Val
@@ -133,6 +142,8 @@ instance Serialize.Serialize Val where
         VStr v -> Serialize.put_tag 5 >> put v
         VQuoted v -> Serialize.put_tag 6 >> put v
         VList v -> Serialize.put_tag 7 >> put v
+        VConstantPitch (ConstantPitch scale_id note nn) -> Serialize.put_tag 8
+            >> put scale_id >> put note >> put nn
     get = do
         tag <- Serialize.get_tag
         case tag of
@@ -144,6 +155,7 @@ instance Serialize.Serialize Val where
             5 -> VStr <$> get
             6 -> VQuoted <$> get
             7 -> VList <$> get
+            8 -> fmap VConstantPitch $ ConstantPitch <$> get <*> get <*> get
             _ -> Serialize.bad_tag "RestrictedEnviron.Val" tag
 
 instance Serialize.Serialize Call where
