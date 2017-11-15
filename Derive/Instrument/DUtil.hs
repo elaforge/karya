@@ -21,6 +21,8 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
@@ -252,9 +254,11 @@ composite_call args composites = mconcatMap (split args) composites
 
 -- * control vals
 
-attack_sample_note :: Set Score.Control -> Derive.Generator Derive.Note
-attack_sample_note controls =
-    Note.transformed_note doc mempty (attack_sample controls)
+attack_sample_note :: (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Set Score.Control -> Derive.Generator Derive.Note
+attack_sample_note transform controls =
+    Note.transformed_note doc mempty $
+        \args -> transform . attack_sample controls args
     where
     doc = "These controls are sampled at attack time, which means they work\
         \ with ControlFunctions: "
@@ -267,3 +271,17 @@ attack_sample controls args deriver = do
     let sampled = Score.untyped . Signal.constant <$>
             Map.filterWithKey (\k _ -> k `Set.member` controls) vals
     Derive.with_controls (Map.toList sampled) deriver
+
+
+-- * postproc
+
+-- | Move an environ val from one key to another.  This is meant to be put in
+-- 'Cmd.Cmd.inst_postproc', because doing it in the note call may be too early.
+move_val :: (Typecheck.Typecheck old, Typecheck.ToVal new) =>
+    EnvKey.Key -> EnvKey.Key -> (old -> new)
+    -> Score.Event -> Score.Event
+move_val from_key to_key convert event =
+    case Env.maybe_val from_key (Score.event_environ event) of
+        Nothing -> event -- TODO log if present but the type is wrong
+        Just val ->
+            Score.modify_environ (Env.insert_val to_key (convert val)) event

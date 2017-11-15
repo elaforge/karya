@@ -85,5 +85,4 @@ inferPatch samples = Patch.Patch
         Seq.unique $ map attributes samples
     , patch_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
-    , patch_element_key = Nothing
     }

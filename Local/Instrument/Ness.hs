@@ -16,9 +16,13 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.PSignal as PSignal
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Perform.Im.Patch as Patch
+import qualified Perform.Pitch as Pitch
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -49,13 +53,26 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
             , (Guitar.Patch.c_location, "")
             , (Guitar.Patch.c_finger, "")
             ]
-        , Patch.patch_element_key = Just EnvKey.string
         , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
         }
     where
-    strings = map Guitar.sNn $ Guitar.iStrings inst
-    code = ImInst.null_call $ DUtil.attack_sample_note $
+    strings = map make_string $ Guitar.iStrings inst
+    code = note <> postproc
+    postproc = ImInst.postproc $
+        DUtil.move_val EnvKey.string EnvKey.patch_element show_string
+    note = ImInst.null_call $ DUtil.attack_sample_note id $
         Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
+
+-- TODO log Left as an error once postproc supports that
+show_string :: PSignal.Pitch -> Text
+show_string =
+    either pretty Pitch.note_text . PSignal.pitch_note . PSignal.coerce
+
+make_string :: Guitar.String -> RestrictedEnviron.ConstantPitch
+make_string str = RestrictedEnviron.ConstantPitch Twelve.scale_id
+    (Pitch.Note (Guitar.sName str)) (Guitar.sNn str)
+    -- TODO Twelve.scale_id may well be wrong, which can cause parsing errors.
+    -- The string should also give the scale.
 
 control :: Control.Control -> ScoreTypes.Control
 control (Control.Control c) = ScoreTypes.Control c
@@ -68,7 +85,8 @@ multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
         | object <- Multiplate.iObjects inst
         ]
     generator object = fst $ Make.environ_note Module.instrument
-        (Derive.CallName object) mempty "doc" Multiplate.Patch.k_object object
+        (Derive.CallName object) mempty "Strike the named object."
+        EnvKey.patch_element object
     patch = Patch.patch
         { Patch.patch_controls = Map.fromList
             [ (Control.dynamic, "")
@@ -76,5 +94,4 @@ multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
             , (Multiplate.Patch.c_y, "")
             , (Multiplate.Patch.c_duration, "")
             ]
-        , Patch.patch_element_key = Just Multiplate.Patch.k_object
         }
