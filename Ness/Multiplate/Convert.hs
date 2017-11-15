@@ -15,7 +15,7 @@ import qualified Ness.Multiplate.Patch as Patch
 
 -- | Scale dynamic=1 to this.
 maxAmp :: Newtons
-maxAmp = 1000
+maxAmp = 1500
 
 type Error = Text
 

@@ -162,8 +162,8 @@ collectFingers = collect . Seq.keyed_group_stable _string
         fingerAt x = fromMaybe 0 $ Signal.at x finger
     offset = 0.01
     position stringNn x y amp =
-        ( RealTime.to_seconds x
-        , Guitar.pitchLocation stringNn (Pitch.nn y)
+        ( max 0 $ RealTime.to_seconds x
+        , max 0 $ Guitar.pitchLocation stringNn (Pitch.nn y)
         , if Pitch.nns_equal (Pitch.nn y) stringNn then 0 else amp * maxAmp
         )
 

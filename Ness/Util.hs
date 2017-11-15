@@ -76,7 +76,7 @@ submitInstruments dir outputNameScores = do
 previousRender :: Map Text FilePath -> FilePath -> IO [(FilePath, FilePath)]
 previousRender nameOutput dir = do
     subdirs <- File.list dir
-    print subdirs
+    putStrLn $ "found previous submit: " <> show subdirs
     return $ mapMaybe get subdirs
     where
     get subdir = (, subdir </> "out.wav")
