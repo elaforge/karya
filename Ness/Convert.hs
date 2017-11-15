@@ -1,3 +1,7 @@
+-- Copyright 2017 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 module Ness.Convert where
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
@@ -10,11 +14,11 @@ import qualified Synth.Shared.Note as Note
 import Global
 import Ness.Global
 import qualified Ness.Guitar as Guitar
-import qualified Ness.Guitar.Convert as Guitar.Convert
+import qualified Ness.Guitar.GConvert as GConvert
+import qualified Ness.Multiplate as Multiplate
+import qualified Ness.Multiplate.MConvert as MConvert
 import qualified Ness.Patches as Patches
 import Ness.Patches (Patch(..), Performance(..))
-import qualified Ness.Multiplate as Multiplate
-import qualified Ness.Multiplate.Convert as Multiplate.Convert
 import qualified Ness.Util as Util
 
 import Types
@@ -77,8 +81,8 @@ convertPatch :: Patch -> [Note.Note]
 convertPatch patch = mapM convert1 . Seq.keyed_group_sort Note.instrument
     where
     convert1 (inst, notes) = (inst,) <$> case patch of
-        PGuitar i -> Guitar i <$> Guitar.Convert.convert i notes
-        PMultiplate i -> Multiplate i <$> Multiplate.Convert.convert i notes
+        PGuitar i -> Guitar i <$> GConvert.convert i notes
+        PMultiplate i -> Multiplate i <$> MConvert.convert i notes
 
 load :: FilePath -> IO [Note.Note]
 load fname = either (errorIO . pretty) return =<< Note.unserialize fname
