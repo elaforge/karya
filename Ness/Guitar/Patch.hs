@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Guitar.Patch where
 import Prelude hiding (String)
+import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Perform.NN as NN
@@ -8,6 +9,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import Ness.Global
 import Ness.Guitar
+import Global
 
 
 c_location :: Control.Control
@@ -70,6 +72,7 @@ guitarStrings = map make
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
+        , sName = NN.karya_name nn
         , sOutputs = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
         }
 
@@ -89,6 +92,7 @@ guitarStrings2 = map make
         , sRadius = radius
         , sT60 = (15, t60)
         , sNn = nn
+        , sName = NN.karya_name nn
         , sOutputs = [Output 0.9 (pan - 0.2), Output 0.7 pan]
         }
 
@@ -106,12 +110,14 @@ bassStrings = map make
         , sRadius = radius
         , sT60 = (15, 3)
         , sNn = nn
+        , sName = NN.karya_name nn
         , sOutputs =  outputsAt 0.5
         }
 
-legongNns = head (drop 3 legong) - 12 : drop 3 legong
+legongNames :: [(Text, Pitch.NoteNumber)]
+legongNames = head legong : drop 5 legong
 
-legongStrings = zipWith withNn legongNns $ concat
+legongStrings = zipWith withName legongNames $ concat
     [ map (lenBy 0.5 . make) strings
     , map (lenBy 0.25 . make) (drop 2 strings)
     ]
@@ -126,11 +132,10 @@ legongStrings = zipWith withNn legongNns $ concat
         , (0.78, 16.1, 0.00012, 8, 0.5)
         ]
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60) 0 (outputsAt pan)
-    withNn nn str = str { sNn = nn }
+        String len tension steel radius (15, t60) 0 "" (outputsAt pan)
     lenBy n str = str { sLength = sLength str * n }
 
-legongStrings2 = zipWith withNn legongNns $ concat
+legongStrings2 = zipWith withName legongNames $ concat
     [ map (lenBy 0.5 . make) strings
     , map (lenBy 0.25 . make) (drop 2 strings)
     ]
@@ -145,10 +150,11 @@ legongStrings2 = zipWith withNn legongNns $ concat
         , (0.78, 16.7, 0.00012, 8, 0.8)
         ]
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60) 0 (outs pan)
-    withNn nn str = str { sNn = nn }
+        String len tension steel radius (15, t60) 0 "" (outs pan)
     lenBy n str = str { sLength = sLength str * n }
     outs pan = [Output 0.8 pan, Output 0.6 (pan - 0.2)]
+
+withName (name, nn) str = str { sName = name, sNn = nn }
 
 outputsAt pan = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
 
@@ -226,7 +232,8 @@ strings = map make
     ]
     where
     make (length, tension, radius, t60, pan) =
-        String length tension silk radius (15, t60) 0 [Output 0.9 pan]
+        String length tension silk radius (15, t60) 0 "" [Output 0.9 pan]
+        -- TODO add sNn and sName
 
 frets = makeFrets (-0.0005) (head scale) (tail scale)
 
@@ -237,23 +244,27 @@ minor = map Pitch.nn $ take 21 $ scanl (+) 48 (cycle intervals)
     where
     intervals = [2, 1, 2, 2, 1, 2, 2]
 
-legong :: [Pitch.NoteNumber]
-legong = map Pitch.nn
-    [ 51.82  -- 3e, rambat begin
-    , 55.70  -- 3u
-    , 56.82  -- 3a, trompong begin
+legong :: [(Text, Pitch.NoteNumber)]
+legong = zip names $ map Pitch.nn
+    [ 48.73 -- 3i
+    , 50.80 -- 3o
+    , 51.82 -- 3e, rambat begin
+    , 55.70 -- 3u
+    , 56.82 -- 3a, trompong begin
 
-    , 60.73  -- 4i
-    , 62.80  -- 4o, pemade begin
-    , 63.35  -- 4e, reyong begin
-    , 67.70  -- 4u
-    , 68.20  -- 4a
+    , 60.73 -- 4i
+    , 62.80 -- 4o, pemade begin
+    , 63.35 -- 4e, reyong begin
+    , 67.70 -- 4u
+    , 68.20 -- 4a
 
-    , 72.46  -- 5i
-    , 73.90  -- 5o, kantilan begin
-    , 75.50  -- 5e
-    , 79.40  -- 5u, trompong end
-    , 80.50  -- 5a
+    , 72.46 -- 5i
+    , 73.90 -- 5o, kantilan begin
+    , 75.50 -- 5e
+    , 79.40 -- 5u, trompong end
+    , 80.50 -- 5a
 
-    , 84.46  -- 6i, rambat end, pemade end
+    , 84.46 -- 6i, rambat end, pemade end
     ]
+    where
+    names = [showt oct <> Text.singleton c | oct <- [3..], c <- "ioeua"]

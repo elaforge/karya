@@ -5,9 +5,11 @@
 module Derive.C.Idiom.String_test where
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
@@ -46,14 +48,14 @@ test_attack_release = do
 
 test_string_select = do
     let run = run_string extract "bent-string 0 0 1"
-        extract e = (DeriveTest.e_environ EnvKey.string e, e_nns e)
+        extract e = (e_string e, e_nns e)
     equal (run $ UiTest.note_track [(0, 1, "4c")])
-        ([(Just "'60nn'", (0, [(0, NN.c4)]))], [])
+        ([("4c", (0, [(0, NN.c4)]))], [])
     equal (run $ UiTest.note_track [(0, 1, "4d")])
-        ([(Just "'62nn'", (0, [(0, NN.d4)]))], [])
+        ([("4d", (0, [(0, NN.d4)]))], [])
     -- The string is assigned based on the lowest pitch.
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4d"), (1, 0, "4c")])])
-        ([(Just "'60nn'", (0, [(0, NN.d4), (1, NN.c4)]))], [])
+        ([("4c", (0, [(0, NN.d4), (1, NN.c4)]))], [])
 
 
 -- TODO I have to test this ad-hoc per call until I figure out a better
@@ -108,6 +110,12 @@ test_gliss_a = do
     equal (run2 "gliss-a 2 1t" "4f") ([2.5, 2.75, 3], [])
     equal (run2 "gliss-a 2 1s" "4f") ([2, 2.5, 3], [])
 
+
+e_string :: Score.Event -> Text
+e_string = maybe "" show_pitch . DeriveTest.e_environ_val EnvKey.string
+
+show_pitch :: PSignal.Pitch -> Text
+show_pitch = either pretty Pitch.note_text . PSignal.pitch_note . PSignal.coerce
 
 run_string :: (Score.Event -> a) -> Text -> [UiTest.TrackSpec] -> ([a], [Text])
 run_string extract call =

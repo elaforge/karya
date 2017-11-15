@@ -113,12 +113,12 @@ NESS:
       . For the latter, I can use the harmonic guessing heuristic the lilypond
         call uses.
 
-    - Ornament for strums.
+    * Ornament for strums.
       . zheng gliss should be able to do this.
       . But it only does open strings, I'd have to extend it to work with
         stopped strings.
 
-  - I need a better way to name strings.  string.idiom needs pitches, but the
+  * I need a better way to name strings.  string.idiom needs pitches, but the
     instrument needs symbolic names.
     . Maybe I could use custom pitches with a symbolic name, then convert via
       PSignal.pitch_note?  It seems like a misuse, since it's not really the

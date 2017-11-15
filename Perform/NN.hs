@@ -7,6 +7,7 @@
 -- This is the 'Pitch.NoteNumber' version of "Midi.Key".
 module Perform.NN where
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
@@ -25,8 +26,8 @@ c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
 middle_c :: Pitch.NoteNumber
 middle_c = c4
 
-name :: Pitch.NoteNumber -> String
-name nn = note ++ show (oct - 1)
+name :: Pitch.NoteNumber -> Text
+name nn = note <> showt (oct - 1)
     where
     (oct, k) = (round nn :: Int) `divMod` 12
     note = case k of
@@ -36,5 +37,19 @@ name nn = note ++ show (oct - 1)
         5 -> "f"; 6 -> "fs"
         7 -> "g"; 8 -> "gs"
         9 -> "a"; 10 -> "as"
+        11 -> "b"
+        _ -> ""
+
+karya_name :: Pitch.NoteNumber -> Text
+karya_name nn = showt (oct - 1) <> note
+    where
+    (oct, k) = (round nn :: Int) `divMod` 12
+    note = case k of
+        0 -> "c"; 1 -> "c#"
+        2 -> "d"; 3 -> "d#"
+        4 -> "e"
+        5 -> "f"; 6 -> "f#"
+        7 -> "g"; 8 -> "g#"
+        9 -> "a"; 10 -> "a#"
         11 -> "b"
         _ -> ""

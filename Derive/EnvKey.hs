@@ -154,9 +154,11 @@ instrument_bottom = "inst-bottom"
 open_strings :: Key
 open_strings = "open-strings"
 
--- | Select a string to play on.  Presumably it should be from one of the
--- 'open_strings'.  The type depends on the instrument, perhaps a str such
--- as g d a e, or a pitch.
+-- | VPitch: Select a string to play on.  Presumably it should be from one of
+-- the 'open_strings'.  TODO currently I address strings by pitch.  It's
+-- convenient because general purpose string calls work with pitches, but
+-- will be ambiguous for instruments where multiple strings have the same
+-- pitch.
 string :: Key
 string = "string"
 

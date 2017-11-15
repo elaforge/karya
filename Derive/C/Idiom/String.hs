@@ -19,6 +19,7 @@ import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.StringUtil as StringUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -26,6 +27,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -74,12 +76,13 @@ c_bent_string = Derive.transformer module_ "bent-string"
     <*> Sig.defaulted "delay" (control "string-delay" 0)
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
-    <*> open_strings_env
+    <*> StringUtil.open_strings_env
     ) $ \(attack, release, release_delay, open_strings) _args deriver ->
     Ly.when_lilypond deriver $ do
         attack <- Typecheck.to_typed_function attack
         release <- Typecheck.to_typed_function release
         release_delay <- Typecheck.to_typed_function release_delay
+        open_strings <- mapM StringUtil.string open_strings
         config <- make_config attack release_delay release open_strings
         string_idiom config =<< deriver
 
@@ -88,27 +91,26 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
     (Tags.postproc <> Tags.inst)
     "A specialization of `bent-string` but for stopped strings, like the\
     \ violin family, where strings instantly jump to their pitches."
-    $ Sig.callt ((,)
+    $ Sig.callt ((,,)
     <$> Sig.defaulted "delay" (control "string-delay" 0)
         "String release delay time."
-    <*> open_strings_env
-    ) $ \(release_delay, open_strings) _args deriver -> do
-        release_delay <- Typecheck.to_typed_function release_delay
-        config <- make_config
-            (const (Score.untyped 0)) release_delay (const (Score.untyped 0))
-            open_strings
-        string_idiom config =<< deriver
-
-open_strings_env :: Sig.Parser [PSignal.Pitch]
-open_strings_env = Sig.check non_empty $
-    Sig.environ_key EnvKey.open_strings [] "Pitches of the open strings."
-    where
-    non_empty xs
-        | null xs = Just "open-strings required"
-        | otherwise = Nothing
+    <*> StringUtil.open_strings_env <*> StringUtil.string_env
+    ) $ \(release_delay, open_strings, string) _args deriver -> case string of
+        Just _ -> deriver
+            -- Make string, which is what the instrument expects, instead of
+            -- a pitch.  TODO I should come up with a way to treat strings
+            -- symbolically but still get their pitches.
+            -- Derive.with_val EnvKey.string (ShowVal.show_val string) deriver
+        Nothing -> do
+            open_strings <- mapM StringUtil.string open_strings
+            release_delay <- Typecheck.to_typed_function release_delay
+            config <- make_config
+                (const (Score.untyped 0)) release_delay
+                (const (Score.untyped 0)) open_strings
+            string_idiom config =<< deriver
 
 data Config = Config {
-    _open_strings :: Map Pitch.NoteNumber PSignal.Pitch
+    _open_strings :: Map Pitch.NoteNumber StringUtil.String
     -- | (curve, time)
     , _attack_curve :: (PitchUtil.Interpolate, Typecheck.TypedFunction)
     , _release_curve :: (PitchUtil.Interpolate, Typecheck.TypedFunction)
@@ -116,15 +118,13 @@ data Config = Config {
     }
 
 make_config :: Typecheck.TypedFunction -> Typecheck.TypedFunction
-    -> Typecheck.TypedFunction -> [PSignal.Pitch] -> Derive.Deriver Config
+    -> Typecheck.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
     let linear = PitchUtil.interpolate_segment srate id
-    -- Coerce is ok because I don't want open strings in the environ to
-    -- transpose.
-    open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
     return $ Config
-        { _open_strings = Map.fromList (zip open_nns open_strings)
+        { _open_strings =
+            Map.fromList $ Seq.key_on StringUtil.str_nn open_strings
         , _attack_curve = (linear, attack_dur)
         , _release_curve = (linear, release_dur)
         , _release_delay = release_delay
@@ -154,7 +154,7 @@ make_config attack_dur release_delay release_dur open_strings = do
 -}
 string_idiom :: Config -> Stream.Stream Score.Event -> Derive.NoteDeriver
 string_idiom config = do
-    Post.emap1m_ (fst . fst) event1 . Post.next_by (fst . snd)
+    Post.emap1m_ (fst . fst) event1 . Post.next_by (StringUtil.str_nn . snd)
         <=< Post.emap1m_ id assign
     where
     assign event = do
@@ -162,10 +162,10 @@ string_idiom config = do
         lowest <- Derive.require "no pitch" $
             Pitch.nn . snd <$> Signal.minimum nns
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
-            Util.Map.lookup_below lowest (_open_strings config)
+            snd <$> Util.Map.lookup_below lowest (_open_strings config)
         return
             ( Score.modify_environ
-                (Env.insert_val EnvKey.string (ShowVal.show_val (fst string)))
+                (Env.insert_val EnvKey.string (StringUtil.str_pitch string))
                 event
             , string
             )
@@ -177,14 +177,15 @@ string_idiom config = do
 -- threshold away?  If its > the decay time, pitch curves would be inaudible...
 -- unless of course changing the pitch itself causes a sound, as it might for
 -- a fret slide.
-process :: Config -> Score.Event -> (Pitch.NoteNumber, PSignal.Pitch)
+process :: Config -> Score.Event -> StringUtil.String
     -> Maybe Score.Event -> Derive.Deriver Score.Event
 process config event string Nothing =
-    add_release config (snd string) Nothing event
+    add_release config (StringUtil.str_pitch string) Nothing event
 process config event string (Just next_event) = do
     let next = Score.event_start next_event
     attack_dur <- Call.real_duration_at (snd (_attack_curve config)) next
-    event <- add_release config (snd string) (Just (next - attack_dur)) event
+    event <- add_release config (StringUtil.str_pitch string)
+        (Just (next - attack_dur)) event
     return $ add_attack config attack_dur next_event event
 
 -- | After releasing a note, you release your hand, which means the pitch
@@ -307,7 +308,7 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
             "Time between each note.")
     <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
         \ to the destination dyn. If not given, the dyn is constant."
-    <*> open_strings_env
+    <*> StringUtil.open_strings_env
     ) $ \(gliss_start, time, maybe_start_dyn, open_strings) ->
     Sub.inverting $ \args -> do
         end <- Args.real_start args

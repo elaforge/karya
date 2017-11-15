@@ -1,5 +1,4 @@
 module Ness.Multiplate.Patch where
-import qualified Derive.EnvKey as EnvKey
 import qualified Synth.Shared.Control as Control
 import Ness.Global
 import Ness.Multiplate
@@ -7,9 +6,6 @@ import Ness.Multiplate
 
 instruments :: [Instrument]
 instruments = [instrument1]
-
-k_object :: EnvKey.Key
-k_object = "object"
 
 c_x, c_y :: Control.Control
 c_x = "x"

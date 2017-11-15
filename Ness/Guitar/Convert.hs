@@ -58,8 +58,8 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
     finger <- get Patch.c_finger
     dyn <- getStart Control.dynamic
     loc <- getStart Patch.c_location
-    string <- tryJust ("no string: " <> Note.element note) $
-        List.find ((== Note.element note) . pretty . Guitar.sNn)
+    string <- tryJust ("no string: " <> showt (Note.element note)) $
+        List.find ((== Note.element note) . Guitar.sName)
             (Guitar.iStrings inst)
     let muted = Attrs.contain (Note.attributes note) Attrs.mute
     let converted = Note
