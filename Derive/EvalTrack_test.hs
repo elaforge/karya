@@ -62,8 +62,7 @@ test_event_serial = do
     note = Note.transformed_note "" mempty $ \_args deriver -> do
         serial <- Derive.gets $
             Derive.state_event_serial . Derive.state_threaded
-        Derive.with_constant_control "serial"
-            (Score.untyped (fromIntegral serial)) deriver
+        Derive.with_constant_control "serial" (fromIntegral serial) deriver
     notes = Derive.generator CallTest.module_ "test" mempty "test doc" $
         Sig.call (Sig.required "notes" "Number of notes.") $ \notes _args ->
             mconcat $ replicate notes Call.note

@@ -365,7 +365,7 @@ c_nth_harmonic = Derive.generator module_ "harmonic" Tags.inst
         string <- StringUtil.string string
         finger <- Call.control_at finger =<< Args.real_start args
         Call.place args $
-            Derive.with_constant_control Controls.finger (Score.untyped finger) $
+            Derive.with_constant_control Controls.finger finger $
             Call.pitched_note $
             Twelve.nn_pitch $ Pitch.modify_hz (*harmonic) $
             StringUtil.str_nn string
@@ -387,7 +387,7 @@ c_harmonic = Derive.generator module_ "harmonic" Tags.inst
             StringUtil.find_harmonic highest_harmonic open_strings maybe_string
                 nn
         StringUtil.with_string string $ Call.place args $
-            Derive.with_constant_control Controls.finger (Score.untyped finger) $
+            Derive.with_constant_control Controls.finger finger $
             Call.pitched_note $
             Twelve.nn_pitch $ touch_interval harmonic (StringUtil.str_nn string)
 

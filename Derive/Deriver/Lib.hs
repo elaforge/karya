@@ -629,10 +629,9 @@ state_controls_at pos ruler dyn serial = Map.fromList $
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
 
-with_constant_control :: Score.Control -> Score.Typed Signal.Y -> Deriver a
-    -> Deriver a
+with_constant_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
 with_constant_control control val =
-    with_control control (Signal.constant <$> val)
+    with_control control (Score.untyped (Signal.constant val))
 
 with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
 with_controls controls

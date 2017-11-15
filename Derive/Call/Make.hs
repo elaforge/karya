@@ -58,8 +58,7 @@ control_note :: Module.Module -> Derive.CallName -> Score.Control -> Signal.Y
 control_note module_ name control val = transform_notes module_ name mempty
     ("Note with " <> Doc.literal (ShowVal.show_val control <> " = "
         <> ShowVal.show_val val) <> ".")
-    Sig.no_args $ \() ->
-        Derive.with_constant_control control (Score.untyped val)
+    Sig.no_args $ \() -> Derive.with_constant_control control val
 
 -- | The generator either derives subs or derives a new Call.note if there are
 -- no subs, and then applies the transform.  The transformer call just applies

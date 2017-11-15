@@ -173,7 +173,7 @@ NESS:
 
 UNSORTED
   - string_idiom should ignore notes that already have a string.
-  - Make Derive.with_constant_control add Score.untyped
+  * Make Derive.with_constant_control add Score.untyped
   - It's easy to forget to place the note when I use Call.pitched_note, should
     it take args and do a placed_note?
   - Add qualified syntax for calls, so I don't have to import them.  E.g.
@@ -2284,6 +2284,7 @@ midi record:
 REPL: repl:
   - sometimes vim fails even though the app is open:
     App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
+  - vim should abort the changes if I quit with :q instead of ZZ
   - :h should put the selected cmd into the history
   - something like :h where I can edit a single line
     . Maybe a control key, so I can edit the contents of the current line.

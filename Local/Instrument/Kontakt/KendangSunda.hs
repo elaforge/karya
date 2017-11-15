@@ -54,7 +54,7 @@ replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
 -- | Just like the default, except force 'pitch_control' to 0.
 c_dong :: Derive.Generator Derive.Note
 c_dong = CUtil.drum_call (Just tuning_control) dyn dong $
-    Derive.with_constant_control pitch_control (Score.untyped 0)
+    Derive.with_constant_control pitch_control 0
     where dyn = 1
 
 data Pitch = Low | Middle | High deriving (Show)
@@ -73,7 +73,7 @@ c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
         -- given as a literal or default arg only.
         pitch <- Call.control_at pitch =<< Args.real_start args
         Call.add_attributes attrs $ CUtil.tuning_control args tuning_control $
-            Derive.with_constant_control pitch_control (Score.untyped pitch) $
+            Derive.with_constant_control pitch_control pitch $
             Note.default_note Note.no_duration_attributes args
     where
     doc = "This takes a pitch argument and is split into separate calls so\

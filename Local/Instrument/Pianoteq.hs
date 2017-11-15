@@ -92,8 +92,7 @@ c_grace :: Derive.Generator Derive.Note
 c_grace = Grace.make_grace Module.instrument
     ("This is just like the standard `g` call, except it sets "
         <> ShowVal.doc gliss <> " and doesn't use `(`.")
-    (Derive.with_constant_control gliss (Score.untyped 1)) $ \_args events ->
-        Sub.derive events
+    (Derive.with_constant_control gliss 1) (\_args events -> Sub.derive events)
 
 patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch pb_range
