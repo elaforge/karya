@@ -50,8 +50,9 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
         { Patch.patch_controls = Map.fromList
             [ (Control.pitch, "")
             , (Control.dynamic, "")
-            , (Guitar.Patch.c_location, "")
-            , (Guitar.Patch.c_finger, "")
+            , (Guitar.Patch.c_location, "Pluck location.")
+            -- TODO Derive.Controls.finger
+            , (Guitar.Patch.c_finger, "Stopping finger weight.")
             ]
         , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
         }

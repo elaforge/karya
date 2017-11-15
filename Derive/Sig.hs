@@ -85,7 +85,8 @@ module Derive.Sig (
     , no_args
     , required, required_env
     , defaulted, defaulted_env, defaulted_env_quoted, maybe_defaulted
-    , environ, environ_key, environ_quoted, required_environ
+    , environ, environ_key, environ_quoted
+    , required_environ, required_environ_key
     , optional, optional_env, many, many_vals, many1, many_pairs, many1_pairs
     , required_vals
     -- ** defaults
@@ -350,6 +351,9 @@ required_environ name env_default doc = parser arg_doc $ \state ->
         , Derive.arg_environ_default = env_default
         , arg_doc = doc
         }
+
+required_environ_key :: Typecheck.Typecheck a => Env.Key -> Doc.Doc -> Parser a
+required_environ_key key = required_environ (Derive.ArgName key) Unprefixed
 
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- the default instead of failing.  It's mostly useful with 'many' or 'many1',

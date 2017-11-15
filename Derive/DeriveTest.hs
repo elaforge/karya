@@ -678,6 +678,9 @@ e_nns e
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
 
+e_nn_rounded :: Score.Event -> Pitch.NoteNumber
+e_nn_rounded = maybe 0 (Num.roundDigits 2) . Score.initial_nn
+
 -- | Extract pitch signal and any errors flattening it.
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =

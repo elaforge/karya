@@ -46,3 +46,32 @@ string :: PSignal.Pitch -> Derive.Deriver String
 string pitch = String pitch <$> Pitches.pitch_nn (PSignal.coerce pitch)
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
+
+type Harmonic = Int
+
+-- | If string is given, try to find this pitch in the harmonics of that
+-- string.  Otherwise, find the string from open_strings which has this as
+-- its lowest harmonic.
+find_harmonic :: Harmonic -> [String] -> Maybe String
+    -> Pitch.NoteNumber -> Either Text (String, Harmonic)
+    -- ^ Either Error (selected string, harmonic)
+find_harmonic highest_harmonic open_strings maybe_string nn =
+    maybe (Left err) Right $ case maybe_string of
+        Just string ->
+            (string,) <$> harmonic_of highest_harmonic (str_nn string) nn
+        Nothing
+            | null open_strings -> Nothing -- Just (Pitch.modify_hz (/2) nn, 2)
+            | otherwise -> fmap Tuple.swap $ Seq.minimum_on fst $
+                Seq.key_on_just harm_of open_strings
+                where
+                harm_of string = harmonic_of highest_harmonic (str_nn string) nn
+    where
+    err = "can't find " <> pretty nn <> " as a natural harmonic of "
+        <> maybe ("open strings: " <> pretty open_strings) pretty maybe_string
+
+harmonic_of :: Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
+    -> Maybe Harmonic
+harmonic_of limit base pitch = (2+) <$> List.findIndex (close pitch) harmonics
+    where
+    harmonics = take limit $ map (Pitch.nn_to_hz base *) [2..]
+    close nn hz = Pitch.nns_close 50 nn (Pitch.hz_to_nn hz)

@@ -104,7 +104,7 @@ NESS:
       effect.
     - Can I get a muted string effect by plucking while touching with low
       force?
-    - Get harmonics working.
+    * Get harmonics working.
       . 1/256 is a good finger pressure for harmonics, 4/256 at a high node is
         good for a muted stroke.
       . For general harmonics, I should be able to address by harmonic number,
@@ -172,6 +172,12 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - string_idiom should ignore notes that already have a string.
+  - Make Derive.with_constant_control add Score.untyped
+  - It's easy to forget to place the note when I use Call.pitched_note, should
+    it take args and do a placed_note?
+  - Add qualified syntax for calls, so I don't have to import them.  E.g.
+    string.idiom.bent-string.
   - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
     . Except it can't because of circular dependencies.  Maybe instead
       Twelve.nn_pitch should replace the one in PSignal.

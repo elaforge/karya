@@ -13,6 +13,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
@@ -22,6 +23,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.StringUtil as StringUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -47,6 +49,8 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("gliss-a", c_gliss_absolute)
     , ("gliss", c_gliss)
+    , ("on", c_nth_harmonic)
+    , ("o", c_harmonic)
     ]
     [ ("bent-string", c_bent_string)
     , ("stopped-string", c_stopped_string)
@@ -96,11 +100,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         "String release delay time."
     <*> StringUtil.open_strings_env <*> StringUtil.string_env
     ) $ \(release_delay, open_strings, string) _args deriver -> case string of
-        Just _ -> deriver
-            -- Make string, which is what the instrument expects, instead of
-            -- a pitch.  TODO I should come up with a way to treat strings
-            -- symbolically but still get their pitches.
-            -- Derive.with_val EnvKey.string (ShowVal.show_val string) deriver
+        Just _ -> deriver -- presumably they will all get a constant string
         Nothing -> do
             open_strings <- mapM StringUtil.string open_strings
             release_delay <- Typecheck.to_typed_function release_delay
@@ -149,8 +149,6 @@ make_config attack_dur release_delay release_dur open_strings = do
     This does't do anything fancy like simulate hand position or alternate
     fingerings.  It just selects the lowest string below or at the lowest pitch
     in the note.
-
-    TODO option to override string selection
 -}
 string_idiom :: Config -> Stream.Stream Score.Event -> Derive.NoteDeriver
 string_idiom config = do
@@ -352,3 +350,53 @@ gliss pitches time start_dyn end_dyn end = do
     let note (t, p, dyn) = Derive.place t score_dur $ Call.with_dynamic dyn $
             Call.pitched_note p
     mconcat $ map note $ zip3 score_ts pitches dyns
+
+
+-- * harmonic
+
+c_nth_harmonic :: Derive.Generator Derive.Note
+c_nth_harmonic = Derive.generator module_ "harmonic" Tags.inst
+    "Play a specific harmonic on a specific string."
+    $ Sig.call ((,,)
+    <$> (Typecheck.positive <$> Sig.defaulted "n" 1 "Play this harmonic.")
+    <*> finger_arg
+    <*> Sig.required_environ_key EnvKey.string "Play on this string."
+    ) $ \(harmonic, finger, string) -> Sub.inverting $ \args -> do
+        string <- StringUtil.string string
+        finger <- Call.control_at finger =<< Args.real_start args
+        Call.place args $
+            Derive.with_constant_control Controls.finger (Score.untyped finger) $
+            Call.pitched_note $
+            Twelve.nn_pitch $ Pitch.modify_hz (*harmonic) $
+            StringUtil.str_nn string
+
+c_harmonic :: Derive.Generator Derive.Note
+c_harmonic = Derive.generator module_ "harmonic" Tags.inst
+    "Play the given pitch as a harmonic, possibly restricted to a string.\
+    \ Otherwise, pick the lowest harmonic where the pitch fits."
+    $ Sig.call ((,,)
+        <$> finger_arg
+        <*> StringUtil.string_env
+        <*> StringUtil.open_strings_env
+    ) $ \(finger, maybe_string, open_strings) -> Sub.inverting $ \args -> do
+        nn <- Pitches.pitch_nn =<< Call.get_transposed =<< Args.real_start args
+        open_strings <- mapM StringUtil.string open_strings
+        maybe_string <- traverse StringUtil.string maybe_string
+        finger <- Call.control_at finger =<< Args.real_start args
+        (string, harmonic) <- Derive.require_right id $
+            StringUtil.find_harmonic highest_harmonic open_strings maybe_string
+                nn
+        StringUtil.with_string string $ Call.place args $
+            Derive.with_constant_control Controls.finger (Score.untyped finger) $
+            Call.pitched_note $
+            Twelve.nn_pitch $ touch_interval harmonic (StringUtil.str_nn string)
+
+highest_harmonic :: StringUtil.Harmonic
+highest_harmonic = 13
+
+touch_interval :: Int -> Pitch.NoteNumber -> Pitch.NoteNumber
+touch_interval harmonic = Pitch.modify_hz (* fromIntegral harmonic)
+
+finger_arg :: Sig.Parser BaseTypes.ControlRef
+finger_arg = Sig.defaulted "finger" (BaseTypes.constant_control 0.035)
+    "Weight of the finger touching the string, in newtons."

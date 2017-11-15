@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Idiom.String_test where
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -110,6 +111,31 @@ test_gliss_a = do
     equal (run2 "gliss-a 2 1t" "4f") ([2.5, 2.75, 3], [])
     equal (run2 "gliss-a 2 1s" "4f") ([2, 2.5, 3], [])
 
+test_nth_harmonic = do
+    let run call pitch = DeriveTest.extract DeriveTest.e_nn_rounded $
+            DeriveTest.derive_tracks title $
+            UiTest.note_track [(0, 1, call <> " -- " <> pitch)]
+    strings_like (snd $ run "on 0" "4c") ["expected Num (>0)"]
+    equal (run "string=(4c) | on 1" "4c") ([NN.c4], [])
+    equal (run "string=(4c) | on 2" "4c") ([NN.c5], [])
+    equal (run "string=(4c) | on 3" "4c") ([harmonic 3 NN.c4], [])
+
+test_harmonic = do
+    let run call pitch = DeriveTest.extract extract $
+            DeriveTest.derive_tracks
+                "import idiom.string | open-strings = (list (4c) (5c))" $
+            UiTest.note_track [(0, 1, call <> " -- " <> pitch)]
+        extract e = (DeriveTest.e_nn_rounded e, e_string e)
+    -- Pick the harmonic, even though an open string is available.
+    equal (run "o" "5c") ([(harmonic 2 NN.c4, "4c")], [])
+    -- Pick lowest harmonic.
+    equal (run "o" "6c") ([(harmonic 2 NN.c5, "5c")], [])
+    equal (run "o" "5g") ([(harmonic 3 NN.c4, "4c")], [])
+    -- Unless I force a string.
+    equal (run "string=(4c) | o" "6c") ([(harmonic 4 NN.c4, "4c")], [])
+
+harmonic :: Int -> Pitch.NoteNumber -> Pitch.NoteNumber
+harmonic n = Num.roundDigits 2 . Pitch.modify_hz (* fromIntegral n)
 
 e_string :: Score.Event -> Text
 e_string = maybe "" show_pitch . DeriveTest.e_environ_val EnvKey.string

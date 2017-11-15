@@ -64,6 +64,10 @@ start_t = "start-t"
 mute :: Control
 mute = "mute"
 
+-- | Finger weight, when stopping a string.  In newtons.
+finger :: Control
+finger = "finger"
+
 -- ** understood by MIDI performer
 
 -- | Breath controller.  Generally you should use 'dynamic', which will emit
