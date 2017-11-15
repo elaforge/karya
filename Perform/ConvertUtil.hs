@@ -32,12 +32,15 @@ convert process lookup_inst = go Nothing Set.empty
             | inst `Set.member` warned -> go (Just event) warned events
             | otherwise -> warn ("instrument not found: " <> pretty inst)
                 : go (Just event) (Set.insert inst warned) events
-        Just resolved -> converted ++ go (Just event) warned events
+        Just resolved ->
+            map LEvent.Log postproc_logs ++ converted
+                ++ go (Just event) warned events
             where
             code = Common.common_code $ Inst.inst_common $
                 Cmd.inst_instrument resolved
             converted = map (LEvent.map_log (add_stack event)) $
-                process (Cmd.inst_postproc code event) resolved
+                process event' resolved
+            (event', postproc_logs) = Cmd.inst_postproc code event
         where
         inst = Score.event_instrument event
         -- Sorted is a postcondition of the deriver, verify that.

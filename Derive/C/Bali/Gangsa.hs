@@ -33,6 +33,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -170,8 +171,8 @@ c_derive_with name with_polos with_sangsih =
 -- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
 -- This interprets 'Controls.mute' and turns it into either a @%mod@ control or
 -- @mute_attr@.
-mute_postproc :: Attrs.Attributes -> Score.Event -> Score.Event
-mute_postproc mute_attr event =
+mute_postproc :: Attrs.Attributes -> Score.Event -> (Score.Event, [Log.Msg])
+mute_postproc mute_attr event = (,[]) $
     case Score.control_at (Score.event_start event) Controls.mute event of
         Nothing -> set_mod 0 event
         Just tval

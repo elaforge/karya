@@ -102,8 +102,9 @@ NESS:
 
     - Maybe I can use the "jawari" fret with parallel strings as a special
       effect.
-    - Can I get a muted string effect by plucking while touching with low
+    . Can I get a muted string effect by plucking while touching with low
       force?
+      . Yes, sort of, just don't touch a node.
     * Get harmonics working.
       . 1/256 is a good finger pressure for harmonics, 4/256 at a high node is
         good for a muted stroke.
@@ -151,7 +152,8 @@ NESS:
       early.  I assign string via postproc.  So I need to assign at convert
       time.  Don't I have a postproc field for that?
     . Yes, Cmd.inst_postproc.
-  - Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
+  - How to do strums and rolls with harmonics?
+
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
       otherwise acts like a MIDI instrument.
@@ -172,6 +174,7 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  * Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
   - string_idiom should ignore notes that already have a string.
   * Make Derive.with_constant_control add Score.untyped
   - It's easy to forget to place the note when I use Call.pitched_note, should

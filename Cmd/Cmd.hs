@@ -825,7 +825,7 @@ type ThruFunction = Attrs.Attributes -> InputNote.Input -> CmdId ()
 -- 'Score.event_controls', 'Score.event_pitch', and 'Score.event_environ'.
 -- TODO so I could have it return just those?  But then it has to return Maybe
 -- to not modify and needs a record type.
-type InstrumentPostproc = Score.Event -> Score.Event
+type InstrumentPostproc = Score.Event -> (Score.Event, [Log.Msg])
 
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
 instance Pretty InstrumentCode where
@@ -847,7 +847,7 @@ make_derive_instrument resolved = Derive.Instrument
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
     { inst_calls = mempty
-    , inst_postproc = id
+    , inst_postproc = (,[])
     , inst_cmds = []
     , inst_thru = Nothing
     }

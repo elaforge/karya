@@ -32,10 +32,10 @@ to_list :: Environ -> [(Key, BaseTypes.Val)]
 to_list (Environ env) = Map.toList env
 
 delete :: Key -> Environ -> Environ
-delete name (Environ env) = Environ $ Map.delete name env
+delete key (Environ env) = Environ $ Map.delete key env
 
 is_set :: Key -> Environ -> Bool
-is_set name (Environ env) = Map.member name env
+is_set key (Environ env) = Map.member key env
 
 -- * typechecking
 
@@ -47,30 +47,30 @@ is_set name (Environ env) = Map.member name env
 -- 'BaseTypes.VNotGiven' is another special case, it deletes the given key.
 put_val :: Typecheck.ToVal a => Key -> a -> Environ
     -> Either ValType.Type Environ
-put_val name val environ
-    | BaseTypes.VNotGiven <- new_val = Right $ delete name environ
-    | otherwise = case lookup name environ of
-        Nothing -> case Map.lookup name hardcoded_types of
+put_val key val environ
+    | BaseTypes.VNotGiven <- new_val = Right $ delete key environ
+    | otherwise = case lookup key environ of
+        Nothing -> case Map.lookup key hardcoded_types of
             Just expected | not $
                 ValType.types_match expected (ValType.type_of new_val) ->
                     Left expected
-            _ -> Right $ insert name new_val environ
+            _ -> Right $ insert key new_val environ
         Just old_val -> case ValType.val_types_match old_val new_val of
             Just expected -> Left expected
-            Nothing -> Right $ insert name new_val environ
+            Nothing -> Right $ insert key new_val environ
     where new_val = Typecheck.to_val val
 
 -- | Like 'put_val', but format the error msg.
 put_val_error :: Typecheck.ToVal a => Key -> a -> Environ -> Either Text Environ
-put_val_error name val = first fmt . put_val name val
+put_val_error key val = first fmt . put_val key val
     where
-    fmt typ = "can't set " <> pretty name <> " to "
+    fmt typ = "can't set " <> pretty key <> " to "
         <> ShowVal.show_val (Typecheck.to_val val) <> ", expected "
         <> pretty typ
 
 -- | Insert a val without typechecking.
 insert_val :: Typecheck.ToVal a => Key -> a -> Environ -> Environ
-insert_val name = insert name . Typecheck.to_val
+insert_val key = insert key . Typecheck.to_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
@@ -93,7 +93,7 @@ hardcoded_types = Map.fromList
 data LookupError = NotFound | WrongType !ValType.Type deriving (Show)
 
 get_val :: Typecheck.Typecheck a => Key -> Environ -> Either LookupError a
-get_val name environ = case lookup name environ of
+get_val key environ = case lookup key environ of
     Nothing -> Left NotFound
     Just val -> case Typecheck.from_val_simple val of
         Nothing -> Left (WrongType (ValType.type_of val))
@@ -102,15 +102,15 @@ get_val name environ = case lookup name environ of
 -- | Like 'get_val', except that type errors and not found both turn into
 -- Nothing.
 maybe_val :: Typecheck.Typecheck a => Key -> Environ -> Maybe a
-maybe_val name = Typecheck.from_val_simple <=< lookup name
+maybe_val key = Typecheck.from_val_simple <=< lookup key
 
 -- | Like 'get_val' but format a WrongType nicely.
 checked_val :: forall a. Typecheck.Typecheck a => Key -> Environ
     -> Either Text (Maybe a)
-checked_val name environ = case get_val name environ of
+checked_val key environ = case get_val key environ of
     Left NotFound -> return Nothing
     Left (WrongType typ) ->
-        Left $ showt name <> ": expected " <> pretty return_type
+        Left $ showt key <> ": expected " <> pretty return_type
             <> " but val type is " <> pretty typ
     Right v -> return (Just v)
     where return_type = Typecheck.to_type (Proxy :: Proxy a)
@@ -119,7 +119,7 @@ checked_val name environ = case get_val name environ of
 -- Nothing, which is more convenient in some cases.
 checked_val2 :: Typecheck.Typecheck a => Key -> Environ
     -> Maybe (Either Text a)
-checked_val2 name environ = case checked_val name environ of
+checked_val2 key environ = case checked_val key environ of
     Right Nothing -> Nothing
     Right (Just val) -> Just (Right val)
     Left err -> Just (Left err)

@@ -123,11 +123,14 @@ instance Pretty Code where
             ]
 
 instance Monoid Code where
-    mempty = Code [] [] [] mempty id [] Nothing
+    mempty = Code [] [] [] mempty (,[]) [] Nothing
     mappend (Code gen1 trans1 track1 val1 post1 cmds1 thru1)
             (Code gen2 trans2 track2 val2 post2 cmds2 thru2) =
         Code (gen1<>gen2) (trans1<>trans2) (track1<>track2) (val1<>val2)
-            (post1 . post2) (cmds1<>cmds2) (thru1<|>thru2)
+            (merge post1 post2) (cmds1<>cmds2) (thru1<|>thru2)
+
+merge :: (b -> (c, [log])) -> (a -> (b, [log])) -> (a -> (c, [log]))
+merge f1 f2 = (\(b, logs) -> (logs++) <$> f1 b) . f2
 
 -- ** code constructors
 

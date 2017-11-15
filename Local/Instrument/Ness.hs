@@ -7,6 +7,7 @@ module Local.Instrument.Ness where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -51,7 +52,7 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
             [ (Control.pitch, "")
             , (Control.dynamic, "")
             , (Guitar.Patch.c_location, "Pluck location.")
-            -- TODO Derive.Controls.finger
+            -- TODO use Derive.Controls.finger
             , (Guitar.Patch.c_finger, "Stopping finger weight.")
             ]
         , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
@@ -64,10 +65,9 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
     note = ImInst.null_call $ DUtil.attack_sample_note id $
         Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
 
--- TODO log Left as an error once postproc supports that
-show_string :: PSignal.Pitch -> Text
-show_string =
-    either pretty Pitch.note_text . PSignal.pitch_note . PSignal.coerce
+show_string :: PSignal.Pitch -> Either Log.Msg Text
+show_string = (Log.msg Log.Warn Nothing . pretty *** Pitch.note_text)
+    . PSignal.pitch_note . PSignal.coerce
 
 make_string :: Guitar.String -> RestrictedEnviron.ConstantPitch
 make_string str = RestrictedEnviron.ConstantPitch Twelve.scale_id

@@ -12,6 +12,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Log as Log
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Europe.Grace as Grace
@@ -278,10 +279,19 @@ attack_sample controls args deriver = do
 -- | Move an environ val from one key to another.  This is meant to be put in
 -- 'Cmd.Cmd.inst_postproc', because doing it in the note call may be too early.
 move_val :: (Typecheck.Typecheck old, Typecheck.ToVal new) =>
-    EnvKey.Key -> EnvKey.Key -> (old -> new)
-    -> Score.Event -> Score.Event
-move_val from_key to_key convert event =
-    case Env.maybe_val from_key (Score.event_environ event) of
-        Nothing -> event -- TODO log if present but the type is wrong
-        Just val ->
-            Score.modify_environ (Env.insert_val to_key (convert val)) event
+    EnvKey.Key -> EnvKey.Key -> (old -> Either Log.Msg new)
+    -> Score.Event -> (Score.Event, [Log.Msg])
+move_val old_key new_key convert event =
+    case Env.checked_val2 old_key (Score.event_environ event) of
+        Nothing -> (event, [])
+        Just (Left err) -> (event, [msg])
+            where
+            msg = Log.msg Log.Warn (Just (Score.event_stack event)) $
+                "postproc: " <> err
+        Just (Right old) -> case convert old of
+            Left msg ->
+                ( event
+                , [msg { Log.msg_stack = Just $ Score.event_stack event }]
+                )
+            Right new ->
+                (Score.modify_environ (Env.insert_val new_key new) event, [])
