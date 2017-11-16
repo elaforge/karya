@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ness.Util where
+import qualified Prelude
+import Prelude hiding (putStrLn)
 import qualified Codec.Binary.Base64Url as Base64Url
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.QSem as QSem
@@ -19,6 +21,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.Process as Process
 
 import Util.Crc32Instances ()
@@ -43,6 +46,13 @@ defaultSR :: SamplingRate
 defaultSR = 11000
 
 type Render score = SamplingRate -> score -> (Text, Text)
+
+submitDir :: FilePath -> IO ()
+submitDir dir = do
+    (ok, url) <- Submit.submitDownload False
+        (dir </> "inst") (dir </> "score") (dir </> "out.wav")
+    if ok then play (dir </> "out.wav")
+        else putStrLn $ "not ok: " <> show url
 
 submitVariations :: SamplingRate -> Render score -> String -> FilePath
     -> [(FilePath, [score])] -> IO ()
@@ -72,7 +82,7 @@ submitInstruments dir outputNameScores = do
     outputFiles <- ifM (Directory.doesDirectoryExist scratchDir)
         (previousRender nameOutput scratchDir)
         (submitAndCheck scratchDir outputNameScores)
-    forM_ outputFiles $ \(output, scratch) -> do
+    Async.forConcurrently_ outputFiles $ \(output, scratch) -> do
         putStrLn $ scratch <> " -> " <> output
         Directory.createDirectoryIfMissing True (FilePath.takeDirectory output)
         Sound.resample Config.samplingRate scratch output
@@ -200,3 +210,8 @@ mapConcurrent threads f as = do
 zeroPad :: Show a => Int -> a -> String
 zeroPad chars n = replicate (chars - length s) '0' ++ s
     where s = show n
+
+putStrLn :: String -> IO ()
+putStrLn s = do
+    IO.hSetBuffering IO.stdout IO.LineBuffering
+    Prelude.putStrLn s
