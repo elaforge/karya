@@ -28,12 +28,12 @@ test_call_maps = do
 
 test_sequence = do
     let run c = derive_tracks DeriveTest.e_nns_rounded $
-            make_2notes (4, "--") (2, c)
+            make_2notes (4, "--|") (2, c)
         output nns = ([[(0, NN.c4)], nns, [(6, NN.e4)]], [])
     let tracks =
             [ (">", [(0, 4, ""), (4, 2, ""), (6, 2, "")])
             , ("*", [(0, 0, "4c"), (4, 0, "4d"), (6, 0, "4e")])
-            , ("t-nn | gamak", [(0, 0, "--"), (4, 0, "!^=")])
+            , ("t-nn | gamak", [(0, 0, "--|"), (4, 0, "!^=")])
             ]
     putStrLn $ untxt $ UiTest.fmt_tracks tracks
     pprint (derive_tracks DeriveTest.e_nns_rounded tracks)
@@ -77,7 +77,7 @@ test_parse_pitch_sequence = do
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
 
 test_postfix = do
-    let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--")
+    let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--|")
     strings_like (snd $ run (4, "!_==1_"))
         (replicate 2 "postfix call with no preceding call")
     equal (run (4, "!T0==1_"))
@@ -104,7 +104,7 @@ test_prev_pitch = do
             [(0, 0, "!T1="), (1, 0, "!=")])
         ([[(0, NN.cs4), (1, NN.cs4), (2, NN.cs4)]], [])
     -- Prev pitch comes from prev event.
-    equal (run (make_2notes (4, "--") (2, "!-1")))
+    equal (run (make_2notes (4, "--|") (2, "!-1")))
         ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
     -- Prev pitch comes from the parent pitch track.
     equal (run $ note_pitch_gamakam
@@ -119,7 +119,7 @@ test_prev_pitch = do
     --         [(0, 3, ""), (3, 2, "")]
     --         [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
     --             (3, 0, "4c"), (4, 0, "4d")]
-    --         [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
+    --         [(1, 0, "!="), (2, 0, "--|"), (4, 0, "!=")])
     --     ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
     --         [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
 
@@ -148,7 +148,7 @@ test_note_end = do
     let result = run
             [ (">", [(0, 4, ""), (4, 4, "")])
             , ("*", [(0, 0, "4c")])
-            , ("t-nn | gamak | transition=1", [(0, 0, "!1"), (8, 0, "--")])
+            , ("t-nn | gamak | transition=1", [(0, 0, "!1"), (8, 0, "--|")])
             , ("dyn | dyn", [(0, 0, "!<")])
             ]
     -- Transition is up to 4, not 8.
@@ -165,7 +165,7 @@ test_note_end = do
             [(0, 0), (1, 0.58), (2, 0.84), (3, 0.96), (4, 1)])]
 
 test_sequence_interleave = do
-    let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
+    let run c = derive_tracks extract $ make_2notes (4, "--|") (6, c)
         extract = DeriveTest.e_nns_rounded
     equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
 

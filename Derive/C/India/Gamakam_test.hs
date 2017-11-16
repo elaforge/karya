@@ -87,7 +87,7 @@ run_diatonic extract call end =
     DeriveTest.extract extract $ derive_tracks
         [ (">", [(0, end, "")])
         , ("*", [(0, 0, "4c")])
-        , ("t-dia", [(0, 0, call), (end, 0, "--")])
+        , ("t-dia", [(0, 0, call), (end, 0, "--|")])
         ]
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result

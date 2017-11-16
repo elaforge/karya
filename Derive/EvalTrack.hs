@@ -419,7 +419,7 @@ is_linear_warp warp
 derive_event :: Derive.Callable d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event ctx event
-    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
+    | "--|" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
     | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
         case Parse.parse_expr text of
             Left err -> Log.warn err >> return Stream.empty

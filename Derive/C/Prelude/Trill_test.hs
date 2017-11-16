@@ -204,7 +204,7 @@ test_chord_tremolo_function = do
 
 test_trill = do
     let run text = extract $ derive_tracks
-            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
         extract = DeriveTest.extract DeriveTest.e_nns
     -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
@@ -219,7 +219,7 @@ test_trill = do
     let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
             , ("tr-neighbor" <> suffix, [(0, 0, val)])
-            , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--")])
+            , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--|")])
             ]
     equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run_neighbor "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
@@ -232,7 +232,7 @@ test_trill = do
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
             , ("tr-speed" <> suffix, [(0, 0, "2")])
-            , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--")])
+            , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--|")])
             ]
         trill xs = [zip xs (cycle [60, 62])]
     -- 3 at tempo 2 means the trill should end at 1.5.
@@ -244,7 +244,7 @@ test_trill = do
 
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks
-            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
         nns = map snd . DeriveTest.e_nns
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
     equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
@@ -260,7 +260,7 @@ test_trill_start_end = do
 
 test_trill_hold = do
     let run text = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
-            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
     equal (run "hold = 1 | tr (4c) 1 1") ([[(0, 60), (2, 62)]], [])
     -- Still respects start and end restrictions.
     equal (run "hold = 1 | tr__ (4c) 1 1") ([[(0, 60)]], [])
@@ -274,12 +274,12 @@ test_moving_trill = do
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
-        , ("t-dia", [(0, 0, "tr 1 1"), (6, 0, "--")])
+        , ("t-dia", [(0, 0, "tr 1 1"), (6, 0, "--|")])
         ])
         ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72)]], [])
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
-        , ("t-chrom", [(0, 0, "tr 1 1"), (6, 0, "--")])
+        , ("t-chrom", [(0, 0, "tr 1 1"), (6, 0, "--|")])
         ])
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
@@ -335,10 +335,10 @@ test_xcut_pitch = do
     equal (f
             [ ("* #xcut1", [(0, 0, "4c")])
             , ("* #xcut2", [(0, 0, "5c")])
-            , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--")])
+            , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--|")])
             ])
         ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
-    equal (f [("*", [(0, 0, "xcut (4c) (5c) 1"), (4, 0, "--")])])
+    equal (f [("*", [(0, 0, "xcut (4c) (5c) 1"), (4, 0, "--|")])])
         ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
 
 
@@ -348,7 +348,7 @@ test_control_trill = do
     let run tempo text = extract $ derive_tracks
             [ ("tempo", [(0, 0, showt tempo)])
             , (">", [(0, 3, "")])
-            , ("cont", [(0, 0, text), (3, 0, "--")])
+            , ("cont", [(0, 0, text), (3, 0, "--|")])
             ]
         extract = DeriveTest.extract (DeriveTest.e_control "cont")
         trill xs = zip xs (cycle [0, 1])

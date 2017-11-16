@@ -129,7 +129,7 @@ test_c_note = do
     strings_like logs ["parse error"]
 
     -- comment only event is filtered out
-    equal (run ">i" [(0, 1, "--")]) ([], [])
+    equal (run ">i" [(0, 1, "--|")]) ([], [])
     equal (run ">" [(0, 1, "n i +a")])
         ([(0, 1, "n i +a", inst, ["a"])], [])
 

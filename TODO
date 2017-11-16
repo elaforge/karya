@@ -108,6 +108,10 @@ NESS:
         of thing.
       . In fact, maybe I should rename "n" to something like "note" or "NOTE",
         since 'n' is likely to be overidden for something unrelated (nam).
+      . The risk is that it will be confusing if I override "" but Call.note
+        doesn't do it.  But I think all current "" overrides come from
+        instrument definitions, and MidiInst.null_call also overrides the "n"
+        call.
     - Experiment with string connections for sympathetic strings.
     * Why do I get attack artifacts?
       . First, I need a stronger touch, like 0.5.
@@ -408,7 +412,7 @@ UNSORTED
       . format ("from="%'val%" | "%'str%" "%'val) vol c val
       . Still much noisier than "from=%v | %s %v".
     . fmt: even more operators and imports
-  - The EvalTrack rule that skips events that are all comment event is
+  * The EvalTrack rule that skips events that are all comment event is
     confusing, because you have to replace a note with 'n -- blah'.
     . Make the "skip totally" triggered by '--|'.
     . Search dumps for '--', update doc/*.

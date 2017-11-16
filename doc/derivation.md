@@ -332,7 +332,7 @@ Notice that you can't actually pass arguments to the null call, because as soon
 as you add a character it looks like a call name itself.  Well, except for the
 control track hack below.
 
-- Comments start with `--`.  As a special hack, an event starting with `--` is
+- Comments start with `--`.  As a special hack, an event starting with `--|` is
 completely ignored rather than considered a null call.  This can be useful to
 mark an event boundary but not actually produce a value.  For instance, some
 calls may extend to the next event, and this can make them end earlier.  Or you
