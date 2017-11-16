@@ -1,0 +1,23 @@
+#!/bin/zsh
+# Run seq.  First make sure it's built and logview is running.
+
+if [[ -z $mode ]]; then
+    echo $0: no mode
+    exit 1
+fi
+if ! repl=t bin/mk build/$mode/logview build/$mode/seq; then
+    echo $0: build failed
+    exit 1
+fi
+
+build/$mode/logview &
+
+if [[ -e seq-repl ]]; then
+    echo "$0: seq-repl exists, is a copy already running?"
+    exit 1
+fi
+build/$mode/seq "$@"
+if [[ $? -ne 0 ]]; then
+    rm seq-repl
+fi
+

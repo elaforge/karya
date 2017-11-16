@@ -103,6 +103,11 @@ NESS:
     - Try an instrument with several low strings, played on harmonics.
       . Replace note call with 'o'.
       . Play like yangqin.
+      . Well, I can't replace "" because harmonic does Call.note, which leads
+        to recursion.  Maybe Call.note should call "n" so I can do this kind
+        of thing.
+      . In fact, maybe I should rename "n" to something like "note" or "NOTE",
+        since 'n' is likely to be overidden for something unrelated (nam).
     - Experiment with string connections for sympathetic strings.
     * Why do I get attack artifacts?
       . First, I need a stronger touch, like 0.5.
@@ -184,12 +189,14 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - make Articulation harmonic call use StringUtil.find_harmonic
+    . Remember to special case string=Nothing, open_strings=[]
   - im: If I delete an instrument and rerender, the old one is left around.
     This is because the cache won't delete existing files.  This will be fixed
     by making a new cache dir instead of just copying into the existing one.
     . I should be able to cache instruments that don't change.
   - im: put all notes in one directory, and then have a directory per namespace.
-  - Don't allow multiple copies of seq, it's really confusing.
+  * Don't allow multiple copies of seq, it's really confusing.
   * Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
   - string_idiom should ignore notes that already have a string.
   * Make Derive.with_constant_control add Score.untyped

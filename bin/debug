@@ -1,10 +1,4 @@
 #!/bin/sh
-# Run a debug seq.  First make sure it's built and logview is running.
+# Run a debug seq.
 
-if repl=t bin/mk build/opt/logview build/debug/seq; then
-    build/opt/logview &
-    build/debug/seq "$@"
-    if [[ $? -ne 0 ]]; then
-        rm seq-repl
-    fi
-fi
+mode=debug exec bin/run-seq "$@"
