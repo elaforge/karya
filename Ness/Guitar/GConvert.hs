@@ -109,11 +109,15 @@ data Note = Note {
     , _location :: !Location
     } deriving (Show)
 
+_end :: Note -> RealTime.RealTime
+_end n = _start n + _duration n
+
 collectFingers :: [Note] -> Either Error ([Guitar.Note], [Guitar.Finger])
 collectFingers = collect . Seq.keyed_group_stable _string
     where
     collect stringNotes = do
-        (notes, fingers) <- unzip <$> mapM oneString stringNotes
+        (notes, fingers) <- unzip <$>
+            mapM (oneString . second deoverlap) stringNotes
         return (Seq.merge_lists Guitar.nStart notes, fingers)
     -- All the notes on a single string get a single finger.
     oneString :: (Guitar.String, [Note])
@@ -143,6 +147,14 @@ collectFingers = collect . Seq.keyed_group_stable _string
         , fInitial = (0, 0)
         , fMovement = fingerMovement2 string notes pitch fingerWeight
         }
+
+deoverlap :: [Note] -> [Note]
+deoverlap = map trim . Seq.zip_next
+    where
+    trim (n, Nothing) = n
+    trim (n, Just next)
+        | _end n > _start next = n { _duration = _start next - _start n }
+        | otherwise = n
 
 fingerMovement2 :: Guitar.String -> [Note]
     -> Signal.Signal -> Signal.Signal -> [(Seconds, Location, Newtons)]
