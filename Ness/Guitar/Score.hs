@@ -27,7 +27,18 @@ get :: Text -> Instrument
 get name = fromMaybe (error (show name)) $
     List.find ((==name) . iName) Patch.instruments
 
-(notes, fingers) = sampleSet strings
+(notes, fingers) = ([strike (str, 0.5, 0.28)],
+    [ Finger str (0, 0)
+        [ (0.45, loc, 0)
+        , (0.5, loc, 0.5)
+        , (1.0, loc, 0)
+        , (1.0, 0, 0)
+        ]
+    ])
+    where
+    str = strings !! 4
+    loc = 0.056
+-- (notes, fingers) = sampleSet strings
 
 srate :: SamplingRate
 srate = 11000
@@ -244,6 +255,7 @@ lowString = String
     , sRadius = 0.0002
     , sT60 = (15, 5)
     , sNn = 0 -- TODO
+    , sName = ""
     , sOutputs = [Output 0.9 (-0.5), Output 0.8 0.5]
     }
 
@@ -254,6 +266,7 @@ lowerString = String
     , sRadius = 0.0002
     , sT60 = (15, 5)
     , sNn = 0 -- TODO
+    , sName = ""
     , sOutputs = [Output 0.8 (-0.8), Output 0.5 0.8]
     }
 
@@ -270,7 +283,7 @@ guitar = map make
     ]
     where
     make (tension, radius, t60, pan) =
-        String 0.78 tension steel radius (15, t60) 0 [Output 0.9 pan]
+        String 0.78 tension steel radius (15, t60) 0 "" [Output 0.9 pan]
 
 -- middle C = 60nn
 --
@@ -287,7 +300,7 @@ samePitchStrings = map make
     ]
     where
     make (len, tension, radius, t60, pan) =
-        String len tension steel radius (15, t60) 0 -- TODO pitch
+        String len tension steel radius (15, t60) 0 "" -- TODO pitch
             [Output 0.9 pan]
 
 pipa = map make
@@ -298,7 +311,7 @@ pipa = map make
     ]
     where
     make (tension, radius, t60) =
-        String 0.6985 tension nylon radius (15, t60) 0 [Output 0.9 0.5]
+        String 0.6985 tension nylon radius (15, t60) 0 "" [Output 0.9 0.5]
 
 jawariFret = Fret { fHeight = (-0.0001), fLocation = 0.01 }
 

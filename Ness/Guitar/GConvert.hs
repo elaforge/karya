@@ -109,26 +109,12 @@ data Note = Note {
     , _location :: !Location
     } deriving (Show)
 
-assignString :: [(Pitch.NoteNumber, string)] -> Note
-    -> Either Error ((Pitch.NoteNumber, string), Note)
-assignString strings note = first ((pretty note <> ": ")<>) $ do
-    let pitches = Signal.within (_start note) (_start note + _duration note)
-            (_pitch note)
-    lowest <- tryJust "no pitch" $ fmap Pitch.nn $
-        Seq.minimum $ map snd $ Signal.unsignal pitches
-    str <- tryJust "below strings" $ lastLessEqual fst (lowest + eta) strings
-    return (str, note)
-    where
-    -- It's ok to be this far below the string.
-    eta = 0.005
-
 collectFingers :: [Note] -> Either Error ([Guitar.Note], [Guitar.Finger])
 collectFingers = collect . Seq.keyed_group_stable _string
     where
     collect stringNotes = do
         (notes, fingers) <- unzip <$> mapM oneString stringNotes
-        -- TODO merge by start?
-        return (concat notes, fingers)
+        return (Seq.merge_lists Guitar.nStart notes, fingers)
     -- All the notes on a single string get a single finger.
     oneString :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)
@@ -138,10 +124,11 @@ collectFingers = collect . Seq.keyed_group_stable _string
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
         let pitch = Signal.merge_segments [(_start n, _pitch n) | n <- notes]
-            finger = Signal.merge_segments [(_start n, _finger n) | n <- notes]
+            fingerWeight =
+                Signal.merge_segments [(_start n, _finger n) | n <- notes]
         return
             ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
-            , makeFinger string pitch finger
+            , makeFinger string notes pitch fingerWeight
             )
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
@@ -151,25 +138,52 @@ collectFingers = collect . Seq.keyed_group_stable _string
         , nLocation = _location note
         , nAmplitude = _dynamic note * maxAmp
         }
-    makeFinger string pitch finger = Guitar.Finger
+    makeFinger string notes pitch fingerWeight = Guitar.Finger
         { fString = string
         , fInitial = (0, 0)
-        , fMovement = movement string (Signal.unsignal pitch) finger
+        , fMovement = fingerMovement2 string notes pitch fingerWeight
         }
-    movement _ [] _ = []
-    movement string ((x0, y0) : pitch) finger =
-        position nn (x0-offset) y0 0
-        : position nn (x0-offset) y0 (fingerAt x0)
-        : [position nn x y (fingerAt x) | (x, y) <- pitch]
+
+fingerMovement2 :: Guitar.String -> [Note]
+    -> Signal.Signal -> Signal.Signal -> [(Seconds, Location, Newtons)]
+fingerMovement2 string notes pitch fingerWeight =
+    concat $ snd $ List.mapAccumL note (Signal.unsignal pitch)
+        (Seq.zip_next notes)
+    where
+    note pitches (note, nextNote) =
+        (here, movement (_start note) nextAttack
+            (takeWhile ((<nextAttack) . fst) here))
         where
-        nn = Guitar.sNn string
-        fingerAt x = fromMaybe 0 $ Signal.at x finger
-    offset = 0.01
-    position stringNn x y amp =
-        ( max 0 $ RealTime.to_seconds x
-        , max 0 $ Guitar.pitchLocation stringNn (Pitch.nn y)
-        , if Pitch.nns_equal (Pitch.nn y) stringNn then 0 else amp * maxAmp
+        here = dropWhile ((<= _start note) . fst) pitches
+        nextAttack = maybe 1e20 (subtract prepare . _start) nextNote
+    -- For each note attack, move into position and push down the finger over
+    -- the 'prepare' time.
+    movement attack nextAttack pitches =
+        position attack initial
+        : [position t nn | (t, nn) <- here]
+        where
+        initial = pitchAt attack
+        -- Extend the last sample since karya assumes it's constant after the
+        -- end, but the pitch of multiple notes have been joined.
+        -- TODO shouldn't Signal.merge_segments have fixed it?  I guess not,
+        -- if I am filtering samples here.  Signal segment refactor can't come
+        -- soon enough!
+        here = case Seq.viewr pitches of
+            Just (ps, (t, p))
+                | t < nextAttack -> ps ++ [(t, p), (nextAttack, p)]
+                | otherwise -> pitches
+            Nothing -> [(nextAttack, initial)]
+    position t nn =
+        ( max 0 $ RealTime.to_seconds t
+        , max 0 $ Guitar.pitchLocation stringNn (Pitch.nn nn)
+        , if Pitch.nns_equal (Pitch.nn nn) stringNn
+            then 0 else weightAt t * maxAmp
         )
+        where stringNn = Guitar.sNn string
+    weightAt t = fromMaybe 0 $ Signal.at t fingerWeight
+    pitchAt t = fromMaybe 0 $ Signal.at t pitch
+    -- Time before the note to move the finger.
+    prepare = 0.05
 
 findOverlaps :: [Note] -> [(Note, Note)]
 findOverlaps [] = []
@@ -179,7 +193,6 @@ findOverlaps (n1 : n2 : ns)
         (n1, n2) : findOverlaps (n2 : ns)
     | otherwise = findOverlaps (n2 : ns)
     where eta = 0.001
-
 
 -- * util
 
@@ -206,3 +219,41 @@ instance Pretty Note where
             , ("dynamic", Pretty.format dyn)
             , ("location", Pretty.format loc)
             ]
+
+-- * unused
+
+-- | This is the old slightly broken version.
+fingerMovement1 :: Guitar.String -> [RealTime.RealTime]
+    -> Signal.Signal -> Signal.Signal
+    -> [(Seconds, Location, Newtons)]
+fingerMovement1 string _attacks pitch fingerWeight =
+    case Signal.unsignal pitch of
+        [] -> []
+        ((x0, y0) : pitch) ->
+            position x0 y0 0
+            : position x0 y0 (weightAt x0)
+            : [position t nn (weightAt t) | (t, nn) <- pitch]
+    where
+    weightAt t = fromMaybe 0 $ Signal.at t fingerWeight
+    position t nn amp =
+        ( max 0 $ RealTime.to_seconds t - offset
+        , max 0 $ Guitar.pitchLocation stringNn (Pitch.nn nn)
+        , if Pitch.nns_equal (Pitch.nn nn) stringNn then 0 else amp * maxAmp
+        )
+        where
+        offset = 0.01
+        stringNn = Guitar.sNn string
+
+-- | Unused, I rely on karya doing this now.
+assignString :: [(Pitch.NoteNumber, string)] -> Note
+    -> Either Error ((Pitch.NoteNumber, string), Note)
+assignString strings note = first ((pretty note <> ": ")<>) $ do
+    let pitches = Signal.within (_start note) (_start note + _duration note)
+            (_pitch note)
+    lowest <- tryJust "no pitch" $ fmap Pitch.nn $
+        Seq.minimum $ map snd $ Signal.unsignal pitches
+    str <- tryJust "below strings" $ lastLessEqual fst (lowest + eta) strings
+    return (str, note)
+    where
+    -- It's ok to be this far below the string.
+    eta = 0.005

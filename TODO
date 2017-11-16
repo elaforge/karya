@@ -100,6 +100,15 @@ NESS:
       . For the web interface, output directories marked with seconds means
         parallel submits are unreliable.
 
+    - Try an instrument with several low strings, played on harmonics.
+      . Replace note call with 'o'.
+      . Play like yangqin.
+    - Experiment with string connections for sympathetic strings.
+    * Why do I get attack artifacts?
+      . First, I need a stronger touch, like 0.5.
+      . I get a cleaner sound if I go from zero to finger from t-0.05
+      . I can't release without a new note.
+
     - Maybe I can use the "jawari" fret with parallel strings as a special
       effect.
     . Can I get a muted string effect by plucking while touching with low
@@ -153,6 +162,7 @@ NESS:
       time.  Don't I have a postproc field for that?
     . Yes, Cmd.inst_postproc.
   - How to do strums and rolls with harmonics?
+    . A roll transform would do it, and fix the grace note problems too.
 
   - Have some way to more easily switch between kontakt mockup and ness.
     . How would this look for real?  A hybrid instrument that writes to im but
@@ -174,6 +184,12 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - im: If I delete an instrument and rerender, the old one is left around.
+    This is because the cache won't delete existing files.  This will be fixed
+    by making a new cache dir instead of just copying into the existing one.
+    . I should be able to cache instruments that don't change.
+  - im: put all notes in one directory, and then have a directory per namespace.
+  - Don't allow multiple copies of seq, it's really confusing.
   * Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
   - string_idiom should ignore notes that already have a string.
   * Make Derive.with_constant_control add Score.untyped
