@@ -25,6 +25,9 @@ note_track = "note-track"
 default_note :: Expr.Symbol
 default_note = "NOTE"
 
+null_note :: Expr.Symbol
+null_note = ""
+
 -- | Call used by the infix @=@ syntax.
 equal :: Expr.Symbol
 equal = "="

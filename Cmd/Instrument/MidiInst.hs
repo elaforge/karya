@@ -157,7 +157,8 @@ null_call :: Derive.Generator Derive.Note -> Code
 null_call = note_calls . null_calls
 
 null_calls :: Derive.Generator Derive.Note -> [Call Derive.Note]
-null_calls call = [generator "" call, generator Symbols.default_note call]
+null_calls call =
+    [generator Symbols.null_note call, generator Symbols.default_note call]
 
 note_calls :: [Call Derive.Note] -> Code
 note_calls calls =

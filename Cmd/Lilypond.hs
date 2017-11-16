@@ -85,7 +85,7 @@ lilypond_scope =
         %= Derive.add_priority Derive.PrioOverride lookup
     where
     lookup = Derive.LookupMap $ Map.fromList
-        [("", note), (Symbols.default_note, note)]
+        [(Symbols.null_note, note), (Symbols.default_note, note)]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
     note = Note.note_call "" "" mempty

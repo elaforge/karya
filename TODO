@@ -100,7 +100,7 @@ NESS:
       . For the web interface, output directories marked with seconds means
         parallel submits are unreliable.
 
-    - Try an instrument with several low strings, played on harmonics.
+    * Try an instrument with several low strings, played on harmonics.
       . Replace note call with 'o'.
       . Play like yangqin.
       . Well, I can't replace "" because harmonic does Call.note, which leads
@@ -112,6 +112,15 @@ NESS:
         doesn't do it.  But I think all current "" overrides come from
         instrument definitions, and MidiInst.null_call also overrides the "n"
         call.
+      . Wait this is still broken as soon as someone calls Call.note, e.g.
+        trem.  What I want is trem calls "", but 'o' calls NOTE.  Is it even
+        possible to do it in general?
+      . I could make a custom 'o' that calls the note call directly.  In fact,
+        maybe I can make any call a "bottom" call by making it revert the note
+        call.  So maybe this works: "" calls '^ = NOTE | o'
+      . So was that whole NOTE change just pointless?  Kind of yes, but it
+        still seems like a "" / NOTE division is useful, and 'n' is definitely
+        a bad name for it.
     - Experiment with string connections for sympathetic strings.
     * Why do I get attack artifacts?
       . First, I need a stronger touch, like 0.5.
@@ -193,6 +202,16 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - Shift-play plays im cache even when the instruments are gone, but not
+    enter-play?
+    . Properly I should clear out the cache when instruments go away, but
+      meanwhile I should be noticing that there are no im events and not
+      starting play_cache.
+    . Proper MIDI fallback would also fix this.
+  - Switching to Symbols.default_note means any event created via Call.note
+    winds up with event_text="NOTE", which is not as informative as the
+    original text.
+    . Was in always "" before?  If so it's not really a regression.
   - make Articulation harmonic call use StringUtil.find_harmonic
     . Remember to special case string=Nothing, open_strings=[]
   - im: If I delete an instrument and rerender, the old one is left around.

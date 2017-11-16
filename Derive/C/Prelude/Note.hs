@@ -47,9 +47,7 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("", c_note)
-    -- Since you can never call "" with arguments, I need a non-null form
-    -- to handle the args version.
+    [ (Symbols.null_note, c_note)
     , (Symbols.default_note, c_note)
     ]
     [ (Symbols.note_track, c_note_track)

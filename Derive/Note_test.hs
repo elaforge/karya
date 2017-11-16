@@ -134,7 +134,7 @@ test_c_note = do
     equal (run ">i" [(0, 1, "--|")]) ([], [])
 
     -- event overrides attrs
-    equal (run "> | +a" [(0, 1, "+b")]) ([(0, 1, "NOTE", "", ["a", "b"])], [])
+    equal (run "> | +a" [(0, 1, "+b")]) ([(0, 1, "", "", ["a", "b"])], [])
     -- alternate syntax
     equal (run ">i" [(0, 1, ""), (1, 1, "inst=i2 |")])
         ([ (0, 1, "", inst, [])
