@@ -128,6 +128,10 @@ test_harmonic = do
         extract e = (DeriveTest.e_nn_rounded e, e_string e)
     -- Pick the harmonic, even though an open string is available.
     equal (run "o" "5c") ([(harmonic 2 NN.c4, "4c")], [])
+    -- 1st harmonic not allowed unless I say so.
+    strings_like (snd $ run "o" "4c") ["can't find"]
+    equal (run "harmonic-h1=t | o" "4c") ([(NN.c4, "4c")], [])
+
     -- Pick lowest harmonic.
     equal (run "o" "6c") ([(harmonic 2 NN.c5, "5c")], [])
     equal (run "o" "5g") ([(harmonic 3 NN.c4, "4c")], [])

@@ -52,26 +52,30 @@ type Harmonic = Int
 -- | If string is given, try to find this pitch in the harmonics of that
 -- string.  Otherwise, find the string from open_strings which has this as
 -- its lowest harmonic.
-find_harmonic :: Harmonic -> [String] -> Maybe String
+find_harmonic :: Bool -> Harmonic -> [String] -> Maybe String
     -> Pitch.NoteNumber -> Either Text (String, Harmonic)
     -- ^ Either Error (selected string, harmonic)
-find_harmonic highest_harmonic open_strings maybe_string nn =
+find_harmonic h1_ok highest_harmonic open_strings maybe_string nn =
     maybe (Left err) Right $ case maybe_string of
         Just string ->
-            (string,) <$> harmonic_of highest_harmonic (str_nn string) nn
+            (string,) <$> harmonic_of h1_ok highest_harmonic (str_nn string) nn
         Nothing
-            | null open_strings -> Nothing -- Just (Pitch.modify_hz (/2) nn, 2)
+            | null open_strings -> Nothing
             | otherwise -> fmap Tuple.swap $ Seq.minimum_on fst $
                 Seq.key_on_just harm_of open_strings
                 where
-                harm_of string = harmonic_of highest_harmonic (str_nn string) nn
+                harm_of string =
+                    harmonic_of h1_ok highest_harmonic (str_nn string) nn
     where
     err = "can't find " <> pretty nn <> " as a natural harmonic of "
         <> maybe ("open strings: " <> pretty open_strings) pretty maybe_string
 
-harmonic_of :: Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
+harmonic_of :: Bool -> Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
     -> Maybe Harmonic
-harmonic_of limit base pitch = (2+) <$> List.findIndex (close pitch) harmonics
+harmonic_of h1_ok limit base pitch =
+    (start+) <$> List.findIndex (close pitch) harmonics
     where
-    harmonics = take limit $ map (Pitch.nn_to_hz base *) [2..]
+    start = if h1_ok then 1 else 2
+    harmonics = take limit $
+        map ((Pitch.nn_to_hz base *) . fromIntegral) [start..]
     close nn hz = Pitch.nns_close 50 nn (Pitch.hz_to_nn hz)

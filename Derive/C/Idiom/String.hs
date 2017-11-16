@@ -374,18 +374,21 @@ c_harmonic :: Derive.Generator Derive.Note
 c_harmonic = Derive.generator module_ "harmonic" Tags.inst
     "Play the given pitch as a harmonic, possibly restricted to a string.\
     \ Otherwise, pick the lowest harmonic where the pitch fits."
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
         <$> finger_arg
+        <*> Sig.defaulted "h1" False
+            "Ok to pick an open string as the 1st harmonic?"
         <*> StringUtil.string_env
         <*> StringUtil.open_strings_env
-    ) $ \(finger, maybe_string, open_strings) -> Sub.inverting $ \args -> do
+    ) $ \(finger, h1_ok, maybe_string, open_strings) -> Sub.inverting $
+    \args -> do
         nn <- Pitches.pitch_nn =<< Call.get_transposed =<< Args.real_start args
         open_strings <- mapM StringUtil.string open_strings
         maybe_string <- traverse StringUtil.string maybe_string
         finger <- Call.control_at finger =<< Args.real_start args
         (string, harmonic) <- Derive.require_right id $
-            StringUtil.find_harmonic highest_harmonic open_strings maybe_string
-                nn
+            StringUtil.find_harmonic h1_ok highest_harmonic open_strings
+                maybe_string nn
         StringUtil.with_string string $ Call.place args $
             Derive.with_constant_control Controls.finger finger $
             Call.pitched_note $
