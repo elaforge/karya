@@ -7,6 +7,7 @@ import Prelude hiding (String)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
 import Global
 import Ness.Global
@@ -222,7 +223,7 @@ renderScore strings (Score decay highpass notes fingers) = Text.unlines
     , renderFingers indexOf fingers
     ]
     where
-    duration = maximum (map nStart notes) + decay
+    duration = fromMaybe 0 (Seq.maximum (map nStart notes)) + decay
     indexOf str = fromMaybe (error $ "no string: " <> show str) $
         Map.lookup str toNum
         where toNum = Map.fromList $ zip strings [1..]
