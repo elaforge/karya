@@ -33,7 +33,7 @@ test_block = do
     strings_like (snd (run [(0, 1, "sub arg")])) ["too many arguments"]
 
     -- subderived stuff is stretched and placed, inherits instrument
-    let (evts, logs) = run [(0, 1, "sub"), (1, 2, "n i +a | sub")]
+    let (evts, logs) = run [(0, 1, "sub"), (1, 2, "attr i +a | sub")]
     equal logs []
     equal evts
         [ (0, 1, "", "", [])

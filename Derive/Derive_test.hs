@@ -111,7 +111,7 @@ test_attributes = do
         attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
             (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""
-            [ (">i1 | +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
+            [ (">i1 | +a1", [(0, 1, "+a0"), (1, 1, "+a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
         ((_, mmsgs), logs) = DeriveTest.perform convert_lookup
@@ -197,24 +197,24 @@ test_subderive = do
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", evts)
                 ])
-            , ("sub=ruler", [(">i2", [(1, 1, "n --sub1")])])
+            , ("sub=ruler", [(">i2", [(1, 1, "--sub1")])])
             , ("empty", [(">i1", [])])
             ]
     -- I used to test recursive call, but now that the block call doesn't
     -- catch that explicitly it means I get random crap before it finally
     -- aborts due to the call stack limit.
     let (events, msgs) = DeriveTest.r_split $ run
-            [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "n --x")]
+            [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "--x")]
     -- errors don't stop derivation, and an empty sub-block is ignored
-    equal (map DeriveTest.e_event events) [(1.5, 0.5, "n --x")]
+    equal (map DeriveTest.e_event events) [(1.5, 0.5, "--x")]
     strings_like (map DeriveTest.show_log msgs) ["not found: nosuch"]
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
         ["b0 b0.t2 0-1"]
 
-    let res = run [(0, 8, "n --b1"), (8, 8, "sub"), (16, 1, "n --b2")]
+    let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
         (events, msgs) = DeriveTest.r_split res
     equal (map DeriveTest.e_event events)
-        [(0, 4, "n --b1"), (6, 2, "n --sub1"), (8, 0.5, "n --b2")]
+        [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
     equal (map Score.event_instrument events)
         (map Score.Instrument ["i1", "i2", "i1"])
     equal msgs []
@@ -281,10 +281,10 @@ test_multiple_subderive = do
     -- make sure a sequence of sub calls works
     let res = DeriveTest.derive_blocks
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
-            , ("sub=ruler", [(">", [(0, 1, "n --sub1")])])
+            , ("sub=ruler", [(">", [(0, 1, "--sub1")])])
             ]
     equal (e_events res)
-        ([(0, 2, "n --sub1"), (2, 2, "n --sub1"), (4, 2, "n --sub1")], [])
+        ([(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")], [])
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
@@ -317,9 +317,9 @@ test_tempo_compose = do
         ([(2, 1, ""), (3, 1, "")], [])
 
     -- Make sure the top level block doesn't get stretched.
-    equal (run [(0, 0, "2")] [(0, 2, "n --1"), (2, 2, "sub"), (4, 2, "n --2")]
+    equal (run [(0, 0, "2")] [(0, 2, "--1"), (2, 2, "sub"), (4, 2, "--2")]
             [(0, 0, ".5")]) $
-        ([(0, 1, "n --1"), (1, 0.5, ""), (1.5, 0.5, ""), (2, 1, "n --2")], [])
+        ([(0, 1, "--1"), (1, 0.5, ""), (1.5, 0.5, ""), (2, 1, "--2")], [])
 
     equal (run [(0, 0, "1"), (2, 0, "2")] [(0, 2, "sub")] [(0, 0, "1")]) $
         ([(0, 1, ""), (1, 1, "")], [])

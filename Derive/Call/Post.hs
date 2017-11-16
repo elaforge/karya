@@ -35,7 +35,7 @@ import qualified Data.List as List
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Prelude.Note as Note
+import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
@@ -334,7 +334,7 @@ make_delayed :: Derive.PassedArgs a -> RealTime -> [BaseTypes.Val]
 make_delayed args start event_args = do
     dyn <- Internal.get_dynamic id
     Stream.from_event . delayed_event event_args <$>
-        Note.make_event args dyn start 0 mempty
+        NoteUtil.make_event args dyn start 0 mempty
 
 delayed_event :: [BaseTypes.Val] -> Score.Event -> Score.Event
 delayed_event args = Score.modify_environ $

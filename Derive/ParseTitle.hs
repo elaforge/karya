@@ -24,6 +24,7 @@ import qualified Derive.Parse as Parse
 import Derive.Parse (lexeme)
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -202,17 +203,14 @@ is_tempo_track title = case parse_control_type title of
 parse_note :: Text -> Either Text BaseTypes.Expr
 parse_note title = case Text.uncons title of
     Just ('>', rest) -> Parse.parse_expr (prefix <> rest)
-        where prefix = Expr.unsym note_track_symbol <> " "
+        where prefix = Expr.unsym Symbols.note_track <> " "
     _ -> Left $ "note track title should start with >: " <> showt title
 
 unparse_note :: BaseTypes.Expr -> Text
 unparse_note = strip . ShowVal.show_val
     where
     strip t = maybe t ((">"<>) . Text.stripStart) $
-        Text.stripPrefix (Expr.unsym note_track_symbol) t
-
-note_track_symbol :: Expr.Symbol
-note_track_symbol = "note-track"
+        Text.stripPrefix (Expr.unsym Symbols.note_track) t
 
 -- | Convert a track title into its instrument.
 title_to_instrument :: Text -> Maybe Score.Instrument

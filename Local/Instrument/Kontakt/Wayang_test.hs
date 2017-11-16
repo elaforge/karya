@@ -97,4 +97,4 @@ make_allocations suffix =
     ]
 
 wayang_title :: Text
-wayang_title = " | scale = wayang | n w | inst-polos = u  | inst-sangsih = i"
+wayang_title = " | scale = wayang | inst=w | inst-polos = u  | inst-sangsih = i"

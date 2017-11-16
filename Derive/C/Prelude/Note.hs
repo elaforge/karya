@@ -6,9 +6,9 @@
 -- | Basic calls for note tracks.
 module Derive.C.Prelude.Note (
     note_calls
-    , c_note, c_note_attributes, transformed_note, note_call
+    , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
-    , GenerateNote, default_note, note_flags, make_event
+    , GenerateNote, default_note, note_flags
     , adjust_duration
     , min_duration
 ) where
@@ -17,14 +17,12 @@ import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Ui.Color as Color
-import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
-
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -34,12 +32,12 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
-import qualified Derive.PSignal as PSignal
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -52,13 +50,23 @@ note_calls = Derive.call_maps
     [ ("", c_note)
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
-    , ("n", c_note)
+    , (Symbols.default_note, c_note)
     ]
-    [ ("n", c_note_attributes)
-    -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
-    -- 'note-track foo +bar'.
-    , (ParseTitle.note_track_symbol, c_note_track)
+    [ (Symbols.note_track, c_note_track)
     ]
+    <> Make.call_maps [("attr", c_with_attributes)]
+
+-- | This is mostly useful for tests when I need some call that makes a note
+-- and takes arguments.
+c_with_attributes :: Make.Calls Derive.Note
+c_with_attributes = Make.transform_notes Module.prelude "note" mempty
+    "A note with attributes or instrument."
+    (Sig.many "attr" "Set instrument or add attributes.") $
+    \inst_attrs deriver -> do
+        let (insts, attrs) = Either.partitionEithers inst_attrs
+            inst = Seq.last insts
+        maybe id Derive.with_instrument inst $
+            Call.add_attributes (mconcat attrs) deriver
 
 -- * note
 
@@ -80,20 +88,32 @@ note_call :: Derive.CallName -> Doc.Doc -> Tags.Tags -> GenerateNote
     -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
-    Sig.call (Sig.many "attribute" "Add attributes.") $
-    \vals -> Sub.inverting
-        (apply_instrument_controls . transform_note vals . generate)
+    Sig.call0  $ Sub.inverting $ apply_instrument_controls . generate
     where
     prepended
         | prepend_doc == "" = generator_doc
         | otherwise = "Modified note call: " <> prepend_doc <> "\n"
             <> generator_doc
     generator_doc =
-        "The note call is the main note generator, and will emit a single\
-        \ score event. It interprets `>inst` and `+attr` args by\
-        \ setting those fields of the event.  This is bound to the\
-        \ null call, \"\", but any potential arguments would wind up\
-        \ looking like a different call, so it's bound to `n` as well."
+        "The note call is the default note generator, and will emit a single\
+        \ score event. Usually this is bound to the null call, \"\", which is\
+        \ therefore the most syntactically convenient note generator.\
+        \\nThis should probably remain bound to "
+        <> ShowVal.doc Symbols.note_track <> " symbol, which is used\
+        \ internally by many other calls when they want a plain note. This is\
+        \ so you can bind \"\" to one of those other calls without getting\
+        \ recursion."
+    -- Some history: long ago, you could call the note with >inst to set the
+    -- instrument, and +a to set attributes.  The intention was an easy
+    -- notation to write a single part that alternated between multiple
+    -- instruments, in the way that trackers would often do it.  But eventually
+    -- I generalized tracks to be able to contain arbitrary calls, and the note
+    -- became the "" call, which couldn't take arguments.  Later I got +a
+    -- syntax back courtesty of lookup calls, but the >inst literal syntax is
+    -- gone now, and in any case I tend to have one instrument per-track due to
+    -- wanting to scope transformations per-instrument.  But maybe some day
+    -- I'll bring back >inst syntax as a lookup call.
+
 
 -- | Apply the 'Instrument.Common.config_controls' field.  It happens in the
 -- note call to make sure it happens only once per note.
@@ -138,14 +158,6 @@ call_transformer ctx call deriver =
         , Derive.passed_ctx = ctx
         }
 
-c_note_attributes :: Derive.Transformer Derive.Note
-c_note_attributes = Derive.transformer Module.prelude "note-attributes"
-    mempty
-    ("This is similar to to `=`, but it takes any number of `>inst` and\
-    \ `+attr` args and sets the `inst` or `attr` environ.")
-    $ Sig.callt (Sig.many "attribute" "Set instrument or attributes.")
-    $ \inst_attrs _args -> transform_note inst_attrs
-
 -- ** generate
 
 -- | Generate a single note.  This is intended to be used as the lowest level
@@ -184,7 +196,7 @@ default_note config args = do
     let attrs = either (const mempty) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
-    Stream.from_event <$> make_event_control_vals
+    Stream.from_event <$> NoteUtil.make_event_control_vals
         control_vals args dyn start (adjusted_end - start) flags
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
@@ -202,62 +214,6 @@ note_flags zero_dur stack environ
     track_start = start == Just 0
     track_end = start == Env.maybe_val EnvKey.block_end environ
     start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
-
--- | This is the canonical way to make a Score.Event.  It handles all the
--- control trimming and control function value stashing that the perform layer
--- relies on.
-make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
-    -> Flags.Flags -> Derive.Deriver Score.Event
-make_event args dyn start dur flags = do
-    control_vals <- Derive.controls_at start
-    make_event_control_vals control_vals args dyn start dur flags
-
--- | Specialized version of 'make_event' just so I can avoid calling
--- Derive.controls_at twice.
-make_event_control_vals :: Score.ControlValMap -> Derive.PassedArgs a
-    -> Derive.Dynamic -> RealTime -> RealTime -> Flags.Flags
-    -> Derive.Deriver Score.Event
-make_event_control_vals control_vals args dyn start dur flags = do
-    offset <- get_start_offset start
-    Internal.increment_event_serial
-    return $! Score.Event
-        { event_start = start
-        , event_duration = dur
-        , event_text = Event.text (Args.event args)
-        , event_untransformed_controls = controls
-        , event_untransformed_pitch = trim_pitch start (Derive.state_pitch dyn)
-        , event_control_offset = 0
-        -- I don't have to trim these because the performer doesn't use them,
-        -- they're only there for any possible postproc.
-        , event_untransformed_pitches = Derive.state_pitches dyn
-        , event_stack = Derive.state_stack dyn
-        , event_highlight = Color.NoHighlight
-        , event_instrument = fromMaybe Score.empty_instrument $
-            Env.maybe_val EnvKey.instrument environ
-        , event_environ = stash_convert_values control_vals offset environ
-        , event_flags = flags
-        , event_delayed_args = mempty
-        , event_logs = []
-        }
-    where
-    controls = trim_controls start (Derive.state_controls dyn)
-    environ = Derive.state_environ dyn
-
--- | Stash the dynamic value from the ControlValMap in
--- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
-    -> Env.Environ
-stash_convert_values vals offset =
-    stash_start_offset
-    . insert_if Controls.dynamic EnvKey.dynamic_val
-    . insert_if Controls.attack_velocity EnvKey.attack_val
-    -- Perhaps this should be sampled at the event end, but I don't want to
-    -- get a whole new ControlValMap just for that.
-    . insert_if Controls.release_velocity EnvKey.release_val
-    where
-    stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
-    insert_if control key = maybe id (Env.insert_val key) $
-        Map.lookup control vals
 
 -- ** adjust start and duration
 
@@ -307,39 +263,3 @@ duration_attributes config controls attrs start end
         then lookup_time 1 Controls.sustain else 1
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
-
-get_start_offset :: RealTime -> Derive.Deriver RealTime
-get_start_offset start = do
-    start_s <- maybe 0 RealTime.seconds <$>
-        Derive.untyped_control_at Controls.start_s start
-    start_t <- maybe 0 ScoreTime.double <$>
-        Derive.untyped_control_at Controls.start_t start
-    start_t <- Call.real_duration start start_t
-    return $ start_s + start_t
-
--- ** controls
-
--- | Trim control signals.
---
--- Previously I would also trim to the end of the note, but now I leave it
--- as-is and rely on the performer to trim the end according to the
--- instrument's decay time.  This is so that a note whose decay persists
--- outside of its block can still see control changes after its block ends.
-trim_controls :: RealTime -> Score.ControlMap -> Score.ControlMap
-trim_controls start = Map.map (fmap (Signal.drop_before start))
-
--- | For inverted tracks, this trimming should already be done by
--- 'Derive.Control.trim_signal'.
-trim_pitch :: RealTime -> PSignal.PSignal -> PSignal.PSignal
-trim_pitch = PSignal.drop_before
-
--- ** transform
-
-transform_note :: [Either Score.Instrument Attrs.Attributes]
-    -> Derive.NoteDeriver -> Derive.NoteDeriver
-transform_note vals deriver =
-    with_inst (Call.add_attributes (mconcat attrs) deriver)
-    where
-    (insts, attrs) = Either.partitionEithers vals
-    with_inst = maybe id Derive.with_instrument $
-        Seq.last $ filter (/=Score.empty_instrument) insts

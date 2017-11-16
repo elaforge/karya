@@ -14,7 +14,6 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
-import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
@@ -385,8 +384,8 @@ test_nyog_instrument_override = do
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
         extract e = (Score.event_start e, e_digit_mute e)
-    let notes = [(0, 1, "n i1 -- 4c"), (1, 1, "n i2 -- 4d"),
-            (2, 1, "n i1 -- 4e")]
+    let notes = [(0, 1, "inst=i1 | -- 4c"), (1, 1, "inst=i2 | -- 4d"),
+            (2, 1, "inst=i1 | -- 4e")]
     -- 1s of free time between i1
     equal (run "noltol 1.1" notes)
         ([ (polos, [(0, "1"), (2, "3"), (3, "3+")])

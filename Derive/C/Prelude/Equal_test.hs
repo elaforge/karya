@@ -27,7 +27,7 @@ test_equal = do
     equal evts [(1, "")]
     strings_like logs ["expected Str"]
 
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = i2 |"), (2, 1, "n i1 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = i2 |"), (2, 1, "inst=i1 |")])
         ([(0, "i"), (1, "i2"), (2, "i1")], [])
     equal (run ">" [(0, 1, "inst = nonexistent |")])
         ([], ["Error: no instrument named 'nonexistent'"])
@@ -92,7 +92,7 @@ test_equal_note_transformer = do
 test_equal_call = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks ""
     -- Rebind a note call.
-    equal (run [(">", [(0, 1, "^zzz = n | zzz")])]) ([(0, 1, "?")], [])
+    equal (run [(">", [(0, 1, "^zzz = attr | zzz")])]) ([(0, 1, "?")], [])
     -- Bind to a instrument transformer, as called by note-track.
     let run_env = DeriveTest.extract extract
             . DeriveTest.derive_tracks ">>i1 = \"(v=1)"
@@ -121,7 +121,7 @@ test_equal_quoted = do
     -- Bind val call to (4c).
     equal (run "> | -zzz = \"(4c)" "# = (zzz) |") ([("4c", "+")], [])
     -- Bind argument to 'n'.
-    equal (run "> | ^zzz = \"(n +a)" "zzz") ([("?", "+a")], [])
+    equal (run "> | ^zzz = \"(attr +a)" "zzz") ([("?", "+a")], [])
     -- Recursive binding doesn't work.  To fix this, I should look up the
     -- calls in the quoted text.
     let (vals, logs) = run "> | ^n = \"(n +a)" "n"

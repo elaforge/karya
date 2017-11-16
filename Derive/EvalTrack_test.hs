@@ -30,6 +30,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
+import qualified Derive.Symbols as Symbols
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Patch as Patch
@@ -46,11 +47,12 @@ test_event_serial = do
     --
     -- Ultimately, I want different randomization for each note in a single
     -- event, but randomization is not affected if a previous event changes.
-    let run = DeriveTest.extract (fromMaybe (error "no control")
-                . DeriveTest.e_start_control "serial")
+    let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup with_calls ""
             . UiTest.note_track
-        with_calls = CallTest.with_note_generator "" note
+        extract = fromMaybe (error "no control")
+            . DeriveTest.e_start_control "serial"
+        with_calls = CallTest.with_note_generator Symbols.default_note note
             <> CallTest.with_note_generator "notes" notes
     equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 1 -- 4d")])
         ([0, 0], [])
@@ -456,7 +458,7 @@ test_orphan_ranges = do
     equal (run
         [ (">", [(1, 3, "(")])
         , (">", [])
-        , (">", [(1, 1, "n --a"), (2, 1, "n --b")])
+        , (">", [(1, 1, "--a"), (2, 1, "--b")])
         , ("*", [(1, 0, "4c"), (2, 0, "4d")])
         ])
         ([[(1, 60)], [(2, 62)]], [])

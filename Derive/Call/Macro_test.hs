@@ -26,14 +26,14 @@ test_generator = do
         setup expr = with_id <> CallTest.with_note_generator "m"
             (Macro.generator Module.prelude "m" mempty "doc" expr)
     equal (run [("+a", []), ("+b", [])] "m") (["+a+b"], [])
-    equal (run [("n", [attr "a"])] "m") (["+a"], [])
-    equal (run [("n", [var "var"])] "m +z") (["+z"], [])
-    equal (run [("n", [var "var"]), ("n", [var "var"])] "m +x +y")
+    equal (run [("attr", [attr "a"])] "m") (["+a"], [])
+    equal (run [("attr", [var "var"])] "m +z") (["+z"], [])
+    equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
         (["+x+y"], [])
 
     let val_call arg = Parse.ValCall (Parse.Call "id" [arg])
-    equal (run [("n", [val_call (attr "a")])] "m") (["+a"], [])
-    equal (run [("n", [val_call (var "var")])] "m +x") (["+x"], [])
+    equal (run [("attr", [val_call (attr "a")])] "m") (["+a"], [])
+    equal (run [("attr", [val_call (var "var")])] "m +x") (["+x"], [])
 
 test_val = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
@@ -42,7 +42,7 @@ test_val = do
         setup = with_id <> CallTest.with_val_call "m"
             (Macro.val_call Module.prelude "m" mempty "doc" expr)
         expr = Parse.Call "id" [var "arg"]
-    equal (run "n (m +a)") (["+a"], [])
+    equal (run "attr (m +a)") (["+a"], [])
 
 with_id :: DeriveTest.Setup
 with_id = CallTest.with_val_call "id" c_id
@@ -58,8 +58,8 @@ test_transformer = do
                 [(">", [(0, 1, call <> " | +z")])]
         setup = CallTest.with_note_transformer "m"
             . Macro.transformer Module.prelude "m" mempty "doc"
-    equal (run [("n", [attr "a"])] "m") (["+a+z"], [])
-    equal (run [("n", [var "var"]), ("n", [var "var"])] "m +x +y")
+    equal (run [("attr", [attr "a"])] "m") (["+a+z"], [])
+    equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
         (["+x+y+z"], [])
 
 var :: Text -> Parse.Term

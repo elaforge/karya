@@ -37,6 +37,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Constants as Lilypond.Constants
@@ -83,7 +84,8 @@ lilypond_scope =
     Derive.s_generator#Derive.s_note
         %= Derive.add_priority Derive.PrioOverride lookup
     where
-    lookup = Derive.LookupMap $ Map.fromList [("", note), ("n", note)]
+    lookup = Derive.LookupMap $ Map.fromList
+        [("", note), (Symbols.default_note, note)]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
     note = Note.note_call "" "" mempty

@@ -5,7 +5,6 @@
 module Derive.Call.StaticMacro_test where
 import Util.Test
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Make as Make
@@ -25,12 +24,12 @@ test_generator = do
                 "" [(">", [(0, 1, call)])]
         setup trans gen = CallTest.with_note_generator "m" $ expect_right $
             StaticMacro.generator Module.prelude "m" mempty "doc" trans gen
-        gen = make_call Note.c_note
-        trans = make_call Note.c_note_attributes
+        gen = make_call c_make_attributes
+        trans = make_call c_add_attributes
     equal (run [trans [attr "a"]] (gen []) "m") (["+a"], [])
     equal (run [] (gen [attr "a"]) "m") (["+a"], [])
     strings_like (snd $ run [trans [Var]] (gen [Var]) "m +a")
-        ["expected Str * got _"]
+        ["expected Attributes but got _"]
     equal (run [trans [Var]] (gen [Var]) "m +a +b")
         (["+a+b"], [])
     -- Does defaulting work for the sub-calls?
@@ -47,10 +46,10 @@ test_transformer = do
                 [(">", [(0, 1, call <> " | +z")])]
         setup trans = CallTest.with_note_transformer "m" $ expect_right $
             StaticMacro.transformer Module.prelude "m" mempty "doc" trans
-        trans = make_call Note.c_note_attributes
+        trans = make_call c_add_attributes
     equal (run [trans [attr "a"]] "m") (["+a+z"], [])
     strings_like (snd $ run [trans [Var], trans [Var]] "m +x")
-        ["expected Str * got _"]
+        ["expected Attributes but got _"]
     equal (run [trans [Var], trans [Var]] "m +x +y")
         (["+x+y+z"], [])
 
@@ -59,3 +58,13 @@ attr = StaticMacro.literal . Attrs.attr
 
 make_call :: call -> [Arg] -> StaticMacro.Call call
 make_call call args = StaticMacro.Call call args
+
+c_make_attributes :: Derive.Generator Derive.Note
+c_make_attributes = Derive.generator Module.prelude "note"
+    mempty "" $ Sig.call (Sig.many "attribute" "Set attributes.")
+    $ \attrs args -> Call.add_attributes (mconcat attrs) (Call.placed_note args)
+
+c_add_attributes :: Derive.Transformer Derive.Note
+c_add_attributes = Derive.transformer Module.prelude "note-attributes"
+    mempty "" $ Sig.callt (Sig.many "attribute" "Set attributes.")
+    $ \attrs _args -> Call.add_attributes (mconcat attrs)

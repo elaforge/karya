@@ -107,17 +107,17 @@ import Types
 -- * Event
 
 data Event = Event {
-    -- | 'event_start', 'event_duration', and 'event_text' are the core
-    -- attributes that define an event.
     event_start :: !RealTime
     , event_duration :: !RealTime
+    -- | This is the text of the call that created the event.  It's basically
+    -- just for debugging.
     , event_text :: !Text
     -- | See NOTE [event_control_offset] for what the untransformed is about.
     , event_untransformed_controls :: !ControlMap
     , event_untransformed_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
     , event_untransformed_pitches :: !PitchMap
-    -- | This is added to the untransformed controls on acces, so you can move
+    -- | This is added to the untransformed controls on access, so you can move
     -- an event without having to move all the samples in all the controls.
     , event_control_offset :: !RealTime
     -- | Keep track of where this event originally came from.  That way, if an

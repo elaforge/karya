@@ -57,6 +57,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
@@ -156,7 +157,7 @@ null_call :: Derive.Generator Derive.Note -> Code
 null_call = note_calls . null_calls
 
 null_calls :: Derive.Generator Derive.Note -> [Call Derive.Note]
-null_calls call = [generator "" call, generator "n" call]
+null_calls call = [generator "" call, generator Symbols.default_note call]
 
 note_calls :: [Call Derive.Note] -> Code
 note_calls calls =

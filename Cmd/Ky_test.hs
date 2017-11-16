@@ -29,8 +29,8 @@ test_ky_file = do
         extract = DeriveTest.e_attributes
         defs = Text.unlines
             [ "note generator:"
-            , "with-a = n +a"
-            , "like-n = n"
+            , "with-a = +a"
+            , "like-attr = attr"
             , "note transformer:"
             , "d = +a"
             ]
@@ -38,14 +38,14 @@ test_ky_file = do
     strings_like (snd $ run defs [(">", [(0, 1, "with-a x")])])
         ["too many arguments"]
     -- Args are ok if the definition doesn't have any.
-    equal (run defs [(">", [(0, 1, "like-n +a")])]) (["+a"], [])
+    equal (run defs [(">", [(0, 1, "like-attr +a")])]) (["+a"], [])
     -- A local note transformer shadows the built-in 'd' transformer.
     equal (run defs [(">", [(0, 1, "d |")])]) (["+a"], [])
 
     -- Definitions can be full expressions.
     let defs = Text.unlines
             [ "note generator:"
-            , "with-a = +a | n"
+            , "with-a = +a |"
             , "note transformer:"
             , "d = +a | +b"
             ]

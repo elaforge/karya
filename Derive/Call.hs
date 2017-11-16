@@ -35,6 +35,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -365,7 +366,7 @@ eval_note pos note = Eval.eval_pitch pos $
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Eval.eval_one_call True $ Expr.call0 ""
+note = Eval.eval_one_call True $ Expr.call0 Symbols.default_note
 
 -- | Like 'note', but the note reuses the Context, which means it will inherit
 -- the caller's start and duration as well as sub-tracks and thus may apply
@@ -375,7 +376,8 @@ note = Eval.eval_one_call True $ Expr.call0 ""
 -- not if you don't want to be overridden by sub-tracks.  See 'placed_note'
 -- if you want to inherit the time, but not the rest.
 reapply_note :: Derive.NoteArgs -> Derive.NoteDeriver
-reapply_note args = Eval.reapply_call (Args.context args) "" []
+reapply_note args =
+    Eval.reapply_call (Args.context args) Symbols.default_note []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
@@ -390,7 +392,8 @@ attribute_note attrs = add_attributes attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
-triggered_note = Eval.eval_one_at True 0 0 $ Expr.generator0 ""
+triggered_note =
+    Eval.eval_one_at True 0 0 $ Expr.generator0 Symbols.default_note
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent

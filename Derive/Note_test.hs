@@ -115,9 +115,9 @@ test_c_note = do
     equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
         ([evt 0 1, evt 1 2, evt 3 3], [])
 
-    let (evts, logs) = run ">i" [(0, 1, "n +a 42")]
+    let (evts, logs) = run ">i" [(0, 1, "notfound")]
     equal evts []
-    strings_like logs ["expected Str or Attributes"]
+    strings_like logs ["note generator not found"]
 
     let (evts, logs) = run ">i" [(0, 1, "x (")]
     equal evts []
@@ -128,16 +128,15 @@ test_c_note = do
     equal evts []
     strings_like logs ["parse error"]
 
-    -- comment only event is filtered out
+    -- A plain comment counts as a null call, but a comment-bar event is
+    -- entirely ignored.
+    equal (run ">i" [(0, 1, "--")]) ([(0, 1, "--", "i", [])], [])
     equal (run ">i" [(0, 1, "--|")]) ([], [])
-    equal (run ">" [(0, 1, "n i +a")])
-        ([(0, 1, "n i +a", inst, ["a"])], [])
 
     -- event overrides attrs
-    equal (run "> | +a" [(0, 1, "n +b")])
-        ([ (0, 1, "n +b", "", ["a", "b"])], [])
+    equal (run "> | +a" [(0, 1, "+b")]) ([(0, 1, "NOTE", "", ["a", "b"])], [])
     -- alternate syntax
-    equal (run ">i" [(0, 1, ""), (1, 1, "n i2 |")])
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst=i2 |")])
         ([ (0, 1, "", inst, [])
-        , (1, 1, "n i2 |", "i2", [])
+        , (1, 1, "inst=i2 |", "i2", [])
         ], [])

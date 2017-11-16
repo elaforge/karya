@@ -23,7 +23,7 @@ test_derive_expr = do
             (UiTest.mk_tid tracknum) pos
             (expect_right (Parse.parse_expr expr))
         note_call e = (Score.event_start e, DeriveTest.e_attributes e)
-    io_equal (run note_call [(">i1", [])] (f 1 0 "+b | n +a"))
+    io_equal (run note_call [(">i1", [])] (f 1 0 "+b | +a"))
         (Right (Just (Right [(0, "+a+b")], []), []))
 
     let control_call :: Signal.Control -> [(Signal.X, Signal.Y)]
