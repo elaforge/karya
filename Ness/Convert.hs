@@ -47,8 +47,8 @@ run block = do
     let blockId = mkBlockId block
     let notesFilename = Config.notesFilename Config.ness blockId
     instPerformances <- either errorIO return =<< loadConvert block
-    Util.submitInstruments "convert"
-        (map (nameScore notesFilename) instPerformances)
+    Util.submitInstruments "convert" $
+        map (nameScore notesFilename) instPerformances
     where
     nameScore notesFilename (inst, p) =
         ( Config.outputFilename notesFilename (Just inst)

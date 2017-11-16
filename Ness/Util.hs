@@ -82,24 +82,35 @@ submitInstruments dir outputNameScores = do
     outputFiles <- ifM (Directory.doesDirectoryExist scratchDir)
         (previousRender nameOutput scratchDir)
         (submitAndCheck scratchDir outputNameScores)
-    Async.forConcurrently_ outputFiles $ \(output, scratch) -> do
-        putStrLn $ scratch <> " -> " <> output
+    Async.forConcurrently_ outputFiles $ \(url, output, scratch) -> do
+        putStrLn $ if null url
+            then scratch <> " -> " <> output
+            else unwords ["download", show url, show scratch, show output]
         Directory.createDirectoryIfMissing True (FilePath.takeDirectory output)
         Sound.resample Config.samplingRate scratch output
 
-previousRender :: Map Text FilePath -> FilePath -> IO [(FilePath, FilePath)]
+-- | I think the web service gives no way to tell if the file is complete.
+-- Redownload manually if it was partial.
+download :: Submit.Url -> FilePath -> FilePath -> IO ()
+download url scratch output = do
+    ok <- Submit.download 2 scratch url
+    unless ok $ errorIO "download failed"
+    Sound.resample Config.samplingRate scratch output
+
+previousRender :: Map Text FilePath -> FilePath
+    -> IO [(Submit.Url, FilePath, FilePath)]
 previousRender nameOutput dir = do
     subdirs <- File.list dir
     putStrLn $ "found previous submit: " <> show subdirs
     return $ mapMaybe get subdirs
     where
-    get subdir = (, subdir </> "out.wav")
+    get subdir = (\out -> ("", out, subdir </> "out.wav"))
         <$> Map.lookup (txt (FilePath.takeFileName subdir)) nameOutput
 
 -- | Submit scores in their own subdirs, check the output for duplicate
 -- responses, and pair them with their destination output.
 submitAndCheck :: FilePath -> [(out, Text, (Text, Text))]
-    -> IO [(out, FilePath)]
+    -> IO [(Submit.Url, out, FilePath)]
 submitAndCheck dir outputNameScores = do
     let (outputs, names, rendered) = unzip3 outputNameScores
     let subdirs = map untxt names
@@ -110,7 +121,7 @@ submitAndCheck dir outputNameScores = do
     forM_ (findDups fst (zip urls subdirs)) $ \(count, (url, subdir)) ->
         putStrLn $ "duplicate: " <> show count <> ": " <> url <> " -> "
             <> subdir
-    return [(output, ok) | (output, Just ok) <- zip outputs oks]
+    return [(url, output, ok) | (output, (Just ok, url)) <- zip outputs okUrls]
 
 findDups :: Ord k => (a -> k) -> [a] -> [(Int, a)]
 findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
