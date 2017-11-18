@@ -82,6 +82,9 @@ find_f matches = fmap concat . concatMapM search =<< Ui.all_block_track_ids
 replace :: Monad m => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
 
+replace_exact :: Monad m => Text -> Text -> ModifyEvents.Track m
+replace_exact from to = ModifyEvents.text $ \t -> if t == from then to else t
+
 -- | Multiple replacements.  This is simultaneous replacement, so
 -- [(a, b), (b, a)] will swap @a@ and @b@ as expected.
 replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
