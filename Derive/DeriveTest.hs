@@ -755,6 +755,15 @@ note_on_vel msgs =
 note_on :: [Midi.WriteMessage] -> [Midi.Key]
 note_on msgs = [nn | (_, nn, _) <- note_on_vel msgs]
 
+note_on_cc :: [Midi.WriteMessage]
+    -> [Either Midi.Key (Midi.Control, Midi.ControlValue)]
+note_on_cc = mapMaybe (extract . snd) . extract_midi
+    where
+    extract (Midi.ChannelMessage _ (Midi.NoteOn nn _)) = Just $ Left nn
+    extract (Midi.ChannelMessage _ (Midi.ControlChange cc val)) =
+        Just $ Right (cc, val)
+    extract _ = Nothing
+
 midi_channel :: [Midi.WriteMessage] -> [(Midi.Channel, Midi.ChannelMessage)]
 midi_channel midi =
     [ (chan, msg)

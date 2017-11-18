@@ -202,9 +202,11 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
-  - lots of errors in save/carnatic/evvari
-  - harp harmonic 'o' sticks, I think because it knows to unset keyswitches,
+  * harp harmonic 'o' sticks, I think because it knows to unset keyswitches,
     but not controls.
+    . But the next one has control 0, shouldn't it know to cancel?
+    . It only cancels keyswitches because all notes explicitly have one.  So
+      I need to say if you're not 'o', then %harmonic=0.
   - Shift-play plays im cache even when the instruments are gone, but not
     enter-play?
     . Properly I should clear out the cache when instruments go away, but
@@ -1078,7 +1080,8 @@ synth: im:
   - I can maybe also just replace unchecked_control with Control, and
     make both Instrument and Control have checked_* constructors.  I can't
     really enforce Id.valid rules, except at score parsing time.
-  - Also move callers from Score to ScoreTypes.
+  - Also move callers from Score to ScoreTypes.  Can I give it a shorter name?
+    Base types modules should have short names.
   overview:
     . Cmd.Performance will serialize im notes and start the binary.
     . sampler-im or faust-im will read the notes and render wav files for each

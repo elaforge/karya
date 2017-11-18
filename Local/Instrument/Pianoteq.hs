@@ -4,11 +4,11 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
-import qualified Data.Map as Map
-
 import qualified Midi.Midi as Midi
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
+
 import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -63,6 +63,7 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
         , MidiInst.both "m" $ Make.control_note Module.instrument "m" lute 1
         , MidiInst.generator "g" c_grace
         ]
+        <> MidiInst.postproc (reset_controls [gliss, harmonic, lute])
     -- TODO add diatonic gliss call, like zheng
     harmonic = "harmonic"
     lute = "lute"
@@ -75,15 +76,11 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
 -- For this to work, the inst has to have only a single channel allocated.
 -- Otherwise it will just go on a different channel and the performer doesn't
 -- know that pianoteq's channels are actually not independent WRT controls.
-reset_controls :: [Score.Control] -> Score.Event -> Score.Event
-reset_controls controls event = event
-    { Score.event_untransformed_controls =
-        foldl' reset (Score.event_untransformed_controls event) controls
-    }
+reset_controls :: [Score.Control] -> Cmd.InstrumentPostproc
+reset_controls controls event = (,[]) $ foldr reset event controls
     where
-    reset cmap control = case Map.lookup control cmap of
-        Just sig | not (Signal.null (Score.typed_val sig)) -> cmap
-        _ -> Map.insert control (Score.untyped (Signal.constant 0)) cmap
+    reset c = Score.modify_control c $ \old -> if old == mempty
+        then Signal.constant 0 else old
 
 gliss :: Score.Control
 gliss = "gliss"

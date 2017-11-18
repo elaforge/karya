@@ -726,9 +726,15 @@ perform_signal prev_note_off start end sig = initial : pairs
     where
     -- The signal should already be trimmed to the event start, except that
     -- it may have a leading sample, due to 'Signal.drop_before'.
-    pairs = Seq.drop_initial_dups fst $ Signal.unsignal $
-        Signal.drop_while ((<= start) . Signal.sx) $
-        maybe id Signal.drop_at_after end sig
+    pairs
+        -- Constant signals have a single sample at 0.  It it happens that the
+        -- note is <0, I'll get a duplicate control val at 0, so special case
+        -- the constant signal.  TODO hacks like this should go away once
+        -- I have a higher level signal interface.
+        | Just _ <- Signal.constant_val sig = []
+        | otherwise = Seq.drop_initial_dups fst $ Signal.unsignal $
+            Signal.drop_while ((<= start) . Signal.sx) $
+            maybe id Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
     tweaked_start = min (start - min_control_lead_time) $
