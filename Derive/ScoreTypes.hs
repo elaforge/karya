@@ -28,12 +28,10 @@ import Types
 -- about all that.
 --
 -- This should be a valid symbol as defined by 'Ui.Id.valid_symbol'.  This
--- it can be parsed without quotes.
+-- way it can be parsed without quotes.
 newtype Instrument = Instrument Text
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
-
-instrument :: Text -> Instrument
-instrument = Instrument
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize,
+        String.IsString)
 
 instrument_name :: Instrument -> Text
 instrument_name (Instrument s) = s

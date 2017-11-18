@@ -95,7 +95,7 @@ allocations dev_name name = UiConfig.midi_allocations $
         | (string, chan) <- zip strings [1..]]
     where
     inst name chan =
-        ( Score.instrument name
+        ( Score.Instrument name
         , (InstTypes.Qualified synth_name name, MidiInst.config1 dev chan)
         )
     dev = Midi.write_device dev_name

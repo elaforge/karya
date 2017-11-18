@@ -13,7 +13,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
@@ -33,7 +32,7 @@ test_respond = do
                 )
         add_allocation = Ui.config#Ui.allocations #= allocs
         allocs = UiConfig.Allocations $ Map.fromList
-            [ (Score.Instrument "im", UiConfig.allocation
+            [ ("im", UiConfig.allocation
                 (InstTypes.Qualified "im-synth" "") UiConfig.Im)
             ]
         set_db state = state

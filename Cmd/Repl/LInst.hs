@@ -428,7 +428,7 @@ change_instrument :: Qualified -> Cmd.CmdL ()
 change_instrument new_qualified = do
     new_qualified <- parse_qualified new_qualified
     let new_inst = case new_qualified of
-            InstTypes.Qualified _ name -> Score.instrument name
+            InstTypes.Qualified _ name -> Score.Instrument name
     track_id <- snd <$> Selection.event_track
     old_inst <- Cmd.require "must select a note track"
         =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id

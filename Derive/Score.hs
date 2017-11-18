@@ -57,7 +57,7 @@ module Derive.Score (
     , TypedVal, TypedControl
 
     -- * instrument
-    , Instrument(..), instrument
+    , Instrument(..)
     , instrument_name, empty_instrument
 
     -- * util
@@ -89,7 +89,7 @@ import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
 import Derive.ScoreTypes
-       (Instrument(..), instrument, instrument_name, empty_instrument, Control,
+       (Instrument(..), instrument_name, empty_instrument, Control,
         control_name, PControl, pcontrol_name, Warp(..), id_warp,
         id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
         untyped, merge_typed, type_to_code, code_to_type, TypedControl,

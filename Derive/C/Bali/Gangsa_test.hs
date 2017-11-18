@@ -523,10 +523,10 @@ block_title =
     "import bali.gangsa | inst = i3 | inst-polos = i1 | inst-sangsih = i2"
 
 polos :: Score.Instrument
-polos = Score.Instrument "i1"
+polos = "i1"
 
 sangsih :: Score.Instrument
-sangsih = Score.Instrument "i2"
+sangsih = "i2"
 
 pasang :: Score.Instrument
-pasang = Score.Instrument "i3"
+pasang = "i3"

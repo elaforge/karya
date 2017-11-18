@@ -33,7 +33,7 @@ convert inst_map med = M.Module
 
 instrument :: Map Text Text -> Instrument.MEDInstrument -> M.Instrument
 instrument inst_map inst = M.Instrument
-    { _instrument_name = maybe (ScoreTypes.Instrument "none")
+    { _instrument_name = maybe "none"
         (ScoreTypes.Instrument . find . txt) (Instrument.name inst)
     , _volume = M.volume <$> Instrument.svol inst
     }

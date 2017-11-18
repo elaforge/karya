@@ -22,7 +22,6 @@ import qualified Cmd.MidiThru as MidiThru
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
-import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
@@ -130,8 +129,7 @@ run_thru cmd_state title setup (attrs, input) =
     CmdTest.run_with_performance (CmdTest.make_tracks tracks) cmd_state $ do
         CmdTest.set_point_sel 1 0
         setup
-        Cmd.lift_id $
-            MidiThru.midi_thru_instrument (Score.Instrument "i1") attrs input
+        Cmd.lift_id $ MidiThru.midi_thru_instrument "i1" attrs input
     where tracks = [(">i1" <> title, [])]
 
 e_midi :: CmdTest.Result a -> ([Midi.Message], [Text])

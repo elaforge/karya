@@ -289,13 +289,13 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- * Allocations
 
 allocations ::
-    [(Text, Text, Common.Config -> Common.Config, UiConfig.Backend)]
+    [(Score.Instrument, Text, Common.Config -> Common.Config, UiConfig.Backend)]
     -- ^ (inst, qualified, set_config, backend)
     -> UiConfig.Allocations
 allocations = UiConfig.make_allocations . map make
     where
     make (name, qualified, set_config, backend) =
-        ( Score.Instrument name
+        ( name
         , UiConfig.Allocation (InstTypes.parse_qualified qualified)
             (set_config Common.empty_config) backend
         )

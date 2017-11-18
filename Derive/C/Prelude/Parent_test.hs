@@ -72,8 +72,8 @@ test_tuplet_multiple_tracks = do
             , (">i1", [(0, 1, ""), (1, 1, "")])
             , (">i2", [(0, 1, "")])
             ]
-    let i1 = Score.Instrument "i1"
-        i2 = Score.Instrument "i2"
+    let i1 = "i1"
+        i2 = "i2"
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do

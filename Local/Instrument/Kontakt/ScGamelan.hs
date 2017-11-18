@@ -119,7 +119,7 @@ kebyar_allocations dev_ = make_config $ concat
     ]
     where
     -- (inst, qualified, gets_chan, environ, scale)
-    make_config :: [(Text, Text, Bool,
+    make_config :: [(Score.Instrument, Text, Bool,
             [(EnvKey.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
         -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
@@ -144,15 +144,15 @@ kebyar_allocations dev_ = make_config $ concat
     -- sangsih, but since I don't have that many sample sets I have
     -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
-        [ (name, sc_qualified name <> "-pasang", False, polos_sangsih name,
-            Nothing)
-        , umbang_patch (name <> "-p") name
-        , isep_patch (name <> "-s") name
+        [ (Score.Instrument name, sc_qualified name <> "-pasang", False,
+            polos_sangsih name, Nothing)
+        , umbang_patch (Score.Instrument $ name <> "-p") name
+        , isep_patch (Score.Instrument $ name <> "-s") name
         ]
     sc_qualified name = synth_name <> "/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ Score.instrument $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ Score.instrument $ name <> "-s")
+        [ (Gangsa.inst_polos, to_val $ Score.Instrument $ name <> "-p")
+        , (Gangsa.inst_sangsih, to_val $ Score.Instrument $ name <> "-s")
         ]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
@@ -169,4 +169,4 @@ kebyar_allocations dev_ = make_config $ concat
             Legong.laras_rambat BaliScales.Isep
         )
     tuning val = [(EnvKey.tuning, to_val val)]
-    patch name = (name, sc_qualified name, True, [], Nothing)
+    patch name = (Score.Instrument name, sc_qualified name, True, [], Nothing)

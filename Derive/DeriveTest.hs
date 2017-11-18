@@ -348,9 +348,10 @@ with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
             Track.RenderConfig (Track.Line source) Color.blue }
         Nothing -> track
 
-with_midi_config :: Text -> Text -> Common.Config -> Patch.Config -> Setup
+with_midi_config :: Score.Instrument -> Text -> Common.Config -> Patch.Config
+    -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
-    Ui.config#Ui.allocations_map %= Map.insert (Score.instrument inst)
+    Ui.config#Ui.allocations_map %= Map.insert inst
         (UiConfig.Allocation (InstTypes.parse_qualified qualified)
             common_config (UiConfig.Midi midi_config))
 

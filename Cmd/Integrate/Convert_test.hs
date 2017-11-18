@@ -68,7 +68,7 @@ test_integrate = do
         Score.set_pitch (DeriveTest.psignal pitches) $
             event (start, dur, "4c", [], inst)
     event = DeriveTest.mkevent
-    inst = Score.Instrument "inst"
+    inst = "inst"
 
 test_split_overlapping = do
     let f = map (map extract) . Convert.split_overlapping . map mkevent

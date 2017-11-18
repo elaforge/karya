@@ -158,7 +158,7 @@ note_track_edges = concat . snd . List.mapAccumL edges 1
 
 -- | Take flat MIDI msgs to a list of tracks where events don't overlap.
 convert_track :: (Text, [Midi]) -> ([(Score.Instrument, NoteTrack)], [Warn])
-convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
+convert_track (title, msgs) = (map (Score.Instrument title,) tracks, warns)
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []

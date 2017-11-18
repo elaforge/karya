@@ -202,6 +202,9 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - lots of errors in save/carnatic/evvari
+  - harp harmonic 'o' sticks, I think because it knows to unset keyswitches,
+    but not controls.
   - Shift-play plays im cache even when the instruments are gone, but not
     enter-play?
     . Properly I should clear out the cache when instruments go away, but
@@ -1065,6 +1068,17 @@ documentation:
 synth: im:
   - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
     im and seq can use the same types.
+    . On the other hand, maybe they should remain different.  Synth Control
+      at least is different in that also includes pitch.  Also Instrument
+      is a score-only.  Even though it winds up in Note.instrument, it's not
+      really in its original context any more.
+  * Now that Instrument IsString, I can change DeriveTest.with_midi_config to
+    take Instrument, and similar.
+    . Also all the Repl.* modules.
+  - I can maybe also just replace unchecked_control with Control, and
+    make both Instrument and Control have checked_* constructors.  I can't
+    really enforce Id.valid rules, except at score parsing time.
+  - Also move callers from Score to ScoreTypes.
   overview:
     . Cmd.Performance will serialize im notes and start the binary.
     . sampler-im or faust-im will read the notes and render wav files for each

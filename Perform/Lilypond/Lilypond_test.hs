@@ -10,7 +10,6 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -48,8 +47,7 @@ test_staff_configs = do
             , Types.staff_short = "vla"
             , Types.staff_code = ["viola code"]
             }
-        staves =
-            [(Score.Instrument "i2", viola), (Score.Instrument "i1", piano)]
+        staves = [("i2", viola), ("i1", piano)]
         config = Types.default_config { Types.config_staves = staves }
     let (text, logs) = make_ly config
             [ (">i1", [(0, 1, "")]), ("*", [(0, 0, "3c")])
@@ -63,7 +61,7 @@ test_staff_configs = do
 
 test_add_bass_staff = do
     let config = Types.default_config
-            { Types.config_staves = [(Score.Instrument "i1", staff_config)] }
+            { Types.config_staves = [("i1", staff_config)] }
         staff_config = Types.empty_staff_config
             { Types.staff_add_bass_staff = True }
     let (text, logs) = make_ly config $ UiTest.note_spec

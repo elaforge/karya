@@ -126,11 +126,11 @@ make_pokok name range default_insts = Derive.transformer module_
 
 c_jegog :: Derive.Transformer Derive.Note
 c_jegog = make_pokok "jegog" (BaliScales.instrument_range Legong.jegog)
-    [Score.Instrument "jegog-p", Score.Instrument "jegog-s"]
+    ["jegog-p", "jegog-s"]
 
 c_calung :: Derive.Transformer Derive.Note
 c_calung = make_pokok "calung" (BaliScales.instrument_range Legong.calung)
-    [Score.Instrument "calung-p", Score.Instrument "calung-s"]
+    ["calung-p", "calung-s"]
 
 -- * nruk tuk
 

@@ -143,7 +143,7 @@ mkevent start dur pitch inst env = Types.Event
     }
 
 default_inst :: Score.Instrument
-default_inst = Score.Instrument "test"
+default_inst = "test"
 
 -- * pitches
 

@@ -610,12 +610,12 @@ default_allocations = allocations
     , ("i3", "s/3", [4])
     ]
 
-modify_midi_config :: CallStack.Stack => Text -> (Patch.Config -> Patch.Config)
+modify_midi_config :: CallStack.Stack => Score.Instrument
+    -> (Patch.Config -> Patch.Config)
     -> UiConfig.Allocations -> UiConfig.Allocations
-modify_midi_config inst_ modify =
+modify_midi_config inst modify =
     Testing.expect_right . UiConfig.modify_allocation inst modify_alloc
     where
-    inst = Score.Instrument inst_
     modify_alloc alloc = do
         config <- justErr ("not a midi alloc: " <> pretty inst) $
             UiConfig.midi_config (UiConfig.alloc_backend alloc)

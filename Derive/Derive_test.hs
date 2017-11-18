@@ -55,7 +55,7 @@ test_basic = do
     equal (e_events res) ([(0, 16, ""), (16, 16, "")], [])
 
     -- 2: conversion to midi perf events
-    let evt = (,,,) (Score.Instrument "i1")
+    let evt = (,,,) "i1"
     equal (map extract_perf_event perf_events)
         [ evt 0 16 (mkstack (0, 16))
         , evt 16 16 (mkstack (16, 32))
@@ -215,8 +215,7 @@ test_subderive = do
         (events, msgs) = DeriveTest.r_split res
     equal (map DeriveTest.e_event events)
         [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
-    equal (map Score.event_instrument events)
-        (map Score.Instrument ["i1", "i2", "i1"])
+    equal (map Score.event_instrument events) ["i1", "i2", "i1"]
     equal msgs []
 
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
@@ -288,7 +287,7 @@ test_multiple_subderive = do
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
-        (replicate 3 (Score.Instrument "i1"))
+        (replicate 3 "i1")
 
     let pos = map (inv_tempo res) (Seq.range 0 6 1)
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
