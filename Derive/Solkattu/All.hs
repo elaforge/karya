@@ -40,6 +40,7 @@ korvais =
     , set_location ("Derive.Solkattu.Score.Mridangam2013",260,"eddupu10") Derive.Solkattu.Score.Mridangam2013.eddupu10
     , set_location ("Derive.Solkattu.Score.Mridangam2017",11,"c_17_07_10") Derive.Solkattu.Score.Mridangam2017.c_17_07_10
     , set_location ("Derive.Solkattu.Score.Mridangam2017",32,"e_1") Derive.Solkattu.Score.Mridangam2017.e_1
+    , set_location ("Derive.Solkattu.Score.Mridangam2017",41,"e_2") Derive.Solkattu.Score.Mridangam2017.e_2
     , set_location ("Derive.Solkattu.Score.MridangamSarva",18,"kir1") Derive.Solkattu.Score.MridangamSarva.kir1
     , set_location ("Derive.Solkattu.Score.MridangamSarva",23,"kir2") Derive.Solkattu.Score.MridangamSarva.kir2
     , set_location ("Derive.Solkattu.Score.MridangamSarva",43,"kir3") Derive.Solkattu.Score.MridangamSarva.kir3

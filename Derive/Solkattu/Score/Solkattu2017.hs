@@ -580,6 +580,18 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
     , din.__4 . theme2a_o.theme2a . theme -- repeat 2
     , din.__2 . tri_ (din.__2) (theme2a.theme2b)
         . sandi theme2b (tri_ __ (theme2b))
+    , theme2a.theme2b . repeat 3 (tat.__3.din.__3)
+        . kitataka . theme2a.theme2b . repeat 3 (tat.__2.din.__3)
+        . kitakita.kitataka . theme2a.theme2b . repeat 3 (tat.din.__3)
+        . spread 3 tdgnt . spread 2 tdgnt
+        . trin (tat.__.tat.__3.tam.__.tam.__3) (tri p5) (tri p6) (tri p7)
+    -- alternate endings
+    , let tkp = tri_ (su tk) in
+        restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
+        . trin (tat.__.tat.__.tam.__3) (tkp p5) (tkp p6) (tkp p7)
+    , restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
+        . trin (tat.__.tat.__3.tam.__.tam.__3)
+            (tri p5) (tri (su tk.p5)) (tri (su tktu.p5))
     ]
     where
     sequence t = mconcatMap (sarvaA 8)
@@ -599,4 +611,6 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
         , (theme2b, [k, o, od, k])
         , (din, [od])
         , (tat, [k])
+        , (tat.tat.tam.tam, [p&k, p&k, od, od])
+        , (tat.tat.tam, [p&k, p&k, od])
         ]

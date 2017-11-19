@@ -30,10 +30,22 @@ c_17_08_13 = korvai1 adi $ su $ mconcat
 
 
 e_1 :: Korvai
-e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi $
+e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
     [ pkt . t.k.t.k . d.n.pk . t.k.t.k . repeat 3 (d.n.pk)
     , pkt . repeat 3 (t.k.t.k . d.n.pk)
     , su (repeat 6 pkt) . nakatiku
     ]
     where
     pkt = p.kt.p.kt.pk
+
+e_2 :: Korvai
+e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
+    map pattern [s1, s2, s3, s4]
+    ++ [cmap fast [p, k, o, n]]
+    where
+    pattern s = cmap s [p, k, o, n]
+    s1 x = x.__.ktkt.pk.kt.pk.kt.pk
+    s2 x = x.__.ktkt.pk.n.n.pk.kt.pk
+    s3 x = x.x .ktkt.pk.n.n.pk.kt.pk
+    s4 x = x.x .ktkt.pk.n.n.pk.d.d.pk
+    fast x = x.__.ktkt.pk.n.__.pk.d.__.pk
