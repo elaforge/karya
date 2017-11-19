@@ -5,6 +5,7 @@
 module Ness.Guitar.GConvert where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -42,8 +43,11 @@ type Error = Text
     How do I know which string for +mute?  Use the pitch as usual.
 -}
 convert :: Guitar.Instrument -> [Note.Note] -> Either Error Guitar.Score
-convert inst =
-    fmap (uncurry makeScore) . collectFingers <=< mapM (convertNote inst)
+convert inst notes = do
+    let errors = Guitar.verify inst
+    unless (null errors) $
+        Left $ Guitar.iName inst <> ": " <> Text.intercalate "; " errors
+    fmap (uncurry makeScore) . collectFingers =<< mapM (convertNote inst) notes
 
 makeScore :: [Guitar.Note] -> [Guitar.Finger] -> Guitar.Score
 makeScore notes fingers = Guitar.Score
@@ -136,14 +140,14 @@ collectFingers = collect . Seq.keyed_group_stable _string
             )
     makeNote string note = Guitar.Note
         { nStrike = Guitar.Pluck
-        , nString = string
+        , nString = Guitar.sName string
         , nStart = RealTime.to_seconds (_start note)
         , nDuration = 0.0013
         , nLocation = _location note
         , nAmplitude = _dynamic note * maxAmp
         }
     makeFinger string notes pitch fingerWeight = Guitar.Finger
-        { fString = string
+        { fString = Guitar.sName string
         , fInitial = (0, 0)
         , fMovement = fingerMovement2 string notes pitch fingerWeight
         }
@@ -156,8 +160,8 @@ deoverlap = map trim . Seq.zip_next
         | _end n > _start next = n { _duration = _start next - _start n }
         | otherwise = n
 
-fingerMovement2 :: Guitar.String -> [Note]
-    -> Signal.Signal -> Signal.Signal -> [(Seconds, Location, Newtons)]
+fingerMovement2 :: Guitar.String -> [Note] -> Signal.Signal -> Signal.Signal
+    -> [(Seconds, Location, Newtons)]
 fingerMovement2 string notes pitch fingerWeight =
     concat $ snd $ List.mapAccumL note (Signal.unsignal pitch)
         (Seq.zip_next notes)

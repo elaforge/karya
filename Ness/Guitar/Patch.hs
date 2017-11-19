@@ -162,7 +162,7 @@ withName (name, nn) str = str { sName = name, sNn = nn }
 
 outputsAt pan = [Output 0.9 pan, Output 0.7 (pan + 0.2)]
 
-(notes, fingers) = (take 1 eachString, take 1 slide_each_string)
+(notes, fingers) = (take 1 eachString, take 1 slideEachString)
 
 eachString = [note str t 0.65 | (str, t) <- zip strings (iterate (+2) 0)]
 
@@ -177,7 +177,7 @@ rolledStrings =
 
 eachPitch :: String -> Seconds -> Pitch.NoteNumber -> [Pitch.NoteNumber]
     -> Finger
-eachPitch str dur open pitches = Finger str (0, 0) notes
+eachPitch str dur open pitches = Finger (sName str) (0, 0) notes
     where
     notes = concat $ do
         (p, t) <- zip pitches (iterate (+dur) 0)
@@ -186,11 +186,11 @@ eachPitch str dur open pitches = Finger str (0, 0) notes
         -- return [(t+eta, loc, 0.6), (t+dur, loc, 0.6)]
     eta = 0.15
 
-slide_each_string =
+slideEachString =
     [slide str t (t+2) | (str, t) <- zip strings (iterate (+2) 0)]
 
 slide str start end = Finger
-    { fString = str
+    { fString = sName str
     , fInitial = (0, 0)
     , fMovement = [(start, 0, 0.6), (end, 0.5, 0.6)]
     }
@@ -200,7 +200,7 @@ slide str start end = Finger
 note :: String -> Seconds -> Double -> Note
 note str start amp = Note
     { nStrike = Strike
-    , nString = str
+    , nString = sName str
     , nStart = start
     , nDuration = 0.0013
     , nLocation = 0.8

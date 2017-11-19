@@ -21,11 +21,13 @@ hemp    = Material 860    35e9 -- .86 g/m^3, 35 GPa
 bronze  = Material 8000   105e9 -- 7400 - 8900, 96--120 GPa
 silk    = Material 1300   200e9 -- spider silk: 40--280 GPa as strain increases
 
--- 3k, 6m, 9g, 12t
-
 renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
 renderAll sr (instrument, score) =
     (renderInstrument sr instrument, renderScore (iStrings instrument) score)
+
+verify :: Instrument -> [Text]
+verify instrument = map ("duplicate string names: "<>) $ map fst $ snd $
+    Seq.partition_dups id $ map sName $ iStrings instrument
 
 -- * Instrument
 
@@ -44,9 +46,10 @@ data String = String {
     -- that works.  But even if I could, this is the logical pitch, in order to
     -- select a string, which is different from the actual pitch.
     , sNn :: Pitch.NoteNumber
-    , sName :: Text
+    , sName :: StringName
     , sOutputs :: [Output]
     } deriving (Eq, Ord, Show)
+type StringName = Text
 
 data Material = Material {
     mDensity, mYoung :: Double
@@ -226,18 +229,18 @@ renderScore strings (Score decay highpass notes fingers) = Text.unlines
     duration = fromMaybe 0 (Seq.maximum (map nStart notes)) + decay
     indexOf str = fromMaybe (error $ "no string: " <> show str) $
         Map.lookup str toNum
-        where toNum = Map.fromList $ zip strings [1..]
+        where toNum = Map.fromList $ zip (map sName strings) [1..]
 
 data Note = Note {
     nStrike :: Strike
-    , nString :: String
+    , nString :: StringName
     , nStart :: Seconds
     , nDuration :: Seconds
     , nLocation :: Location
     , nAmplitude :: Newtons
     } deriving (Eq, Show)
 
-renderNotes :: (String -> StringIndex) -> [Note] -> Text
+renderNotes :: (StringName -> StringIndex) -> [Note] -> Text
 renderNotes indexOf = array2 "exc" . map list
     where
     list (Note strike string start dur loc amp) =
@@ -248,7 +251,7 @@ renderNotes indexOf = array2 "exc" . map list
 data Strike = Strike | Pluck deriving (Eq, Show)
 
 data Finger = Finger {
-    fString :: String
+    fString :: StringName
     , fInitial :: (Location, Velocity)
     , fMovement :: [(Seconds, Location, Newtons)]
     } deriving (Eq, Show)
@@ -262,7 +265,7 @@ data Finger = Finger {
     -- (in seconds), a position and a force. The position and force are
     -- interpolated between the times given.
 
-renderFingers :: (String -> StringIndex) -> [Finger] -> Text
+renderFingers :: (StringName -> StringIndex) -> [Finger] -> Text
 renderFingers _ [] = ""
 renderFingers indexOf fingers = Text.unlines
     [ "finger_def = {"

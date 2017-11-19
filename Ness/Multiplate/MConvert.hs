@@ -34,7 +34,6 @@ convert inst notes = do
         Left $ Multiplate.iName inst <> ": " <> Text.intercalate "; " errors
     return score
 
-
 makeScore :: [Multiplate.Strike] -> Multiplate.Score
 makeScore strikes = Multiplate.Score
     { sDecay = 6

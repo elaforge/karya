@@ -28,7 +28,7 @@ get name = fromMaybe (error (show name)) $
     List.find ((==name) . iName) Patch.instruments
 
 (notes, fingers) = ([strike (str, 0.5, 0.28)],
-    [ Finger str (0, 0)
+    [ Finger (sName str) (0, 0)
         [ (0.45, loc, 0)
         , (0.5, loc, 0.5)
         , (1.0, loc, 0)
@@ -197,7 +197,7 @@ repeatNote str dur amps =
 strike :: (String, Seconds, Newtons) -> Note
 strike (str, start, amp) = Note
     { nStrike = Pluck
-    , nString = str
+    , nString = sName str
     , nStart = start
     , nDuration = 0.0013
     , nLocation = 0.8
@@ -206,7 +206,7 @@ strike (str, start, amp) = Note
 
 -- (seconds, location, force)
 fingerSlide1 =
-    Finger (head strings) (0.01, 0)
+    Finger (sName (head strings)) (0.01, 0)
         [ (0, 0.05, 0), (1, 0.05, 0)
         , (1.35, 0.05, force), (4, 0.8, force)
         , (5, 0.8, force)
