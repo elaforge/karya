@@ -217,7 +217,7 @@ UNSORTED
     winds up with event_text="NOTE", which is not as informative as the
     original text.
     . Was in always "" before?  If so it's not really a regression.
-  - make Articulation harmonic call use StringUtil.find_harmonic
+  * make Articulation harmonic call use StringUtil.find_harmonic
     . Remember to special case string=Nothing, open_strings=[]
   - im: If I delete an instrument and rerender, the old one is left around.
     This is because the cache won't delete existing files.  This will be fixed

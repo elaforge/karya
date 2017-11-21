@@ -15,9 +15,7 @@
     inconsistent ways.
 -}
 module Derive.C.Prelude.Articulation where
-import qualified Data.List as List
 import qualified Data.Text as Text
-import qualified Data.Tuple as Tuple
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
@@ -28,6 +26,7 @@ import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.StringUtil as StringUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -138,30 +137,26 @@ instance ShowVal.ShowVal HarmonicType where
     show_val Natural = "nat"
     show_val Artificial = "art"
 
--- | Harmonic number.
-type Harmonic = Int
-
-lily_harmonic :: Bool -> HarmonicType -> [Pitch.NoteNumber]
-    -> Maybe Pitch.NoteNumber -> Derive.NoteDeriver -> Derive.NoteDeriver
+lily_harmonic :: Bool -> HarmonicType -> [PSignal.Pitch]
+    -> Maybe PSignal.Pitch -> Derive.NoteDeriver -> Derive.NoteDeriver
 lily_harmonic force_diamond htype open_strings string deriver = do
+    open_strings <- mapM StringUtil.string open_strings
+    string <- traverse StringUtil.string string
     Post.emap_m_ id
         (lily_harmonic_event force_diamond htype open_strings string)
         =<< deriver
     -- Ly should have one that skips code events
 
-lily_harmonic_event :: Bool -> HarmonicType -> [Pitch.NoteNumber]
-    -> Maybe Pitch.NoteNumber -> Score.Event -> Derive.Deriver [Score.Event]
+lily_harmonic_event :: Bool -> HarmonicType -> [StringUtil.String]
+    -> Maybe StringUtil.String -> Score.Event -> Derive.Deriver [Score.Event]
 lily_harmonic_event force_diamond htype open_strings string event = do
     nn <- Derive.require "no pitch" $ Score.initial_nn event
-    let msg = "can't find " <> pretty nn <> " as "
-            <> (case htype of
-                Natural -> "a natural"
-                Artificial -> "an artificial") <> " harmonic of "
-            <> maybe ("open strings: " <> pretty open_strings) pretty string
-    (string, harmonic) <- Derive.require msg $ case htype of
+    (string, harmonic) <- Derive.require_right id $ case htype of
         Natural -> natural_harmonic open_strings string nn
         Artificial -> artificial_harmonic lowest nn
-            where lowest = fromMaybe 0 $ string <|> Seq.head open_strings
+            where
+            lowest = maybe 0 StringUtil.str_nn $
+                string <|> Seq.head open_strings
     -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
     let add_harm = Score.add_attributes Attrs.harm
     map add_harm <$> if harmonic <= 2 && not force_diamond
@@ -186,7 +181,7 @@ harmonic_code stopped touched event =
 
 -- | Where should I touch the string to play the nth harmonic of a base
 -- frequency?
-touch_interval :: Harmonic -> Maybe Pitch.NoteNumber
+touch_interval :: StringUtil.Harmonic -> Maybe Pitch.NoteNumber
 touch_interval harmonic = case harmonic of
     2 -> Just 12
     3 -> Just 7
@@ -200,27 +195,28 @@ touch_interval harmonic = case harmonic of
     -- So I'll just hard code some low harmonics and deal with high ones if
     -- I need them some day.
 
-highest_harmonic :: Harmonic
+highest_harmonic :: StringUtil.Harmonic
 highest_harmonic = 6
 
 -- | If string is given, try to find this pitch in the harmonics of that
 -- string.  Otherwise, find the string from open_strings which has this as
 -- its lowest harmonic.
-natural_harmonic :: [Pitch.NoteNumber] -> Maybe Pitch.NoteNumber
-    -> Pitch.NoteNumber -> Maybe (Pitch.NoteNumber, Harmonic)
+natural_harmonic :: [StringUtil.String] -> Maybe StringUtil.String
+    -> Pitch.NoteNumber -> Either Text (Pitch.NoteNumber, StringUtil.Harmonic)
     -- ^ (selected string, harmonic)
-natural_harmonic open_strings maybe_string nn = case maybe_string of
-    Just string -> (string,) <$> harmonic_of highest_harmonic string nn
-    Nothing
-        | null open_strings -> Just (Pitch.modify_hz (/2) nn, 2)
-        | otherwise -> fmap Tuple.swap $ Seq.minimum_on fst $
-            Seq.key_on_just harm_of open_strings
-            where harm_of string = harmonic_of highest_harmonic string nn
+natural_harmonic [] Nothing nn = Right (Pitch.modify_hz (/2) nn, 2)
+natural_harmonic open_strings maybe_string nn =
+    first StringUtil.str_nn <$>
+        StringUtil.find_harmonic False highest_harmonic open_strings
+            maybe_string nn
 
 -- | Pick the lowest harmonic which is above the given lowest string.
 artificial_harmonic :: Pitch.NoteNumber -> Pitch.NoteNumber
-    -> Maybe (Pitch.NoteNumber, Harmonic) -- ^ (stopped pitch, harmonic)
+    -> Either Text (Pitch.NoteNumber, StringUtil.Harmonic)
+    -- ^ (stopped pitch, harmonic)
 artificial_harmonic lowest_string nn =
+    tryJust ("artificial harmonic for " <> pretty nn
+        <> " must be above lowest string " <> pretty lowest_string) $
     fmap (first (Pitch.nn . round)) $
         Seq.head $ filter ((>lowest_string) . fst) $
         -- I assume the octave is not convenient for an artificial harmonic,
@@ -228,13 +224,6 @@ artificial_harmonic lowest_string nn =
         -- make it least preferred?
         Seq.key_on base_of [3..highest_harmonic]
     where base_of h = Pitch.modify_hz (/ fromIntegral h) nn
-
-harmonic_of :: Harmonic -> Pitch.NoteNumber -> Pitch.NoteNumber
-    -> Maybe Harmonic
-harmonic_of limit base pitch = (2+) <$> List.findIndex (close pitch) harmonics
-    where
-    harmonics = take limit $ map (Pitch.nn_to_hz base *) [2..]
-    close nn hz = Pitch.nns_close 50 nn (Pitch.hz_to_nn hz)
 
 -- * slur
 
