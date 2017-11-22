@@ -7,6 +7,9 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
+import qualified Data.Map as Map
+import qualified Data.Tuple as Tuple
+
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -66,6 +69,7 @@ patches =
     [ mine_patches
     , misc_patches
     , hang_patches
+    , dio8_patches
     , KendangBali.patches, KendangSunda.patches
     , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Gong.patches
     , ScGamelan.patches
@@ -260,6 +264,47 @@ hang_strokes =
 
 hang_ks :: [(Attrs.Attributes, Midi.Key)]
 hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
+
+-- * 8 dio
+
+dio8_patches :: [MidiInst.Patch]
+dio8_patches =
+    [ MidiInst.code #= pedal_down $
+        MidiInst.attribute_map #= santur_ks $ patch "santur" []
+    , MidiInst.code #= (qanun_grace <> pedal_down) $
+        MidiInst.attribute_map #= qanun_ks $ patch "qanun" []
+    ]
+    where
+    santur_ks = ks_from Key2.c_1 $
+        [ (m <> art)
+        -- wood-m is the default
+        | m <- [mempty, Attrs.attr "soft-m", Attrs.attr "softest-m"]
+        -- sustain is the default
+        , art <- [mempty, Attrs.attr "half-mute", Attrs.mute]
+        ] ++ [Attrs.attr "sfx"]
+    -- TODO harmonic?
+    qanun_ks = ks_from Key2.d_2 $ concat
+        [ [mempty] -- thumb
+        , map Attrs.attr ["fingertip", "pick", "pick-bridge", "pizz"]
+        , map fst grace_intervals
+        , [ Attrs.trem, Attrs.attr "vib-peg", Attrs.harm, Attrs.attr "fiske"
+          , Attrs.attr "sfx"
+          ]
+        ]
+    ks_from key attrs = Patch.single_keyswitches $ zip attrs [key..]
+    pedal_down = MidiInst.postproc $
+        DUtil.default_controls [(Controls.pedal, 1)]
+    qanun_grace = MidiInst.note_calls
+        [ MidiInst.generator "g" $
+            Grace.c_attr_grace $ Map.fromList $
+            map Tuple.swap grace_intervals
+        ]
+    grace_intervals =
+        [ (grace <> dir <> interval, step * sign)
+        | (interval, step) <- zip [Attrs.half, Attrs.whole] [1..]
+        , (dir, sign) <- [(Attrs.up, 1), (Attrs.down, -1)]
+        ]
+    grace = Attrs.attr "grace"
 
 
 -- * misc

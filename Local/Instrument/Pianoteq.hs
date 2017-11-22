@@ -5,23 +5,20 @@
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
 import qualified Midi.Midi as Midi
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
-
 import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
-import qualified Perform.Signal as Signal
-
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import Global
@@ -63,7 +60,15 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
         , MidiInst.both "m" $ Make.control_note Module.instrument "m" lute 1
         , MidiInst.generator "g" c_grace
         ]
-        <> MidiInst.postproc (reset_controls [gliss, harmonic, lute])
+        <> MidiInst.postproc postproc
+    -- Turn off harmonic or lute or gliss unless explicitly asked for.
+    -- These are effectively keyswitches.  TODO wait, but don't I have those
+    -- for controls?
+    -- For this to work, the inst has to have only a single channel allocated.
+    -- Otherwise it will just go on a different channel and the performer
+    -- doesn't know that pianoteq's channels are actually not independent WRT
+    -- controls.
+    postproc = DUtil.default_controls [(gliss, 0), (harmonic, 0), (lute, 0)]
     -- TODO add diatonic gliss call, like zheng
     harmonic = "harmonic"
     lute = "lute"
@@ -71,16 +76,6 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
     doc = "The harp has a backwards sustain pedal, in that it sustains by\
         \ default unless " <> ShowVal.doc damp <> " is 1.  The `ped`\
         \ control call is useful to quickly damp ringing notes."
-
--- | Controls which are not already explicitly set are explicitly set to 0.
--- For this to work, the inst has to have only a single channel allocated.
--- Otherwise it will just go on a different channel and the performer doesn't
--- know that pianoteq's channels are actually not independent WRT controls.
-reset_controls :: [Score.Control] -> Cmd.InstrumentPostproc
-reset_controls controls event = (,[]) $ foldr reset event controls
-    where
-    reset c = Score.modify_control c $ \old -> if old == mempty
-        then Signal.constant 0 else old
 
 gliss :: Score.Control
 gliss = "gliss"
