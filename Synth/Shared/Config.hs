@@ -10,7 +10,6 @@
 -- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -34,7 +33,7 @@ config = Config $ Map.fromList
 data Synth = Synth {
     -- | Path to the binary.  Don't run a binary if it's empty.
     binary :: !FilePath
-    -- | Write serialized notes to this file.
+    -- | Write serialized notes to this file.  Relative to 'notesParentDir'.
     , notesDir :: !FilePath
     } deriving (Eq, Show)
 
@@ -49,7 +48,7 @@ samplerName = "sampler"
 sampler :: Synth
 sampler = Synth
     { binary = "build/opt/sampler-im"
-    , notesDir = dataDir </> "sampler-notes"
+    , notesDir = "sampler"
     }
 
 faustName :: SynthName
@@ -58,13 +57,13 @@ faustName = "faust"
 faust :: Synth
 faust = Synth
     { binary = "build/opt/faust-im"
-    , notesDir = dataDir </> "faust-notes"
+    , notesDir = "faust"
     }
 
 ness ::Synth
 ness = Synth
     { binary = ""
-    , notesDir = dataDir </> "ness-notes"
+    , notesDir = "ness"
     }
 
 -- | All of the data files used by the Im backend are based in this directory.
@@ -72,6 +71,9 @@ ness = Synth
 -- caching.
 dataDir :: FilePath
 dataDir = "im"
+
+notesParentDir :: FilePath
+notesParentDir = dataDir </> "notes"
 
 cacheDir :: FilePath
 cacheDir = dataDir </> "cache"
@@ -87,7 +89,7 @@ samplingRate = SAMPLING_RATE
 -- | Write serialized notes to this file.
 notesFilename :: Synth -> BlockId -> FilePath
 notesFilename synth blockId =
-    notesDir synth </> Text.unpack (blockFilename blockId)
+    notesParentDir </> notesDir synth </> untxt (blockFilename blockId)
 
 -- | Get the filename that should be used for the output of a certain block and
 -- instrument.
@@ -95,9 +97,14 @@ outputFilename :: FilePath -- ^ Names as produced by 'notesFilename'.
     -> Maybe Text -- ^ Score.Instrument, but I don't want to import it.
     -> FilePath
 outputFilename notesFilename maybeInstrument = case maybeInstrument of
-    Nothing -> cacheDir </> name <> ".wav"
-    Just instrument -> cacheDir </> name </> untxt instrument <> ".wav"
-    where name = FilePath.takeFileName notesFilename
+    Nothing -> root <> ".wav"
+    Just instrument -> root </> untxt instrument <> ".wav"
+    where
+    root = cacheDir </> ns </> name
+    ns = FilePath.takeFileName $ FilePath.takeDirectory notesFilename
+    name = FilePath.takeFileName notesFilename
 
+-- Yes, it should return FilePath, but Im.Play.encode_play_config uses Text.
 blockFilename :: BlockId -> Text
-blockFilename = Text.replace "/" "-" . Id.ident_text
+blockFilename blockId = Id.un_namespace ns <> "/" <> name
+    where (ns, name) = Id.un_id $ Id.unpack_id blockId

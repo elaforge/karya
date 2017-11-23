@@ -238,6 +238,7 @@ PlayConfig::collect1(unsigned char d)
         clear();
         break;
     case ' ':
+        // Encode pads with space if there is an odd number of characters.
         break;
     default:
         if (instrumentIndex == -1) {

@@ -202,6 +202,10 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - Attributes are not necessarily suited to fundamentally exclusive
+    articulations, like striking technique.  For NESS strings I use the
+    'element' field, maybe I should be using environ for that at the score
+    level.
   * harp harmonic 'o' sticks, I think because it knows to unset keyswitches,
     but not controls.
     . But the next one has control 0, shouldn't it know to cancel?
@@ -217,13 +221,9 @@ UNSORTED
     winds up with event_text="NOTE", which is not as informative as the
     original text.
     . Was in always "" before?  If so it's not really a regression.
+    . I'm back to Call.note using "" again, but I should still check this out.
   * make Articulation harmonic call use StringUtil.find_harmonic
     . Remember to special case string=Nothing, open_strings=[]
-  - im: If I delete an instrument and rerender, the old one is left around.
-    This is because the cache won't delete existing files.  This will be fixed
-    by making a new cache dir instead of just copying into the existing one.
-    . I should be able to cache instruments that don't change.
-  - im: put all notes in one directory, and then have a directory per namespace.
   * Don't allow multiple copies of seq, it's really confusing.
   * Make Cmd.InstrumentPostproc return (Score.Event, [Log.Msg])
   - string_idiom should ignore notes that already have a string.
@@ -255,10 +255,63 @@ UNSORTED
     easier?
   * enable FlexibleInstances globally.  Should I add any other instance ones?
     TypeSynonymInstances?
-  - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - Highlight for block calls which are 1:1, or not 1:1.
     . Use event width for this?  But this is a different mechanism from
       highlights, which uses selections.
+    . Or use event color.  Effectively the highlight does that though.
+    . How to get the highlight?  Other highlights are postprocs that attach
+      the highlight, but I think I can get the block call itself to do that.
+    . But highlights go on Score.Events, and this is a UI event.  I could
+      extend LEvent.Log with a general Metadata kind of thing, or I could
+      also attach a highlight to the first event from the block.
+    . The latter means highlight needs to support a time range, and of course
+      it won't work if the block produces 0 events.  But in that case it
+      doesn't matter if it's 1:1 or not.
+    . The problem with LEvent.Metadata is that I don't want to rewrite all the
+      LEvent stuff to also deal with logs, but I don't want to pay another
+      indirection.  But if I put UNPACK it should solve that:
+        data LEvent = Event a | Log {-# UNPACK #-} Log
+        data Log = Metadata X | Msg Log.Msg
+      Does that work?
+    . What other things could I put in Metadata?
+      . Highlights for one, I think a ScoreTime range is more appropriate than
+        taking RealTime from the events, since the latter is wrong if the note
+        extent doesn't match the score extent.
+      . What about integrate?  I currently have a special spot in
+        Derive.Results, but I could also emit it as a meta-event.
+      . But for that matter, why not put highlights in Derive.Result?  It
+        seems more elegant to favor the explicit Stream return value over
+        implicit Collect results, but the logical conclusion of that is to get
+        rid of Collect entirely.  I think I don't want to do that, because
+        I take advantage of monoid merge to discard data.  But on the other
+        hand, if the output stream is lazy, then it's just the same to do the
+        same collection while iterating over the result.  This would make it
+        explicit that to get collected data I have to iterate over the events,
+        instead of how implicitly touching some fields actually implies
+        evaluating the score.  Also I could evaluate Collect only up to
+        a certain point, though I don't think I ever want to do that.  And
+        then it separates result collection from the deriver, so maybe more
+        modular.  Could it be more efficient?  I might spend a lot of time
+        combining memptys. and a final fold might get rid of that.  Presumably
+        I'd use an ADT for the metadata instead of a record.  On the other
+        hand, it's more cons cells for the stream, which maybe means more junk
+        to skip when sorting and merging.  Maybe I could mitigate that by
+        collecting Metadata together into short vectors, which can be skipped
+        as a nuit.  It's only a win if they tend to clump together.
+      . What would the metadata be?
+      . Also I should profile to make sure about Collect usage and of course
+        to see a difference if I switch.
+      PLAN
+        - profile current status, look for Collect allocation
+        - enumerate the things that go in Metadata
+        - verify UNPACK can flatten Log event
+        - estimate work to switch
+        - sketch out where and how the collect fold would happen at the end
+        - ensure Streams are lazy... I think transforms might actually destroy
+          laziness.  But would getting rid of Collect be able to restore it?
+          I'd have to do something about exceptions, maybe put it in as
+          a Metadata too.  If I can make the whole derivation fully streaming
+          then this might be a big win.
   - binary-serialise-cbor is out and implemented by serialise, try switching
     save format to that.
     . But figure out how to use the built-in versioning first.
@@ -606,34 +659,36 @@ UNSORTED
 IN PROGRESS / branch: branches:
   . This has longer term projects, which are partially complete.
   signal-discontinuity:
+    . I need a more systematic solution for signal-discontinuity.
     . A solution here should also be able to solve signal-offset below.
-    - I need a more systematic solution for signal-discontinuity.
-      . As well as docs for the NOTE in Util.TimeVector.
-      . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
-        disable it if there are no im instruments?
-      . Possibly I can model the signal as line segments, not Samples?  If
-        I still want it to be disabled, then I'd need some awkward thing in
-        between.
-      . Or maybe I can optimize the flat line somehow?  The reason I originally
-        didn't go with line segments was that I didn't want every single MIDI
-        style sample to wind up as two.  I could have some magic flag to
-        indicate flat until next sample.
-      . But am I really sure efficiency is a concern at all?  Signals are
-        relatively small, and I have a lot of memory.  Most memory is probably
-        used up on lazy thunks or something anyway.
-      ? Actually I should know what most memory is used on. Do some more heap
-        profile runs and write that down somewhere.
-      . Should I get rid of score level srate, and put it in the MIDI performer?
-        In practice I haven't used srate for special effects, and even if
-        I wanted to I could insert a sample and hold.  All I've done is adjusted
-        it down for gamakams.
-      . Then of course there's the continuous signal idea: signal is just
-        a function.  This would solve efficient translate and scale too: just
-        compose with another function.  If I can figure out the coerce to
-        Typecheck.TypedFunction thing, then that's how the Derivers see it too.
-      . Explicit line segments or a continuous signal or whatever would also
-        fix the problem where Signal.constant uses [(0, y)]... but then it
-        doesn't work right at <0.  Or Signal.constant could use -big_x.
+    . As well as docs for the NOTE in Util.TimeVector.
+    . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
+      disable it if there are no im instruments?
+    . Possibly I can model the signal as line segments, not Samples?  If
+      I still want it to be disabled, then I'd need some awkward thing in
+      between.
+    . Or maybe I can optimize the flat line somehow?  The reason I originally
+      didn't go with line segments was that I didn't want every single MIDI
+      style sample to wind up as two.  I could have some magic flag to
+      indicate flat until next sample.
+    . But am I really sure efficiency is a concern at all?  Signals are
+      relatively small, and I have a lot of memory.  Most memory is probably
+      used up on lazy thunks or something anyway.
+    ? Actually I should know what most memory is used on. Do some more heap
+      profile runs and write that down somewhere.
+    . Should I get rid of score level srate, and put it in the MIDI performer?
+      In practice I haven't used srate for special effects, and even if
+      I wanted to I could insert a sample and hold.  All I've done is adjusted
+      it down for gamakams.
+    . Then of course there's the continuous signal idea: signal is just
+      a function.  This would solve efficient translate and scale too: just
+      compose with another function.  If I can figure out the coerce to
+      Typecheck.TypedFunction thing, then that's how the Derivers see it too.
+    . Explicit line segments or a continuous signal or whatever would also
+      fix the problem where Signal.constant uses [(0, y)]... but then it
+      doesn't work right at <0.  Or Signal.constant could use -big_x.
+    . Investigate hermite curves in 'interpolate' package.
+      The curve-fitting stuff would be useful for eventual recording.
   - ControlFunctions are still super confusing. NOTE [fix-control-functions]
     . Yet another confusing thing is that they don't work for arbitrary
       signals given to notes.  I think it would be better to override '' to
@@ -1071,6 +1126,11 @@ documentation:
       that have someone listening to them in a certain scope.
 
 synth: im:
+  - If I delete an instrument and rerender, the old one is left around.
+    This is because the cache won't delete existing files.  This will be fixed
+    by making a new cache dir instead of just copying into the existing one.
+    . I should be able to cache instruments that don't change.
+  * put all notes in one directory, and then have a directory per namespace.
   - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
     im and seq can use the same types.
     . On the other hand, maybe they should remain different.  Synth Control
@@ -1706,6 +1766,7 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod
   . Merge Val and MiniVal (RestrictedEnviron.Val for now).
     . NOTE [val-and-minival]
