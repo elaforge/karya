@@ -182,8 +182,7 @@ nn_at pos control = -- TODO throw exception?
 
 real_duration_at :: Typecheck.TypedFunction -> RealTime
     -> Derive.Deriver RealTime
-real_duration_at f t =
-    typed_real_duration Typecheck.Real t (f t)
+real_duration_at f t = typed_real_duration Typecheck.Real t (f t)
 
 -- * dynamic
 
