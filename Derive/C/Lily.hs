@@ -408,7 +408,8 @@ emit_transform :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (a -> (ScoreTime, ScoreTime)
         -> Derive.Deriver [(ScoreTime, Ly.FreeCode)])
     -> Make.Calls Derive.Note
-emit_transform transform assert_0dur name doc_ sig get_events = (gen, trans)
+emit_transform transform assert_0dur name doc_ sig get_events =
+    Make.Calls gen trans
     where
     gen = generator name doc $ Sig.call sig $ \val args -> Ly.only_lilypond $ do
         Sub.assert_no_subs args
@@ -442,7 +443,7 @@ emit_pair name doc sig get_code = emit name doc sig (\val -> return . get val)
 -- | Wrap each individual note event in code.
 attach_wrap_notes :: Derive.CallName -> Doc.Doc -> Sig.Parser a
     -> (a -> Derive.Deriver (Ly.Ly, Ly.Ly)) -> Make.Calls Derive.Note
-attach_wrap_notes name doc sig get_code = (gen, trans)
+attach_wrap_notes name doc sig get_code = Make.Calls gen trans
     where
     around_doc = emit_doc
         <> " The transformer will wrap each event in (start, end) pairs.\

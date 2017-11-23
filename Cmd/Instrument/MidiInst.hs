@@ -149,7 +149,7 @@ transformer :: Expr.Symbol -> Derive.Transformer d -> Call d
 transformer = Transformer
 
 both :: Expr.Symbol -> Make.Calls d -> Call d
-both name (g, t) = Both name g t
+both name calls = Both name (Make.generator calls) (Make.transformer calls)
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".

@@ -85,7 +85,7 @@ multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
         [ ImInst.generator (Expr.Symbol object) $ generator object
         | object <- Multiplate.iObjects inst
         ]
-    generator object = fst $ Make.environ_note Module.instrument
+    generator object = Make.generator $ Make.environ_note Module.instrument
         (Derive.CallName object) mempty "Strike the named object."
         EnvKey.patch_element object
     patch = Patch.patch

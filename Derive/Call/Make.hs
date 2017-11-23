@@ -31,20 +31,15 @@ import Global
 
 -- | Bundle a generator and transformer together, so I can define them
 -- together.  The rationale is described in 'Derive.CallMaps'.
-type Calls d = (Derive.Generator d, Derive.Transformer d)
-
--- TODO use a real record
-generator :: Calls d -> Derive.Generator d
-generator = fst
-
-transformer :: Calls d -> Derive.Transformer d
-transformer = snd
+data Calls d = Calls {
+    generator :: !(Derive.Generator d)
+    , transformer :: !(Derive.Transformer d)
+    }
 
 call_maps :: [(Expr.Symbol, Calls d)] -> Derive.CallMaps d
-call_maps calls = Derive.call_maps gs ts
-    where
-    gs = zip (map fst calls) (map (fst . snd) calls)
-    ts = zip (map fst calls) (map (snd . snd) calls)
+call_maps calls = Derive.call_maps
+    (zip syms (map generator cs)) (zip syms (map transformer cs))
+    where (syms, cs) = unzip calls
 
 -- | This is a specialization of 'transform_notes' that adds Attributes.
 attributed_note :: Module.Module -> Attrs.Attributes -> Calls Derive.Note
@@ -75,7 +70,7 @@ transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Sig.Parser a -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Calls Derive.Note
 transform_notes module_ name tags transform_doc sig transform =
-    (generator, transformer)
+    Calls generator transformer
     where
     generator = Derive.generator module_ name (tags <> Tags.subs)
         (transform_doc <> "\n" <> generator_doc) $
@@ -156,10 +151,10 @@ modify_transformer_ doc_prefix transform call =
 modify_calls_ :: Doc.Doc
     -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
     -> Calls a -> Calls a
-modify_calls_ doc_prefix transform (gen, trans) =
-    ( modify_generator_ doc_prefix transform gen
-    , modify_transformer_ doc_prefix transform trans
-    )
+modify_calls_ doc_prefix transform (Calls gen trans) = Calls
+    { generator = modify_generator_ doc_prefix transform gen
+    , transformer = modify_transformer_ doc_prefix transform trans
+    }
 
 modify_call :: Module.Module -> Derive.CallName -> Doc.Doc
     -> (a -> b) -> Derive.Call a -> Derive.Call b

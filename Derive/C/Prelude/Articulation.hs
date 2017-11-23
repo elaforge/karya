@@ -85,11 +85,11 @@ note_calls = Make.call_maps
 
 lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_attr_generator = make_lookup_attr $ \attrs ->
-    fst $ Make.attributed_note Module.prelude attrs
+    Make.generator $ Make.attributed_note Module.prelude attrs
 
 lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
 lookup_attr_transformer = make_lookup_attr $ \attrs ->
-    snd $ Make.attributed_note Module.prelude attrs
+    Make.transformer $ Make.attributed_note Module.prelude attrs
 
 make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
@@ -101,7 +101,7 @@ make_lookup_attr call =
             Right (BaseTypes.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing
-    doc = Derive.extract_doc $ fst $
+    doc = Derive.extract_doc $ Make.generator $
         Make.attributed_note Module.prelude (Attrs.attr "example-attr")
 
 -- * harmonic
