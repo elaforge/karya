@@ -45,13 +45,15 @@ printPerformance block =
 run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
-    let notesFilename = Config.notesFilename Config.ness blockId
+    let notesFilename = Config.notesFilename (Config.rootDir Config.config)
+            Config.ness blockId
     instPerformances <- either errorIO return =<< loadConvert block
     Util.submitInstruments "convert" $
         map (nameScore notesFilename) instPerformances
     where
     nameScore notesFilename (inst, p) =
-        ( Config.outputFilename notesFilename (Just inst)
+        ( Config.outputFilename (Config.rootDir Config.config) notesFilename
+            (Just inst)
         , inst
         , renderPerformance srate p
         )
@@ -63,7 +65,8 @@ type Error = Text
 
 loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
 loadConvert b =
-    convert <$> load (Config.notesFilename Config.ness (mkBlockId b))
+    convert <$> load (Config.notesFilename (Config.rootDir Config.config)
+        Config.ness (mkBlockId b))
 
 renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)

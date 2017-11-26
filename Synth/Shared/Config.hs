@@ -20,15 +20,24 @@ import Types
 #include "config.h"
 
 
-newtype Config = Config { synths :: Map SynthName Synth }
+data Config = Config {
+    -- | All of the data files used by the Im backend are based in this
+    -- directory.  Everything in here should be temporary files, used for
+    -- communication or caching.
+    rootDir :: FilePath
+    , synths :: Map SynthName Synth
+    }
     deriving (Eq, Show)
 
 config :: Config
-config = Config $ Map.fromList
-    [ (samplerName, sampler)
-    , (faustName, faust)
-    , (nessName, ness)
-    ]
+config = Config
+    { rootDir = "im"
+    , synths = Map.fromList
+        [ (samplerName, sampler)
+        , (faustName, faust)
+        , (nessName, ness)
+        ]
+    }
 
 data Synth = Synth {
     -- | Path to the binary.  Don't run a binary if it's empty.
@@ -66,17 +75,11 @@ ness = Synth
     , notesDir = "ness"
     }
 
--- | All of the data files used by the Im backend are based in this directory.
--- Everything in here should be temporary files, used for communication or
--- caching.
-dataDir :: FilePath
-dataDir = "im"
-
 notesParentDir :: FilePath
-notesParentDir = dataDir </> "notes"
+notesParentDir = "notes"
 
 cacheDir :: FilePath
-cacheDir = dataDir </> "cache"
+cacheDir = "cache"
 
 -- | All im synths render at this sampling rate, and the sequencer sets the
 -- start time by it.
@@ -87,20 +90,21 @@ samplingRate = SAMPLING_RATE
 -- * cache files
 
 -- | Write serialized notes to this file.
-notesFilename :: Synth -> BlockId -> FilePath
-notesFilename synth blockId =
-    notesParentDir </> notesDir synth </> untxt (blockFilename blockId)
+notesFilename :: FilePath -> Synth -> BlockId -> FilePath
+notesFilename rootDir synth blockId =
+    rootDir </> notesDir synth </> untxt (blockFilename blockId)
 
 -- | Get the filename that should be used for the output of a certain block and
 -- instrument.
-outputFilename :: FilePath -- ^ Names as produced by 'notesFilename'.
+outputFilename :: FilePath
+    -> FilePath -- ^ Names as produced by 'notesFilename'.
     -> Maybe Text -- ^ Score.Instrument, but I don't want to import it.
     -> FilePath
-outputFilename notesFilename maybeInstrument = case maybeInstrument of
+outputFilename rootDir notesFilename maybeInstrument = case maybeInstrument of
     Nothing -> root <> ".wav"
     Just instrument -> root </> untxt instrument <> ".wav"
     where
-    root = cacheDir </> ns </> name
+    root = rootDir </> cacheDir </> ns </> name
     ns = FilePath.takeFileName $ FilePath.takeDirectory notesFilename
     name = FilePath.takeFileName notesFilename
 

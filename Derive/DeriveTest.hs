@@ -481,17 +481,17 @@ cmd_config inst_db = Cmd.Config
     , config_instrument_db = inst_db
     , config_library = C.All.library
     , config_highlight_colors = Config.highlight_colors
-    , config_im = Shared.Config.Config $ Map.fromList
-        [ ("im-synth", Shared.Config.Synth
-            { binary = "/usr/bin/true"
-            , notesDir = default_im_notes
-            })
-        ]
+    , config_im = Shared.Config.Config
+        { rootDir = Testing.tmp_base_dir </> "im"
+        , synths = Map.fromList
+            [ ("im-synth", Shared.Config.Synth
+                { binary = ""
+                , notesDir = "notes"
+                })
+            ]
+        }
     , config_git_user = SaveGit.User "name" "email"
     }
-
-default_im_notes :: FilePath
-default_im_notes = Testing.tmp_base_dir </> "im_notes"
 
 default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode
 default_im_synth = im_synth "im-synth"

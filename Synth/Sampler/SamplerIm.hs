@@ -46,7 +46,8 @@ realizeSamples notesFilename samples = do
     audios <- mapM realizeSample samples
     put "processing"
     -- TODO divide up output by instrument instead of mixing them here
-    let output = Config.outputFilename notesFilename Nothing
+    let output = Config.outputFilename (Config.rootDir Config.config)
+            notesFilename Nothing
     result <- AUtil.catchSndfile $ Resource.runResourceT $
         Sndfile.sinkSnd output AUtil.outputFormat
             (mixAll (Maybe.catMaybes audios))

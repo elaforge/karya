@@ -16,6 +16,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.NN as NN
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -43,7 +44,10 @@ test_respond = do
     equal warns []
     results <- respond states (return ())
     ResponderTest.print_results results
-    notes <- Note.unserialize (DeriveTest.default_im_notes <> "/test-b1")
+    let config = Cmd.config_im $ Cmd.state_config DeriveTest.default_cmd_state
+        Just synth_config = Map.lookup "im-synth" (Config.synths config)
+    notes <- Note.unserialize $ Config.notesFilename (Config.rootDir config)
+        synth_config UiTest.default_block_id
     right_equal (map Note.start <$> notes) [0, 1]
     right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
             <$> notes)

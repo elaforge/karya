@@ -186,7 +186,8 @@ cmd_config inst_db = do
         , config_instrument_db = inst_db
         , config_library = C.All.library
         , config_highlight_colors = mempty
-        , config_im = Shared.Config.Config mempty
+        , config_im = Shared.Config.Config
+            (Shared.Config.rootDir Shared.Config.config) mempty
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
         , config_git_user = SaveGit.User "name" "email"
