@@ -1,76 +1,80 @@
-This has original motivation, general purpose philosophical arm-waving, and
-other somewhat irrelevant detritus.
+This has original motivation and general purpose arm-waving.  The intent is
+that while the other documentation has specific "how to do this" or "how does
+this work" information, this is a place for bigger picture thoughts about
+design, and specifically more general problems, along with solutions which seem
+to fit them well, and those which don't.
 
 ### motivation
 
 I was motivated to create a music sequencer because of what I saw as a gap
 in the capabilities of existing software.
 
-As I see it, there are basically three categories of software systems for
-music writing: the mainstream MIDI sequencer or DAW (examples are Cubase,
-Logic, Ardour), staff notation programs (Finale, Sibelius, Lilypond), and
-language-oriented systems (csound, CLM, Supercollider).  The DAWs and staff
-notation programs are standardized, monolithic, and more or less equivalent
-to each other (lilypond is the exception, also being in the language camp),
-but the the language systems are much more variable.  Some focus on sound
-synthesis, some on score representation, and some on real-time synthesis or
-note production.  Especially this last category has become very popular
-recently, examples are Tidal, Extempore, overtone and leipzig in clojure,
-etc.
+As I see it, there are basically three categories of software systems for music
+writing: the mainstream MIDI sequencer or DAW (examples are Cubase, Logic,
+Ardour, Ableton Live), staff notation programs (Finale, Sibelius, Lilypond),
+and language-oriented systems (csound, CLM, Supercollider).  The DAWs and staff
+notation programs are standardized, monolithic, and more or less equivalent to
+each other (lilypond is the exception, also being in the language camp), but
+the language systems are much more variable.  Some focus on sound synthesis,
+some on score representation, and some on real-time synthesis or note
+production.  Especially this last category ("livecoding") has become popular
+recently, examples are Tidal, Extempore, Overtone.
 
-At the time, I was involved with Javanese and Balinese music, and none of
-the above categories seemed suitable.  The mainstream DAWs only really
-support 12 tone equal tempered tuning, and anything outside that is
-distinctly second class---MIDI synthesizers can be retuned, but it's
-awkward, not standardized, and the sequencer doesn't understand it.  Beyond
-that, these kinds of music (as it seems are most kinds of music around the
-world) are based on a few core melodies from which other parts are derived
-with greater or lesser freedom.  A DAW of course doesn't understand any of
-this, and since they are monolithic and not programmable, can't be made to
-understand any of it.
+For a long time, I've been involved with Javanese and Balinese music, and none
+of the above categories seemed suitable.  The mainstream DAWs only really
+support 12 tone equal tempered tuning, and anything outside that is distinctly
+second class.  MIDI synthesizers can be retuned, but it's awkward, not
+standardized, and the sequencer doesn't understand it.  Beyond that, these
+kinds of music (as it seems are most kinds of music around the world) are based
+on a few core melodies from which other parts are derived with greater or
+lesser freedom.  A DAW of course doesn't understand any of this, and since they
+are monolithic and not programmable, can't be made to understand any of it.
 
 The notation programs are also out.  Primarily because I'm hoping to generate
-sound in addition to scores, but also staff notation is just not suitable.  It
-can be forced, but it's awkward at best, omitting or obscuring important
-details and cluttering the page with irrelevant or misleading ones.
-The point of this kind of notation is to give to a musician who will understand
-it, so the further you deviate from standard practice the less useful it
-becomes.
+sound in addition to (or instead of) scores, but also staff notation is just
+not suitable.  It can be forced, but it's awkward at best, omitting or
+obscuring important details and cluttering the page with irrelevant or
+misleading ones.  The point of this kind of notation is to give to a musician
+who will understand it, so the further you deviate from standard practice the
+less useful it becomes.  You could even make a case that staff notation is not
+that suitable for a lot of European-style music of the last hundred years or
+so, let alone other kinds, but the general impossibility of spelling reform
+shows how strong and valuable a widely recognized convention is.
 
 The various music programming languages could theoretically support the scales
 and proper relationships of core melody to derived parts.  In practice they
-don't.  They give you a blank piece of paper and the means to define your own,
-which is not much better than starting from scratch.  For instance, some will
-claim that they support "all scales", when they really mean you can give pitch
-names arbitrary frequencies and do some modular arithmetic on them.  Real
-scales are a bit more complicated than that, and reach deep into the music
-theory of whatever tradition they're embedded in.  But the main issue with the
-languages is that they're text-only, generally expect you to edit with a
-standard text editor, and have no special support for editing notes.  What this
-means is entering note lists by hand, and writing times and durations as
-numbers.  It's very hard to write and read that way, especially if there are
-multiple parts which are aligned in time.  To be sure it can be done, and you
-can look at a large lilypond score to see how it can work, but there's a reason
-that almost every kind of historical notation represents time spatially.  So
-it's also no coincidence that the various languages tend to be used for
-algorithmic music or sound design, neither of which need note lists.
+only support what the original authors wrote libraries for, which is generally
+not notes and scales.  For instance, some will claim that they support "all
+scales", when they really mean you can give pitch names arbitrary frequencies
+and do some modular arithmetic on them.  Real scales are more complicated than
+that, and reach deep into the music theory of whatever tradition they're
+embedded in.  But the main issue I have with the languages is that they're
+text-only, generally expect you to edit with a standard text editor, and have
+no special support for editing notes.  What this means is entering note lists
+by hand, and writing times and durations as numbers.  It's very hard to write
+and read that way, especially if there are multiple parts which are aligned in
+time.  To be sure it can be done, and you can look at a large lilypond score to
+see how it can work, but there's a reason that almost every kind of historical
+notation represents time spatially.  So it's also no coincidence that the
+various languages tend to be used for algorithmic music or sound design,
+neither of which need note lists.
 
 Later I found that every other kind of music I encountered was not expressible,
 for all the same reasons.  But even for equal tempered European-style music,
 mainstream sequencers are not very good.  Writing for small ensembles using
-physical models, even the very modest amount of breath pressure data would
-quickly overwhelm Cubase's capabilities, leading to laggy editing.  The amount
-of data is tiny compared to audio, so this is just that the program was not
-designed to expect any significant amount of control data.  And aside from the
-performance problems, the editing is primitive.  You can draw curves by hand
-(if your hand is steady), or enter basic shapes, and align them by zooming in
-and squinting.  Editing pitches and durations is also low level and imprecise.
-The design clearly expects you to record a live performance, with minimal
-editing afterwards.  So if you have a MIDI keyboard, and are a skilled
-keyboardist, you can record keyboard music, or if you have a wind controller
-and can play it well, you can record woodwind music.  Added to that is the fact
-that quite a lot of European-style music is not actually equal tempered and the
-situation seems hopeless.
+physical models driven by the Cubase sequencer, even the very modest amount of
+breath pressure data would quickly overwhelm Cubase's capabilities, leading to
+laggy editing.  The amount of data is tiny compared to audio, so the problem is
+merely that the program was not designed to expect any significant amount of
+control data.  Aside from the performance problems, the editing is primitive.
+You can draw curves by hand (if your hand is steady), or enter basic shapes,
+and align them by zooming in and squinting.  Editing pitches and durations is
+also low level and imprecise.  The design clearly expects you to record a live
+performance, with minimal editing afterwards.  So if you have a MIDI keyboard,
+and are a skilled keyboardist, you can record keyboard music, or if you have a
+wind controller and can play it well, you can record woodwind music.  Added to
+that is the fact that quite a lot of European-style music is not actually equal
+tempered and the situation seems hopeless.[^1]
 
 Of course what people do in practice is that they mostly don't try to do those
 things.  They develop new kinds of music for computers and electronics, which
@@ -80,83 +84,147 @@ so it's completely reasonable.  But, in my eyes, it doesn't live up to that
 Bacon "we also have sound-houses" promise that computers should be able to
 fulfill.
 
+[^1]: As an aside, the fact that Cubase later added a "note expression" feature
+which allows per-note curves and provide some editing features shows that they
+are at least aware of the problem, and put some significant work into a
+solution.  I don't have experience with that feature since I gave up on Cubase
+and started on my own thing before that version came out, but my impression is
+that it can't help but be manual fiddling with curves, even if the specific
+manual tools are more sophisticated, because they would never give mainstream
+users a whole programmable system.  My feeling is that anything based on
+manually tweaking curves in a GUI is going to be too low level to scale, or at
+least will be so much work that the curves will be relegated to ad-hoc special
+effects, not pervasive techniques privileged at the same level as the pitches
+and durations of the notes themselves.
 
-### implementation overview
 
-So much for the grandiose motivation.
-
-TODO - karya overview, how it attacks the problem
-
-
-### description
+### relationship with Nyquist
 
 At the lowest level, below any of the graphical layout, Karya implements some
 ideas from the Nyquist language as a Haskell library.  Nyquist operates at the
-sound level, and Karya transposes that "up a level", to produce Note records
-(these are essentially a start time, a duration, and a set of control signals),
-instead of samples, but otherwise the ideas are similar.  Nyquist is described
-in detail at <https://www.cs.cmu.edu/~music/nyquist/> or its articles in the
-CMJ vol 21 #3.  I read those back in 1997 as a high school student!
+sound level, in that its "notes" are functions that emit streams of samples.
+Karya transposes that up a level, in that its notes are functions that emits
+streams of Note records, but aside from that, the ideas are similar.  Nyquist
+is described in detail at <https://www.cs.cmu.edu/~music/nyquist/> or its
+articles in the CMJ vol 21 #3.
 
-The short version is that Nyquist has a concept it calls "behavioural
-abstraction."  A note is a function that returns a sound, and instead of
-changing the volume or transposition or any number of other parameters by
-modifying the output of the parameter, you set values in a dynamically scoped
-environment.  The note function is then free to interpret those values as its
-sees fit.  One that implements an oscillator could map volume to amplitude, one
-that implements a bowed string model could map it to bow pressure, one that
-implements a string section could map it numbers of doubled instruments, and
-one that implements an entire score could leave the interpretation to the
-various sections, phrases, instruments, notes, and oscillators, all the way
-down the stack.  This concept is also extended to the treatment of time, which
-is implemented as a function from score time to real time.  So a note is given
-a starting time and duration by shifting and stretching the function.  Similar
-to the volume control, it can interpret that as it sees fit.  For instance,
-grace notes may give themselves a constant duration, while a trill may change
-its speed or add cycles at a constant speed in order to fill the time given.
-This works becasue any bit of code has access to the score->real function to
-place itself, but also the inverse real->score function so it can calculate the
-score equivalent of 1 second of real time at a given score location.
+The Karya specific Note (with a capital N to refer to that specific data type)
+is in essence a triple of a start time, duration, and a mapping from symbolic
+control names to continuous functions.  I use "note" with a small "n" to refer
+to a the functions that return Notes.  Sometimes I use the word "notation",
+meaning the same thing.  The important thing to remember is that these all
+refer to a plain function which takes an environment structure (described
+below) to a stream of Notes.  When I refer to a "performer", or a "backend", I
+mean the next stage in the process, which will be MIDI and the MIDI scheduler,
+or a Lilypond code generator, or a standalone FAUST synthesizer.
+
+Nyquist has a concept it calls "behavioural abstraction."  In Nyquist, A note
+is a function that returns a sound, and instead of changing the volume or
+transposition modifying the output of the parameter, you set values in a
+dynamically scoped environment.  The note function is then free to interpret
+those values as it sees fit.  One that implements an oscillator could map
+volume to amplitude, one that implements a bowed string model could map it to
+bow pressure, one that implements a string section could map it numbers of
+doubled instruments, and one that implements an entire score could leave the
+interpretation to the various sections, phrases, instruments, notes, and
+oscillators, all the way down the stack.  This concept is also extended to the
+treatment of time, which is implemented as a function from score time to real
+time.  So a note is given a starting time and duration by shifting and
+stretching the function.  Similar to the volume control, it can interpret that
+as it sees fit.  For instance, grace notes may give themselves a constant
+duration, while a trill may change its speed or add cycles at a constant speed
+in order to fill the time given.  This works becasue any bit of code has access
+to the score->real function to place itself, but also the inverse real->score
+function so it can calculate the score equivalent of 1 second of real time at a
+given score location.
+
+In Karya, I extended Nyquist's notion of a dynamic environment to the namespace
+of functions available.  This means that an instrument can modify the function
+namespace to insert its specific kinds of notation, or override existing
+functions with conventional names, such as a more instrumentally-appropriate
+"tr" trill.  In fact, at the score level, that's all an instrument is, just a
+thing that brings certain functions into scope.  In the same way, a scale is a
+thing that brings pitch-producing functions into scope.  Of course there is
+also notation that modifies the meaning of notation under it.  An example of
+where this comes up is some notation may want to redefine what a "plain note"
+is, to change the behaviour of nested notation.  But if its new plain note
+itself wants to generate some plain notes, it will have to restore the original
+definition to avoid infinite regress!
 
 Since all of these parameters are passed implicitly in a dynamic environment,
 even if a bit of notation doesn't understand a particular value, it will still
 pass it to its dynamically scoped children, which may.  For instance, you can
-wrap a whole section in a `pizz` request, and instruments that understand that
-may change their behaviour.
+wrap a whole section in a `pizz` request, and instruments that understand it
+will change their behaviour... hopefully in a way that the composer will agree
+is consistent with the word "pizz"!
 
-Also, since everything is uniformly represented as a sound, it has the closure
-property.  What this means in practice is that a note is syntactically the same
-as a phrase, which is the same as a whole piece, and they can all be
-transformed by the same functions.  To continue the example above, a `pizz`
-marker goes as easy on a movement as it does on a note, or a triplet can be
-formed from notes or phrases or other triplets.
+The only thing special about the "note" functions that make up a score as
+opposed to any other kind of function is that they all take the same argument
+type, a dynamic environment record, and all return the same type of
+result---sounds for Nyquist, while Karya implements three families: ones that
+return Notes, ones that return signal samples, and ones that return pitch
+signal samples.  This uniformity means that they have the closure property.
+What this means in practice is that a note is syntactically the same as a
+phrase, which is the same as a whole piece, and they can all be transformed by
+the same functions.  To continue the example above, a `pizz` marker can be
+applied to a note or an entire movement, or a triplet can be formed from notes
+or phrases or other triplets, all nested arbitrarily.
+
+As implied above with the `pizz` example, beyond the basic mechanics of calling
+note functions and merging their results, all of the various ways to control
+them are essentially symbolic and conventional.  That is, there is nothing
+special about a "pizz", except that it is a symbol that you might put into the
+environment, and what anyone does when they see it is just down to what they
+choose to do.  I think this lack of a direct link between a name for a
+behaviour and the behaviour itself is essential for a generalized notation.  It
+ensures that the vocabulary is open (we don't want to be stuck with a hardcoded
+list of articulations), and that the result it implies is also open (music and
+instruments are so variable that we don't want to be stuck with having to
+always interpret that symbol as the same action).  The downside is that if
+you write "pazz" on accident, no one can tell you for sure that it's nonsense,
+or if two instruments interpret "pizz" in confusingly different ways, then you
+may get confused by the result.  In practice, this latter form of confusion
+arises from the name of functions themselves, e.g. one convention may decide
+that an "m" annotation means "play muted", while a drum might already have a
+stroke named "m".
+
 
 #### code vs data
 
 Since the score is simply an executable program, on the axis between code and
-data this is a fundamentally code-oriented representation of notation.  Code
-vs. data is a complicated trade-off, but the short version is that code is
-"opaque": flexible but not easily inspected, while data is "transparent":
-easily inspected and analyzed but generally not extensible.  For a general
-purpose notation, I think the flexibility is worth the hassle.[^1]  Haskore,
-and its descendent Euterpea <http://haskell.cs.yale.edu/euterpea/> is an
-example of a system on the data side, and from the beginning has been built on
-a single Music data type.  It derives much of its power from the ability to
-analyze and manipulate Music, but Music itself is not extensible.  For
-instance, from the beginning pitch has been an integer interpreted as an equal
-tempered pitch, ornaments are limited to a hardcoded list, and even instruments
-are limited to the General MIDI list of 127.  Of course it's not a simple
-binary---Euterpea can and has added various means of extension, such as a
-CustomInstument escape hatch, or generalizing Music with a type parameter, but
+data this is a fundamentally code-oriented representation of notation.  The
+essence of this is that code is "opaque": flexible but not easily inspected,
+while data is "transparent": easily inspected and analyzed but generally not
+extensible.  This is a fundamental trade-off, in that the opacity of a function
+gives it its implementation flexibility.  For a general purpose notation, I
+think the flexibility is worth the hassle.[^2]  Haskore, and its descendent
+Euterpea <http://haskell.cs.yale.edu/euterpea/> is an example of a system on
+the data side, and from the beginning has been built on a single Music data
+type.  It derives much of its power from the ability to analyze and manipulate
+Music values, but Music itself is not extensible.  For instance, from the
+beginning pitch has been an integer interpreted as an equal tempered pitch,
+ornaments are limited to a hardcoded list, and even instruments are limited to
+the General MIDI list of 127.  Of course code and data is not a binary
+distinction.  Euterpea can and has added various means of extension, such as a
+CustomInstument escape hatch, or generalizing Music with a type parameter.  But
 there's no free lunch, and the power of analysis decreases as the
 generalization increases.
 
-Karya itself has data-oriented sublanguages (notably for Carnatic
-[solkattu](#solkattu), but these are for specific kinds of notation, and all
-render down to the common notation.  But even in a very restricted domain it's
-hard to design a data type that encompasses everything you may want to write!
+The `music-suite` library (<https://github.com/music-suite>) is an example of a
+system similar in spirit to Haskore but emphasizing generality and extensible
+data structures.  It's somewhat generalized beyond my ability to understand it,
+but for example, at the bottom pitch still reduces down to (pitch class,
+sharps/flats, octave), which is not able to represent the pengumbang / pengisep
+distinction in Balinese scales, and is ambiguous for Carnatic scales with
+differing arohana and avarohana.
 
-[^1]: For an example of where code is a hassle, I sometimes need to find the
+Karya itself has data-oriented sublanguages (notably one oriented around
+rhythmic structures, specialized to notate Carnatic solkattu), but these are
+for specific kinds of notation, and all render down to the common notation.
+But even in a restricted domain it's hard to design a data type that
+encompasses everything you may want to write!
+
+[^2]: For an example of where code is a hassle, I sometimes need to find the
 pitch of neighboring notes.  But since pitches are essentially functions, and
 notes are functions that produce data with pitches inside, I have to evaluate
 the next note to get its pitch.  Not only can this possibly upset requirements
@@ -196,26 +264,35 @@ incarnation is the `pipes` and `conduits` libraries) to allow lazy streaming
 and side-effects to coexist in a disciplined way---in practice, this is how
 analogous sound types are implemented.  In addition to providing guarantees
 about resource acquisition and release, they can statically eliminate a common
-problem with lazy data that Nyquist also suffers from: what happens when you
-accidentally hold on to the head of the lazy list?  Also, Haskell has been a
-benefited from a lot of optimization work, such as deforestation / array fusion
-techniques, which optimize away the intermediate data structures while
-streaming.
+problem with lazy data that Nyquist also suffers from: if you accidentally hold
+on to the head of the lazy list, you have a memory leak, known as "drag".
+Also, Haskell has been a benefited from a lot of optimization work, such as
+deforestation / array fusion techniques, which optimize away the intermediate
+data structures while streaming.  To be clear, Karya doesn't actually use a
+lazy streaming abstraction for its Notes, other than a plain list, but it
+could if drag became a problem.
 
-    Of course Karya is working at the note level, not the sample level, and in
-2017, not late 90s, so efficiency is not such a concern, but it's still
-useful to evaluate a score incrementally.
+    Of course Karya is working at the Note level, not the sample level, and in
+2017, not late 90s, so efficiency is not such a concern, but it's still useful
+to evaluate a score incrementally.  It's interesting to note, though, that
+Karya can't use laziness to the same extent as Nyquist, because it
+intentionally keeps many intermediate Note streams in memory as part of the
+caching mechanism, and it evaluates the score aggresively as opposed to
+on-demand to get global error analysis.  Still, the underlying feature which
+enables laziness is the absence of data dependencies between different parts of
+the score, and this is valuable on its own just for understandability, in
+addition to enabling parallelism.
 
-- Similarly due to XLisp's strictness, Nyquist has to use macros for
-"behavioural abstraction" functions which merely change the dynamic
-environment.  This leads to an awkward situation where sounds are only semi
-first class, in that if you assign them to a variable they lose their ability
-to respond to dynamic variables.  And of course macros themselves are not first
-class, so you can't pass them to other functions.  In addition, because Nyquist
-reuses XLisp's dynamic variables, it has to resort to some low-level hacks to
-capture closed-over variables.  For instance, Nyquist's SEQ macro has to
-explicitly EVAL its code save and restore the dynamic environment, using
-internal XLisp hooks.
+- Due to XLisp's strictness, Nyquist has to use macros for "behavioural
+abstraction" functions which merely change the dynamic environment.  This leads
+to an awkward situation where sounds are only semi first class, in that if you
+assign them to a variable they lose their ability to respond to dynamic
+variables.  And of course macros themselves are not first class, so you can't
+pass them to other functions.  In addition, because Nyquist reuses XLisp's
+dynamic variables, it has to resort to some low-level hacks to capture
+closed-over variables.  For instance, Nyquist's SEQ macro has to explicitly
+EVAL its code save and restore the dynamic environment, using internal XLisp
+hooks.
 
     In Haskell, all of these problems are avoided by the `Reader` monad, which
 expresses the idea of a dynamic environment.  Monadic values are explicitly
@@ -229,24 +306,34 @@ instance, I can freely optimize away the identity value, and since I know
 monoids are associative, I could freely parallelize score evaluation.
 
 - And of course, Haskell is a widely adopted general purpose language, with all
-the comforts of civilization: type checking, a proper compiler, testing
-and profiling libraries, a large package database, etc.
+the comforts of civilization: type checking, a proper compiler, testing and
+profiling libraries, a large package database, etc.  Don't underestimate the
+importance of powerful test infrastructure like QuickCheck, profiling and
+benchmarking infrastructure including robust statistical analysis like
+Criterion, and even a documentation system like Haddock.
 
 #### orchestra and score
 
 Another thing Karya inherits from Nyquist is that it has a single unified
 evaluation step, without an orchestra / score phase distinction.
 
-The "orchestra / score" terminology comes from CSound, which has two separate
-languages, one to describe the instruments and one to drive them.  More
-importantly, it also enforces two separate phases, analogous to compile time
-vs. runtime.  This means that score level notation can't talk about samples,
-so e.g. while you could talk about reversing notes, you couldn't reverse the
-actual sounds of the notes.  Even something simple like adding reverb
-requires awkward hacks.  Modern CSound has various ways to work around this,
-so it's not a hard distinction, but the phase division is very much alive in
-not just CSound, but more modern systems like supercollider or PD, and of
-course standalone synthesizers and MIDI are yet another manifestation.
+In the discussion below, I'll talk about an orchestra or score phase, or
+score time vs. real time, or score vs. player.  It's important to note that
+this "real time" or "player" phase is *not* the same as the "performer" I
+mentioned above.  In Karya, the performer is yet another phase, which occurs
+later, and is not part of the discussion in this section.
+
+The "orchestra / score" terminology comes from csound (and perhaps the "Music
+N" family before that), which has two separate languages, one to describe the
+instruments and one to drive them.  More importantly, it also strictly enforces
+two separate phases, analogous to compile time vs. runtime.  This means that
+score level notation can't talk about samples, so e.g. while you could talk
+about reversing notes, you couldn't reverse the actual sounds that the notes
+produce.  Even something simple like adding reverb requires awkward hacks.
+Modern csound has various ways to work around this, so it's not a hard
+distinction, but the phase division is very much alive in not just csound, but
+more modern systems like supercollider or PD, and of course standalone
+synthesizers and MIDI are yet another manifestation.
 
 For example, in most systems the relatively simple request to put a certain
 kind of reverb on a single note would require setting up an orchestra level
@@ -262,94 +349,136 @@ transpositions, e.g.  `transpose +1 phrase + transpose +2 phrase`,
 good luck interleaving score level and sample level, e.g.
 `reverse (transpose +1 (reverb phrase))`.
 
-In the Nyquist language, a "unit generator" is just a function that returns a
-sound.
-
 Since Karya works entirely at the score level, not sound, it seems silly to
-talk about it not having an orchestra / score distinction, so it's only really
+talk about it not having an orchestra / score distinction.  It's only really
 true by analogy, if we lift sound samples up to notes and notes up to high
 level score notation.  And in fact this score / note distinction exists all
 over again in many scoring systems.  For example, Haskore has one language for
 describing notation, and a separate system of "players" which render the nested
-score notation down to a flat sequence of notes.  Similar to the way a CSound
+score notation down to a flat sequence of notes.  Similar to the way a csound
 score can't work with sample level synthesis, the note level output of a
-Haskore player can't become notation again.  In the same way that CSound is a
-one way notes -> sound -> speaker pipeline, Haskore is a one way trip: score ->
-notes -> sound -> speaker.  I don't know if there's a standard name for this
-distinction, so I'll call it a "two phase" system.
+Haskore player can't become notation again.  So in the same way that csound is
+a one way notes -> sound -> speaker pipeline, Haskore is a one way trip: score
+-> notes -> sound -> speaker.  I don't know if there's a standard name for this
+distinction, so I'll call it a "two phase" system.  Of course there are more
+than just two phases involved in the whole journey from score to sound, but I'm
+only talking about the top two.
 
-So for instance, if you have two separate players that realize staccato in
+For instance, if you have two separate players that realize staccato in
 different ways, you would have to put a special key in the score saying which
-player to use at which point, and then build logic into the players to swap
-out when they see the key.  This is the equivalent of all of that MIDI CC and
-audio channel plumbing hassle.
+player to use at which point, and then build logic into the players to swap out
+when they see the key.  This is the equivalent of all of that MIDI CC and audio
+channel plumbing hassle.
 
 Karya, on the other hand, can interleave realization and score, and does so
-extensively.  For instance, notation for the gangsa section of a Balinese gong
-is usually written as one part, but in practice will divided into separate
-sangsih and polos parts, played on separate instruments.  But there are many
-ways to do that, whether playing in unison, at a fixed offset (kempyung), or
-interlocking, and of course there are multiple techniques for interlocking.  I
-can write as score notation, at any level of from individual notes to entire
-sections.
+extensively.  In Karya, a function transforming notation (which, remember, is
+itself just a function returning Notes) can call its transformee with an
+altered environment (which corresponds to passing different arguments to it),
+or it can evaluate the transformee to the Notes stream, and transform that
+stream (I call these "postproc"s in the general case, since they are a kind of
+post-processing on the note stream, but I call them "realize calls" for the
+specific examples below).  The former corresponds to a score transformation in
+any music language, the latter corresponds to directly transforming the samples
+produced by the score.  A delay implemented with the former technique will
+happen in score time, in that the delayed music will conform to whatever tempo
+changes are in scope.  A delay implemented with the latter technique will be
+"flat", in that it will delay a certain number of seconds regardless of the
+tempo.  A two-phase system like Haskore would be able to do the same thing, but
+the flat time delay would have to be at the player level, so you couldn't then
+integrate that into other score-level constructions, so it couldn't be part of
+a phrase then used as an argument to something which builds a larger structure.
 
-That's not to say the problem is "solved," by any means.
+However, it turns out that the Karya implementation for more complicated kinds
+of notation begins to resemble the two-phase approach.  I'll illustrate with an
+example:
 
-There is a fundamental tension between nested symbolic score, and linear
-notes, in that some things can only be expressed at one level or another.
-For instance, *ngoret* is a grace note linking two pitches, whose pitch depends
-on its neighbors, and also implies a certain damping technique that usually
-winds up lengthening the previous note.  So while the notation exists at the
-score level, and the timing is possibly defined in score time, the pitch is
-dependent on both the previous and following pitches.  Not only would
-figuring out the next pitch at the score level require tricky out of order
-evaluation, but since the same bit of score can appear in multiple contexts,
-there may be multiple possible previous or next pitches.  So clearly the
-score level has to figure out the timing, but can't know what the pitches are
-yet.  My solution is to have the ngoret score notation emit a note with the
-right timing, but with a flag saying to infer the pitch, and a separate
-`realize-ngoret` notation which post-processes the notes as a stream, at
-which point it can infer the right pitch, and also modify the length of the
-previous note.  Also, once we're working with a linear stream of notes, the
-score-level information about what is the previous or next note has been
-flattened away, which means I have to define a notion of "hand" or "voice" at
-the score level and annotate the notes accordingly.  This has become a
-general pattern of (notation, realize) pairs.
+There is a fundamental tension between nested symbolic score, and linear notes,
+in that some things can only be expressed at one level or another.  For
+instance, *ngoret* is a grace note linking two pitches, whose pitch depends on
+its neighbors, and also implies a certain damping technique that usually winds
+up lengthening the previous note.  So while the notation exists at the score
+level, and the timing is possibly defined in score time, the pitch is dependent
+on both the previous and following pitches.  Not only would figuring out the
+next pitch at the score level require tricky out of order evaluation, but since
+the same bit of score can appear in multiple contexts, there may be multiple
+possible previous or next pitches.  Consider the last note before a repeat: you
+can only know the next note once you have realized the repeat.  So this is
+a problem where some bits of information are only available at score time, and
+some are only available at the Note level.
 
-Of course this is more or less the same plumbing hassle described above, and
-it causes the same problems: forget `realize-ngoret` or put it at the wrong
-level and things won't work right, or forget or mess up `hand` or `voice`
-annotations and cross-block (TODO) ngoret doesn't realize correctly.  Also,
-there are order dependencies between the various realize calls.  For
-instance, a realize that cancels extraneous notes must run before the one
-that infers things based on neighbors, and one that moves notes around for
-expressive purposes must run after one which relies on looking for
-score-level simultaneous notes.
+My solution is to split ngoret into two functions.  The score level notation
+will emit a note with the right timing, but with a flag saying to infer the
+pitch, and to possibly modify the length of the previous note.  This in turn
+relies on a separate `realize-ngoret` function which post-processes the notes
+as a stream, at which point it can infer the right pitch, and also modify the
+length of the previous note.  One wrinkle is that once we're working with a
+linear stream of notes, the score-level information about what is the previous
+or next note has been flattened away, which means I have to define a notion of
+"hand" or "voice" at the score level and annotate the notes accordingly.  This
+is a restriction, but it exposes a fundamental assumption of the instrument
+that the notation depends on: that each note belongs to a certain hand, and
+that one hand cannot play two notes simultaneously.  In fact, all notation that
+depends on a previous or next note has this limitation.  Anyway, this specific
+solution for ngoret notation has become a become a general pattern of
+(notation, realize) pairs.
 
-So the phase distinction is still alive and well.  Some aspects of this seem
-to be inherent.  For example, since I'm expressing an instrumental technique
-that references previous and next pitches, that means it naturally requires
-those things to be defined, which imposes restrictions on the notation.  The
-fact that my particular implementation is a bit awkward and error prone is
-probably a consequence of the fact that I'm using general purpose low level
-notation for what is really an instrument-specific idiom.  That in turn is
-an instance of the general compromise between general purpose and somewhat
-unsuitable notation, and specific notation that is not reusable across
-instruments and genres.
+You might be recognizing this as the two-phase split I was decrying above.
+Indeed it is, accompanied with the same plumbing hassle, and the same kinds of
+problems.  For example, if you forget `realize-ngoret`, then things won't work
+right, or if you mess up the `hand` annotations the wrong pitches get inferred.
+More seriously, as I accumulate more kinds of notation, the various `realize`
+calls are not necessarily commutative, which is to say you have to put them in
+the right order.  For instance, a realize that cancels extraneous notes must
+run before the one that infers things based on neighbors, and one that moves
+notes around for expressive purposes must run after one which relies on looking
+for score-level simultaneous notes.
 
-I don't think I can actually eliminate this problem, only mitigate it.  I
-mitigate with naming conventions (the realize calls are always named
-`realize-something`), pre-composed sets of realize calls to avoid the ordering
-problem, and a general mechanism for calls to store dynamically-typed arguments
-in a score event: 'Derive.Call.Post.make_delayed'.  The latter hints that this
-is also yet another facet of the general problem of [evaluation
-order](#evaluation-order).  The conventions and library support make it easier
-to write these kinds of ornaments, but they're not eliminating the complexity,
-just making it easier to express.
+So the phase distinction is still alive and well.  Some aspects of this seem to
+be inherent.  For example, since I'm expressing an instrumental technique that
+references neighboring pitches, that means it naturally requires those things
+to be defined, which imposes restrictions on the notation.  A more specialized
+notation could eliminate the possibility of messing up hand annotations by
+syntactically allowing only two monophonic lines per instrument, and eliminate
+the `realize` order dependency simply by hardcoding them at the top level...
+and at this point we've arrived back at the explicitly two-phase Haskore style.
+I have yet to locate my long-awaited free lunch.
 
-So if I have many of the same hassles as a two-phase system, what does
-integrating processing and score processing actually buy me?
+Since one of my goals is to have a general notation that can reused across
+styles, and instrumental techniques that assume as little as possible about the
+instrument for the same kind of reuse, it seems I'm resigned to a somewhat
+awkward notation and somewhat error-prone usage.  I do implement ad-hoc
+techniques to mitigate it, such as naming conventions (the realize calls are
+always named `realize-something`), pre-composed sets of realize calls to avoid
+the ordering problem, and a general mechanism for calls to store
+dynamically-typed arguments in a score event: 'Derive.Call.Post.make_delayed'.
+The latter hints that this is also yet another facet of the general problem of
+evaluation order, but that's another complicated subject.  The conventions and
+library support make it easier to write these kinds of ornaments, but they're
+not eliminating the complexity, just making it easier to express.
 
+So I think the conclusion is that having an integrated Nyquist-like system
+does make for more expressive power.  It works just fine for simple things like
+delay.  However, as soon as notation gets even a little bit complicated it
+acquires aspects that require logic at both score time and performance time,
+which in turn requires careful interleaving.  I think future work might not
+be able to eliminate those requirements, but perhaps it could place it in a
+more disciplined structure.  For instance, I could imagine trying to address
+the non-commutativity of `realize` functions directly, with a means to describe
+the their dependencies.
+
+The compiler level analogy for all of this is compile-time and runtime, and in
+fact compiler optimization phases are notoriously order dependent and tricky.
+Usually of course they are precomposed and hardcoded, but for instance GHC
+admits limited extensibility via its rewrite rules.  They come with a numeric
+phase system which of course is brittle and awkward.  LLVM also exposes a
+configurable set of optimizations, so they may have some framework to keep them
+under control, but it seems that the general problem is really hard.  Lisps in
+general and Racket in particular have explored staged compilation.  But while
+it might be possible to get some inspiration by studying analogous compiler
+work, my feeling is that a solution for a music language will have to exploit
+music-specific attributes to simplify the problem.
+
+<!--
 
 #### evaluation order
 
@@ -390,14 +519,6 @@ function.
 dynamic environment and arg defaulting: also for brevity
 This leads to an usual way of writing named arguments: `arg=val | f`
 
-
-### implementation
-
-Call signature and Applicative.
-
-Improvement over nyquist: dynamic environment is naturally suited to Reader.
-The monadic distinction between evaluation and binding gets rid of the
-awkward nyquist macros.
 
 ### music
 
@@ -572,3 +693,4 @@ TODO notes about block resize:
     the ranges from the bottom... I should have this available from
     'caller_updates', but I need it to retain parent-child relationships.
     I actually need that anyway, so I can know which blocks are the roots.
+-->
