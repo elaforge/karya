@@ -187,6 +187,9 @@ NESS:
       otherwise acts like a MIDI instrument.
     . But on playback I want either im or not, which means I'd have to tell im
       to mute the tracks that are now MIDI.
+    . Or I could just use a custom thru, but then I can't get the playback
+      mockup.  But in the longer term I'm hoping incremental rendering can fix
+      that.
   Expressive things:
     . mute note: just do a short note?
     . pdm: make a quick turn at the beginning.  Use hybrid tempo?
@@ -693,7 +696,6 @@ IN PROGRESS / branch: branches:
     . Yet another confusing thing is that they don't work for arbitrary
       signals given to notes.  I think it would be better to override '' to
       get e.g. %location as %location + rnd ...
-
     . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
       %strength is .5, but it's actually not, and the only way to get rid of
       the CF is %strength=_.
@@ -1890,6 +1892,9 @@ cleanup:
       a bug where it put on the wrong backend.
     - If State.allocations is so read-only, why not make it a plain function?
       . Tests use it to write...
+  - Research a better solution to records:
+    . generic-lens combined with generic-lens-labels, OverloadedLabels, and
+      DuplicateRecordFields
   - Why re-export UiConfig from Ui.State?  Why not directly reference
     UiConfig?
   - Can I make prev val or {Note,Control,Pitch}Deriver return values more

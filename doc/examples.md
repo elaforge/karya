@@ -2,7 +2,11 @@
 
 ## music
 
-- [string quartet 6](data/music/squartet6.mp3)
+- [string quartet 6](data/music/squartet6.mp3) -
+    [score](data/score/squartet6.pdf)
+- [string quartet spawn](data/music/squartet-spawn.mp3) -
+    [score](data/score/squartet-spawn.pdf)
+
 - [Viola sonata](data/music/viola-sonata.mp3) -
     [score](data/score/viola-sonata.pdf)
 
