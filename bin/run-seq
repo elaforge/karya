@@ -10,7 +10,12 @@ if ! repl=t bin/mk build/$mode/logview build/$mode/seq; then
     exit 1
 fi
 
-build/$mode/logview &
+# TODO This is hardcoded for my system, but should be in some local config.
+if [[ $OSTYPE = linux-gnu ]]; then
+    geometry='--geometry=628x300+1290+900'
+fi
+
+build/$mode/logview $geometry &
 
 if [[ -e seq-repl ]]; then
     echo "$0: seq-repl exists, is a copy already running?"

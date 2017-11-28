@@ -500,8 +500,13 @@ UNSORTED
       But maybe not do that anyway, for consistency.
   load octamed files
     - implement set tempo and set frames cmds
-  - why does fltk on linux subtract 100 from window width and height?
+  / why does fltk on linux subtract 100 from window width and height?
     . does os x? nope
+    . Actually it doesn't, it just affects what fvwm prints for the window
+      size.  It prints actual size - window.size_range(w, h).
+    . In fact, fvwm always does that for non-fltk apps like xev.  Maybe it's
+      a feature.  Probably it's the "client reported" size, e.g. xterm uses
+      rows/columns.
   selection-orientation branch cleanup:
     - set_duration: If I have ><---|, I can't set the negative event back to the
       zero dur event because it sets the previous positive event, regardless of
