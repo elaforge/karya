@@ -918,7 +918,7 @@ IN PROGRESS / branch: branches:
       * Convert note call definitions to Library, then Derive.C.All is just
         a big mconcat.
       * Delete CallMaps.
-      - Can I get rid of state_initial_instrument_aliases?
+      * Can I get rid of state_initial_instrument_aliases?
     - Implement calling TrackCalls.
       . Overloading 'x' to mean a call to x or a control %x might cause some
         problems.  E.g. title_to_control can't know unless it looks

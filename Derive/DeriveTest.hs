@@ -518,7 +518,7 @@ default_library = C.All.library
 default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_library mempty default_lookup_scale (const Nothing) cache damage
+    default_library default_lookup_scale (const Nothing) cache damage
 
 default_dynamic :: Derive.Dynamic
 default_dynamic = Derive.initial_dynamic default_environ

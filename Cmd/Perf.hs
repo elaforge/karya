@@ -73,7 +73,9 @@ derive_expr block_id track_id pos expr = do
 derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either Text a, [Log.Msg])
 derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe PlayUtil.initial_dynamic <$>
+    ui_state <- Ui.get
+    (_constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
+    dynamic <- fromMaybe (PlayUtil.initial_dynamic aliases) <$>
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (first pretty val, logs)

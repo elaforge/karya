@@ -62,10 +62,11 @@ derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- Ui.config#Ui.lilypond <#> Ui.get
     ui_state <- Ui.get
-    constant <- PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
+    (constant, aliases) <-
+        PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
     return $ Derive.extract_result $
         Derive.derive (set_tempo constant)
-            (set_mode config PlayUtil.initial_dynamic)
+            (set_mode config (PlayUtil.initial_dynamic aliases))
             (Derive.with_scopes lilypond_scope deriver)
     where
     set_tempo state = state

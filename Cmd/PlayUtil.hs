@@ -95,8 +95,8 @@ run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run cache damage deriver = do
     ui_state <- Ui.get
-    constant <- get_constant ui_state cache damage
-    return $ Derive.derive constant initial_dynamic deriver
+    (constant, aliases) <- get_constant ui_state cache damage
+    return $ Derive.derive constant (initial_dynamic aliases) deriver
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.
@@ -104,7 +104,8 @@ run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run_with_dynamic dynamic deriver = do
     ui_state <- Ui.get
-    constant <- get_constant ui_state mempty mempty
+    -- Trust they already put the ky aliases in.
+    (constant, _aliases) <- get_constant ui_state mempty mempty
     let state = Derive.State
             { state_threaded = Derive.initial_threaded
             , state_dynamic = dynamic
@@ -116,15 +117,15 @@ run_with_dynamic dynamic deriver = do
 -- | Create deriver configuration.  This is the main place where Cmd level
 -- configuration is adapted to the deriver.
 get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
-    -> m Derive.Constant
+    -> m (Derive.Constant, Derive.InstrumentAliases)
 get_constant ui_state cache damage = do
     cmd_state <- Cmd.get
     let lookup_inst = Cmd.state_resolve_instrument ui_state cmd_state
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     (defs_library, aliases) <- get_library
-    return $ Derive.initial_constant ui_state (defs_library <> library) aliases
-        Cmd.lookup_scale (fmap Cmd.make_derive_instrument . lookup_inst)
-        cache damage
+    return $ (,aliases) $ Derive.initial_constant ui_state
+        (defs_library <> library) Cmd.lookup_scale
+        (fmap Cmd.make_derive_instrument . lookup_inst) cache damage
 
 -- | Get Library from the cache.
 get_library :: Cmd.M m => m (Derive.Library, Derive.InstrumentAliases)
@@ -136,8 +137,9 @@ get_library = do
         Just (Cmd.KyCache (Right library) _) -> return library
         Just (Cmd.PermanentKy library) -> return library
 
-initial_dynamic :: Derive.Dynamic
-initial_dynamic = Derive.initial_dynamic initial_environ
+initial_dynamic :: Derive.InstrumentAliases -> Derive.Dynamic
+initial_dynamic aliases = (Derive.initial_dynamic initial_environ)
+    { Derive.state_instrument_aliases = aliases }
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start perf = do

@@ -69,7 +69,6 @@ data Result = Result {
 -- | Kick off a derivation.
 derive :: Constant -> Dynamic -> Deriver a -> RunResult a
 derive constant dynamic = run (initial_state constant dynamic)
-    . with_initial_instrument_aliases
     . with_initial_scope (state_environ dynamic)
     . with_default_imported
 
@@ -128,13 +127,6 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
             scale <- get_scale (Expr.str_to_scale_id str)
             with_scale scale deriver
         _ -> id
-
--- | Apply the instrument aliases loaded from the ky file.  This should only
--- happen when starting a derivation.
-with_initial_instrument_aliases :: Deriver a -> Deriver a
-with_initial_instrument_aliases deriver = do
-    aliases <- Internal.get_constant state_initial_instrument_aliases
-    with_instrument_aliases aliases deriver
 
 with_default_imported :: Deriver a -> Deriver a
 with_default_imported deriver =

@@ -135,7 +135,6 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
-import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified GHC.Stack
@@ -849,9 +848,6 @@ instance Pretty Mode where
 data Constant = Constant {
     state_ui :: !Ui.State
     , state_library :: !Library
-    -- | 'state_instrument_aliases' is initialized with this.
-    -- TODO why not move this to 'initial_dynamic' and remove from here?
-    , state_initial_instrument_aliases :: !InstrumentAliases
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
     , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
@@ -867,15 +863,13 @@ data Constant = Constant {
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: Ui.State -> Library -> InstrumentAliases -> LookupScale
+initial_constant :: Ui.State -> Library -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state library aliases lookup_scale lookup_inst cache
-        score_damage =
+initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
     Constant
         { state_ui = ui_state
         , state_library = library
-        , state_initial_instrument_aliases = aliases
         , state_mergers = mergers
         , state_pitch_mergers = pitch_mergers
         , state_lookup_scale = lookup_scale
