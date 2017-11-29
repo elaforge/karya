@@ -18,6 +18,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -25,10 +26,10 @@ import Global
 import Types
 
 
--- * calls
+library :: Derive.Library
+library = Library.generators [("bols", c_bols)]
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map [("bols", c_bols)]
+-- * calls
 
 c_bols :: Derive.Generator Derive.Note
 c_bols = Derive.generator ("india" <> "pakhawaj") "bols"

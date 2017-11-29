@@ -3,7 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls to highlight events.
-module Derive.C.Prelude.Highlight where
+module Derive.C.Prelude.Highlight (
+    library
+    , out_of_range, open_strings, warn_non_open
+) where
 import qualified Data.Maybe as Maybe
 
 import qualified Util.ApproxEq as ApproxEq
@@ -13,6 +16,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -25,8 +29,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("highlight", c_highlight)
     , ("highlight-strings", c_highlight_strings)
     , ("highlight-out-of-range", c_highlight_out_of_range)

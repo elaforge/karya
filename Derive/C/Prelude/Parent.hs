@@ -4,7 +4,11 @@
 
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Sub.sub_events'.
-module Derive.C.Prelude.Parent where
+module Derive.C.Prelude.Parent (
+    library
+    -- testing
+    , interpolate_events
+) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Num as Num
@@ -20,6 +24,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -32,8 +37,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
+library :: Derive.Library
+library = Library.generators
     [ ("ap", c_ap)
     , ("t", c_tuplet)
     , ("tup", c_tuplet) -- longer name in case 't' is shadowed

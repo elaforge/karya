@@ -24,6 +24,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -35,8 +36,8 @@ import Global
 import Types
 
 
-val_calls :: [Derive.LookupCall Derive.ValCall]
-val_calls = Derive.call_map
+library :: Derive.Library
+library = Library.vals
     [ ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))

@@ -142,9 +142,9 @@ interpolator_variations = interpolator_variations_ interpolator_call
 standard_interpolators ::
     (forall arg. Expr.Symbol -> Derive.CallName
         -> (Sig.Parser arg, arg -> Curve)
-        -> [(Expr.Symbol, Derive.Generator result)])
-    -> Derive.CallMaps result
-standard_interpolators make = Derive.generator_call_map $ concat
+        -> [(Expr.Symbol, Derive.Generator d)])
+    -> [(Expr.Symbol, Derive.Generator d)]
+standard_interpolators make = concat
     [ make "i" "linear" (pure (), const id)
     , make "e" "exp" exponential_curve
     , make "s" "sigmoid" sigmoid_curve

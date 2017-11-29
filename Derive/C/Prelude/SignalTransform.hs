@@ -3,7 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Transformers on control and pitch signals.
-module Derive.C.Prelude.SignalTransform where
+module Derive.C.Prelude.SignalTransform (
+    library
+    , smooth, smooth_relative
+    , slew_limiter, slope_segment
+) where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
@@ -17,6 +21,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -31,15 +36,23 @@ import Global
 import Types
 
 
--- * note
-
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map [("cf-sample", c_cf_sample)]
+library :: Derive.Library
+library = mconcat
+    [ Library.transformers [("cf-sample", c_cf_sample)]
+    , Library.transformers [("sh", c_sh_pitch)]
+    , Library.transformers
+        [ ("quantize", c_quantize)
+        , ("sh", c_sh_control)
+        , ("slew", c_slew)
+        , ("smooth", c_smooth)
+        , ("->", c_redirect Derive.DefaultMerge)
+        -- TODO should I set to 1 at start and end, like
+        -- Control.multiply_signal?
+        , ("->+", c_redirect (Derive.Merge Derive.merge_add))
+        ]
+    ]
 
 -- * pitch
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.transformer_call_map [("sh", c_sh_pitch)]
 
 c_sh_pitch :: Derive.Transformer Derive.Pitch
 c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
@@ -62,17 +75,6 @@ sample_hold_pitch points sig = PSignal.unfoldr go (Nothing, points, sig)
 
 
 -- * control
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.transformer_call_map
-    [ ("quantize", c_quantize)
-    , ("sh", c_sh_control)
-    , ("slew", c_slew)
-    , ("smooth", c_smooth)
-    , ("->", c_redirect Derive.DefaultMerge)
-    -- TODO should I set to 1 at start and end, like Control.multiply_signal?
-    , ("->+", c_redirect (Derive.Merge Derive.merge_add))
-    ]
 
 c_sh_control :: Derive.Transformer Derive.Control
 c_sh_control = Derive.transformer Module.prelude "sh" mempty

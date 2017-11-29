@@ -27,6 +27,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Twelve as Twelve
@@ -45,18 +46,20 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("gliss-a", c_gliss_absolute)
-    , ("gliss", c_gliss)
-    , ("on", c_nth_harmonic)
-    , ("o", c_harmonic)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ ("gliss-a", c_gliss_absolute)
+        , ("gliss", c_gliss)
+        , ("on", c_nth_harmonic)
+        , ("o", c_harmonic)
+        ]
+    , Library.transformers
+        [ ("bent-string", c_bent_string)
+        , ("stopped-string", c_stopped_string)
+        , ("mute-end", c_mute_end)
+        ]
     ]
-    [ ("bent-string", c_bent_string)
-    , ("stopped-string", c_stopped_string)
-    , ("mute-end", c_mute_end)
-    ]
-
 
 module_ :: Module.Module
 module_ = "idiom" <> "string"

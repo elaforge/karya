@@ -5,7 +5,7 @@
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.C.Bali.Gender (
-    note_calls, ngoret_variations
+    library, ngoret_variations
     , interval_arg, ngoret, c_realize_ngoret, realize_ngoret
     , weak
 ) where
@@ -23,6 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -36,10 +37,13 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    (("weak", c_weak) : ngoret_variations gender_ngoret)
-    [ ("realize-ngoret", c_realize_ngoret)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators $
+        (("weak", c_weak) : ngoret_variations gender_ngoret)
+    , Library.transformers
+        [ ("realize-ngoret", c_realize_ngoret)
+        ]
     ]
 
 ngoret_variations :: (Sig.Parser (Maybe Pitch.Transpose) -> call)

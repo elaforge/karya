@@ -13,6 +13,7 @@ import qualified Derive.Call.StaticMacro as StaticMacro
 import Derive.Call.StaticMacro (Arg(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Library as Library
 import qualified Derive.Sig as Sig
 
 import Global
@@ -37,7 +38,7 @@ test_generator = do
     equal (run [] (make_call c_gen [Var]) "gen-attr = +a | m") (["+a"], [])
 
 c_gen :: Derive.Generator Derive.Note
-c_gen = Make.generator $ Make.transform_notes Module.prelude "gen" mempty
+c_gen = Library.generator $ Make.transform_notes Module.prelude "gen" mempty
     "doc" (Sig.required "attr" "set attr") $ \attrs -> Call.add_attributes attrs
 
 test_transformer = do

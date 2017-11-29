@@ -60,8 +60,8 @@ test_check_cache = do
         extract (Just (Cmd.KyCache lib (Cmd.Fingerprint fnames fprint))) =
             case lib of
                 Left err -> Left err
-                Right lib -> Right $ Just (e_library lib, (fnames, fprint))
-        extract (Just (Cmd.PermanentKy lib)) =
+                Right (lib, _) -> Right $ Just (e_library lib, (fnames, fprint))
+        extract (Just (Cmd.PermanentKy (lib, _))) =
             Right $ Just (e_library lib, ([], 0))
 
     io_equal (extract <$> f Nothing "") (Right Nothing)
@@ -83,12 +83,12 @@ test_check_cache = do
 
 e_library :: Derive.Library -> [Expr.Symbol]
 e_library lib = [name | Derive.LookupMap m <- gen, name <- Map.keys m]
-    where gen = Derive.scopes_generator $ Derive.lib_note lib
+    where gen = Derive.scope_note $ Derive.scopes_generator lib
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text = Cmd.modify $ \st -> st
     { Cmd.state_ky_cache = Just $ case Parse.parse_ky "fname.ky" text of
         Left err -> Cmd.KyCache (Left err) mempty
         Right (_, defs) ->
-            Cmd.KyCache (Right $ Ky.compile_library defs) mempty
+            Cmd.KyCache (Right (Ky.compile_library defs, mempty)) mempty
     }

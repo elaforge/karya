@@ -8,7 +8,7 @@
 -- syntax.  Unfortunately it results in lots of cryptic prefixes.  Is it worth
 -- it?
 module Derive.C.Prelude.Equal (
-    note_calls, control_calls, pitch_calls, c_equal
+    library, c_equal
     , transform_expr
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
@@ -26,6 +26,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -41,21 +42,14 @@ import Global
 
 -- * note
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [("=", c_equal_generator)]
-    [("=", c_equal), (default_merge, c_default_merge)]
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.transformer_call_map
-    [("=", c_equal), (default_merge, c_default_merge)]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.transformer_call_map
-    [("=", c_equal), (default_merge, c_default_merge)]
-
-default_merge :: Expr.Symbol
-default_merge = "default-merge"
+library :: Derive.Library
+library = mconcat
+    [ Library.generators [("=", c_equal_generator)]
+    , Library.poly_transformers
+        [ ("=", c_equal)
+        , ("default-merge", c_default_merge)
+        ]
+    ]
 
 -- * util
 

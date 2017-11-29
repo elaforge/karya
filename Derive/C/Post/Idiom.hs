@@ -20,6 +20,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -31,8 +32,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("pizz-arp", c_pizz_arp)
     , ("avoid-overlap", c_avoid_overlap)
     , ("zero-duration-mute", c_zero_duration_mute)

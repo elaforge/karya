@@ -2,12 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.C.Post.Reverse where
+module Derive.C.Post.Reverse (library) where
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -17,8 +18,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
+library :: Derive.Library
+library = Library.transformers
     [ ("reverse", c_reverse)
     ]
 

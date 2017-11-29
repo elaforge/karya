@@ -3,16 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Integrate (
-    note_calls, unwarp
+    library, unwarp
 ) where
 import qualified Data.Maybe as Maybe
 
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -23,8 +24,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
+library :: Derive.Library
+library = Library.transformers
     [ ("<<", c_block_integrate)
     , ("<", c_track_integrate)
     ]

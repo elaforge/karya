@@ -2,27 +2,27 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.C.Post.Map where
+module Derive.C.Post.Map (library) where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 
 import Global
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("mapc", c_mapc)
     ]
-
 
 c_mapc :: Derive.Transformer Derive.Note
 c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc

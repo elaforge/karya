@@ -17,8 +17,8 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -29,20 +29,9 @@ import qualified Perform.Signal as Signal
 import Global
 
 
--- | Bundle a generator and transformer together, so I can define them
--- together.  The rationale is described in 'Derive.CallMaps'.
-data Calls d = Calls {
-    generator :: !(Derive.Generator d)
-    , transformer :: !(Derive.Transformer d)
-    }
-
-call_maps :: [(Expr.Symbol, Calls d)] -> Derive.CallMaps d
-call_maps calls = Derive.call_maps
-    (zip syms (map generator cs)) (zip syms (map transformer cs))
-    where (syms, cs) = unzip calls
-
 -- | This is a specialization of 'transform_notes' that adds Attributes.
-attributed_note :: Module.Module -> Attrs.Attributes -> Calls Derive.Note
+attributed_note :: Module.Module -> Attrs.Attributes
+    -> Library.Calls Derive.Note
 attributed_note module_ attrs = transform_notes module_
     (Derive.CallName $ "note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args
@@ -50,14 +39,14 @@ attributed_note module_ attrs = transform_notes module_
 
 -- | This is a specialization of 'transform_notes' that sets an environ value.
 environ_note :: Typecheck.ToVal a => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Doc.Doc -> Env.Key -> a -> Calls Derive.Note
+    -> Tags.Tags -> Doc.Doc -> Env.Key -> a -> Library.Calls Derive.Note
 environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
         \() -> Derive.with_val key val
 
 -- | This is a specialization of 'transform_notes' that sets a control.
 control_note :: Module.Module -> Derive.CallName -> Score.Control -> Signal.Y
-    -> Calls Derive.Note
+    -> Library.Calls Derive.Note
 control_note module_ name control val = transform_notes module_ name mempty
     ("Note with " <> Doc.literal (ShowVal.show_val control <> " = "
         <> ShowVal.show_val val) <> ".")
@@ -68,9 +57,9 @@ control_note module_ name control val = transform_notes module_ name mempty
 -- the transform.
 transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Sig.Parser a -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> Calls Derive.Note
+    -> Library.Calls Derive.Note
 transform_notes module_ name tags transform_doc sig transform =
-    Calls generator transformer
+    Library.Calls generator transformer
     where
     generator = Derive.generator module_ name (tags <> Tags.subs)
         (transform_doc <> "\n" <> generator_doc) $
@@ -150,8 +139,8 @@ modify_transformer_ doc_prefix transform call =
 -- | Modify a generator transformer pair, inheriting metadata.
 modify_calls_ :: Doc.Doc
     -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
-    -> Calls a -> Calls a
-modify_calls_ doc_prefix transform (Calls gen trans) = Calls
+    -> Library.Calls a -> Library.Calls a
+modify_calls_ doc_prefix transform (Library.Calls gen trans) = Library.Calls
     { generator = modify_generator_ doc_prefix transform gen
     , transformer = modify_transformer_ doc_prefix transform trans
     }

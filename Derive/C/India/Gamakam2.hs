@@ -28,6 +28,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -52,21 +53,22 @@ begin_module = module_ <> "begin"
 middle_module = module_ <> "middle"
 end_module = module_ <> "end"
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [("@", c_sequence)]
-    [ ("@", c_sequence_transform)
-    , ("sahitya", c_sahitya)
-    ]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map $ concat
-    [ begin_calls
-    , begin_aliases
-    , middle_calls
-    , middle_aliases
-    , end_calls
-    , end_aliases
+library :: Derive.Library
+library = mconcat
+    [ Library.generators [("@", c_sequence)]
+    , Library.transformers
+        [ ("@", c_sequence_transform)
+        , ("sahitya", c_sahitya)
+        ]
+    -- Pitch
+    , Library.generators $ concat
+        [ begin_calls
+        , begin_aliases
+        , middle_calls
+        , middle_aliases
+        , end_calls
+        , end_aliases
+        ]
     ]
 
 begin_calls :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]

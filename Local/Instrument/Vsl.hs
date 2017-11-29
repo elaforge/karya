@@ -32,6 +32,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -420,7 +421,7 @@ gliss_natural_harmonics = absolute
 
 -- * infer seconds
 
-c_infer_seconds :: Make.Calls Derive.Note
+c_infer_seconds :: Library.Calls Derive.Note
 c_infer_seconds = Make.transform_notes Module.instrument "infer-seconds"
     Tags.attr
     "Infer a `+sec#` attr based on the duration of the event and the available\

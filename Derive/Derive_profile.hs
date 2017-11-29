@@ -160,11 +160,11 @@ mkblock tracks = do
 derive_saved :: Bool -> FilePath -> IO ()
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, library) <- either errorIO return
+    (ui_state, library, aliases) <- either errorIO return
         =<< DeriveSaved.load_score (Cmd.config_instrument_db cmd_config) fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
-    let cmd_state = DeriveSaved.add_library library
+    let cmd_state = DeriveSaved.add_library library aliases
             (Cmd.initial_state cmd_config)
     (events, logs) <- DeriveSaved.timed_derive fname ui_state cmd_state block_id
     mapM_ Log.write logs

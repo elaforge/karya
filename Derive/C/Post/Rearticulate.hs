@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Post-proc calls that impose a new kind of articulation.
-module Derive.C.Post.Rearticulate where
+module Derive.C.Post.Rearticulate (library) where
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -13,6 +13,7 @@ import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -24,8 +25,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("slur-n", c_slur_n)
     , ("slur-dur", c_slur_dur)
     ]

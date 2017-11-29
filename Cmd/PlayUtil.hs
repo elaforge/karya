@@ -121,13 +121,13 @@ get_constant ui_state cache damage = do
     cmd_state <- Cmd.get
     let lookup_inst = Cmd.state_resolve_instrument ui_state cmd_state
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
-    defs_library <- get_library
-    return $ Derive.initial_constant ui_state (defs_library <> library)
+    (defs_library, aliases) <- get_library
+    return $ Derive.initial_constant ui_state (defs_library <> library) aliases
         Cmd.lookup_scale (fmap Cmd.make_derive_instrument . lookup_inst)
         cache damage
 
 -- | Get Library from the cache.
-get_library :: Cmd.M m => m Derive.Library
+get_library :: Cmd.M m => m (Derive.Library, Derive.InstrumentAliases)
 get_library = do
     cache <- Cmd.gets Cmd.state_ky_cache
     case cache of

@@ -39,7 +39,20 @@
     functions in here to write a specific kind of trill for the particular
     piece.
 -}
-module Derive.C.Prelude.Trill where
+module Derive.C.Prelude.Trill (
+    library
+    , c_note_trill, c_tremolo_generator
+    , hold_env, tremolo_starts_curve
+    -- * transitions
+    , trill_transitions, adjusted_transitions
+    -- * types
+    , Direction(..), direction_affix
+    , AbsoluteMode(..)
+    , Adjust(..), adjust_env
+
+    -- testing
+    , full_notes, chord_tremolo, get_trill_control, xcut_control
+) where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
@@ -63,6 +76,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -84,15 +98,34 @@ import Global
 import Types
 
 
--- * note calls
+library :: Derive.Library
+library = mconcat
+    -- Note
+    [ make_trills (c_note_trill False)
+    , Library.generators [("trem", c_tremolo_generator Nothing)]
+    , Library.transformers [("trem", c_tremolo_transformer)]
+    -- Pitch
+    , make_trills c_pitch_trill
+    , Library.generators
+        [ ("xcut", c_xcut_pitch False)
+        , ("xcut-h", c_xcut_pitch True)
+        ]
+    -- Control
+    , make_trills c_control_trill
+    , Library.generators $
+        [ ("saw", c_saw)
+        , ("sine", c_sine Bipolar)
+        , ("sine+", c_sine Positive)
+        , ("sine-", c_sine Negative)
+        , ("xcut", c_xcut_control False)
+        , ("xcut-h", c_xcut_control True)
+        ]
+    ]
+    where
+    make_trills make = Library.generators
+        [(name, make start end) | (name, start, end) <- trill_variations]
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    ( [ (name, c_note_trill False start end)
-      | (name, start, end) <- trill_variations
-      ]
-    ++ [("trem", c_tremolo_generator Nothing)])
-    [ ("trem", c_tremolo_transformer) ]
+-- * note calls
 
 c_note_trill :: Bool -> Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Note
@@ -423,14 +456,6 @@ full_notes end ts = go ts
 
 -- * pitch calls
 
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map $
-    [(name, c_pitch_trill start end) | (name, start, end) <- trill_variations]
-    ++
-    [ ("xcut", c_xcut_pitch False)
-    , ("xcut-h", c_xcut_pitch True)
-    ]
-
 c_pitch_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Pitch
 c_pitch_trill hardcoded_start hardcoded_end =
@@ -484,18 +509,6 @@ xcut_pitch hold val1 val2 =
 
 
 -- * control calls
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.generator_call_map $
-    [(name, c_control_trill start end) | (name, start, end) <- trill_variations]
-    ++
-    [ ("saw", c_saw)
-    , ("sine", c_sine Bipolar)
-    , ("sine+", c_sine Positive)
-    , ("sine-", c_sine Negative)
-    , ("xcut", c_xcut_control False)
-    , ("xcut-h", c_xcut_control True)
-    ]
 
 c_control_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Control

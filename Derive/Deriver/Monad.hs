@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
 {-# LANGUAGE DeriveFunctor #-}
+-- Let 'MkScopePriority' take a type constructor.
+{-# LANGUAGE LiberalTypeSynonyms #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -46,15 +48,15 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
-    , Dynamic(..), Inversion(..), initial_dynamic, strip_dynamic
+    , Dynamic(..), InstrumentAliases, Inversion(..), initial_dynamic
+    , strip_dynamic
     , initial_controls, default_dynamic
 
     -- ** scope
-    , Library(..)
-    , Scopes, ScopesT(..), empty_scopes
+    , Library, MkScopeLibrary
+    , Scopes, ScopesT(..)
     , s_generator, s_transformer, s_track, s_val
     , Scope(..), s_note, s_control, s_pitch
-    , empty_scope
     , ScopePriority(..), CallPriority(..)
     , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
@@ -81,8 +83,7 @@ module Derive.Deriver.Monad (
     , TrackDynamic, CallDuration(..)
 
     -- * calls
-    , CallMaps, call_map
-    , call_maps, generator_call_map, transformer_call_map
+    , call_map
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
@@ -134,6 +135,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
+import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified GHC.Stack
@@ -432,11 +434,7 @@ data Dynamic = Dynamic {
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
-    -- | Instrument aliases as (alias, destination) pairs.  Map through this
-    -- before looking in 'state_lookup_instrument'.  The alias destination is
-    -- always the final instrument, not another alias, so you never have to
-    -- look up multiple times.
-    , state_instrument_aliases :: !(Map Score.Instrument Score.Instrument)
+    , state_instrument_aliases :: !InstrumentAliases
     , state_control_damage :: !ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
     -- inversion, it composes itself on to this, which is then applied as
@@ -473,6 +471,12 @@ data Dynamic = Dynamic {
     , state_mode :: !Mode
     }
 
+-- | Instrument aliases as (alias, destination) pairs.  Map through this before
+-- looking in 'state_lookup_instrument'.  The alias destination is always the
+-- final instrument, not another alias, so you never have to look up multiple
+-- times.
+type InstrumentAliases = Map Score.Instrument Score.Instrument
+
 {- | When a note call inverts, it stashes its actual note-generating code so
     it can re-invoke track evaluation on the control tracks below it.  It's
     kind of like saving a continuation.
@@ -505,7 +509,7 @@ initial_dynamic environ = Dynamic
     , state_pitch = mempty
     , state_environ = environ
     , state_warp = Score.id_warp
-    , state_scopes = empty_scopes
+    , state_scopes = mempty
     , state_instrument_aliases = mempty
     , state_control_damage = mempty
     , state_under_invert = id
@@ -577,38 +581,21 @@ instance DeepSeq.NFData Dynamic where
 -- ** scope
 
 -- | This is the library of built-in calls.  The 'prio_library' Scope fields
--- are imported from this.
-data Library = Library {
-    -- TODO maybe use Scope here?
-    lib_note :: !(CallMaps Note)
-    , lib_control :: !(CallMaps Control)
-    , lib_pitch :: !(CallMaps Pitch)
-    , lib_val :: ![LookupCall ValCall]
-    -- | A set of instrument aliases to apply to 'state_instrument_aliases'
-    -- at the beginning of derivation.  This doesn't really fit here since
-    -- it's not a CallMap, but it's convenient to return from the ky loading
-    -- function, and other users can leave it empty.
-    , lib_instrument_aliases :: !(Map Score.Instrument Score.Instrument)
-    }
+-- are imported from this.  The difference between this and 'Scopes' is that
+-- Scopes divides up 'LookupCall's by 'ScopePriority', while Library skips
+-- that since everything in the Library is implicitly at PrioLibrary.
+type Library = ScopesT
+    (MkScopeLibrary Generator)
+    (MkScopeLibrary Transformer)
+    (MkScopeLibrary TrackCall)
+    [LookupCall ValCall]
 
-instance Monoid Library where
-    mempty = Library mempty mempty mempty mempty mempty
-    mappend (Library note1 control1 pitch1 val1 aliases1)
-            (Library note2 control2 pitch2 val2 aliases2) =
-        Library (note1<>note2) (control1<>control2) (pitch1<>pitch2)
-            (val1<>val2) (aliases2<>aliases1)
-            -- Put aliases2 first so it takes priority.
-            -- TODO why aliases and not the rest?  why not reverse the mappend?
+type MkScopeLibrary kind = Scope
+    [LookupCall (kind Note)]
+    [LookupCall (kind Control)]
+    [LookupCall (kind Pitch)]
 
 instance Show Library where show _ = "((Library))"
-instance Pretty Library where
-    format (Library note control pitch val aliases) = Pretty.record "Library"
-        [ ("note", Pretty.format note)
-        , ("control", Pretty.format control)
-        , ("pitch", Pretty.format pitch)
-        , ("val", Pretty.format val)
-        , ("aliases", Pretty.format aliases)
-        ]
 
 -- | This represents all calls in scope.  Different types of calls are in scope
 -- depending on the track type, except ValCalls, which are in scope everywhere.
@@ -617,7 +604,15 @@ instance Pretty Library where
 -- Perhaps this should be called Namespaces, but Id.Namespace is already taken
 -- and Scopes is shorter.
 type Scopes = ScopesT
-    GeneratorScope TransformerScope TrackScope (ScopePriority ValCall)
+    (MkScopePriority Generator)
+    (MkScopePriority Transformer)
+    (MkScopePriority TrackCall)
+    (ScopePriority ValCall)
+
+type MkScopePriority kind = Scope
+    (ScopePriority (kind Note))
+    (ScopePriority (kind Control))
+    (ScopePriority (kind Pitch))
 
 -- | TODO this could probably now do with a more general name
 -- maybe CallType for this, and CallKind for 'Scope'?
@@ -640,6 +635,12 @@ data ScopesT gen trans track val = Scopes {
     , scopes_track :: !track
     , scopes_val :: !val
     }
+    -- Previously, a single Call contained both generator and transformer.
+    -- This turned out to not be flexible enough, because an instrument that
+    -- wanted to override a generator meant you couldn't use a transformer that
+    -- happened to have the same name.  However, there are a number of calls
+    -- that want both generator and transformer versions, and it's convenient
+    -- to be able to deal with those together.
 
 s_generator = Lens.lens scopes_generator
     (\f r -> r { scopes_generator = f (scopes_generator r) })
@@ -665,24 +666,10 @@ instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
     mappend (Scopes a1 a2 a3 a4) (Scopes b1 b2 b3 b4) =
         Scopes (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
 
-empty_scopes :: Scopes
-empty_scopes = Scopes
-    { scopes_generator = empty_scope
-    , scopes_transformer = empty_scope
-    , scopes_track = empty_scope
-    , scopes_val = mempty
-    }
-
-type GeneratorScope =
-    Scope (Generator Note) (Generator Control) (Generator Pitch)
-type TransformerScope =
-    Scope (Transformer Note) (Transformer Control) (Transformer Pitch)
-type TrackScope = Scope (TrackCall Note) (TrackCall Control) (TrackCall Pitch)
-
 data Scope note control pitch = Scope {
-    scope_note :: !(ScopePriority note)
-    , scope_control :: !(ScopePriority control)
-    , scope_pitch :: !(ScopePriority pitch)
+    scope_note :: !note
+    , scope_control :: !control
+    , scope_pitch :: !pitch
     }
 
 s_note = Lens.lens scope_note
@@ -692,9 +679,6 @@ s_control = Lens.lens scope_control
 s_pitch = Lens.lens scope_pitch
     (\f r -> r { scope_pitch = f (scope_pitch r) })
 
-empty_scope :: Scope a b c
-empty_scope = Scope mempty mempty mempty
-
 instance (Pretty note, Pretty control, Pretty pitch) =>
         Pretty (Scope note control pitch) where
     format (Scope note control pitch) = Pretty.record "Scope"
@@ -702,6 +686,12 @@ instance (Pretty note, Pretty control, Pretty pitch) =>
         , ("control", Pretty.format control)
         , ("pitch", Pretty.format pitch)
         ]
+
+instance (Monoid note, Monoid control, Monoid pitch) =>
+        Monoid (Scope note control pitch) where
+    mempty = Scope mempty mempty mempty
+    mappend (Scope a1 a2 a3) (Scope b1 b2 b3) =
+        Scope (a1<>b1) (a2<>b2) (a3<>b3)
 
 instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 
@@ -718,8 +708,7 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
     each category separate.  Also, this way I can import the ky file once at
     the toplevel, and it will still override library imported calls.
 -}
-newtype ScopePriority call =
-    ScopePriority (Map CallPriority [LookupCall call])
+newtype ScopePriority call = ScopePriority (Map CallPriority [LookupCall call])
     deriving (Pretty)
 
 instance Monoid (ScopePriority call) where
@@ -860,6 +849,9 @@ instance Pretty Mode where
 data Constant = Constant {
     state_ui :: !Ui.State
     , state_library :: !Library
+    -- | 'state_instrument_aliases' is initialized with this.
+    -- TODO why not move this to 'initial_dynamic' and remove from here?
+    , state_initial_instrument_aliases :: !InstrumentAliases
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
     , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
@@ -875,13 +867,15 @@ data Constant = Constant {
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: Ui.State -> Library -> LookupScale
+initial_constant :: Ui.State -> Library -> InstrumentAliases -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
+initial_constant ui_state library aliases lookup_scale lookup_inst cache
+        score_damage =
     Constant
         { state_ui = ui_state
         , state_library = library
+        , state_initial_instrument_aliases = aliases
         , state_mergers = mergers
         , state_pitch_mergers = pitch_mergers
         , state_lookup_scale = lookup_scale
@@ -911,8 +905,6 @@ data Instrument = Instrument {
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
 -- type.
---
--- This is like 'CallMaps', except that it has 'ValCall's.
 type InstrumentCalls = ScopesT
     [LookupCall (Generator Note)]
     [LookupCall (Transformer Note)]
@@ -1162,49 +1154,16 @@ data LookupCall call =
     -- valid, e.g. block calls.
     | LookupPattern !Text !DocumentedCall !(Expr.Symbol -> Deriver (Maybe call))
 
-instance Pretty (LookupCall call) where
-    format c = case c of
-        LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
-        LookupPattern doc _ _ -> "Pattern: " <> Pretty.text doc
-
-{- | Previously, a single Call contained both generator and transformer.
-    This turned out to not be flexible enough, because an instrument that
-    wanted to override a generator meant you couldn't use a transformer that
-    happened to have the same name.  However, there are a number of calls that
-    want both generator and transformer versions, and it's convenient to be
-    able to deal with those together.
--}
-type CallMaps d = ScopesT
-    [LookupCall (Generator d)]
-    [LookupCall (Transformer d)]
-    [LookupCall (TrackCall d)]
-    () -- no ValCall, because that's at the Library level.
-
-instance Show (CallMaps d) where
-    show (Scopes gen trans tracks ()) =
-        "((CallMaps " <> show (length gen, length trans, length tracks) <> "))"
-
 -- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
 -- are all singletons since names are allowed to overlap when declaring calls.
 -- It is only when they are imported into a scope that the maps are combined.
 call_map :: [(Expr.Symbol, call)] -> [LookupCall call]
 call_map = map (LookupMap . uncurry Map.singleton)
 
--- | Bundle generators and transformers up together for convenience.
-call_maps :: [(Expr.Symbol, Generator d)] -> [(Expr.Symbol, Transformer d)]
-    -> CallMaps d
-call_maps generators transformers = Scopes
-    { scopes_generator = call_map generators
-    , scopes_transformer = call_map transformers
-    , scopes_track = mempty
-    , scopes_val = ()
-    }
-
-generator_call_map :: [(Expr.Symbol, Generator d)] -> CallMaps d
-generator_call_map generators = call_maps generators []
-
-transformer_call_map :: [(Expr.Symbol, Transformer d)] -> CallMaps d
-transformer_call_map = call_maps []
+instance Pretty (LookupCall call) where
+    format c = case c of
+        LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
+        LookupPattern doc _ _ -> "Pattern: " <> Pretty.text doc
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {

@@ -15,6 +15,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -26,30 +27,20 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [
-    ]
-    [ ("solo", c_solo)
-    ]
-    <> poly_calls
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = poly_calls
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = poly_calls
-
-poly_calls :: Derive.Callable d => Derive.CallMaps d
-poly_calls = Derive.call_maps
-    [ ("if-e", c_if_e)
-    , ("if-c<", c_if_c (<))
-    , ("if-c>", c_if_c (>))
-    ]
-    [ ("when-c", c_when_c False)
-    , ("unless-c", c_when_c True)
-    , ("when-e", c_when_e False)
-    , ("unless-e", c_when_e True)
+library :: Derive.Library
+library = mconcat
+    [ Library.transformers [("solo", c_solo)]
+    , Library.poly_generators
+        [ ("if-e", c_if_e)
+        , ("if-c<", c_if_c (<))
+        , ("if-c>", c_if_c (>))
+        ]
+    , Library.poly_transformers
+        [ ("when-c", c_when_c False)
+        , ("unless-c", c_when_c True)
+        , ("when-e", c_when_e False)
+        , ("unless-e", c_when_e True)
+        ]
     ]
 
 -- * generator

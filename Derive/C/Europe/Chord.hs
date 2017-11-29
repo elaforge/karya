@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls which are somewhat specific to European music.
-module Derive.C.Europe.Chord where
+module Derive.C.Europe.Chord (library) where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -13,6 +13,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.ShowVal as ShowVal
@@ -23,8 +24,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
+library :: Derive.Library
+library = Library.generators
     [ ("chord", c_chord Unison)
     , ("chord^", c_chord Up)
     , ("chord_", c_chord Down)

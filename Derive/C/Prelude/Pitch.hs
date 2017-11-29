@@ -7,7 +7,7 @@
 -- Low level calls should do simple orthogonal things and their names are
 -- generally just one or two characters.
 module Derive.C.Prelude.Pitch (
-    pitch_calls
+    library
     , approach
 ) where
 import qualified Util.Doc as Doc
@@ -21,6 +21,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.JustScales as JustScales
@@ -35,23 +36,25 @@ import Global
 import Types
 
 
--- * pitch
+library :: Derive.Library
+library = mconcat
+    [ Library.generators $
+        [ ("set", c_set)
+        , ("'", c_set_prev)
+        , ("*", c_multiply)
 
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    [ ("set", c_set)
-    , ("'", c_set_prev)
-    , ("*", c_multiply)
-
-    -- interpolating
-    , ("n", c_neighbor)
-    , ("a", c_approach)
-    , ("u", c_up)
-    , ("d", c_down)
-    , ("p", c_porta)
+        -- interpolating
+        , ("n", c_neighbor)
+        , ("a", c_approach)
+        , ("u", c_up)
+        , ("d", c_down)
+        , ("p", c_porta)
+        ] ++
+        ControlUtil.standard_interpolators PitchUtil.interpolator_variations
+    , Library.transformers [("set", c_set_transformer)]
     ]
-    [("set", c_set_transformer)]
-    <> ControlUtil.standard_interpolators PitchUtil.interpolator_variations
+
+-- * pitch
 
 c_set :: Derive.Generator Derive.Pitch
 c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $

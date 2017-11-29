@@ -9,7 +9,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -19,6 +18,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -27,25 +27,24 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("alt", c_alternate)
-    , ("alt-w", c_alternate_weighted)
-    , ("alt-t", c_alternate_tracks)
-    , ("t-alt", c_tempo_alternate)
-    , ("t-alt-c", c_tempo_alternate_continuous)
+library :: Derive.Library
+library = mconcat
+    [ Library.poly_generators
+        [ ("alt", c_alternate)
+        , ("alt-w", c_alternate_weighted)
+        ]
+    , Library.poly_transformers [("omit", c_omit)]
+    , Library.generators
+        [ ("alt-t", c_alternate_tracks)
+        , ("t-alt", c_tempo_alternate)
+        , ("t-alt-c", c_tempo_alternate_continuous)
+        ]
+    , Library.vals
+        [ ("alt", c_val_alternate) -- or ?
+        , ("alt-w", c_val_alternate_weighted)
+        , ("range", c_range) -- or -?
+        ]
     ]
-    [("omit", c_omit)]
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps
-    [("alt", c_alternate), ("alt-w", c_alternate_weighted)]
-    [("omit", c_omit)]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    [("alt", c_alternate), ("alt-w", c_alternate_weighted)]
-    [("omit", c_omit)]
 
 c_omit :: Derive.Callable d => Derive.Transformer d
 c_omit = Derive.transformer Module.prelude "omit" Tags.random
@@ -126,7 +125,7 @@ c_tempo_alternate_continuous =
     Derive.generator Module.prelude "tempo-alternate-continuous" mempty
         (tempo_alternate_doc <> "\nThis variant will\
         \ switch between the alternates even in the middle of the call.\
-        \ Long notes will be shortened clipped at the transition point.")
+        \ Long notes will be clipped at the transition point.")
     $ Sig.call ((,,)
     <$> breakpoints_arg
     <*> Sig.environ "timestep" Sig.Prefixed Meter.E
@@ -218,13 +217,6 @@ index_under_threshold ts val = go 0 ts
     go i [] = i
 
 -- * val calls
-
-val_calls :: [Derive.LookupCall Derive.ValCall]
-val_calls = Derive.call_map
-    [ ("alt", c_val_alternate) -- or ?
-    , ("alt-w", c_val_alternate_weighted)
-    , ("range", c_range) -- or -?
-    ]
 
 c_val_alternate :: Derive.ValCall
 c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random

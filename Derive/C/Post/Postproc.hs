@@ -26,6 +26,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -38,8 +39,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
     , ("randomize-start", c_randomize_start)

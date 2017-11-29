@@ -67,7 +67,7 @@ check_cache ui_state cmd_state = run $ do
     when (fingerprint == old_fingerprint) abort
     let lib = compile_library defs
     write_update_logs (map fst imported) lib
-    return (lib, fingerprint)
+    return (lib, Map.fromList (Parse.def_aliases defs), fingerprint)
     where
     is_permanent = case Cmd.state_ky_cache cmd_state of
         Just (Cmd.PermanentKy {}) -> True
@@ -88,13 +88,16 @@ check_cache ui_state cmd_state = run $ do
     apply (Left (Just err))
         | failed_previously = Nothing
         | otherwise = Just $ Cmd.KyCache (Left err) mempty
-    apply (Right (lib, fingerprint)) =
-        Just $ Cmd.KyCache (Right lib) fingerprint
+    apply (Right (lib, aliases, fingerprint)) =
+        Just $ Cmd.KyCache (Right (lib, aliases)) fingerprint
 
-load :: [FilePath] -> Ui.State -> IO (Either Text Derive.Library)
+load :: [FilePath] -> Ui.State
+    -> IO (Either Text (Derive.Library, Derive.InstrumentAliases))
 load paths =
-    fmap (fmap (compile_library . fst)) . Parse.load_ky paths
-        . (Ui.config#Ui.ky #$)
+    fmap (fmap (extract . fst)) . Parse.load_ky paths . (Ui.config#Ui.ky #$)
+    where
+    extract defs =
+        (compile_library defs, Map.fromList (Parse.def_aliases defs))
 
 write_update_logs :: Log.LogMonad m => [FilePath] -> Derive.Library -> m ()
 write_update_logs imports lib = do
@@ -108,17 +111,26 @@ state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
     (Cmd.config_ky_paths (Cmd.state_config cmd_state))
 
 compile_library :: Parse.Definitions -> Derive.Library
-compile_library (Parse.Definitions note control pitch val aliases) =
-    Derive.Library
-        { lib_note = call_maps note
-        , lib_control = call_maps control
-        , lib_pitch = call_maps pitch
-        , lib_val = Derive.call_map $ compile make_val_call val
-        , lib_instrument_aliases = Map.fromList aliases
+compile_library (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
+        (gpitch, tpitch) val _aliases) =
+    Derive.Scopes
+        { scopes_generator = compile_scope
+            (compile make_generator gnote)
+            (compile make_generator gcontrol)
+            (compile make_generator gpitch)
+        , scopes_transformer = compile_scope
+            (compile make_transformer tnote)
+            (compile make_transformer tcontrol)
+            (compile make_transformer tpitch)
+        , scopes_track = mempty
+        , scopes_val = Derive.call_map $ compile make_val_call val
         }
     where
-    call_maps (gen, trans) = Derive.call_maps
-        (compile make_generator gen) (compile make_transformer trans)
+    compile_scope note control pitch = Derive.Scope
+        { scope_note = Derive.call_map note
+        , scope_control = Derive.call_map control
+        , scope_pitch = Derive.call_map pitch
+        }
     compile make = map $ \(fname, (sym, expr)) ->
         (sym, make fname (sym_to_name sym) expr)
     sym_to_name (Expr.Symbol name) = Derive.CallName name

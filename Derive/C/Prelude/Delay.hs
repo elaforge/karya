@@ -5,7 +5,7 @@
 -- | Echo and delay oriented calls.
 --
 -- TODO event delay
-module Derive.C.Prelude.Delay where
+module Derive.C.Prelude.Delay (library) where
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
@@ -13,6 +13,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, typed_control, control)
@@ -25,8 +26,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("d", c_delay)
     , ("echo", c_echo)
     , ("e-echo", c_event_echo)

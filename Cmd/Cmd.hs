@@ -420,10 +420,11 @@ state_save_dir state = path state . Config.RelativePath <$>
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache =
-    KyCache !(Either Text Derive.Library) !Fingerprint
+    KyCache !(Either Text (Derive.Library, Derive.InstrumentAliases))
+        !Fingerprint
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
-    | PermanentKy !Derive.Library
+    | PermanentKy !(Derive.Library, Derive.InstrumentAliases)
     deriving (Show)
 
 -- | Keep track of loaded files and a fingerprint for their contents.  This is

@@ -139,7 +139,7 @@ require_right io = tryRight =<< liftIO io
 -- | Extract saved performances and write them to disk.
 save :: Cmd.Config -> FilePath -> FilePath -> Error [Text]
 save cmd_config out_dir fname = do
-    (state, _defs_lib, block_id) <-
+    (state, _defs_lib, _aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
     let meta = Ui.config#Ui.meta #$ state
         look = Map.lookup block_id
@@ -163,10 +163,10 @@ save cmd_config out_dir fname = do
 -- | Perform to MIDI and write to disk.
 perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
 perform maybe_out_dir cmd_config fname = do
-    (state, library, block_id) <-
+    (state, library, aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
-    msgs <- perform_block fname (make_cmd_state library cmd_config) state
-        block_id
+    msgs <- perform_block fname (make_cmd_state library aliases cmd_config)
+        state block_id
     whenJust maybe_out_dir $ \out_dir -> do
         let out = out_dir </> basename fname <> ".midi"
         liftIO $ putStrLn $ "write " <> out
@@ -181,10 +181,10 @@ dump_midi fname = do
 
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
 verify_performance out_dir cmd_config fname = do
-    (state, library, block_id) <-
+    (state, library, aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
     let meta = Ui.config#Ui.meta #$ state
-    let cmd_state = make_cmd_state library cmd_config
+    let cmd_state = make_cmd_state library aliases cmd_config
     let midi_perf = Map.lookup block_id (Ui.meta_midi_performances meta)
         ly_perf = Map.lookup block_id (Ui.meta_lilypond_performances meta)
     midi_err <- maybe (return Nothing)
@@ -236,15 +236,17 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 
 -- | Load a score and get its root block id.
 load :: Cmd.InstrumentDb -> FilePath
-    -> Error (Ui.State, Derive.Library, BlockId)
+    -> Error (Ui.State, Derive.Library, Derive.InstrumentAliases, BlockId)
 load db fname = do
-     (state, library) <- require_right $ DeriveSaved.load_score db fname
+     (state, library, aliases) <- require_right $
+        DeriveSaved.load_score db fname
      block_id <- require_right $ return $ get_root state
-     return (state, library, block_id)
+     return (state, library, aliases, block_id)
 
-make_cmd_state :: Derive.Library -> Cmd.Config -> Cmd.State
-make_cmd_state library cmd_config =
-    DeriveSaved.add_library library $ Cmd.initial_state cmd_config
+make_cmd_state :: Derive.Library -> Derive.InstrumentAliases -> Cmd.Config
+    -> Cmd.State
+make_cmd_state library aliases cmd_config =
+    DeriveSaved.add_library library aliases $ Cmd.initial_state cmd_config
 
 get_root :: Ui.State -> Either Text BlockId
 get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state

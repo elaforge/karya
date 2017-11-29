@@ -9,7 +9,7 @@
 -- have complete-word names, while low level calls are just single letters.
 --
 -- TODO this module has a dumb name.  What would be better?
-module Derive.C.Prelude.PitchHigh where
+module Derive.C.Prelude.PitchHigh (library) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -22,6 +22,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -35,21 +36,20 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
-    [ ("lift", c_lift_note)
-    , ("drop", c_drop_note)
-    , ("Lift", c_lift_note_start)
-    , ("Drop", c_drop_note_start)
+library :: Derive.Library
+library = mconcat
+    [ Library.transformers
+        [ ("lift", c_lift_note)
+        , ("drop", c_drop_note)
+        , ("Lift", c_lift_note_start)
+        , ("Drop", c_drop_note_start)
+        ]
+    , Library.generators
+        [ ("drop", c_drop)
+        , ("lift", c_lift)
+        , ("ad", c_approach_dyn)
+        ]
     ]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    [ ("drop", c_drop)
-    , ("lift", c_lift)
-    , ("ad", c_approach_dyn)
-    ]
-    []
 
 -- * note calls
 

@@ -3,17 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | The @import@ call, and support.
-module Derive.C.Prelude.Import where
+module Derive.C.Prelude.Import (library) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.Sig as Sig
 
 
-calls :: Derive.Callable d => Derive.CallMaps d
-calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.poly_transformers
     [ ("import", c_import)
     , ("imports", c_import_symbol)
     ]

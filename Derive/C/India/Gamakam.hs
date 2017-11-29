@@ -52,6 +52,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -64,26 +65,27 @@ import Global
 import Types
 
 
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map $
-    [("dip", c_dip)
-    , ("jaru", c_jaru)
-    , ("sgr", c_jaru_intervals Typecheck.Diatonic [-1, 1])
-    ] ++ kampita_variations "kam" c_kampita
+library :: Derive.Library
+library = mconcat
+    [ Library.generators $
+        [("dip", c_dip)
+        , ("jaru", c_jaru)
+        , ("sgr", c_jaru_intervals Typecheck.Diatonic [-1, 1])
+        ] ++ kampita_variations "kam" c_kampita
+    , Library.generators $
+        [ ("dip", c_dip_c)
+        , ("j)", jaru_transition_c "j)" Nothing
+            "Time for each slide, defaults to `time`.")
+        , ("j]", jaru_transition_c "j]" (Just (jaru_time_default / 2))
+            "Time for each slide.")
+        , ("sgr", c_jaru_intervals_c [-1, 1])
+        ]
+        ++ kampita_variations "kam" c_kampita_c
+        ++ kampita_variations "nkam" c_nkampita_c
+    ]
 
 module_ :: Module.Module
 module_ = "india" <> "gamakam"
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.generator_call_map $
-    [ ("dip", c_dip_c)
-    , ("j)", jaru_transition_c "j)" Nothing
-        "Time for each slide, defaults to `time`.")
-    , ("j]", jaru_transition_c "j]" (Just (jaru_time_default / 2))
-        "Time for each slide.")
-    , ("sgr", c_jaru_intervals_c [-1, 1])
-    ] ++ kampita_variations "kam" c_kampita_c
-    ++ kampita_variations "nkam" c_nkampita_c
 
 kampita_variations :: Text
     -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)

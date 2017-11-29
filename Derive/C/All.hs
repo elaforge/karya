@@ -51,91 +51,48 @@ import qualified Derive.Derive as Derive
 
 
 library :: Derive.Library
-library = Derive.Library
-    { lib_note = note_maps
-    , lib_control = control_maps
-    , lib_pitch = pitch_maps
-    , lib_val = val_map
-    , lib_instrument_aliases = mempty
-    }
-
-note_maps :: Derive.CallMaps Derive.Note
-note_maps = mconcat
-    [ Articulation.note_calls
-    , Block.note_calls
-    , Chord.note_calls
-    , Conditional.note_calls
-    , Config.note_calls
-    , Delay.note_calls
-    , Equal.note_calls
-    , Gamakam2.note_calls
-    , Gamakam5.note_calls
-    , Gangsa.note_calls
-    , Gender.note_calls
-    , Gong.note_calls
-    , Grace.note_calls
-    , Highlight.note_calls
-    , Idiom.note_calls
-    , Import.calls
-    , InferTrackVoice.note_calls
-    , Integrate.note_calls
-    , Lily.note_calls
-    , Map.note_calls
-    , Mridangam.note_calls
-    , Note.note_calls
-    , NoteTransformer.note_calls
-    , Pakhawaj.note_calls
-    , Parent.note_calls
-    , PitchHigh.note_calls
-    , Postproc.note_calls
-    , Random.note_calls
-    , Rearticulate.note_calls
-    , Retune.note_calls
-    , Reverse.note_calls
-    , Reyong.note_calls
-    , Sekar.note_calls
-    , SignalTransform.note_calls
-    , String.note_calls
-    , Trill.note_calls
-    , Wind.note_calls
-    , Zheng.note_calls
-    ]
-
-control_maps :: Derive.CallMaps Derive.Control
-control_maps = mconcat
-    [ Block.control_calls
-    , Config.control_calls
-    , Control.control_calls
-    , Equal.control_calls
-    , Gamakam.control_calls
-    , Gamakam5.control_calls
-    , Import.calls
-    , Conditional.control_calls
-    , Random.control_calls
-    , SignalTransform.control_calls
-    , Trill.control_calls
-    ]
-
-pitch_maps :: Derive.CallMaps Derive.Pitch
-pitch_maps = mconcat
-    [ Config.pitch_calls
-    , Equal.pitch_calls
-    , Gamakam.pitch_calls
-    , Gamakam2.pitch_calls
-    , Grace.pitch_calls
-    , Import.calls
-    , Conditional.pitch_calls
-    , Pitch.pitch_calls
-    , PitchHigh.pitch_calls
-    , Random.pitch_calls
-    , SignalTransform.pitch_calls
-    , Trill.pitch_calls
-    , Zheng.pitch_calls
-    ]
-
-val_map :: [Derive.LookupCall Derive.ValCall]
-val_map = concat
-    [ ControlFunction.val_calls
-    , Random.val_calls
-    , Val.val_calls
+library = mconcat
+    [ Articulation.library
+    , Block.library
+    , Chord.library
+    , Conditional.library
+    , Config.library
+    , ControlFunction.library
+    , Control.library
+    , Delay.library
+    , Equal.library
+    , Gamakam2.library
+    , Gamakam5.library
+    , Gamakam.library
+    , Gangsa.library
+    , Gender.library
+    , Gong.library
+    , Grace.library
+    , Highlight.library
+    , Idiom.library
+    , Import.library
+    , InferTrackVoice.library
+    , Integrate.library
+    , Lily.library
+    , Map.library
+    , Mridangam.library
+    , Note.library
+    , NoteTransformer.library
+    , Pakhawaj.library
+    , Parent.library
+    , PitchHigh.library
+    , Pitch.library
+    , Postproc.library
+    , Random.library
+    , Rearticulate.library
+    , Retune.library
+    , Reverse.library
+    , Reyong.library
+    , Sekar.library
+    , SignalTransform.library
+    , String.library
+    , Trill.library
+    , Val.library
+    , Wind.library
+    , Zheng.library
     ]

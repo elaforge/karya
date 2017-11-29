@@ -7,7 +7,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | Calls for Carnatic gamakam.
 module Derive.C.India.Gamakam5 (
-    control_calls, note_calls
+    library
 #ifdef TESTING
     , module Derive.C.India.Gamakam5
 #endif
@@ -34,6 +34,7 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -50,17 +51,20 @@ import Types
 module_ :: Module.Module
 module_ = "india" <> "gamakam5"
 
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps
-    [ (Parse.unparsed_call, c_pitch_sequence)
-    , (Parse.unparsed_call, c_dyn_sequence)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ (Parse.unparsed_call, c_pitch_sequence)
+        , (Parse.unparsed_call, c_dyn_sequence)
+        ]
+    , Library.transformers
+        [ ("gamak", c_import_pitch)
+        , ("dyn", c_import_dyn)
+        ]
+    , Library.transformers
+        [ ("sahitya", c_sahitya :: Derive.Transformer Derive.Control)
+        ]
     ]
-    [ ("gamak", c_import_pitch)
-    , ("dyn", c_import_dyn)
-    ]
-
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map [("sahitya", c_sahitya)]
 
 -- * sequence
 

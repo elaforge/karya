@@ -4,10 +4,8 @@
 
 -- | Block call and support.
 module Derive.C.Prelude.Block (
-    -- * root block
-    eval_root_block, global_transform
-    -- * note calls
-    , note_calls, control_calls
+    library
+    , eval_root_block, global_transform
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -30,6 +28,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -40,6 +39,14 @@ import qualified Perform.Signal as Signal
 import Global
 import Types
 
+
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [(BlockUtil.capture_null_control, c_capture_null_control)]
+    , Library.lookup lookup_note_block
+    , Library.lookup lookup_control_block
+    ]
 
 -- * root block
 
@@ -67,12 +74,6 @@ transform_if_present ctx sym deriver = do
         Just call -> Eval.apply_transformer ctx call [] deriver
 
 -- * note calls
-
-note_calls :: Derive.CallMaps Derive.Note
-note_calls =
-    Derive.generator_call_map
-        [(BlockUtil.capture_null_control, c_capture_null_control)]
-    <> (Derive.s_generator #= [lookup_note_block]) mempty
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_note_block = Derive.LookupPattern "block name"
@@ -205,9 +206,6 @@ call_to_block_id sym = do
                 else Nothing
 
 -- * control calls
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.s_generator #= [lookup_control_block] $ mempty
 
 lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_control_block = Derive.LookupPattern "block id"

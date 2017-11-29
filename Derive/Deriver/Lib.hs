@@ -133,7 +133,7 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
 -- happen when starting a derivation.
 with_initial_instrument_aliases :: Deriver a -> Deriver a
 with_initial_instrument_aliases deriver = do
-    aliases <- lib_instrument_aliases <$> Internal.get_constant state_library
+    aliases <- Internal.get_constant state_initial_instrument_aliases
     with_instrument_aliases aliases deriver
 
 with_default_imported :: Deriver a -> Deriver a
@@ -170,14 +170,14 @@ with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
 with_imported empty_ok module_ deriver = do
     lib <- Internal.get_constant state_library
     lib <- case extract_module module_ lib of
-        Library note control pitch val _aliases
-            | and [is_empty note, is_empty control, is_empty pitch, null val]
-                    && not empty_ok ->
+        Scopes gen trans track val
+            | not empty_ok && is_empty gen && is_empty trans
+                    && is_empty track && null val ->
                 throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
     with_scopes (import_library lib) deriver
     where
-    is_empty (Scopes [] [] [] ()) = True
+    is_empty (Scope [] [] []) = True
     is_empty _ = False
 
 -- | Import only the given symbols from the module.
@@ -199,19 +199,20 @@ with_scopes modify = Internal.local $ \state ->
 
 -- | Filter out any calls that aren't in the given modules.
 extract_module :: Module.Module -> Library -> Library
-extract_module module_ (Library note control pitch val _aliases) = Library
-    { lib_note = extract2 note
-    , lib_control = extract2 control
-    , lib_pitch = extract2 pitch
-    , lib_val = extract vcall_doc val
-    , lib_instrument_aliases = mempty
+extract_module module_ (Scopes gen trans track val) = Scopes
+    -- This is repetitive, but each of the 'call_doc's is at a different type.
+    -- I can pass one 'call_doc' with a rank-2 type, but it doesn't work
+    -- for 'tcall_doc'.
+    { scopes_generator = extract_scope call_doc call_doc call_doc gen
+    , scopes_transformer = extract_scope call_doc call_doc call_doc trans
+    , scopes_track = extract_scope tcall_doc tcall_doc tcall_doc track
+    , scopes_val = extract vcall_doc val
     }
     where
-    extract2 (Scopes gen trans track ()) = Scopes
-        { scopes_generator = extract call_doc gen
-        , scopes_transformer = extract call_doc trans
-        , scopes_track = extract tcall_doc track
-        , scopes_val = ()
+    extract_scope doc1 doc2 doc3 (Scope note control pitch) = Scope
+        { scope_note = extract doc1 note
+        , scope_control = extract doc2 control
+        , scope_pitch = extract doc3 pitch
         }
     extract get_doc = mapMaybe (has_module get_doc)
     has_module get_doc (LookupMap calls)
@@ -227,19 +228,17 @@ extract_module module_ (Library note control pitch val _aliases) = Library
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
 extract_symbols :: (Expr.Symbol -> Bool) -> Library -> Library
-extract_symbols wanted (Library note control pitch val _aliases) = Library
-    { lib_note = extract2 note
-    , lib_control = extract2 control
-    , lib_pitch = extract2 pitch
-    , lib_val = extract val
-    , lib_instrument_aliases = mempty
+extract_symbols wanted (Scopes gen trans track val) = Scopes
+    { scopes_generator = extract_scope gen
+    , scopes_transformer = extract_scope trans
+    , scopes_track = extract_scope track
+    , scopes_val = extract val
     }
     where
-    extract2 (Scopes gen trans track ()) = Scopes
-        { scopes_generator = extract gen
-        , scopes_transformer = extract trans
-        , scopes_track = extract track
-        , scopes_val = ()
+    extract_scope (Scope note control pitch) = Scope
+        { scope_note = extract note
+        , scope_control = extract control
+        , scope_pitch = extract pitch
         }
     extract = mapMaybe has_name
     has_name (LookupMap calls)
@@ -249,48 +248,32 @@ extract_symbols wanted (Library note control pitch val _aliases) = Library
     has_name (LookupPattern {}) = Nothing
 
 library_symbols :: Library -> [Expr.Symbol]
-library_symbols (Library note control pitch val _aliases) =
-    extract2 note <> extract2 control <> extract2 pitch <> extract val
+library_symbols (Scopes gen trans track val) = mconcat
+    [extract_scope gen, extract_scope trans, extract_scope track, extract val]
     where
-    extract2 (Scopes gen trans track ()) =
-        extract gen <> extract trans <> extract track
+    extract_scope (Scope note control pitch) =
+        extract note <> extract control <> extract pitch
     extract = concatMap names_of
     names_of (LookupMap calls) = Map.keys calls
     names_of (LookupPattern {}) = []
 
+-- | Dump the contents of the Library into the given Scopes.
 import_library :: Library -> Scopes -> Scopes
-import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
-        (Scopes gen trans track val) =
-    -- It seems like I should be able to refactor this, but it's hard to get
-    -- the types to work out.
+import_library  (Scopes lgen ltrans ltrack lval)
+        (Scopes sgen strans strack sval) =
     Scopes
-        { scopes_generator = Scope
-            { scope_note =
-                insert (scopes_generator lib_note) (scope_note gen)
-            , scope_control =
-                insert (scopes_generator lib_control) (scope_control gen)
-            , scope_pitch =
-                insert (scopes_generator lib_pitch) (scope_pitch gen)
-            }
-        , scopes_transformer = Scope
-            { scope_note =
-                insert (scopes_transformer lib_note) (scope_note trans)
-            , scope_control =
-                insert (scopes_transformer lib_control) (scope_control trans)
-            , scope_pitch =
-                insert (scopes_transformer lib_pitch) (scope_pitch trans)
-            }
-        , scopes_track = Scope
-            { scope_note =
-                insert (scopes_track lib_note) (scope_note track)
-            , scope_control =
-                insert (scopes_track lib_control) (scope_control track)
-            , scope_pitch =
-                insert (scopes_track lib_pitch) (scope_pitch track)
-            }
-        , scopes_val = insert lib_val val
+        { scopes_generator = merge_scope lgen sgen
+        , scopes_transformer = merge_scope ltrans strans
+        , scopes_track = merge_scope ltrack strack
+        , scopes_val = insert lval sval
         }
     where
+    merge_scope (Scope lnote lcontrol lpitch) (Scope snote scontrol spitch) =
+        Scope
+            { scope_note = insert lnote snote
+            , scope_control = insert lcontrol scontrol
+            , scope_pitch = insert lpitch spitch
+            }
     insert lookups = (imported (merge_lookups lookups) <>)
     imported lookups = scope_priority
         [ (PrioBlock, prio_block)

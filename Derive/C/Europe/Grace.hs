@@ -25,6 +25,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -41,23 +42,22 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
-    [ ("g", c_grace)
-    , ("g-", c_grace_hold)
-    , ("grace", c_basic_grace)
-    , ("roll", c_roll)
-    , ("`mordent`", c_mordent (Pitch.Diatonic 1))
-    , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
+library :: Derive.Library
+library = mconcat
+    [ Library.generators -- Note
+        [ ("g", c_grace)
+        , ("g-", c_grace_hold)
+        , ("grace", c_basic_grace)
+        , ("roll", c_roll)
+        , ("`mordent`", c_mordent (Pitch.Diatonic 1))
+        , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
+        ]
+    , Library.generators -- Pitch
+        [ ("g", c_grace_p)
+        , ("`mordent`", c_mordent_p (Pitch.Diatonic 1))
+        , ("`rmordent`", c_mordent_p (Pitch.Diatonic (-1)))
+        ]
     ]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map
-    [ ("g", c_grace_p)
-    , ("`mordent`", c_mordent_p (Pitch.Diatonic 1))
-    , ("`rmordent`", c_mordent_p (Pitch.Diatonic (-1)))
-    ]
-
 
 -- | It's pretty much arbitrary, but this seems ok.
 default_grace_dur :: Typecheck.DefaultReal

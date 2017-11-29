@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls to do with intonation and tuning.
-module Derive.C.Post.Retune where
+module Derive.C.Post.Retune (library) where
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -13,6 +13,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -25,8 +26,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+library :: Derive.Library
+library = Library.transformers
     [ ("retune", c_retune)
     , ("realize-retune", c_realize_retune)
     ]

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Basic calls for control tracks.
-module Derive.C.Prelude.Control (control_calls) where
+module Derive.C.Prelude.Control (library) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
@@ -19,6 +19,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -31,35 +32,35 @@ import Global
 import Types
 
 
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.generator_call_map
-    [ ("set", c_set)
-    , ("'", c_set_prev)
-    , ("p", c_porta)
-    , ("abs", c_abs)
-    , ("dyn-pp", c_dynamic "pp" 0.05)
-    , ("dyn-p", c_dynamic "p" 0.25)
-    , ("dyn-mf", c_dynamic "mf" 0.5)
-    , ("dyn-f", c_dynamic "f" 0.75)
-    , ("dyn-ff", c_dynamic "ff" 0.95)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators $
+        [ ("set", c_set)
+        , ("'", c_set_prev)
+        , ("p", c_porta)
+        , ("abs", c_abs)
+        , ("dyn-pp", c_dynamic "pp" 0.05)
+        , ("dyn-p", c_dynamic "p" 0.25)
+        , ("dyn-mf", c_dynamic "mf" 0.5)
+        , ("dyn-f", c_dynamic "f" 0.75)
+        , ("dyn-ff", c_dynamic "ff" 0.95)
 
-    -- misc
-    , ("bp>", c_breakpoint_next)
-    , ("n", c_neighbor)
-    , ("d", c_down)
-    , ("df", c_down_from)
-    , ("u", c_up)
+        -- misc
+        , ("bp>", c_breakpoint_next)
+        , ("n", c_neighbor)
+        , ("d", c_down)
+        , ("df", c_down_from)
+        , ("u", c_up)
 
-    -- not sure which one I'll like better
-    , ("`ped`", c_pedal)
-    , ("ped", c_pedal)
-    , ("swell", c_swell)
+        -- not sure which one I'll like better
+        , ("`ped`", c_pedal)
+        , ("ped", c_pedal)
+        , ("swell", c_swell)
+        ] ++
+        ControlUtil.standard_interpolators ControlUtil.interpolator_variations
+    , Library.lookup lookup_generator
+    , Library.lookup lookup_transformer
     ]
-    <> ControlUtil.standard_interpolators ControlUtil.interpolator_variations
-    <> (mempty :: Derive.CallMaps Derive.Control)
-        { Derive.scopes_generator = [lookup_generator]
-        , Derive.scopes_transformer = [lookup_transformer]
-        }
 
 -- | This is a special lookup for control tracks that lets you directly type
 -- a number, and have that be interpreted as setting the control to that value.

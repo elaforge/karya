@@ -20,6 +20,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
@@ -27,8 +28,8 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
+library :: Derive.Library
+library = Library.generators
     [ ("sekar", c_sekar_direct)
     , ("sekar-e", c_sekar_even)
     ]

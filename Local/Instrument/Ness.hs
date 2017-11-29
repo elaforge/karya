@@ -17,6 +17,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.Twelve as Twelve
@@ -85,7 +86,7 @@ multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
         [ ImInst.generator (Expr.Symbol object) $ generator object
         | object <- Multiplate.iObjects inst
         ]
-    generator object = Make.generator $ Make.environ_note Module.instrument
+    generator object = Library.generator $ Make.environ_note Module.instrument
         (Derive.CallName object) mempty "Strike the named object."
         EnvKey.patch_element object
     patch = Patch.patch

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls for 箏.
-module Derive.C.China.Zheng where
+module Derive.C.China.Zheng (library) where
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Idiom.String as String
@@ -16,6 +16,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -29,16 +30,17 @@ import Types
 module_ :: Module.Module
 module_ = "china" <> "zheng"
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    ([ ("gliss-a", Derive.set_module module_ String.c_gliss_absolute)
-    , ("gliss", Derive.set_module module_ String.c_gliss)
-    ] ++ trill_variations c_note_trill)
-    [ ("bent-string", Derive.set_module module_ String.c_bent_string)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators $
+        [ ("gliss-a", Derive.set_module module_ String.c_gliss_absolute)
+        , ("gliss", Derive.set_module module_ String.c_gliss)
+        ] ++ trill_variations c_note_trill
+    , Library.transformers
+        [ ("bent-string", Derive.set_module module_ String.c_bent_string)
+        ]
+    , Library.generators $ trill_variations c_pitch_trill
     ]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map $ trill_variations c_pitch_trill
 
 trill_variations :: (Maybe Trill.Direction -> call) -> [(Expr.Symbol, call)]
 trill_variations make =

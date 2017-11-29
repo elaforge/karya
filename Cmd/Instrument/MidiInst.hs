@@ -49,11 +49,11 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
-import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -148,8 +148,9 @@ generator = Generator
 transformer :: Expr.Symbol -> Derive.Transformer d -> Call d
 transformer = Transformer
 
-both :: Expr.Symbol -> Make.Calls d -> Call d
-both name calls = Both name (Make.generator calls) (Make.transformer calls)
+both :: Expr.Symbol -> Library.Calls d -> Call d
+both name calls =
+    Both name (Library.generator calls) (Library.transformer calls)
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".

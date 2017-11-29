@@ -56,6 +56,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -73,91 +74,101 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    ([ ("norot", c_norot False Nothing)
-    -- Alias for norot.  It's separate so I can rebind this locally.
-    , ("nt", c_norot False Nothing)
-    , ("nt-", c_norot False (Just False))
-    , ("nt<", c_norot True Nothing)
-    , ("nt<-", c_norot True (Just False))
-    , ("gnorot", c_gender_norot)
-    , ("k_\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
-        { ir_polos              = "-11-1321"
-        , ir_sangsih4           = "-44-43-4"
-        , ir_polos_ngotek       = "-11-1-21"
-        , ir_sangsih_ngotek3    = "3-32-32-"
-        , ir_sangsih_ngotek4    = "-44-43-4"
-        })
-    , ("k-\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
-        { ir_polos              = "211-1321"
-        , ir_sangsih4           = "-44-43-4"
-        , ir_polos_ngotek       = "211-1-21"
-        , ir_sangsih_ngotek3    = "3-32-32-"
-        , ir_sangsih_ngotek4    = "-44-43-4"
-        })
-    , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern $ IrregularPattern
-        { ir_polos              = "-123123213213123"
-        , ir_sangsih4           = "-423423243243423"
-        , ir_polos_ngotek       = "-12-12-21-21-12-"
-        , ir_sangsih_ngotek3    = "3-23-232-32-3-23"
-        , ir_sangsih_ngotek4    = "-4-34-3-43-434-3"
-        })
-    -- There are two ways to play k\\, either 21321321 or 31321321.  The first
-    -- one is irregular since sangsih starts on 2 but there's no unison polos.
-    , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern $ IrregularPattern
-        { ir_polos              = "21321321"
-        , ir_sangsih4           = "24324324"
-        , ir_polos_ngotek       = "-1-21-21"
-        , ir_sangsih_ngotek3    = "2-32-32-"
-        , ir_sangsih_ngotek4    = "-43-43-4"
-        })
-    , ("k//", c_kotekan_irregular Telu $ irregular_pattern $ IrregularPattern
-        { ir_polos              = "23123123"
-        , ir_sangsih4           = "20120120"
-        , ir_polos_ngotek       = "-3-23-23"
-        , ir_sangsih_ngotek3    = "2-12-12-"
-        , ir_sangsih_ngotek4    = "-01-01-0"
-        })
-    , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
-    , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
-    -- This is k// but with sangsih above.
-    -- TODO maybe a more natural way to express this would be to make k//
-    -- understand sangsih=u?  But then I also need sangsih=d for k\\,
-    -- irregular_pattern support for sangsih direction, and they both become
-    -- irregular.
-    , ("k//^",   c_kotekan_regular (Just "2-12-12-") Telu)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ ("norot", c_norot False Nothing)
+        -- Alias for norot.  It's separate so I can rebind this locally.
+        , ("nt", c_norot False Nothing)
+        , ("nt-", c_norot False (Just False))
+        , ("nt<", c_norot True Nothing)
+        , ("nt<-", c_norot True (Just False))
+        , ("gnorot", c_gender_norot)
+        , ("k_\\", c_kotekan_irregular Pat $ irregular_pattern $
+            IrregularPattern
+            { ir_polos              = "-11-1321"
+            , ir_sangsih4           = "-44-43-4"
+            , ir_polos_ngotek       = "-11-1-21"
+            , ir_sangsih_ngotek3    = "3-32-32-"
+            , ir_sangsih_ngotek4    = "-44-43-4"
+            })
+        , ("k-\\", c_kotekan_irregular Pat $ irregular_pattern $
+            IrregularPattern
+            { ir_polos              = "211-1321"
+            , ir_sangsih4           = "-44-43-4"
+            , ir_polos_ngotek       = "211-1-21"
+            , ir_sangsih_ngotek3    = "3-32-32-"
+            , ir_sangsih_ngotek4    = "-44-43-4"
+            })
+        , ("k//\\\\", c_kotekan_irregular Pat $ irregular_pattern $
+            IrregularPattern
+            { ir_polos              = "-123123213213123"
+            , ir_sangsih4           = "-423423243243423"
+            , ir_polos_ngotek       = "-12-12-21-21-12-"
+            , ir_sangsih_ngotek3    = "3-23-232-32-3-23"
+            , ir_sangsih_ngotek4    = "-4-34-3-43-434-3"
+            })
+        -- There are two ways to play k\\, either 21321321 or 31321321.  The
+        -- first one is irregular since sangsih starts on 2 but there's no
+        -- unison polos.
+        , ("k\\\\", c_kotekan_irregular Telu $ irregular_pattern $
+            IrregularPattern
+            { ir_polos              = "21321321"
+            , ir_sangsih4           = "24324324"
+            , ir_polos_ngotek       = "-1-21-21"
+            , ir_sangsih_ngotek3    = "2-32-32-"
+            , ir_sangsih_ngotek4    = "-43-43-4"
+            })
+        , ("k//", c_kotekan_irregular Telu $ irregular_pattern $
+            IrregularPattern
+            { ir_polos              = "23123123"
+            , ir_sangsih4           = "20120120"
+            , ir_polos_ngotek       = "-3-23-23"
+            , ir_sangsih_ngotek3    = "2-12-12-"
+            , ir_sangsih_ngotek4    = "-01-01-0"
+            })
+        , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
+        , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
+        -- This is k// but with sangsih above.
+        -- TODO maybe a more natural way to express this would be to make k//
+        -- understand sangsih=u?  But then I also need sangsih=d for k\\,
+        -- irregular_pattern support for sangsih direction, and they both become
+        -- irregular.
+        , ("k//^",   c_kotekan_regular (Just "2-12-12-") Telu)
 
-    , ("kotekan", c_kotekan_kernel)
-    , ("k", c_kotekan_regular Nothing Telu)
-    , ("ke", c_kotekan_explicit)
-    ] ++ Gender.ngoret_variations c_ngoret)
-    [ ("i+", Make.environ_val module_ "i+" "initial" True
-        "Kotekan calls will emit a note on the initial beat.")
-    , ("i-", Make.environ_val module_ "i-" "initial" False
-        "Kotekan calls won't emit a note on the initial beat.")
-    , ("f-", Make.environ_val module_ "f-" "final" False
-        "Kotekan calls won't emit a final note at the end time.")
-    , ("unison", c_unison)
-    , ("noltol", c_noltol)
-    , ("realize-gangsa", c_realize_gangsa)
-    , ("realize-noltol", c_realize_noltol)
-    , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
-    , ("cancel-pasang", c_cancel_pasang)
-    ]
-    <> Make.call_maps
-    [ ("nyog", c_nyogcag)
-    , ("kempyung", c_kempyung)
-    , ("k+", c_kempyung) -- short version for single notes
-    , ("p+", c_derive_with "p+" True False)
-    , ("s+", c_derive_with "s+" False True)
-    , ("ps+", c_derive_with "ps+" True True)
+        , ("kotekan", c_kotekan_kernel)
+        , ("k", c_kotekan_regular Nothing Telu)
+        , ("ke", c_kotekan_explicit)
+        ]
+    , Library.generators $ Gender.ngoret_variations c_ngoret
+    , Library.transformers
+        [ ("i+", Make.environ_val module_ "i+" "initial" True
+            "Kotekan calls will emit a note on the initial beat.")
+        , ("i-", Make.environ_val module_ "i-" "initial" False
+            "Kotekan calls won't emit a note on the initial beat.")
+        , ("f-", Make.environ_val module_ "f-" "final" False
+            "Kotekan calls won't emit a final note at the end time.")
+        , ("unison", c_unison)
+        , ("noltol", c_noltol)
+        , ("realize-gangsa", c_realize_gangsa)
+        , ("realize-noltol", c_realize_noltol)
+        , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
+        , ("cancel-pasang", c_cancel_pasang)
+        ]
+    , Library.both
+        [ ("nyog", c_nyogcag)
+        , ("kempyung", c_kempyung)
+        , ("k+", c_kempyung) -- short version for single notes
+        , ("p+", c_derive_with "p+" True False)
+        , ("s+", c_derive_with "s+" False True)
+        , ("ps+", c_derive_with "ps+" True True)
+        ]
     ]
 
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
 
-c_derive_with :: Derive.CallName -> Bool -> Bool -> Make.Calls Derive.Note
+c_derive_with :: Derive.CallName -> Bool -> Bool -> Library.Calls Derive.Note
 c_derive_with name with_polos with_sangsih =
     Make.transform_notes module_ name Tags.inst
     "Derive the note with polos, sangsih, or both." pasang_env $
@@ -1102,7 +1113,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
 -- second seems a little simpler since it doesn't need a cooperating note call.
 --
 -- So postproc it is.
-c_kempyung :: Make.Calls Derive.Note
+c_kempyung :: Library.Calls Derive.Note
 c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
     \ above. If the sangsih would go out of range, it's forced into unison."
@@ -1136,7 +1147,7 @@ c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
                     (Score.event_untransformed_pitch event)
             }
 
-c_nyogcag :: Make.Calls Derive.Note
+c_nyogcag :: Library.Calls Derive.Note
 c_nyogcag = Make.transform_notes module_ "nyog" Tags.postproc
     "Nyog cag style. Split a single part into polos and sangsih parts by\
     \ assigning polos and sangsih to alternating notes."

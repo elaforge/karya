@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.C.Prelude.Val where
+module Derive.C.Prelude.Val (library) where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
 
@@ -23,6 +23,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Pitches as Pitches
@@ -43,8 +44,8 @@ import Global
 import Types
 
 
-val_calls :: [Derive.LookupCall Derive.ValCall]
-val_calls = Derive.call_map
+library :: Derive.Library
+library = Library.vals
     [ (">", c_next_val)
     , ("<", c_prev_val)
     , ("e", c_env)

@@ -5,7 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 -- | Basic calls for note tracks.
 module Derive.C.Prelude.Note (
-    note_calls
+    library
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote, default_note, note_flags
@@ -32,6 +32,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -45,18 +46,19 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ (Symbols.null_note, c_note)
-    , (Symbols.default_note, c_note)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ (Symbols.null_note, c_note)
+        , (Symbols.default_note, c_note)
+        ]
+    , Library.transformers [(Symbols.note_track, c_note_track)]
+    , Library.both [("attr", c_with_attributes)]
     ]
-    [ (Symbols.note_track, c_note_track)
-    ]
-    <> Make.call_maps [("attr", c_with_attributes)]
 
 -- | This is mostly useful for tests when I need some call that makes a note
 -- and takes arguments.
-c_with_attributes :: Make.Calls Derive.Note
+c_with_attributes :: Library.Calls Derive.Note
 c_with_attributes = Make.transform_notes Module.prelude "note" mempty
     "A note with attributes or instrument."
     (Sig.many "attr" "Set instrument or add attributes.") $

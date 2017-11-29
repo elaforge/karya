@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Transformers on @Derive.Generator Derive.Note@.
-module Derive.C.Prelude.NoteTransformer (note_calls) where
+module Derive.C.Prelude.NoteTransformer (library) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Log as Log
@@ -15,6 +15,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -26,21 +27,23 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("sequence", c_sequence)
-    , ("sequence-rt", c_sequence_realtime)
-    , ("parallel", c_parallel)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ ("sequence", c_sequence)
+        , ("sequence-rt", c_sequence_realtime)
+        , ("parallel", c_parallel)
+        ]
+    , Library.transformers
+        [ ("clip", c_clip)
+        , ("Clip", c_clip_start)
+        , ("debug", c_debug)
+        , ("loop", c_loop)
+        , ("multiple", c_multiple)
+        , ("tile", c_tile)
+        , ("repeat", c_repeat)
+        ]
     ]
-    [ ("clip", c_clip)
-    , ("Clip", c_clip_start)
-    , ("debug", c_debug)
-    , ("loop", c_loop)
-    , ("multiple", c_multiple)
-    , ("tile", c_tile)
-    , ("repeat", c_repeat)
-    ]
-
 
 -- * generators
 

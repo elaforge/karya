@@ -39,6 +39,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -69,51 +70,55 @@ import Types
 module_ :: Module.Module
 module_ = "bali" <> "reyong"
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    ([ ("kilit", realize_pattern norot_patterns)
-    , (">kilit", realize_pattern norot_prepare_patterns)
-    -- kilit is probably redundant now that I have norot.
-    , ("norot", c_norot Nothing)
-    , ("nt", c_norot Nothing)
-    , ("nt>", c_norot (Just True))
-    , ("nt-", c_norot (Just False))
-    , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
-    , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
-    , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
-    , ("k//\\\\", realize_pattern $
-        reyong_pattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
-    , ("k", c_kotekan_regular Nothing Nothing)
-    , ("t", c_tumpuk)
-    , ("a", c_tumpuk_auto)
-    , ("o", c_byong)
-    , (":", c_pitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
-    , ("/", articulation False "cek-loose"
-        ((:[]) . pos_cek) (cek <> Attrs.open))
-    , ("//", articulation True "cek-loose"
-        ((:[]) . pos_cek) (cek <> Attrs.open))
-    , ("X", articulation False "cek" ((:[]) . pos_cek) cek)
-    , ("XX", articulation True "cek" ((:[]) . pos_cek) cek)
-    , ("O", articulation False "byong" pos_byong mempty)
-    , ("-", articulation False "byut-loose"
-        pos_byong (Attrs.mute <> Attrs.open))
-    , ("+", articulation False "byut" pos_byong Attrs.mute)
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ ("kilit", realize_pattern norot_patterns)
+        , (">kilit", realize_pattern norot_prepare_patterns)
+        -- kilit is probably redundant now that I have norot.
+        , ("norot", c_norot Nothing)
+        , ("nt", c_norot Nothing)
+        , ("nt>", c_norot (Just True))
+        , ("nt-", c_norot (Just False))
+        , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
+        , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
+        , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
+        , ("k//\\\\", realize_pattern $
+            reyong_pattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
+        , ("k", c_kotekan_regular Nothing Nothing)
+        , ("t", c_tumpuk)
+        , ("a", c_tumpuk_auto)
+        , ("o", c_byong)
+        , (":", c_pitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
+        , ("/", articulation False "cek-loose"
+            ((:[]) . pos_cek) (cek <> Attrs.open))
+        , ("//", articulation True "cek-loose"
+            ((:[]) . pos_cek) (cek <> Attrs.open))
+        , ("X", articulation False "cek" ((:[]) . pos_cek) cek)
+        , ("XX", articulation True "cek" ((:[]) . pos_cek) cek)
+        , ("O", articulation False "byong" pos_byong mempty)
+        , ("-", articulation False "byut-loose"
+            pos_byong (Attrs.mute <> Attrs.open))
+        , ("+", articulation False "byut" pos_byong Attrs.mute)
 
-    , ("n1", c_solkattu_note [0])
-    , ("n2", c_solkattu_note [1])
-    , ("n3", c_solkattu_note [2])
-    , ("n4", c_solkattu_note [3])
-    , ("n14", c_solkattu_note [0, 3])
-    ] ++ Gender.ngoret_variations c_ngoret)
-    [ ("infer-damp", c_infer_damp)
-    , ("cancel-kotekan", c_cancel_kotekan)
-    , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
-    , ("realize-reyong", c_realize_reyong)
-    , ("vv", c_lower_octave_note)
-    ]
-    <> Make.call_maps
-    [ ("lv", Make.attributed_note module_ undamped)
-    , ("upper", c_upper)
+        , ("n1", c_solkattu_note [0])
+        , ("n2", c_solkattu_note [1])
+        , ("n3", c_solkattu_note [2])
+        , ("n4", c_solkattu_note [3])
+        , ("n14", c_solkattu_note [0, 3])
+        ]
+    , Library.generators $ Gender.ngoret_variations c_ngoret
+    , Library.transformers
+        [ ("infer-damp", c_infer_damp)
+        , ("cancel-kotekan", c_cancel_kotekan)
+        , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
+        , ("realize-reyong", c_realize_reyong)
+        , ("vv", c_lower_octave_note)
+        ]
+    , Library.both
+        [ ("lv", Make.attributed_note module_ undamped)
+        , ("upper", c_upper)
+        ]
     ]
     where articulation = make_articulation reyong_positions
 
@@ -858,7 +863,7 @@ c_lower_octave_note = Derive.transformer module_ "lower-octave-note"
         -- unsatisfying, but works.
         deriver <> note
 
-c_upper :: Make.Calls Derive.Note
+c_upper :: Library.Calls Derive.Note
 c_upper = Make.transform_notes module_ "upper" Tags.inst
     ("Double a part with `" <> Doc.pretty Controls.octave
         <> "=+1` and `" <> Doc.pretty EnvKey.voice

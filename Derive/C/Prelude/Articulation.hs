@@ -33,6 +33,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Scale.Twelve as Twelve
@@ -52,44 +53,45 @@ import Global
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Make.call_maps
-    [ ("o", c_harmonic)
-    , (Symbols.mute, Make.attributed_note Module.prelude Attrs.mute)
-    , (".", Make.attributed_note Module.prelude Attrs.staccato)
-    , ("{", Make.attributed_note Module.prelude Attrs.porta)
-    -- I'd use '>', but then it overrides the empty instrument call in note
-    -- tracks.  Besides, this way it has a nice symmetry with '^'.
-    , (Symbols.accent, c_accent)
-    , (Symbols.weak, c_weak)
+library :: Derive.Library
+library = mconcat
+    [ Library.both
+        [ ("o", c_harmonic)
+        , (Symbols.mute, Make.attributed_note Module.prelude Attrs.mute)
+        , (".", Make.attributed_note Module.prelude Attrs.staccato)
+        , ("{", Make.attributed_note Module.prelude Attrs.porta)
+        -- I'd use '>', but then it overrides the empty instrument call in note
+        -- tracks.  Besides, this way it has a nice symmetry with '^'.
+        , (Symbols.accent, c_accent)
+        , (Symbols.weak, c_weak)
 
-    , ("-", c_shorten_lengthen True)
-    , ("+", c_shorten_lengthen False)
-    ]
-    <> Derive.call_maps
+        , ("-", c_shorten_lengthen True)
+        , ("+", c_shorten_lengthen False)
+        ]
+    , Library.generators
         [ ("(", c_slur Nothing)
         -- These do different things in lilypond mode, but in normal
         -- performance they are just the same as a slur.
         , ("^(", c_slur (Just Call.Up))
         , ("_(", c_slur (Just Call.Down))
         ]
+    , Library.transformers
         [ ("sus-a", c_sustain_abs)
         , ("sus", c_sustain)
         ]
-    <> (mempty :: Derive.CallMaps Derive.Note)
-        { Derive.scopes_generator = [lookup_attr_generator]
-        , Derive.scopes_transformer = [lookup_attr_transformer]
-        }
+    , Library.lookup lookup_attr_generator
+    , Library.lookup lookup_attr_transformer
+    ]
 
 -- * lookp attr
 
 lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_attr_generator = make_lookup_attr $ \attrs ->
-    Make.generator $ Make.attributed_note Module.prelude attrs
+    Library.generator $ Make.attributed_note Module.prelude attrs
 
 lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
 lookup_attr_transformer = make_lookup_attr $ \attrs ->
-    Make.transformer $ Make.attributed_note Module.prelude attrs
+    Library.transformer $ Make.attributed_note Module.prelude attrs
 
 make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
@@ -101,12 +103,12 @@ make_lookup_attr call =
             Right (BaseTypes.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing
-    doc = Derive.extract_doc $ Make.generator $
+    doc = Derive.extract_doc $ Library.generator $
         Make.attributed_note Module.prelude (Attrs.attr "example-attr")
 
 -- * harmonic
 
-c_harmonic :: Make.Calls Derive.Note
+c_harmonic :: Library.Calls Derive.Note
 c_harmonic = Make.transform_notes Module.prelude "harmonic"
     (Tags.attr <> Tags.ly)
     "Harmonic, with lilypond for artificial harmonic notation."
@@ -343,7 +345,7 @@ c_sustain = Derive.transformer Module.prelude "sus" mempty
         "Multiply the note's duration by this.")
     $ \amount _args -> Call.with_constant Controls.sustain amount
 
-c_shorten_lengthen :: Bool -> Make.Calls Derive.Note
+c_shorten_lengthen :: Bool -> Library.Calls Derive.Note
 c_shorten_lengthen shorten = Make.transform_notes Module.prelude
     (if shorten then "shorten" else "lengthen") mempty
     ("Lengthen or Shorten a note duration, by adding to or subtracting from "
@@ -352,14 +354,14 @@ c_shorten_lengthen shorten = Make.transform_notes Module.prelude
         Call.with_constant Controls.sustain_abs
             (if shorten then -time else time)
 
-c_accent :: Make.Calls Derive.Note
+c_accent :: Library.Calls Derive.Note
 c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
     "Accent the note by multiplying its dynamic."
     (defaulted "dyn" 1.5 "Multiply dynamic.") $ \dyn ->
         -- Adding Attrs.accent makes lilypond attach a '>'.
         Call.add_attributes Attrs.accent . Call.multiply_dynamic dyn
 
-c_weak :: Make.Calls Derive.Note
+c_weak :: Library.Calls Derive.Note
 c_weak = Make.transform_notes Module.prelude "weaken" mempty
     "Weaken the note by multiplying its dynamic."
     (defaulted "dyn" 0.35 "Multiply dynamic.") $ \dyn ->

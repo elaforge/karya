@@ -446,12 +446,27 @@ builtin = library <$> Cmd.gets (Cmd.config_library . Cmd.state_config)
 -- nested data structure.  It's tedious, but the types make it hard to get
 -- wrong.
 library :: Derive.Library -> [Section]
-library (Derive.Library note control pitch val _aliases) =
-    [ ("note", call_maps note)
-    , ("control", call_maps control)
-    , ("pitch", call_maps pitch)
+library (Derive.Scopes
+        (Derive.Scope ngen cgen pgen)
+        (Derive.Scope ntrans ctrans ptrans)
+        (Derive.Scope ntrack ctrack ptrack) val) =
+    [ ("note", scope ngen ntrans ntrack)
+    , ("control", scope cgen ctrans ctrack)
+    , ("pitch", scope pgen ptrans ptrack)
     , ("val", imported_scope_doc ValCall (map convert_val_call val))
     ]
+
+-- | Create docs for generator, transformer, and track calls, and merge and
+-- sort them.
+scope :: [Derive.LookupCall (Derive.Call gen)]
+    -> [Derive.LookupCall (Derive.Call trans)]
+    -> [Derive.LookupCall (Derive.TrackCall track)]
+    -> [ScopeDoc]
+scope gen trans track = merge_scope_docs $
+    imported_scope_doc GeneratorCall (convert gen)
+    ++ imported_scope_doc TransformerCall (convert trans)
+    ++ imported_scope_doc TrackCall (map convert_track_call track)
+    where convert = map convert_call
 
 -- | A 'Derive.LookupCall' with the call stripped out and replaced with
 -- just documentation.  This is so 'Derive.Call's and 'Derive.ValCall's can
@@ -474,15 +489,6 @@ fmap_lookup extract_doc (Derive.LookupMap calls) = Derive.LookupMap $
     Map.map extract_doc calls
 fmap_lookup _ (Derive.LookupPattern pattern doc _) =
     Derive.LookupPattern pattern doc (const (return Nothing))
-
--- | Create docs for generator, transformer, and track calls, and merge and
--- sort them.
-call_maps :: Derive.CallMaps d -> [ScopeDoc]
-call_maps (Derive.Scopes generator transformer track ()) = merge_scope_docs $
-    imported_scope_doc GeneratorCall (convert generator)
-    ++ imported_scope_doc TransformerCall (convert transformer)
-    ++ imported_scope_doc TrackCall (map convert_track_call track)
-    where convert = map convert_call
 
 -- ** instrument doc
 
@@ -551,8 +557,7 @@ sort_calls = Seq.sort_on $ \(binds, _, _) ->
 -- it can work uniformly with 'track_sections', which does have separate
 -- sources.
 imported_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
-imported_scope_doc ctype lookups =
-    [(Nothing, lookup_calls ctype lookups)]
+imported_scope_doc ctype lookups = [(Nothing, lookup_calls ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopePriority Derive.DocumentedCall
     -> [ScopeDoc]

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls to deal with an entire ensemble, or miscellaneous instruments.
-module Derive.C.Bali.Gong where
+module Derive.C.Bali.Gong (library, make_cycle, nruk_generator) where
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
@@ -23,6 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -36,18 +37,21 @@ import Global
 import Types
 
 
+library :: Derive.Library
+library = mconcat
+    [ Library.generators
+        [ ("cycle", c_cycle)
+        ]
+    , Library.transformers
+        [ ("pokok", c_pokok)
+        , ("J", c_jegog)
+        , ("C", c_calung)
+        , ("nruk", c_nruk)
+        ]
+    ]
+
 module_ :: Module.Module
 module_ = "bali" <> "gong"
-
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("cycle", c_cycle)
-    ]
-    [ ("pokok", c_pokok)
-    , ("J", c_jegog)
-    , ("C", c_calung)
-    , ("nruk", c_nruk)
-    ]
 
 c_pokok :: Derive.Transformer Derive.Note
 c_pokok = Derive.transformer module_ "pokok" (Tags.inst <> Tags.under_invert)

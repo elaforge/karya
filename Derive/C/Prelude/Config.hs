@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls that configure other calls.
-module Derive.C.Prelude.Config where
+module Derive.C.Prelude.Config (library) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Derive.Call.Make as Make
@@ -13,6 +13,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
+import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -20,21 +21,13 @@ import qualified Derive.Typecheck as Typecheck
 import Global
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
-    [ ("add-flag", c_add_flag)
-    , ("h", c_hold)
-    , ("infer-dur", c_infer_dur)
-    ]
-
-pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.transformer_call_map
-    [ ("h", c_hold)
-    ]
-
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.transformer_call_map
-    [ ("h", c_hold)
+library :: Derive.Library
+library = mconcat
+    [ Library.poly_transformers [("h", c_hold)]
+    , Library.transformers
+        [ ("add-flag", c_add_flag)
+        , ("infer-dur", c_infer_dur)
+        ]
     ]
 
 c_add_flag :: Derive.Transformer Derive.Note

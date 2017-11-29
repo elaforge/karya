@@ -12,18 +12,19 @@
 -- TODO this is experimental, because I'm not sure I like it.  It means
 -- parts can change just by inserting a new note track, which seems
 -- non-obvious.
-module Derive.C.Prelude.InferTrackVoice where
+module Derive.C.Prelude.InferTrackVoice (library) where
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.Sig as Sig
 
 import Global
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
-    [ ("infer-hands", c_infer_hands)
+library :: Derive.Library
+library = Library.transformers
+    [ ("infer-hands", (c_infer_hands :: Derive.Transformer Derive.Note))
     ]
 
 c_infer_hands :: Derive.Taggable d => Derive.Transformer d
