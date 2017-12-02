@@ -85,6 +85,12 @@ test_basic = do
         (Midi.Types.patch_name patch, RealTime.to_seconds start,
             RealTime.to_seconds dur, stack)
 
+test_qualified_symbol = do
+    let run = DeriveTest.extract DeriveTest.e_attributes
+            . DeriveTest.derive_tracks ""
+    equal (run [(">", [(0, 2, "bali.gong.cycle \"(+a) 1")])])
+        (["+a", "+a"], [])
+
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
     let ((_, mmsgs), _) =

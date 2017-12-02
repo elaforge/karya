@@ -139,6 +139,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
+import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified GHC.Stack
@@ -299,41 +300,52 @@ type CallableExpr d =
     it out yet.  TODO what would this look like in idris?
 -}
 class Callable call where
+    get_builtins_scope :: Builtins -> ModuleMap call
     get_scopes_scope :: Scopes -> ScopePriority call
     -- | What to call this call, for error msgs when lookup fails.
     callable_name :: Proxy call -> Text
 
 instance Callable (Generator Note) where
+    get_builtins_scope = scope_note . scopes_generator
     get_scopes_scope = scope_note . scopes_generator
     callable_name _ = "note generator"
 instance Callable (Generator Control) where
+    get_builtins_scope = scope_control . scopes_generator
     get_scopes_scope = scope_control . scopes_generator
     callable_name _ = "control generator"
 instance Callable (Generator Pitch) where
+    get_builtins_scope = scope_pitch . scopes_generator
     get_scopes_scope = scope_pitch . scopes_generator
     callable_name _ = "pitch generator"
 
 instance Callable (Transformer Note) where
+    get_builtins_scope = scope_note . scopes_transformer
     get_scopes_scope = scope_note . scopes_transformer
     callable_name _ = "note transformer"
 instance Callable (Transformer Control) where
+    get_builtins_scope = scope_control . scopes_transformer
     get_scopes_scope = scope_control . scopes_transformer
     callable_name _ = "control transformer"
 instance Callable (Transformer Pitch) where
+    get_builtins_scope = scope_pitch . scopes_transformer
     get_scopes_scope = scope_pitch . scopes_transformer
     callable_name _ = "pitch transformer"
 
 instance Callable (TrackCall Note) where
+    get_builtins_scope = scope_note . scopes_track
     get_scopes_scope = scope_note . scopes_track
     callable_name _ = "note track call"
 instance Callable (TrackCall Control) where
+    get_builtins_scope = scope_control . scopes_track
     get_scopes_scope = scope_control . scopes_track
     callable_name _ = "control track call"
 instance Callable (TrackCall Pitch) where
+    get_builtins_scope = scope_pitch . scopes_track
     get_scopes_scope = scope_pitch . scopes_track
     callable_name _ = "pitch track call"
 
 instance Callable ValCall where
+    get_builtins_scope = scopes_val
     get_scopes_scope = scopes_val
     callable_name _ = "val call"
 
@@ -852,13 +864,32 @@ track_call module_ name tags doc call = TrackCall
 -- ** lookup
 
 lookup_call :: Callable call => Expr.Symbol -> Deriver (Maybe call)
-lookup_call = lookup_call_with get_scopes_scope
+lookup_call = lookup_call_with get_scopes_scope get_builtins_scope
 
 lookup_call_with :: (Scopes -> ScopePriority call)
-    -> Expr.Symbol -> Deriver (Maybe call)
-lookup_call_with get_scopes sym = do
+    -> (Builtins -> ModuleMap call) -> Expr.Symbol -> Deriver (Maybe call)
+lookup_call_with get_scopes get_builtins sym = do
     cmaps <- get_call_maps get_scopes
-    lookup_call_maps cmaps sym
+    maybe_call <- lookup_call_maps cmaps sym
+    case maybe_call of
+        Just call -> return $ Just call
+        Nothing -> case split_qualified sym of
+            Nothing -> return Nothing
+            Just (mod, sym) -> lookup_qualified get_builtins mod sym
+
+split_qualified :: Expr.Symbol -> Maybe (Module.Module, Expr.Symbol)
+split_qualified sym
+    | Text.null mod || Text.null name = Nothing
+    | otherwise = Just (Module.Module (Text.dropEnd 1 mod), Expr.Symbol name)
+    where (mod, name) = Text.breakOnEnd "." (Expr.unsym sym)
+
+lookup_qualified :: (Builtins -> ModuleMap call)
+    -> Module.Module -> Expr.Symbol -> Deriver (Maybe call)
+lookup_qualified get_scope module_ sym = do
+    by_module <- gets $ get_scope . state_builtins . state_constant
+    return $ do
+        cmap <- Map.lookup module_ by_module
+        Map.lookup sym (call_map cmap)
 
 -- | Get CallMaps is 'CallPriority' order.
 get_call_maps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]

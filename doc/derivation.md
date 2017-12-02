@@ -302,7 +302,9 @@ This concept originates from the `nyquist` language.
 The text that appears in the block title, track titles, and events is a
 simple expression oriented language.  It has the usual literals such as
 `'strings'`, and numbers, but also has music-related literals such as
-`*scales`, `>instruments` or `+attributes`.  See [vals](#vals).
+numbers with units, e.g. diatonic transposition: `3d`, or set-like
+`+attributes`, or references to signals in the environment: `%sig`.  See
+[vals](#vals).
 
 A call expression consists of literals separated by spaces, and the first word
 is a "call", which is like a function call.  So `f 4 'hi'` is a call to `f`
@@ -397,18 +399,35 @@ emits random numbers in a certain distribution to randomize argument values.
 ## Calls
 
 Calls are the tracklang version of functions.  Almost every bit of text in the
-score is a call expression.  Calls are classified by the type of value they
-return: a 'Derive.Deriver.Monad.NoteCall' returns score events, a
-'Derive.Deriver.Monad.ControlCall' returns a control signal, a
-'Derive.Deriver.Monad.PitchCall' returns pitch signal, and a
-'Derive.Deriver.Monad.ValCall' returns a tracklang Val.  Each of note, control,
-and pitch calls are only in scope in their relevant tracks, but val calls are
-in scope in all tracks.  Since each call except val calls also has generator
-and transformer namespaces, that's a total of seven separate namespaces.
+score is a call expression.  Calls are classified by both where they occur
+in the expression: generator, transformer, or val, and by their return type:
+note, control, or pitch.  Thus you can have a note generator, which is a call
+that appears in generator position and returns 'Derive.Deriver.Monad.Note's
+(generator and transformer position is described below).
+
+Each of these types lives in its own namespace, so there are 3*2 + 1 = 7
+namespaces in total (val calls are the +1, since they always return a val,
+instead of note, control, or pitch).  Which namespace applies depends on the
+context of the call.  So given `trans | gen (val)` on a note track, `trans`
+comes frome the note transformer namespace, while `gen` comes from the note
+generator namespace, while `val` of course comes from the singular val call
+namespace.
 
 A call may have zero or more arguments, which are parsed as
 'Derive.BaseTypes.Val's.  Argument parsing and the defaulting scheme (which
 uses the dynamic environ) is documented in 'Derive.Sig'.
+
+### modules
+
+The builtin library of calls are grouped into modules.  These are just names,
+conventionally grouped by dots, such as `bali.gangsa`.  The `prelude` module
+is always in scope, but others have to be imported specifically with the
+`import` transformer: `import bali.gangsa | ...`.
+
+Fully qualified symbols can name calls even without importing their modules, so
+`bali.gangsa.x` gets the `x` call in `bali.gangsa` without an import.  This is
+useful when you want to make a local version of some call e.g. in the [ky
+file](ui.md.html#ky-file): `x = bali.gangsa.x arg1 arg2 arg3`.
 
 ### ValCall
 

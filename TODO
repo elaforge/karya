@@ -237,7 +237,7 @@ UNSORTED
     . So e.g. MidiInst.compile_library can report shadows.
     . I should be able to incorporate Faust.PatchDb.warnings too.
   - Generic Show and Pretty instances for ScopesT and Scope.
-  + Add qualified syntax for calls, so I don't have to import them.  E.g.
+  * Add qualified syntax for calls, so I don't have to import them.  E.g.
     string.idiom.bent-string.
     . I naturally get dots in numbers.  Try qualified only if unqualified
       lookup fails.
