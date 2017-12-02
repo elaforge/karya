@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 -- Let 'MkScopePriority' take a type constructor.
 {-# LANGUAGE LiberalTypeSynonyms #-}
+{-# LANGUAGE ConstraintKinds #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -39,11 +40,15 @@ module Derive.Deriver.Monad (
     , throw, throw_arg_error, throw_error
 
     -- * derived types
-    , Callable(..), Tagged(..), Taggable(..)
+    , Callable, callable_name, Tagged(..), Taggable(..)
+    , CallableExpr
 
     , Note, NoteDeriver, NoteArgs
     , Control, ControlDeriver, ControlArgs
     , Pitch, PitchDeriver, PitchArgs
+
+    -- * lookup_call
+    , lookup_call
 
     -- * state
     , State(..), initial_state
@@ -63,7 +68,6 @@ module Derive.Deriver.Monad (
     , DocumentedCall(..)
     , PatternCall(..), pat_call_doc
     , extract_doc, extract_val_doc, extract_track_doc
-    , lookup_val_call, lookup_with
     -- ** TrackCall
     , TrackCall(..), track_call
 
@@ -277,14 +281,61 @@ throw_error err = do
 
 -- * derived types
 
--- | Each kind of deriver looks a different scope for its calls.  By making
--- this a class method, I can figure out which scope to look in just from
--- the type.
-class (Show d, Taggable d) => Callable d where
-    lookup_generator :: Expr.Symbol -> Deriver (Maybe (Generator d))
-    lookup_transformer :: Expr.Symbol -> Deriver (Maybe (Transformer d))
-    lookup_track_call :: Expr.Symbol -> Deriver (Maybe (TrackCall d))
-    callable_name :: Proxy d -> Text
+-- | Context for Callable on both Generator and Transformer.  It has this name
+-- because top-level expression calls have this context.
+type CallableExpr d =
+    ( Callable (Generator d), Callable (Transformer d), Callable (TrackCall d)
+    , Taggable d
+    )
+
+{- | Each kind of deriver looks a different scope for its calls.  By making
+    this a class method, I can figure out which scope to look in just from the
+    type.
+
+    This is essentially a translation from dynamically typed 'ScopesT' and
+    'Scopes' to statically typed @Generator Note@ etc.  The class itself should
+    be closed, and correspond exactly to the fields of ScopesT * Scopes.
+    Surely there is some more direct way to express this, but I haven't figured
+    it out yet.  TODO what would this look like in idris?
+-}
+class Callable call where
+    get_scopes_scope :: Scopes -> ScopePriority call
+    -- | What to call this call, for error msgs when lookup fails.
+    callable_name :: Proxy call -> Text
+
+instance Callable (Generator Note) where
+    get_scopes_scope = scope_note . scopes_generator
+    callable_name _ = "note generator"
+instance Callable (Generator Control) where
+    get_scopes_scope = scope_control . scopes_generator
+    callable_name _ = "control generator"
+instance Callable (Generator Pitch) where
+    get_scopes_scope = scope_pitch . scopes_generator
+    callable_name _ = "pitch generator"
+
+instance Callable (Transformer Note) where
+    get_scopes_scope = scope_note . scopes_transformer
+    callable_name _ = "note transformer"
+instance Callable (Transformer Control) where
+    get_scopes_scope = scope_control . scopes_transformer
+    callable_name _ = "control transformer"
+instance Callable (Transformer Pitch) where
+    get_scopes_scope = scope_pitch . scopes_transformer
+    callable_name _ = "pitch transformer"
+
+instance Callable (TrackCall Note) where
+    get_scopes_scope = scope_note . scopes_track
+    callable_name _ = "note track call"
+instance Callable (TrackCall Control) where
+    get_scopes_scope = scope_control . scopes_track
+    callable_name _ = "control track call"
+instance Callable (TrackCall Pitch) where
+    get_scopes_scope = scope_pitch . scopes_track
+    callable_name _ = "pitch track call"
+
+instance Callable ValCall where
+    get_scopes_scope = scopes_val
+    callable_name _ = "val call"
 
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
@@ -317,12 +368,6 @@ instance Taggable Score.Event where
     from_tagged (TagEvent a) = Just a
     from_tagged _ = Nothing
 
-instance Callable Score.Event where
-    lookup_generator = lookup_with (scope_note . scopes_generator)
-    lookup_transformer = lookup_with (scope_note . scopes_transformer)
-    lookup_track_call = lookup_with (scope_note . scopes_track)
-    callable_name _ = "note"
-
 instance Monoid NoteDeriver where
     mempty = return mempty
     mappend d1 d2 = d_merge [d1, d2]
@@ -339,12 +384,6 @@ instance Taggable Control where
     from_tagged (TagControl a) = Just a
     from_tagged _ = Nothing
 
-instance Callable Signal.Control where
-    lookup_generator = lookup_with (scope_control . scopes_generator)
-    lookup_transformer = lookup_with (scope_control . scopes_transformer)
-    lookup_track_call = lookup_with (scope_control . scopes_track)
-    callable_name _ = "control"
-
 -- ** pitch
 
 type Pitch = PSignal.PSignal
@@ -355,12 +394,6 @@ instance Taggable Pitch where
     to_tagged = TagPitch
     from_tagged (TagPitch a) = Just a
     from_tagged _ = Nothing
-
-instance Callable PSignal.PSignal where
-    lookup_generator = lookup_with (scope_pitch . scopes_generator)
-    lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
-    lookup_track_call = lookup_with (scope_pitch . scopes_track)
-    callable_name _ = "pitch"
 
 -- * state
 
@@ -582,15 +615,16 @@ instance DeepSeq.NFData Dynamic where
 -- | This is the library of built-in calls, indexed by Module.  On import, the
 -- imported 'CallMap's are inserted into 'Scopes' at 'PrioBuiltin'.
 type Builtins = ScopesT
-    (MkScopeCallMaps Generator)
-    (MkScopeCallMaps Transformer)
-    (MkScopeCallMaps TrackCall)
-    (Map Module.Module (CallMap ValCall))
+    (MkScopeCallMaps (Generator Note) (Generator Control) (Generator Pitch))
+    (MkScopeCallMaps (Transformer Note) (Transformer Control)
+        (Transformer Pitch))
+    (MkScopeCallMaps (TrackCall Note) (TrackCall Control) (TrackCall Pitch))
+    (ModuleMap ValCall)
 
-type MkScopeCallMaps kind = Scope
-    (Map Module.Module (CallMap (kind Note)))
-    (Map Module.Module (CallMap (kind Control)))
-    (Map Module.Module (CallMap (kind Pitch)))
+type MkScopeCallMaps note control pitch = Scope
+    (ModuleMap note) (ModuleMap control) (ModuleMap pitch)
+
+type ModuleMap call = Map Module.Module (CallMap call)
 
 -- TODO I can show more than that
 instance Show Builtins where show _ = "((Builtins))"
@@ -817,17 +851,14 @@ track_call module_ name tags doc call = TrackCall
 
 -- ** lookup
 
-lookup_val_call :: Expr.Symbol -> Deriver (Maybe ValCall)
-lookup_val_call = lookup_with scopes_val
+lookup_call :: Callable call => Expr.Symbol -> Deriver (Maybe call)
+lookup_call = lookup_call_with get_scopes_scope
 
-lookup_with :: (Scopes -> ScopePriority call)
-    -> (Expr.Symbol -> Deriver (Maybe call))
-lookup_with get sym = do
-    cmaps <- get_call_maps get
-    maybe_call <- lookup_call_map cmaps sym
-    case maybe_call of
-        Just call -> return $ Just call
-        Nothing -> return Nothing
+lookup_call_with :: (Scopes -> ScopePriority call)
+    -> Expr.Symbol -> Deriver (Maybe call)
+lookup_call_with get_scopes sym = do
+    cmaps <- get_call_maps get_scopes
+    lookup_call_maps cmaps sym
 
 -- | Get CallMaps is 'CallPriority' order.
 get_call_maps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]
@@ -836,11 +867,11 @@ get_call_maps get = do
     return $ Map.elems scopes
 
 -- | Find the symbol in the first CallMap.
-lookup_call_map :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
-lookup_call_map lookups sym = firstJusts $ map (lookup_call sym) lookups
+lookup_call_maps :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
+lookup_call_maps lookups sym = firstJusts $ map (lookup_call_map sym) lookups
 
-lookup_call :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
-lookup_call sym (CallMap cmap patterns) = case Map.lookup sym cmap of
+lookup_call_map :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
+lookup_call_map sym (CallMap cmap patterns) = case Map.lookup sym cmap of
     Just call -> return $ Just call
     Nothing -> firstJusts $ map (($sym) . pat_function) patterns
 

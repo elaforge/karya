@@ -91,7 +91,7 @@ both sym_calls =
 -- for some reason you can't coerce a parametric variable into a constrained
 -- one.
 poly_generators ::
-    (forall d. Derive.Callable d => [(Expr.Symbol, Derive.Generator d)])
+    (forall d. Derive.CallableExpr d => [(Expr.Symbol, Derive.Generator d)])
     -> Library
 poly_generators calls = mconcat
     [ generators (calls :: [(Expr.Symbol, Derive.Generator Derive.Note)])
@@ -100,7 +100,7 @@ poly_generators calls = mconcat
     ]
 
 poly_transformers ::
-    (forall d. Derive.Callable d => [(Expr.Symbol, Derive.Transformer d)])
+    (forall d. Derive.CallableExpr d => [(Expr.Symbol, Derive.Transformer d)])
     -> Library
 poly_transformers calls = mconcat
     [ transformers (calls :: [(Expr.Symbol, Derive.Transformer Derive.Note)])

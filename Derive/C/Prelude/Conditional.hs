@@ -45,7 +45,7 @@ library = mconcat
 
 -- * generator
 
-c_if_e :: Derive.Callable d => Derive.Generator d
+c_if_e :: Derive.CallableExpr d => Derive.Generator d
 c_if_e = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
@@ -59,7 +59,7 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
             (Eval.eval_quoted (Args.context args) true)
             (Eval.eval_quoted (Args.context args) false)
 
-c_if_c :: Derive.Callable d => (Signal.Y -> Signal.Y -> Bool)
+c_if_c :: Derive.CallableExpr d => (Signal.Y -> Signal.Y -> Bool)
     -> Derive.Generator d
 c_if_c cmp = Derive.generator Module.prelude "if-c<" mempty
     "Derive based on the value of a control."

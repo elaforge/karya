@@ -64,11 +64,12 @@ global_transform :: Derive.NoteDeriver -> Derive.NoteDeriver
 global_transform = transform_if_present ctx "GLOBAL"
     where ctx = Derive.dummy_context 0 1 "<GLOBAL transform>"
 
-transform_if_present :: Derive.Callable a => Derive.Context a
+transform_if_present :: Derive.Callable (Derive.Transformer a)
+    => Derive.Context a
     -> Expr.Symbol -> Derive.Deriver (Stream.Stream a)
     -> Derive.Deriver (Stream.Stream a)
 transform_if_present ctx sym deriver = do
-    maybe_call <- Derive.lookup_transformer sym
+    maybe_call <- Derive.lookup_call sym
     case maybe_call of
         Nothing -> deriver
         Just call -> Eval.apply_transformer ctx call [] deriver

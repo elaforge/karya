@@ -19,7 +19,7 @@ library = Library.poly_transformers
     , ("imports", c_import_symbol)
     ]
 
-c_import :: Derive.Callable d => Derive.Transformer d
+c_import :: Derive.CallableExpr d => Derive.Transformer d
 c_import = Derive.transformer Module.prelude "import" mempty
     "Import the given modules into scope. Calls of all types (note, control,\
     \ pitch, val) are imported. If names clash, the ones from later modules\
@@ -28,9 +28,11 @@ c_import = Derive.transformer Module.prelude "import" mempty
         foldr (Derive.with_imported False) d $
             map Module.Module (NonEmpty.toList modules)
 
-c_import_symbol :: Derive.Callable d => Derive.Transformer d
+c_import_symbol :: Derive.CallableExpr d => Derive.Transformer d
 c_import_symbol = Derive.transformer Module.prelude "import-symbol" mempty
-    "Import a single symbol, or list of symbols."
+    "Import a single symbol, or list of symbols. This imports from all\
+    \ namespaces simultaneously: note, control, pitch, and val.\
+    \ TODO fix it if it's a problem."
     $ Sig.callt ((,)
     <$> Sig.required "module" "Import this module."
     <*> Sig.many1 "symbol" "Import these symbols."

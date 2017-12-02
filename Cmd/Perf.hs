@@ -59,8 +59,8 @@ derive_note_call block_id track_id pos call =
     derive_expr block_id track_id pos (Expr.generator0 call)
 
 -- | Derive an expression.
-derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
-    -> BaseTypes.Expr -> m (Either Text [d], [Log.Msg])
+derive_expr :: (Cmd.M m, Derive.CallableExpr d) => BlockId -> TrackId
+    -> TrackTime -> BaseTypes.Expr -> m (Either Text [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
         (Eval.eval_one_at False pos 1 expr)
@@ -98,7 +98,7 @@ lookup_note_deriver block_id track_id event = do
             Just $ derive_event (Derive.Note.track_info track subs) event
         _ -> Nothing
 
-derive_event :: Derive.Callable d => EvalTrack.TrackInfo d -> Event.Event
+derive_event :: Derive.CallableExpr d => EvalTrack.TrackInfo d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event tinfo event = EvalTrack.derive_event ctx event
     where ctx = EvalTrack.context tinfo Nothing [] event []
@@ -135,7 +135,7 @@ smuggle_environ = Prelude.Block.global_transform $ do
 {- NOTE [transform-without-derive-callable]
 
     It seems like there should be a way to run a transform without the
-    Derive.Callable restriction, which in turn constrains the return type.
+    Derive.CallableExpr restriction, which in turn constrains the return type.
 
     First I need to specify which namespace of transformers to look in, but the
     underlying problem is that e.g. Derive.Transformer Score.Event works with

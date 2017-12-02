@@ -325,7 +325,7 @@ place_event :: ScoreTime -> ScoreTime -> Derive.Context d -> Derive.Context d
 place_event start dur ctx = ctx
     { Derive.ctx_event = Event.place start dur (Derive.ctx_event ctx) }
 
-eval_expr :: Derive.Callable d => Derive.Context d -> Expr
+eval_expr :: Derive.CallableExpr d => Derive.Context d -> Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_expr ctx (QuotedExpr expr) = Eval.eval_toplevel ctx expr
 eval_expr ctx (EvaluatedExpr sym args) = do

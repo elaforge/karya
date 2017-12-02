@@ -264,6 +264,15 @@ UNSORTED
     . So I don't need Library or Entry at all now... but maybe I should keep
       it anyway, since it flattens CallMap into a list that expresses
       resolution order.
+    . It turns out it's really annoying to add every single permutation for
+      scope record access again for Builtins.
+      . It's annoying because ScopesT is polymorphic, so the definitions are
+        all the same, but I can't say ScopesT a b c -> (a|b|c)
+    . I can cut down by making Callable on the call type, e.g. Generator Note,
+      but then it's more annoying to use, because in the limit I need
+        (Callable (Generator d), Callable (Transformer d), Taggable d) =>
+    . The problem is always the 2 axes:
+      {generator, transformer, track} * {note, control, pitch}
   - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
     . Except it can't because of circular dependencies.  Maybe instead
       Twelve.nn_pitch should replace the one in PSignal.

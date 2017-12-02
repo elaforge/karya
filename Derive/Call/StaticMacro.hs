@@ -58,7 +58,7 @@ check call_name (Left err) = errorStack $ call_name <> ": " <> err
 check _ (Right val) = val
 
 -- | Create a generator macro from a list of transformers and a generator.
-generator :: Derive.Callable d => Module.Module -> Derive.CallName
+generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)
 generator module_ name tags doc trans gen = do
@@ -70,7 +70,7 @@ generator module_ name tags doc trans gen = do
             generator_macro trans gen vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans ++ [call_doc gen]
 
-generator_macro :: Derive.Callable d => [Call (Derive.Transformer d)]
+generator_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> [BaseTypes.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d)
 generator_macro trans gen vals ctx = do
@@ -86,7 +86,7 @@ generator_macro trans gen vals ctx = do
     where
     split (Call call args) = (call, args)
 
-transformer :: Derive.Callable d => Module.Module -> Derive.CallName
+transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
     -- ^ Apply these transformers. This is in compose order, so the last one
     -- is applied first.
@@ -98,7 +98,7 @@ transformer module_ name tags doc trans = do
             transformer_macro trans vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans
 
-transformer_macro :: Derive.Callable d => [Call (Derive.Transformer d)]
+transformer_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
     -> [BaseTypes.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro trans vals ctx deriver = do

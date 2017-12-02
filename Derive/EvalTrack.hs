@@ -145,7 +145,7 @@ type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
-derive_control_track :: Derive.Callable d => Derive.State -> TrackInfo d
+derive_control_track :: Derive.CallableExpr d => Derive.State -> TrackInfo d
     -> DeriveResult d
 derive_control_track state tinfo =
     post_track track $ use_save_val $
@@ -252,7 +252,8 @@ event_prev_nexts =
 -- track.  The reason is that I only save a prev val if the event won't be
 -- derived again, e.g.  there's a future event <= the start of the next slice.
 -- Otherwise, a sliced event will see its own output as its previous val.
-derive_control_track_stream :: Derive.Callable d => TrackInfo d
+derive_control_track_stream :: Derive.CallableExpr d
+    => TrackInfo d
     -> (Derive.State, Maybe d, Maybe d)
     -> ([Event.Event], [Event.Event])
     -> ((Derive.State, Maybe d, Maybe d), Stream.Stream d)
@@ -416,7 +417,7 @@ is_linear_warp warp
         Just (Score.warp_shift warp, Score.warp_stretch warp)
     | otherwise = Nothing
 
-derive_event :: Derive.Callable d => Derive.Context d -> Event.Event
+derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event ctx event
     | "--|" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty

@@ -143,7 +143,7 @@ parallel_derivers start event_dur derivers durs =
     stretch = if call_dur == 0 then 1 else event_dur / call_dur
     call_dur = fromMaybe 0 (Seq.maximum durs)
 
-calls_to_derivers :: Derive.Callable d => Derive.PassedArgs d
+calls_to_derivers :: Derive.CallableExpr d => Derive.PassedArgs d
     -> NonEmpty BaseTypes.Quoted
     -> [(BaseTypes.Quoted, Derive.Deriver (Stream.Stream d))]
 calls_to_derivers args calls = zip (NonEmpty.toList calls)

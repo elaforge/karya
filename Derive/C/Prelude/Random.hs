@@ -46,7 +46,7 @@ library = mconcat
         ]
     ]
 
-c_omit :: Derive.Callable d => Derive.Transformer d
+c_omit :: Derive.CallableExpr d => Derive.Transformer d
 c_omit = Derive.transformer Module.prelude "omit" Tags.random
     "Omit the derived call a certain percentage of the time."
     $ Sig.callt
@@ -56,7 +56,7 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
         omit <- Call.control_at omit =<< Args.real_start args
         ifM (Call.chance omit) (return Stream.empty) deriver
 
-c_alternate :: Derive.Callable d => Derive.Generator d
+c_alternate :: Derive.CallableExpr d => Derive.Generator d
 c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
@@ -64,7 +64,7 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
         quoted <- Call.pick exprs <$> Call.random
         Eval.eval_quoted (Args.context args) quoted
 
-c_alternate_weighted :: Derive.Callable d => Derive.Generator d
+c_alternate_weighted :: Derive.CallableExpr d => Derive.Generator d
 c_alternate_weighted =
     Derive.generator Module.prelude "alternate-weighted" Tags.random
     "Pick one of several expressions and evaluate it."

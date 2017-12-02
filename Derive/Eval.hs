@@ -55,13 +55,13 @@ import Types
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-eval_toplevel :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
-    -> Derive.Deriver (Stream.Stream d)
+eval_toplevel :: Derive.CallableExpr d => Derive.Context d
+    -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_toplevel ctx expr =
     eval_transformers ctx transform_calls (eval_generator ctx generator_call)
     where (transform_calls, generator_call) = Expr.split expr
 
-eval_quoted :: Derive.Callable d => Derive.Context d -> BaseTypes.Quoted
+eval_quoted :: Derive.CallableExpr d => Derive.Context d -> BaseTypes.Quoted
     -> Derive.Deriver (Stream.Stream d)
 eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 
@@ -72,7 +72,7 @@ eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 --
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
-eval_quoted_normalized :: Derive.Callable d => Derive.Context d
+eval_quoted_normalized :: Derive.CallableExpr d => Derive.Context d
     -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
 eval_quoted_normalized = eval_quoted . normalize_event
 
@@ -83,7 +83,7 @@ normalize_event ctx = ctx
     , Derive.ctx_next_events = []
     }
 
-eval_expr_text :: Derive.Callable d => Derive.Context d -> Expr.Expr Text
+eval_expr_text :: Derive.CallableExpr d => Derive.Context d -> Expr.Expr Text
     -> Derive.Deriver (Stream.Stream d)
 eval_expr_text ctx expr = do
     expr <- Derive.require_right (("parsing " <> ShowVal.show_val expr)<>) $
@@ -92,8 +92,8 @@ eval_expr_text ctx expr = do
 
 -- ** generator
 
-eval_generator :: forall d. Derive.Callable d => Derive.Context d
-    -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
+eval_generator :: (Derive.Callable (Derive.Generator d), Derive.Taggable d)
+    => Derive.Context d -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
 eval_generator ctx (Expr.Call sym args) = do
     vals <- mapM (eval ctx) args
     call <- get_generator sym
@@ -138,7 +138,8 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 
 -- ** transformer
 
-eval_transformers :: Derive.Callable d => Derive.Context d
+eval_transformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
+    => Derive.Context d
     -> [BaseTypes.Call] -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
 eval_transformers ctx calls deriver = go calls
@@ -150,8 +151,10 @@ eval_transformers ctx calls deriver = go calls
         apply_transformer ctx call vals (go calls)
 
 -- | Parse and apply a transformer expression.
-eval_transform_expr :: Derive.Callable d => Text -> Text
-    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
+eval_transform_expr ::
+    (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
+    => Text -> Text -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Deriver (Stream.Stream d)
 eval_transform_expr name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
@@ -162,8 +165,9 @@ eval_transform_expr name expr_str deriver
         eval_transformers ctx (NonEmpty.toList expr) deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
-eval_quoted_transformers :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
+eval_quoted_transformers ::
+    (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
+    => Derive.Context d -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
 eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
     eval_transformers ctx (NonEmpty.toList expr)
@@ -213,29 +217,25 @@ apply ctx call args = do
 -- * lookup call
 
 get_val_call :: Expr.Symbol -> Derive.Deriver Derive.ValCall
-get_val_call sym =
-    require_call False sym "val call" =<< Derive.lookup_val_call sym
+get_val_call sym = require_call False sym name =<< Derive.lookup_call sym
+    where name = Derive.callable_name (Proxy :: Proxy Derive.ValCall)
 
-get_generator :: forall d. Derive.Callable d =>
+get_generator :: forall d. Derive.Callable (Derive.Generator d) =>
     Expr.Symbol -> Derive.Deriver (Derive.Generator d)
-get_generator sym =
-    require_call True sym (name <> " generator")
-        =<< Derive.lookup_generator sym
-    where name = Derive.callable_name (Proxy :: Proxy d)
+get_generator sym = require_call True sym name =<< Derive.lookup_call sym
+    where name = Derive.callable_name (Proxy :: Proxy (Derive.Generator d))
 
-get_transformer :: forall d. Derive.Callable d =>
+get_transformer :: forall d. Derive.Callable (Derive.Transformer d) =>
     Expr.Symbol -> Derive.Deriver (Derive.Transformer d)
 get_transformer sym =
-    require_call False sym (name <> " transformer")
-        =<< Derive.lookup_transformer sym
-    where name = Derive.callable_name (Proxy :: Proxy d)
+    require_call False sym name =<< Derive.lookup_call sym
+    where name = Derive.callable_name (Proxy :: Proxy (Derive.Transformer d))
 
-get_track_call :: forall d. Derive.Callable d =>
+get_track_call :: forall d. Derive.Callable (Derive.TrackCall d) =>
     Expr.Symbol -> Derive.Deriver (Derive.TrackCall d)
 get_track_call sym =
-    require_call False sym (name <> " track call")
-        =<< Derive.lookup_track_call sym
-    where name = Derive.callable_name (Proxy :: Proxy d)
+    require_call False sym name =<< Derive.lookup_call sym
+    where name = Derive.callable_name (Proxy :: Proxy (Derive.TrackCall d))
 
 require_call :: Bool -> Expr.Symbol -> Text -> Maybe a -> Derive.Deriver a
 require_call _ _ _ (Just a) = return a
@@ -306,15 +306,15 @@ relative_separator = "-"
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: Derive.Callable d => Bool -> BaseTypes.Expr
+eval_one :: Derive.CallableExpr d => Bool -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_one collect = eval_one_at collect 0 1
 
-eval_one_call :: Derive.Callable d => Bool -> BaseTypes.Call
+eval_one_call :: Derive.CallableExpr d => Bool -> BaseTypes.Call
     -> Derive.Deriver (Stream.Stream d)
 eval_one_call collect = eval_one collect . (:| [])
 
-eval_one_at :: Derive.Callable d => Bool -> ScoreTime -> ScoreTime
+eval_one_at :: Derive.CallableExpr d => Bool -> ScoreTime -> ScoreTime
     -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
@@ -325,7 +325,7 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
-eval_event :: Derive.Callable d => Event.Event
+eval_event :: Derive.CallableExpr d => Event.Event
     -> Derive.Deriver (Either Text (Stream.Stream d))
 eval_event event = case Parse.parse_expr (Event.text event) of
     Left err -> return $ Left err
@@ -335,8 +335,8 @@ eval_event event = case Parse.parse_expr (Event.text event) of
 
 -- | Evaluate a generator, reusing the passed args but replacing the Symbol.
 -- Generators can use this to delegate to other generators.
-reapply_generator :: Derive.Callable d => Derive.PassedArgs d
-    -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
+reapply_generator :: Derive.Callable (Derive.Generator d)
+    => Derive.PassedArgs d -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
 reapply_generator args sym = do
     let ctx = Derive.passed_ctx args
     call <- get_generator sym
@@ -345,8 +345,8 @@ reapply_generator args sym = do
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
 -- essential if you want to shift or stretch the note.
-reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
-    -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
+reapply_generator_normalized :: Derive.Callable (Derive.Generator d)
+    => Derive.PassedArgs d -> Expr.Symbol -> Derive.Deriver (Stream.Stream d)
 reapply_generator_normalized args = reapply_generator $ args
     { Derive.passed_ctx = ctx
         { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
@@ -360,11 +360,11 @@ reapply_generator_normalized args = reapply_generator $ args
 -- 'Derive.ctx_sub_tracks', which means if inversion hasn't happened yet, which
 -- may be what you or may be surprising.  For instance, it will likely override
 -- any pitch you try to set.
-reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
+reapply :: Derive.CallableExpr d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
 reapply = eval_expr True
 
-reapply_call :: Derive.Callable d => Derive.Context d -> Expr.Symbol
+reapply_call :: Derive.CallableExpr d => Derive.Context d -> Expr.Symbol
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx sym call_args =
     reapply ctx (Expr.generator $ Expr.Call sym call_args)
@@ -400,8 +400,8 @@ apply_pitch pos call = do
     ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: Derive.Callable d => Bool -- ^ See 'Derive.catch'.  This should
-    -- be True for evals that generate notes for eventual output.
+eval_expr :: Derive.CallableExpr d => Bool -- ^ See 'Derive.catch'.  This
+    -- should be True for evals that generate notes for eventual output.
     -> Derive.Context d -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_expr collect ctx expr =
     fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)

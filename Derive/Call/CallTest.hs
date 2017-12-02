@@ -127,7 +127,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_setup
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
             Derive.with_val "capture" (val :: BaseTypes.Val) Call.note
 
-c_show_args :: Derive.Callable d => Derive.Generator d
+c_show_args :: Derive.CallableExpr d => Derive.Generator d
 c_show_args = Derive.generator module_ "show-args" mempty "doc" $
     Sig.call (Sig.many_vals "arg" "doc") $ \_ args -> do
         Log.warn $ Text.intercalate ", " $

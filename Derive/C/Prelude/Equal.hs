@@ -84,7 +84,7 @@ equal_expr _ = Nothing
 
 -- * implementation
 
-c_equal :: Derive.Callable d => Derive.Transformer d
+c_equal :: Derive.CallableExpr d => Derive.Transformer d
 c_equal = Derive.transformer Module.prelude "equal" Tags.subs equal_doc $
     Sig.callt equal_args $ \(lhs, rhs, merge) _args deriver -> do
         transform <- Derive.require_right id $ parse_equal merge lhs rhs
@@ -181,18 +181,18 @@ parse_equal :: Merge -> Text -> BaseTypes.Val
 parse_equal Set lhs rhs
     -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
-        override_call new rhs "note"
+        override_call new rhs
             (Derive.s_generator#Derive.s_note)
             (Derive.s_transformer#Derive.s_note)
     | Just new <- Text.stripPrefix ">>" lhs = Right $
-        override_transformer (">" <> new) rhs "note"
+        override_transformer (">" <> new) rhs
             (Derive.s_transformer#Derive.s_note)
     | Just new <- Text.stripPrefix "*" lhs = Right $
-        override_call new rhs "pitch"
+        override_call new rhs
             (Derive.s_generator#Derive.s_pitch)
             (Derive.s_transformer#Derive.s_pitch)
     | Just new <- Text.stripPrefix "." lhs = Right $
-        override_call new rhs "control"
+        override_call new rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
@@ -279,17 +279,16 @@ parse_val = either (const Nothing) Just . Parse.parse_val
 -- | Look up a call with the given Symbol and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
-override_call :: (Derive.Callable d1, Derive.Callable d2) =>
-    Text -> BaseTypes.Val -> Text
+override_call :: (Derive.CallableExpr d1, Derive.CallableExpr d2)
+    => Text -> BaseTypes.Val
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
-override_call lhs rhs name generator transformer deriver
+override_call lhs rhs generator transformer deriver
     | Just stripped <- Text.stripPrefix "-" lhs =
-        override_transformer stripped rhs name transformer deriver
+        override_transformer stripped rhs transformer deriver
     | otherwise = override_generator_scope
-        =<< resolve_source (name <> " generator") generator
-            quoted_generator rhs
+        =<< resolve_source quoted_generator rhs
     where
     override_generator_scope call = Derive.with_scopes add deriver
         where
@@ -298,41 +297,40 @@ override_call lhs rhs name generator transformer deriver
 
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.PrioOverride' slot.
-override_transformer :: Derive.Callable d => Text -> BaseTypes.Val -> Text
+override_transformer :: Derive.CallableExpr d => Text -> BaseTypes.Val
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d))
     -> Derive.Deriver a -> Derive.Deriver a
-override_transformer lhs rhs name transformer deriver =
-    override_scope =<< resolve_source (name <> " transformer") transformer
-            quoted_transformer rhs
+override_transformer lhs rhs transformer deriver =
+    override_scope =<< resolve_source quoted_transformer rhs
     where
     override_scope call = Derive.with_scopes
         (transformer %= Derive.add_priority Derive.PrioOverride
             (Derive.single_call (Expr.Symbol lhs) call))
         deriver
 
--- | A VQuoted becomes a call, a Str is expected to name a call, and
--- everything else is turned into a Str via ShowVal.  This will cause
--- a parse error for un-showable Vals, but what else is new?
-resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopePriority a)
-    -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
-resolve_source name lens make_quoted rhs = case rhs of
-    BaseTypes.VQuoted quoted -> return $ make_quoted quoted
-    BaseTypes.VStr (Expr.Str sym) -> get_call name (lens #$) (Expr.Symbol sym)
-    _ -> get_call name (lens #$) (Expr.Symbol (ShowVal.show_val rhs))
-
 override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
-    call <- resolve_source "val" Derive.s_val quoted_val_call rhs
+    call <- resolve_source quoted_val_call rhs
     let add = Derive.s_val %= Derive.add_priority Derive.PrioOverride
             (Derive.single_call (Expr.Symbol lhs) call)
     Derive.with_scopes add deriver
 
-get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
-    -> Expr.Symbol -> Derive.Deriver call
-get_call name get sym =
-    maybe (Derive.throw $ Eval.unknown_symbol name sym)
-        return =<< Derive.lookup_with get sym
+-- | A VQuoted becomes a call, a Str is expected to name a call, and
+-- everything else is turned into a Str via ShowVal.  This will cause
+-- a parse error for un-showable Vals, but what else is new?
+resolve_source :: Derive.Callable call => (BaseTypes.Quoted -> call)
+    -> BaseTypes.Val -> Derive.Deriver call
+resolve_source make_call rhs = case rhs of
+    BaseTypes.VQuoted quoted -> return $ make_call quoted
+    BaseTypes.VStr (Expr.Str sym) -> get_call (Expr.Symbol sym)
+    _ -> get_call (Expr.Symbol (ShowVal.show_val rhs))
+
+get_call :: forall call. Derive.Callable call => Expr.Symbol
+    -> Derive.Deriver call
+get_call sym = maybe (Derive.throw $ Eval.unknown_symbol name sym) return
+    =<< Derive.lookup_call sym
+    where name = Derive.callable_name (Proxy :: Proxy call)
 
 
 -- * quoted
@@ -341,14 +339,15 @@ get_call name get sym =
 -- function definiion, but is really just macro expansion, with all the
 -- variable capture problems implied.  But since the only variables I have are
 -- calls maybe it's not so bad.
-quoted_generator :: Derive.Callable d => BaseTypes.Quoted -> Derive.Generator d
+quoted_generator :: Derive.CallableExpr d => BaseTypes.Quoted
+    -> Derive.Generator d
 quoted_generator quoted@(BaseTypes.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> Eval.eval_expr True (Args.context args) expr
 
-quoted_transformer :: Derive.Callable d => BaseTypes.Quoted
-    -> Derive.Transformer d
+quoted_transformer :: Derive.CallableExpr d
+    => BaseTypes.Quoted -> Derive.Transformer d
 quoted_transformer quoted@(BaseTypes.Quoted expr) =
     Derive.transformer quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
@@ -374,7 +373,7 @@ quoted_module = "quoted"
 
 -- * other
 
-c_default_merge :: Derive.Callable d => Derive.Transformer d
+c_default_merge :: Derive.Taggable d => Derive.Transformer d
 c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
     "Set the default merge operators for controls. These apply when the\
     \ control track doesn't have an explicit operator."

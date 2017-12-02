@@ -132,14 +132,14 @@ compile_definitions (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
         Library.Single sym (make fname (sym_to_name sym) expr)
     sym_to_name (Expr.Symbol name) = Derive.CallName name
 
-make_generator :: Derive.Callable d => FilePath -> Derive.CallName
+make_generator :: Derive.CallableExpr d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Generator d
 make_generator fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_generator fname name expr
     | otherwise = Macro.generator Module.local name mempty
         (Doc.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
-make_transformer :: Derive.Callable d => FilePath -> Derive.CallName
+make_transformer :: Derive.CallableExpr d => FilePath -> Derive.CallName
     -> Parse.Expr -> Derive.Transformer d
 make_transformer fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_transformer fname name expr
@@ -161,7 +161,7 @@ make_val_call fname name var_expr
         <> ": val calls don't support pipeline syntax: "
         <> ShowVal.show_val var_expr
 
-simple_generator :: Derive.Callable d => FilePath -> Derive.CallName
+simple_generator :: Derive.CallableExpr d => FilePath -> Derive.CallName
     -> BaseTypes.Expr -> Derive.Generator d
 simple_generator fname name expr =
     Derive.generator Module.local name mempty (make_doc fname name expr) $
@@ -172,7 +172,7 @@ simple_generator fname name expr =
                 \_vals args -> Eval.reapply_generator args sym
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
-simple_transformer :: Derive.Callable d => FilePath -> Derive.CallName
+simple_transformer :: Derive.CallableExpr d => FilePath -> Derive.CallName
     -> BaseTypes.Expr -> Derive.Transformer d
 simple_transformer fname name expr =
     Derive.transformer Module.local name mempty (make_doc fname name expr) $

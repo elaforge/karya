@@ -36,13 +36,13 @@ import qualified Derive.ValType as ValType
 import Global
 
 
-generator :: Derive.Callable d => Module.Module -> Derive.CallName
+generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Generator d
 generator module_ name tags doc expr =
     Derive.generator module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (generator_macro expr)
 
-transformer :: Derive.Callable d => Module.Module -> Derive.CallName
+transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Transformer d
 transformer module_ name tags doc expr =
     Derive.transformer module_ name tags (make_doc doc expr) $
@@ -65,7 +65,7 @@ extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
         Parse.Literal _ -> []
         Parse.ValCall call -> extract_call call
 
-generator_macro :: Derive.Callable d => Parse.Expr -> [BaseTypes.Val]
+generator_macro :: Derive.CallableExpr d => Parse.Expr -> [BaseTypes.Val]
     -> Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
 generator_macro expr vals args = do
     expr <- Derive.require_right id $ substitute_vars vals expr
@@ -78,7 +78,7 @@ generator_macro expr vals args = do
     Eval.apply_transformers ctx (zip trans_calls trans_args) $
         Eval.apply_generator ctx gen_call gen_args
 
-transformer_macro :: Derive.Callable d => Parse.Expr
+transformer_macro :: Derive.CallableExpr d => Parse.Expr
     -> [BaseTypes.Val] -> Derive.PassedArgs d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro expr vals args deriver = do

@@ -112,7 +112,7 @@ eval_track config track expr ctype deriver = case ctype of
             -- TODO have to refactor pitch_call
             Left _tcall -> Derive.throw "unimplemented"
     where
-    transform :: Derive.Callable d => Derive.Deriver (Stream.Stream d)
+    transform :: Derive.CallableExpr d => Derive.Deriver (Stream.Stream d)
         -> Derive.Deriver (Stream.Stream d)
     transform = Eval.eval_transformers ctx expr
     ctx = Derive.dummy_context 0 (TrackTree.track_end track) $ case ctype of
@@ -120,7 +120,7 @@ eval_track config track expr ctype deriver = case ctype of
         ParseTitle.Control {} -> "control track"
         ParseTitle.Pitch {} -> "pitch track"
 
-track_call :: Derive.Callable d => Expr.Symbol -> TrackTree.Track
+track_call :: Derive.CallableExpr d => Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (Score.Typed Score.Control, d)
 track_call sym track = do
     call <- Eval.get_track_call sym
@@ -329,7 +329,7 @@ trim_signal drop_after drop_at_after track signal =
                     | otherwise = drop_at_after
             return $ trim end signal
 
-derive_track :: (Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
+derive_track :: (Monoid d, Derive.CallableExpr d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Deriver (TrackResults d)
 derive_track tinfo transform = do

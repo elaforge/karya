@@ -174,7 +174,7 @@ lookup_parsed_pitch_at parse_pitch pos =
 -- ** eval
 
 -- | Unused, but might be used again if I need to evaluate the next event.
-eval :: Derive.Callable d => Context x -> Event.Event -> [Event.Event]
+eval :: Derive.CallableExpr d => Context x -> Event.Event -> [Event.Event]
     -> Derive.Deriver (Stream.Stream d)
 eval ctx event prev = case Parse.parse_expr (Event.text event) of
     Left err -> Derive.throw $ "parse error: " <> err
