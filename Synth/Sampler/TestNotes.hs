@@ -38,6 +38,5 @@ notes = map make
                 Nothing -> []
                 Just nn ->
                     [(Control.pitch, Signal.constant (Pitch.nn_to_double nn))]
-        , control_vals = mempty
         , attributes = Attrs.attrs attrs
         }

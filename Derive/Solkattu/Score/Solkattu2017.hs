@@ -597,7 +597,7 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
     sequence t = mconcatMap (sarvaA 8)
         [t, kitataka.t, kitakita.kitakita.t]
     theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
-    theme2a = su $ dit.__.taka.na.taka.na.ta.kita.ki.na.thom
+    theme2a = su $ dit.__.taka.na.ka.ta.na.ka.tdgnt
     theme2a_o = 1^theme2a
     theme2b = ta.__.ka.din.__.ta.__
     kitataka = su $ kita.taka
