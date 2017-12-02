@@ -72,19 +72,19 @@ run_control_dur events = extract $
 with_note_generator :: Expr.Symbol -> Derive.Generator Derive.Note
     -> DeriveTest.SetupA a
 with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_note %= override (single_lookup name call)
+    Derive.s_generator#Derive.s_note %= override (Derive.single_call name call)
 
 with_pitch_generator :: Expr.Symbol -> Derive.Generator Derive.Pitch
     -> DeriveTest.SetupA a
 with_pitch_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_generator#Derive.s_pitch %= override (single_lookup name call)
+    Derive.s_generator#Derive.s_pitch %= override (Derive.single_call name call)
 
 with_control_generator :: Expr.Symbol -> Derive.Generator Derive.Control
     -> DeriveTest.SetupA a
 with_control_generator name call =
     DeriveTest.with_deriver $ Derive.with_scopes $
         Derive.s_generator#Derive.s_control
-            %= override (single_lookup name call)
+            %= override (Derive.single_call name call)
 
 with_note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> DeriveTest.SetupA a
@@ -94,21 +94,22 @@ with_note_generators calls = DeriveTest.with_deriver $ Derive.with_scopes $
 with_note_transformer :: Expr.Symbol -> Derive.Transformer Derive.Note
     -> DeriveTest.SetupA a
 with_note_transformer name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_transformer#Derive.s_note %= override (single_lookup name call)
+    Derive.s_transformer#Derive.s_note
+        %= override (Derive.single_call name call)
 
 with_val_call :: Expr.Symbol -> Derive.ValCall -> DeriveTest.SetupA a
 with_val_call name call = DeriveTest.with_deriver $ Derive.with_scopes $
-    Derive.s_val %= override (single_lookup name call)
+    Derive.s_val %= override (Derive.single_call name call)
 
-override :: Derive.LookupCall call -> Derive.ScopePriority call
+override :: Derive.CallMap call -> Derive.ScopePriority call
     -> Derive.ScopePriority call
 override = Derive.add_priority Derive.PrioOverride
 
-single_lookup :: Expr.Symbol -> call -> Derive.LookupCall call
-single_lookup name = Derive.LookupMap . Map.singleton name
-
-lookup_map :: [(Expr.Symbol, call)] -> Derive.LookupCall call
-lookup_map = Derive.LookupMap . Map.fromList
+lookup_map :: [(Expr.Symbol, call)] -> Derive.CallMap call
+lookup_map calls = Derive.CallMap
+    { call_map = Map.fromList calls
+    , call_patterns = []
+    }
 
 -- * calls
 

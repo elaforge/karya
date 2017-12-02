@@ -30,7 +30,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.both
         [ ("8va", c_8va)

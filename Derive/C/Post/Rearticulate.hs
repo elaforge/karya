@@ -25,7 +25,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("slur-n", c_slur_n)
     , ("slur-dur", c_slur_dur)

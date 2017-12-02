@@ -21,7 +21,7 @@ import qualified Derive.Typecheck as Typecheck
 import Global
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.poly_transformers [("h", c_hold)]
     , Library.transformers

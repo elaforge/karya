@@ -18,7 +18,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("reverse", c_reverse)
     ]

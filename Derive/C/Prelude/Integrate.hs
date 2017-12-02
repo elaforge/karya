@@ -24,7 +24,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("<<", c_block_integrate)
     , ("<", c_track_integrate)

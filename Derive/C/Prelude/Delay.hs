@@ -26,7 +26,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("d", c_delay)
     , ("echo", c_echo)

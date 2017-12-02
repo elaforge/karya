@@ -49,6 +49,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -89,46 +90,54 @@ make_inst (Patch patch common) = Inst.Inst
     }
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer track val postproc cmds thru) =
+make_code (Code library postproc cmds thru) =
     Cmd.InstrumentCode
-        { inst_calls = Derive.Scopes generator transformer track val
+        { inst_calls = compile_library library
         , inst_postproc = postproc
         , inst_cmds = cmds
         , inst_thru = thru
         }
+
+-- | InstrumentCalls doesn't have modules, so just pull everything out of every
+-- module.
+compile_library :: Library.Library -> Derive.InstrumentCalls
+compile_library = convert . fst . Library.compile
+    where
+    convert (Derive.Scopes gen trans track val) = Derive.Scopes
+        { scopes_generator = extract $ Derive.scope_note gen
+        , scopes_transformer = extract $ Derive.scope_note trans
+        , scopes_track = extract $ Derive.scope_note track
+        , scopes_val = extract val
+        }
+    -- TODO this doesn't warn about shadowed entries, but I'd have to extend
+    -- 'synth' to be in LogMonad.
+    extract :: Map Module.Module (Derive.CallMap a) -> Derive.CallMap a
+    extract = mconcat . Map.elems
 
 -- * code
 
 -- | A version of 'Cmd.InstrumentCode' that's more convenient for record update
 -- syntax.
 data Code = Code {
-    code_note_generators :: [Derive.LookupCall (Derive.Generator Derive.Note)]
-    , code_note_transformers ::
-        [Derive.LookupCall (Derive.Transformer Derive.Note)]
-    , code_track_calls :: [Derive.LookupCall (Derive.TrackCall Derive.Note)]
-    , code_val_calls :: [Derive.LookupCall Derive.ValCall]
-    , code_postproc :: Cmd.InstrumentPostproc
-    , code_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
-    , code_thru :: Maybe Cmd.ThruFunction
+    code_library :: !Library.Library
+    , code_postproc :: !Cmd.InstrumentPostproc
+    , code_cmds :: ![Msg.Msg -> Cmd.CmdId Cmd.Status]
+    , code_thru :: !(Maybe Cmd.ThruFunction)
     }
 
 instance Pretty Code where
-    format (Code gen trans track val _postproc cmds thru) =
+    format (Code library _postproc cmds thru) =
         Pretty.record "Code"
-            [ ("note_generators", Pretty.format $ length gen)
-            , ("note_transformers", Pretty.format $ length trans)
-            , ("track_calls", Pretty.format $ length track)
-            , ("val_calls", Pretty.format $ length val)
+            [ ("library", Pretty.format library)
             , ("cmds", Pretty.format $ length cmds)
             , ("thru", Pretty.format thru)
             ]
 
 instance Monoid Code where
-    mempty = Code [] [] [] mempty (,[]) [] Nothing
-    mappend (Code gen1 trans1 track1 val1 post1 cmds1 thru1)
-            (Code gen2 trans2 track2 val2 post2 cmds2 thru2) =
-        Code (gen1<>gen2) (trans1<>trans2) (track1<>track2) (val1<>val2)
-            (merge post1 post2) (cmds1<>cmds2) (thru1<|>thru2)
+    mempty = Code mempty (,[]) [] Nothing
+    mappend (Code lib1 post1 cmds1 thru1)
+            (Code lib2 post2 cmds2 thru2) =
+        Code (lib1<>lib2) (merge post1 post2) (cmds1<>cmds2) (thru1<|>thru2)
 
 merge :: (b -> (c, [log])) -> (a -> (b, [log])) -> (a -> (c, [log]))
 merge f1 f2 = (\(b, logs) -> (logs++) <$> f1 b) . f2
@@ -170,15 +179,14 @@ note_calls calls =
 
 -- | Add the given calls to the note track scope.
 note_generators :: [(Expr.Symbol, Derive.Generator Derive.Note)] -> Code
-note_generators calls = mempty { code_note_generators = Derive.call_map calls }
+note_generators calls = mempty { code_library = Library.generators calls }
 
 -- | Add the given calls to the note track scope.
 note_transformers :: [(Expr.Symbol, Derive.Transformer Derive.Note)] -> Code
-note_transformers calls =
-    mempty { code_note_transformers = Derive.call_map calls }
+note_transformers calls = mempty { code_library = Library.transformers calls }
 
 val_calls :: [(Expr.Symbol, Derive.ValCall)] -> Code
-val_calls calls = mempty { code_val_calls = Derive.call_map calls }
+val_calls calls = mempty { code_library = Library.vals calls }
 
 postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }

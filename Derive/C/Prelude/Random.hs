@@ -27,7 +27,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.poly_generators
         [ ("alt", c_alternate)

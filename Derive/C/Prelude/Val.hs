@@ -44,7 +44,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.vals
     [ (">", c_next_val)
     , ("<", c_prev_val)

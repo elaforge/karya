@@ -12,7 +12,8 @@
     tail recursive.
 -}
 module Util.Logger (
-    LoggerT, Logger, run, run_id, exec, MonadLogger(..), logs
+    LoggerT, Logger, run, runId, exec, MonadLogger(..), logs
+    , mapLogs
 ) where
 import Prelude hiding (log)
 import qualified Control.Applicative as Applicative
@@ -41,8 +42,8 @@ run m = do
     (result, logs) <- Strict.runStateT (runLoggerT m) []
     return (result, reverse logs)
 
-run_id :: Logger w a -> (a, [w])
-run_id = Identity.runIdentity . run
+runId :: Logger w a -> (a, [w])
+runId = Identity.runIdentity . run
 
 exec :: Monad m => LoggerT w m a -> m [w]
 exec m = return . snd =<< run m
@@ -53,6 +54,9 @@ class Monad m => MonadLogger w m | m -> w where
 
 logs :: (MonadLogger w m) => [w] -> m ()
 logs = mapM_ log
+
+mapLogs :: (w -> w) -> Logger w a -> Logger w a
+mapLogs f (LoggerT m) = LoggerT $ Strict.withState (map f) m
 
 instance Monad m => MonadLogger w (LoggerT w m) where
     log msg = LoggerT $ do

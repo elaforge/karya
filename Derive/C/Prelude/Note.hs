@@ -46,7 +46,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators
         [ (Symbols.null_note, c_note)

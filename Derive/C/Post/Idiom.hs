@@ -32,7 +32,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("pizz-arp", c_pizz_arp)
     , ("avoid-overlap", c_avoid_overlap)

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Collect the various calls into one place.
-module Derive.C.All (library) where
+module Derive.C.All (builtins, shadowed) where
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.C.Bali.Gender as Gender
 import qualified Derive.C.Bali.Gong as Gong
@@ -48,10 +48,12 @@ import qualified Derive.C.Prelude.SignalTransform as SignalTransform
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.C.Prelude.Val as Val
 import qualified Derive.Derive as Derive
+import qualified Derive.Library as Library
 
 
-library :: Derive.Library
-library = mconcat
+builtins :: Derive.Builtins
+shadowed :: [Library.Shadowed]
+(builtins, shadowed) = Library.compile $ mconcat
     [ Articulation.library
     , Block.library
     , Chord.library

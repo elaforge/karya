@@ -51,7 +51,7 @@ import Types
 module_ :: Module.Module
 module_ = "india" <> "gamakam5"
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators
         [ (Parse.unparsed_call, c_pitch_sequence)

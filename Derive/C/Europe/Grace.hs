@@ -42,7 +42,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators -- Note
         [ ("g", c_grace)

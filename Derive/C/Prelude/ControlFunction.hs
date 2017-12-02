@@ -36,7 +36,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.vals
     [ ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))

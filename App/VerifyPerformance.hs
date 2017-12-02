@@ -236,17 +236,17 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 
 -- | Load a score and get its root block id.
 load :: Cmd.InstrumentDb -> FilePath
-    -> Error (Ui.State, Derive.Library, Derive.InstrumentAliases, BlockId)
+    -> Error (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
 load db fname = do
-     (state, library, aliases) <- require_right $
+     (state, builtins, aliases) <- require_right $
         DeriveSaved.load_score db fname
      block_id <- require_right $ return $ get_root state
-     return (state, library, aliases, block_id)
+     return (state, builtins, aliases, block_id)
 
-make_cmd_state :: Derive.Library -> Derive.InstrumentAliases -> Cmd.Config
+make_cmd_state :: Derive.Builtins -> Derive.InstrumentAliases -> Cmd.Config
     -> Cmd.State
-make_cmd_state library aliases cmd_config =
-    DeriveSaved.add_library library aliases $ Cmd.initial_state cmd_config
+make_cmd_state builtins aliases cmd_config =
+    DeriveSaved.add_library builtins aliases $ Cmd.initial_state cmd_config
 
 get_root :: Ui.State -> Either Text BlockId
 get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state

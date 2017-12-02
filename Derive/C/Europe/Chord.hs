@@ -24,7 +24,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.generators
     [ ("chord", c_chord Unison)
     , ("chord^", c_chord Up)

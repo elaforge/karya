@@ -15,6 +15,8 @@ test_import = do
     equal (run "import bali.reyong") ([0, 0, 0, 0], [])
     strings_like (snd (run "import europe no-such-module"))
         ["no calls in the imported module"]
+    strings_like (snd (run "import no-such-module"))
+        ["no calls in the imported module"]
 
     strings_like (snd (run "imports bali.reyong no-sym")) ["symbols not in"]
     equal (run "imports bali.reyong X") ([0, 0, 0, 0], [])

@@ -70,7 +70,7 @@ import Types
 module_ :: Module.Module
 module_ = "bali" <> "reyong"
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators
         [ ("kilit", realize_pattern norot_patterns)

@@ -233,8 +233,37 @@ UNSORTED
   * Make Derive.with_constant_control add Score.untyped
   - It's easy to forget to place the note when I use Call.pitched_note, should
     it take args and do a placed_note?
-  - Add qualified syntax for calls, so I don't have to import them.  E.g.
+  - Let synth defs log warnings
+    . So e.g. MidiInst.compile_library can report shadows.
+    . I should be able to incorporate Faust.PatchDb.warnings too.
+  - Generic Show and Pretty instances for ScopesT and Scope.
+  + Add qualified syntax for calls, so I don't have to import them.  E.g.
     string.idiom.bent-string.
+    . I naturally get dots in numbers.  Try qualified only if unqualified
+      lookup fails.
+    . The [LookupCall] structure is not that great for looking up modules.
+      I should have Map Module (Map Symbol Call, [LookupPattern]).
+    . But then I'm back to needing a different format for CallMaps, because
+      I want to preserve duplicates so I can detect them when merging to
+      a Map.  CallMap should be [Either (Symbol, call) (LookupPattern call)]
+    . What should the names be?
+      . Library for the stuff declared in Derive.C.  This way I don't have to
+        change all those again.
+      . CallMap for the "compiled" version in Derive.
+    * Update Deriver.Lib to use CallMap instead of LookupCall.
+    * Implement Library.compile.
+    * Use Library.compile in C.All
+    * I still have to update all the C modules to Library.Libary
+    * CallDoc is a pain because it used to be both Scopes and Library used
+      the same LookupCall.  Now Library uses Entry and Scopes uses CallMap.
+      So I have to convert CallMap to [Entry]
+    . Actually, not so, I'm converting from Builtins, not Library.
+      I can ignore the Module, since it's in CallDoc.
+      ? But where do I group by it?
+        Only doc_html does, in the output.  I guess that's ok?
+    . So I don't need Library or Entry at all now... but maybe I should keep
+      it anyway, since it flattens CallMap into a list that expresses
+      resolution order.
   - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
     . Except it can't because of circular dependencies.  Maybe instead
       Twelve.nn_pitch should replace the one in PSignal.

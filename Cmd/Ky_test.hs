@@ -57,12 +57,13 @@ test_check_cache = do
             (Ui.config#Ui.ky #= ky $ Ui.empty)
             (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
         extract Nothing = Right Nothing
-        extract (Just (Cmd.KyCache lib (Cmd.Fingerprint fnames fprint))) =
-            case lib of
+        extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames fprint))) =
+            case builtins of
                 Left err -> Left err
-                Right (lib, _) -> Right $ Just (e_library lib, (fnames, fprint))
-        extract (Just (Cmd.PermanentKy (lib, _))) =
-            Right $ Just (e_library lib, ([], 0))
+                Right (builtins, _) ->
+                    Right $ Just (e_builtins builtins, (fnames, fprint))
+        extract (Just (Cmd.PermanentKy (builtins, _))) =
+            Right $ Just (e_builtins builtins, ([], 0))
 
     io_equal (extract <$> f Nothing "") (Right Nothing)
     let define_a = "note generator:\na = +a\n"
@@ -81,14 +82,16 @@ test_check_cache = do
 
     -- TODO track imported files
 
-e_library :: Derive.Library -> [Expr.Symbol]
-e_library lib = [name | Derive.LookupMap m <- gen, name <- Map.keys m]
-    where gen = Derive.scope_note $ Derive.scopes_generator lib
+e_builtins :: Derive.Builtins -> [Expr.Symbol]
+e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems
+    . Derive.scope_note . Derive.scopes_generator
 
 put_library :: Cmd.M m => Text -> m ()
-put_library text = Cmd.modify $ \st -> st
-    { Cmd.state_ky_cache = Just $ case Parse.parse_ky "fname.ky" text of
-        Left err -> Cmd.KyCache (Left err) mempty
-        Right (_, defs) ->
-            Cmd.KyCache (Right (Ky.compile_library defs, mempty)) mempty
-    }
+put_library text = do
+    cache <- case Parse.parse_ky "fname.ky" text of
+        Left err -> return $ Cmd.KyCache (Left err) mempty
+        Right (imported, defs) -> do
+            builtins <- Ky.compile_library imported $
+                Ky.compile_definitions defs
+            return $ Cmd.KyCache (Right (builtins, mempty)) mempty
+    Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just cache }

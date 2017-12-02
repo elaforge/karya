@@ -479,7 +479,7 @@ cmd_config inst_db = Cmd.Config
     , config_rdev_map = mempty
     , config_wdev_map = mempty
     , config_instrument_db = inst_db
-    , config_library = C.All.library
+    , config_builtins = C.All.builtins
     , config_highlight_colors = Config.highlight_colors
     , config_im = Shared.Config.Config
         { rootDir = Testing.tmp_base_dir </> "im"
@@ -512,13 +512,13 @@ im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Cmd.lookup_scale
 
-default_library :: Derive.Library
-default_library = C.All.library
+default_builtins :: Derive.Builtins
+default_builtins = C.All.builtins
 
 default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_library default_lookup_scale (const Nothing) cache damage
+    default_builtins default_lookup_scale (const Nothing) cache damage
 
 default_dynamic :: Derive.Dynamic
 default_dynamic = Derive.initial_dynamic default_environ

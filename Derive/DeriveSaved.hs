@@ -142,14 +142,14 @@ load_score_states cmd_config fname = do
     return (ui_state,
         add_library library aliases (Cmd.initial_state cmd_config))
 
-add_library :: Derive.Library -> Derive.InstrumentAliases
+add_library :: Derive.Builtins -> Derive.InstrumentAliases
     -> Cmd.State -> Cmd.State
-add_library lib aliases state =
-    state { Cmd.state_ky_cache = Just $ Cmd.PermanentKy (lib, aliases) }
+add_library builtins aliases state =
+    state { Cmd.state_ky_cache = Just $ Cmd.PermanentKy (builtins, aliases) }
 
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: Cmd.InstrumentDb -> FilePath
-    -> IO (Either Text (Ui.State, Derive.Library, Derive.InstrumentAliases))
+    -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
 load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
@@ -163,8 +163,8 @@ load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
                 return (state, FilePath.takeDirectory fname)
         app_dir <- liftIO Config.get_app_dir
         let paths = dir : map (Config.make_path app_dir) Config.ky_paths
-        (lib, aliases) <- require_right $ Ky.load paths state
-        return (state, lib, aliases)
+        (builtins, aliases) <- require_right $ Ky.load paths state
+        return (state, builtins, aliases)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = tryRight =<< liftIO io
@@ -186,7 +186,7 @@ cmd_config inst_db = do
         , config_rdev_map = mempty
         , config_wdev_map = mempty
         , config_instrument_db = inst_db
-        , config_library = C.All.library
+        , config_builtins = C.All.builtins
         , config_highlight_colors = mempty
         , config_im = Shared.Config.Config
             (Shared.Config.rootDir Shared.Config.config) mempty

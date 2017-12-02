@@ -8,7 +8,7 @@
 module Cmd.Ky (
     update_cache
     , load
-    , compile_library
+    , compile_definitions
 #ifdef TESTING
     , module Cmd.Ky
 #endif
@@ -65,9 +65,8 @@ check_cache ui_state cmd_state = run $ do
     -- like I had before.
     let fingerprint = Cmd.fingerprint imported
     when (fingerprint == old_fingerprint) abort
-    let lib = compile_library defs
-    write_update_logs (map fst imported) lib
-    return (lib, Map.fromList (Parse.def_aliases defs), fingerprint)
+    builtins <- compile_library (map fst imported) $ compile_definitions defs
+    return (builtins, Map.fromList (Parse.def_aliases defs), fingerprint)
     where
     is_permanent = case Cmd.state_ky_cache cmd_state of
         Just (Cmd.PermanentKy {}) -> True
@@ -88,51 +87,49 @@ check_cache ui_state cmd_state = run $ do
     apply (Left (Just err))
         | failed_previously = Nothing
         | otherwise = Just $ Cmd.KyCache (Left err) mempty
-    apply (Right (lib, aliases, fingerprint)) =
-        Just $ Cmd.KyCache (Right (lib, aliases)) fingerprint
+    apply (Right (builtins, aliases, fingerprint)) =
+        Just $ Cmd.KyCache (Right (builtins, aliases)) fingerprint
 
 load :: [FilePath] -> Ui.State
-    -> IO (Either Text (Derive.Library, Derive.InstrumentAliases))
-load paths =
-    fmap (fmap (extract . fst)) . Parse.load_ky paths . (Ui.config#Ui.ky #$)
+    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+load paths = traverse compile <=< Parse.load_ky paths . (Ui.config#Ui.ky #$)
     where
-    extract defs =
-        (compile_library defs, Map.fromList (Parse.def_aliases defs))
-
-write_update_logs :: Log.LogMonad m => [FilePath] -> Derive.Library -> m ()
-write_update_logs imports lib = do
-    let files = map (txt . FilePath.takeFileName) $ filter (not . null) imports
-    Log.notice $ "reloaded ky " <> pretty files
-    forM_ (Library.shadowed lib) $ \((call_type, _module), calls) ->
-        Log.warn $ call_type <> " shadowed: " <> pretty calls
+    compile (defs, imported) = do
+        builtins <- compile_library (map fst imported) $
+            compile_definitions defs
+        return (builtins, Map.fromList (Parse.def_aliases defs))
 
 state_ky_paths :: Cmd.State -> [FilePath]
 state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
     (Cmd.config_ky_paths (Cmd.state_config cmd_state))
 
-compile_library :: Parse.Definitions -> Derive.Library
-compile_library (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
+compile_library :: Log.LogMonad m => [FilePath] -> Library.Library
+    -> m Derive.Builtins
+compile_library imports lib = do
+    let files = map (txt . FilePath.takeFileName) $ filter (not . null) imports
+    Log.notice $ "reloaded ky " <> pretty files
+    Library.compile_log lib
+
+compile_definitions :: Parse.Definitions -> Library.Library
+compile_definitions (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
         (gpitch, tpitch) val _aliases) =
     Derive.Scopes
-        { scopes_generator = compile_scope
-            (compile make_generator gnote)
-            (compile make_generator gcontrol)
-            (compile make_generator gpitch)
-        , scopes_transformer = compile_scope
-            (compile make_transformer tnote)
-            (compile make_transformer tcontrol)
-            (compile make_transformer tpitch)
+        { scopes_generator = Derive.Scope
+            { scope_note = map (compile make_generator) gnote
+            , scope_control = map (compile make_generator) gcontrol
+            , scope_pitch = map (compile make_generator) gpitch
+            }
+        , scopes_transformer = Derive.Scope
+            { scope_note = map (compile make_transformer) tnote
+            , scope_control = map (compile make_transformer) tcontrol
+            , scope_pitch = map (compile make_transformer) tpitch
+            }
         , scopes_track = mempty
-        , scopes_val = Derive.call_map $ compile make_val_call val
+        , scopes_val = map (compile make_val_call) val
         }
     where
-    compile_scope note control pitch = Derive.Scope
-        { scope_note = Derive.call_map note
-        , scope_control = Derive.call_map control
-        , scope_pitch = Derive.call_map pitch
-        }
-    compile make = map $ \(fname, (sym, expr)) ->
-        (sym, make fname (sym_to_name sym) expr)
+    compile make (fname, (sym, expr)) =
+        Library.Single sym (make fname (sym_to_name sym) expr)
     sym_to_name (Expr.Symbol name) = Derive.CallName name
 
 make_generator :: Derive.Callable d => FilePath -> Derive.CallName

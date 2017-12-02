@@ -39,7 +39,7 @@ main = do
 linkify :: FilePath -> FilePath -> Text -> IO Text
 linkify haddock_dir input_file text = do
     files <- get_files "."
-    let (out, logs) = Logger.run_id $ TextUtil.mapDelimitedM False '\''
+    let (out, logs) = Logger.runId $ TextUtil.mapDelimitedM False '\''
             (link_quoted files haddock_dir) text
     unless (null logs) $
         Text.IO.hPutStrLn IO.stderr $ "** " <> txt input_file

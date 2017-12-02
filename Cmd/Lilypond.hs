@@ -83,10 +83,12 @@ derive deriver = do
 lilypond_scope :: Derive.Scopes -> Derive.Scopes
 lilypond_scope =
     Derive.s_generator#Derive.s_note
-        %= Derive.add_priority Derive.PrioOverride lookup
+        %= Derive.add_priority Derive.PrioOverride cmap
     where
-    lookup = Derive.LookupMap $ Map.fromList
-        [(Symbols.null_note, note), (Symbols.default_note, note)]
+    cmap = mempty
+        { Derive.call_map = Map.fromList
+            [(Symbols.null_note, note), (Symbols.default_note, note)]
+        }
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
     note = Note.note_call "" "" mempty

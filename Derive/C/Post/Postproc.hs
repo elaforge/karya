@@ -39,7 +39,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)

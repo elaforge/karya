@@ -26,7 +26,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("retune", c_retune)
     , ("realize-retune", c_realize_retune)

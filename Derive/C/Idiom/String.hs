@@ -46,7 +46,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators
         [ ("gliss-a", c_gliss_absolute)

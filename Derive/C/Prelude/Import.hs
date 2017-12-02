@@ -13,7 +13,7 @@ import qualified Derive.Library as Library
 import qualified Derive.Sig as Sig
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.poly_transformers
     [ ("import", c_import)
     , ("imports", c_import_symbol)

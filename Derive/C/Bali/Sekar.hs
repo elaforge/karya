@@ -28,7 +28,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.generators
     [ ("sekar", c_sekar_direct)
     , ("sekar-e", c_sekar_even)

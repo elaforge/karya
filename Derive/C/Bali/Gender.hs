@@ -37,7 +37,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators $
         (("weak", c_weak) : ngoret_variations gender_ngoret)

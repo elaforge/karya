@@ -37,7 +37,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.generators
     [ ("seq", c_sequence sequence_arg)
     , ("p", c_pattern)

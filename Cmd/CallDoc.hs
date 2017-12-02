@@ -23,6 +23,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+import qualified Derive.Library as Library
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Sig as Sig
 
@@ -371,11 +372,11 @@ scales_html hstate scales = html_header hstate
 
 -- | Extract documentation from scales.
 scale_docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)] -> [CallBindings]
-scale_docs = sort_calls . lookup_calls ValCall . map convert
+scale_docs = sort_calls . entries ValCall . map convert
     where
-    convert (scale_id, pattern, doc) =
-        Derive.LookupPattern name doc (const (return Nothing))
-        where name = pretty scale_id <> ": " <> pattern
+    convert (scale_id, pattern, doc) = Library.Pattern $
+        Derive.PatternCall desc doc (const (return Nothing))
+        where desc = pretty scale_id <> ": " <> pattern
 
 -- * doc
 
@@ -437,72 +438,79 @@ strip_empty = mapMaybe section
         | null bindings = Nothing
         | otherwise = Just b
 
--- | Emit docs for all calls in the default scope.
-builtin :: Cmd.M m => m Document
-builtin = library <$> Cmd.gets (Cmd.config_library . Cmd.state_config)
-
--- | Extract all the documentation from a Library.  Document extraction is
+-- | Extract all the documentation from the Builtins.  Document extraction is
 -- a big mess of walking over nested data and converting it to a parallel
 -- nested data structure.  It's tedious, but the types make it hard to get
 -- wrong.
-library :: Derive.Library -> [Section]
-library (Derive.Scopes
+builtins :: Derive.Builtins -> [Section]
+builtins (Derive.Scopes
         (Derive.Scope ngen cgen pgen)
         (Derive.Scope ntrans ctrans ptrans)
-        (Derive.Scope ntrack ctrack ptrack) val) =
+        (Derive.Scope ntrack ctrack ptrack)
+        val) =
     [ ("note", scope ngen ntrans ntrack)
     , ("control", scope cgen ctrans ctrack)
     , ("pitch", scope pgen ptrans ptrack)
-    , ("val", imported_scope_doc ValCall (map convert_val_call val))
+    , ("val", convert_modules ValCall Derive.extract_val_doc val)
     ]
+
+convert_modules :: CallType -> (call -> Derive.DocumentedCall)
+    -> Map mod (Derive.CallMap call) -> [ScopeDoc]
+convert_modules ctype extract_doc = imported_scope_doc ctype
+    . concatMap (call_map_to_entries . call_map_doc extract_doc)
+    . Map.elems
 
 -- | Create docs for generator, transformer, and track calls, and merge and
 -- sort them.
-scope :: [Derive.LookupCall (Derive.Call gen)]
-    -> [Derive.LookupCall (Derive.Call trans)]
-    -> [Derive.LookupCall (Derive.TrackCall track)]
+scope :: Map Module.Module (Derive.CallMap (Derive.Call gen))
+    -> Map Module.Module (Derive.CallMap (Derive.Call trans))
+    -> Map Module.Module (Derive.CallMap (Derive.TrackCall track))
     -> [ScopeDoc]
-scope gen trans track = merge_scope_docs $
-    imported_scope_doc GeneratorCall (convert gen)
-    ++ imported_scope_doc TransformerCall (convert trans)
-    ++ imported_scope_doc TrackCall (map convert_track_call track)
-    where convert = map convert_call
+scope gen trans track = merge_scope_docs $ concat
+    [ convert_modules GeneratorCall Derive.extract_doc gen
+    , convert_modules TransformerCall Derive.extract_doc trans
+    , convert_modules TrackCall Derive.extract_track_doc track
+    ]
 
--- | A 'Derive.LookupCall' with the call stripped out and replaced with
+-- | A 'Library.Entry' with the call stripped out and replaced with
 -- just documentation.  This is so 'Derive.Call's and 'Derive.ValCall's can
 -- be treated uniformly.
-type LookupCall = Derive.LookupCall Derive.DocumentedCall
+type Entry = Library.Entry Derive.DocumentedCall
+type CallMap = Derive.CallMap Derive.DocumentedCall
 
--- | Strip out the actual code part of the call, and make it just a lookup for
--- DocumentedCall.
-convert_call :: Derive.LookupCall (Derive.Call f) -> LookupCall
-convert_call = fmap_lookup Derive.extract_doc
+-- | Convert 'Library.Entry' to 'Entry' by stripping out the code part of the
+-- call, and replacing it with DocumentedCall.
+entry_doc :: (call -> Derive.DocumentedCall) -> Library.Entry call -> Entry
+entry_doc extract_doc (Library.Single sym call) =
+    Library.Single sym (extract_doc call)
+entry_doc _ (Library.Pattern pattern) =
+    Library.Pattern $ pattern { Derive.pat_function = const $ return Nothing }
 
-convert_val_call :: Derive.LookupCall Derive.ValCall -> LookupCall
-convert_val_call = fmap_lookup Derive.extract_val_doc
-
-convert_track_call :: Derive.LookupCall (Derive.TrackCall d) -> LookupCall
-convert_track_call = fmap_lookup Derive.extract_track_doc
-
-fmap_lookup :: (a -> b) -> Derive.LookupCall a -> Derive.LookupCall b
-fmap_lookup extract_doc (Derive.LookupMap calls) = Derive.LookupMap $
-    Map.map extract_doc calls
-fmap_lookup _ (Derive.LookupPattern pattern doc _) =
-    Derive.LookupPattern pattern doc (const (return Nothing))
+call_map_doc :: (call -> Derive.DocumentedCall) -> Derive.CallMap call
+    -> CallMap
+call_map_doc extract_doc (Derive.CallMap calls patterns) = Derive.CallMap
+    { call_map = extract_doc <$> calls
+    , call_patterns =
+        map (\p -> p { Derive.pat_function = const $ return Nothing }) patterns
+    }
 
 -- ** instrument doc
 
 -- | Get docs for the calls introduced by an instrument.
 instrument_calls :: Derive.InstrumentCalls -> Document
 instrument_calls (Derive.Scopes gen trans track vals) =
-    [ ("note", [(Just Derive.PrioInstrument,
-        lookup GeneratorCall gen ++ lookup TransformerCall trans ++ track_doc)])
+    [ ("note", [(Just Derive.PrioInstrument, concat
+        [ ctype_entries GeneratorCall gen
+        , ctype_entries TransformerCall trans
+        , call_map_entries TrackCall Derive.extract_track_doc track
+        ])])
     , ("val", [(Just Derive.PrioInstrument,
-        lookup_calls ValCall (map convert_val_call vals))])
+        call_map_entries ValCall Derive.extract_val_doc vals)])
     ]
     where
-    lookup ctype = lookup_calls ctype . map convert_call
-    track_doc = lookup_calls TrackCall (map convert_track_call track)
+    ctype_entries ctype = call_map_entries ctype Derive.extract_doc
+    call_map_entries ctype extract_doc =
+        entries ctype . call_map_to_entries . call_map_doc extract_doc
 
 -- ** track doc
 
@@ -515,13 +523,13 @@ track block_id track_id = do
     return $ track_sections ttype (Derive.state_scopes dynamic)
 
 -- | This is an alternate doc extraction path which extracts the docs from
--- 'Derive.Scopes' instead of 'Derive.Library'.
+-- 'Derive.Scopes' instead of 'Derive.Builtins'.
 track_sections :: ParseTitle.Type -> Derive.Scopes -> [Section]
 track_sections ttype (Derive.Scopes
         (Derive.Scope gen_n gen_c gen_p)
         (Derive.Scope trans_n trans_c trans_p)
         (Derive.Scope track_n track_c track_p)
-        val_) =
+        val) =
     (\d -> [d, ("val", val_doc)]) $ case ttype of
         ParseTitle.NoteTrack -> ("note", merge3 gen_n trans_n track_n)
         ParseTitle.ControlTrack -> ("control", merge3 gen_c trans_c track_c)
@@ -531,15 +539,17 @@ track_sections ttype (Derive.Scopes
     merge3 gen trans track = merged_scope_docs
         [ (GeneratorCall, convert gen)
         , (TransformerCall, convert trans)
-        , (TrackCall, convert_scope convert_track_call track)
+        , (TrackCall,
+            convert_scope (call_map_doc Derive.extract_track_doc) track)
         ]
-    val_doc = scope_type ValCall $ convert_scope convert_val_call val_
-    convert = convert_scope convert_call
+    val_doc = scope_type ValCall $
+        convert_scope (call_map_doc Derive.extract_val_doc) val
+    convert = convert_scope (call_map_doc Derive.extract_doc)
 
-convert_scope :: (Derive.LookupCall call -> LookupCall)
+convert_scope :: (Derive.CallMap call -> CallMap)
     -> Derive.ScopePriority call -> Derive.ScopePriority Derive.DocumentedCall
 convert_scope convert (Derive.ScopePriority prio_map) =
-    Derive.ScopePriority (map convert <$> prio_map)
+    Derive.ScopePriority (convert <$> prio_map)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 merged_scope_docs :: [(CallType, Derive.ScopePriority Derive.DocumentedCall)]
@@ -556,23 +566,28 @@ sort_calls = Seq.sort_on $ \(binds, _, _) ->
 -- | A 'Derive.Library' only has builtins, but ScopeDoc wants a source so
 -- it can work uniformly with 'track_sections', which does have separate
 -- sources.
-imported_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
-imported_scope_doc ctype lookups = [(Nothing, lookup_calls ctype lookups)]
+imported_scope_doc :: CallType -> [Entry] -> [ScopeDoc]
+imported_scope_doc ctype lookups = [(Nothing, entries ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopePriority Derive.DocumentedCall
     -> [ScopeDoc]
-scope_type ctype (Derive.ScopePriority call_map) =
+scope_type ctype (Derive.ScopePriority prio_map) =
     map (first Just) $ filter (not . null . snd) $ Map.toDescList $
-        lookup_calls ctype <$> call_map
+        entries ctype . call_map_to_entries <$> prio_map
 
-lookup_calls :: CallType -> [LookupCall] -> [CallBindings]
-lookup_calls ctype = group . map (extract . go) . concatMap flatten
+call_map_to_entries :: CallMap -> [Entry]
+call_map_to_entries (Derive.CallMap calls patterns) =
+    map (uncurry Library.Single) (Map.toAscList calls)
+    ++ map Library.Pattern patterns
+
+entries :: CallType -> [Entry] -> [CallBindings]
+entries ctype = group . map (extract . go) . map flatten
     where
-    flatten (Derive.LookupPattern pattern doc _) = [(Left pattern, doc)]
-    flatten (Derive.LookupMap cmap) =
-        [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
-    go (Left pattern, call) = ("lookup: " <> pattern, call)
-    go (Right sym, call) = (show_sym sym, call)
+    flatten (Library.Pattern pattern) =
+        (Left (Derive.pat_description pattern), Derive.pat_doc pattern)
+    flatten (Library.Single sym doc) = (Right sym, doc)
+    go (Left desc, doc) = ("pattern:" <> desc, doc)
+    go (Right sym, doc) = (show_sym sym, doc)
     show_sym (Expr.Symbol sym)
         | Text.null sym = "\"\""
         | otherwise = sym

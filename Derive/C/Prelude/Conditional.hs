@@ -27,7 +27,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.transformers [("solo", c_solo)]
     , Library.poly_generators

@@ -40,12 +40,12 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators
         [(BlockUtil.capture_null_control, c_capture_null_control)]
-    , Library.lookup lookup_note_block
-    , Library.lookup lookup_control_block
+    , Library.pattern pattern_note_block
+    , Library.pattern pattern_control_block
     ]
 
 -- * root block
@@ -75,10 +75,12 @@ transform_if_present ctx sym deriver = do
 
 -- * note calls
 
-lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_note_block = Derive.LookupPattern "block name"
-    (Derive.extract_doc fake_call)
-    (\sym -> fmap c_block <$> call_to_block_id sym)
+pattern_note_block :: Derive.PatternCall (Derive.Generator Derive.Note)
+pattern_note_block = Derive.PatternCall
+    { pat_description = "block name"
+    , pat_doc = Derive.extract_doc fake_call
+    , pat_function = \sym -> fmap c_block <$> call_to_block_id sym
+    }
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
@@ -207,13 +209,15 @@ call_to_block_id sym = do
 
 -- * control calls
 
-lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
-lookup_control_block = Derive.LookupPattern "block id"
-    (Derive.extract_doc fake_call)
-    (\sym -> fmap c_control_block <$> call_to_block_id sym)
+pattern_control_block :: Derive.PatternCall (Derive.Generator Derive.Control)
+pattern_control_block = Derive.PatternCall
+    { pat_description = "block name"
+    , pat_doc = Derive.extract_doc fake_call
+    , pat_function = \sym -> fmap c_control_block <$> call_to_block_id sym
+    }
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_control_block (Id.BlockId (Id.read_id "fake/block"))
+    fake_call = c_control_block (Id.BlockId (Id.read_id "example/block"))
 
 c_control_block :: BlockId -> Derive.Generator Derive.Control
 c_control_block block_id = Derive.generator Module.prelude "control-block"

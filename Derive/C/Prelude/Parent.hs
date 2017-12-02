@@ -37,7 +37,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.generators
     [ ("ap", c_ap)
     , ("t", c_tuplet)

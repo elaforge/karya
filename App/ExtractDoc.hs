@@ -35,7 +35,7 @@ main = do
         ["calls"] -> do
             hstate <- Doc.get_html_state "../haddock" "."
             Text.IO.putStr $ Doc.un_html $ CallDoc.doc_html hstate $
-                CallDoc.library C.All.library
+                CallDoc.builtins C.All.builtins
         ["scales"] -> do
             hstate <- Doc.get_html_state "../haddock" "."
             Text.IO.putStr $ Doc.un_html $ CallDoc.scales_html hstate $

@@ -22,7 +22,7 @@ import qualified Derive.Sig as Sig
 import Global
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("infer-hands", (c_infer_hands :: Derive.Transformer Derive.Note))
     ]

@@ -53,14 +53,15 @@ module Derive.Deriver.Monad (
     , initial_controls, default_dynamic
 
     -- ** scope
-    , Library, MkScopeLibrary
+    , Builtins
+    , CallMap(..), single_call
     , Scopes, ScopesT(..)
     , s_generator, s_transformer, s_track, s_val
     , Scope(..), s_note, s_control, s_pitch
     , ScopePriority(..), CallPriority(..)
     , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
-    , LookupCall(..)
+    , PatternCall(..), pat_call_doc
     , extract_doc, extract_val_doc, extract_track_doc
     , lookup_val_call, lookup_with
     -- ** TrackCall
@@ -83,7 +84,6 @@ module Derive.Deriver.Monad (
     , TrackDynamic, CallDuration(..)
 
     -- * calls
-    , call_map
     , Context(..), ctx_track_range, coerce_context
     , dummy_context, tag_context
     , Call(..), make_call
@@ -579,22 +579,40 @@ instance DeepSeq.NFData Dynamic where
 
 -- ** scope
 
--- | This is the library of built-in calls.  The 'prio_library' Scope fields
--- are imported from this.  The difference between this and 'Scopes' is that
--- Scopes divides up 'LookupCall's by 'ScopePriority', while Library skips
--- that since everything in the Library is implicitly at PrioLibrary.
-type Library = ScopesT
-    (MkScopeLibrary Generator)
-    (MkScopeLibrary Transformer)
-    (MkScopeLibrary TrackCall)
-    [LookupCall ValCall]
+-- | This is the library of built-in calls, indexed by Module.  On import, the
+-- imported 'CallMap's are inserted into 'Scopes' at 'PrioBuiltin'.
+type Builtins = ScopesT
+    (MkScopeCallMaps Generator)
+    (MkScopeCallMaps Transformer)
+    (MkScopeCallMaps TrackCall)
+    (Map Module.Module (CallMap ValCall))
 
-type MkScopeLibrary kind = Scope
-    [LookupCall (kind Note)]
-    [LookupCall (kind Control)]
-    [LookupCall (kind Pitch)]
+type MkScopeCallMaps kind = Scope
+    (Map Module.Module (CallMap (kind Note)))
+    (Map Module.Module (CallMap (kind Control)))
+    (Map Module.Module (CallMap (kind Pitch)))
 
-instance Show Library where show _ = "((Library))"
+-- TODO I can show more than that
+instance Show Builtins where show _ = "((Builtins))"
+
+-- | The map takes priority over the patterns.
+data CallMap call = CallMap {
+    call_map :: Map Expr.Symbol call
+    , call_patterns :: [PatternCall call]
+    }
+
+single_call :: Expr.Symbol -> call -> CallMap call
+single_call sym call = CallMap (Map.singleton sym call) []
+
+instance Monoid (CallMap call) where
+    mempty = CallMap mempty mempty
+    mappend (CallMap a1 a2) (CallMap b1 b2) = CallMap (a1<>b1) (a2<>b2)
+
+instance Pretty (CallMap call) where
+    format (CallMap cmap patterns) = Pretty.record "CallMap"
+        [ ("map", Pretty.format (Map.keys cmap))
+        , ("patterns", Pretty.format patterns)
+        ]
 
 -- | This represents all calls in scope.  Different types of calls are in scope
 -- depending on the track type, except ValCalls, which are in scope everywhere.
@@ -705,9 +723,9 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
     right order is that when an instrument or scale comes into scope, it needs
     to replace existing instrument or scale calls.  To do that, I need to keep
     each category separate.  Also, this way I can import the ky file once at
-    the toplevel, and it will still override library imported calls.
+    the toplevel, and it will still override PrioBuiltin calls.
 -}
-newtype ScopePriority call = ScopePriority (Map CallPriority [LookupCall call])
+newtype ScopePriority call = ScopePriority (Map CallPriority (CallMap call))
     deriving (Pretty)
 
 instance Monoid (ScopePriority call) where
@@ -723,7 +741,7 @@ data CallPriority =
     -- | These are instrument-specific calls implicitly imported by note
     -- tracks.
     | PrioInstrument
-    -- | Block calls are local definitions, so they should override library
+    -- | Block calls are local definitions, so they should override builtin
     -- calls, but are still below instrument calls.  Otherwise, it's easy to
     -- define a block that shadows a drum stroke and get confused.
     -- TODO there could be a mechanism to set PrioOverride in case I actually
@@ -732,30 +750,31 @@ data CallPriority =
     -- | This is for value calls introduced by a scale.  They are implicitly
     -- imported by pitch tracks.
     | PrioScale
-    -- | Calls imported from the 'Library'.
-    | PrioLibrary
+    -- | Calls imported from the 'Builtins'.
+    | PrioBuiltin
     deriving (Show, Eq, Ord)
 
 instance Pretty CallPriority where pretty = showt
 
-scope_priority :: [(CallPriority, [LookupCall call])] -> ScopePriority call
+scope_priority :: [(CallPriority, CallMap call)] -> ScopePriority call
 scope_priority = ScopePriority . Map.fromList
 
-lookup_priority :: CallPriority -> ScopePriority call -> [LookupCall call]
-lookup_priority prio (ScopePriority scopes) = Map.findWithDefault [] prio scopes
+lookup_priority :: CallPriority -> ScopePriority call -> CallMap call
+lookup_priority prio (ScopePriority scopes) =
+    Map.findWithDefault mempty prio scopes
 
 -- | Add this call at this level of priority.  It will shadow existing calls
 -- with the same name.
-add_priority :: CallPriority -> LookupCall call -> ScopePriority call
+add_priority :: CallPriority -> CallMap call -> ScopePriority call
     -> ScopePriority call
-add_priority prio call (ScopePriority scopes) =
-    ScopePriority $ Map.alter (Just . maybe [call] (call:)) prio scopes
+add_priority prio cmap (ScopePriority scopes) =
+    ScopePriority $ Map.insertWith (<>) prio cmap scopes
 
 -- | Replace all calls at this level of priority.
-replace_priority :: CallPriority -> [LookupCall call] -> ScopePriority call
+replace_priority :: CallPriority -> CallMap call -> ScopePriority call
     -> ScopePriority call
-replace_priority prio calls (ScopePriority scopes) =
-    ScopePriority $ Map.insert prio calls scopes
+replace_priority prio cmap (ScopePriority scopes) =
+    ScopePriority $ Map.insert prio cmap scopes
 
 -- | This is like 'Call', but with only documentation.  (name, CallDoc)
 data DocumentedCall = DocumentedCall !CallName !CallDoc
@@ -804,22 +823,26 @@ lookup_val_call = lookup_with scopes_val
 lookup_with :: (Scopes -> ScopePriority call)
     -> (Expr.Symbol -> Deriver (Maybe call))
 lookup_with get sym = do
-    lookups <- get_scopes get
-    lookup_scopes lookups sym
+    cmaps <- get_call_maps get
+    maybe_call <- lookup_call_map cmaps sym
+    case maybe_call of
+        Just call -> return $ Just call
+        Nothing -> return Nothing
 
-get_scopes :: (Scopes -> ScopePriority call) -> Deriver [LookupCall call]
-get_scopes get = do
+-- | Get CallMaps is 'CallPriority' order.
+get_call_maps :: (Scopes -> ScopePriority call) -> Deriver [CallMap call]
+get_call_maps get = do
     ScopePriority scopes <- gets $ get . state_scopes . state_dynamic
-    return $ concat $ Map.elems scopes
+    return $ Map.elems scopes
 
--- | Convert a list of lookups into a single lookup by returning the first
--- one to yield a Just.
-lookup_scopes :: [LookupCall call] -> (Expr.Symbol -> Deriver (Maybe call))
-lookup_scopes lookups sym = firstJusts $ map (flip lookup_call sym) lookups
+-- | Find the symbol in the first CallMap.
+lookup_call_map :: [CallMap call] -> Expr.Symbol -> Deriver (Maybe call)
+lookup_call_map lookups sym = firstJusts $ map (lookup_call sym) lookups
 
-lookup_call :: LookupCall call -> Expr.Symbol -> Deriver (Maybe call)
-lookup_call (LookupMap calls) sym = return $ Map.lookup sym calls
-lookup_call (LookupPattern _ _ lookup) sym = lookup sym
+lookup_call :: Expr.Symbol -> CallMap call -> Deriver (Maybe call)
+lookup_call sym (CallMap cmap patterns) = case Map.lookup sym cmap of
+    Just call -> return $ Just call
+    Nothing -> firstJusts $ map (($sym) . pat_function) patterns
 
 -- ** mode
 
@@ -847,7 +870,7 @@ instance Pretty Mode where
 -- | Values that don't change during one derive run.
 data Constant = Constant {
     state_ui :: !Ui.State
-    , state_library :: !Library
+    , state_builtins :: !Builtins
     -- | Global map of signal mergers.  Unlike calls, this is static.
     , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
     , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
@@ -863,13 +886,13 @@ data Constant = Constant {
     , state_score_damage :: !ScoreDamage
     }
 
-initial_constant :: Ui.State -> Library -> LookupScale
+initial_constant :: Ui.State -> Builtins -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
+initial_constant ui_state builtins lookup_scale lookup_inst cache score_damage =
     Constant
         { state_ui = ui_state
-        , state_library = library
+        , state_builtins = builtins
         , state_mergers = mergers
         , state_pitch_mergers = pitch_mergers
         , state_lookup_scale = lookup_scale
@@ -898,18 +921,20 @@ data Instrument = Instrument {
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
--- type.
+-- type.  This is like 'Builtins', but without the Module map, since they're
+-- all implicitly in 'PrioInstrument'.
 type InstrumentCalls = ScopesT
-    [LookupCall (Generator Note)]
-    [LookupCall (Transformer Note)]
-    [LookupCall (TrackCall Note)]
-    [LookupCall ValCall]
+    (CallMap (Generator Note))
+    (CallMap (Transformer Note))
+    (CallMap (TrackCall Note))
+    (CallMap ValCall)
 
 instance Show InstrumentCalls where
+    -- TODO this is probably pretty unreadable, but instrument calls are short.
     show (Scopes gen trans tracks val) =
         "((InstrumentCalls "
-            <> show (length gen, length trans, length tracks, length val)
-            <> "))"
+        <> unwords [prettys gen, prettys trans, prettys tracks, prettys val]
+        <> "))"
 
 -- ** control
 
@@ -1141,23 +1166,22 @@ instance Monoid (CallDuration a) where
 
 -- ** calls
 
-data LookupCall call =
-    LookupMap !(Map Expr.Symbol call)
-    -- | Text description of the Symbols accepted.  The function is in Deriver
-    -- because some calls want to look at the state to know if the Symbol is
-    -- valid, e.g. block calls.
-    | LookupPattern !Text !DocumentedCall !(Expr.Symbol -> Deriver (Maybe call))
+data PatternCall call = PatternCall {
+    -- | Since this doesn't have a Symbol, this is a description of the kinds
+    -- of symbols matched, presumably as a regex.
+    pat_description :: !Text
+    , pat_doc :: !DocumentedCall
+    -- | The function is in Deriver because some calls want to look at the
+    -- state to know if the Symbol is valid, e.g. block calls.
+    , pat_function :: !(Expr.Symbol -> Deriver (Maybe call))
+    }
 
--- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
--- are all singletons since names are allowed to overlap when declaring calls.
--- It is only when they are imported into a scope that the maps are combined.
-call_map :: [(Expr.Symbol, call)] -> [LookupCall call]
-call_map = map (LookupMap . uncurry Map.singleton)
+pat_call_doc :: PatternCall call -> CallDoc
+pat_call_doc pattern = doc
+    where DocumentedCall _ doc = pat_doc pattern
 
-instance Pretty (LookupCall call) where
-    format c = case c of
-        LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
-        LookupPattern doc _ _ -> "Pattern: " <> Pretty.text doc
+instance Pretty (PatternCall call) where
+    pretty pattern = "Pattern:" <> pat_description pattern
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {

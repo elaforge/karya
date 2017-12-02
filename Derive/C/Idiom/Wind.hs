@@ -22,7 +22,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("wind-idiom", c_wind_idiom)
     ]

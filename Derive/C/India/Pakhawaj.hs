@@ -26,7 +26,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.generators [("bols", c_bols)]
 
 -- * calls

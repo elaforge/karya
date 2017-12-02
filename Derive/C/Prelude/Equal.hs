@@ -42,7 +42,7 @@ import Global
 
 -- * note
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators [("=", c_equal_generator)]
     , Library.poly_transformers
@@ -294,7 +294,7 @@ override_call lhs rhs name generator transformer deriver
     override_generator_scope call = Derive.with_scopes add deriver
         where
         add = generator %= Derive.add_priority Derive.PrioOverride
-            (single_lookup (Expr.Symbol lhs) call)
+            (Derive.single_call (Expr.Symbol lhs) call)
 
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.PrioOverride' slot.
@@ -307,7 +307,7 @@ override_transformer lhs rhs name transformer deriver =
     where
     override_scope call = Derive.with_scopes
         (transformer %= Derive.add_priority Derive.PrioOverride
-            (single_lookup (Expr.Symbol lhs) call))
+            (Derive.single_call (Expr.Symbol lhs) call))
         deriver
 
 -- | A VQuoted becomes a call, a Str is expected to name a call, and
@@ -325,7 +325,7 @@ override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source "val" Derive.s_val quoted_val_call rhs
     let add = Derive.s_val %= Derive.add_priority Derive.PrioOverride
-            (single_val_lookup (Expr.Symbol lhs) call)
+            (Derive.single_call (Expr.Symbol lhs) call)
     Derive.with_scopes add deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
@@ -333,14 +333,6 @@ get_call :: Text -> (Derive.Scopes -> Derive.ScopePriority call)
 get_call name get sym =
     maybe (Derive.throw $ Eval.unknown_symbol name sym)
         return =<< Derive.lookup_with get sym
-
-single_lookup :: Expr.Symbol -> Derive.Call d
-    -> Derive.LookupCall (Derive.Call d)
-single_lookup name = Derive.LookupMap . Map.singleton name
-
-single_val_lookup :: Expr.Symbol -> Derive.ValCall
-    -> Derive.LookupCall Derive.ValCall
-single_val_lookup name = Derive.LookupMap . Map.singleton name
 
 
 -- * quoted

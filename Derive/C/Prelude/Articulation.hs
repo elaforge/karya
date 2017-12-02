@@ -53,7 +53,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.both
         [ ("o", c_harmonic)
@@ -79,32 +79,33 @@ library = mconcat
         [ ("sus-a", c_sustain_abs)
         , ("sus", c_sustain)
         ]
-    , Library.lookup lookup_attr_generator
-    , Library.lookup lookup_attr_transformer
+    , Library.pattern pattern_attr_generator
+    , Library.pattern pattern_attr_transformer
     ]
 
--- * lookp attr
+-- * attr pattern
 
-lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_attr_generator = make_lookup_attr $ \attrs ->
+pattern_attr_generator :: Derive.PatternCall (Derive.Generator Derive.Note)
+pattern_attr_generator = make_pattern_attr $ \attrs ->
     Library.generator $ Make.attributed_note Module.prelude attrs
 
-lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
-lookup_attr_transformer = make_lookup_attr $ \attrs ->
+pattern_attr_transformer :: Derive.PatternCall (Derive.Transformer Derive.Note)
+pattern_attr_transformer = make_pattern_attr $ \attrs ->
     Library.transformer $ Make.attributed_note Module.prelude attrs
 
-make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
-make_lookup_attr call =
-    Derive.LookupPattern "attribute starting with `+` or `=`" doc $
-        \(Expr.Symbol sym) -> parse_symbol sym
+make_pattern_attr :: (Attrs.Attributes -> call) -> Derive.PatternCall call
+make_pattern_attr call = Derive.PatternCall
+    { pat_description = "attribute starting with `+` or `=`"
+    , pat_doc = Derive.extract_doc $ Library.generator $
+        Make.attributed_note Module.prelude (Attrs.attr "example-attr")
+    , pat_function = \(Expr.Symbol sym) -> parse_symbol sym
+    }
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
             Right (BaseTypes.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing
-    doc = Derive.extract_doc $ Library.generator $
-        Make.attributed_note Module.prelude (Attrs.attr "example-attr")
 
 -- * harmonic
 

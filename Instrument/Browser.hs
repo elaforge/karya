@@ -169,22 +169,23 @@ common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
     [ ("Environ", if env == mempty then "" else pretty env)
     -- code
     , ("Cmds", show_cmds code)
-    , ("Note generators", show_calls CallDoc.GeneratorCall
-        (map CallDoc.convert_call note_generators))
-    , ("Note transformers", show_calls CallDoc.TransformerCall
-        (map CallDoc.convert_call note_transformers))
-    , ("Track calls", show_calls CallDoc.TrackCall
-        (map CallDoc.convert_track_call track_calls))
-    , ("Val calls", show_calls CallDoc.ValCall
-        (map CallDoc.convert_val_call val_calls))
+    , ("Note generators",
+        show_calls CallDoc.GeneratorCall Derive.extract_doc gen)
+    , ("Note transformers",
+        show_calls CallDoc.TransformerCall Derive.extract_doc trans)
+    , ("Track calls",
+        show_calls CallDoc.TrackCall Derive.extract_track_doc track)
+    , ("Val calls", show_calls CallDoc.ValCall Derive.extract_val_doc val)
     -- info
     , ("Doc", doc)
     , ("Tags", show_tags tags)
     -- TODO lost the patch_file field
     ]
     where
-    Derive.Scopes note_generators note_transformers track_calls val_calls =
-        Cmd.inst_calls code
+    Derive.Scopes gen trans track val = Cmd.inst_calls code
+    show_calls ctype extract_doc =
+        show_call_bindings . CallDoc.entries ctype . CallDoc.call_map_to_entries
+        . CallDoc.call_map_doc extract_doc
 
 instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]
 instrument_fields name inst =
@@ -257,7 +258,6 @@ show_control_map cmap =
     Text.intercalate ", " [Score.control_name cont <> " (" <> showt num <> ")"
         | (cont, num) <- Map.toList cmap]
 
-    -- , ("Cmds", show_cmds (Cmd.inst_cmds code))
 show_cmds :: Cmd.InstrumentCode -> Text
 show_cmds code = Text.unwords $ filter (not . Text.null)
     [ if null cmds then ""
@@ -268,14 +268,12 @@ show_cmds code = Text.unwords $ filter (not . Text.null)
     ]
     where cmds = Cmd.inst_cmds code
 
-show_calls :: CallDoc.CallType -> [CallDoc.LookupCall] -> Text
-show_calls ctype lookups =
+show_call_bindings :: [CallDoc.CallBindings] -> Text
+show_call_bindings = Lazy.toStrict . Format.render "\t" 10000
+    . Format.paragraphs . map (CallDoc.call_bindings_text False)
     -- Let fltk do the wrapping.  Of course it doesn't know how the indentation
     -- works, so wrapped lines don't get indented, but it doesn't look that
     -- bad.
-    Lazy.toStrict $ Format.render "\t" 10000 $ Format.paragraphs $
-        map (CallDoc.call_bindings_text False) bindings
-    where bindings = CallDoc.lookup_calls ctype lookups
 
 show_tags :: [(Text, Text)] -> Text
 show_tags tags =

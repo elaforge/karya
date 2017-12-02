@@ -36,7 +36,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.transformers [("cf-sample", c_cf_sample)]
     , Library.transformers [("sh", c_sh_pitch)]

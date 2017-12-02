@@ -29,7 +29,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("highlight", c_highlight)
     , ("highlight-strings", c_highlight_strings)

@@ -31,7 +31,7 @@ data StaticConfig = StaticConfig {
     , global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 
     -- | Default global namespace for deriver calls.
-    , library :: Derive.Library
+    , builtins :: Derive.Builtins
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
@@ -46,7 +46,7 @@ empty :: StaticConfig
 empty = StaticConfig {
     instrument_db = Inst.empty
     , global_cmds = []
-    , library = mempty
+    , builtins = mempty
     , setup_cmd = const (return Cmd.Done)
     , midi = empty_midi
     , highlight_colors = mempty
@@ -97,7 +97,7 @@ cmd_config app_dir interface config git_user = Cmd.Config
     , config_rdev_map = rdev_map midi_config
     , config_wdev_map = wdev_map midi_config
     , config_instrument_db = instrument_db config
-    , config_library = library config
+    , config_builtins = builtins config
     , config_highlight_colors = highlight_colors config
     , config_im = Shared.Config.config
     , config_git_user = git_user

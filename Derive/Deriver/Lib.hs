@@ -160,66 +160,68 @@ score_function = Score.unwarp_pos <$> Internal.get_dynamic state_warp
 -- | Merge calls from the given module into scope.
 with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
 with_imported empty_ok module_ deriver = do
-    lib <- Internal.get_constant state_library
-    lib <- case extract_module module_ lib of
+    builtins <- Internal.get_constant state_builtins
+    scopes <- case extract_module module_ builtins of
         Scopes gen trans track val
-            | not empty_ok && is_empty gen && is_empty trans
-                    && is_empty track && null val ->
+            | not empty_ok && scope_empty gen && scope_empty trans
+                    && scope_empty track && empty val ->
                 throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
-    with_scopes (import_library lib) deriver
+    with_scopes (scopes<>) deriver
     where
-    is_empty (Scope [] [] []) = True
-    is_empty _ = False
+    scope_empty (Scope a b c) = empty a && empty b && empty c
+    empty (ScopePriority m) = Map.null m
 
 -- | Import only the given symbols from the module.
 with_imported_symbols :: Module.Module -> Set Expr.Symbol -> Deriver a
     -> Deriver a
 with_imported_symbols module_ syms deriver = do
-    lib <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
-        Internal.get_constant state_library
-    let missing = syms `Set.difference` Set.fromList (library_symbols lib)
+    scopes <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
+        Internal.get_constant state_builtins
+    let missing = syms `Set.difference` Set.fromList (scope_symbols scopes)
     unless (Set.null missing) $
         throw $ "symbols not in module " <> pretty module_ <> ": "
             <> pretty (Set.toList missing)
-    with_scopes (import_library lib) deriver
+    with_scopes (scopes<>) deriver
 
 -- | Run the derivation with a modified scope.
 with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
 with_scopes modify = Internal.local $ \state ->
     state { state_scopes = modify (state_scopes state) }
 
--- | Filter out any calls that aren't in the given modules.
-extract_module :: Module.Module -> Library -> Library
+-- | Filter out any calls that aren't in the given module.
+extract_module :: Module.Module -> Builtins -> Scopes
 extract_module module_ (Scopes gen trans track val) = Scopes
-    -- This is repetitive, but each of the 'call_doc's is at a different type.
-    -- I can pass one 'call_doc' with a rank-2 type, but it doesn't work
-    -- for 'tcall_doc'.
-    { scopes_generator = extract_scope call_doc call_doc call_doc gen
-    , scopes_transformer = extract_scope call_doc call_doc call_doc trans
-    , scopes_track = extract_scope tcall_doc tcall_doc tcall_doc track
-    , scopes_val = extract vcall_doc val
+    { scopes_generator = extract_scope gen
+    , scopes_transformer = extract_scope trans
+    , scopes_track = extract_scope track
+    , scopes_val = extract val
     }
     where
-    extract_scope doc1 doc2 doc3 (Scope note control pitch) = Scope
-        { scope_note = extract doc1 note
-        , scope_control = extract doc2 control
-        , scope_pitch = extract doc3 pitch
+    extract_scope (Scope note control pitch) = Scope
+        { scope_note = extract note
+        , scope_control = extract control
+        , scope_pitch = extract pitch
         }
-    extract get_doc = mapMaybe (has_module get_doc)
-    has_module get_doc (LookupMap calls)
-        | Map.null include = Nothing
-        | otherwise = Just (LookupMap include)
-        where include = Map.filter (wanted . get_doc) calls
-    has_module _ lookup@(LookupPattern _ (DocumentedCall _ doc) _)
-        | wanted doc = Just lookup
-        | otherwise = Nothing
-    wanted = (== module_) . cdoc_module
+    extract = make . Map.findWithDefault mempty module_
+    make :: CallMap a -> ScopePriority a
+    make cmap@(CallMap calls patterns)
+        | Map.null calls && null patterns = scope_priority []
+        | null prio_block = scope_priority [(PrioBuiltin, cmap)]
+        | otherwise = scope_priority
+            [ (PrioBuiltin, cmap { call_patterns = normal })
+            , (PrioBlock, mempty { call_patterns = prio_block })
+            ]
+        where
+        (prio_block, normal) =
+            List.partition has_prio_block (call_patterns cmap)
+    has_prio_block pattern =
+        cdoc_tags (pat_call_doc pattern) `Tags.contains` Tags.prio_block
 
 -- | Filter out calls that don't match the predicate.  LookupCalls are also
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
-extract_symbols :: (Expr.Symbol -> Bool) -> Library -> Library
+extract_symbols :: (Expr.Symbol -> Bool) -> Scopes -> Scopes
 extract_symbols wanted (Scopes gen trans track val) = Scopes
     { scopes_generator = extract_scope gen
     , scopes_transformer = extract_scope trans
@@ -232,62 +234,17 @@ extract_symbols wanted (Scopes gen trans track val) = Scopes
         , scope_control = extract control
         , scope_pitch = extract pitch
         }
-    extract = mapMaybe has_name
-    has_name (LookupMap calls)
-        | Map.null include = Nothing
-        | otherwise = Just (LookupMap include)
-        where include = Util.Map.filter_key wanted calls
-    has_name (LookupPattern {}) = Nothing
+    extract = map_cmap $ \cmap -> mempty
+        { call_map = Util.Map.filter_key wanted (call_map cmap) }
+    map_cmap f (ScopePriority m) = ScopePriority $ f <$> m
 
-library_symbols :: Library -> [Expr.Symbol]
-library_symbols (Scopes gen trans track val) = mconcat
+scope_symbols :: Scopes -> [Expr.Symbol]
+scope_symbols (Scopes gen trans track val) = mconcat
     [extract_scope gen, extract_scope trans, extract_scope track, extract val]
     where
     extract_scope (Scope note control pitch) =
         extract note <> extract control <> extract pitch
-    extract = concatMap names_of
-    names_of (LookupMap calls) = Map.keys calls
-    names_of (LookupPattern {}) = []
-
--- | Dump the contents of the Library into the given Scopes.
-import_library :: Library -> Scopes -> Scopes
-import_library  (Scopes lgen ltrans ltrack lval)
-        (Scopes sgen strans strack sval) =
-    Scopes
-        { scopes_generator = merge_scope lgen sgen
-        , scopes_transformer = merge_scope ltrans strans
-        , scopes_track = merge_scope ltrack strack
-        , scopes_val = insert lval sval
-        }
-    where
-    merge_scope (Scope lnote lcontrol lpitch) (Scope snote scontrol spitch) =
-        Scope
-            { scope_note = insert lnote snote
-            , scope_control = insert lcontrol scontrol
-            , scope_pitch = insert lpitch spitch
-            }
-    insert lookups = (imported (merge_lookups lookups) <>)
-    imported lookups = scope_priority
-        [ (PrioBlock, prio_block)
-        , (PrioLibrary, normal)
-        ]
-        where
-        (prio_block, normal) = List.partition
-            (lookup_pattern_has_tag Tags.prio_block) lookups
-
--- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
--- If there are collisions, the first one wins.
-merge_lookups :: [LookupCall call] -> [LookupCall call]
-merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
-    where calls = Map.unions [calls | LookupMap calls <- lookups]
-
--- | Check if the call has a tag.  This doesn't support LookupMap, but doesn't
--- need to because I only use it for the block lookup call.
-lookup_pattern_has_tag :: Tags.Tags -> LookupCall call -> Bool
-lookup_pattern_has_tag tag lookup = case lookup of
-    LookupPattern _ (DocumentedCall _ doc) _ ->
-        cdoc_tags doc `Tags.contains` tag
-    LookupMap {} -> False
+    extract (ScopePriority m) = concatMap (Map.keys . call_map) (Map.elems m)
 
 -- ** scale
 
@@ -421,16 +378,20 @@ with_scale scale =
     with_val_raw EnvKey.scale (Expr.scale_id_to_str (scale_id scale))
         . with_scopes (val . pitch)
     where
-    pitch = s_generator#s_pitch %= replace [scale_to_lookup scale val_to_pitch]
-    val = s_val %= replace [scale_to_lookup scale id]
-    replace = replace_priority PrioScale
+    pitch = s_generator#s_pitch %= replace (scale_to_call scale val_to_pitch)
+    val = s_val %= replace (scale_to_call scale id)
+    replace pattern =
+        replace_priority PrioScale (mempty { call_patterns = [pattern] })
 
-scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
-scale_to_lookup scale convert =
-    LookupPattern name (scale_call_doc scale) $ \sym ->
+scale_to_call :: Scale -> (ValCall -> call) -> PatternCall call
+scale_to_call scale convert = PatternCall
+    { pat_description = description
+    , pat_doc = scale_call_doc scale
+    , pat_function = \sym ->
         return $ convert <$> scale_note_to_call scale (to_note sym)
+    }
     where
-    name = pretty (scale_id scale) <> ": " <> scale_pattern scale
+    description = pretty (scale_id scale) <> ": " <> scale_pattern scale
     to_note (Expr.Symbol sym) = Pitch.Note sym
 
 -- | Convert a val call to a pitch call.  This is used so scales can export

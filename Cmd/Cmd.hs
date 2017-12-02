@@ -420,11 +420,11 @@ state_save_dir state = path state . Config.RelativePath <$>
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
 data KyCache =
-    KyCache !(Either Text (Derive.Library, Derive.InstrumentAliases))
+    KyCache !(Either Text (Derive.Builtins, Derive.InstrumentAliases))
         !Fingerprint
     -- | This disables the cache mechanism.  Tests use this to avoid having
     -- to set SaveFile.
-    | PermanentKy !(Derive.Library, Derive.InstrumentAliases)
+    | PermanentKy !(Derive.Builtins, Derive.InstrumentAliases)
     deriving (Show)
 
 -- | Keep track of loaded files and a fingerprint for their contents.  This is
@@ -505,7 +505,7 @@ data Config = Config {
     , config_wdev_map :: !(Map Midi.WriteDevice Midi.WriteDevice)
     , config_instrument_db :: !InstrumentDb
     -- | Library of calls for the deriver.
-    , config_library :: !Derive.Library
+    , config_builtins :: !Derive.Builtins
     , config_highlight_colors :: !(Map Color.Highlight Color.Color)
     , config_im :: !Shared.Config.Config
     , config_git_user :: !SaveGit.User

@@ -19,7 +19,7 @@ import qualified Derive.Stream as Stream
 import Global
 
 
-library :: Derive.Library
+library :: Library.Library
 library = Library.transformers
     [ ("mapc", c_mapc)
     ]

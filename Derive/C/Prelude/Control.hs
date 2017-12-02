@@ -32,7 +32,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators $
         [ ("set", c_set)
@@ -58,19 +58,19 @@ library = mconcat
         , ("swell", c_swell)
         ] ++
         ControlUtil.standard_interpolators ControlUtil.interpolator_variations
-    , Library.lookup lookup_generator
-    , Library.lookup lookup_transformer
+    , Library.pattern pattern_generator
+    , Library.pattern pattern_transformer
     ]
 
--- | This is a special lookup for control tracks that lets you directly type
+-- | This is a special pattern for control tracks that lets you directly type
 -- a number, and have that be interpreted as setting the control to that value.
 -- In addition, it allows a special hex syntax
 --
 -- Formerly, control tracks used a slightly different parser to enable the same
 -- thing, but that turned out to be awkward when I wanted to implement
 -- 'Call.eval_event'.
-lookup_generator :: Derive.LookupCall (Derive.Generator Derive.Control)
-lookup_generator = lookup_call $ \val -> generator1 "set" mempty
+pattern_generator :: Derive.PatternCall (Derive.Generator Derive.Control)
+pattern_generator = pattern_call $ \val -> generator1 "set" mempty
     "Emit a sample with no interpolation. This accepts either decimal\
     \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
     \ is divided by 255, so they represent a number between 0 and 1.\n\
@@ -80,8 +80,8 @@ lookup_generator = lookup_call $ \val -> generator1 "set" mempty
         pos <- Args.real_start args
         return $! Signal.signal [(pos, val)]
 
-lookup_transformer :: Derive.LookupCall (Derive.Transformer Derive.Control)
-lookup_transformer = lookup_call $ \val ->
+pattern_transformer :: Derive.PatternCall (Derive.Transformer Derive.Control)
+pattern_transformer = pattern_call $ \val ->
     Derive.transformer Module.prelude "set" mempty
     "Prepend a sample to a signal. This is useful to create a discontinuity,\
     \ e.g. interpolate to a value and then jump to another one."
@@ -90,12 +90,15 @@ lookup_transformer = lookup_call $ \val ->
         let sig = Signal.signal [(pos, val)]
         Post.signal (Signal.interleave sig) deriver
 
-lookup_call :: (Signal.Y -> Derive.Call d) -> Derive.LookupCall (Derive.Call d)
-lookup_call call = Derive.LookupPattern "numbers and hex" doc $
-    \(Expr.Symbol sym) -> return $! case Parse.parse_num sym of
+pattern_call :: (Signal.Y -> Derive.Call d)
+    -> Derive.PatternCall (Derive.Call d)
+pattern_call call = Derive.PatternCall
+    { pat_description = "numbers and hex"
+    , pat_doc = Derive.extract_doc (call 0)
+    , pat_function = \(Expr.Symbol sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ call val
-    where doc = Derive.extract_doc (call 0)
+    }
 
 c_set :: Derive.Generator Derive.Control
 c_set = generator1 "set" mempty

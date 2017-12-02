@@ -30,7 +30,7 @@ import Types
 module_ :: Module.Module
 module_ = "china" <> "zheng"
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators $
         [ ("gliss-a", Derive.set_module module_ String.c_gliss_absolute)

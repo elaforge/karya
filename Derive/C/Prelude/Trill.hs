@@ -98,7 +98,7 @@ import Global
 import Types
 
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     -- Note
     [ make_trills (c_note_trill False)

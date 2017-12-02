@@ -53,7 +53,7 @@ begin_module = module_ <> "begin"
 middle_module = module_ <> "middle"
 end_module = module_ <> "end"
 
-library :: Derive.Library
+library :: Library.Library
 library = mconcat
     [ Library.generators [("@", c_sequence)]
     , Library.transformers
