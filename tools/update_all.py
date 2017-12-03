@@ -8,6 +8,7 @@
 This will backup save, and copy everything from save to save.new.
 '''
 
+from __future__ import print_function
 import sys, os, subprocess, gzip
 
 dry_run = True
@@ -20,9 +21,9 @@ def main():
     if sys.argv[1:] == ['for-real']:
         dry_run = False
     elif sys.argv[1:] == ['dry-run']:
-        print 'DRY RUN'
+        print('DRY RUN')
     else:
-        print 'usage: %s [ dry-run | for-real ]' % (sys.argv[0],)
+        print('usage: %s [ dry-run | for-real ]' % (sys.argv[0],))
         return
     run('bin/mk', update)
     run(backup)
@@ -48,7 +49,7 @@ def safe_rename(dir, source, dest):
     rename(path(source), path(dest))
 
 def rename(source, dest):
-    print 'rename', source, '->', os.path.basename(dest)
+    print('rename', source, '->', os.path.basename(dest))
     if not dry_run:
         os.rename(source, dest)
 
@@ -61,7 +62,7 @@ def update_dir(source, dest):
 
 def update_file(source, dest):
     if not dry_run:
-        print source, '->', dest
+        print(source, '->', dest)
     if source.endswith('.git'):
         dest = dest[:-3] + ex_git
         run(update, source, dest)
@@ -75,7 +76,7 @@ def update_file(source, dest):
         run('cp', '-R', source, dest)
 
 def run(bin, *args):
-    print bin, ' '.join(args)
+    print(bin, ' '.join(args))
     if not dry_run:
         code = subprocess.call([bin] + list(args))
         if code != 0:

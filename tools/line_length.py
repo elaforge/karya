@@ -4,7 +4,9 @@
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 # Make a line length histogram.
+from __future__ import print_function
 import sys
+
 
 def main():
     line_comments = 0
@@ -29,13 +31,13 @@ def main():
                 cols = len(line) - 1
                 lengths[cols] = lengths.get(cols, 0) + 1
                 if cols > 80:
-                    print fname, lineno, line[:50]
+                    print(fname, lineno, line[:50])
 
-    print 'blanks:', blocks
-    print 'comments: line:', line_comments, 'block:', block_comments, \
-        'total:', line_comments + block_comments
+    print('blanks:', blocks)
+    print('comments: line:', line_comments, 'block:', block_comments,
+        'total:', line_comments + block_comments)
     for length, count in sorted(lengths.items()):
-        print '%4d %d' % (length, count)
+        print('%4d %d' % (length, count))
 
 if __name__ == '__main__':
     main()

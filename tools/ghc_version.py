@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # Get the GHC version.  This imitates 'Shake.Shakefile.parseGhcVersion'.
 
+from __future__ import print_function
 import subprocess, os, re
 
 path = subprocess.check_output(['ghc', '--print-libdir']).decode('utf8').strip()

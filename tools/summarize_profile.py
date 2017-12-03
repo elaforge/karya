@@ -3,6 +3,7 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+from __future__ import print_function
 import sys, os, re, datetime, subprocess
 
 
@@ -21,8 +22,8 @@ def main():
     elif sys.argv[-1] == 'no-scc':
         with_scc = False
     else:
-        print 'usage: summarize_profile.py [ -n ] [ scc | no-scc ]'
-        print 'SCC means it was compiled with -auto-all -caf-all'
+        print('usage: summarize_profile.py [ -n ] [ scc | no-scc ]')
+        print('SCC means it was compiled with -auto-all -caf-all')
         sys.exit(1)
     global write_files
     if '-n' in sys.argv[1:]:
@@ -62,8 +63,8 @@ def write(path, mode, content):
         fp.write(content)
         fp.close()
     else:
-        print '----', path
-        print content
+        print('----', path)
+        print(content)
 
 def alist_to_str(alist):
     return ', '.join('%s: %s' % (k, v) for (k, v) in alist)
@@ -78,7 +79,8 @@ def alist_to_str(alist):
 
 def run(prof):
     p = subprocess.Popen(['tools/run_profile', prof], stderr=subprocess.PIPE)
-    (stdout, stderr) = p.communicate()
+    (_stdout, stderr) = p.communicate()
+    stderr = stderr.decode('utf8')
     stem = None
     # Log msgs will also show up on stderr.
     for line in stderr.split('\n'):

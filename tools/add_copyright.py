@@ -3,8 +3,9 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-'''Automatically add tiresome licensing boilerplate.'''
+# Automatically add tiresome licensing boilerplate.
 
+from __future__ import print_function
 import os, sys, datetime, re
 
 dry_run = True
@@ -32,12 +33,12 @@ def process(fn):
     else:
         shebang = ''
     if re.match(copyright_pattern, contents):
-        # print fn, 'already has copyright'
+        # print(fn, 'already has copyright')
         return
     if dry_run:
-        print 'would have added copyright to', fn
+        print('would have added copyright to', fn)
     else:
-        print 'adding copyright to', fn
+        print('adding copyright to', fn)
     if dry_run:
         return
     tmp = fn + '.tmp'
