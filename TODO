@@ -1328,7 +1328,6 @@ synth: im:
       emits samples.
     . Author is nonresponsive.  Maybe I should just write my own:
       . Only one sample rate, only one channel, support only Float.
-  TODO
   play_cache: PlayCache:
     - Move resampling to play_cache.
     - Theoretically I should be doing sample loading in a non-audio thread.
@@ -1988,6 +1987,11 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - profiling for complete scores is broken since I removed them
+    . Derive_profile.profile_file etc.
+    . Use the the verify score stuff instead.
+  - Bring back profiling, and do it regularly.  Look into that graphing stuff,
+    I have the links around here somewhere.
   - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
     . 'compact' package
     . Maybe even serialize it to disk?  Probably not worth it though, since
@@ -2283,6 +2287,8 @@ fltk:
       I can just scan the whole range on every draw.
   - Maybe I could ship over a chunk of playback data in advance, and let the
     UI interpolate playback cursors.
+    . If I could keep the warp as linear segments then I just need to ship the
+      segments.  NOTE [signal-discontinuity]
   - FloatingInput on linux doesn't interact well with a tiling window manager.
     The new window probably needs to be marked transient.
     . Can fltk even do this?  I can't even figure out what xprop should show
@@ -2295,11 +2301,11 @@ fltk:
   - reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
     . I'd need to pass a haskell callback, so it can serialize to JSON.
-  - negative event text is pushed downwards the more it wraps
+  * negative event text is pushed downwards the more it wraps
     . Probably that padding pixel making it not line up.
     . All these padding tweaks are a real mess.  Can I get rid of them and
       apply them all in one spot?
-  - event "a`tamil-i``xie`" clipping with next event is wrong
+  * event "a`tamil-i``xie`" clipping with next event is wrong
   - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
     . It still might be useful to put the top level ruler labels, or cues if
       I ever use those, but I'd have to make it wider.
@@ -2489,6 +2495,257 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
+
+solkattu:
+  transcribe:
+    - after 2014-06-17
+  - html output for realized strokes
+  - Could I do a formatted realized or konnakol output?
+    . E.g. reductions or tri would line up vertically.
+  - How can I do a reduction with irregular bits?  E.g. replace the
+    4 matra version tat.__.din.__ with ta.ka.din.__.
+  . Solkattu2017.c_17_07_13 is showing the difficulty of the
+    (solkattu, stroke_map) approach, because there are too many meanings
+    for taka and din.  Really if it's meant to be useful for different
+    realizations, I should emphasize the reusable phrases, so I should
+    try to figure out ways to make that easier.  For instance,
+    understanding about reduction is good for that.
+    . To an extent, it's acceptable that it's harder than just writing
+      the strokes, because I'm trying to find a more general
+      representation.
+    . Still, I could make it easier with tools:
+      - Lint to show unmatched stroke sequences.
+      - Diff to compare realizations before and after I change the
+        stroke map.
+        . How can I keep them both around?  If I do it at the haskell
+          level, I have to copy the stroke map, and then have multiple
+          stroke maps for the same instrument, and then diff between
+          them.  This might be useful in general to highlight different
+          players style.
+        . If I do it at the ghci level, I'd have to somehow stash the
+          previous previous Korvai or realize output someplace that
+          survives a reload, like write a file.  Then add a function to
+          do a text diff with the file contents.
+  - Final notes should be cancellable, so e.g. tri will cancel for the
+    first two.
+    . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
+      it: tri (tri (taka.tam.__)) I need to rewrite as
+      tri (tri_ (tam.__) taka)
+    . Actually, don't I already have the karvai mechanism for this?
+      What if I do tri (taka. karvai tam.__)?
+    . Not quite, I'd have to do 'tri_ __ (taka . karvai tam)
+    . The problem is I don't really have a well defined notion of when
+      cancelling is ok.
+    . Or maybe it's better to use tri_ after all?  Are there cases where
+      either I can't express with tri_, or it's really awkward?
+  - Some strokes change realization based on the tempo, e.g. 'od' when
+    slow to 'o' when fast.  I could add a stroke attribute for that, or
+    I could try to do a global instrument realization heuristic.
+    . Not just individual strokes, but a whole section can change, e.g.
+      okookook -> nakatiku.  This implies just a realization heuristic
+      won't be enough, though maybe I want it anyway for things like
+      dynamics.
+  - Can I put StrokeMap and Patterns together?  Then I can put standard
+    strokes along with the stroke map, and override them together.
+  - ensure that later entries in the StrokeMap override earlier ones
+  - have a mode to warn about unused StrokeMap entries, and overidden
+    ones
+  karya integration:
+    - LSol.insert_* doesn't clear and replace existing notes
+    - I want to be able to insert all parts of a korvai in sequence.
+      . If I make LSol.insert take [Korvai] then I can use take etc.
+      . But it's easier if I get rid of multiple sequences per Korvai.
+      . Or keep multiple sequences but take [Index].
+    - insert for patterns is messed up, I get p '5' with 0 dur.
+      . '5' is because I use Expr Text, and it uses ShowVal, which loses
+        the type, so everything becomes a Str.
+      . It's Text because I want to avoid relying on Val.
+      . Which in turn is because I wanted to emit expressions like (4d)
+        and have it be evaluated.
+      . But I can do that, just skip parsing, right?  Maybe a Expr MiniVal
+        instead of Expr Text.
+      . Can I use RestrictedEnviron.Val?
+      . Not directly, because of circular imports via RestrictedEnviron ->
+        BaseTypes -> Expr.
+      . But maybe I could move Val to Expr.MiniVal?
+        . VNum !ScoreTypes.TypedVal
+        . | VAttributes !Attrs.Attributes
+        . | VControlRef !BaseTypes.ControlRef
+          if I move Ref ControlRef to ScoreTypes.
+        . | VNotePitch !Pitch.Pitch
+        . | VStr !Expr.Str
+        . | VQuoted !Expr
+        . | VList ![Val]
+      . See NOTE [val-and-minival]
+  - Use a typeclass for format-conversion, instead of Pretty.
+  sarvalaghu:
+    . Fill it in based on position in the tala.
+    . Sometimes there's a final note, e.g. D that replaces the first 1.5
+      aksharas.  I don't have a way to notate it.  Maybe a sequence
+      needs a separate final stroke, which is played when leading back
+      to sarva.
+    - Sarva fill === gets some spaces in there.
+  ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
+    . I can just add a rest to the beginning, but I still need to
+      take duration from the previous note, e.g.
+        d.d.n.n . su (n.d) .d.n.n
+      should be ' d d n nnd d n n'
+  ? rename tri to tir, for tirmanam?
+  groups:
+    - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
+      the unexpanded form.  I think this does need named groups.
+    - Don't make tk and tktu groups, or at least don't highlight them.
+    - dropM shouldn't make a new group if there already is one, e.g.
+      dropM n (group x . y) puts both x and y into a group, instead of
+      leaving y out.
+    . This breaks 'sandi'
+    - Highlight groups in konnakol html.
+    - colors stop right before the last note, not on it.
+    - If groups touch each other then I can't tell them apart.  Maybe
+      I should alternate two colors.
+    - I have a problem with nested groups, e.g. dropM 1 . dropM 1.
+      . I could try to simplify away nested groups.  That means making
+        each one absolute, so the outer one loses its sollus, and they go
+        on the inner ones.  Of course if there aren't inner ones, then
+        I gave to give them the group, and it seems complicated.
+      . I could try to simplify just simple nested groups, where all the
+        children are groups.
+      . I could try to not produce them in the first place, so splitD
+        could do the simplification.  I think it's the same, just built
+        into splitD.
+      . Or I could try to get realize to understand nested groups.
+        I guess it would have to accumulate sollus when it sees a group,
+        and put them on any sub-groups.  Still I'd like to simplify for
+        the same reason I simplify tempo changes, which is to make the
+        intermediate data less hairy.
+      . For now, just make reduce not produce them.  Try simple
+        simplification later.
+    - Various Notation functions like 'spread' should work with groups.
+  - Ornaments to fill in karvai, e.g. with taka and takatiku
+  - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
+    end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
+    . Variation markers put a branch in the realization, so now I have
+      multiple realizations, and I need some way to not just enumerate
+      them, but choose a certain path.
+    . This is also part of the intensity pattern, where the final repeat
+      may have an alternate more intense realization.
+  - Different tags for patterns within a Korvai, e.g. for performance
+    and exercise variants.
+    . Also useful to mark the sections, e.g. development, and related
+      sequences.  Ideally I could have separate stroke maps, but maybe
+      that's overkill.
+  - I should be able to add multiple realizations of the same
+    instrument, keyed by string, e.g. for different mridangists
+    realizations.
+  - Duration assertions, e.g. dur 4 (ta.ka.din.na)
+  pakhawaj:
+    - integrate pakhawaj bols
+      . I think I need "kre" support.
+      . The other thing is tette infer.
+    - Copy the stuff from Derive.C.India.PakhawajScore.
+  reyong realization:
+    - some way to select between melodic and rythmic realization, and
+      transposition for melodic
+      . This could be the same as the emphasis mechanism, if I extend
+        it to attach Attributes.
+      . Or if I have alternate StrokeMaps by name, then I can use that.
+  - Emphasis or automatic variant versions of patterns, e.g.
+    . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
+      pu_ pu_ ktkto
+    . The emphasis note can be i, or pu, or maybe u, or p+u (play like
+      kre on pakhawaj).
+  - Mridangam patterns can vary by intensity in addition to duration and
+    family. How can I represent and realize that?  E.g. the final of
+    a group of three can be higher intensity.
+    . It can also be a variant pattern, e.g.
+      k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
+  - format: if the ruler changes after an avartanam line break, show the
+    partial ruler, e.g. Realize_test.test_format_nadai_change
+  - Notation {take,drop}M functions get matras via duration_of and
+    divide, while matras_of counts matras directly.  I'm not totally
+    sure what the difference is and which one is correct.
+    . With division I can get matras even if nadai changes but it winds
+      up being integral.  So nadai 4 -> 8 would be equivalent to a speed
+      change, which is good.  But 4 -> 6 will also be valid matras if
+      I have a multiple of 3.
+  - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
+    . use this in koraippu_janahan
+  / I think I need an absolute SetSpeed, so I can pad a number of
+    aksharas, regardless of the speed.
+    . I also need it to rest by Duration, or to turn that into matras.
+    . At the score level it's most convenient to work with sollu-matras.
+      These are relative to nadai, but that's actually good.  With speed
+      changes I can get fractional matras, and operations can actually
+      work as long as the speeds line up and I don't have to drop
+      half of a sollu.
+    . However, for things like 'align', I need to know that tala and
+      nadai, so I can emit a certain number of aksharas.
+    . Actually since align is used at the top level, I can assume s0.
+  - extend Karvai to take a minimum number of Rests before it applies.
+    Default to 2, but a chapu might require 3.
+  - I use Pretty for format, which is awkward for Realize.Stroke, since
+    I can tolerate some ambiguity for the same of a single letter width,
+    but Pretty shouldn't have such a restriction.  Add Format class?
+    But it still returns Text instead of Char since patterns have two
+    characters.
+  - This turns into a general way to represent unparsed expressions.
+    . Text shouldn't have ShowVal, it should be Symbol, and then CallId
+      should have a separate type, its ShowVal doesn't need quotes,
+      unless there is a space.
+    . Then Unparsed represents parseable text, so actually ShowVal
+      should return that.  Is it worth having a separate type over using
+      Text, though?
+    . I should be able to parse Expr Unparsed without the intervening
+      ShowVal by directly parsing the Unparsed vals.
+  variation:
+    - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
+      any arithmetic progression.
+    . This is automatic derivation of variations.
+      transformations:
+        . karvai u u u -> u i u
+        . X X X -> gap X, gap-1 kpX, gap-2 kpnpX
+        . X X X -> gap X, gap-2 oktpX, gap-4 ktktoktpX
+        . alternate realization for 3rd repeat: 345 345 3333
+        . __3 -> __2.p or __2.o if o follows
+        . variation for a phrase prefix, usually on its repeat:
+          k_k -> kpk, or k_p -> kpt
+        . stroke substitution in a transformation, e.g. reduce or expand:
+          pk -> kk, e.g. k_kto, k_k_kto, k_t_k_kto.
+      . If I can apply them as a postproc, then I can get even random
+        variations.
+      . Or maybe I should write them explicitly, but make them easier to
+        write?
+    - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
+      777 777 777 -> 567 876 789.  Actually the latter seems not so
+      interesting.
+    - Repeat oriented variation, e.g. 3 5 33 5 333 -> 333 5 33 5 3
+  - Implement PatternFamilies so I can have 6 8 6 7 6 5, or even just
+    distinct realizations within a single korvai.
+  - Should I change mridangam notes to be consistent with Solkattu.Dsl?
+    I have to put thoppi on the left, for 'od' instead of the keyword
+    'do'.  And I have to change tha to p instead of +.
+  . Conditional derivation that depends on position in the tala, e.g.
+    thali / khali.
+  alternate realization
+    - kendang pasangan
+    - kajar
+    - gangsa
+  ? Crazy idea: it might be nice to use underline or double underline
+    for faster.  Is there a way I could get the editor to display
+    special brackets as underline, and then turn those special brackets
+    into a 'faster' call?  I think if I'm doing this, I definitely need
+    a preprocessor, though if I keep basic haskell syntax and define it
+    as a translation to haskell, then I can keep all the usual features.
+    . Alternately, use syntax highlighting.  Sufficiently fancy
+      highlighting could highlight 'faster (...)'.  I don't think ascii
+      can do double underlines, though it could do italic+underline or
+      something.
+    . I could also try to automatically align by time.  I imagine
+      a sufficiently advanced vim macro could do that, e.g. bind ^tab to
+      annotate the current expression with line info, evaluate it, and
+      align the current line, or try to move the cursor to the next
+      beat.  Maybe not worth it though, since the whole idea of the dsl
+      is that time can be abstract.
 
 Cmd:
   Repl:
@@ -2782,247 +3039,6 @@ Derive:
         - get them from Score or MridangamScore.
         - adjust to the talam
         - subdivide at slower speeds
-    solkattu:
-      - Don't make tk and tktu groups, or at least don't highlight them.
-      - How can I do a reduction with irregular bits?  E.g. replace the
-        4 matra version tat.__.din.__ with ta.ka.din.__.
-      . Solkattu2017.c_17_07_13 is showing the difficulty of the
-        (solkattu, stroke_map) approach, because there are too many meanings
-        for taka and din.  Really if it's meant to be useful for different
-        realizations, I should emphasize the reusable phrases, so I should
-        try to figure out ways to make that easier.  For instance,
-        understanding about reduction is good for that.
-        . To an extent, it's acceptable that it's harder than just writing
-          the strokes, because I'm trying to find a more general
-          representation.
-        . Still, I could make it easier with tools:
-          - Lint to show unmatched stroke sequences.
-          - Diff to compare realizations before and after I change the
-            stroke map.
-            . How can I keep them both around?  If I do it at the haskell
-              level, I have to copy the stroke map, and then have multiple
-              stroke maps for the same instrument, and then diff between
-              them.  This might be useful in general to highlight different
-              players style.
-            . If I do it at the ghci level, I'd have to somehow stash the
-              previous previous Korvai or realize output someplace that
-              survives a reload, like write a file.  Then add a function to
-              do a text diff with the file contents.
-      - Final notes should be cancellable, so e.g. tri will cancel for the
-        first two.
-        . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
-          it: tri (tri (taka.tam.__)) I need to rewrite as
-          tri (tri_ (tam.__) taka)
-        . Actually, don't I already have the karvai mechanism for this?
-          What if I do tri (taka. karvai tam.__)?
-        . Not quite, I'd have to do 'tri_ __ (taka . karvai tam)
-        . The problem is I don't really have a well defined notion of when
-          cancelling is ok.
-        . Or maybe it's better to use tri_ after all?  Are there cases where
-          either I can't express with tri_, or it's really awkward?
-      - Some strokes change realization based on the tempo, e.g. 'od' when
-        slow to 'o' when fast.  I could add a stroke attribute for that, or
-        I could try to do a global instrument realization heuristic.
-        . Not just individual strokes, but a whole section can change, e.g.
-          okookook -> nakatiku.  This implies just a realization heuristic
-          won't be enough, though maybe I want it anyway for things like
-          dynamics.
-      - Can I put StrokeMap and Patterns together?  Then I can put standard
-        strokes along with the stroke map, and override them together.
-      - ensure that later entries in the StrokeMap override earlier ones
-      - have a mode to warn about unused StrokeMap entries, and overidden
-        ones
-      - LSol.insert_* doesn't clear and replace existing notes
-      - I want to be able to insert all parts of a korvai in sequence.
-        . If I make LSol.insert take [Korvai] then I can use take etc.
-        . But it's easier if I get rid of multiple sequences per Korvai.
-        . Or keep multiple sequences but take [Index].
-      - insert for patterns is messed up, I get p '5' with 0 dur.
-        . '5' is because I use Expr Text, and it uses ShowVal, which loses
-          the type, so everything becomes a Str.
-        . It's Text because I want to avoid relying on Val.
-        . Which in turn is because I wanted to emit expressions like (4d)
-          and have it be evaluated.
-        . But I can do that, just skip parsing, right?  Maybe a Expr MiniVal
-          instead of Expr Text.
-        . Can I use RestrictedEnviron.Val?
-        . Not directly, because of circular imports via RestrictedEnviron ->
-          BaseTypes -> Expr.
-        . But maybe I could move Val to Expr.MiniVal?
-          . VNum !ScoreTypes.TypedVal
-          . | VAttributes !Attrs.Attributes
-          . | VControlRef !BaseTypes.ControlRef
-            if I move Ref ControlRef to ScoreTypes.
-          . | VNotePitch !Pitch.Pitch
-          . | VStr !Expr.Str
-          . | VQuoted !Expr
-          . | VList ![Val]
-        . See NOTE [val-and-minival]
-      - Use a typeclass for format-conversion, instead of Pretty.
-      transcribe:
-        - after 2014-06-17
-      sarvalaghu:
-        . Fill it in based on position in the tala.
-        . Sometimes there's a final note, e.g. D that replaces the first 1.5
-          aksharas.  I don't have a way to notate it.  Maybe a sequence
-          needs a separate final stroke, which is played when leading back
-          to sarva.
-        - Sarva fill === gets some spaces in there.
-      ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
-        . I can just add a rest to the beginning, but I still need to
-          take duration from the previous note, e.g.
-            d.d.n.n . su (n.d) .d.n.n
-          should be ' d d n nnd d n n'
-      ? rename tri to tir, for tirmanam?
-      - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
-        any arithmetic progression.
-      - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
-        the unexpanded form.  I think this does need named groups.
-      solkattu-group:
-        - colors stop right before the last note, not on it.
-        - If groups touch each other then I can't tell them apart.  Maybe
-          I should alternate two colors.
-        - I have a problem with nested groups, e.g. dropM 1 . dropM 1.
-          . I could try to simplify away nested groups.  That means making
-            each one absolute, so the outer one loses its sollus, and they go
-            on the inner ones.  Of course if there aren't inner ones, then
-            I gave to give them the group, and it seems complicated.
-          . I could try to simplify just simple nested groups, where all the
-            children are groups.
-          . I could try to not produce them in the first place, so splitD
-            could do the simplification.  I think it's the same, just built
-            into splitD.
-          . Or I could try to get realize to understand nested groups.
-            I guess it would have to accumulate sollus when it sees a group,
-            and put them on any sub-groups.  Still I'd like to simplify for
-            the same reason I simplify tempo changes, which is to make the
-            intermediate data less hairy.
-          . For now, just make reduce not produce them.  Try simple
-            simplification later.
-        - Various Notation functions like 'spread' should work with groups.
-      - Ornaments to fill in karvai, e.g. with taka and takatiku
-      - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
-        end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
-        . Variation markers put a branch in the realization, so now I have
-          multiple realizations, and I need some way to not just enumerate
-          them, but choose a certain path.
-        . This is also part of the intensity pattern, where the final repeat
-          may have an alternate more intense realization.
-      - Different tags for patterns within a Korvai, e.g. for performance
-        and exercise variants.
-        . Also useful to mark the sections, e.g. development, and related
-          sequences.  Ideally I could have separate stroke maps, but maybe
-          that's overkill.
-      - I should be able to add multiple realizations of the same
-        instrument, keyed by string, e.g. for different mridangists
-        realizations.
-      - Duration assertions, e.g. dur 4 (ta.ka.din.na)
-      reyong realization:
-        - some way to select between melodic and rythmic realization, and
-          transposition for melodic
-          . This could be the same as the emphasis mechanism, if I extend
-            it to attach Attributes.
-          . Or if I have alternate StrokeMaps by name, then I can use that.
-      - Emphasis or automatic variant versions of patterns, e.g.
-        . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
-          pu_ pu_ ktkto
-        . The emphasis note can be i, or pu, or maybe u, or p+u (play like
-          kre on pakhawaj).
-      - Mridangam patterns can vary by intensity in addition to duration and
-        family. How can I represent and realize that?  E.g. the final of
-        a group of three can be higher intensity.
-        . It can also be a variant pattern, e.g.
-          k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
-      - format: if the ruler changes after an avartanam line break, show the
-        partial ruler, e.g. Realize_test.test_format_nadai_change
-      - dropM shouldn't make a new group if there already is one, e.g.
-        dropM n (group x . y) puts both x and y into a group, instead of
-        leaving y out.
-        . This breaks 'sandi'
-      - Notation {take,drop}M functions get matras via duration_of and
-        divide, while matras_of counts matras directly.  I'm not totally
-        sure what the difference is and which one is correct.
-        . With division I can get matras even if nadai changes but it winds
-          up being integral.  So nadai 4 -> 8 would be equivalent to a speed
-          change, which is good.  But 4 -> 6 will also be valid matras if
-          I have a multiple of 3.
-      - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
-        . use this in koraippu_janahan
-      / I think I need an absolute SetSpeed, so I can pad a number of
-        aksharas, regardless of the speed.
-        . I also need it to rest by Duration, or to turn that into matras.
-        . At the score level it's most convenient to work with sollu-matras.
-          These are relative to nadai, but that's actually good.  With speed
-          changes I can get fractional matras, and operations can actually
-          work as long as the speeds line up and I don't have to drop
-          half of a sollu.
-        . However, for things like 'align', I need to know that tala and
-          nadai, so I can emit a certain number of aksharas.
-        . Actually since align is used at the top level, I can assume s0.
-      / speed changes mess up the ruler, e.g.  Score.c_17_04_04 in misra
-        . Not any more.  Maybe I just had things messed up?
-      - extend Karvai to take a minimum number of Rests before it applies.
-        Default to 2, but a chapu might require 3.
-      - Apply common variation patterns.
-          transformations:
-            . karvai u u u -> u i u
-            . X X X -> gap X, gap-1 kpX, gap-2 kpnpX
-            . X X X -> gap X, gap-2 oktpX, gap-4 ktktoktpX
-            . alternate realization for 3rd repeat: 345 345 3333
-            . __3 -> __2.p or __2.o if o follows
-            . variation for a phrase prefix, usually on its repeat:
-              k_k -> kpk, or k_p -> kpt
-            . stroke substitution in a transformation, e.g. reduce or expand:
-              pk -> kk, e.g. k_kto, k_k_kto, k_t_k_kto.
-          . If I can apply them as a postproc, then I can get even random
-            variations.
-          . Or maybe I should write them explicitly, but make them easier to
-            write?
-      - I use Pretty for format, which is awkward for Realize.Stroke, since
-        I can tolerate some ambiguity for the same of a single letter width,
-        but Pretty shouldn't have such a restriction.  Add Format class?
-        But it still returns Text instead of Char since patterns have two
-        characters.
-      - This turns into a general way to represent unparsed expressions.
-        . Text shouldn't have ShowVal, it should be Symbol, and then CallId
-          should have a separate type, its ShowVal doesn't need quotes,
-          unless there is a space.
-        . Then Unparsed represents parseable text, so actually ShowVal
-          should return that.  Is it worth having a separate type over using
-          Text, though?
-        . I should be able to parse Expr Unparsed without the intervening
-          ShowVal by directly parsing the Unparsed vals.
-      - Higher level variation, e.g. 666 666 666 -> 555 666 777 or even
-        777 777 777 -> 567 876 789.  Actually the latter seems not so
-        interesting.
-      - Implement PatternFamilies so I can have 6 8 6 7 6 5, or even just
-        distinct realizations within a single korvai.
-      - Repeat oriented variation, e.g. 3 5 33 5 333 -> 333 5 33 5 3
-      - Should I change mridangam notes to be consistent with Solkattu.Dsl?
-        I have to put thoppi on the left, for 'od' instead of the keyword
-        'do'.  And I have to change tha to p instead of +.
-      . Conditional derivation that depends on position in the tala, e.g.
-        thali / khali.
-      alternate realization
-        - kendang pasangan
-        - kajar
-        - gangsa
-      ? Crazy idea: it might be nice to use underline or double underline
-        for faster.  Is there a way I could get the editor to display
-        special brackets as underline, and then turn those special brackets
-        into a 'faster' call?  I think if I'm doing this, I definitely need
-        a preprocessor, though if I keep basic haskell syntax and define it
-        as a translation to haskell, then I can keep all the usual features.
-        . Alternately, use syntax highlighting.  Sufficiently fancy
-          highlighting could highlight 'faster (...)'.  I don't think ascii
-          can do double underlines, though it could do italic+underline or
-          something.
-        . I could also try to automatically align by time.  I imagine
-          a sufficiently advanced vim macro could do that, e.g. bind ^tab to
-          annotate the current expression with line info, evaluate it, and
-          align the current line, or try to move the cursor to the next
-          beat.  Maybe not worth it though, since the whole idea of the dsl
-          is that time can be abstract.
     pakhawaj bols
       . Score integrate to convert bols to low level calls
         . Actually score integrate doesn't work like that, it just copies the

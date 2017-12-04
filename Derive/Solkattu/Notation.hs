@@ -2,12 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Generic combinators for solkattu patterns.  Because these are expected to
--- be called as part of the dsl, impure exceptions are allowed, via
--- 'Solkattu.throw'.
---
--- This is meant to have just Sequence manipulation, without
--- instrument-specific functions.
+{- | Generic combinators for solkattu patterns.  Because these are expected to
+    be called as part of the DSL, impure exceptions are allowed, via
+    'Solkattu.throw'.
+
+    This is meant to have just Sequence manipulation, without
+    instrument-specific functions.
+
+    Unlike everywhere else except some Utils, I use camelCase in here.  Since
+    this is for a DSL, I try to save horizontal space.  Also this seems like it
+    might eventually be an independant library.
+-}
 module Derive.Solkattu.Notation where
 import Prelude hiding ((^), repeat)
 import qualified Data.List as List
@@ -24,9 +29,6 @@ import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
-
--- Unlike everywhere else except some Utils, I use camelCase in here.  Since
--- this is for a DSL, I try to save horizontal space.
 
 type SequenceT sollu = [S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)]
     -- This is the same as in Korvai.
