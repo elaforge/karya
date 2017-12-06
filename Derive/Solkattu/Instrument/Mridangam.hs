@@ -42,30 +42,32 @@ type Patterns = Realize.Patterns Stroke
 
 -- * strokes
 
-instance Pretty Stroke where
-    pretty (Thoppi t) = pretty t
-    pretty (Valantalai v) = pretty v
-    pretty (Both t v) = case t of
+instance Solkattu.Notation Stroke where
+    notation (Thoppi t) = Solkattu.notation t
+    notation (Valantalai v) = Solkattu.notation v
+    notation (Both t v) = case t of
         Tha -> case v of
             Ki -> "P"
             Ta -> "X"
-            _ -> pretty v <> macron_below
+            _ -> Solkattu.notation v <> macron_below
         Thom -> case v of
             Kin -> "ç" -- better o with cedilla
             Tan -> "ô"
-            _ -> Text.toUpper (pretty v)
+            _ -> Text.toUpper (Solkattu.notation v)
+
+instance Pretty Stroke where pretty = Solkattu.notation
 
 -- COMBINING MACRON BELOW
 macron_below :: Text
 macron_below = "\x0331"
 
-instance Pretty Thoppi where
-    pretty n = case n of
+instance Solkattu.Notation Thoppi where
+    notation n = case n of
         Thom -> "o"
         Tha -> "p"
 
-instance Pretty Valantalai where
-    pretty n = case n of
+instance Solkattu.Notation Valantalai where
+    notation n = case n of
         Ki -> "k"
         Ta -> "t"
         Mi -> "l"
@@ -84,8 +86,8 @@ instance Pretty Valantalai where
 instance Expr.ToExpr Stroke where
     to_expr s = Expr.generator0 $ Expr.Symbol $ case s of
         Thoppi t -> thoppi t
-        Valantalai v -> pretty v
-        Both t v -> pretty v <> thoppi t
+        Valantalai v -> Solkattu.notation v
+        Both t v -> Solkattu.notation v <> thoppi t
         where
         thoppi t = case t of
             Thom -> "o"

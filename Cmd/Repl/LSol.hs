@@ -76,16 +76,16 @@ insert_sargam = insert Korvai.sargam True
 
 -- | Insert the korvai at the selection.
 -- TODO implement ModifyNotes.replace_tracks to clear existing notes first
-insert :: (Pretty stroke, Cmd.M m) => Korvai.Instrument stroke -> Bool
-    -> TrackTime -> Korvai.Korvai -> Index -> m ()
+insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
+    -> Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
 insert instrument realize_patterns akshara_dur korvai index = do
     (block_id, _, track_id, at) <- Selection.get_insert
     note_track <- realize instrument realize_patterns korvai index akshara_dur
         at
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
-realize :: (Ui.M m, Pretty stroke) => Korvai.Instrument stroke -> Bool
-    -> Korvai.Korvai -> Index -> TrackTime -> TrackTime
+realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
+    -> Bool -> Korvai.Korvai -> Index -> TrackTime -> TrackTime
     -> m ModifyNotes.NoteTrack
 realize instrument realize_patterns korvai index akshara_dur at = do
     (strokes, warning) <- Ui.require_right id

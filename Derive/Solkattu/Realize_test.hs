@@ -330,12 +330,12 @@ test_format_speed = do
 
 -- * util
 
-realize :: Pretty stroke => Realize.StrokeMap stroke
+realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [Sequence.Note (Solkattu.Group Sollu) (Note Sollu)]
     -> Either Text [Realize.Note stroke]
 realize smap = fmap (map snd) . realize_s smap
 
-realize_s :: Pretty stroke => Realize.StrokeMap stroke
+realize_s :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [Sequence.Note (Solkattu.Group Sollu) (Note Sollu)]
     -> Either Text [(Realize.Meta (Realize.Stroke stroke), Realize.Note stroke)]
 realize_s smap =
@@ -390,6 +390,6 @@ state_pos state =
     , Sequence.state_matra state
     )
 
-format :: Pretty stroke => Int -> Tala.Tala
+format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [(Sequence.Meta a, Realize.Note stroke)] -> Text
 format = Realize.format Nothing

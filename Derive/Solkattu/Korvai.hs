@@ -150,7 +150,7 @@ sargam = default_instrument
 
 -- | An existential type to capture the Pretty instance.
 data GInstrument =
-    forall stroke. Pretty stroke => GInstrument (Instrument stroke)
+    forall stroke. Solkattu.Notation stroke => GInstrument (Instrument stroke)
 
 instruments :: Map Text GInstrument
 instruments = Map.fromList
@@ -166,7 +166,7 @@ type MetaNote stroke =
     (S.Meta (Solkattu.Group (Realize.Stroke stroke)), Realize.Note stroke)
 
 -- | Realize a Korvai on a particular instrument.
-realize :: Pretty stroke => Instrument stroke -> Bool -> Korvai
+realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Error ([MetaNote stroke], Error)]
 realize instrument realize_patterns korvai = case korvai_sequences korvai of
     Sollu seqs -> map (realize1 (inst_from_sollu instrument smap)) seqs
@@ -181,7 +181,7 @@ realize instrument realize_patterns korvai = case korvai_sequences korvai of
     tala = korvai_tala korvai
     inst = inst_from_strokes instrument (korvai_stroke_maps korvai)
 
-realize_instrument :: (Pretty sollu, Pretty stroke) =>
+realize_instrument :: (Pretty sollu, Solkattu.Notation stroke) =>
     Bool -> Realize.GetStroke sollu stroke -> Realize.Instrument stroke
     -> Tala.Tala -> SequenceT sollu
     -> Either Error ([MetaNote stroke], Error)
@@ -311,8 +311,8 @@ instance Pretty StrokeMaps where
 
 -- * print score
 
-print_instrument :: Pretty stroke => Instrument stroke -> Bool -> Korvai
-    -> IO ()
+print_instrument :: Solkattu.Notation stroke => Instrument stroke -> Bool
+    -> Korvai -> IO ()
 print_instrument instrument realize_patterns korvai =
     print_results Nothing korvai $ realize instrument realize_patterns korvai
 
@@ -331,7 +331,7 @@ write_konnakol_html realize_patterns korvai =
                 putStrLn "wrote konnakol.html"
             where (notes, warnings) = unzip results
 
-print_results :: Pretty stroke => Maybe Int -> Korvai
+print_results :: Solkattu.Notation stroke => Maybe Int -> Korvai
     -> [Either Error ([(S.Meta a, Realize.Note stroke)], Error)]
     -> IO ()
 print_results override_stroke_width korvai = print_list . map show1

@@ -75,6 +75,17 @@ import qualified Derive.Solkattu.Tala as Tala
 import Global
 
 
+{- | Render a concrete stroke to text representing it.  This is used for ASCII
+    output, so it should produce only a single character per matra duration.
+    There could be exceptions for strokes which are both rare and almost always
+    occur before a rest.
+
+    TODO I could extend it with an html method for non-ASCII output, or some
+    type that can be rendered to both ASCII and terminal escape codes.
+-}
+class Notation a where
+    notation :: a -> Text
+
 type Error = Text
 
 data Note sollu =
@@ -200,8 +211,10 @@ data Pattern =
     | Nakatiku
     deriving (Eq, Ord, Show)
 
-instance Pretty Pattern where
-    pretty p = case p of
+instance Pretty Pattern where pretty = notation
+
+instance Notation Pattern where
+    notation p = case p of
         PatternM matras -> "p" <> showt matras
         Nakatiku -> "4n"
 
@@ -221,8 +234,9 @@ data Sollu =
     | Ta | Tam | Tang | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 
-instance Pretty Sollu where
-    pretty = Text.toLower . showt
+instance Notation Sollu where
+    notation = Text.toLower . showt
+instance Pretty Sollu where pretty = notation
 
 -- * durations
 

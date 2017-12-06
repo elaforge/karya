@@ -58,15 +58,19 @@ to_expr (Stroke emphasis stroke) = case emphasis of
     Light -> Expr.with Symbols.weak stroke
     Heavy -> Expr.with Symbols.accent stroke
 
-instance Pretty stroke => Pretty (Stroke stroke) where
-    pretty (Stroke emphasis stroke) = case emphasis of
+instance Solkattu.Notation stroke => Solkattu.Notation (Stroke stroke) where
+    notation (Stroke emphasis stroke) = case emphasis of
         -- This makes the output ambiguous since some strokes are already
-        -- capitalized.  But since Pretty is used for 'format', which will
-        -- doesn't understand about two-char strokes, I'll try the ambiguity
-        -- and make format smarter (and take twice the width) if necessary.
-        Heavy -> Text.toUpper $ pretty stroke
-        Normal -> pretty stroke
-        Light -> pretty stroke
+        -- capitalized.  TODO use bold or something
+        Heavy -> Text.toUpper $ Solkattu.notation stroke
+        Normal -> Solkattu.notation stroke
+        Light -> Solkattu.notation stroke
+
+instance Pretty stroke => Pretty (Stroke stroke) where
+    pretty (Stroke emphasis stroke) = (<> pretty stroke) $ case emphasis of
+        Heavy -> "hv "
+        Normal -> ""
+        Light -> "lt "
 
 note_of :: Note a -> Maybe (Stroke a)
 note_of (Note stroke) = Just stroke
@@ -105,6 +109,12 @@ instance S.HasMatras (Note stroke) where
         Note {} -> False
         Space {} -> True
         Pattern {} -> True
+
+instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
+    notation (Space Solkattu.Rest) = "_"
+    notation (Space Solkattu.Sarva) = "="
+    notation (Note s) = Solkattu.notation s
+    notation (Pattern p) = Solkattu.notation p
 
 instance Pretty stroke => Pretty (Note stroke) where
     pretty (Space Solkattu.Rest) = "_"
@@ -233,8 +243,8 @@ realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
 
 type Meta sollu = S.Meta (Solkattu.Group sollu)
 
-realize :: forall stroke sollu. (Pretty stroke, Pretty sollu) =>
-    RealizePattern S.Tempo stroke -> GetStroke sollu stroke
+realize :: forall stroke sollu. (Pretty sollu, Solkattu.Notation stroke)
+    => RealizePattern S.Tempo stroke -> GetStroke sollu stroke
     -> [(Meta sollu, Solkattu.Note sollu)]
     -> Either Error [(Meta (Stroke stroke), Note stroke)]
 realize realize_pattern get_stroke =
@@ -264,9 +274,12 @@ realize realize_pattern get_stroke =
             Nothing -> Left "Pattern with Nothing meta"
         Solkattu.Note {} -> find_sequence get_stroke ((meta, note) : notes)
 
+    format_error :: ([(a, Note stroke)], Maybe Text)
+        -> Either Error [(a, Note stroke)]
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
-        TextUtil.joinWith "\n" (pretty_words (map snd pre)) err
+        TextUtil.joinWith "\n" (error_notation (map snd pre)) err
+    error_notation = Text.unwords . map (justify_left 2 ' ' . Solkattu.notation)
 
     realize_group :: Solkattu.Group sollu
         -> [(Maybe (Meta sollu), Solkattu.Note sollu)]
@@ -343,9 +356,6 @@ replace_sollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
     -- the same length as the RealizedNotes used to find them.
 
-pretty_words :: Pretty a => [a] -> Text
-pretty_words = Text.unwords . map (justify_left 2 ' ' . pretty)
-
 -- ** GetStroke
 
 -- | Int is the longest [sollu] key, so I know when to give up looking for the
@@ -382,13 +392,14 @@ exact_match tag sollus (_, get_stroke) =
 
 -- * format text
 
+
 -- | Format the notes according to the tala.
 --
 -- The line breaking for rulers is a bit weird in that if the line is broken,
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Pretty stroke => Maybe Int -> Int -> Tala.Tala
+format :: Solkattu.Notation stroke => Maybe Int -> Int -> Tala.Tala
     -> [(S.Meta a, Note stroke)] -> Text
 format override_stroke_width width tala notes =
     Text.stripEnd $ Terminal.fix_for_iterm $ attach_ruler ruler_avartanams
@@ -435,7 +446,7 @@ format_final_avartanam avartanams = case reverse avartanams of
     is_rest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
-format_lines :: Pretty stroke => Int -> Int -> Tala.Tala
+format_lines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
     -> [(S.Meta a, Note stroke)] -> [[[(S.State, Symbol)]]]
 format_lines stroke_width width tala =
     format_final_avartanam . map (break_line width) . break_avartanams
@@ -449,10 +460,10 @@ format_lines stroke_width width tala =
         overlap = maybe 0 (subtract stroke_width . text_length . _text . snd)
             prev
     make_symbol state (bounds, s) = make bounds $ case s of
-        S.Attack a -> justify_left stroke_width ' ' (pretty a)
+        S.Attack a -> justify_left stroke_width ' ' (Solkattu.notation a)
         S.Sustain a -> Text.replicate stroke_width $ case a of
             Pattern {} -> "-"
-            _ -> pretty a
+            _ -> Solkattu.notation a
         S.Rest -> justify_left stroke_width ' ' "_"
         where
         make bounds text = Symbol text (should_emphasize aksharas state) bounds
@@ -594,14 +605,14 @@ text_length = sum . map len . untxt
 
 -- * format html
 
-write_html :: Pretty stroke => FilePath -> Tala.Tala
+write_html :: Solkattu.Notation stroke => FilePath -> Tala.Tala
     -> [[(S.Meta a, Note stroke)]] -> IO ()
 write_html fname tala =
     Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
     . map (Doc.un_html . format_html tala)
 
-format_html :: Pretty stroke => Tala.Tala -> [(S.Meta a, Note stroke)]
-    -> Doc.Html
+format_html :: Solkattu.Notation stroke => Tala.Tala
+    -> [(S.Meta a, Note stroke)] -> Doc.Html
 format_html tala notes = to_table 30 (map Doc.html ruler) body
     where
     ruler = maybe [] (concatMap akshara . infer_ruler tala)
@@ -611,8 +622,8 @@ format_html tala notes = to_table 30 (map Doc.html ruler) body
     thin = map (Doc.Html . _text) . thin_rests . map (symbol . Doc.un_html)
     avartanams = format_table tala notes
 
-format_table :: Pretty stroke => Tala.Tala -> [(S.Meta a, Note stroke)]
-    -> [[(S.State, Doc.Html)]]
+format_table :: Solkattu.Notation stroke => Tala.Tala
+    -> [(S.Meta a, Note stroke)] -> [[(S.State, Doc.Html)]]
 format_table tala =
     break_avartanams
         . map_with_fst emphasize_akshara
@@ -622,10 +633,10 @@ format_table tala =
     where
     -- TODO use bounds to colorize groups
     show_stroke (bounds, s) = case s of
-        S.Attack a -> Doc.html (pretty a)
+        S.Attack a -> Doc.html (Solkattu.notation a)
         S.Sustain a -> case a of
             Pattern {} -> "&mdash;"
-            _ -> Doc.html $ pretty a
+            _ -> Doc.html $ Solkattu.notation a
         S.Rest -> "_"
     emphasize_akshara state word
         | should_emphasize aksharas state = "<b>" <> word <> "</b>"

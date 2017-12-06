@@ -4,20 +4,6 @@ LEGEND
 
 NESS:
   Questions:
-    . What are the differences between soundboard, guitar, and bowed string?
-      E.g. why not play soundboard or guitar with a bow?  Why not put frets on
-      the bowed string?  Guitar is maybe a strictly better soundboard?
-
-    . How to do jawari for soundboard, guitar, or bowed string?  How about
-      a curved bridge?
-    . What's T60?
-      . 60db
-    . Is there a difference between demo mode and just changing sampling rate
-      to 11k?
-
-    . Generally is it useful to try to get the values for the real materials,
-      lengths, tension etc., or just adjust parameters and listen?
-
     multiplate:
       . You can define membrane and drumshell, but not strike them?
         . It seems like 'strike membrane1 ...' works, but is undocumented?
@@ -283,6 +269,8 @@ UNSORTED
   - Use EnvKey.string for string selection in vsl, not attributes.
     . It would be nice to be able to select by name instead of NN, but the
       calls like NNs.  Maybe val calls that emit the right NNs.
+    . I'm using pitches with e.g. '60nn' for names.  g, d, a e are still
+      a better UI though.
   * Print something on stdout when I can't find the file to load from the
     cmdline.  Otherwise I get confused.
   - if 'roll' were a transformer I could do 'roll | some-note'.  This is the
@@ -338,7 +326,7 @@ UNSORTED
         hand, it's more cons cells for the stream, which maybe means more junk
         to skip when sorting and merging.  Maybe I could mitigate that by
         collecting Metadata together into short vectors, which can be skipped
-        as a nuit.  It's only a win if they tend to clump together.
+        as a unit.  It's only a win if they tend to clump together.
       . What would the metadata be?
       . Also I should profile to make sure about Collect usage and of course
         to see a difference if I switch.
@@ -2577,7 +2565,6 @@ solkattu:
         . | VQuoted !Expr
         . | VList ![Val]
       . See NOTE [val-and-minival]
-  - Use a typeclass for format-conversion, instead of Pretty.
   sarvalaghu:
     . Fill it in based on position in the tala.
     . Sometimes there's a final note, e.g. D that replaces the first 1.5
@@ -2683,11 +2670,13 @@ solkattu:
     . Actually since align is used at the top level, I can assume s0.
   - extend Karvai to take a minimum number of Rests before it applies.
     Default to 2, but a chapu might require 3.
-  - I use Pretty for format, which is awkward for Realize.Stroke, since
-    I can tolerate some ambiguity for the same of a single letter width,
-    but Pretty shouldn't have such a restriction.  Add Format class?
-    But it still returns Text instead of Char since patterns have two
-    characters.
+  * Use a typeclass for format-conversion, instead of Pretty.
+    . I use Pretty for format, which is awkward for Realize.Stroke, since
+      I can tolerate some ambiguity for the same of a single letter width,
+      but Pretty shouldn't have such a restriction.  Add Format class?
+      But it still returns Text instead of Char since patterns have two
+      characters.
+    . I still need Pretty for error msgs, because I have Pretty [a].
   - This turns into a general way to represent unparsed expressions.
     . Text shouldn't have ShowVal, it should be Symbol, and then CallId
       should have a separate type, its ShowVal doesn't need quotes,

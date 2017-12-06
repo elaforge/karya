@@ -23,8 +23,8 @@ note = Sequence.Note . Realize.Note . Realize.stroke
 data Stroke = N1 | N2 | N3 | N4 | N14 | Byut | Byong | CekC | CekO
     deriving (Show, Eq, Ord)
 
-instance Pretty Stroke where
-    pretty s = case s of
+instance Solkattu.Notation Stroke where
+    notation s = case s of
         N1 -> "1"
         N2 -> "2"
         N3 -> "3"
@@ -34,6 +34,8 @@ instance Pretty Stroke where
         Byong -> "o"
         CekC -> "k"
         CekO -> "x"
+
+instance Pretty Stroke where pretty = Solkattu.notation
 
 instance Expr.ToExpr Stroke where
     to_expr s = case s of

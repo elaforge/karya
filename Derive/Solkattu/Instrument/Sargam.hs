@@ -14,6 +14,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Solkattu.Instrument.ToScore as ToScore
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as Sequence
+import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -33,10 +34,12 @@ data Stroke = Stroke {
     , _attributes :: !(Set Text)
     } deriving (Show, Eq, Ord)
 
-instance Pretty Stroke where
-    pretty (Stroke pitch attrs) = sargam_pitch pitch
+instance Solkattu.Notation Stroke where
+    notation (Stroke pitch attrs) = Solkattu.notation pitch
         <> if Set.null attrs then ""
             else Text.intercalate "+" (Set.toList attrs)
+
+instance Pretty Stroke where pretty = Solkattu.notation
 
 instance Expr.ToExpr Stroke where
     to_expr (Stroke _ attrs) =
@@ -45,22 +48,21 @@ instance Expr.ToExpr Stroke where
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.to_expr
 
--- | For Realize.format TODO - make a separate typeclass for this
-sargam_pitch :: Pitch.Pitch -> Text
-sargam_pitch (Pitch.Pitch oct degree) = sargam_degree degree <> case oct of
-    3 -> dot_below
-    4 -> ""
-    5 -> dot_above
-    _ -> showt oct
+instance Solkattu.Notation Pitch.Pitch where
+    notation (Pitch.Pitch oct degree) = Solkattu.notation degree <> case oct of
+        3 -> dot_below
+        4 -> ""
+        5 -> dot_above
+        _ -> showt oct
 
 -- | Show pitch as parsed by the raga scales.
 score_pitch :: Pitch.Pitch -> Text
-score_pitch (Pitch.Pitch oct degree) = showt oct <> sargam_degree degree
+score_pitch (Pitch.Pitch oct degree) = showt oct <> Solkattu.notation degree
 
-sargam_degree :: Pitch.Degree -> Text
-sargam_degree (Pitch.Degree pc _accs) =
-    fromMaybe (showt pc) (degrees Vector.!? pc)
-    where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
+instance Solkattu.Notation Pitch.Degree where
+    notation (Pitch.Degree pc _accs) =
+        fromMaybe (showt pc) (degrees Vector.!? pc)
+        where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 
 -- COMBINING DOT ABOVE
 dot_above :: Text

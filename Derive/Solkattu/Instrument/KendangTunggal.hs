@@ -26,8 +26,8 @@ type Patterns = Realize.Patterns Stroke
 
 -- * strokes
 
-instance Pretty Stroke where
-    pretty s = case s of
+instance Solkattu.Notation Stroke where
+    notation s = case s of
         Plak -> "P"
         Pak -> "p"
         Pang -> "t"
@@ -36,6 +36,8 @@ instance Pretty Stroke where
         Ka -> "k"
         Tut -> "o"
         De -> "a"
+
+instance Pretty Stroke where pretty = Solkattu.notation
 
 -- | TODO should I make these consistent with 'Strokes'?
 instance Expr.ToExpr Stroke where
