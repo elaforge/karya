@@ -51,7 +51,7 @@ instance Solkattu.Notation Stroke where
             Ta -> "X"
             _ -> Solkattu.notation v <> macron_below
         Thom -> case v of
-            Kin -> "ç" -- better o with cedilla
+            Kin -> "o" <> cedilla_below
             Tan -> "ô"
             _ -> Text.toUpper (Solkattu.notation v)
 
@@ -60,6 +60,10 @@ instance Pretty Stroke where pretty = Solkattu.notation
 -- COMBINING MACRON BELOW
 macron_below :: Text
 macron_below = "\x0331"
+
+-- COMBINING CEDILLA
+cedilla_below :: Text
+cedilla_below = "\x0327"
 
 instance Solkattu.Notation Thoppi where
     notation n = case n of
