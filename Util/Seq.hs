@@ -160,8 +160,8 @@ take_at i xs = case post of
 -- out of range, nothing happens.
 modify_at :: Int -> (a -> a) -> [a] -> [a]
 modify_at i f xs = case post of
-        [] -> pre
-        (elt:rest) -> pre ++ f elt : rest
+    [] -> pre
+    elt : rest -> pre ++ f elt : rest
     where (pre, post) = splitAt i xs
 
 -- | Find an element, then change it.  Return Nothing if the element wasn't

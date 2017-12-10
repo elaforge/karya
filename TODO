@@ -2697,7 +2697,7 @@ solkattu:
 
       . Ok, since I don't know what to do, and I think plain groups are
         currently implemented, let's just do that.  But:
-        - Change Sequence._marks from Maybe (GroupMark g) to [GroupMark g] so
+        * Change Sequence._marks from Maybe (GroupMark g) to [GroupMark g] so
           I can represent directly nested groups at least.
         - realize looks for suffix if prefix++suffix doesn't match.
           . This should fix the sandi examples.

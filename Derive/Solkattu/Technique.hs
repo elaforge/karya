@@ -27,7 +27,9 @@ postprocess :: Technique (Realize.Stroke stroke)
     -> [MetaNote stroke] -> [MetaNote stroke]
 postprocess technique = map (uncurry process) . Seq.zip_nexts
     where
-    process (meta@(S.Meta (Just (S.GroupMark _ g)) _), note) notes
+    -- TODO I just pick the first group, but maybe I should try for each nested
+    -- group.
+    process (meta@(S.Meta ((S.GroupMark _ g) : _) _), note) notes
         | Just stroke <- Realize.note_of note,
                 Just out <- technique prevs stroke nexts =
             (meta, set_note out note)

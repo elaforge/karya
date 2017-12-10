@@ -251,17 +251,18 @@ realize realize_pattern get_stroke =
     fmap reassociate_strokes . realize_notes . map (first Just)
     where
     realize_notes = format_error . first concat . map_until_left realize1
-    realize1 ((Just (S.Meta (Just (S.GroupMark count group)) tempo)), note)
-            notes
-        | not (null (Solkattu._dropped group)) = (, post) <$>
-            realize_group group ((Just stripped, note) : pre)
+    -- Start of a group.  TODO there could be multiple groups if they are
+    -- nested, but I don't support that at the moment, so take the first one.
+    realize1 ((Just (S.Meta (S.GroupMark count group : _) tempo)), note) notes
+        | not (null (Solkattu._dropped group)) =
+            (, post) <$> realize_group group ((Just stripped, note) : pre)
         where
         (pre, post) = splitAt (count-1) notes
         -- I want to keep the group for the output, but if I leave it as-is
         -- I'll recurse endlessly.  Since realize_group will add the dropped
         -- sollus on, I can strip them from the group, and prevent it from
         -- happening again.
-        stripped = S.Meta (Just g) tempo
+        stripped = S.Meta [g] tempo
         g = S.GroupMark count (group { Solkattu._dropped = [] })
     realize1 (meta, note) notes = case note of
         Solkattu.Alignment {} -> Right ([], notes)
@@ -317,7 +318,7 @@ reassociate_strokes = associate . span_until_just
 -- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
 -- merge their result into 'realize' output.
 add_meta :: S.Tempo -> S.Meta g
-add_meta tempo = S.Meta { _mark = Nothing, _tempo = tempo }
+add_meta tempo = S.Meta { _marks = [], _tempo = tempo }
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
@@ -470,18 +471,22 @@ format_lines stroke_width width tala =
     aksharas = akshara_set tala
 
 -- | Put StartEnd on the strokes to mark group boundaries.
-annotate_groups :: [(Maybe (S.GroupMark g), (S.State, S.Stroke a))]
-    -> [(S.State, ([StartEnd], S.Stroke a))]
+annotate_groups :: [([S.GroupMark g], (state, stroke))]
+    -> [(state, ([StartEnd], stroke))]
 annotate_groups = snd . List.mapAccumL go mempty . zip [0..]
     where
-    go ends (i, (g, (state, stroke))) = case g of
-        Nothing -> (ends, (state, (if_end, stroke)))
-        Just g ->
-            ( MultiSet.insert (i + S._count g - 1) ends
-            , (state, (Start : if_end, stroke))
-            )
-        where if_end = replicate (MultiSet.occur i ends) End
+    go prev_end_set (i, (marks, (state, stroke))) =
+        ( end_set
+        , (state, (replicate starts Start ++ replicate ends End, stroke))
+        )
+        where
+        end_set = foldr (MultiSet.insert . (+i) . subtract 1 . S._count)
+            prev_end_set marks
+        ends = MultiSet.occur i end_set
+        starts = length marks
 
+-- TODO these don't distinguish between different groups, but I'll probably
+-- want to do that once I have fancier formatting.
 data StartEnd = Start | End deriving (Eq, Show)
 
 should_emphasize :: Set Tala.Akshara -> S.State -> Bool

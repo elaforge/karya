@@ -105,7 +105,7 @@ korvais =
     , set_location ("Derive.Solkattu.Score.Solkattu2017",481,"c_17_07_19") Derive.Solkattu.Score.Solkattu2017.c_17_07_19
     , set_location ("Derive.Solkattu.Score.Solkattu2017",494,"c_17_08_21") Derive.Solkattu.Score.Solkattu2017.c_17_08_21
     , set_location ("Derive.Solkattu.Score.Solkattu2017",516,"c_17_08_29") Derive.Solkattu.Score.Solkattu2017.c_17_08_29
-    , set_location ("Derive.Solkattu.Score.Solkattu2017",572,"c_17_10_23") Derive.Solkattu.Score.Solkattu2017.c_17_10_23
+    , set_location ("Derive.Solkattu.Score.Solkattu2017",607,"c_17_10_23") Derive.Solkattu.Score.Solkattu2017.c_17_10_23
     , set_location ("Derive.Solkattu.Score.SolkattuMohra",33,"c_mohra") Derive.Solkattu.Score.SolkattuMohra.c_mohra
     , set_location ("Derive.Solkattu.Score.SolkattuMohra",50,"c_mohra2") Derive.Solkattu.Score.SolkattuMohra.c_mohra2
     , set_location ("Derive.Solkattu.Score.SolkattuMohra",68,"c_mohra_youtube") Derive.Solkattu.Score.SolkattuMohra.c_mohra_youtube

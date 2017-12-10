@@ -98,8 +98,7 @@ data Note sollu =
 instance Pretty sollu => Pretty (Note sollu) where
     pretty n = case n of
         Note note -> pretty note
-        Space Rest -> "__"
-        Space Sarva -> "=="
+        Space space -> pretty space
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
@@ -121,6 +120,10 @@ instance Pretty sollu => Pretty (Group sollu) where
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
 data Space = Rest | Sarva
     deriving (Eq, Ord, Show)
+
+instance Pretty Space where
+    pretty Rest = "__"
+    pretty Sarva = "=="
 
 data NoteT sollu = NoteT {
     _sollu :: !sollu

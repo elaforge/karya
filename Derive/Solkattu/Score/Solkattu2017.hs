@@ -514,14 +514,15 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
         ]
 
 c_17_08_29 :: Korvai
-c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
-    [ sarvaD 7 . sarvaD 3   . theme.na.__.din
-    , dit.__4 . sarvaD 2 . theme . na.__
-    , repeat 2 $ dit.__4 . sarvaD 2 . tri theme . na.__
+c_17_08_29 = date 2017 8 29 $ ganesh $
+    korvai Tala.misra_chapu (mridangam<>kendang1)
+    [ sarvaD 7 . sarvaD 3   . develop.na.__.din
+    , dit.__4 . sarvaD 2 . develop . na.__
+    , repeat 2 $ dit.__4 . sarvaD 2 . tri develop . na.__
 
+    , sequence theme1
     , sequence theme2
     , sequence theme3
-    , sequence theme4
     -- (4 3 2) 2 4
     -- (4 3 2) 2 4
     -- (4 3 2) 2 4
@@ -535,42 +536,77 @@ c_17_08_29 = date 2017 8 29 $ ganesh $ korvai Tala.misra_chapu mridangam
     --     (2) 2 2
     --     (2) 2 2
     --     (2) 1
+
+    -- (4  3  2)  2  4
+    -- (4  3  2)  2  4
+    -- (4{ 3  2)
+    --    (3  2)} 2  4
+    --    (3  2)  2  4
+    --    (3{ 2)
+    --       (2)} 2  2  (2)  2   2 (2)
+    --            1  4
+    --       (2)  2  2  (2)  2  2  (2)
+    --            1  4
+    --       (2)  2  2  (2)  2  2  (2)
+    --            1  4
     ]
     where
     sequence t =
-        tri_ (tat.__4.tam.__8) (t1.t2.t3)
-        . sandi (t2.t3) (tri_ (tat.__4.tam.__8) (t2.t3))
-        . sandi t3      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t3))
+        tri_ (tat.__4.tam.__8) (t4.t3.t2)
+        . sandi (t3.t2) (tri_ (tat.__4.tam.__8) (t3.t2))
+        . sandi t2      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t2))
         . tat.__.tam
-        where [t1, t2, t3] = take 3 $ reduceToL 0 2 t
-    theme = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
-    theme2 = na.__.na.__.na.dinga
-    theme3 = dhom.ka.dhom.ka.din.na . su kitataka
-    theme4 = taka.na.ka . su (kita.tarikita) . dhom
+        where [t4, t3, t2] = take 3 $ reduceToL 0 2 t
+    develop = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
+    theme1 = na.__.na.__.na.dinga
+    theme2 = dhom.ka.dhom.ka.din.na . su kitataka
+    theme3 = taka.na.ka . su (kita.tarikita) . dhom
     mridangam = make_mridangam
         [ (na, [n])
         , (na.dinga, [n, d, p])
         , (na.din, [on, od])
         , (dit, [n])
 
-        , (theme2, [on, on, on, d, o])
+        , (theme1, [on, on, on, d, o])
         , (tat, [on])
         , (tam, [u])
         , (mid^tam, [i])
 
-        , (theme3, [o, k, o, k, o, n, k, t, o, k])
+        , (theme2, [o, k, o, k, o, n, k, t, o, k])
         -- TODO sandi breaks groups, fix it and I can delete these
         , (dhom.ka.din.na . su kitataka, [o, k, o, n, k, t, o, k])
         , (din.na . su kitataka, [o, n, k, t, o, k])
 
-        , (theme4, [k, o, n, o, k, t, p, k, p, t, o])
+        , (theme3, [k, o, n, o, k, t, p, k, p, t, o])
         -- TODO as above
         , (na.ka . su (kita.tarikita) . dhom, [n, o, k, t, p, k, p, t, o])
         , (su (kita.tarikita) . dhom, [k, t, p, k, p, t, o])
         ]
+    kendang1 = make_kendang1
+        [ (na, [t])
+        , (na.dinga, [o, u, p])
+        , (na.din, [o, a])
+        , (dit, [t])
+
+        , (theme1, [t, t, o, u, p])
+        , (tat, [p])
+        , (tam, [o])
+        , (mid^tam, [a])
+
+        , (theme2, [a, p, a, p, a, o, p, lt a, a, p])
+        -- TODO sandi breaks groups, fix it and I can delete these
+        , (dhom.ka.din.na . su kitataka, [a, p, a, o, p, lt a, a, p])
+        , (din.na . su kitataka, [a, o, p, lt a, a, p])
+
+        , (theme3, [p, k, t, p, p, k, p, k, p, lt a, a])
+        -- TODO as above
+        , (na.ka . su (kita.tarikita) . dhom, [t, p, p, k, p, k, p, lt a, a])
+        , (su (kita.tarikita) . dhom, [p, k, p, k, p, lt a, a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_10_23 :: Korvai
-c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
+c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
+    korvai adi (mridangam<>kendang1)
     [ sequence theme
     , sequence (theme2a.theme2b)
     , mconcatMap (sarvaA 16) [theme, kitataka.theme, kitakita.kitakita.theme]
@@ -597,7 +633,8 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
     sequence t = mconcatMap (sarvaA 8)
         [t, kitataka.t, kitakita.kitakita.t]
     theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
-    theme2a = su $ dit.__.taka.na.ka.ta.na.ka.tdgnt
+    theme2a_ = su $ dit.__.taka.na.ka.ta.na.ka
+    theme2a = theme2a_ . su tdgnt
     theme2a_o = 1^theme2a
     theme2b = ta.__.ka.din.__.ta.__
     kitataka = su $ kita.taka
@@ -606,11 +643,23 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $ korvai adi mridangam
         [ (theme, [k, t, k, t, k, k, o, od, k])
         , (kitataka, [p, k, n, p])
         , (kitakita, [k, t, k, t])
-        , (theme2a, [k, p, k, n, p, k, n, p, k, t, k, n, o])
-        , (1^theme2a, [o&k, o, k, n, o, k, n, p, k, t, k, n, o])
+        , (theme2a_, [k, p, k, n, p, k, n, p])
+        , (1^theme2a_, [o&k, o, k, n, o, k, n, p])
         , (theme2b, [k, o, od, k])
         , (din, [od])
         , (tat, [k])
         , (tat.tat.tam.tam, [p&k, p&k, od, od])
         , (tat.tat.tam, [p&k, p&k, od])
         ]
+    kendang1 = make_kendang1
+        [ (theme, [p, k, p, k, p, p, a, o, p])
+        , (kitataka, [k, t, t, k])
+        , (kitakita, [p, k, p, k])
+        , (theme2a_, [p, k, p, t, k, p, t, p])
+        , (1^theme2a_, [a, a, p, t, a, p, t, p])
+        , (theme2b, [p, a, o, p])
+        , (din, [a])
+        , (tat, [p])
+        , (tat.tat.tam.tam, [pk, pk, a, a])
+        , (tat.tat.tam, [pk, pk, a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes

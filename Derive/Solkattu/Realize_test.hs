@@ -19,6 +19,7 @@ import Derive.Solkattu.DslSollu
 import qualified Derive.Solkattu.Instrument.Mridangam as M
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Notation as Notation
+import Derive.Solkattu.Notation (takeM, dropM)
 import qualified Derive.Solkattu.Realize as Realize
 import Derive.Solkattu.Realize (StartEnd(..))
 import qualified Derive.Solkattu.Sequence as Sequence
@@ -55,36 +56,60 @@ test_realize_groups = do
             where M.Strokes {..} = M.notes
     equal (f [tat, dit]) (Right "k t")
     -- TODO these could also go in Notation_test
-    equal (f [Notation.dropM 1 (tat <> dit)]) (Right "t")
-    equal (f [Notation.takeM 1 (tat <> dit)]) (Right "k")
+    equal (f [dropM 1 (tat <> dit)]) (Right "t")
+    equal (f [takeM 1 (tat <> dit)]) (Right "k")
 
     -- Groups keep finding fragments.
-    equal (f [Notation.dropM 1 (tat <> dit <> din)]) (Right "t D")
-    equal (f [Notation.dropM 2 (tat <> dit <> din)]) (Right "D")
-    equal (f [Notation.dropM 3 (tat <> dit <> din)]) (Right "")
-    equal (f [Notation.dropM 3 (tat <> dit <> din <> din)]) (Right "D")
-    equal (f [Notation.takeM 2 (din <> tat <> dit)]) (Right "D k")
-    equal (f [Notation.takeM 1 (din <> tat <> dit)]) (Right "D")
-    equal (f [Notation.takeM 0 (din <> tat <> dit)]) (Right "")
+    equal (f [dropM 1 (tat <> dit <> din)]) (Right "t D")
+    equal (f [dropM 2 (tat <> dit <> din)]) (Right "D")
+    equal (f [dropM 3 (tat <> dit <> din)]) (Right "")
+    equal (f [dropM 3 (tat <> dit <> din <> din)]) (Right "D")
+    equal (f [takeM 2 (din <> tat <> dit)]) (Right "D k")
+    equal (f [takeM 1 (din <> tat <> dit)]) (Right "D")
+    equal (f [takeM 0 (din <> tat <> dit)]) (Right "")
     equal (f [Notation.rdropM 1 (tat <> dit)]) (Right "k")
     equal (f [Notation.rtakeM 1 (tat <> dit)]) (Right "t")
-    equal (f (replicate 2 (Notation.takeM 1 (tat <> dit)))) (Right "k k")
-    left_like (f [Notation.dropM 1 (dit <> dit)]) "sequence not found"
+    equal (f (replicate 2 (takeM 1 (tat <> dit)))) (Right "k k")
+    left_like (f [dropM 1 (dit <> dit)]) "sequence not found"
     -- With rests.
-    equal (f [Notation.dropM 1 (tat <> __ <> dit <> __)]) (Right "_ t _")
+    equal (f [dropM 1 (tat <> __ <> dit <> __)]) (Right "_ t _")
     -- With a Pattern.
-    equal (f [Notation.dropM 1 (tat <> dit <> Dsl.p5)]) (Right "t p5")
+    equal (f [dropM 1 (tat <> dit <> Dsl.p5)]) (Right "t p5")
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
-    let e_group = fmap $ map $ (fmap ungroup . Sequence._mark) *** pretty
+    let e_group = fmap $ map $ (fmap ungroup . Sequence._marks) *** pretty
         ungroup (Sequence.GroupMark count (Solkattu.Group dropped side)) =
-            (count, dropped, side)
+            (count, map pretty dropped, side)
     equal (e_group $ realize_s smap (tat <> dit))
-        (Right [(Nothing, "k"), (Nothing, "t")])
-    equal (e_group $ realize_s smap (Notation.dropM 1 (tat <> dit)))
-        (Right [(Just (1, [Realize.stroke $ M.Valantalai M.Ki], Solkattu.Front),
-            "t")])
+        (Right [([], "k"), ([], "t")])
+    equal (e_group $ realize_s smap (dropM 1 (tat <> dit)))
+        (Right [([(1, ["k"], Solkattu.Front)], "t")])
 
+test_realize_groups_nested = do
+    let f = fmap (map pretty) . realize smap
+        smap = expect_right $ Realize.stroke_map
+            [(ta <> ki <> ta, [n, p, k])]
+            where M.Strokes {..} = M.notes
+    equal (f $ Notation.reduceTo 1 1 (ta<>ki<>ta)) $ Right
+        [ "n", "p", "k"
+        , "p", "k"
+        , "k"
+        ]
+
+    -- TODO nested reduction requires distributed nested groups
+    -- equal (f $ Notation.reduceTo 2 2 $ Notation.reduceTo 1 1 (ta<>ki<>ta)) $
+    --     Right
+    --     [ "n", "p", "k"
+    --     , "p", "k"
+    --     , "k"
+    --
+    --     , "k"
+    --     , "p", "k"
+    --     , "k"
+    --
+    --     , "k"
+    --     , "k"
+    --     ]
 
 e_words :: Pretty b => Either a [b] -> Either a Text
 e_words = fmap (Text.unwords . map pretty)
@@ -125,7 +150,7 @@ test_realize_patterns = do
     let f pmap = Realize.realize (Realize.realize_pattern pmap)
                 (Realize.realize_sollu stroke_map)
             . map (meta,)
-        meta = Sequence.Meta Nothing Sequence.default_tempo
+        meta = Sequence.Meta [] Sequence.default_tempo
     equal (show_strokes <$> f (M.families567 !! 0) [pattern 5])
         (Right "k t k n o")
     equal (show_strokes <$> f (M.families567 !! 1) [pattern 5])
@@ -169,7 +194,7 @@ test_stroke_map = do
 
 test_format = do
     let f tala = e_format . format 80 tala . map (meta,)
-        meta = Sequence.Meta Nothing Sequence.default_tempo
+        meta = Sequence.Meta [] Sequence.default_tempo
         n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
@@ -280,6 +305,18 @@ test_format_symbol = do
         , (True, [Start]), (False, []), (False, []), (False, [End, End])
         ]
 
+test_annotate_groups = do
+    let f = map (second pretty . snd) . Realize.annotate_groups
+            . Sequence.normalize_speed Tala.adi_tala
+            . Sequence.flatten
+    equal (f (ta <> ki)) [([], "ta"), ([], "ki")]
+    equal (f (Notation.group ta <> ki)) [([Start, End], "ta"), ([], "ki")]
+    equal (f (Notation.group (ta <> ki))) [([Start], "ta"), ([End], "ki")]
+    equal (f (Notation.group (ta <> Notation.group ki)))
+        [([Start], "ta"), ([Start, End, End], "ki")]
+    equal (f (Notation.group (Notation.group (ta <> ki))))
+        [([Start, Start], "ta"), ([End, End], "ki")]
+
 test_format_break_lines = do
     let run width = fmap (capitalize_emphasis . format width tala4 . fst)
             . k_realize False tala4
@@ -340,7 +377,7 @@ realize_s :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> Either Text [(Realize.Meta (Realize.Stroke stroke), Realize.Note stroke)]
 realize_s smap =
     Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
-    . Sequence.flatten_with Sequence.default_tempo
+    . Sequence.flatten
 
 k_realize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([Korvai.MetaNote M.Stroke], Text)

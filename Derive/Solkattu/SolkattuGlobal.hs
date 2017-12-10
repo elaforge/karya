@@ -67,6 +67,7 @@ make_mridangam :: CallStack.Stack => StrokeMap Mridangam.Stroke
     -> Korvai.StrokeMaps
 make_mridangam strokes = make_mridangam0 (_mridangam_strokes ++ strokes)
 
+-- | Make a mridangam StrokeMap, but without the default '_mridangam_strokes'.
 make_mridangam0 :: CallStack.Stack => StrokeMap Mridangam.Stroke
     -> Korvai.StrokeMaps
 make_mridangam0 strokes = mempty

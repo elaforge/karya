@@ -64,7 +64,7 @@ newtype Duration = Duration Ratio.Rational
     deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
 -- | Relative speed change.  Each positive number doubles the number of
--- 'Matra's per akshara.  Negative numbers half them.
+-- 'Matra's per akshara.  Negative numbers halve them.
 data TempoChange = ChangeSpeed Speed | Nadai Nadai | Stride Stride
     deriving (Eq, Ord, Show)
 
@@ -162,13 +162,15 @@ flatten :: [Note g a] -> [(Meta g, a)]
 flatten = flatten_with default_tempo
 
 data Meta g = Meta {
-    -- | If Just, this marks the start of a group, with count of elements
-    -- and polymorphic payload.  The count is >=1.
-    _mark :: !(Maybe (GroupMark g))
+    -- | If non-empty, this marks the start of a group.  It's a list because
+    -- nested groups can start on the same element.
+    _marks :: ![GroupMark g]
     , _tempo :: !Tempo
     } deriving (Eq, Show, Functor)
 
 data GroupMark g = GroupMark {
+    -- | Number of elements in this group.  It includes the one this Meta is
+    -- attached to, so it should be >=1.
     _count :: !Int
     , _group :: !g
     } deriving (Eq, Show, Functor)
@@ -182,11 +184,12 @@ flatten_with :: Tempo -> [Note g a] -> [(Meta g, a)]
 flatten_with = go
     where
     go tempo = concatMap $ \n -> case n of
-        Note note -> [(Meta Nothing tempo, note)]
+        Note note -> [(Meta [] tempo, note)]
         TempoChange change notes -> go (change_tempo change tempo) notes
         Group g notes -> case go tempo notes of
             (meta, a) : as ->
-                (meta { _mark = Just (GroupMark (length as + 1) g) }, a) : as
+                (meta { _marks = GroupMark (length as + 1) g : _marks meta }, a)
+                : as
             [] -> []
 
 -- | Calculate Tala position for each note.
@@ -198,9 +201,9 @@ tempo_to_state tala = List.mapAccumL to_state initial_state . tempo_to_duration
         (advance_state_by tala dur state, (state, note))
 
 tempo_to_duration :: HasMatras a => [(Tempo, a)] -> [(Duration, a)]
-tempo_to_duration = map $ \(tempo, note) ->
-    (fromIntegral (matras_of note) * matra_duration tempo
-        * fromIntegral (stride tempo), note)
+tempo_to_duration = map $ \(tempo, note) -> (,note) $
+    fromIntegral (matras_of note) * matra_duration tempo
+        * fromIntegral (stride tempo)
 
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
@@ -211,43 +214,47 @@ instance Pretty a => Pretty (Stroke a) where
         Sustain _ -> "-"
         Rest -> "_"
 
--- | Re-associate groups with the output of 'flatten_speed' by expanding their
--- '_count's.  Each group entry corresponds to an Attack Stroke.
-expand_groups :: [Maybe (GroupMark g)] -> [Stroke a] -> [(Int, GroupMark g)]
-expand_groups groups =
-    concat . zipWith expand groups . List.tails . drop 1
-        . Seq.split_with (is_attack . snd)
-        . zip [0..]
-    where
-    expand Nothing _ = []
-    -- Neither of these should happen, due to Seq.split_with's postcondition.
-    expand _ [] = []
-    expand _ ([] : _) = []
-    expand (Just (GroupMark count g)) strokes@(((i, _) : _) : _) =
-        [(i, GroupMark new_count g)]
-        where new_count = sum (map length (take count strokes))
-    is_attack (Attack {}) = True
-    is_attack _ = False
-
 -- | Normalize to the fastest speed, then mark position in the Tala.  This
 -- normalizes speed, not nadai, because Realize.format lays out notation by
 -- nadai, not in absolute time.
 normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
-    -> [(Maybe (GroupMark g), (State, Stroke a))]
+    -> [([GroupMark g], (State, Stroke a))]
 normalize_speed tala notes =
-    zip expanded $ snd $ List.mapAccumL process initial_state by_nadai
+    zip (collect_indices groups) $ snd $
+        List.mapAccumL process initial_state by_nadai
     where
     process state (nadai, stroke) = (next_state, (state, stroke))
         where
         next_state = advance_state_by tala (step_dur / fromIntegral nadai) state
     (by_nadai, step_dur) = flatten_speed (map (first _tempo) notes)
-    expanded = go 0 groups
-        where
-        go n gs@((i, group) : rest)
-            | n >= i = Just group : go (n+1) rest
-            | otherwise = Nothing : go (n+1) gs
-        go _ [] = repeat Nothing
-    groups = expand_groups (map (_mark . fst) notes) (map snd by_nadai)
+    groups = expand_groups (map (_marks . fst) notes) (map snd by_nadai)
+
+-- | Put the indexed elements at the proper place in a list.  The result has
+-- infinite []s on the end.
+collect_indices :: [(Int, a)] -> [[a]]
+collect_indices = go 0
+    where
+    go i groups = map snd here : go (i+1) rest
+        where (here, rest) = span ((<=i) . fst) groups
+
+-- | Re-associate groups with the output of 'flatten_speed' by expanding their
+-- '_count's.  Each group entry corresponds to an Attack Stroke.
+expand_groups :: [[GroupMark g]] -> [Stroke a] -> [(Int, GroupMark g)]
+    -- ^ (stroke index, group)
+expand_groups groups =
+    concat . zipWith expand groups . List.tails . drop 1
+        . Seq.split_with (is_attack . snd) . zip [0..]
+    where
+    expand marks strokes@(((i, _) : _) : _) =
+        [ (i, GroupMark (new_count count strokes) g)
+        | GroupMark count g <- marks
+        ]
+    -- Neither of these should happen, due to Seq.split_with's postcondition.
+    expand _ [] = []
+    expand _ ([] : _) = []
+    new_count count = sum . map length . take count
+    is_attack (Attack {}) = True
+    is_attack _ = False
 
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
 -- Speed 0 always gets at least one Stroke, even if it's not the slowest.
