@@ -17,16 +17,6 @@ import Global
 di, ta, ka, ki :: Notation.SequenceT Solkattu.Sollu
 (di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
 
-test_matras_of = do
-    let f = Notation.matrasOfE
-    equal (f Dsl.p5) (Right 5)
-    equal (f (ta <> ka)) (Right 2)
-    equal (f (di <> su (ta <> ka))) (Right 2)
-    -- If the whole thing is is set to the nadai, that's ok.
-    equal (f (nadai 5 (ta <> ka))) (Right 2)
-    left_like (f (nadai 5 (ta <> ka) <> di)) "nadai change"
-    left_like (f (su di)) "non-integral matras"
-
 test_splitD = do
     equal ((map pretty *** map pretty) $ Notation.splitD (1/4) (ta <> ka))
         (["([ka], Back)(ta)"], ["([ta], Front)(ka)"])

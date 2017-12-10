@@ -168,8 +168,8 @@ k1_1 = make_k1 [sequence p g | g <- gaps, p <- [p5, p6, p7]]
             6 -> p666 end_gap
             _ -> p765 end_gap
         where
-        end_gap = __n (5 - matrasOf gap)
-        pdur = matrasOf pt
+        end_gap = __n (5 - matrasOfI gap)
+        pdur = matrasOfI pt
 
 k1_2 :: Korvai
 k1_2 = make_k1 $ (:[]) $

@@ -2582,10 +2582,10 @@ solkattu:
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
     - Don't make tk and tktu groups, or at least don't highlight them.
-    - dropM shouldn't make a new group if there already is one, e.g.
-      dropM n (group x . y) puts both x and y into a group, instead of
-      leaving y out.
-    . This breaks 'sandi'
+    - dropM shouldn't make a new group if there already is one
+      . E.g.  dropM n (group x . y) puts both x and y into a group, instead of
+        leaving y out.
+      . This breaks 'sandi'
     - Highlight groups in konnakol html.
     - colors stop right before the last note, not on it.
     - If groups touch each other then I can't tell them apart.  Maybe
@@ -2607,6 +2607,102 @@ solkattu:
         intermediate data less hairy.
       . For now, just make reduce not produce them.  Try simple
         simplification later.
+      . The reason to make 'realize' understand nested groups is that then
+        it works for other ways to wind up with them.  For example?
+      . dropM 1 (ta . dropM 1 (di . ki))
+      . But do I really want this to look for tadiki, or should it be taki?
+        I need a realistic example.
+        . Reduce a phrase, where one element has a replaceStart on it?
+          No, because replaceStart explicitly doesn't use a group.
+        . Nested reduction? reduce (reduce takita) =>
+          takita kita ta, kita kita ta, ta kita ta, kita ta, ta ta, ta
+        . These should definitely use takita.
+        . But on the other hand, what about simultaneous reduction:
+          takita dhomdhomka thom
+            kita     dhomka thom
+              ta         ka thom
+        . I could model this as:
+          zipWith (.thom) (reduce takita) (reduce dhomdhomka)
+        . Ok, then what about dropM 1 (takita . dropM 1 dhomdhomka)
+          The least confusing would be to look for takita and dhomdhomka,
+          but with nested groups this would look for takita and tadhomdhomka,
+          which is definitely no good.
+        . But dropM 1 (dropM 1 takita) should look for takita, not kita.
+        . Of course I'd actually write dropM 1 takita . dropM 1 dhomdhomka
+          but maybe there are cases where I get the nested one accidentally?
+        . What exactly is the sandi error about?
+          t4 t3 t2 are each groups.  sandi (t3.t2) drops the first t3.t2 from
+          the tri, which should reduce it to [].
+        . How then does this become looking for t3 and t2 separately instead
+          of t4?  I should wind up with:
+            dropM 1 t4 . dropM 2 t4
+            . dropM (5) (dropM 1 t4 . dropM 2 t4 . tat.__.tam.__ ...)
+        . So the group winds up being (t3.t2.tat.__.tam.__)
+        . Since in this case the t3.t2 is totally dropped, I could fix this
+          by saying if I can find the suffix (tat.tam), then don't bother
+          looking for the prefix (t3.t2).  But this in turn would cause groups
+          with identical tails to match wrong, e.g. dropM 1 takita would match
+          kita.  The key thing is I don't know if a match with the prefix
+          would have included the suffix or not.
+        . But not necessarily, because I first try with the prefix, and only
+          try suffix only if there is no match with the prefix.
+        . But even if this does work, it seems like a hack that will break as
+          soon as I'm not happening to drop an entire group.  E.g. I could
+          sandi away a fragment:
+            reduce3 (taka.takadinna.naka)
+            . sandi naka (tri_ din (naka.dinna))
+              =>
+            taka.takadinna.naka
+                 takadinna.naka
+                     dinna{naka
+                           naka}dinna.din
+                           naka.dinna.din
+                           naka.dinna
+        . This works though, it's just dropM 2 (naka.dinna).
+        . But, if nested groups were implemented, then the dropM 5 add
+          dropM 1 t4 . dropM 2 t4 back on, which in turn would turn into
+          t4.t4, which matches on t4 as expected, even though they all wind up
+          getting dropped.
+
+      . It seems there are two ways to implement groups: distributed, and
+        plain.  Distributed means given
+          group x (a . group y b . group z c),
+        'x' is distributed among the subgroups:
+          a . group xy b . group xz c.
+        Plain means it's just goes on the beginning:
+          group x (a . group y b . group z c)
+          group x a . group y b . group z c
+          . If there's no 'a', i.e. directly nested groups, then the 'x' is
+            lost.
+
+      . Still, what about reduce (takita . dropM 1 theme . din)?
+        It seems like it should match takita and theme.
+        plain: match takita and theme        ==> good.
+        distributed: match takita . ta.theme ==> bogus.
+      . But it also seems like nested drops should work:
+          dropM 1 (dropM 1 nakita).
+        plain: group [na]+ kita ==> group [ki]+ (group [na] ta) ==> bogus.
+        distributed: group [ki]+ (group [na] ta) ==> group [na, ki]+ ta ==> good
+
+      . Unless I could specifically looked for directly nested groups, so:
+          group [na] kita ==> group [na, ki]+ ta
+        which is now unnested and sensible.  But it only works when both
+        sides are the same, e.g.:
+          group [na]+ kita ==> group +[ta] (group [na]+ ta)
+        is back to needing distributed groups.
+
+      . It's like I want distributed for directly nested groups, but not if
+        there's something in between.  But is that too ad-hoc and complicated?
+        How could I even implement it?
+
+      . Ok, since I don't know what to do, and I think plain groups are
+        currently implemented, let's just do that.  But:
+        - Change Sequence._marks from Maybe (GroupMark g) to [GroupMark g] so
+          I can represent directly nested groups at least.
+        - realize looks for suffix if prefix++suffix doesn't match.
+          . This should fix the sandi examples.
+        - splitD implements the directly nested hack.
+
     - Various Notation functions like 'spread' should work with groups.
   - Ornaments to fill in karvai, e.g. with taka and takatiku
   - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
@@ -2648,14 +2744,47 @@ solkattu:
       k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
   - format: if the ruler changes after an avartanam line break, show the
     partial ruler, e.g. Realize_test.test_format_nadai_change
-  - Notation {take,drop}M functions get matras via duration_of and
+  * Notation {take,drop}M functions get matras via duration_of and
     divide, while matras_of counts matras directly.  I'm not totally
     sure what the difference is and which one is correct.
     . With division I can get matras even if nadai changes but it winds
       up being integral.  So nadai 4 -> 8 would be equivalent to a speed
       change, which is good.  But 4 -> 6 will also be valid matras if
       I have a multiple of 3.
-  - replacements, e.g. ta.ki.ta -> nang.__ . faster (ki.ta.ta.ka)
+    matrasOf:
+      . ignore if there's a single top-level tempo change
+        . so matrasOf (su (k.t)) => matrasOf (k.t)
+        . This seems wrong?
+      . Ignore nadai change.
+      . Handle tempo change, but error if the result is non-integral.
+      . 'sandi' and reduce reduceTo{L,R} use matrasOf.
+    splitD:
+      . Convert Matras to Duration by (*matra_duration), which is 1/4.
+      . splitD keeps track of tempo, and errors if you try to split
+        a non-rest.  Rests can be split arbitrarily, though.
+    . The matra units are relative, so
+      su (dropM 1 kt) == su t
+    . They are independent of nadai, so
+      nadai 6 (dropM 1 x) == dropM 1 (nadai 6 x)
+    . On the other hand, dropM 2 (t . nadai 6 tkt) should be [].  So actually
+      I think being an absolute time is more predictable, and more likely to
+      be correct.  Especially for reductions, which all seem to work on
+      absolute times.
+    . I think I need matrasOf for things like sandi, but splitD needs to count
+      because it needs to keep track.  So I have to make sure they use the
+      same way of counting.
+    . Also I should preserve that nadai *2 == speed +1, so that means use the
+      duration, and don't ignore nadai.  So matrasOf needs to return
+      a fractional matras.
+      . How is this different from Duration then?  Is it valid to just (/4)?
+        dropM 3 (ta . nadai 6 takita) => []
+        1/4 + 3/6 = 3/4
+      . I think this does work.
+
+      . Matras are nadai-independent, so 1/4 dur is only valid for chatusram.
+    . Also I think reduction is more likely to reduce a constant amount of
+      time, so e.g. dropM 2 (n 3 takita) should drop all 3.
+  - replacements, e.g. ta.ki.ta -> nang.__ . su (kita.taka)
     . use this in koraippu_janahan
   / I think I need an absolute SetSpeed, so I can pad a number of
     aksharas, regardless of the speed.

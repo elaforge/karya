@@ -16,6 +16,7 @@
 module Derive.Solkattu.Notation where
 import Prelude hiding ((^), repeat)
 import qualified Data.List as List
+import qualified Data.Ratio as Ratio
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
@@ -23,7 +24,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as S
-import Derive.Solkattu.Sequence (Duration, Matra)
+import Derive.Solkattu.Sequence (Duration)
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
@@ -32,6 +33,9 @@ import Global
 
 type SequenceT sollu = [S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)]
     -- This is the same as in Korvai.
+
+-- | This is at the same level as 'S.Matra', but it can be fractional.
+type FMatra = Ratio.Rational
 
 -- * rests
 
@@ -56,13 +60,13 @@ __7 = __n 7
 __8 = __n 8
 __9 = __n 9
 
-__n :: Matra -> SequenceT sollu
+__n :: S.Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
-restM :: Matra -> SequenceT sollu
+restM :: S.Matra -> SequenceT sollu
 restM n = repeat n __
 
-sarvaM :: Matra -> SequenceT sollu
+sarvaM :: S.Matra -> SequenceT sollu
 sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
 -- * by Duration
@@ -186,7 +190,7 @@ decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
 
 -- | Matra-using variants of the duration functions.
 dropM, rdropM, takeM, rtakeM :: (CallStack.Stack, Pretty sollu) =>
-    Matra -> SequenceT sollu -> SequenceT sollu
+    FMatra -> SequenceT sollu -> SequenceT sollu
 dropM = dropD . mToD
 rdropM = rdropD . mToD
 takeM = takeD . mToD
@@ -202,27 +206,17 @@ sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 sandi dropped = dropM (matrasOf dropped)
 
-matrasOf :: CallStack.Stack => SequenceT sollu -> Matra
-matrasOf = Solkattu.check . matrasOfE
+matrasOf :: SequenceT sollu -> FMatra
+matrasOf = dToM . Solkattu.duration_of
 
--- | Get the number of sollu-matras.  Whether or not this corresponds to
--- tala matras depends on the speed.
-matrasOfE :: SequenceT a -> Either Text S.Matra
-matrasOfE = integral <=< justErr "nadai change" . of_sequence
+-- | Like 'matrasOf', but throw an error if it's not integral.
+matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
+matrasOfI seq
+    | frac == 0 = matras
+    | otherwise = errorStack $ "non-integral matras: " <> pretty fmatras
     where
-    integral dur
-        | frac == 0 = Right matras
-        | otherwise = Left "non-integral matras"
-        where (matras, frac) = properFraction dur
-    -- If the whole thing is in a certain nadai that's not really a change.
-    of_sequence [S.TempoChange (S.Nadai _) notes] = of_sequence notes
-    of_sequence notes = sum <$> traverse of_note notes
-    of_note (S.Note note) = Just $ fromIntegral $ S.matras_of note
-    of_note (S.TempoChange change notes) = case change of
-        S.ChangeSpeed speed -> (/ S.speed_factor speed) <$> of_sequence notes
-        S.Nadai _ -> Nothing
-        S.Stride stride -> (* fromIntegral stride) <$> of_sequence notes
-    of_note (S.Group _ notes) = of_sequence notes
+    (matras, frac) = properFraction fmatras
+    fmatras = matrasOf seq
 
 -- * by sollu
 
@@ -265,7 +259,7 @@ inter :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 inter _ [] = []
 inter sep (x:xs) = x : sep ++ inter sep xs
 
-spread :: Matra -> SequenceT sollu -> SequenceT sollu
+spread :: S.Matra -> SequenceT sollu -> SequenceT sollu
 spread n = inter (__n n)
 
 cmap :: Monoid b => (a -> b) -> [a] -> b
@@ -300,29 +294,29 @@ accumulate = map mconcat . drop 1 . List.inits
 -- * combinators
 
 -- | Reduce three times, with a separator.
-reduce3 :: Pretty sollu => Matra -> SequenceT sollu -> SequenceT sollu
+reduce3 :: Pretty sollu => FMatra -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 reduce3 dur sep = List.intercalate sep . take 3 . reduceToL dur dur
 
 -- | 'reduceToL', except mconcat the result.
-reduceTo :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
+reduceTo :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> SequenceT sollu
 reduceTo to by = mconcat . reduceToL to by
 
 -- | Reduce by a duration until a final duration.
-reduceToL :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
+reduceToL :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToL to by seq = [dropM m seq | m <- Seq.range 0 (matras - to) by]
     where matras = matrasOf seq
 
 -- | Like 'reduceToL', but drop from the end instead of the front.
-reduceToR :: (CallStack.Stack, Pretty sollu) => Matra -> Matra
+reduceToR :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToR to by seq = [takeM m seq | m <- Seq.range matras to (-by)]
     where matras = matrasOf seq
 
 -- | Start fully reduced, and expand n times by the given duration.
-expand :: (CallStack.Stack, Pretty sollu) => Int -> Matra
+expand :: (CallStack.Stack, Pretty sollu) => Int -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 expand times dur = reverse . take times . reduceToL dur dur
 
@@ -338,8 +332,23 @@ replaceEnd seq suffix = rdropD_ (Solkattu.duration_of suffix) seq <> suffix
 matra_duration :: S.Duration
 matra_duration = S.matra_duration S.default_tempo
 
-mToD :: Matra -> Duration
-mToD = (*matra_duration) . fromIntegral
+{- | Convert FMatra to Duration via (/4).
+
+    This seems like it can't possibly be right, because 1/4 would be valid only
+    for @nadai 4@.  But after way too much thought I think that since FMatra
+    and Duration are both relative to whatever speed and nadai are in scope,
+    the 1/4 is in fact arbitrary, and all that is required is that 'splitD_'
+    agrees with it.  And in fact, splitD should because it starts with
+    'S.default_tempo'.  So Duration here is not in fact absolute aksharas, but
+    simply relative "matras" * 4, even if we are in @nadai 5@ or something.
+    I *think* it works out.
+-}
+mToD :: FMatra -> Duration
+mToD = (*matra_duration) . S.Duration
+
+dToM :: Duration -> FMatra
+dToM d = m
+    where S.Duration m = d / matra_duration
 
 -- * generic notation
 
@@ -355,7 +364,7 @@ su, sd :: [S.Note g sollu] -> [S.Note g sollu]
 su = speed 1
 sd = speed (-1)
 
-nadai :: Matra -> [S.Note g sollu] -> [S.Note g sollu]
+nadai :: S.Matra -> [S.Note g sollu] -> [S.Note g sollu]
 nadai _ [] = []
 nadai n seq = [S.TempoChange (S.Nadai n) seq]
 
