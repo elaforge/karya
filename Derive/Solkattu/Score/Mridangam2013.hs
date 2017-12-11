@@ -265,9 +265,3 @@ eddupu10 = korvai (beats 5)
 
 nang_kita :: Sequence
 nang_kita = o&n . __ . p.k.nakatiku
-
--- * realize
-
--- | For a fragment which fits a certain number of beats.
-beats :: Akshara -> Tala.Tala
-beats aksharas = Tala.Tala "beats" [Tala.I] aksharas

@@ -94,26 +94,28 @@ splitD dur seq =
 -- | Split the sequence at the given Duration.
 splitD_ :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
-splitD_ dur = (S.simplify *** S.simplify) .  snd . go S.default_tempo dur
+splitD_ dur = (S.simplify *** S.simplify) . snd . go S.default_tempo dur
     where
+    -- Return (dur_left, (pre, post)).  dur_left is so that a recursive split
+    -- in a S.TempoChange or S.Group can report how much dur it consumed.
     go _ _ [] = (0, ([], []))
     go tempo dur (n:ns)
         | dur <= 0 = (0, ([], n:ns))
         | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
         | otherwise = case n of
             S.TempoChange change subs ->
-                group (S.TempoChange change) (S.change_tempo change tempo)
+                make (S.TempoChange change) (S.change_tempo change tempo)
                     dur subs ns
             -- TODO actually this is wrong.  I would have to add extra the
             -- split off sollus to the group, but no need to bother until it
             -- becomes a problem.
-            S.Group g subs -> group (S.Group g) tempo dur subs ns
+            S.Group g subs -> make (S.Group g) tempo dur subs ns
             S.Note (Solkattu.Space space) -> (0,
                 (spaceD space tempo dur, spaceD space tempo (ndur - dur) <> ns))
             _ -> Solkattu.throw $ "can't split a note: " <> pretty dur
                 <> " of " <> pretty ndur <> ": " <> pretty n
         where ndur = S.note_duration tempo n
-    group make_group tempo dur subs remaining
+    make make_group tempo dur subs remaining
         | left <= 0 = (0, (make pre, make post ++ remaining))
         | otherwise = second (first (make subs ++)) (go tempo left remaining)
         where

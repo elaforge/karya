@@ -155,12 +155,6 @@ map1 f n = case n of
 
 -- * flatten
 
-notes :: [Note g a] -> [a]
-notes = map snd . flatten
-
-flatten :: [Note g a] -> [(Meta g, a)]
-flatten = flatten_with default_tempo
-
 data Meta g = Meta {
     -- | If non-empty, this marks the start of a group.  It's a list because
     -- nested groups can start on the same element.
@@ -179,6 +173,12 @@ instance Pretty g => Pretty (Meta g) where
     pretty (Meta g tempo) = pretty (g, tempo)
 instance Pretty g => Pretty (GroupMark g) where
     pretty (GroupMark count g) = pretty count <> " " <> pretty g
+
+notes :: [Note g a] -> [a]
+notes = map snd . flatten
+
+flatten :: [Note g a] -> [(Meta g, a)]
+flatten = flatten_with default_tempo
 
 flatten_with :: Tempo -> [Note g a] -> [(Meta g, a)]
 flatten_with = go

@@ -21,6 +21,8 @@ module Derive.Solkattu.MridangamGlobal (
     , tk, tktu, tdgnt
     , kt, ktkt, pk, kp
     , takadinna
+    -- * talam
+    , beats
 ) where
 import Prelude hiding ((.))
 import qualified Util.CallStack as CallStack
@@ -139,3 +141,12 @@ kp = k.p
 
 takadinna :: Sequence
 takadinna = k.o.o.k
+
+-- * talam
+
+-- | For a fragment which fits a certain number of beats.
+beats :: Akshara -> Tala.Tala
+beats aksharas = Tala.Tala "beats" (replicate aksharas Tala.I) 1
+    -- TODO this makes the beats get highlighted, but they're all 0.  I want
+    -- to have counted beats but with highlighting, so I need some kind of
+    -- configuration for that.

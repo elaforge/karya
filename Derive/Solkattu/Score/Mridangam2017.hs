@@ -12,23 +12,6 @@ c_17_07_10 :: Korvai
 c_17_07_10 = exercise $ korvai1 adi $ su $
     o.__.k.o.k.o.o.k . repeat 4 (o.o.k.o.k.o.o.k) . repeat 4 (o.k.k.o.o.k)
 
-
-
-c_17_08_13 = korvai1 adi $ su $ mconcat
-    [ k.__.__.k.t.k.o.o.k.p.k.od.__.k.od.__.k.__.od.__3
-    ,       p.k.t.k.o.o.k.p.k.od.__.k.od.__.k.__.od.__3
-    ,           k.t.o.o.k.p.k.od.__.k.od.__.k.__.od.__3
-    ,               o.o.k.p.k.od.__.k.od.__.k.__.od.__3
-    ,                   k.p.k.od.__.k.od.__.k.__.od.__3
-    ,                       k.od.__.k.od.__.k.__.od.__3
-    ,                           od.__.od.__.k.__.od.__3
-    ,                                 od.__.k.__.od.__3
-    ,                                       k.__.od.__3
-    ,                                            od.__3
-    , tri_ (u.__3) (tri p5)
-    ]
-
-
 e_1 :: Korvai
 e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
     [ pkt . t.k.t.k . d.n.pk . t.k.t.k . repeat 3 (d.n.pk)
@@ -39,9 +22,12 @@ e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
     pkt = p.kt.p.kt.pk
 
 e_2 :: Korvai
-e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
-    map pattern [s1, s2, s3, s4]
-    ++ [cmap fast [p, k, o, n]]
+e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $ concat
+    [ map pattern [s1, s2, s3, s4]
+    , [cmap fast [p, k, o, n]]
+    , map pattern [t1, t2]
+    , [t_sarva]
+    ]
     where
     pattern s = cmap s [p, k, o, n]
     s1 x = x.__.ktkt.pk.kt.pk.kt.pk
@@ -49,3 +35,23 @@ e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
     s3 x = x.x .ktkt.pk.n.n.pk.kt.pk
     s4 x = x.x .ktkt.pk.n.n.pk.d.d.pk
     fast x = x.__.ktkt.pk.n.__.pk.d.__.pk
+
+    t1 x = x.__.ktkt.pk.pk.n.pk.d.pk
+    t2 x = x.__.ktkt.pk . repeat 3 (pk.n.pk.d.pk)
+
+    t_sarva = o.k.n.o.k.d.o.k . repeat 3 (pk.n.pk.d.pk)
+
+
+-- Speaking exercises: tadinginathom, taka tadinginathom
+e_3 = ganesh $ korvai (beats 15) $
+    [ repeat 4 $ tdgnt.tdgnt . su (tdgnt.tdgnt)
+    , repeat 4 $ nadai 6 (k.__.t.k.__.n.o.__ . k.t.__.k.n.__.o)
+        . su (tdgnt.tdgnt)
+    ]
+e_4 = ganesh $ korvai (beats 21) $
+    [ repeat 4 $ tktdgnt.tktdgnt . su (tktdgnt.tktdgnt)
+    , repeat 4 $ nadai 6 (k.__.p.k.__.t.k.__.n.o.__ . k.p.__.k.t.__.k.n.__.o)
+        . su (tktdgnt.tktdgnt)
+    ]
+    where
+    tktdgnt = k.p.tdgnt

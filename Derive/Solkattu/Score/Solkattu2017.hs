@@ -523,20 +523,14 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     , sequence theme1
     , sequence theme2
     , sequence theme3
-    -- (4 3 2) 2 4
-    -- (4 3 2) 2 4
-    -- (4 3 2) 2 4
-    --   (3 2) 2 4
-    --   (3 2) 2 2
-    --     (2) 2 2
-    --     (2) 1 4
-    --     (2) 2 2
-    --     (2) 2 2
-    --     (2) 1 4
-    --     (2) 2 2
-    --     (2) 2 2
-    --     (2) 1
-
+    ]
+    where
+    sequence t =
+        tri_ (tat.__4.tam.__8) (t4.t3.t2)
+        . sandi (t3.t2) (tri_ (tat.__4.tam.__8) (t3.t2))
+        . sandi t2      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t2))
+        . tat.__.tam
+        where [t4, t3, t2] = take 3 $ reduceToL 0 2 t
     -- (4  3  2)  2  4
     -- (4  3  2)  2  4
     -- (4{ 3  2)
@@ -549,14 +543,6 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     --            1  4
     --       (2)  2  2  (2)  2  2  (2)
     --            1  4
-    ]
-    where
-    sequence t =
-        tri_ (tat.__4.tam.__8) (t4.t3.t2)
-        . sandi (t3.t2) (tri_ (tat.__4.tam.__8) (t3.t2))
-        . sandi t2      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t2))
-        . tat.__.tam
-        where [t4, t3, t2] = take 3 $ reduceToL 0 2 t
     develop = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
     theme1 = na.__.na.__.na.dinga
     theme2 = dhom.ka.dhom.ka.din.na . su kitataka
