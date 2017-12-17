@@ -117,6 +117,7 @@ to_score dur_strokes = (note_track, [("*", pitch_track)])
         Realize.Note stroke -> Just $ Expr.to_expr stroke
         Realize.Pattern p -> Just $ Expr.to_expr p
         Realize.Space _ -> Nothing
+        Realize.Alignment {} -> Nothing
 
 note_of :: Realize.Note a -> Maybe (Realize.Stroke a)
 note_of (Realize.Note s) = Just s

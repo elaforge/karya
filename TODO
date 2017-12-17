@@ -2488,6 +2488,30 @@ solkattu:
   - Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
     . I could also switch over to camelCase.
+  - Sequence.has_duration should be has_sustain
+    . Otherwise it's confusing because obviously it does have a Duration.
+    . Well, it doesn't actually mean has sustain though.  It means this
+      note should turn into a call with duration, which in turn is because it
+      has other strokes inside of it.  I'm not sure what to call that, but
+      duration is definitely confusing because of the local usage of Duration.
+  - Sequence.Tempo fields don't have a leading _, make them all consistent.
+  - Can't I have a shorter name for dropM?
+  - What if I just renamed Sequence to S?
+  What would a web UI look like?
+    . Have a field for the where block, a field for mridangam (or other)
+      strokes, and korvai fields.  Separate entry for name and tags.
+    . Enter sends it off, where it gets interpreted, and mridangam and
+      konnakol realization appear next to it.  There are probably examples out
+      there for semi-securely evaluating haskell, but even without them
+      I think it may be hard to do evil things if you can't import modules,
+      and I should be able to run as nobody anyway.  The main thing is
+      noticing and killing a loop.
+    . The DB goes in a separate repo, which is edited and synced from the web
+      UI.
+    . To render sounds, I don't know if there is software to host and run a VST
+      automatically.  If I have my own sampler it's easy though.  I can either
+      run karya headless, or just bypass and generate im notes directly via
+      the solkattu library.
   transcribe:
     - after 2014-06-17
   - html output for realized strokes
@@ -2582,10 +2606,30 @@ solkattu:
       should be ' d d n nnd d n n'
   ? rename tri to tir, for tirmanam?
   groups:
+    This whole groups stuff is still a bit of a mess.
+      . Mridangam2013.dinnagina_sequence is broken.
+      . Having to keep group count up to date in 'Realize.realize'.  I could
+        fix this with a nested FGroup, but of course introducing other
+        problems.
+      . I think the group _split compensation for After in
+        Realize.split_strokes is incorrect.  I think split_strokes or the
+        whole collect group thing should be recursive.  Making FGroup nested
+        might by good for this.
+      . I *still* don't really understand Duration vs. Matra vs. FMatra.
+        I think the notion of local FMatra is required.  Duration is useful
+        at the DSL level but it only makes sense at the toplevel which means
+        it's actually error-prone.  Maybe I should get rid of it entirely,
+        except at the global level where I can be sure it's right, which
+        basically means after 'Realize.realize'.
+      . Can I do quickcheck tests for various duration_of and matras_of?
+      . Do some tests to make sure I understand Solkattu.duration_of and
+        Solkattu.matras_of.
+      - Realize.realize should interleave the cancel group thing.
+
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
     - Don't make tk and tktu groups, or at least don't highlight them.
-    - dropM shouldn't make a new group if there already is one
+    / dropM shouldn't make a new group if there already is one
       . E.g.  dropM n (group x . y) puts both x and y into a group, instead of
         leaving y out.
       . This breaks 'sandi'
@@ -2593,7 +2637,7 @@ solkattu:
     - colors stop right before the last note, not on it.
     - If groups touch each other then I can't tell them apart.  Maybe
       I should alternate two colors.
-    - I have a problem with nested groups, e.g. dropM 1 . dropM 1.
+    * I have a problem with nested groups, e.g. dropM 1 . dropM 1.
       . I could try to simplify away nested groups.  That means making
         each one absolute, so the outer one loses its sollus, and they go
         on the inner ones.  Of course if there aren't inner ones, then
@@ -2696,7 +2740,8 @@ solkattu:
 
       . It's like I want distributed for directly nested groups, but not if
         there's something in between.  But is that too ad-hoc and complicated?
-        How could I even implement it?
+      . How could I even implement it?
+        That would be the hack in Notation.splitD.
 
       . Ok, since I don't know what to do, and I think plain groups are
         currently implemented, let's just do that.  But:
@@ -2705,6 +2750,146 @@ solkattu:
         - realize looks for suffix if prefix++suffix doesn't match.
           . This should fix the sandi examples.
         - splitD implements the directly nested hack.
+      . Actually it turns out the sandi situation is not what I thought:
+        . Given (dropM 3 $ dropM 1 nakita <> nakita)
+        . The dropM 3 drops the first group with the leading Na, so the
+          fact that there was one is lost:
+           group [na] [ki, ta] . [na, ki, ta] ==> group [ki, ta, na] [ki, ta]
+        . Instead it could collect the [na] from the group at the front:
+               ==> group [na, ki, ta, na] [ki, ta]
+        . Alternately, I could omit the [ki, ta] from the dropped group from
+          the prefix.  I guess the rule would be don't include parts of other
+          groups in a group's prefix.
+        . Is there any reason prefer one over the other?  The first would be
+          better if I needed that prefix to match, and doesn't happen to drop
+          a whole group, e.g. dropM 1 . dropM 1.
+        . For both I need splitD_ to return something extra, either the extra
+          prefix/suffix, or the number of sollus to leave off the
+          prefix/suffix.
+
+        . Another way is that the group prefix can have nested groups in it.
+          Then they have to be expanded recursively.  Then
+           dropM 3 $ group na [ki, ta] . [na, ki, ta]
+              ==> group (group [na] [ki, ta] . na) [ki, ta]
+        . Expanding recursively might not be as scary as it sounds, because
+          it's just a full SequenceT, so I just tack it on in
+          'Realize.realize_group', instead of faking up Solkattu.Notes.
+        . Then I have Group sollu = [sollu] ==> [S.Note (Group sollu) sollu].
+          It's still not exactly a SequenceT, so I still have to do some
+          faking up to get it to one, specifically:
+            S.Note (Solkattu.Group sollu) sollu -->
+            S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)
+          That's not bad at all, fmap (Solkattu.Note . Solkattu.note) should
+          do it.
+        . So it seems possible, but worth it?  I think maybe so, because
+          I don't need any ad-hoc rules like collect sollus from the first
+          group... which breaks if there is a second group.
+        . In fact, maybe this implements the non-distributed "plain" group
+          technique already.  Actually no, it just makes it work from inside
+          the _dropped.  I think it already works outside.
+      / Change Solkattu._dropped to [S.Note (Group sollu) sollu].
+        . It turns out S.Note (Solkattu.Group sollu) sollu ->
+            S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)
+          above is wrong.  I need to go
+            S.Note (Solkattu.Group sollu) sollu -> Solkattu.Note sollu
+          It's because it's already flattened, so I need to flatten the
+          _dropped.  But the groups have also been flattened out, so I can't
+          do it unless the caller can not do that.
+        . Realize.realize gets them as [(Meta, Solkattu.Note sollu)], so
+          I need to go to (Meta, Solkattu.Note)
+        . Oh and it turns out 'reassociate_strokes' uses Meta == Nothing to
+          identify the strokes from _dropped, and stuff them back in again.
+          I'll need another way to do that.
+        . Presumably the stroke groups should now also retain group structure,
+          even though I don't think I actually care what's in there.  Can
+          I reassociate right after the realize and use the count?  I know how
+          long 'extras' is
+        . reassociate_strokes might even be wrong, because it always puts
+          Nothings into the following Meta, but that's assuming everything is
+          a Front group.
+        . What if the dropM splits a group?  I'd have to put it back together,
+          but if I make another S.Group the size has been lost.  But if I put
+          it in flattened, then I can just mash them back together.  Well,
+          except I'm still splitting the S.Group, so I lose the size anyway.
+        . Maybe I can get around it by not splitting the group at all, just
+          put in the complete sequence, along with a split point.  Then the
+          job of realize is to drop the extra strokes after realizing them,
+          and emit the group boundaries.
+        . Actually I could leave that to a later step, and in fact leaving it
+          generic might be best because if I do this then pretty printing can
+          get confusing because the extra dropped bits are still in there, and
+          having a way to strip them out could be useful.
+      * Change Solkattu._dropped to (Side, Duration).
+      * The realized output needs dropped strokes, since Technique relies on
+        it.
+      * I have to make matrasOf understand Groups.
+      * realize c_17_08_29 gets an alignment error, but it looks right?
+        . Because verify_alignment is using pre-degrouped notes.
+      * _dropped Durations are wrong.  This is because they are taken as
+        absolute, but of course they are relative.  Maybe I should keep
+        Duration as absolute, and use FMatra as an explicitly relative
+        matra-level fractional duration.
+        . The wrinkle is nadai as always.  How can I know what a matra should
+          be after a nadai change if I don't know the surrounding nadai?
+        . It doesn't help that realize knows absolute timing, because I put
+          the value in in the score, where I don't know.  So the only way is
+          that the duration unit is always relative to the current tempo.
+          If I say it's N nadai at s0, then I think it works, but then I'm
+          back to FMatra being nadai-independent.  I think?
+        . Realize.split_at can know that the _dropped is relative to the
+          tempo in scope.  So if it says 2, then we take it as matras and
+          convert to Duration.
+        . But currently it's matras/4, so should it still work out the same,
+          just /4?
+        . Wait, maybe the problem is entirely different.  Both flatten the same:
+          . su $ dropM 1 taka:
+            [(1/4, Front)(s+1(ta ka))]
+            [(([2 (1/4, Front)], s1n4), ta), (([], s1n4), ka)]
+          . dropM 1 $ su taka:
+            [s+1((1/4, Front)(ta ka))]
+            [(([2 (1/4, Front)], s1n4), ta), (([], s1n4), ka)]
+        . This is because both TempoChange and Group are merged into
+          Meta, and the order is lost.  I need to change the representation
+          to fix this.
+        . data Meta g a = TempoChange tempo | Group (GroupMark g) | Notes [a]
+        . This would totally change all that MetaNote stuff, and maps would
+          have to be mapAccumLs with state.  But since I can now see that
+          the TempoChange happens before the Group, I know the right tempo
+          when stripping out group prefix/suffix.  When I see Group, I scale
+          _dropped by the current tempo.
+        . One problem is that now the group counts don't work, because there
+          are non-Notes in there.  I suppose I could make the count be for
+          non-meta events.
+        . Why wasn't this a problem before?  Because splitD used to work
+          over the nested S.Note structure, so the order was still present.
+        . Another way to fix this but preserve the pairs format is to have
+          ([Meta], a), but it could have [] for no tempo, and I still lose
+          order of notes with meta... so it doesn't really help.
+
+        . This is still annoying because previous code could just pass through
+          meta without caring about tempo or groups, but now it has to
+          explicitly deal with groups.
+        . What about making Group still be nested?  The reason to flatten
+          notes is so they all have tempo, and I can easily find sequences.
+          But that doesn't hold for groups, because I don't match sequences
+          across group boundaries anyway.
+        . realize_patterns changes the number of notes, which makes the group
+          count inaccurate.  I have to update it.
+        . Using a non-flat group means I wouldn't have worry about getting
+          count wrong.
+        . I feel like collect_group does adding dropped time wrong.  It seems
+          like I should be able to do all the groups recursively.
+        . matrasOf is 12, should be 8*3 - 2 - 4 = 18/2 = 9
+        . It's because I don't take tempo into account when calculating
+          dropped matras.
+
+        * Implement Realize.format_table.
+        - Clean out the Pretty etc. gunk and commented out code.
+        + compile build/debug/seq, fix exports
+
+      - Another side-effect is that "can't split" errors are only detected
+        on realization.  But if it's important to get them earlier, I could
+        have splitD verify even if it doesn't use the result immediately.
 
     - Various Notation functions like 'spread' should work with groups.
   - Ornaments to fill in karvai, e.g. with taka and takatiku
@@ -2783,8 +2968,6 @@ solkattu:
         dropM 3 (ta . nadai 6 takita) => []
         1/4 + 3/6 = 3/4
       . I think this does work.
-
-      . Matras are nadai-independent, so 1/4 dur is only valid for chatusram.
     . Also I think reduction is more likely to reduce a constant amount of
       time, so e.g. dropM 2 (n 3 takita) should drop all 3.
   - replacements, e.g. ta.ki.ta -> nang.__ . su (kita.taka)

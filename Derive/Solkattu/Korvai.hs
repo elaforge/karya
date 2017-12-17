@@ -34,7 +34,7 @@ import Global
 
 
 type Sequence = SequenceT Solkattu.Sollu
-type SequenceT sollu = [S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)]
+type SequenceT sollu = [S.Note Solkattu.Group (Solkattu.Note sollu)]
 
 type Error = Text
 
@@ -42,7 +42,7 @@ map_sollu :: (a -> b) -> SequenceT a -> SequenceT b
 map_sollu f = map $ \n -> case n of
     S.Note note -> S.Note (f <$> note)
     S.TempoChange change notes -> S.TempoChange change (map_sollu f notes)
-    S.Group g notes -> S.Group (f <$> g) (map_sollu f notes)
+    S.Group g notes -> S.Group g (map_sollu f notes)
 
 -- * korvai
 
@@ -104,7 +104,7 @@ data Instrument stroke = Instrument {
         Maybe (Realize.GetStroke (Realize.Stroke Mridangam.Stroke) stroke)
     , inst_from_strokes :: StrokeMaps -> Realize.Instrument stroke
     -- | Modify strokes after 'realize'.  Use with 'stroke_technique'.
-    , inst_postprocess :: [MetaNote stroke] -> [MetaNote stroke]
+    , inst_postprocess :: [Flat stroke] -> [Flat stroke]
     , inst_to_score :: ToScore.ToScore stroke
     }
 
@@ -162,12 +162,12 @@ instruments = Map.fromList
     ]
 
 -- | A note with associated S.Meta.
-type MetaNote stroke =
-    (S.Meta (Solkattu.Group (Realize.Stroke stroke)), Realize.Note stroke)
+type Flat stroke =
+    S.Flat (Realize.Group (Realize.Stroke stroke)) (Realize.Note stroke)
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
-    -> [Either Error ([MetaNote stroke], Error)]
+    -> [Either Error ([Flat stroke], Error)]
 realize instrument realize_patterns korvai = case korvai_sequences korvai of
     Sollu seqs -> map (realize1 (inst_from_sollu instrument smap)) seqs
     Mridangam seqs -> case inst_from_mridangam instrument of
@@ -184,24 +184,21 @@ realize instrument realize_patterns korvai = case korvai_sequences korvai of
 realize_instrument :: (Pretty sollu, Solkattu.Notation stroke) =>
     Bool -> Realize.GetStroke sollu stroke -> Realize.Instrument stroke
     -> Tala.Tala -> SequenceT sollu
-    -> Either Error ([MetaNote stroke], Error)
+    -> Either Error ([Flat stroke], Error)
 realize_instrument realize_patterns get_stroke inst tala sequence = do
-    -- Continue to realize even if there are align errors.  Misaligned notes
-    -- are easier to read if I realize them down to strokes.
-    let notes = flatten sequence
-    let align_error = Solkattu.verify_alignment tala
-            (map (first S._tempo) notes)
-    let pattern
-            | realize_patterns =
-                Realize.realize_pattern (Realize.inst_patterns inst)
-            | otherwise = Realize.keep_pattern
-    realized <- Realize.realize pattern get_stroke notes
+    let pattern = if realize_patterns
+            then Realize.realize_pattern (Realize.inst_patterns inst)
+            else Realize.keep_pattern
+    realized <- Realize.realize pattern get_stroke $ flatten sequence
+    let align_error = Realize.verify_alignment tala (S.tempo_notes realized)
     -- TODO maybe put a carat in the output where the error index is
-    return (realized,
-        maybe "" (\(i, msg) -> showt i <> ": " <> msg) align_error)
+    return
+        ( realized
+        , maybe "" (\(i, msg) -> showt i <> ": " <> msg) align_error
+        )
 
-flatten :: [S.Note g (Solkattu.Note sollu)] -> [(S.Meta g, Solkattu.Note sollu)]
-flatten = Solkattu.cancel_karvai . S.flatten_with S.default_tempo
+flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
+flatten = Solkattu.cancel_karvai . S.flatten
 
 -- TODO broken by KorvaiType, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
@@ -257,7 +254,8 @@ infer_metadata korvai =
 infer_tags :: Korvai -> Tags
 infer_tags korvai = Tags $ Util.Map.multimap $ concat
     [ [("tala", Tala._name tala)]
-    , map (("avartanams",) . pretty . (/aksharas) . Solkattu.duration_of) seqs
+    , map (("avartanams",) . pretty . (/aksharas)
+        . Solkattu.duration_of S.default_tempo) seqs
     , map ("nadai",) (map showt nadais)
     , map ("speed",) (map showt speeds)
     , map ("instrument",) [name | (name, True) <- instruments]
@@ -269,9 +267,10 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
     seqs = case korvai_sequences korvai of
         Sollu seqs -> map (map_sollu (const ())) seqs
         Mridangam seqs -> map (map_sollu (const ())) seqs
-    notes = map (Solkattu.cancel_karvai . S.flatten) seqs
-    nadais = Seq.unique_sort $ concatMap (map (S.nadai . S._tempo . fst)) notes
-    speeds = Seq.unique_sort $ concatMap (map (S.speed . S._tempo . fst)) notes
+    tempos = map (map fst . S.tempo_notes . Solkattu.cancel_karvai . S.flatten)
+        seqs
+    nadais = Seq.unique_sort $ concatMap (map S.nadai) tempos
+    speeds = Seq.unique_sort $ concatMap (map S.speed) tempos
 
     instruments =
         [ ("mridangam", has_instrument korvai inst_mridangam)
@@ -332,7 +331,7 @@ write_konnakol_html realize_patterns korvai =
             where (notes, warnings) = unzip results
 
 print_results :: Solkattu.Notation stroke => Maybe Int -> Korvai
-    -> [Either Error ([(S.Meta a, Realize.Note stroke)], Error)]
+    -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
     -> IO ()
 print_results override_stroke_width korvai = print_list . map show1
     where

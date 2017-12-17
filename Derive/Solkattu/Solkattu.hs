@@ -102,18 +102,18 @@ instance Pretty sollu => Pretty (Note sollu) where
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
-data Group sollu = Group {
-    -- | The sollus which were dropped from the group.
-    _dropped :: ![sollu]
-    -- | Front means these were dropped from the front of the sequence, Back
-    -- is from the back.
+data Group = Group {
+    -- | Where to split the sollus.
+    _split :: !S.FMatra
     , _side :: !Side
-    } deriving (Eq, Ord, Show, Functor)
+    } deriving (Eq, Ord, Show)
 
-data Side = Front | Back deriving (Eq, Ord, Show)
+-- | Before means drop the strokes before the '_split' split, After means
+-- drop the ones after.
+data Side = Before | After deriving (Eq, Ord, Show)
 instance Pretty Side where pretty = showt
 
-instance Pretty sollu => Pretty (Group sollu) where
+instance Pretty Group where
     pretty (Group dropped side) = pretty (dropped, side)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
@@ -243,8 +243,21 @@ instance Pretty Sollu where pretty = notation
 
 -- * durations
 
-duration_of :: [S.Note g (Note sollu)] -> S.Duration
-duration_of = sum . map (S.note_duration S.default_tempo)
+duration_of :: S.Tempo -> [S.Note Group (Note sollu)] -> S.Duration
+duration_of tempo = S.fmatra_duration tempo . matras_of tempo
+
+matras_of :: S.HasMatras note => S.Tempo -> [S.Note Group note] -> S.FMatra
+matras_of tempo notes =
+    sum (map (S.note_fmatra tempo) notes) - dropped_matras tempo notes
+
+dropped_matras :: S.Tempo -> [S.Note Group note] -> S.FMatra
+dropped_matras tempo = sum . map get
+    where
+    get n = case n of
+        S.Group g ns -> S.normalize_fmatra tempo (_split g) + sum (map get ns)
+        S.TempoChange change ns ->
+            dropped_matras (S.change_tempo change tempo) ns
+        _ -> 0
 
 -- * functions
 
@@ -252,53 +265,27 @@ duration_of = sum . map (S.note_duration S.default_tempo)
 -- a Note or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
 -- logically has no duration, if it's the last note it will be dropped
 -- entirely.
-cancel_karvai :: [(a, Note sollu)] -> [(a, Note sollu)]
+cancel_karvai :: [S.Flat g (Note sollu)] -> [S.Flat g (Note sollu)]
 cancel_karvai = go
     where
-    go ((a, Note note) : notes)
+    go (S.FNote tempo (Note note) : notes)
         | _karvai note = case drop_next_rest notes of
-            (True, rest) -> (a, Note $ note { _karvai = False}) : go rest
-            (False, rest) -> go rest
-    go (n:ns) = n : go ns
+            (True, remain) -> S.FNote tempo (Note (note { _karvai = False}))
+                : go remain
+            (False, remain) -> go remain
+    go (note : notes) = note : go notes
     go [] = []
 
-drop_next_rest :: [(a, Note sollu)] -> (Bool, [(a, Note sollu)])
-drop_next_rest (n : ns) = case snd n of
-    Space Rest -> (True, ns)
-    Space Sarva -> (False, n:ns)
-    Note {} -> (False, n:ns)
-    Pattern {} -> (False, n:ns)
-    Alignment {} -> second (n:) $ drop_next_rest ns
+drop_next_rest :: [S.Flat g (Note sollu)] -> (Bool, [S.Flat g (Note sollu)])
+drop_next_rest (note@(S.FNote _ n) : notes) = case n of
+    Space Rest -> (True, notes)
+    Space Sarva -> (False, note : notes)
+    Note {} -> (False, note : notes)
+    Pattern {} -> (False, note : notes)
+    Alignment {} -> second (note:) $ drop_next_rest notes
+drop_next_rest (note@(S.FGroup {}) : notes) =
+    second (note:) $ drop_next_rest notes
 drop_next_rest [] = (False, [])
-
--- | Verify that the notes start and end at sam, and the given Alignments
--- fall where expected.
-verify_alignment :: Tala.Tala -> [(S.Tempo, Note sollu)] -> Maybe (Int, Error)
-    -- ^ (index where the error occured, error)
-verify_alignment tala notes =
-    msum (map verify (zip [0..] states)) <|> append_ends_on_sam
-    where
-    (final_state, states) = S.tempo_to_state tala notes
-    -- Either final_state one is at 0, or the last non-rest note is.
-    append_ends_on_sam
-        | at_akshara 0 final_state || maybe False (at_akshara 0) final_note =
-            Nothing
-        | otherwise = Just
-            ( length states
-            , "korvai should end on or before sam: "
-                <> S.show_position final_state
-            )
-        where
-        final_note = fst <$> List.find (not . is_space . snd) (reverse states)
-    verify (i, (state, Alignment akshara))
-        | at_akshara akshara state = Nothing
-        | otherwise = Just (i, "expected akshara " <> showt akshara
-            <> ", but at " <> S.show_position state)
-    verify _ = Nothing
-    is_space (Space _) = True
-    is_space _ = False
-    at_akshara akshara state =
-        S.state_akshara state == akshara && S.state_matra state == 0
 
 -- * vary
 

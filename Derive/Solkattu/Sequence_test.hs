@@ -6,26 +6,35 @@
 module Derive.Solkattu.Sequence_test where
 import Util.Test
 import qualified Derive.Solkattu.Sequence as Sequence
-import Derive.Solkattu.Sequence (Note(..), Meta(..), default_tempo)
+import Derive.Solkattu.Sequence (Note(..), Flat(..), default_tempo)
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
 test_flatten_with = do
-    let f = map (extract . fst) . Sequence.flatten_with default_tempo
-        extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
-    equal (f [su [note]]) [([], (1, 4))]
-    equal (f [note]) [([], (0, 4))]
-    equal (f [Group 'a' [note, Group 'b' [note], note]])
-        [([g 3 'a'], (0, 4)), ([g 1 'b'], (0, 4)), ([], (0, 4))]
+    let f = map extract . Sequence.flatten_with default_tempo
+        extract n = n -- fmap (const ()) n
+        -- extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
+    equal (f [su [note]]) [FNote (tempo 1 4) 1]
+    equal (f [Group 'a' [note, su [Group 'b' [note]], note]])
+        [ FGroup (tempo 0 4) 4 'a'
+        , FNote (tempo 0 4) 1
+        , FGroup (tempo 1 4) 1 'b'
+        , FNote (tempo 1 4) 1
+        , FNote (tempo 0 4) 1
+        ]
     equal (f [Group 'a' [Group 'b' [note], note]])
-        [([g 2 'a', g 1 'b'], (0, 4)), ([], (0, 4))]
+        [ FGroup (tempo 0 4) 3 'a'
+        , FGroup (tempo 0 4) 1 'b'
+        , FNote (tempo 0 4) 1
+        , FNote (tempo 0 4) 1
+        ]
 
 test_tempo_to_state = do
     let f = map (e_state . fst) . snd
             . Sequence.tempo_to_state Tala.adi_tala
-            . map (first Sequence._tempo) . Sequence.flatten
+            . Sequence.tempo_notes . Sequence.flatten
     equal (f [note, note, note, note, note])
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]
 
@@ -44,7 +53,8 @@ test_tempo_to_state = do
         [(0, 0), (0, 3/8), (0, 6/8), (1, 1/8)]
 
 test_normalize_speed = do
-    let f = map ((e_state *** pretty_stroke) . snd)
+    let f = map (e_state *** pretty_stroke)
+            . Sequence.flattened_notes
             . Sequence.normalize_speed Tala.adi_tala
             . Sequence.flatten
         n matras = Sequence.Note (matras :: Sequence.Matra)
@@ -57,6 +67,7 @@ test_normalize_speed = do
         , ((0, 2/8), '+'), ((0, 3/8), '_')
         , ((0, 4/8), '+'), ((0, 5/8), '_')
         ]
+
     equal (f [nadai 5 [n 1, n 1]]) [((0, 0), '+'), ((0, 1/5), '+')]
     equal (f [n 2, n 1]) [((0, 0), '+'), ((0, 1/4), '-'), ((0, 2/4), '+')]
     equal (f [su [n 1], n 2])
@@ -72,27 +83,32 @@ test_normalize_speed = do
     equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
 test_normalize_speed_groups = do
-    let f = extract . Sequence.normalize_speed Tala.adi_tala . Sequence.flatten
+    let f = map (fmap extract) . Sequence.normalize_speed Tala.adi_tala
+            . Sequence.flatten
         n = Note (1 :: Sequence.Matra)
-        extract ns = zip (map fst ns) (map (pretty.snd.snd) ns)
+        extract = pretty . snd
+    let t0 = tempo 0 4
+        t1 = tempo 1 4
     -- Make sure groups are expanded correctly.
     equal (f [Group 'a' [n, n], n])
-        [([g 2 'a'], "1"), ([], "1"), ([], "1")]
+        [ FGroup t0 2 'a'
+        , FNote t0 "1", FNote t0 "1"
+        , FNote t0 "1"
+        ]
     equal (f [sd [Group 'a' [n, n]], n])
-        [ ([g 4 'a'], "1"), ([], "_"), ([], "1"), ([], "_")
-        , ([], "1")
+        [ FGroup t0 4 'a'
+        , FNote t0 "1", FNote t0 "_", FNote t0 "1", FNote t0 "_"
+        , FNote t0 "1"
+        ]
+    equal (f [su [Group 'a' [n, n]], n])
+        [ FGroup t1 2 'a'
+        , FNote t1 "1", FNote t1 "1"
+        , FNote t1 "1", FNote t1 "_"
         ]
     equal (f [Group 'a' [n, Group 'b' [n]]])
-        [([g 2 'a'], "1"), ([g 1 'b'], "1")]
-
-test_expand_groups = do
-    let f = Sequence.expand_groups
-    let a = Sequence.Attack ()
-        r = Sequence.Rest
-    equal (f [[(g 1 'a')], []] [a, r, a, r, r, a]) [(0, g 2 'a')]
-    equal (f [[(g 2 'a')], []] [a, r, a, r, r, a]) [(0, g 5 'a')]
-    equal (f [[g 2 'a'], [], [g 1 'b']] [a, r, a, r, a, r, r])
-        [(0, g 4 'a'), (4, g 3 'b')]
+        [ FGroup t0 3 'a'
+        , FNote t0 "1", FGroup t0 1 'b', FNote t0 "1"
+        ]
 
 test_simplify = do
     let f = Sequence.simplify
@@ -110,14 +126,21 @@ test_simplify = do
     equal (f [speed (-2) [speed 1 [note], speed 2 [note]]])
         [speed (-1) [note], note]
 
+test_note_fmatra = do
+    let f = Sequence.note_fmatra
+    equal (f (tempo 0 4) note) 1
+    equal (f (tempo 0 6) note) 1
+    equal (f (tempo 1 4) note) (1/2)
+    equal (f (tempo 1 6) note) (1/2)
+    equal (f (tempo 0 4) $ su [note, note]) 1
+    equal (f (tempo 1 4) $ su [note, note]) (1/2)
+    equal (f (tempo 0 4) $ speed 0 [note, nadai 6 [note, note, note]]) 3
+
 pretty_stroke :: Sequence.Stroke a -> Char
 pretty_stroke s = case s of
     Sequence.Attack _ -> '+'
     Sequence.Sustain {} -> '-'
     Sequence.Rest -> '_'
-
-g :: Int -> g -> Sequence.GroupMark g
-g = Sequence.GroupMark
 
 e_state :: Sequence.State -> (Tala.Akshara, Sequence.Duration)
 e_state state = (Sequence.state_akshara state, Sequence.state_matra state)
@@ -141,3 +164,5 @@ stride = TempoChange . Sequence.Stride
 su, sd :: [Note g a] -> Note g a
 su = speed 1
 sd = speed (-1)
+
+tempo s n = Sequence.Tempo s n 1

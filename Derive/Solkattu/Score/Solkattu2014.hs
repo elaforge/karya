@@ -185,7 +185,8 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
     , concatMap sequence [t1, t2, t3]
     ]
     where
-    sequence p = p.din . sarvaD 3 . p.din . sarvaD 1 . p . dropS 1 p . dropS 1 p
+    sequence p = p.din . sarvaD 3 . p.din . sarvaD 1 . p
+        . dropM (1/2) p . dropM (1/2) p
     t1 = su $ din.__.kitataka
     t2 = su $ ka.tdgnt
     t3 = su $ takadinna.taka

@@ -20,11 +20,13 @@ import Global
 
 
 test_realize = do
-    let f realize_patterns = second (first (map extract)) . head
+    let f realize_patterns = fmap (first extract) . head
             . Korvai.realize Korvai.mridangam realize_patterns
             . korvai (Tala.Tala "eka" Tala.eka 2) . (:[])
-        extract (meta, stroke) =
-            pretty (Sequence._tempo meta) <> ":" <> pretty stroke
+        extract notes =
+            [ pretty tempo <> ":" <> pretty stroke
+            | (tempo, stroke) <- Sequence.tempo_notes notes
+            ]
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
     equal (f False (take 4 tkdn)) $ Right
@@ -42,7 +44,7 @@ test_realize_technique = do
     let f = fmap extract . head
             . Korvai.realize Korvai.mridangam False
             . korvai Tala.adi_tala . (:[])
-        extract = Text.unwords . map (pretty . snd) . fst
+        extract = Text.unwords . map pretty . Sequence.flattened_notes . fst
         takatakadinna = mconcat [ta, ka, ta, ka, din, na]
     equal (f takatakadinna) (Right "k t k o o k")
     equal (f (Dsl.dropM 1 takatakadinna)) (Right "k k o o k")

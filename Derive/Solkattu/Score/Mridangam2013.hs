@@ -9,7 +9,6 @@ module Derive.Solkattu.Score.Mridangam2013 where
 import Prelude hiding ((.), repeat)
 
 import Derive.Solkattu.MridangamGlobal
-import qualified Derive.Solkattu.Tala as Tala
 
 
 -- TODO use this as a template to fill in various themes
@@ -133,7 +132,6 @@ nadindin = sarvalaghu $ korvai adi $ map sd
     template var = (lh & rh) . var . (rh . rh) & (o.__4 . __ . repeat 3 o)
     rh = n.d.d.n
     lh = o.o.o.o
-
 
 nadindin_negative :: Korvai
 nadindin_negative = sarvalaghu $ korvai adi $ map sd

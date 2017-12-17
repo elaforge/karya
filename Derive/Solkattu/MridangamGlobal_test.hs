@@ -11,6 +11,7 @@ import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.MridangamGlobal as MridangamGlobal
 import Derive.Solkattu.MridangamGlobal ((&), o, k, __, (.), su)
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Sequence as Sequence
 
 import Global
 
@@ -27,6 +28,6 @@ test_merge = do
 
 realize :: MridangamGlobal.Sequence
     -> Either Text [Realize.Note Mridangam.Stroke]
-realize seq = fmap (map snd) $ fmap fst $ head $
+realize seq = fmap Sequence.flattened_notes $ fmap fst $ head $
     Korvai.realize Korvai.mridangam False
         (MridangamGlobal.korvai1 MridangamGlobal.adi seq)

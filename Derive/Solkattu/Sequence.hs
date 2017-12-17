@@ -10,7 +10,7 @@
 -- type is polymorphic, so this is purely rhythmic.
 module Derive.Solkattu.Sequence (
     Note(..), TempoChange(..)
-    , Duration(..), Matra, Speed, Nadai, Stride, speed_factor
+    , Duration, FMatra, Matra, Speed, Nadai, Stride, speed_factor
     , change_speed
     , HasMatras(..)
     -- * transform
@@ -20,15 +20,17 @@ module Derive.Solkattu.Sequence (
     -- * tempo
     , Tempo(..), default_tempo
     , change_tempo
+    , decompose, decomposeM
     -- * flatten
-    , Meta(..), GroupMark(..)
-    , notes, flatten, flatten_with
-    , tempo_to_state, tempo_to_duration
+    , Flat(..)
+    , notes, flatten, flatten_with, flattened_notes
+    , tempo_to_state, with_durations, tempo_notes
     , Stroke(..), normalize_speed
     -- * State
     , State(..), state_position, show_position
     -- * functions
-    , note_duration, matra_duration
+    , note_duration, note_fmatra, fmatra_duration, normalize_fmatra
+    , matra_duration
 #ifdef TESTING
     , module Derive.Solkattu.Sequence
 #endif
@@ -61,6 +63,10 @@ instance (Pretty a, Pretty g) => Pretty (Note g a) where
 
 -- | A single Duration unit is equivalent to 1 Akshara.
 newtype Duration = Duration Ratio.Rational
+    deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
+
+-- | This is a fractional 'Matra'.
+newtype FMatra = FMatra Ratio.Rational
     deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
 -- | Relative speed change.  Each positive number doubles the number of
@@ -99,6 +105,7 @@ class HasMatras a where
     -- | True if this note has a duration in time.  Otherwise, it's a single
     -- stroke, which logically has zero duration.  So far, this only affects
     -- how the note is drawn.
+    -- TODO this should be has_sustain
     has_duration :: a -> Bool
 
 -- * transform
@@ -155,55 +162,50 @@ map1 f n = case n of
 
 -- * flatten
 
-data Meta g = Meta {
-    -- | If non-empty, this marks the start of a group.  It's a list because
-    -- nested groups can start on the same element.
-    _marks :: ![GroupMark g]
-    , _tempo :: !Tempo
-    } deriving (Eq, Show, Functor)
+data Flat g a = FGroup !Tempo !Int !g | FNote !Tempo !a
+    deriving (Eq, Show, Functor)
 
-data GroupMark g = GroupMark {
-    -- | Number of elements in this group.  It includes the one this Meta is
-    -- attached to, so it should be >=1.
-    _count :: !Int
-    , _group :: !g
-    } deriving (Eq, Show, Functor)
-
-instance Pretty g => Pretty (Meta g) where
-    pretty (Meta g tempo) = pretty (g, tempo)
-instance Pretty g => Pretty (GroupMark g) where
-    pretty (GroupMark count g) = pretty count <> " " <> pretty g
+instance (Pretty g, Pretty a) => Pretty (Flat g a) where
+    pretty (FGroup tempo count g) = pretty (tempo, count, g)
+    pretty (FNote tempo note) = pretty (tempo, note)
 
 notes :: [Note g a] -> [a]
-notes = map snd . flatten
+notes = flattened_notes . flatten
 
-flatten :: [Note g a] -> [(Meta g, a)]
+flatten :: [Note g a] -> [Flat g a]
 flatten = flatten_with default_tempo
 
-flatten_with :: Tempo -> [Note g a] -> [(Meta g, a)]
-flatten_with = go
+flatten_with :: Tempo -> [Note g a] -> [Flat g a]
+flatten_with tempo = concat . snd . List.mapAccumL go tempo
     where
-    go tempo = concatMap $ \n -> case n of
-        Note note -> [(Meta [] tempo, note)]
-        TempoChange change notes -> go (change_tempo change tempo) notes
-        Group g notes -> case go tempo notes of
-            (meta, a) : as ->
-                (meta { _marks = GroupMark (length as + 1) g : _marks meta }, a)
-                : as
-            [] -> []
+    go tempo n = case n of
+        Note note -> (tempo, [FNote tempo note])
+        TempoChange change notes ->
+            (tempo, flatten_with (change_tempo change tempo) notes)
+        Group g notes -> (tempo, FGroup tempo (length children) g : children)
+            where children = flatten_with tempo notes
 
--- | Calculate Tala position for each note.
+flattened_notes :: [Flat g a] -> [a]
+flattened_notes = map snd . tempo_notes
+
+tempo_notes :: [Flat g a] -> [(Tempo, a)]
+tempo_notes = mapMaybe $ \n -> case n of
+    FGroup {} -> Nothing
+    FNote tempo note -> Just (tempo, note)
+
 tempo_to_state :: HasMatras a => Tala.Tala -> [(Tempo, a)]
     -> (State, [(State, a)])
-tempo_to_state tala = List.mapAccumL to_state initial_state . tempo_to_duration
+tempo_to_state tala = List.mapAccumL to_state initial_state
     where
-    to_state state (dur, note) =
+    to_state state (tempo, note) =
         (advance_state_by tala dur state, (state, note))
+        where dur = duration_of tempo note
 
-tempo_to_duration :: HasMatras a => [(Tempo, a)] -> [(Duration, a)]
-tempo_to_duration = map $ \(tempo, note) -> (,note) $
-    fromIntegral (matras_of note) * matra_duration tempo
-        * fromIntegral (stride tempo)
+-- | Calculate Duration for each note.
+with_durations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
+with_durations = map $ \n -> case n of
+    FGroup tempo count g -> FGroup tempo count g
+    FNote tempo note -> FNote tempo (duration_of tempo note, note)
 
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
@@ -214,62 +216,41 @@ instance Pretty a => Pretty (Stroke a) where
         Sustain _ -> "-"
         Rest -> "_"
 
--- | Normalize to the fastest speed, then mark position in the Tala.  This
--- normalizes speed, not nadai, because Realize.format lays out notation by
--- nadai, not in absolute time.
-normalize_speed :: HasMatras a => Tala.Tala -> [(Meta g, a)]
-    -> [([GroupMark g], (State, Stroke a))]
-normalize_speed tala notes =
-    zip (collect_indices groups) $ snd $
-        List.mapAccumL process initial_state by_nadai
-    where
-    process state (nadai, stroke) = (next_state, (state, stroke))
-        where
-        next_state = advance_state_by tala (step_dur / fromIntegral nadai) state
-    (by_nadai, step_dur) = flatten_speed (map (first _tempo) notes)
-    groups = expand_groups (map (_marks . fst) notes) (map snd by_nadai)
-
--- | Put the indexed elements at the proper place in a list.  The result has
--- infinite []s on the end.
-collect_indices :: [(Int, a)] -> [[a]]
-collect_indices = go 0
-    where
-    go i groups = map snd here : go (i+1) rest
-        where (here, rest) = span ((<=i) . fst) groups
-
--- | Re-associate groups with the output of 'flatten_speed' by expanding their
--- '_count's.  Each group entry corresponds to an Attack Stroke.
-expand_groups :: [[GroupMark g]] -> [Stroke a] -> [(Int, GroupMark g)]
-    -- ^ (stroke index, group)
-expand_groups groups =
-    concat . zipWith expand groups . List.tails . drop 1
-        . Seq.split_with (is_attack . snd) . zip [0..]
-    where
-    expand marks strokes@(((i, _) : _) : _) =
-        [ (i, GroupMark (new_count count strokes) g)
-        | GroupMark count g <- marks
-        ]
-    -- Neither of these should happen, due to Seq.split_with's postcondition.
-    expand _ [] = []
-    expand _ ([] : _) = []
-    new_count count = sum . map length . take count
-    is_attack (Attack {}) = True
-    is_attack _ = False
-
 -- | Normalize to the fastest speed.  Fill slower strokes in with rests.
 -- Speed 0 always gets at least one Stroke, even if it's not the slowest.
-flatten_speed :: HasMatras a => [(Tempo, a)] -> ([(Nadai, Stroke a)], Duration)
-flatten_speed notes = (concatMap flatten notes, step_dur)
+--
+-- This normalizes speed, not nadai, because Realize.format lays out notation
+-- by nadai, not in absolute time.
+normalize_speed :: HasMatras a => Tala.Tala -> [Flat g a]
+    -> [Flat g (State, (Stroke a))]
+normalize_speed tala flattened =
+    snd $ List.mapAccumL with_state initial_state $ expand flattened
     where
-    flatten (tempo, note) = map (nadai tempo,) $
-        Attack note : replicate (spaces - 1)
-            (if has_duration note then Sustain note else Rest)
+    with_state state (FNote tempo stroke) =
+        ( advance_state_by tala (matra_duration tempo) state
+        , FNote tempo (state, stroke)
+        )
+    with_state state (FGroup tempo count g) = (state, FGroup tempo count g)
+
+    expand [] = []
+    expand (FGroup tempo count g : notes) =
+        FGroup new_tempo (length expanded) g : expanded ++ expand post
         where
-        spaces = stride tempo * matras_of note
-            * 2 ^ (max_speed - speed tempo)
-    -- The smallest duration is a note at max speed.
-    step_dur = 1 / speed_factor max_speed
-    max_speed = maximum $ 0 : map (speed . fst) notes
+        new_tempo = tempo { speed = max_speed }
+        expanded = expand pre
+        (pre, post) = splitAt count notes
+    expand (FNote tempo note : notes) = expanded ++ expand notes
+        where
+        expanded = map (FNote new_tempo) $
+            Attack note : replicate (spaces - 1)
+                (if has_duration note then Sustain note else Rest)
+        new_tempo = tempo { speed = max_speed }
+        spaces = stride tempo * matras_of note * 2 ^ (max_speed - speed tempo)
+    max_speed = maximum $ 0 : map speed (mapMaybe tempo_of flattened)
+    tempo_of (FNote tempo _) = Just tempo
+    tempo_of _ = Nothing
+
+-- ** Tempo
 
 data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai, stride :: !Stride }
     deriving (Eq, Show)
@@ -289,6 +270,22 @@ change_tempo :: TempoChange -> Tempo -> Tempo
 change_tempo (ChangeSpeed s) tempo = tempo { speed = s + speed tempo }
 change_tempo (Nadai n) tempo = tempo { nadai = n }
 change_tempo (Stride s) tempo = tempo { stride = s }
+
+-- | Given a duration, return the speeds of 1 duration notes needed to add up
+-- to that duration.  Error if the speed went past 4, which means the duration
+-- probably isn't binary.
+decompose :: Duration -> Either Text [Speed]
+decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
+    where
+    go speed left
+        | left == 0 = Right []
+        | speed > 4 = Left $ "not a binary multiple: " <> pretty dur
+        | matra <= left = (speed:) <$> go (speed+1) (left - matra)
+        | otherwise = go (speed+1) left
+        where matra = 1 / speed_factor speed
+
+decomposeM :: FMatra -> Either Text [Speed]
+decomposeM (FMatra m) = decompose (Duration m)
 
 -- ** State
 
@@ -334,10 +331,26 @@ note_duration :: HasMatras a => Tempo -> Note g a -> Duration
 note_duration tempo n = case n of
     TempoChange change notes ->
         sum $ map (note_duration (change_tempo change tempo)) notes
-    Note n -> matra_duration tempo * fromIntegral (matras_of n)
+    Note n -> duration_of tempo n
     Group _ notes -> sum $ map (note_duration tempo) notes
 
--- | Duration of one matra in the given tempo.
+duration_of :: HasMatras a => Tempo -> a -> Duration
+duration_of tempo n = matra_duration tempo * fromIntegral (matras_of n)
+    * fromIntegral (stride tempo)
+
+note_fmatra :: HasMatras a => Tempo -> Note g a -> FMatra
+note_fmatra tempo n =
+    realToFrac $ note_duration tempo n * fromIntegral (nadai tempo)
+
+fmatra_duration :: Tempo -> FMatra -> Duration
+fmatra_duration tempo (FMatra matra) = Duration matra * matra_duration tempo
+
+normalize_fmatra :: Tempo -> FMatra -> FMatra
+normalize_fmatra tempo = (/ realToFrac (speed_factor (speed tempo)))
+
+-- | Duration of one matra in the given tempo.  This doesn't include 'stride',
+-- because stride adds matras to the note duration, it doesn't change the
+-- duration of a matra itself.
 matra_duration :: Tempo -> Duration
 matra_duration tempo =
     1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)

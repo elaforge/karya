@@ -14,9 +14,7 @@ import qualified Derive.Solkattu.Solkattu as Solkattu
 import Derive.Solkattu.Solkattu (Sollu(..))
 
 
-type Sequence =
-    [Sequence.Note (Solkattu.Group Solkattu.Sollu)
-        (Solkattu.Note Solkattu.Sollu)]
+type Sequence = [Sequence.Note Solkattu.Group (Solkattu.Note Solkattu.Sollu)]
     -- This is the same as in Korvai.
 
 sollu :: Solkattu.Sollu -> Sequence

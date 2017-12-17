@@ -92,16 +92,17 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         <=< Ui.require ("no korvai at index " <> showt index) $
             Seq.at (Korvai.realize instrument realize_patterns korvai) index
     unless (Text.null warning) $ Ui.throw warning
-    return $ to_note_track (Korvai.inst_to_score instrument) akshara_dur at $
-        map (first Sequence._tempo) strokes
+    return $ to_note_track (Korvai.inst_to_score instrument) akshara_dur at
+        strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
-    -> [(Sequence.Tempo, Realize.Note stroke)] -> ModifyNotes.NoteTrack
+    -> [Sequence.Flat g (Realize.Note stroke)] -> ModifyNotes.NoteTrack
 to_note_track to_score stretch shift strokes =
     ModifyNotes.NoteTrack (mk_events notes) control_tracks
     where
     controls :: [(Text, [ToScore.Event])]
-    (notes, controls) = to_score $ Sequence.tempo_to_duration strokes
+    (notes, controls) = to_score $ Sequence.flattened_notes $
+        Sequence.with_durations strokes
     pitches = fromMaybe [] $ lookup "*" controls
     pitch_track = if null pitches then Nothing
         else Just (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)
@@ -119,7 +120,7 @@ place shift stretch = (Event.duration_ %= (*stretch))
     . (Event.start_ %= ((+shift) . (*stretch)))
 
 strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
-    [(Sequence.Tempo, Realize.Note a)] -> [Event.Event]
+    [Sequence.Flat g (Realize.Note a)] -> [Event.Event]
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
         (ShowVal.show_val expr)
@@ -127,12 +128,14 @@ strokes_to_events strokes =
     ]
     where
     starts = scanl (+) 0 durs
-    (durs, notes) = unzip $ Sequence.tempo_to_duration strokes
+    (durs, notes) = unzip $ Sequence.flattened_notes $
+        Sequence.with_durations strokes
     to_expr s = case s of
         Realize.Note stroke -> Just (Expr.to_expr stroke, False)
         Realize.Pattern p -> Just (Expr.to_expr p, True)
         Realize.Space Solkattu.Rest -> Nothing
         Realize.Space Solkattu.Sarva -> Nothing -- TODO
+        Realize.Alignment {} -> Nothing
 
 
 -- * integrate

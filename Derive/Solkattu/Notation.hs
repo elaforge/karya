@@ -16,7 +16,6 @@
 module Derive.Solkattu.Notation where
 import Prelude hiding ((^), repeat)
 import qualified Data.List as List
-import qualified Data.Ratio as Ratio
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
@@ -24,18 +23,15 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Solkattu.Realize as Realize
 import qualified Derive.Solkattu.Sequence as S
-import Derive.Solkattu.Sequence (Duration)
+import Derive.Solkattu.Sequence (Duration, FMatra)
 import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Solkattu.Tala as Tala
 
 import Global
 
 
-type SequenceT sollu = [S.Note (Solkattu.Group sollu) (Solkattu.Note sollu)]
+type SequenceT sollu = [S.Note Solkattu.Group (Solkattu.Note sollu)]
     -- This is the same as in Korvai.
-
--- | This is at the same level as 'S.Matra', but it can be fractional.
-type FMatra = Ratio.Rational
 
 -- * rests
 
@@ -71,96 +67,87 @@ sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
 -- * by Duration
 
-dropD, dropD_ :: (CallStack.Stack, Pretty sollu) => Duration
-    -> SequenceT sollu -> SequenceT sollu
-dropD dur = snd . splitD dur
-dropD_ dur = snd . splitD_ dur
+dropM, dropM_ :: (CallStack.Stack, Pretty sollu) =>
+    FMatra -> SequenceT sollu -> SequenceT sollu
+dropM matras = snd . splitM matras
+dropM_ matras = snd . splitM_ matras
 
-takeD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+takeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> SequenceT sollu
-takeD dur = fst . splitD dur
+takeM matras = fst . splitM matras
 
--- | Like 'splitD_', but mark the sequences as groups.  This way they remember
+-- | Like 'splitM_', but mark the sequences as groups.  This way they remember
 -- the sollus which were dropped, and realize using the complete sequence, not
 -- the fragment.
-splitD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+--
+-- TODO the class constraints are unnecessary, but if I want to verify eagerly
+-- I'll need them back.
+splitM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
-splitD dur seq =
-    ( groupOf (sollus_of post) Solkattu.Back pre
-    , groupOf (sollus_of pre) Solkattu.Front post
+splitM matras seq =
+    ( groupOf matras Solkattu.After seq
+    , groupOf matras Solkattu.Before seq
     )
-    where (pre, post) = splitD_ dur seq
 
--- | Split the sequence at the given Duration.
-splitD_ :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+-- | Split the sequence at the given FMatra.  Unlike 'splitM', this directly
+-- splits the sequence, it doesn't create a group.
+splitM_ :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
-splitD_ dur = (S.simplify *** S.simplify) . snd . go S.default_tempo dur
+splitM_ matras = Solkattu.check . splitM_either matras
+
+splitM_either :: (Pretty sollu) => FMatra -> SequenceT sollu
+    -> Either Text (SequenceT sollu, SequenceT sollu)
+splitM_either matras =
+    fmap ((S.simplify *** S.simplify) . snd) . go S.default_tempo matras
     where
-    -- Return (dur_left, (pre, post)).  dur_left is so that a recursive split
-    -- in a S.TempoChange or S.Group can report how much dur it consumed.
-    go _ _ [] = (0, ([], []))
-    go tempo dur (n:ns)
-        | dur <= 0 = (0, ([], n:ns))
-        | ndur <= dur = second (first (n:)) $ go tempo (dur - ndur) ns
+    -- Return (matras_left, (pre, post)).  matras_left is so that a recursive
+    -- split in a S.TempoChange or S.Group can report how many matras it
+    -- consumed.
+    go _ _ [] = Right (0, ([], []))
+    go tempo matras (n:ns)
+        | matras <= 0 = Right (0, ([], n:ns))
+        | note_matras <= matras =
+            second (first (n:)) <$> go tempo (matras - note_matras) ns
         | otherwise = case n of
             S.TempoChange change subs ->
-                make (S.TempoChange change) (S.change_tempo change tempo)
-                    dur subs ns
+                group (S.TempoChange change) (S.change_tempo change tempo)
+                    matras subs ns
             -- TODO actually this is wrong.  I would have to add extra the
             -- split off sollus to the group, but no need to bother until it
             -- becomes a problem.
-            S.Group g subs -> make (S.Group g) tempo dur subs ns
-            S.Note (Solkattu.Space space) -> (0,
-                (spaceD space tempo dur, spaceD space tempo (ndur - dur) <> ns))
-            _ -> Solkattu.throw $ "can't split a note: " <> pretty dur
-                <> " of " <> pretty ndur <> ": " <> pretty n
-        where ndur = S.note_duration tempo n
-    make make_group tempo dur subs remaining
-        | left <= 0 = (0, (make pre, make post ++ remaining))
-        | otherwise = second (first (make subs ++)) (go tempo left remaining)
+            S.Group g subs -> group (S.Group g) tempo matras subs ns
+            S.Note (Solkattu.Space space) -> do
+                pre <- spaces tempo space matras
+                post <- spaces tempo space (note_matras - matras)
+                return (0, (pre, post <> ns))
+            _ -> Left $ "can't split a note: " <> pretty matras
+                <> " of " <> pretty note_matras <> ": " <> pretty n
         where
-        (left, (pre, post)) = go tempo dur subs
+        -- note_matras = Debug.trace_retp "matras" (matras, tempo, n) $ Solkattu.matras_of tempo [n]
+        note_matras = Solkattu.matras_of tempo [n]
+    group make_group tempo matras subs remaining = do
+        (left, (pre, post)) <- go tempo matras subs
+        if left <= 0
+            then Right (0, (make pre, make post ++ remaining))
+            else second (first (make subs ++)) <$> go tempo left remaining
+        where
         make [] = []
         make ns = [make_group ns]
 
-splitS :: Int -> SequenceT sollu -> (SequenceT sollu, SequenceT sollu)
-splitS count seq =
-    ( groupOf (sollus_of post) Solkattu.Back pre
-    , groupOf (sollus_of pre) Solkattu.Front post
-    )
-    where (pre, post) = splitS_ count seq
+    spaces tempo space matras = do
+        speeds <- S.decomposeM matras
+        return $ concatMap make speeds
+        where make s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
 
-splitS_ :: Int -> SequenceT sollu -> (SequenceT sollu, SequenceT sollu)
-splitS_ count = (S.simplify *** S.simplify) . snd . go count
-    where
-    go count ns | count <= 0 = (0, ([], ns))
-    go count [] = (count, ([], []))
-    go count (n:ns) = case n of
-        S.Note {} -> second (first (n:)) (go (count-1) ns)
-        S.TempoChange change subs -> group (S.TempoChange change) count subs ns
-        -- TODO actually this is wrong.  I would have to add extra the split
-        -- off sollus to the group, but no need to bother until it becomes
-        -- a problem.
-        S.Group g subs -> group (S.Group g) count subs ns
-    group make_group count subs remaining
-        | left <= 0 = (0, (make pre, make post ++ remaining))
-        | otherwise = second (first (make subs ++)) (go left remaining)
-        where
-        (left, (pre, post)) = go count subs
-        make [] = []
-        make ns = [make_group ns]
+rdropM, rdropM_ :: (CallStack.Stack, Pretty sollu) =>
+    FMatra -> SequenceT sollu -> SequenceT sollu
+-- rdropM matras seq = Debug.tracep "seq" $ takeM (Debug.trace_retp "m" (matrasOf seq, matras) (matrasOf seq - matras)) seq
+rdropM matras seq = takeM (matrasOf seq - matras) seq
+rdropM_ matras seq = fst $ splitM_ (matrasOf seq - matras) seq
 
-sollus_of :: SequenceT sollu -> [sollu]
-sollus_of = mapMaybe Solkattu.sollu_of . S.notes
-
-rdropD, rdropD_ :: (CallStack.Stack, Pretty sollu) => Duration
-    -> SequenceT sollu -> SequenceT sollu
-rdropD dur seq = takeD (Solkattu.duration_of seq - dur) seq
-rdropD_ dur seq = fst $ splitD_ (Solkattu.duration_of seq - dur) seq
-
-rtakeD :: (CallStack.Stack, Pretty sollu) => Duration -> SequenceT sollu
+rtakeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> SequenceT sollu
-rtakeD dur seq = dropD (Solkattu.duration_of seq - dur) seq
+rtakeM dur seq = dropM (matrasOf seq - dur) seq
 
 restD, sarvaD :: CallStack.Stack => Duration -> SequenceT sollu
 restD = spaceD Solkattu.Rest S.default_tempo
@@ -168,35 +155,31 @@ sarvaD = spaceD Solkattu.Sarva S.default_tempo
 
 spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
     -> SequenceT sollu
-spaceD space tempo dur = concatMap generate $ decompose s0_matras
+spaceD space tempo dur =
+    concatMap make $ Solkattu.check $ S.decompose s0_matras
     where
-    generate s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
+    make s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
     -- Cancel out the nadai.  So d is now in s0 matras.
     s0_matras = dur * fromIntegral (S.nadai tempo)
 
--- | Given a duration, return the speeds needed to add up to that duration.
--- Crash if the speed went past 4, which means the duration probably isn't
--- binary.
-decompose :: CallStack.Stack => Duration -> [S.Speed]
-decompose dur = go (- floor (logBase 2 (realToFrac dur))) dur
-    where
-    go speed left
-        | left == 0 = []
-        | speed > 4 = Solkattu.throw $ "not a binary multiple: " <> pretty dur
-        | matra <= left = speed : go (speed+1) (left - matra)
-        | otherwise = go (speed+1) left
-        -- where factor = S.speed_factor speed
-        where matra = 1 / S.speed_factor speed
+spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
+spaceM space matras =
+    concatMap make $ Solkattu.check $ S.decomposeM matras
+    where make s = speed s [S.Note (Solkattu.Space space)]
 
--- * by Matra
+-- * by Duration
 
--- | Matra-using variants of the duration functions.
-dropM, rdropM, takeM, rtakeM :: (CallStack.Stack, Pretty sollu) =>
-    FMatra -> SequenceT sollu -> SequenceT sollu
-dropM = dropD . mToD
-rdropM = rdropD . mToD
-takeM = takeD . mToD
-rtakeM = rtakeD . mToD
+-- | Duration-using variants of the matra functions.  These are only valid
+-- at the top level, in 'S.default_tempo'.  TODO require Tempo arg?
+dropD, rdropD, takeD, rtakeD :: (CallStack.Stack, Pretty sollu) =>
+    Duration -> SequenceT sollu -> SequenceT sollu
+dropD = dropM . dToM
+rdropD = rdropM . dToM
+takeD = takeM . dToM
+rtakeD = rtakeM . dToM
+
+dToM :: Duration -> FMatra
+dToM d = realToFrac $ d / S.matra_duration S.default_tempo
 
 -- | Drop sollus equal in length to some others.  This is intenedd for
 -- repeated sequences that get elided away, e.g. @tri p7 . sandi p7 (p7.p6.p5)@.
@@ -209,7 +192,7 @@ sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
 sandi dropped = dropM (matrasOf dropped)
 
 matrasOf :: SequenceT sollu -> FMatra
-matrasOf = dToM . Solkattu.duration_of
+matrasOf = Solkattu.matras_of S.default_tempo
 
 -- | Like 'matrasOf', but throw an error if it's not integral.
 matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
@@ -219,12 +202,6 @@ matrasOfI seq
     where
     (matras, frac) = properFraction fmatras
     fmatras = matrasOf seq
-
--- * by sollu
-
-takeS, dropS :: Int -> SequenceT sollu -> SequenceT sollu
-takeS n = fst . splitS n
-dropS n = snd . splitS n
 
 -- * structures
 
@@ -327,30 +304,12 @@ expand times dur = reverse . take times . reduceToL dur dur
 -- confusing than helpful.
 replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
-replaceStart prefix seq = prefix <> dropD_ (Solkattu.duration_of prefix) seq
-replaceEnd seq suffix = rdropD_ (Solkattu.duration_of suffix) seq <> suffix
+replaceStart prefix seq = prefix <> dropM_ (matrasOf prefix) seq
+replaceEnd seq suffix = rdropM_ (matrasOf suffix) seq <> suffix
 
 -- | I think default_tempo is ok because these functions are used on fragments.
 matra_duration :: S.Duration
 matra_duration = S.matra_duration S.default_tempo
-
-{- | Convert FMatra to Duration via (/4).
-
-    This seems like it can't possibly be right, because 1/4 would be valid only
-    for @nadai 4@.  But after way too much thought I think that since FMatra
-    and Duration are both relative to whatever speed and nadai are in scope,
-    the 1/4 is in fact arbitrary, and all that is required is that 'splitD_'
-    agrees with it.  And in fact, splitD should because it starts with
-    'S.default_tempo'.  So Duration here is not in fact absolute aksharas, but
-    simply relative "matras" * 4, even if we are in @nadai 5@ or something.
-    I *think* it works out.
--}
-mToD :: FMatra -> Duration
-mToD = (*matra_duration) . S.Duration
-
-dToM :: Duration -> FMatra
-dToM d = m
-    where S.Duration m = d / matra_duration
 
 -- * generic notation
 
@@ -376,9 +335,9 @@ stride n seq = [S.TempoChange (S.Stride n) seq]
 
 -- | Just mark a group.  Equivalent to dropM 0.
 group :: SequenceT sollu -> SequenceT sollu
-group = groupOf [] Solkattu.Front
+group = groupOf 0 Solkattu.Before
 
-groupOf :: [sollu] -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
+groupOf :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
 groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
 
 -- ** tags
@@ -415,7 +374,7 @@ __sam tala seq = __a (next_sam tala seq) seq
 next_sam :: Tala.Tala -> SequenceT sollu -> S.Duration
 next_sam tala seq = fromIntegral $ Num.roundUp aksharas dur
     where
-    dur = Solkattu.duration_of seq
+    dur = Solkattu.duration_of S.default_tempo seq
     aksharas = sum (Tala.tala_aksharas tala)
 
 -- | Align to the end of the given number of aksharams.

@@ -33,7 +33,7 @@ to_score strokes = (events, [])
     where
     events = do
         (start, dur, note) <- zip3 starts durs notes
-        Just expr <- return $ to_expr note
+        Just expr <- [to_expr note]
         let d = if Sequence.has_duration note then dur else 0
         return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
@@ -43,3 +43,4 @@ to_score strokes = (events, [])
         Realize.Pattern p -> Just $ Expr.to_expr p
         Realize.Space Solkattu.Rest -> Nothing
         Realize.Space Solkattu.Sarva -> Nothing -- TODO
+        Realize.Alignment {} -> Nothing

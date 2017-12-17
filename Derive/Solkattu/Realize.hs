@@ -37,11 +37,18 @@ type Error = Text
 -- | The group is () because I don't need groups in the stroke map keys.
 type SNote stroke = S.Note () (Note stroke)
 
+-- * Note
+
 -- | The 'Solkattu.Sollu's have been reduced to concrete strokes.
 data Note stroke =
     Note !(Stroke stroke)
     | Space !Solkattu.Space
     | Pattern !Solkattu.Pattern
+    -- | This is 'Solkattu.Alignment'.  It shouldn't be here, but since I now
+    -- drop groups in realize via 'strip_groups', I have to do
+    -- 'verify_alignment' on the output of 'realize', which means I need to
+    -- preserve the Alignments.
+    | Alignment !Tala.Akshara
     deriving (Eq, Show, Functor)
 
 instance DeepSeq.NFData (Note stroke) where
@@ -105,22 +112,64 @@ instance S.HasMatras (Note stroke) where
         Note {} -> 1
         Space {} -> 1
         Pattern p -> S.matras_of p
+        Alignment {} -> 0
     has_duration n = case n of
         Note {} -> False
         Space {} -> True
         Pattern {} -> True
+        Alignment {} -> False
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
-    notation (Space Solkattu.Rest) = "_"
-    notation (Space Solkattu.Sarva) = "="
-    notation (Note s) = Solkattu.notation s
-    notation (Pattern p) = Solkattu.notation p
+    notation n = case n of
+        Space Solkattu.Rest -> "_"
+        Space Solkattu.Sarva -> "="
+        Note s -> Solkattu.notation s
+        Pattern p -> Solkattu.notation p
+        Alignment _ -> "" -- this should be filtered out prior to render
 
 instance Pretty stroke => Pretty (Note stroke) where
-    pretty (Space Solkattu.Rest) = "_"
-    pretty (Space Solkattu.Sarva) = "="
-    pretty (Note s) = pretty s
-    pretty (Pattern p) = pretty p
+    pretty n = case n of
+        Space Solkattu.Rest -> "_"
+        Space Solkattu.Sarva -> "="
+        Note s -> pretty s
+        Pattern p -> pretty p
+        Alignment n -> "@" <> showt n
+
+note_duration :: S.Tempo -> Note stroke -> S.Duration
+note_duration tempo = (* S.matra_duration tempo) . fromIntegral . S.matras_of
+
+-- * verify_alignment
+
+-- | Verify that the notes start and end at sam, and the given Alignments
+-- fall where expected.
+verify_alignment :: Tala.Tala -> [(S.Tempo, Note stroke)] -> Maybe (Int, Error)
+    -- ^ (index where the error occured, error)
+verify_alignment tala notes =
+    msum (map verify (zip [0..] states)) <|> append_ends_on_sam
+    where
+    (final_state, states) = S.tempo_to_state tala notes
+    -- Either final_state one is at 0, or the last non-rest note is.
+    append_ends_on_sam
+        | at_akshara 0 final_state || maybe False (at_akshara 0) final_note =
+            Nothing
+        | otherwise = Just
+            ( length states
+            , "korvai should end on or before sam: "
+                <> S.show_position final_state
+            )
+        where
+        final_note = fst <$> List.find (not . is_space . snd) (reverse states)
+    verify (i, (state, Alignment akshara))
+        | at_akshara akshara state = Nothing
+        | otherwise = Just (i, "expected akshara " <> showt akshara
+            <> ", but at " <> S.show_position state)
+    verify _ = Nothing
+    is_space (Space _) = True
+    is_space _ = False
+    at_akshara akshara state =
+        S.state_akshara state == akshara && S.state_matra state == 0
+
+-- * Patterns
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  The
 -- 'S.Matra's should the same duration as the the list in the default tempo.
@@ -239,119 +288,205 @@ keep_pattern tempo pattern = Right [(tempo, Pattern pattern)]
 realize_pattern :: Patterns stroke -> RealizePattern S.Tempo stroke
 realize_pattern pmap tempo pattern = case lookup_pattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
-    Just notes -> Right $ map (first S._tempo) $ S.flatten_with tempo notes
+    Just notes -> Right $ S.tempo_notes $ S.flatten_with tempo notes
 
-type Meta sollu = S.Meta (Solkattu.Group sollu)
+type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
+
+-- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
+-- strokes so "Derive.Solkattu.Technique" can use them.
+data Group stroke = Group { _dropped :: ![stroke], _side :: !Solkattu.Side }
+    deriving (Eq, Ord, Show)
+
+instance Pretty stroke => Pretty (Group stroke) where
+    pretty (Group dropped side) = pretty (dropped, side)
 
 realize :: forall stroke sollu. (Pretty sollu, Solkattu.Notation stroke)
     => RealizePattern S.Tempo stroke -> GetStroke sollu stroke
-    -> [(Meta sollu, Solkattu.Note sollu)]
-    -> Either Error [(Meta (Stroke stroke), Note stroke)]
+    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> Either Error [Realized stroke]
 realize realize_pattern get_stroke =
-    fmap reassociate_strokes . realize_notes . map (first Just)
+    collect_groups <=< format_error . first concat . map_until_left realize1
     where
-    realize_notes = format_error . first concat . map_until_left realize1
-    -- Start of a group.  TODO there could be multiple groups if they are
-    -- nested, but I don't support that at the moment, so take the first one.
-    realize1 ((Just (S.Meta (S.GroupMark count group : _) tempo)), note) notes
-        | not (null (Solkattu._dropped group)) =
-            (, post) <$> realize_group group ((Just stripped, note) : pre)
-        where
-        (pre, post) = splitAt (count-1) notes
-        -- I want to keep the group for the output, but if I leave it as-is
-        -- I'll recurse endlessly.  Since realize_group will add the dropped
-        -- sollus on, I can strip them from the group, and prevent it from
-        -- happening again.
-        stripped = S.Meta [g] tempo
-        g = S.GroupMark count (group { Solkattu._dropped = [] })
-    realize1 (meta, note) notes = case note of
-        Solkattu.Alignment {} -> Right ([], notes)
-        Solkattu.Space space -> Right ([(meta, Space space)], notes)
-        Solkattu.Pattern p -> case meta of
-            Just m -> (,notes) . map (first (Just . add_meta)) <$>
-                realize_pattern (S._tempo m) p
-            -- This shouldn't be possible because Nothing meta is only created
-            -- by 'extra' below.
-            Nothing -> Left "Pattern with Nothing meta"
-        Solkattu.Note {} -> find_sequence get_stroke ((meta, note) : notes)
+    realize1 note@(S.FNote tempo n) notes = case n of
+        Solkattu.Alignment n -> Right ([S.FNote tempo (Alignment n)], notes)
+        Solkattu.Space space -> Right ([S.FNote tempo (Space space)], notes)
+        Solkattu.Pattern p -> do
+            tempo_notes <- realize_pattern tempo p
+            return (map (uncurry S.FNote) tempo_notes, notes)
+        Solkattu.Note {} -> find_sequence get_stroke (note : notes)
+    realize1 (S.FGroup tempo count g) notes = do
+        let (pre, post) = splitAt count notes
+        -- realize_pattern can change the length of the output, so I have to
+        -- recompute the group count.  TODO this is error-prone, making FGroup
+        -- not-flat would fix it, but likely make other things more
+        -- complicated.
+        realized <- format_error $ first concat $ map_until_left realize1 pre
+        return (S.FGroup tempo (length realized) g : realized, post)
 
-    format_error :: ([(a, Note stroke)], Maybe Text)
-        -> Either Error [(a, Note stroke)]
+    format_error :: ([S.Flat g (Note stroke)], Maybe Text)
+        -> Either Error [S.Flat g (Note stroke)]
     format_error (result, Nothing) = Right result
     format_error (pre, Just err) = Left $
-        TextUtil.joinWith "\n" (error_notation (map snd pre)) err
+        TextUtil.joinWith "\n" (error_notation (S.flattened_notes pre)) err
     error_notation = Text.unwords . map (justify_left 2 ' ' . Solkattu.notation)
 
-    realize_group :: Solkattu.Group sollu
-        -> [(Maybe (Meta sollu), Solkattu.Note sollu)]
-        -> Either Error [(Maybe (Meta sollu), Note stroke)]
-    realize_group (Solkattu.Group dropped side) =
-        first ("group: "<>) . realize_notes . add
-        where
-        -- Add the 'dropped' notes back on to the sequence to find matches.
-        -- Since they are the only ones with Nothing meta, I can strip them off
-        -- afterwards by filtering out Nothing meta.
-        add notes = case side of
-            Solkattu.Front -> extra ++ notes
-            Solkattu.Back -> notes ++ extra
-            where
-            extra = map ((Nothing,) . Solkattu.Note . Solkattu.note) dropped
+{- | Given a group like
 
--- | Take strokes with Nothing meta, and put them into the next Meta.
--- The Nothings were added by 'realize_group' out of 'Solkattu._dropped', so
--- this is putting them back into their groups after being converted to
--- strokes.
-reassociate_strokes :: forall sollu stroke.
-    [(Maybe (Meta sollu), Note stroke)] -> [(Meta (Stroke stroke), Note stroke)]
-reassociate_strokes = associate . span_until_just
+    > [S.FGroup 2 (Solkatttu.Group 1 Before), a, b, c]
+
+    collect dropped strokes into a 'Group':
+
+    > [S.FGroup 1 (Group [a] Before), b, c]
+-}
+collect_groups :: [S.Flat Solkattu.Group (Note stroke)]
+    -> Either Error [Realized stroke]
+collect_groups = go
     where
-    associate (_, []) = []
-    associate (strokes, (Just meta, stroke) : notes) =
-        (replace (mapMaybe note_of strokes) meta, stroke)
-            : reassociate_strokes notes
-    -- This shouldn't be possible, because span_until_just returns either
-    -- (_, []) or (_, (Just _, _) : _).
-    associate (_, (Nothing, _) : notes) = reassociate_strokes notes
-    replace :: [Stroke stroke] -> Meta sollu -> Meta (Stroke stroke)
-    replace strokes = fmap $ \g -> g { Solkattu._dropped = strokes }
+    go (S.FGroup tempo count g : notes) = do
+        (group, rest) <- collect_group tempo g pre
+        (group:) <$> go (rest ++ post)
+        where (pre, post) = splitAt count notes
+    go (S.FNote tempo note : notes) = (S.FNote tempo note :) <$> go notes
+    go [] = Right []
 
--- | Patterns just have (tempo, stroke), no groups, so I add empty groups to
--- merge their result into 'realize' output.
-add_meta :: S.Tempo -> S.Meta g
-add_meta tempo = S.Meta { _marks = [], _tempo = tempo }
+collect_group :: S.Tempo -> Solkattu.Group
+    -> [S.Flat Solkattu.Group (Note stroke)]
+    -> Either Error (Realized stroke, [S.Flat Solkattu.Group (Note stroke)])
+    -- ^ The updated Group, and the rest of the notes.  The rest are returned
+    -- unmodified because there might be nested groups inside, and I'll need to
+    -- call 'collect_group' on them too.
+collect_group tempo g@(Solkattu.Group split side) notes = do
+    -- Since 'split_strokes' will add the 'dropped' durations, 0 makes it split
+    -- after all dropped strokes.
+    -- Debug.tracepM "split" $ (split, S.fmatra_duration tempo split)
+    (left, (pre, post)) <- first (("dropping group " <> pretty g <> ": ") <>) $
+        split_strokes (S.fmatra_duration tempo split) notes
+    unless (left == 0) $
+        Left $ "split at " <> pretty split <> " is longer than the sequence, "
+            <> pretty left <> " aksharas left over"
+    let (kept, dropped) = case side of
+            Solkattu.Before -> (post, pre)
+            Solkattu.After -> (pre, post)
+    let group = Group
+            { _dropped = mapMaybe note_of $ S.flattened_notes dropped
+            , _side = side
+            }
+    return (S.FGroup tempo (length kept) group, kept)
+
+-- split_strokes2 :: S.Duration -> [S.Flat Solkattu.Group (Note stroke)]
+--     -> Either Error (S.Duration,
+--         ( [S.Flat Solkattu.Group (Note stroke)]
+--         , [S.Flat Solkattu.Group (Note stroke)]
+--         ))
+-- split_strokes2 dur (note : notes) = case note of
+--     S.FGroup tempo count (Solkattu.Group split side) -> do
+--         (left, (before, after)) <-
+--             split_strokes2 (S.fmatra_duration tempo split) pre
+--         unless (left == 0) $
+--             Left $ "split at " <> pretty split <> " is longer than the group, "
+--                 <> pretty left <> " aksharas left over"
+--         let (kept, dropped) = case side of
+--                 Solkattu.Before -> (after, before)
+--                 Solkattu.After -> (before, after)
+--         let group = Group
+--                 { _dropped = mapMaybe note_of $ S.flattened_notes dropped
+--                 , _side = side
+--                 }
+--         return (S.FGroup tempo (length kept) group, kept)
+--         where (pre, post) = splitAt count notes
+
+
+split_strokes :: S.Duration -> [S.Flat Solkattu.Group (Note stroke)]
+    -> Either Error (S.Duration,
+        ( [S.Flat Solkattu.Group (Note stroke)]
+        , [S.Flat Solkattu.Group (Note stroke)]
+        ))
+split_strokes dur [] = Right (dur, ([], []))
+split_strokes dur (grp@(S.FGroup tempo _ (Solkattu.Group split side)) : notes) =
+    add (grp:) $ case side of
+        Solkattu.Before -> do
+            -- Debug.tracepM "add Before" (dur*4, dropped_dur*4)
+            split_strokes (dur + dropped_dur) notes
+        Solkattu.After -> do
+            (left, (pre, post)) <- split_strokes dur notes
+            -- TODO I think this is wrong
+            -- Debug.tracepM "add After" (left*4, dropped_dur*4)
+            if left > 0
+                then add (pre++) $ split_strokes (left + dropped_dur) post
+                else return (left, (pre, post))
+            -- dur=2
+            -- split 2
+            -- g (ta ka | din) na
+    where
+    dropped_dur = S.fmatra_duration tempo split
+    add = fmap . second . first
+
+split_strokes dur (note@(S.FNote tempo n) : notes)
+    | dur <= 0 = Right (0, ([], note : notes))
+    | note_dur <= dur = do
+        -- Debug.tracepM "<=" (tempo, note_dur * 4, dur * 4)
+        add (note:) $ split_strokes (dur - note_dur) notes
+    | otherwise = case n of
+        Note _ -> Left "can't split a stroke"
+        Pattern p -> Left $ "can't split a pattern: " <> pretty p
+        Alignment _ -> Left "can't split 0 duration alignment"
+        Space space -> do
+            let make = fmap (map (uncurry S.FNote)) . make_space tempo space
+            pre <- make dur
+            post <- make (dur - note_dur)
+            return (0, (pre, post ++ notes))
+    where
+    note_dur = -- Debug.trace_retp "note_dur" (tempo, n, notes) $
+        note_duration tempo n
+    add = fmap . second . first
+
+-- | Try to produce Spaces of the given Duration.  Based on Notation.spaceD.
+make_space :: S.Tempo -> Solkattu.Space -> S.Duration
+    -> Either Error [(S.Tempo, Note stroke)]
+make_space tempo space dur = map make <$> S.decompose s0_matras
+    where
+    make speed = (tempo { S.speed = speed }, Space space)
+    s0_matras = dur * fromIntegral (S.nadai tempo)
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
 find_sequence :: Pretty sollu => GetStroke sollu stroke
-    -> [(meta, Solkattu.Note sollu)]
-    -> Either Error ([(meta, Note stroke)], [(meta, Solkattu.Note sollu)])
-find_sequence get_stroke notes = case best_match tag sollus get_stroke of
-    Nothing -> Left $ "sequence not found: " <> pretty sollus
-    Just strokes -> Right $ replace_sollus strokes notes
+    -> [S.Flat g (Solkattu.Note sollu)]
+    -> Either Error ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+find_sequence get_stroke notes =
+    case best_match tag sollus get_stroke of
+        Nothing -> Left $ "sequence not found: " <> pretty sollus
+        Just strokes -> Right $ replace_sollus strokes notes
     where
     -- Collect only sollus and rests, and strip the rests.
-    sollus = Maybe.catMaybes $ fst $ Seq.span_while (is_sollu . snd) notes
-    is_sollu (Solkattu.Note note) = Just (Just (Solkattu._sollu note))
+    sollus = Maybe.catMaybes $ fst $
+        Seq.span_while is_sollu (S.flattened_notes notes)
+    is_sollu (Solkattu.Note n) = Just $ Just $ Solkattu._sollu n
     is_sollu (Solkattu.Space {}) = Just Nothing
     is_sollu (Solkattu.Alignment {}) = Just Nothing
     is_sollu _ = Nothing
-    tag = Solkattu._tag =<< Seq.head (mapMaybe (Solkattu.note_of . snd) notes)
+    tag = Solkattu._tag
+        =<< Seq.head (mapMaybe Solkattu.note_of (S.flattened_notes notes))
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
 replace_sollus :: [Maybe (Stroke stroke)]
-    -> [(meta, Solkattu.Note sollu)]
-    -> ([(meta, Note stroke)], [(meta, Solkattu.Note sollu)])
+    -> [S.Flat g (Solkattu.Note sollu)]
+    -> ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
 replace_sollus [] ns = ([], ns)
-replace_sollus (stroke : strokes) ((meta, n) : ns) = case n of
-    Solkattu.Note _ -> first ((meta, rnote) :) (replace_sollus strokes ns)
-        where rnote = maybe (Space Solkattu.Rest) Note stroke
-    Solkattu.Space space -> first ((meta, Space space) :) next
-    Solkattu.Alignment {} -> next
-    -- This shouldn't happen because Seq.span_while is_sollu should have
-    -- stopped when it saw this.
-    Solkattu.Pattern {} -> next
+replace_sollus (stroke : strokes) (n : ns) = case n of
+    S.FGroup tempo count g -> first (S.FGroup tempo count g :) next
+    S.FNote tempo note -> case note of
+        Solkattu.Note _ ->
+            first (S.FNote tempo rnote :) $ replace_sollus strokes ns
+            where rnote = maybe (Space Solkattu.Rest) Note stroke
+        Solkattu.Space space -> first (S.FNote tempo (Space space) :) next
+        Solkattu.Alignment {} -> next
+        -- This shouldn't happen because Seq.span_while is_sollu should have
+        -- stopped when it saw this.
+        Solkattu.Pattern {} -> next
     where
+    -- Continue without consuming this stroke.
     next = replace_sollus (stroke : strokes) ns
 replace_sollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the StrokeMap should be
@@ -401,7 +536,7 @@ exact_match tag sollus (_, get_stroke) =
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Solkattu.Notation stroke => Maybe Int -> Int -> Tala.Tala
-    -> [(S.Meta a, Note stroke)] -> Text
+    -> [S.Flat g (Note stroke)] -> Text
 format override_stroke_width width tala notes =
     Text.stripEnd $ Terminal.fix_for_iterm $ attach_ruler ruler_avartanams
     where
@@ -448,11 +583,11 @@ format_final_avartanam avartanams = case reverse avartanams of
 
 -- | Break into [avartanam], where avartanam = [line].
 format_lines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
-    -> [(S.Meta a, Note stroke)] -> [[[(S.State, Symbol)]]]
+    -> [S.Flat g (Note stroke)] -> [[[(S.State, Symbol)]]]
 format_lines stroke_width width tala =
     format_final_avartanam . map (break_line width) . break_avartanams
         . map combine . Seq.zip_prev
-        . map_with_fst make_symbol
+        . map make_symbol
         . annotate_groups
         . S.normalize_speed tala
     where
@@ -460,30 +595,29 @@ format_lines stroke_width width tala =
         where
         overlap = maybe 0 (subtract stroke_width . text_length . _text . snd)
             prev
-    make_symbol state (bounds, s) = make bounds $ case s of
+    make_symbol (start_ends, (state, note)) = (state,) $ make $ case note of
         S.Attack a -> justify_left stroke_width ' ' (Solkattu.notation a)
         S.Sustain a -> Text.replicate stroke_width $ case a of
             Pattern {} -> "-"
             _ -> Solkattu.notation a
         S.Rest -> justify_left stroke_width ' ' "_"
         where
-        make bounds text = Symbol text (should_emphasize aksharas state) bounds
+        make text = Symbol text (should_emphasize aksharas state) start_ends
     aksharas = akshara_set tala
 
--- | Put StartEnd on the strokes to mark group boundaries.
-annotate_groups :: [([S.GroupMark g], (state, stroke))]
-    -> [(state, ([StartEnd], stroke))]
-annotate_groups = snd . List.mapAccumL go mempty . zip [0..]
+-- | Put StartEnd on the strokes to mark group boundaries.  This discards all
+-- other group data.
+annotate_groups :: [S.Flat g a] -> [([StartEnd], a)]
+annotate_groups =
+    Maybe.catMaybes . snd . List.mapAccumL go (mempty, 0) . zip [0..]
     where
-    go prev_end_set (i, (marks, (state, stroke))) =
-        ( end_set
-        , (state, (replicate starts Start ++ replicate ends End, stroke))
+    go (groups, starts) (i, S.FGroup _ count _) =
+        ((MultiSet.insert (i + count) groups, starts + 1), Nothing)
+    go (groups, starts) (i, S.FNote _ note) =
+        ( (groups, 0)
+        , Just (replicate starts Start ++ replicate ends End, note)
         )
-        where
-        end_set = foldr (MultiSet.insert . (+i) . subtract 1 . S._count)
-            prev_end_set marks
-        ends = MultiSet.occur i end_set
-        starts = length marks
+        where ends = MultiSet.occur i groups
 
 -- TODO these don't distinguish between different groups, but I'll probably
 -- want to do that once I have fancier formatting.
@@ -611,13 +745,13 @@ text_length = sum . map len . untxt
 -- * format html
 
 write_html :: Solkattu.Notation stroke => FilePath -> Tala.Tala
-    -> [[(S.Meta a, Note stroke)]] -> IO ()
+    -> [[S.Flat g (Note stroke)]] -> IO ()
 write_html fname tala =
     Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
     . map (Doc.un_html . format_html tala)
 
 format_html :: Solkattu.Notation stroke => Tala.Tala
-    -> [(S.Meta a, Note stroke)] -> Doc.Html
+    -> [S.Flat g (Note stroke)] -> Doc.Html
 format_html tala notes = to_table 30 (map Doc.html ruler) body
     where
     ruler = maybe [] (concatMap akshara . infer_ruler tala)
@@ -628,24 +762,24 @@ format_html tala notes = to_table 30 (map Doc.html ruler) body
     avartanams = format_table tala notes
 
 format_table :: Solkattu.Notation stroke => Tala.Tala
-    -> [(S.Meta a, Note stroke)] -> [[(S.State, Doc.Html)]]
+    -> [S.Flat g (Note stroke)] -> [[(S.State, Doc.Html)]]
 format_table tala =
     break_avartanams
-        . map_with_fst emphasize_akshara
-        . map (second show_stroke)
+        . map emphasize_akshara
+        . map show_stroke
         . annotate_groups
         . S.normalize_speed tala
     where
-    -- TODO use bounds to colorize groups
-    show_stroke (bounds, s) = case s of
+    -- TODO use start_end to colorize groups
+    show_stroke (start_end, (state, s)) = (state,) $ case s of
         S.Attack a -> Doc.html (Solkattu.notation a)
         S.Sustain a -> case a of
             Pattern {} -> "&mdash;"
             _ -> Doc.html $ Solkattu.notation a
         S.Rest -> "_"
-    emphasize_akshara state word
-        | should_emphasize aksharas state = "<b>" <> word <> "</b>"
-        | otherwise = word
+    emphasize_akshara (state, word)
+        | should_emphasize aksharas state = (state, "<b>" <> word <> "</b>")
+        | otherwise = (state, word)
     aksharas = akshara_set tala
 
 to_table :: Int -> [Doc.Html] -> [[Doc.Html]] -> Doc.Html
@@ -669,7 +803,7 @@ span_until_just ((Nothing, b) : abs) = first (b:) (span_until_just abs)
 span_until_just abs@((Just _, _) : _) = ([], abs)
 
 -- | Apply the function until it returns Left.  The function can consume a
--- variable number of elements.
+-- variable number of elements, ultimately because 'find_sequence' does.
 map_until_left :: (a -> [a] -> Either err (b, [a])) -> [a] -> ([b], Maybe err)
 map_until_left f = go
     where

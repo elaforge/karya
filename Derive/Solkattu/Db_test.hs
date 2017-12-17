@@ -14,6 +14,7 @@ import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
 import qualified Derive.Solkattu.Metadata as Metadata
 import qualified Derive.Solkattu.Realize as Realize
+import qualified Derive.Solkattu.Sequence as Sequence
 import qualified Derive.Solkattu.Solkattu as Solkattu
 
 import Global
@@ -50,7 +51,7 @@ realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
 realize korvai
     | not (null errors) = Left errors
     | not (null warnings) = Left warnings
-    | otherwise = Right $ map (map snd) notes
+    | otherwise = Right $ map Sequence.flattened_notes notes
     where
     (errors, results) = Either.partitionEithers $
         Korvai.realize Korvai.mridangam True korvai

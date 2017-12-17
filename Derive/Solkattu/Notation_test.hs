@@ -7,7 +7,7 @@ module Derive.Solkattu.Notation_test where
 import qualified Data.Tuple as Tuple
 
 import Util.Test
-import Derive.Solkattu.Dsl (su, sd, nadai, __)
+import Derive.Solkattu.Dsl (su, sd, __)
 import qualified Derive.Solkattu.DslSollu as DslSollu
 import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
 import qualified Derive.Solkattu.Korvai as Korvai
@@ -23,71 +23,45 @@ import Global
 di, ta, ka, ki :: SequenceT Solkattu.Sollu
 (di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
 
-test_splitD = do
-    equal ((map pretty *** map pretty) $ splitD (1/4) (ta <> ka))
-        (["([ka], Back)(ta)"], ["([ta], Front)(ka)"])
+taka :: SequenceT Solkattu.Sollu
+taka = ta <> ka
 
-    let f dur = (extract *** extract) . splitD dur
+-- Many of the Notation functions are indirectly tested in Realize_test.
+
+test_splitM = do
+    equal ((map pretty *** map pretty) $ splitM 1 taka)
+        (["(1, After)(ta ka)"], ["(1, Before)(ta ka)"])
+
+test_splitM_ = do
+    let f matras = fmap (extract *** extract) . splitM_either matras
         extract = map pretty . flatten_groups
-    equal (f (1/4) (su (ta <> ka) <> di)) (["s+1(ta ka)"], ["di"])
-    equal (f (1/4) (su (ta <> di <> ki <> ta) <> di))
-        (["s+1(ta di)"], ["s+1(ki ta)", "di"])
-    throws (f (1/4) (sd ta <> ka)) "can't split"
+    equal (f 1 (su taka <> di)) $ Right (["s+1(ta ka)"], ["di"])
+    equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $
+        Right (["s+1(ta di)"], ["s+1(ki ta)", "di"])
+    left_like (f 1 (sd ta <> ka)) "can't split"
 
     -- split rests
-    equal (f (1/4) (sd __ <> ka)) (["__"], ["__", "ka"])
-    equal (f (3/4) (sd (sd __) <> ka)) (["s-1(__)", "__"], ["__", "ka"])
+    equal (f 1 (sd __ <> ka)) $ Right (["__"], ["__", "ka"])
+    equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
 
-test_splitS_ = do
-    let f dur = (extract *** extract) . splitS_ dur
-        extract = map pretty . flatten_groups
-    let seq = su (ta <> ka) <> di
-    equal (f 0 seq) ([], ["s+1(ta ka)", "di"])
-    equal (f 1 seq) (["s+1(ta)"], ["s+1(ka)", "di"])
-    equal (f 2 seq) (["s+1(ta ka)"], ["di"])
-    equal (f 3 seq) (["s+1(ta ka)", "di"], [])
-
-test_spaceD = do
-    let f tempo = sum . map (S.note_duration tempo)
-            . spaceD Solkattu.Rest tempo
-    equal (f S.default_tempo 0) 0
-    equal (f S.default_tempo 1) 1
-    equal (f S.default_tempo (3/4)) (3/4)
-    throws (f S.default_tempo (1/3)) "not a binary multiple"
-    equal (f (S.Tempo 0 6 1) (1/3)) (1/3)
+test_spaceM = do
+    let f = sum . map (S.note_fmatra S.default_tempo) . spaceM Solkattu.Rest
+    equal (f 0) 0
+    equal (f 1) 1
+    equal (f 3) 3
+    equal (f (3/4)) (3/4)
+    throws (f (1/3)) "not a binary multiple"
 
 test_replaceStart = do
     let f prefix = map pretty . replaceStart prefix
     equal (f di (ta<>ki<>ta)) ["di", "ki", "ta"]
-    equal (f di (su (ta<>ka) <> ki)) ["di", "ki"]
+    equal (f di (su taka <> ki)) ["di", "ki"]
     -- split rests
     throws (f di (sd ta)) "can't split"
 
 test_align = do
     let f dur = map pretty . __a dur
     equal (f 1 ta) ["s-1(__)", "__", "ta"]
-
-test_groups = do
-    let Mridangam.Strokes {..} = Mridangam.notes
-    let run = realize_korvai
-            [ (taka, [k, t])
-            , (takita, [n, p, k])
-            ]
-        taka = ta <> ka
-        takita = ta <> ki <> ta
-    equal (run $ taka) $ Right [("k", 1/4), ("t", 1/4)]
-    equal (run $ dropM 1 $ taka) $ Right [("t", 1/4)]
-    -- TODO requires nested groups
-    -- equal (run $ dropM 1 $ dropM 1 $ takita) $ Right [("k", 1/4)]
-
-    equal (run $ su $ dropM 1 taka) $ Right [("t", 1/8)]
-    equal (run $ dropM 1 $ su $ taka <> taka) $ Right [("k", 1/8), ("t", 1/8)]
-    equal (run $ dropM 1 $ nadai 8 $ taka <> taka) $
-        Right [("k", 1/8), ("t", 1/8)]
-    equal (run $ dropM 2 $ nadai 6 $ takita <> takita) $
-        Right [("n", 1/6), ("p", 1/6), ("k", 1/6)]
-
--- reduce tested in Realize_test
 
 flatten_groups :: [S.Note g a] -> [S.Note () a]
 flatten_groups = S.flatten_groups
@@ -109,5 +83,5 @@ realize = extract . head . Korvai.realize Korvai.mridangam False
     where
     extract (Left err) = Left err
     extract (Right (strokes, _err)) = Right $ extract_strokes strokes
-    extract_strokes = map (Tuple.swap . second pretty) . S.tempo_to_duration
-        . map (first S._tempo)
+    extract_strokes = map (Tuple.swap . second pretty) . S.flattened_notes
+        . S.with_durations
